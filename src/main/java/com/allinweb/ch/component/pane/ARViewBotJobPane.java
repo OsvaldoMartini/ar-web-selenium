@@ -1890,6 +1890,13 @@ public class ARViewBotJobPane extends ARPane {
             String optionsConfig = preScanOptionsConfig();
 
             ensurePreScanBrowserOpen(browserType, endpointUrl, optionsConfig);
+            // Legacy parity: in AR Web Factory the page has been open (and hydrated) long
+            // before the user clicks Page Scanner. Here the scan can fire right after
+            // DOMContentLoaded, so wait until the network is quiet and the DOM stops
+            // mutating — otherwise the first scan sees the half-rendered page.
+            sendPreScanStatus("running", "Waiting for the page to settle...", 0);
+            long settledMs = preScanDriver.waitForPageSettled(15000);
+            log.info("PRE SCAN - page settled after {} ms", settledMs);
             sendPreScanStatus("running", "Scanning page elements...", 0);
             List<ElementDTO> elements = preScanDriver.scanElements(searchTermsArray(searchTerms), searchHidden);
             elements = keepActionableElements(elements);

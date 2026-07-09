@@ -153,6 +153,63 @@ public class ARPlaywrightDriver {
         return call(() -> elementScanner.scan(requirePage(), searchTerms, includeHidden));
     }
 
+    /**
+     * Best-effort "page settled" wait for JS-heavy sites, so a scan fired right after
+     * navigation sees the hydrated DOM instead of the bare DOMContentLoaded tree.
+     *
+     * <p>Two stages, both bounded by {@code maxWaitMs}:
+     *
+     * <ol>
+     *   <li>Network idle — tolerated on timeout, because sites with long-polling or
+     *       analytics beacons never reach idle.
+     *   <li>DOM stability probe — samples the total element count every 500 ms until two
+     *       consecutive samples match (no mutations for ~1 s), i.e. hydration and lazy
+     *       rendering stopped changing the tree.
+     * </ol>
+     *
+     * <p>Cheap when the page is already settled (~1 s for the confirming samples).
+     *
+     * @return how many milliseconds were actually spent waiting
+     */
+    public long waitForPageSettled(long maxWaitMs) {
+        return call(() -> {
+            Page settledPage = requirePage();
+            long start = System.currentTimeMillis();
+            long deadline = start + Math.max(0, maxWaitMs);
+
+            try {
+                double idleBudget = Math.max(1, Math.min(maxWaitMs / 2.0, deadline - System.currentTimeMillis()));
+                settledPage.waitForLoadState(
+                        LoadState.NETWORKIDLE, new Page.WaitForLoadStateOptions().setTimeout(idleBudget));
+            } catch (TimeoutError ignored) {
+                // Long-polling/analytics keep the network busy forever; the DOM probe decides.
+            }
+
+            long previousCount = -1;
+            int stableSamples = 0;
+            while (System.currentTimeMillis() < deadline && stableSamples < 2) {
+                long count;
+                try {
+                    Object result = settledPage.evaluate("() => document.querySelectorAll('*').length");
+                    count = result instanceof Number ? ((Number) result).longValue() : -1;
+                } catch (RuntimeException evalError) {
+                    // Navigation in flight or context destroyed — scan with what we have.
+                    break;
+                }
+                if (count >= 0 && count == previousCount) {
+                    stableSamples++;
+                } else {
+                    stableSamples = 0;
+                }
+                previousCount = count;
+                if (stableSamples < 2 && System.currentTimeMillis() < deadline) {
+                    settledPage.waitForTimeout(500);
+                }
+            }
+            return System.currentTimeMillis() - start;
+        });
+    }
+
     public boolean click(InstructionLoad instruction) {
         return call(() -> actionExecutor.click(requirePage(), instruction));
     }
