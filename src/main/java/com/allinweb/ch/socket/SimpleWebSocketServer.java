@@ -1257,6 +1257,9 @@ public class SimpleWebSocketServer {
                     jsonData = gson.toJson(splitDTO);
                     webSocketSessionManager.sendMessageJson(homeBankingId, "perform-list-data", jsonData, updteBlocks);
                     webSocketSessionManager.sendMessageJson(homeBankingId, "scannerGrid", jsonData, "blocksUpdate");
+                    // The pre-scan dashboard has its own session; without this its block
+                    // dropdown never refreshes after Create new block.
+                    webSocketSessionManager.sendMessageJson(homeBankingId, "preScannerGrid", jsonData, "blocksUpdate");
                     alreadySentMgsSocket = false;
                     break;
                 case "BLOCKS_SPLITTER":
