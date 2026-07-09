@@ -1893,6 +1893,7 @@ public class ARViewBotJobPane extends ARPane {
             sendPreScanStatus("running", "Scanning page elements...", 0);
             List<ElementDTO> elements = preScanDriver.scanElements(searchTermsArray(searchTerms), searchHidden);
             elements = keepActionableElements(elements);
+            resolvePreScanNames(elements);
             persistPreScanDiagnostics(elements);
             sendPreScanElements(elements);
             int count = elements == null ? 0 : elements.size();
@@ -1941,6 +1942,44 @@ public class ARViewBotJobPane extends ARPane {
             log.info("PRE SCAN - dropped {} non-actionable element(s) (no type/click/read action)", dropped);
         }
         return actionable;
+    }
+
+    /**
+     * Naming parity with the legacy Page Scanner: screenshot the pre-scan browser,
+     * correlate the scanned element rects with the OCR words, and let
+     * {@code ElementTextResolver} fill {@code definedName} / correct {@code someText} —
+     * the same chain {@code PerformListElements} runs after a legacy scan. Mutates the
+     * elements in place BEFORE they are dumped/sent, so both the dashboard and
+     * {@code elementDTO-PS-BJ.json} carry resolved names. Failures are non-fatal: the
+     * scan still ships, just with unresolved names.
+     */
+    private void resolvePreScanNames(List<ElementDTO> elements) {
+        if (elements == null || elements.isEmpty()) {
+            return;
+        }
+        try {
+            sendPreScanStatus("running", "Resolving element names (OCR)...", elements.size());
+            String jsonPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+            Integer scanHomeBankingId = selectedBotJob.getHomeBankingId();
+            Integer scanHomeUrlId = selectedBotJob.getHomeUrlId();
+            ElementDTO[] asArray = elements.toArray(new ElementDTO[0]);
+
+            com.allinweb.ch.util.PageDiagnosticDumper.dumpRectsFromElements(
+                    preScanDriver, asArray, jsonPath, "page-BJ");
+            com.allinweb.ch.util.PageOcrDumper.runAndDump(
+                    preScanDriver, asArray, jsonPath, "page-BJ", scanHomeBankingId, scanHomeUrlId);
+
+            com.allinweb.ch.model.OcrConfig resolverCfg =
+                    com.allinweb.ch.facade.OcrConfigService.getInstance().resolveFor(scanHomeBankingId, scanHomeUrlId);
+            // The correlation file name is fixed by PageOcrDumper regardless of prefix.
+            com.allinweb.ch.facade.ElementTextResolver.resolveAll(
+                    asArray,
+                    java.nio.file.Paths.get(
+                            jsonPath, com.allinweb.ch.util.PageDiagnosticDumper.SUBFOLDER, "ocr-correlation-HP.json"),
+                    resolverCfg);
+        } catch (Exception ocrError) {
+            log.warn("PRE SCAN - OCR name resolution failed (non-fatal): {}", ocrError.getMessage());
+        }
     }
 
     /**
