@@ -1989,6 +1989,13 @@ public class ARViewBotJobPane extends ARPane {
             com.allinweb.ch.util.PageOcrDumper.runAndDump(
                     preScanDriver, asArray, jsonPath, "page-BJ", scanHomeBankingId, scanHomeUrlId);
 
+            // Keep the pre-OCR scanned text so the dashboard's per-block OCR review panel
+            // can show scanned vs resolved and let the client agree/defer per element.
+            String[] scannedTexts = new String[asArray.length];
+            for (int i = 0; i < asArray.length; i++) {
+                scannedTexts[i] = asArray[i] == null ? null : asArray[i].getSomeText();
+            }
+
             com.allinweb.ch.model.OcrConfig resolverCfg =
                     com.allinweb.ch.facade.OcrConfigService.getInstance().resolveFor(scanHomeBankingId, scanHomeUrlId);
             // The correlation file name is fixed by PageOcrDumper regardless of prefix.
@@ -1997,6 +2004,20 @@ public class ARViewBotJobPane extends ARPane {
                     java.nio.file.Paths.get(
                             jsonPath, com.allinweb.ch.util.PageDiagnosticDumper.SUBFOLDER, "ocr-correlation-HP.json"),
                     resolverCfg);
+
+            for (int i = 0; i < asArray.length; i++) {
+                ElementDTO element = asArray[i];
+                String scanned = scannedTexts[i];
+                if (element == null || Strings.isNullOrEmpty(scanned) || scanned.equals(element.getSomeText())) {
+                    continue;
+                }
+                AttributeData[] existing =
+                        element.getAttributeData() == null ? new AttributeData[0] : element.getAttributeData();
+                AttributeData[] updated = new AttributeData[existing.length + 1];
+                System.arraycopy(existing, 0, updated, 0, existing.length);
+                updated[existing.length] = new AttributeData("scanned-text", scanned);
+                element.setAttributeData(updated);
+            }
         } catch (Exception ocrError) {
             log.warn("PRE SCAN - OCR name resolution failed (non-fatal): {}", ocrError.getMessage());
         }
