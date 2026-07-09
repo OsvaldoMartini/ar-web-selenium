@@ -1,5 +1,23 @@
 # PRE SCAN React Dashboard Roadmap
 
+## Status (2026-07-09)
+
+- Phase 1 Frontend session support: DONE (`preScannerGrid` -> `GridItemScann mode="preScan"`).
+- Phase 2 Backend PreScan service: DONE as deviation - logic lives inline in `ARViewBotJobPane`
+  (`runPreScan` etc.), not a separate `PreScanService`; extraction still desirable.
+- Phase 3 Toolbar: DONE as deviation - `PRE SCAN` button is a view toggle (PRE SCAN <-> BOT JOB);
+  scan runs from the dashboard's Page Scanner button; status streams as WAITING/SCANNING phases.
+- Phase 4 Dashboard container: DONE (swaps into componentBox; reset-then-chunks; browser reused).
+- Phase 5 Persistence boundary: DONE - `PreScanApplyService` persists Apply when AR Web Factory
+  is closed (pane path untouched when open). Pre-scan itself writes no instructions.
+- Phase 6: items 2/3/4 DONE (search terms, OCR config shortcut, clear grid). Open: focus profile
+  backend honor, HTML review, support request, scanner diagnostics.
+- Phase 7 Parity (added): DONE - select DTO normalization (decided-category convention),
+  category grouping in React grids, `elementDTO-PS-BJ.json` + AI variant dumps, OCR name
+  resolution in pre-scan, page-settle wait, actionable-elements filter, legacy default search
+  profile on empty terms. Compared via `PreScanDumpComparisonTest`
+  (report: `<path_db>/page_diagnostics/elementDTO-PS-compare-report.txt`).
+
 ## Objective
 
 Add a `PRE SCAN` flow before `TEST RUN` that scans the selected URL with Playwright, sends found `ElementDTO` records to a lightweight React dashboard, and lets the user select/apply elements later.
