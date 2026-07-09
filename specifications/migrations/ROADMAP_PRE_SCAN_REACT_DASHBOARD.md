@@ -43,15 +43,20 @@ control's visibility in the legacy pane. setVisible(false) => skip, do not port.
    (replaces the legacy result modal + checkNotShowTestMsg).
 2. DONE (30a0ac3 FE / 16c80990 bundle): row save in preScan mode carries the Memory List's
    selected block, or asks the user to pick one.
-3. Row details button (DETAILS_ELEMENT_DTO): only fills the legacy pane's text fields -
-   hide in preScan mode (nothing to fill without the pane).
-4. UPDATE_ALL_ELEMENTS_DTO (re-scan locator refresh): pane-only path today; verify the
-   button is exposed in preScan mode and either port or hide.
-5. OCR "Accept OCR Name" suggestions target scanner sessions only; route to preScannerGrid
-   too (low priority - pre-scan already auto-resolves names during the scan).
-6. Retirement: once 1-2 are done and verified, Banca Stato workflow no longer needs
-   ARScannedElementPane for element picking; keep the pane for other clients per the
-   original migration rule.
+3. DONE: row details button (DETAILS_ELEMENT_DTO) hidden in preScan mode - it only fills
+   the legacy pane's text fields.
+4. DONE: 'Insert All Elements' (sends no blockId; Memory List '+' -> Apply is the single
+   insert path) and 'Update All Elements' (pane-only path) hidden in preScan mode.
+5. SUPERSEDED: the per-block OCRPanel (agree/defer scanned vs OCR name, find + pagination)
+   replaces the AROcrTestResultsPane accept-names routing for the dashboard.
+6. Phase 6 item 7 (scanner diagnostics): CLOSED as excluded - the legacy pane has no
+   visible diagnostics control to port (visible-false rule).
+7. Retirement: code work is functionally complete. After the user's end-to-end
+   verification session (fresh browser, AR Web Factory closed: scan names/labels,
+   id/id-test/OCR toggles, memory apply, tests, comparison run), Banca Stato works
+   dashboard-only; ARScannedElementPane stays for other clients per the original rule.
+   Known open item on the branch (backend terminal): ElementTextResolverTest casing
+   failure ('category filter' vs 'Category Filter') breaks full mvn test.
 - Phase 7 Parity (added): DONE - select DTO normalization (decided-category convention),
   category grouping in React grids, `elementDTO-PS-BJ.json` + AI variant dumps, OCR name
   resolution in pre-scan, page-settle wait, actionable-elements filter, legacy default search
