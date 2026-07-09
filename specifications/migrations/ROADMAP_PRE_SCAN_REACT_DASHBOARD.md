@@ -20,6 +20,37 @@
 
 Migration rule (2026-07-09): before migrating any ARScannedElementPane feature, check its
 control's visibility in the legacy pane. setVisible(false) => skip, do not port.
+
+## Excluded from migration (user decision 2026-07-09 - Banca Stato needs visible features only)
+
+- DOM review / support request (legacy buttons hidden; backend slice reverted 297ddfd9)
+- Clone / HOVER PICK (cloneElementsButton, checkCloneElement, coords fields)
+- "For Click" / "For Input" / "For Output (Excel Export)" checkboxes (the scanner's decided
+  typeElement is the source of truth in the dashboard flow)
+- configureButton (opens bank config scene - reachable elsewhere)
+- Plugin update button / hints (hidden)
+- Search Hidden Fields toggle button (hidden in legacy; dashboard has its own checkbox)
+- Pre Launch / STOP / countdown (already owned by ARViewBotJobPane toolbar)
+
+## Remaining for 100% (visible + needed features only)
+
+1. Row "Test Click" / "Test Input" from the dashboard: currently forwarded to the
+   scanner-element-pane session and SWALLOWED when AR Web Factory is closed. Needs a
+   pane-free executor against the ISOLATED preScanDriver (ARPlaywrightDriver.click/fill
+   already exist; reuse PreScanApplyService's ElementDTO->InstructionLoad mapping) and a
+   result push back to the dashboard (replaces checkNotShowTestMsg).
+2. Row save button (single NEW_ELEMENT_DTO): the FE sends NO blockId, so the pane-free
+   apply rejects it ("select a target block"). Either carry the memory-list's selected
+   block on row save, or hide the row save in preScan mode in favor of the memory list.
+3. Row details button (DETAILS_ELEMENT_DTO): only fills the legacy pane's text fields -
+   hide in preScan mode (nothing to fill without the pane).
+4. UPDATE_ALL_ELEMENTS_DTO (re-scan locator refresh): pane-only path today; verify the
+   button is exposed in preScan mode and either port or hide.
+5. OCR "Accept OCR Name" suggestions target scanner sessions only; route to preScannerGrid
+   too (low priority - pre-scan already auto-resolves names during the scan).
+6. Retirement: once 1-2 are done and verified, Banca Stato workflow no longer needs
+   ARScannedElementPane for element picking; keep the pane for other clients per the
+   original migration rule.
 - Phase 7 Parity (added): DONE - select DTO normalization (decided-category convention),
   category grouping in React grids, `elementDTO-PS-BJ.json` + AI variant dumps, OCR name
   resolution in pre-scan, page-settle wait, actionable-elements filter, legacy default search
