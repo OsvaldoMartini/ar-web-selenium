@@ -10,8 +10,12 @@
 - Phase 4 Dashboard container: DONE (swaps into componentBox; reset-then-chunks; browser reused).
 - Phase 5 Persistence boundary: DONE - `PreScanApplyService` persists Apply when AR Web Factory
   is closed (pane path untouched when open). Pre-scan itself writes no instructions.
-- Phase 6: items 2/3/4 DONE (search terms, OCR config shortcut, clear grid). Open: focus profile
-  backend honor, HTML review, support request, scanner diagnostics.
+- Phase 6: items 1-6 DONE. Focus profile (1) is honored via the search terms it expands to;
+  search terms (2), OCR config shortcut (3), clear grid (4) via PRE_SCAN_* commands;
+  HTML review (5) and support request (6) via PRE_SCAN_SEND_DOM_REVIEW /
+  PRE_SCAN_REQUEST_SUPPORT with session-routed responses ('send' stays MultiPlugins-gated
+  like the legacy pane; DOM 'save' writes the local .support envelope).
+  Open: scanner diagnostics (7).
 - Phase 7 Parity (added): DONE - select DTO normalization (decided-category convention),
   category grouping in React grids, `elementDTO-PS-BJ.json` + AI variant dumps, OCR name
   resolution in pre-scan, page-settle wait, actionable-elements filter, legacy default search
