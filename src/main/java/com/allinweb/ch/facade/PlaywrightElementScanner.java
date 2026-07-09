@@ -676,8 +676,11 @@ public class PlaywrightElementScanner {
             return false;
         }
 
+        // "radio" is deliberately NOT excluded: radios are set like inputs by the engine
+        // (RADIO AS INPUT — see radioInputFromPageScannerStaysInputNotButton), so an
+        // <input type="radio"> must classify as input even when the JS scan said button.
         String type = Objects.toString(attr(attributeData, "type"), "").toLowerCase(Locale.ROOT);
-        return !List.of("button", "submit", "reset", "file", "checkbox", "radio", "hidden")
+        return !List.of("button", "submit", "reset", "file", "checkbox", "hidden")
                 .contains(type);
     }
 
