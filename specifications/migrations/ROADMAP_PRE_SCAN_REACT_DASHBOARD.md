@@ -31,6 +31,10 @@ control's visibility in the legacy pane. setVisible(false) => skip, do not port.
 - Plugin update button / hints (hidden)
 - Search Hidden Fields toggle button (hidden in legacy; dashboard has its own checkbox)
 - Pre Launch / STOP / countdown (already owned by ARViewBotJobPane toolbar)
+- New DB column for element id on instruction / component_instruction: DEFERRED as
+  redundant - the raw id and testing attributes already travel on the ElementDTO
+  (attribId / attributeData) and into the references table (attributeId) on insert;
+  the dashboard exposes them via the block-header 'id' / 'id-test' toggles.
 
 ## Remaining for 100% (visible + needed features only)
 
