@@ -92,7 +92,9 @@ class ElementTextResolverTest {
 
         ElementTextResolver.resolveAll(new ElementDTO[] {checkbox}, null, null);
 
-        assertEquals("category filter", checkbox.getSomeText());
+        // someText carries display casing (TextSimilarity.humanize Title-Cases by design,
+        // matching visible-text names elsewhere); definedName is the lowercase slug.
+        assertEquals("Category Filter", checkbox.getSomeText());
         assertEquals("category_filter", checkbox.getDefinedName());
     }
 }
