@@ -34,14 +34,11 @@ control's visibility in the legacy pane. setVisible(false) => skip, do not port.
 
 ## Remaining for 100% (visible + needed features only)
 
-1. Row "Test Click" / "Test Input" from the dashboard: currently forwarded to the
-   scanner-element-pane session and SWALLOWED when AR Web Factory is closed. Needs a
-   pane-free executor against the ISOLATED preScanDriver (ARPlaywrightDriver.click/fill
-   already exist; reuse PreScanApplyService's ElementDTO->InstructionLoad mapping) and a
-   result push back to the dashboard (replaces checkNotShowTestMsg).
-2. Row save button (single NEW_ELEMENT_DTO): the FE sends NO blockId, so the pane-free
-   apply rejects it ("select a target block"). Either carry the memory-list's selected
-   block on row save, or hide the row save in preScan mode in favor of the memory list.
+1. DONE (6e6b52cf): Row "Test Click" / "Test Input" run pane-free on the ISOLATED
+   preScanDriver when AR Web Factory is closed; results stream to the dashboard status bar
+   (replaces the legacy result modal + checkNotShowTestMsg).
+2. DONE (30a0ac3 FE / 16c80990 bundle): row save in preScan mode carries the Memory List's
+   selected block, or asks the user to pick one.
 3. Row details button (DETAILS_ELEMENT_DTO): only fills the legacy pane's text fields -
    hide in preScan mode (nothing to fill without the pane).
 4. UPDATE_ALL_ELEMENTS_DTO (re-scan locator refresh): pane-only path today; verify the
