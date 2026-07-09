@@ -1892,6 +1892,7 @@ public class ARViewBotJobPane extends ARPane {
             ensurePreScanBrowserOpen(browserType, endpointUrl, optionsConfig);
             sendPreScanStatus("running", "Scanning page elements...", 0);
             List<ElementDTO> elements = preScanDriver.scanElements(searchTermsArray(searchTerms), searchHidden);
+            elements = keepActionableElements(elements);
             persistPreScanDiagnostics(elements);
             sendPreScanElements(elements);
             int count = elements == null ? 0 : elements.size();
@@ -1914,6 +1915,32 @@ public class ARViewBotJobPane extends ARPane {
         } finally {
             preScanRunning.set(false);
         }
+    }
+
+    /**
+     * Every element the pre-scan ships must map to an executable action: input = the bot
+     * can type, button = it can click, output/label = it can read. Anything else (bare
+     * div/span containers matched by a broad selector) is noise for the dashboard and the
+     * diagnostics dumps, so it is dropped here — pre-scan path only, legacy untouched.
+     */
+    private List<ElementDTO> keepActionableElements(List<ElementDTO> elements) {
+        if (elements == null || elements.isEmpty()) {
+            return elements;
+        }
+        List<ElementDTO> actionable = new ArrayList<>();
+        for (ElementDTO element : elements) {
+            String type = element == null
+                    ? ""
+                    : java.util.Objects.toString(element.getTypeElement(), "").toLowerCase(java.util.Locale.ROOT);
+            if (type.equals("input") || type.equals("button") || type.equals("output") || type.equals("label")) {
+                actionable.add(element);
+            }
+        }
+        int dropped = elements.size() - actionable.size();
+        if (dropped > 0) {
+            log.info("PRE SCAN - dropped {} non-actionable element(s) (no type/click/read action)", dropped);
+        }
+        return actionable;
     }
 
     /**
@@ -2016,7 +2043,10 @@ public class ARViewBotJobPane extends ARPane {
 
     private String[] searchTermsArray(String searchTerms) {
         if (Strings.isNullOrEmpty(searchTerms)) {
-            return new String[0];
+            // Same default profile the AR Web Factory pane scans with. Empty terms
+            // would fall through to the scanner's kitchen-sink DEFAULT_SELECTOR
+            // (which ends in "span, div") and flood the grid with container junk.
+            return new String[] {"input", "textarea", "button", "a", "select", "label"};
         }
         return java.util.Arrays.stream(searchTerms.split(","))
                 .map(String::trim)
