@@ -14,6 +14,7 @@ import com.allinweb.ch.facade.PerformDBEngine;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
+import com.allinweb.ch.facade.PreScanApplyService;
 import com.allinweb.ch.license.LicenceVal;
 import com.allinweb.ch.license.LicenseManager;
 import com.allinweb.ch.model.*;
@@ -2056,6 +2057,66 @@ public class ARViewBotJobPane extends ARPane {
         }
         log.info("PRE SCAN - scanning current isolated browser page {}", currentUrl);
         sendPreScanStatus("waiting", "Loading the Page - Using current browser page...", 0);
+    }
+
+    /**
+     * Pane-free row test (Test Click / Test Input) against the ISOLATED pre-scan browser.
+     * The legacy path runs {@code ARScannedElementPane.testingActions} on the shared
+     * driver; here the scanned page lives in {@code preScanDriver}, so the test must too.
+     * Results stream to the dashboard status bar (done/failed) instead of a modal.
+     */
+    public void handlePreScanElementTest(SplitDTO splitDTO, String testType) {
+        if (preScanDriver == null || !preScanDriver.isOpen()) {
+            sendPreScanStatus("failed", "No pre-scan browser open. Run the Page Scanner first.", 0);
+            return;
+        }
+        ElementDTO[] details = splitDTO == null ? null : splitDTO.getElementDetails();
+        if (details == null || details.length == 0 || details[0] == null) {
+            return;
+        }
+        ElementDTO elementDTO = details[0];
+        Thread worker = new Thread(
+                () -> runPreScanElementTest(elementDTO, testType),
+                "pre-scan-test-" + (selectedBotJob == null ? "unknown" : selectedBotJob.getId()));
+        worker.setDaemon(true);
+        worker.start();
+    }
+
+    private void runPreScanElementTest(ElementDTO elementDTO, String testType) {
+        boolean isClick = "TEST_CLICK_DTO".equals(testType);
+        String actionLabel = isClick ? "Test Click" : "Test Input";
+        // Same display chain the grids use: clientNamed > definedName > someText > tagName.
+        String label = !Strings.isNullOrEmpty(elementDTO.getClientNamed())
+                ? elementDTO.getClientNamed()
+                : !Strings.isNullOrEmpty(elementDTO.getDefinedName())
+                        ? elementDTO.getDefinedName()
+                        : !Strings.isNullOrEmpty(elementDTO.getSomeText())
+                                ? elementDTO.getSomeText()
+                                : elementDTO.getTagName();
+        try {
+            InstructionLoad instruction = PreScanApplyService.getInstance().buildTestInstruction(elementDTO);
+            if (instruction == null) {
+                sendPreScanStatus("failed", actionLabel + " failed - cannot map element: " + label, 0);
+                return;
+            }
+
+            sendPreScanStatus("running", actionLabel + " - " + label, 0);
+            boolean passed;
+            if (isClick) {
+                passed = preScanDriver.click(instruction);
+            } else {
+                // The grid rides the test value in defaultValue ('abc'); keep that fallback.
+                String value =
+                        Strings.isNullOrEmpty(elementDTO.getDefaultValue()) ? "abc" : elementDTO.getDefaultValue();
+                passed = preScanDriver.fill(instruction, new FieldData(instruction.getName(), value));
+            }
+            sendPreScanStatus(
+                    passed ? "done" : "failed", actionLabel + (passed ? " passed - " : " failed - ") + label, 0);
+            log.info("PRE SCAN {} {} for element '{}'", actionLabel, passed ? "passed" : "failed", label);
+        } catch (Exception error) {
+            log.error("PRE SCAN {} failed for '{}'", actionLabel, label, error);
+            sendPreScanStatus("failed", actionLabel + " failed - " + error.getMessage(), 0);
+        }
     }
 
     private String preScanOptionsConfig() {

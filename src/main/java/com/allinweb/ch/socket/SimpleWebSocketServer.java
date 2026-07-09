@@ -1214,7 +1214,13 @@ public class SimpleWebSocketServer {
                         }
                     } else if (splitDTO.getElementDetails() != null && splitDTO.getElementDetails().length > 0) {
                         boolean isInsertType = "NEW_ELEMENT_DTO".equals(type) || "SEND_ALL_ELEMENTS_DTO".equals(type);
-                        if (isInsertType && !WebSocketSessionManager.isSessionOpen("scanner-element-pane")) {
+                        boolean isTestType = "TEST_CLICK_DTO".equals(type) || "TEST_INPUT_DTO".equals(type);
+                        boolean paneOpen = WebSocketSessionManager.isSessionOpen("scanner-element-pane");
+                        if (isTestType && !paneOpen) {
+                            // PRE SCAN dashboard row test with AR Web Factory closed: the scanned
+                            // page lives in the isolated pre-scan browser, so the test runs there.
+                            ARViewBotJobPane.getInstance().handlePreScanElementTest(splitDTO, type);
+                        } else if (isInsertType && !paneOpen) {
                             // PRE SCAN dashboard Apply with AR Web Factory closed: the pane
                             // session would swallow the message, so persist via the pane-free
                             // service instead (same insert + botJobTasks refresh).

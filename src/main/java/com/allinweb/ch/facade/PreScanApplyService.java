@@ -138,6 +138,15 @@ public final class PreScanApplyService {
         return null;
     }
 
+    /**
+     * Maps a scanned element to a transient {@link InstructionLoad} for pane-free row tests
+     * (Test Click / Test Input on the pre-scan browser). Nothing is persisted — the ids are
+     * placeholders; only the locator/coordinates/flags mapping matters to the executor.
+     */
+    public InstructionLoad buildTestInstruction(ElementDTO elementDTO) {
+        return buildInstruction(elementDTO, 0, 0, 1);
+    }
+
     /** Pane-free mirror of {@code prepareToInsertElementDTO} with {@code manyElements=true}. */
     private InstructionLoad buildInstruction(ElementDTO elementDTO, int botJobId, int blockId, int orderNumber) {
         TargetElement target = TargetElementHelper.getInstance().extractPickClone(elementDTO, true);
