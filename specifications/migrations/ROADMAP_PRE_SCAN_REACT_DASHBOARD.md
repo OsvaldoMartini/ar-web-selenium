@@ -10,12 +10,16 @@
 - Phase 4 Dashboard container: DONE (swaps into componentBox; reset-then-chunks; browser reused).
 - Phase 5 Persistence boundary: DONE - `PreScanApplyService` persists Apply when AR Web Factory
   is closed (pane path untouched when open). Pre-scan itself writes no instructions.
-- Phase 6: items 1-6 DONE. Focus profile (1) is honored via the search terms it expands to;
-  search terms (2), OCR config shortcut (3), clear grid (4) via PRE_SCAN_* commands;
-  HTML review (5) and support request (6) via PRE_SCAN_SEND_DOM_REVIEW /
-  PRE_SCAN_REQUEST_SUPPORT with session-routed responses ('send' stays MultiPlugins-gated
-  like the legacy pane; DOM 'save' writes the local .support envelope).
-  Open: scanner diagnostics (7).
+- Phase 6: items 1-4 DONE. Focus profile (1) is honored via the search terms it expands to;
+  search terms (2), OCR config shortcut (3), clear grid (4) via PRE_SCAN_* commands.
+  Items 5 (HTML review) and 6 (support request) DEFERRED by rule: their legacy buttons are
+  setVisible(false) in ARScannedElementPane and the dashboard buttons are display:none —
+  do NOT migrate legacy-hidden features (Banca Stato only needs the visible ones). The
+  backend slice was reverted (297ddfd9). Item 7 (scanner diagnostics) follows the same rule
+  if its legacy entry point is hidden.
+
+Migration rule (2026-07-09): before migrating any ARScannedElementPane feature, check its
+control's visibility in the legacy pane. setVisible(false) => skip, do not port.
 - Phase 7 Parity (added): DONE - select DTO normalization (decided-category convention),
   category grouping in React grids, `elementDTO-PS-BJ.json` + AI variant dumps, OCR name
   resolution in pre-scan, page-settle wait, actionable-elements filter, legacy default search
