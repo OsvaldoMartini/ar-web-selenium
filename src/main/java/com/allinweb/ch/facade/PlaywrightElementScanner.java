@@ -180,6 +180,18 @@ public class PlaywrightElementScanner {
                 const placeholderText = usefulText(placeholder, el, kind);
                 if (placeholderText) return placeholderText;
 
+                // Self-labeled elements (buttons, links, options, labels...) carry their
+                // own visible text - that IS the name. Only unlabeled form controls
+                // (input/textarea/select) need the label hunt below. Without this gate the
+                // container-id humanize step renamed self-labeled elements to their DOM id
+                // (e.g. 'Accetta tutti i cookie' became 'onetrust accept btn handler',
+                // because closest('[id]') matches the element itself).
+                const selfTag = el.tagName.toLowerCase();
+                if (!['input', 'textarea', 'select'].includes(selfTag)) {
+                  const selfText = usefulText(el.innerText || el.textContent, el, kind);
+                  if (selfText) return selfText;
+                }
+
                 let current = el;
                 for (let depth = 0; current && depth < 5; depth++, current = current.parentElement) {
                   const previous = current.previousElementSibling;
