@@ -1213,7 +1213,20 @@ public class SimpleWebSocketServer {
                             }
                         }
                     } else if (splitDTO.getElementDetails() != null && splitDTO.getElementDetails().length > 0) {
-                        webSocketSessionManager.sendMessageJson("scanner-element-pane", gson.toJson(splitDTO));
+                        boolean isInsertType = "NEW_ELEMENT_DTO".equals(type) || "SEND_ALL_ELEMENTS_DTO".equals(type);
+                        if (isInsertType && !WebSocketSessionManager.isSessionOpen("scanner-element-pane")) {
+                            // PRE SCAN dashboard Apply with AR Web Factory closed: the pane
+                            // session would swallow the message, so persist via the pane-free
+                            // service instead (same insert + botJobTasks refresh).
+                            ErrorMessage applyError =
+                                    PreScanApplyService.getInstance().applyElements(splitDTO);
+                            if (applyError != null) {
+                                log.error("PRE SCAN Apply failed: {}", applyError.getErrorMessage());
+                                performMessage.errorMessageOperationFailed(applyError);
+                            }
+                        } else {
+                            webSocketSessionManager.sendMessageJson("scanner-element-pane", gson.toJson(splitDTO));
+                        }
                     }
                     alreadySentMgsSocket = true;
                     break;
