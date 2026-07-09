@@ -1767,8 +1767,20 @@ public class ARViewBotJobPane extends ARPane {
 
     private void togglePreScanDashboard() {
         if (componentBox == null) {
+            log.warn("PRE SCAN toggle skipped: componentBox is null");
             return;
         }
+
+        // Decide from what is ACTUALLY displayed, not the isPreScannerVisible flag:
+        // other handlers (componentButton, refresh flows) reset the flag without
+        // restoring the view, and a desynced flag makes the first click a no-op.
+        boolean showingDashboard = componentBox.getChildren().contains(webViewPreScanner);
+        log.info(
+                "PRE SCAN toggle: showingDashboard={} flag={} children={}",
+                showingDashboard,
+                isPreScannerVisible,
+                componentBox.getChildren().size());
+        isPreScannerVisible = showingDashboard;
 
         componentBox.getChildren().clear();
         if (isPreScannerVisible) {
