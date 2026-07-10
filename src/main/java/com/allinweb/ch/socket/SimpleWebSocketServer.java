@@ -177,6 +177,32 @@ public class SimpleWebSocketServer {
                             "echo: " + jsonObjMSG.get("body").getAsString(),
                             "sessionId: " + sessionId);
                     break;
+                case "commandEditor.bootstrap":
+                    sendCommandEditorResponse(
+                            homeBankingId,
+                            sessionId,
+                            "commandEditor.bootstrapResponse",
+                            CommandEditorService.getInstance().bootstrap(extractBody(jsonObjMSG)));
+                    break;
+                case "commandEditor.apply":
+                    sendCommandEditorResponse(
+                            homeBankingId,
+                            sessionId,
+                            "commandEditor.applyResponse",
+                            CommandEditorService.getInstance().apply(extractBody(jsonObjMSG)));
+                    break;
+                case "variableEditor.bootstrap":
+                    sendCommandEditorResponse(homeBankingId, sessionId, "variableEditor.bootstrapResponse",
+                            VariableEditorService.getInstance().list(extractBody(jsonObjMSG)));
+                    break;
+                case "variableEditor.save":
+                    sendCommandEditorResponse(homeBankingId, sessionId, "variableEditor.saveResponse",
+                            VariableEditorService.getInstance().save(extractBody(jsonObjMSG)));
+                    break;
+                case "variableEditor.delete":
+                    sendCommandEditorResponse(homeBankingId, sessionId, "variableEditor.deleteResponse",
+                            VariableEditorService.getInstance().delete(extractBody(jsonObjMSG)));
+                    break;
                 case "botJob.getInputInstructions":
                     handleBotJobInputInstructions(jsonObjMSG, sessionId, homeBankingId);
                     break;
@@ -2579,6 +2605,11 @@ public class SimpleWebSocketServer {
         String jsonData = gson.toJson(webSockteSocketSignal);
 
         webSocketSessionManager.sendMessageJson(homeBankId, sessionId, jsonData, operationId);
+    }
+
+    private void sendCommandEditorResponse(
+            int homeBankId, String sessionId, String operationId, JsonObject response) {
+        webSocketSessionManager.sendMessageJson(homeBankId, sessionId, gson.toJson(response), operationId);
     }
 
     /** Best-effort lookup of the current pick's home_url_id via the scene's currentBotJob. Null when unavailable. */
