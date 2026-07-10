@@ -2,6 +2,11 @@
 
 Date: 2026-07-10
 
+> Deep-audit update: implementation must now follow
+> `INSTRUCTION_COMMAND_RULES_AUDIT.md`, `ROADMAP_COMMAND_CAPABILITY_ENGINE.md`,
+> and `ROADMAP_INSTRUCTION_GRAPH_AND_DRAG_DROP.md`. The first floating-panel
+> implementation is an integration foundation, not command-rule parity.
+
 ## Objective
 
 Remove the JavaFX `ARNewCommandPane` user interface and migrate all **Add/Update Operations** behavior to React TypeScript.
