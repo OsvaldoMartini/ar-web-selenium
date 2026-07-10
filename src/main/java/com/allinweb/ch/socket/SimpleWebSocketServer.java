@@ -34,6 +34,7 @@ public class SimpleWebSocketServer {
             OrganizationManagerService.getInstance();
     private static final MainDashboardService mainDashboardService = MainDashboardService.getInstance();
     private static final NewBotJobService newBotJobService = NewBotJobService.getInstance();
+    private static final ConfigService configService = ConfigService.getInstance();
     protected static volatile SimpleWebSocketServer instance;
     private static WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
     private static ARExcelFileScene arExcelFileScene = ARExcelFileScene.getInstance();
@@ -299,6 +300,36 @@ public class SimpleWebSocketServer {
                 case "newBotJob.cancel":
                     handleNewBotJobCancel(sessionId);
                     break;
+                case "config.bootstrap":
+                    handleConfigBootstrap(sessionId);
+                    break;
+                case "config.choosePath":
+                    handleConfigChoosePath(jsonObjMSG, sessionId);
+                    break;
+                case "config.save":
+                    handleConfigSave(jsonObjMSG, sessionId);
+                    break;
+                case "config.backup":
+                    handleConfigBackup(jsonObjMSG, sessionId);
+                    break;
+                case "config.restore":
+                    handleConfigRestore(jsonObjMSG, sessionId);
+                    break;
+                case "config.deleteAllJobs":
+                    handleConfigDeleteAllJobs(jsonObjMSG, sessionId);
+                    break;
+                case "config.openOrganizations":
+                    handleConfigOpenOrganizations(sessionId);
+                    break;
+                case "config.loadGenFlowPrompt":
+                    handleConfigLoadGenFlowPrompt(sessionId);
+                    break;
+                case "config.saveGenFlowPrompt":
+                    handleConfigSaveGenFlowPrompt(jsonObjMSG, sessionId);
+                    break;
+                case "config.cancel":
+                    handleConfigCancel(sessionId);
+                    break;
                 default:
                     handleMessageByType(type, jsonObjMSG, session, sessionId);
                     break;
@@ -438,6 +469,50 @@ public class SimpleWebSocketServer {
     }
 
     private void sendNewBotJobResponse(String sessionId, Object response, String operationId) {
+        webSocketSessionManager.sendMessageJson(-1, sessionId, gson.toJson(response), operationId);
+    }
+
+    private void handleConfigBootstrap(String sessionId) {
+        sendConfigResponse(sessionId, configService.bootstrap(), "config.bootstrapResponse");
+    }
+
+    private void handleConfigChoosePath(JsonObject jsonObjMSG, String sessionId) {
+        sendConfigResponse(sessionId, configService.choosePath(extractBody(jsonObjMSG)), "config.pathResponse");
+    }
+
+    private void handleConfigSave(JsonObject jsonObjMSG, String sessionId) {
+        sendConfigResponse(sessionId, configService.save(extractBody(jsonObjMSG)), "config.saveResponse");
+    }
+
+    private void handleConfigBackup(JsonObject jsonObjMSG, String sessionId) {
+        sendConfigResponse(sessionId, configService.backup(extractBody(jsonObjMSG)), "config.backupResponse");
+    }
+
+    private void handleConfigRestore(JsonObject jsonObjMSG, String sessionId) {
+        sendConfigResponse(sessionId, configService.restore(extractBody(jsonObjMSG)), "config.restoreResponse");
+    }
+
+    private void handleConfigDeleteAllJobs(JsonObject jsonObjMSG, String sessionId) {
+        sendConfigResponse(sessionId, configService.deleteAllJobs(extractBody(jsonObjMSG)), "config.deleteResponse");
+    }
+
+    private void handleConfigOpenOrganizations(String sessionId) {
+        sendConfigResponse(sessionId, configService.openOrganizations(), "config.actionResponse");
+    }
+
+    private void handleConfigLoadGenFlowPrompt(String sessionId) {
+        sendConfigResponse(sessionId, configService.loadGenFlowPrompt(), "config.promptResponse");
+    }
+
+    private void handleConfigSaveGenFlowPrompt(JsonObject jsonObjMSG, String sessionId) {
+        sendConfigResponse(sessionId, configService.saveGenFlowPrompt(extractBody(jsonObjMSG)), "config.promptResponse");
+    }
+
+    private void handleConfigCancel(String sessionId) {
+        sendConfigResponse(sessionId, configService.cancel(), "config.actionResponse");
+    }
+
+    private void sendConfigResponse(String sessionId, Object response, String operationId) {
         webSocketSessionManager.sendMessageJson(-1, sessionId, gson.toJson(response), operationId);
     }
 

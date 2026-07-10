@@ -44,6 +44,7 @@ public class ARMainDashboardPane extends ARPane {
     private static final Gson gson = new Gson();
     private static final ARInfoScene arInfoScene = ARInfoScene.getInstance();
     private static final ARConfigurationScene arConfigurationScene = ARConfigurationScene.getInstance();
+    private static final ARConfigManagerScene arConfigManagerScene = ARConfigManagerScene.getInstance();
     private static final ARViewBotJobScene arViewBotJobScene = ARViewBotJobScene.getInstance();
     private static final ARSaveCloneScene arSaveCloneScene = ARSaveCloneScene.getInstance();
     private static final ARNewBotJobManagerScene arNewBotJobManagerScene = ARNewBotJobManagerScene.getInstance();
@@ -168,8 +169,8 @@ public class ARMainDashboardPane extends ARPane {
     public void openConfig() {
         Platform.runLater(() -> {
             refreshLegacyListView();
-            arConfigurationScene.initialize(legacyBotJobListView, isEnabledLicence);
-            arConfigurationScene.showModal();
+            arConfigManagerScene.initialize(isEnabledLicence);
+            arConfigManagerScene.showModal(currentStage());
             performDataBase.loadQuickBotJobs();
             refreshLegacyListView();
         });
