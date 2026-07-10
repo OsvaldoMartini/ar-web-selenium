@@ -30,6 +30,7 @@ public class SimpleWebSocketServer {
     private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
     private static final PerformMessage performMessage = PerformMessage.getInstance();
     private static final PerformActions performActions = PerformActions.getInstance();
+    private static final OrganizationManagerService organizationManagerService = OrganizationManagerService.getInstance();
     protected static volatile SimpleWebSocketServer instance;
     private static WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
     private static ARExcelFileScene arExcelFileScene = ARExcelFileScene.getInstance();
@@ -223,6 +224,33 @@ public class SimpleWebSocketServer {
                 case "requirement.links.save":
                     handleRequirementLinksSave(jsonObjMSG, sessionId, homeBankingId);
                     break;
+                case "organization.list":
+                    handleOrganizationList(sessionId);
+                    break;
+                case "organization.create":
+                    handleOrganizationCreate(jsonObjMSG, sessionId);
+                    break;
+                case "organization.update":
+                    handleOrganizationUpdate(jsonObjMSG, sessionId);
+                    break;
+                case "organization.delete":
+                    handleOrganizationDelete(jsonObjMSG, sessionId);
+                    break;
+                case "organization.template":
+                    handleOrganizationTemplate(sessionId);
+                    break;
+                case "homeUrl.list":
+                    handleHomeUrlList(jsonObjMSG, sessionId);
+                    break;
+                case "homeUrl.create":
+                    handleHomeUrlCreate(jsonObjMSG, sessionId);
+                    break;
+                case "homeUrl.update":
+                    handleHomeUrlUpdate(jsonObjMSG, sessionId);
+                    break;
+                case "homeUrl.delete":
+                    handleHomeUrlDelete(jsonObjMSG, sessionId);
+                    break;
                 default:
                     handleMessageByType(type, jsonObjMSG, session, sessionId);
                     break;
@@ -237,6 +265,71 @@ public class SimpleWebSocketServer {
                         homeBankingId, session, type, "Closed processing message", "No \"type\" definition");
             }
         }
+    }
+
+    private void handleOrganizationList(String sessionId) {
+        sendOrganizationResponse(sessionId, organizationManagerService.list(), "organization.listResponse");
+    }
+
+    private void handleOrganizationCreate(JsonObject jsonObjMSG, String sessionId) {
+        sendOrganizationResponse(
+                sessionId, organizationManagerService.createOrganization(extractBody(jsonObjMSG)), "organization.saveResponse");
+    }
+
+    private void handleOrganizationUpdate(JsonObject jsonObjMSG, String sessionId) {
+        sendOrganizationResponse(
+                sessionId, organizationManagerService.updateOrganization(extractBody(jsonObjMSG)), "organization.saveResponse");
+    }
+
+    private void handleOrganizationDelete(JsonObject jsonObjMSG, String sessionId) {
+        sendOrganizationResponse(
+                sessionId, organizationManagerService.deleteOrganization(extractBody(jsonObjMSG)), "organization.deleteResponse");
+    }
+
+    private void handleOrganizationTemplate(String sessionId) {
+        sendOrganizationResponse(sessionId, organizationManagerService.template(), "organization.templateResponse");
+    }
+
+    private void handleHomeUrlList(JsonObject jsonObjMSG, String sessionId) {
+        sendOrganizationResponse(
+                sessionId, organizationManagerService.listHomeUrls(extractBody(jsonObjMSG)), "homeUrl.listResponse");
+    }
+
+    private void handleHomeUrlCreate(JsonObject jsonObjMSG, String sessionId) {
+        sendOrganizationResponse(
+                sessionId, organizationManagerService.createHomeUrl(extractBody(jsonObjMSG)), "homeUrl.saveResponse");
+    }
+
+    private void handleHomeUrlUpdate(JsonObject jsonObjMSG, String sessionId) {
+        sendOrganizationResponse(
+                sessionId, organizationManagerService.updateHomeUrl(extractBody(jsonObjMSG)), "homeUrl.saveResponse");
+    }
+
+    private void handleHomeUrlDelete(JsonObject jsonObjMSG, String sessionId) {
+        sendOrganizationResponse(
+                sessionId, organizationManagerService.deleteHomeUrl(extractBody(jsonObjMSG)), "homeUrl.deleteResponse");
+    }
+
+    private void sendOrganizationResponse(String sessionId, Object response, String operationId) {
+        webSocketSessionManager.sendMessageJson(-1, sessionId, gson.toJson(response), operationId);
+    }
+
+    private JsonObject extractBody(JsonObject jsonObjMSG) {
+        if (jsonObjMSG == null || !jsonObjMSG.has("body") || jsonObjMSG.get("body").isJsonNull()) {
+            return new JsonObject();
+        }
+        try {
+            var body = jsonObjMSG.get("body");
+            if (body.isJsonObject()) {
+                return body.getAsJsonObject();
+            }
+            if (body.isJsonPrimitive() && body.getAsJsonPrimitive().isString()) {
+                return JsonParser.parseString(body.getAsString()).getAsJsonObject();
+            }
+        } catch (Exception e) {
+            log.warn("Unable to parse request body: {}", e.getMessage());
+        }
+        return new JsonObject();
     }
 
     @OnError

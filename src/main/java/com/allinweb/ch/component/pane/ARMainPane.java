@@ -53,6 +53,7 @@ public class ARMainPane extends ARPane {
     private static final ARSaveCloneScene arSaveCloneScene;
     private static final ARNewBotJobScene arNewBotJobScene;
     private static final ARNewHomeBankingScene arNewHomeBankingScene;
+    private static final AROrganizationManagerScene arOrganizationManagerScene;
     private static final ARWebDriver arWebDriver;
     private static final ARComponentBuilder builder = ARComponentBuilder.getInstance();
     protected static volatile ARMainPane instance;
@@ -71,6 +72,7 @@ public class ARMainPane extends ARPane {
         arViewBotJobScene = ARViewBotJobScene.getInstance();
         arSaveCloneScene = ARSaveCloneScene.getInstance();
         arNewHomeBankingScene = ARNewHomeBankingScene.getInstance();
+        arOrganizationManagerScene = AROrganizationManagerScene.getInstance();
         arWebDriver = ARWebDriver.getInstance();
     }
 
@@ -293,10 +295,8 @@ public class ARMainPane extends ARPane {
                 return;
             }
 
-            var homeBank = performLists.getFirstHomeBanking();
-            arNewHomeBankingScene.initialize(homeBank);
             Stage currentStage = (Stage) organizationsButton.getScene().getWindow();
-            arNewHomeBankingScene.showModal(currentStage);
+            arOrganizationManagerScene.showModal(currentStage);
         });
 
         newBotJobButton.setOnMouseClicked(e -> {
