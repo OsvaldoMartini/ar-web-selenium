@@ -12,6 +12,9 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
+import java.util.ArrayDeque;
+import java.util.Comparator;
+import java.util.Deque;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
@@ -206,6 +209,96 @@ public final class CommandEditorService {
         response.add("instructions", gson.toJsonTree(instructions));
         if (body.has("requestId")) response.add("requestId", body.get("requestId"));
         if (!requestId.isEmpty()) rememberCompleted(requestId, response);
+        return response;
+    }
+
+    public JsonObject insertElseIf(JsonObject body) {
+        String targetSession = string(body, "targetSessionId", "botJobTasks");
+        int whereId = "componentTasks".equals(targetSession)
+                ? integer(body, "homeBankingId", -1)
+                : integer(body, "botJobId", -1);
+        int blockId = integer(body, "blockId", -1);
+        int anchorId = integer(body, "instructionId", -1);
+        String instructionTable = "componentTasks".equals(targetSession)
+                ? "component_instruction"
+                : "instruction";
+        ErrorMessage error = database.loadInstructions(whereId, blockId, -1, instructionTable);
+        if (error != null) return failure(error.getErrorMessage());
+
+        List<InstructionLoad> blockRows = ("componentTasks".equals(targetSession)
+                        ? lists.getListInstructionComp()
+                        : lists.getListInstruction())
+                .stream()
+                .filter(row -> row != null && row.getBlockId() != null && row.getBlockId() == blockId)
+                .sorted(Comparator.comparingInt(row -> row.getInstructionOrderNumber() == null
+                        ? Integer.MAX_VALUE
+                        : row.getInstructionOrderNumber()))
+                .toList();
+
+        Integer rootId = enclosingIfRoot(blockRows, anchorId);
+        if (rootId == null) return failure("The selected instruction is not inside a valid IF family.");
+
+        InstructionLoad boundary = blockRows.stream()
+                .filter(row -> row.getParentId() != null && row.getParentId().equals(rootId))
+                .filter(row -> "ELSE".equals(row.getActions()) || "ENDIF".equals(row.getActions()))
+                .findFirst()
+                .orElse(null);
+        if (boundary == null) return failure("The IF family has no valid ELSE or ENDIF boundary.");
+
+        SplitDTO split = new SplitDTO();
+        split.setType("INSERT_BEFORE");
+        split.setSessionId(targetSession);
+        split.setHomeBankingId(integer(body, "homeBankingId", -1));
+        split.setBotJobId(integer(body, "botJobId", -1));
+        split.setBotJobName(string(body, "botJobName", ""));
+        split.setBlockId(blockId);
+        split.setBlockName(string(body, "blockName", ""));
+        split.setBlockOrderNumber(integer(body, "blockOrderNumber", 1));
+        split.setInstructionId(boundary.getId());
+        split.setInstructionName("ELSEIF");
+        split.setInstructionOrderNumber(boundary.getInstructionOrderNumber());
+        split.setActions("ELSEIF");
+        split.setOperation("ELSEIF");
+        split.setParentId(rootId);
+
+        error = database.preFillNewInstruction("ELSEIF", "ELSEIF", "ELSEIF", "ELSEIF", 1, split, false);
+        if (error != null) return failure(error.getErrorMessage());
+        return refreshAfterMutation(split, "ELSEIF inserted.", body);
+    }
+
+    private Integer enclosingIfRoot(List<InstructionLoad> rows, int anchorId) {
+        Deque<Integer> roots = new ArrayDeque<>();
+        for (InstructionLoad row : rows) {
+            String action = row.getActions();
+            if ("IF".equals(action) && row.getId() != null) roots.push(row.getId());
+            if (row.getId() != null && row.getId() == anchorId) {
+                if (Set.of("ELSE", "ENDIF").contains(action)) return null;
+                return roots.peek();
+            }
+            if ("ENDIF".equals(action) && !roots.isEmpty()) roots.pop();
+        }
+        return null;
+    }
+
+    private JsonObject refreshAfterMutation(SplitDTO split, String message, JsonObject request) {
+        ErrorMessage error;
+        if ("componentTasks".equals(split.getSessionId())) {
+            error = database.loadComponentsComplete(split.getHomeBankingId(), split.getBotJobId(), split.getBotJobName());
+        } else {
+            error = engine.loadCompleteJobs(split.getBotJobId());
+        }
+        if (error != null) return failure(error.getErrorMessage());
+        List<BotJobLoadDTO> jobs = "componentTasks".equals(split.getSessionId())
+                ? lists.getListBotJobComp()
+                : lists.getListBotJob();
+        List<InstructionLoad> instructions = lists.buildJsonViewData(jobs);
+        String operationId = "componentTasks".equals(split.getSessionId()) ? "componentsUpdate" : "updateInstructions";
+        sessions.sendMessageJson(split.getHomeBankingId(), split.getSessionId(), gson.toJson(instructions), operationId);
+        JsonObject response = new JsonObject();
+        response.addProperty("ok", true);
+        response.addProperty("message", message);
+        response.add("instructions", gson.toJsonTree(instructions));
+        if (request.has("requestId")) response.add("requestId", request.get("requestId"));
         return response;
     }
 
