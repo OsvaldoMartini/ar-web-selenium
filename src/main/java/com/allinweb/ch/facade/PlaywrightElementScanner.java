@@ -293,6 +293,18 @@ public class PlaywrightElementScanner {
                 return base + '/option[' + index + ']';
               }
 
+              const usedGeneratedIds = new Set();
+
+              function slugId(text) {
+                return (text || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 50);
+              }
+
+              function lastHrefSegment(href) {
+                const cleaned = (href || '').split(/[?#]/)[0].replace(/\\/+$/, '');
+                const idx = cleaned.lastIndexOf('/');
+                return idx >= 0 ? cleaned.slice(idx + 1) : cleaned;
+              }
+
               function makeDto(el, idx, override) {
                 const tag = el.tagName.toLowerCase();
                 const forceKeep = override?.forceKeep === true || isNativeSelectHiddenButUseful(el, tag);
@@ -309,6 +321,28 @@ public class PlaywrightElementScanner {
                 if (zIndex) attrs.push({ name: 'z-index', value: zIndex });
                 if (kind) attrs.push({ name: 'control.kind', value: kind });
                 if (role) attrs.push({ name: 'control.role', value: role });
+
+                // Deterministic search id when the element has NO DOM id and NO testing
+                // attribute (BancaStato: 6/249 have ids, 0 have test-ids). Built from the
+                // strongest stable signals — name > aria-label > href segment > visible
+                // text > input type — prefixed with the tag and made unique within this
+                // scan. Stored only as attributeData['generated-id'] (a locator aid);
+                // el.id / attribId are never fabricated.
+                if (!el.id && !testId) {
+                  const basis = el.getAttribute('name')
+                    || attr(el, 'aria-label')
+                    || lastHrefSegment(el.getAttribute('href') || '')
+                    || cleanText(el.innerText || el.textContent || '').slice(0, 40)
+                    || inputType(el);
+                  const genSlug = slugId(basis);
+                  if (genSlug) {
+                    let candidate = tag + '-' + genSlug;
+                    let n = 2;
+                    while (usedGeneratedIds.has(candidate)) candidate = tag + '-' + genSlug + '-' + n++;
+                    usedGeneratedIds.add(candidate);
+                    attrs.push({ name: 'generated-id', value: candidate });
+                  }
+                }
                 return {
                   id: idx + 1,
                   tagName: override?.tagName || tag,

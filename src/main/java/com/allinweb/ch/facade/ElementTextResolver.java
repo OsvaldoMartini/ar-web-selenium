@@ -120,6 +120,16 @@ public final class ElementTextResolver {
                 }
 
                 String slug = TextSimilarity.slug(resolved.isBlank() ? defaultBaseFor(e) : resolved);
+                // Mega-menus produce dozens of same-label links (27x "Panoramica" on
+                // BancaStato): on a name collision, the href's last segment is the natural
+                // discriminator (panoramica_conti_e_carte), far more readable than the
+                // _2.._27 counter — which stays as the final fallback.
+                if (usedNames.contains(slug)) {
+                    String hrefSegment = TextSimilarity.slug(lastHrefSegment(getAttribute(e, "href")));
+                    if (!hrefSegment.isBlank() && !slug.endsWith(hrefSegment)) {
+                        slug = slug + "_" + hrefSegment;
+                    }
+                }
                 String unique = TextSimilarity.uniquify(slug, usedNames);
                 usedNames.add(unique);
                 e.setDefinedName(unique);
@@ -284,6 +294,18 @@ public final class ElementTextResolver {
      * engine picked up over the element), not a real label. Filtering these stops a weak OCR match
      * from overriding the element's genuine DOM text.
      */
+    /** {@code "/clienti-individuali/conti-e-carte?x=1#top"} → {@code "conti-e-carte"}. */
+    private static String lastHrefSegment(String href) {
+        if (href == null || href.isBlank()) return "";
+        String cleaned = href.split("[?#]")[0];
+        while (cleaned.endsWith("/")) {
+            cleaned = cleaned.substring(0, cleaned.length() - 1);
+        }
+        int idx = cleaned.lastIndexOf('/');
+        String segment = idx >= 0 ? cleaned.substring(idx + 1) : cleaned;
+        return segment.length() > 40 ? segment.substring(0, 40) : segment;
+    }
+
     private static boolean isOcrNoise(String text) {
         // Count only letters/digits: fragments like "i -", "| .", "- m" carry punctuation
         // that pushed them past the old length check, then outranked the element's real
