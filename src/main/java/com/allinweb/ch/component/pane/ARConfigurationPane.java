@@ -45,7 +45,7 @@ public class ARConfigurationPane extends ARPane {
     private static final ARComponentBuilder builder = ARComponentBuilder.getInstance();
     private static final int SECONDS = 3; // Total seconds for the countdown
     private static final ARPropertyManager arPropertyManager;
-    private static final ARNewHomeBankingScene arNewHomeBankingScene;
+    private static final AROrganizationManagerScene arOrganizationManagerScene;
     private static final PerformMessage performMessage;
     private static final PerformLists performLists;
     private static final PerformDBEngine performDBEngine;
@@ -68,13 +68,13 @@ public class ARConfigurationPane extends ARPane {
         arElementValueScene = ARElementValueScene.getInstance();
         arViewBotJobScene = ARViewBotJobScene.getInstance();
         arNewBotJobScene = ARNewBotJobScene.getInstance();
+        arOrganizationManagerScene = AROrganizationManagerScene.getInstance();
 
         arPropertyManager = ARPropertyManager.getInstance();
         performMessage = PerformMessage.getInstance();
         performLists = PerformLists.getInstance();
         performDataBase = PerformDataBase.getInstance();
         performDBEngine = PerformDBEngine.getInstance();
-        arNewHomeBankingScene = ARNewHomeBankingScene.getInstance();
         performBackup = PerformBackup.getInstance();
         performInitializer = PerformInitializer.getInstance();
     }
@@ -313,7 +313,7 @@ public class ARConfigurationPane extends ARPane {
         restoreDateLabel = new Label("Date Restore");
         reloadDBLabel = new Label("Reload DB");
         deleteAllDBLabel = new Label("Delete ALL DB");
-        insertSitesLabel = new Label("Insert Sites");
+        insertSitesLabel = new Label("Organizations");
 
         backupDBButton = builder.buildButton("Backup DB");
         backupDBButton.setMaxHeight(ARConstants.SPACE_XXS);
@@ -678,10 +678,16 @@ public class ARConfigurationPane extends ARPane {
             if (isEnabledLicence && !checkLicense()) {
                 return;
             }
-            HomeBankingLoadDTO homeBank = performLists.getFirstHomeBanking();
-            arNewHomeBankingScene.initialize(homeBank);
+            ErrorMessage errorMessage = performDBEngine.loadHomeBanking(null);
+            if (errorMessage == null) {
+                errorMessage = performDBEngine.loadHomeUrls(null);
+            }
+            if (errorMessage != null) {
+                performMessage.errorMessageOperationFailed(errorMessage);
+                return;
+            }
             Stage currentStage = (Stage) insertSitesdButton.getScene().getWindow();
-            arNewHomeBankingScene.showModal(currentStage);
+            arOrganizationManagerScene.showModal(currentStage);
         });
 
         pathLicenseButton.setOnMouseClicked(e -> openChooserFor(pathLicense, modalStage, true));
@@ -1016,9 +1022,6 @@ public class ARConfigurationPane extends ARPane {
                     backupDBButton.setDisable(performLists.getListHomeBanking().isEmpty());
                     homeBankingListView.setItems(FXCollections.observableArrayList(performLists.getListHomeBanking()));
 
-                    HomeBankingLoadDTO homeBank = performLists.getFirstHomeBanking();
-                    arNewHomeBankingScene.initialize(homeBank);
-
                     performMessage.showCustomModalDialogDragWin11(
                             "Restore DB Success! ✅",
                             "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>Database restored successfully!</span>",
@@ -1285,9 +1288,6 @@ public class ARConfigurationPane extends ARPane {
 
             backupDBButton.setDisable(performLists.getListHomeBanking().isEmpty());
             homeBankingListView.setItems(FXCollections.observableArrayList(performLists.getListHomeBanking()));
-
-            HomeBankingLoadDTO homeBank = performLists.getFirstHomeBanking();
-            arNewHomeBankingScene.initialize(homeBank);
 
             try {
 
@@ -1652,8 +1652,8 @@ public class ARConfigurationPane extends ARPane {
         if (arViewBotJobScene != null) {
             arViewBotJobScene.closeModal();
         }
-        if (arNewHomeBankingScene != null) {
-            arNewHomeBankingScene.closeModal();
+        if (arOrganizationManagerScene != null) {
+            arOrganizationManagerScene.closeModal();
         }
         if (arScannedElementScene != null) {
             arScannedElementScene.closeModal();
@@ -1876,8 +1876,6 @@ public class ARConfigurationPane extends ARPane {
                         homeBankingListView.setItems(
                                 FXCollections.observableArrayList(performLists.getListHomeBanking()));
 
-                        HomeBankingLoadDTO homeBank = performLists.getFirstHomeBanking();
-                        arNewHomeBankingScene.initialize(homeBank);
                     }
 
                     performMessage.showCustomModalDialogDragWin11(

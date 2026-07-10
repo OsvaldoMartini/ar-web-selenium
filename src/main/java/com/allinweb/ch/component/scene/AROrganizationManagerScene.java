@@ -64,6 +64,12 @@ public class AROrganizationManagerScene extends ARScene {
         }
     }
 
+    public void closeModal() {
+        if (modalStage != null && modalStage.isShowing()) {
+            modalStage.close();
+        }
+    }
+
     @Override
     public IARPane buildPane() {
         return organizationManagerPane;
