@@ -272,6 +272,16 @@ public class PlaywrightElementScanner {
                 if (el.hasAttribute('aria-haspopup')) return 'button';
                 if (['button', 'a', 'select', 'option'].includes(tag)) return 'button';
                 if (tag.startsWith('mat-')) return 'button';
+                // Test-id carriers with no native semantics (Avaloq avq-* cards, value
+                // spans): a host wrapping a selection control is the clickable card;
+                // anything living inside a button/link is clickable; the rest are
+                // readable outputs (ISIN / TKN / currency values).
+                const anyTestId = attr(el, 'test-id') || attr(el, 'data-testid') || attr(el, 'data-test-id') || attr(el, 'data-cy') || attr(el, 'data-qa');
+                if (anyTestId) {
+                  if (el.querySelector('mat-radio-button, mat-checkbox, input[type="radio"], input[type="checkbox"], [role="radio"], [role="checkbox"]')) return 'button';
+                  if (el.closest('button, a, [role="button"], [role="link"]')) return 'button';
+                  return 'output';
+                }
                 return tag;
               }
 
@@ -701,6 +711,13 @@ public class PlaywrightElementScanner {
                 || tag.startsWith("mat-")
                 || "svg".equals(tag)) {
             return "button";
+        }
+        // Safety net mirroring the JS rule: a test-id carrier with no other signal is a
+        // readable output (Avaloq value spans). The JS scan normalizes the found test
+        // attribute into 'data-testid', and decides 'button' for card hosts itself.
+        String anyTestId = attr(attributeData, "data-testid");
+        if (anyTestId != null && !anyTestId.isBlank()) {
+            return "output";
         }
         return tag;
     }

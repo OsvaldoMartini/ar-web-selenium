@@ -50,7 +50,22 @@ public class PlaywrightActionExecutor {
             } catch (Exception forced) {
                 log.debug("Playwright force click failed, trying JS dispatch: {}", forced.getMessage());
             }
-            // 3) JS-dispatched click (fires the handler even when the WebDriver-style click is intercepted)
+            // 3) MDC/Avaloq wrapped controls (BUG Not Clik): the native input is an
+            //    invisible overlay covered by ripple/touch-target layers, and the click
+            //    a human makes lands on the wrapping control or the card host. Click the
+            //    nearest effective ancestor before resorting to JS dispatch.
+            try {
+                Locator effective =
+                        target.locator("xpath=ancestor-or-self::*[self::mat-radio-button or self::mat-checkbox"
+                                + " or self::mat-slide-toggle or contains(@class,'avq-state-layer-host')][1]");
+                if (effective.count() > 0) {
+                    effective.first().click(new Locator.ClickOptions().setTimeout(ACTION_TIMEOUT_MS));
+                    return true;
+                }
+            } catch (Exception ancestor) {
+                log.debug("Playwright ancestor-control click failed, trying JS dispatch: {}", ancestor.getMessage());
+            }
+            // 4) JS-dispatched click (fires the handler even when the WebDriver-style click is intercepted)
             try {
                 target.dispatchEvent("click");
                 return true;
