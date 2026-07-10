@@ -12,6 +12,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Set;
 
 /** Pane-free backend for the React instruction command panel. */
@@ -24,6 +26,7 @@ public final class CommandEditorService {
     private final WebSocketSessionManager sessions = WebSocketSessionManager.getInstance();
     private final Gson gson = new Gson();
     private final CommandOperationCodec operationCodec = new CommandOperationCodec();
+    private final Map<String, JsonObject> completedRequests = new LinkedHashMap<>();
 
     private CommandEditorService() {}
 
@@ -120,6 +123,13 @@ public final class CommandEditorService {
     }
 
     public JsonObject apply(JsonObject body) {
+        String requestId = string(body, "requestId", "").trim();
+        if (!requestId.isEmpty()) {
+            synchronized (completedRequests) {
+                JsonObject completed = completedRequests.get(requestId);
+                if (completed != null) return completed.deepCopy();
+            }
+        }
         JsonObject response = new JsonObject();
         String targetSession = string(body, "targetSessionId", "botJobTasks");
         String mode = string(body, "mode", "after");
@@ -130,6 +140,14 @@ public final class CommandEditorService {
 
         if (action.isEmpty() || name.isEmpty()) return failure("Command and name are required.");
         if (integer(body, "blockId", -1) < 1) return failure("A valid block is required.");
+        if ("edit".equals(mode) && !editableCommand(targetSession, integer(body, "instructionId", -1))) {
+            return failure("Original Web Fields and conditional boundaries cannot be converted with Edit Command.");
+        }
+        if ("EXCEL GOTO".equals(action)
+                && excelGotoExists(targetSession, integer(body, "botJobId", -1), integer(body, "homeBankingId", -1),
+                        "edit".equals(mode) ? integer(body, "instructionId", -1) : -1)) {
+            return failure("Only one EXCEL GOTO command is allowed in this job.");
+        }
         Integer parentId = nullableInteger(body, "parentId");
         Integer variableId = nullableInteger(body, "variableId");
         Integer parentBlockId = nullableInteger(body, "parentBlockId");
@@ -187,7 +205,48 @@ public final class CommandEditorService {
         response.addProperty("message", "Command saved.");
         response.add("instructions", gson.toJsonTree(instructions));
         if (body.has("requestId")) response.add("requestId", body.get("requestId"));
+        if (!requestId.isEmpty()) rememberCompleted(requestId, response);
         return response;
+    }
+
+    private void rememberCompleted(String requestId, JsonObject response) {
+        synchronized (completedRequests) {
+            completedRequests.put(requestId, response.deepCopy());
+            while (completedRequests.size() > 256) {
+                String oldest = completedRequests.keySet().iterator().next();
+                completedRequests.remove(oldest);
+            }
+        }
+    }
+
+    private boolean editableCommand(String sessionId, int instructionId) {
+        List<InstructionLoad> instructions = "componentTasks".equals(sessionId)
+                ? lists.getListInstructionComp()
+                : lists.getListInstruction();
+        return instructions.stream().anyMatch(row -> row != null
+                && row.getId() != null
+                && row.getId() == instructionId
+                && isSpecialAction(row.getActions())
+                && !Set.of("IF", "ELSEIF", "ELSE", "ENDIF").contains(row.getActions()));
+    }
+
+    private boolean excelGotoExists(
+            String sessionId, int botJobId, int homeBankingId, int excludedInstructionId) {
+        boolean component = "componentTasks".equals(sessionId);
+        String table = component ? "component_instruction" : "instruction";
+        String owner = component ? "home_banking_id" : "bot_job_id";
+        int ownerId = component ? homeBankingId : botJobId;
+        String sql = "SELECT COUNT(*) FROM " + table
+                + " WHERE " + owner + "=? AND actions='EXCEL GOTO' AND id<>?";
+        try (PreparedStatement statement = database.getConnection().prepareStatement(sql)) {
+            statement.setInt(1, ownerId);
+            statement.setInt(2, excludedInstructionId);
+            try (ResultSet result = statement.executeQuery()) {
+                return result.next() && result.getInt(1) > 0;
+            }
+        } catch (SQLException exception) {
+            return true;
+        }
     }
 
     private JsonArray commandCatalog() {
