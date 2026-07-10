@@ -46,7 +46,7 @@ The React version must preserve the same business rules:
 - Duplicate environment URL is blocked per organization.
 - Environment delete is blocked when referenced by bot jobs.
 - The last remaining environment for an organization cannot be deleted from the UI.
-- Template button fills the same default priority, scan config, and WebDriver options text.
+- Template/default config behavior stays backend-compatible while the related fields are hidden from the React UI.
 
 ## Actual Frontend Location And Packaging
 
@@ -86,10 +86,7 @@ Suggested layout:
 - Header: `Organizations`
 - Left/top form: selected organization details
   - ID, Organization, URL Baseline, Active Jobs
-  - Priority
-  - Scan Config
-  - WebDriver Options
-  - Actions: Insert, Update, Delete, Template
+  - Actions: Insert, Update, Delete
 - Organization table:
   - ID, Active Jobs, Organization, URL Baseline
 - Environment form for selected organization:
@@ -101,6 +98,11 @@ Suggested layout:
   - loading, saved, updated, deleted, validation errors, backend errors
 
 Keep density similar to an operational admin screen. This is not a marketing page.
+
+Design update note:
+
+- `Priority`, `Scan Config`, and `WebDriver Options` are hidden from the React UI as of the dropdown redesign. They remain in the DTO/backend contract for compatibility, but they may be unused and should be reviewed for full removal after Bot Job creation/scanner behavior is verified.
+- The Template action is also hidden from the visible UI while those fields are hidden, because it only populates those candidate-removal fields.
 
 ## Backend Contract
 
@@ -196,7 +198,7 @@ React behavior:
 - Insert clears IDs and creates new records.
 - Update requires selected ID.
 - Delete requires selected ID and asks for confirmation.
-- Template fills the three config textareas without saving.
+- Template/config defaults are not exposed in the current UI while the config fields are hidden.
 - Show backend validation errors inline/toast.
 
 Acceptance:
@@ -231,7 +233,7 @@ Backend/service tests:
 - List returns organizations and environments.
 - Create organization creates one `home_banking` and one `home_url`.
 - Duplicate organization name is rejected.
-- Update organization persists priority/search/options.
+- Update organization keeps priority/search/options compatible until those fields are confirmed unused or removed.
 - Delete organization with active jobs is rejected.
 - Create duplicate environment URL is rejected.
 - Delete last environment is rejected at service/UI level.
@@ -264,7 +266,7 @@ Only after verification:
 - Should the React manager be a modal/window like the JavaFX scene, or embedded in the main AR Web screen?
 - Should organization password/username/cookies/driver session fields remain hidden as today, or become advanced fields later?
 - Should URL syntax validation stay as permissive as the current implementation, or be tightened during migration?
-- Should Template defaults be generated backend-side only, or duplicated in React for instant fill with backend confirmation?
+- Should hidden Template/default config fields be fully removed from the backend contract after scanner/Bot Job verification?
 
 ## Recommended First Slice
 
