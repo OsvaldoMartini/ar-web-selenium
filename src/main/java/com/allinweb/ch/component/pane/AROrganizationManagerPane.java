@@ -69,8 +69,8 @@ public class AROrganizationManagerPane extends ARPane {
     private void dispatchReactBootstrap(WebEngine webEngine) {
         int port = resolveSocketPort();
         try {
-            webEngine.executeScript("setTimeout(function() { window.receiveDataFromJava(JSON.stringify([]), "
-                    + port + ", '" + SESSION_ID + "', -1, '', -9999, '' ) }, 250)");
+            webEngine.executeScript("setTimeout(function() { window.receiveDataFromJava(JSON.stringify([]), " + port
+                    + ", '" + SESSION_ID + "', -1, '', -9999, '' ) }, 250)");
         } catch (Exception e) {
             log.error("Organization manager React bootstrap failed: {}", e.getMessage());
         }

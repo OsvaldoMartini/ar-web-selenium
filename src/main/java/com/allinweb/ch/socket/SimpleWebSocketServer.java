@@ -30,7 +30,8 @@ public class SimpleWebSocketServer {
     private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
     private static final PerformMessage performMessage = PerformMessage.getInstance();
     private static final PerformActions performActions = PerformActions.getInstance();
-    private static final OrganizationManagerService organizationManagerService = OrganizationManagerService.getInstance();
+    private static final OrganizationManagerService organizationManagerService =
+            OrganizationManagerService.getInstance();
     protected static volatile SimpleWebSocketServer instance;
     private static WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
     private static ARExcelFileScene arExcelFileScene = ARExcelFileScene.getInstance();
@@ -273,17 +274,23 @@ public class SimpleWebSocketServer {
 
     private void handleOrganizationCreate(JsonObject jsonObjMSG, String sessionId) {
         sendOrganizationResponse(
-                sessionId, organizationManagerService.createOrganization(extractBody(jsonObjMSG)), "organization.saveResponse");
+                sessionId,
+                organizationManagerService.createOrganization(extractBody(jsonObjMSG)),
+                "organization.saveResponse");
     }
 
     private void handleOrganizationUpdate(JsonObject jsonObjMSG, String sessionId) {
         sendOrganizationResponse(
-                sessionId, organizationManagerService.updateOrganization(extractBody(jsonObjMSG)), "organization.saveResponse");
+                sessionId,
+                organizationManagerService.updateOrganization(extractBody(jsonObjMSG)),
+                "organization.saveResponse");
     }
 
     private void handleOrganizationDelete(JsonObject jsonObjMSG, String sessionId) {
         sendOrganizationResponse(
-                sessionId, organizationManagerService.deleteOrganization(extractBody(jsonObjMSG)), "organization.deleteResponse");
+                sessionId,
+                organizationManagerService.deleteOrganization(extractBody(jsonObjMSG)),
+                "organization.deleteResponse");
     }
 
     private void handleOrganizationTemplate(String sessionId) {

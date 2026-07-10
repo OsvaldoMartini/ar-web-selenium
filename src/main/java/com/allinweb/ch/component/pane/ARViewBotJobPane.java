@@ -917,10 +917,7 @@ public class ARViewBotJobPane extends ARPane {
         // grpApi.setAlignment(Pos.CENTER_LEFT);
 
         HBox grpLaunch = new HBox(
-                3,
-                launchBotJobButton,
-                testRunButton,
-                testRunStopButton);
+                3, launchBotJobButton, blockFlowComboBox, reloadBlocksButton, testRunButton, testRunStopButton);
         grpLaunch.setStyle("-fx-background-color: #EAF3DE; -fx-background-radius: 6; -fx-padding: 3 6 3 6;");
         grpLaunch.setAlignment(Pos.CENTER_LEFT);
 
