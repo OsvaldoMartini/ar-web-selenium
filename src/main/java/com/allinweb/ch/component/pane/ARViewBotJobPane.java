@@ -280,6 +280,9 @@ public class ARViewBotJobPane extends ARPane {
         if (launchBotJobButton != null && openScannerButton != null) {
             launchBotJobButton.setDisable(isMobile);
             openScannerButton.setDisable(isMobile);
+            if (preScanButton != null) {
+                preScanButton.setDisable(isMobile);
+            }
         }
 
         updateHomeUrlLabels();
@@ -897,7 +900,7 @@ public class ARViewBotJobPane extends ARPane {
                 + "-fx-border-width: 0 0 1 0;");
 
         // ── Styled groups (light green tint per group) ───────────────────────────
-        HBox grpView = new HBox(3, refreshButton, openScannerButton);
+        HBox grpView = new HBox(3, refreshButton, preScanButton);
         grpView.setStyle("-fx-background-color: #EAF3DE; -fx-background-radius: 6; -fx-padding: 3 6 3 6;");
         grpView.setAlignment(Pos.CENTER_LEFT);
 
@@ -916,10 +919,6 @@ public class ARViewBotJobPane extends ARPane {
         HBox grpLaunch = new HBox(
                 3,
                 launchBotJobButton,
-                genFlowButton,
-                blockFlowComboBox,
-                reloadBlocksButton,
-                preScanButton,
                 testRunButton,
                 testRunStopButton);
         grpLaunch.setStyle("-fx-background-color: #EAF3DE; -fx-background-radius: 6; -fx-padding: 3 6 3 6;");
