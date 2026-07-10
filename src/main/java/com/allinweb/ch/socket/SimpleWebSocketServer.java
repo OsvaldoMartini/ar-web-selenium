@@ -314,24 +314,6 @@ public class SimpleWebSocketServer {
         webSocketSessionManager.sendMessageJson(-1, sessionId, gson.toJson(response), operationId);
     }
 
-    private JsonObject extractBody(JsonObject jsonObjMSG) {
-        if (jsonObjMSG == null || !jsonObjMSG.has("body") || jsonObjMSG.get("body").isJsonNull()) {
-            return new JsonObject();
-        }
-        try {
-            var body = jsonObjMSG.get("body");
-            if (body.isJsonObject()) {
-                return body.getAsJsonObject();
-            }
-            if (body.isJsonPrimitive() && body.getAsJsonPrimitive().isString()) {
-                return JsonParser.parseString(body.getAsString()).getAsJsonObject();
-            }
-        } catch (Exception e) {
-            log.warn("Unable to parse request body: {}", e.getMessage());
-        }
-        return new JsonObject();
-    }
-
     @OnError
     public void onError(Session session, Throwable throwable) {
         log.error("Error in session " + session.getId() + ": " + throwable.getMessage());
