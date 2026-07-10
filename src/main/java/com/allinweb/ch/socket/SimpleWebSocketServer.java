@@ -32,6 +32,7 @@ public class SimpleWebSocketServer {
     private static final PerformActions performActions = PerformActions.getInstance();
     private static final OrganizationManagerService organizationManagerService =
             OrganizationManagerService.getInstance();
+    private static final MainDashboardService mainDashboardService = MainDashboardService.getInstance();
     protected static volatile SimpleWebSocketServer instance;
     private static WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
     private static ARExcelFileScene arExcelFileScene = ARExcelFileScene.getInstance();
@@ -252,6 +253,36 @@ public class SimpleWebSocketServer {
                 case "homeUrl.delete":
                     handleHomeUrlDelete(jsonObjMSG, sessionId);
                     break;
+                case "mainDashboard.list":
+                    handleMainDashboardList(sessionId);
+                    break;
+                case "mainDashboard.openOrganizations":
+                    handleMainDashboardOpenOrganizations(sessionId);
+                    break;
+                case "mainDashboard.newBotJob":
+                    handleMainDashboardNewBotJob(sessionId);
+                    break;
+                case "mainDashboard.cloneBotJob":
+                    handleMainDashboardCloneBotJob(jsonObjMSG, sessionId);
+                    break;
+                case "mainDashboard.openBotJob":
+                    handleMainDashboardOpenBotJob(jsonObjMSG, sessionId);
+                    break;
+                case "mainDashboard.launchBotJob":
+                    handleMainDashboardLaunchBotJob(jsonObjMSG, sessionId);
+                    break;
+                case "mainDashboard.deleteBotJob":
+                    handleMainDashboardDeleteBotJob(jsonObjMSG, sessionId);
+                    break;
+                case "mainDashboard.openConfig":
+                    handleMainDashboardOpenConfig(sessionId);
+                    break;
+                case "mainDashboard.openInfo":
+                    handleMainDashboardOpenInfo(sessionId);
+                    break;
+                case "mainDashboard.exit":
+                    handleMainDashboardExit(sessionId);
+                    break;
                 default:
                     handleMessageByType(type, jsonObjMSG, session, sessionId);
                     break;
@@ -318,6 +349,55 @@ public class SimpleWebSocketServer {
     }
 
     private void sendOrganizationResponse(String sessionId, Object response, String operationId) {
+        webSocketSessionManager.sendMessageJson(-1, sessionId, gson.toJson(response), operationId);
+    }
+
+    private void handleMainDashboardList(String sessionId) {
+        sendMainDashboardResponse(sessionId, mainDashboardService.list(), "mainDashboard.listResponse");
+    }
+
+    private void handleMainDashboardOpenOrganizations(String sessionId) {
+        sendMainDashboardResponse(
+                sessionId, mainDashboardService.openOrganizations(), "mainDashboard.actionResponse");
+    }
+
+    private void handleMainDashboardNewBotJob(String sessionId) {
+        sendMainDashboardResponse(sessionId, mainDashboardService.newBotJob(), "mainDashboard.actionResponse");
+    }
+
+    private void handleMainDashboardCloneBotJob(JsonObject jsonObjMSG, String sessionId) {
+        sendMainDashboardResponse(
+                sessionId, mainDashboardService.cloneBotJob(extractBody(jsonObjMSG)), "mainDashboard.actionResponse");
+    }
+
+    private void handleMainDashboardOpenBotJob(JsonObject jsonObjMSG, String sessionId) {
+        sendMainDashboardResponse(
+                sessionId, mainDashboardService.openBotJob(extractBody(jsonObjMSG)), "mainDashboard.actionResponse");
+    }
+
+    private void handleMainDashboardLaunchBotJob(JsonObject jsonObjMSG, String sessionId) {
+        sendMainDashboardResponse(
+                sessionId, mainDashboardService.launchBotJob(extractBody(jsonObjMSG)), "mainDashboard.actionResponse");
+    }
+
+    private void handleMainDashboardDeleteBotJob(JsonObject jsonObjMSG, String sessionId) {
+        sendMainDashboardResponse(
+                sessionId, mainDashboardService.deleteBotJob(extractBody(jsonObjMSG)), "mainDashboard.actionResponse");
+    }
+
+    private void handleMainDashboardOpenConfig(String sessionId) {
+        sendMainDashboardResponse(sessionId, mainDashboardService.openConfig(), "mainDashboard.actionResponse");
+    }
+
+    private void handleMainDashboardOpenInfo(String sessionId) {
+        sendMainDashboardResponse(sessionId, mainDashboardService.openInfo(), "mainDashboard.actionResponse");
+    }
+
+    private void handleMainDashboardExit(String sessionId) {
+        sendMainDashboardResponse(sessionId, mainDashboardService.exit(), "mainDashboard.actionResponse");
+    }
+
+    private void sendMainDashboardResponse(String sessionId, Object response, String operationId) {
         webSocketSessionManager.sendMessageJson(-1, sessionId, gson.toJson(response), operationId);
     }
 

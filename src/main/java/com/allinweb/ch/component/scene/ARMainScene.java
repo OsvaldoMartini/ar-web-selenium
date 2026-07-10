@@ -1,6 +1,6 @@
 package com.allinweb.ch.component.scene;
 
-import com.allinweb.ch.component.pane.ARMainPane;
+import com.allinweb.ch.component.pane.ARMainDashboardPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.util.ARPropertyManager;
@@ -20,16 +20,16 @@ import org.openqa.selenium.WebDriver;
 public class ARMainScene extends ARScene {
 
     private static final Double SCENE_HEIGHT = 600D;
-    private static final Double SCENE_WIDTH = 960D;
-    private static final String TITLE = "AR Web Bot Job List";
-    private static final ARMainPane arMainPane;
+    private static final Double SCENE_WIDTH = 1100D;
+    private static final String TITLE = "AR Web Main Dashboard";
+    private static final ARMainDashboardPane arMainDashboardPane;
     private static final ARPropertyManager arPropertyManager;
     protected static volatile ARMainScene instance;
     private static Server jettyServer;
     private static ServerContainer wsContainer;
 
     static {
-        arMainPane = ARMainPane.getInstance();
+        arMainDashboardPane = ARMainDashboardPane.getInstance();
         arPropertyManager = ARPropertyManager.getInstance();
         //        webSocketSessionManager = WebSocketSessionManager.getInstance();
         //        try {
@@ -81,7 +81,7 @@ public class ARMainScene extends ARScene {
     public IARPane buildPane() {
         //        initiateJetty();
         //        arMainPane.initialize(webDriverList);
-        return arMainPane;
+        return arMainDashboardPane;
     }
 
     @Override
@@ -112,7 +112,7 @@ public class ARMainScene extends ARScene {
 
     public void showModal() {
 
-        arMainPane.initialize(webDriverList, isEnabledLicence);
+        arMainDashboardPane.initialize(webDriverList, isEnabledLicence);
 
         if (modalStage == null) {
             modalStage = new Stage();
