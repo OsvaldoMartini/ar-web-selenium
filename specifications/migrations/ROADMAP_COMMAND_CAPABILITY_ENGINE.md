@@ -6,6 +6,8 @@ Date: 2026-07-10
 
 Finish the JavaFX removal by replacing generic command availability with a Java-owned capability engine and action-specific React forms.
 
+The detailed positive/negative UI rules are maintained in `INSTRUCTION_ACTION_CAPABILITY_MATRIX.md`.
+
 ## Immediate Correction
 
 Remove **Insert empty step before/after** from the floating panel or route it to React command mode. Those actions currently trigger `ARNewCommandScene.showModal()`.
@@ -112,4 +114,3 @@ Remove `ARNewCommandPane`, `ARNewCommandScene`, `ARElementValuePane`, and `AREle
 - React never constructs canonical operation strings.
 - All mutations are validated against current database graph revision.
 - Variables and dependent operation strings remain consistent.
-

@@ -80,6 +80,8 @@ Creating `IF` is an atomic three-row operation: IF, ELSE, ENDIF. All three recei
 
 `ELSEIF` is inserted separately and receives the root IF parent id. ELSE and ENDIF are generated boundaries, not independent generic commands.
 
+The confirmed grammar is IF, zero or more ELSEIF branches, optional single ELSE, then ENDIF. ELSEIF may be inserted before ELSE/ENDIF, but never after ELSE or after ENDIF in the same family. IF, ELSEIF, ELSE, and ENDIF must never expose the memory-list `+` action.
+
 Editing rules:
 
 - `IF`, `ELSEIF`, `ELSE`, and `ENDIF` are included in `allSpecialOperations`.
@@ -223,4 +225,3 @@ The first React variable service does not yet perform all parent-operation rewri
 Java must own one immutable instruction graph and return capabilities for a selected row. React may use those capabilities for immediate UX, but Java must validate every mutation again.
 
 No rule should remain only in `GridItem.tsx`, `GridItemComp.tsx`, or JavaFX control visibility.
-
