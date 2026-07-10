@@ -156,7 +156,7 @@ public class MainDashboardService {
         return response;
     }
 
-    private List<Map<String, Object>> dashboardRows() {
+    public List<Map<String, Object>> dashboardRows() {
         List<Map<String, Object>> rows = new ArrayList<>();
         for (BotJobLoadDTO botJob : performLists.getQuickBotJobs()) {
             rows.add(toRow(botJob));

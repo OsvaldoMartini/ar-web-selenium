@@ -40,7 +40,7 @@ public class ARMainDashboardPane extends ARPane {
     private static final ARConfigurationScene arConfigurationScene = ARConfigurationScene.getInstance();
     private static final ARViewBotJobScene arViewBotJobScene = ARViewBotJobScene.getInstance();
     private static final ARSaveCloneScene arSaveCloneScene = ARSaveCloneScene.getInstance();
-    private static final ARNewBotJobScene arNewBotJobScene = ARNewBotJobScene.getInstance();
+    private static final ARNewBotJobManagerScene arNewBotJobManagerScene = ARNewBotJobManagerScene.getInstance();
     private static final AROrganizationManagerScene arOrganizationManagerScene = AROrganizationManagerScene.getInstance();
     private static final ARWebDriver arWebDriver = ARWebDriver.getInstance();
 
@@ -72,7 +72,6 @@ public class ARMainDashboardPane extends ARPane {
         this.isEnabledLicence = isEnabledLicence;
         refreshLegacyListView();
         arConfigurationScene.initialize(legacyBotJobListView, isEnabledLicence);
-        arNewBotJobScene.initialize(arViewBotJobScene, arWebDriver, webDriverList, isEnabledLicence);
         arWebDriver.initialize(webDriverList);
     }
 
@@ -135,8 +134,8 @@ public class ARMainDashboardPane extends ARPane {
                         0);
                 return;
             }
-            arNewBotJobScene.initialize(arViewBotJobScene, arWebDriver, webDriverList, isEnabledLicence);
-            arNewBotJobScene.showModal(currentStage());
+            arNewBotJobManagerScene.initialize(isEnabledLicence);
+            arNewBotJobManagerScene.showModal(currentStage());
             performDataBase.loadQuickBotJobs();
             refreshLegacyListView();
         });

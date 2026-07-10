@@ -1047,7 +1047,11 @@ public class PerformDataBase {
 
             // Step 2: Insert new bot job
             pstmt.setString(1, createdBotJob.getName());
-            pstmt.setString(2, createdBotJob.getName() + " description");
+            pstmt.setString(
+                    2,
+                    Strings.isNullOrEmpty(createdBotJob.getDescription())
+                            ? createdBotJob.getName() + " description"
+                            : createdBotJob.getDescription());
             pstmt.setString(3, createdBotJob.getPriority());
             pstmt.setInt(4, createdBotJob.getHomeBankingId());
             pstmt.setInt(5, createdBotJob.getHomeUrlId());

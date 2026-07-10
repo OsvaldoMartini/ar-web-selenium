@@ -33,6 +33,7 @@ public class SimpleWebSocketServer {
     private static final OrganizationManagerService organizationManagerService =
             OrganizationManagerService.getInstance();
     private static final MainDashboardService mainDashboardService = MainDashboardService.getInstance();
+    private static final NewBotJobService newBotJobService = NewBotJobService.getInstance();
     protected static volatile SimpleWebSocketServer instance;
     private static WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
     private static ARExcelFileScene arExcelFileScene = ARExcelFileScene.getInstance();
@@ -283,6 +284,21 @@ public class SimpleWebSocketServer {
                 case "mainDashboard.exit":
                     handleMainDashboardExit(sessionId);
                     break;
+                case "newBotJob.bootstrap":
+                    handleNewBotJobBootstrap(sessionId);
+                    break;
+                case "newBotJob.environments":
+                    handleNewBotJobEnvironments(sessionId);
+                    break;
+                case "newBotJob.create":
+                    handleNewBotJobCreate(jsonObjMSG, sessionId);
+                    break;
+                case "newBotJob.openOrganizations":
+                    handleNewBotJobOpenOrganizations(sessionId);
+                    break;
+                case "newBotJob.cancel":
+                    handleNewBotJobCancel(sessionId);
+                    break;
                 default:
                     handleMessageByType(type, jsonObjMSG, session, sessionId);
                     break;
@@ -398,6 +414,30 @@ public class SimpleWebSocketServer {
     }
 
     private void sendMainDashboardResponse(String sessionId, Object response, String operationId) {
+        webSocketSessionManager.sendMessageJson(-1, sessionId, gson.toJson(response), operationId);
+    }
+
+    private void handleNewBotJobBootstrap(String sessionId) {
+        sendNewBotJobResponse(sessionId, newBotJobService.bootstrap(), "newBotJob.bootstrapResponse");
+    }
+
+    private void handleNewBotJobEnvironments(String sessionId) {
+        sendNewBotJobResponse(sessionId, newBotJobService.environments(), "newBotJob.environmentsResponse");
+    }
+
+    private void handleNewBotJobCreate(JsonObject jsonObjMSG, String sessionId) {
+        sendNewBotJobResponse(sessionId, newBotJobService.create(extractBody(jsonObjMSG)), "newBotJob.createResponse");
+    }
+
+    private void handleNewBotJobOpenOrganizations(String sessionId) {
+        sendNewBotJobResponse(sessionId, newBotJobService.openOrganizations(), "newBotJob.actionResponse");
+    }
+
+    private void handleNewBotJobCancel(String sessionId) {
+        sendNewBotJobResponse(sessionId, newBotJobService.cancel(), "newBotJob.actionResponse");
+    }
+
+    private void sendNewBotJobResponse(String sessionId, Object response, String operationId) {
         webSocketSessionManager.sendMessageJson(-1, sessionId, gson.toJson(response), operationId);
     }
 
