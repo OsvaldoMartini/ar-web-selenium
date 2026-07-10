@@ -8,7 +8,11 @@ import com.allinweb.ch.util.ErrorMessage;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.List;
+import java.util.Set;
 
 /** Pane-free backend for the React instruction command panel. */
 public final class CommandEditorService {
@@ -37,17 +41,81 @@ public final class CommandEditorService {
         int instructionId = integer(body, "instructionId", -1);
         String instructionName = string(body, "instructionName", "");
 
-        ErrorMessage error = database.loadAllVariablesByCriteria(
-                variableTable, whereId, instructionId, instructionName);
+        ErrorMessage error = database.loadInstructions(
+                whereId, -1, -1, "componentTasks".equals(sessionId) ? "component_instruction" : "instruction");
         if (error == null) error = database.loadBlocks(whereId, "", blockTable);
 
         response.addProperty("ok", error == null);
-        response.add("variables", gson.toJsonTree(lists.getListVariablesUser()));
+        response.add("variables", loadVariables(variableTable, whereId));
+        response.add("webFields", webFields(sessionId));
         response.add("blocks", gson.toJsonTree(
                 "componentTasks".equals(sessionId) ? lists.getListBlockComp() : lists.getListBlock()));
         response.add("commands", commandCatalog());
         if (error != null) response.addProperty("error", error.getErrorMessage());
         return response;
+    }
+
+    private JsonArray webFields(String sessionId) {
+        List<InstructionLoad> instructions = "componentTasks".equals(sessionId)
+                ? lists.getListInstructionComp()
+                : lists.getListInstruction();
+        JsonArray rows = new JsonArray();
+        for (InstructionLoad instruction : instructions) {
+            if (instruction == null || instruction.getId() == null || isSpecialAction(instruction.getActions())) continue;
+            JsonObject row = new JsonObject();
+            row.addProperty("id", instruction.getId());
+            row.addProperty("name", instruction.getName());
+            row.addProperty("actions", instruction.getActions());
+            row.addProperty("tagName", instruction.getTagName());
+            row.addProperty("blockId", instruction.getBlockId());
+            row.addProperty("blockName", instruction.getBlockName());
+            row.addProperty("instructionOrderNumber", instruction.getInstructionOrderNumber());
+            rows.add(row);
+        }
+        return rows;
+    }
+
+    private JsonArray loadVariables(String table, int whereId) {
+        JsonArray rows = new JsonArray();
+        String ownerColumn = "component_variable".equals(table) ? "home_banking_id" : "bot_job_id";
+        String instructionTable = "component_variable".equals(table) ? "component_instruction" : "instruction";
+        String sql = "SELECT v.id,v.type,v.name,v.value,v.local_format,v.delimiter,v.instruction_id,"
+                + "COUNT(i.variable_id) used_vars FROM " + table + " v LEFT JOIN " + instructionTable
+                + " i ON i.variable_id=v.id WHERE v." + ownerColumn + "=? "
+                + "GROUP BY v.id,v.type,v.name,v.value,v.local_format,v.delimiter,v.instruction_id ORDER BY v.id";
+        try (PreparedStatement statement = database.getConnection().prepareStatement(sql)) {
+            statement.setInt(1, whereId);
+            try (ResultSet result = statement.executeQuery()) {
+                while (result.next()) {
+                    JsonObject row = new JsonObject();
+                    row.addProperty("id", result.getInt("id"));
+                    row.addProperty("type", result.getString("type"));
+                    row.addProperty("name", result.getString("name"));
+                    row.addProperty("value", result.getString("value"));
+                    row.addProperty("localFormat", result.getString("local_format"));
+                    row.addProperty("delimiter", result.getString("delimiter"));
+                    row.addProperty("instructionId", result.getInt("instruction_id"));
+                    row.addProperty("usedVars", result.getInt("used_vars"));
+                    rows.add(row);
+                }
+            }
+        } catch (SQLException exception) {
+            JsonObject error = new JsonObject();
+            error.addProperty("error", exception.getMessage());
+            rows.add(error);
+        }
+        return rows;
+    }
+
+    private boolean isSpecialAction(String action) {
+        if (action == null || action.isBlank()) return false;
+        String base = action.split(":", 2)[0].trim().toUpperCase();
+        return Set.of(
+                        "SET", "GET", "CK", "Q", "QUIT", "E", "P", "SCREEN", "H", "HOLD", "GOTO",
+                        "IF", "ELSEIF", "ELSE", "ENDIF", "PAUSE", "REFRESH", "LOOP", "REFRESH_LOOP",
+                        "NEXT_ENTER", "SWIPE_UP", "SWIPE_DOWN", "EXCEL GOTO", "NEXT ROW", "CSV CHECK",
+                        "PDF CHECK")
+                .contains(base);
     }
 
     public JsonObject apply(JsonObject body) {
@@ -61,6 +129,15 @@ public final class CommandEditorService {
 
         if (action.isEmpty() || name.isEmpty()) return failure("Command and name are required.");
         if (integer(body, "blockId", -1) < 1) return failure("A valid block is required.");
+        Integer parentId = nullableInteger(body, "parentId");
+        Integer variableId = nullableInteger(body, "variableId");
+        Integer parentBlockId = nullableInteger(body, "parentBlockId");
+        if (requiresWebField(action) && parentId == null) return failure("Select a compatible Web Field.");
+        if (requiresVariable(action) && variableId == null) return failure("Select a Variable for the Web Field.");
+        if (requiresBlock(action) && parentBlockId == null) return failure("Select a destination Block.");
+        if (parentId != null && !webFieldBelongsToBlock(targetSession, parentId, integer(body, "blockId", -1))) {
+            return failure("The selected Web Field is outside the reference instruction block.");
+        }
 
         SplitDTO split = new SplitDTO();
         split.setType("edit".equals(mode) ? "EDIT_OPERATION" : "before".equals(mode) ? "INSERT_BEFORE" : "INSERT_AFTER");
@@ -76,9 +153,9 @@ public final class CommandEditorService {
         split.setInstructionOrderNumber(integer(body, "instructionOrderNumber", 1));
         split.setActions(action);
         split.setOperation(operation);
-        split.setVariableId(nullableInteger(body, "variableId"));
-        split.setParentId(nullableInteger(body, "parentId"));
-        split.setParentBlockId(nullableInteger(body, "parentBlockId"));
+        split.setVariableId(variableId);
+        split.setParentId(parentId);
+        split.setParentBlockId(parentBlockId);
 
         ErrorMessage error = database.preFillNewInstruction(name, name, action, operation, hold, split, false);
         if (error != null) return failure(error.getErrorMessage());
@@ -145,6 +222,31 @@ public final class CommandEditorService {
 
     private static int defaultHold(String action) {
         return "HOLD".equals(action) ? 5 : 1;
+    }
+
+    private static boolean requiresWebField(String action) {
+        return Set.of("SET", "GET", "CK", "PDF CHECK", "CSV CHECK", "E", "LOOP", "REFRESH_LOOP")
+                .contains(action);
+    }
+
+    private static boolean requiresVariable(String action) {
+        return Set.of("SET", "GET", "CK", "PDF CHECK", "CSV CHECK", "E").contains(action);
+    }
+
+    private static boolean requiresBlock(String action) {
+        return Set.of("GOTO", "EXCEL GOTO").contains(action);
+    }
+
+    private boolean webFieldBelongsToBlock(String sessionId, int instructionId, int blockId) {
+        List<InstructionLoad> instructions = "componentTasks".equals(sessionId)
+                ? lists.getListInstructionComp()
+                : lists.getListInstruction();
+        return instructions.stream().anyMatch(row -> row != null
+                && row.getId() != null
+                && row.getId() == instructionId
+                && row.getBlockId() != null
+                && row.getBlockId() == blockId
+                && !isSpecialAction(row.getActions()));
     }
 
     private static String string(JsonObject body, String key, String fallback) {
