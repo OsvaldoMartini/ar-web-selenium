@@ -90,6 +90,7 @@ public class PerformInitializer {
                 // Create bot_job table with a foreign key reference to home_banking
                 String createURLTableSQL = "CREATE TABLE home_url ("
                         + "ID INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY, "
+                        + "name TEXT DEFAULT 'TEST', "
                         + "url TEXT, "
                         + "home_banking_id INTEGER REFERENCES home_banking(id) ON DELETE CASCADE)";
                 stmt.executeUpdate(createURLTableSQL);
@@ -286,6 +287,7 @@ public class PerformInitializer {
 
                 // HOME URL
                 stmt.executeUpdate("CREATE TABLE home_url (" + "ID AUTOINCREMENT PRIMARY KEY, "
+                        + "name TEXT DEFAULT 'TEST', "
                         + "url MEMO, "
                         + "home_banking_id INTEGER)");
 
@@ -516,6 +518,7 @@ public class PerformInitializer {
 
                 String createURLTableSQL = "CREATE TABLE home_url ("
                         + "ID INTEGER PRIMARY KEY AUTOINCREMENT, "
+                        + "name TEXT DEFAULT 'TEST', "
                         + "url TEXT, "
                         + "home_banking_id INTEGER, "
                         + "FOREIGN KEY(home_banking_id) REFERENCES home_banking(id) ON DELETE CASCADE)";

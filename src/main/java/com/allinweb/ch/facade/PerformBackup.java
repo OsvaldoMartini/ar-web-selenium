@@ -143,7 +143,7 @@ public class PerformBackup {
     public ErrorMessage backupHomeUrl(Connection conn, String backupFilePath) {
         String query =
                 """
-                        SELECT id, url, home_banking_id
+                        SELECT id, name, url, home_banking_id
                         FROM home_url
                         ORDER BY id ASC
                         """;
@@ -156,6 +156,7 @@ public class PerformBackup {
 
             while (rs.next()) {
                 int id = rs.getInt("id");
+                String name = toSqlValue(defaultEnvironmentName(rs.getString("name")));
                 String url = toSqlValue(rs.getString("url"));
 
                 int homeBankingId = rs.getInt("home_banking_id");
@@ -163,8 +164,8 @@ public class PerformBackup {
 
                 // Compose SQL insert
                 String insert = String.format(
-                        "INSERT INTO home_url (id, url, home_banking_id) VALUES (%d, '%s', %s);",
-                        id, url, homeBankingIdWasNull ? "NULL" : homeBankingId);
+                        "INSERT INTO home_url (id, name, url, home_banking_id) VALUES (%d, '%s', '%s', %s);",
+                        id, name, url, homeBankingIdWasNull ? "NULL" : homeBankingId);
 
                 writer.write(insert + System.lineSeparator());
             }
@@ -1081,8 +1082,8 @@ public class PerformBackup {
         String insertQuery =
                 """
                         INSERT INTO home_url (
-                            url, home_banking_id
-                        ) VALUES (?, ?);
+                            name, url, home_banking_id
+                        ) VALUES (?, ?, ?);
                         """;
 
         String selectHomeUrlIdsSQL = "SELECT id FROM home_url ORDER BY id";
@@ -1117,18 +1118,22 @@ public class PerformBackup {
                 if (line.endsWith(";")) {
                     List<String> values = extractValuesFromInsert(currentInsert.toString());
 
-                    if (values.size() != 3) {
+                    if (values.size() != 3 && values.size() != 4) {
                         return new ErrorMessage(
-                                "Parse Error", "Expected 3 values for home_url", currentInsert.toString());
+                                "Parse Error", "Expected 3 or 4 values for home_url", currentInsert.toString());
                     }
 
-                    // Extract old home_banking_id (index 2)
+                    int nameIndex = values.size() == 4 ? 1 : -1;
+                    int urlIndex = values.size() == 4 ? 2 : 1;
+                    int homeBankIndex = values.size() == 4 ? 3 : 2;
+
+                    // Extract old home_banking_id.
                     Integer oldHomeBankId = null;
                     try {
-                        String oldHomeBankIdStr = values.get(2);
+                        String oldHomeBankIdStr = values.get(homeBankIndex);
                         oldHomeBankId = Integer.parseInt(oldHomeBankIdStr);
                     } catch (NumberFormatException ex) {
-                        log.info("Invalid home_banking_id format: " + values.get(2));
+                        log.info("Invalid home_banking_id format: " + values.get(homeBankIndex));
                     }
 
                     // Lookup newHomeBankId from homeBankMap
@@ -1143,15 +1148,10 @@ public class PerformBackup {
                         continue; // skip this row
                     }
 
-                    for (int i = 1; i < values.size(); i++) {
-                        String val = values.get(i);
-                        switch (i) {
-                                //                            case 0 -> setSafeParam(pstmt, 1, val, Types.INTEGER); //
-                                // id
-                            case 1 -> setSafeParam(pstmt, 1, val, Types.VARCHAR); // url
-                            case 2 -> pstmt.setInt(2, newHomeBankId); // home_banking_id (mapped)
-                        }
-                    }
+                    String name = nameIndex > 0 ? values.get(nameIndex) : "TEST";
+                    setSafeParam(pstmt, 1, defaultEnvironmentName(name), Types.VARCHAR);
+                    setSafeParam(pstmt, 2, values.get(urlIndex), Types.VARCHAR);
+                    pstmt.setInt(3, newHomeBankId);
 
                     // Track old ID for mapping later (id is values.get(0))
                     try {
@@ -3050,6 +3050,10 @@ public class PerformBackup {
         return escapeSql(val);
     }
 
+    private String defaultEnvironmentName(String name) {
+        return name == null || name.trim().isEmpty() || name.equalsIgnoreCase("[null]") ? "TEST" : name.trim();
+    }
+
     private ErrorMessage restoreUseCase(Connection conn, String sqlFilePath) {
         if (sqlFilePath == null || sqlFilePath.isBlank()) {
             log.info("restoreUseCase — no file, skipping");
@@ -3531,7 +3535,7 @@ public class PerformBackup {
                             "driver_session",
                             "username",
                             "password")),
-            new BackupTableSpec("home_url", List.of("id", "url", "home_banking_id")),
+            new BackupTableSpec("home_url", List.of("id", "name", "url", "home_banking_id")),
             new BackupTableSpec(
                     "bot_job",
                     List.of("id", "name", "description", "priority", "home_banking_id", "home_url_id", "active")),

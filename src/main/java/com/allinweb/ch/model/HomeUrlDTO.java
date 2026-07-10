@@ -9,7 +9,12 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class HomeUrlDTO {
     private Integer id;
+    private String name;
     private String url;
     private Integer homeBankingId;
     private String orgName;
+
+    public HomeUrlDTO(Integer id, String url, Integer homeBankingId, String orgName) {
+        this(id, "TEST", url, homeBankingId, orgName);
+    }
 }

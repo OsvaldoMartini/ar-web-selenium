@@ -248,7 +248,8 @@ public class PerformDBEngine {
         performLists.getListHomeUrl().clear();
 
         StringBuilder sql = new StringBuilder(
-                "SELECT hu.id AS id, hu.url AS url, hu.home_banking_id AS home_banking_id, hb.name AS org_name "
+                "SELECT hu.id AS id, hu.name AS name, hu.url AS url, hu.home_banking_id AS home_banking_id, "
+                        + "hb.name AS org_name "
                         + "FROM home_url hu "
                         + "LEFT JOIN home_banking hb ON hu.home_banking_id = hb.id ");
 
@@ -266,11 +267,12 @@ public class PerformDBEngine {
             try (ResultSet rs = pstmt.executeQuery()) {
                 while (rs.next()) {
                     Integer id = rs.getInt("id");
+                    String name = defaultEnvironmentName(rs.getString("name"));
                     String url = rs.getString("url");
                     Integer hbId = rs.getInt("home_banking_id");
                     String orgName = rs.getString("org_name");
 
-                    performLists.getListHomeUrl().add(new HomeUrlDTO(id, url, hbId, orgName));
+                    performLists.getListHomeUrl().add(new HomeUrlDTO(id, name, url, hbId, orgName));
                 }
             }
 
@@ -280,6 +282,10 @@ public class PerformDBEngine {
         }
 
         return null; // success → no error
+    }
+
+    private String defaultEnvironmentName(String name) {
+        return name == null || name.trim().isEmpty() ? "TEST" : name.trim();
     }
 
     public ErrorMessage loadCompleteJobs(int botJobId) {

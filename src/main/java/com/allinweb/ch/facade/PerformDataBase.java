@@ -4158,8 +4158,13 @@ public class PerformDataBase {
     }
 
     public ErrorMessage createHomeUrlChild(int homeBankId, String newUrl) {
+        return createHomeUrlChild(homeBankId, newUrl, "TEST");
+    }
+
+    public ErrorMessage createHomeUrlChild(int homeBankId, String newUrl, String environmentName) {
         String tableName = "home_url";
-        String insertSQL = "INSERT INTO " + tableName + " (url, home_banking_id) VALUES (?, ?)";
+        String insertSQL = "INSERT INTO " + tableName + " (name, url, home_banking_id) VALUES (?, ?, ?)";
+        String safeEnvironmentName = defaultEnvironmentName(environmentName);
 
         try (Connection conn = getConnection();
                 Statement idStmtBefore = conn.createStatement();
@@ -4177,8 +4182,9 @@ public class PerformDataBase {
             }
 
             // Step 2: Insert new home_url record
-            pstmt.setString(1, newUrl);
-            pstmt.setInt(2, homeBankId);
+            pstmt.setString(1, safeEnvironmentName);
+            pstmt.setString(2, newUrl);
+            pstmt.setInt(3, homeBankId);
             pstmt.addBatch();
             pstmt.executeBatch();
 
@@ -4207,9 +4213,14 @@ public class PerformDataBase {
     }
 
     public ErrorMessage createNewHomeUrl(int homeBankId, String newUrl) {
+        return createNewHomeUrl(homeBankId, newUrl, "TEST");
+    }
+
+    public ErrorMessage createNewHomeUrl(int homeBankId, String newUrl, String environmentName) {
         String tableName = "home_url";
         String checkQuery = "SELECT COUNT(*) FROM " + tableName + " WHERE url = ? AND home_banking_id = ?";
-        String insertSQL = "INSERT INTO " + tableName + " (url, home_banking_id) VALUES (?, ?)";
+        String insertSQL = "INSERT INTO " + tableName + " (name, url, home_banking_id) VALUES (?, ?, ?)";
+        String safeEnvironmentName = defaultEnvironmentName(environmentName);
 
         try (Connection conn = getConnection();
                 Statement idStmtBefore = conn.createStatement();
@@ -4243,8 +4254,9 @@ public class PerformDataBase {
 
             // Step 3: Prepare and execute insert
             try (PreparedStatement pstmt = conn.prepareStatement(insertSQL)) {
-                pstmt.setString(1, newUrl);
-                pstmt.setInt(2, homeBankId);
+                pstmt.setString(1, safeEnvironmentName);
+                pstmt.setString(2, newUrl);
+                pstmt.setInt(3, homeBankId);
 
                 pstmt.addBatch();
                 pstmt.executeBatch();
@@ -4275,8 +4287,14 @@ public class PerformDataBase {
     }
 
     public ErrorMessage updateHomeUrl(int homeUrlId, int homeBankId, String newUrl) throws SQLException {
+        return updateHomeUrl(homeUrlId, homeBankId, newUrl, "TEST");
+    }
+
+    public ErrorMessage updateHomeUrl(int homeUrlId, int homeBankId, String newUrl, String environmentName)
+            throws SQLException {
         String checkQuery = "SELECT COUNT(*) FROM home_url WHERE url = ? AND home_banking_id = ? AND id != ?";
-        String updateQuery = "UPDATE home_url SET url = ? WHERE id = ? AND home_banking_id = ?";
+        String updateQuery = "UPDATE home_url SET name = ?, url = ? WHERE id = ? AND home_banking_id = ?";
+        String safeEnvironmentName = defaultEnvironmentName(environmentName);
 
         try (Connection conn = getConnection()) {
             // Check if the URL already exists for this org but with a different ID
@@ -4297,9 +4315,10 @@ public class PerformDataBase {
 
             // Proceed with update
             try (PreparedStatement updateStmt = conn.prepareStatement(updateQuery)) {
-                updateStmt.setString(1, newUrl);
-                updateStmt.setInt(2, homeUrlId);
-                updateStmt.setInt(3, homeBankId);
+                updateStmt.setString(1, safeEnvironmentName);
+                updateStmt.setString(2, newUrl);
+                updateStmt.setInt(3, homeUrlId);
+                updateStmt.setInt(4, homeBankId);
 
                 int updated = updateStmt.executeUpdate();
                 if (updated == 0) {
@@ -4316,6 +4335,10 @@ public class PerformDataBase {
             logDB.info(error.getMessage());
             return new ErrorMessage("Error updating URL", "Org URL Update Failure", error.getMessage());
         }
+    }
+
+    private String defaultEnvironmentName(String environmentName) {
+        return environmentName == null || environmentName.trim().isEmpty() ? "TEST" : environmentName.trim();
     }
 
     public ErrorMessage deleteHomeUrl(int homeUrlId) throws SQLException {

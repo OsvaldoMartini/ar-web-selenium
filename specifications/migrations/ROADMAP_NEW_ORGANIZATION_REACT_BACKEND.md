@@ -90,10 +90,10 @@ Suggested layout:
 - Organization table:
   - ID, Active Jobs, Organization, URL Baseline
 - Environment form for selected organization:
-  - Environment ID, Environment URL
+  - Environment ID, Environment Name, Environment URL
   - Actions: Insert URL, Update URL, Delete URL
 - Environment table:
-  - ID, Organization, URL Environment
+  - ID, Organization, Environment Name, URL Environment
 - Status/toast area:
   - loading, saved, updated, deleted, validation errors, backend errors
 
@@ -120,8 +120,8 @@ React -> Java commands:
 | `organization.delete` | `{ id }` | Deletes selected organization if no active jobs |
 | `organization.template` | `{}` | Returns default priority/search/options template text |
 | `homeUrl.list` | `{ homeBankingId }` | Returns environments for one organization |
-| `homeUrl.create` | `{ homeBankingId, url }` | Creates environment URL |
-| `homeUrl.update` | `{ homeBankingId, homeUrlId, url }` | Updates environment URL |
+| `homeUrl.create` | `{ homeBankingId, name, url }` | Creates environment URL; blank `name` defaults to `TEST` |
+| `homeUrl.update` | `{ homeBankingId, homeUrlId, name, url }` | Updates environment name and URL; blank `name` defaults to `TEST` |
 | `homeUrl.delete` | `{ homeBankingId, homeUrlId }` | Deletes environment URL if allowed |
 
 Java -> React events:
@@ -136,6 +136,11 @@ Java -> React events:
 | `homeUrl.saveResponse` | `{ ok, message, homeUrls?, error? }` |
 | `homeUrl.deleteResponse` | `{ ok, message, homeUrls?, error? }` |
 | `organization.status` | `{ level: "info"|"success"|"warning"|"error", message }` |
+
+Database update:
+
+- `home_url.name` stores the client-facing environment name (`UAT`, `DEV`, `prod`, custom test names, etc.).
+- Existing and blank environment names default to `TEST`.
 
 ## Phase 1 - Backend Service Wrapper
 

@@ -166,11 +166,12 @@ public class OrganizationManagerService {
 
     public Map<String, Object> createHomeUrl(JsonObject body) {
         int homeBankingId = intVal(body, "homeBankingId");
+        String name = defaultEnvironmentName(str(body, "name"));
         String url = str(body, "url");
         if (homeBankingId <= 0 || Strings.isNullOrEmpty(url)) {
             return failure("You must select an Organization and fill the Environment field");
         }
-        ErrorMessage error = performDataBase.createNewHomeUrl(homeBankingId, url);
+        ErrorMessage error = performDataBase.createNewHomeUrl(homeBankingId, url, name);
         if (error != null) {
             return failure("Insert Environment Failed", error);
         }
@@ -184,12 +185,13 @@ public class OrganizationManagerService {
     public Map<String, Object> updateHomeUrl(JsonObject body) {
         int homeBankingId = intVal(body, "homeBankingId");
         int homeUrlId = firstInt(body, "homeUrlId", "id");
+        String name = defaultEnvironmentName(str(body, "name"));
         String url = str(body, "url");
         if (homeBankingId <= 0 || homeUrlId <= 0 || Strings.isNullOrEmpty(url)) {
             return failure("Please select an Organization and an Environment row");
         }
         try {
-            ErrorMessage error = performDataBase.updateHomeUrl(homeUrlId, homeBankingId, url);
+            ErrorMessage error = performDataBase.updateHomeUrl(homeUrlId, homeBankingId, url, name);
             if (error != null) {
                 return failure("Update Environment Failed", error);
             }
@@ -314,6 +316,10 @@ public class OrganizationManagerService {
 
     private String defaultIfBlank(String value, String defaultValue) {
         return Strings.isNullOrEmpty(value) ? defaultValue : value;
+    }
+
+    private String defaultEnvironmentName(String value) {
+        return Strings.isNullOrEmpty(value) ? "TEST" : value;
     }
 
     private String fillUpTemplatePriority() {
