@@ -281,6 +281,18 @@ public class ARMainPane extends ARPane {
         });
 
         organizationsButton.setOnMouseClicked(e -> {
+            ErrorMessage errorMessage = performDataBase.loadAllDataUsers();
+            if (errorMessage == null) {
+                errorMessage = performDBEngine.loadHomeBanking(null);
+            }
+            if (errorMessage == null) {
+                errorMessage = performDBEngine.loadHomeUrls(null);
+            }
+            if (errorMessage != null) {
+                performMessage.errorMessageOperationFailed(errorMessage);
+                return;
+            }
+
             var homeBank = performLists.getFirstHomeBanking();
             arNewHomeBankingScene.initialize(homeBank);
             Stage currentStage = (Stage) organizationsButton.getScene().getWindow();
