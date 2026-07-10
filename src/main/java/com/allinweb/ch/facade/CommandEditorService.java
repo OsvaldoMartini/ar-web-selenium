@@ -23,6 +23,7 @@ public final class CommandEditorService {
     private final PerformLists lists = PerformLists.getInstance();
     private final WebSocketSessionManager sessions = WebSocketSessionManager.getInstance();
     private final Gson gson = new Gson();
+    private final CommandOperationCodec operationCodec = new CommandOperationCodec();
 
     private CommandEditorService() {}
 
@@ -124,7 +125,7 @@ public final class CommandEditorService {
         String mode = string(body, "mode", "after");
         String action = string(body, "action", "").trim().toUpperCase();
         String name = string(body, "name", action).trim();
-        String operation = string(body, "operation", "").trim();
+        String operation;
         int hold = integer(body, "hold", defaultHold(action));
 
         if (action.isEmpty() || name.isEmpty()) return failure("Command and name are required.");
@@ -140,6 +141,11 @@ public final class CommandEditorService {
         }
         if (variableId != null && parentId != null && !variableBelongsToWebField(targetSession, variableId, parentId, integer(body, "botJobId", -1), integer(body, "homeBankingId", -1))) {
             return failure("The selected Variable does not belong to the selected Web Field.");
+        }
+        try {
+            operation = operationCodec.encode(body, action);
+        } catch (Exception exception) {
+            return failure(exception.getMessage());
         }
 
         SplitDTO split = new SplitDTO();
@@ -201,10 +207,10 @@ public final class CommandEditorService {
         add(commands, "NEXT_ENTER", "Next / Enter", "none");
         add(commands, "SWIPE_UP", "Swipe Up", "number");
         add(commands, "SWIPE_DOWN", "Swipe Down", "number");
-        add(commands, "HOLD", "Wait", "number");
+        add(commands, "H", "Wait", "number");
         add(commands, "PAUSE", "Pause", "none");
-        add(commands, "QUIT", "Close Browser", "none");
-        add(commands, "SCREEN", "Screenshot", "none");
+        add(commands, "Q", "Close Browser", "none");
+        add(commands, "P", "Screenshot", "none");
         return commands;
     }
 
@@ -224,7 +230,7 @@ public final class CommandEditorService {
     }
 
     private static int defaultHold(String action) {
-        return "HOLD".equals(action) ? 5 : 1;
+        return "H".equals(action) ? 5 : 1;
     }
 
     private static boolean requiresWebField(String action) {
