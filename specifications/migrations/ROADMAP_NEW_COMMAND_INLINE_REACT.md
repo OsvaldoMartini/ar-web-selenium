@@ -6,9 +6,11 @@ Date: 2026-07-10
 
 Remove the JavaFX `ARNewCommandPane` user interface and migrate all **Add/Update Operations** behavior to React TypeScript.
 
-This migration should not create another standalone page. The target interaction is the existing down-arrow menu on every instruction/step in the React grid. That menu gains **Add Command** and **Edit Command** actions and opens a compact React editor anchored to the selected instruction. React owns the complete interaction and rendering; Java remains the backend that loads command data, validates business rules, and persists an atomic change.
+This migration should not create another standalone page. The existing down-arrow on every instruction/step remains the entry point, but its small dropdown is replaced by a **non-modal, draggable floating panel** using the established `CreateNewBlock` and `OCRPanel` design. The same shared panel must be used by both `GridItem` and `GridItemComp`.
 
-`ARElementValuePane` / **New Variables** is explicitly outside this first migration. The command editor may temporarily launch the legacy variable dialog through a bridge command. Its separate React migration should begin only after this roadmap is complete and stable.
+The panel unifies the current row operations (Insert Before, Insert After, Split Component, Delete) with every command and function currently inside **New Command**. This removes duplicated dropdown logic and gives command creation enough space for complex parameters without leaving the instruction grid.
+
+`ARElementValuePane` / **New Variables** is part of this critical migration scope. Variables are a core dependency of many commands, so the floating panel must include a React Variables workspace backed by a separated Java API. A legacy JavaFX variable-dialog bridge may exist only as an emergency feature-flag fallback during development, not as the target solution.
 
 ## Why This Migration Is High Risk
 
@@ -58,16 +60,18 @@ Current React instruction UI:
 - `/srv/projects/ar-react-ts-grid/src/components/BlockInstructionsDnd.tsx`
 - `/srv/projects/ar-react-ts-grid/src/components/CreateNewBlock.tsx`
 
-`GridItem.tsx` already renders a down-arrow menu per instruction with Insert Before, Insert After, Split Component, Edit Operation, conditional insertion, and Delete. This is the correct integration point.
+`GridItem.tsx` and `GridItemComp.tsx` both render a down-arrow menu per instruction with overlapping Insert Before, Insert After, Split Component, Edit Operation, conditional insertion, and Delete behavior. The down-arrow remains the correct entry point, but the duplicated menus must be replaced by one shared floating-panel component and one shared action controller.
 
 ## Migration Rules
 
-- Keep `ARNewCommandPane` and `ARNewCommandScene` available behind a temporary fallback until parity tests pass.
+- Keep `ARNewCommandPane`, `ARNewCommandScene`, `ARElementValuePane`, and `ARElementValueScene` available behind a temporary fallback until parity tests pass.
 - Do not move SQL, memory-list mutation, command legality rules, or action serialization into React.
 - Do not let React construct the final legacy `operation` string. Java must return and persist the canonical representation.
 - Do not optimistically mutate the instruction grid before Java confirms success.
 - Every mutation must carry a `requestId` and return one authoritative refreshed instruction/block payload.
 - Support both `botJobTasks` and `componentTasks`; do not silently implement only bot jobs.
+- Use the same React panel and backend contracts from both `GridItem` and `GridItemComp`; do not maintain two implementations.
+- Consolidate Insert Before, Insert After, Split Component, Delete, Add Command, Edit Command, and Variables into this shared workflow.
 - Preserve IF/ELSE/ENDIF and LOOP/REFRESH_LOOP structural constraints.
 - Do not run Java/Maven/GUI during implementation unless explicitly requested.
 - Build React with `npm run build`, then replace `src/main/resources/build` with the resulting build.
@@ -75,14 +79,21 @@ Current React instruction UI:
 
 ## Target Interaction
 
-The instruction down-arrow menu should contain:
+Clicking the instruction down-arrow opens one responsive **Instruction Command Panel**, not a small dropdown. It follows the floating, draggable, non-modal behavior and visual language already used by `CreateNewBlock` and `OCRPanel`. It must stay within the React/JCEF viewport, clamp its position after resize/maximize, and use internal scrolling for long forms.
+
+The panel starts with a compact action rail:
 
 - `Add Command Before`
 - `Add Command After`
-- `Edit Command` when the selected instruction is editable
-- existing structural actions such as Split, ElseIf, and Delete
+- `Edit Command` when editable
+- `Split Component` when legal
+- conditional structure actions such as Insert ElseIf when legal
+- `Variables`
+- `Delete` with confirmation
 
-Selecting Add/Edit opens one responsive command editor. Prefer a right-side floating panel on wide containers and a fixed modal sheet on narrow containers. It must remain inside the React/JCEF surface and resize with it.
+Only actions valid for the selected instruction and session are enabled. Java returns these capabilities; React does not independently guess structural legality.
+
+Choosing Add/Edit changes the same floating panel into the command editor. Choosing Variables changes it into the Variables workspace. Back returns to the action rail without closing the panel. This avoids nested dialogs and preserves the selected instruction context.
 
 Editor sections:
 
@@ -91,6 +102,14 @@ Editor sections:
 3. **Parameters** rendered from backend field definitions: operator, value, repetitions, loop count, GOTO row, block target, hold state, and command-specific options.
 4. **Preview** showing a human-readable operation generated by Java validation.
 5. `Apply` and `Cancel` commands.
+
+Variables workspace:
+
+1. Search and select variables available to the current bot job/component context.
+2. Create, edit, and delete a variable without leaving the command panel.
+3. Show variable name, value/source, scope/type, and usage information required by the existing backend.
+4. Prevent deletion when referenced by instructions and return the referencing blocks/instructions in the warning.
+5. After create/update, select the variable in the command draft without losing unsaved command fields.
 
 The menu itself starts the workflow with explicit placement context. The user should not have to reopen a separate Add/Update Operations window.
 
@@ -112,6 +131,10 @@ Suggested classes:
 | `CommandPersistenceService` | Performs one transactional add/update and coordinates memory refresh |
 | `CommandPlacementService` | Resolves before/after/order/parent rules for IF and loop families |
 | `CommandRefreshPublisher` | Publishes the authoritative updated block/instruction payload to React sessions |
+| `VariableEditorService` | Orchestrates variable bootstrap, validation, create, update, delete, and usage checks |
+| `VariableValidationService` | Enforces variable naming, values, uniqueness, scope, and command compatibility |
+| `VariablePersistenceService` | Performs transactional variable mutations and refreshes affected command choices |
+| `InstructionActionService` | Centralizes Insert Before/After, Split, conditional actions, and Delete for both grids |
 
 Suggested DTO package:
 
@@ -125,6 +148,11 @@ Suggested DTO package:
 - `CommandPlacementDTO`
 - `CommandValidationResultDTO`
 - `CommandMutationResultDTO`
+- `VariableEditorContextDTO`
+- `VariableDraftDTO`
+- `VariableUsageDTO`
+- `VariableMutationResultDTO`
+- `InstructionActionCapabilitiesDTO`
 
 The services may initially delegate to extracted methods preserving current behavior. Only after parity is proven should dead JavaFX-specific code be removed.
 
@@ -175,8 +203,12 @@ React to Java:
 | `commandEditor.refreshElements` | context | Reload scanned/page elements |
 | `commandEditor.validate` | typed draft | Return field errors and canonical preview without saving |
 | `commandEditor.apply` | typed draft plus `requestId` | Atomically add or update one command |
-| `commandEditor.openVariableEditor` | context and optional variable id | Temporary legacy bridge until Variables migration |
+| `commandEditor.performRowAction` | context, action, `requestId` | Insert placeholder/conditional, split, or delete through one backend path |
 | `commandEditor.cancel` | context | Clear editor state; no database mutation |
+| `variableEditor.bootstrap` | command context | Load variable definitions, choices, and usage metadata |
+| `variableEditor.validate` | typed variable draft | Validate without saving |
+| `variableEditor.save` | typed draft plus `requestId` | Create or update a variable atomically |
+| `variableEditor.delete` | variable id plus `requestId` | Delete only after backend usage check and confirmation |
 
 Java to React:
 
@@ -186,8 +218,12 @@ Java to React:
 | `commandEditor.elementsResponse` | refreshed element choices |
 | `commandEditor.validationResponse` | valid, errors, warnings, canonical preview |
 | `commandEditor.applyResponse` | ok, message, instruction id, updated blocks/instructions, requestId |
-| `commandEditor.variableEditorResponse` | opened/closed and refreshed variable choices |
+| `commandEditor.rowActionResponse` | ok, updated blocks/instructions, capabilities, requestId |
 | `commandEditor.error` | code, message, field errors, requestId |
+| `variableEditor.bootstrapResponse` | variables, definitions, selected variable, capabilities |
+| `variableEditor.validationResponse` | valid, errors, warnings |
+| `variableEditor.saveResponse` | ok, saved variable, refreshed choices, usage, requestId |
+| `variableEditor.deleteResponse` | ok, blocked, usages, refreshed choices, requestId |
 
 Context must contain stable IDs, not display names:
 
@@ -207,14 +243,18 @@ type CommandEditorContext = {
 
 Create focused components under `/srv/projects/ar-react-ts-grid/src/components`:
 
+- `InstructionCommandPanel.tsx`
+- `InstructionCommandPanel.module.scss`
 - `CommandEditor.tsx`
-- `CommandEditor.module.scss`
-- `CommandMenu.tsx`
-- `CommandMenu.module.scss`
+- `VariableEditor.tsx`
 - `commandEditorTypes.ts`
 - `useCommandEditor.ts`
+- `useVariableEditor.ts`
+- `useInstructionActions.ts`
 
-Integrate them into `GridItem.tsx`; do not add a new root/session page. `GridItem.tsx` is already large, so command state, message parsing, and field rendering must live in the new files rather than expanding that component further.
+Integrate the same components into both `GridItem.tsx` and `GridItemComp.tsx`; do not add a new root/session page. Both grid files are already large and duplicate important row operations, so panel state, message parsing, capabilities, and action handlers must move into the shared hooks/components rather than expanding either grid.
+
+The SCSS should reuse the layout behavior of `CreateNewBlock.module.scss` and `OCRPanel.module.scss`, but the new panel must own its styles in `InstructionCommandPanel.module.scss`. Do not couple it to either grid's CSS module.
 
 ## Phased Implementation
 
@@ -249,53 +289,78 @@ Exit criteria: JavaFX still works, and command parsing/validation no longer depe
 
 Exit criteria: the JavaFX pane delegates mutations to `CommandPersistenceService` and contains no direct command SQL/database mutation.
 
-### Phase 3 - Add Backend API
+### Phase 3 - Consolidate Existing Row Actions
+
+- Extract Insert Before, Insert After, Split Component, conditional insertion, and Delete from duplicated grid handlers into `InstructionActionService` and a shared React hook.
+- Return action capabilities from Java for the selected instruction.
+- Keep existing behavior during extraction and add confirmation/blocked responses for destructive actions.
+- Ensure both `GridItem` and `GridItemComp` consume the same contract.
+
+Exit criteria: the two grids no longer maintain independent row-action business logic.
+
+### Phase 4 - Extract Variables Backend
+
+- Inventory all `ARElementValuePane` fields, validation, table differences, and callers.
+- Implement variable DTOs, validation, usage lookup, and transactional persistence without JavaFX imports.
+- Make `ARElementValuePane` delegate to the extracted services during parity development.
+- Prevent deletion of referenced variables and return useful usage details.
+
+Exit criteria: variable CRUD and usage validation can run through Java services without opening JavaFX.
+
+### Phase 5 - Add Backend APIs
 
 - Add `CommandEditorService` routing in `SimpleWebSocketServer`.
-- Implement bootstrap, refresh, validate, apply, cancel, and variable-editor bridge handlers.
+- Implement command bootstrap, refresh, validate, apply, row-action, and cancel handlers.
+- Implement variable bootstrap, validate, save, and delete handlers.
 - Return structured errors; never HTML-formatted JavaFX messages.
 - Verify stale instruction/block IDs are rejected with a refresh-required response.
 
 Exit criteria: a WebSocket client can create and edit every command without opening `ARNewCommandScene`.
 
-### Phase 4 - Build React Command Editor
+### Phase 6 - Build Shared React Floating Panel
 
-- Add the command menu/editor components and isolated SCSS modules.
-- Extend the existing instruction arrow menu with Add Before, Add After, and Edit Command.
+- Add the shared floating panel, command editor, variable editor, hooks, and isolated SCSS module.
+- Keep the existing down-arrow in both grids, but make it open the panel instead of rendering the old dropdown.
+- Move Insert Before/After, Split, conditional actions, Delete, Add/Edit Command, and Variables into the panel action rail.
+- Reuse the draggable non-modal behavior of Create New Block/OCR while clamping within the JCEF viewport.
 - Render fields from Java command metadata.
 - Add loading, empty, validation, reconnect, conflict, and saving states.
 - Disable Apply while saving and correlate the response by `requestId`.
 - Preserve focus and scroll position after a successful refresh.
 
-Exit criteria: all command workflows are usable entirely inside the instruction grid.
+Exit criteria: both grids use the same panel and all row/command workflows are usable without a JavaFX command window.
 
-### Phase 5 - Variable Bridge
+### Phase 7 - Build React Variables Workspace
 
-- Add `New Variable` beside variable selection only when the command supports variables.
-- Initially call `ARElementValueScene` through `commandEditor.openVariableEditor`.
-- When it closes, reload variable choices without closing the React command editor.
-- Keep this bridge isolated so the later `ARElementValuePane` migration can replace it without changing command persistence.
+- Add the Variables view inside the same floating panel.
+- Support search, select, create, edit, delete, validation, and usage-blocked warnings.
+- Preserve the current command draft while switching between Command and Variables views.
+- Select a newly created variable automatically when returning to the command editor.
+- Keep the legacy `ARElementValueScene` only behind an emergency feature flag during stabilization.
 
-Exit criteria: users can select existing variables and create one through the temporary legacy bridge.
+Exit criteria: normal variable workflows are React-only and integrated with command creation.
 
-### Phase 6 - Parity And Regression Testing
+### Phase 8 - Parity And Regression Testing
 
 - Test add before and after at first, middle, and last positions.
 - Test editing without changing order or parent relationships.
 - Test every command family and quick action.
 - Test IF/ELSEIF/ELSE/ENDIF and loop placement rejection/acceptance.
 - Test bot-job and component-task sessions.
+- Run every row action from both `GridItem` and `GridItemComp` and compare results.
+- Test variable create/edit/delete, duplicate names, references, and automatic selection in a command draft.
+- Test panel drag, viewport clamping, maximize/restore, internal scroll, and narrow JCEF dimensions.
 - Test element refresh and stale/deleted targets.
 - Test reconnect and duplicate Apply messages.
 - Confirm database rows and in-memory grid payloads agree after each operation.
 
 Exit criteria: the parity matrix passes and no duplicate or partially persisted instruction can be produced.
 
-### Phase 7 - Switch Default And Remove JavaFX UI
+### Phase 9 - Switch Default And Remove JavaFX UI
 
 - Route all instruction command entry points to React.
 - Keep a temporary feature flag for the legacy pane during one stabilization release.
-- Remove `ARNewCommandPane` and `ARNewCommandScene` only after production verification.
+- Remove `ARNewCommandPane`, `ARNewCommandScene`, `ARElementValuePane`, and `ARElementValueScene` only after production verification.
 - Remove scene cleanup references from `ARConfigurationPane` and `ConfigService` when the scene is deleted.
 - Retain reusable backend services and DTOs.
 
@@ -314,24 +379,28 @@ Minimum automated coverage:
 | Idempotency | repeated `requestId` creates only one instruction |
 | WebSocket | bootstrap, validate, apply, structured errors, reconnect |
 | React | metadata field rendering, menu behavior, disabled Apply, errors, responsive panel |
+| Shared actions | identical behavior from GridItem and GridItemComp; no duplicated action decisions |
+| Variables | CRUD, uniqueness, usage blocking, command compatibility, selection retention |
+| Floating UI | drag, bounds clamping, maximize/restore, scroll, focus, no clipped controls |
 | End to end | SQLite bot job and component command add/edit reflected in grid and database |
 
 The SQLite end-to-end suite should use a copied temporary database, never the user's working database. It should assert both UI state and direct database results.
 
 ## Acceptance Criteria
 
-- No separate Add/Update Operations page is needed for normal use.
-- Every instruction row exposes command actions from its down-arrow menu.
+- No separate Add/Update Operations or New Variables page is needed for normal use.
+- Every instruction row in both grids opens the shared floating panel from its down-arrow.
+- The old compact dropdown and duplicated row-action handlers are removed.
 - All current `ARNewCommandPane` commands can be created and edited.
 - React contains no SQL and does not encode legacy operation strings independently.
 - Java command services have no JavaFX control dependencies.
 - Apply is atomic, idempotent, and returns an authoritative refreshed grid payload.
 - Bot-job and component-task behavior remains supported.
 - The editor resizes correctly with the JCEF container and does not clip or wrap row controls.
-- `ARElementValuePane` remains functional through the temporary bridge until its own migration.
+- Variables can be created, edited, selected, and safely deleted from the React panel.
+- Referenced variables cannot be deleted and the user receives a useful dependency warning.
 - React build succeeds and the bundled resource build is updated.
 
-## Explicitly Deferred: ARElementValuePane
+## Critical Sequencing Note
 
-After this roadmap is complete, create a second roadmap for **New Variables** with its own typed `variableEditor.*` API and React editor. That migration should reuse the command editor's variable choice DTO and replace only the temporary `openVariableEditor` bridge. It must not require redesigning the command menu or command persistence API.
-
+Variables must be extracted before the React command panel becomes the default because command compatibility and persisted operation strings depend on stable variable identities. The legacy variable pane may remain as a fallback during development, but the migration is not complete while normal command creation still requires JavaFX.
