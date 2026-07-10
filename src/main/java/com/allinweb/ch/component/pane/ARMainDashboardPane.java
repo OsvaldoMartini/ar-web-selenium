@@ -3,16 +3,19 @@ package com.allinweb.ch.component.pane;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.component.scene.*;
 import com.allinweb.ch.driver.ARWebDriver;
+import com.allinweb.ch.facade.MainDashboardService;
 import com.allinweb.ch.facade.PerformDBEngine;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.model.BotJobLoadDTO;
+import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.allinweb.ch.util.ErrorMessage;
 import com.allinweb.ch.util.WebBuildExtractor;
 import com.google.common.base.Strings;
+import com.google.gson.Gson;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -36,6 +39,9 @@ public class ARMainDashboardPane extends ARPane {
     private static final PerformDBEngine performDBEngine = PerformDBEngine.getInstance();
     private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
     private static final PerformMessage performMessage = PerformMessage.getInstance();
+    private static final MainDashboardService mainDashboardService = MainDashboardService.getInstance();
+    private static final WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
+    private static final Gson gson = new Gson();
     private static final ARInfoScene arInfoScene = ARInfoScene.getInstance();
     private static final ARConfigurationScene arConfigurationScene = ARConfigurationScene.getInstance();
     private static final ARViewBotJobScene arViewBotJobScene = ARViewBotJobScene.getInstance();
@@ -147,6 +153,7 @@ public class ARMainDashboardPane extends ARPane {
             arSaveCloneScene.showModal(currentStage());
             performDataBase.loadQuickBotJobs();
             refreshLegacyListView();
+            pushReactDashboardList();
         });
     }
 
@@ -231,6 +238,18 @@ public class ARMainDashboardPane extends ARPane {
     private void refreshLegacyListView() {
         performDataBase.loadQuickBotJobs();
         legacyBotJobListView.setItems(FXCollections.observableArrayList(performLists.getQuickBotJobs()));
+    }
+
+    private void pushReactDashboardList() {
+        try {
+            webSocketSessionManager.sendMessageJson(
+                    -1,
+                    SESSION_ID,
+                    gson.toJson(mainDashboardService.list()),
+                    "mainDashboard.listResponse");
+        } catch (Exception e) {
+            log.warn("Main dashboard list push after clone failed: {}", e.getMessage());
+        }
     }
 
     private void reloadBlocks(BotJobLoadDTO botJob) {
