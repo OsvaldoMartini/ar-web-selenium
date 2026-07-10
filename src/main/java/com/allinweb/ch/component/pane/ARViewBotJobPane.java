@@ -3,7 +3,6 @@ package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.component.scene.ARElementValueScene;
-import com.allinweb.ch.component.scene.ARNewCommandScene;
 import com.allinweb.ch.component.scene.ARNewHomeBankingScene;
 import com.allinweb.ch.component.scene.AROcrConfigScene;
 import com.allinweb.ch.component.scene.ARScannedElementScene;
@@ -63,7 +62,6 @@ public class ARViewBotJobPane extends ARPane {
     private static final WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
     private static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
     private static final ARScannedElementScene arScannedElementScene = ARScannedElementScene.getInstance();
-    private static final ARNewCommandScene arNewCommandScene = ARNewCommandScene.getInstance();
     private static final ARElementValueScene arElementValueScene = ARElementValueScene.getInstance();
     private static final PerformLists performLists = PerformLists.getInstance();
     private static final PerformDBEngine performDBEngine = PerformDBEngine.getInstance();
@@ -230,11 +228,6 @@ public class ARViewBotJobPane extends ARPane {
 
         if (errorMessage != null) {
             performMessage.errorMessageOperationFailed(errorMessage);
-        }
-
-        if (arNewCommandScene.getSplitDTO() != null) {
-            //            arNewCommandScene.setRowMoveDTO(null);
-            arNewCommandScene.closeModal();
         }
 
         if (arElementValueScene.getSplitDTO() != null) {

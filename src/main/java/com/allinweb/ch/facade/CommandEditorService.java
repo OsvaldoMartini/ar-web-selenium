@@ -138,6 +138,9 @@ public final class CommandEditorService {
         if (parentId != null && !webFieldBelongsToBlock(targetSession, parentId, integer(body, "blockId", -1))) {
             return failure("The selected Web Field is outside the reference instruction block.");
         }
+        if (variableId != null && parentId != null && !variableBelongsToWebField(targetSession, variableId, parentId, integer(body, "botJobId", -1), integer(body, "homeBankingId", -1))) {
+            return failure("The selected Variable does not belong to the selected Web Field.");
+        }
 
         SplitDTO split = new SplitDTO();
         split.setType("edit".equals(mode) ? "EDIT_OPERATION" : "before".equals(mode) ? "INSERT_BEFORE" : "INSERT_AFTER");
@@ -247,6 +250,26 @@ public final class CommandEditorService {
                 && row.getBlockId() != null
                 && row.getBlockId() == blockId
                 && !isSpecialAction(row.getActions()));
+    }
+
+    private boolean variableBelongsToWebField(
+            String sessionId, int variableId, int webFieldId, int botJobId, int homeBankingId) {
+        boolean component = "componentTasks".equals(sessionId);
+        String table = component ? "component_variable" : "variable";
+        String ownerColumn = component ? "home_banking_id" : "bot_job_id";
+        int ownerId = component ? homeBankingId : botJobId;
+        String sql = "SELECT COUNT(*) FROM " + table
+                + " WHERE id=? AND instruction_id=? AND " + ownerColumn + "=?";
+        try (PreparedStatement statement = database.getConnection().prepareStatement(sql)) {
+            statement.setInt(1, variableId);
+            statement.setInt(2, webFieldId);
+            statement.setInt(3, ownerId);
+            try (ResultSet result = statement.executeQuery()) {
+                return result.next() && result.getInt(1) == 1;
+            }
+        } catch (SQLException exception) {
+            return false;
+        }
     }
 
     private static String string(JsonObject body, String key, String fallback) {

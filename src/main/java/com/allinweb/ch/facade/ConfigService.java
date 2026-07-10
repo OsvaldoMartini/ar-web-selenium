@@ -3,7 +3,6 @@ package com.allinweb.ch.facade;
 import com.allinweb.ch.component.pane.ARConfigManagerPane;
 import com.allinweb.ch.component.scene.ARConfigManagerScene;
 import com.allinweb.ch.component.scene.ARNewBotJobScene;
-import com.allinweb.ch.component.scene.ARNewCommandScene;
 import com.allinweb.ch.component.scene.AROrganizationManagerScene;
 import com.allinweb.ch.component.scene.ARScannedElementScene;
 import com.allinweb.ch.component.scene.ARViewBotJobScene;
@@ -383,8 +382,6 @@ public class ConfigService {
 
     private void closeAllScenes() {
         ARNewBotJobScene.getInstance().closeModal();
-        ARNewCommandScene.getInstance().setSplitDTO(null);
-        ARNewCommandScene.getInstance().closeModal();
         ARViewBotJobScene.getInstance().closeModal();
         AROrganizationManagerScene.getInstance().closeModal();
         ARScannedElementScene.getInstance().closeModal();

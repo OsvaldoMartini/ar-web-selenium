@@ -55,7 +55,6 @@ public class ARConfigurationPane extends ARPane {
     private static final ARWebDriver arWebDriver = ARWebDriver.getInstance();
     private static final ARScannedElementScene arScannedElementScene;
     private static final ARViewBotJobScene arViewBotJobScene;
-    private static final ARNewCommandScene arNewCommandScene;
     private static final ARElementValueScene arElementValueScene;
     private static final ARNewBotJobScene arNewBotJobScene;
     protected static volatile ARConfigurationPane instance;
@@ -64,7 +63,6 @@ public class ARConfigurationPane extends ARPane {
     // Static block to initialize
     static {
         arScannedElementScene = ARScannedElementScene.getInstance();
-        arNewCommandScene = ARNewCommandScene.getInstance();
         arElementValueScene = ARElementValueScene.getInstance();
         arViewBotJobScene = ARViewBotJobScene.getInstance();
         arNewBotJobScene = ARNewBotJobScene.getInstance();
@@ -1640,10 +1638,6 @@ public class ARConfigurationPane extends ARPane {
     private void closeAllScenes() {
         if (arNewBotJobScene != null) {
             arNewBotJobScene.closeModal();
-        }
-        if (arNewCommandScene != null) {
-            arNewCommandScene.setSplitDTO(null);
-            arNewCommandScene.closeModal();
         }
         if (arElementValueScene != null) {
             arElementValueScene.setSplitDTO(null);
