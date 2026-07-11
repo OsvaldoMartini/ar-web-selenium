@@ -22,6 +22,7 @@ public final class VariableEditorService {
     private final PerformDBEngine engine = PerformDBEngine.getInstance();
     private final WebSocketSessionManager sessions = WebSocketSessionManager.getInstance();
     private final Map<String, JsonObject> completedRequests = new LinkedHashMap<>();
+    private final VariableOperationRewriteService operationRewriteService = new VariableOperationRewriteService();
 
     private VariableEditorService() {}
 
@@ -105,21 +106,7 @@ public final class VariableEditorService {
         ErrorMessage error = database.loadAllParents(
                 context.instructionTable, context.whereId, context.instructionId);
         if (error != null) return error;
-        String typedName = ("#Numeric".equals(variable.getType()) ? "#" : "$") + variable.getName();
-        String value = variable.getValue() == null || variable.getValue().isBlank() ? "$EMPTY" : variable.getValue();
-        for (ParentOperations dependent : lists.getListParentOperations()) {
-            String[] parts = dependent.getOperations() == null
-                    ? new String[0]
-                    : dependent.getOperations().split(":", -1);
-            switch (dependent.getActions()) {
-                case "SET" -> dependent.setOperations((parts.length > 0 ? parts[0] : variable.getParentName()) + ":" + value);
-                case "GET" -> dependent.setOperations((parts.length > 0 ? parts[0] : variable.getParentName()) + ":" + typedName);
-                case "CK", "PDF CHECK", "CSV CHECK" -> dependent.setOperations(
-                        typedName + ":" + (parts.length > 1 ? parts[1] : "=") + ":" + value);
-                case "E" -> dependent.setOperations(typedName);
-                default -> { }
-            }
-        }
+        operationRewriteService.rewrite(lists.getListParentOperations(), variable);
         return null;
     }
 

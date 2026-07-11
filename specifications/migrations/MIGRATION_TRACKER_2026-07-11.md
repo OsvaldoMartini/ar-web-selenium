@@ -122,6 +122,7 @@ Finish the existing JavaFX-to-React instruction-authoring migration while preser
 ### P6 - Variable parity
 
 - [ ] Verify variable create, edit, delete, usage lookup, and reference selection in both grids.
+  - [x] Add pure dependent-operation rewrite fixtures for every variable command family.
 - [x] Make rename/type updates and dependent-operation rewrites one transaction (`ab80cd14`).
 - [ ] Verify bot-job and component-session parity.
 
