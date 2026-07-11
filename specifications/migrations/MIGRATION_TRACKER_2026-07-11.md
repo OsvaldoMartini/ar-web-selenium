@@ -161,7 +161,7 @@ The About, License, and Activation Software Required consolidation is planned in
   - [x] Prove React Apply submits typed fields without an `operation` string (`5375075`).
 - [x] Add isolated SQLite/Playwright coverage using organization `2` and bot job `19` (`ARWeb-Linux` `8302a83`).
 - [x] Load scanned-instruction fixtures, add them to Memory List, create `test_block_N`, and Apply (`ARWeb-Linux` `8302a83`).
-- [ ] Verify persisted block and instruction rows after refresh.
+- [x] Verify persisted block and instruction rows after authoritative refresh and page reload (`ARWeb-Linux` `ead27b7`).
 - [ ] Cover IF/ELSEIF/ELSE/ENDIF, loops, variables, move, delete, and split workflows.
 - [ ] Verify component-grid parity and direct WebSocket rejection behavior.
 
