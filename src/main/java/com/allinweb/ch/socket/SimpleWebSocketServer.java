@@ -1176,7 +1176,16 @@ public class SimpleWebSocketServer {
         if (errorMessage == null) {
             errorMessage = performDataBase.loadInstructions(whereId, -1, -1, instrTable);
         }
-        if (errorMessage != null) {
+        if ("ROW_MOVE".equals(type)) {
+            JsonObject moveResponse = new JsonObject();
+            moveResponse.addProperty("ok", errorMessage == null);
+            moveResponse.addProperty("requestId", splitDTO.getRequestId());
+            if (errorMessage != null) moveResponse.addProperty("error", errorMessage.getErrorMessage());
+            sendCommandEditorResponse(
+                    homeBankingId, sessionIdToSend, "instructionEditor.rowMoveResponse", moveResponse);
+        }
+
+        if (errorMessage != null && !"ROW_MOVE".equals(type)) {
             performMessage.errorMessageOperationFailed(errorMessage);
         }
 
