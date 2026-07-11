@@ -417,6 +417,22 @@ public final class CommandEditorService {
         return rows;
     }
 
+    private String variableType(String sessionId, int variableId, int botJobId, int homeBankingId) {
+        String table = "componentTasks".equals(sessionId) ? "component_variable" : "variable";
+        String ownerColumn = "componentTasks".equals(sessionId) ? "home_banking_id" : "bot_job_id";
+        int whereId = "componentTasks".equals(sessionId) ? homeBankingId : botJobId;
+        String sql = "SELECT type FROM " + table + " WHERE id=? AND " + ownerColumn + "=?";
+        try (PreparedStatement statement = database.getConnection().prepareStatement(sql)) {
+            statement.setInt(1, variableId);
+            statement.setInt(2, whereId);
+            try (ResultSet result = statement.executeQuery()) {
+                return result.next() ? result.getString("type") : null;
+            }
+        } catch (SQLException exception) {
+            return null;
+        }
+    }
+
     private boolean isSpecialAction(String action) {
         return CommandRegistry.isSpecialAction(action);
     }
@@ -472,6 +488,13 @@ public final class CommandEditorService {
         }
         if (variableId != null && parentId != null && !variableBelongsToWebField(targetSession, variableId, parentId, integer(body, "botJobId", -1), integer(body, "homeBankingId", -1))) {
             return failure("The selected Variable does not belong to the selected Web Field.");
+        }
+        if (variableId != null) {
+            String selectedVariableType = variableType(
+                    targetSession, variableId, integer(body, "botJobId", -1), integer(body, "homeBankingId", -1));
+            if (!CommandRegistry.supportsVariableType(action, selectedVariableType)) {
+                return failure("The selected Variable type is not compatible with " + action + ".");
+            }
         }
         try {
             operation = operationCodec.encode(body, action);

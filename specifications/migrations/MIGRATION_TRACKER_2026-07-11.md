@@ -62,7 +62,7 @@ Finish the existing JavaFX-to-React instruction-authoring migration while preser
   - [x] Validate revision/idempotency and persist block deletion atomically.
   - [x] Return structured results without Java dialogs.
 - [x] Variable mutation and dependent command rewrites use one verified transaction.
-- [ ] Java must enforce variable type compatibility for every command, including crafted requests.
+- [x] Java publishes and enforces deny-by-default variable type compatibility, including crafted requests.
 
 ## Remaining Work
 
@@ -115,7 +115,7 @@ Finish the existing JavaFX-to-React instruction-authoring migration while preser
 - [ ] Ensure React never constructs canonical legacy operation strings.
 - [ ] Return structured warnings for malformed historical operations.
 - [ ] Verify canonical aliases and every command family round trip.
-- [ ] Publish command-variable type compatibility and revalidate submitted variable IDs in Java.
+- [x] Publish command-variable type compatibility and revalidate submitted variable IDs/types in Java.
 
 ### P6 - Variable parity
 

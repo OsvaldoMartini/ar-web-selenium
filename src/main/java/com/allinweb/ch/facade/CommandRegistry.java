@@ -53,6 +53,15 @@ public final class CommandRegistry {
         return definition.allowedTags().contains(normalized);
     }
 
+    public static Set<String> allowedVariableTypes(String action) {
+        Definition definition = DEFINITIONS.get(canonicalize(action));
+        return definition == null ? Set.of() : definition.allowedVariableTypes();
+    }
+
+    public static boolean supportsVariableType(String action, String variableType) {
+        return variableType != null && allowedVariableTypes(action).contains(variableType);
+    }
+
     public static int defaultHold(String action) {
         return "H".equals(canonicalize(action)) ? 5 : 1;
     }
@@ -89,15 +98,20 @@ public final class CommandRegistry {
 
     private static void add(
             Map<String, Definition> definitions, String code, String label, String target, String... fields) {
-        definitions.put(code, new Definition(code, label, target, List.of(fields), List.of()));
+        Set<String> variableTypes = List.of(fields).contains("variable")
+                ? Set.of("$String", "#Numeric") : Set.of();
+        definitions.put(code, new Definition(code, label, target, List.of(fields), List.of(), variableTypes));
     }
 
     private static void addWithTags(Map<String, Definition> definitions, String code, String label, String target,
             List<String> allowedTags, String... fields) {
-        definitions.put(code, new Definition(code, label, target, List.of(fields), allowedTags));
+        Set<String> variableTypes = List.of(fields).contains("variable")
+                ? Set.of("$String", "#Numeric") : Set.of();
+        definitions.put(code, new Definition(code, label, target, List.of(fields), allowedTags, variableTypes));
     }
 
-    private record Definition(String code, String label, String target, List<String> fields, List<String> allowedTags) {
+    private record Definition(String code, String label, String target, List<String> fields, List<String> allowedTags,
+            Set<String> allowedVariableTypes) {
         private JsonObject toJson() {
             JsonObject json = new JsonObject();
             json.addProperty("code", code);
@@ -109,6 +123,9 @@ public final class CommandRegistry {
             JsonArray tags = new JsonArray();
             allowedTags.forEach(tags::add);
             json.add("allowedTags", tags);
+            JsonArray variableTypes = new JsonArray();
+            allowedVariableTypes.forEach(variableTypes::add);
+            json.add("allowedVariableTypes", variableTypes);
             return json;
         }
     }
