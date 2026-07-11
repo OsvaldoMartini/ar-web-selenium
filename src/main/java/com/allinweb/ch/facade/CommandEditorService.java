@@ -918,8 +918,8 @@ public final class CommandEditorService {
                 ? lists.getListBotJobComp()
                 : lists.getListBotJob();
         List<InstructionLoad> instructions = lists.buildJsonViewData(jobs);
-        String operationId = "componentTasks".equals(split.getSessionId()) ? "componentsUpdate" : "updateInstructions";
-        sessions.sendMessageJson(split.getHomeBankingId(), split.getSessionId(), gson.toJson(instructions), operationId);
+        com.allinweb.ch.socket.InstructionRealtimePublisher.getInstance()
+                .publishSnapshot(split.getHomeBankingId(), split.getSessionId(), instructions);
         JsonObject response = new JsonObject();
         response.addProperty("ok", true);
         response.addProperty("message", message);

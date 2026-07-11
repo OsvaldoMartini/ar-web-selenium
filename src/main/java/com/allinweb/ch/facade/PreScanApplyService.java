@@ -221,6 +221,7 @@ public final class PreScanApplyService {
             List<InstructionLoad> view = performLists.buildJsonViewData(performLists.getListBotJob());
             jsonData = gson.toJson(view);
         }
-        webSocketSessionManager.sendMessageJson(homeBankingId, "botJobTasks", jsonData, "updateInstructions");
+        com.allinweb.ch.socket.InstructionRealtimePublisher.getInstance()
+                .publishSerializedSnapshot(homeBankingId, "botJobTasks", jsonData);
     }
 }

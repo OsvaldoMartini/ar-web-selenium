@@ -34,6 +34,8 @@ public class SimpleWebSocketServer {
     private static final MainDashboardService mainDashboardService = MainDashboardService.getInstance();
     private static final NewBotJobService newBotJobService = NewBotJobService.getInstance();
     private static final ConfigService configService = ConfigService.getInstance();
+    private static final InstructionRealtimePublisher instructionRealtimePublisher =
+            InstructionRealtimePublisher.getInstance();
     private static final ExcelExportService excelExportService = ExcelExportService.getInstance();
     private static final SaveComponentService saveComponentService = SaveComponentService.getInstance();
     private static final OcrManagerService ocrManagerService = OcrManagerService.getInstance();
@@ -325,11 +327,6 @@ public class SimpleWebSocketServer {
                                 commandLogValue(commandApplyBody, "action"),
                                 commandResult);
                     }
-                    sendCommandEditorResponse(
-                            homeBankingId,
-                            sessionId,
-                            "commandEditor.applyResponse",
-                            commandApplyResponse);
                     if (commandSaved
                             && commandApplyResponse.has("instructions")
                             && commandApplyResponse.get("instructions").isJsonArray()) {
@@ -337,20 +334,25 @@ public class SimpleWebSocketServer {
                         if ("<missing>".equals(targetSessionId) || "<blank>".equals(targetSessionId)) {
                             targetSessionId = "botJobTasks";
                         }
-                        String updateOperationId = "componentTasks".equals(targetSessionId)
-                                ? "componentsUpdate"
-                                : "updateInstructions";
-                        webSocketSessionManager.sendMessageJson(
+                        String updateOperationId = instructionRealtimePublisher.snapshotOperation(targetSessionId);
+                        instructionRealtimePublisher.publishMutationThenSnapshot(
                                 homeBankingId,
                                 targetSessionId,
-                                gson.toJson(commandApplyResponse.getAsJsonArray("instructions")),
-                                updateOperationId);
+                                "commandEditor.applyResponse",
+                                commandApplyResponse,
+                                commandApplyResponse.getAsJsonArray("instructions"));
                         log.info(
                                 "COMMAND_EDITOR_REALTIME_UPDATE requestId={} targetSession={} operationId={} rows={}",
                                 commandLogValue(commandApplyBody, "requestId"),
                                 targetSessionId,
                                 updateOperationId,
                                 commandApplyResponse.getAsJsonArray("instructions").size());
+                    } else {
+                        instructionRealtimePublisher.publishResponse(
+                                homeBankingId,
+                                sessionId,
+                                "commandEditor.applyResponse",
+                                commandApplyResponse);
                     }
                     break;
                 case "commandEditor.insertElseIf":
@@ -1278,9 +1280,11 @@ public class SimpleWebSocketServer {
                 rowStatus.setColor(color); // e.g. "#fcba03" deep carmine yellow
             }
 
-            String jsonStatus = gson.toJson(rowStatus);
-            webSocketSessionManager.sendMessageJson(
-                    splitDTO.getHomeBankingId(), "botJobTasks", jsonStatus, "rowStatus");
+            instructionRealtimePublisher.publishExecutionStatus(
+                    splitDTO.getHomeBankingId(),
+                    "botJobTasks",
+                    rowStatus.getInstructionId(),
+                    rowStatus.getColor());
             return;
         }
 
@@ -2306,6 +2310,33 @@ public class SimpleWebSocketServer {
             }
         }
 
+        // Send mutation acknowledgement before the refreshed grid. The React grid consumes the
+        // newest WebSocket message in a batched render, so updateInstructions/componentsUpdate
+        // must be the final message or a following success response can hide the live refresh.
+        if ("ROW_MOVE".equals(type) || "DELETE_INSTRUCTION".equals(type) || "DELETE_BLOCK".equals(type)) {
+            JsonObject mutationResponse = new JsonObject();
+            mutationResponse.addProperty("ok", errorMessage == null);
+            mutationResponse.addProperty("requestId", splitDTO.getRequestId());
+            if (errorMessage != null) {
+                mutationResponse.addProperty("errorTitle", errorMessage.getErrorTitle());
+                mutationResponse.addProperty("errorHeader", errorMessage.getErrorHeader());
+                mutationResponse.addProperty("error", errorMessage.getErrorMessage());
+            }
+            String responseOperation = "ROW_MOVE".equals(type)
+                    ? "instructionEditor.rowMoveResponse"
+                    : "DELETE_BLOCK".equals(type)
+                            ? "instructionEditor.blockDeleteResponse"
+                            : "instructionEditor.deleteResponse";
+            instructionRealtimePublisher.publishResponse(
+                    homeBankingId, sessionIdToSend, responseOperation, mutationResponse);
+            log.info(
+                    "INSTRUCTION_MUTATION_RESPONSE type={} requestId={} session={} ok={}",
+                    type,
+                    splitDTO.getRequestId(),
+                    sessionIdToSend,
+                    errorMessage == null);
+        }
+
         if (!alreadySentMgsSocket) {
             List<BotJobLoadDTO> listBot =
                     instrTable.equals("instruction") ? performLists.getListBotJob() : performLists.getListBotJobComp();
@@ -2332,30 +2363,25 @@ public class SimpleWebSocketServer {
             }
 
             if (sessionIdToSend != null) {
-                webSocketSessionManager.sendMessageJson(homeBankingId, sessionIdToSend, jsonData, updateAction);
+                instructionRealtimePublisher.publishSerializedSnapshot(
+                        homeBankingId, sessionIdToSend, jsonData);
+                if ("ROW_MOVE".equals(type)
+                        || "DELETE_INSTRUCTION".equals(type)
+                        || "DELETE_BLOCK".equals(type)) {
+                    log.info(
+                            "INSTRUCTION_MUTATION_REALTIME_UPDATE type={} requestId={} session={} operationId={} rows={}",
+                            type,
+                            splitDTO.getRequestId(),
+                            sessionIdToSend,
+                            updateAction,
+                            instructionLoads.size());
+                }
             }
 
             //            broadcastMessageToAll(homeBankingId, "componentTasks", jsonData, "componentsUpdate");
             //            sendMessageJson(sessionIdToSend, jsonData, "componentsUpdate");
         }
 
-        if ("ROW_MOVE".equals(type) || "DELETE_INSTRUCTION".equals(type) || "DELETE_BLOCK".equals(type)) {
-            JsonObject mutationResponse = new JsonObject();
-            mutationResponse.addProperty("ok", errorMessage == null);
-            mutationResponse.addProperty("requestId", splitDTO.getRequestId());
-            if (errorMessage != null) {
-                mutationResponse.addProperty("errorTitle", errorMessage.getErrorTitle());
-                mutationResponse.addProperty("errorHeader", errorMessage.getErrorHeader());
-                mutationResponse.addProperty("error", errorMessage.getErrorMessage());
-            }
-            sendCommandEditorResponse(
-                    homeBankingId,
-                    sessionIdToSend,
-                    "ROW_MOVE".equals(type) ? "instructionEditor.rowMoveResponse"
-                            : "DELETE_BLOCK".equals(type) ? "instructionEditor.blockDeleteResponse"
-                            : "instructionEditor.deleteResponse",
-                    mutationResponse);
-        }
     }
 
     private InstructionLoad findInstructionInMemory(String instrTable, int whereId, int instructionId) {

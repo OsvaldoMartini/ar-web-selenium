@@ -520,8 +520,8 @@ public class ARViewBotJobPane extends ARPane {
                 }
             }
 
-            webSocketSessionManager.sendMessageJson(
-                    selectedBotJob.getHomeBankingId(), "botJobTasks", jsonData, "updateInstructions");
+            com.allinweb.ch.socket.InstructionRealtimePublisher.getInstance()
+                    .publishSerializedSnapshot(selectedBotJob.getHomeBankingId(), "botJobTasks", jsonData);
         }
 
         errorMessage = performDataBase.loadComponentsComplete(
@@ -542,8 +542,8 @@ public class ARViewBotJobPane extends ARPane {
                 }
             }
 
-            webSocketSessionManager.sendMessageJson(
-                    selectedBotJob.getHomeBankingId(), "componentTasks", jsonData, "componentsUpdate");
+            com.allinweb.ch.socket.InstructionRealtimePublisher.getInstance()
+                    .publishSerializedSnapshot(selectedBotJob.getHomeBankingId(), "componentTasks", jsonData);
         }
 
         //        webSocketSessionManager.broadcastMessageToAll(

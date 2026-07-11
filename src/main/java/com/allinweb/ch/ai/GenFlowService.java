@@ -376,8 +376,8 @@ public final class GenFlowService {
 
             if (!performLists.getListBotJob().isEmpty()) {
                 List<InstructionLoad> viewData = performLists.buildJsonViewData(performLists.getListBotJob());
-                webSocketSessionManager.sendMessageJson(
-                        botJob.getHomeBankingId(), "botJobTasks", gson.toJson(viewData), "updateInstructions");
+                com.allinweb.ch.socket.InstructionRealtimePublisher.getInstance()
+                        .publishSnapshot(botJob.getHomeBankingId(), "botJobTasks", viewData);
             }
         } catch (Exception e) {
             log.warn("GEN FLOW — post-insert broadcast failed (non-fatal): {}", e.getMessage());

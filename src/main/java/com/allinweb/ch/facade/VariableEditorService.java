@@ -122,11 +122,8 @@ public final class VariableEditorService {
                 ? lists.getListBotJobComp()
                 : lists.getListBotJob();
         List<InstructionLoad> instructions = lists.buildJsonViewData(jobs);
-        sessions.sendMessageJson(
-                context.homeBankingId,
-                context.sessionId,
-                gson.toJson(instructions),
-                "componentTasks".equals(context.sessionId) ? "componentsUpdate" : "updateInstructions");
+        com.allinweb.ch.socket.InstructionRealtimePublisher.getInstance()
+                .publishSnapshot(context.homeBankingId, context.sessionId, instructions);
     }
 
     public JsonObject delete(JsonObject body) {

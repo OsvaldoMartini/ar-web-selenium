@@ -16,6 +16,7 @@ import com.allinweb.ch.model.*;
 import com.allinweb.ch.readersAndWriters.ExcelReader;
 import com.allinweb.ch.readersAndWriters.ExcelWriter;
 import com.allinweb.ch.socket.WebSocketSessionManager;
+import com.allinweb.ch.socket.InstructionRealtimePublisher;
 import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
@@ -4279,9 +4280,11 @@ public class ARScannedElementPane extends ARPane {
 
     private void updateRowStatusAndNotify(String color) {
         rowStatus.setColor(color);
-        jsonStatus = gson.toJson(rowStatus);
-        webSocketSessionManager.sendMessageJson(
-                this.currentBotJob.getHomeBankingId(), sessionRowStatus, jsonStatus, "rowStatus");
+        InstructionRealtimePublisher.getInstance().publishExecutionStatus(
+                this.currentBotJob.getHomeBankingId(),
+                sessionRowStatus,
+                rowStatus.getInstructionId(),
+                color);
     }
 
     /**
@@ -4822,21 +4825,19 @@ public class ARScannedElementPane extends ARPane {
                             if (rowStatus.getInstructionId() == null) {
                                 rowStatus.setInstructionId(currentInstruction.getId());
                                 rowStatus.setColor("yellow"); // #fcba03 deep carmine yellow
-                                jsonStatus = gson.toJson(rowStatus);
-                                webSocketSessionManager.sendMessageJson(
+                                InstructionRealtimePublisher.getInstance().publishExecutionStatus(
                                         this.currentBotJob.getHomeBankingId(),
                                         sessionRowStatus,
-                                        jsonStatus,
-                                        "rowStatus");
+                                        rowStatus.getInstructionId(),
+                                        "yellow");
                             } else {
                                 // Previous
                                 rowStatus.setColor("green"); // #1d9c06 green
-                                jsonStatus = gson.toJson(rowStatus);
-                                webSocketSessionManager.sendMessageJson(
+                                InstructionRealtimePublisher.getInstance().publishExecutionStatus(
                                         this.currentBotJob.getHomeBankingId(),
                                         sessionRowStatus,
-                                        jsonStatus,
-                                        "rowStatus");
+                                        rowStatus.getInstructionId(),
+                                        "green");
                                 try {
                                     Thread.sleep(300);
                                 } catch (Exception e) {
@@ -4844,12 +4845,11 @@ public class ARScannedElementPane extends ARPane {
                                 // Current
                                 rowStatus.setInstructionId(currentInstruction.getId());
                                 rowStatus.setColor("yellow"); // #fcba03 deep carmine yellow
-                                jsonStatus = gson.toJson(rowStatus);
-                                webSocketSessionManager.sendMessageJson(
+                                InstructionRealtimePublisher.getInstance().publishExecutionStatus(
                                         this.currentBotJob.getHomeBankingId(),
                                         sessionRowStatus,
-                                        jsonStatus,
-                                        "rowStatus");
+                                        rowStatus.getInstructionId(),
+                                        "yellow");
                             }
 
                             //                        String[] operation =
