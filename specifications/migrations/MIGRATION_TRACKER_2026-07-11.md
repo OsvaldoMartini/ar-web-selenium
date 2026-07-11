@@ -171,4 +171,6 @@ The About, License, and Activation Software Required consolidation is planned in
 
 ## Current Next Step
 
-Enforce command-variable type compatibility in Java and capability metadata, then complete command codec fixtures and JavaFX route auditing.
+This instruction-authoring tracker is code-complete. Do not reopen its completed capability, codec, graph, transaction, JavaFX-route, or SQLite/Playwright items without a concrete regression.
+
+Next roadmap: `ROADMAP_POST_JAVAFX_NODE_TYPESCRIPT_PLATFORM.md`, beginning with Phase 0 inventory and golden-workflow evidence. License/About/Activation runtime verification is intentionally delegated to a separate Java-capable PC and is out of scope for this workspace session.

@@ -1,5 +1,9 @@
  Current Roadmap Status
 
+  ARCHIVED 2026-07-11: every item below has been implemented and verified in
+  `MIGRATION_TRACKER_2026-07-11.md`. Keep this section as historical notes only;
+  do not use it as the active remaining-work list.
+
  Remaining Work
 
   1. ELSEIF branch deletion
