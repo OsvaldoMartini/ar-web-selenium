@@ -103,6 +103,7 @@ public final class CommandEditorService {
         JsonObject response = new JsonObject();
         response.addProperty("ok", error == null);
         JsonArray capabilities = new JsonArray();
+        JsonArray blockCapabilities = new JsonArray();
         if (error == null) {
             List<InstructionLoad> instructionRows = instructions(sessionId);
             List<BlockLoadDTO> blockRows = "componentTasks".equals(sessionId)
@@ -139,10 +140,43 @@ public final class CommandEditorService {
                 if (deleteReason != null) capability.addProperty("deleteReason", deleteReason);
                 capabilities.add(capability);
             }
+            for (BlockLoadDTO block : blockRows) {
+                if (block == null || block.getId() == null) continue;
+                List<InstructionLoad> contained = instructionRows.stream()
+                        .filter(row -> row != null && block.getId().equals(row.getBlockId()))
+                        .sorted(Comparator.comparingInt(row -> row.getInstructionOrderNumber() == null
+                                ? Integer.MAX_VALUE
+                                : row.getInstructionOrderNumber()))
+                        .toList();
+                List<InstructionLoad> externalReferences = instructionRows.stream()
+                        .filter(row -> row != null && row.getId() != null
+                                && !block.getId().equals(row.getBlockId())
+                                && block.getId().equals(row.getParentBlockId()))
+                        .toList();
+                String blockDeleteReason = blockRows.size() <= 1
+                        ? "A job must keep at least one block."
+                        : !externalReferences.isEmpty()
+                                ? "Commands in other blocks reference this block."
+                                : null;
+                JsonObject blockCapability = new JsonObject();
+                blockCapability.addProperty("blockId", block.getId());
+                blockCapability.addProperty("blockName", block.getName());
+                blockCapability.addProperty("canDelete", blockDeleteReason == null);
+                blockCapability.addProperty("instructionCount", contained.size());
+                JsonArray impactRows = new JsonArray();
+                contained.forEach(row -> addDeleteImpactRow(impactRows, row));
+                blockCapability.add("deleteRows", impactRows);
+                JsonArray references = new JsonArray();
+                externalReferences.forEach(row -> addDeleteImpactRow(references, row));
+                blockCapability.add("externalReferences", references);
+                if (blockDeleteReason != null) blockCapability.addProperty("reason", blockDeleteReason);
+                blockCapabilities.add(blockCapability);
+            }
         } else {
             response.addProperty("error", error.getErrorMessage());
         }
         response.add("capabilities", capabilities);
+        response.add("blockCapabilities", blockCapabilities);
         if (error == null) response.addProperty("graphRevision", graphRevision(sessionId));
         return response;
     }

@@ -57,6 +57,10 @@ Finish the existing JavaFX-to-React instruction-authoring migration while preser
   - [x] Publish authoritative delete row IDs, names, actions, and order in capability responses.
   - [x] Render the detailed impact in both React confirmation flows.
 - [ ] Block deletion still needs graph revision validation, request idempotency, dependency impact analysis, a structured React response, and removal of Java dialogs.
+  - [x] Publish block instruction impact, external references, minimum-block protection, and disabled reasons.
+  - [ ] Consume block capabilities in React confirmation and request construction.
+  - [ ] Validate revision/idempotency and persist block deletion atomically.
+  - [ ] Return structured results without Java dialogs.
 - [ ] Variable mutation plus dependent command rewrites still needs one transaction.
 - [ ] Java must enforce variable type compatibility for every command, including crafted requests.
 
