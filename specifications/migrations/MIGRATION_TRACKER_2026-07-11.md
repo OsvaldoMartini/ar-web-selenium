@@ -19,6 +19,8 @@ Finish the existing JavaFX-to-React instruction-authoring migration while preser
 
 After this tracker is complete, continue with `ROADMAP_POST_JAVAFX_NODE_TYPESCRIPT_PLATFORM.md`. That roadmap audits Access/SQLite queries, moves server responsibilities to Node/TypeScript, and retires JavaFX/JCEF without moving authoritative logic or database access into browser React code.
 
+The About, License, and Activation Software Required consolidation is planned in `ROADMAP_LICENSE_ABOUT_ACTIVATION_REACT_BACKEND.md`. It uses one shared React License Manager and removes the duplicated JavaFX activation workflows.
+
 ## Completed
 
 ### React command authoring
