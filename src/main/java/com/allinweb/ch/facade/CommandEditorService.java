@@ -1,8 +1,11 @@
 package com.allinweb.ch.facade;
 
 import com.allinweb.ch.model.BotJobLoadDTO;
+import com.allinweb.ch.model.BlockDetailsDTO;
+import com.allinweb.ch.model.DetailsDTO;
 import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.model.SplitDTO;
+import com.allinweb.ch.model.UpdatedRow;
 import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.util.ErrorMessage;
 import com.google.gson.Gson;
@@ -309,7 +312,52 @@ public final class CommandEditorService {
         if (!canSplit("botJobTasks", split.getInstructionId())) {
             return splitError("Split Component is not allowed at the selected instruction.");
         }
+        String partitionError = validateSplitPartition(split);
+        if (partitionError != null) return splitError(partitionError);
         return null;
+    }
+
+    private String validateSplitPartition(SplitDTO split) {
+        InstructionLoad anchor = instructions("botJobTasks").stream()
+                .filter(row -> row != null && row.getId() != null && row.getId().equals(split.getInstructionId()))
+                .findFirst()
+                .orElse(null);
+        if (anchor == null || anchor.getBlockId() == null) return "The split anchor no longer exists.";
+        List<InstructionLoad> currentRows = instructions("botJobTasks").stream()
+                .filter(row -> row != null && anchor.getBlockId().equals(row.getBlockId()))
+                .sorted(Comparator.comparingInt(row -> row.getInstructionOrderNumber() == null
+                        ? Integer.MAX_VALUE
+                        : row.getInstructionOrderNumber()))
+                .toList();
+        int anchorIndex = indexOf(currentRows, split.getInstructionId());
+        DetailsDTO details = split.getDetails();
+        BlockDetailsDTO original = details == null ? null : details.getOriginalBlock();
+        BlockDetailsDTO created = details == null ? null : details.getNewBlock();
+        if (anchorIndex < 0 || original == null || created == null
+                || !anchor.getBlockId().equals(original.getBlockId())
+                || original.getBotJobId() == null || !original.getBotJobId().equals(split.getBotJobId())
+                || created.getBotJobId() == null || !created.getBotJobId().equals(split.getBotJobId())) {
+            return "The split block details do not match the selected instruction.";
+        }
+        if (!matchesPartition(original.getUpdatedInstructions(), currentRows.subList(0, anchorIndex + 1), true)
+                || !matchesPartition(created.getInstructions(), currentRows.subList(anchorIndex + 1, currentRows.size()), false)) {
+            return "The split rows are stale or do not form a contiguous block partition.";
+        }
+        return null;
+    }
+
+    private boolean matchesPartition(List<UpdatedRow> submitted, List<InstructionLoad> expected, boolean original) {
+        if (submitted == null || submitted.size() != expected.size()) return false;
+        for (int index = 0; index < expected.size(); index++) {
+            UpdatedRow actual = submitted.get(index);
+            InstructionLoad row = expected.get(index);
+            if (actual == null || actual.getInstructionId() == null || row.getId() == null
+                    || !actual.getInstructionId().equals(row.getId())
+                    || actual.getInstructionOrderNumber() == null
+                    || actual.getInstructionOrderNumber() != index + 1) return false;
+            if (original && (actual.getBlockId() == null || !actual.getBlockId().equals(row.getBlockId()))) return false;
+        }
+        return true;
     }
 
     private ErrorMessage splitError(String message) {
