@@ -2005,11 +2005,11 @@ public class SimpleWebSocketServer {
                                 errorMessage = performDataBase.loadInstructions(whereId, -1, -1, instrTable);
                             }
 
-                            rowsList = instrTable.equals("instruction")
+                            List<InstructionLoad> rowsList = instrTable.equals("instruction")
                                     ? performLists.getListInstruction()
                                     : performLists.getListInstructionComp();
 
-                            hasExcelGotoOneBlock = hasOnlyExcelGoto(rowsList, instrTable);
+                            InstructionLoad hasExcelGotoOneBlock = hasOnlyExcelGoto(rowsList, instrTable);
 
                             if (hasExcelGotoOneBlock != null) {
                                 errorMessage = performDataBase.deleteInstruction(
