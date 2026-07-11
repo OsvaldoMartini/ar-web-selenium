@@ -110,7 +110,25 @@ public final class CommandEditorService {
             response.addProperty("error", error.getErrorMessage());
         }
         response.add("capabilities", capabilities);
+        if (error == null) response.addProperty("graphRevision", graphRevision(sessionId));
         return response;
+    }
+
+    public ErrorMessage validateMoveRevision(SplitDTO split) {
+        if (split == null) return new ErrorMessage("Move Instruction Refused", "Missing request", "ROW_MOVE payload is missing.");
+        String sessionId = "componentTasks".equals(split.getSessionId()) ? "componentTasks" : "botJobTasks";
+        JsonObject body = new JsonObject();
+        body.addProperty("botJobId", split.getBotJobId() == null ? -1 : split.getBotJobId());
+        body.addProperty("homeBankingId", split.getHomeBankingId() == null ? -1 : split.getHomeBankingId());
+        ErrorMessage error = reloadInstructions(body, sessionId);
+        if (error != null) return error;
+        if (split.getGraphRevision() == null || split.getGraphRevision().isBlank()) {
+            return new ErrorMessage("Move Instruction Refused", "Graph revision is required", "Refresh the grid and try again.");
+        }
+        if (!split.getGraphRevision().equals(graphRevision(sessionId))) {
+            return new ErrorMessage("Move Instruction Refused", "Instructions changed", "Refresh the grid before moving rows.");
+        }
+        return null;
     }
 
     private Set<Integer> memoryProtectedIds(List<InstructionLoad> rows) {

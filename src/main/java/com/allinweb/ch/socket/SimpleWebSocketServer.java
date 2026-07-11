@@ -1704,7 +1704,7 @@ public class SimpleWebSocketServer {
                             processedRowMoves.remove(processedRowMoves.keySet().iterator().next());
                         }
                     }
-                    errorMessage = performDataBase.loadInstructions(whereId, -1, -1, instrTable);
+                    errorMessage = CommandEditorService.getInstance().validateMoveRevision(splitDTO);
                     if (errorMessage != null) break;
                     List<InstructionLoad> currentMoveRows = instrTable.equals("instruction")
                             ? performLists.getListInstruction()
