@@ -39,6 +39,15 @@ class InstructionMoveValidatorTest {
         assertNotNull(validator.validate(current, List.of(update(2, 20, 2))));
     }
 
+    @Test
+    void rejectsExcelGotoOnlyDestinationBlock() {
+        List<InstructionLoad> current = List.of(
+                row(1, "CLICK", null, 10, 1), row(2, "EXCEL GOTO", null, 10, 2),
+                row(3, "CLICK", null, 20, 1));
+        assertNotNull(validator.validate(current, List.of(
+                update(1, 20, 2), update(2, 10, 1), update(3, 20, 1))));
+    }
+
     private InstructionLoad row(int id, String action, Integer parentId, int blockId, int order) {
         InstructionLoad row = new InstructionLoad();
         row.setId(id);

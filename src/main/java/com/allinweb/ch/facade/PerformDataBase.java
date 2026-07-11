@@ -1374,6 +1374,10 @@ public class PerformDataBase {
                 + blockIdColumn + " = ?, parent_block_id = ? "
                 + "WHERE " + idColumn + " = ? AND " + whereColumn + " = ?";
         String parentSQL = "SELECT id, parent_id FROM " + instructionTable + " WHERE " + whereColumn + " = ?";
+        String blocksSQL = "SELECT id FROM " + tableName + " WHERE " + whereColumn + " = ? ORDER BY block_order_number, id";
+        String occupiedSQL = "SELECT DISTINCT block_id FROM " + instructionTable + " WHERE " + whereColumn + " = ?";
+        String deleteBlockSQL = "DELETE FROM " + tableName + " WHERE id = ? AND " + whereColumn + " = ?";
+        String reorderBlockSQL = "UPDATE " + tableName + " SET block_order_number = ? WHERE id = ? AND " + whereColumn + " = ?";
 
         try (Connection conn = getConnection()) {
             conn.setAutoCommit(false);
@@ -1407,6 +1411,48 @@ public class PerformDataBase {
                         if (update.executeUpdate() != 1) {
                             throw new SQLException("Instruction " + instruction.getInstructionId()
                                     + " could not be updated exactly once");
+                        }
+                    }
+                }
+
+                List<Integer> blockIds = new ArrayList<>();
+                try (PreparedStatement blocks = conn.prepareStatement(blocksSQL)) {
+                    blocks.setInt(1, whereId);
+                    try (ResultSet rows = blocks.executeQuery()) {
+                        while (rows.next()) blockIds.add(rows.getInt("id"));
+                    }
+                }
+                Set<Integer> occupiedBlockIds = new HashSet<>();
+                try (PreparedStatement occupied = conn.prepareStatement(occupiedSQL)) {
+                    occupied.setInt(1, whereId);
+                    try (ResultSet rows = occupied.executeQuery()) {
+                        while (rows.next()) occupiedBlockIds.add(rows.getInt("block_id"));
+                    }
+                }
+                List<Integer> remainingBlockIds = blockIds.stream()
+                        .filter(occupiedBlockIds::contains)
+                        .collect(Collectors.toCollection(ArrayList::new));
+                if (remainingBlockIds.isEmpty() && "block".equals(tableName) && !blockIds.isEmpty()) {
+                    remainingBlockIds.add(blockIds.get(0));
+                }
+                try (PreparedStatement deleteBlock = conn.prepareStatement(deleteBlockSQL)) {
+                    for (Integer blockId : blockIds) {
+                        if (remainingBlockIds.contains(blockId)) continue;
+                        deleteBlock.setInt(1, blockId);
+                        deleteBlock.setInt(2, whereId);
+                        if (deleteBlock.executeUpdate() != 1) {
+                            throw new SQLException("Empty block " + blockId + " could not be deleted exactly once");
+                        }
+                    }
+                }
+                try (PreparedStatement reorderBlock = conn.prepareStatement(reorderBlockSQL)) {
+                    for (int index = 0; index < remainingBlockIds.size(); index++) {
+                        reorderBlock.setInt(1, index + 1);
+                        reorderBlock.setInt(2, remainingBlockIds.get(index));
+                        reorderBlock.setInt(3, whereId);
+                        if (reorderBlock.executeUpdate() != 1) {
+                            throw new SQLException("Block " + remainingBlockIds.get(index)
+                                    + " could not be reordered exactly once");
                         }
                     }
                 }

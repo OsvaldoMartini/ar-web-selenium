@@ -48,8 +48,21 @@ public final class InstructionMoveValidator {
         if (conditionalMoveError != null) return conditionalMoveError;
         String orderingError = validateBlockOrdering(proposed);
         if (orderingError != null) return orderingError;
+        String excelGotoError = validateExcelGotoBlocks(proposed);
+        if (excelGotoError != null) return excelGotoError;
         String parentError = validateParentRelationships(proposed);
         return parentError == null ? validateLoopRelationships(proposed) : parentError;
+    }
+
+    private String validateExcelGotoBlocks(Map<Integer, ProposedRow> proposed) {
+        Map<Integer, List<ProposedRow>> blocks = new HashMap<>();
+        proposed.values().forEach(row -> blocks.computeIfAbsent(row.blockId, ignored -> new ArrayList<>()).add(row));
+        for (List<ProposedRow> rows : blocks.values()) {
+            if (!rows.isEmpty() && rows.stream().allMatch(row -> "EXCEL GOTO".equalsIgnoreCase(row.action))) {
+                return "EXCEL GOTO cannot be left as the only instruction in a block.";
+            }
+        }
+        return null;
     }
 
     private String validateConditionalMovement(List<InstructionLoad> current, Map<Integer, InstructionLoad> originals,

@@ -1753,44 +1753,8 @@ public class SimpleWebSocketServer {
                     if (errorMessage == null) {
                         errorMessage = performDataBase.loadInstructions(whereId, -1, -1, instrTable);
                     }
-
-                    List<InstructionLoad> rowsList = instrTable.equals("instruction")
-                            ? performLists.getListInstruction()
-                            : performLists.getListInstructionComp();
-
-                    InstructionLoad hasExcelGotoOneBlock = hasOnlyExcelGoto(rowsList, instrTable);
-
-                    if (hasExcelGotoOneBlock != null) {
-                        errorMessage =
-                                performDataBase.deleteInstruction(instrTable, whereId, hasExcelGotoOneBlock, false);
-                    }
-
-                    // FIRST updateMemoryRowMove  ALREADY UPDATE MEMORY LIST
-                    performLists.updateMemoryRowMove(blockTable, whereId, splitDTO.getUpdatedRows());
-
-                    errorMessage = deleteNullsAndMemoryReload(instrTable, blockTable, whereId, previousBlockIds);
-
-                    // updateBlockOrderNumber  ALREADY UPDATE MEMORY LIST
                     if (errorMessage == null) {
-                        errorMessage = performDataBase.updateBlockOrderNumber(blockTable, whereId, true);
-                    }
-
-                    if (errorMessage == null) {
-                        final int finalWhereId = whereId;
-
-                        List<BlockLoadDTO> blockLoad = instrTable.equals("instruction")
-                                ? performLists.getListBotJob().stream()
-                                        .filter(b -> Objects.equals(b.getId(), finalWhereId))
-                                        .findFirst()
-                                        .map(BotJobLoadDTO::getBlockLoadDTOList)
-                                        .orElse(Collections.emptyList())
-                                : performLists.getListBotJobComp().stream()
-                                        .filter(b -> Objects.equals(b.getHomeBankingId(), finalWhereId))
-                                        .findFirst()
-                                        .map(BotJobLoadDTO::getBlockLoadDTOList)
-                                        .orElse(Collections.emptyList());
-
-                        errorMessage = performDataBase.reorderInstructionsListBlock(blockLoad, instrTable, true);
+                        errorMessage = performDataBase.loadBlocks(whereId, "", blockTable);
                     }
 
                     // calls perform list block update
