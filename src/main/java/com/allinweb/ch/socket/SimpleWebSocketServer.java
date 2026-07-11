@@ -36,6 +36,7 @@ public class SimpleWebSocketServer {
     private static final ConfigService configService = ConfigService.getInstance();
     private static final ExcelExportService excelExportService = ExcelExportService.getInstance();
     private static final SaveComponentService saveComponentService = SaveComponentService.getInstance();
+    private static final OcrManagerService ocrManagerService = OcrManagerService.getInstance();
     protected static volatile SimpleWebSocketServer instance;
     private static WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
     private static ActionExecutorClient actionExecutorClient = ActionExecutorClient.getInstance();
@@ -253,6 +254,14 @@ public class SimpleWebSocketServer {
                         webSocketSessionManager.sendMessageJson(homeBankingId, "componentTasks",
                                 gson.toJson(componentResponse.get("instructions")), "componentsUpdate");
                     }
+                    break;
+                case "ocrConfig.bootstrap":
+                    sendCommandEditorResponse(homeBankingId, sessionId, "ocrConfig.bootstrapResponse",
+                            ocrManagerService.bootstrap(extractBody(jsonObjMSG)));
+                    break;
+                case "ocrConfig.profile":
+                    sendCommandEditorResponse(homeBankingId, sessionId, "ocrConfig.profileResponse",
+                            ocrManagerService.profile(extractBody(jsonObjMSG)));
                     break;
                 case "commandEditor.bootstrap":
                     sendCommandEditorResponse(

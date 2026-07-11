@@ -22,8 +22,8 @@ Complete React parity for `AROcrConfigPane`, `AROcrTestResultsPane`, and their s
 
 ## Implementation
 
-- [ ] Inventory every `OcrConfigProfile`, parameter type/range/enum, scope rule, and persistence call.
-- [ ] Extract pane-free profile and OCR test services.
+- [x] Inventory every `OcrConfigProfile`, parameter type/range/enum, scope rule, and persistence call.
+- [x] Extract pane-free OCR profile bootstrap/hydration service; mutation and test execution remain next.
 - [ ] Build `OCRConfigPanel.tsx`, `OCRTestResultsPanel.tsx`, and separate SCSS modules.
 - [ ] Render backend parameter metadata with typed controls and category sections.
 - [ ] Add Save, Save As New, Delete confirmation, Clean Orphans, and Test Current Page.
@@ -39,4 +39,3 @@ Complete React parity for `AROcrConfigPane`, `AROcrTestResultsPane`, and their s
 - Existing profiles round-trip without parameter loss.
 - Test execution never blocks the React UI and reports structured progress/errors.
 - Accepted OCR names reach the scanner grid by XPath.
-
