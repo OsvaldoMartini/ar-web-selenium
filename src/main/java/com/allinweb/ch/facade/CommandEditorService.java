@@ -111,6 +111,7 @@ public final class CommandEditorService {
                 capability.addProperty("canMove", reason == null);
                 String deleteReason = deleteBlockReason(row, referencedIds, invalidConditionalIds);
                 capability.addProperty("canDelete", deleteReason == null);
+                capability.addProperty("deleteCount", deleteImpactCount(row, instructionRows));
                 if (reason != null) capability.addProperty("reason", reason);
                 if (deleteReason != null) capability.addProperty("deleteReason", deleteReason);
                 capabilities.add(capability);
@@ -145,6 +146,17 @@ public final class CommandEditorService {
             return "Other instructions depend on this row.";
         }
         return null;
+    }
+
+    private int deleteImpactCount(InstructionLoad row, List<InstructionLoad> rows) {
+        if (!Set.of("IF", "ELSE", "ENDIF").contains(row.getActions())) return 1;
+        Integer rootId = "IF".equals(row.getActions()) ? row.getId() : row.getParentId();
+        if (rootId == null) return 1;
+        long children = rows.stream()
+                .filter(candidate -> candidate != null && candidate.getParentId() != null
+                        && candidate.getParentId().equals(rootId) && !rootId.equals(candidate.getId()))
+                .count();
+        return Math.toIntExact(children + 1);
     }
 
     public ErrorMessage validateMoveRevision(SplitDTO split) {
