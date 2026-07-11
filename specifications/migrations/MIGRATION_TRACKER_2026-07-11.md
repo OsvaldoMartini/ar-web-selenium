@@ -123,8 +123,10 @@ Finish the existing JavaFX-to-React instruction-authoring migration while preser
 
 - [ ] Verify variable create, edit, delete, usage lookup, and reference selection in both grids.
   - [x] Add pure dependent-operation rewrite fixtures for every variable command family.
+  - [x] Test React component-session variable creation and usage-protected deletion (`4ffe287`).
 - [x] Make rename/type updates and dependent-operation rewrites one transaction (`ab80cd14`).
 - [ ] Verify bot-job and component-session parity.
+  - [x] Cover component-session bootstrap and variable mutation context in React tests (`4ffe287`).
 
 ### P7 - Remove remaining JavaFX routes
 
