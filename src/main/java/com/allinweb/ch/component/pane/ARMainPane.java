@@ -325,7 +325,7 @@ public class ARMainPane extends ARPane {
         });
 
         cloneBotJobButton.setOnMouseClicked(e -> {
-            if (isEnabledLicence && !checkLicense()) {
+            if (isEnabledLicence && !com.allinweb.ch.facade.LicenseService.getInstance().isActive()) {
                 return;
             }
 
@@ -406,7 +406,7 @@ public class ARMainPane extends ARPane {
         });
 
         openBotJobButton.setOnMouseClicked(e -> {
-            if (isEnabledLicence && !checkLicense()) {
+            if (isEnabledLicence && !com.allinweb.ch.facade.LicenseService.getInstance().isActive()) {
                 return;
             }
 
@@ -437,7 +437,7 @@ public class ARMainPane extends ARPane {
         });
 
         launchBotJobButton.setOnMouseClicked(e -> {
-            if (isEnabledLicence && !checkLicense()) {
+            if (isEnabledLicence && !com.allinweb.ch.facade.LicenseService.getInstance().isActive()) {
                 return;
             }
 

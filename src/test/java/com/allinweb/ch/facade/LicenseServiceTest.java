@@ -6,11 +6,18 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.allinweb.ch.license.LicenceVal;
+import com.allinweb.ch.util.ARPropertyEnum;
+import com.allinweb.ch.util.ARPropertyManager;
 import com.google.gson.JsonObject;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 class LicenseServiceTest {
+    @TempDir
+    Path temporaryDirectory;
     @Test
     void mapsOnlyValidLicenseToActiveAccess() {
         for (LicenceVal value : LicenceVal.values()) {
@@ -72,6 +79,19 @@ class LicenseServiceTest {
     }
 
     @Test
+    void reportsHeadlessSafeLicenseCapabilities() {
+        JsonObject capabilities = LicenseService.capabilities();
+        assertTrue(capabilities.get("request").getAsBoolean());
+        assertTrue(capabilities.get("activate").getAsBoolean());
+        assertTrue(capabilities.get("useExisting").getAsBoolean());
+        assertTrue(capabilities.get("directoryRequest").getAsBoolean());
+        assertTrue(capabilities.get("typedPath").getAsBoolean());
+        assertFalse(capabilities.get("onlineRequest").getAsBoolean());
+        assertFalse(capabilities.get("chooseDirectory").getAsBoolean());
+        assertFalse(capabilities.get("chooseFile").getAsBoolean());
+    }
+
+    @Test
     void normalizesSupportedExpirationFormatsToIsoDates() {
         assertEquals("2027-07-11", LicenseService.isoExpiration("2027-07-11"));
         assertEquals("2027-07-11", LicenseService.isoExpiration("11-07-2027"));
@@ -120,6 +140,24 @@ class LicenseServiceTest {
         JsonObject response = LicenseService.getInstance().request(body);
         assertFalse(response.get("ok").getAsBoolean());
         assertEquals("License mutation request ID is required.", response.get("error").getAsString());
+    }
+
+    @Test
+    void generatesEncryptedRequestInsideConfiguredTemporaryDirectory() throws Exception {
+        ARPropertyManager properties = ARPropertyManager.getInstance();
+        String previous = properties.getProperty(ARPropertyEnum.PATH_LICENSE);
+        properties.setProperty(ARPropertyEnum.PATH_LICENSE.getValue(), temporaryDirectory.toString());
+        try {
+            JsonObject response = LicenseService.getInstance().request(
+                    requestBody("Temporary Client", "Test Owner", "owner@example.com", true));
+            Path generated = temporaryDirectory.resolve("Temporary Client-Test Owner.request");
+            assertTrue(response.get("ok").getAsBoolean());
+            assertEquals(generated.toString(), response.get("requestFile").getAsString());
+            assertTrue(Files.isRegularFile(generated));
+            assertFalse(Files.readString(generated).contains("Temporary Client"));
+        } finally {
+            properties.setProperty(ARPropertyEnum.PATH_LICENSE.getValue(), previous == null ? "" : previous);
+        }
     }
 
     private JsonObject requestBody(

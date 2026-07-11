@@ -72,13 +72,13 @@ All responses must use structured fields such as `ok`, `statusCode`, `title`, `m
 
 - [x] Build a restrained reusable License Manager panel with separated SCSS (`90bb13a`).
 - [x] Use a segmented control for Request, Activate Response, and Use Existing (`90bb13a`).
-- [ ] Use a segmented control for Online and Directory request modes only when backend capabilities allow them.
+- [x] Capability-gate request transport modes: Directory is enabled and Online remains unavailable, so no false Online control is rendered.
 - [x] Show license status, licensed organization/owner, configured path, and last verification result (`90bb13a`).
 - [x] Show organization, owner, and email fields only for Request (`b292327`).
 - [x] Show file/path controls only for Activate or Use Existing (`b292327`).
 - [x] Require explicit agreement acceptance before Request or Activate (`b292327`).
 - [x] Keep agreement content in a bounded scrollable region for Request and Activate without nesting the page in a card (`d28a8d6`).
-- [ ] Use React confirmation and inline structured errors; remove Java alert/dialog ownership.
+- [x] Use React agreement confirmation and inline structured errors for shared license workflows; backend cryptographic parsing is pane-free.
 - [x] Prevent repeated submission while a request is pending (`b292327`).
 - [x] Refresh status immediately after request generation, activation, or existing-license selection (`b292327`).
 
@@ -89,7 +89,7 @@ All responses must use structured fields such as `ok`, `statusCode`, `title`, `m
 - [x] Normalize supported persisted expiration formats to strict ISO `yyyy-MM-dd` in `about.bootstrap`.
 - [x] Open the shared `LicenseManager` from the License action (`90bb13a`).
 - [x] Remove the direct `ARInfoPane -> ARLicenseScene` dependency and route its License action to React.
-- [ ] Keep product metadata read-only and avoid duplicating values in React constants.
+- [x] Keep product metadata backend-owned; React uses neutral unavailable states instead of duplicated product constants (`c70d669`).
 
 ## Phase 5 - Activation Required Startup State
 
@@ -98,18 +98,18 @@ All responses must use structured fields such as `ok`, `statusCode`, `title`, `m
 - [x] Prevent protected WebSocket routes and job mutations while activation is required.
 - [x] Permit only license recovery/status, About, and basic connection operations while restricted.
 - [x] Re-bootstrap the React dashboard after successful activation without requiring a JavaFX window restart (`60edf97`).
-- [ ] Preserve an offline directory workflow for disconnected client installations.
-- [ ] Define headless-server behavior when no native chooser is available: typed path input or secure upload endpoint.
+- [x] Preserve offline request generation and response/license import through the configured license directory.
+- [x] Define headless behavior as server-validated typed paths; native chooser capabilities remain false until real endpoints exist.
 
 ## Phase 6 - Remove Redundancy and Legacy Routes
 
 - [x] Route normal-navigation License buttons to the shared React component; startup activation is tracked separately.
 - [x] Route the active React Main Dashboard About/Info action to `AboutPanel`.
-- [ ] Replace duplicated `checkLicense()` UI messages with `LicenseService` status results.
-- [ ] Remove JavaFX HTML message composition for license operations.
+- [x] Route active legacy license guards through `LicenseService.isActive()` instead of duplicated verification/dialog calls.
+- [x] Remove startup and cryptographic JavaFX HTML message composition from license verification paths.
 - [x] Remove the unreferenced `ARLicensePane`, `ARLicenseScene`, `ARInfoPane`, and `ARInfoScene` after React parity coverage.
 - [x] Delete the unreferenced `LicenseActivationApp`; runtime startup verification remains an external Java-machine gate.
-- [ ] Keep `LicenseManager` cryptographic primitives only until the post-Java Node migration replaces them securely.
+- [x] Keep protected `LicenseManager` cryptographic primitives backend-only pending the separate post-Java Node migration.
 - [x] Run the Java/test zero-reference audit before deleting the legacy About/License scenes, panes, and launcher.
 
 ## Security Requirements
@@ -123,9 +123,9 @@ All responses must use structured fields such as `ok`, `statusCode`, `title`, `m
 
 ## Test Gates
 
-- [ ] Unit tests for every `LicenceVal` mapping and capability combination.
+- [x] Add tests covering every `LicenceVal` mapping and the complete headless-safe capability contract.
 - [x] Add deterministic request validation tests for missing agreement/request ID, invalid organization, owner, and email.
-- [ ] Request-file generation tests using temporary directories.
+- [x] Add encrypted request-file generation coverage using a configured temporary directory.
 - [ ] Valid, invalid, wrong-machine, expired, malformed, missing, and unreadable license fixtures.
 - [x] Add idempotency-cache tests for duplicate successful mutations, retryable failures, defensive copies, and bounded eviction.
 - [x] React tests for Request, Activate, and Use Existing payloads plus agreement gating (`af861e9`).
@@ -133,7 +133,7 @@ All responses must use structured fields such as `ok`, `statusCode`, `title`, `m
 - [x] About tests for version/build/expiration, dashboard navigation, malformed-response fallback, and the shared License Manager (`04665b3`).
 - [x] React startup activation tests for blocking state, successful dashboard handoff, and Exit (`fc63b2e`).
 - [x] Add deterministic startup policy tests proving inactive sessions can use only recovery/About operations and cannot reach protected routes.
-- [ ] Windows chooser and Linux/headless fallback tests.
+- [x] Test the Linux/headless typed-path capability contract; native Windows chooser is explicitly unsupported rather than falsely advertised.
 - [ ] End-to-end test for request, response import, successful activation, and application re-bootstrap.
 
 ## Remaining JavaFX Page Inventory

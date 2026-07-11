@@ -671,7 +671,7 @@ public class ARConfigurationPane extends ARPane {
         }
 
         insertSitesdButton.setOnMouseClicked(e -> {
-            if (isEnabledLicence && !checkLicense()) {
+            if (isEnabledLicence && !com.allinweb.ch.facade.LicenseService.getInstance().isActive()) {
                 return;
             }
             ErrorMessage errorMessage = performDBEngine.loadHomeBanking(null);
@@ -1318,7 +1318,7 @@ public class ARConfigurationPane extends ARPane {
     }
 
     private void deleteAllDB() {
-        if (isEnabledLicence && !checkLicense()) {
+        if (isEnabledLicence && !com.allinweb.ch.facade.LicenseService.getInstance().isActive()) {
             return;
         }
 

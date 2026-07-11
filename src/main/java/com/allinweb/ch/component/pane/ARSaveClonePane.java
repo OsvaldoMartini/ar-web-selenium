@@ -232,7 +232,7 @@ public class ARSaveClonePane extends ARPane {
     @Override
     public void initUIBehaviour() {
         insertSitesdButton.setOnMouseClicked(e -> {
-            if (isEnabledLicence && !checkLicense()) {
+            if (isEnabledLicence && !com.allinweb.ch.facade.LicenseService.getInstance().isActive()) {
                 return;
             }
             ErrorMessage errorMessage = null;

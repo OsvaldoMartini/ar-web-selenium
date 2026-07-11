@@ -222,11 +222,7 @@ public class ARControlPanel extends Application {
             }
             try {
                 if (license.get().isMissing()) {
-                    startupActivationPending.set(true);
-                    Platform.runLater(() -> {
-                        arMainScene.initialize(isEnabledLicence, "activationRequired");
-                        arMainScene.showModal();
-                    });
+                    showActivationRequired();
 
                 } else {
                     license.set(LicenseManager.checkLicenseFile(licensePath));
@@ -240,7 +236,7 @@ public class ARControlPanel extends Application {
                         });
 
                     } else {
-                        licenseMessages(license.get());
+                        showActivationRequired();
                     }
                 }
             } catch (Exception error) {
@@ -278,38 +274,12 @@ public class ARControlPanel extends Application {
         }
     }
 
-    private static void licenseMessages(LicenceVal licenseStatus) {
-        String msgValid = "The license file is valid and the application is authorized for use.";
-        String msgNextStep = "You can now proceed with normal application usage.";
-
-        String msgColor = "#0277BD";
-        String msgColorExp = "#000080";
-        if (!licenseStatus.equals(LicenceVal.VALID)) {
-            msgValid = "The license file is not valid and the application is not authorized for use.";
-            msgNextStep = "Application access is restricted. Please obtain a valid license to continue.";
-            msgColor = "#C62828"; // Soft, elegant red tone
-            msgColorExp = "#C62828";
-        }
-
-        String licEmail = arPropertyManager.getProperty(ARPropertyEnum.LICENSE_EMAIL);
-        String emailLine = (licEmail != null && !licEmail.isBlank())
-                ? "Licensed for: <span style='color: #0277BD; font-weight: bold;'>" + licEmail + "</span><br>"
-                : "";
-
-        performMessage.showCustomModalDialogDragWin11(
-                "License Status Verification",
-                "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>License status has been successfully verified.</span>",
-                "<span style='color: " + msgColor + "; font-weight: bold;'>" + msgValid + "</span>",
-                emailLine
-                        + "<span style='color: #E65100; font-weight: bold;'>Current license status:</span> <span style='font-weight: bold;'>"
-                        + licenseStatus.getStaus() + "</span>",
-                "Expiration: <span style='color: " + msgColorExp + "; font-weight: bold;'>"
-                        + arPropertyManager.getProperty(ARPropertyEnum.EXPIRATION) + "</span>",
-                false,
-                "OK",
-                null,
-                0);
-        System.exit(0);
+    private static void showActivationRequired() {
+        startupActivationPending.set(true);
+        Platform.runLater(() -> {
+            arMainScene.initialize(isEnabledLicence, "activationRequired");
+            arMainScene.showModal();
+        });
     }
 
     public static void continueAfterLicenseActivation() {

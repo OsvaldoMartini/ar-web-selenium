@@ -1187,7 +1187,7 @@ public class ARViewBotJobPane extends ARPane {
         });
 
         insertSitesdButton.setOnMouseClicked(e -> {
-            if (isEnabledLicence && !checkLicense()) {
+            if (isEnabledLicence && !com.allinweb.ch.facade.LicenseService.getInstance().isActive()) {
                 return;
             }
             if (performLists.getListHomeBanking().isEmpty()) {

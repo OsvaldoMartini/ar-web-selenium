@@ -142,13 +142,6 @@ public class LicenseManager {
             return new String(decrypted);
         } catch (Exception error) {
             log.error("An error occurred while decrypting the license file.");
-            performMessage.errorMessage(
-                    "An error occurred while decrypting the license file.",
-                    "File Name:",
-                    "ARWeb.lic",
-                    "Please verify if the file is corrupted or tampered.",
-                    null,
-                    0);
         }
         return null;
     }
@@ -170,8 +163,7 @@ public class LicenseManager {
         String fileName = licPath.getFileName().toString(); //
 
         if (!fileName.endsWith(".request")) {
-            performMessage.errorMessage(
-                    "Invalid file selected!", "Must have a '.request' extension.", "File selected:", fileName, null, 0);
+            log.warn("Invalid request file extension: {}", fileName);
             return "Invalid file selected";
         }
 
@@ -184,7 +176,8 @@ public class LicenseManager {
         }
     }
 
-    private static LicenceVal validateLicense(String decryptedContent) {
+    static LicenceVal validateLicense(String decryptedContent) {
+        if (decryptedContent == null || decryptedContent.isBlank()) return LicenceVal.MISSING;
         // .lic format: pcName|domainName|userName|expiryDate|orgKey|organization|version
         // Minimum 4 parts required, rest optional
         String[] parts = decryptedContent.split("\\|");
@@ -193,7 +186,12 @@ public class LicenseManager {
         String pcID = parts[0];
         String domainName = parts[1];
         String userName = parts[2];
-        LocalDate expiryDate = LocalDate.parse(parts[3], DateTimeFormatter.ISO_LOCAL_DATE);
+        LocalDate expiryDate;
+        try {
+            expiryDate = LocalDate.parse(parts[3], DateTimeFormatter.ISO_LOCAL_DATE);
+        } catch (Exception error) {
+            return LicenceVal.MISSING;
+        }
         String formatted = expiryDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
         arPropertyManager.setProperty(ARPropertyEnum.EXPIRATION.getValue(), formatted);
 

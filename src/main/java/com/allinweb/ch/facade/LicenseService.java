@@ -44,14 +44,7 @@ public final class LicenseService {
         response.addProperty("path", path);
         response.addProperty("organization", property(ARPropertyEnum.LICENSE_ORG_NAME));
         response.addProperty("owner", property(ARPropertyEnum.LICENSE_OWNER));
-        JsonObject capabilities = new JsonObject();
-        capabilities.addProperty("request", true);
-        capabilities.addProperty("activate", true);
-        capabilities.addProperty("useExisting", true);
-        capabilities.addProperty("onlineRequest", false);
-        capabilities.addProperty("chooseDirectory", true);
-        capabilities.addProperty("chooseFile", true);
-        response.add("capabilities", capabilities);
+        response.add("capabilities", capabilities());
         return response;
     }
 
@@ -85,8 +78,26 @@ public final class LicenseService {
         return permits(operation, active);
     }
 
+    public boolean isActive() {
+        JsonObject state = bootstrap();
+        return state.has("active") && state.get("active").getAsBoolean();
+    }
+
     static boolean permits(String operation, boolean active) {
         return operation != null && (UNRESTRICTED_OPERATIONS.contains(operation) || active);
+    }
+
+    static JsonObject capabilities() {
+        JsonObject capabilities = new JsonObject();
+        capabilities.addProperty("request", true);
+        capabilities.addProperty("activate", true);
+        capabilities.addProperty("useExisting", true);
+        capabilities.addProperty("directoryRequest", true);
+        capabilities.addProperty("onlineRequest", false);
+        capabilities.addProperty("typedPath", true);
+        capabilities.addProperty("chooseDirectory", false);
+        capabilities.addProperty("chooseFile", false);
+        return capabilities;
     }
 
     static String isoExpiration(String value) {
