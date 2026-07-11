@@ -58,6 +58,18 @@ public final class LicenseService {
         return response;
     }
 
+    public JsonObject startup() {
+        JsonObject license = bootstrap();
+        boolean allowed = license.has("active") && license.get("active").getAsBoolean();
+        JsonObject response = new JsonObject();
+        response.addProperty("ok", true);
+        response.addProperty("allowed", allowed);
+        response.addProperty("activationRequired", !allowed);
+        response.addProperty("targetSessionId", allowed ? "mainDashboard" : "activationRequired");
+        response.add("license", license);
+        return response;
+    }
+
     public JsonObject request(JsonObject body) {
         return mutation(body, () -> requestOnce(body));
     }

@@ -28,4 +28,10 @@ class LicenseServiceTest {
         assertFalse(LicenseService.status(null).get("ok").getAsBoolean());
         assertTrue(LicenseService.status(null).get("requiresActivation").getAsBoolean());
     }
+
+    @Test
+    void inactiveStatusTargetsActivationInsteadOfProtectedApplication() {
+        assertTrue(LicenseService.status(LicenceVal.MISSING).get("requiresActivation").getAsBoolean());
+        assertFalse(LicenseService.status(LicenceVal.MISSING).get("active").getAsBoolean());
+    }
 }

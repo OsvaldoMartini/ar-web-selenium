@@ -189,6 +189,13 @@ public class SimpleWebSocketServer {
                             type + "Response",
                             LicenseService.getInstance().bootstrap());
                     break;
+                case "license.startup":
+                    sendCommandEditorResponse(
+                            homeBankingId,
+                            sessionId,
+                            "license.startupResponse",
+                            LicenseService.getInstance().startup());
+                    break;
                 case "about.bootstrap":
                     sendCommandEditorResponse(
                             homeBankingId,

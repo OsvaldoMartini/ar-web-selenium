@@ -94,7 +94,7 @@ All responses must use structured fields such as `ok`, `statusCode`, `title`, `m
 ## Phase 5 - Activation Required Startup State
 
 - [ ] Replace `LicenseActivationApp` with the reusable `ActivationRequired` React surface.
-- [ ] Make startup bootstrap return whether the application is allowed, restricted, or requires activation.
+- [x] Make `license.startup` return allowed/activation-required state and the target React session.
 - [ ] Prevent protected routes and job execution while activation is required.
 - [ ] Permit only license request, activation, existing-license selection, status recheck, and application exit.
 - [ ] Re-bootstrap the application after successful activation without requiring a JavaFX window restart.
