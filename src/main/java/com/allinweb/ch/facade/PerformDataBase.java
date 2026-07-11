@@ -3939,6 +3939,68 @@ public class PerformDataBase {
         return errorMessage;
     }
 
+    public ErrorMessage deleteInstructionGraphAtomic(String instructionTable, int whereId, List<Integer> ids) {
+        if (!"instruction".equals(instructionTable) && !"component_instruction".equals(instructionTable)) {
+            return new ErrorMessage("Delete Instruction Error", "Invalid instruction table", instructionTable);
+        }
+        List<Integer> deleteIds = ids == null ? List.of() : ids.stream()
+                .filter(Objects::nonNull)
+                .filter(id -> id > 0)
+                .distinct()
+                .toList();
+        if (deleteIds.isEmpty()) {
+            return new ErrorMessage("Delete Instruction Error", "No instructions selected", "Delete list is empty.");
+        }
+        String ownerColumn = "instruction".equals(instructionTable) ? "bot_job_id" : "home_banking_id";
+        String variableTable = "instruction".equals(instructionTable) ? "variable" : "component_variable";
+        String referenceTable = "instruction".equals(instructionTable) ? "reference" : "component_reference";
+        String placeholders = String.join(",", Collections.nCopies(deleteIds.size(), "?"));
+        Connection connection = null;
+        Boolean previousAutoCommit = null;
+        try {
+            connection = getConnection();
+            previousAutoCommit = connection.getAutoCommit();
+            connection.setAutoCommit(false);
+            deleteOwnedRows(connection, variableTable, ownerColumn, whereId, deleteIds, placeholders);
+            deleteOwnedRows(connection, referenceTable, ownerColumn, whereId, deleteIds, placeholders);
+            String sql = "DELETE FROM " + instructionTable + " WHERE " + ownerColumn + "=? AND id IN (" + placeholders + ")";
+            try (PreparedStatement statement = connection.prepareStatement(sql)) {
+                bindOwnerAndIds(statement, whereId, deleteIds);
+                int deleted = statement.executeUpdate();
+                if (deleted != deleteIds.size()) throw new SQLException(
+                        "Expected to delete " + deleteIds.size() + " instructions but deleted " + deleted + ".");
+            }
+            connection.commit();
+            return null;
+        } catch (SQLException exception) {
+            if (connection != null) {
+                try { connection.rollback(); } catch (SQLException ignored) { }
+            }
+            return new ErrorMessage("Delete Instruction Error", "Atomic instruction deletion failed", exception.getMessage());
+        } finally {
+            if (connection != null) {
+                if (previousAutoCommit != null) {
+                    try { connection.setAutoCommit(previousAutoCommit); } catch (SQLException ignored) { }
+                }
+                try { connection.close(); } catch (SQLException ignored) { }
+            }
+        }
+    }
+
+    private void deleteOwnedRows(Connection connection, String table, String ownerColumn, int whereId,
+            List<Integer> ids, String placeholders) throws SQLException {
+        String sql = "DELETE FROM " + table + " WHERE " + ownerColumn + "=? AND instruction_id IN (" + placeholders + ")";
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            bindOwnerAndIds(statement, whereId, ids);
+            statement.executeUpdate();
+        }
+    }
+
+    private void bindOwnerAndIds(PreparedStatement statement, int whereId, List<Integer> ids) throws SQLException {
+        statement.setInt(1, whereId);
+        for (int index = 0; index < ids.size(); index++) statement.setInt(index + 2, ids.get(index));
+    }
+
     public void updateDatabaseSchema(String dbUrl, File dbFile) {
 
         try (Connection conn = DriverManager.getConnection(dbUrl)) {

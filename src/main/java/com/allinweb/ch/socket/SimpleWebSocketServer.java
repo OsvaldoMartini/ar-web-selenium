@@ -2013,56 +2013,27 @@ public class SimpleWebSocketServer {
                             deleteParents = true;
                         }
 
-                        // ✅ IMPORTANT: delete children OUTSIDE the "list not empty" check
-                        if (continueDelete && deleteParents) {
-
-                            // ELSEIF deletes only itself (no children)
-                            if (!isElseIf) {
-
-                                int deleteChildrenOf = isIfFamilyRootDelete ? ifRootId : splitDTO.getInstructionId();
-                                errorMessage = performDataBase.deleteRowParents(instrTable, whereId, deleteChildrenOf);
-
-                                if (errorMessage == null) {
-                                    for (ParentOperations parent : performLists.getListParentOperations()) {
-                                        performLists.updateMemoryRemoveInstructionId(
-                                                instrTable, whereId, parent.getId());
-                                    }
-                                }
-                            }
-                        }
                     }
 
                     if (continueDelete && deleteParents && errorMessage == null) {
+                        List<InstructionLoad> currentDeleteRows = instrTable.equals("instruction")
+                                ? performLists.getListInstruction()
+                                : performLists.getListInstructionComp();
+                        List<Integer> deleteIds = isIfFamilyRootDelete
+                                ? currentDeleteRows.stream()
+                                        .filter(row -> row != null && row.getId() != null
+                                                && (row.getId() == ifRootId
+                                                        || (row.getParentId() != null && row.getParentId() == ifRootId)))
+                                        .map(InstructionLoad::getId)
+                                        .distinct()
+                                        .toList()
+                                : List.of(splitDTO.getInstructionId());
 
-                        InstructionLoad instrDelete;
-
-                        // delete root IF only for ELSE/ENDIF (NOT for ELSEIF)
-                        if (isIfFamilyRootDelete && !actions.equalsIgnoreCase("IF")) {
-                            instrDelete = findInstructionInMemory(instrTable, whereId, ifRootId);
-
-                            if (instrDelete == null) {
-                                instrDelete = performDataBase.loadInstructionById(instrTable, whereId, ifRootId);
-                            }
-
-                            if (instrDelete == null) {
-                                errorMessage = new ErrorMessage(
-                                        "Delete Instruction Error",
-                                        "Could not find root IF instruction to delete (ID: " + ifRootId + ")",
-                                        "Root IF not found in memory or DB");
-                            }
-                        } else {
-                            instrDelete = SplitDTO.mapSplitToInstruction(splitDTO);
-                        }
+                        errorMessage = performDataBase.deleteInstructionGraphAtomic(
+                                instrTable, whereId, deleteIds);
 
                         if (errorMessage == null) {
-
-                            errorMessage = performDataBase.deleteInstruction(instrTable, whereId, instrDelete, false);
-
-                            if (errorMessage == null) {
-                                int removedId = (isIfFamilyRootDelete && !actions.equalsIgnoreCase("IF"))
-                                        ? ifRootId
-                                        : splitDTO.getInstructionId();
-
+                            for (Integer removedId : deleteIds) {
                                 performLists.updateMemoryRemoveInstructionId(instrTable, whereId, removedId);
                             }
 
