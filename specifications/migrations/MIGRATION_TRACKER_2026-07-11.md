@@ -88,6 +88,8 @@ Finish the existing JavaFX-to-React instruction-authoring migration while preser
   - [x] Publish authoritative `allowedBlockIds` for each row capability.
   - [x] Render valid/invalid block states while dragging.
 - [ ] Add reason tooltips, group preview, and keyboard movement.
+  - [x] Add capability reason tooltips and keyboard movement on dedicated handles (`3172806`).
+  - [ ] Add connected-group move preview.
 
 ### P4 - Graph-aware deletion completion
 
