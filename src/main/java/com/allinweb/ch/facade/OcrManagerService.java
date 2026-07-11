@@ -119,6 +119,38 @@ public final class OcrManagerService {
         }
     }
 
+    public Map<String, Object> previewCleanup(JsonObject body) {
+        Integer homeBankingId = nullablePositive(body, "homeBankingId");
+        Integer homeUrlId = nullablePositive(body, "homeUrlId");
+        LocatorCleanupService.ScanReport report = LocatorCleanupService.getInstance().scan(homeBankingId, homeUrlId);
+        Map<String, Object> response = ok(report.candidates.isEmpty()
+                ? "No orphan locators found." : "Orphan locator cleanup preview ready.");
+        response.put("totalRows", report.totalRows);
+        List<Map<String, Object>> candidates = new ArrayList<>();
+        for (LocatorCleanupService.OrphanCandidate candidate : report.candidates) {
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("id", candidate.locator.getId());
+            item.put("definedName", candidate.locator.getDefinedName());
+            item.put("reason", candidate.reason);
+            item.put("detail", candidate.detail);
+            candidates.add(item);
+        }
+        response.put("candidates", candidates);
+        return response;
+    }
+
+    public Map<String, Object> applyCleanup(JsonObject body) {
+        if (!bool(body, "confirmed")) return failure("Locator cleanup requires confirmation.");
+        Integer homeBankingId = nullablePositive(body, "homeBankingId");
+        Integer homeUrlId = nullablePositive(body, "homeUrlId");
+        LocatorCleanupService.ScanReport fresh = LocatorCleanupService.getInstance().scan(homeBankingId, homeUrlId);
+        int deleted = LocatorCleanupService.getInstance().deleteCandidates(fresh.candidates);
+        Map<String, Object> response = ok("Locator cleanup complete.");
+        response.put("deleted", deleted);
+        response.put("candidateCount", fresh.candidates.size());
+        return response;
+    }
+
     static List<Map<String, Object>> canonicalParameters() {
         List<Map<String, Object>> result = new ArrayList<>();
         for (OcrConfigParam param : OcrConfigDefaults.CANONICAL) result.add(parameter(param));
