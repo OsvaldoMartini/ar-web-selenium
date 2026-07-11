@@ -15,6 +15,10 @@ Finish the existing JavaFX-to-React instruction-authoring migration while preser
 - Do not run Java or Maven on this machine.
 - Keep legacy panes only until React parity is verified end to end.
 
+## Follow-On Platform Migration
+
+After this tracker is complete, continue with `ROADMAP_POST_JAVAFX_NODE_TYPESCRIPT_PLATFORM.md`. That roadmap audits Access/SQLite queries, moves server responsibilities to Node/TypeScript, and retires JavaFX/JCEF without moving authoritative logic or database access into browser React code.
+
 ## Completed
 
 ### React command authoring
