@@ -36,6 +36,7 @@ public class SimpleWebSocketServer {
     private static final MainDashboardService mainDashboardService = MainDashboardService.getInstance();
     private static final NewBotJobService newBotJobService = NewBotJobService.getInstance();
     private static final ConfigService configService = ConfigService.getInstance();
+    private static final ExcelExportService excelExportService = ExcelExportService.getInstance();
     protected static volatile SimpleWebSocketServer instance;
     private static WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
     private static ARExcelFileScene arExcelFileScene = ARExcelFileScene.getInstance();
@@ -229,6 +230,20 @@ public class SimpleWebSocketServer {
                     if (isActiveLicenseResponse(existingResponse)) ARControlPanel.continueAfterLicenseActivation();
                     sendCommandEditorResponse(homeBankingId, sessionId, "license.useExistingResponse", existingResponse);
                     publishLicenseStatus(existingResponse);
+                    break;
+                case "excelExport.bootstrap":
+                    sendCommandEditorResponse(homeBankingId, sessionId, "excelExport.bootstrapResponse",
+                            excelExportService.bootstrap(extractBody(jsonObjMSG)));
+                    break;
+                case "excelExport.save":
+                case "excelExport.clear":
+                    Map<String, Object> excelResponse = excelExportService.save(extractBody(jsonObjMSG));
+                    sendCommandEditorResponse(homeBankingId, sessionId, "excelExport.saveResponse", excelResponse);
+                    if (Boolean.TRUE.equals(excelResponse.get("ok"))) {
+                        String updateOperation = String.valueOf(excelResponse.get("updateOperation"));
+                        webSocketSessionManager.sendMessageJson(homeBankingId, sessionId,
+                                gson.toJson(excelResponse.get("instructions")), updateOperation);
+                    }
                     break;
                 case "commandEditor.bootstrap":
                     sendCommandEditorResponse(
