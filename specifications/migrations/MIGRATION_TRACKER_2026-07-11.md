@@ -164,6 +164,8 @@ The About, License, and Activation Software Required consolidation is planned in
 - [x] Load scanned-instruction fixtures, add them to Memory List, create `test_block_N`, and Apply (`ARWeb-Linux` `8302a83`).
 - [x] Verify persisted block and instruction rows after authoritative refresh and page reload (`ARWeb-Linux` `ead27b7`).
 - [ ] Cover IF/ELSEIF/ELSE/ENDIF, loops, variables, move, delete, and split workflows.
+  - [x] Cover authoritative complete IF-family and loop-span move previews and normalized `ROW_MOVE` payloads (`ARWeb-Linux` `15a0907`).
+  - [ ] Cover variable, delete, and split browser workflows.
 - [ ] Verify component-grid parity and direct WebSocket rejection behavior.
 
 ## Current Next Step
