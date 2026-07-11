@@ -112,8 +112,8 @@ Finish the existing JavaFX-to-React instruction-authoring migration while preser
 
 - [x] Complete canonical encode/decode fixtures for every registered command family.
 - [x] Verify decode schemas for SET, GET, CK/PDF/CSV, GOTO, EXCEL GOTO, loops, waits, swipe, and independent commands.
-- [ ] Default unknown row/command combinations to denied.
-- [ ] Ensure React never constructs canonical legacy operation strings.
+- [x] Default unknown row/command combinations to denied.
+- [x] Active React grids never construct canonical legacy operation strings; Java owns encoding.
 - [x] Return structured warnings for malformed historical operations.
 - [x] Render malformed historical operation warnings in the React command panel (`c0cbd98`).
 - [ ] Verify canonical aliases and every command family round trip.
@@ -127,11 +127,12 @@ Finish the existing JavaFX-to-React instruction-authoring migration while preser
 
 ### P7 - Remove remaining JavaFX routes
 
-- [ ] Audit all callers of `INSERT_BEFORE`, `INSERT_AFTER`, `INSERT_NEW`, and `EDIT_OPERATION`.
-- [ ] Ensure Insert Empty Step before/after never opens `ARNewCommandScene`.
-- [ ] Remove normal UI forwarding to `ARNewCommandPane` and `ARElementValuePane`.
-- [ ] Remove the legacy panes/scenes only after end-to-end acceptance passes.
-- [ ] Confirm no active command, variable, delete, move, Memory List, or split path opens JavaFX.
+- [x] Audit all callers of `INSERT_BEFORE`, `INSERT_AFTER`, `INSERT_NEW`, and `EDIT_OPERATION`; remaining uses are pane-free internal mutation modes.
+- [x] Insert before/after routes through the React command panel and never opens `ARNewCommandScene`.
+- [x] No normal UI forwarding to `ARNewCommandPane` or `ARElementValuePane` remains.
+- [x] Legacy JavaFX command/variable pane and scene classes are absent from `src/main/java`.
+- [x] No active command, variable, delete, move, Memory List, or split path opens JavaFX.
+- [ ] Remove or archive unreferenced `GridDrag2.tsx`, which still contains unreachable legacy STOMP senders.
 
 ### P8 - Automated and end-to-end acceptance
 
