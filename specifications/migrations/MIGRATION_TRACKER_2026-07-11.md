@@ -81,6 +81,8 @@ Finish the existing JavaFX-to-React instruction-authoring migration while preser
 - [x] Send move/delete results only after validation, persistence, and authoritative refresh complete.
 - [x] Cache move/delete request IDs only after successful completion; keep failed requests retryable.
 - [ ] Add rollback fixtures for failed movement updates.
+  - [x] Add SQLite mid-update rollback fixture for the extracted row mutation transaction.
+  - [ ] Delegate the complete production move transaction, including block cleanup/order, to the tested service.
 - [x] Wrap variable update and every dependent operation rewrite in one transaction.
 - [ ] Add rollback fixtures for failed variable rewrites.
 
