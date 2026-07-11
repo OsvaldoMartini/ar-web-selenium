@@ -104,6 +104,8 @@ After this tracker is complete, continue with `ROADMAP_POST_JAVAFX_NODE_TYPESCRI
 - [ ] Complete group-move preview UX.
   - [x] Add capability reason tooltips and keyboard movement on dedicated handles (`3172806`).
   - [ ] Add connected-group move preview.
+    - [x] Add revision-checked `instructionGraph.previewMove` and connected-group fixtures.
+    - [ ] Render and confirm the authoritative group preview in both React grids.
 
 ### P4 - Graph-aware deletion completion
 

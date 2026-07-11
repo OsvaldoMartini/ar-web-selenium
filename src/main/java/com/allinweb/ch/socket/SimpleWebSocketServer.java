@@ -209,6 +209,13 @@ public class SimpleWebSocketServer {
                             "instructionGraph.previewSplitResponse",
                             CommandEditorService.getInstance().previewSplit(extractBody(jsonObjMSG)));
                     break;
+                case "instructionGraph.previewMove":
+                    sendCommandEditorResponse(
+                            homeBankingId,
+                            sessionId,
+                            "instructionGraph.previewMoveResponse",
+                            CommandEditorService.getInstance().previewMove(extractBody(jsonObjMSG)));
+                    break;
                 case "instructionEditor.memoryCapabilities":
                     sendCommandEditorResponse(
                             homeBankingId,

@@ -44,6 +44,7 @@ public final class CommandEditorService {
     private final InstructionSplitValidator splitValidator = new InstructionSplitValidator();
     private final ConditionalBranchService conditionalBranchService = new ConditionalBranchService();
     private final LoopGroupService loopGroupService = new LoopGroupService();
+    private final InstructionMoveGroupService moveGroupService = new InstructionMoveGroupService();
 
     private CommandEditorService() {}
 
@@ -672,6 +673,53 @@ public final class CommandEditorService {
         response.addProperty("movedCount", blockRows.size() - splitIndex - 1);
         if (body.has("requestId")) response.add("requestId", body.get("requestId"));
         return response;
+    }
+
+    public JsonObject previewMove(JsonObject body) {
+        String targetSession = string(body, "targetSessionId", "botJobTasks");
+        ErrorMessage loadError = reloadInstructions(body, targetSession);
+        if (loadError != null) return failure(loadError.getErrorMessage());
+        JsonObject stale = validateGraphRevision(body, targetSession);
+        if (stale != null) return stale;
+
+        int instructionId = integer(body, "instructionId", -1);
+        int destinationBlockId = integer(body, "destinationBlockId", -1);
+        List<InstructionLoad> group = moveGroupService.resolve(instructions(targetSession), instructionId);
+        if (group.isEmpty()) return failure("The move instruction no longer exists.");
+        if (destinationBlockId < 1) return failure("A destination block is required.");
+
+        boolean destinationExists = ("componentTasks".equals(targetSession)
+                        ? lists.getListBlockComp()
+                        : lists.getListBlock())
+                .stream()
+                .anyMatch(block -> block != null && block.getId() != null && block.getId() == destinationBlockId);
+        if (!destinationExists) return failure("The destination block no longer exists.");
+
+        JsonObject response = new JsonObject();
+        response.addProperty("ok", true);
+        response.addProperty("graphRevision", graphRevision(targetSession));
+        response.addProperty("sourceBlockId", group.get(0).getBlockId());
+        response.addProperty("destinationBlockId", destinationBlockId);
+        response.addProperty("destinationIndex", integer(body, "destinationIndex", 0));
+        response.addProperty("groupCount", group.size());
+        response.add("groupRows", movePreviewRows(group));
+        if (body.has("requestId")) response.add("requestId", body.get("requestId"));
+        return response;
+    }
+
+    private JsonArray movePreviewRows(List<InstructionLoad> rows) {
+        JsonArray preview = new JsonArray();
+        for (InstructionLoad row : rows) {
+            JsonObject item = new JsonObject();
+            item.addProperty("id", row.getId());
+            item.addProperty("order", row.getInstructionOrderNumber());
+            item.addProperty("name", row.getName());
+            item.addProperty("action", row.getActions());
+            item.addProperty("parentId", row.getParentId());
+            item.addProperty("blockId", row.getBlockId());
+            preview.add(item);
+        }
+        return preview;
     }
 
     private JsonArray splitPreviewRows(List<InstructionLoad> rows) {
