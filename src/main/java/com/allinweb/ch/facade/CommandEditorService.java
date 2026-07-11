@@ -70,6 +70,7 @@ public final class CommandEditorService {
         response.addProperty("graphRevision", graphRevision(sessionId));
         JsonObject rowCapabilities = new JsonObject();
         rowCapabilities.addProperty("canInsertElseIf", canInsertElseIf(sessionId, instructionId));
+        rowCapabilities.addProperty("canSplit", canSplit(sessionId, instructionId));
         response.add("rowCapabilities", rowCapabilities);
         instructions(sessionId).stream()
                 .filter(row -> row != null && row.getId() != null && row.getId() == instructionId)
@@ -330,6 +331,23 @@ public final class CommandEditorService {
         if (boundary == null || boundary.getInstructionOrderNumber() == null
                 || selected.getInstructionOrderNumber() == null) return false;
         return selected.getInstructionOrderNumber() < boundary.getInstructionOrderNumber();
+    }
+
+    private boolean canSplit(String sessionId, int instructionId) {
+        if ("componentTasks".equals(sessionId)) return false;
+        InstructionLoad selected = instructions(sessionId).stream()
+                .filter(row -> row != null && row.getId() != null && row.getId() == instructionId)
+                .findFirst()
+                .orElse(null);
+        if (selected == null || selected.getBlockId() == null
+                || Set.of("IF", "ELSEIF", "ELSE", "ENDIF").contains(selected.getActions())) return false;
+        List<InstructionLoad> blockRows = instructions(sessionId).stream()
+                .filter(row -> row != null && selected.getBlockId().equals(row.getBlockId()))
+                .sorted(Comparator.comparingInt(row -> row.getInstructionOrderNumber() == null
+                        ? Integer.MAX_VALUE
+                        : row.getInstructionOrderNumber()))
+                .toList();
+        return blockRows.size() > 1 && enclosingIfRoot(blockRows, instructionId) == null;
     }
 
     private JsonObject refreshAfterMutation(SplitDTO split, String message, JsonObject request) {
