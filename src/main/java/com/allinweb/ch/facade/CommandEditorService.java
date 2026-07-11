@@ -40,6 +40,7 @@ public final class CommandEditorService {
     private final CommandCapabilityService capabilityService = new CommandCapabilityService();
     private final ConditionalGraphValidator conditionalValidator = new ConditionalGraphValidator();
     private final Map<String, JsonObject> completedRequests = new LinkedHashMap<>();
+    private final Map<String, Boolean> completedSplitRequests = new LinkedHashMap<>();
 
     private CommandEditorService() {}
 
@@ -314,7 +315,25 @@ public final class CommandEditorService {
         return response;
     }
 
-    public ErrorMessage validateSplit(SplitDTO split) {
+    public ErrorMessage executeSplit(SplitDTO split, java.util.function.Supplier<ErrorMessage> mutation) {
+        String requestId = split == null || split.getRequestId() == null ? "" : split.getRequestId().trim();
+        if (requestId.isEmpty()) return splitError("Split request ID is required.");
+        synchronized (completedSplitRequests) {
+            if (completedSplitRequests.containsKey(requestId)) return null;
+            ErrorMessage error = validateSplit(split);
+            if (error != null) return error;
+            error = mutation.get();
+            if (error == null) {
+                completedSplitRequests.put(requestId, Boolean.TRUE);
+                while (completedSplitRequests.size() > 256) {
+                    completedSplitRequests.remove(completedSplitRequests.keySet().iterator().next());
+                }
+            }
+            return error;
+        }
+    }
+
+    private ErrorMessage validateSplit(SplitDTO split) {
         if (split == null || split.getBotJobId() == null || split.getInstructionId() == null) {
             return splitError("Split request is missing its job or anchor instruction.");
         }
