@@ -70,10 +70,10 @@ All responses must use structured fields such as `ok`, `statusCode`, `title`, `m
 
 ## Phase 3 - React License Manager
 
-- [ ] Build a restrained floating panel matching Config Manager and Organization Manager.
-- [ ] Use a segmented control for Request, Activate Response, and Use Existing.
+- [x] Build a restrained reusable License Manager panel with separated SCSS (`90bb13a`).
+- [x] Use a segmented control for Request, Activate Response, and Use Existing (`90bb13a`).
 - [ ] Use a segmented control for Online and Directory request modes only when backend capabilities allow them.
-- [ ] Show license status, expiration, licensed organization/owner, configured path, and last verification result.
+- [x] Show license status, licensed organization/owner, configured path, and last verification result (`90bb13a`).
 - [ ] Show organization, owner, and email fields only for Request.
 - [ ] Show file/path controls only for Activate or Use Existing.
 - [ ] Require explicit agreement acceptance before Request or Activate.
@@ -84,10 +84,10 @@ All responses must use structured fields such as `ok`, `statusCode`, `title`, `m
 
 ## Phase 4 - React About Panel
 
-- [ ] Build `AboutPanel` with product name as the primary heading.
-- [ ] Show version, build, expiration/status, copyright, and licensing mode from `about.bootstrap`.
+- [x] Build `AboutPanel` with product name as the primary heading and separated SCSS (`90bb13a`).
+- [x] Show version, build, expiration/status, copyright, and licensing mode from `about.bootstrap` (`90bb13a`).
 - [ ] Calculate expiration presentation from an ISO backend date, not locale-specific browser parsing.
-- [ ] Open the shared `LicenseManager` from the License action.
+- [x] Open the shared `LicenseManager` from the License action (`90bb13a`).
 - [ ] Remove the direct `ARInfoPane -> ARLicenseScene` dependency.
 - [ ] Keep product metadata read-only and avoid duplicating values in React constants.
 
