@@ -3,7 +3,6 @@ package com.allinweb.ch.socket;
 import com.allinweb.ch.ARControlPanel;
 import com.allinweb.ch.component.pane.ARScannedElementPane;
 import com.allinweb.ch.component.pane.ARViewBotJobPane;
-import com.allinweb.ch.component.scene.ARSaveComponentScene;
 import com.allinweb.ch.facade.*;
 import com.allinweb.ch.model.*;
 import com.allinweb.ch.util.*;
@@ -39,7 +38,6 @@ public class SimpleWebSocketServer {
     private static final SaveComponentService saveComponentService = SaveComponentService.getInstance();
     protected static volatile SimpleWebSocketServer instance;
     private static WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
-    private static ARSaveComponentScene arSaveComponentScene = ARSaveComponentScene.getInstance();
     private static ActionExecutorClient actionExecutorClient = ActionExecutorClient.getInstance();
     private static final Map<String, Boolean> processedInstructionDeletes = new LinkedHashMap<>();
     private static final Map<String, Boolean> processedRowMoves = new LinkedHashMap<>();
@@ -1668,16 +1666,6 @@ public class SimpleWebSocketServer {
                     webSocketSessionManager.sendMessageJson(homeBankingId, session, "Martini", jsonData, null);
                     alreadySentMgsSocket = true;
                     break;
-                case "BLOCKS_COMPONENT":
-                    createBlockComponent(splitDTO);
-
-                    // calls perform list block update
-                    splitDTO.setType("UPDATE_BLOCKS_COMP");
-                    jsonData = gson.toJson(splitDTO);
-                    webSocketSessionManager.sendMessageJson(
-                            homeBankingId, "perform-list-data", jsonData, "UPDATE_BLOCKS_COMP");
-                    alreadySentMgsSocket = true;
-                    break;
                 case "COMPONENT_INJECT":
                     injectBlockComponent(splitDTO);
                     // calls perform list block update
@@ -2514,31 +2502,6 @@ public class SimpleWebSocketServer {
                         ARConstants.ELSEIF, e.getMessage()));
             }
         }
-    }
-
-    private void createBlockComponent(SplitDTO blockSplitDTO) {
-        // Ensure JavaFX UI updates are done on the JavaFX Application Thread
-
-        BlockDetailsDTO blockDetailsDTO = blockSplitDTO.getDetails().getNewBlock();
-        blockDetailsDTO.setHomeBankingId(blockSplitDTO.getHomeBankingId());
-        blockDetailsDTO.setBotJobId(blockSplitDTO.getBotJobId());
-        blockDetailsDTO.setBotJobName(blockSplitDTO.getBotJobName());
-        blockDetailsDTO.setSessionId(blockSplitDTO.getSessionId());
-        if (blockDetailsDTO.getBlockDescription() == null) {
-            blockDetailsDTO.setBlockDescription(blockDetailsDTO.getBlockName() + " description");
-        }
-
-        // Add at the end of it
-        if (!performLists.getListBlockComp().isEmpty()) {
-            blockDetailsDTO.setBlockOrderNumber(performLists.getListBlockComp().size() + 1);
-        } else {
-            blockDetailsDTO.setBlockOrderNumber(1);
-        }
-
-        Platform.runLater(() -> {
-            arSaveComponentScene.initialize(blockDetailsDTO);
-            arSaveComponentScene.showModal();
-        });
     }
 
     private void injectBlockComponent(SplitDTO blockSplitDTO) {

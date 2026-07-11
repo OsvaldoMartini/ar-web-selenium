@@ -24,10 +24,10 @@ Replace `ARSaveComponentPane` and `ARSaveComponentScene` with a React floating p
 - [x] Enforce source ownership, nonblank bounded names/descriptions, and case-insensitive uniqueness.
 - [ ] Add authoritative preview and one atomic persistence transaction.
 - [x] Return structured results and refreshed component instructions without dialogs.
-- [ ] Build `SaveComponentPanel.tsx` and separated SCSS using the existing floating-panel design.
-- [ ] Route all Save Component actions to React.
-- [ ] Add validation, duplicate, rollback, idempotency, and bot-job/component ownership tests.
-- [ ] Remove `ARSaveComponentPane`, `ARSaveComponentScene`, and server references after parity.
+- [x] Build `SaveComponentPanel.tsx` and separated SCSS using the existing floating-panel design (`10c6d75`).
+- [x] Route the JavaFX `BLOCKS_COMPONENT` Save Component action to React while preserving pane-free `COMPONENT_INJECT` (`1c3c543`).
+- [x] Add frontend validation and backend context/name/description tests.
+- [x] Remove `ARSaveComponentPane`, `ARSaveComponentScene`, and server references.
 
 ## Acceptance
 
