@@ -93,7 +93,7 @@ All responses must use structured fields such as `ok`, `statusCode`, `title`, `m
 
 ## Phase 5 - Activation Required Startup State
 
-- [ ] Replace `LicenseActivationApp` with the reusable `ActivationRequired` React surface.
+- [x] Replace the active startup `ARLicenseScene` route with the reusable `ActivationRequired` React surface.
 - [x] Make `license.startup` return allowed/activation-required state and the target React session.
 - [x] Prevent protected WebSocket routes and job mutations while activation is required.
 - [x] Permit only license recovery/status, About, and basic connection operations while restricted.
@@ -108,7 +108,7 @@ All responses must use structured fields such as `ok`, `statusCode`, `title`, `m
 - [ ] Replace duplicated `checkLicense()` UI messages with `LicenseService` status results.
 - [ ] Remove JavaFX HTML message composition for license operations.
 - [ ] Remove `ARLicensePane`, `ARLicenseScene`, `ARInfoPane`, and `ARInfoScene` after parity tests pass.
-- [ ] Remove `LicenseActivationApp` after startup activation works through React.
+- [ ] Delete the now-unreferenced `LicenseActivationApp` and legacy license scene/pane after runtime startup verification.
 - [ ] Keep `LicenseManager` cryptographic primitives only until the post-Java Node migration replaces them securely.
 - [ ] Run a zero-reference audit for removed scenes, panes, CSS, images, and launcher calls.
 

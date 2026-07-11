@@ -1,5 +1,6 @@
 package com.allinweb.ch.socket;
 
+import com.allinweb.ch.ARControlPanel;
 import com.allinweb.ch.component.pane.ARScannedElementPane;
 import com.allinweb.ch.component.pane.ARViewBotJobPane;
 import com.allinweb.ch.component.scene.ARExcelFileScene;
@@ -217,12 +218,14 @@ public class SimpleWebSocketServer {
                             LicenseService.getInstance().request(extractBody(jsonObjMSG)));
                     break;
                 case "license.activate":
-                    sendCommandEditorResponse(homeBankingId, sessionId, "license.activateResponse",
-                            LicenseService.getInstance().activate(extractBody(jsonObjMSG)));
+                    JsonObject activationResponse = LicenseService.getInstance().activate(extractBody(jsonObjMSG));
+                    if (isActiveLicenseResponse(activationResponse)) ARControlPanel.continueAfterLicenseActivation();
+                    sendCommandEditorResponse(homeBankingId, sessionId, "license.activateResponse", activationResponse);
                     break;
                 case "license.useExisting":
-                    sendCommandEditorResponse(homeBankingId, sessionId, "license.useExistingResponse",
-                            LicenseService.getInstance().useExisting(extractBody(jsonObjMSG)));
+                    JsonObject existingResponse = LicenseService.getInstance().useExisting(extractBody(jsonObjMSG));
+                    if (isActiveLicenseResponse(existingResponse)) ARControlPanel.continueAfterLicenseActivation();
+                    sendCommandEditorResponse(homeBankingId, sessionId, "license.useExistingResponse", existingResponse);
                     break;
                 case "commandEditor.bootstrap":
                     sendCommandEditorResponse(
@@ -866,6 +869,14 @@ public class SimpleWebSocketServer {
             return bodyEl.getAsJsonObject();
         }
         return null;
+    }
+
+    private boolean isActiveLicenseResponse(JsonObject response) {
+        return response != null
+                && response.has("ok")
+                && response.get("ok").getAsBoolean()
+                && response.has("active")
+                && response.get("active").getAsBoolean();
     }
 
     /**

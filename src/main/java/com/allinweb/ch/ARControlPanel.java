@@ -1,7 +1,6 @@
 package com.allinweb.ch;
 
 import com.allinweb.ch.component.scene.ARConfigurationScene;
-import com.allinweb.ch.component.scene.ARLicenseScene;
 import com.allinweb.ch.component.scene.ARMainScene;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformInitializer;
@@ -23,6 +22,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import javafx.application.Application;
 import javafx.application.Platform;
@@ -38,7 +38,6 @@ public class ARControlPanel extends Application {
     private static final ARPropertyManager arPropertyManager;
     private static final PerformDataBase performDataBase;
     private static final PerformInitializer performInitializer;
-    private static final ARLicenseScene arLicenseScene;
     private static final ARConfigurationScene arConfigurationScene;
     private static final ARMainScene arMainScene;
     private static WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
@@ -46,13 +45,15 @@ public class ARControlPanel extends Application {
     private static ARWebSocketServer arWebSocketServer; // Static block to initialize
     private static String defaultConfigurationFileName = ARConstants.USER_PATH + ARConstants.FILE_DEFAULT_CONFIG;
     private static boolean isEnabledLicence = true;
+    private static final AtomicBoolean startupActivationPending = new AtomicBoolean(false);
+    private static final AtomicBoolean activationContinuationStarted = new AtomicBoolean(false);
+    private static final AtomicBoolean fullServersStarted = new AtomicBoolean(false);
 
     static {
         performDataBase = PerformDataBase.getInstance();
         performInitializer = PerformInitializer.getInstance();
         performMessage = PerformMessage.getInstance();
         arPropertyManager = ARPropertyManager.getInstance();
-        arLicenseScene = ARLicenseScene.getInstance();
         arConfigurationScene = ARConfigurationScene.getInstance();
         arMainScene = ARMainScene.getInstance();
     }
@@ -86,6 +87,7 @@ public class ARControlPanel extends Application {
                 // Make path available to Logback via System property
                 setLogPath();
                 logControl.enableLogging();
+                initializeLicenseServer();
                 licenseControl();
                 initializeServers();
             } catch (Exception error) {
@@ -95,6 +97,7 @@ public class ARControlPanel extends Application {
                 Platform.runLater(() -> {
                     arConfigurationScene.initializeLicense(isEnabledLicence);
                     arConfigurationScene.showModal();
+                    initializeLicenseServer();
                     licenseControl();
                 });
             }
@@ -119,6 +122,7 @@ public class ARControlPanel extends Application {
                 // Make path available to Logback via System property
                 setLogPath();
                 logControl.enableLogging();
+                initializeLicenseServer();
                 licenseControl();
                 initializeServers();
             } catch (Exception error) {
@@ -127,6 +131,7 @@ public class ARControlPanel extends Application {
                 }
                 Platform.runLater(() -> {
                     arConfigurationScene.showModal();
+                    initializeLicenseServer();
                     licenseControl();
                 });
             }
@@ -139,12 +144,17 @@ public class ARControlPanel extends Application {
     }
 
     private static void initializeServers() {
+        if (!fullServersStarted.compareAndSet(false, true)) return;
         arWebSocketServerIP = ARWebSocketServerIP.getInstance();
         arWebSocketServer = ARWebSocketServer.getInstance();
         performDataBase.callSocketLists("perform-list-data", "non-negotiable");
 
         // Start watching plugins directory for .min.js changes (hot reload)
         PluginFileWatcher.getInstance().start();
+    }
+
+    private static void initializeLicenseServer() {
+        arWebSocketServer = ARWebSocketServer.getInstance();
     }
 
     private static void setLogPath() {
@@ -212,38 +222,10 @@ public class ARControlPanel extends Application {
             }
             try {
                 if (license.get().isMissing()) {
-                    // If the license is not active, launch the license activation app
-                    //                    Application.launch(LicenseActivationApp.class, args);
+                    startupActivationPending.set(true);
                     Platform.runLater(() -> {
-                        arLicenseScene.showModal();
-                        String finalLicensePath = arPropertyManager.getProperty(ARPropertyEnum.PATH_LICENSE);
-
-                        try {
-                            license.set(LicenseManager.checkLicenseFile(finalLicensePath));
-                            if (license.get().isActive()) {
-                                databaseControl();
-                                // webSocketControl();
-
-                                arMainScene.initialize(isEnabledLicence);
-                                arMainScene.showModal();
-                            } else {
-                                licenseMessages(license.get());
-                            }
-                        } catch (Exception error) {
-                            log.warn("Error reading/writing to the file: " + finalLicensePath);
-                            //                            performMessage.errorMessage(
-                            //                                    "Error reading/writing to the file!",
-                            //                                    "<span style='color: #D32F2F; font-weight: bold;
-                            // font-size: 1.1em;'>Please verify that you have permission to read/write.!</span>",
-                            //                                    "<span style='color: #E65100; font-weight:
-                            // bold;'>Attempted to read/write:</span> <span style='font-weight: bold;'>"
-                            //                                            + finalLicensePath + "</span>",
-                            //                                    "<span style='font-style: italic;'>Please ensure the
-                            // application has the necessary write permissions for the specified directory</span>",
-                            //                                    "<span style='font-style: italic;'>Details: " +
-                            // error.getMessage() + "</span>",
-                            //                                    0);
-                        }
+                        arMainScene.initialize(isEnabledLicence, "activationRequired");
+                        arMainScene.showModal();
                     });
 
                 } else {
@@ -328,6 +310,14 @@ public class ARControlPanel extends Application {
                 null,
                 0);
         System.exit(0);
+    }
+
+    public static void continueAfterLicenseActivation() {
+        if (!startupActivationPending.get()) return;
+        if (!activationContinuationStarted.compareAndSet(false, true)) return;
+        startupActivationPending.set(false);
+        databaseControl();
+        initializeServers();
     }
 
     public static String getTodaysDate(int day) {

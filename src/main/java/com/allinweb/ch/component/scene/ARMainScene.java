@@ -53,6 +53,7 @@ public class ARMainScene extends ARScene {
     private Stage modalStage;
     private Scene modalScene;
     private ObservableList<WebDriver> webDriverList = FXCollections.observableArrayList();
+    private String initialSessionId = "mainDashboard";
     // Private constructor to prevent instantiation
     private ARMainScene() {
 
@@ -75,6 +76,12 @@ public class ARMainScene extends ARScene {
 
     public void initialize(boolean isEnabledLicence) {
         this.isEnabledLicence = isEnabledLicence;
+        this.initialSessionId = "mainDashboard";
+    }
+
+    public void initialize(boolean isEnabledLicence, String initialSessionId) {
+        this.isEnabledLicence = isEnabledLicence;
+        this.initialSessionId = initialSessionId;
     }
 
     @Override
@@ -112,7 +119,7 @@ public class ARMainScene extends ARScene {
 
     public void showModal() {
 
-        arMainDashboardPane.initialize(webDriverList, isEnabledLicence);
+        arMainDashboardPane.initialize(webDriverList, isEnabledLicence, initialSessionId);
 
         if (modalStage == null) {
             modalStage = new Stage();

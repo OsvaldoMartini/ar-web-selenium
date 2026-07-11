@@ -57,6 +57,7 @@ public class ARMainDashboardPane extends ARPane {
     private AnchorPane mainPane;
     private ObservableList<WebDriver> webDriverList;
     private boolean isEnabledLicence;
+    private String initialSessionId = SESSION_ID;
 
     private ARMainDashboardPane() {
         super();
@@ -74,10 +75,18 @@ public class ARMainDashboardPane extends ARPane {
     }
 
     public void initialize(ObservableList<WebDriver> webDriverList, boolean isEnabledLicence) {
+        initialize(webDriverList, isEnabledLicence, SESSION_ID);
+    }
+
+    public void initialize(
+            ObservableList<WebDriver> webDriverList, boolean isEnabledLicence, String initialSessionId) {
         this.webDriverList = webDriverList;
         this.isEnabledLicence = isEnabledLicence;
-        refreshLegacyListView();
-        arConfigurationScene.initialize(legacyBotJobListView, isEnabledLicence);
+        this.initialSessionId = initialSessionId == null ? SESSION_ID : initialSessionId;
+        if (SESSION_ID.equals(this.initialSessionId)) {
+            refreshLegacyListView();
+            arConfigurationScene.initialize(legacyBotJobListView, isEnabledLicence);
+        }
         arWebDriver.initialize(webDriverList);
     }
 
@@ -211,7 +220,7 @@ public class ARMainDashboardPane extends ARPane {
     }
 
     private void dispatchReactBootstrap(WebEngine webEngine) {
-        dispatchReactSession(SESSION_ID);
+        dispatchReactSession(initialSessionId);
     }
 
     private void dispatchReactSession(String targetSession) {
