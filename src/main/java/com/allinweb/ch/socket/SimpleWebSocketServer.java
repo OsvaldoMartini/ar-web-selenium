@@ -42,6 +42,7 @@ public class SimpleWebSocketServer {
     private static ActionExecutorClient actionExecutorClient = ActionExecutorClient.getInstance();
     private static final Map<String, Boolean> processedInstructionDeletes = new LinkedHashMap<>();
     private static final Map<String, Boolean> processedRowMoves = new LinkedHashMap<>();
+    private static final Map<String, Boolean> processedBlockDeletes = new LinkedHashMap<>();
     private static final InstructionMoveValidator instructionMoveValidator = new InstructionMoveValidator();
     private final Gson gson = new Gson();
     private PayloadJson payloadEmpty;
@@ -1183,7 +1184,8 @@ public class SimpleWebSocketServer {
         if (errorMessage == null) {
             errorMessage = performDataBase.loadInstructions(whereId, -1, -1, instrTable);
         }
-        if (errorMessage != null && !"ROW_MOVE".equals(type) && !"DELETE_INSTRUCTION".equals(type)) {
+        if (errorMessage != null && !"ROW_MOVE".equals(type) && !"DELETE_INSTRUCTION".equals(type)
+                && !"DELETE_BLOCK".equals(type)) {
             performMessage.errorMessageOperationFailed(errorMessage);
         }
 
@@ -2062,17 +2064,20 @@ public class SimpleWebSocketServer {
                     break;
                 }
                 case "DELETE_BLOCK":
-                    errorMessage = performDataBase.deleteBlockDirect(blockTable, whereId, splitDTO.getBlockId());
-                    // UPDATE REMOVAL MEMORY LIST
-                    if (errorMessage == null) {
-                        List<Integer> listDelete = Collections.singletonList(splitDTO.getBlockId());
-                        performLists.updateMemoryRemoveBlockIds(blockTable, whereId, listDelete);
+                    String blockDeleteRequestId = splitDTO.getRequestId() == null ? "" : splitDTO.getRequestId().trim();
+                    if (blockDeleteRequestId.isEmpty()) {
+                        errorMessage = new ErrorMessage("Delete Block Refused", "Request ID is required", "Refresh the grid and try again.");
+                        break;
                     }
-
-                    // updateBlockOrderNumber  ALREADY UPDATE MEMORY LIST
-                    if (errorMessage == null) {
-                        performDataBase.updateBlockOrderNumber(blockTable, whereId, true);
+                    synchronized (processedBlockDeletes) {
+                        if (processedBlockDeletes.containsKey(blockDeleteRequestId)) break;
                     }
+                    errorMessage = CommandEditorService.getInstance().validateDeleteRevision(splitDTO);
+                    if (errorMessage != null) break;
+                    errorMessage = performDataBase.deleteBlockGraphAtomic(blockTable, whereId, splitDTO.getBlockId());
+                    if (errorMessage == null) errorMessage = performDataBase.loadInstructions(whereId, -1, -1, instrTable);
+                    if (errorMessage == null) errorMessage = performDataBase.loadBlocks(whereId, "", blockTable);
+                    if (errorMessage == null) rememberCompletedRequest(processedBlockDeletes, blockDeleteRequestId);
 
                     // calls perform list block update
                     splitDTO.setType(updteBlocks);
@@ -2112,7 +2117,10 @@ public class SimpleWebSocketServer {
             }
         }
 
-        if (errorMessage != null) {
+        if (errorMessage != null
+                && !"ROW_MOVE".equals(type)
+                && !"DELETE_INSTRUCTION".equals(type)
+                && !"DELETE_BLOCK".equals(type)) {
             performMessage.errorMessageOperationFailed(errorMessage);
         }
 
@@ -2166,7 +2174,7 @@ public class SimpleWebSocketServer {
             //            sendMessageJson(sessionIdToSend, jsonData, "componentsUpdate");
         }
 
-        if ("ROW_MOVE".equals(type) || "DELETE_INSTRUCTION".equals(type)) {
+        if ("ROW_MOVE".equals(type) || "DELETE_INSTRUCTION".equals(type) || "DELETE_BLOCK".equals(type)) {
             JsonObject mutationResponse = new JsonObject();
             mutationResponse.addProperty("ok", errorMessage == null);
             mutationResponse.addProperty("requestId", splitDTO.getRequestId());
@@ -2178,8 +2186,8 @@ public class SimpleWebSocketServer {
             sendCommandEditorResponse(
                     homeBankingId,
                     sessionIdToSend,
-                    "ROW_MOVE".equals(type)
-                            ? "instructionEditor.rowMoveResponse"
+                    "ROW_MOVE".equals(type) ? "instructionEditor.rowMoveResponse"
+                            : "DELETE_BLOCK".equals(type) ? "instructionEditor.blockDeleteResponse"
                             : "instructionEditor.deleteResponse",
                     mutationResponse);
         }
