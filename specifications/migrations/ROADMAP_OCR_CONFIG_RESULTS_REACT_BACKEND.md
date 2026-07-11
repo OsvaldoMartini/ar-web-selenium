@@ -23,14 +23,14 @@ Complete React parity for `AROcrConfigPane`, `AROcrTestResultsPane`, and their s
 ## Implementation
 
 - [x] Inventory every `OcrConfigProfile`, parameter type/range/enum, scope rule, and persistence call.
-- [x] Extract pane-free OCR profile bootstrap/hydration service; mutation and test execution remain next.
-- [ ] Build `OCRConfigPanel.tsx`, `OCRTestResultsPanel.tsx`, and separate SCSS modules. `OCRConfigPanel` is complete; results remain.
+- [x] Extract pane-free OCR profile, mutation, cleanup, and test-execution services.
+- [x] Build `OCRConfigPanel.tsx`, `OCRTestResultsPanel.tsx`, and separate SCSS modules.
 - [x] Render backend parameter metadata with typed controls and category sections.
-- [ ] Add Save, Save As New, Delete confirmation, Clean Orphans, and Test Current Page. Profile mutations and authoritative cleanup preview/apply contracts are complete; test execution remains.
-- [ ] Show result table, approval controls, XPath, summary counts, and annotated image securely.
-- [ ] Integrate accepted suggestions with existing `OCRPanel`/`GridItemScann` state.
+- [x] Add Save, Save As New, Delete confirmation, Clean Orphans, and Test Current Page.
+- [x] Show result table, approval controls, XPath, summary counts, and annotated image securely.
+- [x] Integrate accepted suggestions with existing `OCRPanel`/`GridItemScann` state.
 - [ ] Add profile CRUD, validation, scope, test-result, approval, and image-path security tests.
-- [ ] Route Bot Job and Pre-Scan OCR Config actions to React. Pre-Scan now opens React; Bot Job and results remain.
+- [ ] Route Bot Job and Pre-Scan OCR Config actions to React. Pre-Scan configuration/results are complete; standalone JavaFX host callers remain.
 - [ ] Remove OCR JavaFX panes/scenes after parity and runtime verification.
 
 ## Acceptance
