@@ -74,13 +74,13 @@ All responses must use structured fields such as `ok`, `statusCode`, `title`, `m
 - [x] Use a segmented control for Request, Activate Response, and Use Existing (`90bb13a`).
 - [ ] Use a segmented control for Online and Directory request modes only when backend capabilities allow them.
 - [x] Show license status, licensed organization/owner, configured path, and last verification result (`90bb13a`).
-- [ ] Show organization, owner, and email fields only for Request.
-- [ ] Show file/path controls only for Activate or Use Existing.
-- [ ] Require explicit agreement acceptance before Request or Activate.
+- [x] Show organization, owner, and email fields only for Request (`b292327`).
+- [x] Show file/path controls only for Activate or Use Existing (`b292327`).
+- [x] Require explicit agreement acceptance before Request or Activate (`b292327`).
 - [ ] Keep agreement content scrollable without nesting the complete page in a card.
 - [ ] Use React confirmation and inline structured errors; remove Java alert/dialog ownership.
-- [ ] Prevent repeated submission while a request is pending.
-- [ ] Refresh status immediately after request generation, activation, or existing-license selection.
+- [x] Prevent repeated submission while a request is pending (`b292327`).
+- [x] Refresh status immediately after request generation, activation, or existing-license selection (`b292327`).
 
 ## Phase 4 - React About Panel
 
@@ -128,7 +128,8 @@ All responses must use structured fields such as `ok`, `statusCode`, `title`, `m
 - [ ] Request-file generation tests using temporary directories.
 - [ ] Valid, invalid, wrong-machine, expired, malformed, missing, and unreadable license fixtures.
 - [ ] Idempotency tests for duplicate request and activation messages.
-- [ ] React tests for all three modes, capability visibility, pending state, errors, and success refresh.
+- [x] React tests for Request, Activate, and Use Existing payloads plus agreement gating (`af861e9`).
+- [ ] React tests for capability visibility, pending state, structured errors, and successful status refresh.
 - [ ] About tests for version/build/expiration and opening the shared License Manager.
 - [ ] Startup tests proving restricted users cannot reach protected routes.
 - [ ] Windows chooser and Linux/headless fallback tests.
