@@ -87,6 +87,7 @@ Finish the existing JavaFX-to-React instruction-authoring migration while preser
 - [x] Add backend-driven valid/invalid drop zones (`e0b073dc`, `31aa275`).
   - [x] Publish authoritative `allowedBlockIds` for each row capability.
   - [x] Render valid/invalid block states while dragging.
+  - [x] Disable invalid Droppable targets so refused destinations cannot be applied optimistically (`0b95945`).
 - [ ] Add reason tooltips, group preview, and keyboard movement.
   - [x] Add capability reason tooltips and keyboard movement on dedicated handles (`3172806`).
   - [ ] Add connected-group move preview.
