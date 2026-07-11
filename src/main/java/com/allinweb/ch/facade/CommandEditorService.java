@@ -294,6 +294,28 @@ public final class CommandEditorService {
         return refreshAfterMutation(split, "ELSEIF inserted.", body);
     }
 
+    public ErrorMessage validateSplit(SplitDTO split) {
+        if (split == null || split.getBotJobId() == null || split.getInstructionId() == null) {
+            return splitError("Split request is missing its job or anchor instruction.");
+        }
+        ErrorMessage error = database.loadInstructions(split.getBotJobId(), -1, -1, "instruction");
+        if (error != null) return error;
+        if (split.getGraphRevision() == null || split.getGraphRevision().isBlank()) {
+            return splitError("Instruction graph revision is required. Reopen the command panel.");
+        }
+        if (!split.getGraphRevision().equals(graphRevision("botJobTasks"))) {
+            return splitError("Instructions changed while this panel was open. Reopen it before splitting.");
+        }
+        if (!canSplit("botJobTasks", split.getInstructionId())) {
+            return splitError("Split Component is not allowed at the selected instruction.");
+        }
+        return null;
+    }
+
+    private ErrorMessage splitError(String message) {
+        return new ErrorMessage("Split Component", "Split operation refused", message);
+    }
+
     private Integer enclosingIfRoot(List<InstructionLoad> rows, int anchorId) {
         Deque<Integer> roots = new ArrayDeque<>();
         for (InstructionLoad row : rows) {

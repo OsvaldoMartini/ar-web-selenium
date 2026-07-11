@@ -13,6 +13,7 @@ public class SplitDTO {
     private String type;
     private String sessionId;
     private String operationId;
+    private String graphRevision;
 
     private Integer homeBankingId;
     private Integer botJobId;

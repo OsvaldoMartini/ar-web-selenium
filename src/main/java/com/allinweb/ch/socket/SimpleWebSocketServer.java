@@ -1592,7 +1592,8 @@ public class SimpleWebSocketServer {
                     alreadySentMgsSocket = false;
                     break;
                 case "BLOCKS_SPLITTER":
-                    errorMessage = splitBlocks(splitDTO);
+                    errorMessage = CommandEditorService.getInstance().validateSplit(splitDTO);
+                    if (errorMessage == null) errorMessage = splitBlocks(splitDTO);
 
                     if (blockTable != null && errorMessage == null) {
                         // updateBlockOrderNumber  ALREADY UPDATE MEMORY LIST
