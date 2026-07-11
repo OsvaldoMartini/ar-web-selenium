@@ -11,6 +11,9 @@ import com.google.gson.JsonObject;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.List;
 import java.util.ArrayDeque;
 import java.util.Comparator;
@@ -64,6 +67,7 @@ public final class CommandEditorService {
                 integer(body, "homeBankingId", -1),
                 instructionId);
         response.add("commands", capabilityService.catalog(string(body, "instructionActions", ""), excelGotoConflict));
+        response.addProperty("graphRevision", graphRevision(sessionId));
         instructions(sessionId).stream()
                 .filter(row -> row != null && row.getId() != null && row.getId() == instructionId)
                 .findFirst()
@@ -139,6 +143,10 @@ public final class CommandEditorService {
         }
         JsonObject response = new JsonObject();
         String targetSession = string(body, "targetSessionId", "botJobTasks");
+        ErrorMessage loadError = reloadInstructions(body, targetSession);
+        if (loadError != null) return failure(loadError.getErrorMessage());
+        JsonObject stale = validateGraphRevision(body, targetSession);
+        if (stale != null) return stale;
         String mode = string(body, "mode", "after");
         String action = CommandRegistry.canonicalize(string(body, "action", ""));
         String name = string(body, "name", action).trim();
@@ -230,8 +238,10 @@ public final class CommandEditorService {
         String instructionTable = "componentTasks".equals(targetSession)
                 ? "component_instruction"
                 : "instruction";
-        ErrorMessage error = database.loadInstructions(whereId, blockId, -1, instructionTable);
+        ErrorMessage error = database.loadInstructions(whereId, -1, -1, instructionTable);
         if (error != null) return failure(error.getErrorMessage());
+        JsonObject stale = validateGraphRevision(body, targetSession);
+        if (stale != null) return stale;
 
         List<InstructionLoad> blockRows = ("componentTasks".equals(targetSession)
                         ? lists.getListInstructionComp()
@@ -329,6 +339,45 @@ public final class CommandEditorService {
 
     private List<InstructionLoad> instructions(String sessionId) {
         return "componentTasks".equals(sessionId) ? lists.getListInstructionComp() : lists.getListInstruction();
+    }
+
+    private ErrorMessage reloadInstructions(JsonObject body, String sessionId) {
+        boolean component = "componentTasks".equals(sessionId);
+        int ownerId = component ? integer(body, "homeBankingId", -1) : integer(body, "botJobId", -1);
+        return database.loadInstructions(ownerId, -1, -1, component ? "component_instruction" : "instruction");
+    }
+
+    private JsonObject validateGraphRevision(JsonObject body, String sessionId) {
+        String expected = string(body, "graphRevision", "");
+        if (expected.isBlank()) return failure("Instruction graph revision is required. Reopen the command panel.");
+        if (!expected.equals(graphRevision(sessionId))) {
+            return failure("Instructions changed while this panel was open. Reopen it before saving.");
+        }
+        return null;
+    }
+
+    private String graphRevision(String sessionId) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            instructions(sessionId).stream()
+                    .filter(row -> row != null)
+                    .sorted(Comparator.comparing(row -> row.getId() == null ? Integer.MAX_VALUE : row.getId()))
+                    .forEach(row -> digest.update(graphRow(row).getBytes(StandardCharsets.UTF_8)));
+            byte[] hash = digest.digest();
+            StringBuilder revision = new StringBuilder(hash.length * 2);
+            for (byte value : hash) revision.append(String.format("%02x", value));
+            return revision.toString();
+        } catch (NoSuchAlgorithmException impossible) {
+            throw new IllegalStateException("SHA-256 is unavailable", impossible);
+        }
+    }
+
+    private String graphRow(InstructionLoad row) {
+        return String.join("|",
+                String.valueOf(row.getId()), String.valueOf(row.getBlockId()),
+                String.valueOf(row.getInstructionOrderNumber()), String.valueOf(row.getActions()),
+                String.valueOf(row.getParentId()), String.valueOf(row.getParentBlockId()),
+                String.valueOf(row.getVariableId()), String.valueOf(row.getOperation())) + "\n";
     }
 
     private boolean excelGotoExists(
