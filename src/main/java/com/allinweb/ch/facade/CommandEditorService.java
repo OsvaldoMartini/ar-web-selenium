@@ -369,7 +369,29 @@ public final class CommandEditorService {
                         ? Integer.MAX_VALUE
                         : row.getInstructionOrderNumber()))
                 .toList();
-        return blockRows.size() > 1 && enclosingIfRoot(blockRows, instructionId) == null;
+        if (blockRows.size() <= 1 || enclosingIfRoot(blockRows, instructionId) != null) return false;
+        int selectedIndex = indexOf(blockRows, instructionId);
+        int splitIndex = selectedIndex == blockRows.size() - 1 ? selectedIndex - 1 : selectedIndex;
+        return splitIndex >= 0 && !separatesLoopRelationship(blockRows, splitIndex);
+    }
+
+    private boolean separatesLoopRelationship(List<InstructionLoad> rows, int splitIndex) {
+        for (int loopIndex = 0; loopIndex < rows.size(); loopIndex++) {
+            InstructionLoad loop = rows.get(loopIndex);
+            if (!Set.of("LOOP", "REFRESH_LOOP").contains(loop.getActions())) continue;
+            if (loop.getParentId() == null) return true;
+            int parentIndex = indexOf(rows, loop.getParentId());
+            if (parentIndex < 0 || (parentIndex <= splitIndex) != (loopIndex <= splitIndex)) return true;
+        }
+        return false;
+    }
+
+    private int indexOf(List<InstructionLoad> rows, int instructionId) {
+        for (int index = 0; index < rows.size(); index++) {
+            InstructionLoad row = rows.get(index);
+            if (row.getId() != null && row.getId() == instructionId) return index;
+        }
+        return -1;
     }
 
     private JsonObject refreshAfterMutation(SplitDTO split, String message, JsonObject request) {
