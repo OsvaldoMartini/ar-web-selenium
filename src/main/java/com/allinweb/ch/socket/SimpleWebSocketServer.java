@@ -41,6 +41,7 @@ public class SimpleWebSocketServer {
     private static ARSaveComponentScene arSaveComponentScene = ARSaveComponentScene.getInstance();
     private static ActionExecutorClient actionExecutorClient = ActionExecutorClient.getInstance();
     private static final Map<String, Boolean> processedInstructionDeletes = new LinkedHashMap<>();
+    private static final InstructionMoveValidator instructionMoveValidator = new InstructionMoveValidator();
     private final Gson gson = new Gson();
     private PayloadJson payloadEmpty;
     private RowStatus rowStatus = new RowStatus();
@@ -1673,6 +1674,16 @@ public class SimpleWebSocketServer {
                     alreadySentMgsSocket = false;
                     break;
                 case "ROW_MOVE":
+                    errorMessage = performDataBase.loadInstructions(whereId, -1, -1, instrTable);
+                    if (errorMessage != null) break;
+                    List<InstructionLoad> currentMoveRows = instrTable.equals("instruction")
+                            ? performLists.getListInstruction()
+                            : performLists.getListInstructionComp();
+                    String moveError = instructionMoveValidator.validate(currentMoveRows, splitDTO.getUpdatedRows());
+                    if (moveError != null) {
+                        errorMessage = new ErrorMessage("Move Instruction Refused", "Invalid instruction graph", moveError);
+                        break;
+                    }
                     errorMessage = performDataBase.updateMoveRowsOrder(blockTable, whereId, splitDTO.getUpdatedRows());
 
                     // It needs to Reload this List
