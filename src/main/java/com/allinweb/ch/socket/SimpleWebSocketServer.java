@@ -1633,10 +1633,23 @@ public class SimpleWebSocketServer {
                 case "BLOCKS_SPLITTER":
                     errorMessage = CommandEditorService.getInstance().executeSplit(splitDTO, () -> splitBlocks(splitDTO));
 
-                    if (blockTable != null && errorMessage == null) {
-                        // updateBlockOrderNumber  ALREADY UPDATE MEMORY LIST
-                        errorMessage = performDataBase.updateBlockOrderNumber(blockTable, whereId, true);
+                    JsonObject splitResponse = new JsonObject();
+                    splitResponse.addProperty("ok", errorMessage == null);
+                    splitResponse.addProperty("requestId", splitDTO.getRequestId());
+                    if (errorMessage == null) {
+                        splitResponse.add("blocks", gson.toJsonTree(performLists.getListBlock()));
+                        splitResponse.add("instructions", gson.toJsonTree(
+                                performLists.buildJsonViewData(performLists.getListBotJob())));
+                    } else {
+                        splitResponse.addProperty("errorTitle", errorMessage.getErrorTitle());
+                        splitResponse.addProperty("errorHeader", errorMessage.getErrorHeader());
+                        splitResponse.addProperty("error", errorMessage.getErrorMessage());
                     }
+                    sendCommandEditorResponse(
+                            homeBankingId,
+                            sessionIdToSend,
+                            "instructionGraph.applySplitResponse",
+                            splitResponse);
 
                     // calls perform list block update
                     splitDTO.setType(updteBlocks);
