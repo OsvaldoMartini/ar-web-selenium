@@ -91,7 +91,7 @@ Finish the existing JavaFX-to-React instruction-authoring migration while preser
 - [x] Create `useInstructionDrag.ts` and route primary drag/drop submissions from both grids through it (`fcb290e`).
 - [x] Route arrow and Memory List move submissions through `useInstructionDrag.ts` (`6633ee3`).
 - [ ] Remove duplicated inline IF/loop/move checks after backend parity is confirmed.
-- [ ] Preserve scroll and expanded/collapsed block state during authoritative rejection refresh.
+- [x] Preserve scroll and expanded/collapsed block state during authoritative rejection refresh (`99a66e3`).
 - [x] Add explicit capability-aware drag handles to both grids (`e621dcc`).
 - [x] Add backend-driven valid/invalid drop zones (`e0b073dc`, `31aa275`).
   - [x] Publish authoritative `allowedBlockIds` for each row capability.
