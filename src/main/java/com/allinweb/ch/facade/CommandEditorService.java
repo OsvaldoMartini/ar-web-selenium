@@ -64,6 +64,11 @@ public final class CommandEditorService {
                 integer(body, "homeBankingId", -1),
                 instructionId);
         response.add("commands", capabilityService.catalog(string(body, "instructionActions", ""), excelGotoConflict));
+        instructions(sessionId).stream()
+                .filter(row -> row != null && row.getId() != null && row.getId() == instructionId)
+                .findFirst()
+                .filter(row -> CommandRegistry.isEditableCommand(row.getActions()))
+                .ifPresent(row -> response.add("draft", operationCodec.decode(row)));
         if (error != null) response.addProperty("error", error.getErrorMessage());
         return response;
     }
@@ -316,13 +321,14 @@ public final class CommandEditorService {
     }
 
     private boolean editableCommand(String sessionId, int instructionId) {
-        List<InstructionLoad> instructions = "componentTasks".equals(sessionId)
-                ? lists.getListInstructionComp()
-                : lists.getListInstruction();
-        return instructions.stream().anyMatch(row -> row != null
+        return instructions(sessionId).stream().anyMatch(row -> row != null
                 && row.getId() != null
                 && row.getId() == instructionId
                 && CommandRegistry.isEditableCommand(row.getActions()));
+    }
+
+    private List<InstructionLoad> instructions(String sessionId) {
+        return "componentTasks".equals(sessionId) ? lists.getListInstructionComp() : lists.getListInstruction();
     }
 
     private boolean excelGotoExists(
