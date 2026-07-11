@@ -5,6 +5,9 @@ import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.util.ErrorMessage;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.Objects;
 import java.util.List;
 
@@ -138,13 +141,34 @@ public final class VariableEditorService {
                 .findFirst()
                 .orElse(null);
         if (variable == null) return failure("Variable was not found.");
-        int usages = integerValue(variable.getUsedVars());
-        if (usages > 0) return failure("Variable is used by " + usages + " instruction(s) and cannot be deleted.");
+        int usages = currentUsageCount(context, id);
+        if (usages < 0) return failure("Variable usage could not be verified, so deletion was refused.");
+        if (usages > 0) {
+            JsonObject response = failure("Variable is used by " + usages + " instruction(s) and cannot be deleted.");
+            response.addProperty("usageCount", usages);
+            response.addProperty("canDelete", false);
+            return response;
+        }
         ErrorMessage error = database.deleteUserData(context.variableTable, context.whereId, id);
         if (error != null) return failure(error.getErrorMessage());
         JsonObject response = list(body);
         response.addProperty("message", "Variable deleted.");
         return response;
+    }
+
+    private int currentUsageCount(Context context, int variableId) {
+        String ownerColumn = "componentTasks".equals(context.sessionId) ? "home_banking_id" : "bot_job_id";
+        String sql = "SELECT COUNT(*) FROM " + context.instructionTable
+                + " WHERE variable_id=? AND " + ownerColumn + "=?";
+        try (PreparedStatement statement = database.getConnection().prepareStatement(sql)) {
+            statement.setInt(1, variableId);
+            statement.setInt(2, context.whereId);
+            try (ResultSet result = statement.executeQuery()) {
+                return result.next() ? result.getInt(1) : -1;
+            }
+        } catch (SQLException exception) {
+            return -1;
+        }
     }
 
     private Context context(JsonObject body) {
@@ -168,11 +192,6 @@ public final class VariableEditorService {
         response.addProperty("ok", false);
         response.addProperty("error", message == null ? "Variable operation failed." : message);
         return response;
-    }
-
-    private static int integerValue(String value) {
-        try { return Integer.parseInt(value == null || value.isBlank() ? "0" : value); }
-        catch (NumberFormatException ignored) { return 0; }
     }
 
     private static String string(JsonObject body, String key, String fallback) {
