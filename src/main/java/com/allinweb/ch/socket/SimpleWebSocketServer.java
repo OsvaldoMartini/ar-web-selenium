@@ -201,6 +201,13 @@ public class SimpleWebSocketServer {
                             "commandEditor.insertElseIfResponse",
                             CommandEditorService.getInstance().insertElseIf(extractBody(jsonObjMSG)));
                     break;
+                case "instructionEditor.memoryCapabilities":
+                    sendCommandEditorResponse(
+                            homeBankingId,
+                            sessionId,
+                            "instructionEditor.memoryCapabilitiesResponse",
+                            CommandEditorService.getInstance().memoryCapabilities(extractBody(jsonObjMSG)));
+                    break;
                 case "variableEditor.bootstrap":
                     sendCommandEditorResponse(homeBankingId, sessionId, "variableEditor.bootstrapResponse",
                             VariableEditorService.getInstance().list(extractBody(jsonObjMSG)));

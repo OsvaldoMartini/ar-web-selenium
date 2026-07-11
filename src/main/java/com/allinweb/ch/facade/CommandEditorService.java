@@ -88,6 +88,79 @@ public final class CommandEditorService {
         return response;
     }
 
+    public JsonObject memoryCapabilities(JsonObject body) {
+        String sessionId = string(body, "targetSessionId", "botJobTasks");
+        ErrorMessage error = reloadInstructions(body, sessionId);
+        JsonObject response = new JsonObject();
+        response.addProperty("ok", error == null);
+        JsonArray capabilities = new JsonArray();
+        if (error == null) {
+            Set<Integer> protectedIds = memoryProtectedIds(instructions(sessionId));
+            for (InstructionLoad row : instructions(sessionId)) {
+                if (row == null || row.getId() == null) continue;
+                String reason = memoryBlockReason(row, protectedIds);
+                JsonObject capability = new JsonObject();
+                capability.addProperty("instructionId", row.getId());
+                capability.addProperty("canAddToMemory", reason == null);
+                if (reason != null) capability.addProperty("reason", reason);
+                capabilities.add(capability);
+            }
+        } else {
+            response.addProperty("error", error.getErrorMessage());
+        }
+        response.add("capabilities", capabilities);
+        return response;
+    }
+
+    private Set<Integer> memoryProtectedIds(List<InstructionLoad> rows) {
+        Set<Integer> protectedIds = new java.util.HashSet<>();
+        Map<Integer, InstructionLoad> byId = rows.stream()
+                .filter(row -> row != null && row.getId() != null)
+                .collect(java.util.stream.Collectors.toMap(InstructionLoad::getId, row -> row));
+        for (InstructionLoad row : rows) {
+            if (row == null || !Set.of("LOOP", "REFRESH_LOOP").contains(row.getActions())) continue;
+            if (row.getId() != null) protectedIds.add(row.getId());
+            if (row.getParentId() != null) {
+                protectedIds.add(row.getParentId());
+                InstructionLoad parent = byId.get(row.getParentId());
+                if (parent != null && parent.getBlockId() != null && parent.getInstructionOrderNumber() != null
+                        && row.getInstructionOrderNumber() != null) {
+                    int first = Math.min(parent.getInstructionOrderNumber(), row.getInstructionOrderNumber());
+                    int last = Math.max(parent.getInstructionOrderNumber(), row.getInstructionOrderNumber());
+                    rows.stream()
+                            .filter(member -> member != null && parent.getBlockId().equals(member.getBlockId())
+                                    && member.getInstructionOrderNumber() != null
+                                    && member.getInstructionOrderNumber() >= first
+                                    && member.getInstructionOrderNumber() <= last
+                                    && member.getId() != null)
+                            .forEach(member -> protectedIds.add(member.getId()));
+                }
+            }
+        }
+        for (List<InstructionLoad> blockRows : rows.stream()
+                .filter(row -> row != null && row.getBlockId() != null)
+                .collect(java.util.stream.Collectors.groupingBy(InstructionLoad::getBlockId)).values()) {
+            blockRows.sort(Comparator.comparingInt(row -> row.getInstructionOrderNumber() == null
+                    ? Integer.MAX_VALUE : row.getInstructionOrderNumber()));
+            int depth = 0;
+            for (InstructionLoad row : blockRows) {
+                if ("IF".equals(row.getActions())) depth++;
+                if (depth > 0 && row.getId() != null) protectedIds.add(row.getId());
+                if ("ENDIF".equals(row.getActions()) && depth > 0) depth--;
+            }
+        }
+        return protectedIds;
+    }
+
+    private String memoryBlockReason(InstructionLoad row, Set<Integer> protectedIds) {
+        if (protectedIds.contains(row.getId())) return "Part of a conditional or loop group.";
+        if (CommandRegistry.isSpecialAction(row.getActions())
+                && (row.getParentId() != null || row.getVariableId() != null || row.getParentBlockId() != null)) {
+            return "Command has Web Field, Variable, or Block dependencies.";
+        }
+        return null;
+    }
+
     private JsonArray webFields(String sessionId) {
         List<InstructionLoad> instructions = "componentTasks".equals(sessionId)
                 ? lists.getListInstructionComp()
