@@ -488,6 +488,61 @@ public final class CommandEditorService {
         }
     }
 
+    public JsonObject previewSplit(JsonObject body) {
+        JsonObject response = new JsonObject();
+        String targetSession = string(body, "targetSessionId", "botJobTasks");
+        if ("componentTasks".equals(targetSession)) return failure("Component blocks cannot be split here.");
+
+        ErrorMessage loadError = reloadInstructions(body, targetSession);
+        if (loadError != null) return failure(loadError.getErrorMessage());
+        loadError = database.loadBlocks(integer(body, "botJobId", -1), "", "block");
+        if (loadError != null) return failure(loadError.getErrorMessage());
+        JsonObject stale = validateGraphRevision(body, targetSession);
+        if (stale != null) return stale;
+
+        int anchorId = integer(body, "instructionId", -1);
+        InstructionLoad anchor = instructions(targetSession).stream()
+                .filter(row -> row != null && row.getId() != null && row.getId() == anchorId)
+                .findFirst()
+                .orElse(null);
+        if (anchor == null || anchor.getBlockId() == null) return failure("The split anchor no longer exists.");
+
+        List<InstructionLoad> blockRows = instructions(targetSession).stream()
+                .filter(row -> row != null && anchor.getBlockId().equals(row.getBlockId()))
+                .sorted(Comparator.comparingInt(row -> row.getInstructionOrderNumber() == null
+                        ? Integer.MAX_VALUE
+                        : row.getInstructionOrderNumber()))
+                .toList();
+        String reason = splitValidator.validate(blockRows, anchorId);
+        if (reason != null) return failure(reason);
+
+        int splitIndex = indexOf(blockRows, anchorId);
+        response.addProperty("ok", true);
+        response.addProperty("graphRevision", graphRevision(targetSession));
+        response.addProperty("blockId", anchor.getBlockId());
+        response.addProperty("anchorInstructionId", anchorId);
+        response.add("retainedRows", splitPreviewRows(blockRows.subList(0, splitIndex + 1)));
+        response.add("movedRows", splitPreviewRows(blockRows.subList(splitIndex + 1, blockRows.size())));
+        response.addProperty("retainedCount", splitIndex + 1);
+        response.addProperty("movedCount", blockRows.size() - splitIndex - 1);
+        if (body.has("requestId")) response.add("requestId", body.get("requestId"));
+        return response;
+    }
+
+    private JsonArray splitPreviewRows(List<InstructionLoad> rows) {
+        JsonArray preview = new JsonArray();
+        for (InstructionLoad row : rows) {
+            JsonObject item = new JsonObject();
+            item.addProperty("id", row.getId());
+            item.addProperty("order", row.getInstructionOrderNumber());
+            item.addProperty("name", row.getName());
+            item.addProperty("action", row.getActions());
+            item.addProperty("parentId", row.getParentId());
+            preview.add(item);
+        }
+        return preview;
+    }
+
     private ErrorMessage validateSplit(SplitDTO split) {
         if (split == null || split.getBotJobId() == null || split.getInstructionId() == null) {
             return splitError("Split request is missing its job or anchor instruction.");

@@ -46,6 +46,7 @@ Finish the existing JavaFX-to-React instruction-authoring migration while preser
 - [x] Add pure conditional and move validator tests (`57c1db54`).
 - [x] Centralize split-boundary validation and remove the silent last-row adjustment (`609ac355`).
 - [x] Add nested conditional and loop split-boundary fixtures (`609ac355`).
+- [x] Add `instructionGraph.previewSplit` with authoritative retained/moved row details.
 
 ## Safety Gaps Preserved From Migration Notes
 
@@ -61,7 +62,7 @@ Finish the existing JavaFX-to-React instruction-authoring migration while preser
 
 ### P1 - Split preview and authoritative response
 
-- [ ] Add `instructionGraph.previewSplit` response with affected rows and rejection reason.
+- [ ] Make React request `instructionGraph.previewSplit` before constructing the split mutation.
 - [ ] Return the authoritative refreshed block graph after an applied split.
 - [ ] Make React show the actual backend split group before confirmation.
 
