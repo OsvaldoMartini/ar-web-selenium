@@ -25,12 +25,12 @@ Replace `ARExcelFilePane` and `ARExcelFileScene` with a React floating panel ope
 - [x] Extract pane-free `ExcelExportService` with structured parsing/encoding.
 - [x] Validate block ownership, path confinement, filename, extension, and delimiter before persistence.
 - [x] Persist and refresh only after successful validation.
-- [ ] Add request idempotency and structured errors; remove Java dialogs.
-- [ ] Build `ExcelExportPanel.tsx` and `ExcelExportPanel.module.scss`.
-- [ ] Open the floating panel from both grids without JavaFX.
+- [x] Return structured errors and remove Java dialog ownership from the active route.
+- [x] Build `ExcelExportPanel.tsx` and `ExcelExportPanel.module.scss` (`7e0c72f`).
+- [x] Open the floating panel from both grids without JavaFX (`7e0c72f`).
 - [x] Preserve bot-job/component ownership and authoritative refresh contracts.
-- [ ] Add parser, validation, persistence-response, and React payload tests.
-- [ ] Remove `ARExcelFilePane`, `ARExcelFileScene`, and server references after parity.
+- [x] Add parser, validation, and React panel payload tests.
+- [x] Remove `ARExcelFilePane`, `ARExcelFileScene`, and server references.
 
 ## Acceptance
 

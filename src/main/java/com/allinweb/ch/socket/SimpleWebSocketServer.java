@@ -3,7 +3,6 @@ package com.allinweb.ch.socket;
 import com.allinweb.ch.ARControlPanel;
 import com.allinweb.ch.component.pane.ARScannedElementPane;
 import com.allinweb.ch.component.pane.ARViewBotJobPane;
-import com.allinweb.ch.component.scene.ARExcelFileScene;
 import com.allinweb.ch.component.scene.ARSaveComponentScene;
 import com.allinweb.ch.facade.*;
 import com.allinweb.ch.model.*;
@@ -39,7 +38,6 @@ public class SimpleWebSocketServer {
     private static final ExcelExportService excelExportService = ExcelExportService.getInstance();
     protected static volatile SimpleWebSocketServer instance;
     private static WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
-    private static ARExcelFileScene arExcelFileScene = ARExcelFileScene.getInstance();
     private static ARSaveComponentScene arSaveComponentScene = ARSaveComponentScene.getInstance();
     private static ActionExecutorClient actionExecutorClient = ActionExecutorClient.getInstance();
     private static final Map<String, Boolean> processedInstructionDeletes = new LinkedHashMap<>();
@@ -1848,10 +1846,6 @@ public class SimpleWebSocketServer {
                         alreadySentMgsSocket = true;
                     }
                     break;
-                case "BLOCK_EXCEL_FILE":
-                    excelFileBlock(sessionIdToSend, splitDTO);
-                    alreadySentMgsSocket = true;
-                    break;
                 case "BLOCK_ORDER":
                     if (!splitDTO.getUpdatedBlocks().isEmpty()) {
                         errorMessage = performDataBase.loadBlocks(whereId, "", blockTable);
@@ -2507,14 +2501,6 @@ public class SimpleWebSocketServer {
                         ARConstants.ELSEIF, e.getMessage()));
             }
         }
-    }
-
-    private void excelFileBlock(String sessionId, SplitDTO splitDTO) {
-        // Ensure JavaFX UI updates are done on the JavaFX Application Thread
-        Platform.runLater(() -> {
-            arExcelFileScene.initialize(sessionId, splitDTO);
-            arExcelFileScene.showModal();
-        });
     }
 
     private void createBlockComponent(SplitDTO blockSplitDTO) {
