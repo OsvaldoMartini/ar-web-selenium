@@ -104,7 +104,7 @@ All responses must use structured fields such as `ok`, `statusCode`, `title`, `m
 ## Phase 6 - Remove Redundancy and Legacy Routes
 
 - [ ] Route every License button to the shared React component.
-- [ ] Route Main Dashboard About/Info to `AboutPanel`.
+- [x] Route the active React Main Dashboard About/Info action to `AboutPanel`.
 - [ ] Replace duplicated `checkLicense()` UI messages with `LicenseService` status results.
 - [ ] Remove JavaFX HTML message composition for license operations.
 - [ ] Remove `ARLicensePane`, `ARLicenseScene`, `ARInfoPane`, and `ARInfoScene` after parity tests pass.

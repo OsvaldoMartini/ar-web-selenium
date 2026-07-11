@@ -42,7 +42,6 @@ public class ARMainDashboardPane extends ARPane {
     private static final MainDashboardService mainDashboardService = MainDashboardService.getInstance();
     private static final WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
     private static final Gson gson = new Gson();
-    private static final ARInfoScene arInfoScene = ARInfoScene.getInstance();
     private static final ARConfigurationScene arConfigurationScene = ARConfigurationScene.getInstance();
     private static final ARConfigManagerScene arConfigManagerScene = ARConfigManagerScene.getInstance();
     private static final ARViewBotJobScene arViewBotJobScene = ARViewBotJobScene.getInstance();
@@ -177,7 +176,7 @@ public class ARMainDashboardPane extends ARPane {
     }
 
     public void openInfo() {
-        Platform.runLater(arInfoScene::showModal);
+        Platform.runLater(() -> dispatchReactSession("aboutPanel"));
     }
 
     public void launchBotJob(BotJobLoadDTO botJob) {
@@ -208,12 +207,16 @@ public class ARMainDashboardPane extends ARPane {
     }
 
     private void dispatchReactBootstrap(WebEngine webEngine) {
+        dispatchReactSession(SESSION_ID);
+    }
+
+    private void dispatchReactSession(String targetSession) {
         int port = resolveSocketPort();
         try {
-            webEngine.executeScript("setTimeout(function() { window.receiveDataFromJava(JSON.stringify([]), "
-                    + port + ", '" + SESSION_ID + "', -1, '', -9999, '' ) }, 250)");
+            webView.getEngine().executeScript("setTimeout(function() { window.receiveDataFromJava(JSON.stringify([]), "
+                    + port + ", '" + targetSession + "', -1, '', -9999, '' ) }, 250)");
         } catch (Exception e) {
-            log.error("Main dashboard React bootstrap failed: {}", e.getMessage());
+            log.error("React session dispatch failed for {}: {}", targetSession, e.getMessage());
         }
     }
 
