@@ -86,7 +86,7 @@ All responses must use structured fields such as `ok`, `statusCode`, `title`, `m
 
 - [x] Build `AboutPanel` with product name as the primary heading and separated SCSS (`90bb13a`).
 - [x] Show version, build, expiration/status, copyright, and licensing mode from `about.bootstrap` (`90bb13a`).
-- [ ] Calculate expiration presentation from an ISO backend date, not locale-specific browser parsing.
+- [x] Normalize supported persisted expiration formats to strict ISO `yyyy-MM-dd` in `about.bootstrap`.
 - [x] Open the shared `LicenseManager` from the License action (`90bb13a`).
 - [x] Remove the direct `ARInfoPane -> ARLicenseScene` dependency and route its License action to React.
 - [ ] Keep product metadata read-only and avoid duplicating values in React constants.

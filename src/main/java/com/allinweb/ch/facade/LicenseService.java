@@ -8,6 +8,11 @@ import com.google.gson.JsonObject;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.time.format.ResolverStyle;
+import java.util.List;
 import java.util.Set;
 
 /** Pane-free read boundary for React license and About surfaces. */
@@ -56,7 +61,7 @@ public final class LicenseService {
         response.addProperty("product", "AR Web");
         response.addProperty("version", property(ARPropertyEnum.VERSION));
         response.addProperty("build", property(ARPropertyEnum.BUILD));
-        response.addProperty("expiration", property(ARPropertyEnum.EXPIRATION));
+        response.addProperty("expiration", isoExpiration(property(ARPropertyEnum.EXPIRATION)));
         response.addProperty("copyright", "Allinweb AG");
         response.add("license", bootstrap());
         return response;
@@ -82,6 +87,21 @@ public final class LicenseService {
 
     static boolean permits(String operation, boolean active) {
         return operation != null && (UNRESTRICTED_OPERATIONS.contains(operation) || active);
+    }
+
+    static String isoExpiration(String value) {
+        if (value == null || value.isBlank()) return null;
+        for (DateTimeFormatter formatter : List.of(
+                DateTimeFormatter.ISO_LOCAL_DATE,
+                DateTimeFormatter.ofPattern("dd-MM-uuuu").withResolverStyle(ResolverStyle.STRICT),
+                DateTimeFormatter.ofPattern("dd/MM/uuuu").withResolverStyle(ResolverStyle.STRICT))) {
+            try {
+                return LocalDate.parse(value.trim(), formatter).format(DateTimeFormatter.ISO_LOCAL_DATE);
+            } catch (DateTimeParseException ignored) {
+                // Try the next supported persisted format.
+            }
+        }
+        return null;
     }
 
     public JsonObject request(JsonObject body) {

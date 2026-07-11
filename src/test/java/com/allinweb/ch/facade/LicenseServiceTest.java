@@ -1,6 +1,8 @@
 package com.allinweb.ch.facade;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.allinweb.ch.license.LicenceVal;
@@ -66,5 +68,20 @@ class LicenseServiceTest {
         assertTrue(LicenseService.permits("mainDashboard.list", true));
         assertTrue(LicenseService.permits("commandEditor.apply", true));
         assertFalse(LicenseService.permits(null, true));
+    }
+
+    @Test
+    void normalizesSupportedExpirationFormatsToIsoDates() {
+        assertEquals("2027-07-11", LicenseService.isoExpiration("2027-07-11"));
+        assertEquals("2027-07-11", LicenseService.isoExpiration("11-07-2027"));
+        assertEquals("2027-07-11", LicenseService.isoExpiration("11/07/2027"));
+    }
+
+    @Test
+    void rejectsMissingAndAmbiguousExpirationValues() {
+        assertNull(LicenseService.isoExpiration(null));
+        assertNull(LicenseService.isoExpiration(""));
+        assertNull(LicenseService.isoExpiration("07/11/27"));
+        assertNull(LicenseService.isoExpiration("31-02-2027"));
     }
 }
