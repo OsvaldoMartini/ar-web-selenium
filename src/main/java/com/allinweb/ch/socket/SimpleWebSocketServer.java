@@ -1891,6 +1891,8 @@ public class SimpleWebSocketServer {
                                 "Refresh the grid and try the deletion again.");
                         break;
                     }
+                    errorMessage = CommandEditorService.getInstance().validateDeleteRevision(splitDTO);
+                    if (errorMessage != null) break;
                     synchronized (processedInstructionDeletes) {
                         if (processedInstructionDeletes.containsKey(deleteRequestId)) break;
                         processedInstructionDeletes.put(deleteRequestId, Boolean.TRUE);

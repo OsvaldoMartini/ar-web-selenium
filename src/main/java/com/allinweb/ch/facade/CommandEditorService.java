@@ -131,6 +131,23 @@ public final class CommandEditorService {
         return null;
     }
 
+    public ErrorMessage validateDeleteRevision(SplitDTO split) {
+        if (split == null) return new ErrorMessage("Delete Instruction Refused", "Missing request", "Delete payload is missing.");
+        String sessionId = "componentTasks".equals(split.getSessionId()) ? "componentTasks" : "botJobTasks";
+        JsonObject body = new JsonObject();
+        body.addProperty("botJobId", split.getBotJobId() == null ? -1 : split.getBotJobId());
+        body.addProperty("homeBankingId", split.getHomeBankingId() == null ? -1 : split.getHomeBankingId());
+        ErrorMessage error = reloadInstructions(body, sessionId);
+        if (error != null) return error;
+        if (split.getGraphRevision() == null || split.getGraphRevision().isBlank()) {
+            return new ErrorMessage("Delete Instruction Refused", "Graph revision is required", "Refresh the grid and try again.");
+        }
+        if (!split.getGraphRevision().equals(graphRevision(sessionId))) {
+            return new ErrorMessage("Delete Instruction Refused", "Instructions changed", "Refresh the grid before deleting.");
+        }
+        return null;
+    }
+
     private Set<Integer> memoryProtectedIds(List<InstructionLoad> rows) {
         Set<Integer> protectedIds = new java.util.HashSet<>();
         Map<Integer, InstructionLoad> byId = rows.stream()
