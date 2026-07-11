@@ -41,6 +41,7 @@ public final class CommandEditorService {
     private final ConditionalGraphValidator conditionalValidator = new ConditionalGraphValidator();
     private final Map<String, JsonObject> completedRequests = new LinkedHashMap<>();
     private final Map<String, Boolean> completedSplitRequests = new LinkedHashMap<>();
+    private final InstructionSplitValidator splitValidator = new InstructionSplitValidator();
 
     private CommandEditorService() {}
 
@@ -638,30 +639,14 @@ public final class CommandEditorService {
                 .filter(row -> row != null && row.getId() != null && row.getId() == instructionId)
                 .findFirst()
                 .orElse(null);
-        if (selected == null || selected.getBlockId() == null
-                || Set.of("IF", "ELSEIF", "ELSE", "ENDIF").contains(selected.getActions())) return false;
+        if (selected == null || selected.getBlockId() == null) return false;
         List<InstructionLoad> blockRows = instructions(sessionId).stream()
                 .filter(row -> row != null && selected.getBlockId().equals(row.getBlockId()))
                 .sorted(Comparator.comparingInt(row -> row.getInstructionOrderNumber() == null
                         ? Integer.MAX_VALUE
                         : row.getInstructionOrderNumber()))
                 .toList();
-        if (blockRows.size() <= 1 || conditionalValidator.validate(blockRows) != null
-                || enclosingIfRoot(blockRows, instructionId) != null) return false;
-        int selectedIndex = indexOf(blockRows, instructionId);
-        int splitIndex = selectedIndex == blockRows.size() - 1 ? selectedIndex - 1 : selectedIndex;
-        return splitIndex >= 0 && !separatesLoopRelationship(blockRows, splitIndex);
-    }
-
-    private boolean separatesLoopRelationship(List<InstructionLoad> rows, int splitIndex) {
-        for (int loopIndex = 0; loopIndex < rows.size(); loopIndex++) {
-            InstructionLoad loop = rows.get(loopIndex);
-            if (!Set.of("LOOP", "REFRESH_LOOP").contains(loop.getActions())) continue;
-            if (loop.getParentId() == null) return true;
-            int parentIndex = indexOf(rows, loop.getParentId());
-            if (parentIndex < 0 || (parentIndex <= splitIndex) != (loopIndex <= splitIndex)) return true;
-        }
-        return false;
+        return splitValidator.validate(blockRows, instructionId) == null;
     }
 
     private int indexOf(List<InstructionLoad> rows, int instructionId) {
