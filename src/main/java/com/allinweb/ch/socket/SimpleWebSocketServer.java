@@ -1901,16 +1901,6 @@ public class SimpleWebSocketServer {
                                 "LOOP and REFRESH_LOOP cannot be deleted independently from their parent Web Field.");
                         break;
                     }
-                    if (storedAction.equalsIgnoreCase("ELSEIF")) {
-                        errorMessage = new ErrorMessage(
-                                "Delete Instruction Refused",
-                                "ELSEIF branch deletion requires graph-aware removal",
-                                "The complete ELSEIF branch must be analyzed before it can be deleted.");
-                        break;
-                    }
-
-                    boolean isElseIf = actions.equalsIgnoreCase("ELSEIF");
-
                     boolean isIfFamily = actions.equalsIgnoreCase("IF")
                             || actions.equalsIgnoreCase("ELSE")
                             || actions.equalsIgnoreCase("ENDIF")
@@ -1976,15 +1966,32 @@ public class SimpleWebSocketServer {
                         List<InstructionLoad> currentDeleteRows = instrTable.equals("instruction")
                                 ? performLists.getListInstruction()
                                 : performLists.getListInstructionComp();
-                        List<Integer> deleteIds = isIfFamilyRootDelete
-                                ? currentDeleteRows.stream()
+                        List<Integer> deleteIds;
+                        if (actions.equalsIgnoreCase("ELSEIF")) {
+                            List<InstructionLoad> blockRows = currentDeleteRows.stream()
+                                    .filter(row -> row != null && Objects.equals(row.getBlockId(), storedBlockId))
+                                    .toList();
+                            deleteIds = new ConditionalBranchService()
+                                    .elseIfBranchIds(blockRows, splitDTO.getInstructionId());
+                        } else if (isIfFamilyRootDelete) {
+                            deleteIds = currentDeleteRows.stream()
                                         .filter(row -> row != null && row.getId() != null
                                                 && (row.getId() == ifRootId
                                                         || (row.getParentId() != null && row.getParentId() == ifRootId)))
                                         .map(InstructionLoad::getId)
                                         .distinct()
-                                        .toList()
-                                : List.of(splitDTO.getInstructionId());
+                                        .toList();
+                        } else {
+                            deleteIds = List.of(splitDTO.getInstructionId());
+                        }
+
+                        if (deleteIds.isEmpty()) {
+                            errorMessage = new ErrorMessage(
+                                    "Delete Instruction Refused",
+                                    "ELSEIF branch is invalid",
+                                    "Refresh the grid before deleting this branch.");
+                            break;
+                        }
 
                         errorMessage = performDataBase.deleteInstructionGraphAtomic(
                                 instrTable, whereId, deleteIds);

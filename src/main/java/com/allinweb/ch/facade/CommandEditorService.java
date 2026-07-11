@@ -42,6 +42,7 @@ public final class CommandEditorService {
     private final Map<String, JsonObject> completedRequests = new LinkedHashMap<>();
     private final Map<String, Boolean> completedSplitRequests = new LinkedHashMap<>();
     private final InstructionSplitValidator splitValidator = new InstructionSplitValidator();
+    private final ConditionalBranchService conditionalBranchService = new ConditionalBranchService();
 
     private CommandEditorService() {}
 
@@ -129,7 +130,7 @@ public final class CommandEditorService {
                             .forEach(block -> allowedBlockIds.add(block.getId()));
                 }
                 capability.add("allowedBlockIds", allowedBlockIds);
-                String deleteReason = deleteBlockReason(row, referencedIds, invalidConditionalIds);
+                String deleteReason = deleteBlockReason(row, referencedIds, invalidConditionalIds, instructionRows);
                 capability.addProperty("canDelete", deleteReason == null);
                 capability.addProperty("deleteCount", deleteImpactCount(row, instructionRows));
                 capability.add("deleteRows", deleteImpactRows(row, instructionRows));
@@ -159,10 +160,14 @@ public final class CommandEditorService {
         return invalidIds;
     }
 
-    private String deleteBlockReason(InstructionLoad row, Set<Integer> referencedIds, Set<Integer> invalidConditionalIds) {
+    private String deleteBlockReason(InstructionLoad row, Set<Integer> referencedIds, Set<Integer> invalidConditionalIds,
+            List<InstructionLoad> rows) {
         if (invalidConditionalIds.contains(row.getId())) return "Conditional graph is invalid.";
         if (Set.of("LOOP", "REFRESH_LOOP").contains(row.getActions())) return "Loop boundaries require group deletion.";
-        if ("ELSEIF".equals(row.getActions())) return "ELSEIF requires branch-aware deletion.";
+        if ("ELSEIF".equals(row.getActions())
+                && conditionalBranchService.elseIfBranchIds(rows, row.getId()).isEmpty()) {
+            return "ELSEIF branch boundaries are invalid.";
+        }
         if (referencedIds.contains(row.getId()) && !Set.of("IF", "ELSE", "ENDIF").contains(row.getActions())) {
             return "Other instructions depend on this row.";
         }
@@ -170,6 +175,9 @@ public final class CommandEditorService {
     }
 
     private int deleteImpactCount(InstructionLoad row, List<InstructionLoad> rows) {
+        if ("ELSEIF".equals(row.getActions())) {
+            return conditionalBranchService.elseIfBranchIds(rows, row.getId()).size();
+        }
         if (!Set.of("IF", "ELSE", "ENDIF").contains(row.getActions())) return 1;
         Integer rootId = "IF".equals(row.getActions()) ? row.getId() : row.getParentId();
         if (rootId == null) return 1;
@@ -184,6 +192,18 @@ public final class CommandEditorService {
         JsonArray impact = new JsonArray();
         if (row == null || row.getId() == null) return impact;
         String action = row.getActions() == null ? "" : row.getActions();
+        if ("ELSEIF".equals(action)) {
+            Set<Integer> branchIds = new java.util.HashSet<>(
+                    conditionalBranchService.elseIfBranchIds(rows, row.getId()));
+            rows.stream()
+                    .filter(candidate -> candidate != null && candidate.getId() != null
+                            && branchIds.contains(candidate.getId()))
+                    .sorted(Comparator.comparingInt(candidate -> candidate.getInstructionOrderNumber() == null
+                            ? Integer.MAX_VALUE
+                            : candidate.getInstructionOrderNumber()))
+                    .forEach(candidate -> addDeleteImpactRow(impact, candidate));
+            return impact;
+        }
         Integer rootId = Set.of("IF", "ELSE", "ENDIF").contains(action)
                 ? ("IF".equals(action) ? row.getId() : row.getParentId())
                 : null;
@@ -196,15 +216,17 @@ public final class CommandEditorService {
                 .sorted(Comparator.comparingInt(candidate -> candidate.getInstructionOrderNumber() == null
                         ? Integer.MAX_VALUE
                         : candidate.getInstructionOrderNumber()))
-                .forEach(candidate -> {
-                    JsonObject item = new JsonObject();
-                    item.addProperty("id", candidate.getId());
-                    item.addProperty("name", candidate.getName());
-                    item.addProperty("action", candidate.getActions());
-                    item.addProperty("order", candidate.getInstructionOrderNumber());
-                    impact.add(item);
-                });
+                .forEach(candidate -> addDeleteImpactRow(impact, candidate));
         return impact;
+    }
+
+    private void addDeleteImpactRow(JsonArray impact, InstructionLoad candidate) {
+        JsonObject item = new JsonObject();
+        item.addProperty("id", candidate.getId());
+        item.addProperty("name", candidate.getName());
+        item.addProperty("action", candidate.getActions());
+        item.addProperty("order", candidate.getInstructionOrderNumber());
+        impact.add(item);
     }
 
     public ErrorMessage validateMoveRevision(SplitDTO split) {

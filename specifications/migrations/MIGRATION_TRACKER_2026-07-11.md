@@ -50,7 +50,7 @@ Finish the existing JavaFX-to-React instruction-authoring migration while preser
 
 ## Safety Gaps Preserved From Migration Notes
 
-- [ ] ELSEIF branch deletion is safely denied, but graph-aware branch deletion is not implemented.
+- [x] ELSEIF deletion resolves and atomically removes only the selected branch span.
 - [ ] LOOP/REFRESH_LOOP deletion is safely denied, but loop-group deletion is not implemented.
 - [x] Normal drag/arrow movement restores authoritative state and shows the final backend refusal in both grids (`d1c622e`).
 - [x] Delete previews include affected row IDs, names, actions, order, and count (`70e24eff`, `0b2f300`).
@@ -96,8 +96,8 @@ Finish the existing JavaFX-to-React instruction-authoring migration while preser
 
 ### P4 - Graph-aware deletion completion
 
-- [ ] Implement ELSEIF deletion as the selected boundary plus only its branch instructions.
-- [ ] Preserve the surrounding IF/ELSEIF/ELSE/ENDIF family grammar.
+- [x] Implement ELSEIF deletion as the selected boundary plus only its branch instructions.
+- [x] Preserve the surrounding IF/ELSEIF/ELSE/ENDIF family grammar.
 - [ ] Implement explicit loop-group deletion without leaving a detached parent or boundary.
 - [ ] Return exact affected row IDs, names, actions, and counts before confirmation.
 - [ ] Add graph revision, request ID, impact analysis, and structured responses to block deletion.
