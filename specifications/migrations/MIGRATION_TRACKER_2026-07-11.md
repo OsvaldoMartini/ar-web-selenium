@@ -63,6 +63,7 @@ Finish the existing JavaFX-to-React instruction-authoring migration while preser
   - [x] Return structured results without Java dialogs.
 - [x] Variable mutation and dependent command rewrites use one verified transaction.
 - [x] Java publishes and enforces deny-by-default variable type compatibility, including crafted requests.
+- [x] React filters and clears variable selections using Java `allowedVariableTypes` metadata (`bec986e`).
 
 ## Remaining Work
 
