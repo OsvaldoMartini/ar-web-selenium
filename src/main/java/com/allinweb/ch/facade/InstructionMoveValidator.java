@@ -48,7 +48,8 @@ public final class InstructionMoveValidator {
         if (conditionalMoveError != null) return conditionalMoveError;
         String orderingError = validateBlockOrdering(proposed);
         if (orderingError != null) return orderingError;
-        return validateLoopRelationships(proposed);
+        String parentError = validateParentRelationships(proposed);
+        return parentError == null ? validateLoopRelationships(proposed) : parentError;
     }
 
     private String validateConditionalMovement(List<InstructionLoad> current, Map<Integer, InstructionLoad> originals,
@@ -110,6 +111,19 @@ public final class InstructionMoveValidator {
                         && member.blockId != member.originalBlockId) {
                     return "Instructions inside a loop span cannot move to another block independently.";
                 }
+            }
+        }
+        return null;
+    }
+
+    private String validateParentRelationships(Map<Integer, ProposedRow> proposed) {
+        for (ProposedRow command : proposed.values()) {
+            if (command.parentId == null || CONDITIONAL_BOUNDARIES.contains(command.action)
+                    || LOOP_ACTIONS.contains(command.action)) continue;
+            ProposedRow parent = proposed.get(command.parentId);
+            if (parent == null) return "A command references a missing parent instruction.";
+            if (parent.blockId != command.blockId) {
+                return "Commands with Web Field dependencies must remain in their parent block.";
             }
         }
         return null;
