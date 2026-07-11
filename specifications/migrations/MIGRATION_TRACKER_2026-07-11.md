@@ -151,10 +151,12 @@ The About, License, and Activation Software Required consolidation is planned in
 
 ### P8 - Automated and end-to-end acceptance
 
-- [ ] Add delete-impact, revision, idempotency, transaction rollback, and command-codec unit tests.
+- [x] Add delete-impact, revision, idempotency, transaction rollback, and command-codec unit tests.
   - [x] Add deterministic graph-revision and stale-change fixtures.
   - [x] Add authoritative delete-impact fixtures for ordinary, conditional, ELSEIF, and loop deletion.
   - [x] Add shared request-idempotency fixtures for duplicate success, retryable failure, defensive copies, and eviction.
+  - [x] Prove row-move and variable/dependent-operation rollback after forced mid-transaction failures (`e8428ca7`, `62f77e5d`, `372062c1`).
+  - [x] Cover every registered command encode/decode family, aliases, and malformed historical operations (`02553d16`, `18b65928`, `f141644a`).
   - [x] Add React command panel coverage for codec warnings and backend variable-type filtering (`b2f9fe2`).
   - [x] Prove React Apply submits typed fields without an `operation` string (`5375075`).
 - [ ] Add SQLite/Playwright coverage using organization `2` and bot job `19`.
