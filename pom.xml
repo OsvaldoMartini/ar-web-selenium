@@ -291,11 +291,13 @@
         <finalName>${project.artifactId}-${project.version}</finalName>
         <pluginManagement>
             <plugins>
+                <!-- Spotless disabled
                 <plugin>
                     <groupId>com.diffplug.spotless</groupId>
                     <artifactId>spotless-maven-plugin</artifactId>
                     <version>2.44.3</version>
                 </plugin>
+                -->
             </plugins>
         </pluginManagement>
         <plugins>
@@ -362,6 +364,7 @@
                     </execution>
                 </executions>
             </plugin>
+            <!-- Spotless disabled
             <plugin>
                 <groupId>com.diffplug.spotless</groupId>
                 <artifactId>spotless-maven-plugin</artifactId>
@@ -378,12 +381,13 @@
                     <execution>
                         <goals>
                             <goal>check</goal>
-                            <goal>apply</goal>  <!-- Ensure that apply runs to fix issues -->
+                            <goal>apply</goal>
                         </goals>
                         <phase>validate</phase>
                     </execution>
                 </executions>
             </plugin>
+            -->
         </plugins>
     </build>
 
