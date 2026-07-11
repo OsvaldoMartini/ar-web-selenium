@@ -167,7 +167,7 @@ The About, License, and Activation Software Required consolidation is planned in
   - [x] Cover authoritative complete IF-family and loop-span move previews and normalized `ROW_MOVE` payloads (`ARWeb-Linux` `15a0907`).
   - [x] Cover typed variable creation and revision/request-aware instruction deletion (`ARWeb-Linux` `868028f`).
   - [x] Cover authoritative split preview, confirmation, and retained/moved Apply payload (`ARWeb-Linux` `aae3ad6`).
-- [ ] Verify component-grid parity and direct WebSocket rejection behavior.
+- [x] Verify component-grid parity and direct WebSocket rejection behavior (`ARWeb-Linux` `b35b854`).
 
 ## Current Next Step
 
