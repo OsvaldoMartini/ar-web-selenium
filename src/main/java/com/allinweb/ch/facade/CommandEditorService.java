@@ -344,33 +344,36 @@ public final class CommandEditorService {
 
     private JsonArray commandCatalog() {
         JsonArray commands = new JsonArray();
-        add(commands, "SET", "Set Value", "variable");
-        add(commands, "GET", "Get Value", "variable");
-        add(commands, "CK", "Check Value", "variable");
-        add(commands, "PDF CHECK", "PDF Check", "variable");
-        add(commands, "CSV CHECK", "CSV Check", "variable");
-        add(commands, "E", "Extract Field", "variable");
+        add(commands, "SET", "Set Value", "variable", "webField", "variable");
+        add(commands, "GET", "Get Value", "variable", "webField", "variable");
+        add(commands, "CK", "Check Value", "variable", "webField", "variable", "operator");
+        add(commands, "PDF CHECK", "PDF Check", "variable", "webField", "variable", "operator");
+        add(commands, "CSV CHECK", "CSV Check", "variable", "webField", "variable", "operator");
+        add(commands, "E", "Extract Field", "variable", "webField", "variable");
         add(commands, "IF", "IF", "none");
-        add(commands, "GOTO", "GOTO", "block");
-        add(commands, "EXCEL GOTO", "Excel GOTO", "block");
-        add(commands, "LOOP", "Loop", "number");
-        add(commands, "REFRESH_LOOP", "Refresh Loop", "number");
+        add(commands, "GOTO", "GOTO", "block", "block", "count");
+        add(commands, "EXCEL GOTO", "Excel GOTO", "block", "block");
+        add(commands, "LOOP", "Loop", "number", "webField", "interval", "count");
+        add(commands, "REFRESH_LOOP", "Refresh Loop", "number", "webField", "interval", "count");
         add(commands, "REFRESH", "Refresh", "none");
         add(commands, "NEXT_ENTER", "Next / Enter", "none");
-        add(commands, "SWIPE_UP", "Swipe Up", "number");
-        add(commands, "SWIPE_DOWN", "Swipe Down", "number");
-        add(commands, "H", "Wait", "number");
+        add(commands, "SWIPE_UP", "Swipe Up", "number", "count");
+        add(commands, "SWIPE_DOWN", "Swipe Down", "number", "count");
+        add(commands, "H", "Wait", "number", "hold");
         add(commands, "PAUSE", "Pause", "none");
         add(commands, "Q", "Close Browser", "none");
         add(commands, "P", "Screenshot", "none");
         return commands;
     }
 
-    private void add(JsonArray target, String code, String label, String targetType) {
+    private void add(JsonArray target, String code, String label, String targetType, String... fields) {
         JsonObject command = new JsonObject();
         command.addProperty("code", code);
         command.addProperty("label", label);
         command.addProperty("target", targetType);
+        JsonArray fieldDefinitions = new JsonArray();
+        for (String field : fields) fieldDefinitions.add(field);
+        command.add("fields", fieldDefinitions);
         target.add(command);
     }
 
