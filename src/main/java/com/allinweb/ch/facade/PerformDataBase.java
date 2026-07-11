@@ -1204,8 +1204,11 @@ public class PerformDataBase {
             conn.setAutoCommit(false);
 
             for (ParentOperations parent : listParents) {
-                if ("GET".equals(parent.getActions())
+                if ("SET".equals(parent.getActions())
+                        || "GET".equals(parent.getActions())
                         || "CK".equals(parent.getActions())
+                        || "PDF CHECK".equals(parent.getActions())
+                        || "CSV CHECK".equals(parent.getActions())
                         || "E".equals(parent.getActions())) {
                     pstmt.setString(1, parent.getOperations());
                     pstmt.setInt(2, parent.getId());
