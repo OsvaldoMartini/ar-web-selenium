@@ -20,10 +20,10 @@ Replace `ARSaveComponentPane` and `ARSaveComponentScene` with a React floating p
 
 ## Implementation
 
-- [ ] Extract `SaveComponentService` from JavaFX controls.
-- [ ] Enforce source ownership, nonblank bounded names/descriptions, and case-insensitive uniqueness.
+- [x] Extract `SaveComponentService` from JavaFX controls.
+- [x] Enforce source ownership, nonblank bounded names/descriptions, and case-insensitive uniqueness.
 - [ ] Add authoritative preview and one atomic persistence transaction.
-- [ ] Return structured results and refreshed component instructions without dialogs.
+- [x] Return structured results and refreshed component instructions without dialogs.
 - [ ] Build `SaveComponentPanel.tsx` and separated SCSS using the existing floating-panel design.
 - [ ] Route all Save Component actions to React.
 - [ ] Add validation, duplicate, rollback, idempotency, and bot-job/component ownership tests.
@@ -35,4 +35,3 @@ Replace `ARSaveComponentPane` and `ARSaveComponentScene` with a React floating p
 - Partial component copies cannot persist.
 - Duplicate names and backend failures are inline and retryable.
 - Component grids refresh from authoritative backend data.
-

@@ -36,6 +36,7 @@ public class SimpleWebSocketServer {
     private static final NewBotJobService newBotJobService = NewBotJobService.getInstance();
     private static final ConfigService configService = ConfigService.getInstance();
     private static final ExcelExportService excelExportService = ExcelExportService.getInstance();
+    private static final SaveComponentService saveComponentService = SaveComponentService.getInstance();
     protected static volatile SimpleWebSocketServer instance;
     private static WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
     private static ARSaveComponentScene arSaveComponentScene = ARSaveComponentScene.getInstance();
@@ -241,6 +242,18 @@ public class SimpleWebSocketServer {
                         String updateOperation = String.valueOf(excelResponse.get("updateOperation"));
                         webSocketSessionManager.sendMessageJson(homeBankingId, sessionId,
                                 gson.toJson(excelResponse.get("instructions")), updateOperation);
+                    }
+                    break;
+                case "componentSave.bootstrap":
+                    sendCommandEditorResponse(homeBankingId, sessionId, "componentSave.bootstrapResponse",
+                            saveComponentService.bootstrap(extractBody(jsonObjMSG)));
+                    break;
+                case "componentSave.apply":
+                    Map<String, Object> componentResponse = saveComponentService.save(extractBody(jsonObjMSG));
+                    sendCommandEditorResponse(homeBankingId, sessionId, "componentSave.applyResponse", componentResponse);
+                    if (Boolean.TRUE.equals(componentResponse.get("ok"))) {
+                        webSocketSessionManager.sendMessageJson(homeBankingId, "componentTasks",
+                                gson.toJson(componentResponse.get("instructions")), "componentsUpdate");
                     }
                     break;
                 case "commandEditor.bootstrap":
