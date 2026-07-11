@@ -92,11 +92,20 @@ public final class CommandEditorService {
     public JsonObject memoryCapabilities(JsonObject body) {
         String sessionId = string(body, "targetSessionId", "botJobTasks");
         ErrorMessage error = reloadInstructions(body, sessionId);
+        int whereId = "componentTasks".equals(sessionId)
+                ? integer(body, "homeBankingId", -1)
+                : integer(body, "botJobId", -1);
+        if (error == null) {
+            error = database.loadBlocks(whereId, "", "componentTasks".equals(sessionId) ? "component_block" : "block");
+        }
         JsonObject response = new JsonObject();
         response.addProperty("ok", error == null);
         JsonArray capabilities = new JsonArray();
         if (error == null) {
             List<InstructionLoad> instructionRows = instructions(sessionId);
+            List<BlockLoadDTO> blockRows = "componentTasks".equals(sessionId)
+                    ? lists.getListBlockComp()
+                    : lists.getListBlock();
             Set<Integer> protectedIds = memoryProtectedIds(instructionRows);
             Set<Integer> referencedIds = instructionRows.stream()
                     .filter(row -> row != null && row.getParentId() != null && !row.getParentId().equals(row.getId()))
@@ -110,6 +119,16 @@ public final class CommandEditorService {
                 capability.addProperty("instructionId", row.getId());
                 capability.addProperty("canAddToMemory", reason == null);
                 capability.addProperty("canMove", reason == null);
+                JsonArray allowedBlockIds = new JsonArray();
+                if (reason == null) {
+                    blockRows.stream()
+                            .filter(block -> block != null && block.getId() != null)
+                            .sorted(Comparator.comparingInt(block -> block.getBlockOrderNumber() == null
+                                    ? Integer.MAX_VALUE
+                                    : block.getBlockOrderNumber()))
+                            .forEach(block -> allowedBlockIds.add(block.getId()));
+                }
+                capability.add("allowedBlockIds", allowedBlockIds);
                 String deleteReason = deleteBlockReason(row, referencedIds, invalidConditionalIds);
                 capability.addProperty("canDelete", deleteReason == null);
                 capability.addProperty("deleteCount", deleteImpactCount(row, instructionRows));
