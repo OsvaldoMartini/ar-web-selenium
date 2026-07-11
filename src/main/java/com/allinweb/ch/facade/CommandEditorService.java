@@ -2,6 +2,8 @@ package com.allinweb.ch.facade;
 
 import com.allinweb.ch.model.BotJobLoadDTO;
 import com.allinweb.ch.model.BlockDetailsDTO;
+import com.allinweb.ch.model.BlockLoadDTO;
+import com.allinweb.ch.model.BlockOrderDetailDTO;
 import com.allinweb.ch.model.DetailsDTO;
 import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.model.SplitDTO;
@@ -303,6 +305,8 @@ public final class CommandEditorService {
         }
         ErrorMessage error = database.loadInstructions(split.getBotJobId(), -1, -1, "instruction");
         if (error != null) return error;
+        error = database.loadBlocks(split.getBotJobId(), "", "block");
+        if (error != null) return error;
         if (split.getGraphRevision() == null || split.getGraphRevision().isBlank()) {
             return splitError("Instruction graph revision is required. Reopen the command panel.");
         }
@@ -342,6 +346,42 @@ public final class CommandEditorService {
         if (!matchesPartition(original.getUpdatedInstructions(), currentRows.subList(0, anchorIndex + 1), true)
                 || !matchesPartition(created.getInstructions(), currentRows.subList(anchorIndex + 1, currentRows.size()), false)) {
             return "The split rows are stale or do not form a contiguous block partition.";
+        }
+        String blockOrderError = validateSplitBlockOrders(split, original, created);
+        if (blockOrderError != null) return blockOrderError;
+        return null;
+    }
+
+    private String validateSplitBlockOrders(SplitDTO split, BlockDetailsDTO original, BlockDetailsDTO created) {
+        BlockLoadDTO currentBlock = lists.getListBlock().stream()
+                .filter(block -> block != null && block.getId() != null && block.getId().equals(original.getBlockId()))
+                .findFirst()
+                .orElse(null);
+        if (currentBlock == null || currentBlock.getBlockOrderNumber() == null
+                || original.getBlockOrderNumber() == null
+                || !original.getBlockOrderNumber().equals(currentBlock.getBlockOrderNumber())
+                || created.getBlockOrderNumber() == null
+                || created.getBlockOrderNumber() != currentBlock.getBlockOrderNumber() + 1) {
+            return "The split block order does not match the current database order.";
+        }
+        List<BlockLoadDTO> expectedLater = lists.getListBlock().stream()
+                .filter(block -> block != null && block.getId() != null && block.getBlockOrderNumber() != null
+                        && block.getBlockOrderNumber() > currentBlock.getBlockOrderNumber())
+                .sorted(Comparator.comparingInt(BlockLoadDTO::getBlockOrderNumber))
+                .toList();
+        List<BlockOrderDetailDTO> submitted = split.getDetails().getUpdatedBlocks();
+        if (submitted == null || submitted.size() != expectedLater.size()) {
+            return "The split request does not include every affected later block.";
+        }
+        for (int index = 0; index < expectedLater.size(); index++) {
+            BlockLoadDTO expected = expectedLater.get(index);
+            BlockOrderDetailDTO actual = submitted.get(index);
+            if (actual == null || actual.getBlockId() == null || !actual.getBlockId().equals(expected.getId())
+                    || actual.getBotJobId() == null || !actual.getBotJobId().equals(split.getBotJobId())
+                    || actual.getBlockOrderNumber() == null
+                    || actual.getBlockOrderNumber() != expected.getBlockOrderNumber() + 1) {
+                return "The later block order updates are stale or invalid.";
+            }
         }
         return null;
     }
