@@ -26,10 +26,29 @@ class InstructionMoveValidatorTest {
     }
 
     @Test
+    void acceptsCompleteConditionalFamilyCrossBlockMove() {
+        List<InstructionLoad> current = List.of(
+                row(1, "IF", 1, 10, 1), row(2, "CLICK", null, 10, 2),
+                row(3, "ELSE", 1, 10, 3), row(4, "ENDIF", 1, 10, 4),
+                row(5, "CLICK", null, 20, 1));
+        assertNull(validator.validate(current, List.of(
+                update(1, 20, 2), update(2, 20, 3), update(3, 20, 4), update(4, 20, 5))));
+    }
+
+    @Test
     void rejectsLoopParentMovement() {
         List<InstructionLoad> current = List.of(
                 row(1, "CLICK", null, 10, 1), row(2, "CLICK", null, 10, 2), row(3, "LOOP", 1, 10, 3));
         assertNotNull(validator.validate(current, List.of(update(1, 10, 2), update(2, 10, 1))));
+    }
+
+    @Test
+    void acceptsCompleteLoopSpanCrossBlockMove() {
+        List<InstructionLoad> current = List.of(
+                row(1, "CLICK", null, 10, 1), row(2, "CLICK", null, 10, 2),
+                row(3, "LOOP", 1, 10, 3), row(4, "CLICK", null, 20, 1));
+        assertNull(validator.validate(current, List.of(
+                update(1, 20, 2), update(2, 20, 3), update(3, 20, 4))));
     }
 
     @Test
