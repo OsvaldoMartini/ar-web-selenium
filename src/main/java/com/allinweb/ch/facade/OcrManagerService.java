@@ -4,7 +4,10 @@ import com.allinweb.ch.model.OcrConfigDefaults;
 import com.allinweb.ch.model.OcrConfigMeta;
 import com.allinweb.ch.model.OcrConfigParam;
 import com.allinweb.ch.model.OcrConfigProfile;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -46,6 +49,74 @@ public final class OcrManagerService {
         response.put("categories", OcrConfigDefaults.CATEGORIES_IN_ORDER);
         response.put("parameters", mergedParameters(profileId));
         return response;
+    }
+
+    public Map<String, Object> save(JsonObject body) {
+        String name = string(body, "name");
+        if (name.isBlank()) return failure("Profile name is required.");
+        int requestedId = integer(body, "profileId");
+        boolean asNew = bool(body, "asNew") || requestedId <= 0;
+        OcrConfigProfile current = requestedId > 0 ? repository.findProfileById(requestedId) : null;
+        if (requestedId > 0 && current == null) return failure("OCR profile was not found.");
+
+        OcrConfigProfile clash = repository.findProfileByName(name);
+        if (clash != null && (asNew || current == null || !clash.getId().equals(current.getId()))) {
+            if (!asNew) return failure("Profile Name cannot be repeated.");
+            name = nextVersion(name);
+        }
+
+        try {
+            int profileId;
+            if (asNew) {
+                OcrConfigProfile created = new OcrConfigProfile();
+                created.setName(name);
+                created.setDescription(string(body, "description"));
+                created.setHomebankingId(nullablePositive(body, "homeBankingId"));
+                created.setHomeUrlId(nullablePositive(body, "homeUrlId"));
+                created.setDefault(false);
+                profileId = repository.insertProfile(created);
+            } else {
+                current.setName(name);
+                current.setDescription(string(body, "description"));
+                current.setHomebankingId(nullablePositive(body, "homeBankingId"));
+                current.setHomeUrlId(nullablePositive(body, "homeUrlId"));
+                repository.updateProfile(current);
+                profileId = current.getId();
+            }
+            List<OcrConfigParam> params = parameters(body, profileId);
+            if (params.isEmpty() && asNew) {
+                OcrConfigProfile defaults = repository.findProfileByName("default");
+                params = defaults == null ? List.of() : repository.listParamsForProfile(defaults.getId());
+            }
+            for (OcrConfigParam param : params) {
+                repository.upsertParam(new OcrConfigParam(null, profileId, param.getCategory(), param.getName(),
+                        param.getValueType(), param.getValue()));
+            }
+            repository.touchProfile(profileId);
+            OcrConfigService.getInstance().invalidateAll();
+            Map<String, Object> response = ok("OCR profile saved.");
+            response.put("profileId", profileId);
+            response.put("name", name);
+            return response;
+        } catch (SQLException ex) {
+            return failure(ex.getMessage() != null && ex.getMessage().toLowerCase().contains("unique")
+                    ? "Profile Name cannot be repeated." : "Save failed: " + ex.getMessage());
+        }
+    }
+
+    public Map<String, Object> delete(JsonObject body) {
+        int profileId = integer(body, "profileId");
+        OcrConfigProfile profile = repository.findProfileById(profileId);
+        if (profile == null) return failure("OCR profile was not found.");
+        if (profile.isDefault()) return failure("Cannot delete the default profile.");
+        if (!bool(body, "confirmed")) return failure("Profile deletion requires confirmation.");
+        try {
+            repository.deleteProfile(profileId);
+            OcrConfigService.getInstance().invalidateAll();
+            return ok("OCR profile deleted.");
+        } catch (SQLException ex) {
+            return failure("Delete failed: " + ex.getMessage());
+        }
     }
 
     static List<Map<String, Object>> canonicalParameters() {
@@ -106,5 +177,39 @@ public final class OcrManagerService {
     private int integer(JsonObject body, String key) {
         try { return body != null && body.has(key) ? body.get(key).getAsInt() : -1; }
         catch (Exception ignored) { return -1; }
+    }
+    private String string(JsonObject body, String key) {
+        try { return body != null && body.has(key) && !body.get(key).isJsonNull() ? body.get(key).getAsString().trim() : ""; }
+        catch (Exception ignored) { return ""; }
+    }
+    private boolean bool(JsonObject body, String key) {
+        try { return body != null && body.has(key) && body.get(key).getAsBoolean(); }
+        catch (Exception ignored) { return false; }
+    }
+    private List<OcrConfigParam> parameters(JsonObject body, int profileId) {
+        List<OcrConfigParam> result = new ArrayList<>();
+        if (body == null || !body.has("parameters") || !body.get("parameters").isJsonArray()) return result;
+        JsonArray values = body.getAsJsonArray("parameters");
+        for (JsonElement element : values) {
+            if (!element.isJsonObject()) continue;
+            JsonObject value = element.getAsJsonObject();
+            String category = string(value, "category");
+            String name = string(value, "name");
+            if (category.isBlank() || name.isBlank()) continue;
+            result.add(new OcrConfigParam(null, profileId, category, name,
+                    string(value, "valueType"), string(value, "value")));
+        }
+        return result;
+    }
+    private String nextVersion(String requestedName) {
+        String base = requestedName.replaceFirst(" v\\d+$", "");
+        int max = 0;
+        for (OcrConfigProfile profile : repository.listProfiles()) {
+            String name = profile.getName();
+            if (name == null || !name.matches(java.util.regex.Pattern.quote(base) + " v\\d+")) continue;
+            try { max = Math.max(max, Integer.parseInt(name.substring(name.lastIndexOf('v') + 1))); }
+            catch (NumberFormatException ignored) { }
+        }
+        return base + " v" + (max + 1);
     }
 }

@@ -26,7 +26,7 @@ Complete React parity for `AROcrConfigPane`, `AROcrTestResultsPane`, and their s
 - [x] Extract pane-free OCR profile bootstrap/hydration service; mutation and test execution remain next.
 - [ ] Build `OCRConfigPanel.tsx`, `OCRTestResultsPanel.tsx`, and separate SCSS modules.
 - [ ] Render backend parameter metadata with typed controls and category sections.
-- [ ] Add Save, Save As New, Delete confirmation, Clean Orphans, and Test Current Page.
+- [ ] Add Save, Save As New, Delete confirmation, Clean Orphans, and Test Current Page. Save/Save As New/Delete backend contracts are complete.
 - [ ] Show result table, approval controls, XPath, summary counts, and annotated image securely.
 - [ ] Integrate accepted suggestions with existing `OCRPanel`/`GridItemScann` state.
 - [ ] Add profile CRUD, validation, scope, test-result, approval, and image-path security tests.

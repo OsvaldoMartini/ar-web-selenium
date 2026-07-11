@@ -263,6 +263,14 @@ public class SimpleWebSocketServer {
                     sendCommandEditorResponse(homeBankingId, sessionId, "ocrConfig.profileResponse",
                             ocrManagerService.profile(extractBody(jsonObjMSG)));
                     break;
+                case "ocrConfig.save":
+                    sendCommandEditorResponse(homeBankingId, sessionId, "ocrConfig.saveResponse",
+                            ocrManagerService.save(extractBody(jsonObjMSG)));
+                    break;
+                case "ocrConfig.delete":
+                    sendCommandEditorResponse(homeBankingId, sessionId, "ocrConfig.deleteResponse",
+                            ocrManagerService.delete(extractBody(jsonObjMSG)));
+                    break;
                 case "commandEditor.bootstrap":
                     sendCommandEditorResponse(
                             homeBankingId,
