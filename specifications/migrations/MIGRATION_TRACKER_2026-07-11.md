@@ -56,7 +56,7 @@ Finish the existing JavaFX-to-React instruction-authoring migration while preser
 - [x] Delete previews include affected row IDs, names, actions, order, and count (`70e24eff`, `0b2f300`).
   - [x] Publish authoritative delete row IDs, names, actions, and order in capability responses.
   - [x] Render the detailed impact in both React confirmation flows.
-- [ ] Block deletion still needs graph revision validation, request idempotency, dependency impact analysis, a structured React response, and removal of Java dialogs.
+- [x] Block deletion has graph revision validation, request idempotency, dependency impact analysis, atomic persistence, structured React responses, and no Java dialogs.
   - [x] Publish block instruction impact, external references, minimum-block protection, and disabled reasons.
   - [x] Consume block capabilities in React confirmation and request construction (`20ee7bb`).
   - [x] Validate revision/idempotency and persist block deletion atomically.
