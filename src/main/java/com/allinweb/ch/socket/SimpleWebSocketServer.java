@@ -1841,8 +1841,6 @@ public class SimpleWebSocketServer {
                     alreadySentMgsSocket = false;
                     break;
                 case "DELETE_INSTRUCTION": {
-                    ARExecution.DialogModal respModal = ARExecution.DialogModal.NONE;
-
                     boolean isElseIf = actions.equalsIgnoreCase("ELSEIF");
 
                     boolean isIfFamily = actions.equalsIgnoreCase("IF")
@@ -1866,28 +1864,17 @@ public class SimpleWebSocketServer {
 
                     if (errorMessage == null) {
 
-                        // If there are linked steps, show dialog only for NON-IF-family
+                        // Dependent-row cascades require explicit React impact confirmation.
                         if (!performLists.getListParentOperations().isEmpty() && !isIfFamily) {
-
-                            List<String> lstMsg =
-                                    performMessage.distributeMsg(performLists.getListParentOperations().stream()
-                                            .map(p -> p.getName() + " --> (" + p.getInstructionId() + ")-"
-                                                    + p.getParentName())
-                                            .collect(Collectors.toList()));
-
-                            respModal = performMessage.showCustomModalDialogDragWin11(
-                                    "Steps Attached",
-                                    "Are you Sure you want to delete?",
-                                    lstMsg.get(0),
-                                    lstMsg.get(1),
-                                    lstMsg.get(2),
-                                    false,
-                                    "Confirm",
-                                    "Cancel",
-                                    0);
-
-                            continueDelete = respModal.equals(ARExecution.DialogModal.OK);
-                            deleteParents = continueDelete;
+                            String dependencies = performLists.getListParentOperations().stream()
+                                    .map(parent -> parent.getName() + " (" + parent.getInstructionId() + ")")
+                                    .collect(Collectors.joining(", "));
+                            errorMessage = new ErrorMessage(
+                                    "Delete Instruction Refused",
+                                    "Steps are attached to this instruction",
+                                    "Dependent steps: " + dependencies);
+                            continueDelete = false;
+                            deleteParents = false;
 
                         } else {
                             // IF-family OR no children -> proceed
