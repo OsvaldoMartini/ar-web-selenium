@@ -75,9 +75,13 @@ public final class LicenseService {
     }
 
     public boolean permits(String operation) {
-        if (operation != null && UNRESTRICTED_OPERATIONS.contains(operation)) return true;
         JsonObject state = bootstrap();
-        return state.has("active") && state.get("active").getAsBoolean();
+        boolean active = state.has("active") && state.get("active").getAsBoolean();
+        return permits(operation, active);
+    }
+
+    static boolean permits(String operation, boolean active) {
+        return operation != null && (UNRESTRICTED_OPERATIONS.contains(operation) || active);
     }
 
     public JsonObject request(JsonObject body) {

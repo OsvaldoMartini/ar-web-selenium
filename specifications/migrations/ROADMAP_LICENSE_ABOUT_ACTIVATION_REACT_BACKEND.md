@@ -132,7 +132,7 @@ All responses must use structured fields such as `ok`, `statusCode`, `title`, `m
 - [x] React tests for capability visibility, pending state, structured errors, and successful status refresh (`13e6c93`).
 - [x] About tests for version/build/expiration, dashboard navigation, malformed-response fallback, and the shared License Manager (`04665b3`).
 - [x] React startup activation tests for blocking state, successful dashboard handoff, and Exit (`fc63b2e`).
-- [ ] Startup tests proving restricted users cannot reach protected routes.
+- [x] Add deterministic startup policy tests proving inactive sessions can use only recovery/About operations and cannot reach protected routes.
 - [ ] Windows chooser and Linux/headless fallback tests.
 - [ ] End-to-end test for request, response import, successful activation, and application re-bootstrap.
 
