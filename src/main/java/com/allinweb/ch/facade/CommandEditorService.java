@@ -36,7 +36,7 @@ public final class CommandEditorService {
     private final CommandOperationCodec operationCodec = new CommandOperationCodec();
     private final CommandCapabilityService capabilityService = new CommandCapabilityService();
     private final ConditionalGraphValidator conditionalValidator = new ConditionalGraphValidator();
-    private final Map<String, JsonObject> completedRequests = new LinkedHashMap<>();
+    private final CompletedRequestCache completedRequests = new CompletedRequestCache(256);
     private final Map<String, Boolean> completedSplitRequests = new LinkedHashMap<>();
     private final InstructionSplitValidator splitValidator = new InstructionSplitValidator();
     private final ConditionalBranchService conditionalBranchService = new ConditionalBranchService();
@@ -880,31 +880,18 @@ public final class CommandEditorService {
     }
 
     private void rememberCompleted(String requestId, JsonObject response) {
-        synchronized (completedRequests) {
-            completedRequests.put(requestId, response.deepCopy());
-            while (completedRequests.size() > 256) {
-                String oldest = completedRequests.keySet().iterator().next();
-                completedRequests.remove(oldest);
-            }
-        }
+        completedRequests.remember(requestId, response);
     }
 
     private JsonObject completedRequest(String requestId) {
         if (requestId == null || requestId.isEmpty()) return null;
-        synchronized (completedRequests) {
-            JsonObject completed = completedRequests.get(requestId);
-            return completed == null ? null : completed.deepCopy();
-        }
+        return completedRequests.get(requestId);
     }
 
     private JsonObject serializedMutation(JsonObject body, java.util.function.Supplier<JsonObject> mutation) {
         String requestId = string(body, "requestId", "").trim();
         if (requestId.isEmpty()) return mutation.get();
-        synchronized (completedRequests) {
-            JsonObject completed = completedRequests.get(requestId);
-            if (completed != null) return completed.deepCopy();
-            return mutation.get();
-        }
+        return completedRequests.execute(requestId, mutation, false);
     }
 
     private boolean editableCommand(String sessionId, int instructionId) {

@@ -9,8 +9,6 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.LinkedHashMap;
-import java.util.Map;
 import java.util.Objects;
 import java.util.List;
 
@@ -22,7 +20,7 @@ public final class VariableEditorService {
     private final Gson gson = new Gson();
     private final PerformDBEngine engine = PerformDBEngine.getInstance();
     private final WebSocketSessionManager sessions = WebSocketSessionManager.getInstance();
-    private final Map<String, JsonObject> completedRequests = new LinkedHashMap<>();
+    private final CompletedRequestCache completedRequests = new CompletedRequestCache(256);
     private final VariableOperationRewriteService operationRewriteService = new VariableOperationRewriteService();
 
     private VariableEditorService() {}
@@ -163,18 +161,7 @@ public final class VariableEditorService {
     private JsonObject serializedMutation(JsonObject body, java.util.function.Supplier<JsonObject> mutation) {
         String requestId = string(body, "requestId", "").trim();
         if (requestId.isEmpty()) return failure("Variable mutation request ID is required.");
-        synchronized (completedRequests) {
-            JsonObject completed = completedRequests.get(requestId);
-            if (completed != null) return completed.deepCopy();
-            JsonObject response = mutation.get();
-            if (response.has("ok") && response.get("ok").getAsBoolean()) {
-                completedRequests.put(requestId, response.deepCopy());
-                while (completedRequests.size() > 256) {
-                    completedRequests.remove(completedRequests.keySet().iterator().next());
-                }
-            }
-            return response;
-        }
+        return completedRequests.execute(requestId, mutation, true);
     }
 
     private int currentUsageCount(Context context, int variableId) {
