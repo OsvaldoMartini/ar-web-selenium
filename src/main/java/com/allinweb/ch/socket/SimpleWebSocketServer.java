@@ -39,6 +39,7 @@ public class SimpleWebSocketServer {
     private static final ExcelExportService excelExportService = ExcelExportService.getInstance();
     private static final SaveComponentService saveComponentService = SaveComponentService.getInstance();
     private static final OcrManagerService ocrManagerService = OcrManagerService.getInstance();
+    private static final OcrTestService ocrTestService = OcrTestService.getInstance();
     protected static volatile SimpleWebSocketServer instance;
     private static WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
     private static ActionExecutorClient actionExecutorClient = ActionExecutorClient.getInstance();
@@ -280,6 +281,10 @@ public class SimpleWebSocketServer {
                 case "ocrConfig.cleanupApply":
                     sendCommandEditorResponse(homeBankingId, sessionId, "ocrConfig.cleanupApplyResponse",
                             ocrManagerService.applyCleanup(extractBody(jsonObjMSG)));
+                    break;
+                case "ocrTest.run":
+                    sendCommandEditorResponse(homeBankingId, sessionId, "ocrTest.runResponse",
+                            ocrTestService.run(extractBody(jsonObjMSG)));
                     break;
                 case "commandEditor.bootstrap":
                     sendCommandEditorResponse(
