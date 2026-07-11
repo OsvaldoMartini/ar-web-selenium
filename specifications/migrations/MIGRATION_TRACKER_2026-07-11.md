@@ -142,6 +142,7 @@ Finish the existing JavaFX-to-React instruction-authoring migration while preser
 
 - [ ] Add delete-impact, revision, idempotency, transaction rollback, and command-codec unit tests.
   - [x] Add React command panel coverage for codec warnings and backend variable-type filtering (`b2f9fe2`).
+  - [x] Prove React Apply submits typed fields without an `operation` string (`5375075`).
 - [ ] Add SQLite/Playwright coverage using organization `2` and bot job `19`.
 - [ ] Scan instructions, add them to Memory List, create `test_block_N`, and Apply.
 - [ ] Verify persisted block and instruction rows after refresh.
