@@ -153,6 +153,7 @@ The About, License, and Activation Software Required consolidation is planned in
 
 - [ ] Add delete-impact, revision, idempotency, transaction rollback, and command-codec unit tests.
   - [x] Add deterministic graph-revision and stale-change fixtures.
+  - [x] Add authoritative delete-impact fixtures for ordinary, conditional, ELSEIF, and loop deletion.
   - [x] Add React command panel coverage for codec warnings and backend variable-type filtering (`b2f9fe2`).
   - [x] Prove React Apply submits typed fields without an `operation` string (`5375075`).
 - [ ] Add SQLite/Playwright coverage using organization `2` and bot job `19`.

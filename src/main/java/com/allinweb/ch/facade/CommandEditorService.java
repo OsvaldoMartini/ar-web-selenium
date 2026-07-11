@@ -43,6 +43,7 @@ public final class CommandEditorService {
     private final LoopGroupService loopGroupService = new LoopGroupService();
     private final InstructionMoveGroupService moveGroupService = new InstructionMoveGroupService();
     private final InstructionGraphRevisionService revisionService = new InstructionGraphRevisionService();
+    private final InstructionDeleteImpactService deleteImpactService = new InstructionDeleteImpactService();
 
     private CommandEditorService() {}
 
@@ -216,63 +217,12 @@ public final class CommandEditorService {
     }
 
     private int deleteImpactCount(InstructionLoad row, List<InstructionLoad> rows) {
-        String rowAction = row.getActions() == null ? "" : row.getActions();
-        if (Set.of("LOOP", "REFRESH_LOOP").contains(rowAction)) {
-            return loopGroupService.groupIds(rows, row.getId()).size();
-        }
-        if ("ELSEIF".equals(row.getActions())) {
-            return conditionalBranchService.elseIfBranchIds(rows, row.getId()).size();
-        }
-        if (!Set.of("IF", "ELSE", "ENDIF").contains(row.getActions())) return 1;
-        Integer rootId = "IF".equals(row.getActions()) ? row.getId() : row.getParentId();
-        if (rootId == null) return 1;
-        long children = rows.stream()
-                .filter(candidate -> candidate != null && candidate.getParentId() != null
-                        && candidate.getParentId().equals(rootId) && !rootId.equals(candidate.getId()))
-                .count();
-        return Math.toIntExact(children + 1);
+        return deleteImpactService.resolve(row, rows).size();
     }
 
     private JsonArray deleteImpactRows(InstructionLoad row, List<InstructionLoad> rows) {
         JsonArray impact = new JsonArray();
-        if (row == null || row.getId() == null) return impact;
-        String action = row.getActions() == null ? "" : row.getActions();
-        if (Set.of("LOOP", "REFRESH_LOOP").contains(action)) {
-            Set<Integer> groupIds = new java.util.HashSet<>(loopGroupService.groupIds(rows, row.getId()));
-            rows.stream()
-                    .filter(candidate -> candidate != null && candidate.getId() != null
-                            && groupIds.contains(candidate.getId()))
-                    .sorted(Comparator.comparingInt(candidate -> candidate.getInstructionOrderNumber() == null
-                            ? Integer.MAX_VALUE
-                            : candidate.getInstructionOrderNumber()))
-                    .forEach(candidate -> addDeleteImpactRow(impact, candidate));
-            return impact;
-        }
-        if ("ELSEIF".equals(action)) {
-            Set<Integer> branchIds = new java.util.HashSet<>(
-                    conditionalBranchService.elseIfBranchIds(rows, row.getId()));
-            rows.stream()
-                    .filter(candidate -> candidate != null && candidate.getId() != null
-                            && branchIds.contains(candidate.getId()))
-                    .sorted(Comparator.comparingInt(candidate -> candidate.getInstructionOrderNumber() == null
-                            ? Integer.MAX_VALUE
-                            : candidate.getInstructionOrderNumber()))
-                    .forEach(candidate -> addDeleteImpactRow(impact, candidate));
-            return impact;
-        }
-        Integer rootId = Set.of("IF", "ELSE", "ENDIF").contains(action)
-                ? ("IF".equals(action) ? row.getId() : row.getParentId())
-                : null;
-        rows.stream()
-                .filter(candidate -> candidate != null && candidate.getId() != null)
-                .filter(candidate -> rootId == null
-                        ? candidate.getId().equals(row.getId())
-                        : candidate.getId().equals(rootId)
-                                || (candidate.getParentId() != null && candidate.getParentId().equals(rootId)))
-                .sorted(Comparator.comparingInt(candidate -> candidate.getInstructionOrderNumber() == null
-                        ? Integer.MAX_VALUE
-                        : candidate.getInstructionOrderNumber()))
-                .forEach(candidate -> addDeleteImpactRow(impact, candidate));
+        deleteImpactService.resolve(row, rows).forEach(candidate -> addDeleteImpactRow(impact, candidate));
         return impact;
     }
 
