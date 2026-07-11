@@ -6,8 +6,10 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.allinweb.ch.license.LicenceVal;
+import com.allinweb.ch.license.LicenseManager;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
+import com.allinweb.ch.util.SystemDetails;
 import com.google.gson.JsonObject;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -155,6 +157,41 @@ class LicenseServiceTest {
             assertEquals(generated.toString(), response.get("requestFile").getAsString());
             assertTrue(Files.isRegularFile(generated));
             assertFalse(Files.readString(generated).contains("Temporary Client"));
+        } finally {
+            properties.setProperty(ARPropertyEnum.PATH_LICENSE.getValue(), previous == null ? "" : previous);
+        }
+    }
+
+    @Test
+    void importsResponseAndTransitionsStartupToMainDashboard() throws Exception {
+        ARPropertyManager properties = ARPropertyManager.getInstance();
+        String previous = properties.getProperty(ARPropertyEnum.PATH_LICENSE);
+        properties.setProperty(ARPropertyEnum.PATH_LICENSE.getValue(), temporaryDirectory.toString());
+        try {
+            String payload = String.join(
+                    "|",
+                    SystemDetails.getSystemComputerName(),
+                    SystemDetails.getSystemDomainName(),
+                    SystemDetails.getSystemUserName(),
+                    java.time.LocalDate.now().plusDays(30).toString(),
+                    "test-org-key",
+                    "Temporary Client",
+                    "4.6");
+            Path responseFile = temporaryDirectory.resolve("activation.response");
+            Files.writeString(responseFile, LicenseManager.encrypt(payload, "0123456789abcdef"));
+
+            JsonObject body = new JsonObject();
+            body.addProperty("requestId", "activation-e2e-" + System.nanoTime());
+            body.addProperty("responseFile", responseFile.toString());
+            body.addProperty("agreementAccepted", true);
+            JsonObject activation = LicenseService.getInstance().activate(body);
+            JsonObject startup = LicenseService.getInstance().startup();
+
+            assertTrue(activation.get("ok").getAsBoolean());
+            assertTrue(activation.get("active").getAsBoolean());
+            assertTrue(Files.isRegularFile(temporaryDirectory.resolve("ARWeb.lic")));
+            assertTrue(startup.get("allowed").getAsBoolean());
+            assertEquals("mainDashboard", startup.get("targetSessionId").getAsString());
         } finally {
             properties.setProperty(ARPropertyEnum.PATH_LICENSE.getValue(), previous == null ? "" : previous);
         }

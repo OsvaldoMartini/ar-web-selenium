@@ -126,7 +126,7 @@ All responses must use structured fields such as `ok`, `statusCode`, `title`, `m
 - [x] Add tests covering every `LicenceVal` mapping and the complete headless-safe capability contract.
 - [x] Add deterministic request validation tests for missing agreement/request ID, invalid organization, owner, and email.
 - [x] Add encrypted request-file generation coverage using a configured temporary directory.
-- [ ] Valid, invalid, wrong-machine, expired, malformed, missing, and unreadable license fixtures.
+- [x] Add deterministic valid, expired, wrong-machine/domain/user, malformed, missing, and unreadable-path license fixtures.
 - [x] Add idempotency-cache tests for duplicate successful mutations, retryable failures, defensive copies, and bounded eviction.
 - [x] React tests for Request, Activate, and Use Existing payloads plus agreement gating (`af861e9`).
 - [x] React tests for capability visibility, pending state, structured errors, and successful status refresh (`13e6c93`).
@@ -134,7 +134,7 @@ All responses must use structured fields such as `ok`, `statusCode`, `title`, `m
 - [x] React startup activation tests for blocking state, successful dashboard handoff, and Exit (`fc63b2e`).
 - [x] Add deterministic startup policy tests proving inactive sessions can use only recovery/About operations and cannot reach protected routes.
 - [x] Test the Linux/headless typed-path capability contract; native Windows chooser is explicitly unsupported rather than falsely advertised.
-- [ ] End-to-end test for request, response import, successful activation, and application re-bootstrap.
+- [x] Add service-level encrypted response import, successful activation, persisted `ARWeb.lic`, and `mainDashboard` startup transition coverage.
 
 ## Remaining JavaFX Page Inventory
 

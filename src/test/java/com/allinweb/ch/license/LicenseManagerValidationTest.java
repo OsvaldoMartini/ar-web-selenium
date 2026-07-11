@@ -1,12 +1,18 @@
 package com.allinweb.ch.license;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.allinweb.ch.util.SystemDetails;
 import java.time.LocalDate;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 class LicenseManagerValidationTest {
+    @TempDir
+    Path temporaryDirectory;
     @Test
     void acceptsCurrentMachineWithFutureExpiration() {
         assertEquals(LicenceVal.VALID, LicenseManager.validateLicense(payload(
@@ -46,6 +52,13 @@ class LicenseManagerValidationTest {
         assertEquals(LicenceVal.MISSING, LicenseManager.validateLicense(""));
         assertEquals(LicenceVal.MISSING, LicenseManager.validateLicense("only|three|parts"));
         assertEquals(LicenceVal.MISSING, LicenseManager.validateLicense("computer|domain|user|not-a-date"));
+    }
+
+    @Test
+    void mapsMissingFileAndRejectsUnreadableLicensePath() throws Exception {
+        assertEquals(LicenceVal.MISSING, LicenseManager.checkLicenseFile(temporaryDirectory.toString()));
+        Files.createDirectory(temporaryDirectory.resolve("ARWeb.lic"));
+        assertThrows(Exception.class, () -> LicenseManager.checkLicenseFile(temporaryDirectory.toString()));
     }
 
     private String payload(String computer, String domain, String user, LocalDate expiration) {
