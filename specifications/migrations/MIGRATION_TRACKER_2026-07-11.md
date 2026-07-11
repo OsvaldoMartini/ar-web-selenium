@@ -68,7 +68,8 @@ Finish the existing JavaFX-to-React instruction-authoring migration while preser
 
 ### P2 - Complete mutation transaction safety
 
-- [ ] Confirm same-block and cross-block row movement update every affected order and parent relationship in one transaction.
+- [x] Update move order, block, and database-derived parent block in one verified transaction.
+- [ ] Consolidate EXCEL GOTO cleanup, empty-block deletion, and block-order normalization into the move transaction.
 - [ ] Add rollback fixtures for failed movement updates.
 - [ ] Wrap variable update and every dependent operation rewrite in one transaction.
 - [ ] Add rollback fixtures for failed variable rewrites.

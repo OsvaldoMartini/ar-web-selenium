@@ -1371,26 +1371,53 @@ public class PerformDataBase {
         String instructionTable = tableName.equals("block") ? "instruction" : "component_instruction";
         String updateSQL = "UPDATE " + instructionTable + " SET "
                 + orderColumn + " = ?, "
-                + blockIdColumn + " = ? "
+                + blockIdColumn + " = ?, parent_block_id = ? "
                 + "WHERE " + idColumn + " = ? AND " + whereColumn + " = ?";
+        String parentSQL = "SELECT id, parent_id FROM " + instructionTable + " WHERE " + whereColumn + " = ?";
 
-        try (Connection conn = getConnection();
-                PreparedStatement pstmt = conn.prepareStatement(updateSQL)) {
-
+        try (Connection conn = getConnection()) {
             conn.setAutoCommit(false);
+            try {
+                Map<Integer, Integer> destinationBlocks = instructions.stream().collect(Collectors.toMap(
+                        UpdatedRow::getInstructionId, UpdatedRow::getBlockId, (first, ignored) -> first));
+                Map<Integer, Integer> parentIds = new HashMap<>();
+                try (PreparedStatement parents = conn.prepareStatement(parentSQL)) {
+                    parents.setInt(1, whereId);
+                    try (ResultSet rows = parents.executeQuery()) {
+                        while (rows.next()) {
+                            int parentId = rows.getInt("parent_id");
+                            if (!rows.wasNull()) parentIds.put(rows.getInt("id"), parentId);
+                        }
+                    }
+                }
 
-            for (UpdatedRow instruction : instructions) {
-                pstmt.setInt(1, instruction.getInstructionOrderNumber());
-                pstmt.setInt(2, instruction.getBlockId());
-                pstmt.setInt(3, instruction.getInstructionId());
-                pstmt.setInt(4, whereId);
-                pstmt.addBatch();
+                try (PreparedStatement update = conn.prepareStatement(updateSQL)) {
+                    for (UpdatedRow instruction : instructions) {
+                        Integer parentId = parentIds.get(instruction.getInstructionId());
+                        Integer parentBlockId = parentId == null ? null : destinationBlocks.get(parentId);
+                        if (parentId != null && parentBlockId == null) {
+                            throw new SQLException("Parent instruction " + parentId + " is missing from the move layout");
+                        }
+                        update.setInt(1, instruction.getInstructionOrderNumber());
+                        update.setInt(2, instruction.getBlockId());
+                        if (parentBlockId == null) update.setNull(3, Types.INTEGER);
+                        else update.setInt(3, parentBlockId);
+                        update.setInt(4, instruction.getInstructionId());
+                        update.setInt(5, whereId);
+                        if (update.executeUpdate() != 1) {
+                            throw new SQLException("Instruction " + instruction.getInstructionId()
+                                    + " could not be updated exactly once");
+                        }
+                    }
+                }
+                conn.commit();
+                return null;
+            } catch (SQLException error) {
+                conn.rollback();
+                throw error;
+            } finally {
+                conn.setAutoCommit(true);
             }
-
-            pstmt.executeBatch();
-            conn.commit();
-
-            return null; // success
         } catch (SQLException error) {
             logDB.error("Update Move Rows Order Error: " + error.getMessage());
             return new ErrorMessage(
