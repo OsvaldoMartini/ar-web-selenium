@@ -1137,6 +1137,83 @@ public class PerformDataBase {
         }
     }
 
+    public ErrorMessage splitBlockAtomic(
+            int botJobId,
+            BlockDetailsDTO newBlock,
+            int originalBlockId,
+            List<UpdatedRow> instructions,
+            List<BlockOrderDetailDTO> updatedBlocks) {
+        String insertSql =
+                "INSERT INTO block (block_order_number, description, name, type_id, active, wait, bot_job_id) "
+                        + "VALUES (?, ?, ?, ?, ?, ?, ?)";
+        String moveSql =
+                "UPDATE instruction SET instruction_order_number = ?, block_id = ? WHERE id = ? AND block_id = ?";
+        String orderSql = "UPDATE block SET block_order_number = ? WHERE id = ? AND bot_job_id = ?";
+
+        try (Connection conn = getConnection()) {
+            conn.setAutoCommit(false);
+            try {
+                int newBlockId;
+                try (PreparedStatement insert = conn.prepareStatement(insertSql, Statement.RETURN_GENERATED_KEYS)) {
+                    insert.setInt(1, newBlock.getBlockOrderNumber());
+                    insert.setString(2, newBlock.getBlockName() + " description");
+                    insert.setString(3, newBlock.getBlockName());
+                    insert.setInt(4, 1);
+                    insert.setInt(5, newBlock.getActive() ? 1 : 0);
+                    insert.setInt(6, 3);
+                    insert.setInt(7, botJobId);
+                    if (insert.executeUpdate() != 1) {
+                        throw new SQLException("Expected one inserted block row");
+                    }
+                    try (ResultSet keys = insert.getGeneratedKeys()) {
+                        if (!keys.next()) {
+                            throw new SQLException("Database did not return the new block ID");
+                        }
+                        newBlockId = keys.getInt(1);
+                    }
+                }
+
+                try (PreparedStatement move = conn.prepareStatement(moveSql)) {
+                    for (UpdatedRow instruction : instructions) {
+                        move.setInt(1, instruction.getInstructionOrderNumber());
+                        move.setInt(2, newBlockId);
+                        move.setInt(3, instruction.getInstructionId());
+                        move.setInt(4, originalBlockId);
+                        if (move.executeUpdate() != 1) {
+                            throw new SQLException("Instruction " + instruction.getInstructionId()
+                                    + " was not in source block " + originalBlockId);
+                        }
+                    }
+                }
+
+                try (PreparedStatement order = conn.prepareStatement(orderSql)) {
+                    for (BlockOrderDetailDTO block : updatedBlocks) {
+                        order.setInt(1, block.getBlockOrderNumber());
+                        order.setInt(2, block.getBlockId());
+                        order.setInt(3, botJobId);
+                        if (order.executeUpdate() != 1) {
+                            throw new SQLException("Block " + block.getBlockId() + " could not be reordered");
+                        }
+                    }
+                }
+
+                conn.commit();
+                idsBlockAfter.clear();
+                idsBlockAfter.add(newBlockId);
+                return null;
+            } catch (SQLException error) {
+                conn.rollback();
+                logDB.error("Atomic block split rolled back", error);
+                return new ErrorMessage("Split Block Error", "The block split was rolled back", error.getMessage());
+            } finally {
+                conn.setAutoCommit(true);
+            }
+        } catch (SQLException error) {
+            logDB.error("Connection error during atomic block split", error);
+            return new ErrorMessage("Database Connection Error", "Could not split the block", error.getMessage());
+        }
+    }
+
     public ErrorMessage rowsGetUpdateName(
             String tableName,
             int whereId, // either bot_job_id or home_banking_id

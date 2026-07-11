@@ -2331,19 +2331,14 @@ public class SimpleWebSocketServer {
         log.info("Updated Block: " + updatedBlock.size());
         newBlock.setForceOrder(true);
 
-        int homeBankId = blockSplitDTO.getHomeBankingId();
-        ErrorMessage errorMessage = performDataBase.insertNewBlock("block", blockSplitDTO.getBotJobId(), newBlock);
+        ErrorMessage errorMessage = performDataBase.splitBlockAtomic(
+                blockSplitDTO.getBotJobId(),
+                newBlock,
+                originalBlock.getBlockId(),
+                newBlock.getInstructions(),
+                updatedBlock);
 
         if (errorMessage == null) {
-            int newBlockId = -9999;
-            if (!performDataBase.getIdsBlockAfter().isEmpty()
-                    && performDataBase.getIdsBlockAfter().get(0) > 0) {
-                newBlockId = performDataBase.getIdsBlockAfter().get(0);
-            }
-
-            errorMessage = performDataBase.updateInstructionsSplitter(
-                    newBlock.getInstructions(), originalBlock.getBlockId(), newBlockId);
-
             // this is Important to update Easi the Memory
             if (errorMessage == null) {
                 errorMessage = performDataBase.loadBlocks(blockSplitDTO.getBotJobId(), "", "block");
@@ -2366,11 +2361,7 @@ public class SimpleWebSocketServer {
                         }
                     }
 
-                    List<BlockLoadDTO> mappedBlocks = mapToBlockLoad(homeBankId, updatedBlock);
-
-                    //                performDataBase.loadBlocks(blockSplitDTO.getBotJobId(), "", "block");
-                    errorMessage = performDataBase.updateSwiftBlockOrderNumber(
-                            "block", blockSplitDTO.getBotJobId(), mappedBlocks);
+                    List<BlockLoadDTO> mappedBlocks = mapToBlockLoad(blockSplitDTO.getHomeBankingId(), updatedBlock);
 
                     // UPDATE BLOCK ORDER MEMORY LIST
                     if (errorMessage == null) {
