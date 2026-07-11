@@ -88,13 +88,13 @@ Finish the existing JavaFX-to-React instruction-authoring migration while preser
 - [x] Create `useInstructionDrag.ts` and route primary drag/drop submissions from both grids through it (`fcb290e`).
 - [x] Route arrow and Memory List move submissions through `useInstructionDrag.ts` (`6633ee3`).
 - [ ] Remove duplicated inline IF/loop/move checks after backend parity is confirmed.
-- [ ] Restore original state on backend rejection without losing scroll or expanded blocks.
+- [ ] Preserve scroll and expanded/collapsed block state during authoritative rejection refresh.
 - [x] Add explicit capability-aware drag handles to both grids (`e621dcc`).
 - [x] Add backend-driven valid/invalid drop zones (`e0b073dc`, `31aa275`).
   - [x] Publish authoritative `allowedBlockIds` for each row capability.
   - [x] Render valid/invalid block states while dragging.
   - [x] Disable invalid Droppable targets so refused destinations cannot be applied optimistically (`0b95945`).
-- [ ] Add reason tooltips, group preview, and keyboard movement.
+- [ ] Complete group-move preview UX.
   - [x] Add capability reason tooltips and keyboard movement on dedicated handles (`3172806`).
   - [ ] Add connected-group move preview.
 
@@ -103,9 +103,9 @@ Finish the existing JavaFX-to-React instruction-authoring migration while preser
 - [x] Implement ELSEIF deletion as the selected boundary plus only its branch instructions.
 - [x] Preserve the surrounding IF/ELSEIF/ELSE/ENDIF family grammar.
 - [x] Implement explicit loop-group deletion without leaving a detached parent or boundary.
-- [ ] Return exact affected row IDs, names, actions, and counts before confirmation.
-- [ ] Add graph revision, request ID, impact analysis, and structured responses to block deletion.
-- [ ] Remove Java confirmation/error dialogs from active block deletion paths.
+- [x] Return exact affected row IDs, names, actions, and counts before confirmation.
+- [x] Add graph revision, request ID, impact analysis, and structured responses to block deletion.
+- [x] Remove Java confirmation/error dialogs from active block deletion paths.
 
 ### P5 - Command codec and rule completeness
 
@@ -120,7 +120,7 @@ Finish the existing JavaFX-to-React instruction-authoring migration while preser
 ### P6 - Variable parity
 
 - [ ] Verify variable create, edit, delete, usage lookup, and reference selection in both grids.
-- [ ] Make rename/type updates and dependent-operation rewrites one transaction.
+- [x] Make rename/type updates and dependent-operation rewrites one transaction (`ab80cd14`).
 - [ ] Verify bot-job and component-session parity.
 
 ### P7 - Remove remaining JavaFX routes
@@ -142,4 +142,4 @@ Finish the existing JavaFX-to-React instruction-authoring migration while preser
 
 ## Current Next Step
 
-Implement split preview and authoritative split responses, then verify atomic movement persistence before starting the shared React drag controller.
+Enforce command-variable type compatibility in Java and capability metadata, then complete command codec fixtures and JavaFX route auditing.
