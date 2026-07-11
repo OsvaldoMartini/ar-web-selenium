@@ -124,10 +124,10 @@ All responses must use structured fields such as `ok`, `statusCode`, `title`, `m
 ## Test Gates
 
 - [ ] Unit tests for every `LicenceVal` mapping and capability combination.
-- [ ] Request validation tests for missing agreement, organization, owner, and invalid email.
+- [x] Add deterministic request validation tests for missing agreement/request ID, invalid organization, owner, and email.
 - [ ] Request-file generation tests using temporary directories.
 - [ ] Valid, invalid, wrong-machine, expired, malformed, missing, and unreadable license fixtures.
-- [ ] Idempotency tests for duplicate request and activation messages.
+- [x] Add idempotency-cache tests for duplicate successful mutations, retryable failures, defensive copies, and bounded eviction.
 - [x] React tests for Request, Activate, and Use Existing payloads plus agreement gating (`af861e9`).
 - [x] React tests for capability visibility, pending state, structured errors, and successful status refresh (`13e6c93`).
 - [x] About tests for version/build/expiration, dashboard navigation, malformed-response fallback, and the shared License Manager (`04665b3`).
