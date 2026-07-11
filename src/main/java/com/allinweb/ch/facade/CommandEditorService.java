@@ -95,15 +95,24 @@ public final class CommandEditorService {
         response.addProperty("ok", error == null);
         JsonArray capabilities = new JsonArray();
         if (error == null) {
-            Set<Integer> protectedIds = memoryProtectedIds(instructions(sessionId));
-            for (InstructionLoad row : instructions(sessionId)) {
+            List<InstructionLoad> instructionRows = instructions(sessionId);
+            Set<Integer> protectedIds = memoryProtectedIds(instructionRows);
+            Set<Integer> referencedIds = instructionRows.stream()
+                    .filter(row -> row != null && row.getParentId() != null && !row.getParentId().equals(row.getId()))
+                    .map(InstructionLoad::getParentId)
+                    .collect(java.util.stream.Collectors.toSet());
+            Set<Integer> invalidConditionalIds = invalidConditionalBlockIds(instructionRows);
+            for (InstructionLoad row : instructionRows) {
                 if (row == null || row.getId() == null) continue;
                 String reason = memoryBlockReason(row, protectedIds);
                 JsonObject capability = new JsonObject();
                 capability.addProperty("instructionId", row.getId());
                 capability.addProperty("canAddToMemory", reason == null);
                 capability.addProperty("canMove", reason == null);
+                String deleteReason = deleteBlockReason(row, referencedIds, invalidConditionalIds);
+                capability.addProperty("canDelete", deleteReason == null);
                 if (reason != null) capability.addProperty("reason", reason);
+                if (deleteReason != null) capability.addProperty("deleteReason", deleteReason);
                 capabilities.add(capability);
             }
         } else {
@@ -112,6 +121,30 @@ public final class CommandEditorService {
         response.add("capabilities", capabilities);
         if (error == null) response.addProperty("graphRevision", graphRevision(sessionId));
         return response;
+    }
+
+    private Set<Integer> invalidConditionalBlockIds(List<InstructionLoad> rows) {
+        Set<Integer> invalidIds = new java.util.HashSet<>();
+        for (List<InstructionLoad> blockRows : rows.stream()
+                .filter(row -> row != null && row.getBlockId() != null)
+                .collect(java.util.stream.Collectors.groupingBy(InstructionLoad::getBlockId)).values()) {
+            blockRows.sort(Comparator.comparingInt(row -> row.getInstructionOrderNumber() == null
+                    ? Integer.MAX_VALUE : row.getInstructionOrderNumber()));
+            if (conditionalValidator.validate(blockRows) != null) {
+                blockRows.stream().filter(row -> row.getId() != null).forEach(row -> invalidIds.add(row.getId()));
+            }
+        }
+        return invalidIds;
+    }
+
+    private String deleteBlockReason(InstructionLoad row, Set<Integer> referencedIds, Set<Integer> invalidConditionalIds) {
+        if (invalidConditionalIds.contains(row.getId())) return "Conditional graph is invalid.";
+        if (Set.of("LOOP", "REFRESH_LOOP").contains(row.getActions())) return "Loop boundaries require group deletion.";
+        if ("ELSEIF".equals(row.getActions())) return "ELSEIF requires branch-aware deletion.";
+        if (referencedIds.contains(row.getId()) && !Set.of("IF", "ELSE", "ENDIF").contains(row.getActions())) {
+            return "Other instructions depend on this row.";
+        }
+        return null;
     }
 
     public ErrorMessage validateMoveRevision(SplitDTO split) {
