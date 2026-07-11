@@ -1841,12 +1841,70 @@ public class SimpleWebSocketServer {
                     alreadySentMgsSocket = false;
                     break;
                 case "DELETE_INSTRUCTION": {
+                    errorMessage = performDataBase.loadInstructions(whereId, -1, -1, instrTable);
+                    if (errorMessage != null) break;
+                    InstructionLoad storedDelete = findInstructionInMemory(instrTable, whereId, instructionId);
+                    if (storedDelete == null) {
+                        errorMessage = new ErrorMessage(
+                                "Delete Instruction Refused",
+                                "Instruction not found",
+                                "The selected instruction no longer exists. Refresh the grid.");
+                        break;
+                    }
+                    String storedAction = storedDelete.getActions() == null ? "" : storedDelete.getActions();
+                    int storedParentId = storedDelete.getParentId() == null ? -1 : storedDelete.getParentId();
+                    int storedBlockId = storedDelete.getBlockId() == null ? -1 : storedDelete.getBlockId();
+                    if (!storedAction.equalsIgnoreCase(actions)
+                            || storedParentId != parentId
+                            || storedBlockId != blockId) {
+                        errorMessage = new ErrorMessage(
+                                "Delete Instruction Refused",
+                                "Instruction metadata changed",
+                                "Refresh the grid before deleting this instruction.");
+                        break;
+                    }
+
+                    if (storedAction.equalsIgnoreCase("LOOP") || storedAction.equalsIgnoreCase("REFRESH_LOOP")) {
+                        errorMessage = new ErrorMessage(
+                                "Delete Instruction Refused",
+                                "Loop relationship must remain intact",
+                                "LOOP and REFRESH_LOOP cannot be deleted independently from their parent Web Field.");
+                        break;
+                    }
+                    if (storedAction.equalsIgnoreCase("ELSEIF")) {
+                        errorMessage = new ErrorMessage(
+                                "Delete Instruction Refused",
+                                "ELSEIF branch deletion requires graph-aware removal",
+                                "The complete ELSEIF branch must be analyzed before it can be deleted.");
+                        break;
+                    }
+
                     boolean isElseIf = actions.equalsIgnoreCase("ELSEIF");
 
                     boolean isIfFamily = actions.equalsIgnoreCase("IF")
                             || actions.equalsIgnoreCase("ELSE")
                             || actions.equalsIgnoreCase("ENDIF")
                             || actions.equalsIgnoreCase("ELSEIF");
+
+                    if (isIfFamily) {
+                        List<InstructionLoad> conditionalBlock = (instrTable.equals("instruction")
+                                        ? performLists.getListInstruction()
+                                        : performLists.getListInstructionComp())
+                                .stream()
+                                .filter(row -> row != null && Objects.equals(row.getBlockId(), storedBlockId))
+                                .sorted(Comparator.comparingInt(row -> row.getInstructionOrderNumber() == null
+                                        ? Integer.MAX_VALUE
+                                        : row.getInstructionOrderNumber()))
+                                .toList();
+                        String conditionalError = new ConditionalGraphValidator().validate(conditionalBlock);
+                        if (conditionalError != null) {
+                            errorMessage = new ErrorMessage(
+                                    "Delete Instruction Refused",
+                                    "Invalid conditional graph",
+                                    conditionalError);
+                            break;
+                        }
+                    }
 
                     // only IF/ELSE/ENDIF delete the whole group (root IF)
                     boolean isIfFamilyRootDelete = actions.equalsIgnoreCase("IF")
