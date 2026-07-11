@@ -30,7 +30,6 @@ public class ARElementValuePane extends ARPane {
     private static final PerformLists performLists = PerformLists.getInstance();
     private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
     private static final PerformMessage performMessage = PerformMessage.getInstance();
-    private static final ARNewCommandPane arNewCommandPane = ARNewCommandPane.getInstance();
     protected static volatile ARElementValuePane instance;
     private static WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
     private final Gson gson = new Gson();
@@ -504,7 +503,7 @@ public class ARElementValuePane extends ARPane {
 
             performDataBase.createVariable(user);
 
-            arNewCommandPane.reloadComboVars(varTable, whereId, instructionId, true, -1);
+            performDataBase.loadAllVariablesByCriteria(varTable, whereId, instructionId, instructionName);
             tableItems.setAll(performLists.getListVariablesUser());
         });
 
@@ -608,7 +607,7 @@ public class ARElementValuePane extends ARPane {
                 performMessage.errorMessageOperationFailed(errorMessage);
             }
 
-            arNewCommandPane.reloadComboVars(varTable, whereId, instructionId, true, varId);
+            performDataBase.loadAllVariablesByCriteria(varTable, whereId, instructionId, instructionName);
             tableItems.setAll(performLists.getListVariablesUser());
         });
 
@@ -640,7 +639,7 @@ public class ARElementValuePane extends ARPane {
             if (errorMessage != null) {
                 performMessage.errorMessageOperationFailed(errorMessage);
             }
-            arNewCommandPane.reloadComboVars(varTable, whereId, instructionId, true, -1);
+            performDataBase.loadAllVariablesByCriteria(varTable, whereId, instructionId, instructionName);
             tableItems.setAll(performLists.getListVariablesUser());
         });
 

@@ -1,6 +1,5 @@
 package com.allinweb.ch.component.scene;
 
-import com.allinweb.ch.component.pane.ARNewCommandPane;
 import com.allinweb.ch.component.pane.ARScannedElementPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
@@ -50,7 +49,6 @@ public class ARScannedElementScene extends ARScene {
     private static final ARWebDriver arWebDriver = ARWebDriver.getInstance();
     private static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
     private static final PerformMessage performMessage = PerformMessage.getInstance();
-    private static final ARNewCommandPane arNewCommandPane = ARNewCommandPane.getInstance();
     private static final PerformActions performActions = PerformActions.getInstance();
     private static final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
     protected static volatile ARScannedElementScene instance;
@@ -241,7 +239,6 @@ public class ARScannedElementScene extends ARScene {
                     BlockMoveDTO blockMoveDTO = gson.fromJson(body, BlockMoveDTO.class);
 
                     if (previousBlock != null && !previousBlock.equals(type)) {
-                        arNewCommandPane.closePane();
                         previousBlock = type;
                     }
 
@@ -264,7 +261,6 @@ public class ARScannedElementScene extends ARScene {
                     }
 
                     if (previousBlock != null && !previousBlock.equals(blockUpdate)) {
-                        arNewCommandPane.closePane();
                         previousBlock = blockUpdate;
                     } else if (previousBlock == null) {
                         previousBlock = blockUpdate;
@@ -313,7 +309,6 @@ public class ARScannedElementScene extends ARScene {
                             splitDTO.getSessionId().equals("componentTasks") ? "UPDATE_BLOCKS_COMP" : "UPDATE_BLOCKS";
 
                     if (previousBlock != null && !previousBlock.equals(blockUpdate)) {
-                        arNewCommandPane.closePane();
                         previousBlock = blockUpdate;
                     } else if (previousBlock == null) {
                         previousBlock = blockUpdate;
@@ -331,7 +326,6 @@ public class ARScannedElementScene extends ARScene {
                             splitDTO.getSessionId().equals("componentTasks") ? "UPDATE_BLOCKS_COMP" : "UPDATE_BLOCKS";
 
                     if (previousBlock != null && !previousBlock.equals(blockUpdate)) {
-                        arNewCommandPane.closePane();
                         previousBlock = blockUpdate;
                     } else if (previousBlock == null) {
                         previousBlock = blockUpdate;
@@ -414,7 +408,6 @@ public class ARScannedElementScene extends ARScene {
                                 : "UPDATE_BLOCKS";
 
                         if (previousBlock != null && !previousBlock.equals(blockUpdate)) {
-                            arNewCommandPane.closePane();
                             previousBlock = blockUpdate;
                         } else if (previousBlock == null) {
                             previousBlock = blockUpdate;
@@ -488,7 +481,6 @@ public class ARScannedElementScene extends ARScene {
                                 : "UPDATE_BLOCKS";
 
                         if (previousBlock != null && !previousBlock.equals(blockUpdate)) {
-                            arNewCommandPane.closePane();
                             previousBlock = blockUpdate;
                         } else if (previousBlock == null) {
                             previousBlock = blockUpdate;
