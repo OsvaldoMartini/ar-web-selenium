@@ -79,7 +79,8 @@ Finish the existing JavaFX-to-React instruction-authoring migration while preser
 
 ### P3 - Shared React drag controller
 
-- [ ] Create `useInstructionDrag.ts` shared by `GridItem.tsx` and `GridItemComp.tsx`.
+- [x] Create `useInstructionDrag.ts` and route primary drag/drop submissions from both grids through it (`fcb290e`).
+- [ ] Route arrow and Memory List move submissions through `useInstructionDrag.ts`.
 - [ ] Remove duplicated inline IF/loop/move checks after backend parity is confirmed.
 - [ ] Restore original state on backend rejection without losing scroll or expanded blocks.
 - [ ] Add explicit drag handles and backend-driven valid/invalid drop zones.
