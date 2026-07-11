@@ -196,6 +196,18 @@ public class SimpleWebSocketServer {
                             "about.bootstrapResponse",
                             LicenseService.getInstance().about());
                     break;
+                case "license.request":
+                    sendCommandEditorResponse(homeBankingId, sessionId, "license.requestResponse",
+                            LicenseService.getInstance().request(extractBody(jsonObjMSG)));
+                    break;
+                case "license.activate":
+                    sendCommandEditorResponse(homeBankingId, sessionId, "license.activateResponse",
+                            LicenseService.getInstance().activate(extractBody(jsonObjMSG)));
+                    break;
+                case "license.useExisting":
+                    sendCommandEditorResponse(homeBankingId, sessionId, "license.useExistingResponse",
+                            LicenseService.getInstance().useExisting(extractBody(jsonObjMSG)));
+                    break;
                 case "commandEditor.bootstrap":
                     sendCommandEditorResponse(
                             homeBankingId,

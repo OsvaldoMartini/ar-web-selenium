@@ -54,18 +54,18 @@ All responses must use structured fields such as `ok`, `statusCode`, `title`, `m
 - [ ] Extract one pane-free `LicenseService` around existing cryptographic and fingerprint logic.
 - [ ] Define one typed status mapping for every `LicenceVal` value.
 - [ ] Move agreement text to one versioned resource returned by the backend or bundled once in React.
-- [ ] Centralize email, organization, owner, agreement, path, and response-file validation.
+- [x] Centralize email, organization, owner, agreement, path, and response-file validation.
 - [ ] Keep private keys, machine identity, fingerprint generation, and protected file parsing out of React.
-- [ ] Add request IDs and serialize activation mutations to prevent duplicate imports or request files.
+- [x] Add request IDs and serialize activation mutations to prevent duplicate imports or request files.
 
 ## Phase 2 - Backend API
 
 - [x] Implement read-only `LicenseService` bootstrap/status/About contracts without JavaFX imports.
 - [x] Add the license status/bootstrap and About bootstrap WebSocket routes to `SimpleWebSocketServer`.
-- [ ] Return capabilities for request, activate, use-existing, choose-file, and choose-directory.
-- [ ] Return safe error details without exposing license secrets or raw encrypted content.
-- [ ] Persist selected license path, organization, and owner only after successful operations.
-- [ ] Recheck the imported or selected license before returning success.
+- [x] Return capabilities for request, activate, use-existing, choose-file, and choose-directory.
+- [x] Return safe error details without exposing license secrets or raw encrypted content.
+- [x] Persist selected license path, organization, and owner only after successful operations.
+- [x] Recheck the imported or selected license before returning success.
 - [ ] Publish an application-level license-status update so Main Dashboard and open job views update immediately.
 
 ## Phase 3 - React License Manager
