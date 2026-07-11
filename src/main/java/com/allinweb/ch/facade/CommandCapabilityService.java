@@ -15,11 +15,9 @@ public final class CommandCapabilityService {
             String code = command.get("code").getAsString();
             boolean familyRoot = "IF".equals(code);
             boolean excelConflict = "EXCEL GOTO".equals(code) && excelGotoConflict;
-            command.addProperty("insertAllowed", !familyRoot && !excelConflict);
+            command.addProperty("insertAllowed", !excelConflict);
             command.addProperty("editAllowed", selectedEditable && !familyRoot && !excelConflict);
-            if (familyRoot) {
-                command.addProperty("disabledReason", "IF must be created as a complete conditional family.");
-            } else if (excelConflict) {
+            if (excelConflict) {
                 command.addProperty("disabledReason", "Only one EXCEL GOTO command is allowed in this job.");
             }
             capabilities.add(command);

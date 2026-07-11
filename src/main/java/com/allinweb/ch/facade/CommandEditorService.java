@@ -142,7 +142,9 @@ public final class CommandEditorService {
 
         if (action.isEmpty() || name.isEmpty()) return failure("Command and name are required.");
         if (!CommandRegistry.isCommand(action)) return failure("Unsupported command action: " + action);
-        if ("IF".equals(action)) return failure("IF must be created as a complete conditional family.");
+        if ("edit".equals(mode) && "IF".equals(action)) {
+            return failure("IF must be inserted as a complete conditional family and cannot replace one instruction.");
+        }
         if (integer(body, "blockId", -1) < 1) return failure("A valid block is required.");
         if ("edit".equals(mode) && !editableCommand(targetSession, integer(body, "instructionId", -1))) {
             return failure("Original Web Fields and conditional boundaries cannot be converted with Edit Command.");
