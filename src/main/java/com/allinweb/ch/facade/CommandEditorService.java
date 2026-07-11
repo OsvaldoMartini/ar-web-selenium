@@ -132,6 +132,7 @@ public final class CommandEditorService {
                 String deleteReason = deleteBlockReason(row, referencedIds, invalidConditionalIds);
                 capability.addProperty("canDelete", deleteReason == null);
                 capability.addProperty("deleteCount", deleteImpactCount(row, instructionRows));
+                capability.add("deleteRows", deleteImpactRows(row, instructionRows));
                 if (reason != null) capability.addProperty("reason", reason);
                 if (deleteReason != null) capability.addProperty("deleteReason", deleteReason);
                 capabilities.add(capability);
@@ -177,6 +178,33 @@ public final class CommandEditorService {
                         && candidate.getParentId().equals(rootId) && !rootId.equals(candidate.getId()))
                 .count();
         return Math.toIntExact(children + 1);
+    }
+
+    private JsonArray deleteImpactRows(InstructionLoad row, List<InstructionLoad> rows) {
+        JsonArray impact = new JsonArray();
+        if (row == null || row.getId() == null) return impact;
+        String action = row.getActions() == null ? "" : row.getActions();
+        Integer rootId = Set.of("IF", "ELSE", "ENDIF").contains(action)
+                ? ("IF".equals(action) ? row.getId() : row.getParentId())
+                : null;
+        rows.stream()
+                .filter(candidate -> candidate != null && candidate.getId() != null)
+                .filter(candidate -> rootId == null
+                        ? candidate.getId().equals(row.getId())
+                        : candidate.getId().equals(rootId)
+                                || (candidate.getParentId() != null && candidate.getParentId().equals(rootId)))
+                .sorted(Comparator.comparingInt(candidate -> candidate.getInstructionOrderNumber() == null
+                        ? Integer.MAX_VALUE
+                        : candidate.getInstructionOrderNumber()))
+                .forEach(candidate -> {
+                    JsonObject item = new JsonObject();
+                    item.addProperty("id", candidate.getId());
+                    item.addProperty("name", candidate.getName());
+                    item.addProperty("action", candidate.getActions());
+                    item.addProperty("order", candidate.getInstructionOrderNumber());
+                    impact.add(item);
+                });
+        return impact;
     }
 
     public ErrorMessage validateMoveRevision(SplitDTO split) {

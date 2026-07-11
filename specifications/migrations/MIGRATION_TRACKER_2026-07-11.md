@@ -54,6 +54,8 @@ Finish the existing JavaFX-to-React instruction-authoring migration while preser
 - [ ] LOOP/REFRESH_LOOP deletion is safely denied, but loop-group deletion is not implemented.
 - [x] Normal drag/arrow movement restores authoritative state and shows the final backend refusal in both grids (`d1c622e`).
 - [ ] Delete previews must include affected row IDs and names, not only a count.
+  - [x] Publish authoritative delete row IDs, names, actions, and order in capability responses.
+  - [ ] Render the detailed impact in both React confirmation flows.
 - [ ] Block deletion still needs graph revision validation, request idempotency, dependency impact analysis, a structured React response, and removal of Java dialogs.
 - [ ] Variable mutation plus dependent command rewrites still needs one transaction.
 - [ ] Java must enforce variable type compatibility for every command, including crafted requests.
