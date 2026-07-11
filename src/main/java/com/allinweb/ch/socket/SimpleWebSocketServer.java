@@ -181,6 +181,21 @@ public class SimpleWebSocketServer {
                             "echo: " + jsonObjMSG.get("body").getAsString(),
                             "sessionId: " + sessionId);
                     break;
+                case "license.bootstrap":
+                case "license.status":
+                    sendCommandEditorResponse(
+                            homeBankingId,
+                            sessionId,
+                            type + "Response",
+                            LicenseService.getInstance().bootstrap());
+                    break;
+                case "about.bootstrap":
+                    sendCommandEditorResponse(
+                            homeBankingId,
+                            sessionId,
+                            "about.bootstrapResponse",
+                            LicenseService.getInstance().about());
+                    break;
                 case "commandEditor.bootstrap":
                     sendCommandEditorResponse(
                             homeBankingId,

@@ -60,8 +60,8 @@ All responses must use structured fields such as `ok`, `statusCode`, `title`, `m
 
 ## Phase 2 - Backend API
 
-- [ ] Implement `LicenseService` without JavaFX imports.
-- [ ] Add the license and About WebSocket routes to `SimpleWebSocketServer`.
+- [x] Implement read-only `LicenseService` bootstrap/status/About contracts without JavaFX imports.
+- [x] Add the license status/bootstrap and About bootstrap WebSocket routes to `SimpleWebSocketServer`.
 - [ ] Return capabilities for request, activate, use-existing, choose-file, and choose-directory.
 - [ ] Return safe error details without exposing license secrets or raw encrypted content.
 - [ ] Persist selected license path, organization, and owner only after successful operations.
