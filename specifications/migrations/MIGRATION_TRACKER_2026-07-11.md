@@ -131,7 +131,7 @@ The About, License, and Activation Software Required consolidation is planned in
 
 ### P6 - Variable parity
 
-- [ ] Verify variable create, edit, delete, usage lookup, and reference selection in both grids.
+- [x] Verify variable create, edit, delete, usage lookup, and reference selection in both grids (`f1562ff`).
   - [x] Add pure dependent-operation rewrite fixtures for every variable command family.
   - [x] Test React component-session variable creation and usage-protected deletion (`4ffe287`).
   - [x] Test React bot-job variable edit, reference selection, and confirmed unused deletion (`27d63c6`).

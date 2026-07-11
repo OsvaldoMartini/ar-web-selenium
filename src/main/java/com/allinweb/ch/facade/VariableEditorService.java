@@ -5,6 +5,7 @@ import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.util.ErrorMessage;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -180,7 +181,8 @@ public final class VariableEditorService {
         String ownerColumn = "componentTasks".equals(context.sessionId) ? "home_banking_id" : "bot_job_id";
         String sql = "SELECT COUNT(*) FROM " + context.instructionTable
                 + " WHERE variable_id=? AND " + ownerColumn + "=?";
-        try (PreparedStatement statement = database.getConnection().prepareStatement(sql)) {
+        try (Connection connection = database.getConnection();
+                PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setInt(1, variableId);
             statement.setInt(2, context.whereId);
             try (ResultSet result = statement.executeQuery()) {
