@@ -108,6 +108,7 @@ The About, License, and Activation Software Required consolidation is planned in
   - [x] Add connected-group move preview.
     - [x] Add revision-checked `instructionGraph.previewMove` and connected-group fixtures.
     - [x] Render and confirm the authoritative group preview in both React grids (`d9b0a5e`).
+    - [x] Route Alt+Arrow movement through the same authoritative connected-group preview (`8511290`).
 
 ### P4 - Graph-aware deletion completion
 
