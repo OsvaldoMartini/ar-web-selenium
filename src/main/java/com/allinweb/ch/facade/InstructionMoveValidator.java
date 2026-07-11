@@ -99,6 +99,18 @@ public final class InstructionMoveValidator {
             if (parent == null || parent.blockId != loop.blockId) {
                 return "LOOP and REFRESH_LOOP must remain in the same block as their parent Web Field.";
             }
+            if (loop.moved() || parent.moved()) {
+                return "LOOP, REFRESH_LOOP, and their parent Web Field cannot be moved independently.";
+            }
+            int firstOrder = Math.min(parent.originalOrder, loop.originalOrder);
+            int lastOrder = Math.max(parent.originalOrder, loop.originalOrder);
+            for (ProposedRow member : proposed.values()) {
+                if (member.originalBlockId == parent.originalBlockId
+                        && member.originalOrder >= firstOrder && member.originalOrder <= lastOrder
+                        && member.blockId != member.originalBlockId) {
+                    return "Instructions inside a loop span cannot move to another block independently.";
+                }
+            }
         }
         return null;
     }
@@ -117,6 +129,8 @@ public final class InstructionMoveValidator {
         private final int id;
         private final String action;
         private final Integer parentId;
+        private final int originalBlockId;
+        private final int originalOrder;
         private int blockId;
         private int order;
 
@@ -124,6 +138,8 @@ public final class InstructionMoveValidator {
             this.id = id;
             this.action = action;
             this.parentId = parentId;
+            this.originalBlockId = blockId;
+            this.originalOrder = order;
             this.blockId = blockId;
             this.order = order;
         }
@@ -140,6 +156,10 @@ public final class InstructionMoveValidator {
             row.setBlockId(blockId);
             row.setInstructionOrderNumber(order);
             return row;
+        }
+
+        private boolean moved() {
+            return blockId != originalBlockId || order != originalOrder;
         }
     }
 }
