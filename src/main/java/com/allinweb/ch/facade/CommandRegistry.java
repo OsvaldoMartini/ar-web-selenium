@@ -45,6 +45,14 @@ public final class CommandRegistry {
         return definition != null && definition.fields().contains(field);
     }
 
+    public static boolean supportsTag(String action, String tagName) {
+        Definition definition = DEFINITIONS.get(canonicalize(action));
+        if (definition == null) return false;
+        if (definition.allowedTags().isEmpty()) return true;
+        String normalized = tagName == null ? "" : tagName.trim().toLowerCase(Locale.ROOT);
+        return definition.allowedTags().contains(normalized);
+    }
+
     public static int defaultHold(String action) {
         return "H".equals(canonicalize(action)) ? 5 : 1;
     }
@@ -57,7 +65,7 @@ public final class CommandRegistry {
 
     private static Map<String, Definition> definitions() {
         Map<String, Definition> definitions = new LinkedHashMap<>();
-        add(definitions, "SET", "Set Value", "variable", "webField", "variable");
+        addWithTags(definitions, "SET", "Set Value", "variable", List.of("input", "select", "textarea"), "webField", "variable");
         add(definitions, "GET", "Get Value", "variable", "webField", "variable");
         add(definitions, "CK", "Check Value", "variable", "webField", "variable", "operator");
         add(definitions, "PDF CHECK", "PDF Check", "variable", "webField", "variable", "operator");
@@ -81,10 +89,15 @@ public final class CommandRegistry {
 
     private static void add(
             Map<String, Definition> definitions, String code, String label, String target, String... fields) {
-        definitions.put(code, new Definition(code, label, target, List.of(fields)));
+        definitions.put(code, new Definition(code, label, target, List.of(fields), List.of()));
     }
 
-    private record Definition(String code, String label, String target, List<String> fields) {
+    private static void addWithTags(Map<String, Definition> definitions, String code, String label, String target,
+            List<String> allowedTags, String... fields) {
+        definitions.put(code, new Definition(code, label, target, List.of(fields), allowedTags));
+    }
+
+    private record Definition(String code, String label, String target, List<String> fields, List<String> allowedTags) {
         private JsonObject toJson() {
             JsonObject json = new JsonObject();
             json.addProperty("code", code);
@@ -93,6 +106,9 @@ public final class CommandRegistry {
             JsonArray fieldDefinitions = new JsonArray();
             fields.forEach(fieldDefinitions::add);
             json.add("fields", fieldDefinitions);
+            JsonArray tags = new JsonArray();
+            allowedTags.forEach(tags::add);
+            json.add("allowedTags", tags);
             return json;
         }
     }

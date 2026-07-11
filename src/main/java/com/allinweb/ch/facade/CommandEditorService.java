@@ -173,8 +173,14 @@ public final class CommandEditorService {
         if (CommandRegistry.requires(action, "webField") && parentId == null) return failure("Select a compatible Web Field.");
         if (CommandRegistry.requires(action, "variable") && variableId == null) return failure("Select a Variable for the Web Field.");
         if (CommandRegistry.requires(action, "block") && parentBlockId == null) return failure("Select a destination Block.");
-        if (parentId != null && !webFieldBelongsToBlock(targetSession, parentId, integer(body, "blockId", -1))) {
+        InstructionLoad selectedWebField = parentId == null ? null : webField(targetSession, parentId);
+        if (parentId != null && (selectedWebField == null
+                || selectedWebField.getBlockId() == null
+                || selectedWebField.getBlockId() != integer(body, "blockId", -1))) {
             return failure("The selected Web Field is outside the reference instruction block.");
+        }
+        if (selectedWebField != null && !CommandRegistry.supportsTag(action, selectedWebField.getTagName())) {
+            return failure(action + " is not compatible with the selected Web Field type.");
         }
         if (variableId != null && parentId != null && !variableBelongsToWebField(targetSession, variableId, parentId, integer(body, "botJobId", -1), integer(body, "homeBankingId", -1))) {
             return failure("The selected Variable does not belong to the selected Web Field.");
@@ -406,16 +412,13 @@ public final class CommandEditorService {
         return response;
     }
 
-    private boolean webFieldBelongsToBlock(String sessionId, int instructionId, int blockId) {
-        List<InstructionLoad> instructions = "componentTasks".equals(sessionId)
-                ? lists.getListInstructionComp()
-                : lists.getListInstruction();
-        return instructions.stream().anyMatch(row -> row != null
+    private InstructionLoad webField(String sessionId, int instructionId) {
+        return instructions(sessionId).stream().filter(row -> row != null
                 && row.getId() != null
                 && row.getId() == instructionId
-                && row.getBlockId() != null
-                && row.getBlockId() == blockId
-                && !isSpecialAction(row.getActions()));
+                && !isSpecialAction(row.getActions()))
+                .findFirst()
+                .orElse(null);
     }
 
     private boolean variableBelongsToWebField(
