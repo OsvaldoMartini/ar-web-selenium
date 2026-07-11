@@ -35,6 +35,11 @@ public final class CommandRegistry {
         return DEFINITIONS.containsKey(canonicalize(action));
     }
 
+    public static boolean isEditableCommand(String action) {
+        String canonical = canonicalize(action);
+        return DEFINITIONS.containsKey(canonical) && !"IF".equals(canonical);
+    }
+
     public static boolean requires(String action, String field) {
         Definition definition = DEFINITIONS.get(canonicalize(action));
         return definition != null && definition.fields().contains(field);

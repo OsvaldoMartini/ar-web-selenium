@@ -29,6 +29,7 @@ public final class CommandEditorService {
     private final WebSocketSessionManager sessions = WebSocketSessionManager.getInstance();
     private final Gson gson = new Gson();
     private final CommandOperationCodec operationCodec = new CommandOperationCodec();
+    private final CommandCapabilityService capabilityService = new CommandCapabilityService();
     private final Map<String, JsonObject> completedRequests = new LinkedHashMap<>();
 
     private CommandEditorService() {}
@@ -57,7 +58,12 @@ public final class CommandEditorService {
         response.add("webFields", webFields(sessionId));
         response.add("blocks", gson.toJsonTree(
                 "componentTasks".equals(sessionId) ? lists.getListBlockComp() : lists.getListBlock()));
-        response.add("commands", CommandRegistry.catalog());
+        boolean excelGotoConflict = excelGotoExists(
+                sessionId,
+                integer(body, "botJobId", -1),
+                integer(body, "homeBankingId", -1),
+                instructionId);
+        response.add("commands", capabilityService.catalog(string(body, "instructionActions", ""), excelGotoConflict));
         if (error != null) response.addProperty("error", error.getErrorMessage());
         return response;
     }
@@ -136,6 +142,7 @@ public final class CommandEditorService {
 
         if (action.isEmpty() || name.isEmpty()) return failure("Command and name are required.");
         if (!CommandRegistry.isCommand(action)) return failure("Unsupported command action: " + action);
+        if ("IF".equals(action)) return failure("IF must be created as a complete conditional family.");
         if (integer(body, "blockId", -1) < 1) return failure("A valid block is required.");
         if ("edit".equals(mode) && !editableCommand(targetSession, integer(body, "instructionId", -1))) {
             return failure("Original Web Fields and conditional boundaries cannot be converted with Edit Command.");
@@ -313,8 +320,7 @@ public final class CommandEditorService {
         return instructions.stream().anyMatch(row -> row != null
                 && row.getId() != null
                 && row.getId() == instructionId
-                && isSpecialAction(row.getActions())
-                && !Set.of("IF", "ELSEIF", "ELSE", "ENDIF").contains(row.getActions()));
+                && CommandRegistry.isEditableCommand(row.getActions()));
     }
 
     private boolean excelGotoExists(
