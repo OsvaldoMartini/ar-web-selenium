@@ -116,7 +116,7 @@ Finish the existing JavaFX-to-React instruction-authoring migration while preser
 - [x] Active React grids never construct canonical legacy operation strings; Java owns encoding.
 - [x] Return structured warnings for malformed historical operations.
 - [x] Render malformed historical operation warnings in the React command panel (`c0cbd98`).
-- [ ] Verify canonical aliases and every command family round trip.
+- [x] Verify canonical aliases and every command family encode/decode parity.
 - [x] Publish command-variable type compatibility and revalidate submitted variable IDs/types in Java.
 
 ### P6 - Variable parity

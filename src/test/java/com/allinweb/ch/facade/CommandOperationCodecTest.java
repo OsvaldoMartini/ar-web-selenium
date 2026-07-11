@@ -15,6 +15,8 @@ class CommandOperationCodecTest {
     @Test
     void decodesAliasesChecksLoopsAndCounts() {
         assertEquals("H", codec.decode(row("HOLD", "", 7)).get("action").getAsString());
+        assertEquals("P", codec.decode(row("SCREEN", "", 1)).get("action").getAsString());
+        assertEquals("Q", codec.decode(row("QUIT", "", 1)).get("action").getAsString());
         JsonObject check = codec.decode(row("CK", "$amount:>=:10", 1));
         assertEquals(">=", check.get("operator").getAsString());
         assertTrue(check.getAsJsonArray("warnings").isEmpty());
