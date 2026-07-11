@@ -40,6 +40,7 @@ public class SimpleWebSocketServer {
     private static ARExcelFileScene arExcelFileScene = ARExcelFileScene.getInstance();
     private static ARSaveComponentScene arSaveComponentScene = ARSaveComponentScene.getInstance();
     private static ActionExecutorClient actionExecutorClient = ActionExecutorClient.getInstance();
+    private static final Map<String, Boolean> processedInstructionDeletes = new LinkedHashMap<>();
     private final Gson gson = new Gson();
     private PayloadJson payloadEmpty;
     private RowStatus rowStatus = new RowStatus();
@@ -1841,6 +1842,22 @@ public class SimpleWebSocketServer {
                     alreadySentMgsSocket = false;
                     break;
                 case "DELETE_INSTRUCTION": {
+                    String deleteRequestId = splitDTO.getRequestId() == null ? "" : splitDTO.getRequestId().trim();
+                    if (deleteRequestId.isEmpty()) {
+                        errorMessage = new ErrorMessage(
+                                "Delete Instruction Refused",
+                                "Request ID is required",
+                                "Refresh the grid and try the deletion again.");
+                        break;
+                    }
+                    synchronized (processedInstructionDeletes) {
+                        if (processedInstructionDeletes.containsKey(deleteRequestId)) break;
+                        processedInstructionDeletes.put(deleteRequestId, Boolean.TRUE);
+                        while (processedInstructionDeletes.size() > 256) {
+                            processedInstructionDeletes.remove(processedInstructionDeletes.keySet().iterator().next());
+                        }
+                    }
+
                     errorMessage = performDataBase.loadInstructions(whereId, -1, -1, instrTable);
                     if (errorMessage != null) break;
                     InstructionLoad storedDelete = findInstructionInMemory(instrTable, whereId, instructionId);
