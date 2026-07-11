@@ -68,6 +68,9 @@ public final class CommandEditorService {
                 instructionId);
         response.add("commands", capabilityService.catalog(string(body, "instructionActions", ""), excelGotoConflict));
         response.addProperty("graphRevision", graphRevision(sessionId));
+        JsonObject rowCapabilities = new JsonObject();
+        rowCapabilities.addProperty("canInsertElseIf", canInsertElseIf(sessionId, instructionId));
+        response.add("rowCapabilities", rowCapabilities);
         instructions(sessionId).stream()
                 .filter(row -> row != null && row.getId() != null && row.getId() == instructionId)
                 .findFirst()
@@ -302,6 +305,31 @@ public final class CommandEditorService {
             if ("ENDIF".equals(action) && !roots.isEmpty()) roots.pop();
         }
         return null;
+    }
+
+    private boolean canInsertElseIf(String sessionId, int instructionId) {
+        InstructionLoad selected = instructions(sessionId).stream()
+                .filter(row -> row != null && row.getId() != null && row.getId() == instructionId)
+                .findFirst()
+                .orElse(null);
+        if (selected == null || selected.getBlockId() == null) return false;
+        List<InstructionLoad> blockRows = instructions(sessionId).stream()
+                .filter(row -> row != null && selected.getBlockId().equals(row.getBlockId()))
+                .sorted(Comparator.comparingInt(row -> row.getInstructionOrderNumber() == null
+                        ? Integer.MAX_VALUE
+                        : row.getInstructionOrderNumber()))
+                .toList();
+        Integer rootId = enclosingIfRoot(blockRows, instructionId);
+        if (rootId == null) return false;
+        InstructionLoad boundary = blockRows.stream()
+                .filter(row -> row.getParentId() != null
+                        && row.getParentId().equals(rootId)
+                        && Set.of("ELSE", "ENDIF").contains(row.getActions()))
+                .findFirst()
+                .orElse(null);
+        if (boundary == null || boundary.getInstructionOrderNumber() == null
+                || selected.getInstructionOrderNumber() == null) return false;
+        return selected.getInstructionOrderNumber() < boundary.getInstructionOrderNumber();
     }
 
     private JsonObject refreshAfterMutation(SplitDTO split, String message, JsonObject request) {
