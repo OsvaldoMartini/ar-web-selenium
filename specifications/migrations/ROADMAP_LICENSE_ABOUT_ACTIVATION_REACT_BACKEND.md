@@ -97,7 +97,7 @@ All responses must use structured fields such as `ok`, `statusCode`, `title`, `m
 - [x] Make `license.startup` return allowed/activation-required state and the target React session.
 - [x] Prevent protected WebSocket routes and job mutations while activation is required.
 - [x] Permit only license recovery/status, About, and basic connection operations while restricted.
-- [ ] Re-bootstrap the application after successful activation without requiring a JavaFX window restart.
+- [x] Re-bootstrap the React dashboard after successful activation without requiring a JavaFX window restart (`60edf97`).
 - [ ] Preserve an offline directory workflow for disconnected client installations.
 - [ ] Define headless-server behavior when no native chooser is available: typed path input or secure upload endpoint.
 
