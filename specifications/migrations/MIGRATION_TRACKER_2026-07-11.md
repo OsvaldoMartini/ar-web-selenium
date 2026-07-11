@@ -62,9 +62,9 @@ Finish the existing JavaFX-to-React instruction-authoring migration while preser
 
 ### P1 - Split preview and authoritative response
 
-- [ ] Make React request `instructionGraph.previewSplit` before constructing the split mutation.
+- [x] Make React request `instructionGraph.previewSplit` before constructing the split mutation (`3200f42`).
 - [ ] Return the authoritative refreshed block graph after an applied split.
-- [ ] Make React show the actual backend split group before confirmation.
+- [x] Make React show the actual backend split group before confirmation (`3200f42`).
 
 ### P2 - Complete mutation transaction safety
 
