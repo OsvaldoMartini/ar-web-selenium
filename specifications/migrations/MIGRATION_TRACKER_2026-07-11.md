@@ -84,9 +84,9 @@ Finish the existing JavaFX-to-React instruction-authoring migration while preser
 - [ ] Remove duplicated inline IF/loop/move checks after backend parity is confirmed.
 - [ ] Restore original state on backend rejection without losing scroll or expanded blocks.
 - [x] Add explicit capability-aware drag handles to both grids (`e621dcc`).
-- [ ] Add backend-driven valid/invalid drop zones.
+- [x] Add backend-driven valid/invalid drop zones (`e0b073dc`, `31aa275`).
   - [x] Publish authoritative `allowedBlockIds` for each row capability.
-  - [ ] Render valid/invalid block states while dragging.
+  - [x] Render valid/invalid block states while dragging.
 - [ ] Add reason tooltips, group preview, and keyboard movement.
 
 ### P4 - Graph-aware deletion completion
