@@ -17,9 +17,12 @@ import com.microsoft.playwright.options.ViewportSize;
 import com.microsoft.playwright.options.WaitUntilState;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -34,7 +37,9 @@ public class ARPlaywrightDriver {
     private Playwright playwright;
     private Browser browser;
     private BrowserContext context;
+    /** The page all driver operations currently target. Updated when Playwright opens a new tab. */
     private Page page;
+    private final Set<Page> diagnosedPages = Collections.newSetFromMap(new IdentityHashMap<>());
     private final PlaywrightActionExecutor actionExecutor = new PlaywrightActionExecutor();
     private final PlaywrightElementScanner elementScanner = new PlaywrightElementScanner();
 
@@ -50,6 +55,7 @@ public class ARPlaywrightDriver {
             // the full (maximized) browser window instead of Playwright's default 1280x720 viewport.
             context = browser.newContext(
                     new Browser.NewContextOptions().setBypassCSP(true).setViewportSize(null));
+            attachContextTracking();
             page = context.newPage();
             attachDiagnostics(page);
             navigateDomReady(page, url);
@@ -73,6 +79,7 @@ public class ARPlaywrightDriver {
             browser = launchBrowser(browserType, optionsConfig, headless);
             context = browser.newContext(
                     new Browser.NewContextOptions().setBypassCSP(true).setViewportSize(null));
+            attachContextTracking();
             page = context.newPage();
             attachDiagnostics(page);
             navigateDomReady(page, url);
@@ -223,7 +230,13 @@ public class ARPlaywrightDriver {
     }
 
     public boolean click(InstructionLoad instruction) {
-        return call(() -> actionExecutor.click(requirePage(), instruction));
+        return call(() -> {
+            Page actionPage = requirePage();
+            List<Page> pagesBefore = openPages();
+            boolean clicked = actionExecutor.click(actionPage, instruction);
+            if (clicked) adoptPageOpenedByAction(actionPage, pagesBefore, 2000);
+            return clicked;
+        });
     }
 
     public boolean fill(InstructionLoad instruction, FieldData data) {
@@ -235,7 +248,32 @@ public class ARPlaywrightDriver {
     }
 
     public boolean isOpen() {
-        return call(() -> page != null && !page.isClosed());
+        return call(() -> !openPages().isEmpty());
+    }
+
+    public int pageCount() {
+        return call(() -> openPages().size());
+    }
+
+    /** Select a zero-based open tab. Intended for future tab controls in the scanner UI. */
+    public boolean selectPage(int index) {
+        return call(() -> {
+            List<Page> pages = openPages();
+            if (index < 0 || index >= pages.size()) return false;
+            page = pages.get(index);
+            page.bringToFront();
+            return true;
+        });
+    }
+
+    public boolean selectNewestPage() {
+        return call(() -> {
+            List<Page> pages = openPages();
+            if (pages.isEmpty()) return false;
+            page = pages.get(pages.size() - 1);
+            page.bringToFront();
+            return true;
+        });
     }
 
     private void navigateDomReady(Page targetPage, String url) {
@@ -286,6 +324,7 @@ public class ARPlaywrightDriver {
      * silently on strict-CSP sites — the socket open/error/close now shows up in the log.
      */
     private void attachDiagnostics(Page p) {
+        if (p == null || !diagnosedPages.add(p)) return;
         try {
             p.onConsoleMessage(msg -> log.info("[pw-console] {}: {}", msg.type(), msg.text()));
             p.onPageError(err -> log.warn("[pw-pageerror] {}", err));
@@ -296,6 +335,71 @@ public class ARPlaywrightDriver {
             });
         } catch (Exception e) {
             log.warn("attachDiagnostics failed: {}", e.getMessage());
+        }
+    }
+
+    private void attachContextTracking() {
+        context.onPage(openedPage -> {
+            attachDiagnostics(openedPage);
+            Page previous = page;
+            page = openedPage;
+            log.info(
+                    "Playwright new tab adopted: previousUrl={} activeUrl={} tabs={}",
+                    safeUrl(previous),
+                    safeUrl(openedPage),
+                    openPages().size());
+        });
+    }
+
+    private void adoptPageOpenedByAction(Page actionPage, List<Page> pagesBefore, long waitMs) {
+        long deadline = System.currentTimeMillis() + Math.max(0, waitMs);
+        Page opened = newestPageNotIn(pagesBefore);
+        while (opened == null && System.currentTimeMillis() < deadline) {
+            try {
+                actionPage.waitForTimeout(50);
+            } catch (RuntimeException ignored) {
+                break;
+            }
+            opened = newestPageNotIn(pagesBefore);
+        }
+        if (opened == null) return;
+
+        page = opened;
+        attachDiagnostics(opened);
+        try {
+            opened.waitForLoadState(
+                    LoadState.DOMCONTENTLOADED,
+                    new Page.WaitForLoadStateOptions().setTimeout(Math.max(1, waitMs)));
+        } catch (TimeoutError timeout) {
+            log.warn("New tab did not reach DOMContentLoaded within {} ms: {}", waitMs, safeUrl(opened));
+        }
+        try {
+            opened.bringToFront();
+        } catch (RuntimeException frontError) {
+            log.debug("Could not bring adopted tab to front: {}", frontError.getMessage());
+        }
+    }
+
+    private Page newestPageNotIn(List<Page> previousPages) {
+        List<Page> pages = openPages();
+        for (int index = pages.size() - 1; index >= 0; index--) {
+            Page candidate = pages.get(index);
+            if (!previousPages.contains(candidate)) return candidate;
+        }
+        return null;
+    }
+
+    private List<Page> openPages() {
+        if (context == null) return List.of();
+        return context.pages().stream().filter(candidate -> candidate != null && !candidate.isClosed()).toList();
+    }
+
+    private static String safeUrl(Page candidate) {
+        if (candidate == null || candidate.isClosed()) return "<closed>";
+        try {
+            return candidate.url();
+        } catch (RuntimeException unavailable) {
+            return "<unavailable>";
         }
     }
 
@@ -369,7 +473,11 @@ public class ARPlaywrightDriver {
 
     private Page requirePage() {
         if (page == null || page.isClosed()) {
-            throw new ARWebDriverNotStartedException();
+            List<Page> pages = openPages();
+            if (pages.isEmpty()) throw new ARWebDriverNotStartedException();
+            page = pages.get(pages.size() - 1);
+            attachDiagnostics(page);
+            log.info("Playwright active tab fallback selected: url={} tabs={}", safeUrl(page), pages.size());
         }
         return page;
     }
@@ -383,6 +491,7 @@ public class ARPlaywrightDriver {
         context = null;
         browser = null;
         playwright = null;
+        diagnosedPages.clear();
     }
 
     private static void closeQuietly(AutoCloseable closeable) {
