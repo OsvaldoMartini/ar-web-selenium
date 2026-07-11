@@ -7430,58 +7430,12 @@ public class PerformDataBase {
             int whereId,
             VariableUserDTO variable,
             List<ParentOperations> dependents) {
-        if (!("variable".equals(variableTable) && "instruction".equals(instructionTable))
-                && !("component_variable".equals(variableTable)
-                        && "component_instruction".equals(instructionTable))) {
-            return new ErrorMessage("Update Variable Error", "Invalid variable table pair", variableTable);
-        }
-        String ownerColumn = "variable".equals(variableTable) ? "bot_job_id" : "home_banking_id";
-        String variableSql = "UPDATE " + variableTable
-                + " SET name=?,type=?,value=?,local_format=?,delimiter=? WHERE id=? AND " + ownerColumn + "=?";
-        String operationSql = "UPDATE " + instructionTable
-                + " SET operation=? WHERE id=? AND parent_id=? AND " + ownerColumn + "=?";
-        Connection connection = null;
-        Boolean previousAutoCommit = null;
-        try {
-            connection = getConnection();
-            previousAutoCommit = connection.getAutoCommit();
-            connection.setAutoCommit(false);
-            try (PreparedStatement updateVariable = connection.prepareStatement(variableSql)) {
-                updateVariable.setString(1, variable.getName());
-                updateVariable.setString(2, variable.getType());
-                updateVariable.setString(3, variable.getValue());
-                updateVariable.setString(4, variable.getLocalFormat());
-                updateVariable.setString(5, variable.getDelimiter());
-                updateVariable.setInt(6, variable.getId());
-                updateVariable.setInt(7, whereId);
-                if (updateVariable.executeUpdate() != 1) {
-                    throw new SQLException("Variable could not be updated exactly once.");
-                }
-            }
-            try (PreparedStatement updateOperation = connection.prepareStatement(operationSql)) {
-                for (ParentOperations dependent : dependents == null ? List.<ParentOperations>of() : dependents) {
-                    String action = dependent.getActions() == null ? "" : dependent.getActions();
-                    if (!Set.of("SET", "GET", "CK", "PDF CHECK", "CSV CHECK", "E").contains(action)) continue;
-                    updateOperation.setString(1, dependent.getOperations());
-                    updateOperation.setInt(2, dependent.getId());
-                    updateOperation.setInt(3, dependent.getInstructionId());
-                    updateOperation.setInt(4, whereId);
-                    if (updateOperation.executeUpdate() != 1) {
-                        throw new SQLException("Dependent instruction " + dependent.getId()
-                                + " could not be rewritten exactly once.");
-                    }
-                }
-            }
-            connection.commit();
+        try (Connection connection = getConnection()) {
+            new VariableUpdateTransaction()
+                    .execute(connection, variableTable, instructionTable, whereId, variable, dependents);
             return null;
         } catch (SQLException exception) {
-            if (connection != null) try { connection.rollback(); } catch (SQLException ignored) { }
             return new ErrorMessage("Update Variable Error", "Atomic variable update failed", exception.getMessage());
-        } finally {
-            if (connection != null) {
-                if (previousAutoCommit != null) try { connection.setAutoCommit(previousAutoCommit); } catch (SQLException ignored) { }
-                try { connection.close(); } catch (SQLException ignored) { }
-            }
         }
     }
 

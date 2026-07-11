@@ -84,7 +84,7 @@ Finish the existing JavaFX-to-React instruction-authoring migration while preser
   - [x] Add SQLite mid-update rollback fixture for the extracted row mutation transaction.
   - [x] Delegate the complete production move transaction, including block cleanup/order, to the tested service.
 - [x] Wrap variable update and every dependent operation rewrite in one transaction.
-- [ ] Add rollback fixtures for failed variable rewrites.
+- [x] Add rollback fixtures for failed variable rewrites.
 
 ### P3 - Shared React drag controller
 
