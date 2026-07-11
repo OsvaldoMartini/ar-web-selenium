@@ -129,7 +129,7 @@ All responses must use structured fields such as `ok`, `statusCode`, `title`, `m
 - [ ] Valid, invalid, wrong-machine, expired, malformed, missing, and unreadable license fixtures.
 - [ ] Idempotency tests for duplicate request and activation messages.
 - [x] React tests for Request, Activate, and Use Existing payloads plus agreement gating (`af861e9`).
-- [ ] React tests for capability visibility, pending state, structured errors, and successful status refresh.
+- [x] React tests for capability visibility, pending state, structured errors, and successful status refresh (`13e6c93`).
 - [ ] About tests for version/build/expiration and opening the shared License Manager.
 - [ ] Startup tests proving restricted users cannot reach protected routes.
 - [ ] Windows chooser and Linux/headless fallback tests.
