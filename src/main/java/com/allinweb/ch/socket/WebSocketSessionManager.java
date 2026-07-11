@@ -105,6 +105,15 @@ public class WebSocketSessionManager {
         }
     }
 
+    public void broadcastJsonToAll(int homeBankingId, String body, String operationId) {
+        for (Map.Entry<String, Session> entry : activeSessions.entrySet()) {
+            Session session = entry.getValue();
+            if (session.isOpen()) {
+                sendMessageJson(homeBankingId, session, entry.getKey(), body, operationId);
+            }
+        }
+    }
+
     public void broadcastMessageToAll(int homeBankingId, String broadTo, String body, String operationId) {
         for (Map.Entry<String, Session> entry : activeSessions.entrySet()) {
             String sessionKey = entry.getKey();

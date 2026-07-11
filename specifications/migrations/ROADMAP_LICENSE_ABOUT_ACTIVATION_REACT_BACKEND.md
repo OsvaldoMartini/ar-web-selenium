@@ -50,12 +50,12 @@ All responses must use structured fields such as `ok`, `statusCode`, `title`, `m
 
 ## Phase 1 - Consolidate License Logic
 
-- [ ] Inventory every method and branch in `ARLicensePane`, `LicenseActivationApp`, `LicenseManager`, `ARControlPanel`, and duplicated `checkLicense()` callers.
-- [ ] Extract one pane-free `LicenseService` around existing cryptographic and fingerprint logic.
-- [ ] Define one typed status mapping for every `LicenceVal` value.
+- [x] Inventory the legacy license branches and remove the superseded pane/application implementations.
+- [x] Extract the pane-free `LicenseService` around protected cryptographic and fingerprint logic.
+- [x] Define and test typed status mapping across every `LicenceVal` value.
 - [x] Move the recovered seven-section agreement to the single versioned React resource `licenseAgreement.ts` (`d28a8d6`).
 - [x] Centralize email, organization, owner, agreement, path, and response-file validation.
-- [ ] Keep private keys, machine identity, fingerprint generation, and protected file parsing out of React.
+- [x] Keep private keys, machine identity, fingerprint generation, and protected file parsing out of React.
 - [x] Add request IDs and serialize activation mutations to prevent duplicate imports or request files.
 
 ## Phase 2 - Backend API
@@ -66,7 +66,7 @@ All responses must use structured fields such as `ok`, `statusCode`, `title`, `m
 - [x] Return safe error details without exposing license secrets or raw encrypted content.
 - [x] Persist selected license path, organization, and owner only after successful operations.
 - [x] Recheck the imported or selected license before returning success.
-- [ ] Publish an application-level license-status update so Main Dashboard and open job views update immediately.
+- [x] Publish `license.statusChanged` to every open session and consume it in Main Dashboard and both instruction grids (`0500f35`).
 
 ## Phase 3 - React License Manager
 
@@ -110,7 +110,7 @@ All responses must use structured fields such as `ok`, `statusCode`, `title`, `m
 - [x] Remove the unreferenced `ARLicensePane`, `ARLicenseScene`, `ARInfoPane`, and `ARInfoScene` after React parity coverage.
 - [x] Delete the unreferenced `LicenseActivationApp`; runtime startup verification remains an external Java-machine gate.
 - [ ] Keep `LicenseManager` cryptographic primitives only until the post-Java Node migration replaces them securely.
-- [ ] Run a zero-reference audit for removed scenes, panes, CSS, images, and launcher calls.
+- [x] Run the Java/test zero-reference audit before deleting the legacy About/License scenes, panes, and launcher.
 
 ## Security Requirements
 

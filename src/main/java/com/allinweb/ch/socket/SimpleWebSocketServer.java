@@ -214,18 +214,21 @@ public class SimpleWebSocketServer {
                             LicenseService.getInstance().about());
                     break;
                 case "license.request":
-                    sendCommandEditorResponse(homeBankingId, sessionId, "license.requestResponse",
-                            LicenseService.getInstance().request(extractBody(jsonObjMSG)));
+                    JsonObject requestResponse = LicenseService.getInstance().request(extractBody(jsonObjMSG));
+                    sendCommandEditorResponse(homeBankingId, sessionId, "license.requestResponse", requestResponse);
+                    publishLicenseStatus(requestResponse);
                     break;
                 case "license.activate":
                     JsonObject activationResponse = LicenseService.getInstance().activate(extractBody(jsonObjMSG));
                     if (isActiveLicenseResponse(activationResponse)) ARControlPanel.continueAfterLicenseActivation();
                     sendCommandEditorResponse(homeBankingId, sessionId, "license.activateResponse", activationResponse);
+                    publishLicenseStatus(activationResponse);
                     break;
                 case "license.useExisting":
                     JsonObject existingResponse = LicenseService.getInstance().useExisting(extractBody(jsonObjMSG));
                     if (isActiveLicenseResponse(existingResponse)) ARControlPanel.continueAfterLicenseActivation();
                     sendCommandEditorResponse(homeBankingId, sessionId, "license.useExistingResponse", existingResponse);
+                    publishLicenseStatus(existingResponse);
                     break;
                 case "commandEditor.bootstrap":
                     sendCommandEditorResponse(
@@ -877,6 +880,12 @@ public class SimpleWebSocketServer {
                 && response.get("ok").getAsBoolean()
                 && response.has("active")
                 && response.get("active").getAsBoolean();
+    }
+
+    private void publishLicenseStatus(JsonObject response) {
+        if (response != null && response.has("active")) {
+            webSocketSessionManager.broadcastJsonToAll(-1, gson.toJson(response), "license.statusChanged");
+        }
     }
 
     /**
