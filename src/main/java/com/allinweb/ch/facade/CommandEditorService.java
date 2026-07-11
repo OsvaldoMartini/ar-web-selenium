@@ -144,13 +144,13 @@ public final class CommandEditorService {
     }
 
     public JsonObject apply(JsonObject body) {
+        return serializedMutation(body, () -> applyOnce(body));
+    }
+
+    private JsonObject applyOnce(JsonObject body) {
         String requestId = string(body, "requestId", "").trim();
-        if (!requestId.isEmpty()) {
-            synchronized (completedRequests) {
-                JsonObject completed = completedRequests.get(requestId);
-                if (completed != null) return completed.deepCopy();
-            }
-        }
+        JsonObject completed = completedRequest(requestId);
+        if (completed != null) return completed;
         JsonObject response = new JsonObject();
         String targetSession = string(body, "targetSessionId", "botJobTasks");
         ErrorMessage loadError = reloadInstructions(body, targetSession);
@@ -245,6 +245,13 @@ public final class CommandEditorService {
     }
 
     public JsonObject insertElseIf(JsonObject body) {
+        return serializedMutation(body, () -> insertElseIfOnce(body));
+    }
+
+    private JsonObject insertElseIfOnce(JsonObject body) {
+        String requestId = string(body, "requestId", "").trim();
+        JsonObject completed = completedRequest(requestId);
+        if (completed != null) return completed;
         String targetSession = string(body, "targetSessionId", "botJobTasks");
         int whereId = "componentTasks".equals(targetSession)
                 ? integer(body, "homeBankingId", -1)
@@ -300,7 +307,11 @@ public final class CommandEditorService {
 
         error = database.preFillNewInstruction("ELSEIF", "ELSEIF", "ELSEIF", "ELSEIF", 1, split, false);
         if (error != null) return failure(error.getErrorMessage());
-        return refreshAfterMutation(split, "ELSEIF inserted.", body);
+        JsonObject response = refreshAfterMutation(split, "ELSEIF inserted.", body);
+        if (!requestId.isEmpty() && response.has("ok") && response.get("ok").getAsBoolean()) {
+            rememberCompleted(requestId, response);
+        }
+        return response;
     }
 
     public ErrorMessage validateSplit(SplitDTO split) {
@@ -517,6 +528,24 @@ public final class CommandEditorService {
                 String oldest = completedRequests.keySet().iterator().next();
                 completedRequests.remove(oldest);
             }
+        }
+    }
+
+    private JsonObject completedRequest(String requestId) {
+        if (requestId == null || requestId.isEmpty()) return null;
+        synchronized (completedRequests) {
+            JsonObject completed = completedRequests.get(requestId);
+            return completed == null ? null : completed.deepCopy();
+        }
+    }
+
+    private JsonObject serializedMutation(JsonObject body, java.util.function.Supplier<JsonObject> mutation) {
+        String requestId = string(body, "requestId", "").trim();
+        if (requestId.isEmpty()) return mutation.get();
+        synchronized (completedRequests) {
+            JsonObject completed = completedRequests.get(requestId);
+            if (completed != null) return completed.deepCopy();
+            return mutation.get();
         }
     }
 
