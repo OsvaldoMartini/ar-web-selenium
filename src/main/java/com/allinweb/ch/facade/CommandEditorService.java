@@ -118,13 +118,16 @@ public final class CommandEditorService {
             Set<Integer> invalidConditionalIds = invalidConditionalBlockIds(instructionRows);
             for (InstructionLoad row : instructionRows) {
                 if (row == null || row.getId() == null) continue;
-                String reason = memoryBlockReason(row, protectedIds);
+                String addReason = memoryBlockReason(row, protectedIds);
+                String moveReason = moveGroupService.resolve(instructionRows, row.getId()).isEmpty()
+                        ? "The connected move group could not be resolved."
+                        : null;
                 JsonObject capability = new JsonObject();
                 capability.addProperty("instructionId", row.getId());
-                capability.addProperty("canAddToMemory", reason == null);
-                capability.addProperty("canMove", reason == null);
+                capability.addProperty("canAddToMemory", addReason == null);
+                capability.addProperty("canMove", moveReason == null);
                 JsonArray allowedBlockIds = new JsonArray();
-                if (reason == null) {
+                if (moveReason == null) {
                     blockRows.stream()
                             .filter(block -> block != null && block.getId() != null)
                             .sorted(Comparator.comparingInt(block -> block.getBlockOrderNumber() == null
@@ -137,7 +140,8 @@ public final class CommandEditorService {
                 capability.addProperty("canDelete", deleteReason == null);
                 capability.addProperty("deleteCount", deleteImpactCount(row, instructionRows));
                 capability.add("deleteRows", deleteImpactRows(row, instructionRows));
-                if (reason != null) capability.addProperty("reason", reason);
+                if (moveReason != null) capability.addProperty("reason", moveReason);
+                if (addReason != null) capability.addProperty("addReason", addReason);
                 if (deleteReason != null) capability.addProperty("deleteReason", deleteReason);
                 capabilities.add(capability);
             }

@@ -103,11 +103,11 @@ The About, License, and Activation Software Required consolidation is planned in
   - [x] Publish authoritative `allowedBlockIds` for each row capability.
   - [x] Render valid/invalid block states while dragging.
   - [x] Disable invalid Droppable targets so refused destinations cannot be applied optimistically (`0b95945`).
-- [ ] Complete group-move preview UX.
+- [x] Complete group-move preview UX.
   - [x] Add capability reason tooltips and keyboard movement on dedicated handles (`3172806`).
-  - [ ] Add connected-group move preview.
+  - [x] Add connected-group move preview.
     - [x] Add revision-checked `instructionGraph.previewMove` and connected-group fixtures.
-    - [ ] Render and confirm the authoritative group preview in both React grids.
+    - [x] Render and confirm the authoritative group preview in both React grids (`d9b0a5e`).
 
 ### P4 - Graph-aware deletion completion
 
