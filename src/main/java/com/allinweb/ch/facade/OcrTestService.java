@@ -42,20 +42,29 @@ public final class OcrTestService {
     public Map<String, Object> run(JsonObject body) {
         try {
             Path directory = diagnosticDirectory();
-            Path screenshot = directory.resolve("page-HP.png");
-            if (!Files.isRegularFile(screenshot)) return failure("No cached page-HP.png. Run Page Scanner first.");
+            Path screenshot = latest(directory.resolve("page-BJ.png"), directory.resolve("page-HP.png"));
+            if (screenshot == null) return failure("No cached scanner screenshot. Run Page Scanner first.");
             BufferedImage image = ImageIO.read(screenshot.toFile());
             if (image == null) return failure("Cached page-HP.png could not be decoded.");
             List<OcrConfigParam> params = parameters(body);
-            OcrConfigProfile ephemeral = new OcrConfigProfile();
-            ephemeral.setName("__react_test__");
-            OcrConfig config = new OcrConfig(ephemeral, params);
+            OcrConfig config;
+            if (params.isEmpty()) {
+                config = OcrConfigService.getInstance().resolveFor(positive(body, "homeBankingId"), positive(body, "homeUrlId"));
+            } else {
+                OcrConfigProfile ephemeral = new OcrConfigProfile();
+                ephemeral.setName("__react_test__");
+                config = new OcrConfig(ephemeral, params);
+            }
             OcrResult ocr = WebPageOcrService.recognizeMultiPass(image, config);
-            Path elementsFile = latest(directory.resolve("elementDTO-HP.json"), directory.resolve("elementDTO-PS.json"));
+            Path elementsFile = latest(
+                    directory.resolve("elementDTO-PS-BJ.json"),
+                    directory.resolve("elementDTO-HP.json"),
+                    directory.resolve("elementDTO-PS.json"));
             if (elementsFile == null) return failure("No cached element DTOs. Run Page Scanner first.");
             ElementDTO[] elements = readElements(elementsFile);
-            List<OcrDomCorrelator.RectEntry> rects = readRects(directory.resolve("page-HP-rects.json"));
-            double dpr = readDpr(directory.resolve("page-HP-meta.json"));
+            String screenshotBase = screenshot.getFileName().toString().replaceFirst("\\.png$", "");
+            List<OcrDomCorrelator.RectEntry> rects = readRects(directory.resolve(screenshotBase + "-rects.json"));
+            double dpr = readDpr(directory.resolve(screenshotBase + "-meta.json"));
             List<OcrCorrelationResult> correlations = OcrDomCorrelator.correlate(elements, rects, ocr, dpr, config);
             Map<String, OcrCorrelationResult> byXPath = new HashMap<>();
             for (OcrCorrelationResult correlation : correlations) if (correlation != null && correlation.xpath != null) byXPath.put(correlation.xpath, correlation);
@@ -74,7 +83,7 @@ public final class OcrTestService {
                 rows.add(row);
             }
             rows.sort(Comparator.comparingInt(row -> rank(String.valueOf(row.get("quality")))));
-            Path annotated = directory.resolve("page-HP-test-annotated.png");
+            Path annotated = directory.resolve(screenshotBase + "-test-annotated.png");
             AnnotatedImageRenderer.render(image, ocr.getWords(), correlations, dpr, annotated);
             Map<String, Object> result = ok("OCR test complete.");
             result.put("source", elementsFile.getFileName().toString()); result.put("wordCount", ocr.getWords().size());
@@ -97,6 +106,7 @@ public final class OcrTestService {
         return result;
     }
     private String text(JsonObject value,String key) { try { return value.get(key).getAsString(); } catch(Exception ignored) { return ""; } }
+    private Integer positive(JsonObject value,String key) { try { int number=value.get(key).getAsInt();return number>0?number:null; } catch(Exception ignored) { return null; } }
     private Path latest(Path... paths) throws Exception { Path found=null; long modified=-1; for(Path path:paths) if(Files.isRegularFile(path)&&Files.getLastModifiedTime(path).toMillis()>modified){found=path;modified=Files.getLastModifiedTime(path).toMillis();} return found; }
     private ElementDTO[] readElements(Path path) throws Exception { try(Reader reader=Files.newBufferedReader(path,StandardCharsets.UTF_8)){ElementDTO[] values=GSON.fromJson(reader,ElementDTO[].class);return values==null?new ElementDTO[0]:values;} }
     private List<OcrDomCorrelator.RectEntry> readRects(Path path) throws Exception { if(!Files.isRegularFile(path))return Collections.emptyList();try(Reader reader=Files.newBufferedReader(path,StandardCharsets.UTF_8)){OcrDomCorrelator.RectEntry[] values=GSON.fromJson(reader,OcrDomCorrelator.RectEntry[].class);return values==null?Collections.emptyList():List.of(values);} }
