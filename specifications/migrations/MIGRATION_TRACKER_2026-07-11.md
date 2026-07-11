@@ -159,8 +159,8 @@ The About, License, and Activation Software Required consolidation is planned in
   - [x] Cover every registered command encode/decode family, aliases, and malformed historical operations (`02553d16`, `18b65928`, `f141644a`).
   - [x] Add React command panel coverage for codec warnings and backend variable-type filtering (`b2f9fe2`).
   - [x] Prove React Apply submits typed fields without an `operation` string (`5375075`).
-- [ ] Add SQLite/Playwright coverage using organization `2` and bot job `19`.
-- [ ] Scan instructions, add them to Memory List, create `test_block_N`, and Apply.
+- [x] Add isolated SQLite/Playwright coverage using organization `2` and bot job `19` (`ARWeb-Linux` `8302a83`).
+- [x] Load scanned-instruction fixtures, add them to Memory List, create `test_block_N`, and Apply (`ARWeb-Linux` `8302a83`).
 - [ ] Verify persisted block and instruction rows after refresh.
 - [ ] Cover IF/ELSEIF/ELSE/ENDIF, loops, variables, move, delete, and split workflows.
 - [ ] Verify component-grid parity and direct WebSocket rejection behavior.
