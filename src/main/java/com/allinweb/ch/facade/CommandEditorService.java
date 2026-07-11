@@ -102,6 +102,7 @@ public final class CommandEditorService {
                 JsonObject capability = new JsonObject();
                 capability.addProperty("instructionId", row.getId());
                 capability.addProperty("canAddToMemory", reason == null);
+                capability.addProperty("canMove", reason == null);
                 if (reason != null) capability.addProperty("reason", reason);
                 capabilities.add(capability);
             }
