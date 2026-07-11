@@ -1,7 +1,9 @@
 package com.allinweb.ch.facade;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
+import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
 import java.io.File;
 import java.io.FileInputStream;
@@ -14,7 +16,8 @@ import org.junit.jupiter.api.Test;
 
 class PerformDBEngineAccessTest {
 
-    private static final String WEB_CONFIG_FILE_PATH = "C:\\ARWeb-Martini\\Config-4.2\\TESTS.config";
+    private static final String WEB_CONFIG_FILE_PATH =
+            System.getProperty("user.dir") + File.separator + "Config-4.2" + File.separator + "TESTS.config";
     private ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
 
     @BeforeEach
@@ -46,7 +49,12 @@ class PerformDBEngineAccessTest {
     @Test
     @DisplayName("Test Access DB connection")
     void testAccessConnection() {
-        // Example: your DB engine connection test
+        String databaseDirectory = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+        File accessDatabase = databaseDirectory == null ? null : new File(databaseDirectory, "database.mdb");
+        assumeTrue(
+                accessDatabase != null && accessDatabase.isFile(),
+                "Access integration database is not available: " + accessDatabase);
+
         try (Connection conn = PerformDBEngine.getInstance().getConnection()) {
             assertNotNull(conn, "Connection should not be null");
             assertFalse(conn.isReadOnly(), "Connection should be writable");

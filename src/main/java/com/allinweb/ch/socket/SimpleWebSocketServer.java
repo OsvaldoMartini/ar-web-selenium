@@ -279,11 +279,71 @@ public class SimpleWebSocketServer {
                             CommandEditorService.getInstance().bootstrap(extractBody(jsonObjMSG)));
                     break;
                 case "commandEditor.apply":
+                    JsonObject commandApplyBody = extractBody(jsonObjMSG);
+                    log.info(
+                            "COMMAND_EDITOR_APPLY_RECEIVED requestId={} wsSession={} targetSession={}"
+                                    + " instructionId={} blockId={} action={} mode={} parentBlockId={} count={}"
+                                    + " graphRevisionPresent={}",
+                            commandLogValue(commandApplyBody, "requestId"),
+                            sessionId,
+                            commandLogValue(commandApplyBody, "targetSessionId"),
+                            commandLogValue(commandApplyBody, "instructionId"),
+                            commandLogValue(commandApplyBody, "blockId"),
+                            commandLogValue(commandApplyBody, "action"),
+                            commandLogValue(commandApplyBody, "mode"),
+                            commandLogValue(commandApplyBody, "parentBlockId"),
+                            commandLogValue(commandApplyBody, "count"),
+                            commandApplyBody != null
+                                    && commandApplyBody.has("graphRevision")
+                                    && !commandApplyBody.get("graphRevision").isJsonNull());
+                    JsonObject commandApplyResponse = CommandEditorService.getInstance().apply(commandApplyBody);
+                    boolean commandSaved = commandApplyResponse.has("ok")
+                            && commandApplyResponse.get("ok").getAsBoolean();
+                    String commandResult = commandSaved
+                            ? commandLogValue(commandApplyResponse, "message")
+                            : commandLogValue(commandApplyResponse, "error");
+                    if (commandSaved) {
+                        log.info(
+                                "COMMAND_EDITOR_APPLY_RESPONSE requestId={} instructionId={} action={} ok=true result={}",
+                                commandLogValue(commandApplyBody, "requestId"),
+                                commandLogValue(commandApplyBody, "instructionId"),
+                                commandLogValue(commandApplyBody, "action"),
+                                commandResult);
+                    } else {
+                        log.warn(
+                                "COMMAND_EDITOR_APPLY_RESPONSE requestId={} instructionId={} action={} ok=false error={}",
+                                commandLogValue(commandApplyBody, "requestId"),
+                                commandLogValue(commandApplyBody, "instructionId"),
+                                commandLogValue(commandApplyBody, "action"),
+                                commandResult);
+                    }
                     sendCommandEditorResponse(
                             homeBankingId,
                             sessionId,
                             "commandEditor.applyResponse",
-                            CommandEditorService.getInstance().apply(extractBody(jsonObjMSG)));
+                            commandApplyResponse);
+                    if (commandSaved
+                            && commandApplyResponse.has("instructions")
+                            && commandApplyResponse.get("instructions").isJsonArray()) {
+                        String targetSessionId = commandLogValue(commandApplyBody, "targetSessionId");
+                        if ("<missing>".equals(targetSessionId) || "<blank>".equals(targetSessionId)) {
+                            targetSessionId = "botJobTasks";
+                        }
+                        String updateOperationId = "componentTasks".equals(targetSessionId)
+                                ? "componentsUpdate"
+                                : "updateInstructions";
+                        webSocketSessionManager.sendMessageJson(
+                                homeBankingId,
+                                targetSessionId,
+                                gson.toJson(commandApplyResponse.getAsJsonArray("instructions")),
+                                updateOperationId);
+                        log.info(
+                                "COMMAND_EDITOR_REALTIME_UPDATE requestId={} targetSession={} operationId={} rows={}",
+                                commandLogValue(commandApplyBody, "requestId"),
+                                targetSessionId,
+                                updateOperationId,
+                                commandApplyResponse.getAsJsonArray("instructions").size());
+                    }
                     break;
                 case "commandEditor.insertElseIf":
                     sendCommandEditorResponse(
@@ -2750,8 +2810,18 @@ public class SimpleWebSocketServer {
     }
 
     private void sendCommandEditorResponse(
-            int homeBankId, String sessionId, String operationId, JsonObject response) {
+            int homeBankId, String sessionId, String operationId, Object response) {
         webSocketSessionManager.sendMessageJson(homeBankId, sessionId, gson.toJson(response), operationId);
+    }
+
+    private static String commandLogValue(JsonObject body, String field) {
+        if (body == null || !body.has(field) || body.get(field).isJsonNull()) return "<missing>";
+        try {
+            String value = body.get(field).getAsString();
+            return value == null || value.isBlank() ? "<blank>" : value.replaceAll("[\\r\\n\\t]", " ");
+        } catch (RuntimeException invalidValue) {
+            return "<invalid>";
+        }
     }
 
     private void rememberCompletedRequest(Map<String, Boolean> completedRequests, String requestId) {

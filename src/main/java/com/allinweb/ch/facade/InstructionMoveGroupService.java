@@ -40,7 +40,9 @@ public final class InstructionMoveGroupService {
             if ("IF".equals(action)) starts.push(index);
             if ("ENDIF".equals(action) && !starts.isEmpty()) {
                 int start = starts.pop();
-                if (start <= selectedIndex && selectedIndex <= index && index - start < bestEnd - bestStart) {
+                if (start <= selectedIndex
+                        && selectedIndex <= index
+                        && (bestStart < 0 || index - start < bestEnd - bestStart)) {
                     bestStart = start;
                     bestEnd = index;
                 }
@@ -61,7 +63,9 @@ public final class InstructionMoveGroupService {
             if (parentIndex < 0) continue;
             int start = Math.min(parentIndex, boundaryIndex);
             int end = Math.max(parentIndex, boundaryIndex);
-            if (start <= selectedIndex && selectedIndex <= end && end - start < bestEnd - bestStart) {
+            if (start <= selectedIndex
+                    && selectedIndex <= end
+                    && (bestStart < 0 || end - start < bestEnd - bestStart)) {
                 bestStart = start;
                 bestEnd = end;
             }

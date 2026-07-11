@@ -7,19 +7,28 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.allinweb.ch.license.LicenceVal;
 import com.allinweb.ch.license.LicenseManager;
+import com.allinweb.ch.license.SystemDetails;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
-import com.allinweb.ch.util.SystemDetails;
 import com.google.gson.JsonObject;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class LicenseServiceTest {
     @TempDir
     Path temporaryDirectory;
+
+    @BeforeEach
+    void configureWritablePropertiesFile() throws Exception {
+        Path config = temporaryDirectory.resolve("TESTS.config");
+        Files.createFile(config);
+        ARPropertyManager.getInstance().setConfigurationFileName(config.toString());
+    }
+
     @Test
     void mapsOnlyValidLicenseToActiveAccess() {
         for (LicenceVal value : LicenceVal.values()) {

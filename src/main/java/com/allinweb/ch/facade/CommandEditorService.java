@@ -23,8 +23,10 @@ import java.util.Deque;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
+import lombok.extern.slf4j.Slf4j;
 
 /** Pane-free backend for the React instruction command panel. */
+@Slf4j
 public final class CommandEditorService {
 
     private static final CommandEditorService INSTANCE = new CommandEditorService();
@@ -397,7 +399,10 @@ public final class CommandEditorService {
     private JsonObject applyOnce(JsonObject body) {
         String requestId = string(body, "requestId", "").trim();
         JsonObject completed = completedRequest(requestId);
-        if (completed != null) return completed;
+        if (completed != null) {
+            log.info("COMMAND_EDITOR_APPLY_CACHE_HIT requestId={}", requestId);
+            return completed;
+        }
         JsonObject response = new JsonObject();
         String targetSession = string(body, "targetSessionId", "botJobTasks");
         ErrorMessage loadError = reloadInstructions(body, targetSession);
@@ -424,12 +429,32 @@ public final class CommandEditorService {
                         "edit".equals(mode) ? integer(body, "instructionId", -1) : -1)) {
             return failure("Only one EXCEL GOTO command is allowed in this job.");
         }
-        Integer parentId = nullableInteger(body, "parentId");
-        Integer variableId = nullableInteger(body, "variableId");
-        Integer parentBlockId = nullableInteger(body, "parentBlockId");
-        if (CommandRegistry.requires(action, "webField") && parentId == null) return failure("Select a compatible Web Field.");
-        if (CommandRegistry.requires(action, "variable") && variableId == null) return failure("Select a Variable for the Web Field.");
-        if (CommandRegistry.requires(action, "block") && parentBlockId == null) return failure("Select a destination Block.");
+        boolean requiresWebField = CommandRegistry.requires(action, "webField");
+        boolean requiresVariable = CommandRegistry.requires(action, "variable");
+        boolean requiresBlock = CommandRegistry.requires(action, "block");
+        Integer submittedParentId = nullableInteger(body, "parentId");
+        Integer submittedVariableId = nullableInteger(body, "variableId");
+        Integer submittedParentBlockId = nullableInteger(body, "parentBlockId");
+
+        // The React panel can retain selections from the previously viewed command. Canonicalize
+        // the draft before validation/persistence so a block-only command such as GOTO cannot be
+        // rejected because of stale Web Field or Variable identifiers.
+        Integer parentId = requiresWebField ? submittedParentId : null;
+        Integer variableId = requiresVariable ? submittedVariableId : null;
+        Integer parentBlockId = requiresBlock ? submittedParentBlockId : null;
+        if ((!requiresWebField && submittedParentId != null)
+                || (!requiresVariable && submittedVariableId != null)) {
+            log.info(
+                    "COMMAND_EDITOR_IGNORED_STALE_FIELDS requestId={} action={} parentIdIgnored={} variableIdIgnored={}",
+                    requestId,
+                    action,
+                    !requiresWebField && submittedParentId != null,
+                    !requiresVariable && submittedVariableId != null);
+        }
+
+        if (requiresWebField && parentId == null) return failure("Select a compatible Web Field.");
+        if (requiresVariable && variableId == null) return failure("Select a Variable for the Web Field.");
+        if (requiresBlock && parentBlockId == null) return failure("Select a destination Block.");
         InstructionLoad selectedWebField = parentId == null ? null : webField(targetSession, parentId);
         if (parentId != null && (selectedWebField == null
                 || selectedWebField.getBlockId() == null
@@ -473,8 +498,29 @@ public final class CommandEditorService {
         split.setParentId(parentId);
         split.setParentBlockId(parentBlockId);
 
+        log.info(
+                "COMMAND_EDITOR_PERSIST_START requestId={} targetSession={} botJobId={} homeBankingId={}"
+                        + " instructionId={} blockId={} action={} mode={} parentBlockId={} count={}",
+                requestId,
+                targetSession,
+                split.getBotJobId(),
+                split.getHomeBankingId(),
+                split.getInstructionId(),
+                split.getBlockId(),
+                action,
+                mode,
+                parentBlockId,
+                integer(body, "count", 1));
         ErrorMessage error = database.preFillNewInstruction(name, name, action, operation, hold, split, false);
-        if (error != null) return failure(error.getErrorMessage());
+        if (error != null) {
+            log.warn(
+                    "COMMAND_EDITOR_PERSIST_FAILED requestId={} instructionId={} action={} error={}",
+                    requestId,
+                    split.getInstructionId(),
+                    action,
+                    error.getErrorMessage());
+            return failure(error.getErrorMessage());
+        }
 
         if ("componentTasks".equals(targetSession)) {
             error = database.loadComponentsComplete(split.getHomeBankingId(), split.getBotJobId(), split.getBotJobName());
@@ -487,14 +533,17 @@ public final class CommandEditorService {
                 ? lists.getListBotJobComp()
                 : lists.getListBotJob();
         List<InstructionLoad> instructions = lists.buildJsonViewData(jobs);
-        String operationId = "componentTasks".equals(targetSession) ? "componentsUpdate" : "updateInstructions";
-        sessions.sendMessageJson(split.getHomeBankingId(), targetSession, gson.toJson(instructions), operationId);
-
         response.addProperty("ok", true);
         response.addProperty("message", "Command saved.");
         response.add("instructions", gson.toJsonTree(instructions));
         if (body.has("requestId")) response.add("requestId", body.get("requestId"));
         if (!requestId.isEmpty()) rememberCompleted(requestId, response);
+        log.info(
+                "COMMAND_EDITOR_PERSIST_SUCCESS requestId={} instructionId={} action={} parentBlockId={}",
+                requestId,
+                split.getInstructionId(),
+                action,
+                parentBlockId);
         return response;
     }
 

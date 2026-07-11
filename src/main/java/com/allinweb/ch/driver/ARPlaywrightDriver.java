@@ -129,7 +129,19 @@ public class ARPlaywrightDriver {
     public int[] viewportSize() {
         return call(() -> {
             ViewportSize vs = requirePage().viewportSize();
-            return vs == null ? null : new int[] {vs.width, vs.height};
+            if (vs != null) return new int[] {vs.width, vs.height};
+
+            // A null Playwright viewport is intentional for visible maximized browsers: it lets
+            // the page use the native window size. Still expose the effective dimensions to
+            // callers that previously received Selenium's window size.
+            Object dimensions = requirePage().evaluate(
+                    "() => [window.innerWidth || document.documentElement.clientWidth,"
+                            + " window.innerHeight || document.documentElement.clientHeight]");
+            if (dimensions instanceof List<?> values && values.size() >= 2
+                    && values.get(0) instanceof Number width && values.get(1) instanceof Number height) {
+                return new int[] {width.intValue(), height.intValue()};
+            }
+            return null;
         });
     }
 
