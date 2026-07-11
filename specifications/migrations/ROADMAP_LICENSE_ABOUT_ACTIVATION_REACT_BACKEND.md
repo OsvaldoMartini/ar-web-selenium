@@ -53,7 +53,7 @@ All responses must use structured fields such as `ok`, `statusCode`, `title`, `m
 - [ ] Inventory every method and branch in `ARLicensePane`, `LicenseActivationApp`, `LicenseManager`, `ARControlPanel`, and duplicated `checkLicense()` callers.
 - [ ] Extract one pane-free `LicenseService` around existing cryptographic and fingerprint logic.
 - [ ] Define one typed status mapping for every `LicenceVal` value.
-- [ ] Move agreement text to one versioned resource returned by the backend or bundled once in React.
+- [x] Move the recovered seven-section agreement to the single versioned React resource `licenseAgreement.ts` (`d28a8d6`).
 - [x] Centralize email, organization, owner, agreement, path, and response-file validation.
 - [ ] Keep private keys, machine identity, fingerprint generation, and protected file parsing out of React.
 - [x] Add request IDs and serialize activation mutations to prevent duplicate imports or request files.
@@ -77,7 +77,7 @@ All responses must use structured fields such as `ok`, `statusCode`, `title`, `m
 - [x] Show organization, owner, and email fields only for Request (`b292327`).
 - [x] Show file/path controls only for Activate or Use Existing (`b292327`).
 - [x] Require explicit agreement acceptance before Request or Activate (`b292327`).
-- [ ] Keep agreement content scrollable without nesting the complete page in a card.
+- [x] Keep agreement content in a bounded scrollable region for Request and Activate without nesting the page in a card (`d28a8d6`).
 - [ ] Use React confirmation and inline structured errors; remove Java alert/dialog ownership.
 - [x] Prevent repeated submission while a request is pending (`b292327`).
 - [x] Refresh status immediately after request generation, activation, or existing-license selection (`b292327`).
