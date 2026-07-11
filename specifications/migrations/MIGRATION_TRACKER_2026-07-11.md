@@ -61,7 +61,7 @@ Finish the existing JavaFX-to-React instruction-authoring migration while preser
   - [x] Consume block capabilities in React confirmation and request construction (`20ee7bb`).
   - [x] Validate revision/idempotency and persist block deletion atomically.
   - [x] Return structured results without Java dialogs.
-- [ ] Variable mutation plus dependent command rewrites still needs one transaction.
+- [x] Variable mutation and dependent command rewrites use one verified transaction.
 - [ ] Java must enforce variable type compatibility for every command, including crafted requests.
 
 ## Remaining Work
@@ -80,7 +80,7 @@ Finish the existing JavaFX-to-React instruction-authoring migration while preser
 - [x] Send move/delete results only after validation, persistence, and authoritative refresh complete.
 - [x] Cache move/delete request IDs only after successful completion; keep failed requests retryable.
 - [ ] Add rollback fixtures for failed movement updates.
-- [ ] Wrap variable update and every dependent operation rewrite in one transaction.
+- [x] Wrap variable update and every dependent operation rewrite in one transaction.
 - [ ] Add rollback fixtures for failed variable rewrites.
 
 ### P3 - Shared React drag controller

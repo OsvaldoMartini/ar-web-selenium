@@ -80,8 +80,19 @@ public final class VariableEditorService {
         if (id == null || id < 0) {
             error = database.createVariable(variable);
         } else {
-            error = database.updateUserData(context.variableTable, context.whereId, variable);
-            if (error == null) error = rewriteDependentOperations(context, variable);
+            error = prepareDependentOperations(context, variable);
+            if (error == null) {
+                error = database.updateVariableAndOperationsAtomic(
+                        context.variableTable,
+                        context.instructionTable,
+                        context.whereId,
+                        variable,
+                        lists.getListParentOperations());
+            }
+            if (error == null) {
+                lists.updateMemoryParentOpenName(
+                        context.instructionTable, context.whereId, lists.getListParentOperations());
+            }
         }
         if (error != null) return failure(error.getErrorMessage());
         if (id != null && id >= 0) publishInstructionRefresh(context);
@@ -90,7 +101,7 @@ public final class VariableEditorService {
         return response;
     }
 
-    private ErrorMessage rewriteDependentOperations(Context context, VariableUserDTO variable) {
+    private ErrorMessage prepareDependentOperations(Context context, VariableUserDTO variable) {
         ErrorMessage error = database.loadAllParents(
                 context.instructionTable, context.whereId, context.instructionId);
         if (error != null) return error;
@@ -109,13 +120,7 @@ public final class VariableEditorService {
                 default -> { }
             }
         }
-        error = database.rowsUpdateParentName(
-                context.instructionTable, context.whereId, lists.getListParentOperations());
-        if (error == null) {
-            lists.updateMemoryParentOpenName(
-                    context.instructionTable, context.whereId, lists.getListParentOperations());
-        }
-        return error;
+        return null;
     }
 
     private void publishInstructionRefresh(Context context) {
