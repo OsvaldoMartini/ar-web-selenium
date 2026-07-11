@@ -43,6 +43,7 @@ public final class CommandEditorService {
     private final Map<String, Boolean> completedSplitRequests = new LinkedHashMap<>();
     private final InstructionSplitValidator splitValidator = new InstructionSplitValidator();
     private final ConditionalBranchService conditionalBranchService = new ConditionalBranchService();
+    private final LoopGroupService loopGroupService = new LoopGroupService();
 
     private CommandEditorService() {}
 
@@ -163,7 +164,10 @@ public final class CommandEditorService {
     private String deleteBlockReason(InstructionLoad row, Set<Integer> referencedIds, Set<Integer> invalidConditionalIds,
             List<InstructionLoad> rows) {
         if (invalidConditionalIds.contains(row.getId())) return "Conditional graph is invalid.";
-        if (Set.of("LOOP", "REFRESH_LOOP").contains(row.getActions())) return "Loop boundaries require group deletion.";
+        if (Set.of("LOOP", "REFRESH_LOOP").contains(row.getActions())
+                && loopGroupService.groupIds(rows, row.getId()).isEmpty()) {
+            return "Loop parent relationship is invalid.";
+        }
         if ("ELSEIF".equals(row.getActions())
                 && conditionalBranchService.elseIfBranchIds(rows, row.getId()).isEmpty()) {
             return "ELSEIF branch boundaries are invalid.";
@@ -175,6 +179,10 @@ public final class CommandEditorService {
     }
 
     private int deleteImpactCount(InstructionLoad row, List<InstructionLoad> rows) {
+        String rowAction = row.getActions() == null ? "" : row.getActions();
+        if (Set.of("LOOP", "REFRESH_LOOP").contains(rowAction)) {
+            return loopGroupService.groupIds(rows, row.getId()).size();
+        }
         if ("ELSEIF".equals(row.getActions())) {
             return conditionalBranchService.elseIfBranchIds(rows, row.getId()).size();
         }
@@ -192,6 +200,17 @@ public final class CommandEditorService {
         JsonArray impact = new JsonArray();
         if (row == null || row.getId() == null) return impact;
         String action = row.getActions() == null ? "" : row.getActions();
+        if (Set.of("LOOP", "REFRESH_LOOP").contains(action)) {
+            Set<Integer> groupIds = new java.util.HashSet<>(loopGroupService.groupIds(rows, row.getId()));
+            rows.stream()
+                    .filter(candidate -> candidate != null && candidate.getId() != null
+                            && groupIds.contains(candidate.getId()))
+                    .sorted(Comparator.comparingInt(candidate -> candidate.getInstructionOrderNumber() == null
+                            ? Integer.MAX_VALUE
+                            : candidate.getInstructionOrderNumber()))
+                    .forEach(candidate -> addDeleteImpactRow(impact, candidate));
+            return impact;
+        }
         if ("ELSEIF".equals(action)) {
             Set<Integer> branchIds = new java.util.HashSet<>(
                     conditionalBranchService.elseIfBranchIds(rows, row.getId()));

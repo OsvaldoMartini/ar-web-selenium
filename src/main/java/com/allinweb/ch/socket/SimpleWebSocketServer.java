@@ -1894,13 +1894,6 @@ public class SimpleWebSocketServer {
                         break;
                     }
 
-                    if (storedAction.equalsIgnoreCase("LOOP") || storedAction.equalsIgnoreCase("REFRESH_LOOP")) {
-                        errorMessage = new ErrorMessage(
-                                "Delete Instruction Refused",
-                                "Loop relationship must remain intact",
-                                "LOOP and REFRESH_LOOP cannot be deleted independently from their parent Web Field.");
-                        break;
-                    }
                     boolean isIfFamily = actions.equalsIgnoreCase("IF")
                             || actions.equalsIgnoreCase("ELSE")
                             || actions.equalsIgnoreCase("ENDIF")
@@ -1967,7 +1960,12 @@ public class SimpleWebSocketServer {
                                 ? performLists.getListInstruction()
                                 : performLists.getListInstructionComp();
                         List<Integer> deleteIds;
-                        if (actions.equalsIgnoreCase("ELSEIF")) {
+                        if (actions.equalsIgnoreCase("LOOP") || actions.equalsIgnoreCase("REFRESH_LOOP")) {
+                            List<InstructionLoad> blockRows = currentDeleteRows.stream()
+                                    .filter(row -> row != null && Objects.equals(row.getBlockId(), storedBlockId))
+                                    .toList();
+                            deleteIds = new LoopGroupService().groupIds(blockRows, splitDTO.getInstructionId());
+                        } else if (actions.equalsIgnoreCase("ELSEIF")) {
                             List<InstructionLoad> blockRows = currentDeleteRows.stream()
                                     .filter(row -> row != null && Objects.equals(row.getBlockId(), storedBlockId))
                                     .toList();
@@ -1988,8 +1986,8 @@ public class SimpleWebSocketServer {
                         if (deleteIds.isEmpty()) {
                             errorMessage = new ErrorMessage(
                                     "Delete Instruction Refused",
-                                    "ELSEIF branch is invalid",
-                                    "Refresh the grid before deleting this branch.");
+                                    "Instruction group is invalid",
+                                    "Refresh the grid before deleting this instruction group.");
                             break;
                         }
 
