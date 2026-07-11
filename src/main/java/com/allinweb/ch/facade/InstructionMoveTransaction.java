@@ -6,9 +6,12 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /** Connection-scoped, verified instruction movement used by production and rollback fixtures. */
@@ -45,6 +48,44 @@ final class InstructionMoveTransaction {
                     update.setInt(4, row.getInstructionId());
                     update.setInt(5, whereId);
                     if (update.executeUpdate() != 1) throw new SQLException("Instruction was not updated exactly once.");
+                }
+            }
+            List<Integer> blockIds = new ArrayList<>();
+            try (PreparedStatement blocks = connection.prepareStatement(
+                    "SELECT id FROM " + blockTable + " WHERE " + owner + "=? ORDER BY block_order_number,id")) {
+                blocks.setInt(1, whereId);
+                try (ResultSet rows = blocks.executeQuery()) {
+                    while (rows.next()) blockIds.add(rows.getInt("id"));
+                }
+            }
+            Set<Integer> occupied = new HashSet<>();
+            try (PreparedStatement select = connection.prepareStatement(
+                    "SELECT DISTINCT block_id FROM " + instructionTable + " WHERE " + owner + "=?")) {
+                select.setInt(1, whereId);
+                try (ResultSet rows = select.executeQuery()) {
+                    while (rows.next()) occupied.add(rows.getInt("block_id"));
+                }
+            }
+            List<Integer> remaining = blockIds.stream().filter(occupied::contains).toList();
+            if (remaining.isEmpty() && "block".equals(blockTable) && !blockIds.isEmpty()) {
+                remaining = List.of(blockIds.get(0));
+            }
+            try (PreparedStatement delete = connection.prepareStatement(
+                    "DELETE FROM " + blockTable + " WHERE id=? AND " + owner + "=?")) {
+                for (Integer blockId : blockIds) {
+                    if (remaining.contains(blockId)) continue;
+                    delete.setInt(1, blockId);
+                    delete.setInt(2, whereId);
+                    if (delete.executeUpdate() != 1) throw new SQLException("Empty block was not deleted exactly once.");
+                }
+            }
+            try (PreparedStatement reorder = connection.prepareStatement(
+                    "UPDATE " + blockTable + " SET block_order_number=? WHERE id=? AND " + owner + "=?")) {
+                for (int index = 0; index < remaining.size(); index++) {
+                    reorder.setInt(1, index + 1);
+                    reorder.setInt(2, remaining.get(index));
+                    reorder.setInt(3, whereId);
+                    if (reorder.executeUpdate() != 1) throw new SQLException("Block was not reordered exactly once.");
                 }
             }
             connection.commit();

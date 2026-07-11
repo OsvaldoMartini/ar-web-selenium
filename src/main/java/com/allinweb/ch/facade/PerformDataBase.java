@@ -1356,6 +1356,19 @@ public class PerformDataBase {
     }
 
     public ErrorMessage updateMoveRowsOrder(
+            String tableName, int whereId, List<UpdatedRow> instructions) {
+        if (instructions == null || instructions.isEmpty()) return null;
+        try (Connection connection = getConnection()) {
+            new InstructionMoveTransaction().execute(connection, tableName, whereId, instructions);
+            return null;
+        } catch (SQLException error) {
+            logDB.error("Update Move Rows Order Error: " + error.getMessage());
+            return new ErrorMessage(
+                    "Update Move Rows Order Error", "Failed to update instruction order numbers", error.getMessage());
+        }
+    }
+
+    private ErrorMessage updateMoveRowsOrderLegacy(
             String tableName,
             int whereId, // either bot_job_id or home_banking_id
             List<UpdatedRow> instructions) {
