@@ -179,6 +179,10 @@ public class ARMainDashboardPane extends ARPane {
         Platform.runLater(() -> dispatchReactSession("aboutPanel"));
     }
 
+    public void openLicense() {
+        Platform.runLater(() -> dispatchReactSession("licenseManager"));
+    }
+
     public void launchBotJob(BotJobLoadDTO botJob) {
         Platform.runLater(() -> performMessage.showCustomModalDialogDragWin11(
                 "Launch Requested",

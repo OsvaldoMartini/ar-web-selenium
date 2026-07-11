@@ -42,7 +42,6 @@ public class ARMainPane extends ARPane {
 
     private static final String OPENAI_ENDPOINT = "https://api.openai.com/v1/chat/completions";
     //    private static final ARSharedResources dbResource;
-    private static final ARInfoScene arInfoScene;
     private static final ARPropertyManager arPropertyManager;
     private static final PerformLists performLists;
     private static final PerformDBEngine performDBEngine;
@@ -60,7 +59,6 @@ public class ARMainPane extends ARPane {
 
     // Static block to initialize
     static {
-        arInfoScene = ARInfoScene.getInstance();
         //        //        dbResource = PerformDataBase.;
         arPropertyManager = ARPropertyManager.getInstance();
         arNewBotJobScene = ARNewBotJobScene.getInstance();
@@ -400,7 +398,7 @@ public class ARMainPane extends ARPane {
             }
         });
         infoButton.setOnMouseClicked(e -> {
-            arInfoScene.showModal();
+            ARMainDashboardPane.getInstance().openInfo();
         });
         exitButton.setOnMouseClicked(e -> {
             //            Platform.exit();

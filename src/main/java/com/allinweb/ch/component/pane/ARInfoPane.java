@@ -1,7 +1,6 @@
 package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.component.pane.base.ARPane;
-import com.allinweb.ch.component.scene.ARLicenseScene;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
@@ -21,12 +20,10 @@ import lombok.extern.slf4j.Slf4j;
 public class ARInfoPane extends ARPane {
 
     private static final ARPropertyManager arPropertyManager;
-    private static final ARLicenseScene arLicenseScene;
     protected static volatile ARInfoPane instance;
 
     static {
         arPropertyManager = ARPropertyManager.getInstance();
-        arLicenseScene = ARLicenseScene.getInstance();
     }
 
     private boolean isEnabledLicence;
@@ -154,6 +151,6 @@ public class ARInfoPane extends ARPane {
     @Override
     public void initUIBehaviour() {
         // Additional behavior for the button can be added here if needed
-        btnLicense.setOnMouseClicked(e -> arLicenseScene.showModal());
+        btnLicense.setOnMouseClicked(e -> ARMainDashboardPane.getInstance().openLicense());
     }
 }

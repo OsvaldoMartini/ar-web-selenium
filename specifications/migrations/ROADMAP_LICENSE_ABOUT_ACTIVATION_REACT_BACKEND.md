@@ -88,7 +88,7 @@ All responses must use structured fields such as `ok`, `statusCode`, `title`, `m
 - [x] Show version, build, expiration/status, copyright, and licensing mode from `about.bootstrap` (`90bb13a`).
 - [ ] Calculate expiration presentation from an ISO backend date, not locale-specific browser parsing.
 - [x] Open the shared `LicenseManager` from the License action (`90bb13a`).
-- [ ] Remove the direct `ARInfoPane -> ARLicenseScene` dependency.
+- [x] Remove the direct `ARInfoPane -> ARLicenseScene` dependency and route its License action to React.
 - [ ] Keep product metadata read-only and avoid duplicating values in React constants.
 
 ## Phase 5 - Activation Required Startup State
@@ -103,7 +103,7 @@ All responses must use structured fields such as `ok`, `statusCode`, `title`, `m
 
 ## Phase 6 - Remove Redundancy and Legacy Routes
 
-- [ ] Route every License button to the shared React component.
+- [x] Route normal-navigation License buttons to the shared React component; startup activation is tracked separately.
 - [x] Route the active React Main Dashboard About/Info action to `AboutPanel`.
 - [ ] Replace duplicated `checkLicense()` UI messages with `LicenseService` status results.
 - [ ] Remove JavaFX HTML message composition for license operations.
