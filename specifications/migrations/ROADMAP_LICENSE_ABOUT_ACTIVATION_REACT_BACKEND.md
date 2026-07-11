@@ -107,8 +107,8 @@ All responses must use structured fields such as `ok`, `statusCode`, `title`, `m
 - [x] Route the active React Main Dashboard About/Info action to `AboutPanel`.
 - [ ] Replace duplicated `checkLicense()` UI messages with `LicenseService` status results.
 - [ ] Remove JavaFX HTML message composition for license operations.
-- [ ] Remove `ARLicensePane`, `ARLicenseScene`, `ARInfoPane`, and `ARInfoScene` after parity tests pass.
-- [ ] Delete the now-unreferenced `LicenseActivationApp` and legacy license scene/pane after runtime startup verification.
+- [x] Remove the unreferenced `ARLicensePane`, `ARLicenseScene`, `ARInfoPane`, and `ARInfoScene` after React parity coverage.
+- [x] Delete the unreferenced `LicenseActivationApp`; runtime startup verification remains an external Java-machine gate.
 - [ ] Keep `LicenseManager` cryptographic primitives only until the post-Java Node migration replaces them securely.
 - [ ] Run a zero-reference audit for removed scenes, panes, CSS, images, and launcher calls.
 

@@ -52,7 +52,7 @@ D:\Projects\ARWeb-Martini\ARWeb\plugins\searchListAsync\build\searchListAsync.mi
 ## Architecture you need in your head before editing
 
 ### Entry point and bootstrap
-`com.allinweb.ch.ARControlPanel` (JavaFX `Application`) wires singletons in a static block — `PerformDataBase`, `PerformInitializer`, `PerformMessage`, `ARPropertyManager`, three scenes (`ARLicenseScene`, `ARConfigurationScene`, `ARMainScene`), and two WebSocket servers (`ARWebSocketServer`, `ARWebSocketServerIP`). Ports are chosen at startup and exported via `System.setProperty("ARWebChosenPort*")`. License validation runs before the UI is shown.
+`com.allinweb.ch.ARControlPanel` (JavaFX `Application`) wires the database, initializer, property manager, configuration/main scenes, and two WebSocket servers. Ports are chosen at startup and exported via `System.setProperty("ARWebChosenPort*")`. The local WebSocket server starts before license validation so the React `ActivationRequired` session can recover an inactive installation; database and protected services start only after activation succeeds.
 
 ### Package layout (what each one owns)
 - **`facade`** — `Perform*` singletons are the service layer. `PerformActions` drives Selenium, `PerformCloneLoad` runs the element-picking flow, `PerformDataBase` owns persistence, `PerformMessage` is the serialization + user-feedback hub (note: `outputJsonElementDTO` is the canonical DTO-to-disk writer used by pick events).
