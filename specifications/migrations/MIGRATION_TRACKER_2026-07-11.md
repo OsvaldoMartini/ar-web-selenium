@@ -165,7 +165,8 @@ The About, License, and Activation Software Required consolidation is planned in
 - [x] Verify persisted block and instruction rows after authoritative refresh and page reload (`ARWeb-Linux` `ead27b7`).
 - [ ] Cover IF/ELSEIF/ELSE/ENDIF, loops, variables, move, delete, and split workflows.
   - [x] Cover authoritative complete IF-family and loop-span move previews and normalized `ROW_MOVE` payloads (`ARWeb-Linux` `15a0907`).
-  - [ ] Cover variable, delete, and split browser workflows.
+  - [x] Cover typed variable creation and revision/request-aware instruction deletion (`ARWeb-Linux` `868028f`).
+  - [ ] Cover split preview and Apply in the browser workflow.
 - [ ] Verify component-grid parity and direct WebSocket rejection behavior.
 
 ## Current Next Step
