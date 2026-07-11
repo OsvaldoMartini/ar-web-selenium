@@ -41,6 +41,7 @@ public class SimpleWebSocketServer {
     private static ARSaveComponentScene arSaveComponentScene = ARSaveComponentScene.getInstance();
     private static ActionExecutorClient actionExecutorClient = ActionExecutorClient.getInstance();
     private static final Map<String, Boolean> processedInstructionDeletes = new LinkedHashMap<>();
+    private static final Map<String, Boolean> processedRowMoves = new LinkedHashMap<>();
     private static final InstructionMoveValidator instructionMoveValidator = new InstructionMoveValidator();
     private final Gson gson = new Gson();
     private PayloadJson payloadEmpty;
@@ -1674,6 +1675,19 @@ public class SimpleWebSocketServer {
                     alreadySentMgsSocket = false;
                     break;
                 case "ROW_MOVE":
+                    String moveRequestId = splitDTO.getRequestId() == null ? "" : splitDTO.getRequestId().trim();
+                    if (moveRequestId.isEmpty()) {
+                        errorMessage = new ErrorMessage(
+                                "Move Instruction Refused", "Request ID is required", "Refresh the grid and try again.");
+                        break;
+                    }
+                    synchronized (processedRowMoves) {
+                        if (processedRowMoves.containsKey(moveRequestId)) break;
+                        processedRowMoves.put(moveRequestId, Boolean.TRUE);
+                        while (processedRowMoves.size() > 256) {
+                            processedRowMoves.remove(processedRowMoves.keySet().iterator().next());
+                        }
+                    }
                     errorMessage = performDataBase.loadInstructions(whereId, -1, -1, instrTable);
                     if (errorMessage != null) break;
                     List<InstructionLoad> currentMoveRows = instrTable.equals("instruction")
