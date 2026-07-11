@@ -136,8 +136,9 @@ The About, License, and Activation Software Required consolidation is planned in
   - [x] Test React component-session variable creation and usage-protected deletion (`4ffe287`).
   - [x] Test React bot-job variable edit, reference selection, and confirmed unused deletion (`27d63c6`).
 - [x] Make rename/type updates and dependent-operation rewrites one transaction (`ab80cd14`).
-- [ ] Verify bot-job and component-session parity.
+- [x] Verify bot-job and component-session parity.
   - [x] Cover component-session bootstrap and variable mutation context in React tests (`4ffe287`).
+  - [x] Cover component-table dependent-operation rollback with home-banking ownership.
 
 ### P7 - Remove remaining JavaFX routes
 
