@@ -8,6 +8,8 @@ import com.google.gson.JsonObject;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.List;
 
@@ -19,6 +21,7 @@ public final class VariableEditorService {
     private final Gson gson = new Gson();
     private final PerformDBEngine engine = PerformDBEngine.getInstance();
     private final WebSocketSessionManager sessions = WebSocketSessionManager.getInstance();
+    private final Map<String, JsonObject> completedRequests = new LinkedHashMap<>();
 
     private VariableEditorService() {}
 
@@ -38,6 +41,10 @@ public final class VariableEditorService {
     }
 
     public JsonObject save(JsonObject body) {
+        return serializedMutation(body, () -> saveOnce(body));
+    }
+
+    private JsonObject saveOnce(JsonObject body) {
         Context context = context(body);
         JsonObject draft = body != null && body.has("variable") ? body.getAsJsonObject("variable") : new JsonObject();
         Integer id = nullableInteger(draft, "id");
@@ -132,6 +139,10 @@ public final class VariableEditorService {
     }
 
     public JsonObject delete(JsonObject body) {
+        return serializedMutation(body, () -> deleteOnce(body));
+    }
+
+    private JsonObject deleteOnce(JsonObject body) {
         Context context = context(body);
         int id = integer(body, "variableId", -1);
         database.loadAllVariablesByCriteria(
@@ -154,6 +165,23 @@ public final class VariableEditorService {
         JsonObject response = list(body);
         response.addProperty("message", "Variable deleted.");
         return response;
+    }
+
+    private JsonObject serializedMutation(JsonObject body, java.util.function.Supplier<JsonObject> mutation) {
+        String requestId = string(body, "requestId", "").trim();
+        if (requestId.isEmpty()) return failure("Variable mutation request ID is required.");
+        synchronized (completedRequests) {
+            JsonObject completed = completedRequests.get(requestId);
+            if (completed != null) return completed.deepCopy();
+            JsonObject response = mutation.get();
+            if (response.has("ok") && response.get("ok").getAsBoolean()) {
+                completedRequests.put(requestId, response.deepCopy());
+                while (completedRequests.size() > 256) {
+                    completedRequests.remove(completedRequests.keySet().iterator().next());
+                }
+            }
+            return response;
+        }
     }
 
     private int currentUsageCount(Context context, int variableId) {
