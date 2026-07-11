@@ -115,6 +115,7 @@ Finish the existing JavaFX-to-React instruction-authoring migration while preser
 - [ ] Default unknown row/command combinations to denied.
 - [ ] Ensure React never constructs canonical legacy operation strings.
 - [x] Return structured warnings for malformed historical operations.
+- [x] Render malformed historical operation warnings in the React command panel (`c0cbd98`).
 - [ ] Verify canonical aliases and every command family round trip.
 - [x] Publish command-variable type compatibility and revalidate submitted variable IDs/types in Java.
 
