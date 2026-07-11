@@ -132,7 +132,7 @@ Finish the existing JavaFX-to-React instruction-authoring migration while preser
 - [x] No normal UI forwarding to `ARNewCommandPane` or `ARElementValuePane` remains.
 - [x] Legacy JavaFX command/variable pane and scene classes are absent from `src/main/java`.
 - [x] No active command, variable, delete, move, Memory List, or split path opens JavaFX.
-- [ ] Remove or archive unreferenced `GridDrag2.tsx`, which still contains unreachable legacy STOMP senders.
+- [x] Remove unreferenced `GridDrag2.tsx` and its unreachable legacy STOMP senders (`7549653`).
 
 ### P8 - Automated and end-to-end acceptance
 
