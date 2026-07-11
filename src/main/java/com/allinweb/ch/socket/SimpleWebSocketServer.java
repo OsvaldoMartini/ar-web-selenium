@@ -168,6 +168,15 @@ public class SimpleWebSocketServer {
                 }
             }
 
+            if (!LicenseService.getInstance().permits(type)) {
+                sendCommandEditorResponse(
+                        homeBankingId,
+                        sessionId,
+                        "license.requiredResponse",
+                        LicenseService.getInstance().startup());
+                return;
+            }
+
             // Process the message based on its type
             switch (type) {
                 case "broadcast":

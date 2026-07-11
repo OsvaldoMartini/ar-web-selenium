@@ -95,8 +95,8 @@ All responses must use structured fields such as `ok`, `statusCode`, `title`, `m
 
 - [ ] Replace `LicenseActivationApp` with the reusable `ActivationRequired` React surface.
 - [x] Make `license.startup` return allowed/activation-required state and the target React session.
-- [ ] Prevent protected routes and job execution while activation is required.
-- [ ] Permit only license request, activation, existing-license selection, status recheck, and application exit.
+- [x] Prevent protected WebSocket routes and job mutations while activation is required.
+- [x] Permit only license recovery/status, About, and basic connection operations while restricted.
 - [ ] Re-bootstrap the application after successful activation without requiring a JavaFX window restart.
 - [ ] Preserve an offline directory workflow for disconnected client installations.
 - [ ] Define headless-server behavior when no native chooser is available: typed path input or secure upload endpoint.

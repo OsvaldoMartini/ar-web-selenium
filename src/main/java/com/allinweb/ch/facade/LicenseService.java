@@ -8,9 +8,13 @@ import com.google.gson.JsonObject;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Set;
 
 /** Pane-free read boundary for React license and About surfaces. */
 public final class LicenseService {
+    private static final Set<String> UNRESTRICTED_OPERATIONS = Set.of(
+            "echo", "license.bootstrap", "license.status", "license.startup", "license.request",
+            "license.activate", "license.useExisting", "about.bootstrap");
     private static final LicenseService INSTANCE = new LicenseService();
     private final ARPropertyManager properties = ARPropertyManager.getInstance();
     private final CompletedRequestCache completedRequests = new CompletedRequestCache(128);
@@ -68,6 +72,12 @@ public final class LicenseService {
         response.addProperty("targetSessionId", allowed ? "mainDashboard" : "activationRequired");
         response.add("license", license);
         return response;
+    }
+
+    public boolean permits(String operation) {
+        if (operation != null && UNRESTRICTED_OPERATIONS.contains(operation)) return true;
+        JsonObject state = bootstrap();
+        return state.has("active") && state.get("active").getAsBoolean();
     }
 
     public JsonObject request(JsonObject body) {
