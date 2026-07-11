@@ -71,6 +71,8 @@ Finish the existing JavaFX-to-React instruction-authoring migration while preser
 - [x] Update move order, block, and database-derived parent block in one verified transaction.
 - [x] Refuse EXCEL GOTO-only move layouts before mutation.
 - [x] Delete empty blocks and normalize block order inside the verified move transaction.
+- [x] Send move/delete results only after validation, persistence, and authoritative refresh complete.
+- [x] Cache move/delete request IDs only after successful completion; keep failed requests retryable.
 - [ ] Add rollback fixtures for failed movement updates.
 - [ ] Wrap variable update and every dependent operation rewrite in one transaction.
 - [ ] Add rollback fixtures for failed variable rewrites.

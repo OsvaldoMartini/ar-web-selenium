@@ -1183,28 +1183,6 @@ public class SimpleWebSocketServer {
         if (errorMessage == null) {
             errorMessage = performDataBase.loadInstructions(whereId, -1, -1, instrTable);
         }
-        if ("ROW_MOVE".equals(type)) {
-            JsonObject moveResponse = new JsonObject();
-            moveResponse.addProperty("ok", errorMessage == null);
-            moveResponse.addProperty("requestId", splitDTO.getRequestId());
-            if (errorMessage != null) moveResponse.addProperty("error", errorMessage.getErrorMessage());
-            sendCommandEditorResponse(
-                    homeBankingId, sessionIdToSend, "instructionEditor.rowMoveResponse", moveResponse);
-        }
-
-        if ("DELETE_INSTRUCTION".equals(type)) {
-            JsonObject deleteResponse = new JsonObject();
-            deleteResponse.addProperty("ok", errorMessage == null);
-            deleteResponse.addProperty("requestId", splitDTO.getRequestId());
-            if (errorMessage != null) {
-                deleteResponse.addProperty("errorTitle", errorMessage.getErrorTitle());
-                deleteResponse.addProperty("errorHeader", errorMessage.getErrorHeader());
-                deleteResponse.addProperty("error", errorMessage.getErrorMessage());
-            }
-            sendCommandEditorResponse(
-                    homeBankingId, sessionIdToSend, "instructionEditor.deleteResponse", deleteResponse);
-        }
-
         if (errorMessage != null && !"ROW_MOVE".equals(type) && !"DELETE_INSTRUCTION".equals(type)) {
             performMessage.errorMessageOperationFailed(errorMessage);
         }
@@ -1732,10 +1710,6 @@ public class SimpleWebSocketServer {
                     }
                     synchronized (processedRowMoves) {
                         if (processedRowMoves.containsKey(moveRequestId)) break;
-                        processedRowMoves.put(moveRequestId, Boolean.TRUE);
-                        while (processedRowMoves.size() > 256) {
-                            processedRowMoves.remove(processedRowMoves.keySet().iterator().next());
-                        }
                     }
                     errorMessage = CommandEditorService.getInstance().validateMoveRevision(splitDTO);
                     if (errorMessage != null) break;
@@ -1755,6 +1729,9 @@ public class SimpleWebSocketServer {
                     }
                     if (errorMessage == null) {
                         errorMessage = performDataBase.loadBlocks(whereId, "", blockTable);
+                    }
+                    if (errorMessage == null) {
+                        rememberCompletedRequest(processedRowMoves, moveRequestId);
                     }
 
                     // calls perform list block update
@@ -1888,15 +1865,11 @@ public class SimpleWebSocketServer {
                                 "Refresh the grid and try the deletion again.");
                         break;
                     }
-                    errorMessage = CommandEditorService.getInstance().validateDeleteRevision(splitDTO);
-                    if (errorMessage != null) break;
                     synchronized (processedInstructionDeletes) {
                         if (processedInstructionDeletes.containsKey(deleteRequestId)) break;
-                        processedInstructionDeletes.put(deleteRequestId, Boolean.TRUE);
-                        while (processedInstructionDeletes.size() > 256) {
-                            processedInstructionDeletes.remove(processedInstructionDeletes.keySet().iterator().next());
-                        }
                     }
+                    errorMessage = CommandEditorService.getInstance().validateDeleteRevision(splitDTO);
+                    if (errorMessage != null) break;
 
                     errorMessage = performDataBase.loadInstructions(whereId, -1, -1, instrTable);
                     if (errorMessage != null) break;
@@ -2077,6 +2050,9 @@ public class SimpleWebSocketServer {
                         }
                     }
 
+                    if (errorMessage == null) {
+                        rememberCompletedRequest(processedInstructionDeletes, deleteRequestId);
+                    }
                     alreadySentMgsSocket = false;
                     break;
                 }
@@ -2183,6 +2159,24 @@ public class SimpleWebSocketServer {
 
             //            broadcastMessageToAll(homeBankingId, "componentTasks", jsonData, "componentsUpdate");
             //            sendMessageJson(sessionIdToSend, jsonData, "componentsUpdate");
+        }
+
+        if ("ROW_MOVE".equals(type) || "DELETE_INSTRUCTION".equals(type)) {
+            JsonObject mutationResponse = new JsonObject();
+            mutationResponse.addProperty("ok", errorMessage == null);
+            mutationResponse.addProperty("requestId", splitDTO.getRequestId());
+            if (errorMessage != null) {
+                mutationResponse.addProperty("errorTitle", errorMessage.getErrorTitle());
+                mutationResponse.addProperty("errorHeader", errorMessage.getErrorHeader());
+                mutationResponse.addProperty("error", errorMessage.getErrorMessage());
+            }
+            sendCommandEditorResponse(
+                    homeBankingId,
+                    sessionIdToSend,
+                    "ROW_MOVE".equals(type)
+                            ? "instructionEditor.rowMoveResponse"
+                            : "instructionEditor.deleteResponse",
+                    mutationResponse);
         }
     }
 
@@ -2681,6 +2675,15 @@ public class SimpleWebSocketServer {
     private void sendCommandEditorResponse(
             int homeBankId, String sessionId, String operationId, JsonObject response) {
         webSocketSessionManager.sendMessageJson(homeBankId, sessionId, gson.toJson(response), operationId);
+    }
+
+    private void rememberCompletedRequest(Map<String, Boolean> completedRequests, String requestId) {
+        synchronized (completedRequests) {
+            completedRequests.put(requestId, Boolean.TRUE);
+            while (completedRequests.size() > 256) {
+                completedRequests.remove(completedRequests.keySet().iterator().next());
+            }
+        }
     }
 
     /** Best-effort lookup of the current pick's home_url_id via the scene's currentBotJob. Null when unavailable. */
