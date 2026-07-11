@@ -83,7 +83,8 @@ Finish the existing JavaFX-to-React instruction-authoring migration while preser
 - [x] Route arrow and Memory List move submissions through `useInstructionDrag.ts` (`6633ee3`).
 - [ ] Remove duplicated inline IF/loop/move checks after backend parity is confirmed.
 - [ ] Restore original state on backend rejection without losing scroll or expanded blocks.
-- [ ] Add explicit drag handles and backend-driven valid/invalid drop zones.
+- [x] Add explicit capability-aware drag handles to both grids (`e621dcc`).
+- [ ] Add backend-driven valid/invalid drop zones.
 - [ ] Add reason tooltips, group preview, and keyboard movement.
 
 ### P4 - Graph-aware deletion completion
