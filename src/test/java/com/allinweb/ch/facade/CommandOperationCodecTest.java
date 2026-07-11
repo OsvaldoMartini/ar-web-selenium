@@ -61,6 +61,34 @@ class CommandOperationCodecTest {
                 codec.decode(row(action, operation, 1)).getAsJsonArray("warnings").isEmpty(), action));
     }
 
+    @Test
+    void encodesEveryRegisteredCommandFamilyCanonically() {
+        Map<String, String> expected = new LinkedHashMap<>();
+        expected.put("SET", "Field:10");
+        expected.put("GET", "Field:#value");
+        expected.put("CK", "#value:>=:10");
+        expected.put("PDF CHECK", "#value:>=:10");
+        expected.put("CSV CHECK", "#value:>=:10");
+        expected.put("E", "#value");
+        expected.put("IF", "IF");
+        expected.put("GOTO", "4");
+        expected.put("EXCEL GOTO", "1");
+        expected.put("LOOP", "3:4");
+        expected.put("REFRESH_LOOP", "3:4");
+        expected.put("REFRESH", "");
+        expected.put("NEXT_ENTER", "");
+        expected.put("SWIPE_UP", "4");
+        expected.put("SWIPE_DOWN", "4");
+        expected.put("H", "");
+        expected.put("PAUSE", "");
+        expected.put("Q", "");
+        expected.put("P", "");
+
+        assertEquals(CommandRegistry.catalog().size(), expected.size());
+        expected.forEach((action, operation) -> assertEquals(operation,
+                CommandOperationCodec.encodeResolved(action, "Field", "#value", "10", ">=", "4", "3"), action));
+    }
+
     private InstructionLoad row(String action, String operation, int hold) {
         InstructionLoad row = new InstructionLoad();
         row.setActions(action);

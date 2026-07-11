@@ -18,12 +18,18 @@ public final class CommandOperationCodec {
         String count = boundedNumber(body, "count", "1");
         String interval = boundedNumber(body, "interval", "1");
 
+        return encodeResolved(action, relation.webFieldName, relation.typedVariableName, relation.variableValue,
+                operator, count, interval);
+    }
+
+    static String encodeResolved(String action, String webFieldName, String typedVariableName, String variableValue,
+            String operator, String count, String interval) {
         return switch (action) {
-            case "SET" -> relation.webFieldName + ":" + emptyValue(relation.variableValue);
-            case "GET" -> relation.webFieldName + ":" + relation.typedVariableName;
+            case "SET" -> webFieldName + ":" + emptyValue(variableValue);
+            case "GET" -> webFieldName + ":" + typedVariableName;
             case "CK", "PDF CHECK", "CSV CHECK" ->
-                    relation.typedVariableName + ":" + operator + ":" + emptyValue(relation.variableValue);
-            case "E" -> relation.typedVariableName;
+                    typedVariableName + ":" + operator + ":" + emptyValue(variableValue);
+            case "E" -> typedVariableName;
             case "LOOP", "REFRESH_LOOP" -> interval + ":" + count;
             case "GOTO" -> count;
             case "EXCEL GOTO" -> "1";

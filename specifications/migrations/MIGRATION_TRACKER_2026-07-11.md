@@ -110,7 +110,7 @@ Finish the existing JavaFX-to-React instruction-authoring migration while preser
 
 ### P5 - Command codec and rule completeness
 
-- [ ] Complete round-trip fixtures for every legacy command operation format.
+- [x] Complete canonical encode/decode fixtures for every registered command family.
 - [x] Verify decode schemas for SET, GET, CK/PDF/CSV, GOTO, EXCEL GOTO, loops, waits, swipe, and independent commands.
 - [ ] Default unknown row/command combinations to denied.
 - [ ] Ensure React never constructs canonical legacy operation strings.
