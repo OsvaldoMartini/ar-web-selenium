@@ -38,6 +38,7 @@ public final class CommandEditorService {
     private final Gson gson = new Gson();
     private final CommandOperationCodec operationCodec = new CommandOperationCodec();
     private final CommandCapabilityService capabilityService = new CommandCapabilityService();
+    private final ConditionalGraphValidator conditionalValidator = new ConditionalGraphValidator();
     private final Map<String, JsonObject> completedRequests = new LinkedHashMap<>();
 
     private CommandEditorService() {}
@@ -268,6 +269,9 @@ public final class CommandEditorService {
                         : row.getInstructionOrderNumber()))
                 .toList();
 
+        String graphError = conditionalValidator.validate(blockRows);
+        if (graphError != null) return failure("Invalid conditional graph: " + graphError);
+
         Integer rootId = enclosingIfRoot(blockRows, anchorId);
         if (rootId == null) return failure("The selected instruction is not inside a valid IF family.");
 
@@ -430,6 +434,7 @@ public final class CommandEditorService {
                         ? Integer.MAX_VALUE
                         : row.getInstructionOrderNumber()))
                 .toList();
+        if (conditionalValidator.validate(blockRows) != null) return false;
         Integer rootId = enclosingIfRoot(blockRows, instructionId);
         if (rootId == null) return false;
         InstructionLoad boundary = blockRows.stream()
@@ -457,7 +462,8 @@ public final class CommandEditorService {
                         ? Integer.MAX_VALUE
                         : row.getInstructionOrderNumber()))
                 .toList();
-        if (blockRows.size() <= 1 || enclosingIfRoot(blockRows, instructionId) != null) return false;
+        if (blockRows.size() <= 1 || conditionalValidator.validate(blockRows) != null
+                || enclosingIfRoot(blockRows, instructionId) != null) return false;
         int selectedIndex = indexOf(blockRows, instructionId);
         int splitIndex = selectedIndex == blockRows.size() - 1 ? selectedIndex - 1 : selectedIndex;
         return splitIndex >= 0 && !separatesLoopRelationship(blockRows, splitIndex);
