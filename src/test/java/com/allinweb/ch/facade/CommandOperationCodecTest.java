@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.allinweb.ch.model.InstructionLoad;
 import com.google.gson.JsonObject;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class CommandOperationCodecTest {
@@ -28,6 +30,35 @@ class CommandOperationCodecTest {
         assertEquals(1, codec.decode(row("REFRESH_LOOP", "0:oops", 1)).getAsJsonArray("warnings").size());
         assertEquals(1, codec.decode(row("IF", "BROKEN", 1)).getAsJsonArray("warnings").size());
         assertEquals(1, codec.decode(row("PAUSE", "unexpected", 1)).getAsJsonArray("warnings").size());
+        assertEquals(1, codec.decode(row("EXCEL GOTO", "2", 1)).getAsJsonArray("warnings").size());
+    }
+
+    @Test
+    void decodesEveryRegisteredCommandFamilyWithoutWarnings() {
+        Map<String, String> canonicalOperations = new LinkedHashMap<>();
+        canonicalOperations.put("SET", "Field:$EMPTY");
+        canonicalOperations.put("GET", "Field:$value");
+        canonicalOperations.put("CK", "$value:=:$EMPTY");
+        canonicalOperations.put("PDF CHECK", "$value:=:$EMPTY");
+        canonicalOperations.put("CSV CHECK", "$value:=:$EMPTY");
+        canonicalOperations.put("E", "$value");
+        canonicalOperations.put("IF", "IF");
+        canonicalOperations.put("GOTO", "2");
+        canonicalOperations.put("EXCEL GOTO", "1");
+        canonicalOperations.put("LOOP", "2:3");
+        canonicalOperations.put("REFRESH_LOOP", "2:3");
+        canonicalOperations.put("REFRESH", "");
+        canonicalOperations.put("NEXT_ENTER", "");
+        canonicalOperations.put("SWIPE_UP", "2");
+        canonicalOperations.put("SWIPE_DOWN", "2");
+        canonicalOperations.put("H", "");
+        canonicalOperations.put("PAUSE", "");
+        canonicalOperations.put("Q", "");
+        canonicalOperations.put("P", "");
+
+        assertEquals(CommandRegistry.catalog().size(), canonicalOperations.size());
+        canonicalOperations.forEach((action, operation) -> assertTrue(
+                codec.decode(row(action, operation, 1)).getAsJsonArray("warnings").isEmpty(), action));
     }
 
     private InstructionLoad row(String action, String operation, int hold) {

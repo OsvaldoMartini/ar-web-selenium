@@ -66,6 +66,8 @@ public final class CommandOperationCodec {
         } else if (Set.of("GOTO", "SWIPE_UP", "SWIPE_DOWN").contains(action)
                 && (parts.length != 1 || !isPositive(parts[0]))) {
             warnings.add(action + " operation must contain one positive Count segment.");
+        } else if ("EXCEL GOTO".equals(action) && !"1".equals(operation)) {
+            warnings.add("EXCEL GOTO operation is not canonical.");
         } else if ("IF".equals(action) && !"IF".equals(operation)) {
             warnings.add("IF operation is not canonical.");
         } else if (Set.of("NEXT_ENTER", "REFRESH", "PAUSE", "Q", "P", "H").contains(action)
