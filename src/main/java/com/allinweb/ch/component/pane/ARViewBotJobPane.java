@@ -3,7 +3,6 @@ package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.component.scene.ARNewHomeBankingScene;
-import com.allinweb.ch.component.scene.AROcrConfigScene;
 import com.allinweb.ch.component.scene.ARScannedElementScene;
 import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.control.ARComponentBuilder;
@@ -1792,12 +1791,6 @@ public class ARViewBotJobPane extends ARPane {
     public void handlePreScanCommand(String type, JsonObject jsonEntry) {
         if ("PRE_SCAN_CLEAR_GRID".equals(type)) {
             sendPreScanReset();
-            return;
-        }
-
-        if ("PRE_SCAN_OCR_CONFIG".equals(type)) {
-            Platform.runLater(() -> AROcrConfigScene.getInstance()
-                    .openFor(selectedBotJob.getHomeBankingId(), selectedBotJob.getHomeUrlId()));
             return;
         }
 

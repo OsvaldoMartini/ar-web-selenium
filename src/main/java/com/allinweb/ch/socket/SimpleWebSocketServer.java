@@ -1508,7 +1508,6 @@ public class SimpleWebSocketServer {
                 case "PRE_SCAN_PAGE":
                 case "PRE_SCAN_REFRESH_PAGE":
                 case "PRE_SCAN_CLEAR_GRID":
-                case "PRE_SCAN_OCR_CONFIG":
                     ARViewBotJobPane.getInstance().handlePreScanCommand(type, jsonEntry);
                     alreadySentMgsSocket = true;
                     break;

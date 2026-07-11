@@ -30,8 +30,8 @@ Complete React parity for `AROcrConfigPane`, `AROcrTestResultsPane`, and their s
 - [x] Show result table, approval controls, XPath, summary counts, and annotated image securely.
 - [x] Integrate accepted suggestions with existing `OCRPanel`/`GridItemScann` state.
 - [ ] Add profile CRUD, validation, scope, test-result, approval, and image-path security tests.
-- [ ] Route Bot Job and Pre-Scan OCR Config actions to React. Pre-Scan configuration/results are complete; standalone JavaFX host callers remain.
-- [ ] Remove OCR JavaFX panes/scenes after parity and runtime verification.
+- [x] Route Bot Job, scanned-element, and Pre-Scan OCR Config actions to React.
+- [x] Remove OCR JavaFX panes/scenes and obsolete command routing after static parity verification.
 
 ## Acceptance
 

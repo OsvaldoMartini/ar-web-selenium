@@ -5,7 +5,6 @@ import com.allinweb.ch.builder.WebElementAttributeTypeValueEnum;
 import com.allinweb.ch.builder.WebElementTagNameEnum;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.component.scene.ARNewHomeBankingScene;
-import com.allinweb.ch.component.scene.AROcrConfigScene;
 import com.allinweb.ch.component.scene.ARScannedElementScene;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.driver.ARWebDriver;
@@ -2788,7 +2787,14 @@ public class ARScannedElementPane extends ARPane {
         ocrConfigButton.setOnAction(e -> {
             Integer hbId = currentBotJob == null ? null : currentBotJob.getHomeBankingId();
             Integer urlId = currentBotJob == null ? null : currentBotJob.getHomeUrlId();
-            AROcrConfigScene.getInstance().openFor(hbId, urlId);
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("homeBankingId", hbId);
+            payload.put("homeUrlId", urlId);
+            WebSocketSessionManager.getInstance().sendMessageJson(
+                    hbId == null ? 0 : hbId,
+                    "scanner-element-pane",
+                    new Gson().toJson(payload),
+                    "openOcrConfig");
         });
 
         searchButton.setOnAction(e -> searchTermsBtn(searchTermsField.getText().trim(), Collections.emptyList()));

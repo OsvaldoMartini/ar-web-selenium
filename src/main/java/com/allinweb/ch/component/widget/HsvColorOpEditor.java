@@ -29,7 +29,7 @@ import javafx.scene.paint.Color;
  * {@code replace_in_hsv_range}. Bidirectional: editing the sliders rewrites
  * the JSON; loading existing JSON populates the sliders.
  *
- * <p>Schema (matches {@code COLOR_OP_TEMPLATE} in {@code AROcrConfigPane}):
+ * <p>Schema used by the React OCR configuration color-operation editor:
  * <pre>{@code
  *   { "name": "label",
  *     "mode": "replace_in_hsv_range" | "keep_in_range_binarize"
