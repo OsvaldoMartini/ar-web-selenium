@@ -114,7 +114,7 @@ Finish the existing JavaFX-to-React instruction-authoring migration while preser
 - [ ] Verify typed schemas for SET, GET, CK/PDF/CSV, GOTO, EXCEL GOTO, loops, waits, swipe, and independent commands.
 - [ ] Default unknown row/command combinations to denied.
 - [ ] Ensure React never constructs canonical legacy operation strings.
-- [ ] Return structured warnings for malformed historical operations.
+- [x] Return structured warnings for malformed historical operations.
 - [ ] Verify canonical aliases and every command family round trip.
 - [x] Publish command-variable type compatibility and revalidate submitted variable IDs/types in Java.
 

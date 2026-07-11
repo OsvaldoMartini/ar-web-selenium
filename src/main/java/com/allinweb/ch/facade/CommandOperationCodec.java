@@ -2,6 +2,7 @@ package com.allinweb.ch.facade;
 
 import com.allinweb.ch.model.InstructionLoad;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonArray;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -47,7 +48,39 @@ public final class CommandOperationCodec {
         draft.addProperty("operator", isCheck(action) && parts.length > 1 ? parts[1] : "=");
         draft.addProperty("interval", isLoop(action) && parts.length > 0 ? positive(parts[0], 1) : 1);
         draft.addProperty("count", count(action, parts));
+        JsonArray warnings = decodeWarnings(action, operation, parts);
+        draft.add("warnings", warnings);
         return draft;
+    }
+
+    private static JsonArray decodeWarnings(String action, String operation, String[] parts) {
+        JsonArray warnings = new JsonArray();
+        if (Set.of("SET", "GET").contains(action) && parts.length != 2) {
+            warnings.add(action + " operation must contain Web Field and Variable/Value segments.");
+        } else if (isCheck(action) && parts.length != 3) {
+            warnings.add(action + " operation must contain Variable, Operator, and Value segments.");
+        } else if ("E".equals(action) && operation.isBlank()) {
+            warnings.add("Extract Field operation has no Variable segment.");
+        } else if (isLoop(action) && (parts.length != 2 || !isPositive(parts[0]) || !isPositive(parts[1]))) {
+            warnings.add(action + " operation must contain positive Interval and Count segments.");
+        } else if (Set.of("GOTO", "SWIPE_UP", "SWIPE_DOWN").contains(action)
+                && (parts.length != 1 || !isPositive(parts[0]))) {
+            warnings.add(action + " operation must contain one positive Count segment.");
+        } else if ("IF".equals(action) && !"IF".equals(operation)) {
+            warnings.add("IF operation is not canonical.");
+        } else if (Set.of("NEXT_ENTER", "REFRESH", "PAUSE", "Q", "P", "H").contains(action)
+                && !operation.isBlank()) {
+            warnings.add(action + " ignores a non-empty historical operation.");
+        }
+        return warnings;
+    }
+
+    private static boolean isPositive(String value) {
+        try {
+            return Integer.parseInt(value) > 0;
+        } catch (NumberFormatException ignored) {
+            return false;
+        }
     }
 
     private static int count(String action, String[] parts) {
