@@ -1185,7 +1185,20 @@ public class SimpleWebSocketServer {
                     homeBankingId, sessionIdToSend, "instructionEditor.rowMoveResponse", moveResponse);
         }
 
-        if (errorMessage != null && !"ROW_MOVE".equals(type)) {
+        if ("DELETE_INSTRUCTION".equals(type)) {
+            JsonObject deleteResponse = new JsonObject();
+            deleteResponse.addProperty("ok", errorMessage == null);
+            deleteResponse.addProperty("requestId", splitDTO.getRequestId());
+            if (errorMessage != null) {
+                deleteResponse.addProperty("errorTitle", errorMessage.getErrorTitle());
+                deleteResponse.addProperty("errorHeader", errorMessage.getErrorHeader());
+                deleteResponse.addProperty("error", errorMessage.getErrorMessage());
+            }
+            sendCommandEditorResponse(
+                    homeBankingId, sessionIdToSend, "instructionEditor.deleteResponse", deleteResponse);
+        }
+
+        if (errorMessage != null && !"ROW_MOVE".equals(type) && !"DELETE_INSTRUCTION".equals(type)) {
             performMessage.errorMessageOperationFailed(errorMessage);
         }
 
