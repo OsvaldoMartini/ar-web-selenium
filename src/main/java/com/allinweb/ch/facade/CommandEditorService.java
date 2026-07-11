@@ -57,7 +57,7 @@ public final class CommandEditorService {
         response.add("webFields", webFields(sessionId));
         response.add("blocks", gson.toJsonTree(
                 "componentTasks".equals(sessionId) ? lists.getListBlockComp() : lists.getListBlock()));
-        response.add("commands", commandCatalog());
+        response.add("commands", CommandRegistry.catalog());
         if (error != null) response.addProperty("error", error.getErrorMessage());
         return response;
     }
@@ -115,14 +115,7 @@ public final class CommandEditorService {
     }
 
     private boolean isSpecialAction(String action) {
-        if (action == null || action.isBlank()) return false;
-        String base = action.split(":", 2)[0].trim().toUpperCase();
-        return Set.of(
-                        "SET", "GET", "CK", "Q", "QUIT", "E", "P", "SCREEN", "H", "HOLD", "GOTO",
-                        "IF", "ELSEIF", "ELSE", "ENDIF", "PAUSE", "REFRESH", "LOOP", "REFRESH_LOOP",
-                        "NEXT_ENTER", "SWIPE_UP", "SWIPE_DOWN", "EXCEL GOTO", "NEXT ROW", "CSV CHECK",
-                        "PDF CHECK")
-                .contains(base);
+        return CommandRegistry.isSpecialAction(action);
     }
 
     public JsonObject apply(JsonObject body) {
@@ -136,12 +129,13 @@ public final class CommandEditorService {
         JsonObject response = new JsonObject();
         String targetSession = string(body, "targetSessionId", "botJobTasks");
         String mode = string(body, "mode", "after");
-        String action = string(body, "action", "").trim().toUpperCase();
+        String action = CommandRegistry.canonicalize(string(body, "action", ""));
         String name = string(body, "name", action).trim();
         String operation;
-        int hold = integer(body, "hold", defaultHold(action));
+        int hold = integer(body, "hold", CommandRegistry.defaultHold(action));
 
         if (action.isEmpty() || name.isEmpty()) return failure("Command and name are required.");
+        if (!CommandRegistry.isCommand(action)) return failure("Unsupported command action: " + action);
         if (integer(body, "blockId", -1) < 1) return failure("A valid block is required.");
         if ("edit".equals(mode) && !editableCommand(targetSession, integer(body, "instructionId", -1))) {
             return failure("Original Web Fields and conditional boundaries cannot be converted with Edit Command.");
@@ -154,9 +148,9 @@ public final class CommandEditorService {
         Integer parentId = nullableInteger(body, "parentId");
         Integer variableId = nullableInteger(body, "variableId");
         Integer parentBlockId = nullableInteger(body, "parentBlockId");
-        if (requiresWebField(action) && parentId == null) return failure("Select a compatible Web Field.");
-        if (requiresVariable(action) && variableId == null) return failure("Select a Variable for the Web Field.");
-        if (requiresBlock(action) && parentBlockId == null) return failure("Select a destination Block.");
+        if (CommandRegistry.requires(action, "webField") && parentId == null) return failure("Select a compatible Web Field.");
+        if (CommandRegistry.requires(action, "variable") && variableId == null) return failure("Select a Variable for the Web Field.");
+        if (CommandRegistry.requires(action, "block") && parentBlockId == null) return failure("Select a destination Block.");
         if (parentId != null && !webFieldBelongsToBlock(targetSession, parentId, integer(body, "blockId", -1))) {
             return failure("The selected Web Field is outside the reference instruction block.");
         }
@@ -342,63 +336,11 @@ public final class CommandEditorService {
         }
     }
 
-    private JsonArray commandCatalog() {
-        JsonArray commands = new JsonArray();
-        add(commands, "SET", "Set Value", "variable", "webField", "variable");
-        add(commands, "GET", "Get Value", "variable", "webField", "variable");
-        add(commands, "CK", "Check Value", "variable", "webField", "variable", "operator");
-        add(commands, "PDF CHECK", "PDF Check", "variable", "webField", "variable", "operator");
-        add(commands, "CSV CHECK", "CSV Check", "variable", "webField", "variable", "operator");
-        add(commands, "E", "Extract Field", "variable", "webField", "variable");
-        add(commands, "IF", "IF", "none");
-        add(commands, "GOTO", "GOTO", "block", "block", "count");
-        add(commands, "EXCEL GOTO", "Excel GOTO", "block", "block");
-        add(commands, "LOOP", "Loop", "number", "webField", "interval", "count");
-        add(commands, "REFRESH_LOOP", "Refresh Loop", "number", "webField", "interval", "count");
-        add(commands, "REFRESH", "Refresh", "none");
-        add(commands, "NEXT_ENTER", "Next / Enter", "none");
-        add(commands, "SWIPE_UP", "Swipe Up", "number", "count");
-        add(commands, "SWIPE_DOWN", "Swipe Down", "number", "count");
-        add(commands, "H", "Wait", "number", "hold");
-        add(commands, "PAUSE", "Pause", "none");
-        add(commands, "Q", "Close Browser", "none");
-        add(commands, "P", "Screenshot", "none");
-        return commands;
-    }
-
-    private void add(JsonArray target, String code, String label, String targetType, String... fields) {
-        JsonObject command = new JsonObject();
-        command.addProperty("code", code);
-        command.addProperty("label", label);
-        command.addProperty("target", targetType);
-        JsonArray fieldDefinitions = new JsonArray();
-        for (String field : fields) fieldDefinitions.add(field);
-        command.add("fields", fieldDefinitions);
-        target.add(command);
-    }
-
     private JsonObject failure(String message) {
         JsonObject response = new JsonObject();
         response.addProperty("ok", false);
         response.addProperty("error", message == null ? "Command operation failed." : message);
         return response;
-    }
-
-    private static int defaultHold(String action) {
-        return "H".equals(action) ? 5 : 1;
-    }
-
-    private static boolean requiresWebField(String action) {
-        return Set.of("SET", "GET", "CK", "PDF CHECK", "CSV CHECK", "E", "LOOP", "REFRESH_LOOP")
-                .contains(action);
-    }
-
-    private static boolean requiresVariable(String action) {
-        return Set.of("SET", "GET", "CK", "PDF CHECK", "CSV CHECK", "E").contains(action);
-    }
-
-    private static boolean requiresBlock(String action) {
-        return Set.of("GOTO", "EXCEL GOTO").contains(action);
     }
 
     private boolean webFieldBelongsToBlock(String sessionId, int instructionId, int blockId) {
