@@ -388,7 +388,11 @@ public class ExcelUtils {
                     int DYNAMIC_ROW = SECOND_ROW + 1;
 
                     if (extractedData != null && extractedData.getNumberOfDataRows() != null) {
-                        int totalRows = extractedData.getNumberOfDataRows();
+                        // getNumberOfDataRows() is 0 for a headers-only file (the reader no
+                        // longer synthesizes a CHANGE ME row). At least one data row must be
+                        // written or new columns get a header with no CHANGE ME placeholder;
+                        // existing values still win via the per-row lookups below.
+                        int totalRows = Math.max(1, extractedData.getNumberOfDataRows());
                         for (int i = 0; i < totalRows; i++) {
                             Row belowRow = spreadsheet.getRow(DYNAMIC_ROW);
                             if (belowRow == null) {
