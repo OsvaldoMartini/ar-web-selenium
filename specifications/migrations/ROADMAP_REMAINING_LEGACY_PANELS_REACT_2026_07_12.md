@@ -1,7 +1,7 @@
 # Remaining Legacy Panels to React — Canonical Migration Roadmap
 
 Date: 2026-07-12
-Status: Active — Phase 0 typed foundation and Phase 2A metadata/environment source migration delivered and Java-packaged; desktop runtime and localhost Playwright validation are pending.
+Status: Active — Phase 0 and Bot Job Details Phases 2A-2C are delivered, automated-tested, React-deployed, and Java-packaged; desktop runtime validation and the explicitly unchecked lifecycle follow-ups remain pending.
 
 ## Objective
 
@@ -112,20 +112,20 @@ Parity gap: React currently carries `priority`, `searchConfig`, and `optionsConf
 
 ### 2B — TEST RUN execution controls
 
-- [ ] Implement `BotJobExecutionControls` with block dropdown, reload, ALL/ONE, TEST RUN, STOP, and live state.
-- [ ] Use stable `blockId`; the server resolves canonical block order and URL. Never trust client order or endpoint URL.
-- [ ] Preserve the valid selection union: Execute All can only use ALL; a numbered block can use ALL or ONE.
+- [x] Implement `BotJobExecutionControls` with block dropdown, reload, ALL/ONE, TEST RUN, STOP, and live state.
+- [x] Use stable `blockId`; the server resolves canonical block order and URL. Never trust client order or endpoint URL.
+- [x] Preserve the valid selection union: Execute All can only use ALL; a numbered block can use ALL or ONE.
 - [ ] Publish `IDLE`, `STARTING`, `RUNNING`, `STOPPING`, `PASSED`, `FAILED`, and `INTERRUPTED` terminal events.
-- [ ] Keep controls busy until a terminal event, not merely until executor submission.
-- [ ] Remove the corresponding JavaFX combo, reload, toggle, TEST RUN, and STOP nodes only after integrated parity tests.
+- [x] Keep controls busy until the owned executor reaches a terminal event, while allowing prompt run-owned STOP during startup.
+- [x] Remove the corresponding JavaFX combo, reload, toggle, TEST RUN, and STOP nodes after integrated React/Java/Playwright parity tests.
 
 ### 2C — remaining toolbar/file actions
 
-- [ ] Migrate Navigation Time through typed state/update operations.
-- [ ] Migrate Excel open/generate and Report list/open using native-desktop ports and React confirmations.
-- [ ] Migrate Export, Import, restore date, path selection, and BAT generation.
-- [ ] Extract the real external Engine Launch workflow; do not reuse the current Main Dashboard placeholder dialog.
-- [ ] Migrate Launch with capability/preflight/result events.
+- [x] Migrate Navigation Time through typed state/update operations.
+- [x] Migrate Excel open/generate and Report list/open using native-desktop ports and React confirmations.
+- [x] Migrate Export, Import, restore date, path selection, and BAT generation, with transactional restore and unique atomic export publication.
+- [x] Extract the real external Engine Launch workflow; do not reuse the current Main Dashboard placeholder dialog.
+- [x] Migrate Launch with capability/preflight/result events and detached-process collision tracking.
 - [ ] Reduce `ARViewBotJobPane` to a WebView/window host, then retire its pane/scene after runtime verification.
 
 ## Phase 3 — Clone Job
@@ -186,7 +186,8 @@ The normal WebSocket cannot be assumed available on configuration failure, so th
 5. `git diff --check` on touched paths.
 6. Build `abr-react-ts-grid` with `npm run build`.
 7. Delete the deployed backend build contents, copy the complete new React build, and compare manifests/hashes.
-8. Do not compile/package the Java backend on this machine; runtime validation remains user-owned.
+8. Do not compile/package the Java backend unless the user separately authorizes it. That later
+   authorization was received on 2026-07-12 for the current migration work.
 
 ## Implementation ledger
 
@@ -194,3 +195,4 @@ The normal WebSocket cannot be assumed available on configuration failure, so th
 |---|---|---|---|
 | 2026-07-12 | Shared workspace header + Bot Job/Components/Pre Scan navigation + Refresh/Close | Frontend delivered; backend source ready for user runtime validation | React commit `c3e077a` pushed to `origin/VERSION-4.6`; 3 focused suites / 4 tests passed; production build succeeded; 45 deployed files matched by path, length, and SHA-256; backend static re-audit passed without compiling Java |
 | 2026-07-12 | Typed Bot Job Details bootstrap/state + metadata/environment migration + Organization Advanced fields | Frontend delivered/deployed; backend compiled and packaged; desktop runtime remains user-owned | React commits `a06619e` and `88eac85` pushed to `origin/VERSION-4.6`; final frontend head/remote `88eac85272819711c156b77c88c88b03850f60f9`; 9 focused React suites / 23 tests passed; 45 deployed files had zero SHA-256 differences; Java compiled 296 main and 61 test sources; 43 targeted Java tests passed; shaded `target/AR_Web_Scanner-4.2.jar` built at 384,155,105 bytes, SHA-256 `AC097EE3F2A4043CFEBC0E7E4287084D6A52E3300357901F56F80F3A42333F02` |
+| 2026-07-12 | Remaining Bot Job Details execution/data/file controls + semantic metadata form + JavaFX toolbar removal | Delivered/deployed/packaged; desktop runtime remains user-owned | React commits through `30d6f331e6519c8bec9211470d1a76e6d8d74363` pushed to `origin/VERSION-4.6`; 9 focused React suites / 31 tests passed; headless localhost/mock-socket Playwright passed; 45 deployed files matched by path, length, and SHA-256; Java compiled 304 main and 71 test sources; 65 focused Java tests plus the final 19-test affected subset passed; backend implementation commit `3cd86f87c734d0507725dcfc3be3edef1b3a1689`; shaded `target/AR_Web_Scanner-4.2.jar` is 384,197,039 bytes with 58,696 entries and SHA-256 `5D8F4E3BB844AE93FB685F16B8D50D2BB96311B61071F524A849771AE2FAE82E` |

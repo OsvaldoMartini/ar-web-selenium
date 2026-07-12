@@ -1,6 +1,6 @@
 # Claude vs Codex Migration Checks — 2026-07-12
 
-Status: Claude and CODEX investigation passes complete; CODEX ALL/ONE fixes and the Bot Job Details typed metadata/state migration are compiled and packaged; desktop runtime validation, localhost Playwright validation, and the unchecked migration tasks remain pending.
+Status: Claude and CODEX investigation passes complete; the CODEX remaining Bot Job Details controls migration is implemented, tested, React-deployed, Java-packaged, and committed. Desktop runtime validation and the explicitly unchecked follow-up tasks remain pending.
 
 This is the canonical investigation and roadmap for aligning local Scanner TEST RUN execution with the external AR Web Engine. Future Claude and Codex reviews must update this file instead of creating parallel roadmaps.
 
@@ -9,15 +9,15 @@ This is the canonical investigation and roadmap for aligning local Scanner TEST 
 | Reviewer | Status | Evidence recorded |
 |---|---|---|
 | Claude | Complete for independent `executeJob()`/Engine parity pass | Independently re-derived P0-3 (confirmed the exact NPE mechanism by line) and found three items not yet in this document: Engine never calls `fixExcelGoto` (P0-3b below), Engine's Excel reader call drops the clientNamed alias map (currently inert), and a dead duplicate `ELSE` branch in Engine's `checkActionToJump`. See "Claude's independent findings" section below. No Java/Maven build was run. |
-| CODEX | Complete for static investigation and toggle wiring | Compared both execution methods and their bootstrap, data-loading, status, browser, React, and lifecycle boundaries. Implemented and statically checked the completed tasks listed in "CODEX — Findings, Fixes, and Action Checklist" below. No Java/Maven build was run, as requested. |
+| CODEX | Complete for investigation, toolbar migration, and automated validation | Compared both execution methods and their bootstrap, data-loading, status, browser, React, and lifecycle boundaries. Migrated the remaining Bot Job Details controls to React, removed their reachable JavaFX toolbar implementation, compiled and packaged Java, and completed the verification evidence in the CODEX section below. |
 
 ## Repositories and immutable comparison points
 
 | Project | Branch | Commit inspected | Role |
 |---|---|---|---|
-| `D:\Projects\AllinWeb\ar-web-selenium` | `refactor/perform-actions-decomposition` | `80d6f83382147534519c50836bcb00eee4e4f44d` plus the uncommitted changes described below | Scanner, JavaFX TEST RUN, embedded Playwright execution |
+| `D:\Projects\AllinWeb\ar-web-selenium` | `refactor/perform-actions-decomposition` | `3cd86f87c734d0507725dcfc3be3edef1b3a1689` implementation commit | Scanner, JavaFX host, embedded Playwright execution, and React toolbar backend |
 | `D:\Projects\AllinWeb\ar-web-engine` | `VERSION-4-2-NEW` | `f890e833d9aad9a8abbfb455e789e3d74c7817a5` | External Selenium engine |
-| `D:\Projects\AllinWeb\abr-react-ts-grid` | `VERSION-4.6` | `9f32d505bb85633b9998e8dee039b94a0dd43adc` | React migration UI |
+| `D:\Projects\AllinWeb\abr-react-ts-grid` | `VERSION-4.6` | `30d6f331e6519c8bec9211470d1a76e6d8d74363` | React migration UI |
 
 The Engine snapshot is older than the Scanner snapshot. Do not replace Scanner `executeJob` with the Engine method wholesale. Scanner contains newer Playwright, realtime-status, failure aggregation, `BACK`, and forward-GOTO work, while the Engine still contains behavior and reporting defects documented below.
 
@@ -413,9 +413,9 @@ The page-by-page JavaFX-to-React sequence is tracked in
 - [x] Task: Validate `target/AR_Web_Scanner-4.2.jar`: 384,155,105 bytes; SHA-256 `AC097EE3F2A4043CFEBC0E7E4287084D6A52E3300357901F56F80F3A42333F02`; main class `com.allinweb.ch.ARControlPanel`; migrated Bot Job Details, ALL/ONE, and React `main.b93e8594.js` entries present.
 - [ ] Task: Gate or rename the existing interactive headed Playwright `*Test` classes so an unattended default `mvn clean package` cannot hang in `GotoCommandEditorPlaywrightTest`; the successful package used `-DskipTests` only after the 43 deterministic migration tests passed and all test sources compiled.
 - [ ] Task: Runtime-validate the new Java WebSocket/service/JavaFX-host integration in the user-run backend, including metadata save, revision conflict, environment refresh, Organizations launch, license revoke/restore, Close without a license, and reopen/rebootstrap.
-- [ ] Task: Add and run localhost Playwright coverage against isolated copied database/config fixtures; do not mutate the production BancaStato database or config.
-- [ ] Task: Continue Phase 2B by migrating block selection, reload, ALL/ONE, TEST RUN, STOP, and live execution state out of JavaFX into `BotJobExecutionControls.module.scss`.
-- [ ] Task: Continue Phase 2C by migrating Navigation Time, Excel/Report, Export/Import, path/BAT, and Launch through typed native-desktop ports.
+- [x] Task: Add and run headless localhost Playwright coverage with an isolated mock socket and no production BancaStato database/config access. Real-backend/production-fixture integration remains user-owned runtime validation.
+- [x] Task: Complete Phase 2B by migrating block selection, reload, ALL/ONE, TEST RUN, STOP, and live execution state out of JavaFX into the separated `BotJobExecutionControls` component and `.module.scss`.
+- [x] Task: Complete Phase 2C by migrating Navigation Time, Excel/Report, Export/Import, path/BAT, and Launch through typed native-desktop ports and separated React components.
 - [x] Task: Obtain separate authorization before committing or pushing the backend source, roadmaps, and deployed resource artifacts. Authorization was received in the follow-up request to package, commit, and push Java.
 
 ## Claude's independent findings (2026-07-12)
@@ -641,10 +641,11 @@ treated strictly as read-only reference (no test code added there).
       the only bot job with active blocks pointed at a public, auth-free, safe-to-repeat page
       (`https://www.bancastato.ch/apertura-conto`, the actual page the instructions were scanned
       against — unlike the existing sibling test, which redirects a login-flow bot job to an unrelated
-      contact-form URL). Runs both active blocks (229 "Apre Aconto" CLICK steps, 231
-      "Start Registration" INSERT steps) in one browser session to exercise ALL-mode block sequencing,
-      plus a second test that stops after block 229 and asserts block 231's email input (read via its
-      own recorded selector, not a guessed one) stays empty, to exercise the ONE-mode boundary.
+      contact-form URL). Resolves the recorded locators for both active blocks (229 "Apre Aconto"
+      CLICK steps and 231 "Start Registration" INSERT steps) in one browser session without invoking
+      click/fill. Its loop structure models ALL by visiting both blocks; the second test models ONE by
+      omitting the block-231 loop and asserting that block's email input remains empty. This validates
+      fixture/selector reachability and the intended test boundary, not end-to-end executor behavior.
       Disabled by default (`-DbancastatoAperturaContoIT=true`), matching the existing sibling tests'
       convention.
 - [x] Task: Add
@@ -659,6 +660,110 @@ treated strictly as read-only reference (no test code added there).
 - [ ] Task: If bot job 20's "Apertura Conto" blocks are later edited (fields renamed, cookie banner
       removed, new blocks inserted), these tests will need their hardcoded IDs (229, 231, 20) and the
       `e_mail_address` instruction name refreshed to match.
+
+## CODEX - remaining Bot Job Details controls migration (2026-07-12)
+
+This is the CODEX implementation/checklist for the remaining controls shown in
+`specifications/migrations/remainig buttons.png` and the metadata form redesign shown in
+`specifications/migrations/make bette design.png`. Checked items are implemented in the recorded
+delivery commits; the verification section contains the completed test, build, package, and push evidence.
+
+### Findings and contract corrections
+
+- [x] Task: Inventory the reachable JavaFX controls: Excel, Generate, Report, Navigation Time,
+      Launch, Execute All/block selection, reload, ALL/ONE, TEST RUN, STOP, Export, Import,
+      restore date, directory chooser/path, and BAT generation.
+- [x] Task: Confirm that the legacy transfer field incorrectly used `PATH_LICENSE`; use
+      `PATH_EXPORT` only as the native chooser's initial directory and never broadcast an absolute
+      configured path in shared Bot Job state.
+- [x] Task: Split monotonic UI state ordering (`revision`) from metadata optimistic locking
+      (`metadataRevision`) so workspace/execution/file events cannot create false metadata conflicts.
+- [x] Task: Keep execution state in the active job registry instead of constructing or reading a
+      JavaFX pane from the WebSocket/service thread.
+- [x] Task: Bind selected transfer directories to transport session + Bot Job. Export/import reject
+      a client path that was not selected by the native chooser for that same scope.
+- [x] Task: Extract modal-free Bot Job transfer work into `BotJobTransferService`, wait for the real
+      database result, generate job-scoped backup names, and accept the legacy date-only filename on import.
+- [x] Task: Serialize headless toolbar I/O away from the JavaFX thread; keep only native directory/report
+      choosers on the FX thread and open the selected desktop file on the I/O executor.
+- [x] Task: Restrict both embedded Jetty WebSocket listeners and their port probes to IPv4 loopback,
+      reject duplicate live logical sessions without replacing the original transport, and make close/error
+      cleanup conditional on the exact logical-session/transport pair.
+- [ ] Task: Require a Java-generated unguessable WebSocket authentication token on every connection.
+      This remains blocked because the production `actionExecutor.zip` contains only the encrypted
+      `actionExecutor.min.enc` payload and its current URL accepts only the legacy numeric session ID.
+      Rebuild that plugin to accept and append the token before enabling strict server-side token rejection;
+      the server, React WebViews, native Java clients, page scanner, close-browser script, and action executor
+      must be switched atomically so production action execution cannot be disconnected.
+
+### Backend implementation
+
+- [x] Task: Add typed `BotJobToolbarAction`, structured results, a bounded parameter-aware idempotency
+      ledger, and `botJobDetails.toolbar.action` / `.actionResponse` routing.
+- [x] Task: Implement stable-block-ID TEST RUN selection. The server reloads blocks and derives the
+      canonical order and selected endpoint; React never supplies either value.
+- [x] Task: Preserve the selection invariant: Execute All accepts ALL only; a numbered block accepts
+      ALL (continue from selected) or ONE (selected block only).
+- [x] Task: Permit STOP after license revocation, publish STARTING/RUNNING/STOPPING/INTERRUPTED/FAILED
+      state, bind STOP to the exact scanner execution ID, and publish the terminal state only after
+      that owned executor task actually finishes.
+- [x] Task: Implement Navigation Time validation (0-10), Excel open/generate, report chooser/open,
+      external Engine launch, Export, Import/date, folder chooser, and headless BAT creation.
+- [x] Task: Stop constructing/mounting the legacy JavaFX toolbar at runtime; the Bot Job WebView owns
+      the full workspace area.
+- [x] Task: Physically delete every unreachable legacy JavaFX toolbar field, construction branch,
+      event handler, and button-only helper after the cleanup compile passes.
+- [x] Task: Use workspace epochs, an immutable persisted job context, a zero-queue foreground lease,
+      run-owned scanner execution IDs, prompt STOP, guarded Close, and exact transport cleanup so stale
+      jobs/stops/choosers cannot mutate a later workspace or inherit its transfer-folder grant.
+- [ ] Task: Replace the remaining natural-completion `IDLE` approximation with executor-owned
+      PASSED/FAILED result data; run identity and STOP/INTERRUPTED termination are now exact.
+- [ ] Task: Add a blocks-specific revision/event domain if edits must be rejected rather than resolved
+      by current stable block ID at execution time.
+- [x] Task: Make multi-table Bot Job import transactional by suppressing legacy stage commits inside
+      one owning JDBC transaction; roll back every earlier table when any later stage fails.
+- [x] Task: Publish exports from a same-directory temporary file under a unique timestamped name,
+      never replace an existing snapshot, and select the newest job/date snapshot with exact/legacy fallback.
+- [x] Task: Treat external Engine Launch as a detached process, prevent conflicting Launch/TEST RUN/
+      Import/generation work until it exits, and retain output/error log redirection.
+
+### React components and form design
+
+- [x] Task: Add separated execution, spreadsheet/report, and transfer components, each with its own
+      `.module.scss`, and compose them in `BotJobDetailsChrome` without a second WebSocket.
+- [x] Task: Render Execute All as the first option; default ALL is green, ONE is orange, and selecting
+      Execute All forces ALL.
+- [x] Task: Redesign metadata editing as a semantic responsive `<form>` with labeled inputs,
+      read-only organization/project/URL context, accessible errors, Cancel, and Save.
+- [x] Task: Add real numeric Navigation Time and date/path form controls plus capability, connection,
+      pending, and execution-state disabled behavior.
+- [x] Task: Keep destructive confirmation in React for Excel replacement, Export, and Import; remove
+      those confirmations from the JavaFX toolbar path.
+
+### Verification and delivery
+
+- [x] Task: Compile the current backend source set successfully (304 main and 71 test Java sources,
+      Java 17).
+- [x] Task: Pass 65 focused parser, registry, idempotency, concurrency, transaction, transfer, and
+      socket lifecycle tests with zero failures; pass the 19-test affected lifecycle/socket subset again
+      after the final ownership and connection-cleanup corrections.
+- [x] Task: Pass the complete focused backend Bot Job Details test set after physical JavaFX cleanup.
+- [x] Task: Pass 9 focused React component/controller/contract suites (31 tests) and the optimized
+      React build; remaining build output is the repository's pre-existing warning backlog.
+- [x] Task: Add and pass a headless Playwright localhost/mock-socket test for every new visible control,
+      ALL/ONE invariants, form behavior, pending/disabled state, and responsive layout.
+- [x] Task: Commit/push the React project with `CODEX...` commits through
+      `30d6f331e6519c8bec9211470d1a76e6d8d74363`, build it, clean-replace 45 backend resource
+      files, and verify path/length/SHA-256 parity. Deployed bundle: `main.6a92189b.js`, SHA-256
+      `DCCA4F5363F6719F59F857D2601BE2DDF626DFC65CE698E638DB6362B85FCC8D`.
+- [x] Task: Package the Java backend with `mvn clean package -DskipTests`, validate the shaded JAR,
+      and commit the implementation as `3cd86f87c734d0507725dcfc3be3edef1b3a1689`
+      (`CODEX complete Bot Job Details toolbar migration`). Artifact:
+      `target/AR_Web_Scanner-4.2.jar`, 384,197,039 bytes, 58,696 ZIP entries, main class
+      `com.allinweb.ch.ARControlPanel`, SHA-256
+      `5D8F4E3BB844AE93FB685F16B8D50D2BB96311B61071F524A849771AE2FAE82E`.
+      The implementation and this successor evidence commit are pushed together to
+      `origin/refactor/perform-actions-decomposition`.
 
 ## Decision log
 
