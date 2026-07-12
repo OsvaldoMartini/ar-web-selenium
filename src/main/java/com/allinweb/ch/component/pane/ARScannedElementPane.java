@@ -2615,6 +2615,10 @@ public class ARScannedElementPane extends ARPane {
                     ? 0
                     : comboBoxBlocks.getValue().getBlockOrderNumber() - 1; // Start in a specific Block/UseCase
 
+            // A successful TEST RUN leaves runSingleBlock=true behind; a full Launch must
+            // always continue past the first block.
+            runSingleBlock = false;
+
             clearFields();
 
             ErrorMessage errorMessage = performDBEngine.loadHomeBanking(null);
@@ -6532,7 +6536,10 @@ public class ARScannedElementPane extends ARPane {
                     currentBlockOrder++;
 
                     // TEST RUN: run only the selected block, then stop the whole job.
+                    // One-shot: consume the flag here, otherwise it survives a successful
+                    // TEST RUN and truncates the NEXT full launch after its first block.
                     if (runSingleBlock) {
+                        runSingleBlock = false;
                         stopAll = true;
                         break blockLoop;
                     }
