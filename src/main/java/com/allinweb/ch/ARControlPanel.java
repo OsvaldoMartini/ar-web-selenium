@@ -16,6 +16,7 @@ import com.google.common.base.Strings;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.sql.Connection;
 import java.time.LocalDate;
@@ -464,8 +465,9 @@ public class ARControlPanel extends Application {
         int defaultFixedPort = 54525; // A known default port if no ephemeral or previous setting works
         int chosenPort;
 
-        try (ServerSocket tempSocket = new ServerSocket(0)) {
+        try (ServerSocket tempSocket = new ServerSocket()) {
             tempSocket.setReuseAddress(true); // Allow immediate reuse of the address
+            tempSocket.bind(new InetSocketAddress(ARWebSocketServer.LOOPBACK_ADDRESS, 0));
             chosenPort = tempSocket.getLocalPort();
             //            loggerlog.info("Found available ephemeral port: " + chosenPort);
         } catch (IOException e) {

@@ -11,6 +11,8 @@ public final class BotJobDetailsWorkspaceRegistry {
     private static final BotJobDetailsWorkspaceRegistry INSTANCE = new BotJobDetailsWorkspaceRegistry();
 
     private final AtomicLong revisions = new AtomicLong();
+    private final AtomicLong workspaceEpochs = new AtomicLong();
+    private final AtomicLong executionAttempts = new AtomicLong();
     private final AtomicReference<Snapshot> active = new AtomicReference<>();
 
     BotJobDetailsWorkspaceRegistry() {}
@@ -28,6 +30,8 @@ public final class BotJobDetailsWorkspaceRegistry {
                 : safe(botJob.getHomeBankingLoadDTO().getName());
         Snapshot next = new Snapshot(
                 revisions.incrementAndGet(),
+                1,
+                workspaceEpochs.incrementAndGet(),
                 botJob.getId(),
                 safe(botJob.getName()),
                 safe(botJob.getDescription()),
@@ -38,7 +42,9 @@ public final class BotJobDetailsWorkspaceRegistry {
                 licenseGuardEnabled,
                 true,
                 "botJob",
-                false);
+                false,
+                "IDLE",
+                0);
         active.set(next);
         return next;
     }
@@ -47,6 +53,14 @@ public final class BotJobDetailsWorkspaceRegistry {
         Snapshot snapshot = active.get();
         if (snapshot == null || !snapshot.open() || snapshot.botJobId() != botJobId) {
             throw new IllegalArgumentException("Bot Job Details request does not match the active Bot Job");
+        }
+        return snapshot;
+    }
+
+    public synchronized Snapshot require(int botJobId, long workspaceEpoch) {
+        Snapshot snapshot = require(botJobId);
+        if (snapshot.workspaceEpoch() != workspaceEpoch) {
+            throw new IllegalArgumentException("Bot Job Details toolbar context is no longer active");
         }
         return snapshot;
     }
@@ -67,7 +81,7 @@ public final class BotJobDetailsWorkspaceRegistry {
             int homeUrlId,
             Supplier<T> persistence) {
         Snapshot current = require(botJobId);
-        if (current.revision() != expectedRevision) {
+        if (current.metadataRevision() != expectedRevision) {
             throw new RevisionConflictException(
                     "Bot Job Details changed; review the latest values before saving");
         }
@@ -82,6 +96,8 @@ public final class BotJobDetailsWorkspaceRegistry {
 
         Snapshot next = new Snapshot(
                 revisions.incrementAndGet(),
+                current.metadataRevision() + 1,
+                current.workspaceEpoch(),
                 current.botJobId(),
                 safe(name),
                 safe(description),
@@ -92,7 +108,9 @@ public final class BotJobDetailsWorkspaceRegistry {
                 current.licenseGuardEnabled(),
                 current.open(),
                 current.activeSurface(),
-                current.componentsVisible());
+                current.componentsVisible(),
+                current.executionState(),
+                current.executionAttemptId());
         active.set(next);
         return new MetadataCommit<>(true, next, null);
     }
@@ -104,10 +122,20 @@ public final class BotJobDetailsWorkspaceRegistry {
         return next;
     }
 
+    /** Advances the public state revision after a native toolbar action changes runtime/config state. */
+    public synchronized Snapshot touch(int botJobId) {
+        Snapshot current = require(botJobId);
+        Snapshot next = copyWithRevision(current, revisions.incrementAndGet());
+        active.set(next);
+        return next;
+    }
+
     public synchronized Snapshot updateWorkspace(int botJobId, String activeSurface, boolean componentsVisible) {
         Snapshot current = require(botJobId);
         Snapshot next = new Snapshot(
                 revisions.incrementAndGet(),
+                current.metadataRevision(),
+                current.workspaceEpoch(),
                 current.botJobId(),
                 current.name(),
                 current.description(),
@@ -118,34 +146,22 @@ public final class BotJobDetailsWorkspaceRegistry {
                 current.licenseGuardEnabled(),
                 current.open(),
                 safe(activeSurface),
-                componentsVisible);
+                componentsVisible,
+                current.executionState(),
+                current.executionAttemptId());
         active.set(next);
         return next;
     }
 
-    public synchronized void close(int botJobId) {
-        Snapshot current = active.get();
-        if (current == null || current.botJobId() != botJobId || !current.open()) {
-            return;
-        }
-        active.set(new Snapshot(
+    public synchronized Snapshot updateExecutionState(int botJobId, String executionState) {
+        Snapshot current = require(botJobId);
+        String nextState = safe(executionState).toUpperCase(java.util.Locale.ROOT);
+        if (nextState.isEmpty()) nextState = "UNKNOWN";
+        if (nextState.equals(current.executionState())) return current;
+        Snapshot next = new Snapshot(
                 revisions.incrementAndGet(),
-                current.botJobId(),
-                current.name(),
-                current.description(),
-                current.projectType(),
-                current.homeBankingId(),
-                current.organizationName(),
-                current.homeUrlId(),
-                current.licenseGuardEnabled(),
-                false,
-                current.activeSurface(),
-                current.componentsVisible()));
-    }
-
-    private Snapshot copyWithRevision(Snapshot current, long revision) {
-        return new Snapshot(
-                revision,
+                current.metadataRevision(),
+                current.workspaceEpoch(),
                 current.botJobId(),
                 current.name(),
                 current.description(),
@@ -156,7 +172,128 @@ public final class BotJobDetailsWorkspaceRegistry {
                 current.licenseGuardEnabled(),
                 current.open(),
                 current.activeSurface(),
-                current.componentsVisible());
+                current.componentsVisible(),
+                nextState,
+                current.executionAttemptId());
+        active.set(next);
+        return next;
+    }
+
+    public synchronized ExecutionAttempt beginTestRun(int botJobId, long workspaceEpoch) {
+        Snapshot current = require(botJobId, workspaceEpoch);
+        if (isExecutionActive(current.executionState())) {
+            throw new IllegalStateException("A TEST RUN is already active");
+        }
+        long attemptId = executionAttempts.incrementAndGet();
+        Snapshot next = copyWithExecution(current, "STARTING", attemptId);
+        active.set(next);
+        return new ExecutionAttempt(botJobId, workspaceEpoch, attemptId);
+    }
+
+    public synchronized boolean markTestRunRunning(ExecutionAttempt attempt) {
+        Snapshot current = active.get();
+        if (!matches(current, attempt) || !"STARTING".equals(current.executionState())) return false;
+        active.set(copyWithExecution(current, "RUNNING", attempt.attemptId()));
+        return true;
+    }
+
+    public synchronized StopDecision requestTestRunStop(int botJobId, long workspaceEpoch) {
+        Snapshot current = require(botJobId, workspaceEpoch);
+        if ("STOPPING".equals(current.executionState())) {
+            return new StopDecision(true, true, current.executionAttemptId());
+        }
+        if (!"STARTING".equals(current.executionState()) && !"RUNNING".equals(current.executionState())) {
+            return new StopDecision(false, false, current.executionAttemptId());
+        }
+        active.set(copyWithExecution(current, "STOPPING", current.executionAttemptId()));
+        return new StopDecision(true, false, current.executionAttemptId());
+    }
+
+    public synchronized boolean finishTestRun(ExecutionAttempt attempt, String terminalState) {
+        Snapshot current = active.get();
+        if (!matches(current, attempt) || !isExecutionActive(current.executionState())) return false;
+        String normalized = safe(terminalState).toUpperCase(java.util.Locale.ROOT);
+        if (!normalized.equals("IDLE") && !normalized.equals("FAILED") && !normalized.equals("INTERRUPTED")) {
+            throw new IllegalArgumentException("Unsupported TEST RUN terminal state: " + terminalState);
+        }
+        active.set(copyWithExecution(current, normalized, attempt.attemptId()));
+        return true;
+    }
+
+    public synchronized void close(int botJobId) {
+        Snapshot current = active.get();
+        if (current == null || current.botJobId() != botJobId || !current.open()) {
+            return;
+        }
+        active.set(new Snapshot(
+                revisions.incrementAndGet(),
+                current.metadataRevision(),
+                current.workspaceEpoch(),
+                current.botJobId(),
+                current.name(),
+                current.description(),
+                current.projectType(),
+                current.homeBankingId(),
+                current.organizationName(),
+                current.homeUrlId(),
+                current.licenseGuardEnabled(),
+                false,
+                current.activeSurface(),
+                current.componentsVisible(),
+                current.executionState(),
+                current.executionAttemptId()));
+    }
+
+    private Snapshot copyWithRevision(Snapshot current, long revision) {
+        return new Snapshot(
+                revision,
+                current.metadataRevision(),
+                current.workspaceEpoch(),
+                current.botJobId(),
+                current.name(),
+                current.description(),
+                current.projectType(),
+                current.homeBankingId(),
+                current.organizationName(),
+                current.homeUrlId(),
+                current.licenseGuardEnabled(),
+                current.open(),
+                current.activeSurface(),
+                current.componentsVisible(),
+                current.executionState(),
+                current.executionAttemptId());
+    }
+
+    private Snapshot copyWithExecution(Snapshot current, String state, long attemptId) {
+        return new Snapshot(
+                revisions.incrementAndGet(),
+                current.metadataRevision(),
+                current.workspaceEpoch(),
+                current.botJobId(),
+                current.name(),
+                current.description(),
+                current.projectType(),
+                current.homeBankingId(),
+                current.organizationName(),
+                current.homeUrlId(),
+                current.licenseGuardEnabled(),
+                current.open(),
+                current.activeSurface(),
+                current.componentsVisible(),
+                state,
+                attemptId);
+    }
+
+    private static boolean matches(Snapshot snapshot, ExecutionAttempt attempt) {
+        return snapshot != null
+                && snapshot.open()
+                && snapshot.botJobId() == attempt.botJobId()
+                && snapshot.workspaceEpoch() == attempt.workspaceEpoch()
+                && snapshot.executionAttemptId() == attempt.attemptId();
+    }
+
+    public static boolean isExecutionActive(String state) {
+        return "STARTING".equals(state) || "RUNNING".equals(state) || "STOPPING".equals(state);
     }
 
     private static int value(Integer value) {
@@ -169,6 +306,8 @@ public final class BotJobDetailsWorkspaceRegistry {
 
     public record Snapshot(
             long revision,
+            long metadataRevision,
+            long workspaceEpoch,
             int botJobId,
             String name,
             String description,
@@ -179,7 +318,13 @@ public final class BotJobDetailsWorkspaceRegistry {
             boolean licenseGuardEnabled,
             boolean open,
             String activeSurface,
-            boolean componentsVisible) {}
+            boolean componentsVisible,
+            String executionState,
+            long executionAttemptId) {}
+
+    public record ExecutionAttempt(int botJobId, long workspaceEpoch, long attemptId) {}
+
+    public record StopDecision(boolean accepted, boolean alreadyRequested, long attemptId) {}
 
     public record MetadataCommit<T>(boolean committed, Snapshot snapshot, T persistenceError) {}
 

@@ -111,6 +111,10 @@ public class ARViewBotJobScene extends ARScene {
     }
 
     private void handleCloseRequest(WindowEvent event) {
+        if (!arViewBotJobPane.canCloseWorkspace()) {
+            event.consume();
+            return;
+        }
         log.info("Handle Close: Exiting Threads and Quitting WebDriver");
         arViewBotJobPane.markWorkspaceClosed();
 
@@ -205,6 +209,7 @@ public class ARViewBotJobScene extends ARScene {
     public void closeModal() {
         try {
             if (modalStage != null) { // && modalStage.isShowing()) {
+                if (!arViewBotJobPane.canCloseWorkspace()) return;
                 arViewBotJobPane.markWorkspaceClosed();
                 modalStage.close();
             }
@@ -215,6 +220,7 @@ public class ARViewBotJobScene extends ARScene {
     }
 
     public void destroyPanel() {
+        if (!arViewBotJobPane.canCloseWorkspace()) return;
         arViewBotJobPane.markWorkspaceClosed();
         arViewBotJobPane.destroy();
     }

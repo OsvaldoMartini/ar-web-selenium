@@ -2,12 +2,14 @@ package com.allinweb.ch.facade;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.allinweb.ch.model.BotJobDetailsPersistedState;
 import com.allinweb.ch.model.BotJobDetailsRequest;
 import com.allinweb.ch.model.BotJobDetailsResponse;
 import com.allinweb.ch.model.BotJobLoadDTO;
+import com.allinweb.ch.model.BotJobToolbarContext;
 import com.allinweb.ch.model.HomeBankingLoadDTO;
 import com.allinweb.ch.util.ErrorMessage;
 import com.google.gson.JsonObject;
@@ -53,6 +55,8 @@ class BotJobDetailsServiceTest {
         assertEquals("TEST", response.state().environmentName());
         assertEquals(1, response.state().blocks().size());
         assertEquals(91, response.state().blocks().get(0).id());
+        assertTrue(response.state().transferPathConfigured());
+        assertEquals("IDLE", response.state().executionState());
     }
 
     @Test
@@ -67,7 +71,7 @@ class BotJobDetailsServiceTest {
 
     @Test
     void updateRequiresCurrentRevisionAndStableEnvironmentId() {
-        long revision = service.currentState(42).revision();
+        long revision = service.currentState(42).metadataRevision();
         JsonObject staleBody = metadataBody(revision - 1, "Payments QA", 9);
         BotJobDetailsResponse stale = service.updateMetadata(request("save-stale", staleBody));
         assertFalse(stale.ok());
@@ -85,7 +89,7 @@ class BotJobDetailsServiceTest {
 
     @Test
     void committedSaveBuildsItsResponseWithoutASecondDatabaseRead() {
-        long revision = service.currentState(42).revision();
+        long revision = service.currentState(42).metadataRevision();
         data.failLoadsAfterUpdate = true;
 
         BotJobDetailsResponse saved =
@@ -109,7 +113,25 @@ class BotJobDetailsServiceTest {
         assertFalse(response.state().capabilities().canShowComponents());
         assertFalse(response.state().capabilities().canExecute());
         assertFalse(response.state().capabilities().canLaunch());
+        assertFalse(response.state().capabilities().canUseFileActions());
         assertFalse(response.state().capabilities().canOpenOrganizations());
+    }
+
+    @Test
+    void capturesAnImmutablePersistedToolbarContextForTheCurrentWorkspaceEpoch() {
+        BotJobToolbarContext context = service.captureToolbarContext(42);
+        data.state = FakeDataPort.persisted("Changed later", 9, "QA", "https://qa.example");
+
+        assertEquals(registry.require(42).workspaceEpoch(), context.workspaceEpoch());
+        assertEquals(42, context.botJobId());
+        assertEquals(7, context.homeBankingId());
+        assertEquals(8, context.homeUrlId());
+        assertEquals("Payments", context.name());
+        assertEquals("Web App", context.projectType());
+        assertEquals("Bank", context.organizationName());
+        assertEquals("https://test.example", context.endpointUrl());
+        assertEquals("Payments", context.executionBotJob().getName());
+        assertNotSame(context.executionBotJob(), context.executionBotJob());
     }
 
     private BotJobDetailsRequest request(String requestId, JsonObject body) {
@@ -118,7 +140,7 @@ class BotJobDetailsServiceTest {
 
     private JsonObject metadataBody(long revision, String name, int homeUrlId) {
         JsonObject body = new JsonObject();
-        body.addProperty("expectedRevision", revision);
+        body.addProperty("expectedMetadataRevision", revision);
         body.addProperty("name", name);
         body.addProperty("description", "Updated");
         body.addProperty("homeUrlId", homeUrlId);
@@ -152,6 +174,11 @@ class BotJobDetailsServiceTest {
         @Override
         public int navigationTimeSeconds() {
             return 2;
+        }
+
+        @Override
+        public boolean transferPathConfigured() {
+            return true;
         }
 
         @Override

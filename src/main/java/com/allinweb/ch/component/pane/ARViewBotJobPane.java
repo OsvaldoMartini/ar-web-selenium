@@ -5,14 +5,17 @@ import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.component.scene.AROrganizationManagerScene;
 import com.allinweb.ch.component.scene.ARScannedElementScene;
 import com.allinweb.ch.component.scene.base.ARScene;
-import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.driver.ARPlaywrightDriver;
 import com.allinweb.ch.facade.PerformDBEngine;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.facade.PreScanApplyService;
+import com.allinweb.ch.facade.BotJobDetailsService;
 import com.allinweb.ch.facade.BotJobDetailsWorkspaceRegistry;
+import com.allinweb.ch.facade.BotJobTransferPathRegistry;
+import com.allinweb.ch.facade.BotJobTransferService;
+import com.allinweb.ch.facade.BotJobToolbarConcurrencyGuard;
 import com.allinweb.ch.license.LicenceVal;
 import com.allinweb.ch.license.LicenseManager;
 import com.allinweb.ch.model.*;
@@ -27,19 +30,11 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.*;
 import javafx.application.Platform;
-import javafx.concurrent.Task;
 import javafx.concurrent.Worker;
-import javafx.geometry.Insets;
-import javafx.geometry.Pos;
 import javafx.scene.Node;
-import javafx.scene.control.*;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.control.TextField;
 import javafx.scene.layout.*;
 import javafx.scene.layout.Priority;
 import javafx.scene.web.WebEngine;
@@ -52,7 +47,6 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ARViewBotJobPane extends ARPane {
 
-    private static final ARComponentBuilder builder = ARComponentBuilder.getInstance();
     private static final WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
     private static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
     private static final ARScannedElementScene arScannedElementScene = ARScannedElementScene.getInstance();
@@ -64,30 +58,31 @@ public class ARViewBotJobPane extends ARPane {
             AROrganizationManagerScene.getInstance();
     private static final BotJobDetailsWorkspaceRegistry botJobDetailsWorkspaceRegistry =
             BotJobDetailsWorkspaceRegistry.getInstance();
-    private static final ARConfigurationPane arConfigurationPane = ARConfigurationPane.getInstance();
+    private static final BotJobDetailsService botJobDetailsService = BotJobDetailsService.getInstance();
+    private static final BotJobTransferPathRegistry botJobTransferPathRegistry =
+            BotJobTransferPathRegistry.getInstance();
+    private static final BotJobTransferService botJobTransferService = BotJobTransferService.getInstance();
+    private static final BotJobToolbarConcurrencyGuard botJobToolbarGuard = new BotJobToolbarConcurrencyGuard();
+    private static final java.util.concurrent.atomic.AtomicReference<ActiveReactTestRun> activeReactTestRun =
+            new java.util.concurrent.atomic.AtomicReference<>();
+    private static final ExecutorService botJobToolbarExecutor = new ThreadPoolExecutor(
+            1,
+            1,
+            0L,
+            TimeUnit.MILLISECONDS,
+            new SynchronousQueue<>(),
+            runnable -> daemonThread(runnable, "bot-job-toolbar"),
+            new ThreadPoolExecutor.AbortPolicy());
+    private static final ExecutorService botJobStopExecutor = new ThreadPoolExecutor(
+            1,
+            1,
+            0L,
+            TimeUnit.MILLISECONDS,
+            new ArrayBlockingQueue<>(1),
+            runnable -> daemonThread(runnable, "bot-job-toolbar-stop"),
+            new ThreadPoolExecutor.AbortPolicy());
 
     protected static volatile ARViewBotJobPane instance;
-    Button openScannerButton;
-    Button navigationTimeButton;
-    Button launchBotJobButton;
-    Button genFlowButton;
-    ComboBox<BlockLoadDTO> blockFlowComboBox;
-    Button reloadBlocksButton;
-    Button testRunButton;
-    ToggleButton testRunModeToggle;
-    Button testRunStopButton;
-    //    Button saveAsBotJobButton;
-    Button openExcelFileButton;
-    Button generateExcelButton;
-    Button openReportButton;
-    Button createBATButton;
-
-    Button exportJobButton;
-    Button importJobButton;
-    DatePicker restoreDatePicker;
-
-    TextField pathExport;
-    Button pathExportButton;
 
     boolean isComponentBoxVisible;
     private Stage stage;
@@ -103,13 +98,6 @@ public class ARViewBotJobPane extends ARPane {
     // Define a flag to prevent double clicks
     private boolean isScannerButtonClicked = false;
     private static final String EXECUTE_ALL_OPTION_LABEL = "Execute All";
-    private static final String TEST_RUN_MODE_ALL_STYLE =
-            "-fx-background-color: #1a6b3a; -fx-text-fill: white; -fx-font-weight: bold; "
-                    + "-fx-font-size: 12px; -fx-background-radius: 5;";
-    private static final String TEST_RUN_MODE_ONE_STYLE =
-            "-fx-background-color: #E67E22; -fx-text-fill: white; -fx-font-weight: bold; "
-                    + "-fx-font-size: 12px; -fx-background-radius: 5;";
-    private final BlockLoadDTO executeAllBlocksOption = createExecuteAllBlocksOption();
     private VBox botJobContainer;
     private Pane mainPane;
     private HBox componentBox;
@@ -128,8 +116,6 @@ public class ARViewBotJobPane extends ARPane {
     // streams into the same preScannerGrid session.
     private final java.util.concurrent.atomic.AtomicBoolean preScanRunning =
             new java.util.concurrent.atomic.AtomicBoolean(false);
-    private boolean isApiToolVisible = false;
-    Button apiToolToggleButton;
     private ARScene arScene;
     private BotJobLoadDTO selectedBotJob;
     private volatile String reactEnvironmentUrl = "";
@@ -139,16 +125,10 @@ public class ARViewBotJobPane extends ARPane {
         super();
     }
 
-    private int getNavigationTimeValue() {
-        try {
-            String v = arPropertyManager.getProperty(ARPropertyEnum.NAVIGATION_TIME);
-            if (Strings.isNullOrEmpty(v)) {
-                return 0;
-            }
-            return Integer.parseInt(v.trim());
-        } catch (Exception ex) {
-            return 0;
-        }
+    private static Thread daemonThread(Runnable runnable, String name) {
+        Thread worker = new Thread(runnable, name);
+        worker.setDaemon(true);
+        return worker;
     }
 
     private void setNavigationTimeValue(int value) {
@@ -162,16 +142,7 @@ public class ARViewBotJobPane extends ARPane {
             // (user requirement: setProperty(ARPropertyEnum.NAVIGATION_TIME.getValue(), ...))
             arPropertyManager.setProperty(ARPropertyEnum.NAVIGATION_TIME.getValue(), String.valueOf(v));
         } catch (Exception ex) {
-            // Fallback: if setProperty(String,String) is not available, keep UI consistent anyway.
-            log.warn("Unable to persist NAVIGATION_TIME property. Value will only be reflected in UI.", ex);
-        }
-    }
-
-    private void updateNavigationTimeButtonLabel() {
-        if (navigationTimeButton != null) {
-            int v = getNavigationTimeValue();
-            navigationTimeButton.setText("Navigation Time: " + v + "s");
-            updateNavigationTimeButtonColor(v);
+            throw new IllegalStateException("Unable to persist Navigation Time", ex);
         }
     }
 
@@ -184,17 +155,6 @@ public class ARViewBotJobPane extends ARPane {
             }
         }
         return instance;
-    }
-
-    private static int getMajorJavaVersion(String version) {
-        // For Java 9 and above, the version string starts with the major version (e.g., "17.0.1")
-        // For Java 8 and below, it starts with "1." (e.g., "1.8.0_311")
-        if (version.startsWith("1.")) {
-            return Integer.parseInt(version.substring(2, 3)); // e.g., "1.8" -> 8
-        } else {
-            String[] parts = version.split("\\.");
-            return Integer.parseInt(parts[0]); // e.g., "17.0.1" -> 17
-        }
     }
 
     public void initialize(ARScene arScene, BotJobLoadDTO selectedBotJob, boolean isEnabledLicence) {
@@ -245,291 +205,9 @@ public class ARViewBotJobPane extends ARPane {
             }
         }
 
-        boolean isMobile = (!selectedBotJob.getPriority().equalsIgnoreCase("Web App")
-                && !selectedBotJob.getPriority().equalsIgnoreCase("Rest Api"));
-        if (launchBotJobButton != null && openScannerButton != null) {
-            launchBotJobButton.setDisable(isMobile);
-            openScannerButton.setDisable(isMobile);
-        }
-
-        // Keep the Time button in sync with the persisted property
-        updateNavigationTimeButtonLabel();
-
-        refreshBlockFlowCombo();
-
         if (!webSocketSessionManager.getAllSessions().isEmpty()) {
             refreshGrids();
         }
-    }
-
-    /**
-     * GEN FLOW: sends the selected block's element inventory to the configured AI and
-     * inserts the generated surface-navigation blocks right after it. Runs on a background
-     * thread; the composed prompt is saved under &lt;PATH_DB&gt;/ai/ for manual use too.
-     */
-    private void onGenFlowClicked() {
-        BlockLoadDTO sourceBlock = blockFlowComboBox.getValue();
-        if (sourceBlock == null || sourceBlock.getId() == null) {
-            performMessage.errorMessage(
-                    "GEN FLOW",
-                    "<span style='font-weight: bold;'>Select a block first.</span>",
-                    "Pick the source block (the one with the scanned elements) in the dropdown next to GEN FLOW.",
-                    null,
-                    null,
-                    0);
-            return;
-        }
-        try {
-            com.allinweb.ch.ai.AiChatClient.fromProperties(arPropertyManager);
-        } catch (com.allinweb.ch.ai.GenFlowException ex) {
-            performMessage.errorMessage(ex.getTitle(), ex.getMessage(), null, null, null, 0);
-            return;
-        }
-
-        String originalText = genFlowButton.getText();
-        genFlowButton.setDisable(true);
-        genFlowButton.setText("GEN FLOW ...");
-
-        Task<com.allinweb.ch.ai.GenFlowService.GenFlowResult> task = new Task<>() {
-            @Override
-            protected com.allinweb.ch.ai.GenFlowService.GenFlowResult call() throws Exception {
-                return new com.allinweb.ch.ai.GenFlowService().generate(selectedBotJob, sourceBlock);
-            }
-        };
-        task.setOnSucceeded(ev -> {
-            genFlowButton.setDisable(false);
-            genFlowButton.setText(originalText);
-            com.allinweb.ch.ai.GenFlowService.GenFlowResult result = task.getValue();
-            refreshGrids();
-            refreshBlockFlowCombo();
-            performMessage.errorMessage(
-                    "GEN FLOW - Done",
-                    "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>" + result.blocksCreated()
-                            + " blocks / " + result.instructionsCreated() + " instructions created ✅</span>",
-                    result.droppedSteps() > 0
-                            ? "<span style='color: #E65100;'>" + result.droppedSteps()
-                                    + " AI steps were dropped (element not found in the block).</span>"
-                            : "All AI steps matched the block's elements.",
-                    "Prompt saved: " + result.promptFile(),
-                    "Response saved: " + result.responseFile(),
-                    0);
-        });
-        task.setOnFailed(ev -> {
-            genFlowButton.setDisable(false);
-            genFlowButton.setText(originalText);
-            Throwable error = task.getException();
-            String title =
-                    error instanceof com.allinweb.ch.ai.GenFlowException gfe ? gfe.getTitle() : "GEN FLOW - Failed";
-            log.error("GEN FLOW failed", error);
-            performMessage.errorMessage(
-                    title,
-                    "<span style='color: #D32F2F; font-weight: bold;'>"
-                            + (error == null ? "Unknown error" : String.valueOf(error.getMessage())) + "</span>",
-                    "The composed prompt (if written) is under &lt;PATH_DB&gt;/ai/ and can be used manually in Claude Code.",
-                    null,
-                    null,
-                    0);
-        });
-        new Thread(task, "genflow-worker").start();
-    }
-
-    /**
-     * TEST RUN: opens a single Playwright browser at the bot job's endpoint and executes either
-     * all blocks from the selected starting point or only the selected block. Unlike Launch
-     * (external Engine), this is the local "pre-launch".
-     */
-    private void onTestRunClicked() {
-        BlockLoadDTO block = blockFlowComboBox.getValue();
-        boolean hasRealBlock = blockFlowComboBox.getItems().stream()
-                .anyMatch(option -> option != null && option.getId() != null);
-        if (!hasRealBlock) {
-            performMessage.errorMessage(
-                    "TEST RUN",
-                    "<span style='font-weight: bold;'>This Bot Job has no executable blocks.</span>",
-                    "Create or reload a block before starting TEST RUN.",
-                    null,
-                    null,
-                    0);
-            return;
-        }
-
-        boolean oneModeSelected = testRunModeToggle != null && testRunModeToggle.isSelected();
-        boolean executeAllSelected = isExecuteAllBlocksOption(block);
-        if (block == null || (!executeAllSelected && block.getId() == null)) {
-            performMessage.errorMessage(
-                    "TEST RUN",
-                    "<span style='font-weight: bold;'>Select a block for ONE mode.</span>",
-                    "Choose a numbered block, or switch the ALL/ONE toggle to ALL to execute the complete job.",
-                    null,
-                    null,
-                    0);
-            return;
-        }
-
-        TestRunExecutionSelection executionSelection;
-        try {
-            executionSelection = TestRunExecutionSelection.resolve(
-                    block.getBlockOrderNumber(), executeAllSelected, oneModeSelected);
-        } catch (IllegalArgumentException error) {
-            performMessage.errorMessage(
-                    "TEST RUN",
-                    "<span style='font-weight: bold;'>The TEST RUN selection is invalid.</span>",
-                    error.getMessage(),
-                    null,
-                    null,
-                    0);
-            return;
-        }
-        int selectedBlockOrder = executionSelection.blockOrderNumber();
-        boolean runSingleBlock = executionSelection.runSingleBlock();
-
-        String originalText = testRunButton.getText();
-        testRunButton.setDisable(true);
-        testRunButton.setText("TEST RUN ...");
-
-        // React owns the selected environment. Resolve its persisted URL by stable homeUrlId.
-        final String endpointUrl = selectedEndpointUrl();
-
-        // TEST RUN now reuses the FULL pre-launch engine (ARScannedElementPane.executeJob) in the
-        // single Playwright browser. executeJob runs asynchronously on the pane's own executor, so
-        // this worker only kicks it off and reports that the run was launched.
-        Task<Boolean> task = new Task<>() {
-            @Override
-            protected Boolean call() throws Exception {
-                return ARScannedElementPane.getInstance()
-                        .testRunBlockPlaywright(selectedBotJob, selectedBlockOrder, endpointUrl, runSingleBlock);
-            }
-        };
-        task.setOnSucceeded(ev -> {
-            testRunButton.setDisable(false);
-            testRunButton.setText(originalText);
-            if (!Boolean.TRUE.equals(task.getValue())) {
-                testRunStopButton.setDisable(!ARScannedElementPane.getInstance().isJobRunning.get());
-                log.warn("TEST RUN was not started");
-                performMessage.errorMessage(
-                        "TEST RUN - Not Started",
-                        "<span style='font-weight: bold;'>The execution could not be started.</span>",
-                        "Review the application log for the load, environment, or browser error.",
-                        null,
-                        null,
-                        0);
-                return;
-            }
-            // The engine runs asynchronously — arm STOP so the user can halt it.
-            // No modal here: the run is visible in the opened browser, and a blocking dialog
-            // after the first step is disruptive.
-            testRunStopButton.setDisable(!ARScannedElementPane.getInstance().isJobRunning.get());
-            log.info(
-                    "TEST RUN launched in {} mode from \"{}\" at {}",
-                    runSingleBlock ? "ONE" : "ALL",
-                    executeAllSelected ? EXECUTE_ALL_OPTION_LABEL : block.getName(),
-                    endpointUrl);
-        });
-        task.setOnFailed(ev -> {
-            testRunButton.setDisable(false);
-            testRunButton.setText(originalText);
-            testRunStopButton.setDisable(!ARScannedElementPane.getInstance().isJobRunning.get());
-            Throwable error = task.getException();
-            log.error("TEST RUN failed", error);
-            performMessage.errorMessage(
-                    "TEST RUN - Failed",
-                    "<span style='color: #D32F2F; font-weight: bold;'>"
-                            + (error == null ? "Unknown error" : String.valueOf(error.getMessage())) + "</span>",
-                    "Check that the endpoint URL and browser/webdriver are configured.",
-                    null,
-                    null,
-                    0);
-        });
-        new Thread(task, "testrun-worker").start();
-    }
-
-    /** STOP button next to TEST RUN — halts the running TEST RUN and closes its Playwright browser. */
-    private void onTestRunStopClicked() {
-        testRunStopButton.setDisable(true);
-        new Thread(
-                        () -> {
-                            try {
-                                ARScannedElementPane.getInstance().stopTestRun();
-                            } catch (Exception ex) {
-                                log.error("TEST RUN stop failed", ex);
-                            }
-                        },
-                        "testrun-stop")
-                .start();
-    }
-
-    /**
-     * Repopulates the GEN FLOW block dropdown with the blocks belonging to the
-     * currently opened bot job, sorted by block order number ascending. Keeps the
-     * current selection when the same block is still present.
-     */
-    private void refreshBlockFlowCombo() {
-        if (blockFlowComboBox == null || selectedBotJob == null || selectedBotJob.getId() == null) {
-            return;
-        }
-        Integer jobId = selectedBotJob.getId();
-        List<BlockLoadDTO> blocks = performLists.getListBlock().stream()
-                .filter(b -> b != null && jobId.equals(b.getBotJobId()))
-                .sorted(java.util.Comparator.comparing(
-                        BlockLoadDTO::getBlockOrderNumber,
-                        java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder())))
-                .toList();
-
-        BlockLoadDTO previous = blockFlowComboBox.getValue();
-        List<BlockLoadDTO> options = new ArrayList<>(blocks.size() + 1);
-        options.add(executeAllBlocksOption);
-        options.addAll(blocks);
-        blockFlowComboBox.getItems().setAll(options);
-        BlockLoadDTO selection = previous != null && previous.getId() != null
-                ? blocks.stream()
-                        .filter(b -> previous.getId().equals(b.getId()))
-                        .findFirst()
-                        .orElse(executeAllBlocksOption)
-                : executeAllBlocksOption;
-        blockFlowComboBox.setValue(selection);
-    }
-
-    private static BlockLoadDTO createExecuteAllBlocksOption() {
-        BlockLoadDTO option = new BlockLoadDTO();
-        option.setName(EXECUTE_ALL_OPTION_LABEL);
-        option.setBlockOrderNumber(-1);
-        return option;
-    }
-
-    private boolean isExecuteAllBlocksOption(BlockLoadDTO block) {
-        return block == executeAllBlocksOption;
-    }
-
-    private void updateTestRunModeToggleAppearance() {
-        boolean runOne = testRunModeToggle != null && testRunModeToggle.isSelected();
-        if (runOne
-                && blockFlowComboBox != null
-                && isExecuteAllBlocksOption(blockFlowComboBox.getValue())) {
-            testRunModeToggle.setSelected(false);
-            runOne = false;
-        }
-        testRunModeToggle.setText(runOne ? "ONE" : "ALL");
-        testRunModeToggle.setStyle(runOne ? TEST_RUN_MODE_ONE_STYLE : TEST_RUN_MODE_ALL_STYLE);
-        testRunModeToggle.setTooltip(new Tooltip(runOne
-                ? "ONE: TEST RUN stops after the selected block"
-                : "ALL: TEST RUN executes all blocks from the selected starting point"));
-    }
-
-    /**
-     * Reload the block list from the database and repopulate the GEN FLOW dropdown. Needed because
-     * {@link #refreshBlockFlowCombo()} only reads the in-memory list, which is stale after a new block
-     * is created by scanning. This icon-only button reloads blocks exclusively for the dropdown.
-     */
-    private void onReloadBlocksClicked() {
-        if (selectedBotJob == null || selectedBotJob.getId() == null) {
-            return;
-        }
-        ErrorMessage errorMessage = performDataBase.loadBlocks(selectedBotJob.getId(), "", "block");
-        if (errorMessage != null) {
-            performMessage.errorMessageOperationFailed(errorMessage);
-            return;
-        }
-        refreshBlockFlowCombo();
     }
 
     private boolean refreshGrids() {
@@ -700,298 +378,24 @@ public class ARViewBotJobPane extends ARPane {
             buildViewComponent();
         }
 
-        final double BTN_H = 26.0;
-        final double BTN_W = 88.0;
-        final String BTN_FONT = "-fx-font-size: 12px;";
-
-        // ── Buttons ───────────────────────────────────────────────────────────────
-        this.openScannerButton = builder.buildButton(
-                "Scanner",
-                ARConstants.SPACE_ZERO,
-                ARConstants.ICON_BROWSER,
-                ARConstants.SPACE_M,
-                new Insets(3, 8, 3, 8));
-
-        this.launchBotJobButton = builder.buildButton(
-                "Launch", ARConstants.SPACE_ZERO, ARConstants.ICON_PLAY, ARConstants.SPACE_M, new Insets(3, 8, 3, 8));
-        this.launchBotJobButton.setStyle("-fx-background-color: #1a6b3a; -fx-text-fill: white; -fx-font-weight: bold; "
-                + "-fx-font-size: 12px; -fx-background-radius: 5;");
-
-        this.genFlowButton = builder.buildButton(
-                "GEN FLOW", ARConstants.SPACE_ZERO, ARConstants.ICON_BURN, ARConstants.SPACE_M, new Insets(3, 8, 3, 8));
-        this.genFlowButton.setStyle("-fx-background-color: #5E35B1; -fx-text-fill: white; -fx-font-weight: bold; "
-                + "-fx-font-size: 12px; -fx-background-radius: 5;");
-
-        this.blockFlowComboBox = new ComboBox<>();
-        this.blockFlowComboBox.setPromptText("Select block...");
-        this.blockFlowComboBox.setFocusTraversable(false);
-        this.blockFlowComboBox.setStyle("-fx-font-size: 12px;");
-        this.blockFlowComboBox.setConverter(new javafx.util.StringConverter<BlockLoadDTO>() {
-            @Override
-            public String toString(BlockLoadDTO block) {
-                if (block == null) return "";
-                if (isExecuteAllBlocksOption(block)) return EXECUTE_ALL_OPTION_LABEL;
-                return block.getBlockOrderNumber() + " - " + block.getName();
-            }
-
-            @Override
-            public BlockLoadDTO fromString(String string) {
-                return null;
-            }
-        });
-
-        this.testRunButton = builder.buildButton(
-                "TEST RUN", ARConstants.SPACE_ZERO, ARConstants.ICON_PLAY, ARConstants.SPACE_M, new Insets(3, 8, 3, 8));
-        this.testRunButton.setStyle("-fx-background-color: #E67E22; -fx-text-fill: white; -fx-font-weight: bold; "
-                + "-fx-font-size: 12px; -fx-background-radius: 5;");
-
-        this.testRunModeToggle = new ToggleButton();
-        this.testRunModeToggle.setSelected(false);
-        this.testRunModeToggle.setFocusTraversable(false);
-        updateTestRunModeToggleAppearance();
-        this.blockFlowComboBox.valueProperty().addListener((observable, previous, selected) -> {
-            if (isExecuteAllBlocksOption(selected) && testRunModeToggle.isSelected()) {
-                testRunModeToggle.setSelected(false);
-                updateTestRunModeToggleAppearance();
-            }
-        });
-
-        // Icon-only refresh button dedicated to reloading the GEN FLOW block dropdown.
-        this.reloadBlocksButton = builder.buildButton(
-                "", ARConstants.SPACE_ZERO, ARConstants.ICON_REFRESH, ARConstants.SPACE_M, new Insets(3, 6, 3, 6));
-        this.reloadBlocksButton.setTooltip(new javafx.scene.control.Tooltip("Reload blocks for the dropdown"));
-
-        this.testRunStopButton = builder.buildButton(
-                "STOP", ARConstants.SPACE_ZERO, ARConstants.ICON_STOP, ARConstants.SPACE_M, new Insets(3, 8, 3, 8));
-        this.testRunStopButton.setStyle("-fx-background-color: #C0392B; -fx-text-fill: white; -fx-font-weight: bold; "
-                + "-fx-font-size: 12px; -fx-background-radius: 5;");
-        this.testRunStopButton.setDisable(true); // enabled only while a TEST RUN is active
-
-        this.openExcelFileButton = builder.buildButton(
-                "Excel", ARConstants.SPACE_ZERO, ARConstants.ICON_EXCEL, ARConstants.SPACE_M, new Insets(3, 8, 3, 8));
-
-        this.generateExcelButton = builder.buildButton(
-                "Generate",
-                ARConstants.SPACE_ZERO,
-                ARConstants.ICON_EXCEL,
-                ARConstants.SPACE_M,
-                new Insets(3, 8, 3, 8));
-
-        this.openReportButton = builder.buildButton(
-                "Report", ARConstants.SPACE_ZERO, ARConstants.ICON_EXCEL3, ARConstants.SPACE_M, new Insets(3, 8, 3, 8));
-        this.openReportButton.setStyle("-fx-font-size: 12px; -fx-text-fill: #1565C0; "
-                + "-fx-border-color: #90caf9; -fx-border-radius: 5; -fx-background-radius: 5;");
-
-        exportJobButton = builder.buildButton("Export");
-        exportJobButton.setStyle(BTN_FONT);
-
-        importJobButton = builder.buildButton("Import");
-        importJobButton.setStyle(BTN_FONT);
-
-        // ── Navigation time button ────────────────────────────────────────────────
-        int navTimeInitial = getNavigationTimeValue();
-        this.navigationTimeButton = new Button("Navigation Time: " + navTimeInitial + "s");
-        this.navigationTimeButton.setStyle(
-                "-fx-background-color: #1565C0; -fx-text-fill: white; -fx-font-weight: bold; "
-                        + "-fx-font-size: 12px; -fx-background-radius: 5;");
-        this.navigationTimeButton.setPadding(new Insets(3, 8, 3, 8));
-        this.navigationTimeButton.setFocusTraversable(false);
-        updateNavigationTimeButtonColor(navTimeInitial);
-
-        // ── API Tool toggle ───────────────────────────────────────────────────────
-        this.apiToolToggleButton = new Button("API Tool");
-        this.apiToolToggleButton.setPadding(new Insets(3, 8, 3, 8));
-        this.apiToolToggleButton.setFocusTraversable(false);
-        this.apiToolToggleButton.setVisible(false);
-        this.apiToolToggleButton.setManaged(false);
-        this.apiToolToggleButton.setStyle("-fx-background-color: #37474F; -fx-text-fill: white; "
-                + "-fx-font-weight: bold; -fx-font-size: 12px; -fx-background-radius: 5;");
-
-        // ── Path export field + button ────────────────────────────────────────────
-        pathExport = createPathTextField(ARPropertyEnum.PATH_LICENSE);
-        pathExport.setStyle("-fx-font-size: 12px;");
-        pathExport.setMaxWidth(Double.MAX_VALUE);
-        HBox.setHgrow(pathExport, Priority.ALWAYS);
-
-        pathExportButton = createPathButton(ARConstants.ICON_DIRECTORY);
-
-        // ── Restore date picker ───────────────────────────────────────────────────
-        restoreDatePicker = new DatePicker(LocalDate.now());
-        restoreDatePicker.setStyle("-fx-font-size: 12px;");
-        restoreDatePicker.setPrefWidth(120);
-        restoreDatePicker.setMinWidth(Region.USE_PREF_SIZE);
-
-        // ── Uniform height ────────────────────────────────────────────────────────
-        Node[] toolbarControls = {
-            openScannerButton,
-            openExcelFileButton,
-            generateExcelButton,
-            navigationTimeButton,
-            // apiToolToggleButton,
-            launchBotJobButton,
-            genFlowButton,
-            blockFlowComboBox,
-            reloadBlocksButton,
-            testRunButton,
-            testRunModeToggle,
-            testRunStopButton,
-            openReportButton,
-        };
-        for (Node n : toolbarControls) {
-            if (n instanceof Control ctrl) {
-                ctrl.setMinHeight(BTN_H);
-                ctrl.setPrefHeight(BTN_H);
-                ctrl.setMaxHeight(BTN_H);
-            }
-        }
-        exportJobButton.setMinHeight(BTN_H);
-        exportJobButton.setPrefHeight(BTN_H);
-        exportJobButton.setMaxHeight(BTN_H);
-        importJobButton.setMinHeight(BTN_H);
-        importJobButton.setPrefHeight(BTN_H);
-        importJobButton.setMaxHeight(BTN_H);
-        pathExportButton.setMinHeight(BTN_H);
-        pathExportButton.setPrefHeight(BTN_H);
-        pathExportButton.setMaxHeight(BTN_H);
-        pathExport.setMinHeight(BTN_H);
-        pathExport.setPrefHeight(BTN_H);
-        pathExport.setMaxHeight(BTN_H);
-
-        restoreDatePicker.setMinHeight(BTN_H);
-        restoreDatePicker.setPrefHeight(BTN_H);
-        restoreDatePicker.setMaxHeight(BTN_H);
-        restoreDatePicker.getEditor().setMinHeight(BTN_H);
-        restoreDatePicker.getEditor().setPrefHeight(BTN_H);
-        restoreDatePicker.getEditor().setMaxHeight(BTN_H);
-
-        pathExportButton.setMinWidth(28);
-        pathExportButton.setPrefWidth(28);
-
-        // ── Separator factory ─────────────────────────────────────────────────────
-        java.util.function.Supplier<Separator> sep = () -> {
-            Separator s = new Separator(javafx.geometry.Orientation.VERTICAL);
-            s.setPadding(new Insets(0, 3, 0, 3));
-            s.setStyle("-fx-opacity: 0.4;");
-            return s;
-        };
-
-        // ── Mobile/Web disable ────────────────────────────────────────────────────
-        boolean isMobile = (!selectedBotJob.getPriority().equalsIgnoreCase("Web App")
-                && !selectedBotJob.getPriority().equalsIgnoreCase("Rest Api"));
-        if (launchBotJobButton != null && openScannerButton != null) {
-            launchBotJobButton.setDisable(isMobile);
-            openScannerButton.setDisable(isMobile);
-        }
-
-        // ════════════════════════════════════════════════════════════════════════
-        //  TOOLBAR ROW  - Save/Edit NOT here, they live in the info bar
-        // ════════════════════════════════════════════════════════════════════════
-        HBox toolbarRow = new HBox(3);
-        toolbarRow.setAlignment(Pos.CENTER_LEFT);
-        toolbarRow.setPadding(new Insets(5, 8, 5, 8));
-        toolbarRow.setStyle("-fx-background-color: -fx-background; " + "-fx-border-color: derive(-fx-base,-10%); "
-                + "-fx-border-width: 0 0 1 0;");
-
-        // ── Styled groups (light green tint per group) ───────────────────────────
-        HBox grpExcel = new HBox(3, openExcelFileButton, generateExcelButton, openReportButton);
-        grpExcel.setStyle("-fx-background-color: #EAF3DE; -fx-background-radius: 6; -fx-padding: 3 6 3 6;");
-        grpExcel.setAlignment(Pos.CENTER_LEFT);
-
-        HBox grpNav = new HBox(3, navigationTimeButton);
-        grpNav.setStyle("-fx-background-color: #dbeafe; -fx-background-radius: 6; -fx-padding: 3 6 3 6;");
-        grpNav.setAlignment(Pos.CENTER_LEFT);
-
-        // HBox grpApi = new HBox(3, apiToolToggleButton);
-        // grpApi.setStyle("-fx-background-color: #e8edf0; -fx-background-radius: 6; -fx-padding: 3 6 3 6;");
-        // grpApi.setAlignment(Pos.CENTER_LEFT);
-
-        HBox grpLaunch = new HBox(
-                3,
-                launchBotJobButton,
-                blockFlowComboBox,
-                reloadBlocksButton,
-                testRunModeToggle,
-                testRunButton,
-                testRunStopButton);
-        grpLaunch.setStyle("-fx-background-color: #EAF3DE; -fx-background-radius: 6; -fx-padding: 3 6 3 6;");
-        grpLaunch.setAlignment(Pos.CENTER_LEFT);
-
-        toolbarRow
-                .getChildren()
-                .addAll(
-                        grpExcel, sep.get(), grpNav, sep.get(), /* grpApi, sep.get(), */ grpLaunch);
-
-        // ════════════════════════════════════════════════════════════════════════
-        //  INFO BAR
-        // ════════════════════════════════════════════════════════════════════════
-        createBATButton = createPathButton(ARConstants.ICON_BURN);
-
-        // ── Path export: capped width so it fits neatly ───────────────────────────
-        pathExport.setPrefWidth(200);
-        pathExport.setMaxWidth(Double.MAX_VALUE);
-
-        // ════════════════════════════════════════════════════════════════════════
-        //  FILE BAR — metadata/environment controls have moved to React.
-        // ════════════════════════════════════════════════════════════════════════
-        // ── Remaining file actions: row0=Export/Import/Date, row1=Path ───────────
-        HBox rightRow0 = new HBox(4, exportJobButton, importJobButton, restoreDatePicker);
-        rightRow0.setAlignment(Pos.CENTER_LEFT);
-        rightRow0.setStyle("-fx-background-color: #EAF3DE; -fx-background-radius: 6; -fx-padding: 3 6 3 6;");
-
-        HBox rightRow1 = new HBox(4, pathExportButton, pathExport);
-        rightRow1.setAlignment(Pos.CENTER_LEFT);
-        rightRow1.setStyle("-fx-background-color: #EAF3DE; -fx-background-radius: 6; -fx-padding: 3 6 3 6;");
-        HBox.setHgrow(pathExport, Priority.ALWAYS);
-        pathExport.setPrefWidth(200);
-
-        VBox col2 = new VBox(4, rightRow0, rightRow1);
-        col2.setAlignment(Pos.CENTER_LEFT);
-        HBox.setHgrow(col2, Priority.ALWAYS);
-
-        Separator vDiv3 = new Separator(javafx.geometry.Orientation.VERTICAL);
-        vDiv3.setPadding(new Insets(0, 6, 0, 6));
-        vDiv3.setStyle("-fx-opacity: 0.35;");
-
-        // ── Col 3: BAT + component ────────────────────────────────────────────────
-        initComponentWorkspace();
-
-        HBox actionCol = new HBox(4, createBATButton);
-        actionCol.setAlignment(Pos.CENTER);
-
-        HBox infoBar = new HBox(0);
-        infoBar.setAlignment(Pos.CENTER_LEFT);
-        infoBar.setPadding(new Insets(5, 8, 5, 8));
-        infoBar.setStyle("-fx-background-color: -fx-background; " + "-fx-border-color: derive(-fx-base,-10%); "
-                + "-fx-border-width: 0 0 1 0;");
-        infoBar.getChildren().addAll(col2, vDiv3, actionCol);
-
-        // ════════════════════════════════════════════════════════════════════════
-        //  CONTENT AREA
-        // ════════════════════════════════════════════════════════════════════════
-        if (!performLists.getListBotJob().isEmpty()
-                && performLists.getListBlock().isEmpty()) {
+        if (!performLists.getListBotJob().isEmpty() && performLists.getListBlock().isEmpty()) {
             performDataBase.loadBlocks(selectedBotJob.getId(), selectedBotJob.getName(), "block");
         }
-        if (!performLists.getListBotJobComp().isEmpty()
-                && performLists.getListBlockComp().isEmpty()) {
-            performDataBase.loadBlocks(selectedBotJob.getHomeBankingId(), selectedBotJob.getName(), "component_block");
+        if (!performLists.getListBotJobComp().isEmpty() && performLists.getListBlockComp().isEmpty()) {
+            performDataBase.loadBlocks(
+                    selectedBotJob.getHomeBankingId(), selectedBotJob.getName(), "component_block");
         }
 
-        refreshBlockFlowCombo();
-
+        initComponentWorkspace();
         componentBox = new HBox(new Node[] {webViewTasks});
         firstLoad = false;
-
         HBox.setHgrow(webViewTasks, Priority.ALWAYS);
         VBox.setVgrow(webViewTasks, Priority.ALWAYS);
         HBox.setHgrow(webViewPreScanner, Priority.ALWAYS);
         VBox.setVgrow(webViewPreScanner, Priority.ALWAYS);
-        HBox.setHgrow(this.componentContainer, Priority.NEVER);
+        HBox.setHgrow(componentContainer, Priority.NEVER);
 
-        // ════════════════════════════════════════════════════════════════════════
-        //  FINAL LAYOUT
-        // ════════════════════════════════════════════════════════════════════════
-        botJobContainer = new VBox(0, toolbarRow, infoBar, componentBox);
+        botJobContainer = new VBox(componentBox);
         VBox.setVgrow(botJobContainer, Priority.ALWAYS);
         VBox.setVgrow(componentBox, Priority.ALWAYS);
         HBox.setHgrow(componentBox, Priority.ALWAYS);
@@ -1001,13 +405,6 @@ public class ARViewBotJobPane extends ARPane {
         AnchorPane.setBottomAnchor(botJobContainer, ARConstants.SPACE_M);
         AnchorPane.setLeftAnchor(botJobContainer, ARConstants.SPACE_M);
         AnchorPane.setRightAnchor(botJobContainer, ARConstants.SPACE_M);
-    }
-
-    private Button createPathButton(String icon) {
-        Button button = builder.buildButton("", ARConstants.SPACE_L, icon, ARConstants.SPACE_M, new Insets(3D));
-        button.setMaxWidth(ARConstants.SPACE_L);
-        AnchorPane.setRightAnchor(button, 0D);
-        return button;
     }
 
     private void buildWebView(
@@ -1023,446 +420,19 @@ public class ARViewBotJobPane extends ARPane {
 
         webEngine.getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
             if (newState == Worker.State.SUCCEEDED) {
-                // After the page has successfully loaded
                 try {
                     webEngine.executeScript("setTimeout(function() { window.receiveDataFromJava(JSON.stringify("
                             + jsonData + "), " + finalPort + ", '" + sessionIdFromJava + "', " + homeBanking + ", '"
                             + homeBankName + "', " + botJobId + ", '" + botJobName + "' ) }, 1000)");
-                } catch (Exception e) {
-                    log.error("buildWebView  Error: " + e.getMessage());
+                } catch (Exception error) {
+                    log.error("buildWebView Error: " + error.getMessage());
                 }
             }
         });
     }
 
-    public void initUIBehaviour() {
-        createBATButton.setOnMouseClicked(e -> {
-            ARPropertyManager managerProps = arPropertyManager;
-            String enginePath = managerProps.getProperty(ARPropertyEnum.PATH_ENGINE); // + "\\AR_Web_Engine.jar";
-            String excelPath = managerProps.getProperty(ARPropertyEnum.PATH_EXCEL);
-            excelPath = excelPath + "\\" + selectedBotJob.getName() + ".xlsx";
-            if (!new File(excelPath).exists()) {
-                log.error("Action Required: Prepare Excel Data");
-                performMessage.errorMessage(
-                        "Action Required: Prepare Excel Data",
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Crucial Step: Prepare Excel Data Before Launch!</span>",
-                        "<span style='color: #2E7D32; font-weight: bold;'>To successfully initiate the bot job, the Excel data file must be generated and compiled *first*.</span>",
-                        "<span style='font-style: italic;'>Ensure this preparation is complete before attempting to launch the automation process.</span>",
-                        null,
-                        0);
-
-                return;
-            }
-
-            String configPath = System.getProperty("ARWebConfig");
-
-            createBatFile(excelPath, enginePath, configPath);
-        });
-
-        this.openScannerButton.setOnMouseClicked((e) -> {
-            callScannerTool();
-        });
-
-        this.generateExcelButton.setOnMouseClicked((e) -> {
-            // Cache entities from the database
-            //            PerformDataBase..changeDbConnection(previousDB);
-            ErrorMessage errorMessage = null;
-            if (performLists.getQuickBotJobs().isEmpty()) {
-                errorMessage = performDataBase.loadQuickBotJobs();
-            }
-
-            if (errorMessage == null && !performLists.getListBotJob().isEmpty()) {
-                if (performLists.getListBlock().isEmpty()) {
-                    errorMessage =
-                            performDataBase.loadBlocks(selectedBotJob.getId(), selectedBotJob.getName(), "block");
-                }
-
-                if (errorMessage == null) {
-                    errorMessage = performDBEngine.loadAllActionsPerBlock(performLists.getListBlock());
-                }
-
-                if (errorMessage != null) {
-                    performMessage.errorMessageOperationFailed(errorMessage);
-                }
-
-                // Check if the Excel file already exists
-                ExtractedData extractedData =
-                        ExcelUtils.isFileExists(selectedBotJob.getName(), performLists.getAllActions());
-
-                if (extractedData != null && extractedData.getErrorMessage() != null) {
-                    performMessage.errorMessage(
-                            "Excel Error",
-                            "Could Not Execute Excel File",
-                            extractedData.getErrorMessage(),
-                            null,
-                            null,
-                            0);
-
-                    return;
-                }
-
-                // Create a task for generating the Excel file
-                Task<Void> excelTask = new Task<>() {
-                    @Override
-                    protected Void call() throws Exception {
-                        new ExcelUtils().generateExcelFiles(extractedData, selectedBotJob.getName(), null, true);
-                        return null;
-                    }
-                };
-                String excelFile = selectedBotJob.getName() + ARConstants.FILE_FORMAT_EXCEL;
-
-                if (extractedData != null) {
-
-                    // Prepare the combined text container for the dialog
-                    // You can add more content to the combinedTextContainer if needed
-
-                    ARExecution.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
-                            "Warning: Excel File Already Exists",
-                            "<span style='color: #000080; font-weight: bold; font-size: 14px;'>An Excel file with this name already exists. Do you want to overwrite it?</span>",
-                            "<span style='color: #000080; font-weight: bold;'>" + excelFile + "</span>",
-                            "<span style='color: red; font-weight: bold;'>OVERWRITING WILL DELETE ANY DATA NOT PRESENT IN THE CURRENT JOB.</span>",
-                            "<span style='color: red; font-weight: bold;'>NEW COLUMNS WILL BE ADDED AND VALUE SET AS \"CHANGE ME\".</span>",
-                            true,
-                            "Overwrite",
-                            "Cancel",
-                            0);
-
-                    if (!respModal.equals(ARExecution.DialogModal.STOP)) {
-
-                        new Thread(excelTask).start();
-                        log.warn("Warning: Excel File Already Exists");
-                        performMessage.errorMessage(
-                                "Warning: Excel File Already Exists",
-                                "<span style='color: #000080; font-weight: bold; font-size: 14px;'>Success Excel File Override.</span>",
-                                "<span style='color: #000080; font-weight: bold;'>" + excelFile + "</span>",
-                                null,
-                                null,
-                                0);
-                    }
-                } else {
-                    // If file does not exist, start the Excel generation task directly
-
-                    new Thread(excelTask).start();
-                    log.warn("Warning: New Excel File Created!");
-                    performMessage.errorMessage(
-                            "Warning: New Excel File Created!",
-                            "<span style='color: #000080; font-weight: bold; font-size: 14px;'>Success Excel File Generated.</span>",
-                            "<span style='color: #000080; font-weight: bold;'>" + excelFile + "</span>",
-                            null,
-                            null,
-                            0);
-                }
-            }
-        });
-        this.navigationTimeButton.setOnMouseClicked((e) -> {
-            int current = getNavigationTimeValue();
-            int next = (current + 1) % 11; // 0..10
-            setNavigationTimeValue(next);
-            navigationTimeButton.setText("Navigation Time: " + next + "s");
-            updateNavigationTimeButtonColor(next);
-        });
-
-        this.exportJobButton.setOnMouseClicked(e -> {
-            if (Strings.isNullOrEmpty(pathExport.getText().trim())) {
-                performMessage.errorMessage(
-                        "Missing Path to Export or Import Bot Job",
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Action Required: Configure Export/Import Path</span>",
-                        "<span style='color: #2E7D32; font-weight: bold;'>To export or import the bot job, you must first select a valid destination/source folder.</span>",
-                        "<span style='font-style: italic;'>Please set the path (folder icon) and try again.</span>",
-                        null,
-                        0);
-                return;
-            }
-
-            arConfigurationPane.runExportBotJob(
-                    selectedBotJob.getHomeBankingId(),
-                    selectedBotJob.getId(),
-                    pathExport.getText().trim());
-        });
-        this.importJobButton.setOnMouseClicked(e -> {
-            if (Strings.isNullOrEmpty(pathExport.getText().trim())) {
-                performMessage.errorMessage(
-                        "Missing Path to Export or Import Bot Job",
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Action Required: Configure Export/Import Path</span>",
-                        "<span style='color: #2E7D32; font-weight: bold;'>To export or import the bot job, you must first select a valid destination/source folder.</span>",
-                        "<span style='font-style: italic;'>Please set the path (folder icon) and try again.</span>",
-                        null,
-                        0);
-                return;
-            }
-
-            String importOrgName = selectedBotJob.getHomeBankingLoadDTO() != null
-                    ? selectedBotJob.getHomeBankingLoadDTO().getName()
-                    : "";
-            arConfigurationPane.runImportBotJob(
-                    selectedBotJob.getHomeBankingId(),
-                    importOrgName,
-                    selectedBotJob.getHomeUrlId(),
-                    selectedBotJob.getId(),
-                    restoreDatePicker.getValue(),
-                    pathExport.getText().trim());
-        });
-
-        this.pathExportButton.setOnMouseClicked(e -> {
-            Stage currentStage = (Stage) pathExport.getScene().getWindow();
-            openChooserFor(pathExport, currentStage, true);
-        });
-
-        this.genFlowButton.setOnMouseClicked(e -> onGenFlowClicked());
-
-        this.testRunButton.setOnMouseClicked(e -> onTestRunClicked());
-
-        this.testRunModeToggle.setOnAction(e -> updateTestRunModeToggleAppearance());
-
-        this.testRunStopButton.setOnMouseClicked(e -> onTestRunStopClicked());
-
-        this.reloadBlocksButton.setOnMouseClicked(e -> onReloadBlocksClicked());
-
-        this.launchBotJobButton.setOnMouseClicked((e) -> {
-            ARPropertyManager managerProps = arPropertyManager;
-            String enginePath = managerProps.getProperty(ARPropertyEnum.PATH_ENGINE); // + "\\AR_Web_Engine.jar";
-            String excelPath = managerProps.getProperty(ARPropertyEnum.PATH_EXCEL);
-            excelPath = excelPath + "\\" + selectedBotJob.getName() + ".xlsx";
-            if (!new File(excelPath).exists()) {
-                log.error("Action Required: Prepare Excel Data");
-                performMessage.errorMessage(
-                        "Action Required: Prepare Excel Data",
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Crucial Step: Prepare Excel Data Before Launch!</span>",
-                        "<span style='color: #2E7D32; font-weight: bold;'>To successfully initiate the bot job, the Excel data file must be generated and compiled *first*.</span>",
-                        "<span style='font-style: italic;'>Ensure this preparation is complete before attempting to launch the automation process.</span>",
-                        null,
-                        0);
-
-                return;
-            }
-
-            String version = System.getProperty("java.version");
-            log.info("Detected Java Version: " + version);
-
-            int majorVersion = getMajorJavaVersion(version);
-            if (majorVersion >= 17) {
-                log.info("✅ Java 17 or higher is installed.");
-            } else {
-                log.error("Compatibility Issue: Incompatible Java Version");
-                performMessage.errorMessage(
-                        "Compatibility Issue: Incompatible Java Version",
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Critical: Your Java version is lower than the required 17!</span>",
-                        "<span style='color: #2E7D32; font-weight: bold;'>Attempting to execute the Engine with this older version may lead to unexpected behavior or failures.</span>",
-                        "<span style='font-style: italic;'>Please upgrade your Java installation to version 17 or higher for optimal performance and stability.</span>",
-                        null,
-                        0);
-            }
-            String webDriverPath = managerProps.getProperty(ARPropertyEnum.PATH_WEBDRIVER);
-            if (!(new File(webDriverPath)).exists()) {
-                log.error("Action Required: Missing WebDriver");
-                performMessage.errorMessage(
-                        "Action Required: Missing WebDriver",
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Critical: The WebDriver file is missing!</span>",
-                        "<span style='color: #2E7D32; font-weight: bold;'>To execute automated browser interactions, the WebDriver is absolutely essential.</span>",
-                        "<span style='font-style: italic;'>Please download the correct WebDriver for your browser and ensure it is accessible by the application.</span>",
-                        null,
-                        0);
-                return;
-            }
-
-            if (!selectedBotJob.getPriority().equalsIgnoreCase("Web App")
-                    && !selectedBotJob.getPriority().equalsIgnoreCase("Rest Api")) {
-                performMessage.errorMessage(
-                        "Mobile Bot Job Selected",
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Mobile Bot Jobs can only be executed from AR Mobile!</span>",
-                        "<span style='color: #2E7D32; font-weight: bold;'>Please run \"AR Mobile\" to launch the Bot Job tests.</span>",
-                        null,
-                        null,
-                        0);
-                return;
-            }
-
-            //    ".\\java\\bin\\java.exe",
-            String[] command = new String[] {
-                "cmd.exe",
-                "/c",
-                "java.exe",
-                "-jar",
-                "\"" + enginePath + "\"",
-                "execute/j",
-                String.valueOf(
-                        selectedBotJob.getHomeBankingLoadDTO() != null
-                                ? selectedBotJob.getHomeBankingLoadDTO().getId()
-                                : selectedBotJob.getHomeBankingId()),
-                String.valueOf(selectedBotJob.getId()),
-                String.valueOf(1), // block execution
-                "\"" + excelPath + "\"",
-                "-c",
-                arPropertyManager.getConfigurationFileName()
-            };
-            ProcessBuilder processBuilder = new ProcessBuilder(command);
-            processBuilder.directory(new File(ARConstants.USER_PATH));
-            String logPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_LOG);
-            File output = new File(logPath + "\\engine_debug_log_output.log");
-            File error = new File(logPath + "\\engine_debug_log_error.log");
-            File input = new File(logPath + "\\engine_debug_log_input.log");
-            List<File> files = new ArrayList<File>();
-            files.add(output);
-            files.add(error);
-            files.add(input);
-
-            Iterator<File> var11 = files.iterator();
-
-            while (var11.hasNext()) {
-                File file = (File) var11.next();
-                if (!file.exists()) {
-                    try {
-                        file.createNewFile();
-                    } catch (IOException var15) {
-                        var15.printStackTrace();
-                    }
-                }
-            }
-
-            processBuilder.redirectOutput(output);
-            processBuilder.redirectError(error);
-            processBuilder.redirectInput(input);
-
-            try {
-                processBuilder.start();
-            } catch (IOException var14) {
-                var14.printStackTrace();
-            }
-        });
-        this.openExcelFileButton.setOnMouseClicked((e) -> {
-            String excelFolderPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL);
-            String fileName =
-                    String.format("%s/%s%s", excelFolderPath, selectedBotJob.getName(), ARConstants.FILE_FORMAT_EXCEL);
-
-            //        List<BlockLoadDTO> blocksLoaded = botLoadJobs.get(0).getBlockLoadDTOList();
-
-            // Create a File object
-            File fileCheck = new File(fileName);
-            if (!fileCheck.exists() && !fileCheck.isDirectory()) {
-                log.error("File Not Found: {}", fileName);
-                performMessage.errorMessage(
-                        "File Not Found",
-                        "<span style='color: #000080; font-weight: bold; font-size: 14px;'>File does not exist:</span>",
-                        "<span style='color: #000080; font-weight: bold;'>" + fileName
-                                + "</span>", // Added fileName here
-                        "<span style='font-style: italic;'>Details:</span>",
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Please ensure the file path is correct and the file is present.</span>",
-                        0);
-
-            } else {
-
-                try {
-                    String excelFilePath = arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL);
-                    excelFilePath = excelFilePath + "\\" + selectedBotJob.getName() + ".xlsx";
-                    File file = new File(excelFilePath);
-                    Desktop.getDesktop().open(file);
-                    //                    Runtime.getRuntime().exec("rundll32 url.dll, FileProtocolHandler " +
-                    // excelFilePath);
-                } catch (IOException var3) {
-                    log.error("Error loading Excel Rows. Maybe it is better to re-generate the file: {}", fileName);
-                    performMessage.errorMessage(
-                            "Excel File Error",
-                            "<span style='color: #000080; font-weight: bold; font-size: 14px;'>Check All Excel Columns and Values!</span>",
-                            "<span style='color: #000080; font-weight: bold;'></span>",
-                            "<span style='font-style: italic;'>Details:</span>",
-                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Error loading Excel Rows. Maybe it is better to re-generate the file.</span>",
-                            0);
-
-                    return;
-                }
-            }
-        });
-        this.openReportButton.setOnMouseClicked((e) -> {
-            String reportDir = arPropertyManager.getProperty(ARPropertyEnum.PATH_REPORT);
-            if (Strings.isNullOrEmpty(reportDir)) {
-                performMessage.errorMessage(
-                        "Report folder not configured",
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>The property 'path_report' is not set.</span>",
-                        "<span style='color: #1565C0; font-weight: bold;'>Please open Settings and configure the Report folder.</span>",
-                        null,
-                        null,
-                        0);
-                return;
-            }
-
-            File reportFolder = new File(reportDir);
-            if (!reportFolder.isDirectory()) {
-                performMessage.errorMessage(
-                        "Report folder does not exist",
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Folder not found:</span>",
-                        "<span style='color: #1565C0; font-weight: bold;'>" + reportDir + "</span>",
-                        "<span style='font-style: italic;'>Check the 'path_report' property in Settings.</span>",
-                        null,
-                        0);
-                return;
-            }
-
-            FileChooser fileChooser = new FileChooser();
-            fileChooser.setTitle("Open Report File");
-            fileChooser.setInitialDirectory(reportFolder);
-            fileChooser
-                    .getExtensionFilters()
-                    .addAll(
-                            new FileChooser.ExtensionFilter("Excel Files", "*.xlsx", "*.xls"),
-                            new FileChooser.ExtensionFilter("All Files", "*.*"));
-
-            Stage ownerStage = (Stage) ((Button) e.getSource()).getScene().getWindow();
-            File selectedFile = fileChooser.showOpenDialog(ownerStage);
-
-            if (selectedFile != null) {
-                try {
-                    Desktop.getDesktop().open(selectedFile);
-                    log.info("Opening report file: {}", selectedFile.getAbsolutePath());
-                } catch (IOException ex) {
-                    log.error("Failed to open report file: {}", selectedFile.getAbsolutePath(), ex);
-                    performMessage.errorMessage(
-                            "Cannot open report file",
-                            "<span style='color: #D32F2F; font-weight: bold;'>Failed to open:</span>",
-                            "<span style='color: #1565C0; font-weight: bold;'>" + selectedFile.getName() + "</span>",
-                            "<span style='font-style: italic;'>" + ex.getMessage() + "</span>",
-                            null,
-                            0);
-                }
-            }
-        });
-        // ── API Tool toggle handler  ─────────────────────────────────
-        /* apiToolToggleButton.setOnMouseClicked((e) -> {
-            if (isApiToolVisible) {
-                // ── Switch BACK to botJobTasks view ────────────────────────
-                componentBox.getChildren().clear();
-                componentBox.getChildren().add(webViewTasks);
-
-                // Restore grow constraints on the tasks WebView
-                HBox.setHgrow(webViewTasks, Priority.ALWAYS);
-                VBox.setVgrow(webViewTasks, Priority.ALWAYS);
-
-                componentBox.requestLayout();
-
-                apiToolToggleButton.setStyle(
-                        "-fx-background-color: #37474F; -fx-text-fill: white; -fx-font-weight: bold;");
-                apiToolToggleButton.setText("🔧 API Tool");
-
-                isApiToolVisible = false;
-
-            } else {
-                // ── Switch TO capiApiTestToolAI view ──────────────────────────────
-                componentBox.getChildren().clear();
-                componentBox.getChildren().add(webViewApiTool);
-
-                // Make the apiTool WebView fill all available space
-                HBox.setHgrow(webViewApiTool, Priority.ALWAYS);
-                VBox.setVgrow(webViewApiTool, Priority.ALWAYS);
-
-                componentBox.requestLayout();
-
-                apiToolToggleButton.setStyle(
-                        "-fx-background-color: #1565C0; -fx-text-fill: white; -fx-font-weight: bold;");
-                apiToolToggleButton.setText("📋 Bot Tasks");
-
-                isApiToolVisible = true;
-            }
-        }); */
-    }
+    @Override
+    public void initUIBehaviour() {}
 
     public void handlePreScanCommand(String type, JsonObject jsonEntry) {
         if ("PRE_SCAN_CLEAR_GRID".equals(type)) {
@@ -1895,51 +865,6 @@ public class ARViewBotJobPane extends ARPane {
                 .toList();
     }
 
-    public void createBatFile(String excelFilePath, String enginePath, String configPath) {
-        String projectType = selectedBotJob.getPriority();
-
-        projectType = projectType.replaceAll(" ", "_");
-
-        String batFileName = "execute_" + projectType.toLowerCase() + "_" + selectedBotJob.getHomeBankingId()
-                + "_Botjob_" + selectedBotJob.getId() + ".bat";
-
-        String basePath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
-        String batFilePath = basePath + File.separator + batFileName; // Corrected path
-
-        String javaCommand = "java.exe -jar \"" + enginePath + "\" execute/j "
-                + selectedBotJob.getHomeBankingId() + " " + selectedBotJob.getId() + " " + 1 + " \"" + excelFilePath
-                + "\" -c \""
-                + configPath + "\"";
-
-        try (FileWriter writer = new FileWriter(batFilePath)) {
-            writer.write(javaCommand);
-
-            performMessage.showCustomModalDialogDragWin11(
-                    "BAT File Creation",
-                    "<span style='color: #00695C; font-weight: bold; font-size: 1.1em;'>BAT file created at:</span>",
-                    "<span style='color: #2E7D32; font-weight: bold;'></span> <span style='font-weight: bold;'>"
-                            + basePath + "</span>", // changed color
-                    "<span style='color: #00695C; font-weight: bold; font-size: 1.1em;'>BAT file name:</span>",
-                    "<span style='color: #2E7D32; font-weight: bold;'></span> <span style='font-weight: bold;'>"
-                            + batFileName + "</span>", // changed color
-                    false,
-                    "OK",
-                    null,
-                    0);
-
-            log.info("BAT file created at: " + batFilePath);
-        } catch (IOException error) {
-            log.error("Error creating BAT file: " + error.getMessage());
-            performMessage.errorMessage(
-                    "BAT File Creation Error",
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to create file:</span>",
-                    "<span style='font-weight: bold;'>" + batFilePath + "</span>.", // Filename on a new line
-                    "<span style='color: #E65100; font-weight: bold;'>Please verify the application has the necessary write permissions for the directory.</span>",
-                    "<span style='font-style: italic;'>Details: " + error.getMessage() + "</span>",
-                    0);
-        }
-    }
-
     private void callScannerTool() {
         if (arPropertyManager.missingMandatoryPats()) {
             return;
@@ -2147,6 +1072,569 @@ public class ARViewBotJobPane extends ARPane {
         return selectedBotJob;
     }
 
+    /** Executes an operation from the React Bot Job Details toolbar. */
+    public CompletableFuture<BotJobToolbarActionResult> handleReactToolbarAction(
+            BotJobToolbarAction action, BotJobDetailsRequest request) {
+        CompletableFuture<BotJobToolbarActionResult> completion = new CompletableFuture<>();
+        if (action == null || request == null) {
+            completion.complete(BotJobToolbarActionResult.failure(action, "Bot Job toolbar action is required"));
+            return completion;
+        }
+        if (action == BotJobToolbarAction.STOP_TEST_RUN) {
+            dispatchPromptStop(request, completion);
+            return completion;
+        }
+
+        final BotJobToolbarContext context;
+        try {
+            context = botJobDetailsService.captureToolbarContext(request.botJobId());
+            requireNonStopActionAllowed(context);
+            requireExecutionStartAllowed(action);
+        } catch (Exception error) {
+            completeToolbarFailure(action, completion, error);
+            return completion;
+        }
+
+        BotJobToolbarConcurrencyGuard.Lease lease =
+                botJobToolbarGuard.tryAcquire(context.botJobId(), context.workspaceEpoch(), action);
+        if (lease == null) {
+            completion.complete(BotJobToolbarActionResult.failure(
+                    action, "Another Bot Job toolbar operation is already in progress"));
+            return completion;
+        }
+
+        if (action == BotJobToolbarAction.CHOOSE_TRANSFER_PATH) {
+            runTransferChooser(context, request, completion, lease);
+        } else if (action == BotJobToolbarAction.OPEN_REPORT) {
+            runReportChooser(context, completion, lease);
+        } else {
+            try {
+                botJobToolbarExecutor.execute(
+                        () -> runHeadlessToolbarAction(context, action, request, completion, lease));
+            } catch (RejectedExecutionException rejected) {
+                lease.close();
+                completion.complete(BotJobToolbarActionResult.failure(
+                        action, "Another Bot Job toolbar operation is already in progress"));
+            }
+        }
+        return completion;
+    }
+
+    private void runHeadlessToolbarAction(
+            BotJobToolbarContext context,
+            BotJobToolbarAction action,
+            BotJobDetailsRequest request,
+            CompletableFuture<BotJobToolbarActionResult> completion,
+            BotJobToolbarConcurrencyGuard.Lease lease) {
+        try (lease) {
+            requireNonStopActionAllowed(context);
+            requireExecutionStartAllowed(action);
+            switch (action) {
+                case OPEN_EXCEL -> openExcelFromReact(context);
+                case GENERATE_EXCEL -> generateExcelFromReact(context, request.body());
+                case SET_NAVIGATION_TIME -> setNavigationTimeFromReact(request.body());
+                case LAUNCH -> launchExternalEngineFromReact(context);
+                case REFRESH_BLOCKS -> reloadBlocksFromReact(context);
+                case TEST_RUN -> runTestRunFromReact(context, request, action, completion);
+                case EXPORT_JOB -> exportJobFromReact(context, request);
+                case IMPORT_JOB -> importJobFromReact(context, request);
+                case CREATE_BAT -> createBatFromReact(context);
+                case STOP_TEST_RUN -> throw new IllegalStateException("STOP dispatch failed");
+                case OPEN_REPORT, CHOOSE_TRANSFER_PATH -> throw new IllegalStateException("Native chooser dispatch failed");
+            }
+            if (action != BotJobToolbarAction.TEST_RUN) {
+                botJobDetailsWorkspaceRegistry.require(context.botJobId(), context.workspaceEpoch());
+                botJobDetailsWorkspaceRegistry.touch(context.botJobId());
+                completion.complete(BotJobToolbarActionResult.success(action, toolbarActionMessage(action)));
+            }
+        } catch (Exception error) {
+            completeToolbarFailure(action, completion, error);
+        }
+    }
+
+    private void runTransferChooser(
+            BotJobToolbarContext context,
+            BotJobDetailsRequest request,
+            CompletableFuture<BotJobToolbarActionResult> completion,
+            BotJobToolbarConcurrencyGuard.Lease lease) {
+        Runnable chooser = () -> {
+            try (lease) {
+                requireNonStopActionAllowed(context);
+                DirectoryChooser directoryChooser = new DirectoryChooser();
+                directoryChooser.setTitle("Select Bot Job transfer folder");
+                String configured = arPropertyManager.getProperty(ARPropertyEnum.PATH_EXPORT);
+                if (!Strings.isNullOrEmpty(configured)) {
+                    File initial = new File(configured);
+                    if (initial.isDirectory()) directoryChooser.setInitialDirectory(initial);
+                }
+                File selected = directoryChooser.showDialog(stage);
+                if (selected == null) {
+                    completion.complete(BotJobToolbarActionResult.success(
+                            BotJobToolbarAction.CHOOSE_TRANSFER_PATH, "Folder selection cancelled"));
+                    return;
+                }
+                botJobDetailsWorkspaceRegistry.require(context.botJobId(), context.workspaceEpoch());
+                String path = botJobTransferPathRegistry.select(
+                        request.sessionId(), context.botJobId(), selected);
+                completion.complete(BotJobToolbarActionResult.success(
+                        BotJobToolbarAction.CHOOSE_TRANSFER_PATH, "Transfer folder selected", path));
+            } catch (Exception error) {
+                completeToolbarFailure(BotJobToolbarAction.CHOOSE_TRANSFER_PATH, completion, error);
+            }
+        };
+        if (Platform.isFxApplicationThread()) chooser.run();
+        else Platform.runLater(chooser);
+    }
+
+    private void runReportChooser(
+            BotJobToolbarContext context,
+            CompletableFuture<BotJobToolbarActionResult> completion,
+            BotJobToolbarConcurrencyGuard.Lease lease) {
+        Runnable chooser = () -> {
+            try {
+                requireNonStopActionAllowed(context);
+                File selected = chooseReportFromReact();
+                if (selected == null) {
+                    lease.close();
+                    completion.complete(BotJobToolbarActionResult.success(
+                            BotJobToolbarAction.OPEN_REPORT, "Report selection cancelled"));
+                    return;
+                }
+                try {
+                    botJobToolbarExecutor.execute(() -> {
+                        try (lease) {
+                            requireNonStopActionAllowed(context);
+                            openDesktopFile(selected);
+                            completion.complete(BotJobToolbarActionResult.success(
+                                    BotJobToolbarAction.OPEN_REPORT, "Report opened"));
+                        } catch (Exception error) {
+                            completeToolbarFailure(BotJobToolbarAction.OPEN_REPORT, completion, error);
+                        }
+                    });
+                } catch (RejectedExecutionException rejected) {
+                    lease.close();
+                    completion.complete(BotJobToolbarActionResult.failure(
+                            BotJobToolbarAction.OPEN_REPORT,
+                            "Another Bot Job toolbar operation is already in progress"));
+                }
+            } catch (Exception error) {
+                lease.close();
+                completeToolbarFailure(BotJobToolbarAction.OPEN_REPORT, completion, error);
+            }
+        };
+        if (Platform.isFxApplicationThread()) chooser.run();
+        else Platform.runLater(chooser);
+    }
+
+    private void dispatchPromptStop(
+            BotJobDetailsRequest request,
+            CompletableFuture<BotJobToolbarActionResult> completion) {
+        final BotJobDetailsWorkspaceRegistry.Snapshot snapshot;
+        final BotJobDetailsWorkspaceRegistry.StopDecision decision;
+        try {
+            snapshot = botJobDetailsWorkspaceRegistry.require(request.botJobId());
+            decision = botJobDetailsWorkspaceRegistry.requestTestRunStop(
+                    request.botJobId(), snapshot.workspaceEpoch());
+        } catch (Exception error) {
+            completeToolbarFailure(BotJobToolbarAction.STOP_TEST_RUN, completion, error);
+            return;
+        }
+        if (!decision.accepted()) {
+            completion.complete(BotJobToolbarActionResult.failure(
+                    BotJobToolbarAction.STOP_TEST_RUN, "No TEST RUN is active"));
+            return;
+        }
+        if (decision.alreadyRequested()) {
+            completion.complete(BotJobToolbarActionResult.success(
+                    BotJobToolbarAction.STOP_TEST_RUN, "TEST RUN stop already requested"));
+            return;
+        }
+
+        BotJobDetailsWorkspaceRegistry.ExecutionAttempt attempt =
+                new BotJobDetailsWorkspaceRegistry.ExecutionAttempt(
+                        request.botJobId(), snapshot.workspaceEpoch(), decision.attemptId());
+        try {
+            botJobStopExecutor.execute(() -> {
+                try {
+                    botJobDetailsWorkspaceRegistry.require(attempt.botJobId(), attempt.workspaceEpoch());
+                    ActiveReactTestRun activeRun = activeReactTestRun.get();
+                    if (activeRun != null && activeRun.attempt().equals(attempt)) {
+                        ARScannedElementPane.getInstance().stopTestRun(activeRun.scannerExecutionId());
+                    }
+                    completion.complete(BotJobToolbarActionResult.success(
+                            BotJobToolbarAction.STOP_TEST_RUN, "TEST RUN stop requested"));
+                } catch (Exception error) {
+                    completeToolbarFailure(BotJobToolbarAction.STOP_TEST_RUN, completion, error);
+                }
+            });
+        } catch (RejectedExecutionException rejected) {
+            botJobDetailsWorkspaceRegistry.finishTestRun(attempt, "FAILED");
+            completion.complete(BotJobToolbarActionResult.failure(
+                    BotJobToolbarAction.STOP_TEST_RUN, "Unable to schedule TEST RUN stop"));
+        }
+    }
+
+    private void requireNonStopActionAllowed(BotJobToolbarContext context) {
+        BotJobDetailsWorkspaceRegistry.Snapshot snapshot =
+                botJobDetailsWorkspaceRegistry.require(context.botJobId(), context.workspaceEpoch());
+        if (BotJobDetailsWorkspaceRegistry.isExecutionActive(snapshot.executionState())) {
+            throw new IllegalStateException("Stop the active TEST RUN before using another toolbar action");
+        }
+    }
+
+    private void requireExecutionStartAllowed(BotJobToolbarAction action) {
+        boolean conflictsWithExternalEngine = switch (action) {
+            case GENERATE_EXCEL, SET_NAVIGATION_TIME, REFRESH_BLOCKS, TEST_RUN, LAUNCH, IMPORT_JOB -> true;
+            default -> false;
+        };
+        if (conflictsWithExternalEngine && botJobToolbarGuard.externalEngineRunning()) {
+            throw new IllegalStateException("An external Engine execution is already active");
+        }
+    }
+
+    private record ActiveReactTestRun(
+            BotJobDetailsWorkspaceRegistry.ExecutionAttempt attempt,
+            long scannerExecutionId) {}
+
+    private static void completeToolbarFailure(
+            BotJobToolbarAction action,
+            CompletableFuture<BotJobToolbarActionResult> completion,
+            Throwable error) {
+        log.error("Bot Job toolbar action {} failed", action, error);
+        String message = error == null || Strings.isNullOrEmpty(error.getMessage())
+                ? "Bot Job toolbar action failed"
+                : error.getMessage();
+        completion.complete(BotJobToolbarActionResult.failure(action, message));
+    }
+
+    private void setNavigationTimeFromReact(JsonObject body) {
+        int seconds = requiredInt(body, "navigationTimeSeconds", 0, 10);
+        setNavigationTimeValue(seconds);
+    }
+
+    private void reloadBlocksFromReact(BotJobToolbarContext context) {
+        ErrorMessage error = performDataBase.loadBlocks(context.botJobId(), "", "block");
+        if (error != null) throw new IllegalStateException(botJobErrorText(error));
+    }
+
+    private void runTestRunFromReact(
+            BotJobToolbarContext context,
+            BotJobDetailsRequest request,
+            BotJobToolbarAction action,
+            CompletableFuture<BotJobToolbarActionResult> completion) {
+        JsonObject body = request.body();
+        String mode = requiredString(body, "executionMode").toUpperCase(java.util.Locale.ROOT);
+        if (!"ALL".equals(mode) && !"ONE".equals(mode)) {
+            throw new IllegalArgumentException("Execution mode must be ALL or ONE");
+        }
+
+        int blockId = optionalInt(body, "blockId", 0);
+        boolean executeAllSelected = blockId <= 0;
+        if (executeAllSelected && "ONE".equals(mode)) {
+            throw new IllegalArgumentException("Select a numbered block before using ONE mode");
+        }
+
+        Integer blockOrder = null;
+        String blockName = EXECUTE_ALL_OPTION_LABEL;
+        if (!executeAllSelected) {
+            ErrorMessage loadError = performDataBase.loadBlocks(context.botJobId(), "", "block");
+            if (loadError != null) throw new IllegalStateException(botJobErrorText(loadError));
+            BlockLoadDTO selectedBlock = performLists.getListBlock().stream()
+                    .filter(block -> block != null
+                            && block.getId() != null
+                            && block.getId() == blockId
+                            && context.botJobId() == block.getBotJobId())
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException("The selected block is no longer available"));
+            blockOrder = selectedBlock.getBlockOrderNumber();
+            blockName = selectedBlock.getName();
+        }
+
+        TestRunExecutionSelection selection = TestRunExecutionSelection.resolve(
+                blockOrder, executeAllSelected, "ONE".equals(mode));
+        final String selectedBlockName = blockName;
+        BotJobDetailsWorkspaceRegistry.ExecutionAttempt executionAttempt =
+                botJobDetailsWorkspaceRegistry.beginTestRun(context.botJobId(), context.workspaceEpoch());
+        com.allinweb.ch.socket.SimpleWebSocketServer.getInstance()
+                .publishBotJobDetailsRuntimeState(context.botJobId(), request.requestId());
+        boolean accepted;
+        try {
+            accepted = ARScannedElementPane.getInstance().testRunBlockPlaywright(
+                    context.executionBotJob(),
+                    selection.blockOrderNumber(),
+                    context.endpointUrl(),
+                    selection.runSingleBlock());
+        } catch (RuntimeException error) {
+            botJobDetailsWorkspaceRegistry.finishTestRun(executionAttempt, "FAILED");
+            throw error;
+        }
+        if (!accepted) {
+            botJobDetailsWorkspaceRegistry.finishTestRun(executionAttempt, "FAILED");
+            completion.complete(BotJobToolbarActionResult.failure(
+                    action, "TEST RUN was not started; review the browser and job configuration"));
+            return;
+        }
+        long scannerExecutionId = ARScannedElementPane.getInstance().currentTestRunExecutionId();
+        if (scannerExecutionId <= 0) {
+            botJobDetailsWorkspaceRegistry.finishTestRun(executionAttempt, "FAILED");
+            completion.complete(BotJobToolbarActionResult.failure(
+                    action, "TEST RUN executor did not expose an active execution"));
+            return;
+        }
+        ActiveReactTestRun activeRun = new ActiveReactTestRun(executionAttempt, scannerExecutionId);
+        activeReactTestRun.set(activeRun);
+        if (!botJobDetailsWorkspaceRegistry.markTestRunRunning(executionAttempt)) {
+            ARScannedElementPane.getInstance().stopTestRun(scannerExecutionId);
+            completion.complete(BotJobToolbarActionResult.failure(
+                    action, "TEST RUN was stopped during startup"));
+            monitorTestRunCompletion(activeRun);
+            return;
+        }
+        completion.complete(BotJobToolbarActionResult.success(
+                action,
+                "TEST RUN started in " + mode + " mode from " + selectedBlockName));
+        monitorTestRunCompletion(activeRun);
+    }
+
+    private void monitorTestRunCompletion(ActiveReactTestRun activeRun) {
+        BotJobDetailsWorkspaceRegistry.ExecutionAttempt executionAttempt = activeRun.attempt();
+        Thread monitor = new Thread(() -> {
+            try {
+                while (!ARScannedElementPane.getInstance()
+                        .isTestRunExecutionComplete(activeRun.scannerExecutionId())) {
+                    Thread.sleep(250L);
+                }
+                BotJobDetailsWorkspaceRegistry.Snapshot snapshot = botJobDetailsWorkspaceRegistry.require(
+                        executionAttempt.botJobId(), executionAttempt.workspaceEpoch());
+                String terminalState = "STOPPING".equals(snapshot.executionState()) ? "INTERRUPTED" : "IDLE";
+                if (botJobDetailsWorkspaceRegistry.finishTestRun(executionAttempt, terminalState)) {
+                    com.allinweb.ch.socket.SimpleWebSocketServer.getInstance()
+                            .publishBotJobDetailsRuntimeState(executionAttempt.botJobId(), "test-run-complete");
+                }
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+            } catch (RuntimeException error) {
+                log.debug("Unable to publish TEST RUN terminal state: {}", error.getMessage());
+            } finally {
+                activeReactTestRun.compareAndSet(activeRun, null);
+            }
+        }, "react-testrun-monitor-" + executionAttempt.botJobId());
+        monitor.setDaemon(true);
+        monitor.start();
+    }
+
+    private void openExcelFromReact(BotJobToolbarContext context) throws IOException {
+        String excelFolder = arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL);
+        File file = new File(excelFolder, context.name() + ARConstants.FILE_FORMAT_EXCEL);
+        if (!file.isFile()) throw new IllegalStateException("Excel file not found: " + file.getAbsolutePath());
+        if (!Desktop.isDesktopSupported()) throw new IllegalStateException("Desktop file opening is unavailable");
+        Desktop.getDesktop().open(file);
+    }
+
+    private void generateExcelFromReact(BotJobToolbarContext context, JsonObject body) throws Exception {
+        ErrorMessage error = null;
+        if (performLists.getQuickBotJobs().isEmpty()) error = performDataBase.loadQuickBotJobs();
+        if (error == null) error = performDataBase.loadBlocks(context.botJobId(), context.name(), "block");
+        if (error == null) error = performDBEngine.loadAllActionsPerBlock(performLists.getListBlock());
+        if (error != null) throw new IllegalStateException(botJobErrorText(error));
+
+        ExtractedData extracted = ExcelUtils.isFileExists(context.name(), performLists.getAllActions());
+        if (extracted != null && extracted.getErrorMessage() != null) {
+            throw new IllegalStateException(extracted.getErrorMessage());
+        }
+        if (extracted != null && !booleanValue(body, "confirmed", false)) {
+            throw new IllegalArgumentException("Confirm replacement of the existing Excel file");
+        }
+        new ExcelUtils().generateExcelFiles(extracted, context.name(), null, true);
+    }
+
+    private File chooseReportFromReact() {
+        String reportPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_REPORT);
+        if (Strings.isNullOrEmpty(reportPath)) throw new IllegalStateException("Report folder is not configured");
+        File reportFolder = new File(reportPath);
+        if (!reportFolder.isDirectory()) {
+            throw new IllegalStateException("Report folder does not exist: " + reportFolder.getAbsolutePath());
+        }
+        FileChooser chooser = new FileChooser();
+        chooser.setTitle("Open Report File");
+        chooser.setInitialDirectory(reportFolder);
+        chooser.getExtensionFilters().addAll(
+                new FileChooser.ExtensionFilter("Excel Files", "*.xlsx", "*.xls"),
+                new FileChooser.ExtensionFilter("All Files", "*.*"));
+        return chooser.showOpenDialog(stage);
+    }
+
+    private void exportJobFromReact(BotJobToolbarContext context, BotJobDetailsRequest request) {
+        requireConfirmed(request.body(), "Confirm the Bot Job export");
+        String path = botJobTransferPathRegistry.require(
+                request.sessionId(), context.botJobId(), requiredString(request.body(), "transferPath"));
+        BotJobTransferResult result = botJobTransferService.exportJob(
+                context.homeBankingId(), context.botJobId(), path);
+        if (!result.ok()) throw new IllegalStateException(result.message());
+    }
+
+    private void importJobFromReact(BotJobToolbarContext context, BotJobDetailsRequest request) {
+        requireConfirmed(request.body(), "Confirm the Bot Job import");
+        String path = botJobTransferPathRegistry.require(
+                request.sessionId(), context.botJobId(), requiredString(request.body(), "transferPath"));
+        String dateText = requiredString(request.body(), "restoreDate");
+        LocalDate restoreDate;
+        try {
+            restoreDate = LocalDate.parse(dateText);
+        } catch (RuntimeException invalidDate) {
+            throw new IllegalArgumentException("Restore date must use YYYY-MM-DD", invalidDate);
+        }
+        BotJobTransferResult result = botJobTransferService.importJob(
+                context.homeBankingId(),
+                context.organizationName(),
+                context.homeUrlId(),
+                context.botJobId(),
+                restoreDate,
+                path);
+        if (!result.ok()) throw new IllegalStateException(result.message());
+    }
+
+    private void createBatFromReact(BotJobToolbarContext context) throws IOException {
+        String enginePath = arPropertyManager.getProperty(ARPropertyEnum.PATH_ENGINE);
+        String excelFolder = arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL);
+        File excel = new File(excelFolder, context.name() + ARConstants.FILE_FORMAT_EXCEL);
+        if (!excel.isFile()) throw new IllegalStateException("Generate the Excel file before creating the BAT file");
+        String projectType = context.projectType();
+        String fileName = "execute_" + projectType.replace(' ', '_').toLowerCase(java.util.Locale.ROOT)
+                + '_' + context.homeBankingId() + "_Botjob_" + context.botJobId() + ".bat";
+        File baseDirectory = new File(arPropertyManager.getProperty(ARPropertyEnum.PATH_DB));
+        if (!baseDirectory.isDirectory()) throw new IllegalStateException("Database folder does not exist");
+        String configPath = System.getProperty("ARWebConfig");
+        String javaCommand = "java.exe -jar \"" + enginePath + "\" execute/j "
+                + context.homeBankingId() + ' ' + context.botJobId() + " 1 \""
+                + excel.getAbsolutePath() + "\" -c \"" + configPath + "\"";
+        try (FileWriter writer = new FileWriter(new File(baseDirectory, fileName))) {
+            writer.write(javaCommand);
+        }
+    }
+
+    private void launchExternalEngineFromReact(BotJobToolbarContext context) throws IOException {
+        String enginePath = arPropertyManager.getProperty(ARPropertyEnum.PATH_ENGINE);
+        String excelFolder = arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL);
+        File excel = new File(excelFolder, context.name() + ARConstants.FILE_FORMAT_EXCEL);
+        if (!excel.isFile()) throw new IllegalStateException("Generate the Excel file before launching the Bot Job");
+        if (!supportsDesktopBrowserTools(context.projectType())) {
+            throw new IllegalStateException("Mobile Bot Jobs can only be executed from AR Mobile");
+        }
+        String webDriverPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_WEBDRIVER);
+        if (Strings.isNullOrEmpty(webDriverPath) || !new File(webDriverPath).exists()) {
+            throw new IllegalStateException("The configured WebDriver file is missing");
+        }
+        File engine = new File(enginePath);
+        if (!engine.isFile()) throw new IllegalStateException("The configured Engine JAR is missing");
+        String[] command = new String[] {
+            "java.exe",
+            "-jar",
+            engine.getAbsolutePath(),
+            "execute/j",
+            String.valueOf(context.homeBankingId()),
+            String.valueOf(context.botJobId()),
+            "1",
+            excel.getAbsolutePath(),
+            "-c",
+            arPropertyManager.getConfigurationFileName()
+        };
+        ProcessBuilder builder = new ProcessBuilder(command);
+        builder.directory(new File(ARConstants.USER_PATH));
+        String logPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_LOG);
+        File logDirectory = new File(logPath);
+        if (!logDirectory.isDirectory() && !logDirectory.mkdirs()) {
+            throw new IOException("Unable to create Engine log folder: " + logDirectory.getAbsolutePath());
+        }
+        builder.redirectOutput(new File(logDirectory, "engine_debug_log_output.log"));
+        builder.redirectError(new File(logDirectory, "engine_debug_log_error.log"));
+        Process process = builder.start();
+        if (!botJobToolbarGuard.trackExternalEngine(process)) {
+            process.destroy();
+            throw new IllegalStateException("An external Engine execution is already active");
+        }
+        process.onExit().whenComplete((finished, failure) ->
+                botJobToolbarGuard.externalEngineFinished(process));
+    }
+
+    private static void openDesktopFile(File file) throws IOException {
+        if (file == null || !file.isFile()) throw new IllegalArgumentException("File does not exist");
+        if (!Desktop.isDesktopSupported()) throw new IllegalStateException("Desktop file opening is unavailable");
+        Desktop.getDesktop().open(file);
+    }
+
+    private static int requiredInt(JsonObject body, String field, int minimum, int maximum) {
+        int value = optionalInt(body, field, Integer.MIN_VALUE);
+        if (value < minimum || value > maximum) {
+            throw new IllegalArgumentException(field + " must be between " + minimum + " and " + maximum);
+        }
+        return value;
+    }
+
+    private static int optionalInt(JsonObject body, String field, int fallback) {
+        try {
+            return body == null || !body.has(field) || body.get(field).isJsonNull()
+                    ? fallback
+                    : body.get(field).getAsInt();
+        } catch (RuntimeException invalidValue) {
+            throw new IllegalArgumentException(field + " must be a whole number", invalidValue);
+        }
+    }
+
+    private static boolean booleanValue(JsonObject body, String field, boolean fallback) {
+        try {
+            return body == null || !body.has(field) || body.get(field).isJsonNull()
+                    ? fallback
+                    : body.get(field).getAsBoolean();
+        } catch (RuntimeException invalidValue) {
+            throw new IllegalArgumentException(field + " must be true or false", invalidValue);
+        }
+    }
+
+    private static void requireConfirmed(JsonObject body, String message) {
+        if (!booleanValue(body, "confirmed", false)) throw new IllegalArgumentException(message);
+    }
+
+    private static String requiredString(JsonObject body, String field) {
+        String value = optionalString(body, field);
+        if (Strings.isNullOrEmpty(value)) throw new IllegalArgumentException(field + " is required");
+        return value;
+    }
+
+    private static String optionalString(JsonObject body, String field) {
+        try {
+            return body == null || !body.has(field) || body.get(field).isJsonNull()
+                    ? ""
+                    : body.get(field).getAsString().trim();
+        } catch (RuntimeException invalidValue) {
+            throw new IllegalArgumentException(field + " must be text", invalidValue);
+        }
+    }
+
+    private static String botJobErrorText(ErrorMessage error) {
+        if (error == null) return "Bot Job operation failed";
+        if (!Strings.isNullOrEmpty(error.getErrorMessage())) return error.getErrorMessage();
+        if (!Strings.isNullOrEmpty(error.getErrorHeader())) return error.getErrorHeader();
+        return Strings.isNullOrEmpty(error.getErrorTitle()) ? "Bot Job operation failed" : error.getErrorTitle();
+    }
+
+    private static String toolbarActionMessage(BotJobToolbarAction action) {
+        return switch (action) {
+            case OPEN_EXCEL -> "Excel file opened";
+            case GENERATE_EXCEL -> "Excel generation started";
+            case OPEN_REPORT -> "Report action completed";
+            case SET_NAVIGATION_TIME -> "Navigation time updated";
+            case LAUNCH -> "Bot Job launch started";
+            case REFRESH_BLOCKS -> "Block list refreshed";
+            case TEST_RUN -> "TEST RUN started";
+            case STOP_TEST_RUN -> "TEST RUN stopped";
+            case EXPORT_JOB -> "Bot Job export started";
+            case IMPORT_JOB -> "Bot Job import started";
+            case CHOOSE_TRANSFER_PATH -> "Transfer folder selected";
+            case CREATE_BAT -> "BAT file created";
+        };
+    }
+
     /** Executes a React workspace command and completes only after the JavaFX action ran. */
     public CompletableFuture<BotJobWorkspaceActionResult> handleReactWorkspaceAction(
             BotJobWorkspaceAction action, int requestedBotJobId) {
@@ -2177,6 +1665,10 @@ public class ARViewBotJobPane extends ARPane {
                 }
                 if (action == BotJobWorkspaceAction.CLOSE && stage == null) {
                     throw new IllegalStateException("Bot Job Details window is not available");
+                }
+                if (action == BotJobWorkspaceAction.CLOSE && !canCloseWorkspace()) {
+                    throw new IllegalStateException(
+                            "Wait for the active Bot Job operation to finish or stop TEST RUN first");
                 }
                 if (action == BotJobWorkspaceAction.OPEN_ORGANIZATIONS
                         && isEnabledLicence
@@ -2416,38 +1908,53 @@ public class ARViewBotJobPane extends ARPane {
     }
 
     // 🔹 Method to close the window
-    public void closePane() {
-        Runnable closeWindow = () -> {
-            Stage currentStage = this.stage;
-            if (currentStage == null) return;
-            markWorkspaceClosed();
-            currentStage.close();
-        };
-        if (Platform.isFxApplicationThread()) {
-            closeWindow.run();
-        } else {
-            Platform.runLater(closeWindow);
+    private void closePane() {
+        if (!Platform.isFxApplicationThread()) {
+            throw new IllegalStateException("Bot Job Details close must run on the JavaFX thread");
         }
+        Stage currentStage = this.stage;
+        if (currentStage == null) {
+            throw new IllegalStateException("Bot Job Details window is not available");
+        }
+        if (!canCloseWorkspace()) {
+            throw new IllegalStateException(
+                    "Wait for the active Bot Job operation to finish or stop TEST RUN first");
+        }
+        markWorkspaceClosed();
+        currentStage.close();
     }
 
     public void markWorkspaceClosed() {
+        if (!canCloseWorkspace()) {
+            throw new IllegalStateException(
+                    "Wait for the active Bot Job operation to finish or stop TEST RUN first");
+        }
         if (selectedBotJob != null && selectedBotJob.getId() != null) {
             botJobDetailsWorkspaceRegistry.close(selectedBotJob.getId());
+            for (String workspaceSession : List.of("botJobTasks", "componentTasks", "preScannerGrid")) {
+                botJobTransferPathRegistry.clear(workspaceSession, selectedBotJob.getId());
+            }
+        }
+        if (preScanDriver != null) {
+            try {
+                preScanDriver.shutdown();
+            } catch (RuntimeException error) {
+                log.debug("Unable to close the Pre Scan browser: {}", error.getMessage());
+            } finally {
+                preScanDriver = null;
+            }
         }
     }
 
-    private void updateNavigationTimeButtonColor(int value) {
-        String bg;
-        if (value == 0) {
-            bg = "#00B400"; // green
-        } else if (value >= 1 && value <= 5) {
-            bg = "#FFFF99"; // light yellow
-        } else {
-            bg = "#FF8C00"; // orange (6-10)
+    public boolean canCloseWorkspace() {
+        if (botJobToolbarGuard.activeOperation() != null || preScanRunning.get()) return false;
+        if (selectedBotJob == null || selectedBotJob.getId() == null) return true;
+        try {
+            return !BotJobDetailsWorkspaceRegistry.isExecutionActive(
+                    botJobDetailsWorkspaceRegistry.require(selectedBotJob.getId()).executionState());
+        } catch (RuntimeException ignored) {
+            return true;
         }
-
-        // JavaFX styling
-        navigationTimeButton.setStyle("-fx-background-color: " + bg + "; -fx-text-fill: black;");
     }
 
     private boolean isWebApp(String priority) {
@@ -2471,43 +1978,4 @@ public class ARViewBotJobPane extends ARPane {
         return isWebApp(priority) || "Rest Api".equalsIgnoreCase(priority == null ? "" : priority.trim());
     }
 
-    private TextField createPathTextField(ARPropertyEnum property) {
-        TextField textField = new TextField();
-        textField.setText(arPropertyManager.getProperty(property));
-        AnchorPane.setTopAnchor(textField, ARConstants.SPACE_ZERO);
-        AnchorPane.setBottomAnchor(textField, ARConstants.SPACE_ZERO);
-        AnchorPane.setRightAnchor(textField, ARConstants.SPACE_XL);
-        AnchorPane.setLeftAnchor(textField, ARConstants.SPACE_ZERO);
-        return textField;
-    }
-
-    private void openChooserFor(TextField field, Stage ownerStage, boolean isDirectory) {
-        String folderBase = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
-        if (Strings.isNullOrEmpty(folderBase)) {
-            folderBase = System.getProperty("user.dir");
-        }
-
-        File startingPoint = new File(folderBase);
-        String chosenPath =
-                isDirectory ? openDirectoryChooserFor(startingPoint, ownerStage) : openFileChooserFor(startingPoint);
-        if (!Strings.isNullOrEmpty(chosenPath)) {
-            field.setText(chosenPath);
-        }
-    }
-
-    private String openFileChooserFor(File startingDirectory) {
-        FileChooser chooser = new FileChooser();
-        chooser.setInitialDirectory(startingDirectory);
-        File chosenPath = chooser.showOpenDialog(new Stage());
-        return chosenPath.getAbsolutePath();
-    }
-
-    private String openDirectoryChooserFor(File startingDirectory, Stage ownerStage) {
-        DirectoryChooser chooser = new DirectoryChooser();
-        chooser.setInitialDirectory(startingDirectory);
-
-        // Make sure the dialog is shown in front of the provided stage
-        File chosenPath = chooser.showDialog(ownerStage);
-        return chosenPath != null ? chosenPath.getAbsolutePath() : null;
-    }
 }

@@ -1,10 +1,12 @@
 package com.allinweb.ch.socket;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.SocketException;
 import lombok.extern.slf4j.Slf4j;
 import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.websocket.jsr356.server.ServerContainer;
 import org.eclipse.jetty.websocket.jsr356.server.deploy.WebSocketServerContainerInitializer;
@@ -15,7 +17,7 @@ public class ARWebSocketServer {
     //    private static final ARLogger logger;
     //    private static final ARPropertyManager arPropertyManager;
     protected static volatile ARWebSocketServer instance;
-    private String BIND_IP_ADDRESS = "192.168.1.24";
+    public static final String LOOPBACK_ADDRESS = "127.0.0.1";
     private Server jettyServer;
     private ServerContainer wsContainer;
     private int boundPort;
@@ -81,12 +83,9 @@ public class ARWebSocketServer {
             }
         }
 
-        // Determine the IP address to bind to
-        // You can add a property like ARPropertyEnum.BIND_IP_ADDRESS for flexibility
-        // Default to "0.0.0.0" to listen on all interfaces.
-
-        // Initialize Jetty Server with specific binding
-        jettyServer = new Server(boundPort);
+        // This is an in-process desktop control channel. Never expose it on LAN interfaces.
+        jettyServer = new Server();
+        jettyServer.addConnector(createLoopbackConnector(jettyServer, boundPort));
         ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
         context.setContextPath("/");
         jettyServer.setHandler(context);
@@ -132,6 +131,13 @@ public class ARWebSocketServer {
         return boundPort;
     }
 
+    static ServerConnector createLoopbackConnector(Server server, int port) {
+        ServerConnector connector = new ServerConnector(server);
+        connector.setHost(LOOPBACK_ADDRESS);
+        connector.setPort(port);
+        return connector;
+    }
+
     //    /**
     //     * Determines the initial port for the server.
     //     * First tries to get any available ephemeral port and persists it to properties.
@@ -175,8 +181,9 @@ public class ARWebSocketServer {
             //            loggerlog.error("Invalid port number provided for check: " + port);
             return true; // Treat as in use or problematic
         }
-        try (ServerSocket serverSocket = new ServerSocket(port)) {
-            serverSocket.setReuseAddress(true); // Allow reuse of address for quick release
+        try (ServerSocket serverSocket = new ServerSocket()) {
+            serverSocket.setReuseAddress(true); // Allow reuse of the address for quick release
+            serverSocket.bind(new InetSocketAddress(LOOPBACK_ADDRESS, port));
             return false; // Port is available
         } catch (SocketException e) {
             String message = e.getMessage();

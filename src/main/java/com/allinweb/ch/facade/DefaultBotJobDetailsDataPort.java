@@ -34,6 +34,16 @@ final class DefaultBotJobDetailsDataPort implements BotJobDetailsDataPort {
     }
 
     @Override
+    public boolean transferPathConfigured() {
+        try {
+            String value = properties.getProperty(ARPropertyEnum.PATH_EXPORT);
+            return value != null && !value.isBlank();
+        } catch (RuntimeException ignored) {
+            return false;
+        }
+    }
+
+    @Override
     public boolean licenseActive() {
         return LicenseService.getInstance().isActive();
     }

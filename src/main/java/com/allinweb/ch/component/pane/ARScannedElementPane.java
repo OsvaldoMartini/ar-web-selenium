@@ -116,6 +116,14 @@ public class ARScannedElementPane extends ARPane {
     private static JavascriptExecutor jsExecutor;
     private static String[] lstAllPaths;
     public final AtomicBoolean isJobRunning = new AtomicBoolean(false);
+    private final java.util.concurrent.atomic.AtomicLong jobExecutionSequence =
+            new java.util.concurrent.atomic.AtomicLong();
+    private final java.util.concurrent.atomic.AtomicLong activeJobExecutionId =
+            new java.util.concurrent.atomic.AtomicLong();
+    private final java.util.concurrent.atomic.AtomicLong lastSubmittedJobExecutionId =
+            new java.util.concurrent.atomic.AtomicLong();
+    private final java.util.concurrent.atomic.AtomicLong completedJobExecutionId =
+            new java.util.concurrent.atomic.AtomicLong();
     private final Gson gson = new Gson();
     private final WebView webView = new WebView();
     public Button launchBotJobButton;
@@ -3199,7 +3207,15 @@ public class ARScannedElementPane extends ARPane {
 
     private boolean recallJob() {
         boolean submitted = false;
+        long currentExecution = activeJobExecutionId.get();
+        if (currentExecution > 0 && !isTestRunExecutionComplete(currentExecution)) {
+            log.info("recallJob() requested while executeJob() was still active.");
+            return false;
+        }
         if (isJobRunning.compareAndSet(false, true)) {
+            long executionId = jobExecutionSequence.incrementAndGet();
+            activeJobExecutionId.set(executionId);
+            lastSubmittedJobExecutionId.set(executionId);
             try {
                 //                startScreenshotLoop();
 
@@ -3215,6 +3231,8 @@ public class ARScannedElementPane extends ARPane {
                         // launch again instead of being stuck on a dead button.
                         log.error("executeJob() terminated with exception: {}", t.getMessage(), t);
                     } finally {
+                        completedJobExecutionId.accumulateAndGet(executionId, Math::max);
+                        activeJobExecutionId.compareAndSet(executionId, 0L);
                         isJobRunning.set(false);
                         stopScreenshotLoop();
                         // Always re-enable Launch so the user can restart after
@@ -3226,6 +3244,8 @@ public class ARScannedElementPane extends ARPane {
                 });
                 submitted = true;
             } catch (Exception e) {
+                completedJobExecutionId.accumulateAndGet(executionId, Math::max);
+                activeJobExecutionId.compareAndSet(executionId, 0L);
                 isJobRunning.set(false);
                 stopScreenshotLoop();
                 reenableLaunchButton();
@@ -3273,7 +3293,8 @@ public class ARScannedElementPane extends ARPane {
             log.error("TEST RUN — no bot job supplied");
             return false;
         }
-        if (isJobRunning.get()) {
+        long activeExecution = activeJobExecutionId.get();
+        if ((activeExecution > 0 && !isTestRunExecutionComplete(activeExecution)) || isJobRunning.get()) {
             log.info("TEST RUN — a job is already running; ignoring request.");
             return false;
         }
@@ -3412,11 +3433,20 @@ public class ARScannedElementPane extends ARPane {
      * next TEST RUN transparently recreates a fresh one. Safe to call from any thread.
      */
     public void stopTestRun() {
+        stopTestRun(activeJobExecutionId.get());
+    }
+
+    public boolean stopTestRun(long expectedExecutionId) {
+        if (expectedExecutionId <= 0
+                || activeJobExecutionId.get() != expectedExecutionId
+                || isTestRunExecutionComplete(expectedExecutionId)) {
+            log.info("TEST RUN — ignored stale stop for execution {}", expectedExecutionId);
+            return false;
+        }
         log.info("TEST RUN — stop requested");
         runSingleBlock = false;
         performActions.setInterceptBotJob(true);
         setInterceptBotJob(true);
-        isJobRunning.set(false);
         try {
             if (currentARWebDriver != null) {
                 currentARWebDriver.closeCurrentDriver();
@@ -3425,6 +3455,16 @@ public class ARScannedElementPane extends ARPane {
             log.warn("TEST RUN — error closing browser on stop: {}", e.getMessage());
         }
         performActions.setCurrentDriver(null);
+        return true;
+    }
+
+    public long currentTestRunExecutionId() {
+        long active = activeJobExecutionId.get();
+        return active > 0 ? active : lastSubmittedJobExecutionId.get();
+    }
+
+    public boolean isTestRunExecutionComplete(long executionId) {
+        return executionId <= 0 || completedJobExecutionId.get() >= executionId;
     }
 
     private String currentPlaywrightUrl() {

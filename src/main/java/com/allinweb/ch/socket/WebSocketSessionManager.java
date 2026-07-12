@@ -17,6 +17,8 @@ import lombok.extern.slf4j.Slf4j;
 public class WebSocketSessionManager {
 
     private static final ConcurrentHashMap<String, Session> activeSessions = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<Session, String> sessionIds = new ConcurrentHashMap<>();
+    private static final Object sessionRegistryLock = new Object();
     protected static volatile WebSocketSessionManager instance;
 
     // Private constructor to prevent instantiation
@@ -43,12 +45,52 @@ public class WebSocketSessionManager {
         if (logFn != null) logFn.accept(msg, level);
     }
 
-    public static void addSession(String sessionId, Session session) {
-        activeSessions.put(sessionId, session);
+    /**
+     * Registers a transport session without replacing an already-live connection.
+     *
+     * @return {@code true} when the session is registered, otherwise {@code false}
+     *         when another open transport already owns the logical session ID.
+     */
+    public static boolean addSession(String sessionId, Session session) {
+        if (Strings.isNullOrEmpty(sessionId) || session == null) {
+            return false;
+        }
+
+        synchronized (sessionRegistryLock) {
+            String existingSessionId = sessionIds.get(session);
+            if (existingSessionId != null && !existingSessionId.equals(sessionId)) {
+                return false;
+            }
+
+            Session existing = activeSessions.get(sessionId);
+            if (existing != null && existing != session && existing.isOpen()) {
+                return false;
+            }
+
+            if (existing != null && existing != session) {
+                sessionIds.remove(existing, sessionId);
+            }
+            activeSessions.put(sessionId, session);
+            sessionIds.put(session, sessionId);
+            return true;
+        }
     }
 
-    public static void removeSession(String sessionId) {
-        activeSessions.remove(sessionId);
+    /**
+     * Removes only the exact logical-ID/transport pair. A delayed close callback
+     * from an older connection therefore cannot remove a newer replacement.
+     */
+    public static boolean removeSession(String sessionId, Session session) {
+        if (Strings.isNullOrEmpty(sessionId) || session == null) {
+            return false;
+        }
+        synchronized (sessionRegistryLock) {
+            if (!activeSessions.remove(sessionId, session)) {
+                return false;
+            }
+            sessionIds.remove(session, sessionId);
+            return true;
+        }
     }
 
     public static Session getSession(String sessionId) {
@@ -90,11 +132,14 @@ public class WebSocketSessionManager {
 
     // Method to get the session ID based on the session object
     public String getSessionIdBySession(Session session) {
-        return activeSessions.entrySet().stream()
-                .filter(entry -> entry.getValue().equals(session))
-                .map(Map.Entry::getKey)
-                .findFirst()
-                .orElse(null);
+        return session == null ? null : sessionIds.get(session);
+    }
+
+    static void clearSessions() {
+        synchronized (sessionRegistryLock) {
+            activeSessions.clear();
+            sessionIds.clear();
+        }
     }
 
     public void broadcastMessageToAll(int homeBankingId, String message) {

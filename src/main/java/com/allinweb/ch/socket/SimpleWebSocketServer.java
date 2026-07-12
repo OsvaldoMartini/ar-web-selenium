@@ -38,6 +38,8 @@ public class SimpleWebSocketServer {
     private static final BotJobDetailsService botJobDetailsService = BotJobDetailsService.getInstance();
     private static final BotJobDetailsActionLedger botJobDetailsActionLedger =
             new BotJobDetailsActionLedger();
+    private static final BotJobDetailsToolbarLedger botJobDetailsToolbarLedger =
+            new BotJobDetailsToolbarLedger();
     private static final BotJobDetailsMutationLedger botJobDetailsMutationLedger =
             new BotJobDetailsMutationLedger();
     private static final InstructionRealtimePublisher instructionRealtimePublisher =
@@ -72,30 +74,49 @@ public class SimpleWebSocketServer {
 
     @OnOpen
     public void onOpen(Session session) {
-        // Get the sessionId from the query parameter passed by the frontend
+        String sessionId = null;
         try {
-            String sessionId = session.getRequestParameterMap().get("sessionId").get(0);
-
-            if (!Strings.isNullOrEmpty(sessionId)) {
-                webSocketSessionManager.addSession(sessionId, session); // Store the session with the custom ID
-                log.info("New connection: Session ID = " + sessionId);
-            } else {
-                log.info("No session ID provided by client");
+            List<String> values = session.getRequestParameterMap().get("sessionId");
+            if (values != null && !values.isEmpty()) {
+                sessionId = values.get(0);
             }
-        } catch (Exception noSessionId) {
-            //            addSession(generateCustomSessionId(session), session);
-            log.info("No session ID provided by client");
+        } catch (RuntimeException ignored) {
+            // Rejected below with the same generic policy response.
+        }
+
+        if (Strings.isNullOrEmpty(sessionId)) {
+            log.warn("Rejected WebSocket connection without a session ID");
+            closeRejectedSession(session, "Session ID is required");
+            return;
+        }
+
+        if (!webSocketSessionManager.addSession(sessionId, session)) {
+            log.warn("Rejected duplicate live WebSocket session: {}", sessionId);
+            closeRejectedSession(session, "Session is already connected");
+            return;
+        }
+
+        BotJobTransferPathRegistry.getInstance().clearSession(sessionId);
+        log.info("New connection: Session ID = {}", sessionId);
+    }
+
+    private void closeRejectedSession(Session session, String reason) {
+        try {
+            if (session != null && session.isOpen()) {
+                session.close(new CloseReason(CloseReason.CloseCodes.VIOLATED_POLICY, reason));
+            }
+        } catch (IOException error) {
+            log.debug("Could not close rejected WebSocket session: {}", error.getMessage());
         }
     }
 
     @OnMessage
     public void onMessage(String message, Session session) {
-        if (message == null || message.contains("CONNECT") || message.contains("ping")) {
-            // Ignore null or empty messages
-            message = message.replaceAll("ping-", "");
-            // log.info("Active : " + message);
+        if (Strings.isNullOrEmpty(transportSessionId(session))) {
+            closeRejectedSession(session, "Session is not registered");
             return;
         }
+        if (message == null || message.contains("CONNECT") || message.contains("ping")) return;
 
         try {
             // Decode from Base64
@@ -156,30 +177,11 @@ public class SimpleWebSocketServer {
                 return;
             }
 
-            // Is Going to Handle the Control
-            if (Strings.isNullOrEmpty(sessionId)) {
-                sessionId = null;
-                try {
-                    sessionId =
-                            session.getRequestParameterMap().get("sessionId").get(0);
-                    if (!Strings.isNullOrEmpty(sessionId)) {
-                        if (!webSocketSessionManager.containsSession(sessionId)) {
-                            if (!webSocketSessionManager.isSessionOpen(sessionId)) {
-                                webSocketSessionManager.addSession(sessionId, session);
-                            }
-                        }
-                    } else {
-                        //                        addSession(generateCustomSessionId(session), session);
-                    }
-
-                } catch (Exception noSessionId) {
-                    //                    addSession(generateCustomSessionId(session), session);
-                }
-            }
-
             boolean closeWithoutLicense = "botJobDetails.action".equals(type)
                     && "CLOSE".equals(botJobDetailsAction(jsonObjMSG));
-            if (!LicenseService.getInstance().permits(type) && !closeWithoutLicense) {
+            boolean stopWithoutLicense = "botJobDetails.toolbar.action".equals(type)
+                    && "STOP_TEST_RUN".equals(botJobDetailsToolbarAction(jsonObjMSG));
+            if (!LicenseService.getInstance().permits(type) && !closeWithoutLicense && !stopWithoutLicense) {
                 if (type.startsWith("botJobDetails.")) {
                     sendBotJobDetailsLicenseFailure(jsonObjMSG, session, type);
                     return;
@@ -523,6 +525,9 @@ public class SimpleWebSocketServer {
                 case "botJobDetails.action":
                     handleBotJobDetailsAction(jsonObjMSG, session);
                     break;
+                case "botJobDetails.toolbar.action":
+                    handleBotJobDetailsToolbarAction(jsonObjMSG, session);
+                    break;
                 case "botJobDetails.bootstrap":
                     handleBotJobDetailsBootstrap(jsonObjMSG, session);
                     break;
@@ -749,6 +754,57 @@ public class SimpleWebSocketServer {
         }
     }
 
+    private void handleBotJobDetailsToolbarAction(JsonObject envelope, Session transportSession) {
+        Map<String, Object> response = new LinkedHashMap<>();
+        try {
+            BotJobDetailsRequest request = parseBotJobDetailsRequest(envelope, transportSession);
+            response.put("requestId", request.requestId());
+            response.put("botJobId", request.botJobId());
+            BotJobToolbarAction action = BotJobToolbarAction.parse(
+                    request.body().has("action") ? request.body().get("action").getAsString() : null);
+            botJobDetailsToolbarLedger
+                    .executeOnce(
+                            request.sessionId(),
+                            request.requestId(),
+                            request.botJobId(),
+                            action,
+                            request.body().toString(),
+                            () -> ARViewBotJobPane.getInstance().handleReactToolbarAction(action, request))
+                    .whenComplete((result, failure) -> {
+                        if (failure != null) {
+                            response.put("ok", false);
+                            response.put("action", action.name());
+                            response.put("message", failure.getMessage());
+                        } else {
+                            response.put("ok", result.ok());
+                            response.put("action", result.action());
+                            response.put("message", result.message());
+                            if (!Strings.isNullOrEmpty(result.selectedPath())) {
+                                response.put("selectedPath", result.selectedPath());
+                            }
+                        }
+                        sendBotJobDetailsResponse(
+                                transportSession,
+                                authoritativeHomeBankingId(request.botJobId()),
+                                request.sessionId(),
+                                response,
+                                "botJobDetails.toolbar.actionResponse");
+                        if (failure == null) publishBotJobDetailsStateAsync(request);
+                    });
+        } catch (Exception error) {
+            addBotJobDetailsCorrelation(response, envelope);
+            addBotJobDetailsToolbarAction(response, envelope);
+            response.put("ok", false);
+            response.put("message", error.getMessage());
+            sendBotJobDetailsResponse(
+                    transportSession,
+                    -1,
+                    transportSessionId(transportSession),
+                    response,
+                    "botJobDetails.toolbar.actionResponse");
+        }
+    }
+
     private void handleBotJobDetailsBootstrap(JsonObject envelope, Session transportSession) {
         handleBotJobDetailsStateRequest(
                 envelope, transportSession, "botJobDetails.bootstrapResponse", botJobDetailsService::bootstrap);
@@ -894,18 +950,7 @@ public class SimpleWebSocketServer {
 
     private String transportSessionId(Session transportSession) {
         String sessionId = webSocketSessionManager.getSessionIdBySession(transportSession);
-        if (!Strings.isNullOrEmpty(sessionId)) {
-            return sessionId;
-        }
-        try {
-            List<String> values = transportSession.getRequestParameterMap().get("sessionId");
-            if (values != null && !values.isEmpty() && !Strings.isNullOrEmpty(values.get(0))) {
-                return values.get(0);
-            }
-        } catch (RuntimeException ignored) {
-            // The validated request parser will return the public missing-session error.
-        }
-        return "";
+        return Strings.isNullOrEmpty(sessionId) ? "" : sessionId;
     }
 
     private void sendBotJobDetailsParseFailure(
@@ -938,9 +983,18 @@ public class SimpleWebSocketServer {
         if (!action.isBlank()) response.putIfAbsent("action", action);
     }
 
+    private String botJobDetailsToolbarAction(JsonObject envelope) {
+        return botJobDetailsAction(envelope);
+    }
+
+    private void addBotJobDetailsToolbarAction(Map<String, Object> response, JsonObject envelope) {
+        addBotJobDetailsAction(response, envelope);
+    }
+
     private void sendBotJobDetailsLicenseFailure(JsonObject envelope, Session session, String requestType) {
         String operationId = switch (requestType) {
             case "botJobDetails.action" -> "botJobDetails.actionResponse";
+            case "botJobDetails.toolbar.action" -> "botJobDetails.toolbar.actionResponse";
             case "botJobDetails.bootstrap" -> "botJobDetails.bootstrapResponse";
             case "botJobDetails.metadata.update" -> "botJobDetails.metadata.updateResponse";
             case "botJobDetails.environments.refresh" -> "botJobDetails.environments.refreshResponse";
@@ -948,7 +1002,10 @@ public class SimpleWebSocketServer {
         };
         Map<String, Object> response = new LinkedHashMap<>();
         addBotJobDetailsCorrelation(response, envelope);
-        if ("botJobDetails.action".equals(requestType)) addBotJobDetailsAction(response, envelope);
+        if ("botJobDetails.action".equals(requestType)
+                || "botJobDetails.toolbar.action".equals(requestType)) {
+            addBotJobDetailsAction(response, envelope);
+        }
         response.put("ok", false);
         response.put("message", "An active license is required for this Bot Job Details operation");
         response.put("errorCode", "LICENSE_REQUIRED");
@@ -1017,6 +1074,32 @@ public class SimpleWebSocketServer {
                         event,
                         "botJobDetails.state");
             }
+        }
+    }
+
+    /** Publishes a terminal runtime transition produced after the original toolbar request completed. */
+    public void publishBotJobDetailsRuntimeState(int botJobId, String causeRequestId) {
+        try {
+            BotJobDetailsState state = botJobDetailsService.currentState(botJobId);
+            Map<String, Object> event = new LinkedHashMap<>();
+            event.put("ok", true);
+            event.put("message", "Bot Job execution state changed");
+            event.put("requestId", causeRequestId == null ? "" : causeRequestId);
+            event.put("botJobId", botJobId);
+            event.put("state", state);
+            for (String targetId : List.of("botJobTasks", "componentTasks", "preScannerGrid")) {
+                Session target = WebSocketSessionManager.getSession(targetId);
+                if (target != null && target.isOpen()) {
+                    sendBotJobDetailsResponse(
+                            target,
+                            state.homeBankingId(),
+                            targetId,
+                            event,
+                            "botJobDetails.state");
+                }
+            }
+        } catch (RuntimeException error) {
+            log.debug("Unable to publish Bot Job execution state: {}", error.getMessage());
         }
     }
 
@@ -1090,13 +1173,23 @@ public class SimpleWebSocketServer {
 
     @OnError
     public void onError(Session session, Throwable throwable) {
-        log.error("Error in session " + session.getId() + ": " + throwable.getMessage());
+        String sessionId = webSocketSessionManager.getSessionIdBySession(session);
+        log.error(
+                "Error in session {}: {}",
+                session == null ? "unknown" : session.getId(),
+                throwable == null ? "unknown" : throwable.getMessage());
         try {
-            if (session.isOpen()) {
+            if (session != null && session.isOpen()) {
                 session.close();
             }
         } catch (IOException e) {
             log.error("Error closing session: " + e.getMessage());
+        } finally {
+            if (!Strings.isNullOrEmpty(sessionId)) {
+                if (webSocketSessionManager.removeSession(sessionId, session)) {
+                    BotJobTransferPathRegistry.getInstance().clearSession(sessionId);
+                }
+            }
         }
     }
 
@@ -2856,7 +2949,9 @@ public class SimpleWebSocketServer {
             log.info("Connection closed: Session ID = " + sessionId + ", Reason: "
                     + closeReason.getReasonPhrase() + " (Code: "
                     + closeReason.getCloseCode() + ")");
-            webSocketSessionManager.removeSession(sessionId);
+            if (webSocketSessionManager.removeSession(sessionId, session)) {
+                BotJobTransferPathRegistry.getInstance().clearSession(sessionId);
+            }
         } else {
             log.info("Connection closed for unknown session, Reason: " + closeReason.getReasonPhrase() + " (Code: "
                     + closeReason.getCloseCode() + ")");

@@ -4,6 +4,8 @@ import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ErrorMessage;
 import com.google.common.base.Strings;
 import java.io.*;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Proxy;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -4260,6 +4262,73 @@ public class PerformBackup {
             Integer homeUrlIdImported,
             Integer botJobIdImported,
             String organizationName) {
+        if (conn == null) {
+            return new ErrorMessage(
+                    "Restore Failed", "Atomic Bot Job import failed", "Database connection is unavailable");
+        }
+
+        Boolean originalAutoCommit = null;
+        try {
+            originalAutoCommit = conn.getAutoCommit();
+            if (!originalAutoCommit) {
+                return new ErrorMessage(
+                        "Restore Failed",
+                        "Atomic Bot Job import failed",
+                        "Bot Job import requires a dedicated auto-commit database connection");
+            }
+            conn.setAutoCommit(false);
+
+            ErrorMessage error = restoreBotJobFromSingleFileStages(
+                    commitSuppressingConnection(conn),
+                    sqlFilePath,
+                    homeBankIdImported,
+                    homeUrlIdImported,
+                    botJobIdImported,
+                    organizationName);
+            if (error != null) {
+                try {
+                    conn.rollback();
+                    return error;
+                } catch (SQLException rollbackError) {
+                    log.error("restoreBotJobFromSingleFile — rollback failed", rollbackError);
+                    String detail = error.getErrorMessage() == null ? "Import stage failed" : error.getErrorMessage();
+                    return new ErrorMessage(
+                            "Restore Failed",
+                            "Atomic Bot Job rollback failed",
+                            detail + "; rollback failed: " + rollbackError.getMessage());
+                }
+            }
+
+            conn.commit();
+            return null;
+        } catch (Exception error) {
+            try {
+                conn.rollback();
+            } catch (SQLException rollbackError) {
+                error.addSuppressed(rollbackError);
+                log.error("restoreBotJobFromSingleFile — rollback failed", rollbackError);
+            }
+            log.error("restoreBotJobFromSingleFile — atomic restore failed", error);
+            return new ErrorMessage(
+                    "Restore Failed", "Atomic Bot Job import failed", error.getMessage());
+        } finally {
+            if (originalAutoCommit != null) {
+                try {
+                    conn.setAutoCommit(originalAutoCommit);
+                } catch (SQLException restoreError) {
+                    log.error("restoreBotJobFromSingleFile — could not restore auto-commit", restoreError);
+                }
+            }
+        }
+    }
+
+    private ErrorMessage restoreBotJobFromSingleFileStages(
+            Connection conn,
+            String sqlFilePath,
+            Integer homeBankIdImported,
+            Integer homeUrlIdImported,
+            Integer botJobIdImported,
+            String organizationName) {
         File sqlFile = new File(sqlFilePath);
         if (!sqlFile.exists()) {
             return new ErrorMessage(
@@ -4346,6 +4415,29 @@ public class PerformBackup {
                 deleteRecursively(tempDir);
             }
         }
+    }
+
+    static Connection commitSuppressingConnection(Connection delegate) {
+        if (delegate == null) throw new IllegalArgumentException("Database connection is required");
+        return (Connection) Proxy.newProxyInstance(
+                PerformBackup.class.getClassLoader(),
+                new Class<?>[] {Connection.class},
+                (proxy, method, args) -> {
+                    if ("commit".equals(method.getName()) && method.getParameterCount() == 0) {
+                        return null;
+                    }
+                    if ("setAutoCommit".equals(method.getName())
+                            && args != null
+                            && args.length == 1
+                            && Boolean.TRUE.equals(args[0])) {
+                        throw new SQLException("A restore stage cannot finish the owning transaction");
+                    }
+                    try {
+                        return method.invoke(delegate, args);
+                    } catch (InvocationTargetException invocationError) {
+                        throw invocationError.getCause();
+                    }
+                });
     }
 
     /**

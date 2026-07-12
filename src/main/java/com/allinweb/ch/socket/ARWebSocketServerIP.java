@@ -18,7 +18,6 @@ import org.eclipse.jetty.websocket.jsr356.server.deploy.WebSocketServerContainer
 public class ARWebSocketServerIP {
 
     protected static volatile ARWebSocketServerIP instance;
-    private String BIND_IP_ADDRESS = "0.0.0.0";
     private Server jettyServer;
     private ServerContainer wsContainer;
     private int boundPort;
@@ -82,16 +81,10 @@ public class ARWebSocketServerIP {
             }
         }
 
-        // 3. Determine the IP address to bind to
-        // You can add a property like ARPropertyEnum.BIND_IP_ADDRESS for flexibility
-        // Default to "0.0.0.0" to listen on all interfaces.
-
-        // 4. Initialize Jetty Server with specific binding
+        // 4. Initialize Jetty on loopback only. This endpoint is a desktop-local
+        // control channel and must not be reachable from LAN interfaces.
         jettyServer = new Server();
-        InetSocketAddress socketAddress = new InetSocketAddress(BIND_IP_ADDRESS, this.boundPort);
-        ServerConnector connector = new ServerConnector(jettyServer);
-        connector.setHost(socketAddress.getHostString());
-        connector.setPort(socketAddress.getPort());
+        ServerConnector connector = ARWebSocketServer.createLoopbackConnector(jettyServer, this.boundPort);
         jettyServer.addConnector(connector);
 
         // 5. Set up ServletContextHandler for WebSocket Endpoints
@@ -186,8 +179,9 @@ public class ARWebSocketServerIP {
             //            loggerlog.error("Invalid port number provided for check: " + port);
             return true; // Treat as in use or problematic
         }
-        try (ServerSocket serverSocket = new ServerSocket(port)) {
-            serverSocket.setReuseAddress(true); // Allow reuse of address for quick release
+        try (ServerSocket serverSocket = new ServerSocket()) {
+            serverSocket.setReuseAddress(true); // Allow reuse of the address for quick release
+            serverSocket.bind(new InetSocketAddress(ARWebSocketServer.LOOPBACK_ADDRESS, port));
             return false; // Port is available
         } catch (SocketException e) {
             String message = e.getMessage();

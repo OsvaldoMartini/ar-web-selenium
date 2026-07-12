@@ -34,7 +34,7 @@ class BotJobDetailsWorkspaceRegistryTest {
 
         BotJobDetailsWorkspaceRegistry.MetadataCommit<String> commit = registry.commitMetadata(
                 42,
-                before.revision(),
+                before.metadataRevision(),
                 "Payments QA",
                 "Updated",
                 9,
@@ -56,7 +56,7 @@ class BotJobDetailsWorkspaceRegistryTest {
         BotJobDetailsWorkspaceRegistry.Snapshot before = registry.require(42);
         BotJobDetailsWorkspaceRegistry.MetadataCommit<String> failed = registry.commitMetadata(
                 42,
-                before.revision(),
+                before.metadataRevision(),
                 "Payments QA",
                 "Updated",
                 9,
@@ -66,13 +66,27 @@ class BotJobDetailsWorkspaceRegistryTest {
         assertEquals("database rejected update", failed.persistenceError());
         assertEquals(before, registry.require(42));
 
-        AtomicBoolean stalePersistenceCalled = new AtomicBoolean();
+        AtomicBoolean persistenceAfterWorkspaceAction = new AtomicBoolean();
         registry.updateWorkspace(42, "components", true);
+        BotJobDetailsWorkspaceRegistry.MetadataCommit<String> committed = registry.commitMetadata(
+                42,
+                before.metadataRevision(),
+                "Fresh metadata",
+                "Fresh",
+                8,
+                () -> {
+                    persistenceAfterWorkspaceAction.set(true);
+                    return null;
+                });
+        assertTrue(committed.committed());
+        assertTrue(persistenceAfterWorkspaceAction.get());
+
+        AtomicBoolean stalePersistenceCalled = new AtomicBoolean();
         assertThrows(
                 BotJobDetailsWorkspaceRegistry.RevisionConflictException.class,
                 () -> registry.commitMetadata(
                         42,
-                        before.revision(),
+                        before.metadataRevision(),
                         "Stale",
                         "Stale",
                         8,
@@ -81,5 +95,66 @@ class BotJobDetailsWorkspaceRegistryTest {
                             return null;
                         }));
         assertFalse(stalePersistenceCalled.get());
+    }
+
+    @Test
+    void executionTransitionsAdvanceStateWithoutInvalidatingMetadata() {
+        BotJobDetailsWorkspaceRegistry.Snapshot before = registry.require(42);
+
+        BotJobDetailsWorkspaceRegistry.Snapshot running = registry.updateExecutionState(42, "RUNNING");
+
+        assertTrue(running.revision() > before.revision());
+        assertEquals(before.metadataRevision(), running.metadataRevision());
+        assertEquals("RUNNING", running.executionState());
+    }
+
+    @Test
+    void reopeningTheSameJobInvalidatesThePreviousWorkspaceEpoch() {
+        BotJobDetailsWorkspaceRegistry.Snapshot first = registry.require(42);
+        registry.close(42);
+
+        BotJobLoadDTO reopened = new BotJobLoadDTO();
+        reopened.setId(42);
+        reopened.setName("Payments");
+        BotJobDetailsWorkspaceRegistry.Snapshot second = registry.activate(reopened, false);
+
+        assertTrue(second.workspaceEpoch() > first.workspaceEpoch());
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> registry.require(42, first.workspaceEpoch()));
+        assertEquals(second, registry.require(42, second.workspaceEpoch()));
+    }
+
+    @Test
+    void stopDuringStartupIsPromptAndTerminalStateCannotBeOverwritten() {
+        BotJobDetailsWorkspaceRegistry.Snapshot workspace = registry.require(42);
+        BotJobDetailsWorkspaceRegistry.ExecutionAttempt attempt =
+                registry.beginTestRun(42, workspace.workspaceEpoch());
+
+        BotJobDetailsWorkspaceRegistry.StopDecision firstStop =
+                registry.requestTestRunStop(42, workspace.workspaceEpoch());
+        BotJobDetailsWorkspaceRegistry.StopDecision repeatedStop =
+                registry.requestTestRunStop(42, workspace.workspaceEpoch());
+
+        assertTrue(firstStop.accepted());
+        assertFalse(firstStop.alreadyRequested());
+        assertTrue(repeatedStop.accepted());
+        assertTrue(repeatedStop.alreadyRequested());
+        assertFalse(registry.markTestRunRunning(attempt));
+        assertTrue(registry.finishTestRun(attempt, "INTERRUPTED"));
+        assertFalse(registry.finishTestRun(attempt, "IDLE"));
+        assertEquals("INTERRUPTED", registry.require(42).executionState());
+    }
+
+    @Test
+    void anOldExecutionAttemptCannotFinishANewerRun() {
+        long workspaceEpoch = registry.require(42).workspaceEpoch();
+        BotJobDetailsWorkspaceRegistry.ExecutionAttempt first = registry.beginTestRun(42, workspaceEpoch);
+        assertTrue(registry.finishTestRun(first, "IDLE"));
+        BotJobDetailsWorkspaceRegistry.ExecutionAttempt second = registry.beginTestRun(42, workspaceEpoch);
+
+        assertFalse(registry.finishTestRun(first, "FAILED"));
+        assertEquals(second.attemptId(), registry.require(42).executionAttemptId());
+        assertEquals("STARTING", registry.require(42).executionState());
     }
 }

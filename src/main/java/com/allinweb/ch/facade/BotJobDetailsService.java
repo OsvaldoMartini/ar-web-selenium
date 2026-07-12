@@ -7,6 +7,7 @@ import com.allinweb.ch.model.BotJobDetailsPersistedState;
 import com.allinweb.ch.model.BotJobDetailsRequest;
 import com.allinweb.ch.model.BotJobDetailsResponse;
 import com.allinweb.ch.model.BotJobDetailsState;
+import com.allinweb.ch.model.BotJobToolbarContext;
 import com.allinweb.ch.util.ErrorMessage;
 import com.google.common.base.Strings;
 import com.google.gson.JsonObject;
@@ -61,8 +62,11 @@ public final class BotJobDetailsService {
             return failure(request, "WRONG_ACTIVE_JOB", error.getMessage(), Map.of());
         }
 
-        long expectedRevision = longValue(body, "expectedRevision", -1);
-        if (expectedRevision != current.revision()) {
+        long expectedMetadataRevision = longValue(
+                body,
+                "expectedMetadataRevision",
+                longValue(body, "expectedRevision", -1));
+        if (expectedMetadataRevision != current.metadataRevision()) {
             return failure(
                     request,
                     "REVISION_CONFLICT",
@@ -92,7 +96,7 @@ public final class BotJobDetailsService {
         try {
             commit = registry.commitMetadata(
                     request.botJobId(),
-                    expectedRevision,
+                    expectedMetadataRevision,
                     name,
                     description,
                     homeUrlId,
@@ -130,6 +134,35 @@ public final class BotJobDetailsService {
 
     public int activeHomeBankingId(int botJobId) {
         return registry.require(botJobId).homeBankingId();
+    }
+
+    public BotJobToolbarContext captureToolbarContext(int botJobId) {
+        for (int attempt = 0; attempt < 2; attempt++) {
+            Snapshot before = registry.require(botJobId);
+            BotJobDetailsPersistedState persisted;
+            try {
+                persisted = data.load(botJobId);
+            } catch (Exception error) {
+                throw new IllegalStateException("Unable to load Bot Job toolbar context: " + error.getMessage(), error);
+            }
+            Snapshot after = registry.require(botJobId);
+            if (before.revision() == after.revision() && before.workspaceEpoch() == after.workspaceEpoch()) {
+                if (persisted.botJobId() != botJobId) {
+                    throw new IllegalStateException("Loaded Bot Job toolbar context does not match the active Bot Job");
+                }
+                return new BotJobToolbarContext(
+                        after.workspaceEpoch(),
+                        persisted.botJobId(),
+                        persisted.homeBankingId(),
+                        persisted.homeUrlId(),
+                        persisted.name(),
+                        persisted.projectType(),
+                        persisted.organizationName(),
+                        persisted.environmentUrl(),
+                        persisted.active());
+            }
+        }
+        throw new IllegalStateException("Bot Job Details changed while toolbar context was loading");
     }
 
     private BotJobDetailsState buildState(int botJobId) {
@@ -178,10 +211,12 @@ public final class BotJobDetailsService {
                 licensePermits,
                 desktopBrowserTools && licensePermits,
                 desktopBrowserTools && licensePermits,
+                licensePermits,
                 licensePermits);
 
         return new BotJobDetailsState(
                 snapshot.revision(),
+                snapshot.metadataRevision(),
                 snapshot.botJobId(),
                 persisted.name(),
                 persisted.description(),
@@ -193,10 +228,11 @@ public final class BotJobDetailsService {
                 persisted.environmentName(),
                 persisted.environmentUrl(),
                 data.navigationTimeSeconds(),
+                data.transferPathConfigured(),
                 environments,
                 blocks,
                 capabilities,
-                "UNKNOWN",
+                snapshot.executionState(),
                 snapshot.activeSurface(),
                 snapshot.componentsVisible());
     }

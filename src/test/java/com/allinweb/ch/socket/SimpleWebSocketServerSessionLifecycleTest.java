@@ -1,0 +1,126 @@
+package com.allinweb.ch.socket;
+
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import com.allinweb.ch.facade.BotJobTransferPathRegistry;
+import javax.websocket.CloseReason;
+import javax.websocket.Session;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+class SimpleWebSocketServerSessionLifecycleTest {
+
+    @TempDir
+    Path temporaryDirectory;
+
+    private final SimpleWebSocketServer endpoint = new SimpleWebSocketServer();
+
+    @BeforeEach
+    void startWithEmptyRegistry() {
+        WebSocketSessionManager.clearSessions();
+    }
+
+    @AfterEach
+    void clearRegistry() {
+        WebSocketSessionManager.clearSessions();
+    }
+
+    @Test
+    void rejectsDuplicateLiveConnectionAndKeepsOriginal() throws Exception {
+        Session original = sessionWithId("botJobTasks", true);
+        Session duplicate = sessionWithId("botJobTasks", true);
+
+        endpoint.onOpen(original);
+        endpoint.onOpen(duplicate);
+
+        assertSame(original, WebSocketSessionManager.getSession("botJobTasks"));
+        verify(original, never()).close(org.mockito.ArgumentMatchers.any(CloseReason.class));
+        verify(duplicate)
+                .close(argThat(reason -> CloseReason.CloseCodes.VIOLATED_POLICY.equals(reason.getCloseCode())));
+    }
+
+    @Test
+    void rejectsConnectionWithoutSessionId() throws Exception {
+        Session session = sessionWithParameters(Collections.emptyMap(), true);
+
+        endpoint.onOpen(session);
+
+        assertNull(WebSocketSessionManager.getSession(""));
+        verify(session)
+                .close(argThat(reason -> CloseReason.CloseCodes.VIOLATED_POLICY.equals(reason.getCloseCode())));
+    }
+
+    @Test
+    void staleCloseCannotRemoveReplacementConnectionOrPreserveItsTransferGrant() throws Exception {
+        Session original = sessionWithId("scannerGrid", false);
+        Session replacement = sessionWithId("scannerGrid", true);
+        endpoint.onOpen(original);
+        Path selected = Files.createDirectory(temporaryDirectory.resolve("stale-exports"));
+        BotJobTransferPathRegistry paths = BotJobTransferPathRegistry.getInstance();
+        paths.select("scannerGrid", 42, selected.toFile());
+        endpoint.onOpen(replacement);
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> paths.require("scannerGrid", 42, selected.toString()));
+
+        endpoint.onClose(
+                original, new CloseReason(CloseReason.CloseCodes.NORMAL_CLOSURE, "old transport closed"));
+
+        assertSame(replacement, WebSocketSessionManager.getSession("scannerGrid"));
+    }
+
+    @Test
+    void errorClosesAndRemovesExactRegisteredTransport() throws Exception {
+        Session session = sessionWithId("mainDashboard", true);
+        when(session.getId()).thenReturn("transport-1");
+        endpoint.onOpen(session);
+
+        endpoint.onError(session, new IllegalStateException("boom"));
+
+        verify(session).close();
+        assertNull(WebSocketSessionManager.getSession("mainDashboard"));
+    }
+
+    @Test
+    void exactSocketCloseRevokesEveryTransferFolderGrantForTheLogicalSession() throws Exception {
+        String logicalSession = "botJobTasks";
+        Session session = sessionWithId(logicalSession, true);
+        Path selected = Files.createDirectory(temporaryDirectory.resolve("exports"));
+        BotJobTransferPathRegistry paths = BotJobTransferPathRegistry.getInstance();
+        endpoint.onOpen(session);
+        paths.select(logicalSession, 42, selected.toFile());
+
+        endpoint.onClose(
+                session, new CloseReason(CloseReason.CloseCodes.NORMAL_CLOSURE, "done"));
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> paths.require(logicalSession, 42, selected.toString()));
+    }
+
+    private Session sessionWithId(String sessionId, boolean open) {
+        return sessionWithParameters(Map.of("sessionId", List.of(sessionId)), open);
+    }
+
+    private Session sessionWithParameters(Map<String, List<String>> parameters, boolean open) {
+        Session session = mock(Session.class);
+        when(session.getRequestParameterMap()).thenReturn(parameters);
+        when(session.isOpen()).thenReturn(open);
+        return session;
+    }
+}

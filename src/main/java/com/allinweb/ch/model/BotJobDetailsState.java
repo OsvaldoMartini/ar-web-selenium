@@ -5,6 +5,7 @@ import java.util.List;
 /** Immutable state published to every React surface in the active Bot Job Details workspace. */
 public record BotJobDetailsState(
         long revision,
+        long metadataRevision,
         int botJobId,
         String name,
         String description,
@@ -16,6 +17,7 @@ public record BotJobDetailsState(
         String environmentName,
         String environmentUrl,
         int navigationTimeSeconds,
+        boolean transferPathConfigured,
         List<Environment> environments,
         List<Block> blocks,
         Capabilities capabilities,
@@ -40,5 +42,6 @@ public record BotJobDetailsState(
             boolean canShowComponents,
             boolean canExecute,
             boolean canLaunch,
+            boolean canUseFileActions,
             boolean canOpenOrganizations) {}
 }

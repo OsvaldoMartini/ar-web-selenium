@@ -12,5 +12,7 @@ public interface BotJobDetailsDataPort {
 
     int navigationTimeSeconds();
 
+    boolean transferPathConfigured();
+
     boolean licenseActive();
 }
