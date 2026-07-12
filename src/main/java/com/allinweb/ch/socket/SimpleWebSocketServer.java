@@ -12,6 +12,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import javafx.application.Platform;
 import javax.websocket.*;
@@ -34,6 +35,11 @@ public class SimpleWebSocketServer {
     private static final MainDashboardService mainDashboardService = MainDashboardService.getInstance();
     private static final NewBotJobService newBotJobService = NewBotJobService.getInstance();
     private static final ConfigService configService = ConfigService.getInstance();
+    private static final BotJobDetailsService botJobDetailsService = BotJobDetailsService.getInstance();
+    private static final BotJobDetailsActionLedger botJobDetailsActionLedger =
+            new BotJobDetailsActionLedger();
+    private static final BotJobDetailsMutationLedger botJobDetailsMutationLedger =
+            new BotJobDetailsMutationLedger();
     private static final InstructionRealtimePublisher instructionRealtimePublisher =
             InstructionRealtimePublisher.getInstance();
     private static final ExcelExportService excelExportService = ExcelExportService.getInstance();
@@ -171,7 +177,13 @@ public class SimpleWebSocketServer {
                 }
             }
 
-            if (!LicenseService.getInstance().permits(type)) {
+            boolean closeWithoutLicense = "botJobDetails.action".equals(type)
+                    && "CLOSE".equals(botJobDetailsAction(jsonObjMSG));
+            if (!LicenseService.getInstance().permits(type) && !closeWithoutLicense) {
+                if (type.startsWith("botJobDetails.")) {
+                    sendBotJobDetailsLicenseFailure(jsonObjMSG, session, type);
+                    return;
+                }
                 sendCommandEditorResponse(
                         homeBankingId,
                         sessionId,
@@ -508,6 +520,18 @@ public class SimpleWebSocketServer {
                 case "mainDashboard.exit":
                     handleMainDashboardExit(sessionId);
                     break;
+                case "botJobDetails.action":
+                    handleBotJobDetailsAction(jsonObjMSG, session);
+                    break;
+                case "botJobDetails.bootstrap":
+                    handleBotJobDetailsBootstrap(jsonObjMSG, session);
+                    break;
+                case "botJobDetails.metadata.update":
+                    handleBotJobDetailsMetadataUpdate(jsonObjMSG, session);
+                    break;
+                case "botJobDetails.environments.refresh":
+                    handleBotJobDetailsEnvironmentRefresh(jsonObjMSG, session);
+                    break;
                 case "newBotJob.bootstrap":
                     handleNewBotJobBootstrap(sessionId);
                     break;
@@ -669,6 +693,331 @@ public class SimpleWebSocketServer {
 
     private void sendMainDashboardResponse(String sessionId, Object response, String operationId) {
         webSocketSessionManager.sendMessageJson(-1, sessionId, gson.toJson(response), operationId);
+    }
+
+    private void handleBotJobDetailsAction(JsonObject envelope, Session transportSession) {
+        Map<String, Object> response = new LinkedHashMap<>();
+        try {
+            BotJobDetailsRequest request = parseBotJobDetailsRequest(envelope, transportSession);
+            response.put("requestId", request.requestId());
+            response.put("botJobId", request.botJobId());
+            BotJobWorkspaceAction action = BotJobWorkspaceAction.parse(
+                    request.body().has("action") ? request.body().get("action").getAsString() : null);
+            botJobDetailsActionLedger
+                    .executeOnce(
+                            request.sessionId(),
+                            request.requestId(),
+                            request.botJobId(),
+                            action,
+                            () -> ARViewBotJobPane.getInstance()
+                                    .handleReactWorkspaceAction(action, request.botJobId()))
+                    .whenComplete((result, failure) -> {
+                        if (failure != null) {
+                            response.put("ok", false);
+                            response.put("action", action.name());
+                            response.put("message", failure.getMessage());
+                        } else {
+                            response.put("ok", result.ok());
+                            response.put("action", result.action());
+                            response.put("message", result.message());
+                            if (result.ok()) {
+                                response.put("activeSurface", result.activeSurface());
+                                response.put("componentsVisible", result.componentsVisible());
+                            }
+                        }
+                        sendBotJobDetailsResponse(
+                                transportSession,
+                                authoritativeHomeBankingId(request.botJobId()),
+                                request.sessionId(),
+                                response,
+                                "botJobDetails.actionResponse");
+                        if (failure == null && result.ok() && action != BotJobWorkspaceAction.CLOSE) {
+                            publishBotJobDetailsStateAsync(request);
+                        }
+                    });
+        } catch (Exception error) {
+            addBotJobDetailsCorrelation(response, envelope);
+            addBotJobDetailsAction(response, envelope);
+            response.put("ok", false);
+            response.put("message", error.getMessage());
+            sendBotJobDetailsResponse(
+                    transportSession,
+                    -1,
+                    transportSessionId(transportSession),
+                    response,
+                    "botJobDetails.actionResponse");
+        }
+    }
+
+    private void handleBotJobDetailsBootstrap(JsonObject envelope, Session transportSession) {
+        handleBotJobDetailsStateRequest(
+                envelope, transportSession, "botJobDetails.bootstrapResponse", botJobDetailsService::bootstrap);
+    }
+
+    private void handleBotJobDetailsEnvironmentRefresh(JsonObject envelope, Session transportSession) {
+        try {
+            BotJobDetailsRequest request = parseBotJobDetailsRequest(envelope, transportSession);
+            BotJobDetailsResponse response = botJobDetailsMutationLedger.executeOnce(
+                    request,
+                    "environments.refresh",
+                    request.body().toString(),
+                    () -> botJobDetailsService.refreshEnvironments(request));
+            sendBotJobDetailsResponse(
+                    transportSession,
+                    authoritativeHomeBankingId(response),
+                    request.sessionId(),
+                    response,
+                    "botJobDetails.environments.refreshResponse");
+            if (response.ok()) publishBotJobDetailsState(response, request.requestId());
+        } catch (Exception error) {
+            sendBotJobDetailsParseFailure(
+                    transportSession,
+                    envelope,
+                    "botJobDetails.environments.refreshResponse",
+                    error.getMessage());
+        }
+    }
+
+    private void handleBotJobDetailsMetadataUpdate(JsonObject envelope, Session transportSession) {
+        BotJobDetailsRequest request;
+        try {
+            request = parseBotJobDetailsRequest(envelope, transportSession);
+        } catch (Exception error) {
+            sendBotJobDetailsParseFailure(
+                    transportSession,
+                    envelope,
+                    "botJobDetails.metadata.updateResponse",
+                    error.getMessage());
+            return;
+        }
+
+        final BotJobDetailsResponse response;
+        try {
+            response = botJobDetailsMutationLedger.executeOnce(
+                    request,
+                    "metadata.update",
+                    request.body().toString(),
+                    () -> botJobDetailsService.updateMetadata(request));
+        } catch (RuntimeException error) {
+            BotJobDetailsResponse failureResponse = BotJobDetailsResponse.failure(
+                    Strings.isNullOrEmpty(error.getMessage())
+                            ? "Bot Job details could not be saved"
+                            : error.getMessage(),
+                    "METADATA_UPDATE_FAILED",
+                    request,
+                    null,
+                    Map.of());
+            sendBotJobDetailsResponse(
+                    transportSession,
+                    authoritativeHomeBankingId(request.botJobId()),
+                    request.sessionId(),
+                    failureResponse,
+                    "botJobDetails.metadata.updateResponse");
+            return;
+        }
+        if (!response.ok() || response.state() == null) {
+            sendBotJobDetailsResponse(
+                    transportSession,
+                    authoritativeHomeBankingId(response),
+                    request.sessionId(),
+                    response,
+                    "botJobDetails.metadata.updateResponse");
+            return;
+        }
+
+        CompletableFuture<Void> desktopSync;
+        try {
+            desktopSync = ARViewBotJobPane.getInstance().applyReactMetadataState(response.state());
+        } catch (RuntimeException error) {
+            BotJobDetailsResponse syncFailure = BotJobDetailsResponse.failure(
+                    "Metadata was saved but the open desktop context could not be synchronized",
+                    "DESKTOP_STATE_SYNC_FAILED",
+                    request,
+                    response.state(),
+                    Map.of());
+            sendBotJobDetailsResponse(
+                    transportSession,
+                    authoritativeHomeBankingId(response),
+                    request.sessionId(),
+                    syncFailure,
+                    "botJobDetails.metadata.updateResponse");
+            return;
+        }
+
+        desktopSync.whenComplete((ignored, applyFailure) -> {
+            Object outgoing = response;
+            if (applyFailure != null) {
+                outgoing = BotJobDetailsResponse.failure(
+                        "Metadata was saved but the open desktop context could not be synchronized",
+                        "DESKTOP_STATE_SYNC_FAILED",
+                        request,
+                        response.state(),
+                        Map.of());
+            }
+            sendBotJobDetailsResponse(
+                    transportSession,
+                    authoritativeHomeBankingId(response),
+                    request.sessionId(),
+                    outgoing,
+                    "botJobDetails.metadata.updateResponse");
+            if (applyFailure == null) {
+                publishBotJobDetailsState(response, request.requestId());
+            }
+        });
+    }
+
+    private void handleBotJobDetailsStateRequest(
+            JsonObject envelope,
+            Session transportSession,
+            String operationId,
+            java.util.function.Function<BotJobDetailsRequest, BotJobDetailsResponse> operation) {
+        try {
+            BotJobDetailsRequest request = parseBotJobDetailsRequest(envelope, transportSession);
+            BotJobDetailsResponse response = operation.apply(request);
+            sendBotJobDetailsResponse(
+                    transportSession,
+                    authoritativeHomeBankingId(response),
+                    request.sessionId(),
+                    response,
+                    operationId);
+            if (response.ok() && !"botJobDetails.bootstrapResponse".equals(operationId)) {
+                publishBotJobDetailsState(response, request.requestId());
+            }
+        } catch (Exception error) {
+            sendBotJobDetailsParseFailure(transportSession, envelope, operationId, error.getMessage());
+        }
+    }
+
+    private BotJobDetailsRequest parseBotJobDetailsRequest(JsonObject envelope, Session transportSession) {
+        return BotJobDetailsRequest.parse(envelope, transportSessionId(transportSession));
+    }
+
+    private String transportSessionId(Session transportSession) {
+        String sessionId = webSocketSessionManager.getSessionIdBySession(transportSession);
+        if (!Strings.isNullOrEmpty(sessionId)) {
+            return sessionId;
+        }
+        try {
+            List<String> values = transportSession.getRequestParameterMap().get("sessionId");
+            if (values != null && !values.isEmpty() && !Strings.isNullOrEmpty(values.get(0))) {
+                return values.get(0);
+            }
+        } catch (RuntimeException ignored) {
+            // The validated request parser will return the public missing-session error.
+        }
+        return "";
+    }
+
+    private void sendBotJobDetailsParseFailure(
+            Session session, JsonObject envelope, String operationId, String message) {
+        Map<String, Object> response = new LinkedHashMap<>();
+        addBotJobDetailsCorrelation(response, envelope);
+        response.put("ok", false);
+        response.put("message", Strings.isNullOrEmpty(message) ? "Invalid Bot Job Details request" : message);
+        sendBotJobDetailsResponse(session, -1, transportSessionId(session), response, operationId);
+    }
+
+    private void addBotJobDetailsCorrelation(Map<String, Object> response, JsonObject envelope) {
+        BotJobDetailsRequest.Correlation correlation = BotJobDetailsRequest.correlation(envelope);
+        if (!correlation.requestId().isBlank()) response.putIfAbsent("requestId", correlation.requestId());
+        if (correlation.botJobId() > 0) response.putIfAbsent("botJobId", correlation.botJobId());
+    }
+
+    private String botJobDetailsAction(JsonObject envelope) {
+        try {
+            JsonObject body = extractBody(envelope);
+            if (body == null || !body.has("action") || body.get("action").isJsonNull()) return "";
+            return body.get("action").getAsString().trim().toUpperCase(java.util.Locale.ROOT);
+        } catch (RuntimeException ignored) {
+            return "";
+        }
+    }
+
+    private void addBotJobDetailsAction(Map<String, Object> response, JsonObject envelope) {
+        String action = botJobDetailsAction(envelope);
+        if (!action.isBlank()) response.putIfAbsent("action", action);
+    }
+
+    private void sendBotJobDetailsLicenseFailure(JsonObject envelope, Session session, String requestType) {
+        String operationId = switch (requestType) {
+            case "botJobDetails.action" -> "botJobDetails.actionResponse";
+            case "botJobDetails.bootstrap" -> "botJobDetails.bootstrapResponse";
+            case "botJobDetails.metadata.update" -> "botJobDetails.metadata.updateResponse";
+            case "botJobDetails.environments.refresh" -> "botJobDetails.environments.refreshResponse";
+            default -> "botJobDetails.actionResponse";
+        };
+        Map<String, Object> response = new LinkedHashMap<>();
+        addBotJobDetailsCorrelation(response, envelope);
+        if ("botJobDetails.action".equals(requestType)) addBotJobDetailsAction(response, envelope);
+        response.put("ok", false);
+        response.put("message", "An active license is required for this Bot Job Details operation");
+        response.put("errorCode", "LICENSE_REQUIRED");
+        sendBotJobDetailsResponse(session, -1, transportSessionId(session), response, operationId);
+    }
+
+    private void sendBotJobDetailsResponse(
+            Session targetSession, int homeBankingId, String sessionId, Object response, String operationId) {
+        if (targetSession == null || !targetSession.isOpen()) {
+            log.debug("Bot Job Details response session {} is unavailable", sessionId);
+            return;
+        }
+        JsonObject outbound = new JsonObject();
+        outbound.addProperty("body", gson.toJson(response));
+        outbound.addProperty("sessionId", sessionId);
+        outbound.addProperty("homeBankingId", homeBankingId);
+        outbound.addProperty("operationId", operationId);
+        targetSession.getAsyncRemote().sendText(outbound.toString(), result -> {
+            if (!result.isOK()) {
+                log.error("Unable to send Bot Job Details response to session {}", sessionId, result.getException());
+            }
+        });
+    }
+
+    private int authoritativeHomeBankingId(int botJobId) {
+        try {
+            return botJobDetailsService.activeHomeBankingId(botJobId);
+        } catch (RuntimeException ignored) {
+            return -1;
+        }
+    }
+
+    private int authoritativeHomeBankingId(BotJobDetailsResponse response) {
+        return response != null && response.state() != null ? response.state().homeBankingId() : -1;
+    }
+
+    private void publishBotJobDetailsStateAsync(BotJobDetailsRequest request) {
+        CompletableFuture.runAsync(() -> {
+            try {
+                BotJobDetailsResponse response = BotJobDetailsResponse.success(
+                        "Bot Job Details state changed",
+                        request,
+                        botJobDetailsService.currentState(request.botJobId()));
+                publishBotJobDetailsState(response, request.requestId());
+            } catch (RuntimeException error) {
+                log.debug("Unable to publish Bot Job Details state: {}", error.getMessage());
+            }
+        });
+    }
+
+    private void publishBotJobDetailsState(BotJobDetailsResponse response, String causeRequestId) {
+        if (response == null || response.state() == null) return;
+        Map<String, Object> event = new LinkedHashMap<>();
+        event.put("ok", true);
+        event.put("message", response.message());
+        event.put("requestId", causeRequestId);
+        event.put("botJobId", response.botJobId());
+        event.put("state", response.state());
+        for (String targetId : List.of("botJobTasks", "componentTasks", "preScannerGrid")) {
+            Session target = WebSocketSessionManager.getSession(targetId);
+            if (target != null && target.isOpen()) {
+                sendBotJobDetailsResponse(
+                        target,
+                        response.state().homeBankingId(),
+                        targetId,
+                        event,
+                        "botJobDetails.state");
+            }
+        }
     }
 
     private void handleNewBotJobBootstrap(String sessionId) {

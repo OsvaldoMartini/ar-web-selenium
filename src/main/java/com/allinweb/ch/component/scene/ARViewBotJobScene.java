@@ -112,6 +112,7 @@ public class ARViewBotJobScene extends ARScene {
 
     private void handleCloseRequest(WindowEvent event) {
         log.info("Handle Close: Exiting Threads and Quitting WebDriver");
+        arViewBotJobPane.markWorkspaceClosed();
 
         // Interrupt running threads
         threadList.forEach(this::interruptThread);
@@ -165,6 +166,8 @@ public class ARViewBotJobScene extends ARScene {
         if (modalStage == null) {
             modalStage = new Stage();
             arViewBotJobPane.setStage(modalStage);
+            modalStage.setOnCloseRequest(this::handleCloseRequest);
+            modalStage.setOnHidden(event -> arViewBotJobPane.markWorkspaceClosed());
             modalStage.getIcons().add(icon);
             IARPane pane = buildPane();
             if (pane != null) {
@@ -188,6 +191,9 @@ public class ARViewBotJobScene extends ARScene {
             }
         }
 
+        // The pane command bridge must always reference the Stage owned by this scene.
+        // A closed Stage is reusable, and closeModal() may replace it on a later opening.
+        arViewBotJobPane.setStage(modalStage);
         modalStage.setTitle(getTitle());
 
         // Check if the stage is already showing
@@ -199,6 +205,7 @@ public class ARViewBotJobScene extends ARScene {
     public void closeModal() {
         try {
             if (modalStage != null) { // && modalStage.isShowing()) {
+                arViewBotJobPane.markWorkspaceClosed();
                 modalStage.close();
             }
             modalStage = null;
@@ -208,6 +215,7 @@ public class ARViewBotJobScene extends ARScene {
     }
 
     public void destroyPanel() {
+        arViewBotJobPane.markWorkspaceClosed();
         arViewBotJobPane.destroy();
     }
 

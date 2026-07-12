@@ -2,7 +2,7 @@
 package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.component.pane.base.ARPane;
-import com.allinweb.ch.component.scene.ARNewHomeBankingScene;
+import com.allinweb.ch.component.scene.AROrganizationManagerScene;
 import com.allinweb.ch.component.scene.ARScannedElementScene;
 import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.control.ARComponentBuilder;
@@ -12,6 +12,7 @@ import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.facade.PreScanApplyService;
+import com.allinweb.ch.facade.BotJobDetailsWorkspaceRegistry;
 import com.allinweb.ch.license.LicenceVal;
 import com.allinweb.ch.license.LicenseManager;
 import com.allinweb.ch.model.*;
@@ -28,8 +29,8 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import javafx.application.Platform;
-import javafx.beans.property.SimpleBooleanProperty;
 import javafx.concurrent.Task;
 import javafx.concurrent.Worker;
 import javafx.geometry.Insets;
@@ -41,16 +42,11 @@ import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.*;
 import javafx.scene.layout.Priority;
-import javafx.scene.paint.Color;
-import javafx.scene.text.Font;
-import javafx.scene.text.FontPosture;
-import javafx.scene.text.FontWeight;
 import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
-import javafx.util.StringConverter;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -64,26 +60,25 @@ public class ARViewBotJobPane extends ARPane {
     private static final PerformDBEngine performDBEngine = PerformDBEngine.getInstance();
     private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
     private static final PerformMessage performMessage = PerformMessage.getInstance();
-    private static final ARNewHomeBankingScene arNewHomeBankingScene = ARNewHomeBankingScene.getInstance();
+    private static final AROrganizationManagerScene organizationManagerScene =
+            AROrganizationManagerScene.getInstance();
+    private static final BotJobDetailsWorkspaceRegistry botJobDetailsWorkspaceRegistry =
+            BotJobDetailsWorkspaceRegistry.getInstance();
     private static final ARConfigurationPane arConfigurationPane = ARConfigurationPane.getInstance();
 
     protected static volatile ARViewBotJobPane instance;
-    Button refreshButton;
     Button openScannerButton;
-    Button editBotJobButton;
     Button navigationTimeButton;
     Button launchBotJobButton;
     Button genFlowButton;
     ComboBox<BlockLoadDTO> blockFlowComboBox;
     Button reloadBlocksButton;
-    Button preScanButton;
     Button testRunButton;
+    ToggleButton testRunModeToggle;
     Button testRunStopButton;
-    Button saveBotJobButton;
     //    Button saveAsBotJobButton;
     Button openExcelFileButton;
     Button generateExcelButton;
-    Button closeBotJobButton;
     Button openReportButton;
     Button createBATButton;
 
@@ -94,10 +89,6 @@ public class ARViewBotJobPane extends ARPane {
     TextField pathExport;
     Button pathExportButton;
 
-    Label webSiteInfoLabel;
-    Label botJobNameLabel;
-    Label botJobDescriptionLabel;
-    Button componentButton;
     boolean isComponentBoxVisible;
     private Stage stage;
     // Set to hold all active WebSocket sessions
@@ -109,19 +100,17 @@ public class ARViewBotJobPane extends ARPane {
     private String previousBotTasks;
     private BlockLoadDTO blockLoad;
     private boolean isEnabledLicence;
-    private SimpleBooleanProperty isEditingBotJob = new SimpleBooleanProperty(false);
     // Define a flag to prevent double clicks
     private boolean isScannerButtonClicked = false;
-    private Label currentUrlLabel;
-    private ChoiceBox<HomeUrlDTO> homeURLChoiceBox;
-    private Button refreshEnvsButton;
-    private Button insertSitesdButton;
-    private TextField botJobNameTextField;
-    private TextField botJobDescriptionTextField;
+    private static final String EXECUTE_ALL_OPTION_LABEL = "Execute All";
+    private static final String TEST_RUN_MODE_ALL_STYLE =
+            "-fx-background-color: #1a6b3a; -fx-text-fill: white; -fx-font-weight: bold; "
+                    + "-fx-font-size: 12px; -fx-background-radius: 5;";
+    private static final String TEST_RUN_MODE_ONE_STYLE =
+            "-fx-background-color: #E67E22; -fx-text-fill: white; -fx-font-weight: bold; "
+                    + "-fx-font-size: 12px; -fx-background-radius: 5;";
+    private final BlockLoadDTO executeAllBlocksOption = createExecuteAllBlocksOption();
     private VBox botJobContainer;
-    private HBox currentURLGroup;
-    private HBox botJobNameGroup;
-    private HBox botJobDescriptionGroup;
     private Pane mainPane;
     private HBox componentBox;
     private VBox componentContainer;
@@ -143,6 +132,7 @@ public class ARViewBotJobPane extends ARPane {
     Button apiToolToggleButton;
     private ARScene arScene;
     private BotJobLoadDTO selectedBotJob;
+    private volatile String reactEnvironmentUrl = "";
     // Private constructor to prevent instantiation
     private ARViewBotJobPane() {
 
@@ -211,6 +201,14 @@ public class ARViewBotJobPane extends ARPane {
         this.isEnabledLicence = isEnabledLicence;
         this.arScene = arScene;
         this.selectedBotJob = selectedBotJob;
+        botJobDetailsWorkspaceRegistry.activate(selectedBotJob, isEnabledLicence);
+        HomeUrlDTO activeEnvironment = performLists.getHomeUrlByBankId(
+                selectedBotJob.getHomeBankingId(), selectedBotJob.getHomeUrlId());
+        reactEnvironmentUrl = activeEnvironment == null ? "" : activeEnvironment.getUrl();
+        if (componentBox != null) {
+            showBotJobWorkspace();
+            reloadReactWorkspaceSurfaces();
+        }
 
         ExcelUtils.createExcelDataFile(selectedBotJob, null);
 
@@ -240,19 +238,6 @@ public class ARViewBotJobPane extends ARPane {
             arScannedElementScene.closeModal();
         }
 
-        if (botJobNameLabel != null) {
-            String projectType = selectedBotJob.getPriority();
-
-            String labelText = projectType + " Id: " + selectedBotJob.getHomeBankingId() + " Bot Job Id: "
-                    + selectedBotJob.getId();
-
-            webSiteInfoLabel.setText(labelText);
-
-            botJobNameLabel.setText("Bot Job name: " + selectedBotJob.getName());
-            botJobDescriptionLabel.setText("Description: " + selectedBotJob.getDescription());
-            botJobNameTextField.setText(selectedBotJob.getName());
-            botJobDescriptionTextField.setText(selectedBotJob.getDescription());
-        }
         if (Strings.isNullOrEmpty(previousBotTasks)) {
             String portSocket = arPropertyManager.getProperty(ARPropertyEnum.PORT_SOCKET);
             if (portSocket != null) {
@@ -265,12 +250,7 @@ public class ARViewBotJobPane extends ARPane {
         if (launchBotJobButton != null && openScannerButton != null) {
             launchBotJobButton.setDisable(isMobile);
             openScannerButton.setDisable(isMobile);
-            if (preScanButton != null) {
-                preScanButton.setDisable(isMobile);
-            }
         }
-
-        updateHomeUrlLabels();
 
         // Keep the Time button in sync with the persisted property
         updateNavigationTimeButtonLabel();
@@ -354,61 +334,101 @@ public class ARViewBotJobPane extends ARPane {
     }
 
     /**
-     * TEST RUN: opens a single Playwright browser at the bot job's endpoint and executes the
-     * block selected in the dropdown locally (in-process), driving it straight through the
-     * Playwright driver. Unlike Launch (external Engine), this is the local "pre-launch".
+     * TEST RUN: opens a single Playwright browser at the bot job's endpoint and executes either
+     * all blocks from the selected starting point or only the selected block. Unlike Launch
+     * (external Engine), this is the local "pre-launch".
      */
     private void onTestRunClicked() {
         BlockLoadDTO block = blockFlowComboBox.getValue();
-        if (block == null || block.getId() == null) {
+        boolean hasRealBlock = blockFlowComboBox.getItems().stream()
+                .anyMatch(option -> option != null && option.getId() != null);
+        if (!hasRealBlock) {
             performMessage.errorMessage(
                     "TEST RUN",
-                    "<span style='font-weight: bold;'>Select a block first.</span>",
-                    "Pick the block to run in the dropdown next to TEST RUN.",
+                    "<span style='font-weight: bold;'>This Bot Job has no executable blocks.</span>",
+                    "Create or reload a block before starting TEST RUN.",
                     null,
                     null,
                     0);
             return;
         }
 
+        boolean oneModeSelected = testRunModeToggle != null && testRunModeToggle.isSelected();
+        boolean executeAllSelected = isExecuteAllBlocksOption(block);
+        if (block == null || (!executeAllSelected && block.getId() == null)) {
+            performMessage.errorMessage(
+                    "TEST RUN",
+                    "<span style='font-weight: bold;'>Select a block for ONE mode.</span>",
+                    "Choose a numbered block, or switch the ALL/ONE toggle to ALL to execute the complete job.",
+                    null,
+                    null,
+                    0);
+            return;
+        }
+
+        TestRunExecutionSelection executionSelection;
+        try {
+            executionSelection = TestRunExecutionSelection.resolve(
+                    block.getBlockOrderNumber(), executeAllSelected, oneModeSelected);
+        } catch (IllegalArgumentException error) {
+            performMessage.errorMessage(
+                    "TEST RUN",
+                    "<span style='font-weight: bold;'>The TEST RUN selection is invalid.</span>",
+                    error.getMessage(),
+                    null,
+                    null,
+                    0);
+            return;
+        }
+        int selectedBlockOrder = executionSelection.blockOrderNumber();
+        boolean runSingleBlock = executionSelection.runSingleBlock();
+
         String originalText = testRunButton.getText();
         testRunButton.setDisable(true);
         testRunButton.setText("TEST RUN ...");
 
-        // Use the endpoint the user has selected/visible in this pane (environment dropdown or
-        // the current-URL label) so TEST RUN targets exactly what is shown.
-        String selectedUrl = null;
-        if (homeURLChoiceBox != null && homeURLChoiceBox.getValue() != null) {
-            selectedUrl = homeURLChoiceBox.getValue().getUrl();
-        }
-        if (Strings.isNullOrEmpty(selectedUrl) && currentUrlLabel != null) {
-            selectedUrl = currentUrlLabel.getText();
-        }
-        final String endpointUrl = selectedUrl;
+        // React owns the selected environment. Resolve its persisted URL by stable homeUrlId.
+        final String endpointUrl = selectedEndpointUrl();
 
         // TEST RUN now reuses the FULL pre-launch engine (ARScannedElementPane.executeJob) in the
         // single Playwright browser. executeJob runs asynchronously on the pane's own executor, so
         // this worker only kicks it off and reports that the run was launched.
-        Task<Void> task = new Task<>() {
+        Task<Boolean> task = new Task<>() {
             @Override
-            protected Void call() throws Exception {
-                ARScannedElementPane.getInstance()
-                        .testRunBlockPlaywright(selectedBotJob, block.getBlockOrderNumber(), endpointUrl);
-                return null;
+            protected Boolean call() throws Exception {
+                return ARScannedElementPane.getInstance()
+                        .testRunBlockPlaywright(selectedBotJob, selectedBlockOrder, endpointUrl, runSingleBlock);
             }
         };
         task.setOnSucceeded(ev -> {
             testRunButton.setDisable(false);
             testRunButton.setText(originalText);
+            if (!Boolean.TRUE.equals(task.getValue())) {
+                testRunStopButton.setDisable(!ARScannedElementPane.getInstance().isJobRunning.get());
+                log.warn("TEST RUN was not started");
+                performMessage.errorMessage(
+                        "TEST RUN - Not Started",
+                        "<span style='font-weight: bold;'>The execution could not be started.</span>",
+                        "Review the application log for the load, environment, or browser error.",
+                        null,
+                        null,
+                        0);
+                return;
+            }
             // The engine runs asynchronously — arm STOP so the user can halt it.
             // No modal here: the run is visible in the opened browser, and a blocking dialog
             // after the first step is disruptive.
-            testRunStopButton.setDisable(false);
-            log.info("TEST RUN launched for block \"{}\" at {}", block.getName(), endpointUrl);
+            testRunStopButton.setDisable(!ARScannedElementPane.getInstance().isJobRunning.get());
+            log.info(
+                    "TEST RUN launched in {} mode from \"{}\" at {}",
+                    runSingleBlock ? "ONE" : "ALL",
+                    executeAllSelected ? EXECUTE_ALL_OPTION_LABEL : block.getName(),
+                    endpointUrl);
         });
         task.setOnFailed(ev -> {
             testRunButton.setDisable(false);
             testRunButton.setText(originalText);
+            testRunStopButton.setDisable(!ARScannedElementPane.getInstance().isJobRunning.get());
             Throwable error = task.getException();
             log.error("TEST RUN failed", error);
             performMessage.errorMessage(
@@ -456,13 +476,43 @@ public class ARViewBotJobPane extends ARPane {
                 .toList();
 
         BlockLoadDTO previous = blockFlowComboBox.getValue();
-        blockFlowComboBox.getItems().setAll(blocks);
-        if (previous != null && previous.getId() != null) {
-            blocks.stream()
-                    .filter(b -> previous.getId().equals(b.getId()))
-                    .findFirst()
-                    .ifPresent(blockFlowComboBox::setValue);
+        List<BlockLoadDTO> options = new ArrayList<>(blocks.size() + 1);
+        options.add(executeAllBlocksOption);
+        options.addAll(blocks);
+        blockFlowComboBox.getItems().setAll(options);
+        BlockLoadDTO selection = previous != null && previous.getId() != null
+                ? blocks.stream()
+                        .filter(b -> previous.getId().equals(b.getId()))
+                        .findFirst()
+                        .orElse(executeAllBlocksOption)
+                : executeAllBlocksOption;
+        blockFlowComboBox.setValue(selection);
+    }
+
+    private static BlockLoadDTO createExecuteAllBlocksOption() {
+        BlockLoadDTO option = new BlockLoadDTO();
+        option.setName(EXECUTE_ALL_OPTION_LABEL);
+        option.setBlockOrderNumber(-1);
+        return option;
+    }
+
+    private boolean isExecuteAllBlocksOption(BlockLoadDTO block) {
+        return block == executeAllBlocksOption;
+    }
+
+    private void updateTestRunModeToggleAppearance() {
+        boolean runOne = testRunModeToggle != null && testRunModeToggle.isSelected();
+        if (runOne
+                && blockFlowComboBox != null
+                && isExecuteAllBlocksOption(blockFlowComboBox.getValue())) {
+            testRunModeToggle.setSelected(false);
+            runOne = false;
         }
+        testRunModeToggle.setText(runOne ? "ONE" : "ALL");
+        testRunModeToggle.setStyle(runOne ? TEST_RUN_MODE_ONE_STYLE : TEST_RUN_MODE_ALL_STYLE);
+        testRunModeToggle.setTooltip(new Tooltip(runOne
+                ? "ONE: TEST RUN stops after the selected block"
+                : "ALL: TEST RUN executes all blocks from the selected starting point"));
     }
 
     /**
@@ -482,29 +532,13 @@ public class ARViewBotJobPane extends ARPane {
         refreshBlockFlowCombo();
     }
 
-    private void updateHomeUrlLabels() {
-        if (currentUrlLabel != null) {
-            HomeUrlDTO homeUrlDTO =
-                    performLists.getHomeUrlByBankId(selectedBotJob.getHomeBankingId(), selectedBotJob.getHomeUrlId());
-            String urlEntryPoint = homeUrlDTO != null
-                    ? homeUrlDTO.getUrl()
-                    : (selectedBotJob.getHomeBankingLoadDTO() != null
-                            ? selectedBotJob.getHomeBankingLoadDTO().getUrl()
-                            : "");
-            currentUrlLabel.setText(urlEntryPoint);
-        }
-
-        if (homeURLChoiceBox != null) {
-            populateHomeUrlChoiceBox(selectedBotJob.getHomeBankingId(), selectedBotJob.getHomeUrlId());
-        }
-    }
-
-    private void refreshGrids() {
+    private boolean refreshGrids() {
 
         ErrorMessage errorMessage = performDBEngine.loadCompleteJobs(selectedBotJob.getId());
 
         if (errorMessage != null) {
             performMessage.errorMessageOperationFailed(errorMessage);
+            return false;
         }
 
         // Updates the Grid After Load
@@ -528,6 +562,7 @@ public class ARViewBotJobPane extends ARPane {
 
         if (errorMessage != null) {
             performMessage.errorMessageOperationFailed(errorMessage);
+            return false;
         }
 
         if (!firstLoad) {
@@ -547,6 +582,7 @@ public class ARViewBotJobPane extends ARPane {
 
         //        webSocketSessionManager.broadcastMessageToAll(
         //                selectedBotJob.getHomeBankingId(), "componentTasks", jsonData, "componentsUpdate");
+        return true;
     }
 
     private void buildViewComponent() {
@@ -659,8 +695,6 @@ public class ARViewBotJobPane extends ARPane {
 
     @Override
     public void initUIComponents() {
-        String labelStyle = "-fx-text-fill: blue; -fx-font-weight: bold; -fx-font-size: 14;";
-
         sessionId = "botJobTasks";
         if (Strings.isNullOrEmpty(previousBotTasks) || !previousBotTasks.equals(sessionId)) {
             buildViewComponent();
@@ -671,22 +705,12 @@ public class ARViewBotJobPane extends ARPane {
         final String BTN_FONT = "-fx-font-size: 12px;";
 
         // ── Buttons ───────────────────────────────────────────────────────────────
-        this.refreshButton = builder.buildButton(
-                "Refresh",
-                ARConstants.SPACE_ZERO,
-                ARConstants.ICON_REFRESH,
-                ARConstants.SPACE_M,
-                new Insets(3, 8, 3, 8));
-
         this.openScannerButton = builder.buildButton(
                 "Scanner",
                 ARConstants.SPACE_ZERO,
                 ARConstants.ICON_BROWSER,
                 ARConstants.SPACE_M,
                 new Insets(3, 8, 3, 8));
-
-        this.editBotJobButton = builder.buildButton(
-                "Edit", ARConstants.SPACE_ZERO, ARConstants.ICON_EDIT, ARConstants.SPACE_M, new Insets(3, 8, 3, 8));
 
         this.launchBotJobButton = builder.buildButton(
                 "Launch", ARConstants.SPACE_ZERO, ARConstants.ICON_PLAY, ARConstants.SPACE_M, new Insets(3, 8, 3, 8));
@@ -706,6 +730,7 @@ public class ARViewBotJobPane extends ARPane {
             @Override
             public String toString(BlockLoadDTO block) {
                 if (block == null) return "";
+                if (isExecuteAllBlocksOption(block)) return EXECUTE_ALL_OPTION_LABEL;
                 return block.getBlockOrderNumber() + " - " + block.getName();
             }
 
@@ -720,30 +745,27 @@ public class ARViewBotJobPane extends ARPane {
         this.testRunButton.setStyle("-fx-background-color: #E67E22; -fx-text-fill: white; -fx-font-weight: bold; "
                 + "-fx-font-size: 12px; -fx-background-radius: 5;");
 
+        this.testRunModeToggle = new ToggleButton();
+        this.testRunModeToggle.setSelected(false);
+        this.testRunModeToggle.setFocusTraversable(false);
+        updateTestRunModeToggleAppearance();
+        this.blockFlowComboBox.valueProperty().addListener((observable, previous, selected) -> {
+            if (isExecuteAllBlocksOption(selected) && testRunModeToggle.isSelected()) {
+                testRunModeToggle.setSelected(false);
+                updateTestRunModeToggleAppearance();
+            }
+        });
+
         // Icon-only refresh button dedicated to reloading the GEN FLOW block dropdown.
         this.reloadBlocksButton = builder.buildButton(
                 "", ARConstants.SPACE_ZERO, ARConstants.ICON_REFRESH, ARConstants.SPACE_M, new Insets(3, 6, 3, 6));
         this.reloadBlocksButton.setTooltip(new javafx.scene.control.Tooltip("Reload blocks for the dropdown"));
-
-        this.preScanButton = builder.buildButton(
-                "PRE SCAN",
-                ARConstants.SPACE_ZERO,
-                ARConstants.ICON_SEARCH,
-                ARConstants.SPACE_M,
-                new Insets(3, 8, 3, 8));
-        this.preScanButton.setStyle("-fx-background-color: #0B5394; -fx-text-fill: white; -fx-font-weight: bold; "
-                + "-fx-font-size: 12px; -fx-background-radius: 5;");
-        this.preScanButton.setTooltip(new javafx.scene.control.Tooltip("Open the lightweight React scanner dashboard"));
 
         this.testRunStopButton = builder.buildButton(
                 "STOP", ARConstants.SPACE_ZERO, ARConstants.ICON_STOP, ARConstants.SPACE_M, new Insets(3, 8, 3, 8));
         this.testRunStopButton.setStyle("-fx-background-color: #C0392B; -fx-text-fill: white; -fx-font-weight: bold; "
                 + "-fx-font-size: 12px; -fx-background-radius: 5;");
         this.testRunStopButton.setDisable(true); // enabled only while a TEST RUN is active
-
-        this.saveBotJobButton = builder.buildButton(
-                "Save", ARConstants.SPACE_ZERO, ARConstants.ICON_SAVE, ARConstants.SPACE_M, new Insets(3, 8, 3, 8));
-        this.saveBotJobButton.setDisable(true);
 
         this.openExcelFileButton = builder.buildButton(
                 "Excel", ARConstants.SPACE_ZERO, ARConstants.ICON_EXCEL, ARConstants.SPACE_M, new Insets(3, 8, 3, 8));
@@ -754,11 +776,6 @@ public class ARViewBotJobPane extends ARPane {
                 ARConstants.ICON_EXCEL,
                 ARConstants.SPACE_M,
                 new Insets(3, 8, 3, 8));
-
-        this.closeBotJobButton = builder.buildButton(
-                "Close", ARConstants.SPACE_ZERO, ARConstants.ICON_CROSS, ARConstants.SPACE_M, new Insets(3, 8, 3, 8));
-        this.closeBotJobButton.setStyle("-fx-font-size: 12px; -fx-text-fill: #c0392b; "
-                + "-fx-border-color: #e57373; -fx-border-radius: 5; -fx-background-radius: 5;");
 
         this.openReportButton = builder.buildButton(
                 "Report", ARConstants.SPACE_ZERO, ARConstants.ICON_EXCEL3, ARConstants.SPACE_M, new Insets(3, 8, 3, 8));
@@ -804,9 +821,8 @@ public class ARViewBotJobPane extends ARPane {
         restoreDatePicker.setPrefWidth(120);
         restoreDatePicker.setMinWidth(Region.USE_PREF_SIZE);
 
-        // ── Uniform height (toolbar controls only - Save/Edit sized separately) ───
+        // ── Uniform height ────────────────────────────────────────────────────────
         Node[] toolbarControls = {
-            refreshButton,
             openScannerButton,
             openExcelFileButton,
             generateExcelButton,
@@ -816,11 +832,10 @@ public class ARViewBotJobPane extends ARPane {
             genFlowButton,
             blockFlowComboBox,
             reloadBlocksButton,
-            preScanButton,
             testRunButton,
+            testRunModeToggle,
             testRunStopButton,
             openReportButton,
-            closeBotJobButton
         };
         for (Node n : toolbarControls) {
             if (n instanceof Control ctrl) {
@@ -829,13 +844,6 @@ public class ARViewBotJobPane extends ARPane {
                 ctrl.setMaxHeight(BTN_H);
             }
         }
-        // Save/Edit sized here, added only to info bar
-        saveBotJobButton.setMinHeight(BTN_H);
-        saveBotJobButton.setPrefHeight(BTN_H);
-        saveBotJobButton.setMaxHeight(BTN_H);
-        editBotJobButton.setMinHeight(BTN_H);
-        editBotJobButton.setPrefHeight(BTN_H);
-        editBotJobButton.setMaxHeight(BTN_H);
         exportJobButton.setMinHeight(BTN_H);
         exportJobButton.setPrefHeight(BTN_H);
         exportJobButton.setMaxHeight(BTN_H);
@@ -885,10 +893,6 @@ public class ARViewBotJobPane extends ARPane {
                 + "-fx-border-width: 0 0 1 0;");
 
         // ── Styled groups (light green tint per group) ───────────────────────────
-        HBox grpView = new HBox(3, refreshButton, preScanButton);
-        grpView.setStyle("-fx-background-color: #EAF3DE; -fx-background-radius: 6; -fx-padding: 3 6 3 6;");
-        grpView.setAlignment(Pos.CENTER_LEFT);
-
         HBox grpExcel = new HBox(3, openExcelFileButton, generateExcelButton, openReportButton);
         grpExcel.setStyle("-fx-background-color: #EAF3DE; -fx-background-radius: 6; -fx-padding: 3 6 3 6;");
         grpExcel.setAlignment(Pos.CENTER_LEFT);
@@ -902,164 +906,34 @@ public class ARViewBotJobPane extends ARPane {
         // grpApi.setAlignment(Pos.CENTER_LEFT);
 
         HBox grpLaunch = new HBox(
-                3, launchBotJobButton, blockFlowComboBox, reloadBlocksButton, testRunButton, testRunStopButton);
+                3,
+                launchBotJobButton,
+                blockFlowComboBox,
+                reloadBlocksButton,
+                testRunModeToggle,
+                testRunButton,
+                testRunStopButton);
         grpLaunch.setStyle("-fx-background-color: #EAF3DE; -fx-background-radius: 6; -fx-padding: 3 6 3 6;");
         grpLaunch.setAlignment(Pos.CENTER_LEFT);
-
-        // Spacer pushes Close button to the right
-        Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
-
-        HBox grpClose = new HBox(3, closeBotJobButton);
-        grpClose.setStyle("-fx-background-radius: 6; -fx-padding: 3 6 3 6;");
-        grpClose.setAlignment(Pos.CENTER_RIGHT);
 
         toolbarRow
                 .getChildren()
                 .addAll(
-                        grpView, sep.get(), grpExcel, sep.get(), grpNav, sep.get(), /* grpApi, sep.get(), */ grpLaunch,
-                        spacer, grpClose);
+                        grpExcel, sep.get(), grpNav, sep.get(), /* grpApi, sep.get(), */ grpLaunch);
 
         // ════════════════════════════════════════════════════════════════════════
         //  INFO BAR
         // ════════════════════════════════════════════════════════════════════════
         createBATButton = createPathButton(ARConstants.ICON_BURN);
 
-        String projectType = selectedBotJob.getPriority();
-        String labelText = projectType + "  Id: " + selectedBotJob.getHomeBankingId() + "  ·  Bot Job Id: "
-                + selectedBotJob.getId();
-
-        webSiteInfoLabel = new Label(labelText);
-        webSiteInfoLabel.setStyle("-fx-font-size: 11px; -fx-font-weight: bold; -fx-text-fill: #888;");
-
-        botJobNameLabel = new Label(selectedBotJob.getName());
-        botJobNameLabel.setStyle("-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: -fx-text-base-color;");
-
-        botJobNameTextField = new TextField(selectedBotJob.getName());
-        botJobNameTextField.setStyle(labelStyle);
-
-        botJobDescriptionLabel = new Label(selectedBotJob.getDescription());
-        botJobDescriptionLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: grey;");
-
-        botJobDescriptionTextField = new TextField(selectedBotJob.getDescription());
-        botJobDescriptionTextField.setStyle(labelStyle);
-        HBox.setHgrow(botJobDescriptionTextField, Priority.ALWAYS);
-
-        botJobNameLabel.visibleProperty().bind(isEditingBotJob.not());
-        botJobNameLabel.managedProperty().bind(isEditingBotJob.not());
-        botJobNameTextField.visibleProperty().bind(isEditingBotJob);
-        botJobNameTextField.managedProperty().bind(isEditingBotJob);
-
-        botJobDescriptionLabel.visibleProperty().bind(isEditingBotJob.not());
-        botJobDescriptionLabel.managedProperty().bind(isEditingBotJob.not());
-        botJobDescriptionTextField.visibleProperty().bind(isEditingBotJob);
-        botJobDescriptionTextField.managedProperty().bind(isEditingBotJob);
-
-        // ── ChoiceBox ─────────────────────────────────────────────────────────────
-        homeURLChoiceBox = new ChoiceBox<>();
-        homeURLChoiceBox.setStyle(
-                "-fx-font-size: 12px; -fx-padding: 2 6 2 6; -fx-background-radius: 5; -fx-border-radius: 5;");
-        populateHomeUrlChoiceBox(selectedBotJob.getHomeBankingId(), selectedBotJob.getHomeUrlId());
-        homeURLChoiceBox.setTooltip(new Tooltip("Select the target URL / environment for the Bot Job"));
-        homeURLChoiceBox.setPrefWidth(200);
-        homeURLChoiceBox.setMaxWidth(200);
-        homeURLChoiceBox.setMinHeight(BTN_H);
-        homeURLChoiceBox.setPrefHeight(BTN_H);
-        homeURLChoiceBox.setMaxHeight(BTN_H);
-
-        refreshEnvsButton = createPathButton(ARConstants.ICON_REFRESH);
-        refreshEnvsButton.setMinHeight(BTN_H);
-        refreshEnvsButton.setPrefHeight(BTN_H);
-
-        insertSitesdButton = new Button("Orgs / Environments");
-        insertSitesdButton.setDefaultButton(true);
-        insertSitesdButton.setStyle("-fx-font-size: 11px;");
-        insertSitesdButton.setMinHeight(BTN_H);
-        insertSitesdButton.setPrefHeight(BTN_H);
-
-        HomeUrlDTO homeUrlDTO =
-                performLists.getHomeUrlByBankId(selectedBotJob.getHomeBankingId(), selectedBotJob.getHomeUrlId());
-        String urlEntryPoint = homeUrlDTO != null
-                ? homeUrlDTO.getUrl()
-                : (selectedBotJob.getHomeBankingLoadDTO() != null
-                        ? selectedBotJob.getHomeBankingLoadDTO().getUrl()
-                        : "");
-
-        Label envBadge = new Label("ENV");
-        envBadge.setStyle("-fx-font-size: 10px; -fx-font-weight: bold; -fx-text-fill: #1565C0; "
-                + "-fx-background-color: #e3f0fd; -fx-background-radius: 3; -fx-padding: 1 5 1 5;");
-
-        currentUrlLabel = new Label(urlEntryPoint);
-        currentUrlLabel.setStyle(
-                "-fx-font-size: 12px; -fx-font-weight: bold; " + labelStyle.replace("blue", "-fx-text-base-color"));
-        currentUrlLabel.setMaxWidth(Double.MAX_VALUE);
-        HBox.setHgrow(currentUrlLabel, Priority.ALWAYS);
-
         // ── Path export: capped width so it fits neatly ───────────────────────────
         pathExport.setPrefWidth(200);
         pathExport.setMaxWidth(Double.MAX_VALUE);
 
         // ════════════════════════════════════════════════════════════════════════
-        //  INFO BAR  - two fixed rows, right column always visible
-        //
-        //  Row 0: [Name/Id labels | textfield]  [Save][Edit]  [Export][Import][Date]  [🔥🧊]
-        //  Row 1: [Description    | textfield]  [ENV url | ChoiceBox ↺ Orgs]  [📁][Path────]  [🔥🧊]
+        //  FILE BAR — metadata/environment controls have moved to React.
         // ════════════════════════════════════════════════════════════════════════
-
-        // ── Col 0: fixed-width name/desc ──────────────────────────────────────────
-        botJobNameLabel.setMinWidth(160);
-        botJobNameLabel.setMaxWidth(160);
-        botJobDescriptionLabel.setMinWidth(160);
-        botJobDescriptionLabel.setMaxWidth(160);
-        botJobNameTextField.setMinWidth(160);
-        botJobNameTextField.setMaxWidth(160);
-        botJobDescriptionTextField.setMinWidth(160);
-        botJobDescriptionTextField.setMaxWidth(160);
-
-        VBox col0View = new VBox(2, webSiteInfoLabel, botJobNameLabel, botJobDescriptionLabel);
-        col0View.setAlignment(Pos.CENTER_LEFT);
-        col0View.visibleProperty().bind(isEditingBotJob.not());
-        col0View.managedProperty().bind(isEditingBotJob.not());
-
-        VBox col0Edit = new VBox(4, botJobNameTextField, botJobDescriptionTextField);
-        col0Edit.setAlignment(Pos.CENTER_LEFT);
-        col0Edit.visibleProperty().bind(isEditingBotJob);
-        col0Edit.managedProperty().bind(isEditingBotJob);
-
-        StackPane col0 = new StackPane(col0View, col0Edit);
-        col0.setAlignment(Pos.CENTER_LEFT);
-        col0.setMinWidth(165);
-        col0.setMaxWidth(165);
-
-        Separator vDiv1 = new Separator(javafx.geometry.Orientation.VERTICAL);
-        vDiv1.setPadding(new Insets(0, 6, 0, 6));
-        vDiv1.setStyle("-fx-opacity: 0.35;");
-
-        // ── Col 1: Save/Edit always row0, ENV/ChoiceBox toggle row1 ──────────────
-        HBox saveEditRow = new HBox(4, saveBotJobButton, editBotJobButton);
-        saveEditRow.setAlignment(Pos.CENTER_LEFT);
-        saveEditRow.setStyle("-fx-background-color: #EAF3DE; -fx-background-radius: 6; -fx-padding: 3 6 3 6;");
-
-        HBox urlViewRow = new HBox(6, envBadge, currentUrlLabel);
-        urlViewRow.setAlignment(Pos.CENTER_LEFT);
-        HBox.setHgrow(urlViewRow, Priority.ALWAYS);
-        urlViewRow.visibleProperty().bind(isEditingBotJob.not());
-        urlViewRow.managedProperty().bind(isEditingBotJob.not());
-
-        HBox choiceRow = new HBox(4, homeURLChoiceBox, refreshEnvsButton, insertSitesdButton);
-        choiceRow.setAlignment(Pos.CENTER_LEFT);
-        choiceRow.setStyle("-fx-background-color: #EAF3DE; -fx-background-radius: 6; -fx-padding: 3 6 3 6;");
-        choiceRow.visibleProperty().bind(isEditingBotJob);
-        choiceRow.managedProperty().bind(isEditingBotJob);
-
-        VBox col1 = new VBox(4, saveEditRow, urlViewRow, choiceRow);
-        col1.setAlignment(Pos.CENTER_LEFT);
-
-        Separator vDiv2 = new Separator(javafx.geometry.Orientation.VERTICAL);
-        vDiv2.setPadding(new Insets(0, 6, 0, 6));
-        vDiv2.setStyle("-fx-opacity: 0.35;");
-
-        // ── Col 2 (RIGHT, always visible): row0=Export/Import/Date  row1=📁/Path ──
+        // ── Remaining file actions: row0=Export/Import/Date, row1=Path ───────────
         HBox rightRow0 = new HBox(4, exportJobButton, importJobButton, restoreDatePicker);
         rightRow0.setAlignment(Pos.CENTER_LEFT);
         rightRow0.setStyle("-fx-background-color: #EAF3DE; -fx-background-radius: 6; -fx-padding: 3 6 3 6;");
@@ -1079,10 +953,9 @@ public class ARViewBotJobPane extends ARPane {
         vDiv3.setStyle("-fx-opacity: 0.35;");
 
         // ── Col 3: BAT + component ────────────────────────────────────────────────
-        initComponentButton();
-        componentButton.setMinWidth(40);
+        initComponentWorkspace();
 
-        HBox actionCol = new HBox(4, createBATButton, componentButton);
+        HBox actionCol = new HBox(4, createBATButton);
         actionCol.setAlignment(Pos.CENTER);
 
         HBox infoBar = new HBox(0);
@@ -1090,7 +963,7 @@ public class ARViewBotJobPane extends ARPane {
         infoBar.setPadding(new Insets(5, 8, 5, 8));
         infoBar.setStyle("-fx-background-color: -fx-background; " + "-fx-border-color: derive(-fx-base,-10%); "
                 + "-fx-border-width: 0 0 1 0;");
-        infoBar.getChildren().addAll(col0, vDiv1, col1, vDiv2, col2, vDiv3, actionCol);
+        infoBar.getChildren().addAll(col2, vDiv3, actionCol);
 
         // ════════════════════════════════════════════════════════════════════════
         //  CONTENT AREA
@@ -1163,49 +1036,6 @@ public class ARViewBotJobPane extends ARPane {
     }
 
     public void initUIBehaviour() {
-        refreshEnvsButton.setOnAction(e -> {
-            reloadEnvs();
-        });
-        homeURLChoiceBox.setConverter(new StringConverter<>() {
-            @Override
-            public String toString(HomeUrlDTO object) {
-                if (object != null) {
-                    if (object.getUrl() != null) {
-                        return object.getOrgName() + " | " + object.getUrl();
-                    } else {
-                        return object.getOrgName();
-                    }
-                }
-                return "";
-            }
-
-            @Override
-            public HomeUrlDTO fromString(String string) {
-                return null;
-            }
-        });
-
-        insertSitesdButton.setOnMouseClicked(e -> {
-            if (isEnabledLicence && !com.allinweb.ch.facade.LicenseService.getInstance().isActive()) {
-                return;
-            }
-            if (performLists.getListHomeBanking().isEmpty()) {
-                performDBEngine.loadHomeBanking(null);
-            }
-            if (performLists.getListHomeUrl().isEmpty()) {
-                performDBEngine.loadHomeUrls(null);
-            }
-
-            HomeBankingLoadDTO homeBank = performLists.getFirstHomeBanking();
-            arNewHomeBankingScene.initialize(homeBank);
-            Stage currentStage = (Stage) insertSitesdButton.getScene().getWindow();
-            arNewHomeBankingScene.showModal(currentStage);
-            // If homeURLChoiceBox was initialized, refresh its items
-            if (homeURLChoiceBox != null) {
-                populateHomeUrlChoiceBox(selectedBotJob.getHomeBankingId(), selectedBotJob.getHomeUrlId());
-            }
-        });
-
         createBATButton.setOnMouseClicked(e -> {
             ARPropertyManager managerProps = arPropertyManager;
             String enginePath = managerProps.getProperty(ARPropertyEnum.PATH_ENGINE); // + "\\AR_Web_Engine.jar";
@@ -1229,86 +1059,6 @@ public class ARViewBotJobPane extends ARPane {
             createBatFile(excelPath, enginePath, configPath);
         });
 
-        refreshButton.setOnMouseClicked(e -> {
-            refreshGrids();
-        });
-        //        saveAsBotJobButton.setOnMouseClicked(e -> new ARSaveBotJobAsScene(selectedBotJob.getId()).show());
-        botJobNameLabel.visibleProperty().bind(this.isEditingBotJob.not());
-        botJobDescriptionLabel.visibleProperty().bind(this.isEditingBotJob.not());
-        botJobNameTextField.visibleProperty().bind(this.isEditingBotJob);
-        botJobDescriptionTextField.visibleProperty().bind(this.isEditingBotJob);
-        this.editBotJobButton.setOnMouseClicked((e) -> {
-            this.isEditingBotJob.set(this.isEditingBotJob.not().getValue());
-            saveBotJobButton.setDisable(this.isEditingBotJob.not().getValue());
-            reloadEnvs();
-        });
-        saveBotJobButton.setOnMouseClicked((e) -> {
-            this.isEditingBotJob.set(false);
-            this.isEditingBotJob.set(false);
-            saveBotJobButton.setDisable(true);
-
-            String rawName = nameFileOnWindows(botJobNameTextField.getText().trim());
-
-            botJobNameTextField.setText(rawName);
-
-            if (homeURLChoiceBox.getValue() != null
-                    && homeURLChoiceBox.getValue().getId() > 0) {
-                ErrorMessage errorMessage = performDataBase.updateBotJobDetails(
-                        selectedBotJob.getId(),
-                        homeURLChoiceBox.getValue().getId(),
-                        botJobNameTextField.getText().trim(),
-                        botJobDescriptionTextField.getText().trim());
-
-                if (errorMessage == null) {
-
-                    botJobNameLabel.setText(botJobNameTextField.getText());
-                    botJobDescriptionLabel.setText(botJobDescriptionTextField.getText());
-
-                    selectedBotJob.setName(botJobNameLabel.getText());
-                    selectedBotJob.setDescription(botJobDescriptionLabel.getText());
-                    selectedBotJob.setHomeUrlId(homeURLChoiceBox.getValue().getId());
-
-                    updateHomeUrlLabels();
-
-                    performMessage.showCustomModalDialogDragWin11(
-                            "Update Bot Job Details ✅",
-                            "<span style='color: #2E7D32; font-weight: bold; font-size: 1.1em;'>Bot Job updated successfully!</span>",
-                            "<span style='color: #1565C0; font-weight: bold;'>The Bot Job details have been saved and are now active.</span>",
-                            "<span style='color: #6A1B9A; font-weight: bold;'>Bot Job:</span> "
-                                    + botJobNameTextField.getText(),
-                            "<span style='color: #E65100; font-weight: bold;'>💡 Tip:</span> You can now refresh your view to see the updated details.",
-                            false,
-                            "OK",
-                            null,
-                            0);
-                } else {
-
-                    if (errorMessage.getErrorMessage().contains("unique constraint")) {
-                        errorMessage.setErrorMessage("Verify existents name for: " + botJobNameTextField.getText());
-                    }
-                    performMessage.showCustomModalDialogDragWin11(
-                            "Update Bot Job Details ❌",
-                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to update Bot Job!</span>",
-                            "<span style='color: #1565C0; font-weight: bold;'>There was an error while saving the Bot Job details.</span>",
-                            "<span style='color: #6A1B9A; font-weight: bold;'>Bot Job:</span> "
-                                    + botJobNameTextField.getText(),
-                            "<span style='font-style: italic;'>Details: " + botJobNameTextField.getText() + "</span>",
-                            false,
-                            "OK",
-                            null,
-                            0);
-                }
-
-                // Refresh the ListView after adding the new bot job
-                if (performDataBase.isConnDBWorks()) {
-                    try {
-                        performDataBase.loadQuickBotJobs();
-                    } catch (Exception error) {
-                        throw error;
-                    }
-                }
-            }
-        });
         this.openScannerButton.setOnMouseClicked((e) -> {
             callScannerTool();
         });
@@ -1462,6 +1212,8 @@ public class ARViewBotJobPane extends ARPane {
 
         this.testRunButton.setOnMouseClicked(e -> onTestRunClicked());
 
+        this.testRunModeToggle.setOnAction(e -> updateTestRunModeToggleAppearance());
+
         this.testRunStopButton.setOnMouseClicked(e -> onTestRunStopClicked());
 
         this.reloadBlocksButton.setOnMouseClicked(e -> onReloadBlocksClicked());
@@ -1577,14 +1329,6 @@ public class ARViewBotJobPane extends ARPane {
                 var14.printStackTrace();
             }
         });
-        this.closeBotJobButton.setOnMouseClicked((e) -> {
-            //            stopWebSocketServer();
-            log.info("Close Bot Job Button");
-            Platform.runLater(() -> {
-                Stage stage = (Stage) ((Button) e.getSource()).getScene().getWindow();
-                stage.close();
-            });
-        });
         this.openExcelFileButton.setOnMouseClicked((e) -> {
             String excelFolderPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL);
             String fileName =
@@ -1681,33 +1425,6 @@ public class ARViewBotJobPane extends ARPane {
                 }
             }
         });
-        componentButton.setOnMouseClicked((e) -> {
-            isPreScannerVisible = false;
-            preScanButton.setText("PRE SCAN");
-            if (isComponentBoxVisible) {
-                componentBox.getChildren().clear();
-
-                componentBox.getChildren().add(webViewTasks);
-                componentBox.requestLayout();
-                componentContainer.requestLayout();
-                this.componentContainer.setManaged(false);
-
-            } else {
-
-                componentBox.getChildren().clear();
-                componentBox.getChildren().addAll(webViewTasks, this.componentContainer);
-                //                componentBox.getChildren().addAll(webViewTasks, this.webViewComp);
-
-                componentBox.requestLayout();
-                componentContainer.requestLayout();
-                this.componentContainer.setVisible(true);
-                this.componentContainer.setManaged(true);
-            }
-            isComponentBoxVisible = !isComponentBoxVisible;
-        });
-
-        preScanButton.setOnMouseClicked((e) -> togglePreScanDashboard());
-
         // ── API Tool toggle handler  ─────────────────────────────────
         /* apiToolToggleButton.setOnMouseClicked((e) -> {
             if (isApiToolVisible) {
@@ -1745,47 +1462,6 @@ public class ARViewBotJobPane extends ARPane {
                 isApiToolVisible = true;
             }
         }); */
-    }
-
-    private void togglePreScanDashboard() {
-        if (componentBox == null) {
-            log.warn("PRE SCAN toggle skipped: componentBox is null");
-            return;
-        }
-
-        // Decide from what is ACTUALLY displayed, not the isPreScannerVisible flag:
-        // other handlers (componentButton, refresh flows) reset the flag without
-        // restoring the view, and a desynced flag makes the first click a no-op.
-        boolean showingDashboard = componentBox.getChildren().contains(webViewPreScanner);
-        log.info(
-                "PRE SCAN toggle: showingDashboard={} flag={} children={}",
-                showingDashboard,
-                isPreScannerVisible,
-                componentBox.getChildren().size());
-        isPreScannerVisible = showingDashboard;
-
-        componentBox.getChildren().clear();
-        if (isPreScannerVisible) {
-            componentBox.getChildren().add(webViewTasks);
-            HBox.setHgrow(webViewTasks, Priority.ALWAYS);
-            VBox.setVgrow(webViewTasks, Priority.ALWAYS);
-            preScanButton.setText("PRE SCAN");
-            isPreScannerVisible = false;
-            componentBox.requestLayout();
-            return;
-        }
-
-        componentBox.getChildren().add(webViewPreScanner);
-        HBox.setHgrow(webViewPreScanner, Priority.ALWAYS);
-        VBox.setVgrow(webViewPreScanner, Priority.ALWAYS);
-        if (componentContainer != null) {
-            componentContainer.setVisible(false);
-            componentContainer.setManaged(false);
-        }
-        isComponentBoxVisible = false;
-        isPreScannerVisible = true;
-        preScanButton.setText("BOT JOB");
-        componentBox.requestLayout();
     }
 
     public void handlePreScanCommand(String type, JsonObject jsonEntry) {
@@ -2139,11 +1815,8 @@ public class ARViewBotJobPane extends ARPane {
     }
 
     private String selectedEndpointUrl() {
-        if (homeURLChoiceBox != null && homeURLChoiceBox.getValue() != null) {
-            return homeURLChoiceBox.getValue().getUrl();
-        }
-        if (currentUrlLabel != null && !Strings.isNullOrEmpty(currentUrlLabel.getText())) {
-            return currentUrlLabel.getText();
+        if (!Strings.isNullOrEmpty(reactEnvironmentUrl)) {
+            return reactEnvironmentUrl;
         }
         HomeUrlDTO homeUrl = selectedBotJob == null
                 ? null
@@ -2220,16 +1893,6 @@ public class ARViewBotJobPane extends ARPane {
                     return option;
                 })
                 .toList();
-    }
-
-    private void reloadEnvs() {
-        // Reload from performLists after reloading from DB
-        performDBEngine.loadHomeUrls(null);
-
-        // If homeURLChoiceBox was initialized, refresh its items
-        if (homeURLChoiceBox != null) {
-            populateHomeUrlChoiceBox(selectedBotJob.getHomeBankingId(), selectedBotJob.getHomeUrlId());
-        }
     }
 
     public void createBatFile(String excelFilePath, String enginePath, String configPath) {
@@ -2467,20 +2130,7 @@ public class ARViewBotJobPane extends ARPane {
         return mainPane;
     }
 
-    private void initComponentButton() {
-        componentButton = builder.buildButton(
-                "",
-                ARConstants.SPACE_L,
-                "/Cubes.png",
-                ARConstants.SPACE_L + 10.0D,
-                Insets.EMPTY,
-                Background.fill(Color.TRANSPARENT));
-
-        Label componentTitleLabel = new Label("Components");
-        componentTitleLabel.setPadding(new Insets(5.0D));
-        componentTitleLabel.setFont(
-                Font.font((String) null, FontWeight.BOLD, FontPosture.REGULAR, ARConstants.SPACE_SM + 4.0D));
-
+    private void initComponentWorkspace() {
         this.componentContainer = new VBox(new Node[] {webViewComp});
         HBox.setHgrow(this.webViewComp, Priority.ALWAYS);
         VBox.setVgrow(this.webViewComp, Priority.ALWAYS); // Ensures vertical growth
@@ -2488,11 +2138,193 @@ public class ARViewBotJobPane extends ARPane {
         this.componentContainer.setSpacing(ARConstants.SPACE_XS);
 
         this.componentContainer.setMaxWidth(800.0D);
+        this.componentContainer.setVisible(false);
+        this.componentContainer.setManaged(false);
         isComponentBoxVisible = false;
     }
 
     public BotJobLoadDTO getBotJobDTO() {
         return selectedBotJob;
+    }
+
+    /** Executes a React workspace command and completes only after the JavaFX action ran. */
+    public CompletableFuture<BotJobWorkspaceActionResult> handleReactWorkspaceAction(
+            BotJobWorkspaceAction action, int requestedBotJobId) {
+        CompletableFuture<BotJobWorkspaceActionResult> completion = new CompletableFuture<>();
+        if (action == null) {
+            completion.complete(BotJobWorkspaceActionResult.failure(null, "Bot Job Details action is required"));
+            return completion;
+        }
+
+        Runnable command = () -> {
+            try {
+                if (selectedBotJob == null
+                        || selectedBotJob.getId() == null
+                        || selectedBotJob.getId() != requestedBotJobId) {
+                    throw new IllegalArgumentException("Bot Job Details action does not match the active Bot Job");
+                }
+                if (componentBox == null) {
+                    throw new IllegalStateException("Bot Job Details workspace is not ready");
+                }
+                if ((action == BotJobWorkspaceAction.SHOW_COMPONENTS
+                                || action == BotJobWorkspaceAction.HIDE_COMPONENTS)
+                        && componentContainer == null) {
+                    throw new IllegalStateException("Components workspace is not ready");
+                }
+                if (action == BotJobWorkspaceAction.SHOW_PRE_SCAN
+                        && !supportsDesktopBrowserTools(selectedBotJob.getPriority())) {
+                    throw new IllegalStateException("Pre Scan is unavailable for this Bot Job type");
+                }
+                if (action == BotJobWorkspaceAction.CLOSE && stage == null) {
+                    throw new IllegalStateException("Bot Job Details window is not available");
+                }
+                if (action == BotJobWorkspaceAction.OPEN_ORGANIZATIONS
+                        && isEnabledLicence
+                        && !com.allinweb.ch.facade.LicenseService.getInstance().isActive()) {
+                    throw new IllegalStateException("An active license is required to manage environments");
+                }
+
+                switch (action) {
+                    case REFRESH -> {
+                        if (!refreshGrids()) {
+                            throw new IllegalStateException("Unable to refresh the Bot Job grids");
+                        }
+                    }
+                    case SHOW_BOT_JOB, HIDE_COMPONENTS -> showBotJobWorkspace();
+                    case SHOW_COMPONENTS -> showComponentsWorkspace();
+                    case SHOW_PRE_SCAN -> showPreScanWorkspace();
+                    case OPEN_ORGANIZATIONS -> openOrganizationManager();
+                    case CLOSE -> closePane();
+                }
+                if (action != BotJobWorkspaceAction.CLOSE) {
+                    botJobDetailsWorkspaceRegistry.updateWorkspace(
+                            selectedBotJob.getId(), activeWorkspaceSurface(), componentsVisible());
+                }
+                completion.complete(BotJobWorkspaceActionResult.success(
+                        action, workspaceActionMessage(action), activeWorkspaceSurface(), componentsVisible()));
+            } catch (Exception error) {
+                completion.complete(BotJobWorkspaceActionResult.failure(action, error.getMessage()));
+            }
+        };
+
+        try {
+            if (Platform.isFxApplicationThread()) {
+                command.run();
+            } else {
+                Platform.runLater(command);
+            }
+        } catch (Exception error) {
+            completion.complete(BotJobWorkspaceActionResult.failure(action, error.getMessage()));
+        }
+        return completion;
+    }
+
+    private void showBotJobWorkspace() {
+        if (componentBox == null) return;
+        componentBox.getChildren().setAll(webViewTasks);
+        HBox.setHgrow(webViewTasks, Priority.ALWAYS);
+        VBox.setVgrow(webViewTasks, Priority.ALWAYS);
+        if (componentContainer != null) {
+            componentContainer.setVisible(false);
+            componentContainer.setManaged(false);
+        }
+        isComponentBoxVisible = false;
+        isPreScannerVisible = false;
+        componentBox.requestLayout();
+    }
+
+    private void reloadReactWorkspaceSurfaces() {
+        if (webEngineTasks != null) webEngineTasks.reload();
+        if (webEngineComp != null) webEngineComp.reload();
+        if (webEnginePreScanner != null) webEnginePreScanner.reload();
+    }
+
+    private void showComponentsWorkspace() {
+        if (componentContainer == null || componentsVisible()) return;
+        componentBox.getChildren().setAll(webViewTasks, componentContainer);
+        HBox.setHgrow(webViewTasks, Priority.ALWAYS);
+        componentContainer.setVisible(true);
+        componentContainer.setManaged(true);
+        isComponentBoxVisible = true;
+        isPreScannerVisible = false;
+        componentBox.requestLayout();
+    }
+
+    private void showPreScanWorkspace() {
+        if (componentBox == null || componentBox.getChildren().contains(webViewPreScanner)) return;
+        componentBox.getChildren().setAll(webViewPreScanner);
+        HBox.setHgrow(webViewPreScanner, Priority.ALWAYS);
+        VBox.setVgrow(webViewPreScanner, Priority.ALWAYS);
+        if (componentContainer != null) {
+            componentContainer.setVisible(false);
+            componentContainer.setManaged(false);
+        }
+        isComponentBoxVisible = false;
+        isPreScannerVisible = true;
+        componentBox.requestLayout();
+    }
+
+    private void openOrganizationManager() {
+        if (stage == null) {
+            throw new IllegalStateException("Bot Job Details window is not available");
+        }
+        organizationManagerScene.showModal(stage);
+    }
+
+    /** Applies persisted React metadata to the active desktop execution context on the FX thread. */
+    public CompletableFuture<Void> applyReactMetadataState(BotJobDetailsState state) {
+        CompletableFuture<Void> completion = new CompletableFuture<>();
+        Runnable apply = () -> {
+            try {
+                if (state == null
+                        || selectedBotJob == null
+                        || selectedBotJob.getId() == null
+                        || selectedBotJob.getId() != state.botJobId()) {
+                    throw new IllegalArgumentException("Metadata does not match the active Bot Job");
+                }
+                selectedBotJob.setName(state.name());
+                selectedBotJob.setDescription(state.description());
+                selectedBotJob.setHomeUrlId(state.homeUrlId());
+                reactEnvironmentUrl = state.environmentUrl();
+                if (stage != null) {
+                    stage.setTitle("Bot Job Details WebSite Id: " + state.homeBankingId()
+                            + " Id: " + state.botJobId());
+                }
+                completion.complete(null);
+            } catch (RuntimeException error) {
+                completion.completeExceptionally(error);
+            }
+        };
+        if (Platform.isFxApplicationThread()) {
+            apply.run();
+        } else {
+            Platform.runLater(apply);
+        }
+        return completion;
+    }
+
+    private boolean componentsVisible() {
+        return componentBox != null
+                && componentContainer != null
+                && componentBox.getChildren().contains(componentContainer);
+    }
+
+    private String activeWorkspaceSurface() {
+        if (componentBox != null && componentBox.getChildren().contains(webViewPreScanner)) return "preScan";
+        if (componentsVisible()) return "components";
+        return "botJob";
+    }
+
+    private static String workspaceActionMessage(BotJobWorkspaceAction action) {
+        return switch (action) {
+            case REFRESH -> "Bot Job grids refreshed";
+            case SHOW_BOT_JOB -> "Bot Job workspace opened";
+            case SHOW_COMPONENTS -> "Components workspace opened";
+            case HIDE_COMPONENTS -> "Components workspace hidden";
+            case SHOW_PRE_SCAN -> "Pre Scan workspace opened";
+            case OPEN_ORGANIZATIONS -> "Organizations opened";
+            case CLOSE -> "Bot Job Details closed";
+        };
     }
 
     public void destroy() {
@@ -2537,31 +2369,6 @@ public class ARViewBotJobPane extends ARPane {
         }
 
         this.payloadEmpty = new PayloadJson(selectedBotJob.getId(), blockId, blockName, 0);
-    }
-
-    private void populateHomeUrlChoiceBox(int homeBankId, int currentHomeUrlId) {
-        // Clear old items
-        homeURLChoiceBox.getItems().clear();
-
-        List<HomeUrlDTO> homeUrlFiltered = performLists.getHomeUrlsByBankId(homeBankId);
-
-        // If list is empty (no real envs), add "No Environment Defined"
-        if (homeUrlFiltered.isEmpty()) {
-            HomeUrlDTO noEnv = new HomeUrlDTO(-1, null, -1, "No Environment Defined");
-            homeURLChoiceBox.getItems().add(noEnv);
-            homeURLChoiceBox.setDisable(true);
-        } else {
-            homeURLChoiceBox.getItems().addAll(homeUrlFiltered);
-            homeURLChoiceBox.setDisable(false);
-
-            // Select the item matching currentHomeUrlId
-            for (HomeUrlDTO item : homeUrlFiltered) {
-                if (item.getId() == currentHomeUrlId) { // assuming getId() returns homeUrlId
-                    homeURLChoiceBox.getSelectionModel().select(item);
-                    break;
-                }
-            }
-        }
     }
 
     private boolean checkLicense() {
@@ -2610,27 +2417,23 @@ public class ARViewBotJobPane extends ARPane {
 
     // 🔹 Method to close the window
     public void closePane() {
-        if (this.stage != null) {
-            Platform.runLater(() -> {
-                this.stage.close();
-                instance = null; // optional reset for singleton
-            });
+        Runnable closeWindow = () -> {
+            Stage currentStage = this.stage;
+            if (currentStage == null) return;
+            markWorkspaceClosed();
+            currentStage.close();
+        };
+        if (Platform.isFxApplicationThread()) {
+            closeWindow.run();
+        } else {
+            Platform.runLater(closeWindow);
         }
     }
 
-    private String nameFileOnWindows(String rawName) {
-        String safeFileName = rawName.replaceAll("[\\\\/:*?\"<>|]", "");
-
-        safeFileName = safeFileName.replaceAll("[\\p{Cntrl}]", "").trim();
-
-        if (safeFileName.isEmpty()) {
-            safeFileName = "default_name";
+    public void markWorkspaceClosed() {
+        if (selectedBotJob != null && selectedBotJob.getId() != null) {
+            botJobDetailsWorkspaceRegistry.close(selectedBotJob.getId());
         }
-
-        if (safeFileName.length() > 100) {
-            safeFileName = safeFileName.substring(0, 100);
-        }
-        return safeFileName;
     }
 
     private void updateNavigationTimeButtonColor(int value) {
@@ -2662,6 +2465,10 @@ public class ARViewBotJobPane extends ARPane {
 
         return normalized.equals(ARPropertyEnum.ANDROID.getValue().toLowerCase())
                 || normalized.equals(ARPropertyEnum.IOS.getValue().toLowerCase());
+    }
+
+    private boolean supportsDesktopBrowserTools(String priority) {
+        return isWebApp(priority) || "Rest Api".equalsIgnoreCase(priority == null ? "" : priority.trim());
     }
 
     private TextField createPathTextField(ARPropertyEnum property) {

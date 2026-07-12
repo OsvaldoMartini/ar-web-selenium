@@ -9,8 +9,6 @@ import com.allinweb.ch.model.ElementDTO;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.google.gson.GsonBuilder;
-import java.io.File;
-import java.io.FileInputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -20,6 +18,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
+import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.api.parallel.Isolated;
 
 /**
  * Playwright-only Page Scanner diagnostic for the BancaStato contact form.
@@ -30,37 +30,36 @@ import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
  * mvn -Dtest=BancaStatoPageScannerPlaywrightIT -DbancastatoScannerIT=true test
  * </pre>
  */
+@Isolated("Mutates ARPropertyManager and ARWebDriver singletons")
 class BancaStatoPageScannerPlaywrightIT {
 
-    private static final String DEFAULT_WEB_CONFIG_FILE_PATH =
-            "D:\\Projects\\ARWebBancaStato\\Config-4.2\\ARWeb.config";
-    private static final String DEFAULT_DB_FOLDER = "D:\\Projects\\ARWebBancaStato\\ARWeb";
     private static final String ENDPOINT = "https://www.bancastato.ch/supporto-e-contatti/formulario-di-contatto";
     private static final String TEXTAREA_TEST_VALUE = "dddsddfff";
 
     private final ARPropertyManager properties = ARPropertyManager.getInstance();
+    private BancaStatoIsolatedFixture fixture;
+
+    @TempDir
+    Path tempDirectory;
 
     @AfterEach
     void closePlaywright() {
         try {
-            ARWebDriver.getInstance().getPlaywrightDriver().close();
+            ARWebDriver.getInstance().closeCurrentDriver();
         } catch (Exception ignored) {
             // Best-effort diagnostic cleanup.
+        } finally {
+            if (fixture != null) {
+                fixture.close();
+            }
         }
     }
 
     @BeforeEach
     void loadConfig() throws Exception {
-        String configPath =
-                System.getProperty("arweb.config", System.getProperty("ARWebConfig", DEFAULT_WEB_CONFIG_FILE_PATH));
-        File configFile = new File(configPath);
-        System.setProperty("ARWebConfig", configFile.getAbsolutePath());
-        properties.setConfigurationFileName(configPath);
-        try (FileInputStream fis = new FileInputStream(configFile)) {
-            properties.loadProperties(fis);
-        }
-        Path database = Path.of(defaultDatabaseFolder(), "database.db");
-        assertTrue(Files.exists(database), "Expected BancaStato database at " + database);
+        fixture = BancaStatoIsolatedFixture.create(tempDirectory);
+        fixture.activate(properties);
+        assertTrue(Files.exists(fixture.databaseFile()), "Expected isolated BancaStato database snapshot");
     }
 
     @Test
@@ -68,8 +67,7 @@ class BancaStatoPageScannerPlaywrightIT {
     void scansBancaStatoContactFormAndWritesElementDtoJson() throws Exception {
         ARPlaywrightDriver driver = ARWebDriver.getInstance().getPlaywrightDriver();
         String browserType = properties.getProperty(ARPropertyEnum.BROWSER);
-        String optionsConfig = "";
-        driver.openOrNavigate(browserType, ENDPOINT, optionsConfig);
+        driver.openReadOnlyDiagnostic(browserType, ENDPOINT, false);
 
         driver.evaluate(
                 """
@@ -86,7 +84,9 @@ class BancaStatoPageScannerPlaywrightIT {
                 TEXTAREA_TEST_VALUE);
 
         List<ElementDTO> elements = driver.scanElements(new String[] {"textarea"}, true);
-        Path output = Path.of(System.getProperty("bancastatoScannerOutput", defaultScannerOutputPath()));
+        Path output = Path.of(System.getProperty(
+                "bancastatoScannerOutput", fixture.diagnosticsFolder().resolve("elementDTO-PS.json").toString()));
+        fixture.requireIsolatedOutput(output);
         ElementDTO[] asArray = elements.toArray(new ElementDTO[0]);
         ElementTextResolver.resolveAll(asArray, null, null);
         Files.createDirectories(output.getParent());
@@ -125,13 +125,4 @@ class BancaStatoPageScannerPlaywrightIT {
         return value == null ? "" : value.toLowerCase(Locale.ROOT);
     }
 
-    private String defaultScannerOutputPath() {
-        return Path.of(defaultDatabaseFolder(), "page_diagnostics", "elementDTO-PS.json")
-                .toString();
-    }
-
-    private String defaultDatabaseFolder() {
-        String dbFolder = properties.getProperty(ARPropertyEnum.PATH_DB);
-        return dbFolder == null || dbFolder.isBlank() ? DEFAULT_DB_FOLDER : dbFolder;
-    }
 }

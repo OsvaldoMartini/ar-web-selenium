@@ -13,8 +13,10 @@ import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
 import com.microsoft.playwright.TimeoutError;
 import com.microsoft.playwright.options.LoadState;
+import com.microsoft.playwright.options.ServiceWorkerPolicy;
 import com.microsoft.playwright.options.ViewportSize;
 import com.microsoft.playwright.options.WaitUntilState;
+import java.net.URI;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -92,6 +94,73 @@ public class ARPlaywrightDriver {
             navigateDomReady(requirePage(), url);
             return null;
         });
+    }
+
+    /**
+     * Opens a fresh, best-effort read-only diagnostic context for one target origin.
+     *
+     * <p>No database-derived browser flags are accepted. Service workers and browser-side streaming
+     * transports are disabled; only GET/HEAD/OPTIONS requests to the target's exact origin are
+     * resumed. Callers must still avoid live clicks because a GET endpoint can itself mutate server
+     * state. The context is closed normally through {@link #close()}.
+     */
+    public void openReadOnlyDiagnostic(String browserType, String url, boolean headless) {
+        run(() -> {
+            closeInternal();
+            URI allowedOrigin = URI.create(url);
+            playwright = Playwright.create();
+            browser = launchBrowser(browserType, "", headless);
+            context = browser.newContext(new Browser.NewContextOptions()
+                    .setBypassCSP(false)
+                    .setServiceWorkers(ServiceWorkerPolicy.BLOCK)
+                    .setViewportSize(null));
+            context.addInitScript(
+                    """
+                    (() => {
+                      const blocked = name => class {
+                        constructor() { throw new DOMException(name + ' disabled in read-only diagnostics'); }
+                      };
+                      Object.defineProperty(window, 'WebSocket', { value: blocked('WebSocket'), configurable: false });
+                      Object.defineProperty(window, 'EventSource', { value: blocked('EventSource'), configurable: false });
+                      if ('WebTransport' in window) {
+                        Object.defineProperty(window, 'WebTransport', { value: blocked('WebTransport'), configurable: false });
+                      }
+                    })();
+                    """);
+            context.route("**/*", route -> {
+                String method = route.request().method().toUpperCase(Locale.ROOT);
+                boolean safeMethod = "GET".equals(method) || "HEAD".equals(method) || "OPTIONS".equals(method);
+                if (safeMethod && sameOrigin(allowedOrigin, route.request().url())) {
+                    route.resume();
+                } else {
+                    log.warn("[pw-diagnostic-guard] blocked {} {}", method, route.request().url());
+                    route.abort();
+                }
+            });
+            attachContextTracking();
+            page = context.newPage();
+            attachDiagnostics(page);
+            navigateDomReady(page, url);
+            return null;
+        });
+    }
+
+    private static boolean sameOrigin(URI allowedOrigin, String candidateUrl) {
+        try {
+            URI candidate = URI.create(candidateUrl);
+            return Objects.equals(allowedOrigin.getScheme(), candidate.getScheme())
+                    && Objects.equals(allowedOrigin.getHost(), candidate.getHost())
+                    && effectivePort(allowedOrigin) == effectivePort(candidate);
+        } catch (IllegalArgumentException invalidUrl) {
+            return false;
+        }
+    }
+
+    private static int effectivePort(URI uri) {
+        if (uri.getPort() >= 0) return uri.getPort();
+        if ("https".equalsIgnoreCase(uri.getScheme())) return 443;
+        if ("http".equalsIgnoreCase(uri.getScheme())) return 80;
+        return -1;
     }
 
     public void goBack() {

@@ -3,7 +3,6 @@ package com.allinweb.ch.runner;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
 
 import com.allinweb.ch.driver.ARPlaywrightDriver;
 import com.allinweb.ch.driver.ARWebDriver;
@@ -12,7 +11,6 @@ import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.model.BlockLoadDTO;
 import com.allinweb.ch.model.BotJobLoadDTO;
-import com.allinweb.ch.model.FieldData;
 import com.allinweb.ch.model.HomeBankingLoadDTO;
 import com.allinweb.ch.model.HomeUrlDTO;
 import com.allinweb.ch.model.InstructionLoad;
@@ -22,8 +20,6 @@ import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.allinweb.ch.util.ErrorMessage;
 import com.google.common.base.Strings;
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
@@ -36,23 +32,25 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
+import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.api.parallel.Isolated;
 
 /**
  * DB-backed direct bot-job test for the BancaStato contact form.
  *
- * <p>This is intentionally disabled by default because it opens a real browser, uses the configured
- * local database, and hits a live website. Enable explicitly with:
+ * <p>This is intentionally disabled by default because it opens a real browser and hits a live
+ * website. It loads a sanitized config and consistent SQLite snapshot under the JUnit temporary
+ * directory; the production reference files remain read-only. Click/fill actions are always
+ * dry-run locator checks; mutating action coverage belongs to {@link BancaStatoLocalhostPlaywrightIT}.
+ * Enable the safe diagnostic with:
  *
  * <pre>
  * mvn -Dtest=BancaStatoBotJobPlaywrightIT -DbancastatoIT=true test
  * </pre>
  */
+@Isolated("Mutates ARPropertyManager, ARWebDriver, and PerformLists singletons")
 class BancaStatoBotJobPlaywrightIT {
 
-    private static final String DEFAULT_WEB_CONFIG_FILE_PATH =
-            "D:\\Projects\\ARWebBancaStato\\Config-4.2\\ARWeb.config";
-    private static final String DEFAULT_DB_FOLDER = "D:\\Projects\\ARWebBancaStato\\ARWeb";
-    private static final String CONFIG_PROPERTY = "arweb.config";
     private static final int HOME_BANKING_ID = 2;
     private static final int BOT_JOB_ID = 5;
     private static final int BLOCK_ORDER_NUMBER = 1;
@@ -62,29 +60,28 @@ class BancaStatoBotJobPlaywrightIT {
     private final PerformDataBase performDataBase = PerformDataBase.getInstance();
     private final PerformLists performLists = PerformLists.getInstance();
     private final ARPropertyManager properties = ARPropertyManager.getInstance();
+    private BancaStatoIsolatedFixture fixture;
+
+    @TempDir
+    Path tempDirectory;
 
     @BeforeEach
-    void loadBancaStatoTestConfiguration() {
-        String configPath = System.getProperty(CONFIG_PROPERTY, DEFAULT_WEB_CONFIG_FILE_PATH);
-        File configFile = new File(configPath);
-        if (!configFile.exists()) {
-            properties.setConfigurationFileName(configPath);
-            properties.createDefaultProperties(configFile);
-        }
-
-        properties.setConfigurationFileName(configPath);
-        try (FileInputStream fis = new FileInputStream(configFile)) {
-            properties.loadProperties(fis);
-        } catch (IOException error) {
-            fail("Failed to load BancaStato test config from " + configPath + ": " + error.getMessage());
-        }
-        ensureBancaStatoDatabaseFallback();
+    void loadBancaStatoTestConfiguration() throws Exception {
+        fixture = BancaStatoIsolatedFixture.create(tempDirectory);
+        fixture.activate(properties);
     }
 
     @AfterEach
     void closeBrowser() {
-        System.out.println("Leaving Playwright browser open after BancaStato diagnostic test.");
-        holdBrowserOpenWhenRequested();
+        try {
+            holdBrowserOpenWhenRequested();
+            ARWebDriver.getInstance().closeCurrentDriver();
+        } finally {
+            performLists.clearAllLists();
+            if (fixture != null) {
+                fixture.close();
+            }
+        }
     }
 
     @Test
@@ -144,9 +141,6 @@ class BancaStatoBotJobPlaywrightIT {
 
     private String runPlaywrightDiagnostic(BotJobLoadDTO botJob, BlockLoadDTO block, List<InstructionLoad> instructions)
             throws Exception {
-        HomeBankingLoadDTO homeBanking = performLists.getHomeBankingById(botJob.getHomeBankingId());
-        String optionsConfig =
-                homeBanking != null && homeBanking.getOptionsConfig() != null ? homeBanking.getOptionsConfig() : "";
         String browserType = properties.getProperty(ARPropertyEnum.BROWSER);
         ARPlaywrightDriver driver = ARWebDriver.getInstance().getPlaywrightDriver();
 
@@ -184,10 +178,10 @@ class BancaStatoBotJobPlaywrightIT {
         int succeeded = 0;
         int failed = 0;
         int unsupported = 0;
-
         try {
-            driver.openOrNavigate(browserType, ENDPOINT, optionsConfig);
+            driver.openReadOnlyDiagnostic(browserType, ENDPOINT, false);
             report.append("openedUrl: ").append(driver.currentUrl()).append('\n');
+            report.append("liveActionsEnabled: false (read-only diagnostic)\n");
 
             for (InstructionLoad instruction : instructions) {
                 attempted++;
@@ -201,15 +195,12 @@ class BancaStatoBotJobPlaywrightIT {
                     switch (action) {
                         case ARConstantsEngine.CLICK:
                         case ARConstantsEngine.OTHER:
-                            ok = driver.click(instruction);
-                            detail = ok ? "click returned true" : "click returned false";
+                            ok = hasResolvableLocator(locatorStatus);
+                            detail = "read-only diagnostic; click was not executed";
                             break;
                         case ARConstantsEngine.INSERT:
-                            String value = Strings.isNullOrEmpty(instruction.getDefaultValue())
-                                    ? "test"
-                                    : instruction.getDefaultValue();
-                            ok = driver.fill(instruction, new FieldData(instruction.getName(), value));
-                            detail = ok ? "fill returned true value=" + value : "fill returned false";
+                            ok = hasResolvableLocator(locatorStatus);
+                            detail = "read-only diagnostic; fill was not executed";
                             break;
                         case ARConstantsEngine.OUTPUT:
                             String text = driver.text(instruction);
@@ -331,16 +322,6 @@ class BancaStatoBotJobPlaywrightIT {
         }
     }
 
-    private void ensureBancaStatoDatabaseFallback() {
-        Path dbFile = Path.of(DEFAULT_DB_FOLDER, "database.db");
-        String configuredPath = properties.getProperty(ARPropertyEnum.PATH_DB);
-        Path configuredDbFile = Strings.isNullOrEmpty(configuredPath) ? null : Path.of(configuredPath, "database.db");
-        if (Files.exists(dbFile) && (configuredDbFile == null || !Files.exists(configuredDbFile))) {
-            properties.setProperty(ARPropertyEnum.PATH_DB.getValue(), DEFAULT_DB_FOLDER);
-            properties.setProperty(ARPropertyEnum.DATABASE_TYPE.getValue(), "TEXT");
-        }
-    }
-
     private void forcePlaywrightOnly() {
         properties.setProperty(ARPropertyEnum.USE_PLAYWRIGHT.getValue(), "true");
         properties.setProperty(ARPropertyEnum.PLAYWRIGHT_SELENIUM_FALLBACK.getValue(), "false");
@@ -391,9 +372,13 @@ class BancaStatoBotJobPlaywrightIT {
         }
         List<String> values = new ArrayList<>();
         for (ReferenceLoadDTO ref : refs) {
-            values.add(nullToBlank(ref.getReferenceType()) + "=" + nullToBlank(ref.getValue()));
+            values.add(nullToBlank(ref.getReferenceType()) + "=(redacted)");
         }
         return String.join(" | ", values);
+    }
+
+    private static boolean hasResolvableLocator(String locatorStatus) {
+        return locatorStatus != null && locatorStatus.contains("=true");
     }
 
     private static List<ReferenceLoadDTO> safeReferences(InstructionLoad instruction) {
@@ -431,7 +416,7 @@ class BancaStatoBotJobPlaywrightIT {
     }
 
     private static void holdBrowserOpenWhenRequested() {
-        if (!Boolean.parseBoolean(System.getProperty("bancastatoKeepBrowserOpen", "true"))) {
+        if (!Boolean.parseBoolean(System.getProperty("bancastatoKeepBrowserOpen", "false"))) {
             return;
         }
         System.out.println("BancaStato Playwright browser is still open. Press Enter here to finish the test.");

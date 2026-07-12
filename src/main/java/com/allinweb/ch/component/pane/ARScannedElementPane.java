@@ -3197,7 +3197,8 @@ public class ARScannedElementPane extends ARPane {
         return inputElements;
     }
 
-    private void recallJob() {
+    private boolean recallJob() {
+        boolean submitted = false;
         if (isJobRunning.compareAndSet(false, true)) {
             try {
                 //                startScreenshotLoop();
@@ -3223,6 +3224,7 @@ public class ARScannedElementPane extends ARPane {
                         reenableLaunchButton();
                     }
                 });
+                submitted = true;
             } catch (Exception e) {
                 isJobRunning.set(false);
                 stopScreenshotLoop();
@@ -3240,17 +3242,19 @@ public class ARScannedElementPane extends ARPane {
             performActions.updateWindowHandlesList();
             updateButtonState();
         }
+        return submitted;
     }
 
     /**
-     * TEST RUN — run ONE selected block through the full pre-launch engine ({@link #executeJob()})
-     * inside the single Playwright browser (no Selenium browser, no external AR_Web_Engine.jar).
+     * TEST RUN — run either all blocks from a selected starting point or ONE selected block through
+     * the full pre-launch engine ({@link #executeJob()}) inside the single Playwright browser (no
+     * Selenium browser, no external AR_Web_Engine.jar).
      *
      * <p>Mirrors the "Launch" button's preload sequence, but differs in three ways: (a) it opens
      * the Playwright driver itself (Launch assumes scanning already opened a browser); (b) it starts
-     * at the selected block ({@code executeSpecificBlock}) and stops after it ({@link #runSingleBlock});
-     * (c) it tolerates a missing Excel file by injecting the synthetic {@code $EMPTY} row, since
-     * GEN FLOW navigation blocks carry no data.
+     * at the selected block ({@code executeSpecificBlock}) and can stop after it ({@link
+     * #runSingleBlock}); (c) it tolerates a missing Excel file by injecting the synthetic {@code
+     * $EMPTY} row, since GEN FLOW navigation blocks carry no data.
      *
      * <p>Safe to invoke from a background worker thread — the actual job runs on
      * {@code executorServicePreLaunch} via {@link #recallJob()}.
@@ -3259,15 +3263,19 @@ public class ARScannedElementPane extends ARPane {
      * @param blockOrderNumber 1-based block order number of the block to run
      * @param endpointUrl      environment URL selected in the pane (informational; the run URL is
      *                         resolved from the loaded home-URL row, exactly like Launch)
+     * @param runSingleBlock   when true, stop after the selected block; when false, continue through
+     *                         every remaining block
+     * @return true when the job was accepted and submitted; false when startup was rejected
      */
-    public void testRunBlockPlaywright(BotJobLoadDTO botJob, int blockOrderNumber, String endpointUrl) {
+    public boolean testRunBlockPlaywright(
+            BotJobLoadDTO botJob, int blockOrderNumber, String endpointUrl, boolean runSingleBlock) {
         if (botJob == null) {
             log.error("TEST RUN — no bot job supplied");
-            return;
+            return false;
         }
         if (isJobRunning.get()) {
             log.info("TEST RUN — a job is already running; ignoring request.");
-            return;
+            return false;
         }
 
         if (this.currentARWebDriver == null) {
@@ -3286,7 +3294,7 @@ public class ARScannedElementPane extends ARPane {
         }
 
         executeSpecificBlock = blockOrderNumber < 0 ? 0 : blockOrderNumber - 1;
-        runSingleBlock = true;
+        this.runSingleBlock = runSingleBlock;
 
         clearFields();
 
@@ -3316,20 +3324,25 @@ public class ARScannedElementPane extends ARPane {
 
         if (errorMessage != null) {
             log.error("TEST RUN — load error: {}", errorMessage.getErrorMessage());
-            runSingleBlock = false;
-            return;
+            this.runSingleBlock = false;
+            return false;
         }
         if (performLists.getListBotJob().isEmpty()) {
             log.error("TEST RUN — cannot find bot job with id: {}", this.currentBotJob.getId());
-            runSingleBlock = false;
-            return;
+            this.runSingleBlock = false;
+            return false;
+        }
+        if (blocksLoaded == null || blocksLoaded.isEmpty()) {
+            log.error("TEST RUN — bot job has no loaded executable blocks: {}", this.currentBotJob.getId());
+            this.runSingleBlock = false;
+            return false;
         }
 
         HomeBankingLoadDTO homeBanking = performLists.getHomeBankingById(this.currentBotJob.getHomeBankingId());
         if (homeBanking == null || StringUtils.isNullOrEmpty(homeBanking.getUrl())) {
             log.error("TEST RUN — cannot find home banking env id: {}", this.currentBotJob.getHomeBankingId());
-            runSingleBlock = false;
-            return;
+            this.runSingleBlock = false;
+            return false;
         }
 
         currentBotJob = performLists.getListBotJob().get(0);
@@ -3375,8 +3388,8 @@ public class ARScannedElementPane extends ARPane {
         // Open the single Playwright browser (Launch relies on scanning having opened it already).
         if (!openWebDriver(true)) {
             log.error("TEST RUN — failed to open the Playwright browser");
-            runSingleBlock = false;
-            return;
+            this.runSingleBlock = false;
+            return false;
         }
 
         // Reset executed flags and run the selected block through the full engine.
@@ -3384,7 +3397,11 @@ public class ARScannedElementPane extends ARPane {
                 .flatMap(block -> block.getInstructionLoad().stream())
                 .forEach(instruction -> instruction.setExecuted(false));
 
-        recallJob();
+        boolean submitted = recallJob();
+        if (!submitted && !isJobRunning.get()) {
+            this.runSingleBlock = false;
+        }
+        return submitted;
     }
 
     /**
