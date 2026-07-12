@@ -2250,6 +2250,13 @@ public class SimpleWebSocketServer {
                     errorMessage = performDataBase.deleteBlockGraphAtomic(blockTable, whereId, splitDTO.getBlockId());
                     if (errorMessage == null) errorMessage = performDataBase.loadInstructions(whereId, -1, -1, instrTable);
                     if (errorMessage == null) errorMessage = performDataBase.loadBlocks(whereId, "", blockTable);
+                    // loadInstructions/loadBlocks refresh only the GLOBAL lists; the
+                    // updateInstructions snapshot pushed below is built from the NESTED
+                    // listBotJob.blockLoadDTOList (buildJsonViewData), so the deleted
+                    // block must be evicted there too or it reappears on the board.
+                    if (errorMessage == null) {
+                        performLists.updateMemoryRemoveBlockIds(blockTable, whereId, List.of(splitDTO.getBlockId()));
+                    }
                     if (errorMessage == null) rememberCompletedRequest(processedBlockDeletes, blockDeleteRequestId);
 
                     // calls perform list block update
