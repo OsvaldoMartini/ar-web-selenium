@@ -58,6 +58,20 @@ public class PlaywrightElementScanner {
                   .replace(/([a-z])([A-Z])/g, '$1 $2'));
               }
 
+              function looksGeneratedToken(text) {
+                const raw = (text || '').trim();
+                if (!raw) return false;
+                // Machine values must never become element names:
+                // - path-style framework names: __pagevalue__/0/11/0/43/...
+                if (/\\/\\d/.test(raw)) return true;
+                // - opaque tokens (CSRF, base64-serialized state): long separator-free
+                //   alnum runs mixing letters and digits
+                if (raw.length >= 16 && /^[A-Za-z0-9+\\/=]+$/.test(raw) && /\\d/.test(raw) && /[A-Za-z]/.test(raw)) return true;
+                // - framework id counters: aw-id-gen-32, ctl00_7, auto-id-3
+                if (/\\d+$/.test(raw) && /(?:^|[-_])(?:id|gen|auto|uid|guid|ctl\\d*)(?:[-_]|\\d|$)/i.test(raw)) return true;
+                return false;
+              }
+
               function usefulText(text, el, kind) {
                 const cleaned = cleanText(text);
                 if (!cleaned) return '';
@@ -80,7 +94,9 @@ public class PlaywrightElementScanner {
               function semanticAttributeText(el) {
                 const attrs = ['data-testid', 'data-test-id', 'test-id', 'data-cy', 'data-qa', 'aria-controls', 'name', 'id'];
                 for (const attrName of attrs) {
-                  const text = semanticToken(el.getAttribute(attrName) || '');
+                  const rawValue = el.getAttribute(attrName) || '';
+                  if (looksGeneratedToken(rawValue)) continue;
+                  const text = semanticToken(rawValue);
                   if (isUsefulSemanticToken(text)) return text;
                 }
 
@@ -145,7 +161,10 @@ public class PlaywrightElementScanner {
 
               function isVisibleEnough(el, tag) {
                 if (includeHidden) return true;
-                if (tag === 'input' && (el.type || '').toLowerCase() === 'hidden') return true;
+                // type=hidden inputs are framework state (Avaloq: componentstate, events,
+                // pageresponse, param1..5, xpos/ypos, CSRF + serialized rO0AB... blobs) —
+                // never scan them unless the user opted into hidden fields above.
+                if (tag === 'input' && (el.type || '').toLowerCase() === 'hidden') return false;
                 const style = window.getComputedStyle(el);
                 const rect = el.getBoundingClientRect();
                 return rect.width > 0
@@ -200,6 +219,19 @@ public class PlaywrightElementScanner {
                     if (text) return text;
                   }
 
+                  // Header-style labels are NOT <label> elements (Avaloq awInfobox: the
+                  // ..._header div with <span class='awLabel'>E-mail address</span> precedes
+                  // the ..._content div holding the input). Accept a preceding sibling's
+                  // text only when the sibling carries no form controls itself — otherwise
+                  // the previous form ROW would donate its label to this element.
+                  if (previous && !previous.querySelector('input, textarea, select, button, [contenteditable]')) {
+                    const headerText = cleanText(previous.innerText || previous.textContent);
+                    if (headerText && headerText.length <= 80) {
+                      const text = usefulText(headerText, el, kind);
+                      if (text) return text;
+                    }
+                  }
+
                   const container = current.closest?.('.form-field, [data-slot="form-item"], [class*="form-field"], [id]');
                   if (container) {
                     const labels = Array.from(container.querySelectorAll('label'));
@@ -216,8 +248,12 @@ public class PlaywrightElementScanner {
                     }
 
                     const containerId = container.getAttribute('id');
-                    const human = humanizeToken(containerId);
-                    if (human && !['div', 'input', 'textarea', 'button', 'select'].includes(human.toLowerCase())) return human;
+                    // Generated container ids (aw-id-gen-1) must not name the element —
+                    // skipping here lets the loop climb to the real header at higher depth.
+                    if (containerId && !looksGeneratedToken(containerId)) {
+                      const human = humanizeToken(containerId);
+                      if (human && !['div', 'input', 'textarea', 'button', 'select'].includes(human.toLowerCase())) return human;
+                    }
                   }
                 }
 
@@ -226,7 +262,8 @@ public class PlaywrightElementScanner {
                 if (ownText) return ownText;
                 const semantic = semanticAttributeText(el);
                 if (semantic) return semantic;
-                return humanizeToken(el.getAttribute('name') || el.id || '');
+                const fallback = [el.getAttribute('name'), el.id].find(v => v && !looksGeneratedToken(v));
+                return humanizeToken(fallback || '');
               }
 
               function inputType(el) {
