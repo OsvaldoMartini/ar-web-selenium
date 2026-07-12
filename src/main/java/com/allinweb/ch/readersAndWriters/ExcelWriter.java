@@ -1,5 +1,7 @@
 package com.allinweb.ch.readersAndWriters;
 
+import com.allinweb.ch.driver.ARPlaywrightDriver;
+import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.model.CsvTable;
 import com.allinweb.ch.model.FieldData;
 import com.allinweb.ch.util.ARConstantsEngine;
@@ -646,11 +648,18 @@ public class ExcelWriter {
 
         public ManagedExcelAction insertScreenshotAtCoordinates(int rowIndex, int columnIndex, WebDriver driver) {
             try {
-                // Capture screenshot using WebDriver's TakesScreenshot interface
-                File screenshot = ((TakesScreenshot) driver).getScreenshotAs(OutputType.FILE);
-
-                // Read the screenshot file into byte array
-                byte[] bytes = Files.readAllBytes(screenshot.toPath());
+                byte[] bytes;
+                if (driver instanceof TakesScreenshot takesScreenshot) {
+                    File screenshot = takesScreenshot.getScreenshotAs(OutputType.FILE);
+                    bytes = Files.readAllBytes(screenshot.toPath());
+                } else {
+                    ARPlaywrightDriver playwrightDriver = ARWebDriver.getInstance().getPlaywrightDriver();
+                    if (playwrightDriver == null || !playwrightDriver.isOpen()) {
+                        log.warn("Skipping report screenshot: neither Selenium nor Playwright is available");
+                        return this;
+                    }
+                    bytes = playwrightDriver.screenshot(false);
+                }
 
                 // Add picture to workbook
                 int pictureIdx = workbook.addPicture(bytes, Workbook.PICTURE_TYPE_PNG);
@@ -671,8 +680,9 @@ public class ExcelWriter {
                 Row row = getOrCreateRow(rowIndex);
                 getOrCreateColumnCell(row, columnIndex);
                 row.setHeightInPoints(300);
-            } catch (IOException e) {
-                log.info(e.getMessage());
+            } catch (Exception e) {
+                // A diagnostic screenshot must never change the instruction result or abort a job.
+                log.warn("Could not add report screenshot: {}", e.getMessage());
             }
             return this;
         }
