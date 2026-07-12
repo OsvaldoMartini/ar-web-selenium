@@ -199,6 +199,18 @@ public class PlaywrightElementScanner {
                 const placeholderText = usefulText(placeholder, el, kind);
                 if (placeholderText) return placeholderText;
 
+                // Icon-only clickables carry their meaning in the sprite reference
+                // (<use xlink:href='#ext.defaulticons.languagefrempty-32'>) - the last
+                // dotted segment is the only distinguishing name available. Checked before
+                // the label hunt so a neighbouring header cannot mislabel the icon.
+                if ((kind || '') === 'icon-button') {
+                  const use = el.querySelector('use');
+                  const href = use?.getAttribute('xlink:href') || use?.getAttribute('href') || '';
+                  const fragment = (href.split('#').pop() || '').split('.').pop() || '';
+                  const iconName = humanizeToken(fragment.replace(/-?\\d+$/, ''));
+                  if (iconName) return iconName;
+                }
+
                 // Self-labeled elements (buttons, links, options, labels...) carry their
                 // own visible text - that IS the name. Only unlabeled form controls
                 // (input/textarea/select) need the label hunt below. Without this gate the
@@ -293,6 +305,12 @@ public class PlaywrightElementScanner {
                 if (role === 'switch') return 'switch-option';
                 if (tag.startsWith('mat-')) return tag.replace('mat-', '') + '-option';
                 if (tag === 'svg' || tag === 'mat-icon') return 'icon-button';
+                // Icon-only wrappers (Avaloq language flags: <span class='awIcon'><svg><use ...>)
+                // have no native semantics but ARE the click targets. Direct-child svg only —
+                // a deep query would also flag the layout div wrapping a row of icons.
+                if ((tag === 'span' || tag === 'div') && !(el.innerText || '').trim() && el.querySelector(':scope > svg')) return 'icon-button';
+                // Pure text leaves (awLabel header spans) are readable values, not containers.
+                if ((tag === 'span' || tag === 'label') && el.childElementCount === 0 && (el.textContent || '').trim()) return 'output-text';
                 return role || tag;
               }
 
@@ -305,6 +323,10 @@ public class PlaywrightElementScanner {
                   'button', 'select', 'select-option', 'checkbox-option', 'radio-option', 'switch-option',
                   'menu-option', 'tree-option', 'tab-option', 'calendar-day-option', 'file-upload', 'icon-button'
                 ].includes(kind)) return 'button';
+                if (kind === 'output-text') {
+                  // A text leaf inside a clickable is the clickable's caption, not a value.
+                  return el.closest('button, a, [role="button"], [role="link"]') ? 'button' : 'output';
+                }
                 if (['button', 'link', 'option', 'menuitem', 'tab', 'checkbox', 'radio', 'switch', 'treeitem', 'combobox'].includes(role)) return 'button';
                 if (el.hasAttribute('aria-haspopup')) return 'button';
                 if (['button', 'a', 'select', 'option'].includes(tag)) return 'button';
