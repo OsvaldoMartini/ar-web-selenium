@@ -11,6 +11,7 @@ import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.executors.AppExecutors;
 import com.allinweb.ch.executors.ExecutorsManager;
 import com.allinweb.ch.facade.*;
+import com.allinweb.ch.facade.actions.InstructionGraph;
 import com.allinweb.ch.model.*;
 import com.allinweb.ch.readersAndWriters.ExcelReader;
 import com.allinweb.ch.readersAndWriters.ExcelWriter;
@@ -4679,6 +4680,8 @@ public class ARScannedElementPane extends ARPane {
 
                     //                executionTimes++;
                     boolean jumpGoto = false;
+                    boolean forwardGoto = false;
+                    int forwardGotoTargetIndex = -1;
                     boolean jumpLoop = false;
                     boolean jumpGotoError = false;
                     boolean jumpLoopError = false;
@@ -5000,6 +5003,13 @@ public class ARScannedElementPane extends ARPane {
                                     success = false;
                                     jumpGotoError = true;
                                     jumpGoto = true;
+                                } else if ((forwardGotoTargetIndex = InstructionGraph.gotoTargetIndex(msgInstruction))
+                                        > currentBlockOrder) {
+                                    // A forward GOTO is a branch, not a bounded backwards loop. A
+                                    // count of 1 must enter the destination block once.
+                                    jumpGoto = true;
+                                    jumpGotoError = false;
+                                    forwardGoto = true;
                                 } else if (!mapLoops.containsKey(msgInstruction.getKey())) {
                                     jumpGoto = true;
                                     jumpGotoError = false;
@@ -5110,6 +5120,26 @@ public class ARScannedElementPane extends ARPane {
                                     if (currentLoop > 0) {
                                         jumpLoop = true;
                                         refreshLoop = false;
+                                    } else if (forwardGoto) {
+                                        currentBlockOrder = forwardGotoTargetIndex;
+                                        currentInstruction.setExecuted(true);
+                                        failedMessage = "";
+                                        success = true;
+
+                                        performActions.logAndReport(
+                                                currentCondition,
+                                                true,
+                                                true,
+                                                currentInstructionStartTime,
+                                                blockReportName,
+                                                true,
+                                                actions,
+                                                msgInstruction,
+                                                dataExcel,
+                                                writerReport,
+                                                mainMsg,
+                                                finalLogMessage(failedMessage, resultActions));
+                                        continue blockLoop;
                                     } else {
 
                                         jumpLoop = false;

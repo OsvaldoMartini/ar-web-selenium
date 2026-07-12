@@ -221,6 +221,17 @@ public final class InstructionGraph {
         return -1;
     }
 
+    public static int gotoTargetIndex(FieldData gotoDetails) {
+        if (gotoDetails == null || gotoDetails.getKey() == null) return -1;
+        try {
+            String[] parts = gotoDetails.getKey().split(":", 4);
+            if (parts.length < 3) return -1;
+            return Integer.parseInt(parts[2]) - 1;
+        } catch (NumberFormatException invalidOrder) {
+            return -1;
+        }
+    }
+
     public static FieldData getInstructionDetailsById(
             List<InstructionLoad> InstructionLoadS, InstructionLoad currentInstruction) {
         for (InstructionLoad instParent : InstructionLoadS) {

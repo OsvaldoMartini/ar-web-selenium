@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.allinweb.ch.model.ElementDTO;
+import com.allinweb.ch.model.FieldData;
 import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.util.ARConstantsEngine;
 import java.util.List;
@@ -11,6 +12,28 @@ import org.junit.jupiter.api.Test;
 
 /** Verifies execution adopts a popup and Page Scanner operations use that same active tab. */
 class PlaywrightNewTabScannerTest {
+
+    @Test
+    void ordinaryClickAndInputContinueOnCurrentTab() {
+        ARPlaywrightDriver driver = new ARPlaywrightDriver();
+        try {
+            driver.open(ARConstantsEngine.EDGE, "about:blank", "");
+            driver.setContent("""
+                    <input id="name" /><button id="save" onclick="this.dataset.clicked='yes'">Save</button>
+                    """);
+            InstructionLoad input = new InstructionLoad();
+            input.setCssSelector("#name");
+            InstructionLoad click = new InstructionLoad();
+            click.setCssSelector("#save");
+
+            assertTrue(driver.fill(input, new FieldData("Test", "working")));
+            assertTrue(driver.click(click));
+            assertEquals(1, driver.pageCount());
+            assertTrue(driver.content().contains("data-clicked=\"yes\""));
+        } finally {
+            driver.close();
+        }
+    }
 
     @Test
     void clickAdoptsNewTabAndScannerReadsItsElements() {
