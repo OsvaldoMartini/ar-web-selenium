@@ -44,7 +44,7 @@ public class ARMainDashboardPane extends ARPane {
     private static final Gson gson = new Gson();
     private static final ARConfigurationScene arConfigurationScene = ARConfigurationScene.getInstance();
     private static final ARConfigManagerScene arConfigManagerScene = ARConfigManagerScene.getInstance();
-    private static final ARViewBotJobScene arViewBotJobScene = ARViewBotJobScene.getInstance();
+    private static final ARViewBotJobPane arViewBotJobPane = ARViewBotJobPane.getInstance();
     private static final ARNewBotJobManagerScene arNewBotJobManagerScene = ARNewBotJobManagerScene.getInstance();
     private static final AROrganizationManagerScene arOrganizationManagerScene = AROrganizationManagerScene.getInstance();
     private static final ARWebDriver arWebDriver = ARWebDriver.getInstance();
@@ -170,9 +170,23 @@ public class ARMainDashboardPane extends ARPane {
     public void openBotJob(BotJobLoadDTO botJob) {
         Platform.runLater(() -> {
             reloadBlocks(botJob);
-            arViewBotJobScene.initialize(arWebDriver, botJob, isEnabledLicence);
-            arViewBotJobScene.showModal();
+            arViewBotJobPane.initialize(null, botJob, isEnabledLicence);
+            showBotJobSurface("botJobTasks", arViewBotJobPane.reactContext("botJobTasks"));
         });
+    }
+
+    void showBotJobSurface(String targetSession, BotJobDetailsWebViewBootstrap.Context context) {
+        int port = resolveSocketPort();
+        try {
+            webView.getEngine().executeScript(BotJobDetailsWebViewBootstrap.initializationScript(context, port, gson));
+        } catch (RuntimeException error) {
+            log.error("Bot Job React session dispatch failed for {}: {}", targetSession, error.getMessage());
+            throw error;
+        }
+    }
+
+    public void showMainDashboard() {
+        dispatchReactSession(SESSION_ID);
     }
 
     public void openConfig() {
@@ -255,6 +269,12 @@ public class ARMainDashboardPane extends ARPane {
             return (Stage) webView.getScene().getWindow();
         }
         return new Stage();
+    }
+
+    Stage ownerStage() {
+        return webView.getScene() != null && webView.getScene().getWindow() instanceof Stage
+                ? (Stage) webView.getScene().getWindow()
+                : null;
     }
 
     private void refreshLegacyListView() {

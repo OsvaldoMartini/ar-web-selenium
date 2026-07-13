@@ -171,6 +171,7 @@ public class ARViewBotJobPane extends ARPane {
     private ARScene arScene;
     private BotJobLoadDTO selectedBotJob;
     private volatile String reactEnvironmentUrl = "";
+    private String headlessSurface = "botJob";
     // Private constructor to prevent instantiation
     private ARViewBotJobPane() {
         super();
@@ -227,10 +228,11 @@ public class ARViewBotJobPane extends ARPane {
         organizationCoordinator = new BotJobOrganizationCoordinator(
                 workspaceCapabilities,
                 () -> {
-                    if (stage == null) {
+                    Stage owner = stage != null ? stage : ARMainDashboardPane.getInstance().ownerStage();
+                    if (owner == null) {
                         throw new IllegalStateException("Bot Job Details window is not available");
                     }
-                    organizationManagerScene.showModal(stage);
+                    organizationManagerScene.showModal(owner);
                 });
     }
 
@@ -270,7 +272,7 @@ public class ARViewBotJobPane extends ARPane {
         if (selectedBotJob == null || selectedBotJob.getId() == null || selectedBotJob.getId() <= 0) {
             throw new IllegalArgumentException("An active Bot Job is required");
         }
-        boolean existingWorkspace = componentBox != null;
+        boolean existingWorkspace = this.selectedBotJob != null && this.selectedBotJob.getId() != null;
         Integer previousBotJobId = this.selectedBotJob == null ? null : this.selectedBotJob.getId();
         Integer requestedBotJobId = selectedBotJob == null ? null : selectedBotJob.getId();
         boolean switchingBotJob = existingWorkspace
@@ -954,7 +956,11 @@ public class ARViewBotJobPane extends ARPane {
     }
 
     private void callScannerTool(BotJobLoadDTO scannerBotJob, ARScene scannerScene) {
-        scannerCoordinator.open(scannerBotJob, scannerScene::startNewThread);
+        scannerCoordinator.open(
+                scannerBotJob,
+                scannerScene == null
+                        ? (name, task) -> daemonThread(task, name).start()
+                        : scannerScene::startNewThread);
     }
 
     public HomeUrlDTO findMatchingHomeUrlDTO(BotJobLoadDTO botJobLoadDTO) {
@@ -1134,6 +1140,10 @@ public class ARViewBotJobPane extends ARPane {
 
     public BotJobLoadDTO getBotJobDTO() {
         return selectedBotJob;
+    }
+
+    BotJobDetailsWebViewBootstrap.Context reactContext(String sessionId) {
+        return webViewBootstrap.resolve(sessionId);
     }
 
     /** Executes an operation from the React Bot Job Details toolbar. */
@@ -1550,19 +1560,8 @@ public class ARViewBotJobPane extends ARPane {
                         || selectedBotJob.getId() != requestedBotJobId) {
                     throw new IllegalArgumentException("Bot Job Details action does not match the active Bot Job");
                 }
-                if (componentBox == null) {
-                    throw new IllegalStateException("Bot Job Details workspace is not ready");
-                }
-                if ((action == BotJobWorkspaceAction.SHOW_COMPONENTS
-                                || action == BotJobWorkspaceAction.HIDE_COMPONENTS)
-                        && componentContainer == null) {
-                    throw new IllegalStateException("Components workspace is not ready");
-                }
                 if (action == BotJobWorkspaceAction.SHOW_PRE_SCAN) {
                     workspaceCapabilities.requirePreScan(selectedBotJob.getPriority());
-                }
-                if (action == BotJobWorkspaceAction.CLOSE && stage == null) {
-                    throw new IllegalStateException("Bot Job Details window is not available");
                 }
                 if (action == BotJobWorkspaceAction.CLOSE && !canCloseWorkspace()) {
                     throw new IllegalStateException(
@@ -1612,6 +1611,11 @@ public class ARViewBotJobPane extends ARPane {
     }
 
     private void showBotJobWorkspace() {
+        headlessSurface = "botJob";
+        if (componentBox == null) {
+            ARMainDashboardPane.getInstance().showBotJobSurface("botJobTasks", reactContext("botJobTasks"));
+            return;
+        }
         if (componentBox == null) return;
         componentBox.getChildren().setAll(webViewTasks);
         HBox.setHgrow(webViewTasks, Priority.ALWAYS);
@@ -1677,6 +1681,11 @@ public class ARViewBotJobPane extends ARPane {
     }
 
     private void showComponentsWorkspace() {
+        headlessSurface = "components";
+        if (componentBox == null) {
+            ARMainDashboardPane.getInstance().showBotJobSurface("componentTasks", reactContext("componentTasks"));
+            return;
+        }
         if (componentContainer == null || componentsVisible()) return;
         componentBox.getChildren().setAll(webViewTasks, componentContainer);
         HBox.setHgrow(webViewTasks, Priority.ALWAYS);
@@ -1688,6 +1697,11 @@ public class ARViewBotJobPane extends ARPane {
     }
 
     private void showPreScanWorkspace() {
+        headlessSurface = "preScan";
+        if (componentBox == null) {
+            ARMainDashboardPane.getInstance().showBotJobSurface("preScannerGrid", reactContext("preScannerGrid"));
+            return;
+        }
         if (componentBox == null || componentBox.getChildren().contains(webViewPreScanner)) return;
         componentBox.getChildren().setAll(webViewPreScanner);
         HBox.setHgrow(webViewPreScanner, Priority.ALWAYS);
@@ -1734,12 +1748,14 @@ public class ARViewBotJobPane extends ARPane {
     }
 
     private boolean componentsVisible() {
+        if (componentBox == null) return "components".equals(headlessSurface);
         return componentBox != null
                 && componentContainer != null
                 && componentBox.getChildren().contains(componentContainer);
     }
 
     private String activeWorkspaceSurface() {
+        if (componentBox == null) return headlessSurface;
         if (componentBox != null && componentBox.getChildren().contains(webViewPreScanner)) return "preScan";
         if (componentsVisible()) return "components";
         return "botJob";
@@ -1824,16 +1840,14 @@ public class ARViewBotJobPane extends ARPane {
         if (!Platform.isFxApplicationThread()) {
             throw new IllegalStateException("Bot Job Details close must run on the JavaFX thread");
         }
-        Stage currentStage = this.stage;
-        if (currentStage == null) {
-            throw new IllegalStateException("Bot Job Details window is not available");
-        }
         if (!canCloseWorkspace()) {
             throw new IllegalStateException(
                     "Wait for the active Bot Job operation to finish or stop TEST RUN first");
         }
         markWorkspaceClosed();
-        currentStage.close();
+        Stage currentStage = this.stage;
+        if (currentStage != null) currentStage.close();
+        else ARMainDashboardPane.getInstance().showMainDashboard();
     }
 
     public void markWorkspaceClosed() {
