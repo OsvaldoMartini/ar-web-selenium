@@ -831,13 +831,16 @@ were not modified.
         preflight/command/log construction, detached launch, and collision tracking into the JavaFX-free
         `BotJobNativeOperationService` with typed property, desktop, and Engine ports. JavaFX retains only
         the native chooser presentation.
+  - [x] Extract active-operation close gating, exact WebView/session retirement, workspace-registry close,
+        transfer-grant cleanup, Pre Scan browser shutdown, and cleanup-failure ordering into the
+        UI-independent `BotJobWorkspaceCloseCoordinator`. The pane retains only its Stage close call.
 - [ ] Task: Remove zero-caller helpers, move remaining WebSocket/mobile persistence ownership out of
       `ARViewBotJobScene`, runtime-validate close/reopen and A -> B switching, then retire the pane/scene.
 
 Task 1 is therefore progressed but not complete; checking it complete now would hide active JavaFX-host
 responsibilities that still require extraction and desktop runtime validation.
 
-Focused continuation evidence: Java compiled 312 main and 79 test sources. The 65-test workspace,
+Focused continuation evidence: Java compiled 313 main and 80 test sources. The 69-test workspace,
 native operation, Pre Scan workflow/browser-session, scanner coordinator, WebView, registry, TEST RUN coordinator,
 action-contract, and WebSocket
 lifecycle suite passed with zero failures, errors, or skips. The React project, deployed React resources,

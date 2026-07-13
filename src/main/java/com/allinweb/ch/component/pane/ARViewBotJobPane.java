@@ -15,6 +15,7 @@ import com.allinweb.ch.facade.BotJobTestRunCoordinator;
 import com.allinweb.ch.facade.BotJobWorkspaceService;
 import com.allinweb.ch.facade.BotJobScannerCoordinator;
 import com.allinweb.ch.facade.BotJobNativeOperationService;
+import com.allinweb.ch.facade.BotJobWorkspaceCloseCoordinator;
 import com.allinweb.ch.facade.PreScanWorkflowService;
 import com.allinweb.ch.facade.PreScanBrowserSession;
 import com.allinweb.ch.facade.BotJobDetailsWorkspaceRegistry;
@@ -138,6 +139,7 @@ public class ARViewBotJobPane extends ARPane {
     private String previousBotTasks;
     private boolean isEnabledLicence;
     private final BotJobScannerCoordinator scannerCoordinator;
+    private final BotJobWorkspaceCloseCoordinator workspaceCloseCoordinator;
     private static final String EXECUTE_ALL_OPTION_LABEL = "Execute All";
     private VBox botJobContainer;
     private Pane mainPane;
@@ -191,6 +193,26 @@ public class ARViewBotJobPane extends ARPane {
                     }
                 },
                 arPropertyManager::missingMandatoryPats);
+        workspaceCloseCoordinator = new BotJobWorkspaceCloseCoordinator(
+                () -> botJobToolbarGuard.activeOperation() != null
+                        || preScanWorkflowService.isRunning()
+                        || scannerCoordinator.isBusy(),
+                new BotJobWorkspaceCloseCoordinator.ExecutionPort() {
+                    @Override
+                    public boolean isActive(int botJobId) {
+                        return BotJobDetailsWorkspaceRegistry.isExecutionActive(
+                                botJobDetailsWorkspaceRegistry.require(botJobId).executionState());
+                    }
+
+                    @Override
+                    public void close(int botJobId) {
+                        botJobDetailsWorkspaceRegistry.close(botJobId);
+                    }
+                },
+                this::suspendReactWorkspaceSurfaces,
+                botJobTransferPathRegistry::clear,
+                preScanWorkflowService::shutdown,
+                error -> log.debug("Unable to close the Pre Scan browser: {}", error.getMessage()));
     }
 
     private static Thread daemonThread(Runnable runnable, String name) {
@@ -1841,41 +1863,13 @@ public class ARViewBotJobPane extends ARPane {
     }
 
     public void markWorkspaceClosed() {
-        if (!canCloseWorkspace()) {
-            throw new IllegalStateException(
-                    "Wait for the active Bot Job operation to finish or stop TEST RUN first");
-        }
-        if (selectedBotJob != null && selectedBotJob.getId() != null) {
-            int closingBotJobId = selectedBotJob.getId();
-            try {
-                suspendReactWorkspaceSurfaces(closingBotJobId);
-            } finally {
-                botJobDetailsWorkspaceRegistry.close(closingBotJobId);
-                for (String workspaceSession : List.of("botJobTasks", "componentTasks", "preScannerGrid")) {
-                    botJobTransferPathRegistry.clear(workspaceSession, closingBotJobId);
-                }
-            }
-        }
-        try {
-            preScanWorkflowService.shutdown();
-        } catch (RuntimeException error) {
-            log.debug("Unable to close the Pre Scan browser: {}", error.getMessage());
-        }
+        workspaceCloseCoordinator.close(
+                selectedBotJob == null ? null : selectedBotJob.getId());
     }
 
     public boolean canCloseWorkspace() {
-        if (botJobToolbarGuard.activeOperation() != null
-                || preScanWorkflowService.isRunning()
-                || scannerCoordinator.isBusy()) {
-            return false;
-        }
-        if (selectedBotJob == null || selectedBotJob.getId() == null) return true;
-        try {
-            return !BotJobDetailsWorkspaceRegistry.isExecutionActive(
-                    botJobDetailsWorkspaceRegistry.require(selectedBotJob.getId()).executionState());
-        } catch (RuntimeException ignored) {
-            return true;
-        }
+        return workspaceCloseCoordinator.canClose(
+                selectedBotJob == null ? null : selectedBotJob.getId());
     }
 
     private boolean isWebApp(String priority) {
