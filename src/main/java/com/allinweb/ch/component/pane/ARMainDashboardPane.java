@@ -45,7 +45,6 @@ public class ARMainDashboardPane extends ARPane {
     private static final ARConfigurationScene arConfigurationScene = ARConfigurationScene.getInstance();
     private static final ARConfigManagerScene arConfigManagerScene = ARConfigManagerScene.getInstance();
     private static final ARViewBotJobScene arViewBotJobScene = ARViewBotJobScene.getInstance();
-    private static final ARSaveCloneScene arSaveCloneScene = ARSaveCloneScene.getInstance();
     private static final ARNewBotJobManagerScene arNewBotJobManagerScene = ARNewBotJobManagerScene.getInstance();
     private static final AROrganizationManagerScene arOrganizationManagerScene = AROrganizationManagerScene.getInstance();
     private static final ARWebDriver arWebDriver = ARWebDriver.getInstance();
@@ -157,13 +156,15 @@ public class ARMainDashboardPane extends ARPane {
     }
 
     public void openCloneBotJob(BotJobLoadDTO botJob) {
-        Platform.runLater(() -> {
-            arSaveCloneScene.initialize(botJob, performLists.getQuickBotJobs(), isEnabledLicence);
-            arSaveCloneScene.showModal(currentStage());
-            performDataBase.loadQuickBotJobs();
-            refreshLegacyListView();
-            pushReactDashboardList();
-        });
+        Platform.runLater(() -> dispatchReactSession("cloneJobManager", botJob.getId()));
+    }
+
+    public void closeCloneJob() {
+        Platform.runLater(() -> dispatchReactSession(SESSION_ID));
+    }
+
+    public void openCloneOrganizations() {
+        Platform.runLater(() -> arOrganizationManagerScene.showModal(currentStage()));
     }
 
     public void openBotJob(BotJobLoadDTO botJob) {
@@ -224,10 +225,14 @@ public class ARMainDashboardPane extends ARPane {
     }
 
     private void dispatchReactSession(String targetSession) {
+        dispatchReactSession(targetSession, -9999);
+    }
+
+    private void dispatchReactSession(String targetSession, int botJobId) {
         int port = resolveSocketPort();
         try {
             webView.getEngine().executeScript("setTimeout(function() { window.receiveDataFromJava(JSON.stringify([]), "
-                    + port + ", '" + targetSession + "', -1, '', -9999, '' ) }, 250)");
+                    + port + ", '" + targetSession + "', -1, '', " + botJobId + ", '' ) }, 250)");
         } catch (Exception e) {
             log.error("React session dispatch failed for {}: {}", targetSession, e.getMessage());
         }

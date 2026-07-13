@@ -49,7 +49,6 @@ public class ARMainPane extends ARPane {
     private static final PerformMessage performMessage;
     private static final ARConfigurationScene arConfigurationScene;
     private static final ARViewBotJobScene arViewBotJobScene;
-    private static final ARSaveCloneScene arSaveCloneScene;
     private static final ARNewBotJobScene arNewBotJobScene;
     private static final ARNewHomeBankingScene arNewHomeBankingScene;
     private static final AROrganizationManagerScene arOrganizationManagerScene;
@@ -68,7 +67,6 @@ public class ARMainPane extends ARPane {
         performMessage = PerformMessage.getInstance();
         arConfigurationScene = ARConfigurationScene.getInstance();
         arViewBotJobScene = ARViewBotJobScene.getInstance();
-        arSaveCloneScene = ARSaveCloneScene.getInstance();
         arNewHomeBankingScene = ARNewHomeBankingScene.getInstance();
         arOrganizationManagerScene = AROrganizationManagerScene.getInstance();
         arWebDriver = ARWebDriver.getInstance();
@@ -345,16 +343,7 @@ public class ARMainPane extends ARPane {
             var selecBotJobDTO = viewBotJobListView.getSelectionModel().getSelectedItem();
             if (selecBotJobDTO != null) {
                 if (performDataBase.isConnDBWorks()) {
-                    arSaveCloneScene.initialize(selecBotJobDTO, botJobList, isEnabledLicence);
-
-                    Stage currentStage = (Stage) cloneBotJobButton.getScene().getWindow();
-                    arSaveCloneScene.showModal(currentStage);
-
-                    performDataBase.loadQuickBotJobs();
-                    ObservableList<BotJobLoadDTO> botJobList =
-                            FXCollections.observableArrayList(performLists.getQuickBotJobs());
-                    viewBotJobListView.setItems(botJobList);
-                    viewBotJobListView.refresh();
+                    ARMainDashboardPane.getInstance().openCloneBotJob(selecBotJobDTO);
                 }
             } else {
                 performMessage.errorMessage("Select a Bot Job", "There is NOT a Job Selected", null, null, null, 0);

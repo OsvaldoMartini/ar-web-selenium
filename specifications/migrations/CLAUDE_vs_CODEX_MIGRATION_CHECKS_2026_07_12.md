@@ -845,6 +845,9 @@ were not modified.
         JavaFX-free `BotJobWorkspaceController`; close/failed activation retires the exact registered host.
   - [ ] Extract the legacy `bot-job-scene` WebSocket client and mobile insertion/persistence workflow,
         redirect remaining scene callers, remove zero-caller compatibility helpers, and retire pane/scene.
+    - [x] Server-side AR Mobile inserts now validate the active Bot Job through `BotJobDetailsWorkspaceRegistry`
+          and persist through `PreScanApplyService`; `ARViewBotJobScene.initialize` no longer opens the
+          `bot-job-scene` loopback WebSocket client. Scene/pane retirement and desktop validation remain open.
 
 Task 1 is therefore progressed but not complete; checking it complete now would hide active JavaFX-host
 responsibilities that still require extraction and desktop runtime validation.

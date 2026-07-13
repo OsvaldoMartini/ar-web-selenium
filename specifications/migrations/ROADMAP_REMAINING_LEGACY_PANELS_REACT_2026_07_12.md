@@ -138,6 +138,7 @@ Parity gap: React currently carries `priority`, `searchConfig`, and `optionsConf
   - [x] Extract capability, organization, Pre Scan payload, and empty-grid payload ownership into UI-independent services/coordinators.
   - [ ] Move remaining WebSocket/mobile persistence ownership out of `ARViewBotJobScene`, then complete desktop runtime validation and retirement.
     - [x] Route all `SimpleWebSocketServer` Bot Job workspace calls through the generation-safe `BotJobWorkspaceController` instead of importing the JavaFX pane.
+    - [x] Route AR Mobile insertion directly through the active workspace registry and `PreScanApplyService`; the scene no longer opens the `bot-job-scene` loopback client.
 
 ## Phase 3 — Clone Job
 
@@ -151,13 +152,13 @@ src/components/clone-job/
   CloneJobForm.module.scss
 ```
 
-- [ ] Add `cloneJob.bootstrap`, `cloneJob.create`, `cloneJob.cancel`, and `cloneJob.openOrganizations` contracts.
-- [ ] Preserve source job, unique-name validation, explicit target environment, name, description, and URL behavior.
-- [ ] Extract the complete clone chain into one validated transaction/compensating service.
-- [ ] Perform all validation before creating or copying Excel files.
-- [ ] Return structured success/failure and refresh the Main Dashboard list.
-- [ ] Redirect `mainDashboard.cloneBotJob` to the React page.
-- [ ] Retire `ARSaveClonePane` and `ARSaveCloneScene`.
+- [x] Add `cloneJob.bootstrap`, `cloneJob.create`, `cloneJob.cancel`, and `cloneJob.openOrganizations` contracts.
+- [x] Preserve source job, unique-name validation, explicit target environment, name, description, and URL behavior.
+- [x] Extract the complete clone chain into one validated compensating service.
+- [x] Perform all request/database validation before creating or copying Excel files.
+- [x] Return structured success/failure and refresh the Main Dashboard list.
+- [x] Redirect `mainDashboard.cloneBotJob` to the React page.
+- [x] Retire `ARSaveClonePane` and `ARSaveCloneScene`.
 
 ## Phase 4 — AR Web Factory / Scanner
 
@@ -211,3 +212,4 @@ The normal WebSocket cannot be assumed available on configuration failure, so th
 | 2026-07-12 | Shared workspace header + Bot Job/Components/Pre Scan navigation + Refresh/Close | Frontend delivered; backend source ready for user runtime validation | React commit `c3e077a` pushed to `origin/VERSION-4.6`; 3 focused suites / 4 tests passed; production build succeeded; 45 deployed files matched by path, length, and SHA-256; backend static re-audit passed without compiling Java |
 | 2026-07-12 | Typed Bot Job Details bootstrap/state + metadata/environment migration + Organization Advanced fields | Frontend delivered/deployed; backend compiled and packaged; desktop runtime remains user-owned | React commits `a06619e` and `88eac85` pushed to `origin/VERSION-4.6`; final frontend head/remote `88eac85272819711c156b77c88c88b03850f60f9`; 9 focused React suites / 23 tests passed; 45 deployed files had zero SHA-256 differences; Java compiled 296 main and 61 test sources; 43 targeted Java tests passed; shaded `target/AR_Web_Scanner-4.2.jar` built at 384,155,105 bytes, SHA-256 `AC097EE3F2A4043CFEBC0E7E4287084D6A52E3300357901F56F80F3A42333F02` |
 | 2026-07-12 | Remaining Bot Job Details execution/data/file controls + semantic metadata form + JavaFX toolbar removal | Delivered/deployed/packaged; desktop runtime remains user-owned | React commits through `30d6f331e6519c8bec9211470d1a76e6d8d74363` pushed to `origin/VERSION-4.6`; 9 focused React suites / 31 tests passed; headless localhost/mock-socket Playwright passed; 45 deployed files matched by path, length, and SHA-256; Java compiled 304 main and 71 test sources; 65 focused Java tests plus the final 19-test affected subset passed; backend implementation commit `3cd86f87c734d0507725dcfc3be3edef1b3a1689`; shaded `target/AR_Web_Scanner-4.2.jar` is 384,197,039 bytes with 58,696 entries and SHA-256 `5D8F4E3BB844AE93FB685F16B8D50D2BB96311B61071F524A849771AE2FAE82E` |
+| 2026-07-14 | Clone Job React manager, typed backend workflow, and JavaFX clone form retirement | Delivered, built, deployed, and source-tested | React commit `6ee7207` merged with current `VERSION-4.6` at `d48ecd3`; focused React 2/2 passed and production build succeeded; deployed 45 files with zero hash mismatches. Backend `CloneJobService` validation tests passed 3/3; affected backend suite passed 19/19; Java compiled 317 main and 86 test sources; `ARSaveClonePane`/`ARSaveCloneScene` have zero references and were deleted. |

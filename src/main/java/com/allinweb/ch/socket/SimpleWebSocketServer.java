@@ -2,6 +2,7 @@ package com.allinweb.ch.socket;
 
 import com.allinweb.ch.ARControlPanel;
 import com.allinweb.ch.component.pane.ARScannedElementPane;
+import com.allinweb.ch.component.pane.ARMainDashboardPane;
 import com.allinweb.ch.facade.*;
 import com.allinweb.ch.model.*;
 import com.allinweb.ch.util.*;
@@ -34,6 +35,7 @@ public class SimpleWebSocketServer {
             OrganizationManagerService.getInstance();
     private static final MainDashboardService mainDashboardService = MainDashboardService.getInstance();
     private static final NewBotJobService newBotJobService = NewBotJobService.getInstance();
+    private static final CloneJobService cloneJobService = CloneJobService.getInstance();
     private static final ConfigService configService = ConfigService.getInstance();
     private static final BotJobDetailsService botJobDetailsService = BotJobDetailsService.getInstance();
     private static final BotJobDetailsActionLedger botJobDetailsActionLedger =
@@ -552,6 +554,26 @@ public class SimpleWebSocketServer {
                 case "newBotJob.cancel":
                     handleNewBotJobCancel(sessionId);
                     break;
+                case "cloneJob.bootstrap":
+                    sendCloneJobResponse(sessionId, cloneJobService.bootstrap(extractBody(jsonObjMSG)), "cloneJob.bootstrapResponse");
+                    break;
+                case "cloneJob.environments":
+                    sendCloneJobResponse(sessionId, cloneJobService.environments(extractBody(jsonObjMSG)), "cloneJob.environmentsResponse");
+                    break;
+                case "cloneJob.validateName":
+                    sendCloneJobResponse(sessionId, cloneJobService.validateName(extractBody(jsonObjMSG)), "cloneJob.validateNameResponse");
+                    break;
+                case "cloneJob.create":
+                case "cloneJob.clone":
+                    sendCloneJobResponse(sessionId, cloneJobService.create(extractBody(jsonObjMSG)), "cloneJob.cloneResponse");
+                    break;
+                case "cloneJob.openOrganizations":
+                    ARMainDashboardPane.getInstance().openCloneOrganizations();
+                    sendCloneJobResponse(sessionId, java.util.Map.of("ok", true, "message", "Organizations opened"), "cloneJob.actionResponse");
+                    break;
+                case "cloneJob.cancel":
+                    ARMainDashboardPane.getInstance().closeCloneJob();
+                    break;
                 case "config.bootstrap":
                     handleConfigBootstrap(sessionId);
                     break;
@@ -648,6 +670,10 @@ public class SimpleWebSocketServer {
     }
 
     private void sendOrganizationResponse(String sessionId, Object response, String operationId) {
+        webSocketSessionManager.sendMessageJson(-1, sessionId, gson.toJson(response), operationId);
+    }
+
+    private void sendCloneJobResponse(String sessionId, Object response, String operationId) {
         webSocketSessionManager.sendMessageJson(-1, sessionId, gson.toJson(response), operationId);
     }
 
