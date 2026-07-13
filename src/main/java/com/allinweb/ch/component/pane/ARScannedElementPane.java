@@ -39,6 +39,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BooleanSupplier;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -124,6 +125,8 @@ public class ARScannedElementPane extends ARPane {
             new java.util.concurrent.atomic.AtomicLong();
     private final java.util.concurrent.atomic.AtomicLong completedJobExecutionId =
             new java.util.concurrent.atomic.AtomicLong();
+    private final TestRunExecutionOutcomeTracker jobExecutionOutcomes = new TestRunExecutionOutcomeTracker();
+    private final AtomicBoolean testRunStartupActive = new AtomicBoolean(false);
     private final Gson gson = new Gson();
     private final WebView webView = new WebView();
     public Button launchBotJobButton;
@@ -224,7 +227,7 @@ public class ARScannedElementPane extends ARPane {
     private String jsonStatus;
     private RowStatus rowStatus = new RowStatus();
     private PayloadJson payloadEmpty;
-    private ARWebDriver currentARWebDriver;
+    private volatile ARWebDriver currentARWebDriver;
     WebDriverWait waitXPath = null;
 
     private static final ElementScanProfile ALL_INTERACTIVE_SCAN_PROFILE = new ElementScanProfile(
@@ -3205,23 +3208,29 @@ public class ARScannedElementPane extends ARPane {
         return inputElements;
     }
 
-    private boolean recallJob() {
-        boolean submitted = false;
+    private synchronized boolean recallJob() {
+        return recallJobExecutionId() > 0L;
+    }
+
+    private long recallJobExecutionId() {
+        long submittedExecutionId = 0L;
         long currentExecution = activeJobExecutionId.get();
         if (currentExecution > 0 && !isTestRunExecutionComplete(currentExecution)) {
             log.info("recallJob() requested while executeJob() was still active.");
-            return false;
+            return 0L;
         }
         if (isJobRunning.compareAndSet(false, true)) {
             long executionId = jobExecutionSequence.incrementAndGet();
+            jobExecutionOutcomes.started(executionId);
             activeJobExecutionId.set(executionId);
             lastSubmittedJobExecutionId.set(executionId);
             try {
                 //                startScreenshotLoop();
 
                 executorServicePreLaunch.submit(() -> {
+                    boolean executionPassed = false;
                     try {
-                        executeJob();
+                        executionPassed = executeJob();
                     } catch (Throwable t) {
                         // executeJob() returns boolean but can still propagate
                         // uncaught exceptions from deep helpers / driver calls.
@@ -3231,6 +3240,7 @@ public class ARScannedElementPane extends ARPane {
                         // launch again instead of being stuck on a dead button.
                         log.error("executeJob() terminated with exception: {}", t.getMessage(), t);
                     } finally {
+                        jobExecutionOutcomes.completed(executionId, executionPassed);
                         completedJobExecutionId.accumulateAndGet(executionId, Math::max);
                         activeJobExecutionId.compareAndSet(executionId, 0L);
                         isJobRunning.set(false);
@@ -3242,8 +3252,9 @@ public class ARScannedElementPane extends ARPane {
                         reenableLaunchButton();
                     }
                 });
-                submitted = true;
+                submittedExecutionId = executionId;
             } catch (Exception e) {
+                jobExecutionOutcomes.completed(executionId, false);
                 completedJobExecutionId.accumulateAndGet(executionId, Math::max);
                 activeJobExecutionId.compareAndSet(executionId, 0L);
                 isJobRunning.set(false);
@@ -3262,7 +3273,7 @@ public class ARScannedElementPane extends ARPane {
             performActions.updateWindowHandlesList();
             updateButtonState();
         }
-        return submitted;
+        return submittedExecutionId;
     }
 
     /**
@@ -3285,18 +3296,49 @@ public class ARScannedElementPane extends ARPane {
      *                         resolved from the loaded home-URL row, exactly like Launch)
      * @param runSingleBlock   when true, stop after the selected block; when false, continue through
      *                         every remaining block
-     * @return true when the job was accepted and submitted; false when startup was rejected
+     * @return the exact submitted execution ID, or {@code 0} when startup was rejected
      */
-    public boolean testRunBlockPlaywright(
+    public long submitTestRunBlockPlaywright(
             BotJobLoadDTO botJob, int blockOrderNumber, String endpointUrl, boolean runSingleBlock) {
+        return submitTestRunBlockPlaywright(
+                botJob, blockOrderNumber, endpointUrl, runSingleBlock, () -> false);
+    }
+
+    public synchronized long submitTestRunBlockPlaywright(
+            BotJobLoadDTO botJob,
+            int blockOrderNumber,
+            String endpointUrl,
+            boolean runSingleBlock,
+            BooleanSupplier cancellationRequested) {
+        testRunStartupActive.set(true);
+        try {
+            return prepareTestRunBlockPlaywright(
+                    botJob,
+                    blockOrderNumber,
+                    endpointUrl,
+                    runSingleBlock,
+                    cancellationRequested);
+        } finally {
+            testRunStartupActive.set(false);
+        }
+    }
+
+    private long prepareTestRunBlockPlaywright(
+            BotJobLoadDTO botJob,
+            int blockOrderNumber,
+            String endpointUrl,
+            boolean runSingleBlock,
+            BooleanSupplier cancellationRequested) {
+        BooleanSupplier cancellation = cancellationRequested == null ? () -> false : cancellationRequested;
+        if (testRunStartupCancelled(cancellation)) return 0L;
         if (botJob == null) {
             log.error("TEST RUN — no bot job supplied");
-            return false;
+            return 0L;
         }
         long activeExecution = activeJobExecutionId.get();
         if ((activeExecution > 0 && !isTestRunExecutionComplete(activeExecution)) || isJobRunning.get()) {
             log.info("TEST RUN — a job is already running; ignoring request.");
-            return false;
+            return 0L;
         }
 
         if (this.currentARWebDriver == null) {
@@ -3307,6 +3349,7 @@ public class ARScannedElementPane extends ARPane {
         performActions.setInterceptBotJob(false);
         setInterceptBotJob(false);
         isJobRunning.set(false);
+        if (testRunStartupCancelled(cancellation)) return 0L;
 
         try {
             excelPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL);
@@ -3318,6 +3361,7 @@ public class ARScannedElementPane extends ARPane {
         this.runSingleBlock = runSingleBlock;
 
         clearFields();
+        if (testRunStartupCancelled(cancellation)) return 0L;
 
         ErrorMessage errorMessage = performDBEngine.loadHomeBanking(null);
         if (errorMessage == null) errorMessage = performDBEngine.loadHomeUrls(this.currentBotJob.getHomeBankingId());
@@ -3343,27 +3387,29 @@ public class ARScannedElementPane extends ARPane {
             errorMessage = performDBEngine.loadAllActionsPerBlock(blocksLoaded);
         }
 
+        if (testRunStartupCancelled(cancellation)) return 0L;
+
         if (errorMessage != null) {
             log.error("TEST RUN — load error: {}", errorMessage.getErrorMessage());
             this.runSingleBlock = false;
-            return false;
+            return 0L;
         }
         if (performLists.getListBotJob().isEmpty()) {
             log.error("TEST RUN — cannot find bot job with id: {}", this.currentBotJob.getId());
             this.runSingleBlock = false;
-            return false;
+            return 0L;
         }
         if (blocksLoaded == null || blocksLoaded.isEmpty()) {
             log.error("TEST RUN — bot job has no loaded executable blocks: {}", this.currentBotJob.getId());
             this.runSingleBlock = false;
-            return false;
+            return 0L;
         }
 
         HomeBankingLoadDTO homeBanking = performLists.getHomeBankingById(this.currentBotJob.getHomeBankingId());
         if (homeBanking == null || StringUtils.isNullOrEmpty(homeBanking.getUrl())) {
             log.error("TEST RUN — cannot find home banking env id: {}", this.currentBotJob.getHomeBankingId());
             this.runSingleBlock = false;
-            return false;
+            return 0L;
         }
 
         currentBotJob = performLists.getListBotJob().get(0);
@@ -3406,23 +3452,59 @@ public class ARScannedElementPane extends ARPane {
             extractedData.addFieldValue("$EMPTY", "$EMPTY", 0);
         }
 
+        if (testRunStartupCancelled(cancellation)) return 0L;
+
         // Open the single Playwright browser (Launch relies on scanning having opened it already).
         if (!openWebDriver(true)) {
             log.error("TEST RUN — failed to open the Playwright browser");
             this.runSingleBlock = false;
-            return false;
+            return 0L;
         }
+        if (testRunStartupCancelled(cancellation)) return 0L;
 
         // Reset executed flags and run the selected block through the full engine.
         performLists.getListBotJob().get(0).getBlockLoadDTOList().stream()
                 .flatMap(block -> block.getInstructionLoad().stream())
                 .forEach(instruction -> instruction.setExecuted(false));
 
-        boolean submitted = recallJob();
-        if (!submitted && !isJobRunning.get()) {
+        long executionId = recallJobExecutionId();
+        if (executionId <= 0L && !isJobRunning.get()) {
             this.runSingleBlock = false;
         }
-        return submitted;
+        return executionId;
+    }
+
+    /**
+     * Compatibility wrapper for callers that only need the startup acceptance decision.
+     *
+     * @see #submitTestRunBlockPlaywright(BotJobLoadDTO, int, String, boolean)
+     */
+    public boolean testRunBlockPlaywright(
+            BotJobLoadDTO botJob, int blockOrderNumber, String endpointUrl, boolean runSingleBlock) {
+        return submitTestRunBlockPlaywright(botJob, blockOrderNumber, endpointUrl, runSingleBlock) > 0L;
+    }
+
+    private boolean testRunStartupCancelled(BooleanSupplier cancellationRequested) {
+        if (!cancellationRequested.getAsBoolean()) return false;
+        log.info("TEST RUN — startup cancellation accepted");
+        cancelTestRunStartup();
+        return true;
+    }
+
+    /** Cancels TEST RUN setup before an execution ID has been allocated. */
+    public void cancelTestRunStartup() {
+        if (!testRunStartupActive.get()) return;
+        runSingleBlock = false;
+        performActions.setInterceptBotJob(true);
+        setInterceptBotJob(true);
+        try {
+            if (currentARWebDriver != null) {
+                currentARWebDriver.closeCurrentDriver();
+            }
+        } catch (Exception error) {
+            log.warn("TEST RUN — error closing browser during startup cancellation: {}", error.getMessage());
+        }
+        performActions.setCurrentDriver(null);
     }
 
     /**
@@ -3444,6 +3526,10 @@ public class ARScannedElementPane extends ARPane {
             return false;
         }
         log.info("TEST RUN — stop requested");
+        if (!jobExecutionOutcomes.requestStop(expectedExecutionId)) {
+            log.info("TEST RUN ignored completed stop for execution {}", expectedExecutionId);
+            return false;
+        }
         runSingleBlock = false;
         performActions.setInterceptBotJob(true);
         setInterceptBotJob(true);
@@ -3465,6 +3551,10 @@ public class ARScannedElementPane extends ARPane {
 
     public boolean isTestRunExecutionComplete(long executionId) {
         return executionId <= 0 || completedJobExecutionId.get() >= executionId;
+    }
+
+    public String testRunExecutionTerminalState(long executionId) {
+        return jobExecutionOutcomes.terminalOutcome(executionId).name();
     }
 
     private String currentPlaywrightUrl() {
@@ -6644,6 +6734,7 @@ public class ARScannedElementPane extends ARPane {
         }
 
         // PRINT END BASE LOG//
+        boolean executionInterrupted = isInterceptBotJob();
         if (!anyFailure) {
             baseLogString = blocksLoaded.get(0).getName()
                     + ARConstantsEngine.FIELDS_SEPARATOR
@@ -6745,7 +6836,7 @@ public class ARScannedElementPane extends ARPane {
         performActions.setInterceptBotJob(true);
         setInterceptBotJob(false);
         isJobRunning.set(false);
-        return true;
+        return !anyFailure && !executionInterrupted;
     }
 
     private static class ValidationResult {

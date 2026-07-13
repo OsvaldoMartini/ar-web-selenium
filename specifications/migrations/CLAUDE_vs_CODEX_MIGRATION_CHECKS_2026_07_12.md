@@ -288,8 +288,8 @@ Exit criterion: Engine and Scanner no longer own independent copies of traversal
 
 #### Phase 5 — lifecycle and UI completion
 
-- [ ] Keep TEST RUN disabled until a terminal event, not merely task submission.
-- [ ] Keep STOP enabled only while the run is active.
+- [x] Keep TEST RUN disabled until the exact owned scanner execution reaches a terminal event.
+- [x] Keep STOP enabled only while the run is active, including cancellable pre-ID startup.
 - [ ] Show captured mode/start block in the live status.
 - [ ] Prevent job/block refresh from mutating the active request.
 - [ ] If React migration is approved, implement the separate execution selector and typed request described above.
@@ -386,7 +386,7 @@ The checklist below is the CODEX task-status view. Detailed evidence and accepta
 - [ ] Task: Introduce immutable `ExecutionRequest`/`ExecutionResult` objects with stable block ID, scope, row policy, GOTO policy, and exactly one terminal result.
 - [ ] Task: Extract one canonical control-flow executor with browser, persistence, reporting, prompt, and lifecycle ports.
 - [ ] Task: Adapt Selenium Engine and Playwright Scanner runtimes to the same canonical executor and align Home URL/status contracts.
-- [ ] Task: Keep TEST RUN and STOP states bound to accepted submission and terminal events rather than a background-task launch acknowledgement.
+- [x] Task: Keep TEST RUN and STOP states bound to accepted submission and terminal events rather than a background-task launch acknowledgement. `BotJobTestRunCoordinator` now owns startup cancellation, exact scanner execution IDs, STOP delivery/retry, completion monitoring, and acknowledged terminal publication.
 - [ ] Task: Execute the full acceptance matrix against both runtime adapters and record accepted differences.
 
 #### Conditional React delivery
@@ -716,8 +716,9 @@ delivery commits; the verification section contains the completed test, build, p
 - [x] Task: Use workspace epochs, an immutable persisted job context, a zero-queue foreground lease,
       run-owned scanner execution IDs, prompt STOP, guarded Close, and exact transport cleanup so stale
       jobs/stops/choosers cannot mutate a later workspace or inherit its transfer-folder grant.
-- [ ] Task: Replace the remaining natural-completion `IDLE` approximation with executor-owned
-      PASSED/FAILED result data; run identity and STOP/INTERRUPTED termination are now exact.
+- [x] Task: Replace the remaining natural-completion `IDLE` approximation with executor-owned
+      PASSED/FAILED result data. `TestRunExecutionOutcomeTracker` records the exact submitted execution,
+      and the coordinator publishes PASSED, FAILED, or INTERRUPTED only after that execution completes.
 - [ ] Task: Add a blocks-specific revision/event domain if edits must be rejected rather than resolved
       by current stable block ID at execution time.
 - [x] Task: Make multi-table Bot Job import transactional by suppressing legacy stage commits inside
@@ -764,6 +765,61 @@ delivery commits; the verification section contains the completed test, build, p
       `5D8F4E3BB844AE93FB685F16B8D50D2BB96311B61071F524A849771AE2FAE82E`.
       The implementation and this successor evidence commit are pushed together to
       `origin/refactor/perform-actions-decomposition`.
+
+### CODEX - backend lifecycle and Task 1 continuation (2026-07-13)
+
+This continuation was backend-only. The user-owned React/Bot Job Details design and deployed build
+were not modified.
+
+#### Completed findings and fixes
+
+- [x] Task: Fix Bot Job A -> B switching so every job-scoped variable, page, block, component, and
+      action cache is cleared before B is loaded; fail activation closed instead of falling back to A.
+- [x] Task: Retire A's exact logical WebSocket sessions, transfer grants, pending JavaFX WebView
+      bootstrap timers/listeners, and loaded documents before B can bootstrap.
+- [x] Task: Make `BotJobDetailsWebViewBootstrap` activation/deactivation generation-safe and generate
+      its JavaScript through JSON escaping rather than interpolating job/session text.
+- [x] Task: Extract TEST RUN lifecycle ownership from `ARViewBotJobPane` into the JavaFX-free
+      `BotJobTestRunCoordinator` and bind it atomically to the exact scanner execution ID.
+- [x] Task: Publish executor-owned PASSED/FAILED/INTERRUPTED outcomes; prevent stale attempts,
+      executor rejection, transient completion-probe failures, or monitor interruption from unlocking
+      the workspace before the scanner is actually complete.
+- [x] Task: Make STOP cancellable before an execution ID exists, deliver STOP through a fallback when
+      the primary executor rejects it, and restore the exact prior STARTING/RUNNING state when a running
+      executor rejects STOP so the user can retry.
+- [x] Task: Require acknowledged WebSocket runtime-state delivery with a timeout and retry terminal
+      publication when synchronous or asynchronous transport delivery fails.
+- [x] Task: Pass the clean safe backend suite: 235 tests, 0 failures, 0 errors, 1 optional diagnostic
+      skip. Live `*IT` flows and the separately reported frontend contract test were excluded.
+- [x] Task: Run the 15-test coordinator race/failure suite repeatedly after correcting the startup
+      token/unblock ordering; all repeated runs passed.
+
+#### Current frontend validation blockers - approval required before any React change
+
+- [ ] Task: Restore or intentionally replace the deployed Bot Job metadata `Edit` entry point. The
+      isolated Playwright contract found no metadata editor in the user's current design.
+- [ ] Task: Correct the layer covering the visible Create BAT control. Real pointer hit-testing lands
+      on another layer; the test dispatched a synthetic click only to continue auditing later controls.
+- [ ] Task: Rerun `BotJobDetailsToolbarPlaywrightTest` after the user approves and completes any needed
+      frontend changes. Current result: 1 test failure reporting exactly the two items above.
+
+#### Task 1 - reduce `ARViewBotJobPane` to a WebView/window host
+
+- [x] Task: Extract exact TEST RUN/STOP coordination, terminal outcomes, monitor recovery, and runtime
+      publication from the pane.
+- [x] Task: Remove the dead, unmounted API-tool WebView and harden reusable WebView activation,
+      listener, timer, session, and close/reopen ownership.
+- [ ] Task: Extract workspace activation, job-cache loading, grid refresh, and scanner selection from
+      `ARViewBotJobPane` into UI-independent services.
+- [ ] Task: Extract the full Pre Scan workflow and its browser/driver lifecycle.
+- [ ] Task: Extract scanner launch/modal coordination and remove pane-owned scanner flags.
+- [ ] Task: Extract remaining native file, external Engine, organization, capability, payload, and
+      workspace-close operations behind typed ports.
+- [ ] Task: Remove zero-caller helpers, move remaining WebSocket/mobile persistence ownership out of
+      `ARViewBotJobScene`, runtime-validate close/reopen and A -> B switching, then retire the pane/scene.
+
+Task 1 is therefore progressed but not complete; checking it complete now would hide active JavaFX-host
+responsibilities that still require extraction and desktop runtime validation.
 
 ## Decision log
 

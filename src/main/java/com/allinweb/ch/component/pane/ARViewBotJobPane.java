@@ -12,6 +12,7 @@ import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.facade.PreScanApplyService;
 import com.allinweb.ch.facade.BotJobDetailsService;
+import com.allinweb.ch.facade.BotJobTestRunCoordinator;
 import com.allinweb.ch.facade.BotJobDetailsWorkspaceRegistry;
 import com.allinweb.ch.facade.BotJobTransferPathRegistry;
 import com.allinweb.ch.facade.BotJobTransferService;
@@ -30,9 +31,14 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.*;
+import java.util.function.BooleanSupplier;
+import javafx.animation.PauseTransition;
 import javafx.application.Platform;
+import javafx.beans.value.ChangeListener;
 import javafx.concurrent.Worker;
 import javafx.scene.Node;
 import javafx.scene.layout.*;
@@ -42,6 +48,7 @@ import javafx.scene.web.WebView;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+import javafx.util.Duration;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -64,8 +71,47 @@ public class ARViewBotJobPane extends ARPane {
     private static final BotJobTransferService botJobTransferService = BotJobTransferService.getInstance();
     private static final BotJobToolbarConcurrencyGuard botJobToolbarGuard = new BotJobToolbarConcurrencyGuard();
     private static final BotJobDetailsWebViewBootstrap webViewBootstrap = new BotJobDetailsWebViewBootstrap();
-    private static final java.util.concurrent.atomic.AtomicReference<ActiveReactTestRun> activeReactTestRun =
-            new java.util.concurrent.atomic.AtomicReference<>();
+    private static final BotJobTestRunCoordinator botJobTestRunCoordinator = new BotJobTestRunCoordinator(
+            botJobDetailsWorkspaceRegistry,
+            new BotJobTestRunCoordinator.ScannerPort() {
+                @Override
+                public long start(
+                        BotJobLoadDTO botJob,
+                        int blockOrderNumber,
+                        String endpointUrl,
+                        boolean runSingleBlock,
+                        BooleanSupplier cancellationRequested) {
+                    return ARScannedElementPane.getInstance()
+                            .submitTestRunBlockPlaywright(
+                                    botJob,
+                                    blockOrderNumber,
+                                    endpointUrl,
+                                    runSingleBlock,
+                                    cancellationRequested);
+                }
+
+                @Override
+                public void cancelStartup() {
+                    ARScannedElementPane.getInstance().cancelTestRunStartup();
+                }
+
+                @Override
+                public boolean stop(long executionId) {
+                    return ARScannedElementPane.getInstance().stopTestRun(executionId);
+                }
+
+                @Override
+                public boolean isComplete(long executionId) {
+                    return ARScannedElementPane.getInstance().isTestRunExecutionComplete(executionId);
+                }
+
+                @Override
+                public String terminalOutcome(long executionId) {
+                    return ARScannedElementPane.getInstance().testRunExecutionTerminalState(executionId);
+                }
+            },
+            (botJobId, requestId) -> com.allinweb.ch.socket.SimpleWebSocketServer.getInstance()
+                    .publishBotJobDetailsRuntimeStateStrict(botJobId, requestId));
     private static final ExecutorService botJobToolbarExecutor = new ThreadPoolExecutor(
             1,
             1,
@@ -74,15 +120,6 @@ public class ARViewBotJobPane extends ARPane {
             new SynchronousQueue<>(),
             runnable -> daemonThread(runnable, "bot-job-toolbar"),
             new ThreadPoolExecutor.AbortPolicy());
-    private static final ExecutorService botJobStopExecutor = new ThreadPoolExecutor(
-            1,
-            1,
-            0L,
-            TimeUnit.MILLISECONDS,
-            new ArrayBlockingQueue<>(1),
-            runnable -> daemonThread(runnable, "bot-job-toolbar-stop"),
-            new ThreadPoolExecutor.AbortPolicy());
-
     protected static volatile ARViewBotJobPane instance;
 
     boolean isComponentBoxVisible;
@@ -94,10 +131,9 @@ public class ARViewBotJobPane extends ARPane {
     private PayloadJson payloadEmpty;
     private boolean firstLoad = true;
     private String previousBotTasks;
-    private BlockLoadDTO blockLoad;
     private boolean isEnabledLicence;
     // Define a flag to prevent double clicks
-    private boolean isScannerButtonClicked = false;
+    private volatile boolean isScannerButtonClicked = false;
     private static final String EXECUTE_ALL_OPTION_LABEL = "Execute All";
     private VBox botJobContainer;
     private Pane mainPane;
@@ -107,10 +143,10 @@ public class ARViewBotJobPane extends ARPane {
     private WebEngine webEngineTasks;
     private WebView webViewComp = new WebView();
     private WebEngine webEngineComp;
-    private WebView webViewApiTool = new WebView();
-    private WebEngine webEngineApiTool;
     private WebView webViewPreScanner = new WebView();
     private WebEngine webEnginePreScanner;
+    private final Map<WebEngine, ChangeListener<Worker.State>> webViewLoadListeners = new IdentityHashMap<>();
+    private final Map<WebEngine, PauseTransition> pendingWebViewBootstraps = new IdentityHashMap<>();
     private boolean isPreScannerVisible = false;
     private ARPlaywrightDriver preScanDriver;
     // Guards runPreScan: double-clicking PRE SCAN must not interleave two chunk
@@ -159,42 +195,61 @@ public class ARViewBotJobPane extends ARPane {
     }
 
     public void initialize(ARScene arScene, BotJobLoadDTO selectedBotJob, boolean isEnabledLicence) {
+        if (selectedBotJob == null || selectedBotJob.getId() == null || selectedBotJob.getId() <= 0) {
+            throw new IllegalArgumentException("An active Bot Job is required");
+        }
         boolean existingWorkspace = componentBox != null;
-        if (existingWorkspace
-                && this.selectedBotJob != null
-                && this.selectedBotJob.getId() != null
-                && selectedBotJob != null
-                && selectedBotJob.getId() != null
-                && !this.selectedBotJob.getId().equals(selectedBotJob.getId())
-                && !canCloseWorkspace()) {
+        Integer previousBotJobId = this.selectedBotJob == null ? null : this.selectedBotJob.getId();
+        Integer requestedBotJobId = selectedBotJob == null ? null : selectedBotJob.getId();
+        boolean switchingBotJob = existingWorkspace
+                && previousBotJobId != null
+                && requestedBotJobId != null
+                && !previousBotJobId.equals(requestedBotJobId);
+        if (switchingBotJob && !canCloseWorkspace()) {
             throw new IllegalStateException(
                     "Stop the active Bot Job operation before opening another Bot Job");
+        }
+        if (switchingBotJob) {
+            suspendReactWorkspaceSurfaces(previousBotJobId);
         }
         this.isEnabledLicence = isEnabledLicence;
         this.arScene = arScene;
         this.selectedBotJob = selectedBotJob;
+        clearBotJobWorkspaceCaches();
         webViewBootstrap.activate(selectedBotJob);
         botJobDetailsWorkspaceRegistry.activate(selectedBotJob, isEnabledLicence);
-        HomeUrlDTO activeEnvironment = performLists.getHomeUrlByBankId(
-                selectedBotJob.getHomeBankingId(), selectedBotJob.getHomeUrlId());
-        reactEnvironmentUrl = activeEnvironment == null ? "" : activeEnvironment.getUrl();
-        if (existingWorkspace) {
-            showBotJobWorkspace();
+        try {
+            reactEnvironmentUrl = botJobDetailsService
+                    .captureToolbarContext(selectedBotJob.getId())
+                    .endpointUrl();
+        } catch (RuntimeException error) {
+            abortWorkspaceActivation(selectedBotJob.getId());
+            throw new IllegalStateException(
+                    "Unable to resolve persisted Bot Job endpoint during workspace activation", error);
         }
-
         ExcelUtils.createExcelDataFile(selectedBotJob, null);
 
-        ErrorMessage errorMessage = null;
-        if (performLists.getListVariablesUser().isEmpty()) {
-            errorMessage = performDataBase.loadAllVariablesByCriteria("variable", selectedBotJob.getId(), -1, "");
-        }
+        ErrorMessage errorMessage =
+                performDataBase.loadAllVariablesByCriteria("variable", selectedBotJob.getId(), -1, "");
 
-        if (errorMessage == null && performLists.getListWebPageItems().isEmpty()) {
+        if (errorMessage == null) {
             errorMessage = performDataBase.loadWebPageFields(selectedBotJob.getId(), "bot_job");
         }
 
         if (errorMessage != null) {
             performMessage.errorMessageOperationFailed(errorMessage);
+            abortWorkspaceActivation(selectedBotJob.getId());
+            throw new IllegalStateException("Unable to load Bot Job variables and page fields");
+        }
+
+        // Replace every job-scoped grid/block cache before any reused WebView or Scanner can observe it.
+        if (!refreshGrids()) {
+            abortWorkspaceActivation(selectedBotJob.getId());
+            throw new IllegalStateException("Unable to load Bot Job workspace data");
+        }
+
+        if (existingWorkspace) {
+            showBotJobWorkspace();
         }
 
         String priority = selectedBotJob.getPriority();
@@ -202,7 +257,7 @@ public class ARViewBotJobPane extends ARPane {
         if (isWebApp(priority)) {
             if (arScannedElementScene.getCurrentBotJob() != null
                     && !arScannedElementScene.getCurrentBotJob().getId().equals(selectedBotJob.getId())) {
-                callScannerTool();
+                callScannerTool(selectedBotJob, arScene);
             }
 
         } else if (isMobile(priority)) {
@@ -217,15 +272,34 @@ public class ARViewBotJobPane extends ARPane {
             }
         }
 
-        if (existingWorkspace) {
-            refreshGrids();
-            reloadReactWorkspaceSurfaces();
-        } else if (!webSocketSessionManager.getAllSessions().isEmpty()) {
-            refreshGrids();
+        if (existingWorkspace) reloadReactWorkspaceSurfaces();
+    }
+
+    private void clearBotJobWorkspaceCaches() {
+        performLists.getListVariablesUser().clear();
+        performLists.getListWebPageItems().clear();
+        performLists.getListBotJob().clear();
+        performLists.getListBlock().clear();
+        performLists.getListBotJobComp().clear();
+        performLists.getListBlockComp().clear();
+        performLists.getAllActions().clear();
+    }
+
+    private void abortWorkspaceActivation(int botJobId) {
+        try {
+            suspendReactWorkspaceSurfaces(botJobId);
+        } finally {
+            botJobDetailsWorkspaceRegistry.close(botJobId);
+            clearBotJobWorkspaceCaches();
         }
     }
 
     private boolean refreshGrids() {
+
+        performLists.getListBotJob().clear();
+        performLists.getListBlock().clear();
+        performLists.getListBotJobComp().clear();
+        performLists.getListBlockComp().clear();
 
         ErrorMessage errorMessage = performDBEngine.loadCompleteJobs(selectedBotJob.getId());
 
@@ -234,22 +308,28 @@ public class ARViewBotJobPane extends ARPane {
             return false;
         }
 
+        errorMessage = performDataBase.loadBlocks(selectedBotJob.getId(), selectedBotJob.getName(), "block");
+        if (errorMessage != null) {
+            performMessage.errorMessageOperationFailed(errorMessage);
+            return false;
+        }
+
         // Updates the Grid After Load
-        if (!firstLoad) {
-            setPayloadEmpty("botJobTasks");
-            String jsonData = gson.toJson(payloadEmpty);
+        setPayloadEmpty("botJobTasks");
+        String botJobJsonData = gson.toJson(payloadEmpty);
 
-            if (!performLists.getListBotJob().isEmpty()) {
-                List<InstructionLoad> instructions = performLists.buildJsonViewData(performLists.getListBotJob());
-                if (!instructions.isEmpty()) {
-                    jsonData = gson.toJson(instructions);
-                }
+        if (!performLists.getListBotJob().isEmpty()) {
+            List<InstructionLoad> instructions = performLists.buildJsonViewData(performLists.getListBotJob());
+            if (!instructions.isEmpty()) {
+                botJobJsonData = gson.toJson(instructions);
             }
+        }
 
-            webViewBootstrap.updatePayload(selectedBotJob.getId(), "botJobTasks", jsonData);
+        webViewBootstrap.updatePayload(selectedBotJob.getId(), "botJobTasks", botJobJsonData);
 
+        if (!firstLoad) {
             com.allinweb.ch.socket.InstructionRealtimePublisher.getInstance()
-                    .publishSerializedSnapshot(selectedBotJob.getHomeBankingId(), "botJobTasks", jsonData);
+                    .publishSerializedSnapshot(selectedBotJob.getHomeBankingId(), "botJobTasks", botJobJsonData);
         }
 
         errorMessage = performDataBase.loadComponentsComplete(
@@ -260,21 +340,28 @@ public class ARViewBotJobPane extends ARPane {
             return false;
         }
 
-        if (!firstLoad) {
-            setPayloadEmpty("componentTasks");
-            String jsonData = gson.toJson(payloadEmpty);
+        errorMessage = performDataBase.loadBlocks(
+                selectedBotJob.getHomeBankingId(), selectedBotJob.getName(), "component_block");
+        if (errorMessage != null) {
+            performMessage.errorMessageOperationFailed(errorMessage);
+            return false;
+        }
 
-            if (!performLists.getListBotJobComp().isEmpty()) {
-                List<InstructionLoad> instructions = performLists.buildJsonViewData(performLists.getListBotJobComp());
-                if (!instructions.isEmpty()) {
-                    jsonData = gson.toJson(instructions);
-                }
+        setPayloadEmpty("componentTasks");
+        String componentJsonData = gson.toJson(payloadEmpty);
+
+        if (!performLists.getListBotJobComp().isEmpty()) {
+            List<InstructionLoad> instructions = performLists.buildJsonViewData(performLists.getListBotJobComp());
+            if (!instructions.isEmpty()) {
+                componentJsonData = gson.toJson(instructions);
             }
+        }
 
-            webViewBootstrap.updatePayload(selectedBotJob.getId(), "componentTasks", jsonData);
+        webViewBootstrap.updatePayload(selectedBotJob.getId(), "componentTasks", componentJsonData);
 
+        if (!firstLoad) {
             com.allinweb.ch.socket.InstructionRealtimePublisher.getInstance()
-                    .publishSerializedSnapshot(selectedBotJob.getHomeBankingId(), "componentTasks", jsonData);
+                    .publishSerializedSnapshot(selectedBotJob.getHomeBankingId(), "componentTasks", componentJsonData);
         }
 
         //        webSocketSessionManager.broadcastMessageToAll(
@@ -346,21 +433,6 @@ public class ARViewBotJobPane extends ARPane {
                 sessionId,
                 selectedBotJob.getId());
 
-        // ── capiApiTestToolAI  ← NEW ──────────────────────────────────────────────
-        // Load the React app in the third WebView with sessionId = "capiApiTestToolAI".
-        // We pass an empty JSON array as payload; the React component manages its
-        // own internal data (see capiApiTestToolAI.tsx and index_patch.tsx).
-        webEngineApiTool = webViewApiTool.getEngine();
-        webEngineApiTool.javaScriptEnabledProperty().set(true);
-
-        sessionId = "capiApiTestToolAI";
-        buildWebView(
-                webEngineApiTool,
-                "[]",
-                portInitial,
-                sessionId,
-                selectedBotJob.getId());
-
         webEnginePreScanner = webViewPreScanner.getEngine();
         webEnginePreScanner.javaScriptEnabledProperty().set(true);
 
@@ -372,7 +444,7 @@ public class ARViewBotJobPane extends ARPane {
                 sessionId,
                 selectedBotJob.getId());
 
-        previousBotTasks = sessionId;
+        previousBotTasks = "botJobTasks";
     }
 
     @Override
@@ -418,21 +490,40 @@ public class ARViewBotJobPane extends ARPane {
             String sessionIdFromJava,
             int botJobId) {
         webViewBootstrap.updatePayload(botJobId, sessionIdFromJava, jsonData);
-        webEngine.load(WebBuildExtractor.getIndexUrl());
-
-        webEngine.getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
+        ChangeListener<Worker.State> previousListener = webViewLoadListeners.remove(webEngine);
+        if (previousListener != null) {
+            webEngine.getLoadWorker().stateProperty().removeListener(previousListener);
+        }
+        String indexUrl = WebBuildExtractor.getIndexUrl();
+        ChangeListener<Worker.State> listener = (obs, oldState, newState) -> {
             if (newState == Worker.State.SUCCEEDED) {
-                try {
-                    BotJobDetailsWebViewBootstrap.Context context = webViewBootstrap.resolve(sessionIdFromJava);
-                    webEngine.executeScript("setTimeout(function() { window.receiveDataFromJava(JSON.stringify("
-                            + context.jsonData() + "), " + finalPort + ", '" + context.sessionId() + "', "
-                            + context.homeBankingId() + ", '" + context.organizationName() + "', "
-                            + context.botJobId() + ", '" + context.botJobName() + "' ) }, 1000)");
-                } catch (Exception error) {
-                    log.error("buildWebView Error: " + error.getMessage());
-                }
+                cancelPendingWebViewBootstrap(webEngine);
+                if (!indexUrl.equals(webEngine.getLocation())) return;
+                PauseTransition delay = new PauseTransition(Duration.seconds(1));
+                pendingWebViewBootstraps.put(webEngine, delay);
+                delay.setOnFinished(event -> {
+                    if (pendingWebViewBootstraps.get(webEngine) != delay) return;
+                    pendingWebViewBootstraps.remove(webEngine);
+                    if (!indexUrl.equals(webEngine.getLocation())) return;
+                    try {
+                        BotJobDetailsWebViewBootstrap.Context context = webViewBootstrap.resolve(sessionIdFromJava);
+                        webEngine.executeScript(
+                                BotJobDetailsWebViewBootstrap.initializationScript(context, finalPort, gson));
+                    } catch (Exception error) {
+                        log.error("buildWebView Error: " + error.getMessage());
+                    }
+                });
+                delay.play();
             }
-        });
+        };
+        webViewLoadListeners.put(webEngine, listener);
+        webEngine.getLoadWorker().stateProperty().addListener(listener);
+        webEngine.load(indexUrl);
+    }
+
+    private void cancelPendingWebViewBootstrap(WebEngine webEngine) {
+        PauseTransition pending = pendingWebViewBootstraps.remove(webEngine);
+        if (pending != null) pending.stop();
     }
 
     @Override
@@ -869,7 +960,7 @@ public class ARViewBotJobPane extends ARPane {
                 .toList();
     }
 
-    private void callScannerTool() {
+    private void callScannerTool(BotJobLoadDTO scannerBotJob, ARScene scannerScene) {
         if (arPropertyManager.missingMandatoryPats()) {
             return;
         }
@@ -879,24 +970,17 @@ public class ARViewBotJobPane extends ARPane {
 
             log.info("Calling openScannerButton");
 
-            String threadName = "botJob-" + selectedBotJob.getId();
-            arScene.startNewThread(threadName, () -> {
-                executeScannerTask();
-                isScannerButtonClicked = false; // Reset the flag after task completes
+            String threadName = "botJob-" + scannerBotJob.getId();
+            scannerScene.startNewThread(threadName, () -> {
+                try {
+                    executeScannerTask(scannerBotJob);
+                } catch (Exception error) {
+                    handleExceptionScan(error);
+                } finally {
+                    isScannerButtonClicked = false; // Reset the flag after task completes
+                }
             });
         }
-    }
-
-    // Method where you start the thread (e.g., in a button's event handler)
-    private void handleStartScanner() {
-        String threadName = "botJob-" + selectedBotJob.getId(); // Use the ID for the thread name
-        arScene.startNewThread(threadName, () -> {
-            executeScannerTask();
-            Platform.runLater(() -> {
-                // Update UI here, if needed
-                log.info("Scanner task completed for " + threadName);
-            });
-        });
     }
 
     public HomeUrlDTO findMatchingHomeUrlDTO(BotJobLoadDTO botJobLoadDTO) {
@@ -913,42 +997,44 @@ public class ARViewBotJobPane extends ARPane {
         return null;
     }
 
-    private void executeScannerTask() {
+    private void executeScannerTask(BotJobLoadDTO scannerBotJob) {
 
-        ErrorMessage errorMessage = performDBEngine.loadHomeBanking(selectedBotJob.getHomeBankingId());
+        ErrorMessage errorMessage = performDBEngine.loadHomeBanking(scannerBotJob.getHomeBankingId());
         if (errorMessage == null) {
-            errorMessage = performDBEngine.loadHomeUrls(selectedBotJob.getHomeBankingId());
+            errorMessage = performDBEngine.loadHomeUrls(scannerBotJob.getHomeBankingId());
         }
 
         if (errorMessage != null) {
             performMessage.errorMessageOperationFailed(errorMessage);
+            return;
         }
         HomeBankingLoadDTO homeBanking = performLists.getListHomeBanking().isEmpty()
                 ? null
                 : performLists.getListHomeBanking().get(0);
 
-        HomeUrlDTO homeUrlDTO = findMatchingHomeUrlDTO(selectedBotJob);
-        if (homeUrlDTO != null) {
-            selectedBotJob.setHomeUrlId(homeUrlDTO.getId());
+        HomeUrlDTO homeUrlDTO = findMatchingHomeUrlDTO(scannerBotJob);
+        if (homeUrlDTO != null && homeBanking != null) {
+            scannerBotJob.setHomeUrlId(homeUrlDTO.getId());
             homeBanking.setUrl(homeUrlDTO.getUrl());
         }
 
-        if (selectedBotJob.getBlockLoadDTOList() != null
-                && !selectedBotJob.getBlockLoadDTOList().isEmpty()) {
-            this.blockLoad = selectedBotJob.getBlockLoadDTOList().get(0);
+        BlockLoadDTO scannerBlock = null;
+        if (scannerBotJob.getBlockLoadDTOList() != null
+                && !scannerBotJob.getBlockLoadDTOList().isEmpty()) {
+            scannerBlock = scannerBotJob.getBlockLoadDTOList().get(0);
         } else {
 
-            errorMessage = performDataBase.loadBlocks(selectedBotJob.getId(), selectedBotJob.getName(), "block");
+            errorMessage = performDataBase.loadBlocks(scannerBotJob.getId(), scannerBotJob.getName(), "block");
             if (errorMessage != null) {
                 performMessage.errorMessageOperationFailed(errorMessage);
             }
             if (!performLists.getListBlock().isEmpty()) {
-                this.blockLoad = performLists.getListBlock().get(0);
+                scannerBlock = performLists.getListBlock().get(0);
             }
         }
 
         try {
-            arScannedElementScene.initialize(homeBanking, selectedBotJob, this.blockLoad);
+            arScannedElementScene.initialize(homeBanking, scannerBotJob, scannerBlock);
             arScannedElementScene.showModal(); // Make sure the scene is shown
         } catch (Exception ex) {
             handleExceptionScan(ex);
@@ -1233,49 +1319,17 @@ public class ARViewBotJobPane extends ARPane {
     private void dispatchPromptStop(
             BotJobDetailsRequest request,
             CompletableFuture<BotJobToolbarActionResult> completion) {
-        final BotJobDetailsWorkspaceRegistry.Snapshot snapshot;
-        final BotJobDetailsWorkspaceRegistry.StopDecision decision;
-        try {
-            snapshot = botJobDetailsWorkspaceRegistry.require(request.botJobId());
-            decision = botJobDetailsWorkspaceRegistry.requestTestRunStop(
-                    request.botJobId(), snapshot.workspaceEpoch());
-        } catch (Exception error) {
-            completeToolbarFailure(BotJobToolbarAction.STOP_TEST_RUN, completion, error);
-            return;
-        }
-        if (!decision.accepted()) {
-            completion.complete(BotJobToolbarActionResult.failure(
-                    BotJobToolbarAction.STOP_TEST_RUN, "No TEST RUN is active"));
-            return;
-        }
-        if (decision.alreadyRequested()) {
-            completion.complete(BotJobToolbarActionResult.success(
-                    BotJobToolbarAction.STOP_TEST_RUN, "TEST RUN stop already requested"));
-            return;
-        }
-
-        BotJobDetailsWorkspaceRegistry.ExecutionAttempt attempt =
-                new BotJobDetailsWorkspaceRegistry.ExecutionAttempt(
-                        request.botJobId(), snapshot.workspaceEpoch(), decision.attemptId());
-        try {
-            botJobStopExecutor.execute(() -> {
-                try {
-                    botJobDetailsWorkspaceRegistry.require(attempt.botJobId(), attempt.workspaceEpoch());
-                    ActiveReactTestRun activeRun = activeReactTestRun.get();
-                    if (activeRun != null && activeRun.attempt().equals(attempt)) {
-                        ARScannedElementPane.getInstance().stopTestRun(activeRun.scannerExecutionId());
-                    }
-                    completion.complete(BotJobToolbarActionResult.success(
-                            BotJobToolbarAction.STOP_TEST_RUN, "TEST RUN stop requested"));
-                } catch (Exception error) {
-                    completeToolbarFailure(BotJobToolbarAction.STOP_TEST_RUN, completion, error);
-                }
-            });
-        } catch (RejectedExecutionException rejected) {
-            botJobDetailsWorkspaceRegistry.finishTestRun(attempt, "FAILED");
-            completion.complete(BotJobToolbarActionResult.failure(
-                    BotJobToolbarAction.STOP_TEST_RUN, "Unable to schedule TEST RUN stop"));
-        }
+        botJobTestRunCoordinator.requestStop(request.botJobId()).whenComplete((result, error) -> {
+            if (error != null) {
+                completeToolbarFailure(BotJobToolbarAction.STOP_TEST_RUN, completion, error);
+            } else if (result.accepted()) {
+                completion.complete(BotJobToolbarActionResult.success(
+                        BotJobToolbarAction.STOP_TEST_RUN, result.message()));
+            } else {
+                completion.complete(BotJobToolbarActionResult.failure(
+                        BotJobToolbarAction.STOP_TEST_RUN, result.message()));
+            }
+        });
     }
 
     private void requireNonStopActionAllowed(BotJobToolbarContext context) {
@@ -1295,10 +1349,6 @@ public class ARViewBotJobPane extends ARPane {
             throw new IllegalStateException("An external Engine execution is already active");
         }
     }
-
-    private record ActiveReactTestRun(
-            BotJobDetailsWorkspaceRegistry.ExecutionAttempt attempt,
-            long scannerExecutionId) {}
 
     private static void completeToolbarFailure(
             BotJobToolbarAction action,
@@ -1356,75 +1406,16 @@ public class ARViewBotJobPane extends ARPane {
 
         TestRunExecutionSelection selection = TestRunExecutionSelection.resolve(
                 blockOrder, executeAllSelected, "ONE".equals(mode));
-        final String selectedBlockName = blockName;
-        BotJobDetailsWorkspaceRegistry.ExecutionAttempt executionAttempt =
-                botJobDetailsWorkspaceRegistry.beginTestRun(context.botJobId(), context.workspaceEpoch());
-        com.allinweb.ch.socket.SimpleWebSocketServer.getInstance()
-                .publishBotJobDetailsRuntimeState(context.botJobId(), request.requestId());
-        boolean accepted;
-        try {
-            accepted = ARScannedElementPane.getInstance().testRunBlockPlaywright(
-                    context.executionBotJob(),
-                    selection.blockOrderNumber(),
-                    context.endpointUrl(),
-                    selection.runSingleBlock());
-        } catch (RuntimeException error) {
-            botJobDetailsWorkspaceRegistry.finishTestRun(executionAttempt, "FAILED");
-            throw error;
-        }
-        if (!accepted) {
-            botJobDetailsWorkspaceRegistry.finishTestRun(executionAttempt, "FAILED");
-            completion.complete(BotJobToolbarActionResult.failure(
-                    action, "TEST RUN was not started; review the browser and job configuration"));
-            return;
-        }
-        long scannerExecutionId = ARScannedElementPane.getInstance().currentTestRunExecutionId();
-        if (scannerExecutionId <= 0) {
-            botJobDetailsWorkspaceRegistry.finishTestRun(executionAttempt, "FAILED");
-            completion.complete(BotJobToolbarActionResult.failure(
-                    action, "TEST RUN executor did not expose an active execution"));
-            return;
-        }
-        ActiveReactTestRun activeRun = new ActiveReactTestRun(executionAttempt, scannerExecutionId);
-        activeReactTestRun.set(activeRun);
-        if (!botJobDetailsWorkspaceRegistry.markTestRunRunning(executionAttempt)) {
-            ARScannedElementPane.getInstance().stopTestRun(scannerExecutionId);
-            completion.complete(BotJobToolbarActionResult.failure(
-                    action, "TEST RUN was stopped during startup"));
-            monitorTestRunCompletion(activeRun);
-            return;
-        }
-        completion.complete(BotJobToolbarActionResult.success(
-                action,
-                "TEST RUN started in " + mode + " mode from " + selectedBlockName));
-        monitorTestRunCompletion(activeRun);
-    }
-
-    private void monitorTestRunCompletion(ActiveReactTestRun activeRun) {
-        BotJobDetailsWorkspaceRegistry.ExecutionAttempt executionAttempt = activeRun.attempt();
-        Thread monitor = new Thread(() -> {
-            try {
-                while (!ARScannedElementPane.getInstance()
-                        .isTestRunExecutionComplete(activeRun.scannerExecutionId())) {
-                    Thread.sleep(250L);
-                }
-                BotJobDetailsWorkspaceRegistry.Snapshot snapshot = botJobDetailsWorkspaceRegistry.require(
-                        executionAttempt.botJobId(), executionAttempt.workspaceEpoch());
-                String terminalState = "STOPPING".equals(snapshot.executionState()) ? "INTERRUPTED" : "IDLE";
-                if (botJobDetailsWorkspaceRegistry.finishTestRun(executionAttempt, terminalState)) {
-                    com.allinweb.ch.socket.SimpleWebSocketServer.getInstance()
-                            .publishBotJobDetailsRuntimeState(executionAttempt.botJobId(), "test-run-complete");
-                }
-            } catch (InterruptedException interrupted) {
-                Thread.currentThread().interrupt();
-            } catch (RuntimeException error) {
-                log.debug("Unable to publish TEST RUN terminal state: {}", error.getMessage());
-            } finally {
-                activeReactTestRun.compareAndSet(activeRun, null);
-            }
-        }, "react-testrun-monitor-" + executionAttempt.botJobId());
-        monitor.setDaemon(true);
-        monitor.start();
+        BotJobTestRunCoordinator.StartResult result = botJobTestRunCoordinator.start(
+                context,
+                selection.blockOrderNumber(),
+                selection.runSingleBlock(),
+                mode,
+                blockName,
+                request.requestId());
+        completion.complete(result.accepted()
+                ? BotJobToolbarActionResult.success(action, result.message())
+                : BotJobToolbarActionResult.failure(action, result.message()));
     }
 
     private void openExcelFromReact(BotJobToolbarContext context) throws IOException {
@@ -1730,9 +1721,54 @@ public class ARViewBotJobPane extends ARPane {
     }
 
     private void reloadReactWorkspaceSurfaces() {
-        if (webEngineTasks != null) webEngineTasks.reload();
-        if (webEngineComp != null) webEngineComp.reload();
-        if (webEnginePreScanner != null) webEnginePreScanner.reload();
+        String indexUrl = WebBuildExtractor.getIndexUrl();
+        if (webEngineTasks != null) webEngineTasks.load(indexUrl);
+        if (webEngineComp != null) webEngineComp.load(indexUrl);
+        if (webEnginePreScanner != null) webEnginePreScanner.load(indexUrl);
+    }
+
+    private void suspendReactWorkspaceSurfaces(int botJobId) {
+        webViewBootstrap.deactivate(botJobId);
+        for (String workspaceSession : List.of("botJobTasks", "componentTasks", "preScannerGrid")) {
+            WebSocketSessionManager.closeSession(workspaceSession);
+            botJobTransferPathRegistry.clear(workspaceSession, botJobId);
+        }
+        runOnFxThread(() -> {
+            suspendReactWorkspaceSurface(webEngineTasks);
+            suspendReactWorkspaceSurface(webEngineComp);
+            suspendReactWorkspaceSurface(webEnginePreScanner);
+        });
+    }
+
+    private void suspendReactWorkspaceSurface(WebEngine webEngine) {
+        if (webEngine == null) return;
+        cancelPendingWebViewBootstrap(webEngine);
+        webEngine.getLoadWorker().cancel();
+        webEngine.load("about:blank");
+    }
+
+    private void detachReactWorkspaceLoadListeners() {
+        runOnFxThread(() -> {
+            for (Map.Entry<WebEngine, ChangeListener<Worker.State>> entry :
+                    new ArrayList<>(webViewLoadListeners.entrySet())) {
+                entry.getKey().getLoadWorker().stateProperty().removeListener(entry.getValue());
+                cancelPendingWebViewBootstrap(entry.getKey());
+            }
+            webViewLoadListeners.clear();
+            pendingWebViewBootstraps.clear();
+        });
+    }
+
+    private void runOnFxThread(Runnable operation) {
+        if (Platform.isFxApplicationThread()) {
+            operation.run();
+            return;
+        }
+        try {
+            Platform.runLater(operation);
+        } catch (IllegalStateException error) {
+            log.debug("JavaFX runtime is unavailable while retiring Bot Job WebViews: {}", error.getMessage());
+        }
     }
 
     private void showComponentsWorkspace() {
@@ -1824,6 +1860,10 @@ public class ARViewBotJobPane extends ARPane {
     }
 
     public void destroy() {
+        if (selectedBotJob != null && selectedBotJob.getId() != null) {
+            suspendReactWorkspaceSurfaces(selectedBotJob.getId());
+        }
+        detachReactWorkspaceLoadListeners();
         clearPane(getPaneReference());
         pane = null;
         scene = null;
@@ -1934,9 +1974,14 @@ public class ARViewBotJobPane extends ARPane {
                     "Wait for the active Bot Job operation to finish or stop TEST RUN first");
         }
         if (selectedBotJob != null && selectedBotJob.getId() != null) {
-            botJobDetailsWorkspaceRegistry.close(selectedBotJob.getId());
-            for (String workspaceSession : List.of("botJobTasks", "componentTasks", "preScannerGrid")) {
-                botJobTransferPathRegistry.clear(workspaceSession, selectedBotJob.getId());
+            int closingBotJobId = selectedBotJob.getId();
+            try {
+                suspendReactWorkspaceSurfaces(closingBotJobId);
+            } finally {
+                botJobDetailsWorkspaceRegistry.close(closingBotJobId);
+                for (String workspaceSession : List.of("botJobTasks", "componentTasks", "preScannerGrid")) {
+                    botJobTransferPathRegistry.clear(workspaceSession, closingBotJobId);
+                }
             }
         }
         if (preScanDriver != null) {
@@ -1951,7 +1996,9 @@ public class ARViewBotJobPane extends ARPane {
     }
 
     public boolean canCloseWorkspace() {
-        if (botJobToolbarGuard.activeOperation() != null || preScanRunning.get()) return false;
+        if (botJobToolbarGuard.activeOperation() != null || preScanRunning.get() || isScannerButtonClicked) {
+            return false;
+        }
         if (selectedBotJob == null || selectedBotJob.getId() == null) return true;
         try {
             return !BotJobDetailsWorkspaceRegistry.isExecutionActive(

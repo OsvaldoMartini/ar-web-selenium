@@ -101,7 +101,12 @@
       "Bash(mvn spotless:apply -q)",
       "Bash(mvn -f \"D:/Projects/AllinWeb/ar-web-mobile/pom.xml\" spotless:apply -q)",
       "Bash(mvn -f \"D:/Projects/AllinWeb/ar-web-mobile/pom.xml\" compile -q)",
-      "Bash(mvn -f \"D:/Projects/AllinWeb/ar-web-mobile/pom.xml\" clean package -DskipTests)"
+      "Bash(mvn -f \"D:/Projects/AllinWeb/ar-web-mobile/pom.xml\" clean package -DskipTests)",
+      "PowerShell(mvn compile *)",
+      "Bash(npm run *)",
+      "Bash(npx jest *)",
+      "Bash(npx react-scripts *)",
+      "Bash(xargs -I{} echo {})"
     ]
   }
 }

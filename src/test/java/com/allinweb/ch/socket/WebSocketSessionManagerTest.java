@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import javax.websocket.Session;
@@ -76,6 +77,23 @@ class WebSocketSessionManagerTest {
         assertFalse(WebSocketSessionManager.addSession("botJobTasks", session));
         assertNull(WebSocketSessionManager.getSession("botJobTasks"));
         assertEquals("mainDashboard", manager.getSessionIdBySession(session));
+    }
+
+    @Test
+    void retiringLogicalSessionClosesAndUnregistersItsExactTransport() throws Exception {
+        Session session = openSession();
+        assertTrue(WebSocketSessionManager.addSession("botJobTasks", session));
+
+        assertTrue(WebSocketSessionManager.closeSession("botJobTasks"));
+        assertFalse(WebSocketSessionManager.closeSession("botJobTasks"));
+
+        verify(session).close();
+        assertNull(WebSocketSessionManager.getSession("botJobTasks"));
+        assertNull(manager.getSessionIdBySession(session));
+
+        Session replacement = openSession();
+        assertTrue(WebSocketSessionManager.addSession("botJobTasks", replacement));
+        assertSame(replacement, WebSocketSessionManager.getSession("botJobTasks"));
     }
 
     private Session openSession() {

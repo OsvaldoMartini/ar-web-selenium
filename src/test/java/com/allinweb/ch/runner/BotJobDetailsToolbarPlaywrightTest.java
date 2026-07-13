@@ -269,6 +269,7 @@ class BotJobDetailsToolbarPlaywrightTest {
     void rendersAndOperatesTheCompleteBotJobDetailsToolbarContract() throws Exception {
         assertToolbarBuildIsDeployed();
         List<String> pageErrors = new CopyOnWriteArrayList<>();
+        List<String> uiContractFailures = new CopyOnWriteArrayList<>();
 
         Path chromeExecutable = locateChromeExecutable();
         try (Playwright playwright = Playwright.create(new Playwright.CreateOptions().setEnv(
@@ -298,19 +299,27 @@ class BotJobDetailsToolbarPlaywrightTest {
                                 BOT_JOB_ID,
                                 "Payments"));
 
-                Locator executionPanel = page.locator("section[aria-labelledby='execution-controls-title']");
-                executionPanel.waitFor();
-                page.locator("section[aria-labelledby='job-files-title']").waitFor();
-                page.locator("section[aria-labelledby='job-transfer-title']").waitFor();
+                page.getByLabel("Starting block").waitFor();
+                page.locator("[role='group'][aria-label='Job files']").waitFor();
+                button(page, "Export").waitFor();
+                button(page, "Import").waitFor();
                 page.getByText("IDLE", new Page.GetByTextOptions().setExact(true)).waitFor();
 
                 coverJobFileButtons(page);
-                coverNavigationAndExecution(page, executionPanel);
+                coverNavigationAndExecution(page);
                 coverTransferActions(page);
-                coverSemanticMetadataForm(page);
+                coverSemanticMetadataForm(page, uiContractFailures);
                 coverResponsiveLayout(page);
 
-                assertTrue(pageErrors.isEmpty(), "Unexpected browser page errors: " + pageErrors);
+                @SuppressWarnings("unchecked")
+                List<String> blockedControls =
+                        (List<String>) page.evaluate("() => window.__arBlockedToolbarControls || []");
+                pageErrors.forEach(error -> uiContractFailures.add("Browser page error: " + error));
+                blockedControls.forEach(
+                        action -> uiContractFailures.add("Control is covered by another layer: " + action));
+                assertTrue(
+                        uiContractFailures.isEmpty(),
+                        "Bot Job Details UI contract failures: " + uiContractFailures);
             } finally {
                 context.close();
                 browser.close();
@@ -339,27 +348,23 @@ class BotJobDetailsToolbarPlaywrightTest {
 
         assertEquals(
                 "CREATE_BAT",
-                toolbarBodyAfterClick(page, button(page, "Create BAT"), "CREATE_BAT")
+                toolbarBodyAfterClick(page, page.locator("[aria-label='Create BAT']"), "CREATE_BAT")
                         .get("action")
                         .getAsString());
         awaitToolbarIdle(page);
     }
 
-    private void coverNavigationAndExecution(Page page, Locator executionPanel) {
-        Locator navigation = page.getByLabel("Navigation time");
-        assertEquals("number", navigation.getAttribute("type"));
-        assertEquals("0", navigation.getAttribute("min"));
-        assertEquals("10", navigation.getAttribute("max"));
-        navigation.fill("6");
-        JsonObject navigationBody =
-                toolbarBodyAfterClick(page, button(executionPanel, "Apply"), "SET_NAVIGATION_TIME");
-        assertEquals(6, navigationBody.get("navigationTimeSeconds").getAsInt());
+    private void coverNavigationAndExecution(Page page) {
+        Locator navigation = page.locator("[aria-label='Navigation time: 2 seconds']");
+        assertTrue(navigation.isVisible());
+        JsonObject navigationBody = toolbarBodyAfterClick(page, navigation, "SET_NAVIGATION_TIME");
+        assertEquals(3, navigationBody.get("navigationTimeSeconds").getAsInt());
         awaitToolbarIdle(page);
-        page.waitForFunction("() => document.querySelector('#bot-job-navigation-time').value === '6'");
+        page.locator("[aria-label='Navigation time: 3 seconds']").waitFor();
 
         assertEquals(
                 "LAUNCH",
-                toolbarBodyAfterClick(page, button(executionPanel, "Launch"), "LAUNCH")
+                toolbarBodyAfterClick(page, button(page, "Launch"), "LAUNCH")
                         .get("action")
                         .getAsString());
         awaitToolbarIdle(page);
@@ -385,12 +390,12 @@ class BotJobDetailsToolbarPlaywrightTest {
         assertTrue(allMode.isDisabled(), "Execute All must force and lock ALL mode");
         assertEquals("rgb(22, 128, 63)", computedBackground(allMode));
 
-        JsonObject executeAll = toolbarBodyAfterClick(page, button(executionPanel, "Test run"), "TEST_RUN");
+        JsonObject executeAll = toolbarBodyAfterClick(page, button(page, "Test run"), "TEST_RUN");
         assertEquals("ALL", executeAll.get("executionMode").getAsString());
         assertEquals(0, executeAll.get("blockId").getAsInt());
         page.getByText("RUNNING", new Page.GetByTextOptions().setExact(true)).waitFor();
 
-        Locator stop = button(executionPanel, "Stop");
+        Locator stop = button(page, "Stop");
         assertFalse(stop.isDisabled());
         toolbarBodyAfterClick(page, stop, "STOP_TEST_RUN");
         awaitToolbarIdle(page);
@@ -406,16 +411,18 @@ class BotJobDetailsToolbarPlaywrightTest {
         assertEquals("rgb(232, 121, 27)", computedBackground(oneMode));
         assertEquals("true", oneMode.getAttribute("aria-pressed"));
 
-        JsonObject executeOne = toolbarBodyAfterClick(page, button(executionPanel, "Test run"), "TEST_RUN");
+        JsonObject executeOne = toolbarBodyAfterClick(page, button(page, "Test run"), "TEST_RUN");
         assertEquals("ONE", executeOne.get("executionMode").getAsString());
         assertEquals(91, executeOne.get("blockId").getAsInt());
         page.getByText("RUNNING", new Page.GetByTextOptions().setExact(true)).waitFor();
-        toolbarBodyAfterClick(page, button(executionPanel, "Stop"), "STOP_TEST_RUN");
+        toolbarBodyAfterClick(page, button(page, "Stop"), "STOP_TEST_RUN");
         awaitToolbarIdle(page);
         page.getByText("INTERRUPTED", new Page.GetByTextOptions().setExact(true)).waitFor();
     }
 
     private void coverTransferActions(Page page) {
+        button(page, "Export").click();
+        page.locator("section[aria-label='Export Bot Job']").waitFor();
         Locator transferPath = page.locator("#bot-job-transfer-path");
         assertTrue((Boolean) transferPath.evaluate("element => element.readOnly"));
 
@@ -428,25 +435,33 @@ class BotJobDetailsToolbarPlaywrightTest {
                 SELECTED_TRANSFER_PATH);
         assertEquals(SELECTED_TRANSFER_PATH, transferPath.inputValue());
 
-        Locator restoreDate = page.getByLabel("Restore date");
-        restoreDate.fill("2026-07-12");
-
-        JsonObject exportBody = toolbarBodyAfterClick(page, button(page, "Export"), "EXPORT_JOB");
+        JsonObject exportBody = toolbarBodyAfterClick(
+                page, page.locator("[aria-label='Confirm export']"), "EXPORT_JOB");
         assertEquals(SELECTED_TRANSFER_PATH, exportBody.get("transferPath").getAsString());
         assertTrue(exportBody.get("confirmed").getAsBoolean());
-        assertConfirmContains(page, "Export this Bot Job");
         awaitToolbarIdle(page);
 
-        JsonObject importBody = toolbarBodyAfterClick(page, button(page, "Import"), "IMPORT_JOB");
+        button(page, "Import").click();
+        page.locator("section[aria-label='Import Bot Job']").waitFor();
+        Locator restoreDate = page.getByLabel("Restore date");
+        restoreDate.fill("2026-07-12");
+        assertEquals(SELECTED_TRANSFER_PATH, page.locator("#bot-job-transfer-path").inputValue());
+
+        JsonObject importBody = toolbarBodyAfterClick(
+                page, page.locator("[aria-label='Confirm import']"), "IMPORT_JOB");
         assertEquals(SELECTED_TRANSFER_PATH, importBody.get("transferPath").getAsString());
         assertEquals("2026-07-12", importBody.get("restoreDate").getAsString());
         assertTrue(importBody.get("confirmed").getAsBoolean());
-        assertConfirmContains(page, "Import the 2026-07-12 Bot Job backup");
         awaitToolbarIdle(page);
     }
 
-    private void coverSemanticMetadataForm(Page page) {
-        button(page, "Edit").click();
+    private void coverSemanticMetadataForm(Page page, List<String> uiContractFailures) {
+        Locator edit = button(page, "Edit");
+        if (edit.count() == 0 || !edit.isVisible()) {
+            uiContractFailures.add("Bot Job metadata editor entry point 'Edit' is missing");
+            return;
+        }
+        edit.click();
 
         Locator name = page.getByLabel("Bot Job name");
         Locator projectType = page.getByLabel("Project type");
@@ -487,13 +502,13 @@ class BotJobDetailsToolbarPlaywrightTest {
 
     private void coverResponsiveLayout(Page page) {
         page.setViewportSize(600, 1000);
-        for (String labelledBy : List.of(
-                "execution-controls-title", "job-files-title", "job-transfer-title")) {
-            Locator panel = page.locator("section[aria-labelledby='" + labelledBy + "']");
-            assertTrue(panel.isVisible());
+        for (Locator header : List.of(
+                page.locator("header:has([aria-label='Starting block'])"),
+                page.locator("header:has([aria-label='Job files'])"))) {
+            assertTrue(header.isVisible());
             assertTrue(
-                    (Boolean) panel.evaluate("element => element.scrollWidth <= element.clientWidth + 1"),
-                    labelledBy + " overflows its mobile panel");
+                    (Boolean) header.evaluate("element => element.scrollWidth <= element.clientWidth + 1"),
+                    "Bot Job header overflows its mobile layout");
         }
         assertTrue(button(page, "Test run").isVisible());
         assertTrue(button(page, "Import").isVisible());
@@ -501,7 +516,31 @@ class BotJobDetailsToolbarPlaywrightTest {
 
     private static JsonObject toolbarBodyAfterClick(Page page, Locator control, String action) {
         int before = toolbarRequestCount(page, action);
-        control.click();
+        control.scrollIntoViewIfNeeded();
+        Boolean pointerReachable = (Boolean) control.evaluate(
+                """
+                element => {
+                  const bounds = element.getBoundingClientRect();
+                  const target = document.elementFromPoint(
+                    bounds.left + bounds.width / 2,
+                    bounds.top + bounds.height / 2
+                  );
+                  return target === element || element.contains(target);
+                }
+                """);
+        if (Boolean.TRUE.equals(pointerReachable)) {
+            control.click();
+        } else {
+            page.evaluate(
+                    """
+                    action => {
+                      window.__arBlockedToolbarControls ||= [];
+                      window.__arBlockedToolbarControls.push(action);
+                    }
+                    """,
+                    action);
+            control.dispatchEvent("click");
+        }
         page.waitForFunction(
                 """
                 expected => window.__arToolbarRequests.filter((request) => {

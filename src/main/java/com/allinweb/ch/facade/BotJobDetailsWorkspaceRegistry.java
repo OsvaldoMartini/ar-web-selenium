@@ -200,23 +200,41 @@ public final class BotJobDetailsWorkspaceRegistry {
     public synchronized StopDecision requestTestRunStop(int botJobId, long workspaceEpoch) {
         Snapshot current = require(botJobId, workspaceEpoch);
         if ("STOPPING".equals(current.executionState())) {
-            return new StopDecision(true, true, current.executionAttemptId());
+            return new StopDecision(true, true, current.executionAttemptId(), current.executionState());
         }
         if (!"STARTING".equals(current.executionState()) && !"RUNNING".equals(current.executionState())) {
-            return new StopDecision(false, false, current.executionAttemptId());
+            return new StopDecision(false, false, current.executionAttemptId(), current.executionState());
         }
+        String previousState = current.executionState();
         active.set(copyWithExecution(current, "STOPPING", current.executionAttemptId()));
-        return new StopDecision(true, false, current.executionAttemptId());
+        return new StopDecision(true, false, current.executionAttemptId(), previousState);
     }
 
     public synchronized boolean finishTestRun(ExecutionAttempt attempt, String terminalState) {
         Snapshot current = active.get();
         if (!matches(current, attempt) || !isExecutionActive(current.executionState())) return false;
         String normalized = safe(terminalState).toUpperCase(java.util.Locale.ROOT);
-        if (!normalized.equals("IDLE") && !normalized.equals("FAILED") && !normalized.equals("INTERRUPTED")) {
+        if (!normalized.equals("PASSED") && !normalized.equals("FAILED") && !normalized.equals("INTERRUPTED")) {
             throw new IllegalArgumentException("Unsupported TEST RUN terminal state: " + terminalState);
         }
         active.set(copyWithExecution(current, normalized, attempt.attemptId()));
+        return true;
+    }
+
+    /**
+     * Releases an owned STOPPING transition when the stop command could not be delivered. This
+     * makes STOP retryable without allowing a stale attempt to rewrite a newer execution.
+     */
+    public synchronized boolean restoreTestRunAfterStopFailure(
+            ExecutionAttempt attempt, String previousState) {
+        Snapshot current = active.get();
+        String restored = safe(previousState).toUpperCase(java.util.Locale.ROOT);
+        if (!matches(current, attempt)
+                || !"STOPPING".equals(current.executionState())
+                || (!"STARTING".equals(restored) && !"RUNNING".equals(restored))) {
+            return false;
+        }
+        active.set(copyWithExecution(current, restored, attempt.attemptId()));
         return true;
     }
 
@@ -324,7 +342,8 @@ public final class BotJobDetailsWorkspaceRegistry {
 
     public record ExecutionAttempt(int botJobId, long workspaceEpoch, long attemptId) {}
 
-    public record StopDecision(boolean accepted, boolean alreadyRequested, long attemptId) {}
+    public record StopDecision(
+            boolean accepted, boolean alreadyRequested, long attemptId, String previousState) {}
 
     public record MetadataCommit<T>(boolean committed, Snapshot snapshot, T persistenceError) {}
 

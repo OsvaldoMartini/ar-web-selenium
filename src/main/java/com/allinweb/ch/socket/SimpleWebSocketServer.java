@@ -13,6 +13,7 @@ import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javafx.application.Platform;
 import javax.websocket.*;
@@ -1014,20 +1015,43 @@ public class SimpleWebSocketServer {
 
     private void sendBotJobDetailsResponse(
             Session targetSession, int homeBankingId, String sessionId, Object response, String operationId) {
+        sendBotJobDetailsResponseAcknowledged(
+                        targetSession, homeBankingId, sessionId, response, operationId)
+                .whenComplete((ignored, error) -> {
+                    if (error != null) {
+                        log.error("Unable to send Bot Job Details response to session {}", sessionId, error);
+                    }
+                });
+    }
+
+    CompletableFuture<Void> sendBotJobDetailsResponseAcknowledged(
+            Session targetSession, int homeBankingId, String sessionId, Object response, String operationId) {
         if (targetSession == null || !targetSession.isOpen()) {
             log.debug("Bot Job Details response session {} is unavailable", sessionId);
-            return;
+            return CompletableFuture.completedFuture(null);
         }
         JsonObject outbound = new JsonObject();
         outbound.addProperty("body", gson.toJson(response));
         outbound.addProperty("sessionId", sessionId);
         outbound.addProperty("homeBankingId", homeBankingId);
         outbound.addProperty("operationId", operationId);
-        targetSession.getAsyncRemote().sendText(outbound.toString(), result -> {
-            if (!result.isOK()) {
-                log.error("Unable to send Bot Job Details response to session {}", sessionId, result.getException());
-            }
-        });
+        CompletableFuture<Void> completion = new CompletableFuture<>();
+        try {
+            targetSession.getAsyncRemote().sendText(outbound.toString(), result -> {
+                if (result.isOK()) {
+                    completion.complete(null);
+                } else {
+                    Throwable failure = result.getException();
+                    completion.completeExceptionally(failure == null
+                            ? new IllegalStateException(
+                                    "Unable to send Bot Job Details response to session " + sessionId)
+                            : failure);
+                }
+            });
+        } catch (RuntimeException error) {
+            completion.completeExceptionally(error);
+        }
+        return completion;
     }
 
     private int authoritativeHomeBankingId(int botJobId) {
@@ -1080,27 +1104,39 @@ public class SimpleWebSocketServer {
     /** Publishes a terminal runtime transition produced after the original toolbar request completed. */
     public void publishBotJobDetailsRuntimeState(int botJobId, String causeRequestId) {
         try {
-            BotJobDetailsState state = botJobDetailsService.currentState(botJobId);
-            Map<String, Object> event = new LinkedHashMap<>();
-            event.put("ok", true);
-            event.put("message", "Bot Job execution state changed");
-            event.put("requestId", causeRequestId == null ? "" : causeRequestId);
-            event.put("botJobId", botJobId);
-            event.put("state", state);
-            for (String targetId : List.of("botJobTasks", "componentTasks", "preScannerGrid")) {
-                Session target = WebSocketSessionManager.getSession(targetId);
-                if (target != null && target.isOpen()) {
-                    sendBotJobDetailsResponse(
-                            target,
-                            state.homeBankingId(),
-                            targetId,
-                            event,
-                            "botJobDetails.state");
-                }
-            }
+            publishBotJobDetailsRuntimeStateStrict(botJobId, causeRequestId);
         } catch (RuntimeException error) {
             log.debug("Unable to publish Bot Job execution state: {}", error.getMessage());
         }
+    }
+
+    /**
+     * Publishes and acknowledges a Bot Job runtime transition. Failures are propagated so lifecycle
+     * owners can retry instead of assuming an asynchronous WebSocket send succeeded.
+     */
+    public void publishBotJobDetailsRuntimeStateStrict(int botJobId, String causeRequestId) {
+        BotJobDetailsState state = botJobDetailsService.currentState(botJobId);
+        Map<String, Object> event = new LinkedHashMap<>();
+        event.put("ok", true);
+        event.put("message", "Bot Job execution state changed");
+        event.put("requestId", causeRequestId == null ? "" : causeRequestId);
+        event.put("botJobId", botJobId);
+        event.put("state", state);
+        List<CompletableFuture<Void>> sends = new ArrayList<>();
+        for (String targetId : List.of("botJobTasks", "componentTasks", "preScannerGrid")) {
+            Session target = WebSocketSessionManager.getSession(targetId);
+            if (target != null && target.isOpen()) {
+                sends.add(sendBotJobDetailsResponseAcknowledged(
+                        target,
+                        state.homeBankingId(),
+                        targetId,
+                        event,
+                        "botJobDetails.state"));
+            }
+        }
+        CompletableFuture.allOf(sends.toArray(CompletableFuture[]::new))
+                .orTimeout(2L, TimeUnit.SECONDS)
+                .join();
     }
 
     private void handleNewBotJobBootstrap(String sessionId) {

@@ -138,23 +138,54 @@ class BotJobDetailsWorkspaceRegistryTest {
 
         assertTrue(firstStop.accepted());
         assertFalse(firstStop.alreadyRequested());
+        assertEquals("STARTING", firstStop.previousState());
         assertTrue(repeatedStop.accepted());
         assertTrue(repeatedStop.alreadyRequested());
         assertFalse(registry.markTestRunRunning(attempt));
         assertTrue(registry.finishTestRun(attempt, "INTERRUPTED"));
-        assertFalse(registry.finishTestRun(attempt, "IDLE"));
+        assertFalse(registry.finishTestRun(attempt, "PASSED"));
         assertEquals("INTERRUPTED", registry.require(42).executionState());
+    }
+
+    @Test
+    void failedOwnedStopCanRestoreThePreviousStateForRetry() {
+        BotJobDetailsWorkspaceRegistry.Snapshot workspace = registry.require(42);
+        BotJobDetailsWorkspaceRegistry.ExecutionAttempt attempt =
+                registry.beginTestRun(42, workspace.workspaceEpoch());
+        assertTrue(registry.markTestRunRunning(attempt));
+        BotJobDetailsWorkspaceRegistry.StopDecision stop =
+                registry.requestTestRunStop(42, workspace.workspaceEpoch());
+
+        assertEquals("RUNNING", stop.previousState());
+        assertTrue(registry.restoreTestRunAfterStopFailure(attempt, stop.previousState()));
+        assertEquals("RUNNING", registry.require(42).executionState());
+        assertFalse(registry.restoreTestRunAfterStopFailure(attempt, "RUNNING"));
+        assertFalse(registry.restoreTestRunAfterStopFailure(
+                new BotJobDetailsWorkspaceRegistry.ExecutionAttempt(42, workspace.workspaceEpoch(), 999),
+                "RUNNING"));
     }
 
     @Test
     void anOldExecutionAttemptCannotFinishANewerRun() {
         long workspaceEpoch = registry.require(42).workspaceEpoch();
         BotJobDetailsWorkspaceRegistry.ExecutionAttempt first = registry.beginTestRun(42, workspaceEpoch);
-        assertTrue(registry.finishTestRun(first, "IDLE"));
+        assertTrue(registry.finishTestRun(first, "PASSED"));
         BotJobDetailsWorkspaceRegistry.ExecutionAttempt second = registry.beginTestRun(42, workspaceEpoch);
 
         assertFalse(registry.finishTestRun(first, "FAILED"));
         assertEquals(second.attemptId(), registry.require(42).executionAttemptId());
         assertEquals("STARTING", registry.require(42).executionState());
+    }
+
+    @Test
+    void naturalCompletionPublishesPassedAndRejectsIdleAsATerminalState() {
+        long workspaceEpoch = registry.require(42).workspaceEpoch();
+        BotJobDetailsWorkspaceRegistry.ExecutionAttempt attempt = registry.beginTestRun(42, workspaceEpoch);
+
+        assertTrue(registry.finishTestRun(attempt, "PASSED"));
+        assertEquals("PASSED", registry.require(42).executionState());
+
+        BotJobDetailsWorkspaceRegistry.ExecutionAttempt next = registry.beginTestRun(42, workspaceEpoch);
+        assertThrows(IllegalArgumentException.class, () -> registry.finishTestRun(next, "IDLE"));
     }
 }

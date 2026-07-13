@@ -2,10 +2,12 @@ package com.allinweb.ch.component.pane;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.allinweb.ch.model.BotJobLoadDTO;
 import com.allinweb.ch.model.HomeBankingLoadDTO;
+import com.google.gson.Gson;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
 
@@ -31,6 +33,43 @@ class BotJobDetailsWebViewBootstrapTest {
         assertEquals("Organization B", switched.organizationName());
         assertEquals("Job B", switched.botJobName());
         assertEquals("[{\"job\":\"B\"}]", switched.jsonData());
+    }
+
+    @Test
+    void closingWorkspaceDeactivatesTheOldBootstrap() {
+        BotJobDetailsWebViewBootstrap bootstrap = new BotJobDetailsWebViewBootstrap();
+        bootstrap.activate(job(42, 7, "Organization A", "Job A"));
+
+        assertTrue(bootstrap.deactivate(42));
+        assertFalse(bootstrap.deactivate(42));
+        assertThrows(IllegalStateException.class, () -> bootstrap.resolve("botJobTasks"));
+    }
+
+    @Test
+    void reopeningTheSameJobCannotReusePayloadFromTheClosedGeneration() {
+        BotJobDetailsWebViewBootstrap bootstrap = new BotJobDetailsWebViewBootstrap();
+        BotJobLoadDTO job = job(42, 7, "Organization A", "Job A");
+        bootstrap.activate(job);
+        assertTrue(bootstrap.updatePayload(42, "botJobTasks", "[{\"generation\":1}]"));
+        assertTrue(bootstrap.deactivate(42));
+
+        bootstrap.activate(job);
+
+        assertEquals("[]", bootstrap.resolve("botJobTasks").jsonData());
+    }
+
+    @Test
+    void initializationScriptEscapesNamesAsJsonStrings() {
+        BotJobDetailsWebViewBootstrap bootstrap = new BotJobDetailsWebViewBootstrap();
+        bootstrap.activate(job(42, 7, "O'Brien\\Bank\nQA", "Job 'A'\\nightly"));
+        BotJobDetailsWebViewBootstrap.Context context = bootstrap.resolve("botJobTasks");
+        Gson gson = new Gson();
+
+        String script = BotJobDetailsWebViewBootstrap.initializationScript(context, 8080, gson);
+
+        assertTrue(script.contains(gson.toJson(context.organizationName())));
+        assertTrue(script.contains(gson.toJson(context.botJobName())));
+        assertTrue(script.contains("window.receiveDataFromJava"));
     }
 
     private static BotJobLoadDTO job(int id, int homeBankingId, String organization, String name) {

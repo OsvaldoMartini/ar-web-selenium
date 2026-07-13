@@ -3,19 +3,27 @@ package com.allinweb.ch.socket;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.io.IOException;
 import java.util.Collections;
+import java.util.concurrent.CompletionException;
 import java.util.List;
 import java.util.Map;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import com.allinweb.ch.facade.BotJobTransferPathRegistry;
 import javax.websocket.CloseReason;
+import javax.websocket.RemoteEndpoint;
+import javax.websocket.SendHandler;
+import javax.websocket.SendResult;
 import javax.websocket.Session;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -111,6 +119,48 @@ class SimpleWebSocketServerSessionLifecycleTest {
         assertThrows(
                 IllegalStateException.class,
                 () -> paths.require(logicalSession, 42, selected.toString()));
+    }
+
+    @Test
+    void acknowledgedBotJobStateSendPropagatesAsynchronousTransportFailure() {
+        Session session = sessionWithId("botJobTasks", true);
+        RemoteEndpoint.Async asyncRemote = mock(RemoteEndpoint.Async.class);
+        when(session.getAsyncRemote()).thenReturn(asyncRemote);
+        doAnswer(invocation -> {
+                    SendHandler handler = invocation.getArgument(1);
+                    handler.onResult(new SendResult(new IOException("transport failed")));
+                    return null;
+                })
+                .when(asyncRemote)
+                .sendText(anyString(), any(SendHandler.class));
+
+        CompletionException failure = assertThrows(
+                CompletionException.class,
+                () -> endpoint.sendBotJobDetailsResponseAcknowledged(
+                                session, 7, "botJobTasks", Map.of("state", "PASSED"), "botJobDetails.state")
+                        .join());
+
+        assertSame(IOException.class, failure.getCause().getClass());
+    }
+
+    @Test
+    void acknowledgedBotJobStateSendCompletesOnlyAfterTransportAcknowledgement() {
+        Session session = sessionWithId("botJobTasks", true);
+        RemoteEndpoint.Async asyncRemote = mock(RemoteEndpoint.Async.class);
+        when(session.getAsyncRemote()).thenReturn(asyncRemote);
+        doAnswer(invocation -> {
+                    SendHandler handler = invocation.getArgument(1);
+                    handler.onResult(new SendResult());
+                    return null;
+                })
+                .when(asyncRemote)
+                .sendText(anyString(), any(SendHandler.class));
+
+        endpoint.sendBotJobDetailsResponseAcknowledged(
+                        session, 7, "botJobTasks", Map.of("state", "PASSED"), "botJobDetails.state")
+                .join();
+
+        verify(asyncRemote).sendText(anyString(), any(SendHandler.class));
     }
 
     private Session sessionWithId(String sessionId, boolean open) {

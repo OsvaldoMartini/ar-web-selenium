@@ -13,7 +13,7 @@ This is the canonical umbrella roadmap for the remaining panel work. Existing fe
 
 | Surface | Current state | Required outcome |
 |---|---|---|
-| Bot Job Details (`ARViewBotJobPane`) | Active hybrid: JavaFX toolbar/info bar around React grids | One React page composed from shared headers, metadata, execution, file, and environment components |
+| Bot Job Details (`ARViewBotJobPane`) | React owns the migrated controls; JavaFX still hosts WebViews and substantial activation, Pre Scan, scanner, native-operation, and lifecycle orchestration | Reduce the pane/scene to a temporary WebView/window host, then retire it after runtime parity |
 | Clone Job (`ARSaveClonePane`) | Fully active JavaFX page | React clone form backed by one transactional service |
 | AR Web Factory / Scanner (`ARScannedElementPane`) | Active hybrid: JavaFX controls around `GridItemScann` | React scanner workspace with backend-owned scan/browser state |
 | Startup/recovery Configuration (`ARConfigurationPane`) | Conditional JavaFX page used before normal services are available | Restricted React recovery mode with a boot-safe IPC bridge |
@@ -115,7 +115,7 @@ Parity gap: React currently carries `priority`, `searchConfig`, and `optionsConf
 - [x] Implement `BotJobExecutionControls` with block dropdown, reload, ALL/ONE, TEST RUN, STOP, and live state.
 - [x] Use stable `blockId`; the server resolves canonical block order and URL. Never trust client order or endpoint URL.
 - [x] Preserve the valid selection union: Execute All can only use ALL; a numbered block can use ALL or ONE.
-- [ ] Publish `IDLE`, `STARTING`, `RUNNING`, `STOPPING`, `PASSED`, `FAILED`, and `INTERRUPTED` terminal events.
+- [x] Publish `IDLE`, `STARTING`, `RUNNING`, `STOPPING`, `PASSED`, `FAILED`, and `INTERRUPTED` terminal events, with executor-owned terminal outcomes and acknowledged delivery.
 - [x] Keep controls busy until the owned executor reaches a terminal event, while allowing prompt run-owned STOP during startup.
 - [x] Remove the corresponding JavaFX combo, reload, toggle, TEST RUN, and STOP nodes after integrated React/Java/Playwright parity tests.
 
@@ -127,6 +127,10 @@ Parity gap: React currently carries `priority`, `searchConfig`, and `optionsConf
 - [x] Extract the real external Engine Launch workflow; do not reuse the current Main Dashboard placeholder dialog.
 - [x] Migrate Launch with capability/preflight/result events and detached-process collision tracking.
 - [ ] Reduce `ARViewBotJobPane` to a WebView/window host, then retire its pane/scene after runtime verification.
+  - [x] Extract exact TEST RUN/STOP ownership, startup cancellation, terminal outcome monitoring, and runtime-state publication.
+  - [x] Harden job-switch WebView/session/cache teardown and remove the dead API-tool WebView.
+  - [ ] Extract workspace activation/cache/grid refresh, Pre Scan, scanner launch, native file/Engine operations, and close/capability orchestration.
+  - [ ] Move remaining WebSocket/mobile persistence ownership out of `ARViewBotJobScene`, then complete desktop runtime validation and retirement.
 
 ## Phase 3 — Clone Job
 

@@ -93,6 +93,37 @@ public class WebSocketSessionManager {
         }
     }
 
+    /**
+     * Retires the exact transport that currently owns a logical session ID.
+     *
+     * <p>The registry entry is removed before closing the socket so a replacement WebView can
+     * connect immediately. A delayed {@code onClose} callback from this transport remains harmless
+     * because {@link #removeSession(String, Session)} only removes an exact registered pair.
+     */
+    public static boolean closeSession(String sessionId) {
+        if (Strings.isNullOrEmpty(sessionId)) {
+            return false;
+        }
+
+        Session session;
+        synchronized (sessionRegistryLock) {
+            session = activeSessions.remove(sessionId);
+            if (session == null) {
+                return false;
+            }
+            sessionIds.remove(session, sessionId);
+        }
+
+        try {
+            if (session.isOpen()) {
+                session.close();
+            }
+        } catch (IOException | RuntimeException error) {
+            log.debug("Unable to close retired session {}: {}", sessionId, error.getMessage());
+        }
+        return true;
+    }
+
     public static Session getSession(String sessionId) {
         return activeSessions.get(sessionId);
     }
