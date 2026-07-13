@@ -13,6 +13,7 @@ import com.allinweb.ch.facade.PreScanApplyService;
 import com.allinweb.ch.facade.BotJobDetailsService;
 import com.allinweb.ch.facade.BotJobTestRunCoordinator;
 import com.allinweb.ch.facade.BotJobWorkspaceService;
+import com.allinweb.ch.facade.PreScanWorkflowService;
 import com.allinweb.ch.facade.PreScanBrowserSession;
 import com.allinweb.ch.facade.BotJobDetailsWorkspaceRegistry;
 import com.allinweb.ch.facade.BotJobTransferPathRegistry;
@@ -150,6 +151,8 @@ public class ARViewBotJobPane extends ARPane {
     private final Map<WebEngine, ChangeListener<Worker.State>> webViewLoadListeners = new IdentityHashMap<>();
     private final Map<WebEngine, PauseTransition> pendingWebViewBootstraps = new IdentityHashMap<>();
     private boolean isPreScannerVisible = false;
+    private final PreScanWorkflowService preScanWorkflowService = new PreScanWorkflowService();
+    // Temporary compatibility owner for zero-caller legacy helpers; removed after workflow verification.
     private final PreScanBrowserSession preScanBrowserSession = new PreScanBrowserSession();
     private ARScene arScene;
     private BotJobLoadDTO selectedBotJob;
@@ -498,32 +501,19 @@ public class ARViewBotJobPane extends ARPane {
             log.warn("PRE SCAN refresh skipped: no selected bot job");
             return;
         }
-
-        String endpointUrl = selectedEndpointUrl();
-        if (Strings.isNullOrEmpty(endpointUrl)) {
-            log.warn("PRE SCAN refresh skipped: no endpoint URL selected");
-            sendPreScanStatus("failed", "No endpoint URL selected.", 0);
-            return;
-        }
-
-        String browserType = arPropertyManager.getProperty(ARPropertyEnum.BROWSER);
-        String optionsConfig = preScanOptionsConfig();
-
-        try {
-            if (!preScanBrowserSession.isOpen()) {
-                ensurePreScanBrowserOpen(browserType, endpointUrl, optionsConfig);
-            } else {
-                sendPreScanStatus("running", "Refreshing browser page...", 0);
-                preScanBrowserSession.reload();
-            }
-            sendPreScanStatus("done", "Web page refreshed. Run Page Scanner to update the grid.", 0);
-        } catch (Exception error) {
-            log.error("PRE SCAN refresh failed", error);
-            sendPreScanStatus("failed", String.valueOf(error.getMessage()), 0);
-        }
+        preScanWorkflowService.refresh(preScanContext(), preScanSink());
     }
 
     private void runPreScan(String searchTerms, boolean searchHidden) {
+        if (selectedBotJob == null) {
+            log.warn("PRE SCAN skipped: no selected bot job");
+            return;
+        }
+        preScanWorkflowService.scan(preScanContext(), searchTerms, searchHidden, preScanSink());
+    }
+
+    @Deprecated
+    private void runPreScanLegacy(String searchTerms, boolean searchHidden) {
         if (selectedBotJob == null) {
             log.warn("PRE SCAN skipped: no selected bot job");
             return;
@@ -738,7 +728,7 @@ public class ARViewBotJobPane extends ARPane {
      * Results stream to the dashboard status bar (done/failed) instead of a modal.
      */
     public void handlePreScanElementTest(SplitDTO splitDTO, String testType) {
-        if (!preScanBrowserSession.isOpen()) {
+        if (!preScanWorkflowService.isOpen()) {
             sendPreScanStatus("failed", "No pre-scan browser open. Run the Page Scanner first.", 0);
             return;
         }
@@ -755,40 +745,49 @@ public class ARViewBotJobPane extends ARPane {
     }
 
     private void runPreScanElementTest(ElementDTO elementDTO, String testType) {
-        boolean isClick = "TEST_CLICK_DTO".equals(testType);
-        String actionLabel = isClick ? "Test Click" : "Test Input";
-        // Same display chain the grids use: clientNamed > definedName > someText > tagName.
-        String label = !Strings.isNullOrEmpty(elementDTO.getClientNamed())
-                ? elementDTO.getClientNamed()
-                : !Strings.isNullOrEmpty(elementDTO.getDefinedName())
-                        ? elementDTO.getDefinedName()
-                        : !Strings.isNullOrEmpty(elementDTO.getSomeText())
-                                ? elementDTO.getSomeText()
-                                : elementDTO.getTagName();
-        try {
-            InstructionLoad instruction = PreScanApplyService.getInstance().buildTestInstruction(elementDTO);
-            if (instruction == null) {
-                sendPreScanStatus("failed", actionLabel + " failed - cannot map element: " + label, 0);
-                return;
+        preScanWorkflowService.testElement(elementDTO, testType, preScanSink());
+    }
+
+    private PreScanWorkflowService.Context preScanContext() {
+        return new PreScanWorkflowService.Context(
+                selectedBotJob.getId(),
+                selectedBotJob.getName(),
+                selectedBotJob.getHomeBankingId(),
+                selectedBotJob.getHomeUrlId(),
+                selectedEndpointUrl(),
+                arPropertyManager.getProperty(ARPropertyEnum.BROWSER),
+                preScanOptionsConfig(),
+                arPropertyManager.getProperty(ARPropertyEnum.PATH_DB));
+    }
+
+    private PreScanWorkflowService.Sink preScanSink() {
+        return new PreScanWorkflowService.Sink() {
+            @Override
+            public void status(String status, String message, int elementCount) {
+                sendPreScanStatus(status, message, elementCount);
             }
 
-            sendPreScanStatus("running", actionLabel + " - " + label, 0);
-            boolean passed;
-            if (isClick) {
-                passed = preScanBrowserSession.click(instruction);
-            } else {
-                // The grid rides the test value in defaultValue ('abc'); keep that fallback.
-                String value =
-                        Strings.isNullOrEmpty(elementDTO.getDefaultValue()) ? "abc" : elementDTO.getDefaultValue();
-                passed = preScanBrowserSession.fill(instruction, new FieldData(instruction.getName(), value));
+            @Override
+            public void reset() {
+                sendPreScanReset();
             }
-            sendPreScanStatus(
-                    passed ? "done" : "failed", actionLabel + (passed ? " passed - " : " failed - ") + label, 0);
-            log.info("PRE SCAN {} {} for element '{}'", actionLabel, passed ? "passed" : "failed", label);
-        } catch (Exception error) {
-            log.error("PRE SCAN {} failed for '{}'", actionLabel, label, error);
-            sendPreScanStatus("failed", actionLabel + " failed - " + error.getMessage(), 0);
-        }
+
+            @Override
+            public void elements(List<ElementDTO> elements) {
+                sendPreScanElements(elements);
+            }
+
+            @Override
+            public void failure(String message) {
+                Platform.runLater(() -> performMessage.errorMessage(
+                        "PRE SCAN - Failed",
+                        "<span style='color: #D32F2F; font-weight: bold;'>" + message + "</span>",
+                        "The lightweight scanner could not complete for the selected URL.",
+                        null,
+                        null,
+                        0));
+            }
+        };
     }
 
     private String preScanOptionsConfig() {
@@ -1920,7 +1919,7 @@ public class ARViewBotJobPane extends ARPane {
             }
         }
         try {
-            preScanBrowserSession.shutdown();
+            preScanWorkflowService.shutdown();
         } catch (RuntimeException error) {
             log.debug("Unable to close the Pre Scan browser: {}", error.getMessage());
         }
@@ -1928,7 +1927,7 @@ public class ARViewBotJobPane extends ARPane {
 
     public boolean canCloseWorkspace() {
         if (botJobToolbarGuard.activeOperation() != null
-                || preScanBrowserSession.isScanRunning()
+                || preScanWorkflowService.isRunning()
                 || isScannerButtonClicked) {
             return false;
         }

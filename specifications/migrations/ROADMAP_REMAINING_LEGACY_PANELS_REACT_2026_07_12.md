@@ -130,8 +130,9 @@ Parity gap: React currently carries `priority`, `searchConfig`, and `optionsConf
   - [x] Extract exact TEST RUN/STOP ownership, startup cancellation, terminal outcome monitoring, and runtime-state publication.
   - [x] Harden job-switch WebView/session/cache teardown and remove the dead API-tool WebView.
   - [x] Extract workspace activation/cache/grid refresh and scanner-selection policy into the JavaFX-free `BotJobWorkspaceService`, with fail-closed cache transitions and focused backend tests.
-  - [x] Move the isolated Pre Scan Playwright driver and single-scan lifecycle guard into the JavaFX-free `PreScanBrowserSession`; workflow/OCR/status extraction remains pending.
-  - [ ] Extract Pre Scan, scanner launch, native file/Engine operations, and close/capability orchestration.
+  - [x] Move the isolated Pre Scan Playwright driver and single-scan lifecycle guard into the JavaFX-free `PreScanBrowserSession`.
+  - [x] Extract the reachable Pre Scan refresh/scan/OCR/diagnostic/element-test/status workflow into the JavaFX-free `PreScanWorkflowService`; the pane now supplies only transport/presentation adapters.
+  - [ ] Extract scanner launch, native file/Engine operations, and close/capability orchestration.
   - [ ] Move remaining WebSocket/mobile persistence ownership out of `ARViewBotJobScene`, then complete desktop runtime validation and retirement.
 
 ## Phase 3 — Clone Job
