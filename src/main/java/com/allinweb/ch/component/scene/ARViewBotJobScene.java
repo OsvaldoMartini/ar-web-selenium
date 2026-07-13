@@ -9,6 +9,7 @@ import com.allinweb.ch.facade.PerformDBEngine;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
+import com.allinweb.ch.facade.PreScanApplyService;
 import com.allinweb.ch.model.*;
 import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.util.*;
@@ -45,6 +46,7 @@ public class ARViewBotJobScene extends ARScene {
     private static final ARViewBotJobPane arViewBotJobPane = ARViewBotJobPane.getInstance();
     private static final PerformMessage performMessage = PerformMessage.getInstance();
     private static final TargetElementHelper targetElementHelper = TargetElementHelper.getInstance();
+    private static final PreScanApplyService preScanApplyService = PreScanApplyService.getInstance();
 
     private final Gson gson = new Gson();
 
@@ -94,9 +96,8 @@ public class ARViewBotJobScene extends ARScene {
             portSocketInitial = Integer.parseInt(port);
         }
 
-        if (!isConnectWebSocket) {
-            connectWebSocketClient(portSocketInitial, "bot-job-scene"); // + botJobLoad.getId());
-        }
+        // Mobile/Pre Scan insertion is owned by the server-side PreScanApplyService.
+        // The scene no longer opens a second loopback WebSocket client.
     }
 
     @Override
@@ -298,7 +299,7 @@ public class ARViewBotJobScene extends ARScene {
                 case "NEW_ELEMENT_DTO":
                 case "SEND_ALL_ELEMENTS_DTO":
                     boolean isMany = "SEND_ALL_ELEMENTS_DTO".equalsIgnoreCase(type);
-                    stepsInsertManyDTO(splitDTO, isMany);
+                    applyMobileElements(splitDTO);
                     //                    stepsInsertOneDTO(targetSelected);
                     break;
                 default:
@@ -396,7 +397,26 @@ public class ARViewBotJobScene extends ARScene {
         }
     }
 
-    private void stepsInsertManyDTO(SplitDTO processDTO, boolean isMany) {
+    private void applyMobileElements(SplitDTO processDTO) {
+        if (processDTO == null || !Objects.equals(selectedBotJob.getId(), processDTO.getBotJobId())) {
+            performMessage.errorMessage(
+                    "Bot Job Mismatch Detected",
+                    "Operation Failed",
+                    "The Bot Job sent from AR Mobile does not match the currently selected Bot Job.",
+                    "Please open the correct Bot Job before continuing.",
+                    null,
+                    0);
+            return;
+        }
+        ErrorMessage errorMessage = preScanApplyService.applyElements(processDTO);
+        if (errorMessage != null) {
+            performMessage.errorMessageOperationFailed(errorMessage);
+        }
+    }
+
+    /** @deprecated Pane-owned insertion pipeline retained temporarily for source comparison only. */
+    @Deprecated(forRemoval = true)
+    private void legacyStepsInsertManyDTO(SplitDTO processDTO, boolean isMany) {
         String insertMsg = isMany ? "Insert ALL" : "Insert one Element";
         currentBlockId = validateBlockDB("block", this.selectedBotJob.getId(), processDTO.getBlockId(), insertMsg);
         if (currentBlockId > 0) {

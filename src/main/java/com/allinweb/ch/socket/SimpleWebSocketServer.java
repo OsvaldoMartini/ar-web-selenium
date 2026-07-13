@@ -2192,9 +2192,11 @@ public class SimpleWebSocketServer {
                             webSocketSessionManager.sendMessageJson(
                                     homeBankingId, "mobile-return-server", jsonData, type);
                         } else {
-                            Session sessionBotJob = webSocketSessionManager.sendMessageJson(
-                                    homeBankingId, "bot-job-scene", jsonData, type);
-                            if (sessionBotJob == null) {
+                            ErrorMessage applyError = null;
+                            try {
+                                BotJobDetailsWorkspaceRegistry.getInstance().require(splitDTO.getBotJobId());
+                                applyError = PreScanApplyService.getInstance().applyElements(splitDTO);
+                            } catch (IllegalArgumentException unavailable) {
                                 performMessage.errorMessage(
                                         "Bot Job Details Not Open",
                                         "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span>",
@@ -2203,6 +2205,11 @@ public class SimpleWebSocketServer {
                                         "<span style='color: #E65100; font-weight: bold;'>The Integration AR Mobile is waiting for the Bot Job to be open.</span>",
                                         "<span style='font-style: italic;'>Details: Please select and open the Bot Job on AR Web.</span>",
                                         0);
+                                break;
+                            }
+                            if (applyError != null) {
+                                log.error("AR Mobile insert failed: {}", applyError.getErrorMessage());
+                                performMessage.errorMessageOperationFailed(applyError);
                             }
                         }
                     } else if (splitDTO.getElementDetails() != null && splitDTO.getElementDetails().length > 0) {
