@@ -133,7 +133,8 @@ Parity gap: React currently carries `priority`, `searchConfig`, and `optionsConf
   - [x] Move the isolated Pre Scan Playwright driver and single-scan lifecycle guard into the JavaFX-free `PreScanBrowserSession`.
   - [x] Extract the reachable Pre Scan refresh/scan/OCR/diagnostic/element-test/status workflow into the JavaFX-free `PreScanWorkflowService`; the pane now supplies only transport/presentation adapters.
   - [x] Extract scanner preparation, launch concurrency, modal open/close, and failure recovery into the UI-independent `BotJobScannerCoordinator`; remove the pane-owned launch flag.
-  - [ ] Extract native file/Engine operations and close/capability orchestration.
+  - [x] Extract Excel/report desktop opening, BAT creation, Engine preflight/command/log construction, detached launch, and collision tracking into the JavaFX-free `BotJobNativeOperationService`.
+  - [ ] Extract close/capability orchestration and remaining organization/payload ownership.
   - [ ] Move remaining WebSocket/mobile persistence ownership out of `ARViewBotJobScene`, then complete desktop runtime validation and retirement.
 
 ## Phase 3 — Clone Job

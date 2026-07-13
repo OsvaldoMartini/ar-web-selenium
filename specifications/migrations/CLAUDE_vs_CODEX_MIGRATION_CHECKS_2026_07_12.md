@@ -827,14 +827,18 @@ were not modified.
       UI-independent `BotJobScannerCoordinator`; remove the pane-owned `isScannerButtonClicked` flag.
 - [ ] Task: Extract remaining native file, external Engine, organization, capability, payload, and
       workspace-close operations behind typed ports.
+  - [x] Extract Excel/report opening, report-directory validation, BAT creation, external Engine
+        preflight/command/log construction, detached launch, and collision tracking into the JavaFX-free
+        `BotJobNativeOperationService` with typed property, desktop, and Engine ports. JavaFX retains only
+        the native chooser presentation.
 - [ ] Task: Remove zero-caller helpers, move remaining WebSocket/mobile persistence ownership out of
       `ARViewBotJobScene`, runtime-validate close/reopen and A -> B switching, then retire the pane/scene.
 
 Task 1 is therefore progressed but not complete; checking it complete now would hide active JavaFX-host
 responsibilities that still require extraction and desktop runtime validation.
 
-Focused continuation evidence: Java compiled 311 main and 78 test sources. The 59-test workspace,
-Pre Scan workflow/browser-session, scanner coordinator, WebView, registry, TEST RUN coordinator,
+Focused continuation evidence: Java compiled 312 main and 79 test sources. The 65-test workspace,
+native operation, Pre Scan workflow/browser-session, scanner coordinator, WebView, registry, TEST RUN coordinator,
 action-contract, and WebSocket
 lifecycle suite passed with zero failures, errors, or skips. The React project, deployed React resources,
 and Bot Job Details design were unchanged.

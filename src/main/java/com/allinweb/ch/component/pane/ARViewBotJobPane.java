@@ -14,6 +14,7 @@ import com.allinweb.ch.facade.BotJobDetailsService;
 import com.allinweb.ch.facade.BotJobTestRunCoordinator;
 import com.allinweb.ch.facade.BotJobWorkspaceService;
 import com.allinweb.ch.facade.BotJobScannerCoordinator;
+import com.allinweb.ch.facade.BotJobNativeOperationService;
 import com.allinweb.ch.facade.PreScanWorkflowService;
 import com.allinweb.ch.facade.PreScanBrowserSession;
 import com.allinweb.ch.facade.BotJobDetailsWorkspaceRegistry;
@@ -28,9 +29,7 @@ import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-import java.awt.*;
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -74,6 +73,8 @@ public class ARViewBotJobPane extends ARPane {
             BotJobTransferPathRegistry.getInstance();
     private static final BotJobTransferService botJobTransferService = BotJobTransferService.getInstance();
     private static final BotJobToolbarConcurrencyGuard botJobToolbarGuard = new BotJobToolbarConcurrencyGuard();
+    private static final BotJobNativeOperationService botJobNativeOperations =
+            BotJobNativeOperationService.createDefault(arPropertyManager, botJobToolbarGuard);
     private static final BotJobDetailsWebViewBootstrap webViewBootstrap = new BotJobDetailsWebViewBootstrap();
     private static final BotJobTestRunCoordinator botJobTestRunCoordinator = new BotJobTestRunCoordinator(
             botJobDetailsWorkspaceRegistry,
@@ -1235,7 +1236,7 @@ public class ARViewBotJobPane extends ARPane {
                     botJobToolbarExecutor.execute(() -> {
                         try (lease) {
                             requireNonStopActionAllowed(context);
-                            openDesktopFile(selected);
+                            botJobNativeOperations.openFile(selected);
                             completion.complete(BotJobToolbarActionResult.success(
                                     BotJobToolbarAction.OPEN_REPORT, "Report opened"));
                         } catch (Exception error) {
@@ -1360,11 +1361,7 @@ public class ARViewBotJobPane extends ARPane {
     }
 
     private void openExcelFromReact(BotJobToolbarContext context) throws IOException {
-        String excelFolder = arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL);
-        File file = new File(excelFolder, context.name() + ARConstants.FILE_FORMAT_EXCEL);
-        if (!file.isFile()) throw new IllegalStateException("Excel file not found: " + file.getAbsolutePath());
-        if (!Desktop.isDesktopSupported()) throw new IllegalStateException("Desktop file opening is unavailable");
-        Desktop.getDesktop().open(file);
+        botJobNativeOperations.openExcel(context);
     }
 
     private void generateExcelFromReact(BotJobToolbarContext context, JsonObject body) throws Exception {
@@ -1385,12 +1382,7 @@ public class ARViewBotJobPane extends ARPane {
     }
 
     private File chooseReportFromReact() {
-        String reportPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_REPORT);
-        if (Strings.isNullOrEmpty(reportPath)) throw new IllegalStateException("Report folder is not configured");
-        File reportFolder = new File(reportPath);
-        if (!reportFolder.isDirectory()) {
-            throw new IllegalStateException("Report folder does not exist: " + reportFolder.getAbsolutePath());
-        }
+        File reportFolder = botJobNativeOperations.reportDirectory();
         FileChooser chooser = new FileChooser();
         chooser.setTitle("Open Report File");
         chooser.setInitialDirectory(reportFolder);
@@ -1431,72 +1423,11 @@ public class ARViewBotJobPane extends ARPane {
     }
 
     private void createBatFromReact(BotJobToolbarContext context) throws IOException {
-        String enginePath = arPropertyManager.getProperty(ARPropertyEnum.PATH_ENGINE);
-        String excelFolder = arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL);
-        File excel = new File(excelFolder, context.name() + ARConstants.FILE_FORMAT_EXCEL);
-        if (!excel.isFile()) throw new IllegalStateException("Generate the Excel file before creating the BAT file");
-        String projectType = context.projectType();
-        String fileName = "execute_" + projectType.replace(' ', '_').toLowerCase(java.util.Locale.ROOT)
-                + '_' + context.homeBankingId() + "_Botjob_" + context.botJobId() + ".bat";
-        File baseDirectory = new File(arPropertyManager.getProperty(ARPropertyEnum.PATH_DB));
-        if (!baseDirectory.isDirectory()) throw new IllegalStateException("Database folder does not exist");
-        String configPath = System.getProperty("ARWebConfig");
-        String javaCommand = "java.exe -jar \"" + enginePath + "\" execute/j "
-                + context.homeBankingId() + ' ' + context.botJobId() + " 1 \""
-                + excel.getAbsolutePath() + "\" -c \"" + configPath + "\"";
-        try (FileWriter writer = new FileWriter(new File(baseDirectory, fileName))) {
-            writer.write(javaCommand);
-        }
+        botJobNativeOperations.createBat(context);
     }
 
     private void launchExternalEngineFromReact(BotJobToolbarContext context) throws IOException {
-        String enginePath = arPropertyManager.getProperty(ARPropertyEnum.PATH_ENGINE);
-        String excelFolder = arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL);
-        File excel = new File(excelFolder, context.name() + ARConstants.FILE_FORMAT_EXCEL);
-        if (!excel.isFile()) throw new IllegalStateException("Generate the Excel file before launching the Bot Job");
-        if (!supportsDesktopBrowserTools(context.projectType())) {
-            throw new IllegalStateException("Mobile Bot Jobs can only be executed from AR Mobile");
-        }
-        String webDriverPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_WEBDRIVER);
-        if (Strings.isNullOrEmpty(webDriverPath) || !new File(webDriverPath).exists()) {
-            throw new IllegalStateException("The configured WebDriver file is missing");
-        }
-        File engine = new File(enginePath);
-        if (!engine.isFile()) throw new IllegalStateException("The configured Engine JAR is missing");
-        String[] command = new String[] {
-            "java.exe",
-            "-jar",
-            engine.getAbsolutePath(),
-            "execute/j",
-            String.valueOf(context.homeBankingId()),
-            String.valueOf(context.botJobId()),
-            "1",
-            excel.getAbsolutePath(),
-            "-c",
-            arPropertyManager.getConfigurationFileName()
-        };
-        ProcessBuilder builder = new ProcessBuilder(command);
-        builder.directory(new File(ARConstants.USER_PATH));
-        String logPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_LOG);
-        File logDirectory = new File(logPath);
-        if (!logDirectory.isDirectory() && !logDirectory.mkdirs()) {
-            throw new IOException("Unable to create Engine log folder: " + logDirectory.getAbsolutePath());
-        }
-        builder.redirectOutput(new File(logDirectory, "engine_debug_log_output.log"));
-        builder.redirectError(new File(logDirectory, "engine_debug_log_error.log"));
-        Process process = builder.start();
-        if (!botJobToolbarGuard.trackExternalEngine(process)) {
-            process.destroy();
-            throw new IllegalStateException("An external Engine execution is already active");
-        }
-        process.onExit().whenComplete((finished, failure) ->
-                botJobToolbarGuard.externalEngineFinished(process));
-    }
-
-    private static void openDesktopFile(File file) throws IOException {
-        if (file == null || !file.isFile()) throw new IllegalArgumentException("File does not exist");
-        if (!Desktop.isDesktopSupported()) throw new IllegalStateException("Desktop file opening is unavailable");
-        Desktop.getDesktop().open(file);
+        botJobNativeOperations.launchExternalEngine(context);
     }
 
     private static int requiredInt(JsonObject body, String field, int minimum, int maximum) {
