@@ -809,9 +809,14 @@ were not modified.
       publication from the pane.
 - [x] Task: Remove the dead, unmounted API-tool WebView and harden reusable WebView activation,
       listener, timer, session, and close/reopen ownership.
-- [ ] Task: Extract workspace activation, job-cache loading, grid refresh, and scanner selection from
-      `ARViewBotJobPane` into UI-independent services.
+- [x] Task: Extract workspace activation, job-cache loading, grid refresh, and scanner selection from
+      `ARViewBotJobPane` into the JavaFX-free `BotJobWorkspaceService`. Activation and refresh now
+      replace shared caches fail-closed, return immutable serialized grid snapshots for the host to
+      publish, and expose the preserved web/mobile scanner disposition without scene coupling.
 - [ ] Task: Extract the full Pre Scan workflow and its browser/driver lifecycle.
+  - [x] Extract isolated Playwright driver creation/reuse, refresh, action dispatch, shutdown, failed-open
+        cleanup, and the single-scan lease into the JavaFX-free `PreScanBrowserSession`. OCR/status/workflow
+        orchestration remains in the pane and keeps the parent task open.
 - [ ] Task: Extract scanner launch/modal coordination and remove pane-owned scanner flags.
 - [ ] Task: Extract remaining native file, external Engine, organization, capability, payload, and
       workspace-close operations behind typed ports.
@@ -820,6 +825,11 @@ were not modified.
 
 Task 1 is therefore progressed but not complete; checking it complete now would hide active JavaFX-host
 responsibilities that still require extraction and desktop runtime validation.
+
+Focused continuation evidence: Java compiled 309 main and 76 test sources. The 51-test workspace,
+Pre Scan browser-session, WebView, registry, TEST RUN coordinator, action-contract, and WebSocket
+lifecycle suite passed with zero failures, errors, or skips. The React project, deployed React resources,
+and Bot Job Details design were unchanged.
 
 ## Decision log
 

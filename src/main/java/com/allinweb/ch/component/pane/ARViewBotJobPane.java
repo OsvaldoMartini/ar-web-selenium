@@ -5,7 +5,6 @@ import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.component.scene.AROrganizationManagerScene;
 import com.allinweb.ch.component.scene.ARScannedElementScene;
 import com.allinweb.ch.component.scene.base.ARScene;
-import com.allinweb.ch.driver.ARPlaywrightDriver;
 import com.allinweb.ch.facade.PerformDBEngine;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformLists;
@@ -13,6 +12,8 @@ import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.facade.PreScanApplyService;
 import com.allinweb.ch.facade.BotJobDetailsService;
 import com.allinweb.ch.facade.BotJobTestRunCoordinator;
+import com.allinweb.ch.facade.BotJobWorkspaceService;
+import com.allinweb.ch.facade.PreScanBrowserSession;
 import com.allinweb.ch.facade.BotJobDetailsWorkspaceRegistry;
 import com.allinweb.ch.facade.BotJobTransferPathRegistry;
 import com.allinweb.ch.facade.BotJobTransferService;
@@ -66,6 +67,7 @@ public class ARViewBotJobPane extends ARPane {
     private static final BotJobDetailsWorkspaceRegistry botJobDetailsWorkspaceRegistry =
             BotJobDetailsWorkspaceRegistry.getInstance();
     private static final BotJobDetailsService botJobDetailsService = BotJobDetailsService.getInstance();
+    private static final BotJobWorkspaceService botJobWorkspaceService = BotJobWorkspaceService.getInstance();
     private static final BotJobTransferPathRegistry botJobTransferPathRegistry =
             BotJobTransferPathRegistry.getInstance();
     private static final BotJobTransferService botJobTransferService = BotJobTransferService.getInstance();
@@ -148,11 +150,7 @@ public class ARViewBotJobPane extends ARPane {
     private final Map<WebEngine, ChangeListener<Worker.State>> webViewLoadListeners = new IdentityHashMap<>();
     private final Map<WebEngine, PauseTransition> pendingWebViewBootstraps = new IdentityHashMap<>();
     private boolean isPreScannerVisible = false;
-    private ARPlaywrightDriver preScanDriver;
-    // Guards runPreScan: double-clicking PRE SCAN must not interleave two chunk
-    // streams into the same preScannerGrid session.
-    private final java.util.concurrent.atomic.AtomicBoolean preScanRunning =
-            new java.util.concurrent.atomic.AtomicBoolean(false);
+    private final PreScanBrowserSession preScanBrowserSession = new PreScanBrowserSession();
     private ARScene arScene;
     private BotJobLoadDTO selectedBotJob;
     private volatile String reactEnvironmentUrl = "";
@@ -215,7 +213,7 @@ public class ARViewBotJobPane extends ARPane {
         this.isEnabledLicence = isEnabledLicence;
         this.arScene = arScene;
         this.selectedBotJob = selectedBotJob;
-        clearBotJobWorkspaceCaches();
+        BotJobWorkspaceService.GridSnapshot initialGridSnapshot;
         webViewBootstrap.activate(selectedBotJob);
         botJobDetailsWorkspaceRegistry.activate(selectedBotJob, isEnabledLicence);
         try {
@@ -227,42 +225,34 @@ public class ARViewBotJobPane extends ARPane {
             throw new IllegalStateException(
                     "Unable to resolve persisted Bot Job endpoint during workspace activation", error);
         }
-        ExcelUtils.createExcelDataFile(selectedBotJob, null);
-
-        ErrorMessage errorMessage =
-                performDataBase.loadAllVariablesByCriteria("variable", selectedBotJob.getId(), -1, "");
-
-        if (errorMessage == null) {
-            errorMessage = performDataBase.loadWebPageFields(selectedBotJob.getId(), "bot_job");
-        }
-
-        if (errorMessage != null) {
-            performMessage.errorMessageOperationFailed(errorMessage);
+        try {
+            initialGridSnapshot = botJobWorkspaceService.activate(selectedBotJob);
+            applyGridSnapshot(initialGridSnapshot, false);
+        } catch (BotJobWorkspaceService.WorkspaceLoadException error) {
+            performMessage.errorMessageOperationFailed(error.error());
             abortWorkspaceActivation(selectedBotJob.getId());
-            throw new IllegalStateException("Unable to load Bot Job variables and page fields");
-        }
-
-        // Replace every job-scoped grid/block cache before any reused WebView or Scanner can observe it.
-        if (!refreshGrids()) {
+            throw error;
+        } catch (RuntimeException error) {
             abortWorkspaceActivation(selectedBotJob.getId());
-            throw new IllegalStateException("Unable to load Bot Job workspace data");
+            throw error;
         }
 
         if (existingWorkspace) {
             showBotJobWorkspace();
         }
 
-        String priority = selectedBotJob.getPriority();
-
-        if (isWebApp(priority)) {
-            if (arScannedElementScene.getCurrentBotJob() != null
-                    && !arScannedElementScene.getCurrentBotJob().getId().equals(selectedBotJob.getId())) {
-                callScannerTool(selectedBotJob, arScene);
+        Integer currentScannerBotJobId = arScannedElementScene.getCurrentBotJob() == null
+                ? null
+                : arScannedElementScene.getCurrentBotJob().getId();
+        switch (botJobWorkspaceService.scannerDisposition(selectedBotJob, currentScannerBotJobId)) {
+            case OPEN -> callScannerTool(selectedBotJob, arScene);
+            case CLOSE -> {
+                arScannedElementScene.closeWebDrivers();
+                arScannedElementScene.closeModal();
             }
-
-        } else if (isMobile(priority)) {
-            arScannedElementScene.closeWebDrivers();
-            arScannedElementScene.closeModal();
+            case KEEP -> {
+                // No scanner transition is required for this activation.
+            }
         }
 
         if (Strings.isNullOrEmpty(previousBotTasks)) {
@@ -276,13 +266,7 @@ public class ARViewBotJobPane extends ARPane {
     }
 
     private void clearBotJobWorkspaceCaches() {
-        performLists.getListVariablesUser().clear();
-        performLists.getListWebPageItems().clear();
-        performLists.getListBotJob().clear();
-        performLists.getListBlock().clear();
-        performLists.getListBotJobComp().clear();
-        performLists.getListBlockComp().clear();
-        performLists.getAllActions().clear();
+        botJobWorkspaceService.clearAllCaches();
     }
 
     private void abortWorkspaceActivation(int botJobId) {
@@ -295,78 +279,25 @@ public class ARViewBotJobPane extends ARPane {
     }
 
     private boolean refreshGrids() {
-
-        performLists.getListBotJob().clear();
-        performLists.getListBlock().clear();
-        performLists.getListBotJobComp().clear();
-        performLists.getListBlockComp().clear();
-
-        ErrorMessage errorMessage = performDBEngine.loadCompleteJobs(selectedBotJob.getId());
-
-        if (errorMessage != null) {
-            performMessage.errorMessageOperationFailed(errorMessage);
+        try {
+            applyGridSnapshot(botJobWorkspaceService.refresh(selectedBotJob), !firstLoad);
+            return true;
+        } catch (BotJobWorkspaceService.WorkspaceLoadException error) {
+            performMessage.errorMessageOperationFailed(error.error());
             return false;
         }
+    }
 
-        errorMessage = performDataBase.loadBlocks(selectedBotJob.getId(), selectedBotJob.getName(), "block");
-        if (errorMessage != null) {
-            performMessage.errorMessageOperationFailed(errorMessage);
-            return false;
-        }
-
-        // Updates the Grid After Load
-        setPayloadEmpty("botJobTasks");
-        String botJobJsonData = gson.toJson(payloadEmpty);
-
-        if (!performLists.getListBotJob().isEmpty()) {
-            List<InstructionLoad> instructions = performLists.buildJsonViewData(performLists.getListBotJob());
-            if (!instructions.isEmpty()) {
-                botJobJsonData = gson.toJson(instructions);
-            }
-        }
-
-        webViewBootstrap.updatePayload(selectedBotJob.getId(), "botJobTasks", botJobJsonData);
-
-        if (!firstLoad) {
-            com.allinweb.ch.socket.InstructionRealtimePublisher.getInstance()
-                    .publishSerializedSnapshot(selectedBotJob.getHomeBankingId(), "botJobTasks", botJobJsonData);
-        }
-
-        errorMessage = performDataBase.loadComponentsComplete(
-                selectedBotJob.getHomeBankingId(), selectedBotJob.getId(), selectedBotJob.getName());
-
-        if (errorMessage != null) {
-            performMessage.errorMessageOperationFailed(errorMessage);
-            return false;
-        }
-
-        errorMessage = performDataBase.loadBlocks(
-                selectedBotJob.getHomeBankingId(), selectedBotJob.getName(), "component_block");
-        if (errorMessage != null) {
-            performMessage.errorMessageOperationFailed(errorMessage);
-            return false;
-        }
-
-        setPayloadEmpty("componentTasks");
-        String componentJsonData = gson.toJson(payloadEmpty);
-
-        if (!performLists.getListBotJobComp().isEmpty()) {
-            List<InstructionLoad> instructions = performLists.buildJsonViewData(performLists.getListBotJobComp());
-            if (!instructions.isEmpty()) {
-                componentJsonData = gson.toJson(instructions);
-            }
-        }
-
-        webViewBootstrap.updatePayload(selectedBotJob.getId(), "componentTasks", componentJsonData);
-
-        if (!firstLoad) {
-            com.allinweb.ch.socket.InstructionRealtimePublisher.getInstance()
-                    .publishSerializedSnapshot(selectedBotJob.getHomeBankingId(), "componentTasks", componentJsonData);
-        }
-
-        //        webSocketSessionManager.broadcastMessageToAll(
-        //                selectedBotJob.getHomeBankingId(), "componentTasks", jsonData, "componentsUpdate");
-        return true;
+    private void applyGridSnapshot(BotJobWorkspaceService.GridSnapshot snapshot, boolean publish) {
+        webViewBootstrap.updatePayload(selectedBotJob.getId(), "botJobTasks", snapshot.botJobJson());
+        webViewBootstrap.updatePayload(selectedBotJob.getId(), "componentTasks", snapshot.componentJson());
+        if (!publish) return;
+        com.allinweb.ch.socket.InstructionRealtimePublisher publisher =
+                com.allinweb.ch.socket.InstructionRealtimePublisher.getInstance();
+        publisher.publishSerializedSnapshot(
+                selectedBotJob.getHomeBankingId(), "botJobTasks", snapshot.botJobJson());
+        publisher.publishSerializedSnapshot(
+                selectedBotJob.getHomeBankingId(), "componentTasks", snapshot.componentJson());
     }
 
     private void buildViewComponent() {
@@ -579,11 +510,11 @@ public class ARViewBotJobPane extends ARPane {
         String optionsConfig = preScanOptionsConfig();
 
         try {
-            if (preScanDriver == null || !preScanDriver.isOpen()) {
+            if (!preScanBrowserSession.isOpen()) {
                 ensurePreScanBrowserOpen(browserType, endpointUrl, optionsConfig);
             } else {
                 sendPreScanStatus("running", "Refreshing browser page...", 0);
-                preScanDriver.reload();
+                preScanBrowserSession.reload();
             }
             sendPreScanStatus("done", "Web page refreshed. Run Page Scanner to update the grid.", 0);
         } catch (Exception error) {
@@ -598,7 +529,7 @@ public class ARViewBotJobPane extends ARPane {
             return;
         }
 
-        if (!preScanRunning.compareAndSet(false, true)) {
+        if (!preScanBrowserSession.tryBeginScan()) {
             log.warn("PRE SCAN skipped: a scan is already in progress");
             sendPreScanStatus("running", "A pre-scan is already in progress...", 0);
             return;
@@ -624,10 +555,10 @@ public class ARViewBotJobPane extends ARPane {
             // DOMContentLoaded, so wait until the network is quiet and the DOM stops
             // mutating — otherwise the first scan sees the half-rendered page.
             sendPreScanStatus("waiting", "Loading the Page - waiting to settle...", 0);
-            long settledMs = preScanDriver.waitForPageSettled(15000);
+            long settledMs = preScanBrowserSession.waitForPageSettled(15000);
             log.info("PRE SCAN - page settled after {} ms", settledMs);
             sendPreScanStatus("running", "web elements...", 0);
-            List<ElementDTO> elements = preScanDriver.scanElements(searchTermsArray(searchTerms), searchHidden);
+            List<ElementDTO> elements = preScanBrowserSession.scanElements(searchTermsArray(searchTerms), searchHidden);
             elements = keepActionableElements(elements);
             resolvePreScanNames(elements);
             persistPreScanDiagnostics(elements);
@@ -650,7 +581,7 @@ public class ARViewBotJobPane extends ARPane {
                     null,
                     0));
         } finally {
-            preScanRunning.set(false);
+            preScanBrowserSession.finishScan();
         }
     }
 
@@ -701,9 +632,14 @@ public class ARViewBotJobPane extends ARPane {
             ElementDTO[] asArray = elements.toArray(new ElementDTO[0]);
 
             com.allinweb.ch.util.PageDiagnosticDumper.dumpRectsFromElements(
-                    preScanDriver, asArray, jsonPath, "page-BJ");
+                    preScanBrowserSession.playwrightDriver(), asArray, jsonPath, "page-BJ");
             com.allinweb.ch.util.PageOcrDumper.runAndDump(
-                    preScanDriver, asArray, jsonPath, "page-BJ", scanHomeBankingId, scanHomeUrlId);
+                    preScanBrowserSession.playwrightDriver(),
+                    asArray,
+                    jsonPath,
+                    "page-BJ",
+                    scanHomeBankingId,
+                    scanHomeUrlId);
 
             // Keep the pre-OCR scanned text so the dashboard's per-block OCR review panel
             // can show scanned vs resolved and let the client agree/defer per element.
@@ -778,17 +714,16 @@ public class ARViewBotJobPane extends ARPane {
     }
 
     private void ensurePreScanBrowserOpen(String browserType, String endpointUrl, String optionsConfig) {
-        if (preScanDriver == null || !preScanDriver.isOpen()) {
-            preScanDriver = new ARPlaywrightDriver();
+        if (!preScanBrowserSession.isOpen()) {
             log.info("PRE SCAN - opening isolated visible Playwright at {}", endpointUrl);
             sendPreScanStatus("waiting", "Loading the Page - Opening isolated browser...", 0);
-            preScanDriver.openOrNavigate(browserType, endpointUrl, optionsConfig, false);
+            preScanBrowserSession.ensureOpen(browserType, endpointUrl, optionsConfig);
             return;
         }
 
         String currentUrl = "";
         try {
-            currentUrl = preScanDriver.currentUrl();
+            currentUrl = preScanBrowserSession.currentUrl();
         } catch (Exception ignored) {
             // If currentUrl cannot be read, still try to scan the active page.
         }
@@ -799,11 +734,11 @@ public class ARViewBotJobPane extends ARPane {
     /**
      * Pane-free row test (Test Click / Test Input) against the ISOLATED pre-scan browser.
      * The legacy path runs {@code ARScannedElementPane.testingActions} on the shared
-     * driver; here the scanned page lives in {@code preScanDriver}, so the test must too.
+     * driver; here the scanned page lives in the isolated Pre Scan browser session, so the test must too.
      * Results stream to the dashboard status bar (done/failed) instead of a modal.
      */
     public void handlePreScanElementTest(SplitDTO splitDTO, String testType) {
-        if (preScanDriver == null || !preScanDriver.isOpen()) {
+        if (!preScanBrowserSession.isOpen()) {
             sendPreScanStatus("failed", "No pre-scan browser open. Run the Page Scanner first.", 0);
             return;
         }
@@ -840,12 +775,12 @@ public class ARViewBotJobPane extends ARPane {
             sendPreScanStatus("running", actionLabel + " - " + label, 0);
             boolean passed;
             if (isClick) {
-                passed = preScanDriver.click(instruction);
+                passed = preScanBrowserSession.click(instruction);
             } else {
                 // The grid rides the test value in defaultValue ('abc'); keep that fallback.
                 String value =
                         Strings.isNullOrEmpty(elementDTO.getDefaultValue()) ? "abc" : elementDTO.getDefaultValue();
-                passed = preScanDriver.fill(instruction, new FieldData(instruction.getName(), value));
+                passed = preScanBrowserSession.fill(instruction, new FieldData(instruction.getName(), value));
             }
             sendPreScanStatus(
                     passed ? "done" : "failed", actionLabel + (passed ? " passed - " : " failed - ") + label, 0);
@@ -1984,19 +1919,17 @@ public class ARViewBotJobPane extends ARPane {
                 }
             }
         }
-        if (preScanDriver != null) {
-            try {
-                preScanDriver.shutdown();
-            } catch (RuntimeException error) {
-                log.debug("Unable to close the Pre Scan browser: {}", error.getMessage());
-            } finally {
-                preScanDriver = null;
-            }
+        try {
+            preScanBrowserSession.shutdown();
+        } catch (RuntimeException error) {
+            log.debug("Unable to close the Pre Scan browser: {}", error.getMessage());
         }
     }
 
     public boolean canCloseWorkspace() {
-        if (botJobToolbarGuard.activeOperation() != null || preScanRunning.get() || isScannerButtonClicked) {
+        if (botJobToolbarGuard.activeOperation() != null
+                || preScanBrowserSession.isScanRunning()
+                || isScannerButtonClicked) {
             return false;
         }
         if (selectedBotJob == null || selectedBotJob.getId() == null) return true;
@@ -2012,17 +1945,6 @@ public class ARViewBotJobPane extends ARPane {
         return priority == null
                 || priority.trim().isEmpty()
                 || ARPropertyEnum.WEB_APP.getValue().equalsIgnoreCase(priority);
-    }
-
-    private boolean isMobile(String priority) {
-        if (priority == null) {
-            return false;
-        }
-
-        String normalized = priority.trim().toLowerCase();
-
-        return normalized.equals(ARPropertyEnum.ANDROID.getValue().toLowerCase())
-                || normalized.equals(ARPropertyEnum.IOS.getValue().toLowerCase());
     }
 
     private boolean supportsDesktopBrowserTools(String priority) {

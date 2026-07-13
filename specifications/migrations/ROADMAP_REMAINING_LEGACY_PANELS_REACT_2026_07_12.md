@@ -129,7 +129,9 @@ Parity gap: React currently carries `priority`, `searchConfig`, and `optionsConf
 - [ ] Reduce `ARViewBotJobPane` to a WebView/window host, then retire its pane/scene after runtime verification.
   - [x] Extract exact TEST RUN/STOP ownership, startup cancellation, terminal outcome monitoring, and runtime-state publication.
   - [x] Harden job-switch WebView/session/cache teardown and remove the dead API-tool WebView.
-  - [ ] Extract workspace activation/cache/grid refresh, Pre Scan, scanner launch, native file/Engine operations, and close/capability orchestration.
+  - [x] Extract workspace activation/cache/grid refresh and scanner-selection policy into the JavaFX-free `BotJobWorkspaceService`, with fail-closed cache transitions and focused backend tests.
+  - [x] Move the isolated Pre Scan Playwright driver and single-scan lifecycle guard into the JavaFX-free `PreScanBrowserSession`; workflow/OCR/status extraction remains pending.
+  - [ ] Extract Pre Scan, scanner launch, native file/Engine operations, and close/capability orchestration.
   - [ ] Move remaining WebSocket/mobile persistence ownership out of `ARViewBotJobScene`, then complete desktop runtime validation and retirement.
 
 ## Phase 3 — Clone Job
@@ -187,6 +189,10 @@ The normal WebSocket cannot be assumed available on configuration failure, so th
 2. Backend pure/service tests plus WebSocket contract tests.
 3. Playwright tests against localhost/mocked socket, followed by loopback integration.
 4. No production BancaStato config/database mutation.
+   Automated tests use `D:\Projects\ar-web-selenium\Config-4.2\TESTS.config`. When production-shaped
+   reference data is necessary, `D:\Projects\ARWeb-Linux\ARWeb\database.db` and
+   `D:\Projects\ARWeb-Linux\Config-4.2\ARWeb.config` are read-only inputs; mutation-capable tests use
+   isolated copies.
 5. `git diff --check` on touched paths.
 6. Build `abr-react-ts-grid` with `npm run build`.
 7. Delete the deployed backend build contents, copy the complete new React build, and compare manifests/hashes.
