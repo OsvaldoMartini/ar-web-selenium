@@ -63,6 +63,7 @@ public class ARViewBotJobPane extends ARPane {
             BotJobTransferPathRegistry.getInstance();
     private static final BotJobTransferService botJobTransferService = BotJobTransferService.getInstance();
     private static final BotJobToolbarConcurrencyGuard botJobToolbarGuard = new BotJobToolbarConcurrencyGuard();
+    private static final BotJobDetailsWebViewBootstrap webViewBootstrap = new BotJobDetailsWebViewBootstrap();
     private static final java.util.concurrent.atomic.AtomicReference<ActiveReactTestRun> activeReactTestRun =
             new java.util.concurrent.atomic.AtomicReference<>();
     private static final ExecutorService botJobToolbarExecutor = new ThreadPoolExecutor(
@@ -158,16 +159,27 @@ public class ARViewBotJobPane extends ARPane {
     }
 
     public void initialize(ARScene arScene, BotJobLoadDTO selectedBotJob, boolean isEnabledLicence) {
+        boolean existingWorkspace = componentBox != null;
+        if (existingWorkspace
+                && this.selectedBotJob != null
+                && this.selectedBotJob.getId() != null
+                && selectedBotJob != null
+                && selectedBotJob.getId() != null
+                && !this.selectedBotJob.getId().equals(selectedBotJob.getId())
+                && !canCloseWorkspace()) {
+            throw new IllegalStateException(
+                    "Stop the active Bot Job operation before opening another Bot Job");
+        }
         this.isEnabledLicence = isEnabledLicence;
         this.arScene = arScene;
         this.selectedBotJob = selectedBotJob;
+        webViewBootstrap.activate(selectedBotJob);
         botJobDetailsWorkspaceRegistry.activate(selectedBotJob, isEnabledLicence);
         HomeUrlDTO activeEnvironment = performLists.getHomeUrlByBankId(
                 selectedBotJob.getHomeBankingId(), selectedBotJob.getHomeUrlId());
         reactEnvironmentUrl = activeEnvironment == null ? "" : activeEnvironment.getUrl();
-        if (componentBox != null) {
+        if (existingWorkspace) {
             showBotJobWorkspace();
-            reloadReactWorkspaceSurfaces();
         }
 
         ExcelUtils.createExcelDataFile(selectedBotJob, null);
@@ -205,7 +217,10 @@ public class ARViewBotJobPane extends ARPane {
             }
         }
 
-        if (!webSocketSessionManager.getAllSessions().isEmpty()) {
+        if (existingWorkspace) {
+            refreshGrids();
+            reloadReactWorkspaceSurfaces();
+        } else if (!webSocketSessionManager.getAllSessions().isEmpty()) {
             refreshGrids();
         }
     }
@@ -231,6 +246,8 @@ public class ARViewBotJobPane extends ARPane {
                 }
             }
 
+            webViewBootstrap.updatePayload(selectedBotJob.getId(), "botJobTasks", jsonData);
+
             com.allinweb.ch.socket.InstructionRealtimePublisher.getInstance()
                     .publishSerializedSnapshot(selectedBotJob.getHomeBankingId(), "botJobTasks", jsonData);
         }
@@ -253,6 +270,8 @@ public class ARViewBotJobPane extends ARPane {
                     jsonData = gson.toJson(instructions);
                 }
             }
+
+            webViewBootstrap.updatePayload(selectedBotJob.getId(), "componentTasks", jsonData);
 
             com.allinweb.ch.socket.InstructionRealtimePublisher.getInstance()
                     .publishSerializedSnapshot(selectedBotJob.getHomeBankingId(), "componentTasks", jsonData);
@@ -288,18 +307,12 @@ public class ARViewBotJobPane extends ARPane {
         webEngineTasks.javaScriptEnabledProperty().set(true);
 
         sessionId = "botJobTasks";
-        String orgName = selectedBotJob.getHomeBankingLoadDTO() != null
-                ? selectedBotJob.getHomeBankingLoadDTO().getName()
-                : "";
         buildWebView(
                 webEngineTasks,
                 jsonData,
                 portInitial,
                 sessionId,
-                selectedBotJob.getHomeBankingId(),
-                orgName,
-                selectedBotJob.getId(),
-                selectedBotJob.getName());
+                selectedBotJob.getId());
 
         // ── componentTasks (unchanged) ──────────────────────────────────────
         if (performLists.getListBotJobComp().isEmpty()) {
@@ -331,10 +344,7 @@ public class ARViewBotJobPane extends ARPane {
                 jsonData,
                 portInitial,
                 sessionId,
-                selectedBotJob.getHomeBankingId(),
-                orgName,
-                selectedBotJob.getId(),
-                selectedBotJob.getName());
+                selectedBotJob.getId());
 
         // ── capiApiTestToolAI  ← NEW ──────────────────────────────────────────────
         // Load the React app in the third WebView with sessionId = "capiApiTestToolAI".
@@ -349,10 +359,7 @@ public class ARViewBotJobPane extends ARPane {
                 "[]",
                 portInitial,
                 sessionId,
-                selectedBotJob.getHomeBankingId(),
-                orgName,
-                selectedBotJob.getId(),
-                selectedBotJob.getName());
+                selectedBotJob.getId());
 
         webEnginePreScanner = webViewPreScanner.getEngine();
         webEnginePreScanner.javaScriptEnabledProperty().set(true);
@@ -363,10 +370,7 @@ public class ARViewBotJobPane extends ARPane {
                 "[]",
                 portInitial,
                 sessionId,
-                selectedBotJob.getHomeBankingId(),
-                orgName,
-                selectedBotJob.getId(),
-                selectedBotJob.getName());
+                selectedBotJob.getId());
 
         previousBotTasks = sessionId;
     }
@@ -412,18 +416,18 @@ public class ARViewBotJobPane extends ARPane {
             String jsonData,
             int finalPort,
             String sessionIdFromJava,
-            int homeBanking,
-            String homeBankName,
-            int botJobId,
-            String botJobName) {
+            int botJobId) {
+        webViewBootstrap.updatePayload(botJobId, sessionIdFromJava, jsonData);
         webEngine.load(WebBuildExtractor.getIndexUrl());
 
         webEngine.getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
             if (newState == Worker.State.SUCCEEDED) {
                 try {
+                    BotJobDetailsWebViewBootstrap.Context context = webViewBootstrap.resolve(sessionIdFromJava);
                     webEngine.executeScript("setTimeout(function() { window.receiveDataFromJava(JSON.stringify("
-                            + jsonData + "), " + finalPort + ", '" + sessionIdFromJava + "', " + homeBanking + ", '"
-                            + homeBankName + "', " + botJobId + ", '" + botJobName + "' ) }, 1000)");
+                            + context.jsonData() + "), " + finalPort + ", '" + context.sessionId() + "', "
+                            + context.homeBankingId() + ", '" + context.organizationName() + "', "
+                            + context.botJobId() + ", '" + context.botJobName() + "' ) }, 1000)");
                 } catch (Exception error) {
                     log.error("buildWebView Error: " + error.getMessage());
                 }
