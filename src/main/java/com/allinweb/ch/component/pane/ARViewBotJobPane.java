@@ -13,6 +13,7 @@ import com.allinweb.ch.facade.PreScanApplyService;
 import com.allinweb.ch.facade.BotJobDetailsService;
 import com.allinweb.ch.facade.BotJobTestRunCoordinator;
 import com.allinweb.ch.facade.BotJobWorkspaceService;
+import com.allinweb.ch.facade.BotJobScannerCoordinator;
 import com.allinweb.ch.facade.PreScanWorkflowService;
 import com.allinweb.ch.facade.PreScanBrowserSession;
 import com.allinweb.ch.facade.BotJobDetailsWorkspaceRegistry;
@@ -135,8 +136,7 @@ public class ARViewBotJobPane extends ARPane {
     private boolean firstLoad = true;
     private String previousBotTasks;
     private boolean isEnabledLicence;
-    // Define a flag to prevent double clicks
-    private volatile boolean isScannerButtonClicked = false;
+    private final BotJobScannerCoordinator scannerCoordinator;
     private static final String EXECUTE_ALL_OPTION_LABEL = "Execute All";
     private VBox botJobContainer;
     private Pane mainPane;
@@ -159,8 +159,37 @@ public class ARViewBotJobPane extends ARPane {
     private volatile String reactEnvironmentUrl = "";
     // Private constructor to prevent instantiation
     private ARViewBotJobPane() {
-
         super();
+        scannerCoordinator = BotJobScannerCoordinator.createDefault(
+                new BotJobScannerCoordinator.ScenePort() {
+                    @Override
+                    public void open(HomeBankingLoadDTO homeBanking, BotJobLoadDTO botJob, BlockLoadDTO block) {
+                        arScannedElementScene.initialize(homeBanking, botJob, block);
+                        arScannedElementScene.showModal();
+                    }
+
+                    @Override
+                    public void closeWebDrivers() {
+                        arScannedElementScene.closeWebDrivers();
+                    }
+
+                    @Override
+                    public void closeModal() {
+                        arScannedElementScene.closeModal();
+                    }
+                },
+                new BotJobScannerCoordinator.ErrorPort() {
+                    @Override
+                    public void databaseFailure(ErrorMessage error) {
+                        performMessage.errorMessageOperationFailed(error);
+                    }
+
+                    @Override
+                    public void launchFailure(Exception error) {
+                        handleExceptionScan(error);
+                    }
+                },
+                arPropertyManager::missingMandatoryPats);
     }
 
     private static Thread daemonThread(Runnable runnable, String name) {
@@ -249,10 +278,7 @@ public class ARViewBotJobPane extends ARPane {
                 : arScannedElementScene.getCurrentBotJob().getId();
         switch (botJobWorkspaceService.scannerDisposition(selectedBotJob, currentScannerBotJobId)) {
             case OPEN -> callScannerTool(selectedBotJob, arScene);
-            case CLOSE -> {
-                arScannedElementScene.closeWebDrivers();
-                arScannedElementScene.closeModal();
-            }
+            case CLOSE -> scannerCoordinator.close();
             case KEEP -> {
                 // No scanner transition is required for this activation.
             }
@@ -895,26 +921,7 @@ public class ARViewBotJobPane extends ARPane {
     }
 
     private void callScannerTool(BotJobLoadDTO scannerBotJob, ARScene scannerScene) {
-        if (arPropertyManager.missingMandatoryPats()) {
-            return;
-        }
-
-        if (!isScannerButtonClicked) { // Check if the button action was not already triggered
-            isScannerButtonClicked = true; // Set the flag to prevent further clicks
-
-            log.info("Calling openScannerButton");
-
-            String threadName = "botJob-" + scannerBotJob.getId();
-            scannerScene.startNewThread(threadName, () -> {
-                try {
-                    executeScannerTask(scannerBotJob);
-                } catch (Exception error) {
-                    handleExceptionScan(error);
-                } finally {
-                    isScannerButtonClicked = false; // Reset the flag after task completes
-                }
-            });
-        }
+        scannerCoordinator.open(scannerBotJob, scannerScene::startNewThread);
     }
 
     public HomeUrlDTO findMatchingHomeUrlDTO(BotJobLoadDTO botJobLoadDTO) {
@@ -1928,7 +1935,7 @@ public class ARViewBotJobPane extends ARPane {
     public boolean canCloseWorkspace() {
         if (botJobToolbarGuard.activeOperation() != null
                 || preScanWorkflowService.isRunning()
-                || isScannerButtonClicked) {
+                || scannerCoordinator.isBusy()) {
             return false;
         }
         if (selectedBotJob == null || selectedBotJob.getId() == null) return true;

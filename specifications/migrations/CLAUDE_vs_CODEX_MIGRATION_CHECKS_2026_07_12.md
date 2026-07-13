@@ -822,7 +822,9 @@ were not modified.
   - [x] Extract isolated Playwright driver creation/reuse, refresh, action dispatch, shutdown, failed-open
         cleanup, and the single-scan lease into the JavaFX-free `PreScanBrowserSession`. OCR/status/workflow
         orchestration remains in the pane and keeps the parent task open.
-- [ ] Task: Extract scanner launch/modal coordination and remove pane-owned scanner flags.
+- [x] Task: Extract reachable scanner preparation, environment/block selection, missing-path rejection,
+      duplicate-launch prevention, modal open/close, failure routing, and launch-lease recovery into the
+      UI-independent `BotJobScannerCoordinator`; remove the pane-owned `isScannerButtonClicked` flag.
 - [ ] Task: Extract remaining native file, external Engine, organization, capability, payload, and
       workspace-close operations behind typed ports.
 - [ ] Task: Remove zero-caller helpers, move remaining WebSocket/mobile persistence ownership out of
@@ -831,8 +833,9 @@ were not modified.
 Task 1 is therefore progressed but not complete; checking it complete now would hide active JavaFX-host
 responsibilities that still require extraction and desktop runtime validation.
 
-Focused continuation evidence: Java compiled 310 main and 77 test sources. The 55-test workspace,
-Pre Scan workflow/browser-session, WebView, registry, TEST RUN coordinator, action-contract, and WebSocket
+Focused continuation evidence: Java compiled 311 main and 78 test sources. The 59-test workspace,
+Pre Scan workflow/browser-session, scanner coordinator, WebView, registry, TEST RUN coordinator,
+action-contract, and WebSocket
 lifecycle suite passed with zero failures, errors, or skips. The React project, deployed React resources,
 and Bot Job Details design were unchanged.
 
