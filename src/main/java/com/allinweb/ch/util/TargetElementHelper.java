@@ -5,7 +5,6 @@ import com.allinweb.ch.builder.WebElementAttributeTypeValueEnum;
 import com.allinweb.ch.builder.WebElementIcon;
 import com.allinweb.ch.builder.WebElementTagNameEnum;
 import com.allinweb.ch.component.pane.ARScannedElementPane;
-import com.allinweb.ch.component.scene.ARViewBotJobScene;
 import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.model.*;
@@ -26,7 +25,6 @@ public class TargetElementHelper {
 
     private static final PerformMessage performMessage = PerformMessage.getInstance();
     private PerformActions performActions;
-    private ARViewBotJobScene arViewBotJobScene;
     private ARScannedElementPane arScannedElementPane;
 
     private TargetElementHelper() {
@@ -54,13 +52,6 @@ public class TargetElementHelper {
 
     public void initialize(PerformActions performActions) {
         this.performActions = performActions;
-    }
-
-    /**
-     * Initialize the helper with the necessary dependencies.
-     */
-    public void initialize(ARViewBotJobScene arViewBotJobScene) {
-        this.arViewBotJobScene = arViewBotJobScene;
     }
 
     /**

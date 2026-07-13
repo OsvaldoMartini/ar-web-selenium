@@ -421,8 +421,6 @@ public class ARViewBotJobScene extends ARScene {
             }
 
             instructionList.clear();
-            targetElementHelper.initialize(instance);
-
             for (ElementDTO elementDTO : processDTO.getElementDetails()) {
                 TargetElement targetEach = targetElementHelper.extractPickClone(elementDTO, true);
 
