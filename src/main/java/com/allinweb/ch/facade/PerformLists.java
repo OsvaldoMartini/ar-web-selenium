@@ -318,9 +318,6 @@ public class PerformLists {
                     blockMoveDTO.setType("UPDATE_BLOCKS");
 
                     String jsonData = gson.toJson(blockMoveDTO);
-                    // Just a Signal to update the combos
-                    webSocketSessionManager.sendMessageJson(homeBankingId, "bot-job-scene", jsonData, "UPDATE_BLOCKS");
-
                     webSocketSessionManager.sendMessageJson(
                             homeBankingId, "scanner-element-pane", jsonData, "UPDATE_BLOCKS");
 
@@ -330,10 +327,6 @@ public class PerformLists {
                     blockMoveDTO.setType("UPDATE_BLOCKS_COMP");
 
                     jsonData = gson.toJson(blockMoveDTO);
-                    // Just a Signal to update the combos
-                    webSocketSessionManager.sendMessageJson(
-                            homeBankingId, "bot-job-scene", jsonData, "UPDATE_BLOCKS_COMP");
-
                     break;
                 case "UPDATE_BOT_JOBS":
                     jsonData = gson.toJson("[]");

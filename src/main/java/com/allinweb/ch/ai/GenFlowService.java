@@ -370,8 +370,6 @@ public final class GenFlowService {
 
             String blockSignal = gson.toJson(new BlockMoveDTO());
             webSocketSessionManager.sendMessageJson(
-                    botJob.getHomeBankingId(), "bot-job-scene", blockSignal, "UPDATE_BLOCKS");
-            webSocketSessionManager.sendMessageJson(
                     botJob.getHomeBankingId(), "scanner-element-pane", blockSignal, "UPDATE_BLOCKS");
 
             if (!performLists.getListBotJob().isEmpty()) {

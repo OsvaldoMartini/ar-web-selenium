@@ -4183,8 +4183,6 @@ public class ARScannedElementPane extends ARPane {
             BlockMoveDTO signal = new BlockMoveDTO();
             String json = gson.toJson(signal);
             webSocketSessionManager.sendMessageJson(
-                    currentBotJob.getHomeBankingId(), "bot-job-scene", json, "UPDATE_BLOCKS");
-            webSocketSessionManager.sendMessageJson(
                     currentBotJob.getHomeBankingId(), "scanner-element-pane", json, "UPDATE_BLOCKS");
         } catch (Exception broadcastErr) {
             // Broadcast failure is non-fatal — the DB is consistent and this pane's

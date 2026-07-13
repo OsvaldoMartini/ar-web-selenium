@@ -3118,12 +3118,8 @@ public class SimpleWebSocketServer {
             }
         }
 
-        if (!splitDTO.getType().equals("INSERT_BEFORE_ELSEIF")
-                && !splitDTO.getType().equals("INSERT_AFTER_ELSEIF")) {
-
-            webSocketSessionManager.sendMessageJson("bot-job-scene", gson.toJson(splitDTO));
-
-        } else {
+        if (splitDTO.getType().equals("INSERT_BEFORE_ELSEIF")
+                || splitDTO.getType().equals("INSERT_AFTER_ELSEIF")) {
 
             try {
                 ErrorMessage message = performDataBase.preFillNewInstruction(
