@@ -20,6 +20,7 @@ import com.allinweb.ch.facade.BotJobWorkspaceCapabilityService;
 import com.allinweb.ch.facade.BotJobPreScanPayloadService;
 import com.allinweb.ch.facade.BotJobOrganizationCoordinator;
 import com.allinweb.ch.facade.BotJobGridPayloadService;
+import com.allinweb.ch.facade.BotJobWorkspaceController;
 import com.allinweb.ch.facade.PreScanWorkflowService;
 import com.allinweb.ch.facade.PreScanBrowserSession;
 import com.allinweb.ch.facade.BotJobDetailsWorkspaceRegistry;
@@ -149,6 +150,7 @@ public class ARViewBotJobPane extends ARPane {
     private final BotJobScannerCoordinator scannerCoordinator;
     private final BotJobWorkspaceCloseCoordinator workspaceCloseCoordinator;
     private final BotJobOrganizationCoordinator organizationCoordinator;
+    private long workspaceControllerGeneration;
     private static final String EXECUTE_ALL_OPTION_LABEL = "Execute All";
     private VBox botJobContainer;
     private Pane mainPane;
@@ -285,6 +287,24 @@ public class ARViewBotJobPane extends ARPane {
         this.isEnabledLicence = isEnabledLicence;
         this.arScene = arScene;
         this.selectedBotJob = selectedBotJob;
+        workspaceControllerGeneration = BotJobWorkspaceController.getInstance().activate(
+                new BotJobWorkspaceController.HostPort() {
+                    public CompletableFuture<BotJobWorkspaceActionResult> workspaceAction(
+                            BotJobWorkspaceAction action, int botJobId) {
+                        return handleReactWorkspaceAction(action, botJobId);
+                    }
+                    public CompletableFuture<BotJobToolbarActionResult> toolbarAction(
+                            BotJobToolbarAction action, BotJobDetailsRequest request) {
+                        return handleReactToolbarAction(action, request);
+                    }
+                    public CompletableFuture<Void> applyMetadata(BotJobDetailsState state) {
+                        return applyReactMetadataState(state);
+                    }
+                    public void preScanCommand(String type, JsonObject body) { handlePreScanCommand(type, body); }
+                    public void preScanElementTest(SplitDTO payload, String type) {
+                        handlePreScanElementTest(payload, type);
+                    }
+                });
         BotJobWorkspaceService.GridSnapshot initialGridSnapshot;
         webViewBootstrap.activate(selectedBotJob);
         botJobDetailsWorkspaceRegistry.activate(selectedBotJob, isEnabledLicence);
@@ -342,6 +362,7 @@ public class ARViewBotJobPane extends ARPane {
         try {
             suspendReactWorkspaceSurfaces(botJobId);
         } finally {
+            BotJobWorkspaceController.getInstance().deactivate(workspaceControllerGeneration);
             botJobDetailsWorkspaceRegistry.close(botJobId);
             clearBotJobWorkspaceCaches();
         }
@@ -1741,6 +1762,7 @@ public class ARViewBotJobPane extends ARPane {
             suspendReactWorkspaceSurfaces(selectedBotJob.getId());
         }
         detachReactWorkspaceLoadListeners();
+        BotJobWorkspaceController.getInstance().deactivate(workspaceControllerGeneration);
         clearPane(getPaneReference());
         pane = null;
         scene = null;
@@ -1817,6 +1839,7 @@ public class ARViewBotJobPane extends ARPane {
     public void markWorkspaceClosed() {
         workspaceCloseCoordinator.close(
                 selectedBotJob == null ? null : selectedBotJob.getId());
+        BotJobWorkspaceController.getInstance().deactivate(workspaceControllerGeneration);
     }
 
     public boolean canCloseWorkspace() {

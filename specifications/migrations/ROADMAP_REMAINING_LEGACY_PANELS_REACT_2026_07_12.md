@@ -137,6 +137,7 @@ Parity gap: React currently carries `priority`, `searchConfig`, and `optionsConf
   - [x] Extract active-operation close gating, WebView/session retirement, registry/transfer cleanup, and Pre Scan shutdown ordering into the UI-independent `BotJobWorkspaceCloseCoordinator`.
   - [x] Extract capability, organization, Pre Scan payload, and empty-grid payload ownership into UI-independent services/coordinators.
   - [ ] Move remaining WebSocket/mobile persistence ownership out of `ARViewBotJobScene`, then complete desktop runtime validation and retirement.
+    - [x] Route all `SimpleWebSocketServer` Bot Job workspace calls through the generation-safe `BotJobWorkspaceController` instead of importing the JavaFX pane.
 
 ## Phase 3 — Clone Job
 

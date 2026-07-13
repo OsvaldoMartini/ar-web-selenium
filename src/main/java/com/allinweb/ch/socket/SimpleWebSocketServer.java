@@ -2,7 +2,6 @@ package com.allinweb.ch.socket;
 
 import com.allinweb.ch.ARControlPanel;
 import com.allinweb.ch.component.pane.ARScannedElementPane;
-import com.allinweb.ch.component.pane.ARViewBotJobPane;
 import com.allinweb.ch.facade.*;
 import com.allinweb.ch.model.*;
 import com.allinweb.ch.util.*;
@@ -715,8 +714,8 @@ public class SimpleWebSocketServer {
                             request.requestId(),
                             request.botJobId(),
                             action,
-                            () -> ARViewBotJobPane.getInstance()
-                                    .handleReactWorkspaceAction(action, request.botJobId()))
+                            () -> BotJobWorkspaceController.getInstance()
+                                    .workspaceAction(action, request.botJobId()))
                     .whenComplete((result, failure) -> {
                         if (failure != null) {
                             response.put("ok", false);
@@ -770,7 +769,7 @@ public class SimpleWebSocketServer {
                             request.botJobId(),
                             action,
                             request.body().toString(),
-                            () -> ARViewBotJobPane.getInstance().handleReactToolbarAction(action, request))
+                            () -> BotJobWorkspaceController.getInstance().toolbarAction(action, request))
                     .whenComplete((result, failure) -> {
                         if (failure != null) {
                             response.put("ok", false);
@@ -884,7 +883,7 @@ public class SimpleWebSocketServer {
 
         CompletableFuture<Void> desktopSync;
         try {
-            desktopSync = ARViewBotJobPane.getInstance().applyReactMetadataState(response.state());
+            desktopSync = BotJobWorkspaceController.getInstance().applyMetadata(response.state());
         } catch (RuntimeException error) {
             BotJobDetailsResponse syncFailure = BotJobDetailsResponse.failure(
                     "Metadata was saved but the open desktop context could not be synchronized",
@@ -1986,7 +1985,7 @@ public class SimpleWebSocketServer {
                 case "PRE_SCAN_PAGE":
                 case "PRE_SCAN_REFRESH_PAGE":
                 case "PRE_SCAN_CLEAR_GRID":
-                    ARViewBotJobPane.getInstance().handlePreScanCommand(type, jsonEntry);
+                    BotJobWorkspaceController.getInstance().preScanCommand(type, jsonEntry);
                     alreadySentMgsSocket = true;
                     break;
                 case "CLOSE_BROWSER":
@@ -2213,7 +2212,7 @@ public class SimpleWebSocketServer {
                         if (isTestType && !paneOpen) {
                             // PRE SCAN dashboard row test with AR Web Factory closed: the scanned
                             // page lives in the isolated pre-scan browser, so the test runs there.
-                            ARViewBotJobPane.getInstance().handlePreScanElementTest(splitDTO, type);
+                            BotJobWorkspaceController.getInstance().preScanElementTest(splitDTO, type);
                         } else if (isInsertType && !paneOpen) {
                             // PRE SCAN dashboard Apply with AR Web Factory closed: the pane
                             // session would swallow the message, so persist via the pane-free

@@ -840,6 +840,11 @@ were not modified.
         `BotJobGridPayloadService`.
 - [ ] Task: Remove zero-caller helpers, move remaining WebSocket/mobile persistence ownership out of
       `ARViewBotJobScene`, runtime-validate close/reopen and A -> B switching, then retire the pane/scene.
+  - [x] Remove all five direct `SimpleWebSocketServer -> ARViewBotJobPane` dependencies. Socket workspace,
+        toolbar, metadata-sync, Pre Scan command, and Pre Scan element-test calls now use the generation-safe
+        JavaFX-free `BotJobWorkspaceController`; close/failed activation retires the exact registered host.
+  - [ ] Extract the legacy `bot-job-scene` WebSocket client and mobile insertion/persistence workflow,
+        redirect remaining scene callers, remove zero-caller compatibility helpers, and retire pane/scene.
 
 Task 1 is therefore progressed but not complete; checking it complete now would hide active JavaFX-host
 responsibilities that still require extraction and desktop runtime validation.
