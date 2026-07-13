@@ -825,7 +825,7 @@ were not modified.
 - [x] Task: Extract reachable scanner preparation, environment/block selection, missing-path rejection,
       duplicate-launch prevention, modal open/close, failure routing, and launch-lease recovery into the
       UI-independent `BotJobScannerCoordinator`; remove the pane-owned `isScannerButtonClicked` flag.
-- [ ] Task: Extract remaining native file, external Engine, organization, capability, payload, and
+- [x] Task: Extract remaining native file, external Engine, organization, capability, payload, and
       workspace-close operations behind typed ports.
   - [x] Extract Excel/report opening, report-directory validation, BAT creation, external Engine
         preflight/command/log construction, detached launch, and collision tracking into the JavaFX-free
@@ -834,13 +834,17 @@ were not modified.
   - [x] Extract active-operation close gating, exact WebView/session retirement, workspace-registry close,
         transfer-grant cleanup, Pre Scan browser shutdown, and cleanup-failure ordering into the
         UI-independent `BotJobWorkspaceCloseCoordinator`. The pane retains only its Stage close call.
+  - [x] Centralize project/license capability policy in `BotJobWorkspaceCapabilityService`, route
+        organization presentation through `BotJobOrganizationCoordinator`, and move Pre Scan plus empty
+        Bot Job/Component grid payload construction into `BotJobPreScanPayloadService` and
+        `BotJobGridPayloadService`.
 - [ ] Task: Remove zero-caller helpers, move remaining WebSocket/mobile persistence ownership out of
       `ARViewBotJobScene`, runtime-validate close/reopen and A -> B switching, then retire the pane/scene.
 
 Task 1 is therefore progressed but not complete; checking it complete now would hide active JavaFX-host
 responsibilities that still require extraction and desktop runtime validation.
 
-Focused continuation evidence: Java compiled 313 main and 80 test sources. The 69-test workspace,
+Focused continuation evidence: Java compiled 317 main and 84 test sources. The 82-test workspace,
 native operation, Pre Scan workflow/browser-session, scanner coordinator, WebView, registry, TEST RUN coordinator,
 action-contract, and WebSocket
 lifecycle suite passed with zero failures, errors, or skips. The React project, deployed React resources,

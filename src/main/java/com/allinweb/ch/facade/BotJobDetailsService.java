@@ -202,7 +202,8 @@ public final class BotJobDetailsService {
                         block.waitSeconds()))
                 .toList();
 
-        boolean desktopBrowserTools = supportsDesktopBrowserTools(persisted.projectType());
+        boolean desktopBrowserTools = BotJobWorkspaceCapabilityService.getInstance()
+                .supportsDesktopBrowserTools(persisted.projectType());
         boolean licensePermits = data.licenseActive();
         BotJobDetailsState.Capabilities capabilities = new BotJobDetailsState.Capabilities(
                 licensePermits,
@@ -295,10 +296,6 @@ public final class BotJobDetailsService {
                 request,
                 state,
                 fieldErrors);
-    }
-
-    private boolean supportsDesktopBrowserTools(String projectType) {
-        return "Web App".equalsIgnoreCase(projectType) || "Rest Api".equalsIgnoreCase(projectType);
     }
 
     private String sanitizeName(String rawName) {

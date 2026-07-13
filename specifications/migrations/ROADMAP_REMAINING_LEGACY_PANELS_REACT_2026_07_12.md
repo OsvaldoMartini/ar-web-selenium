@@ -135,7 +135,7 @@ Parity gap: React currently carries `priority`, `searchConfig`, and `optionsConf
   - [x] Extract scanner preparation, launch concurrency, modal open/close, and failure recovery into the UI-independent `BotJobScannerCoordinator`; remove the pane-owned launch flag.
   - [x] Extract Excel/report desktop opening, BAT creation, Engine preflight/command/log construction, detached launch, and collision tracking into the JavaFX-free `BotJobNativeOperationService`.
   - [x] Extract active-operation close gating, WebView/session retirement, registry/transfer cleanup, and Pre Scan shutdown ordering into the UI-independent `BotJobWorkspaceCloseCoordinator`.
-  - [ ] Extract remaining capability, organization, and payload ownership.
+  - [x] Extract capability, organization, Pre Scan payload, and empty-grid payload ownership into UI-independent services/coordinators.
   - [ ] Move remaining WebSocket/mobile persistence ownership out of `ARViewBotJobScene`, then complete desktop runtime validation and retirement.
 
 ## Phase 3 — Clone Job

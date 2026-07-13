@@ -16,6 +16,10 @@ import com.allinweb.ch.facade.BotJobWorkspaceService;
 import com.allinweb.ch.facade.BotJobScannerCoordinator;
 import com.allinweb.ch.facade.BotJobNativeOperationService;
 import com.allinweb.ch.facade.BotJobWorkspaceCloseCoordinator;
+import com.allinweb.ch.facade.BotJobWorkspaceCapabilityService;
+import com.allinweb.ch.facade.BotJobPreScanPayloadService;
+import com.allinweb.ch.facade.BotJobOrganizationCoordinator;
+import com.allinweb.ch.facade.BotJobGridPayloadService;
 import com.allinweb.ch.facade.PreScanWorkflowService;
 import com.allinweb.ch.facade.PreScanBrowserSession;
 import com.allinweb.ch.facade.BotJobDetailsWorkspaceRegistry;
@@ -76,6 +80,11 @@ public class ARViewBotJobPane extends ARPane {
     private static final BotJobToolbarConcurrencyGuard botJobToolbarGuard = new BotJobToolbarConcurrencyGuard();
     private static final BotJobNativeOperationService botJobNativeOperations =
             BotJobNativeOperationService.createDefault(arPropertyManager, botJobToolbarGuard);
+    private static final BotJobWorkspaceCapabilityService workspaceCapabilities =
+            BotJobWorkspaceCapabilityService.getInstance();
+    private static final BotJobPreScanPayloadService preScanPayloadService =
+            BotJobPreScanPayloadService.getInstance();
+    private static final BotJobGridPayloadService gridPayloadService = BotJobGridPayloadService.getInstance();
     private static final BotJobDetailsWebViewBootstrap webViewBootstrap = new BotJobDetailsWebViewBootstrap();
     private static final BotJobTestRunCoordinator botJobTestRunCoordinator = new BotJobTestRunCoordinator(
             botJobDetailsWorkspaceRegistry,
@@ -134,12 +143,12 @@ public class ARViewBotJobPane extends ARPane {
     private int portInitial;
     private String sessionId;
     private Gson gson = new Gson();
-    private PayloadJson payloadEmpty;
     private boolean firstLoad = true;
     private String previousBotTasks;
     private boolean isEnabledLicence;
     private final BotJobScannerCoordinator scannerCoordinator;
     private final BotJobWorkspaceCloseCoordinator workspaceCloseCoordinator;
+    private final BotJobOrganizationCoordinator organizationCoordinator;
     private static final String EXECUTE_ALL_OPTION_LABEL = "Execute All";
     private VBox botJobContainer;
     private Pane mainPane;
@@ -213,6 +222,14 @@ public class ARViewBotJobPane extends ARPane {
                 botJobTransferPathRegistry::clear,
                 preScanWorkflowService::shutdown,
                 error -> log.debug("Unable to close the Pre Scan browser: {}", error.getMessage()));
+        organizationCoordinator = new BotJobOrganizationCoordinator(
+                workspaceCapabilities,
+                () -> {
+                    if (stage == null) {
+                        throw new IllegalStateException("Bot Job Details window is not available");
+                    }
+                    organizationManagerScene.showModal(stage);
+                });
     }
 
     private static Thread daemonThread(Runnable runnable, String name) {
@@ -361,8 +378,7 @@ public class ARViewBotJobPane extends ARPane {
             }
         }
 
-        setPayloadEmpty("botJobTasks");
-        String jsonData = gson.toJson(payloadEmpty);
+        String jsonData = emptyGridPayload(BotJobGridPayloadService.Destination.BOT_JOB);
 
         if (!performLists.getListBotJob().isEmpty()) {
             List<InstructionLoad> instructions = performLists.buildJsonViewData(performLists.getListBotJob());
@@ -393,8 +409,7 @@ public class ARViewBotJobPane extends ARPane {
             }
         }
 
-        setPayloadEmpty("componentTasks");
-        jsonData = gson.toJson(payloadEmpty);
+        jsonData = emptyGridPayload(BotJobGridPayloadService.Destination.COMPONENTS);
 
         if (!performLists.getListBotJobComp().isEmpty()) {
             List<InstructionLoad> instructions = performLists.buildJsonViewData(performLists.getListBotJobComp());
@@ -906,41 +921,15 @@ public class ARViewBotJobPane extends ARPane {
     }
 
     private void sendPreScanPayload(List<ElementDTO> elements) {
-        SplitDTO payload = new SplitDTO();
-        payload.setHomeBankingId(selectedBotJob.getHomeBankingId());
-        payload.setBotJobId(selectedBotJob.getId());
-        payload.setBotJobName(selectedBotJob.getName());
-        payload.setType("SEARCH_TOOL");
-        payload.setSessionId("preScannerGrid");
-        payload.setOperationId("searchTerms");
-        payload.setElementDetails(elements.toArray(new ElementDTO[0]));
-        payload.setBlocks(preScanBlockOptions());
-        webSocketSessionManager.sendMessageJson(
-                selectedBotJob.getHomeBankingId(), "preScannerGrid", gson.toJson(payload), "searchTerms");
-    }
-
-    private List<java.util.Map<String, Object>> preScanBlockOptions() {
-        if (performLists.getListBlock().isEmpty()) {
-            ErrorMessage errorMessage =
-                    performDataBase.loadBlocks(selectedBotJob.getId(), selectedBotJob.getName(), "block");
-            if (errorMessage != null) {
-                log.warn("PRE SCAN - could not load blocks: {}", errorMessage.getErrorMessage());
-            }
+        BotJobPreScanPayloadService.Result result = preScanPayloadService.build(selectedBotJob, elements);
+        if (result.warning() != null) {
+            log.warn("PRE SCAN - could not load blocks: {}", result.warning().getErrorMessage());
         }
-        return performLists.getListBlock().stream()
-                .filter(block -> block != null && block.getId() != null)
-                .filter(block ->
-                        block.getBotJobId() == null || selectedBotJob.getId().equals(block.getBotJobId()))
-                .sorted(java.util.Comparator.comparingInt(
-                        block -> block.getBlockOrderNumber() == null ? Integer.MAX_VALUE : block.getBlockOrderNumber()))
-                .map(block -> {
-                    java.util.Map<String, Object> option = new java.util.LinkedHashMap<>();
-                    option.put("blockId", block.getId());
-                    option.put("blockOrderNumber", block.getBlockOrderNumber());
-                    option.put("blockName", block.getName());
-                    return option;
-                })
-                .toList();
+        webSocketSessionManager.sendMessageJson(
+                selectedBotJob.getHomeBankingId(),
+                "preScannerGrid",
+                gson.toJson(result.payload()),
+                "searchTerms");
     }
 
     private void callScannerTool(BotJobLoadDTO scannerBotJob, ARScene scannerScene) {
@@ -1548,9 +1537,8 @@ public class ARViewBotJobPane extends ARPane {
                         && componentContainer == null) {
                     throw new IllegalStateException("Components workspace is not ready");
                 }
-                if (action == BotJobWorkspaceAction.SHOW_PRE_SCAN
-                        && !supportsDesktopBrowserTools(selectedBotJob.getPriority())) {
-                    throw new IllegalStateException("Pre Scan is unavailable for this Bot Job type");
+                if (action == BotJobWorkspaceAction.SHOW_PRE_SCAN) {
+                    workspaceCapabilities.requirePreScan(selectedBotJob.getPriority());
                 }
                 if (action == BotJobWorkspaceAction.CLOSE && stage == null) {
                     throw new IllegalStateException("Bot Job Details window is not available");
@@ -1559,10 +1547,10 @@ public class ARViewBotJobPane extends ARPane {
                     throw new IllegalStateException(
                             "Wait for the active Bot Job operation to finish or stop TEST RUN first");
                 }
-                if (action == BotJobWorkspaceAction.OPEN_ORGANIZATIONS
-                        && isEnabledLicence
-                        && !com.allinweb.ch.facade.LicenseService.getInstance().isActive()) {
-                    throw new IllegalStateException("An active license is required to manage environments");
+                if (action == BotJobWorkspaceAction.OPEN_ORGANIZATIONS) {
+                    organizationCoordinator.open(
+                            isEnabledLicence,
+                            com.allinweb.ch.facade.LicenseService.getInstance().isActive());
                 }
 
                 switch (action) {
@@ -1574,7 +1562,9 @@ public class ARViewBotJobPane extends ARPane {
                     case SHOW_BOT_JOB, HIDE_COMPONENTS -> showBotJobWorkspace();
                     case SHOW_COMPONENTS -> showComponentsWorkspace();
                     case SHOW_PRE_SCAN -> showPreScanWorkspace();
-                    case OPEN_ORGANIZATIONS -> openOrganizationManager();
+                    case OPEN_ORGANIZATIONS -> {
+                        // Capability-gated organization presentation was completed above.
+                    }
                     case CLOSE -> closePane();
                 }
                 if (action != BotJobWorkspaceAction.CLOSE) {
@@ -1690,13 +1680,6 @@ public class ARViewBotJobPane extends ARPane {
         componentBox.requestLayout();
     }
 
-    private void openOrganizationManager() {
-        if (stage == null) {
-            throw new IllegalStateException("Bot Job Details window is not available");
-        }
-        organizationManagerScene.showModal(stage);
-    }
-
     /** Applies persisted React metadata to the active desktop execution context on the FX thread. */
     public CompletableFuture<Void> applyReactMetadataState(BotJobDetailsState state) {
         CompletableFuture<Void> completion = new CompletableFuture<>();
@@ -1764,41 +1747,10 @@ public class ARViewBotJobPane extends ARPane {
         instance = null;
     }
 
-    private void setPayloadEmpty(String destination) {
-        int blockId = -1;
-        String blockName = "1# Default Block";
-        if (destination.equalsIgnoreCase("botJobTasks")) {
-            if (!performLists.getListBotJob().isEmpty()
-                    && performLists.getListBlock().isEmpty()) {
-                ErrorMessage errorMessage = performDataBase.loadBlocks(selectedBotJob.getId(), "", "block");
-                if (errorMessage != null) {
-                    performMessage.errorMessageOperationFailed(errorMessage);
-                }
-            }
-            if (selectedBotJob.getBlockId() == null
-                    && !performLists.getListBlock().isEmpty()) {
-                blockId = performLists.getListBlock().get(0).getId();
-                blockName = performLists.getListBlock().get(0).getName();
-            }
-        } else if (destination.equalsIgnoreCase("componentTasks")) {
-            if (!performLists.getListBotJobComp().isEmpty()
-                    && performLists.getListBlockComp().isEmpty()) {
-                ErrorMessage errorMessage =
-                        performDataBase.loadBlocks(selectedBotJob.getHomeBankingId(), "", "component_block");
-
-                if (errorMessage != null) {
-                    performMessage.errorMessageOperationFailed(errorMessage);
-                }
-            }
-
-            if (selectedBotJob.getBlockId() == null
-                    && !performLists.getListBlockComp().isEmpty()) {
-                blockId = performLists.getListBlockComp().get(0).getId();
-                blockName = performLists.getListBlockComp().get(0).getName();
-            }
-        }
-
-        this.payloadEmpty = new PayloadJson(selectedBotJob.getId(), blockId, blockName, 0);
+    private String emptyGridPayload(BotJobGridPayloadService.Destination destination) {
+        BotJobGridPayloadService.Result result = gridPayloadService.build(selectedBotJob, destination);
+        if (result.warning() != null) performMessage.errorMessageOperationFailed(result.warning());
+        return result.json();
     }
 
     private boolean checkLicense() {
@@ -1870,16 +1822,6 @@ public class ARViewBotJobPane extends ARPane {
     public boolean canCloseWorkspace() {
         return workspaceCloseCoordinator.canClose(
                 selectedBotJob == null ? null : selectedBotJob.getId());
-    }
-
-    private boolean isWebApp(String priority) {
-        return priority == null
-                || priority.trim().isEmpty()
-                || ARPropertyEnum.WEB_APP.getValue().equalsIgnoreCase(priority);
-    }
-
-    private boolean supportsDesktopBrowserTools(String priority) {
-        return isWebApp(priority) || "Rest Api".equalsIgnoreCase(priority == null ? "" : priority.trim());
     }
 
 }
