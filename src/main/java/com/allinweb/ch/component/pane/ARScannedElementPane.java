@@ -144,6 +144,8 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
             new ScannerPreLaunchWindowBookkeeping(new PanePreLaunchWindowBookkeepingOperations());
     private final ScannerTestRunStartupPreparation scannerTestRunStartupPreparation =
             new ScannerTestRunStartupPreparation(new PaneTestRunStartupOperations());
+    private final ScannerTestRunBotJobPreparation scannerTestRunBotJobPreparation =
+            new ScannerTestRunBotJobPreparation(new PaneTestRunBotJobOperations());
     private final WebView webView = new WebView();
     public Button launchBotJobButton;
     public CheckBox checkClickElement;
@@ -3432,6 +3434,26 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
         }
     }
 
+    private final class PaneTestRunBotJobOperations implements ScannerTestRunBotJobPreparation.Operations {
+        @Override
+        public ScannerPreLaunchPreparation.BotJobSelection loadCurrentBotJob(
+                BotJobLoadDTO currentBotJob, String excelBasePath) {
+            return scannerPreLaunchPreparation.loadCurrentBotJob(currentBotJob, excelBasePath);
+        }
+
+        @Override
+        public void applySelection(ScannerPreLaunchPreparation.BotJobSelection selection) {
+            currentBotJob = selection.botJob();
+            currentBotJobName = selection.botJobName();
+            excelPath = selection.excelPath();
+        }
+
+        @Override
+        public HomeUrlDTO homeUrlByBankId(int homeBankingId, int homeUrlId) {
+            return performLists.getHomeUrlByBankId(homeBankingId, homeUrlId);
+        }
+    }
+
     private long recallJobExecutionId() {
         long submittedExecutionId = 0L;
         ScannerPreLaunchExecutionGate.StartAttempt startAttempt =
@@ -3551,34 +3573,20 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
             return 0L;
         }
 
-        ScannerPreLaunchPreparation.BotJobSelection selection =
-                scannerPreLaunchPreparation.loadCurrentBotJob(this.currentBotJob, excelPath);
-        if (selection.botJobMissing()) {
+        ScannerTestRunBotJobPreparation.Result botJobPreparation =
+                scannerTestRunBotJobPreparation.prepare(this.currentBotJob, excelPath, endpointUrl);
+        if (botJobPreparation.status() == ScannerTestRunBotJobPreparation.Status.MISSING_BOT_JOB) {
             log.error("TEST RUN - cannot find bot job with id: {}", this.currentBotJob.getId());
             this.runSingleBlock = false;
             return 0L;
         }
-        if (selection.homeBankingMissing()) {
+        if (botJobPreparation.status() == ScannerTestRunBotJobPreparation.Status.MISSING_HOME_BANKING) {
             log.error("TEST RUN — cannot find home banking env id: {}", this.currentBotJob.getHomeBankingId());
             this.runSingleBlock = false;
             return 0L;
         }
 
-        currentBotJob = selection.botJob();
-        currentBotJobName = selection.botJobName();
-        excelPath = selection.excelPath();
-        HomeBankingLoadDTO homeBanking = currentBotJob.getHomeBankingLoadDTO();
-        HomeUrlDTO homeUrlDTO =
-                performLists.getHomeUrlByBankId(currentBotJob.getHomeBankingId(), currentBotJob.getHomeUrlId());
-
-        // Honour the endpoint the user selected/visible in the pane (environment dropdown / current
-        // URL label). openWebDriver resolves the URL from this same homeUrlDTO/homeBanking, so we
-        // overwrite both here — otherwise TEST RUN would silently fall back to the DB default URL.
-        if (!Strings.isNullOrEmpty(endpointUrl)) {
-            if (homeUrlDTO != null) {
-                homeUrlDTO.setUrl(endpointUrl);
-            }
-            homeBanking.setUrl(endpointUrl);
+        if (botJobPreparation.endpointApplied()) {
             log.info("TEST RUN — using endpoint URL from the page: {}", endpointUrl);
         }
 

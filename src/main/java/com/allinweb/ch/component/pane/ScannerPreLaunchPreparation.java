@@ -119,15 +119,15 @@ final class ScannerPreLaunchPreparation {
             BotJobLoadDTO botJob,
             String botJobName,
             String excelPath) {
-        private static BotJobSelection loaded(BotJobLoadDTO botJob, String botJobName, String excelPath) {
+        static BotJobSelection loaded(BotJobLoadDTO botJob, String botJobName, String excelPath) {
             return new BotJobSelection(true, false, false, botJob, botJobName, excelPath);
         }
 
-        private static BotJobSelection missingBotJob() {
+        static BotJobSelection missingBotJob() {
             return new BotJobSelection(false, true, false, null, null, null);
         }
 
-        private static BotJobSelection missingHomeBanking() {
+        static BotJobSelection missingHomeBanking() {
             return new BotJobSelection(false, false, true, null, null, null);
         }
     }
