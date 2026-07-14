@@ -43,6 +43,29 @@ class ScannerWorkspaceRequestTest {
         assertEquals(77, correlation.botJobId());
     }
 
+    @Test
+    void rejectsMalformedStringBody() {
+        JsonObject envelope = new JsonObject();
+        envelope.addProperty("body", "{invalid");
+
+        IllegalArgumentException thrown = assertThrows(
+                IllegalArgumentException.class,
+                () -> ScannerWorkspaceRequest.parse(envelope, "scannerGrid"));
+
+        assertEquals("Scanner request body must be valid JSON", thrown.getMessage());
+    }
+
+    @Test
+    void isolatesParsedBodyFromEnvelopeMutations() {
+        JsonObject envelope = envelope("scanner-5", 42);
+
+        ScannerWorkspaceRequest request = ScannerWorkspaceRequest.parse(envelope, "scannerGrid");
+        envelope.getAsJsonObject("body").addProperty("requestId", "mutated");
+
+        assertEquals("scanner-5", request.requestId());
+        assertEquals("scanner-5", request.body().get("requestId").getAsString());
+    }
+
     private JsonObject envelope(String requestId, int botJobId) {
         JsonObject body = new JsonObject();
         body.addProperty("requestId", requestId);

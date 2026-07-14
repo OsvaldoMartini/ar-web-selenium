@@ -2,7 +2,6 @@ package com.allinweb.ch.model;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 
 public record ScannerWorkspaceRequest(String sessionId, String requestId, int botJobId, JsonObject body) {
 
@@ -27,7 +26,7 @@ public record ScannerWorkspaceRequest(String sessionId, String requestId, int bo
         if (claimedSessionId != null && !claimedSessionId.equals(boundSessionId)) {
             throw new IllegalArgumentException("Scanner session does not match the transport session");
         }
-        JsonObject parsedBody = parseBody(envelope);
+        JsonObject parsedBody = ScannerWorkspaceRequestBodyParser.parse(envelope);
         String requestId = requiredString(parsedBody, "requestId", "Scanner requestId is required");
         int botJobId = requiredPositiveInteger(parsedBody, "botJobId");
         return new ScannerWorkspaceRequest(boundSessionId, requestId, botJobId, parsedBody);
@@ -36,7 +35,7 @@ public record ScannerWorkspaceRequest(String sessionId, String requestId, int bo
     public static Correlation correlation(JsonObject envelope) {
         JsonObject parsedBody;
         try {
-            parsedBody = parseBody(envelope);
+            parsedBody = ScannerWorkspaceRequestBodyParser.parse(envelope);
         } catch (RuntimeException ignored) {
             return new Correlation("", -1);
         }
@@ -59,27 +58,6 @@ public record ScannerWorkspaceRequest(String sessionId, String requestId, int bo
     @Override
     public JsonObject body() {
         return body.deepCopy();
-    }
-
-    private static JsonObject parseBody(JsonObject envelope) {
-        if (!envelope.has("body") || envelope.get("body").isJsonNull()) {
-            throw new IllegalArgumentException("Scanner request body is required");
-        }
-        JsonElement bodyElement = envelope.get("body");
-        if (bodyElement.isJsonObject()) {
-            return bodyElement.getAsJsonObject().deepCopy();
-        }
-        if (bodyElement.isJsonPrimitive() && bodyElement.getAsJsonPrimitive().isString()) {
-            try {
-                JsonElement parsed = JsonParser.parseString(bodyElement.getAsString());
-                if (parsed.isJsonObject()) {
-                    return parsed.getAsJsonObject();
-                }
-            } catch (RuntimeException invalidJson) {
-                throw new IllegalArgumentException("Scanner request body must be valid JSON", invalidJson);
-            }
-        }
-        throw new IllegalArgumentException("Scanner request body must be a JSON object");
     }
 
     private static String optionalString(JsonObject source, String field) {
