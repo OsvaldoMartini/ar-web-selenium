@@ -154,6 +154,17 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
             new ScannerTestRunDefinitionValidation();
     private final ScannerTestRunDefinitionLoad scannerTestRunDefinitionLoad =
             new ScannerTestRunDefinitionLoad(new PaneTestRunDefinitionLoadOperations());
+    private final ScannerTestRunPreparationFlow scannerTestRunPreparationFlow =
+            new ScannerTestRunPreparationFlow(
+                    scannerTestRunStartupPreparation,
+                    scannerTestRunDefinitionLoad,
+                    scannerTestRunDefinitionValidation,
+                    scannerTestRunBotJobPreparation,
+                    scannerTestRunExcelPreparation,
+                    scannerTestRunExecutionStart,
+                    this::currentTestRunBotJob,
+                    this::currentTestRunExcelPath,
+                    performLists);
     private final WebView webView = new WebView();
     public Button launchBotJobButton;
     public CheckBox checkClickElement;
@@ -3594,67 +3605,66 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
             boolean runSingleBlock,
             BooleanSupplier cancellationRequested) {
         BooleanSupplier cancellation = cancellationRequested == null ? () -> false : cancellationRequested;
-        if (testRunStartupCancelled(cancellation)) return 0L;
-        ScannerTestRunStartupPreparation.Result startup =
-                scannerTestRunStartupPreparation.prepare(botJob, blockOrderNumber, runSingleBlock);
-        if (startup.status() == ScannerTestRunStartupPreparation.Status.MISSING_BOT_JOB) {
-            return failTestRunStartupWithoutReset("TEST RUN — no bot job supplied");
-        }
-        if (startup.status() == ScannerTestRunStartupPreparation.Status.ALREADY_RUNNING) {
-            return ignoreTestRunStartup("TEST RUN — a job is already running; ignoring request.");
-        }
+        ScannerTestRunPreparationFlow.Result result = scannerTestRunPreparationFlow.prepare(
+                botJob,
+                blockOrderNumber,
+                endpointUrl,
+                runSingleBlock,
+                () -> testRunStartupCancelled(cancellation));
+        return finishTestRunPreparation(result, endpointUrl);
+    }
 
-        if (testRunStartupCancelled(cancellation)) return 0L;
+    private BotJobLoadDTO currentTestRunBotJob() {
+        return currentBotJob;
+    }
 
-        ScannerPreLaunchPreparation.Result definitions =
-                scannerTestRunDefinitionLoad.loadAndApply(this.currentBotJob);
+    private String currentTestRunExcelPath() {
+        return excelPath;
+    }
 
-        if (testRunStartupCancelled(cancellation)) return 0L;
+    private long finishTestRunPreparation(ScannerTestRunPreparationFlow.Result result, String endpointUrl) {
+        return switch (result.status()) {
+            case STARTED -> finishStartedTestRunPreparation(result, endpointUrl);
+            case CANCELED -> finishCanceledTestRunPreparation(result, endpointUrl);
+            case STARTUP_MISSING_BOT_JOB -> failTestRunStartupWithoutReset("TEST RUN — no bot job supplied");
+            case ALREADY_RUNNING -> ignoreTestRunStartup("TEST RUN — a job is already running; ignoring request.");
+            case DEFINITION_LOAD_ERROR ->
+                    failTestRunStartup("TEST RUN — load error: {}", result.errorMessage().getErrorMessage());
+            case DEFINITION_MISSING_BOT_JOB ->
+                    failTestRunStartup("TEST RUN — cannot find bot job with id: {}", result.botJobId());
+            case EMPTY_BLOCKS ->
+                    failTestRunStartup("TEST RUN — bot job has no loaded executable blocks: {}", result.botJobId());
+            case BOT_JOB_MISSING -> failTestRunStartup("TEST RUN - cannot find bot job with id: {}", result.botJobId());
+            case HOME_BANKING_MISSING ->
+                    failTestRunStartup("TEST RUN — cannot find home banking env id: {}", result.homeBankingId());
+            case BROWSER_OPEN_FAILED -> failBrowserOpenTestRunPreparation(result, endpointUrl);
+        };
+    }
 
-        ScannerTestRunDefinitionValidation.Result definitionValidation =
-                scannerTestRunDefinitionValidation.validate(definitions);
-        if (definitionValidation.status() == ScannerTestRunDefinitionValidation.Status.LOAD_ERROR) {
-            return failTestRunStartup(
-                    "TEST RUN — load error: {}", definitionValidation.errorMessage().getErrorMessage());
-        }
-        if (definitionValidation.status() == ScannerTestRunDefinitionValidation.Status.MISSING_BOT_JOB) {
-            return failTestRunStartup("TEST RUN — cannot find bot job with id: {}", this.currentBotJob.getId());
-        }
-        if (definitionValidation.status() == ScannerTestRunDefinitionValidation.Status.EMPTY_BLOCKS) {
-            return failTestRunStartup(
-                    "TEST RUN — bot job has no loaded executable blocks: {}", this.currentBotJob.getId());
-        }
+    private long finishCanceledTestRunPreparation(ScannerTestRunPreparationFlow.Result result, String endpointUrl) {
+        reportTestRunNonTerminalSignals(result, endpointUrl);
+        return 0L;
+    }
 
-        ScannerTestRunBotJobPreparation.Result botJobPreparation =
-                scannerTestRunBotJobPreparation.prepare(this.currentBotJob, excelPath, endpointUrl);
-        if (botJobPreparation.status() == ScannerTestRunBotJobPreparation.Status.MISSING_BOT_JOB) {
-            return failTestRunStartup("TEST RUN - cannot find bot job with id: {}", this.currentBotJob.getId());
-        }
-        if (botJobPreparation.status() == ScannerTestRunBotJobPreparation.Status.MISSING_HOME_BANKING) {
-            return failTestRunStartup(
-                    "TEST RUN — cannot find home banking env id: {}", this.currentBotJob.getHomeBankingId());
-        }
+    private long failBrowserOpenTestRunPreparation(ScannerTestRunPreparationFlow.Result result, String endpointUrl) {
+        reportTestRunNonTerminalSignals(result, endpointUrl);
+        return failTestRunStartupWithoutReset("TEST RUN — failed to open the Playwright browser");
+    }
 
-        if (botJobPreparation.endpointApplied()) {
+    private long finishStartedTestRunPreparation(ScannerTestRunPreparationFlow.Result result, String endpointUrl) {
+        reportTestRunNonTerminalSignals(result, endpointUrl);
+        return result.executionId();
+    }
+
+    private void reportTestRunNonTerminalSignals(ScannerTestRunPreparationFlow.Result result, String endpointUrl) {
+        if (result.endpointApplied()) {
             log.info("TEST RUN — using endpoint URL from the page: {}", endpointUrl);
         }
-
-        ScannerTestRunExcelPreparation.Result excelPreparation =
-                scannerTestRunExcelPreparation.prepare(excelPath, performLists);
-        if (excelPreparation.usedSyntheticFallback()) {
+        if (result.usedSyntheticExcelFallback()) {
             log.warn(
                     "TEST RUN — no/invalid Excel file, using synthetic $EMPTY row: {}",
-                    excelPreparation.loadError().getMessage());
+                    result.excelLoadError().getMessage());
         }
-
-        if (testRunStartupCancelled(cancellation)) return 0L;
-
-        ScannerTestRunExecutionStart.Result executionStart = scannerTestRunExecutionStart.start();
-        if (executionStart.status() == ScannerTestRunExecutionStart.Status.BROWSER_OPEN_FAILED) {
-            return failTestRunStartupWithoutReset("TEST RUN — failed to open the Playwright browser");
-        }
-        if (testRunStartupCancelled(cancellation)) return 0L;
-        return executionStart.executionId();
     }
 
     private long failTestRunStartup(String message, Object... args) {
