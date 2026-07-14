@@ -3616,32 +3616,25 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
         ScannerTestRunDefinitionValidation.Result definitionValidation =
                 scannerTestRunDefinitionValidation.validate(definitions);
         if (definitionValidation.status() == ScannerTestRunDefinitionValidation.Status.LOAD_ERROR) {
-            log.error("TEST RUN — load error: {}", definitionValidation.errorMessage().getErrorMessage());
-            this.runSingleBlock = false;
-            return 0L;
+            return failTestRunStartup(
+                    "TEST RUN — load error: {}", definitionValidation.errorMessage().getErrorMessage());
         }
         if (definitionValidation.status() == ScannerTestRunDefinitionValidation.Status.MISSING_BOT_JOB) {
-            log.error("TEST RUN — cannot find bot job with id: {}", this.currentBotJob.getId());
-            this.runSingleBlock = false;
-            return 0L;
+            return failTestRunStartup("TEST RUN — cannot find bot job with id: {}", this.currentBotJob.getId());
         }
         if (definitionValidation.status() == ScannerTestRunDefinitionValidation.Status.EMPTY_BLOCKS) {
-            log.error("TEST RUN — bot job has no loaded executable blocks: {}", this.currentBotJob.getId());
-            this.runSingleBlock = false;
-            return 0L;
+            return failTestRunStartup(
+                    "TEST RUN — bot job has no loaded executable blocks: {}", this.currentBotJob.getId());
         }
 
         ScannerTestRunBotJobPreparation.Result botJobPreparation =
                 scannerTestRunBotJobPreparation.prepare(this.currentBotJob, excelPath, endpointUrl);
         if (botJobPreparation.status() == ScannerTestRunBotJobPreparation.Status.MISSING_BOT_JOB) {
-            log.error("TEST RUN - cannot find bot job with id: {}", this.currentBotJob.getId());
-            this.runSingleBlock = false;
-            return 0L;
+            return failTestRunStartup("TEST RUN - cannot find bot job with id: {}", this.currentBotJob.getId());
         }
         if (botJobPreparation.status() == ScannerTestRunBotJobPreparation.Status.MISSING_HOME_BANKING) {
-            log.error("TEST RUN — cannot find home banking env id: {}", this.currentBotJob.getHomeBankingId());
-            this.runSingleBlock = false;
-            return 0L;
+            return failTestRunStartup(
+                    "TEST RUN — cannot find home banking env id: {}", this.currentBotJob.getHomeBankingId());
         }
 
         if (botJobPreparation.endpointApplied()) {
@@ -3660,11 +3653,25 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
 
         ScannerTestRunExecutionStart.Result executionStart = scannerTestRunExecutionStart.start();
         if (executionStart.status() == ScannerTestRunExecutionStart.Status.BROWSER_OPEN_FAILED) {
-            log.error("TEST RUN — failed to open the Playwright browser");
-            return 0L;
+            return failTestRunStartupWithoutReset("TEST RUN — failed to open the Playwright browser");
         }
         if (testRunStartupCancelled(cancellation)) return 0L;
         return executionStart.executionId();
+    }
+
+    private long failTestRunStartup(String message, Object... args) {
+        log.error(message, args);
+        return resetTestRunSingleBlockAndStop();
+    }
+
+    private long failTestRunStartupWithoutReset(String message, Object... args) {
+        log.error(message, args);
+        return 0L;
+    }
+
+    private long resetTestRunSingleBlockAndStop() {
+        this.runSingleBlock = false;
+        return 0L;
     }
 
     /**
