@@ -28,6 +28,8 @@ class ScannerWorkspaceServiceTest {
         assertEquals(42, response.state().botJobId());
         assertEquals("https://bank.example", response.state().environmentUrl());
         assertEquals(1, response.state().blocks().size());
+        assertEquals("All - Interactive controls", response.state().focus().profile());
+        assertTrue(response.state().focus().searchTerms().contains("input"));
         assertTrue(response.state().capabilities().canRefreshState());
     }
 

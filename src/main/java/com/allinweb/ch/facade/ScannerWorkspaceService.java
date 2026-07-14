@@ -142,7 +142,7 @@ public final class ScannerWorkspaceService {
                 source.environmentUrl(),
                 blocks,
                 new ScannerWorkspaceState.Browser("UNKNOWN", "", "", 0, false),
-                new ScannerWorkspaceState.Focus("default", List.of()),
+                new ScannerWorkspaceState.Focus("All - Interactive controls", List.of(DEFAULT_PAGE_SCAN_TERMS)),
                 new ScannerWorkspaceState.Ocr(sourceCapabilities.canUsePreScan(), "IDLE"),
                 capabilities,
                 source.executionState());
