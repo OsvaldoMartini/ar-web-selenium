@@ -161,7 +161,7 @@ public final class ScannerWorkspaceService {
                 source.homeBankingId(),
                 source.environmentUrl(),
                 blocks,
-                new ScannerWorkspaceState.Browser("UNKNOWN", "", "", 0, false),
+                browserOperations.browserState(),
                 new ScannerWorkspaceState.Focus("All - Interactive controls", List.of(DEFAULT_PAGE_SCAN_TERMS)),
                 new ScannerWorkspaceState.Ocr(sourceCapabilities.canUsePreScan(), "IDLE"),
                 capabilities,
@@ -244,6 +244,8 @@ public final class ScannerWorkspaceService {
     }
 
     interface BrowserOperations {
+        ScannerWorkspaceState.Browser browserState();
+
         void refreshPage();
 
         void switchTab(int direction);
@@ -279,6 +281,22 @@ public final class ScannerWorkspaceService {
     }
 
     private static final class DefaultBrowserOperations implements BrowserOperations {
+        @Override
+        public ScannerWorkspaceState.Browser browserState() {
+            WebDriver driver = PerformActions.getInstance().getCurrentDriver();
+            if (driver == null) {
+                return new ScannerWorkspaceState.Browser("CLOSED", "", "", 0, false);
+            }
+            try {
+                List<String> handles = new ArrayList<>(driver.getWindowHandles());
+                String activeUrl = safeDriverValue(driver::getCurrentUrl);
+                String activeTitle = safeDriverValue(driver::getTitle);
+                return new ScannerWorkspaceState.Browser("OPEN", activeUrl, activeTitle, handles.size(), true);
+            } catch (RuntimeException error) {
+                return new ScannerWorkspaceState.Browser("CLOSED", "", "", 0, false);
+            }
+        }
+
         @Override
         public void refreshPage() {
             PerformPreLoad.reloadAllPlugins();
@@ -332,6 +350,15 @@ public final class ScannerWorkspaceService {
                         scan.error.getErrorTitle() + " - " + scan.error.getErrorHeader());
             }
             return scan.elements == null ? List.of() : scan.elements;
+        }
+
+        private String safeDriverValue(java.util.function.Supplier<String> supplier) {
+            try {
+                String value = supplier.get();
+                return value == null ? "" : value;
+            } catch (RuntimeException error) {
+                return "";
+            }
         }
     }
 

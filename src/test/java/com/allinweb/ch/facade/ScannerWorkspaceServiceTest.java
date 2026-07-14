@@ -7,6 +7,7 @@ import com.allinweb.ch.model.BotJobDetailsState;
 import com.allinweb.ch.model.ElementDTO;
 import com.allinweb.ch.model.ScannerWorkspaceRequest;
 import com.allinweb.ch.model.ScannerWorkspaceResponse;
+import com.allinweb.ch.model.ScannerWorkspaceState;
 import com.allinweb.ch.model.SplitDTO;
 import com.google.gson.JsonObject;
 import java.util.ArrayList;
@@ -29,6 +30,11 @@ class ScannerWorkspaceServiceTest {
         assertEquals(42, response.state().botJobId());
         assertEquals("https://bank.example", response.state().environmentUrl());
         assertEquals(1, response.state().blocks().size());
+        assertEquals("OPEN", response.state().browser().state());
+        assertEquals("https://active.example", response.state().browser().activeUrl());
+        assertEquals("Active page", response.state().browser().activeTitle());
+        assertEquals(2, response.state().browser().openTabs());
+        assertTrue(response.state().browser().scannable());
         assertEquals("All - Interactive controls", response.state().focus().profile());
         assertTrue(response.state().focus().searchTerms().contains("input"));
         assertTrue(response.state().capabilities().canRefreshState());
@@ -238,6 +244,13 @@ class ScannerWorkspaceServiceTest {
         private String[] lastSearchTerms;
         private List<ElementDTO> scanElements = List.of();
         private final List<Integer> tabDirections = new ArrayList<>();
+        private ScannerWorkspaceState.Browser browserState =
+                new ScannerWorkspaceState.Browser("OPEN", "https://active.example", "Active page", 2, true);
+
+        @Override
+        public ScannerWorkspaceState.Browser browserState() {
+            return browserState;
+        }
 
         @Override
         public void refreshPage() {
