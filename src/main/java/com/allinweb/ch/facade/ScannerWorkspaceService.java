@@ -11,13 +11,11 @@ import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.IntFunction;
-import org.openqa.selenium.WebDriver;
 
 public final class ScannerWorkspaceService {
 
@@ -63,7 +61,7 @@ public final class ScannerWorkspaceService {
             new ScannerWorkspaceService(
                     BotJobDetailsService.getInstance()::currentState,
                     new WebSocketGridPublisher(),
-                    new DefaultBrowserOperations(),
+                    new ScannerBrowserOperations(),
                     new DefaultExecutionOperations());
 
     private final IntFunction<BotJobDetailsState> botJobStateProvider;
@@ -276,88 +274,6 @@ public final class ScannerWorkspaceService {
                 int end = Math.min(i + chunkSize, elements.size());
                 payload.setElementDetails(elements.subList(i, end).toArray(new ElementDTO[0]));
                 sessions.sendMessageJson(homeBankingId, sessionId, gson.toJson(payload), "searchTerms");
-            }
-        }
-    }
-
-    private static final class DefaultBrowserOperations implements BrowserOperations {
-        @Override
-        public ScannerWorkspaceState.Browser browserState() {
-            WebDriver driver = PerformActions.getInstance().getCurrentDriver();
-            if (driver == null) {
-                return new ScannerWorkspaceState.Browser("CLOSED", "", "", 0, false);
-            }
-            try {
-                List<String> handles = new ArrayList<>(driver.getWindowHandles());
-                String activeUrl = safeDriverValue(driver::getCurrentUrl);
-                String activeTitle = safeDriverValue(driver::getTitle);
-                return new ScannerWorkspaceState.Browser("OPEN", activeUrl, activeTitle, handles.size(), true);
-            } catch (RuntimeException error) {
-                return new ScannerWorkspaceState.Browser("CLOSED", "", "", 0, false);
-            }
-        }
-
-        @Override
-        public void refreshPage() {
-            PerformPreLoad.reloadAllPlugins();
-            PerformActions.getInstance().refreshPage();
-            try {
-                PerformActions.getInstance().onHoldInSeconds(2);
-            } catch (InterruptedException ignored) {
-                Thread.currentThread().interrupt();
-            } catch (Exception ignored) {
-            }
-        }
-
-        @Override
-        public void switchTab(int direction) {
-            PerformActions actions = PerformActions.getInstance();
-            WebDriver driver = actions.getCurrentDriver();
-            if (driver == null || direction == 0) {
-                return;
-            }
-            List<String> handles = new ArrayList<>(driver.getWindowHandles());
-            if (handles.size() < 2) {
-                return;
-            }
-            actions.windowHandlesList = handles;
-            int nextIndex = Math.max(0, Math.min(handles.size() - 1, actions.currentTabIndex + direction));
-            if (nextIndex == actions.currentTabIndex) {
-                return;
-            }
-            actions.currentTabIndex = nextIndex;
-            driver.switchTo().window(handles.get(nextIndex));
-        }
-
-        @Override
-        public List<ElementDTO> scanPage(String[] searchTerms, int homeBankingId, int botJobId) {
-            PerformActions actions = PerformActions.getInstance();
-            WebDriver driver = actions.getCurrentDriver();
-            PerformListElements.ScanResult scan = PerformListElements.getInstance().scanElements(
-                    actions.getCurrentARWebDriver(),
-                    driver,
-                    searchTerms,
-                    false,
-                    54525,
-                    "scannerTool",
-                    "scannerGrid",
-                    "searchTerms",
-                    homeBankingId,
-                    botJobId,
-                    List.of());
-            if (scan.error != null) {
-                throw new IllegalStateException(
-                        scan.error.getErrorTitle() + " - " + scan.error.getErrorHeader());
-            }
-            return scan.elements == null ? List.of() : scan.elements;
-        }
-
-        private String safeDriverValue(java.util.function.Supplier<String> supplier) {
-            try {
-                String value = supplier.get();
-                return value == null ? "" : value;
-            } catch (RuntimeException error) {
-                return "";
             }
         }
     }
