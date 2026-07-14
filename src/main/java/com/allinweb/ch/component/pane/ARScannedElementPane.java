@@ -142,6 +142,8 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
             new ScannerPreLaunchStopper(new PanePreLaunchStopOperations());
     private final ScannerPreLaunchWindowBookkeeping scannerPreLaunchWindowBookkeeping =
             new ScannerPreLaunchWindowBookkeeping(new PanePreLaunchWindowBookkeepingOperations());
+    private final ScannerTestRunStartupPreparation scannerTestRunStartupPreparation =
+            new ScannerTestRunStartupPreparation(new PaneTestRunStartupOperations());
     private final WebView webView = new WebView();
     public Button launchBotJobButton;
     public CheckBox checkClickElement;
@@ -3360,6 +3362,76 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
         }
     }
 
+    private final class PaneTestRunStartupOperations implements ScannerTestRunStartupPreparation.Operations {
+        @Override
+        public long activeExecutionId() {
+            return activeJobExecutionId.get();
+        }
+
+        @Override
+        public boolean isExecutionComplete(long executionId) {
+            return ARScannedElementPane.this.isTestRunExecutionComplete(executionId);
+        }
+
+        @Override
+        public boolean isJobRunning() {
+            return ARScannedElementPane.this.isJobRunning.get();
+        }
+
+        @Override
+        public void ensureDriver() {
+            if (currentARWebDriver == null) {
+                currentARWebDriver = ARWebDriver.getInstance();
+            }
+        }
+
+        @Override
+        public void setCurrentBotJob(BotJobLoadDTO botJob) {
+            currentBotJob = botJob;
+        }
+
+        @Override
+        public void setInterceptBotJob(boolean intercept) {
+            performActions.setInterceptBotJob(intercept);
+            ARScannedElementPane.this.setInterceptBotJob(intercept);
+        }
+
+        @Override
+        public void markNotRunning() {
+            isJobRunning.set(false);
+        }
+
+        @Override
+        public String resolveExcelBasePath() {
+            return arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL);
+        }
+
+        @Override
+        public void setExcelPath(String resolvedExcelPath) {
+            excelPath = resolvedExcelPath;
+        }
+
+        @Override
+        public void reportExcelPathError(Exception error) {
+            log.error("TEST RUN â€” error resolving Excel path: {}", error.getMessage());
+        }
+
+        @Override
+        public void setExecuteSpecificBlock(int blockIndex) {
+            executeSpecificBlock = blockIndex;
+        }
+
+        @Override
+        public void setRunSingleBlock(boolean runSingleBlock) {
+            ARScannedElementPane.this.runSingleBlock = runSingleBlock;
+        }
+
+        @Override
+        public void clearFields() {
+            ARScannedElementPane.this.clearFields();
+        }
+    }
+
     private long recallJobExecutionId() {
         long submittedExecutionId = 0L;
         ScannerPreLaunchExecutionGate.StartAttempt startAttempt =
@@ -3442,36 +3514,17 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
             BooleanSupplier cancellationRequested) {
         BooleanSupplier cancellation = cancellationRequested == null ? () -> false : cancellationRequested;
         if (testRunStartupCancelled(cancellation)) return 0L;
-        if (botJob == null) {
+        ScannerTestRunStartupPreparation.Result startup =
+                scannerTestRunStartupPreparation.prepare(botJob, blockOrderNumber, runSingleBlock);
+        if (startup.status() == ScannerTestRunStartupPreparation.Status.MISSING_BOT_JOB) {
             log.error("TEST RUN — no bot job supplied");
             return 0L;
         }
-        long activeExecution = activeJobExecutionId.get();
-        if ((activeExecution > 0 && !isTestRunExecutionComplete(activeExecution)) || isJobRunning.get()) {
+        if (startup.status() == ScannerTestRunStartupPreparation.Status.ALREADY_RUNNING) {
             log.info("TEST RUN — a job is already running; ignoring request.");
             return 0L;
         }
 
-        if (this.currentARWebDriver == null) {
-            this.currentARWebDriver = ARWebDriver.getInstance();
-        }
-
-        this.currentBotJob = botJob;
-        performActions.setInterceptBotJob(false);
-        setInterceptBotJob(false);
-        isJobRunning.set(false);
-        if (testRunStartupCancelled(cancellation)) return 0L;
-
-        try {
-            excelPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL);
-        } catch (Exception error) {
-            log.error("TEST RUN — error resolving Excel path: {}", error.getMessage());
-        }
-
-        executeSpecificBlock = blockOrderNumber < 0 ? 0 : blockOrderNumber - 1;
-        this.runSingleBlock = runSingleBlock;
-
-        clearFields();
         if (testRunStartupCancelled(cancellation)) return 0L;
 
         ScannerPreLaunchPreparation.Result definitions =
