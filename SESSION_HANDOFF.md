@@ -1,142 +1,193 @@
 # Session Handoff
 
-Date: 2026-07-10
+Date: 2026-07-14
 
-## Repositories
+## Repository
 
-Backend:
-- Path: `D:\Projects\AllinWeb\ar-web-selenium`
+- Path: `D:\Projects\ar-web-selenium`
 - Branch: `refactor/perform-actions-decomposition`
-- Latest observed commit: `452da0c3 feat: Avaloq card support - test-id classification + effective click target`
+- Current status when written: clean worktree
+- Latest pushed backend commit: `0a42bb20 refactor: isolate bot job details presentation`
 
-Frontend:
-- Path: `D:\Projects\AllinWeb\abr-react-ts-grid`
-- Branch: `VERSION-4.6`
-- Latest observed commit: `e0ed423 docs: Avaloq investigation - implementation status`
+Recent backend commits:
 
-## Current Local State
+```text
+0a42bb20 refactor: isolate bot job details presentation
+b582dbd3 refactor: retire bot job details scene
+562c4eda refactor: detach bot job details from pane lifecycle
+6dd79c34 refactor: host bot job details in dashboard React view
+f2a438c0 refactor: reduce bot job scene to window host
+```
 
-Backend has local uncommitted files:
-- `.claude/settings.local.json`
-- `Config-4.2/TESTS.config`
+## User Constraints
 
-Frontend was clean at the time this handoff was written.
+- Continue the migration away from JavaFX.
+- Do not modify the React frontend or Bot Job Details design without explicit approval unless the user resumes with broad implementation authority again.
+- Production data/config available for runtime validation when needed:
+  - Database: `D:\Projects\ARWeb-Linux\ARWeb\database.db`
+  - Production config: `D:\Projects\ARWeb-Linux\Config-4.2\ARWeb.config`
+- Automated/backend tests should use:
+  - `D:\Projects\ar-web-selenium\Config-4.2\TESTS.config`
+- Preserve production data. Runtime navigation is OK; avoid destructive mutations.
 
-## Migration Rule
+## Current Migration State
 
-Keep the current AR Web Factory / `ARScannedElementPane` implementation intact while migration is in progress.
+Completed and pushed:
 
-The new React dashboard and pre-scan behavior must be additive. Preserve the same button visibility/availability rules for each client build. Remove old JavaFX scanner code only after the migrated flow is verified end to end.
+- `ARViewBotJobPane.java` was replaced by `BotJobDetailsWorkspaceHost.java`.
+- `BotJobDetailsWorkspaceHost` no longer extends `ARPane`.
+- `ARViewBotJobScene.java` was deleted.
+- All source callers were redirected to `ARMainDashboardPane.openBotJob(...)`.
+- `BotJobDetailsPresentationPort` was added.
+- `ARMainDashboardPane` now owns the JavaFX presentation duties for Bot Job Details:
+  - JavaFX thread execution
+  - the single React WebView surface
+  - organization modal presentation
+  - scanner modal open/close/current-job
+  - test-run delegation to `ARScannedElementPane`
+  - native directory/report choosers
+  - window title updates
+- `BotJobDetailsWorkspaceHost` compiles with no direct JavaFX imports and no direct dependency on:
+  - `ARMainDashboardPane`
+  - `ARScannedElementPane`
+  - `ARScannedElementScene`
+  - `AROrganizationManagerScene`
+- `BotJobDetailsJavaFxRetirementTest` was added to assert the pane/scene retirement boundary.
+- Clone Job React/backend migration was already completed before this handoff:
+  - backend clone contract/service implemented
+  - React Clone Job implemented/deployed
+  - `ARSaveClonePane` and `ARSaveCloneScene` deleted
 
-## Pre-Scan Dashboard State
+## Verification Already Done
 
-The migration added a lightweight React scanner dashboard:
+Backend focused non-browser suite:
 
-- Java button: `PRE SCAN` in Bot Job Details before `TEST RUN`.
-- React session: `preScannerGrid`.
-- React component: `GridItemScann` with `mode="preScan"`.
-- The dashboard reuses existing scanner grid behavior:
-  - element grouping
-  - row `+`
-  - block header `+`
-  - Memory List
-  - create block
-  - Apply to target block
+```text
+98 tests, 0 failures, 0 errors, 0 skipped
+```
 
-The `PRE SCAN` button toggles the main Bot Job content area:
-- `PRE SCAN` opens the dashboard.
-- Button text changes to `BOT JOB`.
-- Clicking `BOT JOB` returns to the normal Bot Job grid.
+Compile/test-compile after the current refactor:
 
-## Browser Behavior
+```text
+317 main sources
+87 test sources
+```
 
-Pre-scan uses an isolated visible Playwright browser.
+Package:
 
-Reason: BancaStato returned `403` / incomplete DOM under headless Chromium, causing the scanner to return 0 elements.
+```text
+mvn -DskipTests package
+```
 
-Important behavior:
-- It does not reuse the `TEST RUN` browser.
-- It does not close or steal the current AR Web Factory browser.
-- It keeps the isolated browser open and reuses it so cookies, consent, opened dropdowns, and manual navigation survive.
-- `Page Scanner` scans the current isolated browser page when already open.
-- `Refresh Web Page` refreshes/reopens the isolated browser but does not scan or clear the grid.
+Packaged/deployed JAR:
 
-## Scanner Defaults
+```text
+SHA-256: F880EED77054AA131F5F464F7DAB826BF9E1871196DB5ADC265D718C969F55F7
+Target:  D:\Projects\ARWeb-Linux\ARWeb-Scanner\AR_Web_Scanner-4.2.jar
+Backup:  D:\Projects\ARWeb-Linux\ARWeb-Scanner\AR_Web_Scanner-4.2.jar.20260714-035759.bak
+```
 
-The dashboard default focus is:
+Runtime launch:
 
-`All page scanner controls`
+- The deployed app launched successfully.
+- Dashboard title observed: `AR Web Main Dashboard`.
+- Screenshot path: `D:\Projects\ar-web-selenium\target\runtime-dashboard-retired.png`
+- The screenshot showed the production dashboard and Bot Job rows.
 
-This sends blank search terms to the backend. The backend then uses `PlaywrightElementScanner.DEFAULT_SELECTOR`, matching the broader AR Web Factory Page Scanner behavior and restoring output/text candidates.
+Playwright/browser status:
 
-If result counts differ from AR Web Factory, inspect:
-- `PlaywrightElementScanner.DEFAULT_SELECTOR`
-- classification logic in `PlaywrightElementScanner`
-- whether the browser page state differs between scans
+- A focused browser run reached the UI and failed on the two known blockers only:
+  - metadata `Edit` entry point is missing
+  - `CREATE_BAT` is covered by another layer
+- These were known before this stop point and are not new regressions from the pane/scene retirement.
+- A sandboxed browser run also failed with `spawn EPERM`, which is an environment limitation.
 
-## Status Messages
+## Not Proven Yet
 
-Backend sends `preScanStatus` to `preScannerGrid`.
+Do not mark the migration complete yet.
 
-Statuses:
-- `running`
-- `done`
-- `empty`
-- `failed`
+Still missing:
 
-Frontend displays this status in the dashboard header and disables scan buttons while running.
+- Runtime close/reopen validation for Bot Job Details.
+- Runtime A -> B Bot Job switching validation.
+- Confirmation that opening Bot Job Details no longer creates a separate `ARViewBotJobScene` modal/window.
+- Full backend suite after final cleanup.
+- Roadmap/checklist updates with the final evidence.
 
-## Buttons / Visibility
+There was an attempted Windows mouse automation after runtime launch. It did not prove A -> B switching because the follow-up screenshot captured only the terminal, not the dashboard. Treat runtime A/B validation as still pending.
 
-The dashboard must mirror current AR Web Factory visibility for this client.
+## Cleanup Completed
 
-Currently hidden in React because the JavaFX AR Web Factory equivalents are hidden:
-- `Send Pure HTML Review`
-- `Request Support`
-- `Search Hidden Fields`
+`BotJobDetailsWorkspaceHost.java` no longer contains the retired implementation blocks that had been left inside comments:
 
-Keep hidden controls present in code but not visible, because different clients may enable them later.
+- `/* Retired embedded Bot Job WebView implementation.`
+- `/* Retired duplicate direct Scanner scene launcher.`
 
-## Next Recommended Work
+After removal, `mvn -DskipTests test-compile` passed on 2026-07-14 with 317 main sources and 87 test sources compiled.
 
-1. Retest dashboard default scan with blank `Search by`.
-   - Expected: `Output` group appears.
-   - Link/Button/Input counts should be closer to AR Web Factory screenshots.
+## Roadmaps To Update Later
 
-2. Add `Close Pre-Scan Browser`.
-   - Backend command: `PRE_SCAN_CLOSE_BROWSER`.
-   - Closes only the isolated pre-scan browser.
-   - Must not affect `TEST RUN` or AR Web Factory.
-   - Sends status: `Pre-scan browser closed.`
+Only update these after final runtime evidence and full-suite evidence are collected:
 
-3. Verify `OCR Config` from dashboard.
-   - It currently opens the existing Java OCR config using selected bot job `homeBankingId/homeUrlId`.
+- `specifications/migrations/CLAUDE_vs_CODEX_MIGRATION_CHECKS_2026_07_12.md`
+- `specifications/migrations/ROADMAP_REMAINING_LEGACY_PANELS_REACT_2026_07_12.md`
 
-4. Add Apply status feedback.
-   - Show applying X elements to target block.
-   - Show backend accepted/refreshed.
+Relevant current stale sections:
 
-5. Only after dashboard flow is stable, migrate remaining visible factory controls one at a time.
+- `CLAUDE_vs_CODEX_MIGRATION_CHECKS_2026_07_12.md` around Task 1, near the `ARViewBotJobPane` reduction checklist.
+- `ROADMAP_REMAINING_LEGACY_PANELS_REACT_2026_07_12.md` around Phase 2D and the 2026-07-14 log.
 
-## Commands To Inspect On New Machine
+## Resume Checklist
 
-Backend:
+1. Check state:
 
 ```powershell
-cd D:\Projects\AllinWeb\ar-web-selenium
+cd D:\Projects\ar-web-selenium
 git status --short
 git log -5 --oneline
 ```
 
-Frontend:
+2. Re-run focused tests if continuing source changes:
 
 ```powershell
-cd D:\Projects\AllinWeb\abr-react-ts-grid
-git status --short
-git log -5 --oneline
+& 'D:\Installed\apache-maven-3.9.16\bin\mvn.cmd' -DskipTests test-compile
+& 'D:\Installed\apache-maven-3.9.16\bin\mvn.cmd' '-Dtest=BotJobDetailsJavaFxRetirementTest,BotJobWorkspaceServiceTest,BotJobDetailsLifecycleTest,BotJobDetailsRuntimeStateTest,BotJobDetailsSocketAcknowledgementTest,PreScanBrowserSessionTest,PreScanApplyServiceTest,CloneJobServiceTest' test
 ```
 
-## Build/Test Note
+3. Runtime-validate the deployed app:
 
-During this migration work, Maven/npm builds were intentionally not run by Codex unless explicitly requested. The user prefers to build/copy frontend artifacts manually.
+- open dashboard
+- open Bot Job A
+- close/return/reopen Bot Job A
+- switch Bot Job A -> Bot Job B
+- confirm selected job/context changes
+- confirm no separate legacy Bot Job Details scene/window appears
 
+4. Run the full backend suite. Expected known frontend Playwright blockers may remain:
+
+- metadata `Edit` entry point missing
+- `CREATE_BAT` covered by another layer
+
+5. Update both migration docs with exact evidence:
+
+- pane/scene deleted
+- presentation port boundary
+- focused suite result
+- full suite result
+- known Playwright blocker result, if still present
+- runtime A/B and close/reopen result
+- deployed JAR hash/backup
+
+6. Commit and push final docs/evidence:
+
+```powershell
+git add src/main/java src/test/java specifications/migrations SESSION_HANDOFF.md
+git commit -m "docs: record bot job details retirement evidence"
+git push origin refactor/perform-actions-decomposition
+```
+
+Use a different commit message if source cleanup is included.
+
+## Important Reminder
+
+The user said "let's stop for today" before this handoff request. The next terminal should resume only when explicitly asked.
