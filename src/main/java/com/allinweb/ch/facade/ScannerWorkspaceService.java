@@ -59,7 +59,7 @@ public final class ScannerWorkspaceService {
     public ScannerWorkspaceResponse action(ScannerWorkspaceRequest request) {
         ScannerWorkspaceAction action;
         try {
-            action = ScannerWorkspaceAction.parse(request.body().get("action").getAsString());
+            action = parseAction(request);
         } catch (RuntimeException error) {
             return ScannerWorkspaceResponse.failure(safe(error.getMessage()), "INVALID_SCANNER_ACTION", request, null);
         }
@@ -73,6 +73,13 @@ public final class ScannerWorkspaceService {
         } catch (RuntimeException error) {
             return ScannerWorkspaceResponse.failure(safe(error.getMessage()), "SCANNER_ACTION_FAILED", request, action);
         }
+    }
+
+    private ScannerWorkspaceAction parseAction(ScannerWorkspaceRequest request) {
+        if (!request.body().has("action") || request.body().get("action").isJsonNull()) {
+            throw new IllegalArgumentException("Scanner action is required");
+        }
+        return ScannerWorkspaceAction.parse(request.body().get("action").getAsString());
     }
 
     private void validateActionAllowed(ScannerWorkspaceAction action, ScannerWorkspaceState state) {

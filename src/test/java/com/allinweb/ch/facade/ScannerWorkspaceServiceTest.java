@@ -56,6 +56,37 @@ class ScannerWorkspaceServiceTest {
     }
 
     @Test
+    void missingActionReturnsInvalidScannerAction() {
+        RecordingPublisher publisher = new RecordingPublisher();
+        RecordingBrowser browser = new RecordingBrowser();
+        RecordingExecution execution = new RecordingExecution();
+        ScannerWorkspaceService service = new ScannerWorkspaceService(id -> state(), publisher, browser, execution);
+
+        ScannerWorkspaceResponse response = service.action(request("missing-action-1", null));
+
+        assertEquals(false, response.ok());
+        assertEquals("INVALID_SCANNER_ACTION", response.errorCode());
+        assertEquals("Scanner action is required", response.message());
+        assertEquals("missing-action-1", response.requestId());
+        assertEquals(42, response.botJobId());
+    }
+
+    @Test
+    void unsupportedActionReturnsInvalidScannerAction() {
+        RecordingPublisher publisher = new RecordingPublisher();
+        RecordingBrowser browser = new RecordingBrowser();
+        RecordingExecution execution = new RecordingExecution();
+        ScannerWorkspaceService service = new ScannerWorkspaceService(id -> state(), publisher, browser, execution);
+
+        ScannerWorkspaceResponse response = service.action(request("bad-action-1", "NOPE"));
+
+        assertEquals(false, response.ok());
+        assertEquals("INVALID_SCANNER_ACTION", response.errorCode());
+        assertTrue(response.message().contains("Unsupported Scanner action"));
+        assertEquals("bad-action-1", response.requestId());
+    }
+
+    @Test
     void clearGridPublishesEmptySearchTermsPayload() {
         RecordingPublisher publisher = new RecordingPublisher();
         RecordingBrowser browser = new RecordingBrowser();
