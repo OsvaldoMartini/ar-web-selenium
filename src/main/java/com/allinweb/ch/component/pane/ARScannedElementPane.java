@@ -231,6 +231,7 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
     private final ScannerBrowserRuntime scannerBrowserRuntime =
             new ScannerBrowserRuntime(new PaneBrowserRuntimeOperations());
     private final ScannerTestActionFormatter scannerTestActionFormatter = new ScannerTestActionFormatter();
+    private final ScannerCreateBlockPlanner scannerCreateBlockPlanner = new ScannerCreateBlockPlanner();
 
     private int portSocketInitial = 54525;
     private volatile String pendingDomReviewHtml;
@@ -4409,53 +4410,12 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
      * position N and every row after it shift down by one).
      */
     private int computeInsertOrderNumber(String positionLabel, List<BlockLoadDTO> existingSorted) {
-        if (positionLabel == null || positionLabel.startsWith("At end")) {
-            int max = 0;
-            for (BlockLoadDTO b : existingSorted) {
-                if (b.getBlockOrderNumber() != null && b.getBlockOrderNumber() > max) {
-                    max = b.getBlockOrderNumber();
-                }
-            }
-            return max + 1;
-        }
-        // "Before N# ..." — parse the number between "Before " and "#".
-        try {
-            int hash = positionLabel.indexOf('#');
-            int start = "Before ".length();
-            if (hash > start) {
-                return Integer.parseInt(positionLabel.substring(start, hash).trim());
-            }
-        } catch (NumberFormatException ignore) {
-            // fall through to the end
-        }
-        return existingSorted.size() + 1;
+        return scannerCreateBlockPlanner.computeInsertOrderNumber(positionLabel, existingSorted);
     }
 
     /** Human-readable preview of which blocks will have their order number shifted. */
     private String buildCreateBlockPreview(int targetOrder, List<BlockLoadDTO> existingSorted) {
-        List<BlockLoadDTO> shifted = new java.util.ArrayList<>();
-        for (BlockLoadDTO b : existingSorted) {
-            if (b.getBlockOrderNumber() != null && b.getBlockOrderNumber() >= targetOrder) {
-                shifted.add(b);
-            }
-        }
-        if (shifted.isEmpty()) {
-            return "New block will be #" + targetOrder + ". No existing blocks are affected.";
-        }
-        StringBuilder sb = new StringBuilder();
-        sb.append("New block will be #").append(targetOrder).append(". Existing blocks will shift down by one:");
-        for (BlockLoadDTO b : shifted) {
-            sb.append(System.lineSeparator())
-                    .append("  • ")
-                    .append(b.getBlockOrderNumber())
-                    .append("# ")
-                    .append(b.getName())
-                    .append("  →  ")
-                    .append(b.getBlockOrderNumber() + 1)
-                    .append("# ")
-                    .append(b.getName());
-        }
-        return sb.toString();
+        return scannerCreateBlockPlanner.buildCreateBlockPreview(targetOrder, existingSorted);
     }
 
     /**
