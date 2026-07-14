@@ -148,6 +148,8 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
             new ScannerTestRunBotJobPreparation(new PaneTestRunBotJobOperations());
     private final ScannerTestRunExecutionStart scannerTestRunExecutionStart =
             new ScannerTestRunExecutionStart(new PaneTestRunExecutionStartOperations());
+    private final ScannerTestRunExcelPreparation scannerTestRunExcelPreparation =
+            new ScannerTestRunExcelPreparation(scannerPreLaunchExcelLoader, new PaneTestRunExcelOperations());
     private final WebView webView = new WebView();
     public Button launchBotJobButton;
     public CheckBox checkClickElement;
@@ -3483,6 +3485,13 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
         }
     }
 
+    private final class PaneTestRunExcelOperations implements ScannerTestRunExcelPreparation.Operations {
+        @Override
+        public void setExtractedData(ExtractedData preparedData) {
+            extractedData = preparedData;
+        }
+    }
+
     private long recallJobExecutionId() {
         long submittedExecutionId = 0L;
         ScannerPreLaunchExecutionGate.StartAttempt startAttempt =
@@ -3619,14 +3628,13 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
             log.info("TEST RUN — using endpoint URL from the page: {}", endpointUrl);
         }
 
-        try {
-            extractedData = scannerPreLaunchExcelLoader.load(excelPath, performLists);
-        } catch (Exception error) {
-            log.warn("TEST RUN — no/invalid Excel file, using synthetic $EMPTY row: {}", error.getMessage());
+        ScannerTestRunExcelPreparation.Result excelPreparation =
+                scannerTestRunExcelPreparation.prepare(excelPath, performLists);
+        if (excelPreparation.usedSyntheticFallback()) {
+            log.warn(
+                    "TEST RUN — no/invalid Excel file, using synthetic $EMPTY row: {}",
+                    excelPreparation.loadError().getMessage());
         }
-
-        // GEN FLOW navigation blocks carry no Excel data — guarantee a single synthetic row.
-        extractedData = scannerPreLaunchExcelLoader.ensureEmptyDataRow(extractedData);
 
         if (testRunStartupCancelled(cancellation)) return 0L;
 
