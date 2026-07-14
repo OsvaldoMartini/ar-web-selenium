@@ -3611,31 +3611,17 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
             BooleanSupplier cancellationRequested) {
         testRunStartupActive.set(true);
         try {
-            return prepareTestRunBlockPlaywright(
+            BooleanSupplier cancellation = cancellationRequested == null ? () -> false : cancellationRequested;
+            ScannerTestRunPreparationFlow.Result result = scannerTestRunPreparationFlow.prepare(
                     botJob,
                     blockOrderNumber,
                     endpointUrl,
                     runSingleBlock,
-                    cancellationRequested);
+                    () -> testRunStartupCancelled(cancellation));
+            return scannerTestRunResultHandler.finish(result, endpointUrl);
         } finally {
             testRunStartupActive.set(false);
         }
-    }
-
-    private long prepareTestRunBlockPlaywright(
-            BotJobLoadDTO botJob,
-            int blockOrderNumber,
-            String endpointUrl,
-            boolean runSingleBlock,
-            BooleanSupplier cancellationRequested) {
-        BooleanSupplier cancellation = cancellationRequested == null ? () -> false : cancellationRequested;
-        ScannerTestRunPreparationFlow.Result result = scannerTestRunPreparationFlow.prepare(
-                botJob,
-                blockOrderNumber,
-                endpointUrl,
-                runSingleBlock,
-                () -> testRunStartupCancelled(cancellation));
-        return scannerTestRunResultHandler.finish(result, endpointUrl);
     }
 
     private BotJobLoadDTO currentTestRunBotJob() {
