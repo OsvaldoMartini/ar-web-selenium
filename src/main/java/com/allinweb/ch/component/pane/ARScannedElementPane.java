@@ -226,6 +226,8 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
             new ScannerScreenshotLoop(
                     AppExecutors.get().scheduler(ExecutorsManager.Pool.SCREENSHOT_SCHEDULER),
                     new PaneScreenshotLoopOperations());
+    private final ScannerValidationEvaluator scannerValidationEvaluator =
+            new ScannerValidationEvaluator(new PaneValidationEvaluatorOperations());
 
     private int portSocketInitial = 54525;
     private volatile String pendingDomReviewHtml;
@@ -4090,62 +4092,22 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
     }
 
     private int handleGreaterThan(String value1, String value2) {
-        double num1 = parseValueGreaterThan(clean(value1), true);
-        double num2 = parseValueGreaterThan(clean(value2), false);
-
-        return num1 > num2 ? 1 : 0;
-    }
-
-    private double parseValueGreaterThan(String value, boolean isValue1) {
-        // Handle EMPTY markers
-        if (value == null || "$EMPTY".equalsIgnoreCase(value) || "#EMPTY".equalsIgnoreCase(value)) {
-            return Double.MIN_VALUE;
-        }
-
-        try {
-            return Double.parseDouble(value);
-        } catch (NumberFormatException e) {
-            if (isValue1) {
-                logOperations.warn("Invalid numeric value for value1: " + value);
-                return Double.MIN_VALUE;
-            } else {
-                logOperations.warn("Invalid numeric value for value2: " + value);
-                return Double.MAX_VALUE;
-            }
-        }
-    }
-
-    private double parseValueForLessThan(String value, boolean isValue1) {
-        // Handle EMPTY markers
-        if (value == null || "$EMPTY".equalsIgnoreCase(value) || "#EMPTY".equalsIgnoreCase(value)) {
-            return Double.MAX_VALUE;
-        }
-
-        try {
-            return Double.parseDouble(value);
-        } catch (NumberFormatException e) {
-            if (isValue1) {
-                logOperations.warn("Invalid numeric value for value1: {}", value);
-                return Double.MAX_VALUE;
-            } else {
-                logOperations.warn("Invalid numeric value for value2: {}", value);
-                return Double.MIN_VALUE;
-            }
-        }
+        return scannerValidationEvaluator.handleGreaterThan(value1, value2);
     }
 
     private int handleLessThan(String value1, String value2) {
-        double num1 = parseValueForLessThan(clean(value1), true);
-        double num2 = parseValueForLessThan(clean(value2), false);
-
-        return num1 < num2 ? 1 : 0;
+        return scannerValidationEvaluator.handleLessThan(value1, value2);
     }
 
     private String finalLogMessage(String failedMessage, String resultActions) {
-        if (!Strings.isNullOrEmpty(failedMessage)) {
-            return failedMessage + resultActions;
+        return scannerValidationEvaluator.finalLogMessage(failedMessage, resultActions);
+    }
+
+    private final class PaneValidationEvaluatorOperations implements ScannerValidationEvaluator.Operations {
+        @Override
+        public void warnInvalidNumericValue(String fieldName, String value) {
+            logOperations.warn("Invalid numeric value for {}: {}", fieldName, value);
         }
-        return resultActions;
     }
 
     public void checkRunningProcess() {
@@ -6539,7 +6501,7 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
 
                                                         String msgCSV = msgCSVPrefix + parentFieldCSV;
                                                         resultActions = "Check Value for " + parentFieldCSV;
-                                                        ValidationResult vr =
+                                                        ScannerValidationEvaluator.ValidationResult vr =
                                                                 evaluateOperation(actualValue, operator, expectedValue);
 
                                                         if (vr.valid) {
@@ -7196,48 +7158,9 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
         return !anyFailure && !executionInterrupted;
     }
 
-    private static class ValidationResult {
-        final boolean valid;
-        final String invalidReason; // null if none
-
-        ValidationResult(boolean valid, String invalidReason) {
-            this.valid = valid;
-            this.invalidReason = invalidReason;
-        }
-    }
-
-    private ValidationResult evaluateOperation(String actualRaw, String operator, String expectedRaw) {
-        if (actualRaw == null || expectedRaw == null || operator == null) {
-            return new ValidationResult(false, "Null values");
-        }
-
-        String actual = actualRaw.trim();
-        String expected = expectedRaw.trim();
-
-        switch (operator.trim()) {
-            case "=":
-                return new ValidationResult(actual.equalsIgnoreCase(expected), null);
-
-            case "!=":
-                return new ValidationResult(!actual.equalsIgnoreCase(expected), null);
-
-            case ">": {
-                int resp = handleGreaterThan(actual, expected);
-                if (resp == 1) return new ValidationResult(true, null);
-                if (resp == 0) return new ValidationResult(false, null);
-                return new ValidationResult(false, "Invalid Numbers");
-            }
-
-            case "<": {
-                int resp = handleLessThan(actual, expected);
-                if (resp == 1) return new ValidationResult(true, null);
-                if (resp == 0) return new ValidationResult(false, null);
-                return new ValidationResult(false, "Invalid Numbers");
-            }
-
-            default:
-                return new ValidationResult(false, "Unknown operator: " + operator);
-        }
+    private ScannerValidationEvaluator.ValidationResult evaluateOperation(
+            String actualRaw, String operator, String expectedRaw) {
+        return scannerValidationEvaluator.evaluateOperation(actualRaw, operator, expectedRaw);
     }
 
     private void appendLog(String message, String style) {}
@@ -8965,13 +8888,6 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
 
         // Optional: support plain operation tokens
         return upper.equals("SET") || upper.equals("GET");
-    }
-
-    private String clean(String value) {
-        if (value == null) {
-            return null;
-        }
-        return value.replace(".", "").replace(",", "");
     }
 
     private int getNavigationTimeSeconds() {
