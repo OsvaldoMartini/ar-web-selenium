@@ -4,9 +4,9 @@ import com.allinweb.ch.builder.WebElementAttributeEnum;
 import com.allinweb.ch.builder.WebElementAttributeTypeValueEnum;
 import com.allinweb.ch.builder.WebElementIcon;
 import com.allinweb.ch.builder.WebElementTagNameEnum;
-import com.allinweb.ch.component.pane.ARScannedElementPane;
 import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.facade.PerformMessage;
+import com.allinweb.ch.facade.ScannerTargetContext;
 import com.allinweb.ch.model.*;
 import com.google.common.base.Strings;
 import java.util.Arrays;
@@ -25,7 +25,7 @@ public class TargetElementHelper {
 
     private static final PerformMessage performMessage = PerformMessage.getInstance();
     private PerformActions performActions;
-    private ARScannedElementPane arScannedElementPane;
+    private ScannerTargetContext scannerTargetContext;
 
     private TargetElementHelper() {
         // private constructor to enforce singleton
@@ -45,9 +45,9 @@ public class TargetElementHelper {
     /**
      * Initialize the helper with the necessary dependencies.
      */
-    public void initialize(PerformActions performActions, ARScannedElementPane arScannedElementPane) {
+    public void initialize(PerformActions performActions, ScannerTargetContext scannerTargetContext) {
         this.performActions = performActions;
-        this.arScannedElementPane = arScannedElementPane;
+        this.scannerTargetContext = scannerTargetContext;
     }
 
     public void initialize(PerformActions performActions) {
@@ -59,7 +59,7 @@ public class TargetElementHelper {
      */
     public TargetElement extractPickClone(ElementDTO elementDTO) {
 
-        if (performActions == null || arScannedElementPane == null) {
+        if (performActions == null || scannerTargetContext == null) {
             log.error("TargetElementHelper not initialized. Call initialize() first.");
             performMessage.errorMessage(
                     "AR Web Scanner Not Open",
@@ -71,7 +71,7 @@ public class TargetElementHelper {
             return null;
         }
 
-        arScannedElementPane.xpathTextPrevious = elementDTO.getXPath();
+        scannerTargetContext.rememberPreviousXPath(elementDTO.getXPath());
 
         TargetElement targetLocal = defineSearchReturn(elementDTO, null);
 
@@ -113,7 +113,7 @@ public class TargetElementHelper {
         }
 
         // Update UI checkboxes and return final target
-        arScannedElementPane.defineCheckBoxesClickable(targetLocal);
+        scannerTargetContext.applyActionDefaults(targetLocal);
 
         return targetLocal;
     }

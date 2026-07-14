@@ -435,7 +435,8 @@ public class ARScannedElementScene extends ARScene {
                                     tableName, whereId, splitDTO.getElementDetails()[0].getId());
                             if (instruction != null && instruction.getId() != null) {
                                 ElementDTO elementDTO = performActions.buildElementDTO(instruction);
-                                targetElementHelper.initialize(performActions, arScannedElementPane);
+                                targetElementHelper.initialize(
+                                        performActions, new JavaFxScannerTargetContext(arScannedElementPane));
                                 arScannedElementPane.targetSelected = targetElementHelper.extractPickClone(elementDTO);
                                 applyForceCoordinatesFromIncomingDto(
                                         arScannedElementPane.targetSelected, splitDTO.getElementDetails()[0]);
@@ -445,7 +446,8 @@ public class ARScannedElementScene extends ARScene {
                                         splitDTO.getType(),
                                         splitDTO.getElementDetails()[0].getDefaultValue());
                             } else {
-                                targetElementHelper.initialize(performActions, arScannedElementPane);
+                                targetElementHelper.initialize(
+                                        performActions, new JavaFxScannerTargetContext(arScannedElementPane));
                                 arScannedElementPane.targetSelected =
                                         targetElementHelper.extractPickClone(splitDTO.getElementDetails()[0]);
                                 applyForceCoordinatesFromIncomingDto(
@@ -457,7 +459,8 @@ public class ARScannedElementScene extends ARScene {
                                         splitDTO.getElementDetails()[0].getDefaultValue());
                             }
                         } else {
-                            targetElementHelper.initialize(performActions, arScannedElementPane);
+                            targetElementHelper.initialize(
+                                    performActions, new JavaFxScannerTargetContext(arScannedElementPane));
                             arScannedElementPane.targetSelected =
                                     targetElementHelper.extractPickClone(splitDTO.getElementDetails()[0]);
                             applyForceCoordinatesFromIncomingDto(
@@ -486,12 +489,14 @@ public class ARScannedElementScene extends ARScene {
                             previousBlock = blockUpdate;
                         }
 
-                        targetElementHelper.initialize(performActions, arScannedElementPane);
+                        targetElementHelper.initialize(
+                                performActions, new JavaFxScannerTargetContext(arScannedElementPane));
                         arScannedElementPane.targetSelected =
                                 targetElementHelper.extractPickClone(splitDTO.getElementDetails()[0]);
                         arScannedElementPane.itPrintsElementDTO();
                     } else {
-                        targetElementHelper.initialize(performActions, arScannedElementPane);
+                        targetElementHelper.initialize(
+                                performActions, new JavaFxScannerTargetContext(arScannedElementPane));
                         arScannedElementPane.targetSelected =
                                 targetElementHelper.extractPickClone(splitDTO.getElementDetails()[0]);
                         arScannedElementPane.itPrintsElementDTO();
@@ -773,7 +778,7 @@ public class ARScannedElementScene extends ARScene {
             int nextOrder = instruc.size() + 1;
 
             instructionList.clear();
-            targetElementHelper.initialize(performActions, arScannedElementPane);
+            targetElementHelper.initialize(performActions, new JavaFxScannerTargetContext(arScannedElementPane));
 
             for (ElementDTO elementDTO : processDTO.getElementDetails()) {
                 TargetElement targetEach = targetElementHelper.extractPickClone(elementDTO);
@@ -868,7 +873,7 @@ public class ARScannedElementScene extends ARScene {
             int nextOrder = instruc.size() + 1;
 
             instructionList.clear();
-            targetElementHelper.initialize(performActions, arScannedElementPane);
+            targetElementHelper.initialize(performActions, new JavaFxScannerTargetContext(arScannedElementPane));
 
             for (ElementDTO elementDTO : processDTO.getElementDetails()) {
                 TargetElement targetEach = targetElementHelper.extractPickClone(elementDTO);
