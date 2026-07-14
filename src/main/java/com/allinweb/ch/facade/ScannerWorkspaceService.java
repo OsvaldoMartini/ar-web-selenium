@@ -7,8 +7,6 @@ import com.allinweb.ch.model.ScannerWorkspaceRequest;
 import com.allinweb.ch.model.ScannerWorkspaceResponse;
 import com.allinweb.ch.model.ScannerWorkspaceState;
 import com.allinweb.ch.model.SplitDTO;
-import com.allinweb.ch.socket.WebSocketSessionManager;
-import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import java.util.Arrays;
@@ -60,7 +58,7 @@ public final class ScannerWorkspaceService {
     private static final ScannerWorkspaceService INSTANCE =
             new ScannerWorkspaceService(
                     BotJobDetailsService.getInstance()::currentState,
-                    new WebSocketGridPublisher(),
+                    new ScannerGridPublisher(),
                     new ScannerBrowserOperations(),
                     new DefaultExecutionOperations());
 
@@ -255,27 +253,6 @@ public final class ScannerWorkspaceService {
         void preLaunch(int botJobId);
 
         void stopPreLaunch(int botJobId);
-    }
-
-    private static final class WebSocketGridPublisher implements GridPublisher {
-        private final WebSocketSessionManager sessions = WebSocketSessionManager.getInstance();
-        private final Gson gson = new Gson();
-
-        @Override
-        public void publishSearchTerms(String sessionId, int homeBankingId, SplitDTO payload) {
-            sessions.sendMessageJson(homeBankingId, sessionId, gson.toJson(payload), "searchTerms");
-        }
-
-        @Override
-        public void publishSearchTermsChunks(String sessionId, int homeBankingId, SplitDTO payload, int chunkSize) {
-            ElementDTO[] elementDetails = payload.getElementDetails();
-            List<ElementDTO> elements = elementDetails == null ? List.of() : Arrays.asList(elementDetails);
-            for (int i = 0; i < elements.size(); i += chunkSize) {
-                int end = Math.min(i + chunkSize, elements.size());
-                payload.setElementDetails(elements.subList(i, end).toArray(new ElementDTO[0]));
-                sessions.sendMessageJson(homeBankingId, sessionId, gson.toJson(payload), "searchTerms");
-            }
-        }
     }
 
     private static final class DefaultExecutionOperations implements ExecutionOperations {
