@@ -208,6 +208,8 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
             new ScannerPreLaunchRunSetup(new PanePreLaunchRunSetupOperations());
     private final ScannerPreLaunchBotJobSelection scannerPreLaunchBotJobSelection =
             new ScannerPreLaunchBotJobSelection(new PanePreLaunchBotJobSelectionOperations());
+    private final ScannerPreLaunchExcelPreparation scannerPreLaunchExcelPreparation =
+            new ScannerPreLaunchExcelPreparation(scannerPreLaunchExcelLoader, new PanePreLaunchExcelPreparationOperations());
 
     private final ScheduledExecutorService screenshotScheduler =
             AppExecutors.get().scheduler(ExecutorsManager.Pool.SCREENSHOT_SCHEDULER);
@@ -2866,30 +2868,60 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
     }
 
     private void preparePreLaunchExcel() {
-        try {
-            extractedData = scannerPreLaunchExcelLoader.load(excelPath, performLists);
-        } catch (Exception error) {
-            log.error("Error Processing Excel File");
+        scannerPreLaunchExcelPreparation.prepareExcel();
+    }
+
+    private boolean validatePreLaunchExcel() {
+        return scannerPreLaunchExcelPreparation.validateExcel();
+    }
+
+    private final class PanePreLaunchExcelPreparationOperations
+            implements ScannerPreLaunchExcelPreparation.Operations {
+        @Override
+        public String excelPath() {
+            return excelPath;
+        }
+
+        @Override
+        public PerformLists performLists() {
+            return performLists;
+        }
+
+        @Override
+        public ExtractedData extractedData() {
+            return extractedData;
+        }
+
+        @Override
+        public void setExtractedData(ExtractedData preparedData) {
+            extractedData = preparedData;
+        }
+
+        @Override
+        public void showExcelProcessingError() {
             performMessage.errorMessage(
                     "Error Processing Excel File",
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to Execute Excel File!</span> ⚠️",
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to Execute Excel File!</span> \u26a0\ufe0f",
                     "<span style='color: #E65100; font-weight: bold;'>Please carefully review all Excel columns and their values for potential errors.</span>",
                     "<span style='font-style: italic;'>Inconsistent or incorrect data can prevent the application from processing the file.</span>",
                     null,
                     0);
         }
-    }
 
-    private boolean validatePreLaunchExcel() {
-        scannerPreLaunchExcelLoader.ensureEmptyDataRow(extractedData);
-
-        if (scannerPreLaunchExcelLoader.hasExcelError(extractedData)) {
-            performMessage.errorMessage(
-                    "Excel Error", "Could Not Execute Excel File", extractedData.getErrorMessage(), null, null, 0);
-            reenableLaunchButton();
-            return false;
+        @Override
+        public void showExcelValidationError(String errorMessage) {
+            performMessage.errorMessage("Excel Error", "Could Not Execute Excel File", errorMessage, null, null, 0);
         }
-        return true;
+
+        @Override
+        public void reenableLaunchButton() {
+            ARScannedElementPane.this.reenableLaunchButton();
+        }
+
+        @Override
+        public void error(String message) {
+            log.error(message);
+        }
     }
 
     private boolean confirmMultipleExcelRows() {
