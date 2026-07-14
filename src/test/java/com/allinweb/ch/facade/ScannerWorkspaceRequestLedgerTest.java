@@ -47,6 +47,27 @@ class ScannerWorkspaceRequestLedgerTest {
     }
 
     @Test
+    void conflictingRequestWithMalformedActionDoesNotReportAction() {
+        ScannerWorkspaceRequestLedger ledger = new ScannerWorkspaceRequestLedger(4);
+        AtomicInteger executions = new AtomicInteger();
+        ScannerWorkspaceRequest first = request("scannerGrid", "same-id", 42, "REFRESH_STATE");
+        JsonObject body = new JsonObject();
+        body.addProperty("requestId", "same-id");
+        body.addProperty("botJobId", 42);
+        body.add("action", new JsonObject());
+        ScannerWorkspaceRequest conflicting = new ScannerWorkspaceRequest("scannerGrid", "same-id", 42, body);
+        ledger.executeOnce(first, "scanner.actionResponse", () -> success(first, executions));
+
+        ScannerWorkspaceResponse response = ledger.executeOnce(
+                conflicting, "scanner.actionResponse", () -> success(conflicting, executions));
+
+        assertEquals(1, executions.get());
+        assertFalse(response.ok());
+        assertEquals("REQUEST_ID_REUSE", response.errorCode());
+        assertEquals(null, response.action());
+    }
+
+    @Test
     void scopesSameRequestIdBySessionAndOperation() {
         ScannerWorkspaceRequestLedger ledger = new ScannerWorkspaceRequestLedger(4);
         AtomicInteger executions = new AtomicInteger();

@@ -13,6 +13,7 @@ public final class ScannerWorkspaceRequestLedger {
 
     private final int maxEntries;
     private final LinkedHashMap<String, Entry> requests = new LinkedHashMap<>();
+    private final ScannerWorkspaceActionParser actionParser = new ScannerWorkspaceActionParser();
 
     public ScannerWorkspaceRequestLedger() {
         this(DEFAULT_MAX_ENTRIES);
@@ -54,9 +55,7 @@ public final class ScannerWorkspaceRequestLedger {
 
     private ScannerWorkspaceAction actionOrNull(ScannerWorkspaceRequest request) {
         try {
-            return request.body().has("action")
-                    ? ScannerWorkspaceAction.parse(request.body().get("action").getAsString())
-                    : null;
+            return actionParser.parse(request);
         } catch (RuntimeException ignored) {
             return null;
         }
