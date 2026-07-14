@@ -496,24 +496,6 @@ public class ARScannedElementPane extends ARPane {
         }
     }
 
-    private static final class ScannerPaneExecutionOperations implements ScannerWorkspaceService.ExecutionOperations {
-        private final ARScannedElementPane pane;
-
-        private ScannerPaneExecutionOperations(ARScannedElementPane pane) {
-            this.pane = pane;
-        }
-
-        @Override
-        public void preLaunch(int botJobId) {
-            pane.requestPreLaunchFromWorkspace(botJobId);
-        }
-
-        @Override
-        public void stopPreLaunch(int botJobId) {
-            pane.requestStopPreLaunchFromWorkspace(botJobId);
-        }
-    }
-
     public static ARScannedElementPane getInstance() {
         if (instance == null) {
             synchronized (ARScannedElementPane.class) {
