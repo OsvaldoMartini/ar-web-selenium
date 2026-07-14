@@ -103,6 +103,8 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
     private static final PerformLists performLists = PerformLists.getInstance();
     private static final PerformDBEngine performDBEngine = PerformDBEngine.getInstance();
     private static final ScannerPreLaunchExcelLoader scannerPreLaunchExcelLoader = new ScannerPreLaunchExcelLoader();
+    private static final ScannerPreLaunchPreparation scannerPreLaunchPreparation =
+            ScannerPreLaunchPreparation.from(performDBEngine, performLists);
     private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
     private static final PerformActions performActions = PerformActions.getInstance();
     private static final PerformMessage performMessage = PerformMessage.getInstance();
@@ -2677,37 +2679,14 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
     }
 
     private ErrorMessage loadPreLaunchDefinitions() {
-        ErrorMessage errorMessage = performDBEngine.loadHomeBanking(null);
-        if (errorMessage == null)
-            errorMessage = performDBEngine.loadHomeUrls(this.currentBotJob.getHomeBankingId());
-
-        if (errorMessage == null) {
-            excelDataGoto = performDBEngine.loadExcelGotoBlock(this.currentBotJob.getId(), "instruction");
-
-            if ((!excelDataGoto.isEmpty() && excelDataGoto.get(0).getParentBlockId() == null)
-                    || (!excelDataGoto.isEmpty() && excelDataGoto.get(0).getParentBlockId() <= 0)) {
-                performDBEngine.fixExcelGoto(
-                        "instruction",
-                        currentBotJob.getId(),
-                        excelDataGoto.get(0).getId(),
-                        excelDataGoto.get(0).getBlockId());
-
-                excelDataGoto = performDBEngine.loadExcelGotoBlock(this.currentBotJob.getId(), "instruction");
-            }
-        }
-        if (errorMessage == null) errorMessage = performDBEngine.loadCompleteJobs(this.currentBotJob.getId());
-
-        if (errorMessage == null)
-            errorMessage = performDBEngine.loadAllVariables("variable", this.currentBotJob.getId());
-
-        if (errorMessage == null && !performLists.getListBotJob().isEmpty()) {
-            blocksLoaded = performLists.getListBotJob().get(0).getBlockLoadDTOList();
-            errorMessage = performDBEngine.loadAllActionsPerBlock(blocksLoaded);
-        } else if (performLists.getListBotJob().isEmpty()) {
+        ScannerPreLaunchPreparation.Result result = scannerPreLaunchPreparation.loadDefinitions(currentBotJob);
+        excelDataGoto = result.excelDataGoto();
+        blocksLoaded = result.blocksLoaded();
+        if (result.botJobMissing()) {
             log.warn("I cannot find a Bot Job with this Organization ID: " + this.currentBotJob.getHomeBankingId()
                     + " Environment ID: " + this.currentBotJob.getId());
         }
-        return errorMessage;
+        return result.errorMessage();
     }
 
     private void reportPreLaunchLoadError(ErrorMessage errorMessage) {
