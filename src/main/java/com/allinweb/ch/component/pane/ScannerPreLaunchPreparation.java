@@ -72,6 +72,16 @@ final class ScannerPreLaunchPreparation {
                 loadedBotJob, loadedBotJob.getName(), excelBasePath + "\\" + loadedBotJob.getName() + ".xlsx");
     }
 
+    boolean resetInstructionExecutionFlags() {
+        if (lists.botJobs().isEmpty()) {
+            return false;
+        }
+        lists.botJobs().get(0).getBlockLoadDTOList().stream()
+                .flatMap(block -> block.getInstructionLoad().stream())
+                .forEach(instruction -> instruction.setExecuted(false));
+        return true;
+    }
+
     private boolean isBlank(String value) {
         return value == null || value.isBlank();
     }

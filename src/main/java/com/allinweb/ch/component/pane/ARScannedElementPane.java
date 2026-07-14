@@ -2777,13 +2777,7 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
     }
 
     private void resetPreLaunchInstructionsAndRecall() {
-        // Set all instructions' executed field to false
-        if (!performLists.getListBotJob().isEmpty()) {
-
-            performLists.getListBotJob().get(0).getBlockLoadDTOList().stream()
-                    .flatMap(block -> block.getInstructionLoad().stream())
-                    .forEach(instruction -> instruction.setExecuted(false));
-
+        if (scannerPreLaunchPreparation.resetInstructionExecutionFlags()) {
             recallJob();
         }
     }

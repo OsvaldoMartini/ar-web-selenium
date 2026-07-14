@@ -114,6 +114,29 @@ class ScannerPreLaunchPreparationTest {
         assertTrue(selection.homeBankingMissing());
     }
 
+    @Test
+    void resetInstructionExecutionFlagsMarksAllLoadedInstructionsUnexecuted() {
+        InstructionLoad first = instruction(true);
+        InstructionLoad second = instruction(true);
+        BlockLoadDTO block = new BlockLoadDTO();
+        block.setInstructionLoad(List.of(first, second));
+        RecordingLists lists = new RecordingLists(List.of(botJob(42, 2, List.of(block))));
+        ScannerPreLaunchPreparation preparation = new ScannerPreLaunchPreparation(new RecordingEngine(), lists);
+
+        assertTrue(preparation.resetInstructionExecutionFlags());
+
+        assertFalse(first.getExecuted());
+        assertFalse(second.getExecuted());
+    }
+
+    @Test
+    void resetInstructionExecutionFlagsReturnsFalseWhenBotJobMissing() {
+        ScannerPreLaunchPreparation preparation =
+                new ScannerPreLaunchPreparation(new RecordingEngine(), new RecordingLists(List.of()));
+
+        assertFalse(preparation.resetInstructionExecutionFlags());
+    }
+
     private BotJobLoadDTO botJob(int id, int homeBankingId, List<BlockLoadDTO> blocks) {
         BotJobLoadDTO botJob = new BotJobLoadDTO();
         botJob.setId(id);
@@ -127,6 +150,12 @@ class ScannerPreLaunchPreparationTest {
         instruction.setId(id);
         instruction.setBlockId(blockId);
         instruction.setParentBlockId(parentBlockId);
+        return instruction;
+    }
+
+    private InstructionLoad instruction(boolean executed) {
+        InstructionLoad instruction = new InstructionLoad();
+        instruction.setExecuted(executed);
         return instruction;
     }
 
