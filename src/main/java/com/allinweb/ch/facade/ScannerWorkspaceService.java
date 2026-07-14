@@ -19,14 +19,20 @@ public final class ScannerWorkspaceService {
     private static final ScannerWorkspaceService INSTANCE =
             new ScannerWorkspaceService(
                     BotJobDetailsService.getInstance()::currentState,
-                    new WebSocketGridPublisher());
+                    new WebSocketGridPublisher(),
+                    new DefaultBrowserOperations());
 
     private final IntFunction<BotJobDetailsState> botJobStateProvider;
     private final GridPublisher gridPublisher;
+    private final BrowserOperations browserOperations;
 
-    ScannerWorkspaceService(IntFunction<BotJobDetailsState> botJobStateProvider, GridPublisher gridPublisher) {
+    ScannerWorkspaceService(
+            IntFunction<BotJobDetailsState> botJobStateProvider,
+            GridPublisher gridPublisher,
+            BrowserOperations browserOperations) {
         this.botJobStateProvider = botJobStateProvider;
         this.gridPublisher = gridPublisher;
+        this.browserOperations = browserOperations;
     }
 
     public static ScannerWorkspaceService getInstance() {
@@ -53,6 +59,8 @@ public final class ScannerWorkspaceService {
             ScannerWorkspaceState state = state(request.botJobId());
             if (action == ScannerWorkspaceAction.CLEAR_GRID) {
                 gridPublisher.publishSearchTerms(request.sessionId(), state.homeBankingId(), emptyPayload(state));
+            } else if (action == ScannerWorkspaceAction.REFRESH_PAGE) {
+                browserOperations.refreshPage();
             }
             return ScannerWorkspaceResponse.actionSuccess(
                     action, actionMessage(action), request, state);
@@ -95,7 +103,11 @@ public final class ScannerWorkspaceService {
     }
 
     private String actionMessage(ScannerWorkspaceAction action) {
-        return action == ScannerWorkspaceAction.CLEAR_GRID ? "Scanner grid cleared" : "Scanner state refreshed";
+        return switch (action) {
+            case CLEAR_GRID -> "Scanner grid cleared";
+            case REFRESH_PAGE -> "Scanner browser page refreshed";
+            default -> "Scanner state refreshed";
+        };
     }
 
     private SplitDTO emptyPayload(ScannerWorkspaceState state) {
@@ -121,6 +133,10 @@ public final class ScannerWorkspaceService {
         void publishSearchTerms(String sessionId, int homeBankingId, SplitDTO payload);
     }
 
+    interface BrowserOperations {
+        void refreshPage();
+    }
+
     private static final class WebSocketGridPublisher implements GridPublisher {
         private final WebSocketSessionManager sessions = WebSocketSessionManager.getInstance();
         private final Gson gson = new Gson();
@@ -128,6 +144,20 @@ public final class ScannerWorkspaceService {
         @Override
         public void publishSearchTerms(String sessionId, int homeBankingId, SplitDTO payload) {
             sessions.sendMessageJson(homeBankingId, sessionId, gson.toJson(payload), "searchTerms");
+        }
+    }
+
+    private static final class DefaultBrowserOperations implements BrowserOperations {
+        @Override
+        public void refreshPage() {
+            PerformPreLoad.reloadAllPlugins();
+            PerformActions.getInstance().refreshPage();
+            try {
+                PerformActions.getInstance().onHoldInSeconds(2);
+            } catch (InterruptedException ignored) {
+                Thread.currentThread().interrupt();
+            } catch (Exception ignored) {
+            }
         }
     }
 }

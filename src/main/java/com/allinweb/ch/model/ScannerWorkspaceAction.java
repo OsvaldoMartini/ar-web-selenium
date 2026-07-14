@@ -4,7 +4,8 @@ import java.util.Locale;
 
 public enum ScannerWorkspaceAction {
     REFRESH_STATE,
-    CLEAR_GRID;
+    CLEAR_GRID,
+    REFRESH_PAGE;
 
     public static ScannerWorkspaceAction parse(String value) {
         if (value == null || value.isBlank()) {

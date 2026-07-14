@@ -17,7 +17,8 @@ class ScannerWorkspaceServiceTest {
     @Test
     void bootstrapMapsBotJobDetailsStateToScannerState() {
         RecordingPublisher publisher = new RecordingPublisher();
-        ScannerWorkspaceService service = new ScannerWorkspaceService(id -> state(), publisher);
+        RecordingBrowser browser = new RecordingBrowser();
+        ScannerWorkspaceService service = new ScannerWorkspaceService(id -> state(), publisher, browser);
 
         ScannerWorkspaceResponse response = service.bootstrap(request("bootstrap-1", null));
 
@@ -32,7 +33,8 @@ class ScannerWorkspaceServiceTest {
     @Test
     void refreshStateActionReturnsCorrelatedState() {
         RecordingPublisher publisher = new RecordingPublisher();
-        ScannerWorkspaceService service = new ScannerWorkspaceService(id -> state(), publisher);
+        RecordingBrowser browser = new RecordingBrowser();
+        ScannerWorkspaceService service = new ScannerWorkspaceService(id -> state(), publisher, browser);
 
         ScannerWorkspaceResponse response = service.action(request("refresh-1", "REFRESH_STATE"));
 
@@ -45,7 +47,8 @@ class ScannerWorkspaceServiceTest {
     @Test
     void clearGridPublishesEmptySearchTermsPayload() {
         RecordingPublisher publisher = new RecordingPublisher();
-        ScannerWorkspaceService service = new ScannerWorkspaceService(id -> state(), publisher);
+        RecordingBrowser browser = new RecordingBrowser();
+        ScannerWorkspaceService service = new ScannerWorkspaceService(id -> state(), publisher, browser);
 
         ScannerWorkspaceResponse response = service.action(request("clear-1", "CLEAR_GRID"));
 
@@ -59,6 +62,20 @@ class ScannerWorkspaceServiceTest {
         assertEquals("scannerGrid", call.payload.getSessionId());
         assertEquals("searchTerms", call.payload.getOperationId());
         assertEquals(0, call.payload.getElementDetails().length);
+    }
+
+    @Test
+    void refreshPageRunsBrowserOperationWithoutPublishingRows() {
+        RecordingPublisher publisher = new RecordingPublisher();
+        RecordingBrowser browser = new RecordingBrowser();
+        ScannerWorkspaceService service = new ScannerWorkspaceService(id -> state(), publisher, browser);
+
+        ScannerWorkspaceResponse response = service.action(request("refresh-page-1", "REFRESH_PAGE"));
+
+        assertTrue(response.ok());
+        assertEquals("REFRESH_PAGE", response.action());
+        assertEquals(1, browser.refreshCalls);
+        assertTrue(publisher.calls.isEmpty());
     }
 
     private ScannerWorkspaceRequest request(String requestId, String action) {
@@ -102,5 +119,14 @@ class ScannerWorkspaceServiceTest {
         }
 
         private record Call(String sessionId, int homeBankingId, SplitDTO payload) {}
+    }
+
+    private static final class RecordingBrowser implements ScannerWorkspaceService.BrowserOperations {
+        private int refreshCalls;
+
+        @Override
+        public void refreshPage() {
+            refreshCalls++;
+        }
     }
 }
