@@ -79,6 +79,10 @@ public final class ScannerWorkspaceService {
         if (!request.body().has("action") || request.body().get("action").isJsonNull()) {
             throw new IllegalArgumentException("Scanner action is required");
         }
+        if (!request.body().get("action").isJsonPrimitive()
+                || !request.body().get("action").getAsJsonPrimitive().isString()) {
+            throw new IllegalArgumentException("Scanner action must be a string");
+        }
         return ScannerWorkspaceAction.parse(request.body().get("action").getAsString());
     }
 

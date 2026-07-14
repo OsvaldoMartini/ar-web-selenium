@@ -87,6 +87,26 @@ class ScannerWorkspaceServiceTest {
     }
 
     @Test
+    void nonStringActionReturnsInvalidScannerAction() {
+        RecordingPublisher publisher = new RecordingPublisher();
+        RecordingBrowser browser = new RecordingBrowser();
+        RecordingExecution execution = new RecordingExecution();
+        ScannerWorkspaceService service = new ScannerWorkspaceService(id -> state(), publisher, browser, execution);
+        JsonObject body = new JsonObject();
+        body.addProperty("requestId", "non-string-action-1");
+        body.addProperty("botJobId", 42);
+        body.add("action", new JsonObject());
+
+        ScannerWorkspaceResponse response =
+                service.action(new ScannerWorkspaceRequest("scannerGrid", "non-string-action-1", 42, body));
+
+        assertEquals(false, response.ok());
+        assertEquals("INVALID_SCANNER_ACTION", response.errorCode());
+        assertEquals("Scanner action must be a string", response.message());
+        assertEquals("non-string-action-1", response.requestId());
+    }
+
+    @Test
     void clearGridPublishesEmptySearchTermsPayload() {
         RecordingPublisher publisher = new RecordingPublisher();
         RecordingBrowser browser = new RecordingBrowser();
