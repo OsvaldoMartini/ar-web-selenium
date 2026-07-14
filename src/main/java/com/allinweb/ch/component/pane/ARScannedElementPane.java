@@ -165,6 +165,8 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
                     this::currentTestRunBotJob,
                     this::currentTestRunExcelPath,
                     performLists);
+    private final ScannerTestRunResultHandler scannerTestRunResultHandler =
+            new ScannerTestRunResultHandler(new PaneTestRunResultOperations());
     private final WebView webView = new WebView();
     public Button launchBotJobButton;
     public CheckBox checkClickElement;
@@ -3524,6 +3526,28 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
         }
     }
 
+    private final class PaneTestRunResultOperations implements ScannerTestRunResultHandler.Operations {
+        @Override
+        public void error(String message, Object... args) {
+            log.error(message, args);
+        }
+
+        @Override
+        public void warn(String message, Object... args) {
+            log.warn(message, args);
+        }
+
+        @Override
+        public void info(String message, Object... args) {
+            log.info(message, args);
+        }
+
+        @Override
+        public void resetSingleBlock() {
+            runSingleBlock = false;
+        }
+    }
+
     private long recallJobExecutionId() {
         long submittedExecutionId = 0L;
         ScannerPreLaunchExecutionGate.StartAttempt startAttempt =
@@ -3611,7 +3635,7 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
                 endpointUrl,
                 runSingleBlock,
                 () -> testRunStartupCancelled(cancellation));
-        return finishTestRunPreparation(result, endpointUrl);
+        return scannerTestRunResultHandler.finish(result, endpointUrl);
     }
 
     private BotJobLoadDTO currentTestRunBotJob() {
@@ -3620,71 +3644,6 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
 
     private String currentTestRunExcelPath() {
         return excelPath;
-    }
-
-    private long finishTestRunPreparation(ScannerTestRunPreparationFlow.Result result, String endpointUrl) {
-        return switch (result.status()) {
-            case STARTED -> finishStartedTestRunPreparation(result, endpointUrl);
-            case CANCELED -> finishCanceledTestRunPreparation(result, endpointUrl);
-            case STARTUP_MISSING_BOT_JOB -> failTestRunStartupWithoutReset("TEST RUN — no bot job supplied");
-            case ALREADY_RUNNING -> ignoreTestRunStartup("TEST RUN — a job is already running; ignoring request.");
-            case DEFINITION_LOAD_ERROR ->
-                    failTestRunStartup("TEST RUN — load error: {}", result.errorMessage().getErrorMessage());
-            case DEFINITION_MISSING_BOT_JOB ->
-                    failTestRunStartup("TEST RUN — cannot find bot job with id: {}", result.botJobId());
-            case EMPTY_BLOCKS ->
-                    failTestRunStartup("TEST RUN — bot job has no loaded executable blocks: {}", result.botJobId());
-            case BOT_JOB_MISSING -> failTestRunStartup("TEST RUN - cannot find bot job with id: {}", result.botJobId());
-            case HOME_BANKING_MISSING ->
-                    failTestRunStartup("TEST RUN — cannot find home banking env id: {}", result.homeBankingId());
-            case BROWSER_OPEN_FAILED -> failBrowserOpenTestRunPreparation(result, endpointUrl);
-        };
-    }
-
-    private long finishCanceledTestRunPreparation(ScannerTestRunPreparationFlow.Result result, String endpointUrl) {
-        reportTestRunNonTerminalSignals(result, endpointUrl);
-        return 0L;
-    }
-
-    private long failBrowserOpenTestRunPreparation(ScannerTestRunPreparationFlow.Result result, String endpointUrl) {
-        reportTestRunNonTerminalSignals(result, endpointUrl);
-        return failTestRunStartupWithoutReset("TEST RUN — failed to open the Playwright browser");
-    }
-
-    private long finishStartedTestRunPreparation(ScannerTestRunPreparationFlow.Result result, String endpointUrl) {
-        reportTestRunNonTerminalSignals(result, endpointUrl);
-        return result.executionId();
-    }
-
-    private void reportTestRunNonTerminalSignals(ScannerTestRunPreparationFlow.Result result, String endpointUrl) {
-        if (result.endpointApplied()) {
-            log.info("TEST RUN — using endpoint URL from the page: {}", endpointUrl);
-        }
-        if (result.usedSyntheticExcelFallback()) {
-            log.warn(
-                    "TEST RUN — no/invalid Excel file, using synthetic $EMPTY row: {}",
-                    result.excelLoadError().getMessage());
-        }
-    }
-
-    private long failTestRunStartup(String message, Object... args) {
-        log.error(message, args);
-        return resetTestRunSingleBlockAndStop();
-    }
-
-    private long failTestRunStartupWithoutReset(String message, Object... args) {
-        log.error(message, args);
-        return 0L;
-    }
-
-    private long ignoreTestRunStartup(String message, Object... args) {
-        log.info(message, args);
-        return 0L;
-    }
-
-    private long resetTestRunSingleBlockAndStop() {
-        this.runSingleBlock = false;
-        return 0L;
     }
 
     /**
