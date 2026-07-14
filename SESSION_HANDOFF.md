@@ -7,16 +7,16 @@ Date: 2026-07-14
 - Path: `D:\Projects\ar-web-selenium`
 - Branch: `refactor/perform-actions-decomposition`
 - Current status when written: clean worktree
-- Latest pushed backend commit: `0a42bb20 refactor: isolate bot job details presentation`
+- Latest pushed backend commit: `7135ad8b refactor: remove retired bot job details legacy blocks`
 
 Recent backend commits:
 
 ```text
+7135ad8b refactor: remove retired bot job details legacy blocks
 0a42bb20 refactor: isolate bot job details presentation
 b582dbd3 refactor: retire bot job details scene
 562c4eda refactor: detach bot job details from pane lifecycle
 6dd79c34 refactor: host bot job details in dashboard React view
-f2a438c0 refactor: reduce bot job scene to window host
 ```
 
 ## User Constraints
@@ -136,6 +136,56 @@ Relevant current stale sections:
 
 - `CLAUDE_vs_CODEX_MIGRATION_CHECKS_2026_07_12.md` around Task 1, near the `ARViewBotJobPane` reduction checklist.
 - `ROADMAP_REMAINING_LEGACY_PANELS_REACT_2026_07_12.md` around Phase 2D and the 2026-07-14 log.
+
+## Important Documents
+
+Read first:
+
+- `SESSION_HANDOFF.md` — current resume point, latest pushed commit, completed work, missing runtime proof, and next checklist.
+- `specifications/migrations/CLAUDE_vs_CODEX_MIGRATION_CHECKS_2026_07_12.md` — main technical checklist for Bot Job Details, TEST RUN, lifecycle, and JavaFX retirement.
+- `specifications/migrations/ROADMAP_REMAINING_LEGACY_PANELS_REACT_2026_07_12.md` — umbrella roadmap for remaining legacy JavaFX panels and retirement status.
+
+Migration roadmaps:
+
+- `specifications/migrations/ROADMAP_CLONE_JOB_REACT_BACKEND.md`
+- `specifications/migrations/ROADMAP_PRE_SCAN_REACT_DASHBOARD.md`
+- `specifications/migrations/ROADMAP_TEST_RUN_PAGE_SCANNER_SESSION.md`
+- `specifications/migrations/ROADMAP_NEW_BOT_JOB_REACT_BACKEND.md`
+- `specifications/migrations/ROADMAP_NEW_ORGANIZATION_REACT_BACKEND.md`
+- `specifications/migrations/ROADMAP_CONFIG_PAGE_REACT_BACKEND.md`
+- `specifications/migrations/ROADMAP_OCR_CONFIG_RESULTS_REACT_BACKEND.md`
+- `specifications/migrations/ROADMAP_MAIN_PAGE_REACT_DASHBOARD.md`
+- `specifications/migrations/ROADMAP_LICENSE_ABOUT_ACTIVATION_REACT_BACKEND.md`
+- `specifications/migrations/ROADMAP_POST_JAVAFX_NODE_TYPESCRIPT_PLATFORM.md`
+- `specifications/migrations/ROADMAP_SAVE_COMPONENT_REACT_BACKEND.md`
+- `specifications/migrations/ROADMAP_EXCEL_FILE_REACT_BACKEND.md`
+
+Execution and command-logic documents:
+
+- `specifications/migrations/INSTRUCTION_ACTION_CAPABILITY_MATRIX.md`
+- `specifications/migrations/INSTRUCTION_COMMAND_RULES_AUDIT.md`
+- `specifications/migrations/ROADMAP_COMMAND_CAPABILITY_ENGINE.md`
+- `specifications/migrations/ROADMAP_INSTRUCTION_GRAPH_AND_DRAG_DROP.md`
+
+Tracking, notes, and migration cautions:
+
+- `specifications/migrations/MIGRATION_TRACKER_2026-07-11.md`
+- `specifications/migrations/MIGRATION ROAD MAP MY NOTES.md`
+- `specifications/migrations/IMPORTANTE STEPS MIGRATION.md`
+- `specifications/migrations/GUIDANCES CLAUDE vs CODEX.md`
+- `specifications/migrations/NEGATIVE IMPACTS MIGRATION.md`
+- `specifications/migrations/Playwright_Migration_Roadmap.html`
+
+General project docs:
+
+- `README.md`
+- `CLAUDE.md`
+- `README-DATABASE.md`
+- `README-DEBUG.md`
+- `WEBDRIVER.md`
+- `WebDriver-With-Load-Wait.md`
+- `APPIUM README.md`
+- `OCRS README.md`
 
 ## Resume Checklist
 
