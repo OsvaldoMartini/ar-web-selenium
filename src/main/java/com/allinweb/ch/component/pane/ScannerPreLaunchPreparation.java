@@ -4,6 +4,8 @@ import com.allinweb.ch.facade.PerformDBEngine;
 import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.model.BlockLoadDTO;
 import com.allinweb.ch.model.BotJobLoadDTO;
+import com.allinweb.ch.model.HomeBankingLoadDTO;
+import com.allinweb.ch.model.HomeUrlDTO;
 import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.util.ErrorMessage;
 import java.util.List;
@@ -49,6 +51,31 @@ final class ScannerPreLaunchPreparation {
         return new Result(errorMessage, excelDataGoto, blocksLoaded, lists.botJobs().isEmpty());
     }
 
+    BotJobSelection loadCurrentBotJob(BotJobLoadDTO currentBotJob, String excelBasePath) {
+        if (lists.botJobs().isEmpty()) {
+            return BotJobSelection.missingBotJob();
+        }
+        HomeBankingLoadDTO homeBanking = lists.homeBankingById(currentBotJob.getHomeBankingId());
+        if (homeBanking == null || isBlank(homeBanking.getUrl())) {
+            return BotJobSelection.missingHomeBanking();
+        }
+
+        BotJobLoadDTO loadedBotJob = lists.botJobs().get(0);
+        loadedBotJob.setHomeBankingLoadDTO(homeBanking);
+        HomeUrlDTO homeUrl = lists.homeUrlByBankId(loadedBotJob.getHomeBankingId(), loadedBotJob.getHomeUrlId());
+        if (homeUrl != null) {
+            loadedBotJob.setHomeUrlId(homeUrl.getId());
+            homeBanking.setUrl(homeUrl.getUrl());
+        }
+
+        return BotJobSelection.loaded(
+                loadedBotJob, loadedBotJob.getName(), excelBasePath + "\\" + loadedBotJob.getName() + ".xlsx");
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
+    }
+
     private List<InstructionLoad> loadAndFixExcelGoto(BotJobLoadDTO currentBotJob) {
         List<InstructionLoad> excelDataGoto = engine.loadExcelGotoBlock(currentBotJob.getId(), INSTRUCTION_TABLE);
         if (hasMissingParentBlock(excelDataGoto)) {
@@ -75,6 +102,26 @@ final class ScannerPreLaunchPreparation {
             List<BlockLoadDTO> blocksLoaded,
             boolean botJobMissing) {}
 
+    record BotJobSelection(
+            boolean loaded,
+            boolean botJobMissing,
+            boolean homeBankingMissing,
+            BotJobLoadDTO botJob,
+            String botJobName,
+            String excelPath) {
+        private static BotJobSelection loaded(BotJobLoadDTO botJob, String botJobName, String excelPath) {
+            return new BotJobSelection(true, false, false, botJob, botJobName, excelPath);
+        }
+
+        private static BotJobSelection missingBotJob() {
+            return new BotJobSelection(false, true, false, null, null, null);
+        }
+
+        private static BotJobSelection missingHomeBanking() {
+            return new BotJobSelection(false, false, true, null, null, null);
+        }
+    }
+
     interface EnginePort {
         ErrorMessage loadHomeBanking(Integer homeBankingId);
 
@@ -93,6 +140,10 @@ final class ScannerPreLaunchPreparation {
 
     interface ListsPort {
         List<BotJobLoadDTO> botJobs();
+
+        HomeBankingLoadDTO homeBankingById(int homeBankingId);
+
+        HomeUrlDTO homeUrlByBankId(int homeBankingId, int homeUrlId);
     }
 
     private record PerformDBEnginePort(PerformDBEngine engine) implements EnginePort {
@@ -136,6 +187,16 @@ final class ScannerPreLaunchPreparation {
         @Override
         public List<BotJobLoadDTO> botJobs() {
             return lists.getListBotJob();
+        }
+
+        @Override
+        public HomeBankingLoadDTO homeBankingById(int homeBankingId) {
+            return lists.getHomeBankingById(homeBankingId);
+        }
+
+        @Override
+        public HomeUrlDTO homeUrlByBankId(int homeBankingId, int homeUrlId) {
+            return lists.getHomeUrlByBankId(homeBankingId, homeUrlId);
         }
     }
 }

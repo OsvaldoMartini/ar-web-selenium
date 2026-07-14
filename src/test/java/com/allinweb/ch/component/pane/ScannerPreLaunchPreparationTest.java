@@ -7,6 +7,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.allinweb.ch.model.BlockLoadDTO;
 import com.allinweb.ch.model.BotJobLoadDTO;
+import com.allinweb.ch.model.HomeBankingLoadDTO;
+import com.allinweb.ch.model.HomeUrlDTO;
 import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.util.ErrorMessage;
 import java.util.ArrayList;
@@ -64,6 +66,54 @@ class ScannerPreLaunchPreparationTest {
         assertTrue(result.blocksLoaded().isEmpty());
     }
 
+    @Test
+    void loadCurrentBotJobAttachesHomeBankingAndHomeUrl() {
+        BotJobLoadDTO loadedBotJob = botJob(42, 2, List.of());
+        loadedBotJob.setName("Login Job");
+        loadedBotJob.setHomeUrlId(7);
+        HomeBankingLoadDTO homeBanking = homeBanking("https://base.example");
+        HomeUrlDTO homeUrl = homeUrl(8, "https://override.example");
+        RecordingLists lists = new RecordingLists(List.of(loadedBotJob));
+        lists.homeBanking = homeBanking;
+        lists.homeUrl = homeUrl;
+        ScannerPreLaunchPreparation preparation = new ScannerPreLaunchPreparation(new RecordingEngine(), lists);
+
+        ScannerPreLaunchPreparation.BotJobSelection selection =
+                preparation.loadCurrentBotJob(botJob(42, 2, List.of()), "D:\\Excel");
+
+        assertTrue(selection.loaded());
+        assertEquals(loadedBotJob, selection.botJob());
+        assertEquals("Login Job", selection.botJobName());
+        assertEquals("D:\\Excel\\Login Job.xlsx", selection.excelPath());
+        assertEquals(8, loadedBotJob.getHomeUrlId());
+        assertEquals("https://override.example", homeBanking.getUrl());
+        assertEquals(homeBanking, loadedBotJob.getHomeBankingLoadDTO());
+    }
+
+    @Test
+    void loadCurrentBotJobReportsMissingBotJob() {
+        ScannerPreLaunchPreparation preparation =
+                new ScannerPreLaunchPreparation(new RecordingEngine(), new RecordingLists(List.of()));
+
+        ScannerPreLaunchPreparation.BotJobSelection selection =
+                preparation.loadCurrentBotJob(botJob(42, 2, List.of()), "D:\\Excel");
+
+        assertFalse(selection.loaded());
+        assertTrue(selection.botJobMissing());
+    }
+
+    @Test
+    void loadCurrentBotJobReportsMissingHomeBanking() {
+        RecordingLists lists = new RecordingLists(List.of(botJob(42, 2, List.of())));
+        ScannerPreLaunchPreparation preparation = new ScannerPreLaunchPreparation(new RecordingEngine(), lists);
+
+        ScannerPreLaunchPreparation.BotJobSelection selection =
+                preparation.loadCurrentBotJob(botJob(42, 2, List.of()), "D:\\Excel");
+
+        assertFalse(selection.loaded());
+        assertTrue(selection.homeBankingMissing());
+    }
+
     private BotJobLoadDTO botJob(int id, int homeBankingId, List<BlockLoadDTO> blocks) {
         BotJobLoadDTO botJob = new BotJobLoadDTO();
         botJob.setId(id);
@@ -78,6 +128,19 @@ class ScannerPreLaunchPreparationTest {
         instruction.setBlockId(blockId);
         instruction.setParentBlockId(parentBlockId);
         return instruction;
+    }
+
+    private HomeBankingLoadDTO homeBanking(String url) {
+        HomeBankingLoadDTO homeBanking = new HomeBankingLoadDTO();
+        homeBanking.setUrl(url);
+        return homeBanking;
+    }
+
+    private HomeUrlDTO homeUrl(int id, String url) {
+        HomeUrlDTO homeUrl = new HomeUrlDTO();
+        homeUrl.setId(id);
+        homeUrl.setUrl(url);
+        return homeUrl;
     }
 
     private static final class RecordingEngine implements ScannerPreLaunchPreparation.EnginePort {
@@ -132,5 +195,28 @@ class ScannerPreLaunchPreparationTest {
         }
     }
 
-    private record RecordingLists(List<BotJobLoadDTO> botJobs) implements ScannerPreLaunchPreparation.ListsPort {}
+    private static final class RecordingLists implements ScannerPreLaunchPreparation.ListsPort {
+        private final List<BotJobLoadDTO> botJobs;
+        private HomeBankingLoadDTO homeBanking;
+        private HomeUrlDTO homeUrl;
+
+        private RecordingLists(List<BotJobLoadDTO> botJobs) {
+            this.botJobs = botJobs;
+        }
+
+        @Override
+        public List<BotJobLoadDTO> botJobs() {
+            return botJobs;
+        }
+
+        @Override
+        public HomeBankingLoadDTO homeBankingById(int homeBankingId) {
+            return homeBanking;
+        }
+
+        @Override
+        public HomeUrlDTO homeUrlByBankId(int homeBankingId, int homeUrlId) {
+            return homeUrl;
+        }
+    }
 }

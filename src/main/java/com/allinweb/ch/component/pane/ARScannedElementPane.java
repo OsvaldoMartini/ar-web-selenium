@@ -2697,30 +2697,22 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
     }
 
     private boolean loadCurrentPreLaunchBotJob() {
-        if (performLists.getListBotJob().isEmpty()) {
+        ScannerPreLaunchPreparation.BotJobSelection selection =
+                scannerPreLaunchPreparation.loadCurrentBotJob(currentBotJob, excelPath);
+        if (selection.botJobMissing()) {
             log.error("Cannot find Bot Jobs with this Id:" + this.currentBotJob.getId());
             reenableLaunchButton();
             return false;
         }
-        HomeBankingLoadDTO homeBanking = performLists.getHomeBankingById(this.currentBotJob.getHomeBankingId());
-        if (homeBanking == null || StringUtils.isNullOrEmpty(homeBanking.getUrl())) {
+        if (selection.homeBankingMissing()) {
             log.error("Cannot find Home Banking Environment Id:" + this.currentBotJob.getHomeBankingId());
             reenableLaunchButton();
             return false;
         }
 
-        currentBotJob = performLists.getListBotJob().get(0);
-        currentBotJob.setHomeBankingLoadDTO(homeBanking);
-        HomeUrlDTO homeUrlDTO =
-                performLists.getHomeUrlByBankId(currentBotJob.getHomeBankingId(), currentBotJob.getHomeUrlId());
-
-        if (homeUrlDTO != null) {
-            currentBotJob.setHomeUrlId(homeUrlDTO.getId());
-            homeBanking.setUrl(homeUrlDTO.getUrl());
-        }
-
-        currentBotJobName = currentBotJob.getName();
-        excelPath = excelPath + "\\" + currentBotJobName + ".xlsx";
+        currentBotJob = selection.botJob();
+        currentBotJobName = selection.botJobName();
+        excelPath = selection.excelPath();
         return true;
     }
 
