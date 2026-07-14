@@ -20,7 +20,6 @@ import com.allinweb.ch.socket.InstructionRealtimePublisher;
 import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
-import io.opentelemetry.api.internal.StringUtils;
 import java.io.*;
 import java.io.StringReader;
 import java.net.URI;
@@ -3476,29 +3475,11 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
         clearFields();
         if (testRunStartupCancelled(cancellation)) return 0L;
 
-        ErrorMessage errorMessage = performDBEngine.loadHomeBanking(null);
-        if (errorMessage == null) errorMessage = performDBEngine.loadHomeUrls(this.currentBotJob.getHomeBankingId());
-
-        if (errorMessage == null) {
-            excelDataGoto = performDBEngine.loadExcelGotoBlock(this.currentBotJob.getId(), "instruction");
-            if ((!excelDataGoto.isEmpty() && excelDataGoto.get(0).getParentBlockId() == null)
-                    || (!excelDataGoto.isEmpty() && excelDataGoto.get(0).getParentBlockId() <= 0)) {
-                performDBEngine.fixExcelGoto(
-                        "instruction",
-                        currentBotJob.getId(),
-                        excelDataGoto.get(0).getId(),
-                        excelDataGoto.get(0).getBlockId());
-                excelDataGoto = performDBEngine.loadExcelGotoBlock(this.currentBotJob.getId(), "instruction");
-            }
-        }
-        if (errorMessage == null) errorMessage = performDBEngine.loadCompleteJobs(this.currentBotJob.getId());
-        if (errorMessage == null)
-            errorMessage = performDBEngine.loadAllVariables("variable", this.currentBotJob.getId());
-
-        if (errorMessage == null && !performLists.getListBotJob().isEmpty()) {
-            blocksLoaded = performLists.getListBotJob().get(0).getBlockLoadDTOList();
-            errorMessage = performDBEngine.loadAllActionsPerBlock(blocksLoaded);
-        }
+        ScannerPreLaunchPreparation.Result definitions =
+                scannerPreLaunchPreparation.loadDefinitions(this.currentBotJob);
+        ErrorMessage errorMessage = definitions.errorMessage();
+        excelDataGoto = definitions.excelDataGoto();
+        blocksLoaded = definitions.blocksLoaded();
 
         if (testRunStartupCancelled(cancellation)) return 0L;
 
@@ -3507,7 +3488,7 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
             this.runSingleBlock = false;
             return 0L;
         }
-        if (performLists.getListBotJob().isEmpty()) {
+        if (definitions.botJobMissing()) {
             log.error("TEST RUN — cannot find bot job with id: {}", this.currentBotJob.getId());
             this.runSingleBlock = false;
             return 0L;
@@ -3518,21 +3499,25 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
             return 0L;
         }
 
-        HomeBankingLoadDTO homeBanking = performLists.getHomeBankingById(this.currentBotJob.getHomeBankingId());
-        if (homeBanking == null || StringUtils.isNullOrEmpty(homeBanking.getUrl())) {
+        ScannerPreLaunchPreparation.BotJobSelection selection =
+                scannerPreLaunchPreparation.loadCurrentBotJob(this.currentBotJob, excelPath);
+        if (selection.botJobMissing()) {
+            log.error("TEST RUN - cannot find bot job with id: {}", this.currentBotJob.getId());
+            this.runSingleBlock = false;
+            return 0L;
+        }
+        if (selection.homeBankingMissing()) {
             log.error("TEST RUN — cannot find home banking env id: {}", this.currentBotJob.getHomeBankingId());
             this.runSingleBlock = false;
             return 0L;
         }
 
-        currentBotJob = performLists.getListBotJob().get(0);
-        currentBotJob.setHomeBankingLoadDTO(homeBanking);
+        currentBotJob = selection.botJob();
+        currentBotJobName = selection.botJobName();
+        excelPath = selection.excelPath();
+        HomeBankingLoadDTO homeBanking = currentBotJob.getHomeBankingLoadDTO();
         HomeUrlDTO homeUrlDTO =
                 performLists.getHomeUrlByBankId(currentBotJob.getHomeBankingId(), currentBotJob.getHomeUrlId());
-        if (homeUrlDTO != null) {
-            currentBotJob.setHomeUrlId(homeUrlDTO.getId());
-            homeBanking.setUrl(homeUrlDTO.getUrl());
-        }
 
         // Honour the endpoint the user selected/visible in the pane (environment dropdown / current
         // URL label). openWebDriver resolves the URL from this same homeUrlDTO/homeBanking, so we
@@ -3544,9 +3529,6 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
             homeBanking.setUrl(endpointUrl);
             log.info("TEST RUN — using endpoint URL from the page: {}", endpointUrl);
         }
-
-        currentBotJobName = currentBotJob.getName();
-        excelPath = excelPath + "\\" + currentBotJobName + ".xlsx";
 
         ExcelReader excelReader = new ExcelReader();
         try {
@@ -3576,9 +3558,7 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
         if (testRunStartupCancelled(cancellation)) return 0L;
 
         // Reset executed flags and run the selected block through the full engine.
-        performLists.getListBotJob().get(0).getBlockLoadDTOList().stream()
-                .flatMap(block -> block.getInstructionLoad().stream())
-                .forEach(instruction -> instruction.setExecuted(false));
+        scannerPreLaunchPreparation.resetInstructionExecutionFlags();
 
         long executionId = recallJobExecutionId();
         if (executionId <= 0L && !isJobRunning.get()) {
