@@ -1041,13 +1041,21 @@ public class SimpleWebSocketServer {
 
     private void sendScannerParseFailure(
             Session session, JsonObject envelope, String operationId, String message) {
+        Map<String, Object> response = scannerParseFailureResponse(envelope, message);
+        sendBotJobDetailsResponse(session, -1, transportSessionId(session), response, operationId);
+    }
+
+    Map<String, Object> scannerParseFailureResponse(JsonObject envelope, String message) {
         Map<String, Object> response = new LinkedHashMap<>();
         ScannerWorkspaceRequest.Correlation correlation = ScannerWorkspaceRequest.correlation(envelope);
         if (!correlation.requestId().isBlank()) response.put("requestId", correlation.requestId());
-        if (correlation.botJobId() > 0) response.put("botJobId", correlation.botJobId());
+        response.put("botJobId", correlation.botJobId() > 0 ? correlation.botJobId() : -1);
+        String action = scannerAction(envelope);
+        if (!action.isBlank()) response.put("action", action);
         response.put("ok", false);
         response.put("message", Strings.isNullOrEmpty(message) ? "Invalid Scanner request" : message);
-        sendBotJobDetailsResponse(session, -1, transportSessionId(session), response, operationId);
+        response.put("errorCode", "INVALID_SCANNER_REQUEST");
+        return response;
     }
 
     private String transportSessionId(Session transportSession) {
@@ -1075,6 +1083,18 @@ public class SimpleWebSocketServer {
             JsonObject body = extractBody(envelope);
             if (body == null || !body.has("action") || body.get("action").isJsonNull()) return "";
             return body.get("action").getAsString().trim().toUpperCase(java.util.Locale.ROOT);
+        } catch (RuntimeException ignored) {
+            return "";
+        }
+    }
+
+    private String scannerAction(JsonObject envelope) {
+        try {
+            JsonObject body = extractBody(envelope);
+            if (body == null || !body.has("action") || body.get("action").isJsonNull()) return "";
+            String action = body.get("action").getAsString().trim().toUpperCase(java.util.Locale.ROOT);
+            ScannerWorkspaceAction.parse(action);
+            return action;
         } catch (RuntimeException ignored) {
             return "";
         }

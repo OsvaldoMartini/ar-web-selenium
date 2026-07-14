@@ -20,6 +20,7 @@ import java.util.Map;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import com.allinweb.ch.facade.BotJobTransferPathRegistry;
+import com.google.gson.JsonObject;
 import javax.websocket.CloseReason;
 import javax.websocket.RemoteEndpoint;
 import javax.websocket.SendHandler;
@@ -161,6 +162,39 @@ class SimpleWebSocketServerSessionLifecycleTest {
                 .join();
 
         verify(asyncRemote).sendText(anyString(), any(SendHandler.class));
+    }
+
+    @Test
+    void scannerParseFailureResponseIncludesContractErrorAndCorrelation() {
+        JsonObject envelope = new JsonObject();
+        JsonObject body = new JsonObject();
+        body.addProperty("requestId", "scanner-request-1");
+        body.addProperty("botJobId", 42);
+        body.addProperty("action", "page_scanner");
+        envelope.add("body", body);
+
+        Map<String, Object> response = endpoint.scannerParseFailureResponse(envelope, "Scanner action is invalid");
+
+        org.junit.jupiter.api.Assertions.assertEquals("scanner-request-1", response.get("requestId"));
+        org.junit.jupiter.api.Assertions.assertEquals(42, response.get("botJobId"));
+        org.junit.jupiter.api.Assertions.assertEquals("PAGE_SCANNER", response.get("action"));
+        org.junit.jupiter.api.Assertions.assertEquals(false, response.get("ok"));
+        org.junit.jupiter.api.Assertions.assertEquals("Scanner action is invalid", response.get("message"));
+        org.junit.jupiter.api.Assertions.assertEquals("INVALID_SCANNER_REQUEST", response.get("errorCode"));
+    }
+
+    @Test
+    void scannerParseFailureResponseUsesStableFallbacksForMalformedBody() {
+        JsonObject envelope = new JsonObject();
+        envelope.addProperty("body", "{not-json");
+
+        Map<String, Object> response = endpoint.scannerParseFailureResponse(envelope, "");
+
+        org.junit.jupiter.api.Assertions.assertEquals(-1, response.get("botJobId"));
+        org.junit.jupiter.api.Assertions.assertEquals(false, response.get("ok"));
+        org.junit.jupiter.api.Assertions.assertEquals("Invalid Scanner request", response.get("message"));
+        org.junit.jupiter.api.Assertions.assertEquals("INVALID_SCANNER_REQUEST", response.get("errorCode"));
+        org.junit.jupiter.api.Assertions.assertFalse(response.containsKey("action"));
     }
 
     private Session sessionWithId(String sessionId, boolean open) {
