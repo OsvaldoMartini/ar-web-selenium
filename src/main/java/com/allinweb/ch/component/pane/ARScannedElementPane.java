@@ -212,6 +212,10 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
             new ScannerPreLaunchExcelPreparation(scannerPreLaunchExcelLoader, new PanePreLaunchExcelPreparationOperations());
     private final ScannerPreLaunchDefinitionLoad scannerPreLaunchDefinitionLoad =
             new ScannerPreLaunchDefinitionLoad(new PanePreLaunchDefinitionLoadOperations());
+    private final ScannerPreLaunchMultipleRowsConfirmation scannerPreLaunchMultipleRowsConfirmation =
+            new ScannerPreLaunchMultipleRowsConfirmation(
+                    scannerPreLaunchExcelLoader,
+                    new PanePreLaunchMultipleRowsConfirmationOperations());
 
     private final ScheduledExecutorService screenshotScheduler =
             AppExecutors.get().scheduler(ExecutorsManager.Pool.SCREENSHOT_SCHEDULER);
@@ -2955,11 +2959,24 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
     }
 
     private boolean confirmMultipleExcelRows() {
-        if (scannerPreLaunchExcelLoader.requiresMultipleRowsConfirmation(extractedData, excelDataGoto)) {
+        return scannerPreLaunchMultipleRowsConfirmation.confirm();
+    }
 
-            log.warn("Multiple Excel Rows Detected: each next row will return to first block");
+    private final class PanePreLaunchMultipleRowsConfirmationOperations
+            implements ScannerPreLaunchMultipleRowsConfirmation.Operations {
+        @Override
+        public ExtractedData extractedData() {
+            return extractedData;
+        }
 
-            ARExecution.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
+        @Override
+        public List<InstructionLoad> excelDataGoto() {
+            return excelDataGoto;
+        }
+
+        @Override
+        public ARExecution.DialogModal showMultipleRowsConfirmation() {
+            return performMessage.showCustomModalDialogDragWin11(
                     "Multiple Excel Rows Detected",
                     "<span style='font-weight: bold;'>Your Excel data file contains multiple rows.</span>",
                     "By default, each Excel test row <span style='font-weight: bold; color: #e854c8;'>will be processed through all blocks</span>, and after  will jump back to <span style='font-weight: bold;'>first block (Use Case).</span>",
@@ -2969,20 +2986,33 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
                     "Continue",
                     "Stop All",
                     0);
-
-            if (respModal.equals(ARExecution.DialogModal.STOP)) {
-                performActions.setInterceptBotJob(true);
-                setInterceptBotJob(true);
-                isJobRunning.set(false);
-                reenableLaunchButton();
-
-                if (!lastBrowserTab()) {
-                    return false;
-                }
-                return false;
-            }
         }
-        return true;
+
+        @Override
+        public void requestIntercept() {
+            performActions.setInterceptBotJob(true);
+            setInterceptBotJob(true);
+        }
+
+        @Override
+        public void markNotRunning() {
+            isJobRunning.set(false);
+        }
+
+        @Override
+        public void reenableLaunchButton() {
+            ARScannedElementPane.this.reenableLaunchButton();
+        }
+
+        @Override
+        public boolean lastBrowserTab() {
+            return ARScannedElementPane.this.lastBrowserTab();
+        }
+
+        @Override
+        public void warn(String message) {
+            log.warn(message);
+        }
     }
 
     private void resetPreLaunchInstructionsAndRecall() {
