@@ -230,6 +230,7 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
             new ScannerValidationEvaluator(new PaneValidationEvaluatorOperations());
     private final ScannerBrowserRuntime scannerBrowserRuntime =
             new ScannerBrowserRuntime(new PaneBrowserRuntimeOperations());
+    private final ScannerTestActionFormatter scannerTestActionFormatter = new ScannerTestActionFormatter();
 
     private int portSocketInitial = 54525;
     private volatile String pendingDomReviewHtml;
@@ -1270,41 +1271,18 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
     }
 
     /** Loose URL equality — ignores trailing slash and #fragment so we don't needlessly re-navigate. */
-    private static boolean sameUrl(String a, String b) {
-        return canonUrl(a).equals(canonUrl(b));
-    }
-
-    private static String canonUrl(String u) {
-        if (u == null) return "";
-        String s = u.trim();
-        int hash = s.indexOf('#');
-        if (hash >= 0) s = s.substring(0, hash);
-        while (s.endsWith("/")) s = s.substring(0, s.length() - 1);
-        return s.toLowerCase(java.util.Locale.ROOT);
+    private boolean sameUrl(String a, String b) {
+        return scannerTestActionFormatter.sameUrl(a, b);
     }
 
     /** Human-readable list of active F/E/T/N/S bits for the result modal. */
     private String describeInputFlags(InputFlags flags) {
-        List<String> parts = new ArrayList<>(5);
-        if (flags.hasScroll()) parts.add("Scroll");
-        if (flags.hasNext()) parts.add("Next (mobile)");
-        if (flags.hasTab()) parts.add("Tab");
-        if (flags.hasEnter()) parts.add("Enter");
-        if (flags.hasForce()) parts.add("Force Coordinates");
-        return parts.isEmpty() ? "(no flags)" : String.join(", ", parts);
+        return scannerTestActionFormatter.describeInputFlags(flags);
     }
 
     /** Short label for the result modal: defined-name + tag, or just tag, or "(unnamed)". */
     private String safeTargetLabel(TargetElement t) {
-        String def = t.getDefinedName();
-        String tag = t.getTagName();
-        if (!Strings.isNullOrEmpty(def)) {
-            return def + (Strings.isNullOrEmpty(tag) ? "" : " &lt;" + tag + "&gt;");
-        }
-        if (!Strings.isNullOrEmpty(tag)) {
-            return "&lt;" + tag + "&gt;";
-        }
-        return "(unnamed)";
+        return scannerTestActionFormatter.safeTargetLabel(t);
     }
 
     public BooleanProperty interceptBotJobProperty() {
