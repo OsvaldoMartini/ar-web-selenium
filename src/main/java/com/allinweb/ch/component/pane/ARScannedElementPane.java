@@ -204,6 +204,8 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
                     new PanePreLaunchExecutionCoordinatorOperations());
     private final ScannerPreLaunchWorkspaceRequests scannerPreLaunchWorkspaceRequests =
             new ScannerPreLaunchWorkspaceRequests(new PanePreLaunchWorkspaceRequestOperations());
+    private final ScannerPreLaunchRunSetup scannerPreLaunchRunSetup =
+            new ScannerPreLaunchRunSetup(new PanePreLaunchRunSetupOperations());
 
     private final ScheduledExecutorService screenshotScheduler =
             AppExecutors.get().scheduler(ExecutorsManager.Pool.SCREENSHOT_SCHEDULER);
@@ -2711,7 +2713,7 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
 
         @Override
         public void beginRun() {
-            beginPreLaunchRun();
+            scannerPreLaunchRunSetup.beginRun();
         }
 
         @Override
@@ -2750,27 +2752,57 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
         }
     }
 
-    private void beginPreLaunchRun() {
-        launchBotJobButton.setDisable(true);
-        performActions.setInterceptBotJob(false);
-        setInterceptBotJob(false);
-        isJobRunning.set(false);
+    private final class PanePreLaunchRunSetupOperations implements ScannerPreLaunchRunSetup.Operations {
+        @Override
+        public void disableLaunch() {
+            launchBotJobButton.setDisable(true);
+        }
 
-        try {
-            excelPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL);
-        } catch (Exception error) {
+        @Override
+        public void setInterceptBotJob(boolean intercept) {
+            performActions.setInterceptBotJob(intercept);
+            ARScannedElementPane.this.setInterceptBotJob(intercept);
+        }
+
+        @Override
+        public void markNotRunning() {
+            isJobRunning.set(false);
+        }
+
+        @Override
+        public String resolveExcelBasePath() {
+            return arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL);
+        }
+
+        @Override
+        public void setExcelPath(String resolvedExcelPath) {
+            excelPath = resolvedExcelPath;
+        }
+
+        @Override
+        public void reportExcelPathError(Exception error) {
             log.error("Error Defining Excel or BaseLog File: " + error.getMessage());
         }
 
-        executeSpecificBlock = comboBoxBlocks.getValue().getBlockOrderNumber() < 0
-                ? 0
-                : comboBoxBlocks.getValue().getBlockOrderNumber() - 1; // Start in a specific Block/UseCase
+        @Override
+        public int selectedBlockOrderNumber() {
+            return comboBoxBlocks.getValue().getBlockOrderNumber();
+        }
 
-        // A successful TEST RUN leaves runSingleBlock=true behind; a full Launch must
-        // always continue past the first block.
-        runSingleBlock = false;
+        @Override
+        public void setExecuteSpecificBlock(int blockIndex) {
+            executeSpecificBlock = blockIndex;
+        }
 
-        clearFields();
+        @Override
+        public void setRunSingleBlock(boolean runSingleBlock) {
+            ARScannedElementPane.this.runSingleBlock = runSingleBlock;
+        }
+
+        @Override
+        public void clearFields() {
+            ARScannedElementPane.this.clearFields();
+        }
     }
 
     private ErrorMessage loadPreLaunchDefinitions() {
