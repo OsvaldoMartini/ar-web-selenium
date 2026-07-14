@@ -194,6 +194,14 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
     // Shared executors from central manager (DO NOT shutdown them here)
     private final ExecutorService executorServicePreLaunch =
             AppExecutors.get().executor(ExecutorsManager.Pool.PRELAUNCH);
+    private final ScannerPreLaunchExecutionCoordinator scannerPreLaunchExecutionCoordinator =
+            new ScannerPreLaunchExecutionCoordinator(
+                    scannerPreLaunchExecutionGate,
+                    executorServicePreLaunch,
+                    new PanePreLaunchExecutionOperations(),
+                    scannerPreLaunchWindowBookkeeping,
+                    this::isTestRunExecutionComplete,
+                    new PanePreLaunchExecutionCoordinatorOperations());
 
     private final ScheduledExecutorService screenshotScheduler =
             AppExecutors.get().scheduler(ExecutorsManager.Pool.SCREENSHOT_SCHEDULER);
@@ -3392,6 +3400,19 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
         }
     }
 
+    private final class PanePreLaunchExecutionCoordinatorOperations
+            implements ScannerPreLaunchExecutionCoordinator.Operations {
+        @Override
+        public void info(String message, Object... args) {
+            log.info(message, args);
+        }
+
+        @Override
+        public void error(String message, Object... args) {
+            log.error(message, args);
+        }
+    }
+
     private final class PaneTestRunStartupOperations implements ScannerTestRunStartupPreparation.Operations {
         @Override
         public long activeExecutionId() {
@@ -3621,30 +3642,7 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
     }
 
     private long recallJobExecutionId() {
-        long submittedExecutionId = 0L;
-        ScannerPreLaunchExecutionGate.StartAttempt startAttempt =
-                scannerPreLaunchExecutionGate.startIfIdle(this::isTestRunExecutionComplete);
-        if (startAttempt.status() == ScannerPreLaunchExecutionGate.Status.ACTIVE_EXECUTION) {
-            log.info("recallJob() requested while executeJob() was still active.");
-            return 0L;
-        }
-        if (startAttempt.started()) {
-            long executionId = startAttempt.executionId();
-            //                startScreenshotLoop();
-            ScannerPreLaunchExecutionSubmission submission = new ScannerPreLaunchExecutionSubmission(
-                    executorServicePreLaunch,
-                    new PanePreLaunchExecutionOperations(),
-                    error -> log.error("Error submitting to executorServicePreLaunch: {}", error.getMessage(), error));
-            if (submission.submit(executionId)) {
-                submittedExecutionId = executionId;
-            }
-        } else {
-            log.info("recallJob() requested while executeJob() was running.");
-        }
-
-        // Selenium-only window bookkeeping — skipped in Playwright-only mode (no Selenium driver).
-        scannerPreLaunchWindowBookkeeping.refreshChangedWindows();
-        return submittedExecutionId;
+        return scannerPreLaunchExecutionCoordinator.recallJobExecutionId();
     }
 
     /**
