@@ -218,6 +218,8 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
                     new PanePreLaunchMultipleRowsConfirmationOperations());
     private final ScannerPreLaunchRecallAfterReset scannerPreLaunchRecallAfterReset =
             new ScannerPreLaunchRecallAfterReset(new PanePreLaunchRecallAfterResetOperations());
+    private final ScannerBrowserTabSelector scannerBrowserTabSelector =
+            new ScannerBrowserTabSelector(new PaneBrowserTabSelectorOperations());
 
     private final ScheduledExecutorService screenshotScheduler =
             AppExecutors.get().scheduler(ExecutorsManager.Pool.SCREENSHOT_SCHEDULER);
@@ -3118,26 +3120,29 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
     }
 
     public boolean lastBrowserTab() {
-        // Playwright-only: no Selenium tabs to enumerate — treat as ready, not "not attached".
-        if (performActions.getCurrentDriver() == null) {
-            return true;
+        return scannerBrowserTabSelector.switchToLastBrowserTab();
+    }
+
+    private final class PaneBrowserTabSelectorOperations implements ScannerBrowserTabSelector.Operations {
+        @Override
+        public boolean hasCurrentDriver() {
+            return performActions.getCurrentDriver() != null;
         }
-        // Get all window handles (all open tabs/windows)
-        try {
+
+        @Override
+        public Set<String> windowHandles() {
             windowHandles = performActions.getCurrentDriver().getWindowHandles();
+            return windowHandles;
+        }
 
-            // Convert the window handles set to a list
-            List<String> windowHandlesList = new ArrayList<>(windowHandles);
+        @Override
+        public void switchToWindow(String windowHandle) {
+            performActions.getCurrentDriver().switchTo().window(windowHandle);
+        }
 
-            // Switch to the last window (newly opened tab)
-            performActions.getCurrentDriver().switchTo().window(windowHandlesList.get(windowHandlesList.size() - 1));
-
-            return true;
-        } catch (Exception e) {
-
-            browserNotAttached();
-
-            return false;
+        @Override
+        public void browserNotAttached() {
+            ARScannedElementPane.this.browserNotAttached();
         }
     }
 
