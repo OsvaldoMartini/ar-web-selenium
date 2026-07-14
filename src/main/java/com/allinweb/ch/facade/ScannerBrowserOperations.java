@@ -8,14 +8,23 @@ import java.util.function.Supplier;
 import org.openqa.selenium.WebDriver;
 
 final class ScannerBrowserOperations implements ScannerWorkspaceService.BrowserOperations {
+    private final Runtime runtime;
+
+    ScannerBrowserOperations() {
+        this(new SingletonRuntime());
+    }
+
+    ScannerBrowserOperations(Runtime runtime) {
+        this.runtime = runtime;
+    }
 
     @Override
     public ScannerWorkspaceState.Browser browserState() {
-        WebDriver driver = PerformActions.getInstance().getCurrentDriver();
-        if (driver == null) {
-            return new ScannerWorkspaceState.Browser("CLOSED", "", "", 0, false);
-        }
         try {
+            WebDriver driver = runtime.seleniumDriver();
+            if (driver == null) {
+                return playwrightBrowserState();
+            }
             List<String> handles = new ArrayList<>(driver.getWindowHandles());
             String activeUrl = safeDriverValue(driver::getCurrentUrl);
             String activeTitle = safeDriverValue(driver::getTitle);
@@ -23,6 +32,16 @@ final class ScannerBrowserOperations implements ScannerWorkspaceService.BrowserO
         } catch (RuntimeException error) {
             return new ScannerWorkspaceState.Browser("CLOSED", "", "", 0, false);
         }
+    }
+
+    private ScannerWorkspaceState.Browser playwrightBrowserState() {
+        if (!runtime.playwrightOpen()) {
+            return new ScannerWorkspaceState.Browser("CLOSED", "", "", 0, false);
+        }
+        String activeUrl = safeDriverValue(runtime::playwrightCurrentUrl);
+        String activeTitle = safeDriverValue(runtime::playwrightTitle);
+        int openTabs = Math.max(1, safeDriverInt(runtime::playwrightPageCount));
+        return new ScannerWorkspaceState.Browser("OPEN", activeUrl, activeTitle, openTabs, true);
     }
 
     @Override
@@ -85,6 +104,58 @@ final class ScannerBrowserOperations implements ScannerWorkspaceService.BrowserO
             return value == null ? "" : value;
         } catch (RuntimeException error) {
             return "";
+        }
+    }
+
+    private int safeDriverInt(Supplier<Integer> supplier) {
+        try {
+            Integer value = supplier.get();
+            return value == null ? 0 : value;
+        } catch (RuntimeException error) {
+            return 0;
+        }
+    }
+
+    interface Runtime {
+        WebDriver seleniumDriver();
+
+        boolean playwrightOpen();
+
+        String playwrightCurrentUrl();
+
+        String playwrightTitle();
+
+        int playwrightPageCount();
+    }
+
+    private static final class SingletonRuntime implements Runtime {
+        @Override
+        public WebDriver seleniumDriver() {
+            return PerformActions.getInstance().getCurrentDriver();
+        }
+
+        @Override
+        public boolean playwrightOpen() {
+            try {
+                return PerformActions.getInstance().getCurrentARWebDriver().getPlaywrightDriver().isOpen();
+            } catch (java.lang.RuntimeException error) {
+                return false;
+            }
+        }
+
+        @Override
+        public String playwrightCurrentUrl() {
+            return PerformActions.getInstance().getCurrentARWebDriver().getPlaywrightDriver().currentUrl();
+        }
+
+        @Override
+        public String playwrightTitle() {
+            return PerformActions.getInstance().getCurrentARWebDriver().getPlaywrightDriver().title();
+        }
+
+        @Override
+        public int playwrightPageCount() {
+            return PerformActions.getInstance().getCurrentARWebDriver().getPlaywrightDriver().pageCount();
         }
     }
 }
