@@ -210,6 +210,8 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
             new ScannerPreLaunchBotJobSelection(new PanePreLaunchBotJobSelectionOperations());
     private final ScannerPreLaunchExcelPreparation scannerPreLaunchExcelPreparation =
             new ScannerPreLaunchExcelPreparation(scannerPreLaunchExcelLoader, new PanePreLaunchExcelPreparationOperations());
+    private final ScannerPreLaunchDefinitionLoad scannerPreLaunchDefinitionLoad =
+            new ScannerPreLaunchDefinitionLoad(new PanePreLaunchDefinitionLoadOperations());
 
     private final ScheduledExecutorService screenshotScheduler =
             AppExecutors.get().scheduler(ExecutorsManager.Pool.SCREENSHOT_SCHEDULER);
@@ -2810,20 +2812,48 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
     }
 
     private ErrorMessage loadPreLaunchDefinitions() {
-        ScannerPreLaunchPreparation.Result result = scannerPreLaunchPreparation.loadDefinitions(currentBotJob);
-        excelDataGoto = result.excelDataGoto();
-        blocksLoaded = result.blocksLoaded();
-        if (result.botJobMissing()) {
-            log.warn("I cannot find a Bot Job with this Organization ID: " + this.currentBotJob.getHomeBankingId()
-                    + " Environment ID: " + this.currentBotJob.getId());
-        }
-        return result.errorMessage();
+        return scannerPreLaunchDefinitionLoad.loadDefinitions();
     }
 
     private void reportPreLaunchLoadError(ErrorMessage errorMessage) {
-        if (errorMessage != null) {
-            log.error("Error: " + errorMessage.getErrorMessage());
+        scannerPreLaunchDefinitionLoad.reportLoadError(errorMessage);
+    }
+
+    private final class PanePreLaunchDefinitionLoadOperations
+            implements ScannerPreLaunchDefinitionLoad.Operations {
+        @Override
+        public BotJobLoadDTO currentBotJob() {
+            return currentBotJob;
+        }
+
+        @Override
+        public ScannerPreLaunchPreparation.Result loadDefinitions(BotJobLoadDTO currentBotJob) {
+            return scannerPreLaunchPreparation.loadDefinitions(currentBotJob);
+        }
+
+        @Override
+        public void setExcelDataGoto(List<InstructionLoad> loadedExcelDataGoto) {
+            excelDataGoto = loadedExcelDataGoto;
+        }
+
+        @Override
+        public void setBlocksLoaded(List<BlockLoadDTO> loadedBlocks) {
+            blocksLoaded = loadedBlocks;
+        }
+
+        @Override
+        public void showOperationFailed(ErrorMessage errorMessage) {
             performMessage.errorMessageOperationFailed(errorMessage);
+        }
+
+        @Override
+        public void warn(String message) {
+            log.warn(message);
+        }
+
+        @Override
+        public void error(String message) {
+            log.error(message);
         }
     }
 
