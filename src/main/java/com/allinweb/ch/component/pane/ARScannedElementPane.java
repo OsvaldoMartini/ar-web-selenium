@@ -167,6 +167,8 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
                     performLists);
     private final ScannerTestRunResultHandler scannerTestRunResultHandler =
             new ScannerTestRunResultHandler(new PaneTestRunResultOperations());
+    private final ScannerTestRunStopper scannerTestRunStopper =
+            new ScannerTestRunStopper(new PaneTestRunStopOperations());
     private final WebView webView = new WebView();
     public Button launchBotJobButton;
     public CheckBox checkClickElement;
@@ -3548,6 +3550,71 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
         }
     }
 
+    private final class PaneTestRunStopOperations implements ScannerTestRunStopper.Operations {
+        @Override
+        public boolean startupActive() {
+            return testRunStartupActive.get();
+        }
+
+        @Override
+        public long activeExecutionId() {
+            return activeJobExecutionId.get();
+        }
+
+        @Override
+        public long lastSubmittedExecutionId() {
+            return lastSubmittedJobExecutionId.get();
+        }
+
+        @Override
+        public long completedExecutionId() {
+            return completedJobExecutionId.get();
+        }
+
+        @Override
+        public boolean requestStop(long executionId) {
+            return jobExecutionOutcomes.requestStop(executionId);
+        }
+
+        @Override
+        public String terminalOutcome(long executionId) {
+            return jobExecutionOutcomes.terminalOutcome(executionId).name();
+        }
+
+        @Override
+        public void resetSingleBlock() {
+            runSingleBlock = false;
+        }
+
+        @Override
+        public void requestIntercept() {
+            performActions.setInterceptBotJob(true);
+            setInterceptBotJob(true);
+        }
+
+        @Override
+        public void closeCurrentDriver() {
+            if (currentARWebDriver != null) {
+                currentARWebDriver.closeCurrentDriver();
+            }
+        }
+
+        @Override
+        public void clearCurrentDriver() {
+            performActions.setCurrentDriver(null);
+        }
+
+        @Override
+        public void info(String message, Object... args) {
+            log.info(message, args);
+        }
+
+        @Override
+        public void warn(String message, Object... args) {
+            log.warn(message, args);
+        }
+    }
+
     private long recallJobExecutionId() {
         long submittedExecutionId = 0L;
         ScannerPreLaunchExecutionGate.StartAttempt startAttempt =
@@ -3651,18 +3718,7 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
 
     /** Cancels TEST RUN setup before an execution ID has been allocated. */
     public void cancelTestRunStartup() {
-        if (!testRunStartupActive.get()) return;
-        runSingleBlock = false;
-        performActions.setInterceptBotJob(true);
-        setInterceptBotJob(true);
-        try {
-            if (currentARWebDriver != null) {
-                currentARWebDriver.closeCurrentDriver();
-            }
-        } catch (Exception error) {
-            log.warn("TEST RUN — error closing browser during startup cancellation: {}", error.getMessage());
-        }
-        performActions.setCurrentDriver(null);
+        scannerTestRunStopper.cancelStartup();
     }
 
     /**
@@ -3677,42 +3733,19 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
     }
 
     public boolean stopTestRun(long expectedExecutionId) {
-        if (expectedExecutionId <= 0
-                || activeJobExecutionId.get() != expectedExecutionId
-                || isTestRunExecutionComplete(expectedExecutionId)) {
-            log.info("TEST RUN — ignored stale stop for execution {}", expectedExecutionId);
-            return false;
-        }
-        log.info("TEST RUN — stop requested");
-        if (!jobExecutionOutcomes.requestStop(expectedExecutionId)) {
-            log.info("TEST RUN ignored completed stop for execution {}", expectedExecutionId);
-            return false;
-        }
-        runSingleBlock = false;
-        performActions.setInterceptBotJob(true);
-        setInterceptBotJob(true);
-        try {
-            if (currentARWebDriver != null) {
-                currentARWebDriver.closeCurrentDriver();
-            }
-        } catch (Exception e) {
-            log.warn("TEST RUN — error closing browser on stop: {}", e.getMessage());
-        }
-        performActions.setCurrentDriver(null);
-        return true;
+        return scannerTestRunStopper.stop(expectedExecutionId);
     }
 
     public long currentTestRunExecutionId() {
-        long active = activeJobExecutionId.get();
-        return active > 0 ? active : lastSubmittedJobExecutionId.get();
+        return scannerTestRunStopper.currentExecutionId();
     }
 
     public boolean isTestRunExecutionComplete(long executionId) {
-        return executionId <= 0 || completedJobExecutionId.get() >= executionId;
+        return scannerTestRunStopper.isExecutionComplete(executionId);
     }
 
     public String testRunExecutionTerminalState(long executionId) {
-        return jobExecutionOutcomes.terminalOutcome(executionId).name();
+        return scannerTestRunStopper.terminalState(executionId);
     }
 
     private String currentPlaywrightUrl() {
