@@ -146,6 +146,8 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
             new ScannerTestRunStartupPreparation(new PaneTestRunStartupOperations());
     private final ScannerTestRunBotJobPreparation scannerTestRunBotJobPreparation =
             new ScannerTestRunBotJobPreparation(new PaneTestRunBotJobOperations());
+    private final ScannerTestRunExecutionStart scannerTestRunExecutionStart =
+            new ScannerTestRunExecutionStart(new PaneTestRunExecutionStartOperations());
     private final WebView webView = new WebView();
     public Button launchBotJobButton;
     public CheckBox checkClickElement;
@@ -3454,6 +3456,33 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
         }
     }
 
+    private final class PaneTestRunExecutionStartOperations implements ScannerTestRunExecutionStart.Operations {
+        @Override
+        public boolean openBrowser() {
+            return openWebDriver(true);
+        }
+
+        @Override
+        public void resetInstructionExecutionFlags() {
+            scannerPreLaunchPreparation.resetInstructionExecutionFlags();
+        }
+
+        @Override
+        public long recallJobExecutionId() {
+            return ARScannedElementPane.this.recallJobExecutionId();
+        }
+
+        @Override
+        public boolean isJobRunning() {
+            return ARScannedElementPane.this.isJobRunning.get();
+        }
+
+        @Override
+        public void setRunSingleBlock(boolean runSingleBlock) {
+            ARScannedElementPane.this.runSingleBlock = runSingleBlock;
+        }
+    }
+
     private long recallJobExecutionId() {
         long submittedExecutionId = 0L;
         ScannerPreLaunchExecutionGate.StartAttempt startAttempt =
@@ -3601,22 +3630,13 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
 
         if (testRunStartupCancelled(cancellation)) return 0L;
 
-        // Open the single Playwright browser (Launch relies on scanning having opened it already).
-        if (!openWebDriver(true)) {
+        ScannerTestRunExecutionStart.Result executionStart = scannerTestRunExecutionStart.start();
+        if (executionStart.status() == ScannerTestRunExecutionStart.Status.BROWSER_OPEN_FAILED) {
             log.error("TEST RUN — failed to open the Playwright browser");
-            this.runSingleBlock = false;
             return 0L;
         }
         if (testRunStartupCancelled(cancellation)) return 0L;
-
-        // Reset executed flags and run the selected block through the full engine.
-        scannerPreLaunchPreparation.resetInstructionExecutionFlags();
-
-        long executionId = recallJobExecutionId();
-        if (executionId <= 0L && !isJobRunning.get()) {
-            this.runSingleBlock = false;
-        }
-        return executionId;
+        return executionStart.executionId();
     }
 
     /**
