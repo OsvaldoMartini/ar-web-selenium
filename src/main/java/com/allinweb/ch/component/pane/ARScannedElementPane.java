@@ -206,6 +206,8 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
             new ScannerPreLaunchWorkspaceRequests(new PanePreLaunchWorkspaceRequestOperations());
     private final ScannerPreLaunchRunSetup scannerPreLaunchRunSetup =
             new ScannerPreLaunchRunSetup(new PanePreLaunchRunSetupOperations());
+    private final ScannerPreLaunchBotJobSelection scannerPreLaunchBotJobSelection =
+            new ScannerPreLaunchBotJobSelection(new PanePreLaunchBotJobSelectionOperations());
 
     private final ScheduledExecutorService screenshotScheduler =
             AppExecutors.get().scheduler(ExecutorsManager.Pool.SCREENSHOT_SCHEDULER);
@@ -2824,23 +2826,43 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
     }
 
     private boolean loadCurrentPreLaunchBotJob() {
-        ScannerPreLaunchPreparation.BotJobSelection selection =
-                scannerPreLaunchPreparation.loadCurrentBotJob(currentBotJob, excelPath);
-        if (selection.botJobMissing()) {
-            log.error("Cannot find Bot Jobs with this Id:" + this.currentBotJob.getId());
-            reenableLaunchButton();
-            return false;
-        }
-        if (selection.homeBankingMissing()) {
-            log.error("Cannot find Home Banking Environment Id:" + this.currentBotJob.getHomeBankingId());
-            reenableLaunchButton();
-            return false;
+        return scannerPreLaunchBotJobSelection.loadCurrentBotJob();
+    }
+
+    private final class PanePreLaunchBotJobSelectionOperations
+            implements ScannerPreLaunchBotJobSelection.Operations {
+        @Override
+        public BotJobLoadDTO currentBotJob() {
+            return currentBotJob;
         }
 
-        currentBotJob = selection.botJob();
-        currentBotJobName = selection.botJobName();
-        excelPath = selection.excelPath();
-        return true;
+        @Override
+        public String excelPath() {
+            return excelPath;
+        }
+
+        @Override
+        public ScannerPreLaunchPreparation.BotJobSelection loadCurrentBotJob(
+                BotJobLoadDTO currentBotJob, String excelBasePath) {
+            return scannerPreLaunchPreparation.loadCurrentBotJob(currentBotJob, excelBasePath);
+        }
+
+        @Override
+        public void applySelection(ScannerPreLaunchPreparation.BotJobSelection selection) {
+            currentBotJob = selection.botJob();
+            currentBotJobName = selection.botJobName();
+            excelPath = selection.excelPath();
+        }
+
+        @Override
+        public void reenableLaunchButton() {
+            ARScannedElementPane.this.reenableLaunchButton();
+        }
+
+        @Override
+        public void error(String message) {
+            log.error(message);
+        }
     }
 
     private void preparePreLaunchExcel() {
