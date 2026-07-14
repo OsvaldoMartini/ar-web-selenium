@@ -129,6 +129,13 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
     private final java.util.concurrent.atomic.AtomicLong completedJobExecutionId =
             new java.util.concurrent.atomic.AtomicLong();
     private final TestRunExecutionOutcomeTracker jobExecutionOutcomes = new TestRunExecutionOutcomeTracker();
+    private final ScannerPreLaunchExecutionGate scannerPreLaunchExecutionGate =
+            new ScannerPreLaunchExecutionGate(
+                    isJobRunning,
+                    jobExecutionSequence,
+                    activeJobExecutionId,
+                    lastSubmittedJobExecutionId,
+                    jobExecutionOutcomes);
     private final AtomicBoolean testRunStartupActive = new AtomicBoolean(false);
     private final Gson gson = new Gson();
     private final ScannerPreLaunchStarter scannerPreLaunchStarter =
@@ -3331,16 +3338,14 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
 
     private long recallJobExecutionId() {
         long submittedExecutionId = 0L;
-        long currentExecution = activeJobExecutionId.get();
-        if (currentExecution > 0 && !isTestRunExecutionComplete(currentExecution)) {
+        ScannerPreLaunchExecutionGate.StartAttempt startAttempt =
+                scannerPreLaunchExecutionGate.startIfIdle(this::isTestRunExecutionComplete);
+        if (startAttempt.status() == ScannerPreLaunchExecutionGate.Status.ACTIVE_EXECUTION) {
             log.info("recallJob() requested while executeJob() was still active.");
             return 0L;
         }
-        if (isJobRunning.compareAndSet(false, true)) {
-            long executionId = jobExecutionSequence.incrementAndGet();
-            jobExecutionOutcomes.started(executionId);
-            activeJobExecutionId.set(executionId);
-            lastSubmittedJobExecutionId.set(executionId);
+        if (startAttempt.started()) {
+            long executionId = startAttempt.executionId();
             //                startScreenshotLoop();
             ScannerPreLaunchExecutionSubmission submission = new ScannerPreLaunchExecutionSubmission(
                     executorServicePreLaunch,
