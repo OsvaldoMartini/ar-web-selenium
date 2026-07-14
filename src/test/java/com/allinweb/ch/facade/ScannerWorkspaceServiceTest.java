@@ -179,6 +179,22 @@ class ScannerWorkspaceServiceTest {
     }
 
     @Test
+    void pageScannerClearsGridWhenNoElementsAreFound() {
+        RecordingPublisher publisher = new RecordingPublisher();
+        RecordingBrowser browser = new RecordingBrowser();
+        RecordingExecution execution = new RecordingExecution();
+        ScannerWorkspaceService service = new ScannerWorkspaceService(id -> state(), publisher, browser, execution);
+
+        ScannerWorkspaceResponse response = service.action(request("page-scan-empty-1", "PAGE_SCANNER"));
+
+        assertTrue(response.ok());
+        assertEquals("PAGE_SCANNER", response.action());
+        assertEquals(1, browser.scanCalls);
+        assertEquals(1, publisher.calls.size());
+        assertEquals(0, publisher.calls.get(0).payload.getElementDetails().length);
+    }
+
+    @Test
     void pageScannerUsesSearchTermsFromRequest() {
         RecordingPublisher publisher = new RecordingPublisher();
         RecordingBrowser browser = new RecordingBrowser();

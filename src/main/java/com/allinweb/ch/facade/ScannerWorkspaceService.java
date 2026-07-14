@@ -149,10 +149,10 @@ public final class ScannerWorkspaceService {
     private void pageScanner(ScannerWorkspaceRequest request, ScannerWorkspaceState state) {
         List<ElementDTO> elements = browserOperations.scanPage(
                 ScannerWorkspacePayloads.searchTerms(request), state.homeBankingId(), state.botJobId());
+        clearGrid(request, state);
         if (elements.isEmpty()) {
             return;
         }
-        clearGrid(request, state);
         gridPublisher.publishSearchTermsChunks(
                 request.sessionId(),
                 state.homeBankingId(),
