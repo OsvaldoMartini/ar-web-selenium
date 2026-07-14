@@ -8,12 +8,20 @@ import java.util.Arrays;
 import java.util.List;
 
 final class ScannerGridPublisher implements ScannerWorkspaceService.GridPublisher {
-    private final WebSocketSessionManager sessions = WebSocketSessionManager.getInstance();
+    private final Sender sender;
     private final Gson gson = new Gson();
+
+    ScannerGridPublisher() {
+        this(new WebSocketSessionSender());
+    }
+
+    ScannerGridPublisher(Sender sender) {
+        this.sender = sender;
+    }
 
     @Override
     public void publishSearchTerms(String sessionId, int homeBankingId, SplitDTO payload) {
-        sessions.sendMessageJson(homeBankingId, sessionId, gson.toJson(payload), "searchTerms");
+        sender.sendMessageJson(homeBankingId, sessionId, gson.toJson(payload), "searchTerms");
     }
 
     @Override
@@ -22,8 +30,27 @@ final class ScannerGridPublisher implements ScannerWorkspaceService.GridPublishe
         List<ElementDTO> elements = elementDetails == null ? List.of() : Arrays.asList(elementDetails);
         for (int i = 0; i < elements.size(); i += chunkSize) {
             int end = Math.min(i + chunkSize, elements.size());
-            payload.setElementDetails(elements.subList(i, end).toArray(new ElementDTO[0]));
-            sessions.sendMessageJson(homeBankingId, sessionId, gson.toJson(payload), "searchTerms");
+            SplitDTO chunkPayload = chunkPayload(payload, elements.subList(i, end));
+            sender.sendMessageJson(homeBankingId, sessionId, gson.toJson(chunkPayload), "searchTerms");
+        }
+    }
+
+    private SplitDTO chunkPayload(SplitDTO payload, List<ElementDTO> elements) {
+        SplitDTO copy = gson.fromJson(gson.toJson(payload), SplitDTO.class);
+        copy.setElementDetails(elements.toArray(new ElementDTO[0]));
+        return copy;
+    }
+
+    interface Sender {
+        void sendMessageJson(int homeBankingId, String sessionId, String json, String operationId);
+    }
+
+    private static final class WebSocketSessionSender implements Sender {
+        private final WebSocketSessionManager sessions = WebSocketSessionManager.getInstance();
+
+        @Override
+        public void sendMessageJson(int homeBankingId, String sessionId, String json, String operationId) {
+            sessions.sendMessageJson(homeBankingId, sessionId, json, operationId);
         }
     }
 }
