@@ -92,6 +92,24 @@ class ScannerWorkspaceServiceTest {
     }
 
     @Test
+    void actionResponseReturnsStateAfterActionRuns() {
+        RecordingPublisher publisher = new RecordingPublisher();
+        RecordingBrowser browser = new RecordingBrowser();
+        browser.browserState =
+                new ScannerWorkspaceState.Browser("OPEN", "https://before.example", "Before", 1, true);
+        browser.refreshedBrowserState =
+                new ScannerWorkspaceState.Browser("OPEN", "https://after.example", "After", 1, true);
+        RecordingExecution execution = new RecordingExecution();
+        ScannerWorkspaceService service = new ScannerWorkspaceService(id -> state(), publisher, browser, execution);
+
+        ScannerWorkspaceResponse response = service.action(request("refresh-page-fresh-state-1", "REFRESH_PAGE"));
+
+        assertTrue(response.ok());
+        assertEquals("https://after.example", response.state().browser().activeUrl());
+        assertEquals("After", response.state().browser().activeTitle());
+    }
+
+    @Test
     void tabActionsRunBrowserOperationWithoutPublishingRows() {
         RecordingPublisher publisher = new RecordingPublisher();
         RecordingBrowser browser = new RecordingBrowser();
@@ -246,6 +264,7 @@ class ScannerWorkspaceServiceTest {
         private final List<Integer> tabDirections = new ArrayList<>();
         private ScannerWorkspaceState.Browser browserState =
                 new ScannerWorkspaceState.Browser("OPEN", "https://active.example", "Active page", 2, true);
+        private ScannerWorkspaceState.Browser refreshedBrowserState;
 
         @Override
         public ScannerWorkspaceState.Browser browserState() {
@@ -255,6 +274,9 @@ class ScannerWorkspaceServiceTest {
         @Override
         public void refreshPage() {
             refreshCalls++;
+            if (refreshedBrowserState != null) {
+                browserState = refreshedBrowserState;
+            }
         }
 
         @Override

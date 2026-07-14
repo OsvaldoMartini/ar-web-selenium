@@ -66,8 +66,9 @@ public final class ScannerWorkspaceService {
         try {
             ScannerWorkspaceState state = state(request.botJobId());
             performAction(action, request, state);
+            ScannerWorkspaceState updatedState = state(request.botJobId());
             return ScannerWorkspaceResponse.actionSuccess(
-                    action, actionMessage(action), request, state);
+                    action, actionMessage(action), request, updatedState);
         } catch (RuntimeException error) {
             return ScannerWorkspaceResponse.failure(safe(error.getMessage()), "SCANNER_ACTION_FAILED", request, action);
         }
