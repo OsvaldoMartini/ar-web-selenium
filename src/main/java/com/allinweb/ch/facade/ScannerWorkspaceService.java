@@ -11,8 +11,6 @@ import java.util.List;
 import java.util.function.IntFunction;
 
 public final class ScannerWorkspaceService {
-
-    private static final int SCANNER_CHUNK_SIZE = 25;
     private static final ScannerWorkspaceService INSTANCE =
             new ScannerWorkspaceService(
                     BotJobDetailsService.getInstance()::currentState,
@@ -25,6 +23,7 @@ public final class ScannerWorkspaceService {
     private final BrowserOperations browserOperations;
     private final ScannerWorkspaceActionParser actionParser = new ScannerWorkspaceActionParser();
     private final ScannerWorkspaceActionGate actionGate = new ScannerWorkspaceActionGate();
+    private final ScannerWorkspaceActionExecutor actionExecutor;
     private volatile ExecutionOperations executionOperations;
 
     ScannerWorkspaceService(
@@ -36,6 +35,8 @@ public final class ScannerWorkspaceService {
         this.gridPublisher = gridPublisher;
         this.browserOperations = browserOperations;
         this.executionOperations = executionOperations;
+        this.actionExecutor = new ScannerWorkspaceActionExecutor(
+                gridPublisher, browserOperations, () -> this.executionOperations);
     }
 
     public static ScannerWorkspaceService getInstance() {
@@ -68,7 +69,7 @@ public final class ScannerWorkspaceService {
         try {
             ScannerWorkspaceState state = state(request.botJobId());
             actionGate.validateAllowed(action, state);
-            ActionOutcome outcome = performAction(action, request, state);
+            ScannerWorkspaceActionExecutor.Outcome outcome = actionExecutor.perform(action, request, state);
             ScannerWorkspaceState updatedState = state(request.botJobId());
             return ScannerWorkspaceResponse.actionSuccess(
                     action, outcome.message(), request, updatedState);
@@ -84,68 +85,6 @@ public final class ScannerWorkspaceService {
 
     private String safe(String message) {
         return message == null || message.isBlank() ? "Scanner operation failed" : message;
-    }
-
-    private ActionOutcome performAction(
-            ScannerWorkspaceAction action, ScannerWorkspaceRequest request, ScannerWorkspaceState state) {
-        return switch (action) {
-            case CLEAR_GRID -> clearGrid(request, state);
-            case REFRESH_PAGE -> refreshPage();
-            case PREVIOUS_TAB -> switchTab(-1);
-            case NEXT_TAB -> switchTab(1);
-            case PRE_LAUNCH -> preLaunch(state);
-            case STOP_PRE_LAUNCH -> stopPreLaunch(state);
-            case PAGE_SCANNER -> pageScanner(request, state);
-            default -> ActionOutcome.message("Scanner state refreshed");
-        };
-    }
-
-    private ActionOutcome clearGrid(ScannerWorkspaceRequest request, ScannerWorkspaceState state) {
-        gridPublisher.publishSearchTerms(
-                request.sessionId(), state.homeBankingId(), ScannerWorkspacePayloads.emptyPayload(state));
-        return ActionOutcome.message("Scanner grid cleared");
-    }
-
-    private ActionOutcome refreshPage() {
-        browserOperations.refreshPage();
-        return ActionOutcome.message("Scanner browser page refreshed");
-    }
-
-    private ActionOutcome switchTab(int direction) {
-        browserOperations.switchTab(direction);
-        return ActionOutcome.message(
-                direction < 0 ? "Scanner browser moved to previous tab" : "Scanner browser moved to next tab");
-    }
-
-    private ActionOutcome preLaunch(ScannerWorkspaceState state) {
-        executionOperations.preLaunch(state.botJobId());
-        return ActionOutcome.message("Scanner Pre-Launch started");
-    }
-
-    private ActionOutcome stopPreLaunch(ScannerWorkspaceState state) {
-        executionOperations.stopPreLaunch(state.botJobId());
-        return ActionOutcome.message("Scanner Pre-Launch stop requested");
-    }
-
-    private ActionOutcome pageScanner(ScannerWorkspaceRequest request, ScannerWorkspaceState state) {
-        List<ElementDTO> elements = browserOperations.scanPage(
-                ScannerWorkspacePayloads.searchTerms(request), state.homeBankingId(), state.botJobId());
-        clearGrid(request, state);
-        if (elements.isEmpty()) {
-            return ActionOutcome.message("Page scanner completed: 0 elements");
-        }
-        gridPublisher.publishSearchTermsChunks(
-                request.sessionId(),
-                state.homeBankingId(),
-                ScannerWorkspacePayloads.payload(state, elements),
-                SCANNER_CHUNK_SIZE);
-        return ActionOutcome.message("Page scanner completed: " + elements.size() + " elements");
-    }
-
-    private record ActionOutcome(String message) {
-        private static ActionOutcome message(String message) {
-            return new ActionOutcome(message);
-        }
     }
 
     interface GridPublisher {
