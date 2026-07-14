@@ -9,6 +9,8 @@ import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.model.BotJobLoadDTO;
+import com.allinweb.ch.model.BlockLoadDTO;
+import com.allinweb.ch.model.HomeBankingLoadDTO;
 import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
@@ -16,6 +18,8 @@ import com.allinweb.ch.util.ErrorMessage;
 import com.allinweb.ch.util.WebBuildExtractor;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
+import java.io.File;
+import java.util.function.BooleanSupplier;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -26,11 +30,13 @@ import javafx.scene.layout.Pane;
 import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
 import javafx.stage.Stage;
+import javafx.stage.DirectoryChooser;
+import javafx.stage.FileChooser;
 import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.WebDriver;
 
 @Slf4j
-public class ARMainDashboardPane extends ARPane {
+public class ARMainDashboardPane extends ARPane implements BotJobDetailsPresentationPort {
 
     private static final String SESSION_ID = "mainDashboard";
     private static final int DEFAULT_PORT = 54525;
@@ -60,6 +66,7 @@ public class ARMainDashboardPane extends ARPane {
 
     private ARMainDashboardPane() {
         super();
+        botJobDetailsHost.setPresentationPort(this);
     }
 
     public static ARMainDashboardPane getInstance() {
@@ -116,6 +123,7 @@ public class ARMainDashboardPane extends ARPane {
     @Override
     public void initUIBehaviour() {}
 
+    @Override
     public void openOrganizations() {
         Platform.runLater(() -> {
             ErrorMessage errorMessage = performDataBase.loadAllDataUsers();
@@ -159,6 +167,60 @@ public class ARMainDashboardPane extends ARPane {
         Platform.runLater(() -> dispatchReactSession("cloneJobManager", botJob.getId()));
     }
 
+    @Override
+    public void openScanner(HomeBankingLoadDTO homeBanking, BotJobLoadDTO botJob, BlockLoadDTO block) {
+        ARScannedElementScene scanner = ARScannedElementScene.getInstance();
+        scanner.initialize(homeBanking, botJob, block);
+        scanner.showModal();
+    }
+
+    @Override
+    public void closeScannerWebDrivers() {
+        ARScannedElementScene.getInstance().closeWebDrivers();
+    }
+
+    @Override
+    public void closeScanner() {
+        ARScannedElementScene.getInstance().closeModal();
+    }
+
+    @Override
+    public Integer currentScannerBotJobId() {
+        BotJobLoadDTO current = ARScannedElementScene.getInstance().getCurrentBotJob();
+        return current == null ? null : current.getId();
+    }
+
+    @Override
+    public long startTestRun(
+            BotJobLoadDTO botJob,
+            int blockOrderNumber,
+            String endpointUrl,
+            boolean runSingleBlock,
+            BooleanSupplier cancellationRequested) {
+        return ARScannedElementPane.getInstance().submitTestRunBlockPlaywright(
+                botJob, blockOrderNumber, endpointUrl, runSingleBlock, cancellationRequested);
+    }
+
+    @Override
+    public void cancelTestRunStartup() {
+        ARScannedElementPane.getInstance().cancelTestRunStartup();
+    }
+
+    @Override
+    public boolean stopTestRun(long executionId) {
+        return ARScannedElementPane.getInstance().stopTestRun(executionId);
+    }
+
+    @Override
+    public boolean isTestRunComplete(long executionId) {
+        return ARScannedElementPane.getInstance().isTestRunExecutionComplete(executionId);
+    }
+
+    @Override
+    public String testRunTerminalOutcome(long executionId) {
+        return ARScannedElementPane.getInstance().testRunExecutionTerminalState(executionId);
+    }
+
     public void closeCloneJob() {
         Platform.runLater(() -> dispatchReactSession(SESSION_ID));
     }
@@ -171,11 +233,11 @@ public class ARMainDashboardPane extends ARPane {
         Platform.runLater(() -> {
             reloadBlocks(botJob);
             botJobDetailsHost.initialize(botJob, isEnabledLicence);
-            showBotJobSurface("botJobTasks", botJobDetailsHost.reactContext("botJobTasks"));
+            showSurface("botJobTasks", botJobDetailsHost.reactContext("botJobTasks"));
         });
     }
 
-    void showBotJobSurface(String targetSession, BotJobDetailsWebViewBootstrap.Context context) {
+    public void showSurface(String targetSession, BotJobDetailsWebViewBootstrap.Context context) {
         int port = resolveSocketPort();
         try {
             webView.getEngine().executeScript(BotJobDetailsWebViewBootstrap.initializationScript(context, port, gson));
@@ -183,6 +245,40 @@ public class ARMainDashboardPane extends ARPane {
             log.error("Bot Job React session dispatch failed for {}: {}", targetSession, error.getMessage());
             throw error;
         }
+    }
+
+    @Override
+    public void execute(Runnable operation) {
+        if (Platform.isFxApplicationThread()) operation.run();
+        else Platform.runLater(operation);
+    }
+
+    @Override
+    public File chooseTransferFolder(String configuredPath) {
+        DirectoryChooser chooser = new DirectoryChooser();
+        chooser.setTitle("Select Bot Job transfer folder");
+        if (!Strings.isNullOrEmpty(configuredPath)) {
+            File initial = new File(configuredPath);
+            if (initial.isDirectory()) chooser.setInitialDirectory(initial);
+        }
+        return chooser.showDialog(currentStage());
+    }
+
+    @Override
+    public File chooseReport(File reportFolder) {
+        FileChooser chooser = new FileChooser();
+        chooser.setTitle("Select Bot Job report");
+        if (reportFolder != null && reportFolder.isDirectory()) chooser.setInitialDirectory(reportFolder);
+        chooser.getExtensionFilters().addAll(
+                new FileChooser.ExtensionFilter("Excel Files", "*.xlsx", "*.xls"),
+                new FileChooser.ExtensionFilter("All Files", "*.*"));
+        return chooser.showOpenDialog(currentStage());
+    }
+
+    @Override
+    public void updateTitle(int homeBankingId, int botJobId) {
+        Stage owner = ownerStage();
+        if (owner != null) owner.setTitle("Bot Job Details WebSite Id: " + homeBankingId + " Id: " + botJobId);
     }
 
     public void showMainDashboard() {
