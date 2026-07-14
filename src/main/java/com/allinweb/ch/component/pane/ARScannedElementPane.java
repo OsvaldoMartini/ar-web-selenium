@@ -220,6 +220,8 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
             new ScannerPreLaunchRecallAfterReset(new PanePreLaunchRecallAfterResetOperations());
     private final ScannerBrowserTabSelector scannerBrowserTabSelector =
             new ScannerBrowserTabSelector(new PaneBrowserTabSelectorOperations());
+    private final ScannerBrowserTabNavigator scannerBrowserTabNavigator =
+            new ScannerBrowserTabNavigator(new PaneBrowserTabNavigatorOperations());
 
     private final ScheduledExecutorService screenshotScheduler =
             AppExecutors.get().scheduler(ExecutorsManager.Pool.SCREENSHOT_SCHEDULER);
@@ -2571,75 +2573,68 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
 
     // Switch to the previous tab (left)
     private void switchToLeftTab() {
-        if (performActions.getCurrentDriver() == null) {
-            return; // Playwright-only: no Selenium tabs to switch
-        }
-        if (performActions.getCurrentDriver().getWindowHandles().size() > 1 && performActions.currentTabIndex > 0) {
-            // Decrease the index to move to the left
-            performActions.currentTabIndex--;
-
-            // Switch to the previous tab
-            performActions
-                    .getCurrentDriver()
-                    .switchTo()
-                    .window(performActions.windowHandlesList.get(performActions.currentTabIndex));
-            updateSceneTitleWithCurrentURL(performActions.getCurrentDriver().getCurrentUrl());
-
-            // Disable the left button if we are at the first tab
-            //            leftButton.setDisable(currentTabIndex == 0);
-
-            // Enable the right button since we're no longer on the last tab
-            //            rightButton.setDisable(false);
-        }
+        scannerBrowserTabNavigator.switchLeft();
     }
 
     // Switch to the next tab (right)
     private void switchToRightTab() {
-        if (performActions.getCurrentDriver() == null) {
-            return; // Playwright-only: no Selenium tabs to switch
-        }
-        if (performActions.getCurrentDriver().getWindowHandles().size() > 1
-                && performActions.currentTabIndex < performActions.windowHandlesList.size() - 1) {
-            // Increase the index to move to the right
-            performActions.currentTabIndex++;
-
-            // Switch to the next tab
-            performActions
-                    .getCurrentDriver()
-                    .switchTo()
-                    .window(performActions.windowHandlesList.get(performActions.currentTabIndex));
-            updateSceneTitleWithCurrentURL(performActions.getCurrentDriver().getCurrentUrl());
-
-            // Disable the right button if we are at the last tab
-            //            rightButton.setDisable(currentTabIndex == performActions.windowHandlesList.size() - 1);
-
-            // Enable the left button since we're no longer on the first tab
-            //            leftButton.setDisable(false);
-        }
+        scannerBrowserTabNavigator.switchRight();
     }
 
     // Method to handle the scenario where the window handles size changes
     private void handleWindowHandlesChange() {
-        // Selenium tab/window bookkeeping — no-op in Playwright-only mode (no Selenium driver).
-        if (performActions.getCurrentDriver() == null) {
-            return;
+        scannerBrowserTabNavigator.handleWindowHandlesChange();
+    }
+
+    private final class PaneBrowserTabNavigatorOperations implements ScannerBrowserTabNavigator.Operations {
+        @Override
+        public boolean hasCurrentDriver() {
+            return performActions.getCurrentDriver() != null;
         }
-        Set<String> currentWindowHandles = performActions.getCurrentDriver().getWindowHandles();
 
-        // If the number of window handles has changed
-        if (currentWindowHandles.size() != performActions.windowHandlesList.size()) {
-            // Update the window handles list with the new handles
+        @Override
+        public int currentWindowHandleCount() {
+            return performActions.getCurrentDriver().getWindowHandles().size();
+        }
+
+        @Override
+        public int knownWindowHandleCount() {
+            return performActions.windowHandlesList.size();
+        }
+
+        @Override
+        public int currentTabIndex() {
+            return performActions.currentTabIndex;
+        }
+
+        @Override
+        public void setCurrentTabIndex(int currentTabIndex) {
+            performActions.currentTabIndex = currentTabIndex;
+        }
+
+        @Override
+        public String windowHandleAt(int index) {
+            return performActions.windowHandlesList.get(index);
+        }
+
+        @Override
+        public void switchToWindow(String windowHandle) {
+            performActions.getCurrentDriver().switchTo().window(windowHandle);
+        }
+
+        @Override
+        public String currentUrl() {
+            return performActions.getCurrentDriver().getCurrentUrl();
+        }
+
+        @Override
+        public void updateSceneTitleWithCurrentUrl(String currentUrl) {
+            updateSceneTitleWithCurrentURL(currentUrl);
+        }
+
+        @Override
+        public void updateWindowHandlesList() {
             performActions.updateWindowHandlesList();
-
-            // Switch to the last window (most recent tab)
-            performActions.currentTabIndex = performActions.windowHandlesList.size() - 1; // The last index in the list
-            performActions
-                    .getCurrentDriver()
-                    .switchTo()
-                    .window(performActions.windowHandlesList.get(performActions.currentTabIndex));
-
-            // Update the scene title with the current URL of the last tab
-            updateSceneTitleWithCurrentURL(performActions.getCurrentDriver().getCurrentUrl());
         }
     }
 
