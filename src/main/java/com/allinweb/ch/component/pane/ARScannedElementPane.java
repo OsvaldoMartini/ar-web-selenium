@@ -232,6 +232,7 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
             new ScannerBrowserRuntime(new PaneBrowserRuntimeOperations());
     private final ScannerTestActionFormatter scannerTestActionFormatter = new ScannerTestActionFormatter();
     private final ScannerCreateBlockPlanner scannerCreateBlockPlanner = new ScannerCreateBlockPlanner();
+    private final ScannerEmptyPayloadBuilder scannerEmptyPayloadBuilder = new ScannerEmptyPayloadBuilder();
 
     private int portSocketInitial = 54525;
     private volatile String pendingDomReviewHtml;
@@ -4154,42 +4155,25 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
                 && performLists.getListBlock().isEmpty()) {
             performDataBase.loadBlocks(this.currentBotJob.getId(), "", "block");
         }
-        int blockId = -1;
-        String blockName = "1# Default Block";
-        if (this.currentBotJob.getBlockId() == null
-                && !performLists.getListBlock().isEmpty()) {
-            blockId = performLists.getListBlock().get(0).getId();
-            blockName = performLists.getListBlock().get(0).getName();
-        }
-
-        this.payloadEmpty = new PayloadJson(this.currentBotJob.getId(), blockId, blockName, 0);
+        this.payloadEmpty = scannerEmptyPayloadBuilder.build(this.currentBotJob, performLists.getListBlock());
     }
 
     private void setPayloadEmpty(String destination) {
-        int blockId = -1;
-        String blockName = "1# Default Block";
+        List<BlockLoadDTO> blocks = Collections.emptyList();
         if (destination.equalsIgnoreCase("botJobTasks")) {
             if (!performLists.getListBotJob().isEmpty()
                     && performLists.getListBlock().isEmpty()) {
                 performDataBase.loadBlocks(currentBotJob.getId(), "", "block");
             }
-            if (currentBotJob.getBlockId() == null
-                    && !performLists.getListBlock().isEmpty()) {
-                blockId = performLists.getListBlock().get(0).getId();
-                blockName = performLists.getListBlock().get(0).getName();
-            }
+            blocks = performLists.getListBlock();
         } else if (destination.equalsIgnoreCase("componentTasks")) {
             if (!performLists.getListBotJobComp().isEmpty()
                     && performLists.getListBlockComp().isEmpty()) {
                 performDataBase.loadBlocks(currentBotJob.getHomeBankingId(), "", "component_block");
             }
-            if (currentBotJob.getBlockId() == null
-                    && !performLists.getListBlockComp().isEmpty()) {
-                blockId = performLists.getListBlockComp().get(0).getId();
-                blockName = performLists.getListBlockComp().get(0).getName();
-            }
+            blocks = performLists.getListBlockComp();
         }
-        this.payloadEmpty = new PayloadJson(this.currentBotJob.getId(), blockId, blockName, 0);
+        this.payloadEmpty = scannerEmptyPayloadBuilder.build(this.currentBotJob, blocks);
     }
 
     /**
