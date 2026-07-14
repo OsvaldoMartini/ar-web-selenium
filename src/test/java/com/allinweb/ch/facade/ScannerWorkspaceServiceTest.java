@@ -82,6 +82,21 @@ class ScannerWorkspaceServiceTest {
     }
 
     @Test
+    void tabActionsRunBrowserOperationWithoutPublishingRows() {
+        RecordingPublisher publisher = new RecordingPublisher();
+        RecordingBrowser browser = new RecordingBrowser();
+        ScannerWorkspaceService service = new ScannerWorkspaceService(id -> state(), publisher, browser);
+
+        ScannerWorkspaceResponse previous = service.action(request("previous-tab-1", "PREVIOUS_TAB"));
+        ScannerWorkspaceResponse next = service.action(request("next-tab-1", "NEXT_TAB"));
+
+        assertTrue(previous.ok());
+        assertTrue(next.ok());
+        assertEquals(List.of(-1, 1), browser.tabDirections);
+        assertTrue(publisher.calls.isEmpty());
+    }
+
+    @Test
     void pageScannerPublishesResetAndElementChunks() {
         RecordingPublisher publisher = new RecordingPublisher();
         RecordingBrowser browser = new RecordingBrowser();
@@ -182,10 +197,16 @@ class ScannerWorkspaceServiceTest {
         private int scanCalls;
         private String[] lastSearchTerms;
         private List<ElementDTO> scanElements = List.of();
+        private final List<Integer> tabDirections = new ArrayList<>();
 
         @Override
         public void refreshPage() {
             refreshCalls++;
+        }
+
+        @Override
+        public void switchTab(int direction) {
+            tabDirections.add(direction);
         }
 
         @Override

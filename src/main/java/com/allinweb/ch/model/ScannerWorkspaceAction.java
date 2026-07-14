@@ -6,7 +6,9 @@ public enum ScannerWorkspaceAction {
     REFRESH_STATE,
     CLEAR_GRID,
     REFRESH_PAGE,
-    PAGE_SCANNER;
+    PAGE_SCANNER,
+    PREVIOUS_TAB,
+    NEXT_TAB;
 
     public static ScannerWorkspaceAction parse(String value) {
         if (value == null || value.isBlank()) {

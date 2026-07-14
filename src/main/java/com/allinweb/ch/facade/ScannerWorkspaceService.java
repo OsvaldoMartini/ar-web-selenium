@@ -11,6 +11,7 @@ import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -103,6 +104,10 @@ public final class ScannerWorkspaceService {
                 gridPublisher.publishSearchTerms(request.sessionId(), state.homeBankingId(), emptyPayload(state));
             } else if (action == ScannerWorkspaceAction.REFRESH_PAGE) {
                 browserOperations.refreshPage();
+            } else if (action == ScannerWorkspaceAction.PREVIOUS_TAB) {
+                browserOperations.switchTab(-1);
+            } else if (action == ScannerWorkspaceAction.NEXT_TAB) {
+                browserOperations.switchTab(1);
             } else if (action == ScannerWorkspaceAction.PAGE_SCANNER) {
                 List<ElementDTO> elements =
                         browserOperations.scanPage(searchTerms(request), state.homeBankingId(), state.botJobId());
@@ -157,6 +162,8 @@ public final class ScannerWorkspaceService {
             case CLEAR_GRID -> "Scanner grid cleared";
             case REFRESH_PAGE -> "Scanner browser page refreshed";
             case PAGE_SCANNER -> "Page scanner completed";
+            case PREVIOUS_TAB -> "Scanner browser moved to previous tab";
+            case NEXT_TAB -> "Scanner browser moved to next tab";
             default -> "Scanner state refreshed";
         };
     }
@@ -222,6 +229,8 @@ public final class ScannerWorkspaceService {
     interface BrowserOperations {
         void refreshPage();
 
+        void switchTab(int direction);
+
         List<ElementDTO> scanPage(String[] searchTerms, int homeBankingId, int botJobId);
     }
 
@@ -257,6 +266,26 @@ public final class ScannerWorkspaceService {
                 Thread.currentThread().interrupt();
             } catch (Exception ignored) {
             }
+        }
+
+        @Override
+        public void switchTab(int direction) {
+            PerformActions actions = PerformActions.getInstance();
+            WebDriver driver = actions.getCurrentDriver();
+            if (driver == null || direction == 0) {
+                return;
+            }
+            List<String> handles = new ArrayList<>(driver.getWindowHandles());
+            if (handles.size() < 2) {
+                return;
+            }
+            actions.windowHandlesList = handles;
+            int nextIndex = Math.max(0, Math.min(handles.size() - 1, actions.currentTabIndex + direction));
+            if (nextIndex == actions.currentTabIndex) {
+                return;
+            }
+            actions.currentTabIndex = nextIndex;
+            driver.switchTo().window(handles.get(nextIndex));
         }
 
         @Override
