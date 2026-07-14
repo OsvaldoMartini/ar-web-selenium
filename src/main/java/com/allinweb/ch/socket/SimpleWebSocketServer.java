@@ -38,6 +38,7 @@ public class SimpleWebSocketServer {
     private static final CloneJobService cloneJobService = CloneJobService.getInstance();
     private static final ConfigService configService = ConfigService.getInstance();
     private static final BotJobDetailsService botJobDetailsService = BotJobDetailsService.getInstance();
+    private static final ScannerWorkspaceService scannerWorkspaceService = ScannerWorkspaceService.getInstance();
     private static final BotJobDetailsActionLedger botJobDetailsActionLedger =
             new BotJobDetailsActionLedger();
     private static final BotJobDetailsToolbarLedger botJobDetailsToolbarLedger =
@@ -539,6 +540,12 @@ public class SimpleWebSocketServer {
                 case "botJobDetails.environments.refresh":
                     handleBotJobDetailsEnvironmentRefresh(jsonObjMSG, session);
                     break;
+                case "scanner.bootstrap":
+                    handleScannerBootstrap(jsonObjMSG, session);
+                    break;
+                case "scanner.action":
+                    handleScannerAction(jsonObjMSG, session);
+                    break;
                 case "newBotJob.bootstrap":
                     handleNewBotJobBootstrap(sessionId);
                     break;
@@ -972,6 +979,72 @@ public class SimpleWebSocketServer {
 
     private BotJobDetailsRequest parseBotJobDetailsRequest(JsonObject envelope, Session transportSession) {
         return BotJobDetailsRequest.parse(envelope, transportSessionId(transportSession));
+    }
+
+    private void handleScannerBootstrap(JsonObject envelope, Session transportSession) {
+        handleScannerRequest(
+                envelope, transportSession, "scanner.bootstrapResponse", scannerWorkspaceService::bootstrap);
+    }
+
+    private void handleScannerAction(JsonObject envelope, Session transportSession) {
+        handleScannerRequest(envelope, transportSession, "scanner.actionResponse", scannerWorkspaceService::action);
+    }
+
+    private void handleScannerRequest(
+            JsonObject envelope,
+            Session transportSession,
+            String operationId,
+            java.util.function.Function<ScannerWorkspaceRequest, ScannerWorkspaceResponse> operation) {
+        try {
+            ScannerWorkspaceRequest request =
+                    ScannerWorkspaceRequest.parse(envelope, transportSessionId(transportSession));
+            ScannerWorkspaceResponse response = operation.apply(request);
+            sendBotJobDetailsResponse(
+                    transportSession,
+                    scannerHomeBankingId(response),
+                    request.sessionId(),
+                    response,
+                    operationId);
+            if (response.ok()) {
+                publishScannerState(response, request.requestId());
+            }
+        } catch (Exception error) {
+            sendScannerParseFailure(transportSession, envelope, operationId, error.getMessage());
+        }
+    }
+
+    private void publishScannerState(ScannerWorkspaceResponse response, String causeRequestId) {
+        if (response == null || response.state() == null) return;
+        Map<String, Object> event = new LinkedHashMap<>();
+        event.put("ok", true);
+        event.put("message", response.message());
+        event.put("requestId", causeRequestId == null ? "" : causeRequestId);
+        event.put("botJobId", response.botJobId());
+        event.put("state", response.state());
+        Session target = WebSocketSessionManager.getSession("scannerGrid");
+        if (target != null && target.isOpen()) {
+            sendBotJobDetailsResponse(
+                    target,
+                    response.state().homeBankingId(),
+                    "scannerGrid",
+                    event,
+                    "scanner.state");
+        }
+    }
+
+    private int scannerHomeBankingId(ScannerWorkspaceResponse response) {
+        return response != null && response.state() != null ? response.state().homeBankingId() : -1;
+    }
+
+    private void sendScannerParseFailure(
+            Session session, JsonObject envelope, String operationId, String message) {
+        Map<String, Object> response = new LinkedHashMap<>();
+        ScannerWorkspaceRequest.Correlation correlation = ScannerWorkspaceRequest.correlation(envelope);
+        if (!correlation.requestId().isBlank()) response.put("requestId", correlation.requestId());
+        if (correlation.botJobId() > 0) response.put("botJobId", correlation.botJobId());
+        response.put("ok", false);
+        response.put("message", Strings.isNullOrEmpty(message) ? "Invalid Scanner request" : message);
+        sendBotJobDetailsResponse(session, -1, transportSessionId(session), response, operationId);
     }
 
     private String transportSessionId(Session transportSession) {
