@@ -13,7 +13,6 @@ import com.allinweb.ch.executors.ExecutorsManager;
 import com.allinweb.ch.facade.*;
 import com.allinweb.ch.facade.actions.InstructionGraph;
 import com.allinweb.ch.model.*;
-import com.allinweb.ch.readersAndWriters.ExcelReader;
 import com.allinweb.ch.readersAndWriters.ExcelWriter;
 import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.socket.InstructionRealtimePublisher;
@@ -3530,22 +3529,14 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
             log.info("TEST RUN — using endpoint URL from the page: {}", endpointUrl);
         }
 
-        ExcelReader excelReader = new ExcelReader();
         try {
-            extractedData = excelReader.extractData(
-                    excelPath, performLists.getAllActions(), ExcelUtils.buildAliasMap(performLists.getListBlock()));
+            extractedData = scannerPreLaunchExcelLoader.load(excelPath, performLists);
         } catch (Exception error) {
             log.warn("TEST RUN — no/invalid Excel file, using synthetic $EMPTY row: {}", error.getMessage());
         }
 
         // GEN FLOW navigation blocks carry no Excel data — guarantee a single synthetic row.
-        if (extractedData == null) {
-            extractedData = new ExtractedData();
-        }
-        if (extractedData.getNumberOfDataRows() == null || extractedData.getNumberOfDataRows() == 0) {
-            extractedData.addField("$EMPTY");
-            extractedData.addFieldValue("$EMPTY", "$EMPTY", 0);
-        }
+        extractedData = scannerPreLaunchExcelLoader.ensureEmptyDataRow(extractedData);
 
         if (testRunStartupCancelled(cancellation)) return 0L;
 

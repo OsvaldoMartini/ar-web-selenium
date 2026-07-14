@@ -17,11 +17,13 @@ final class ScannerPreLaunchExcelLoader {
                         ExcelUtils.buildAliasMap(performLists.getListBlock()));
     }
 
-    void ensureEmptyDataRow(ExtractedData extractedData) {
-        if (extractedData.getNumberOfDataRows() == 0) {
-            extractedData.addField("$EMPTY");
-            extractedData.addFieldValue("$EMPTY", "$EMPTY", 0);
+    ExtractedData ensureEmptyDataRow(ExtractedData extractedData) {
+        ExtractedData data = extractedData == null ? new ExtractedData() : extractedData;
+        if (data.getNumberOfDataRows() == null || data.getNumberOfDataRows() == 0) {
+            data.addField("$EMPTY");
+            data.addFieldValue("$EMPTY", "$EMPTY", 0);
         }
+        return data;
     }
 
     boolean hasExcelError(ExtractedData extractedData) {

@@ -35,6 +35,16 @@ class ScannerPreLaunchExcelLoaderTest {
     }
 
     @Test
+    void ensureEmptyDataRowCreatesDataWhenReaderReturnedNothing() {
+        ScannerPreLaunchExcelLoader loader = new ScannerPreLaunchExcelLoader();
+
+        ExtractedData extractedData = loader.ensureEmptyDataRow(null);
+
+        assertEquals(1, extractedData.getNumberOfDataRows());
+        assertEquals("$EMPTY", extractedData.getFieldValue("$EMPTY", 0));
+    }
+
+    @Test
     void hasExcelErrorDetectsReaderErrorMessage() {
         ScannerPreLaunchExcelLoader loader = new ScannerPreLaunchExcelLoader();
         ExtractedData extractedData = new ExtractedData();
