@@ -45,6 +45,8 @@ public class SimpleWebSocketServer {
             new BotJobDetailsToolbarLedger();
     private static final BotJobDetailsMutationLedger botJobDetailsMutationLedger =
             new BotJobDetailsMutationLedger();
+    private static final ScannerWorkspaceRequestLedger scannerWorkspaceRequestLedger =
+            new ScannerWorkspaceRequestLedger();
     private static final InstructionRealtimePublisher instructionRealtimePublisher =
             InstructionRealtimePublisher.getInstance();
     private static final ExcelExportService excelExportService = ExcelExportService.getInstance();
@@ -998,7 +1000,8 @@ public class SimpleWebSocketServer {
         try {
             ScannerWorkspaceRequest request =
                     ScannerWorkspaceRequest.parse(envelope, transportSessionId(transportSession));
-            ScannerWorkspaceResponse response = operation.apply(request);
+            ScannerWorkspaceResponse response = scannerWorkspaceRequestLedger.executeOnce(
+                    request, operationId, () -> operation.apply(request));
             sendBotJobDetailsResponse(
                     transportSession,
                     scannerHomeBankingId(response),
