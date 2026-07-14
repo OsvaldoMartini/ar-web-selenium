@@ -150,6 +150,8 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
             new ScannerTestRunExecutionStart(new PaneTestRunExecutionStartOperations());
     private final ScannerTestRunExcelPreparation scannerTestRunExcelPreparation =
             new ScannerTestRunExcelPreparation(scannerPreLaunchExcelLoader, new PaneTestRunExcelOperations());
+    private final ScannerTestRunDefinitionValidation scannerTestRunDefinitionValidation =
+            new ScannerTestRunDefinitionValidation();
     private final WebView webView = new WebView();
     public Button launchBotJobButton;
     public CheckBox checkClickElement;
@@ -3589,23 +3591,24 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
 
         ScannerPreLaunchPreparation.Result definitions =
                 scannerPreLaunchPreparation.loadDefinitions(this.currentBotJob);
-        ErrorMessage errorMessage = definitions.errorMessage();
         excelDataGoto = definitions.excelDataGoto();
         blocksLoaded = definitions.blocksLoaded();
 
         if (testRunStartupCancelled(cancellation)) return 0L;
 
-        if (errorMessage != null) {
-            log.error("TEST RUN — load error: {}", errorMessage.getErrorMessage());
+        ScannerTestRunDefinitionValidation.Result definitionValidation =
+                scannerTestRunDefinitionValidation.validate(definitions);
+        if (definitionValidation.status() == ScannerTestRunDefinitionValidation.Status.LOAD_ERROR) {
+            log.error("TEST RUN — load error: {}", definitionValidation.errorMessage().getErrorMessage());
             this.runSingleBlock = false;
             return 0L;
         }
-        if (definitions.botJobMissing()) {
+        if (definitionValidation.status() == ScannerTestRunDefinitionValidation.Status.MISSING_BOT_JOB) {
             log.error("TEST RUN — cannot find bot job with id: {}", this.currentBotJob.getId());
             this.runSingleBlock = false;
             return 0L;
         }
-        if (blocksLoaded == null || blocksLoaded.isEmpty()) {
+        if (definitionValidation.status() == ScannerTestRunDefinitionValidation.Status.EMPTY_BLOCKS) {
             log.error("TEST RUN — bot job has no loaded executable blocks: {}", this.currentBotJob.getId());
             this.runSingleBlock = false;
             return 0L;
