@@ -202,6 +202,8 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
                     scannerPreLaunchWindowBookkeeping,
                     this::isTestRunExecutionComplete,
                     new PanePreLaunchExecutionCoordinatorOperations());
+    private final ScannerPreLaunchWorkspaceRequests scannerPreLaunchWorkspaceRequests =
+            new ScannerPreLaunchWorkspaceRequests(new PanePreLaunchWorkspaceRequestOperations());
 
     private final ScheduledExecutorService screenshotScheduler =
             AppExecutors.get().scheduler(ExecutorsManager.Pool.SCREENSHOT_SCHEDULER);
@@ -2657,37 +2659,48 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
     }
 
     public void requestPreLaunchFromWorkspace(int botJobId) {
-        ensureCurrentScannerJob(botJobId);
-        ensurePreLaunchControlsReady();
-        Platform.runLater(this::startPreLaunchFromWorkspace);
+        scannerPreLaunchWorkspaceRequests.requestStart(botJobId);
     }
 
     public void requestStopPreLaunchFromWorkspace(int botJobId) {
-        ensureCurrentScannerJob(botJobId);
-        ensureStopPreLaunchControlsReady();
-        Platform.runLater(this::stopPreLaunchFromWorkspace);
-    }
-
-    private void ensureCurrentScannerJob(int botJobId) {
-        if (currentBotJob == null || currentBotJob.getId() == null || currentBotJob.getId() != botJobId) {
-            throw new IllegalStateException("Scanner workspace is not open for Bot Job " + botJobId);
-        }
-    }
-
-    private void ensurePreLaunchControlsReady() {
-        if (launchBotJobButton == null) {
-            throw new IllegalStateException("Scanner Pre-Launch controls are not ready");
-        }
-    }
-
-    private void ensureStopPreLaunchControlsReady() {
-        if (launchBotJobButton == null || stopBotJobButton == null) {
-            throw new IllegalStateException("Scanner Pre-Launch controls are not ready");
-        }
+        scannerPreLaunchWorkspaceRequests.requestStop(botJobId);
     }
 
     public void startPreLaunchFromWorkspace() {
         scannerPreLaunchStarter.start();
+    }
+
+    private final class PanePreLaunchWorkspaceRequestOperations
+            implements ScannerPreLaunchWorkspaceRequests.Operations {
+        @Override
+        public Integer currentBotJobId() {
+            return currentBotJob == null ? null : currentBotJob.getId();
+        }
+
+        @Override
+        public boolean preLaunchControlsReady() {
+            return launchBotJobButton != null;
+        }
+
+        @Override
+        public boolean stopPreLaunchControlsReady() {
+            return launchBotJobButton != null && stopBotJobButton != null;
+        }
+
+        @Override
+        public void runLater(Runnable task) {
+            Platform.runLater(task);
+        }
+
+        @Override
+        public void startPreLaunch() {
+            startPreLaunchFromWorkspace();
+        }
+
+        @Override
+        public void stopPreLaunch() {
+            stopPreLaunchFromWorkspace();
+        }
     }
 
     private final class PanePreLaunchStartOperations implements ScannerPreLaunchStarter.Operations {
