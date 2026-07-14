@@ -63,19 +63,23 @@ public final class ScannerWorkspaceService {
             new ScannerWorkspaceService(
                     BotJobDetailsService.getInstance()::currentState,
                     new WebSocketGridPublisher(),
-                    new DefaultBrowserOperations());
+                    new DefaultBrowserOperations(),
+                    new DefaultExecutionOperations());
 
     private final IntFunction<BotJobDetailsState> botJobStateProvider;
     private final GridPublisher gridPublisher;
     private final BrowserOperations browserOperations;
+    private final ExecutionOperations executionOperations;
 
     ScannerWorkspaceService(
             IntFunction<BotJobDetailsState> botJobStateProvider,
             GridPublisher gridPublisher,
-            BrowserOperations browserOperations) {
+            BrowserOperations browserOperations,
+            ExecutionOperations executionOperations) {
         this.botJobStateProvider = botJobStateProvider;
         this.gridPublisher = gridPublisher;
         this.browserOperations = browserOperations;
+        this.executionOperations = executionOperations;
     }
 
     public static ScannerWorkspaceService getInstance() {
@@ -108,6 +112,10 @@ public final class ScannerWorkspaceService {
                 browserOperations.switchTab(-1);
             } else if (action == ScannerWorkspaceAction.NEXT_TAB) {
                 browserOperations.switchTab(1);
+            } else if (action == ScannerWorkspaceAction.PRE_LAUNCH) {
+                executionOperations.preLaunch(state.botJobId());
+            } else if (action == ScannerWorkspaceAction.STOP_PRE_LAUNCH) {
+                executionOperations.stopPreLaunch(state.botJobId());
             } else if (action == ScannerWorkspaceAction.PAGE_SCANNER) {
                 List<ElementDTO> elements =
                         browserOperations.scanPage(searchTerms(request), state.homeBankingId(), state.botJobId());
@@ -164,6 +172,8 @@ public final class ScannerWorkspaceService {
             case PAGE_SCANNER -> "Page scanner completed";
             case PREVIOUS_TAB -> "Scanner browser moved to previous tab";
             case NEXT_TAB -> "Scanner browser moved to next tab";
+            case PRE_LAUNCH -> "Scanner Pre-Launch started";
+            case STOP_PRE_LAUNCH -> "Scanner Pre-Launch stop requested";
             default -> "Scanner state refreshed";
         };
     }
@@ -232,6 +242,12 @@ public final class ScannerWorkspaceService {
         void switchTab(int direction);
 
         List<ElementDTO> scanPage(String[] searchTerms, int homeBankingId, int botJobId);
+    }
+
+    interface ExecutionOperations {
+        void preLaunch(int botJobId);
+
+        void stopPreLaunch(int botJobId);
     }
 
     private static final class WebSocketGridPublisher implements GridPublisher {
@@ -309,6 +325,18 @@ public final class ScannerWorkspaceService {
                         scan.error.getErrorTitle() + " - " + scan.error.getErrorHeader());
             }
             return scan.elements == null ? List.of() : scan.elements;
+        }
+    }
+
+    private static final class DefaultExecutionOperations implements ExecutionOperations {
+        @Override
+        public void preLaunch(int botJobId) {
+            throw new IllegalStateException("Scanner Pre-Launch backend adapter is not connected yet");
+        }
+
+        @Override
+        public void stopPreLaunch(int botJobId) {
+            PerformActions.getInstance().setInterceptBotJob(true);
         }
     }
 }

@@ -19,7 +19,8 @@ class ScannerWorkspaceServiceTest {
     void bootstrapMapsBotJobDetailsStateToScannerState() {
         RecordingPublisher publisher = new RecordingPublisher();
         RecordingBrowser browser = new RecordingBrowser();
-        ScannerWorkspaceService service = new ScannerWorkspaceService(id -> state(), publisher, browser);
+        RecordingExecution execution = new RecordingExecution();
+        ScannerWorkspaceService service = new ScannerWorkspaceService(id -> state(), publisher, browser, execution);
 
         ScannerWorkspaceResponse response = service.bootstrap(request("bootstrap-1", null));
 
@@ -37,7 +38,8 @@ class ScannerWorkspaceServiceTest {
     void refreshStateActionReturnsCorrelatedState() {
         RecordingPublisher publisher = new RecordingPublisher();
         RecordingBrowser browser = new RecordingBrowser();
-        ScannerWorkspaceService service = new ScannerWorkspaceService(id -> state(), publisher, browser);
+        RecordingExecution execution = new RecordingExecution();
+        ScannerWorkspaceService service = new ScannerWorkspaceService(id -> state(), publisher, browser, execution);
 
         ScannerWorkspaceResponse response = service.action(request("refresh-1", "REFRESH_STATE"));
 
@@ -51,7 +53,8 @@ class ScannerWorkspaceServiceTest {
     void clearGridPublishesEmptySearchTermsPayload() {
         RecordingPublisher publisher = new RecordingPublisher();
         RecordingBrowser browser = new RecordingBrowser();
-        ScannerWorkspaceService service = new ScannerWorkspaceService(id -> state(), publisher, browser);
+        RecordingExecution execution = new RecordingExecution();
+        ScannerWorkspaceService service = new ScannerWorkspaceService(id -> state(), publisher, browser, execution);
 
         ScannerWorkspaceResponse response = service.action(request("clear-1", "CLEAR_GRID"));
 
@@ -71,7 +74,8 @@ class ScannerWorkspaceServiceTest {
     void refreshPageRunsBrowserOperationWithoutPublishingRows() {
         RecordingPublisher publisher = new RecordingPublisher();
         RecordingBrowser browser = new RecordingBrowser();
-        ScannerWorkspaceService service = new ScannerWorkspaceService(id -> state(), publisher, browser);
+        RecordingExecution execution = new RecordingExecution();
+        ScannerWorkspaceService service = new ScannerWorkspaceService(id -> state(), publisher, browser, execution);
 
         ScannerWorkspaceResponse response = service.action(request("refresh-page-1", "REFRESH_PAGE"));
 
@@ -85,7 +89,8 @@ class ScannerWorkspaceServiceTest {
     void tabActionsRunBrowserOperationWithoutPublishingRows() {
         RecordingPublisher publisher = new RecordingPublisher();
         RecordingBrowser browser = new RecordingBrowser();
-        ScannerWorkspaceService service = new ScannerWorkspaceService(id -> state(), publisher, browser);
+        RecordingExecution execution = new RecordingExecution();
+        ScannerWorkspaceService service = new ScannerWorkspaceService(id -> state(), publisher, browser, execution);
 
         ScannerWorkspaceResponse previous = service.action(request("previous-tab-1", "PREVIOUS_TAB"));
         ScannerWorkspaceResponse next = service.action(request("next-tab-1", "NEXT_TAB"));
@@ -97,11 +102,45 @@ class ScannerWorkspaceServiceTest {
     }
 
     @Test
+    void preLaunchActionsRunExecutionOperationWithoutPublishingRows() {
+        RecordingPublisher publisher = new RecordingPublisher();
+        RecordingBrowser browser = new RecordingBrowser();
+        RecordingExecution execution = new RecordingExecution();
+        ScannerWorkspaceService service = new ScannerWorkspaceService(id -> state(), publisher, browser, execution);
+
+        ScannerWorkspaceResponse start = service.action(request("pre-launch-1", "PRE_LAUNCH"));
+        ScannerWorkspaceResponse stop = service.action(request("stop-pre-launch-1", "STOP_PRE_LAUNCH"));
+
+        assertTrue(start.ok());
+        assertTrue(stop.ok());
+        assertEquals(List.of(42), execution.preLaunchBotJobIds);
+        assertEquals(List.of(42), execution.stopBotJobIds);
+        assertTrue(publisher.calls.isEmpty());
+    }
+
+    @Test
+    void preLaunchFailureReturnsScannerActionFailure() {
+        RecordingPublisher publisher = new RecordingPublisher();
+        RecordingBrowser browser = new RecordingBrowser();
+        RecordingExecution execution = new RecordingExecution();
+        execution.failPreLaunch = true;
+        ScannerWorkspaceService service = new ScannerWorkspaceService(id -> state(), publisher, browser, execution);
+
+        ScannerWorkspaceResponse response = service.action(request("pre-launch-fail-1", "PRE_LAUNCH"));
+
+        assertEquals(false, response.ok());
+        assertEquals("PRE_LAUNCH", response.action());
+        assertEquals("SCANNER_ACTION_FAILED", response.errorCode());
+        assertTrue(response.message().contains("pre-launch failed"));
+    }
+
+    @Test
     void pageScannerPublishesResetAndElementChunks() {
         RecordingPublisher publisher = new RecordingPublisher();
         RecordingBrowser browser = new RecordingBrowser();
         browser.scanElements = List.of(element("Input 1"), element("Button 1"));
-        ScannerWorkspaceService service = new ScannerWorkspaceService(id -> state(), publisher, browser);
+        RecordingExecution execution = new RecordingExecution();
+        ScannerWorkspaceService service = new ScannerWorkspaceService(id -> state(), publisher, browser, execution);
 
         ScannerWorkspaceResponse response = service.action(request("page-scan-1", "PAGE_SCANNER"));
 
@@ -120,7 +159,8 @@ class ScannerWorkspaceServiceTest {
         RecordingPublisher publisher = new RecordingPublisher();
         RecordingBrowser browser = new RecordingBrowser();
         browser.scanElements = List.of(element("Search result"));
-        ScannerWorkspaceService service = new ScannerWorkspaceService(id -> state(), publisher, browser);
+        RecordingExecution execution = new RecordingExecution();
+        ScannerWorkspaceService service = new ScannerWorkspaceService(id -> state(), publisher, browser, execution);
 
         ScannerWorkspaceResponse response =
                 service.action(request("page-scan-2", "PAGE_SCANNER", "input, button, [role='tab']"));
@@ -214,6 +254,25 @@ class ScannerWorkspaceServiceTest {
             scanCalls++;
             lastSearchTerms = searchTerms;
             return scanElements;
+        }
+    }
+
+    private static final class RecordingExecution implements ScannerWorkspaceService.ExecutionOperations {
+        private final List<Integer> preLaunchBotJobIds = new ArrayList<>();
+        private final List<Integer> stopBotJobIds = new ArrayList<>();
+        private boolean failPreLaunch;
+
+        @Override
+        public void preLaunch(int botJobId) {
+            if (failPreLaunch) {
+                throw new IllegalStateException("pre-launch failed");
+            }
+            preLaunchBotJobIds.add(botJobId);
+        }
+
+        @Override
+        public void stopPreLaunch(int botJobId) {
+            stopBotJobIds.add(botJobId);
         }
     }
 }

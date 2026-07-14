@@ -8,7 +8,9 @@ public enum ScannerWorkspaceAction {
     REFRESH_PAGE,
     PAGE_SCANNER,
     PREVIOUS_TAB,
-    NEXT_TAB;
+    NEXT_TAB,
+    PRE_LAUNCH,
+    STOP_PRE_LAUNCH;
 
     public static ScannerWorkspaceAction parse(String value) {
         if (value == null || value.isBlank()) {
