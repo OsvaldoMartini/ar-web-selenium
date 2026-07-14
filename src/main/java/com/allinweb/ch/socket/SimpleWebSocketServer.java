@@ -1006,14 +1006,14 @@ public class SimpleWebSocketServer {
                     response,
                     operationId);
             if (response.ok()) {
-                publishScannerState(response, request.requestId());
+                publishScannerState(response, request.sessionId(), request.requestId());
             }
         } catch (Exception error) {
             sendScannerParseFailure(transportSession, envelope, operationId, error.getMessage());
         }
     }
 
-    private void publishScannerState(ScannerWorkspaceResponse response, String causeRequestId) {
+    private void publishScannerState(ScannerWorkspaceResponse response, String sessionId, String causeRequestId) {
         if (response == null || response.state() == null) return;
         Map<String, Object> event = new LinkedHashMap<>();
         event.put("ok", true);
@@ -1021,12 +1021,12 @@ public class SimpleWebSocketServer {
         event.put("requestId", causeRequestId == null ? "" : causeRequestId);
         event.put("botJobId", response.botJobId());
         event.put("state", response.state());
-        Session target = WebSocketSessionManager.getSession("scannerGrid");
+        Session target = WebSocketSessionManager.getSession(sessionId);
         if (target != null && target.isOpen()) {
             sendBotJobDetailsResponse(
                     target,
                     response.state().homeBankingId(),
-                    "scannerGrid",
+                    sessionId,
                     event,
                     "scanner.state");
         }
