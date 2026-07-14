@@ -3598,12 +3598,10 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
         ScannerTestRunStartupPreparation.Result startup =
                 scannerTestRunStartupPreparation.prepare(botJob, blockOrderNumber, runSingleBlock);
         if (startup.status() == ScannerTestRunStartupPreparation.Status.MISSING_BOT_JOB) {
-            log.error("TEST RUN — no bot job supplied");
-            return 0L;
+            return failTestRunStartupWithoutReset("TEST RUN — no bot job supplied");
         }
         if (startup.status() == ScannerTestRunStartupPreparation.Status.ALREADY_RUNNING) {
-            log.info("TEST RUN — a job is already running; ignoring request.");
-            return 0L;
+            return ignoreTestRunStartup("TEST RUN — a job is already running; ignoring request.");
         }
 
         if (testRunStartupCancelled(cancellation)) return 0L;
@@ -3666,6 +3664,11 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
 
     private long failTestRunStartupWithoutReset(String message, Object... args) {
         log.error(message, args);
+        return 0L;
+    }
+
+    private long ignoreTestRunStartup(String message, Object... args) {
+        log.info(message, args);
         return 0L;
     }
 
