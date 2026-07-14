@@ -69,7 +69,7 @@ public final class ScannerWorkspaceService {
     private final IntFunction<BotJobDetailsState> botJobStateProvider;
     private final GridPublisher gridPublisher;
     private final BrowserOperations browserOperations;
-    private final ExecutionOperations executionOperations;
+    private volatile ExecutionOperations executionOperations;
 
     ScannerWorkspaceService(
             IntFunction<BotJobDetailsState> botJobStateProvider,
@@ -84,6 +84,13 @@ public final class ScannerWorkspaceService {
 
     public static ScannerWorkspaceService getInstance() {
         return INSTANCE;
+    }
+
+    public void installExecutionOperations(ExecutionOperations executionOperations) {
+        if (executionOperations == null) {
+            throw new IllegalArgumentException("Scanner execution operations are required");
+        }
+        this.executionOperations = executionOperations;
     }
 
     public ScannerWorkspaceResponse bootstrap(ScannerWorkspaceRequest request) {
@@ -244,7 +251,7 @@ public final class ScannerWorkspaceService {
         List<ElementDTO> scanPage(String[] searchTerms, int homeBankingId, int botJobId);
     }
 
-    interface ExecutionOperations {
+    public interface ExecutionOperations {
         void preLaunch(int botJobId);
 
         void stopPreLaunch(int botJobId);

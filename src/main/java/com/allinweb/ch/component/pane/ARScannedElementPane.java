@@ -274,7 +274,9 @@ public class ARScannedElementPane extends ARPane {
     private static final List<ElementScanProfile> ELEMENT_SCAN_PROFILES = buildElementScanProfiles();
 
     // Private constructor to prevent instantiation
-    private ARScannedElementPane() {}
+    private ARScannedElementPane() {
+        ScannerWorkspaceService.getInstance().installExecutionOperations(new ScannerPaneExecutionOperations(this));
+    }
 
     private static List<ElementScanProfile> buildElementScanProfiles() {
         List<ElementScanProfile> profiles = new ArrayList<>();
@@ -491,6 +493,24 @@ public class ARScannedElementPane extends ARPane {
             } else {
                 setStyle("");
             }
+        }
+    }
+
+    private static final class ScannerPaneExecutionOperations implements ScannerWorkspaceService.ExecutionOperations {
+        private final ARScannedElementPane pane;
+
+        private ScannerPaneExecutionOperations(ARScannedElementPane pane) {
+            this.pane = pane;
+        }
+
+        @Override
+        public void preLaunch(int botJobId) {
+            pane.requestPreLaunchFromWorkspace(botJobId);
+        }
+
+        @Override
+        public void stopPreLaunch(int botJobId) {
+            pane.requestStopPreLaunchFromWorkspace(botJobId);
         }
     }
 
@@ -2597,6 +2617,33 @@ public class ARScannedElementPane extends ARPane {
         separator.setPrefHeight(2); // Default height
         separator.setStyle("-fx-background-color: " + color.toString().replace("0x", "#") + ";");
         return separator;
+    }
+
+    public void requestPreLaunchFromWorkspace(int botJobId) {
+        ensureCurrentScannerJob(botJobId);
+        ensureExecutionControlsReady();
+        Platform.runLater(() -> launchBotJobButton.getOnMouseClicked().handle(null));
+    }
+
+    public void requestStopPreLaunchFromWorkspace(int botJobId) {
+        ensureCurrentScannerJob(botJobId);
+        ensureExecutionControlsReady();
+        Platform.runLater(() -> stopBotJobButton.getOnMouseClicked().handle(null));
+    }
+
+    private void ensureCurrentScannerJob(int botJobId) {
+        if (currentBotJob == null || currentBotJob.getId() == null || currentBotJob.getId() != botJobId) {
+            throw new IllegalStateException("Scanner workspace is not open for Bot Job " + botJobId);
+        }
+    }
+
+    private void ensureExecutionControlsReady() {
+        if (launchBotJobButton == null
+                || stopBotJobButton == null
+                || launchBotJobButton.getOnMouseClicked() == null
+                || stopBotJobButton.getOnMouseClicked() == null) {
+            throw new IllegalStateException("Scanner Pre-Launch controls are not ready");
+        }
     }
 
     @Override
