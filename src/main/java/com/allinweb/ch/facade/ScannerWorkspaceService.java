@@ -65,32 +65,7 @@ public final class ScannerWorkspaceService {
         }
         try {
             ScannerWorkspaceState state = state(request.botJobId());
-            if (action == ScannerWorkspaceAction.CLEAR_GRID) {
-                gridPublisher.publishSearchTerms(
-                        request.sessionId(), state.homeBankingId(), ScannerWorkspacePayloads.emptyPayload(state));
-            } else if (action == ScannerWorkspaceAction.REFRESH_PAGE) {
-                browserOperations.refreshPage();
-            } else if (action == ScannerWorkspaceAction.PREVIOUS_TAB) {
-                browserOperations.switchTab(-1);
-            } else if (action == ScannerWorkspaceAction.NEXT_TAB) {
-                browserOperations.switchTab(1);
-            } else if (action == ScannerWorkspaceAction.PRE_LAUNCH) {
-                executionOperations.preLaunch(state.botJobId());
-            } else if (action == ScannerWorkspaceAction.STOP_PRE_LAUNCH) {
-                executionOperations.stopPreLaunch(state.botJobId());
-            } else if (action == ScannerWorkspaceAction.PAGE_SCANNER) {
-                List<ElementDTO> elements = browserOperations.scanPage(
-                        ScannerWorkspacePayloads.searchTerms(request), state.homeBankingId(), state.botJobId());
-                if (!elements.isEmpty()) {
-                    gridPublisher.publishSearchTerms(
-                            request.sessionId(), state.homeBankingId(), ScannerWorkspacePayloads.emptyPayload(state));
-                    gridPublisher.publishSearchTermsChunks(
-                            request.sessionId(),
-                            state.homeBankingId(),
-                            ScannerWorkspacePayloads.payload(state, elements),
-                            SCANNER_CHUNK_SIZE);
-                }
-            }
+            performAction(action, request, state);
             return ScannerWorkspaceResponse.actionSuccess(
                     action, actionMessage(action), request, state);
         } catch (RuntimeException error) {
@@ -105,6 +80,56 @@ public final class ScannerWorkspaceService {
 
     private String safe(String message) {
         return message == null || message.isBlank() ? "Scanner operation failed" : message;
+    }
+
+    private void performAction(
+            ScannerWorkspaceAction action, ScannerWorkspaceRequest request, ScannerWorkspaceState state) {
+        switch (action) {
+            case CLEAR_GRID -> clearGrid(request, state);
+            case REFRESH_PAGE -> refreshPage();
+            case PREVIOUS_TAB -> switchTab(-1);
+            case NEXT_TAB -> switchTab(1);
+            case PRE_LAUNCH -> preLaunch(state);
+            case STOP_PRE_LAUNCH -> stopPreLaunch(state);
+            case PAGE_SCANNER -> pageScanner(request, state);
+            default -> {
+            }
+        }
+    }
+
+    private void clearGrid(ScannerWorkspaceRequest request, ScannerWorkspaceState state) {
+        gridPublisher.publishSearchTerms(
+                request.sessionId(), state.homeBankingId(), ScannerWorkspacePayloads.emptyPayload(state));
+    }
+
+    private void refreshPage() {
+        browserOperations.refreshPage();
+    }
+
+    private void switchTab(int direction) {
+        browserOperations.switchTab(direction);
+    }
+
+    private void preLaunch(ScannerWorkspaceState state) {
+        executionOperations.preLaunch(state.botJobId());
+    }
+
+    private void stopPreLaunch(ScannerWorkspaceState state) {
+        executionOperations.stopPreLaunch(state.botJobId());
+    }
+
+    private void pageScanner(ScannerWorkspaceRequest request, ScannerWorkspaceState state) {
+        List<ElementDTO> elements = browserOperations.scanPage(
+                ScannerWorkspacePayloads.searchTerms(request), state.homeBankingId(), state.botJobId());
+        if (elements.isEmpty()) {
+            return;
+        }
+        clearGrid(request, state);
+        gridPublisher.publishSearchTermsChunks(
+                request.sessionId(),
+                state.homeBankingId(),
+                ScannerWorkspacePayloads.payload(state, elements),
+                SCANNER_CHUNK_SIZE);
     }
 
     private String actionMessage(ScannerWorkspaceAction action) {
