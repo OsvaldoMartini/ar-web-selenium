@@ -3,19 +3,19 @@ package com.allinweb.ch.component.pane;
 import com.allinweb.ch.facade.ScannerWorkspaceService;
 
 final class ScannerPaneExecutionOperations implements ScannerWorkspaceService.ExecutionOperations {
-    private final ARScannedElementPane pane;
+    private final ScannerPreLaunchControls preLaunchControls;
 
-    ScannerPaneExecutionOperations(ARScannedElementPane pane) {
-        this.pane = pane;
+    ScannerPaneExecutionOperations(ScannerPreLaunchControls preLaunchControls) {
+        this.preLaunchControls = preLaunchControls;
     }
 
     @Override
     public void preLaunch(int botJobId) {
-        pane.requestPreLaunchFromWorkspace(botJobId);
+        preLaunchControls.requestPreLaunchFromWorkspace(botJobId);
     }
 
     @Override
     public void stopPreLaunch(int botJobId) {
-        pane.requestStopPreLaunchFromWorkspace(botJobId);
+        preLaunchControls.requestStopPreLaunchFromWorkspace(botJobId);
     }
 }

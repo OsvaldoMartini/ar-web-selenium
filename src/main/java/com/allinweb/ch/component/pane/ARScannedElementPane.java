@@ -88,7 +88,7 @@ import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
 
 @Slf4j
-public class ARScannedElementPane extends ARPane {
+public class ARScannedElementPane extends ARPane implements ScannerPreLaunchControls {
 
     private static final Logger logLaunch = LoggerFactory.getLogger("com.allinweb.launch");
     private static final Logger logOperations = LoggerFactory.getLogger("com.allinweb.operations");
