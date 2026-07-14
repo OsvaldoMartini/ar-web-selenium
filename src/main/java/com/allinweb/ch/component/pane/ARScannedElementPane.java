@@ -142,6 +142,8 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
             new ScannerPreLaunchStarter(new PanePreLaunchStartOperations());
     private final ScannerPreLaunchStopper scannerPreLaunchStopper =
             new ScannerPreLaunchStopper(new PanePreLaunchStopOperations());
+    private final ScannerPreLaunchWindowBookkeeping scannerPreLaunchWindowBookkeeping =
+            new ScannerPreLaunchWindowBookkeeping(new PanePreLaunchWindowBookkeepingOperations());
     private final WebView webView = new WebView();
     public Button launchBotJobButton;
     public CheckBox checkClickElement;
@@ -3336,6 +3338,30 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
         }
     }
 
+    private final class PanePreLaunchWindowBookkeepingOperations implements ScannerPreLaunchWindowBookkeeping.Operations {
+        @Override
+        public Integer currentWindowHandleCount() {
+            return performActions.getCurrentDriver() == null
+                    ? null
+                    : Integer.valueOf(performActions.getCurrentDriver().getWindowHandles().size());
+        }
+
+        @Override
+        public int knownWindowHandleCount() {
+            return performActions.windowHandlesList.size();
+        }
+
+        @Override
+        public void updateWindowHandlesList() {
+            performActions.updateWindowHandlesList();
+        }
+
+        @Override
+        public void updateButtonState() {
+            ARScannedElementPane.this.updateButtonState();
+        }
+    }
+
     private long recallJobExecutionId() {
         long submittedExecutionId = 0L;
         ScannerPreLaunchExecutionGate.StartAttempt startAttempt =
@@ -3359,12 +3385,7 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
         }
 
         // Selenium-only window bookkeeping — skipped in Playwright-only mode (no Selenium driver).
-        if (performActions.getCurrentDriver() != null
-                && performActions.getCurrentDriver().getWindowHandles().size()
-                        != performActions.windowHandlesList.size()) {
-            performActions.updateWindowHandlesList();
-            updateButtonState();
-        }
+        scannerPreLaunchWindowBookkeeping.refreshChangedWindows();
         return submittedExecutionId;
     }
 
