@@ -26,6 +26,9 @@ final class ScannerGridPublisher implements ScannerWorkspaceService.GridPublishe
 
     @Override
     public void publishSearchTermsChunks(String sessionId, int homeBankingId, SplitDTO payload, int chunkSize) {
+        if (chunkSize <= 0) {
+            throw new IllegalArgumentException("Scanner chunk size must be positive");
+        }
         ElementDTO[] elementDetails = payload.getElementDetails();
         List<ElementDTO> elements = elementDetails == null ? List.of() : Arrays.asList(elementDetails);
         for (int i = 0; i < elements.size(); i += chunkSize) {

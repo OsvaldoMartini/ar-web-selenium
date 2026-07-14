@@ -1,6 +1,7 @@
 package com.allinweb.ch.facade;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.allinweb.ch.model.ElementDTO;
 import com.allinweb.ch.model.SplitDTO;
@@ -43,6 +44,21 @@ class ScannerGridPublisherTest {
         assertEquals(5, payload.getElementDetails().length);
         assertEquals("one", payload.getElementDetails()[0].getDefinedName());
         assertEquals("five", payload.getElementDetails()[4].getDefinedName());
+    }
+
+    @Test
+    void rejectsNonPositiveChunkSize() {
+        RecordingSender sender = new RecordingSender();
+        ScannerGridPublisher publisher = new ScannerGridPublisher(sender);
+        SplitDTO payload = payload("one");
+
+        IllegalArgumentException error = assertThrows(
+                IllegalArgumentException.class,
+                () -> publisher.publishSearchTermsChunks("scannerGrid", 2, payload, 0));
+
+        assertEquals("Scanner chunk size must be positive", error.getMessage());
+        assertEquals(0, sender.messages.size());
+        assertEquals(1, payload.getElementDetails().length);
     }
 
     private SplitDTO payload(String... names) {
