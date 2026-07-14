@@ -24,6 +24,7 @@ public final class ScannerWorkspaceService {
     private final GridPublisher gridPublisher;
     private final BrowserOperations browserOperations;
     private final ScannerWorkspaceActionParser actionParser = new ScannerWorkspaceActionParser();
+    private final ScannerWorkspaceActionGate actionGate = new ScannerWorkspaceActionGate();
     private volatile ExecutionOperations executionOperations;
 
     ScannerWorkspaceService(
@@ -66,39 +67,13 @@ public final class ScannerWorkspaceService {
         }
         try {
             ScannerWorkspaceState state = state(request.botJobId());
-            validateActionAllowed(action, state);
+            actionGate.validateAllowed(action, state);
             ActionOutcome outcome = performAction(action, request, state);
             ScannerWorkspaceState updatedState = state(request.botJobId());
             return ScannerWorkspaceResponse.actionSuccess(
                     action, outcome.message(), request, updatedState);
         } catch (RuntimeException error) {
             return ScannerWorkspaceResponse.failure(safe(error.getMessage()), "SCANNER_ACTION_FAILED", request, action);
-        }
-    }
-
-    private void validateActionAllowed(ScannerWorkspaceAction action, ScannerWorkspaceState state) {
-        switch (action) {
-            case PAGE_SCANNER -> {
-                if (!state.capabilities().canUsePageScanner()) {
-                    throw new IllegalStateException("Page Scanner is not available for this Bot Job");
-                }
-                requireScannableBrowser("Page Scanner", state);
-            }
-            case REFRESH_PAGE -> requireScannableBrowser("Refresh Web Page", state);
-            case PREVIOUS_TAB, NEXT_TAB -> requireScannableBrowser("Browser tab navigation", state);
-            case PRE_LAUNCH -> {
-                if (!state.capabilities().canExecute()) {
-                    throw new IllegalStateException("Scanner execution is not available for this Bot Job");
-                }
-            }
-            default -> {
-            }
-        }
-    }
-
-    private void requireScannableBrowser(String actionName, ScannerWorkspaceState state) {
-        if (!state.browser().scannable()) {
-            throw new IllegalStateException(actionName + " requires an open scanner browser");
         }
     }
 
