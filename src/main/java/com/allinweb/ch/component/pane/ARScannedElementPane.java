@@ -133,6 +133,8 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
     private final Gson gson = new Gson();
     private final ScannerPreLaunchStarter scannerPreLaunchStarter =
             new ScannerPreLaunchStarter(new PanePreLaunchStartOperations());
+    private final ScannerPreLaunchStopper scannerPreLaunchStopper =
+            new ScannerPreLaunchStopper(new PanePreLaunchStopOperations());
     private final WebView webView = new WebView();
     public Button launchBotJobButton;
     public CheckBox checkClickElement;
@@ -2813,12 +2815,29 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
     }
 
     public void stopPreLaunchFromWorkspace() {
-        launchBotJobButton.setDisable(false);
-        performActions.setInterceptBotJob(true);
-        setInterceptBotJob(true);
-        isJobRunning.set(false);
-        if (!lastBrowserTab()) {
-            return;
+        scannerPreLaunchStopper.stop();
+    }
+
+    private final class PanePreLaunchStopOperations implements ScannerPreLaunchStopper.Operations {
+        @Override
+        public void enableLaunch() {
+            launchBotJobButton.setDisable(false);
+        }
+
+        @Override
+        public void requestIntercept() {
+            performActions.setInterceptBotJob(true);
+            setInterceptBotJob(true);
+        }
+
+        @Override
+        public void markNotRunning() {
+            isJobRunning.set(false);
+        }
+
+        @Override
+        public boolean lastBrowserTab() {
+            return ARScannedElementPane.this.lastBrowserTab();
         }
     }
 
