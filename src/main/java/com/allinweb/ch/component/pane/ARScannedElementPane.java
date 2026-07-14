@@ -131,6 +131,8 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
     private final TestRunExecutionOutcomeTracker jobExecutionOutcomes = new TestRunExecutionOutcomeTracker();
     private final AtomicBoolean testRunStartupActive = new AtomicBoolean(false);
     private final Gson gson = new Gson();
+    private final ScannerPreLaunchStarter scannerPreLaunchStarter =
+            new ScannerPreLaunchStarter(new PanePreLaunchStartOperations());
     private final WebView webView = new WebView();
     public Button launchBotJobButton;
     public CheckBox checkClickElement;
@@ -2635,24 +2637,54 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
     }
 
     public void startPreLaunchFromWorkspace() {
-        if (!lastBrowserTab()) {
-            return;
+        scannerPreLaunchStarter.start();
+    }
+
+    private final class PanePreLaunchStartOperations implements ScannerPreLaunchStarter.Operations {
+        @Override
+        public boolean lastBrowserTab() {
+            return ARScannedElementPane.this.lastBrowserTab();
         }
 
-        beginPreLaunchRun();
-        ErrorMessage errorMessage = loadPreLaunchDefinitions();
-        reportPreLaunchLoadError(errorMessage);
-        if (!loadCurrentPreLaunchBotJob()) {
-            return;
+        @Override
+        public void beginRun() {
+            beginPreLaunchRun();
         }
-        preparePreLaunchExcel();
-        if (!validatePreLaunchExcel()) {
-            return;
+
+        @Override
+        public ErrorMessage loadDefinitions() {
+            return loadPreLaunchDefinitions();
         }
-        if (!confirmMultipleExcelRows()) {
-            return;
+
+        @Override
+        public void reportLoadError(ErrorMessage errorMessage) {
+            reportPreLaunchLoadError(errorMessage);
         }
-        resetPreLaunchInstructionsAndRecall();
+
+        @Override
+        public boolean loadCurrentBotJob() {
+            return loadCurrentPreLaunchBotJob();
+        }
+
+        @Override
+        public void prepareExcel() {
+            preparePreLaunchExcel();
+        }
+
+        @Override
+        public boolean validateExcel() {
+            return validatePreLaunchExcel();
+        }
+
+        @Override
+        public boolean confirmMultipleExcelRows() {
+            return confirmMultipleExcelRows();
+        }
+
+        @Override
+        public void resetInstructionsAndRecall() {
+            resetPreLaunchInstructionsAndRecall();
+        }
     }
 
     private void beginPreLaunchRun() {
