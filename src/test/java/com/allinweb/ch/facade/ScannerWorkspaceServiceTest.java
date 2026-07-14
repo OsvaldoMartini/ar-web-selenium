@@ -193,6 +193,41 @@ class ScannerWorkspaceServiceTest {
         assertEquals(List.of("input", "button", "[role='tab']"), List.of(browser.lastSearchTerms));
     }
 
+    @Test
+    void pageScannerIsRejectedWhenBrowserIsNotScannable() {
+        RecordingPublisher publisher = new RecordingPublisher();
+        RecordingBrowser browser = new RecordingBrowser();
+        browser.browserState = new ScannerWorkspaceState.Browser("CLOSED", "", "", 0, false);
+        RecordingExecution execution = new RecordingExecution();
+        ScannerWorkspaceService service = new ScannerWorkspaceService(id -> state(), publisher, browser, execution);
+
+        ScannerWorkspaceResponse response = service.action(request("page-scan-closed-1", "PAGE_SCANNER"));
+
+        assertEquals(false, response.ok());
+        assertEquals("SCANNER_ACTION_FAILED", response.errorCode());
+        assertEquals("PAGE_SCANNER", response.action());
+        assertTrue(response.message().contains("requires an open scanner browser"));
+        assertEquals(0, browser.scanCalls);
+        assertTrue(publisher.calls.isEmpty());
+    }
+
+    @Test
+    void preLaunchIsRejectedWhenExecutionCapabilityIsDisabled() {
+        RecordingPublisher publisher = new RecordingPublisher();
+        RecordingBrowser browser = new RecordingBrowser();
+        RecordingExecution execution = new RecordingExecution();
+        ScannerWorkspaceService service =
+                new ScannerWorkspaceService(id -> stateWithoutExecution(), publisher, browser, execution);
+
+        ScannerWorkspaceResponse response = service.action(request("pre-launch-disabled-1", "PRE_LAUNCH"));
+
+        assertEquals(false, response.ok());
+        assertEquals("SCANNER_ACTION_FAILED", response.errorCode());
+        assertEquals("PRE_LAUNCH", response.action());
+        assertTrue(response.message().contains("execution is not available"));
+        assertTrue(execution.preLaunchBotJobIds.isEmpty());
+    }
+
     private ScannerWorkspaceRequest request(String requestId, String action) {
         return request(requestId, action, null);
     }
@@ -214,6 +249,14 @@ class ScannerWorkspaceServiceTest {
     }
 
     private BotJobDetailsState state() {
+        return state(true);
+    }
+
+    private BotJobDetailsState stateWithoutExecution() {
+        return state(false);
+    }
+
+    private BotJobDetailsState state(boolean canExecute) {
         return new BotJobDetailsState(
                 9L,
                 5L,
@@ -231,7 +274,7 @@ class ScannerWorkspaceServiceTest {
                 true,
                 List.of(),
                 List.of(new BotJobDetailsState.Block(100, 1, "Login", "", 1, true, 0)),
-                new BotJobDetailsState.Capabilities(true, true, true, true, true, true, true, true),
+                new BotJobDetailsState.Capabilities(true, true, true, true, canExecute, true, true, true),
                 "IDLE",
                 "scanner",
                 false);
