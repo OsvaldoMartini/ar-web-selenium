@@ -99,33 +99,8 @@ public final class ScannerWorkspaceService {
     }
 
     public ScannerWorkspaceState state(int botJobId) {
-        return toScannerState(botJobStateProvider.apply(botJobId));
-    }
-
-    private ScannerWorkspaceState toScannerState(BotJobDetailsState source) {
-        List<ScannerWorkspaceState.Block> blocks = source.blocks().stream()
-                .map(block -> new ScannerWorkspaceState.Block(block.id(), block.order(), block.name(), block.active()))
-                .toList();
-        BotJobDetailsState.Capabilities sourceCapabilities = source.capabilities();
-        ScannerWorkspaceState.Capabilities capabilities = new ScannerWorkspaceState.Capabilities(
-                true,
-                sourceCapabilities.canUsePreScan(),
-                sourceCapabilities.canUsePreScan(),
-                sourceCapabilities.canExecute(),
-                sourceCapabilities.canUseWorkspaceActions());
-        return new ScannerWorkspaceState(
-                source.revision(),
-                source.botJobId(),
-                source.name(),
-                source.homeBankingId(),
-                source.environmentUrl(),
-                blocks,
-                browserOperations.browserState(),
-                new ScannerWorkspaceState.Focus(
-                        "All - Interactive controls", ScannerWorkspacePayloads.defaultPageScanTerms()),
-                new ScannerWorkspaceState.Ocr(sourceCapabilities.canUsePreScan(), "IDLE"),
-                capabilities,
-                source.executionState());
+        return ScannerWorkspaceStateMapper.toScannerState(
+                botJobStateProvider.apply(botJobId), browserOperations.browserState());
     }
 
     private String safe(String message) {
