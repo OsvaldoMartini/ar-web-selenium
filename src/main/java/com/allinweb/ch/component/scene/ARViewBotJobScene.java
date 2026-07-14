@@ -1,6 +1,6 @@
 package com.allinweb.ch.component.scene;
 
-import com.allinweb.ch.component.pane.ARViewBotJobPane;
+import com.allinweb.ch.component.pane.ARMainDashboardPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.driver.ARWebDriver;
@@ -16,7 +16,6 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public final class ARViewBotJobScene extends ARScene {
 
-    private static final ARViewBotJobPane PANE = ARViewBotJobPane.getInstance();
     private static final double SCENE_HEIGHT = 600D;
     private static final double SCENE_WIDTH = 1100D;
     private static final String TITLE = "Bot Job Details";
@@ -43,7 +42,7 @@ public final class ARViewBotJobScene extends ARScene {
         this.licenseGuardEnabled = licenseGuardEnabled;
     }
 
-    @Override public IARPane buildPane() { return PANE; }
+    @Override public IARPane buildPane() { return null; }
     @Override public Double getSceneHeight() { return SCENE_HEIGHT; }
     @Override public Double getSceneWidth() { return SCENE_WIDTH; }
 
@@ -64,47 +63,18 @@ public final class ARViewBotJobScene extends ARScene {
     }
 
     private void handleCloseRequest(WindowEvent event) {
-        if (!PANE.canCloseWorkspace()) {
-            event.consume();
-            return;
-        }
-        PANE.markWorkspaceClosed();
         threadList.forEach(this::interruptThread);
     }
 
     public void showModal() {
-        PANE.initialize(this, selectedBotJob, licenseGuardEnabled);
-        if (modalStage == null) {
-            modalStage = new Stage();
-            PANE.setStage(modalStage);
-            modalStage.setOnCloseRequest(this::handleCloseRequest);
-            modalStage.setOnHidden(event -> PANE.markWorkspaceClosed());
-            modalStage.getIcons().add(icon);
-            IARPane pane = buildPane();
-            if (pane == null) {
-                log.error("Failed to build pane for Bot Job Details modal");
-                return;
-            }
-            modalScene = new Scene(pane.createPane(), getSceneWidth(), getSceneHeight());
-            modalStage.setScene(modalScene);
-            modalStage.initModality(Modality.WINDOW_MODAL);
-            modalStage.setOnShown(event -> Platform.runLater(() -> modalStage.setAlwaysOnTop(false)));
-        }
-        PANE.setStage(modalStage);
-        modalStage.setTitle(getTitle());
-        if (!modalStage.isShowing()) modalStage.showAndWait();
+        ARMainDashboardPane.getInstance().openBotJob(selectedBotJob);
     }
 
     public void closeModal() {
-        if (modalStage == null || !PANE.canCloseWorkspace()) return;
-        PANE.markWorkspaceClosed();
-        modalStage.close();
-        modalStage = null;
+        ARMainDashboardPane.getInstance().showMainDashboard();
     }
 
     public void destroyPanel() {
-        if (!PANE.canCloseWorkspace()) return;
-        PANE.markWorkspaceClosed();
-        PANE.destroy();
+        ARMainDashboardPane.getInstance().showMainDashboard();
     }
 }

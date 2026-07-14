@@ -44,7 +44,7 @@ public class ARMainDashboardPane extends ARPane {
     private static final Gson gson = new Gson();
     private static final ARConfigurationScene arConfigurationScene = ARConfigurationScene.getInstance();
     private static final ARConfigManagerScene arConfigManagerScene = ARConfigManagerScene.getInstance();
-    private static final ARViewBotJobPane arViewBotJobPane = ARViewBotJobPane.getInstance();
+    private static final BotJobDetailsWorkspaceHost botJobDetailsHost = BotJobDetailsWorkspaceHost.getInstance();
     private static final ARNewBotJobManagerScene arNewBotJobManagerScene = ARNewBotJobManagerScene.getInstance();
     private static final AROrganizationManagerScene arOrganizationManagerScene = AROrganizationManagerScene.getInstance();
     private static final ARWebDriver arWebDriver = ARWebDriver.getInstance();
@@ -170,8 +170,8 @@ public class ARMainDashboardPane extends ARPane {
     public void openBotJob(BotJobLoadDTO botJob) {
         Platform.runLater(() -> {
             reloadBlocks(botJob);
-            arViewBotJobPane.initialize(null, botJob, isEnabledLicence);
-            showBotJobSurface("botJobTasks", arViewBotJobPane.reactContext("botJobTasks"));
+            botJobDetailsHost.initialize(botJob, isEnabledLicence);
+            showBotJobSurface("botJobTasks", botJobDetailsHost.reactContext("botJobTasks"));
         });
     }
 
