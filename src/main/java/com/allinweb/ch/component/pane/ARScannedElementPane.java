@@ -2636,6 +2636,23 @@ public class ARScannedElementPane extends ARPane {
             return;
         }
 
+        beginPreLaunchRun();
+        ErrorMessage errorMessage = loadPreLaunchDefinitions();
+        reportPreLaunchLoadError(errorMessage);
+        if (!loadCurrentPreLaunchBotJob()) {
+            return;
+        }
+        preparePreLaunchExcel();
+        if (!validatePreLaunchExcel()) {
+            return;
+        }
+        if (!confirmMultipleExcelRows()) {
+            return;
+        }
+        resetPreLaunchInstructionsAndRecall();
+    }
+
+    private void beginPreLaunchRun() {
         launchBotJobButton.setDisable(true);
         performActions.setInterceptBotJob(false);
         setInterceptBotJob(false);
@@ -2656,7 +2673,9 @@ public class ARScannedElementPane extends ARPane {
         runSingleBlock = false;
 
         clearFields();
+    }
 
+    private ErrorMessage loadPreLaunchDefinitions() {
         ErrorMessage errorMessage = performDBEngine.loadHomeBanking(null);
         if (errorMessage == null)
             errorMessage = performDBEngine.loadHomeUrls(this.currentBotJob.getHomeBankingId());
@@ -2687,22 +2706,27 @@ public class ARScannedElementPane extends ARPane {
             log.warn("I cannot find a Bot Job with this Organization ID: " + this.currentBotJob.getHomeBankingId()
                     + " Environment ID: " + this.currentBotJob.getId());
         }
+        return errorMessage;
+    }
 
+    private void reportPreLaunchLoadError(ErrorMessage errorMessage) {
         if (errorMessage != null) {
             log.error("Error: " + errorMessage.getErrorMessage());
             performMessage.errorMessageOperationFailed(errorMessage);
         }
+    }
 
+    private boolean loadCurrentPreLaunchBotJob() {
         if (performLists.getListBotJob().isEmpty()) {
             log.error("Cannot find Bot Jobs with this Id:" + this.currentBotJob.getId());
             reenableLaunchButton();
-            return;
+            return false;
         }
         HomeBankingLoadDTO homeBanking = performLists.getHomeBankingById(this.currentBotJob.getHomeBankingId());
         if (homeBanking == null || StringUtils.isNullOrEmpty(homeBanking.getUrl())) {
             log.error("Cannot find Home Banking Environment Id:" + this.currentBotJob.getHomeBankingId());
             reenableLaunchButton();
-            return;
+            return false;
         }
 
         currentBotJob = performLists.getListBotJob().get(0);
@@ -2717,7 +2741,10 @@ public class ARScannedElementPane extends ARPane {
 
         currentBotJobName = currentBotJob.getName();
         excelPath = excelPath + "\\" + currentBotJobName + ".xlsx";
+        return true;
+    }
 
+    private void preparePreLaunchExcel() {
         ExcelReader excelReader = new ExcelReader();
         try {
             // Pass the canonical->clientNamed alias map so the missing-fields warning
@@ -2734,7 +2761,9 @@ public class ARScannedElementPane extends ARPane {
                     null,
                     0);
         }
+    }
 
+    private boolean validatePreLaunchExcel() {
         if (extractedData.getNumberOfDataRows() == 0) {
             extractedData.addField("$EMPTY");
             extractedData.addFieldValue("$EMPTY", "$EMPTY", 0);
@@ -2744,9 +2773,12 @@ public class ARScannedElementPane extends ARPane {
             performMessage.errorMessage(
                     "Excel Error", "Could Not Execute Excel File", extractedData.getErrorMessage(), null, null, 0);
             reenableLaunchButton();
-            return;
+            return false;
         }
+        return true;
+    }
 
+    private boolean confirmMultipleExcelRows() {
         if (extractedData.getNumberOfDataRows() != null
                 && extractedData.getNumberOfDataRows() > 1
                 && excelDataGoto.isEmpty()) {
@@ -2771,12 +2803,15 @@ public class ARScannedElementPane extends ARPane {
                 reenableLaunchButton();
 
                 if (!lastBrowserTab()) {
-                    return;
+                    return false;
                 }
-                return;
+                return false;
             }
         }
+        return true;
+    }
 
+    private void resetPreLaunchInstructionsAndRecall() {
         // Set all instructions' executed field to false
         if (!performLists.getListBotJob().isEmpty()) {
 
