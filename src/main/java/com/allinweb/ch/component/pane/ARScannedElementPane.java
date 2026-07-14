@@ -216,6 +216,8 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
             new ScannerPreLaunchMultipleRowsConfirmation(
                     scannerPreLaunchExcelLoader,
                     new PanePreLaunchMultipleRowsConfirmationOperations());
+    private final ScannerPreLaunchRecallAfterReset scannerPreLaunchRecallAfterReset =
+            new ScannerPreLaunchRecallAfterReset(new PanePreLaunchRecallAfterResetOperations());
 
     private final ScheduledExecutorService screenshotScheduler =
             AppExecutors.get().scheduler(ExecutorsManager.Pool.SCREENSHOT_SCHEDULER);
@@ -3016,8 +3018,19 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
     }
 
     private void resetPreLaunchInstructionsAndRecall() {
-        if (scannerPreLaunchPreparation.resetInstructionExecutionFlags()) {
-            recallJob();
+        scannerPreLaunchRecallAfterReset.resetInstructionsAndRecall();
+    }
+
+    private final class PanePreLaunchRecallAfterResetOperations
+            implements ScannerPreLaunchRecallAfterReset.Operations {
+        @Override
+        public boolean resetInstructionExecutionFlags() {
+            return scannerPreLaunchPreparation.resetInstructionExecutionFlags();
+        }
+
+        @Override
+        public boolean recallJob() {
+            return ARScannedElementPane.this.recallJob();
         }
     }
 
