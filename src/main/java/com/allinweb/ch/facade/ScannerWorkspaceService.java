@@ -60,7 +60,7 @@ public final class ScannerWorkspaceService {
                     BotJobDetailsService.getInstance()::currentState,
                     new ScannerGridPublisher(),
                     new ScannerBrowserOperations(),
-                    new DefaultExecutionOperations());
+                    new ScannerExecutionOperations());
 
     private final IntFunction<BotJobDetailsState> botJobStateProvider;
     private final GridPublisher gridPublisher;
@@ -255,15 +255,4 @@ public final class ScannerWorkspaceService {
         void stopPreLaunch(int botJobId);
     }
 
-    private static final class DefaultExecutionOperations implements ExecutionOperations {
-        @Override
-        public void preLaunch(int botJobId) {
-            throw new IllegalStateException("Scanner Pre-Launch backend adapter is not connected yet");
-        }
-
-        @Override
-        public void stopPreLaunch(int botJobId) {
-            PerformActions.getInstance().setInterceptBotJob(true);
-        }
-    }
 }
