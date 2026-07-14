@@ -2622,13 +2622,13 @@ public class ARScannedElementPane extends ARPane {
     public void requestPreLaunchFromWorkspace(int botJobId) {
         ensureCurrentScannerJob(botJobId);
         ensureExecutionControlsReady();
-        Platform.runLater(() -> launchBotJobButton.getOnMouseClicked().handle(null));
+        Platform.runLater(this::startPreLaunchFromWorkspace);
     }
 
     public void requestStopPreLaunchFromWorkspace(int botJobId) {
         ensureCurrentScannerJob(botJobId);
         ensureExecutionControlsReady();
-        Platform.runLater(() -> stopBotJobButton.getOnMouseClicked().handle(null));
+        Platform.runLater(this::stopPreLaunchFromWorkspace);
     }
 
     private void ensureCurrentScannerJob(int botJobId) {
@@ -2644,6 +2644,14 @@ public class ARScannedElementPane extends ARPane {
                 || stopBotJobButton.getOnMouseClicked() == null) {
             throw new IllegalStateException("Scanner Pre-Launch controls are not ready");
         }
+    }
+
+    public void startPreLaunchFromWorkspace() {
+        launchBotJobButton.getOnMouseClicked().handle(null);
+    }
+
+    public void stopPreLaunchFromWorkspace() {
+        stopBotJobButton.getOnMouseClicked().handle(null);
     }
 
     @Override
