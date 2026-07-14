@@ -2620,7 +2620,7 @@ public class ARScannedElementPane extends ARPane {
     }
 
     private void ensurePreLaunchControlsReady() {
-        if (launchBotJobButton == null || launchBotJobButton.getOnMouseClicked() == null) {
+        if (launchBotJobButton == null) {
             throw new IllegalStateException("Scanner Pre-Launch controls are not ready");
         }
     }
@@ -2632,7 +2632,160 @@ public class ARScannedElementPane extends ARPane {
     }
 
     public void startPreLaunchFromWorkspace() {
-        launchBotJobButton.getOnMouseClicked().handle(null);
+        if (!lastBrowserTab()) {
+            return;
+        }
+
+        launchBotJobButton.setDisable(true);
+        performActions.setInterceptBotJob(false);
+        setInterceptBotJob(false);
+        isJobRunning.set(false);
+
+        try {
+            excelPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL);
+        } catch (Exception error) {
+            log.error("Error Defining Excel or BaseLog File: " + error.getMessage());
+        }
+
+        executeSpecificBlock = comboBoxBlocks.getValue().getBlockOrderNumber() < 0
+                ? 0
+                : comboBoxBlocks.getValue().getBlockOrderNumber() - 1; // Start in a specific Block/UseCase
+
+        // A successful TEST RUN leaves runSingleBlock=true behind; a full Launch must
+        // always continue past the first block.
+        runSingleBlock = false;
+
+        clearFields();
+
+        ErrorMessage errorMessage = performDBEngine.loadHomeBanking(null);
+        if (errorMessage == null)
+            errorMessage = performDBEngine.loadHomeUrls(this.currentBotJob.getHomeBankingId());
+
+        if (errorMessage == null) {
+            excelDataGoto = performDBEngine.loadExcelGotoBlock(this.currentBotJob.getId(), "instruction");
+
+            if ((!excelDataGoto.isEmpty() && excelDataGoto.get(0).getParentBlockId() == null)
+                    || (!excelDataGoto.isEmpty() && excelDataGoto.get(0).getParentBlockId() <= 0)) {
+                performDBEngine.fixExcelGoto(
+                        "instruction",
+                        currentBotJob.getId(),
+                        excelDataGoto.get(0).getId(),
+                        excelDataGoto.get(0).getBlockId());
+
+                excelDataGoto = performDBEngine.loadExcelGotoBlock(this.currentBotJob.getId(), "instruction");
+            }
+        }
+        if (errorMessage == null) errorMessage = performDBEngine.loadCompleteJobs(this.currentBotJob.getId());
+
+        if (errorMessage == null)
+            errorMessage = performDBEngine.loadAllVariables("variable", this.currentBotJob.getId());
+
+        if (errorMessage == null && !performLists.getListBotJob().isEmpty()) {
+            blocksLoaded = performLists.getListBotJob().get(0).getBlockLoadDTOList();
+            errorMessage = performDBEngine.loadAllActionsPerBlock(blocksLoaded);
+        } else if (performLists.getListBotJob().isEmpty()) {
+            log.warn("I cannot find a Bot Job with this Organization ID: " + this.currentBotJob.getHomeBankingId()
+                    + " Environment ID: " + this.currentBotJob.getId());
+        }
+
+        if (errorMessage != null) {
+            log.error("Error: " + errorMessage.getErrorMessage());
+            performMessage.errorMessageOperationFailed(errorMessage);
+        }
+
+        if (performLists.getListBotJob().isEmpty()) {
+            log.error("Cannot find Bot Jobs with this Id:" + this.currentBotJob.getId());
+            reenableLaunchButton();
+            return;
+        }
+        HomeBankingLoadDTO homeBanking = performLists.getHomeBankingById(this.currentBotJob.getHomeBankingId());
+        if (homeBanking == null || StringUtils.isNullOrEmpty(homeBanking.getUrl())) {
+            log.error("Cannot find Home Banking Environment Id:" + this.currentBotJob.getHomeBankingId());
+            reenableLaunchButton();
+            return;
+        }
+
+        currentBotJob = performLists.getListBotJob().get(0);
+        currentBotJob.setHomeBankingLoadDTO(homeBanking);
+        HomeUrlDTO homeUrlDTO =
+                performLists.getHomeUrlByBankId(currentBotJob.getHomeBankingId(), currentBotJob.getHomeUrlId());
+
+        if (homeUrlDTO != null) {
+            currentBotJob.setHomeUrlId(homeUrlDTO.getId());
+            homeBanking.setUrl(homeUrlDTO.getUrl());
+        }
+
+        currentBotJobName = currentBotJob.getName();
+        excelPath = excelPath + "\\" + currentBotJobName + ".xlsx";
+
+        ExcelReader excelReader = new ExcelReader();
+        try {
+            // Pass the canonical->clientNamed alias map so the missing-fields warning
+            // accepts an Excel column header that matches either form after a rename.
+            extractedData = excelReader.extractData(
+                    excelPath, performLists.getAllActions(), ExcelUtils.buildAliasMap(performLists.getListBlock()));
+        } catch (Exception error) {
+            log.error("Error Processing Excel File");
+            performMessage.errorMessage(
+                    "Error Processing Excel File",
+                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to Execute Excel File!</span> ⚠️",
+                    "<span style='color: #E65100; font-weight: bold;'>Please carefully review all Excel columns and their values for potential errors.</span>",
+                    "<span style='font-style: italic;'>Inconsistent or incorrect data can prevent the application from processing the file.</span>",
+                    null,
+                    0);
+        }
+
+        if (extractedData.getNumberOfDataRows() == 0) {
+            extractedData.addField("$EMPTY");
+            extractedData.addFieldValue("$EMPTY", "$EMPTY", 0);
+        }
+
+        if (extractedData != null && extractedData.getErrorMessage() != null) {
+            performMessage.errorMessage(
+                    "Excel Error", "Could Not Execute Excel File", extractedData.getErrorMessage(), null, null, 0);
+            reenableLaunchButton();
+            return;
+        }
+
+        if (extractedData.getNumberOfDataRows() != null
+                && extractedData.getNumberOfDataRows() > 1
+                && excelDataGoto.isEmpty()) {
+
+            log.warn("Multiple Excel Rows Detected: each next row will return to first block");
+
+            ARExecution.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
+                    "Multiple Excel Rows Detected",
+                    "<span style='font-weight: bold;'>Your Excel data file contains multiple rows.</span>",
+                    "By default, each Excel test row <span style='font-weight: bold; color: #e854c8;'>will be processed through all blocks</span>, and after  will jump back to <span style='font-weight: bold;'>first block (Use Case).</span>",
+                    "Add the <span style='font-weight: bold; color: #FF4500;'>'Excel GOTO'</span> operation to your flow to modify the <span style='font-weight: bold;'>default behaviour.</span>",
+                    "The <span style='font-weight: bold; color: #FF4500;'>Excel GOTO</span> allows you to specify which block <span style='font-weight: bold;'>the flow should continue from</span>, after the execution of the first row across all blocks.",
+                    false,
+                    "Continue",
+                    "Stop All",
+                    0);
+
+            if (respModal.equals(ARExecution.DialogModal.STOP)) {
+                performActions.setInterceptBotJob(true);
+                setInterceptBotJob(true);
+                isJobRunning.set(false);
+                reenableLaunchButton();
+
+                if (!lastBrowserTab()) {
+                    return;
+                }
+                return;
+            }
+        }
+
+        // Set all instructions' executed field to false
+        if (!performLists.getListBotJob().isEmpty()) {
+
+            performLists.getListBotJob().get(0).getBlockLoadDTOList().stream()
+                    .flatMap(block -> block.getInstructionLoad().stream())
+                    .forEach(instruction -> instruction.setExecuted(false));
+
+            recallJob();
+        }
     }
 
     public void stopPreLaunchFromWorkspace() {
@@ -2652,162 +2805,7 @@ public class ARScannedElementPane extends ARPane {
         });
 
         configureButton.setOnMouseClicked(e -> arNewHomeBankingScene.show());
-        launchBotJobButton.setOnMouseClicked(e -> {
-            if (!lastBrowserTab()) {
-                return;
-            }
-
-            launchBotJobButton.setDisable(true);
-            performActions.setInterceptBotJob(false);
-            setInterceptBotJob(false);
-            isJobRunning.set(false);
-
-            try {
-                excelPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL);
-            } catch (Exception error) {
-                log.error("Error Defining Excel or BaseLog File: " + error.getMessage());
-            }
-
-            executeSpecificBlock = comboBoxBlocks.getValue().getBlockOrderNumber() < 0
-                    ? 0
-                    : comboBoxBlocks.getValue().getBlockOrderNumber() - 1; // Start in a specific Block/UseCase
-
-            // A successful TEST RUN leaves runSingleBlock=true behind; a full Launch must
-            // always continue past the first block.
-            runSingleBlock = false;
-
-            clearFields();
-
-            ErrorMessage errorMessage = performDBEngine.loadHomeBanking(null);
-            if (errorMessage == null)
-                errorMessage = performDBEngine.loadHomeUrls(this.currentBotJob.getHomeBankingId());
-
-            if (errorMessage == null) {
-                excelDataGoto = performDBEngine.loadExcelGotoBlock(this.currentBotJob.getId(), "instruction");
-
-                if ((!excelDataGoto.isEmpty() && excelDataGoto.get(0).getParentBlockId() == null)
-                        || (!excelDataGoto.isEmpty() && excelDataGoto.get(0).getParentBlockId() <= 0)) {
-                    performDBEngine.fixExcelGoto(
-                            "instruction",
-                            currentBotJob.getId(),
-                            excelDataGoto.get(0).getId(),
-                            excelDataGoto.get(0).getBlockId());
-
-                    excelDataGoto = performDBEngine.loadExcelGotoBlock(this.currentBotJob.getId(), "instruction");
-                }
-            }
-            if (errorMessage == null) errorMessage = performDBEngine.loadCompleteJobs(this.currentBotJob.getId());
-
-            if (errorMessage == null)
-                errorMessage = performDBEngine.loadAllVariables("variable", this.currentBotJob.getId());
-
-            if (errorMessage == null && !performLists.getListBotJob().isEmpty()) {
-                blocksLoaded = performLists.getListBotJob().get(0).getBlockLoadDTOList();
-                errorMessage = performDBEngine.loadAllActionsPerBlock(blocksLoaded);
-            } else if (performLists.getListBotJob().isEmpty()) {
-                log.warn("I cannot find a Bot Job with this Organization ID: " + this.currentBotJob.getHomeBankingId()
-                        + " Environment ID: " + this.currentBotJob.getId());
-            }
-
-            if (errorMessage != null) {
-                log.error("Error: " + errorMessage.getErrorMessage());
-                performMessage.errorMessageOperationFailed(errorMessage);
-            }
-
-            if (performLists.getListBotJob().isEmpty()) {
-                log.error("Cannot find Bot Jobs with this Id:" + this.currentBotJob.getId());
-                reenableLaunchButton();
-                return;
-            }
-            HomeBankingLoadDTO homeBanking = performLists.getHomeBankingById(this.currentBotJob.getHomeBankingId());
-            if (homeBanking == null || StringUtils.isNullOrEmpty(homeBanking.getUrl())) {
-                log.error("Cannot find Home Banking Environment Id:" + this.currentBotJob.getHomeBankingId());
-                reenableLaunchButton();
-                return;
-            }
-
-            currentBotJob = performLists.getListBotJob().get(0);
-            currentBotJob.setHomeBankingLoadDTO(homeBanking);
-            HomeUrlDTO homeUrlDTO =
-                    performLists.getHomeUrlByBankId(currentBotJob.getHomeBankingId(), currentBotJob.getHomeUrlId());
-
-            if (homeUrlDTO != null) {
-                currentBotJob.setHomeUrlId(homeUrlDTO.getId());
-                homeBanking.setUrl(homeUrlDTO.getUrl());
-            }
-
-            currentBotJobName = currentBotJob.getName();
-            excelPath = excelPath + "\\" + currentBotJobName + ".xlsx";
-
-            ExcelReader excelReader = new ExcelReader();
-            try {
-                // Pass the canonical->clientNamed alias map so the missing-fields warning
-                // accepts an Excel column header that matches either form after a rename.
-                extractedData = excelReader.extractData(
-                        excelPath, performLists.getAllActions(), ExcelUtils.buildAliasMap(performLists.getListBlock()));
-            } catch (Exception error) {
-                log.error("Error Processing Excel File");
-                performMessage.errorMessage(
-                        "Error Processing Excel File",
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to Execute Excel File!</span> ⚠️",
-                        "<span style='color: #E65100; font-weight: bold;'>Please carefully review all Excel columns and their values for potential errors.</span>",
-                        "<span style='font-style: italic;'>Inconsistent or incorrect data can prevent the application from processing the file.</span>",
-                        null,
-                        0);
-            }
-
-            if (extractedData.getNumberOfDataRows() == 0) {
-                extractedData.addField("$EMPTY");
-                extractedData.addFieldValue("$EMPTY", "$EMPTY", 0);
-            }
-
-            if (extractedData != null && extractedData.getErrorMessage() != null) {
-                performMessage.errorMessage(
-                        "Excel Error", "Could Not Execute Excel File", extractedData.getErrorMessage(), null, null, 0);
-                reenableLaunchButton();
-                return;
-            }
-
-            if (extractedData.getNumberOfDataRows() != null
-                    && extractedData.getNumberOfDataRows() > 1
-                    && excelDataGoto.isEmpty()) {
-
-                log.warn("Multiple Excel Rows Detected: each next row will return to first block");
-
-                ARExecution.DialogModal respModal = performMessage.showCustomModalDialogDragWin11(
-                        "Multiple Excel Rows Detected",
-                        "<span style='font-weight: bold;'>Your Excel data file contains multiple rows.</span>",
-                        "By default, each Excel test row <span style='font-weight: bold; color: #e854c8;'>will be processed through all blocks</span>, and after  will jump back to <span style='font-weight: bold;'>first block (Use Case).</span>",
-                        "Add the <span style='font-weight: bold; color: #FF4500;'>'Excel GOTO'</span> operation to your flow to modify the <span style='font-weight: bold;'>default behaviour.</span>",
-                        "The <span style='font-weight: bold; color: #FF4500;'>Excel GOTO</span> allows you to specify which block <span style='font-weight: bold;'>the flow should continue from</span>, after the execution of the first row across all blocks.",
-                        false,
-                        "Continue",
-                        "Stop All",
-                        0);
-
-                if (respModal.equals(ARExecution.DialogModal.STOP)) {
-                    performActions.setInterceptBotJob(true);
-                    setInterceptBotJob(true);
-                    isJobRunning.set(false);
-                    reenableLaunchButton();
-
-                    if (!lastBrowserTab()) {
-                        return;
-                    }
-                    return;
-                }
-            }
-
-            // Set all instructions' executed field to false
-            if (!performLists.getListBotJob().isEmpty()) {
-
-                performLists.getListBotJob().get(0).getBlockLoadDTOList().stream()
-                        .flatMap(block -> block.getInstructionLoad().stream())
-                        .forEach(instruction -> instruction.setExecuted(false));
-
-                recallJob();
-            }
-        });
+        launchBotJobButton.setOnMouseClicked(e -> startPreLaunchFromWorkspace());
 
         stopBotJobButton.setOnMouseClicked(e -> stopPreLaunchFromWorkspace());
 
