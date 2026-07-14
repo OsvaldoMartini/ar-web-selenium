@@ -2603,13 +2603,13 @@ public class ARScannedElementPane extends ARPane {
 
     public void requestPreLaunchFromWorkspace(int botJobId) {
         ensureCurrentScannerJob(botJobId);
-        ensureExecutionControlsReady();
+        ensurePreLaunchControlsReady();
         Platform.runLater(this::startPreLaunchFromWorkspace);
     }
 
     public void requestStopPreLaunchFromWorkspace(int botJobId) {
         ensureCurrentScannerJob(botJobId);
-        ensureExecutionControlsReady();
+        ensureStopPreLaunchControlsReady();
         Platform.runLater(this::stopPreLaunchFromWorkspace);
     }
 
@@ -2619,11 +2619,14 @@ public class ARScannedElementPane extends ARPane {
         }
     }
 
-    private void ensureExecutionControlsReady() {
-        if (launchBotJobButton == null
-                || stopBotJobButton == null
-                || launchBotJobButton.getOnMouseClicked() == null
-                || stopBotJobButton.getOnMouseClicked() == null) {
+    private void ensurePreLaunchControlsReady() {
+        if (launchBotJobButton == null || launchBotJobButton.getOnMouseClicked() == null) {
+            throw new IllegalStateException("Scanner Pre-Launch controls are not ready");
+        }
+    }
+
+    private void ensureStopPreLaunchControlsReady() {
+        if (launchBotJobButton == null || stopBotJobButton == null) {
             throw new IllegalStateException("Scanner Pre-Launch controls are not ready");
         }
     }
@@ -2633,7 +2636,13 @@ public class ARScannedElementPane extends ARPane {
     }
 
     public void stopPreLaunchFromWorkspace() {
-        stopBotJobButton.getOnMouseClicked().handle(null);
+        launchBotJobButton.setDisable(false);
+        performActions.setInterceptBotJob(true);
+        setInterceptBotJob(true);
+        isJobRunning.set(false);
+        if (!lastBrowserTab()) {
+            return;
+        }
     }
 
     @Override
@@ -2800,15 +2809,7 @@ public class ARScannedElementPane extends ARPane {
             }
         });
 
-        stopBotJobButton.setOnMouseClicked(e -> {
-            launchBotJobButton.setDisable(false);
-            performActions.setInterceptBotJob(true);
-            setInterceptBotJob(true);
-            isJobRunning.set(false);
-            if (!lastBrowserTab()) {
-                return;
-            }
-        });
+        stopBotJobButton.setOnMouseClicked(e -> stopPreLaunchFromWorkspace());
 
         // HOVER PICK handler removed — the interactive per-element pick (hoverPick JS injection over a
         // page WebSocket) is not supported in the single Playwright browser. Use the regular scanner.
