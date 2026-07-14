@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.allinweb.ch.model.BotJobDetailsState;
+import com.allinweb.ch.model.ElementDTO;
 import com.allinweb.ch.model.ScannerWorkspaceRequest;
 import com.allinweb.ch.model.ScannerWorkspaceResponse;
 import com.allinweb.ch.model.SplitDTO;
@@ -78,12 +79,57 @@ class ScannerWorkspaceServiceTest {
         assertTrue(publisher.calls.isEmpty());
     }
 
+    @Test
+    void pageScannerPublishesResetAndElementChunks() {
+        RecordingPublisher publisher = new RecordingPublisher();
+        RecordingBrowser browser = new RecordingBrowser();
+        browser.scanElements = List.of(element("Input 1"), element("Button 1"));
+        ScannerWorkspaceService service = new ScannerWorkspaceService(id -> state(), publisher, browser);
+
+        ScannerWorkspaceResponse response = service.action(request("page-scan-1", "PAGE_SCANNER"));
+
+        assertTrue(response.ok());
+        assertEquals("PAGE_SCANNER", response.action());
+        assertEquals(1, browser.scanCalls);
+        assertTrue(List.of(browser.lastSearchTerms).contains("input"));
+        assertEquals(2, publisher.calls.size());
+        assertEquals(0, publisher.calls.get(0).payload.getElementDetails().length);
+        assertEquals(2, publisher.calls.get(1).payload.getElementDetails().length);
+        assertEquals(25, publisher.lastChunkSize);
+    }
+
+    @Test
+    void pageScannerUsesSearchTermsFromRequest() {
+        RecordingPublisher publisher = new RecordingPublisher();
+        RecordingBrowser browser = new RecordingBrowser();
+        browser.scanElements = List.of(element("Search result"));
+        ScannerWorkspaceService service = new ScannerWorkspaceService(id -> state(), publisher, browser);
+
+        ScannerWorkspaceResponse response =
+                service.action(request("page-scan-2", "PAGE_SCANNER", "input, button, [role='tab']"));
+
+        assertTrue(response.ok());
+        assertEquals(List.of("input", "button", "[role='tab']"), List.of(browser.lastSearchTerms));
+    }
+
     private ScannerWorkspaceRequest request(String requestId, String action) {
+        return request(requestId, action, null);
+    }
+
+    private ScannerWorkspaceRequest request(String requestId, String action, String searchTerms) {
         JsonObject body = new JsonObject();
         body.addProperty("requestId", requestId);
         body.addProperty("botJobId", 42);
         if (action != null) body.addProperty("action", action);
+        if (searchTerms != null) body.addProperty("searchTerms", searchTerms);
         return new ScannerWorkspaceRequest("scannerGrid", requestId, 42, body);
+    }
+
+    private ElementDTO element(String name) {
+        ElementDTO element = new ElementDTO();
+        element.setDefinedName(name);
+        element.setTagName("input");
+        return element;
     }
 
     private BotJobDetailsState state() {
@@ -118,15 +164,33 @@ class ScannerWorkspaceServiceTest {
             calls.add(new Call(sessionId, homeBankingId, payload));
         }
 
+        @Override
+        public void publishSearchTermsChunks(String sessionId, int homeBankingId, SplitDTO payload, int chunkSize) {
+            lastChunkSize = chunkSize;
+            calls.add(new Call(sessionId, homeBankingId, payload));
+        }
+
+        private int lastChunkSize;
+
         private record Call(String sessionId, int homeBankingId, SplitDTO payload) {}
     }
 
     private static final class RecordingBrowser implements ScannerWorkspaceService.BrowserOperations {
         private int refreshCalls;
+        private int scanCalls;
+        private String[] lastSearchTerms;
+        private List<ElementDTO> scanElements = List.of();
 
         @Override
         public void refreshPage() {
             refreshCalls++;
+        }
+
+        @Override
+        public List<ElementDTO> scanPage(String[] searchTerms, int homeBankingId, int botJobId) {
+            scanCalls++;
+            lastSearchTerms = searchTerms;
+            return scanElements;
         }
     }
 }
