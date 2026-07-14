@@ -3341,20 +3341,13 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
             jobExecutionOutcomes.started(executionId);
             activeJobExecutionId.set(executionId);
             lastSubmittedJobExecutionId.set(executionId);
-            try {
-                //                startScreenshotLoop();
-
-                executorServicePreLaunch.submit(
-                        new ScannerPreLaunchExecutionTask(executionId, new PanePreLaunchExecutionOperations()));
+            //                startScreenshotLoop();
+            ScannerPreLaunchExecutionSubmission submission = new ScannerPreLaunchExecutionSubmission(
+                    executorServicePreLaunch,
+                    new PanePreLaunchExecutionOperations(),
+                    error -> log.error("Error submitting to executorServicePreLaunch: {}", error.getMessage(), error));
+            if (submission.submit(executionId)) {
                 submittedExecutionId = executionId;
-            } catch (Exception e) {
-                jobExecutionOutcomes.completed(executionId, false);
-                completedJobExecutionId.accumulateAndGet(executionId, Math::max);
-                activeJobExecutionId.compareAndSet(executionId, 0L);
-                isJobRunning.set(false);
-                stopScreenshotLoop();
-                reenableLaunchButton();
-                log.error("Error submitting to executorServicePreLaunch: {}", e.getMessage(), e);
             }
         } else {
             log.info("recallJob() requested while executeJob() was running.");
