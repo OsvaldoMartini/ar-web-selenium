@@ -152,6 +152,8 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
             new ScannerTestRunExcelPreparation(scannerPreLaunchExcelLoader, new PaneTestRunExcelOperations());
     private final ScannerTestRunDefinitionValidation scannerTestRunDefinitionValidation =
             new ScannerTestRunDefinitionValidation();
+    private final ScannerTestRunDefinitionLoad scannerTestRunDefinitionLoad =
+            new ScannerTestRunDefinitionLoad(new PaneTestRunDefinitionLoadOperations());
     private final WebView webView = new WebView();
     public Button launchBotJobButton;
     public CheckBox checkClickElement;
@@ -3494,6 +3496,23 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
         }
     }
 
+    private final class PaneTestRunDefinitionLoadOperations implements ScannerTestRunDefinitionLoad.Operations {
+        @Override
+        public ScannerPreLaunchPreparation.Result loadDefinitions(BotJobLoadDTO currentBotJob) {
+            return scannerPreLaunchPreparation.loadDefinitions(currentBotJob);
+        }
+
+        @Override
+        public void setExcelDataGoto(List<InstructionLoad> loadedExcelDataGoto) {
+            excelDataGoto = loadedExcelDataGoto;
+        }
+
+        @Override
+        public void setBlocksLoaded(List<BlockLoadDTO> loadedBlocks) {
+            blocksLoaded = loadedBlocks;
+        }
+    }
+
     private long recallJobExecutionId() {
         long submittedExecutionId = 0L;
         ScannerPreLaunchExecutionGate.StartAttempt startAttempt =
@@ -3590,9 +3609,7 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
         if (testRunStartupCancelled(cancellation)) return 0L;
 
         ScannerPreLaunchPreparation.Result definitions =
-                scannerPreLaunchPreparation.loadDefinitions(this.currentBotJob);
-        excelDataGoto = definitions.excelDataGoto();
-        blocksLoaded = definitions.blocksLoaded();
+                scannerTestRunDefinitionLoad.loadAndApply(this.currentBotJob);
 
         if (testRunStartupCancelled(cancellation)) return 0L;
 
