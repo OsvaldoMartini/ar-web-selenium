@@ -102,6 +102,7 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
     private static final ARScannedElementScene arScannedElementScene = ARScannedElementScene.getInstance();
     private static final PerformLists performLists = PerformLists.getInstance();
     private static final PerformDBEngine performDBEngine = PerformDBEngine.getInstance();
+    private static final ScannerPreLaunchExcelLoader scannerPreLaunchExcelLoader = new ScannerPreLaunchExcelLoader();
     private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
     private static final PerformActions performActions = PerformActions.getInstance();
     private static final PerformMessage performMessage = PerformMessage.getInstance();
@@ -2745,12 +2746,8 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
     }
 
     private void preparePreLaunchExcel() {
-        ExcelReader excelReader = new ExcelReader();
         try {
-            // Pass the canonical->clientNamed alias map so the missing-fields warning
-            // accepts an Excel column header that matches either form after a rename.
-            extractedData = excelReader.extractData(
-                    excelPath, performLists.getAllActions(), ExcelUtils.buildAliasMap(performLists.getListBlock()));
+            extractedData = scannerPreLaunchExcelLoader.load(excelPath, performLists);
         } catch (Exception error) {
             log.error("Error Processing Excel File");
             performMessage.errorMessage(
@@ -2764,10 +2761,7 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
     }
 
     private boolean validatePreLaunchExcel() {
-        if (extractedData.getNumberOfDataRows() == 0) {
-            extractedData.addField("$EMPTY");
-            extractedData.addFieldValue("$EMPTY", "$EMPTY", 0);
-        }
+        scannerPreLaunchExcelLoader.ensureEmptyDataRow(extractedData);
 
         if (extractedData != null && extractedData.getErrorMessage() != null) {
             performMessage.errorMessage(
