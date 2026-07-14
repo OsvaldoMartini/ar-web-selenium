@@ -127,6 +127,12 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
     private final java.util.concurrent.atomic.AtomicLong completedJobExecutionId =
             new java.util.concurrent.atomic.AtomicLong();
     private final TestRunExecutionOutcomeTracker jobExecutionOutcomes = new TestRunExecutionOutcomeTracker();
+    private final ScannerTestRunExecutionState scannerTestRunExecutionState =
+            new ScannerTestRunExecutionState(
+                    activeJobExecutionId,
+                    lastSubmittedJobExecutionId,
+                    completedJobExecutionId,
+                    jobExecutionOutcomes);
     private final ScannerPreLaunchExecutionGate scannerPreLaunchExecutionGate =
             new ScannerPreLaunchExecutionGate(
                     isJobRunning,
@@ -3338,13 +3344,12 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
 
         @Override
         public void completeExecution(long executionId, boolean executionPassed) {
-            jobExecutionOutcomes.completed(executionId, executionPassed);
-            completedJobExecutionId.accumulateAndGet(executionId, Math::max);
+            scannerTestRunExecutionState.completeExecution(executionId, executionPassed);
         }
 
         @Override
         public void clearActiveExecution(long executionId) {
-            activeJobExecutionId.compareAndSet(executionId, 0L);
+            scannerTestRunExecutionState.clearActiveExecution(executionId);
         }
 
         @Override
@@ -3390,7 +3395,7 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
     private final class PaneTestRunStartupOperations implements ScannerTestRunStartupPreparation.Operations {
         @Override
         public long activeExecutionId() {
-            return activeJobExecutionId.get();
+            return scannerTestRunExecutionState.activeExecutionId();
         }
 
         @Override
@@ -3558,27 +3563,27 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
 
         @Override
         public long activeExecutionId() {
-            return activeJobExecutionId.get();
+            return scannerTestRunExecutionState.activeExecutionId();
         }
 
         @Override
         public long lastSubmittedExecutionId() {
-            return lastSubmittedJobExecutionId.get();
+            return scannerTestRunExecutionState.lastSubmittedExecutionId();
         }
 
         @Override
         public long completedExecutionId() {
-            return completedJobExecutionId.get();
+            return scannerTestRunExecutionState.completedExecutionId();
         }
 
         @Override
         public boolean requestStop(long executionId) {
-            return jobExecutionOutcomes.requestStop(executionId);
+            return scannerTestRunExecutionState.requestStop(executionId);
         }
 
         @Override
         public String terminalOutcome(long executionId) {
-            return jobExecutionOutcomes.terminalOutcome(executionId).name();
+            return scannerTestRunExecutionState.terminalState(executionId);
         }
 
         @Override
