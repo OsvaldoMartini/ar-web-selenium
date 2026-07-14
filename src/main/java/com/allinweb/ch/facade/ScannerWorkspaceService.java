@@ -55,7 +55,7 @@ public final class ScannerWorkspaceService {
             return ScannerWorkspaceResponse.success("Scanner workspace loaded", request, state(request.botJobId()));
         } catch (RuntimeException error) {
             return ScannerWorkspaceResponse.failure(
-                    safe(error.getMessage()), "SCANNER_BOOTSTRAP_FAILED", request, null);
+                    error.getMessage(), "SCANNER_BOOTSTRAP_FAILED", request, null);
         }
     }
 
@@ -64,7 +64,7 @@ public final class ScannerWorkspaceService {
         try {
             action = actionParser.parse(request);
         } catch (RuntimeException error) {
-            return ScannerWorkspaceResponse.failure(safe(error.getMessage()), "INVALID_SCANNER_ACTION", request, null);
+            return ScannerWorkspaceResponse.failure(error.getMessage(), "INVALID_SCANNER_ACTION", request, null);
         }
         try {
             ScannerWorkspaceState state = state(request.botJobId());
@@ -74,17 +74,13 @@ public final class ScannerWorkspaceService {
             return ScannerWorkspaceResponse.actionSuccess(
                     action, outcome.message(), request, updatedState);
         } catch (RuntimeException error) {
-            return ScannerWorkspaceResponse.failure(safe(error.getMessage()), "SCANNER_ACTION_FAILED", request, action);
+            return ScannerWorkspaceResponse.failure(error.getMessage(), "SCANNER_ACTION_FAILED", request, action);
         }
     }
 
     public ScannerWorkspaceState state(int botJobId) {
         return ScannerWorkspaceStateMapper.toScannerState(
                 botJobStateProvider.apply(botJobId), browserOperations.browserState());
-    }
-
-    private String safe(String message) {
-        return message == null || message.isBlank() ? "Scanner operation failed" : message;
     }
 
     interface GridPublisher {

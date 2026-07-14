@@ -32,12 +32,16 @@ public record ScannerWorkspaceResponse(
             String message, String errorCode, ScannerWorkspaceRequest request, ScannerWorkspaceAction action) {
         return new ScannerWorkspaceResponse(
                 false,
-                message,
+                safe(message),
                 request == null ? "" : request.requestId(),
                 request == null ? -1 : request.botJobId(),
                 action == null ? null : action.name(),
                 null,
                 errorCode,
                 Map.of());
+    }
+
+    private static String safe(String message) {
+        return message == null || message.isBlank() ? "Scanner operation failed" : message;
     }
 }
