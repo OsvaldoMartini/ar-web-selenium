@@ -6,7 +6,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.allinweb.ch.model.BotJobDetailsState;
 import com.allinweb.ch.model.ScannerWorkspaceRequest;
 import com.allinweb.ch.model.ScannerWorkspaceResponse;
+import com.allinweb.ch.model.SplitDTO;
 import com.google.gson.JsonObject;
+import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -14,7 +16,8 @@ class ScannerWorkspaceServiceTest {
 
     @Test
     void bootstrapMapsBotJobDetailsStateToScannerState() {
-        ScannerWorkspaceService service = new ScannerWorkspaceService(id -> state());
+        RecordingPublisher publisher = new RecordingPublisher();
+        ScannerWorkspaceService service = new ScannerWorkspaceService(id -> state(), publisher);
 
         ScannerWorkspaceResponse response = service.bootstrap(request("bootstrap-1", null));
 
@@ -28,7 +31,8 @@ class ScannerWorkspaceServiceTest {
 
     @Test
     void refreshStateActionReturnsCorrelatedState() {
-        ScannerWorkspaceService service = new ScannerWorkspaceService(id -> state());
+        RecordingPublisher publisher = new RecordingPublisher();
+        ScannerWorkspaceService service = new ScannerWorkspaceService(id -> state(), publisher);
 
         ScannerWorkspaceResponse response = service.action(request("refresh-1", "REFRESH_STATE"));
 
@@ -36,6 +40,25 @@ class ScannerWorkspaceServiceTest {
         assertEquals("REFRESH_STATE", response.action());
         assertEquals("refresh-1", response.requestId());
         assertEquals(9L, response.state().revision());
+    }
+
+    @Test
+    void clearGridPublishesEmptySearchTermsPayload() {
+        RecordingPublisher publisher = new RecordingPublisher();
+        ScannerWorkspaceService service = new ScannerWorkspaceService(id -> state(), publisher);
+
+        ScannerWorkspaceResponse response = service.action(request("clear-1", "CLEAR_GRID"));
+
+        assertTrue(response.ok());
+        assertEquals("CLEAR_GRID", response.action());
+        assertEquals(1, publisher.calls.size());
+        RecordingPublisher.Call call = publisher.calls.get(0);
+        assertEquals("scannerGrid", call.sessionId);
+        assertEquals(2, call.homeBankingId);
+        assertEquals(42, call.payload.getBotJobId());
+        assertEquals("scannerGrid", call.payload.getSessionId());
+        assertEquals("searchTerms", call.payload.getOperationId());
+        assertEquals(0, call.payload.getElementDetails().length);
     }
 
     private ScannerWorkspaceRequest request(String requestId, String action) {
@@ -68,5 +91,16 @@ class ScannerWorkspaceServiceTest {
                 "IDLE",
                 "scanner",
                 false);
+    }
+
+    private static final class RecordingPublisher implements ScannerWorkspaceService.GridPublisher {
+        private final List<Call> calls = new ArrayList<>();
+
+        @Override
+        public void publishSearchTerms(String sessionId, int homeBankingId, SplitDTO payload) {
+            calls.add(new Call(sessionId, homeBankingId, payload));
+        }
+
+        private record Call(String sessionId, int homeBankingId, SplitDTO payload) {}
     }
 }

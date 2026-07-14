@@ -1,22 +1,32 @@
 package com.allinweb.ch.facade;
 
 import com.allinweb.ch.model.BotJobDetailsState;
+import com.allinweb.ch.model.ElementDTO;
 import com.allinweb.ch.model.ScannerWorkspaceAction;
 import com.allinweb.ch.model.ScannerWorkspaceRequest;
 import com.allinweb.ch.model.ScannerWorkspaceResponse;
 import com.allinweb.ch.model.ScannerWorkspaceState;
+import com.allinweb.ch.model.SplitDTO;
+import com.allinweb.ch.socket.WebSocketSessionManager;
+import com.google.gson.Gson;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.IntFunction;
 
 public final class ScannerWorkspaceService {
 
     private static final ScannerWorkspaceService INSTANCE =
-            new ScannerWorkspaceService(BotJobDetailsService.getInstance()::currentState);
+            new ScannerWorkspaceService(
+                    BotJobDetailsService.getInstance()::currentState,
+                    new WebSocketGridPublisher());
 
     private final IntFunction<BotJobDetailsState> botJobStateProvider;
+    private final GridPublisher gridPublisher;
 
-    ScannerWorkspaceService(IntFunction<BotJobDetailsState> botJobStateProvider) {
+    ScannerWorkspaceService(IntFunction<BotJobDetailsState> botJobStateProvider, GridPublisher gridPublisher) {
         this.botJobStateProvider = botJobStateProvider;
+        this.gridPublisher = gridPublisher;
     }
 
     public static ScannerWorkspaceService getInstance() {
@@ -39,12 +49,13 @@ public final class ScannerWorkspaceService {
         } catch (RuntimeException error) {
             return ScannerWorkspaceResponse.failure(safe(error.getMessage()), "INVALID_SCANNER_ACTION", request, null);
         }
-        if (action != ScannerWorkspaceAction.REFRESH_STATE) {
-            return ScannerWorkspaceResponse.failure("Unsupported Scanner action", "INVALID_SCANNER_ACTION", request, action);
-        }
         try {
+            ScannerWorkspaceState state = state(request.botJobId());
+            if (action == ScannerWorkspaceAction.CLEAR_GRID) {
+                gridPublisher.publishSearchTerms(request.sessionId(), state.homeBankingId(), emptyPayload(state));
+            }
             return ScannerWorkspaceResponse.actionSuccess(
-                    action, "Scanner state refreshed", request, state(request.botJobId()));
+                    action, actionMessage(action), request, state);
         } catch (RuntimeException error) {
             return ScannerWorkspaceResponse.failure(safe(error.getMessage()), "SCANNER_ACTION_FAILED", request, action);
         }
@@ -81,5 +92,42 @@ public final class ScannerWorkspaceService {
 
     private String safe(String message) {
         return message == null || message.isBlank() ? "Scanner operation failed" : message;
+    }
+
+    private String actionMessage(ScannerWorkspaceAction action) {
+        return action == ScannerWorkspaceAction.CLEAR_GRID ? "Scanner grid cleared" : "Scanner state refreshed";
+    }
+
+    private SplitDTO emptyPayload(ScannerWorkspaceState state) {
+        SplitDTO payload = new SplitDTO();
+        payload.setHomeBankingId(state.homeBankingId());
+        payload.setBotJobId(state.botJobId());
+        payload.setBotJobName(state.botJobName());
+        payload.setType("SEARCH_TOOL");
+        payload.setSessionId("scannerGrid");
+        payload.setOperationId("searchTerms");
+        payload.setElementDetails(new ElementDTO[0]);
+        payload.setBlocks(state.blocks().stream().map(block -> {
+            Map<String, Object> option = new LinkedHashMap<>();
+            option.put("blockId", block.id());
+            option.put("blockOrderNumber", block.order());
+            option.put("blockName", block.name());
+            return option;
+        }).toList());
+        return payload;
+    }
+
+    interface GridPublisher {
+        void publishSearchTerms(String sessionId, int homeBankingId, SplitDTO payload);
+    }
+
+    private static final class WebSocketGridPublisher implements GridPublisher {
+        private final WebSocketSessionManager sessions = WebSocketSessionManager.getInstance();
+        private final Gson gson = new Gson();
+
+        @Override
+        public void publishSearchTerms(String sessionId, int homeBankingId, SplitDTO payload) {
+            sessions.sendMessageJson(homeBankingId, sessionId, gson.toJson(payload), "searchTerms");
+        }
     }
 }
