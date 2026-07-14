@@ -228,6 +228,8 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
                     new PaneScreenshotLoopOperations());
     private final ScannerValidationEvaluator scannerValidationEvaluator =
             new ScannerValidationEvaluator(new PaneValidationEvaluatorOperations());
+    private final ScannerBrowserRuntime scannerBrowserRuntime =
+            new ScannerBrowserRuntime(new PaneBrowserRuntimeOperations());
 
     private int portSocketInitial = 54525;
     private volatile String pendingDomReviewHtml;
@@ -3292,17 +3294,7 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
      * single Playwright browser. Empty string when no browser is open.
      */
     private String currentPageUrl() {
-        try {
-            if (performActions.getCurrentDriver() != null) {
-                return performActions.getCurrentDriver().getCurrentUrl();
-            }
-            if (currentARWebDriver != null && currentARWebDriver.isPlaywrightEnabled()) {
-                return currentARWebDriver.getPlaywrightDriver().currentUrl();
-            }
-        } catch (Exception e) {
-            log.warn("currentPageUrl failed: {}", e.getMessage());
-        }
-        return "";
+        return scannerBrowserRuntime.currentPageUrl();
     }
 
     public void periodicSearchThread(
@@ -3924,39 +3916,13 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
     }
 
     private String currentPlaywrightUrl() {
-        try {
-            if (currentARWebDriver == null
-                    || currentARWebDriver.getPlaywrightDriver() == null
-                    || !currentARWebDriver.getPlaywrightDriver().isOpen()) {
-                return "";
-            }
-            return currentARWebDriver.getPlaywrightDriver().currentUrl();
-        } catch (Exception error) {
-            return "(url unavailable: " + error.getMessage() + ")";
-        }
+        return scannerBrowserRuntime.currentPlaywrightUrl();
     }
 
     private void pauseAfterPlaywrightWebAction(
             InstructionLoad instruction, String action, boolean success, String urlBefore, String urlAfter) {
-        String instructionName = instruction == null ? "(null instruction)" : instruction.getName();
-        boolean navigationChanged = !Objects.equals(urlBefore, urlAfter);
-        logOperations.info(
-                "Playwright step action={} instruction='{}' success={} navigationChanged={} urlBefore={} urlAfter={}",
-                action,
-                instructionName,
-                success,
-                navigationChanged,
-                urlBefore,
-                urlAfter);
-        appendLog(
-                "[PW] "
-                        + action
-                        + " - "
-                        + instructionName
-                        + " - "
-                        + (success ? "OK" : "FAILED")
-                        + (navigationChanged ? " - navigation changed" : ""),
-                success ? "info" : "warn");
+        scannerBrowserRuntime.pauseAfterPlaywrightWebAction(
+                instruction == null ? null : instruction.getName(), action, success, urlBefore, urlAfter);
     }
 
     //    private void sendScreenshotToListener() {
@@ -4107,6 +4073,68 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
         @Override
         public void warnInvalidNumericValue(String fieldName, String value) {
             logOperations.warn("Invalid numeric value for {}: {}", fieldName, value);
+        }
+    }
+
+    private final class PaneBrowserRuntimeOperations implements ScannerBrowserRuntime.Operations {
+        @Override
+        public boolean hasSeleniumDriver() {
+            return performActions.getCurrentDriver() != null;
+        }
+
+        @Override
+        public String currentSeleniumUrl() {
+            return performActions.getCurrentDriver().getCurrentUrl();
+        }
+
+        @Override
+        public boolean isPlaywrightEnabled() {
+            return currentARWebDriver != null && currentARWebDriver.isPlaywrightEnabled();
+        }
+
+        @Override
+        public boolean hasOpenPlaywrightDriver() {
+            return currentARWebDriver != null
+                    && currentARWebDriver.getPlaywrightDriver() != null
+                    && currentARWebDriver.getPlaywrightDriver().isOpen();
+        }
+
+        @Override
+        public String currentPlaywrightUrl() {
+            return currentARWebDriver.getPlaywrightDriver().currentUrl();
+        }
+
+        @Override
+        public String navigationTimeProperty() {
+            return arPropertyManager.getProperty(ARPropertyEnum.NAVIGATION_TIME);
+        }
+
+        @Override
+        public void warnCurrentPageUrlFailed(String message) {
+            log.warn("currentPageUrl failed: {}", message);
+        }
+
+        @Override
+        public void logPlaywrightStep(
+                String action,
+                String instructionName,
+                boolean success,
+                boolean navigationChanged,
+                String urlBefore,
+                String urlAfter) {
+            logOperations.info(
+                    "Playwright step action={} instruction='{}' success={} navigationChanged={} urlBefore={} urlAfter={}",
+                    action,
+                    instructionName,
+                    success,
+                    navigationChanged,
+                    urlBefore,
+                    urlAfter);
+        }
+
+        @Override
+        public void appendLog(String message, String style) {
+            ARScannedElementPane.this.appendLog(message, style);
         }
     }
 
@@ -8891,15 +8919,7 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
     }
 
     private int getNavigationTimeSeconds() {
-        String v = arPropertyManager.getProperty(ARPropertyEnum.NAVIGATION_TIME);
-        try {
-            int s = Integer.parseInt(v);
-            if (s < 0) return 0;
-            if (s > 10) return 10;
-            return s;
-        } catch (Exception ignore) {
-            return 0;
-        }
+        return scannerBrowserRuntime.navigationTimeSeconds();
     }
 
     public void writeToFileCSV(String filename, String content) {
