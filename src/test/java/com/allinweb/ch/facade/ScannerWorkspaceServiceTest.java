@@ -170,6 +170,7 @@ class ScannerWorkspaceServiceTest {
 
         assertTrue(response.ok());
         assertEquals("PAGE_SCANNER", response.action());
+        assertEquals("Page scanner completed: 2 elements", response.message());
         assertEquals(1, browser.scanCalls);
         assertTrue(List.of(browser.lastSearchTerms).contains("input"));
         assertEquals(2, publisher.calls.size());
@@ -189,6 +190,7 @@ class ScannerWorkspaceServiceTest {
 
         assertTrue(response.ok());
         assertEquals("PAGE_SCANNER", response.action());
+        assertEquals("Page scanner completed: 0 elements", response.message());
         assertEquals(1, browser.scanCalls);
         assertEquals(1, publisher.calls.size());
         assertEquals(0, publisher.calls.get(0).payload.getElementDetails().length);
