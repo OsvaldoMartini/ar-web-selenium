@@ -2734,7 +2734,7 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
     private boolean validatePreLaunchExcel() {
         scannerPreLaunchExcelLoader.ensureEmptyDataRow(extractedData);
 
-        if (extractedData != null && extractedData.getErrorMessage() != null) {
+        if (scannerPreLaunchExcelLoader.hasExcelError(extractedData)) {
             performMessage.errorMessage(
                     "Excel Error", "Could Not Execute Excel File", extractedData.getErrorMessage(), null, null, 0);
             reenableLaunchButton();
@@ -2744,9 +2744,7 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
     }
 
     private boolean confirmMultipleExcelRows() {
-        if (extractedData.getNumberOfDataRows() != null
-                && extractedData.getNumberOfDataRows() > 1
-                && excelDataGoto.isEmpty()) {
+        if (scannerPreLaunchExcelLoader.requiresMultipleRowsConfirmation(extractedData, excelDataGoto)) {
 
             log.warn("Multiple Excel Rows Detected: each next row will return to first block");
 

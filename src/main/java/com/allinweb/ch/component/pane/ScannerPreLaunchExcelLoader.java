@@ -1,9 +1,11 @@
 package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.facade.PerformLists;
+import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.readersAndWriters.ExcelReader;
 import com.allinweb.ch.util.ExcelUtils;
 import com.allinweb.ch.util.ExtractedData;
+import java.util.List;
 
 final class ScannerPreLaunchExcelLoader {
 
@@ -20,5 +22,15 @@ final class ScannerPreLaunchExcelLoader {
             extractedData.addField("$EMPTY");
             extractedData.addFieldValue("$EMPTY", "$EMPTY", 0);
         }
+    }
+
+    boolean hasExcelError(ExtractedData extractedData) {
+        return extractedData != null && extractedData.getErrorMessage() != null;
+    }
+
+    boolean requiresMultipleRowsConfirmation(ExtractedData extractedData, List<InstructionLoad> excelDataGoto) {
+        return extractedData.getNumberOfDataRows() != null
+                && extractedData.getNumberOfDataRows() > 1
+                && excelDataGoto.isEmpty();
     }
 }
