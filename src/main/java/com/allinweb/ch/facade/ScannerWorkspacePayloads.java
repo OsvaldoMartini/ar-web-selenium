@@ -78,10 +78,11 @@ final class ScannerWorkspacePayloads {
         if (searchText == null || searchText.isBlank()) {
             return Arrays.copyOf(DEFAULT_PAGE_SCAN_TERMS, DEFAULT_PAGE_SCAN_TERMS.length);
         }
-        return Arrays.stream(searchText.split("\\s*,\\s*"))
+        String[] terms = Arrays.stream(searchText.split("\\s*,\\s*"))
                 .map(String::trim)
                 .filter(term -> !term.isEmpty())
                 .toArray(String[]::new);
+        return terms.length == 0 ? Arrays.copyOf(DEFAULT_PAGE_SCAN_TERMS, DEFAULT_PAGE_SCAN_TERMS.length) : terms;
     }
 
     static SplitDTO emptyPayload(ScannerWorkspaceState state) {

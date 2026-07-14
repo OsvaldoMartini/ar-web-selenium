@@ -37,6 +37,7 @@ class ScannerWorkspacePayloadsTest {
     @Test
     void fallsBackToDefaultSearchTerms() {
         assertTrue(List.of(ScannerWorkspacePayloads.searchTerms(request(null))).contains("input"));
+        assertTrue(List.of(ScannerWorkspacePayloads.searchTerms(request(" , , "))).contains("input"));
         assertTrue(ScannerWorkspacePayloads.defaultPageScanTerms().contains("button"));
     }
 
