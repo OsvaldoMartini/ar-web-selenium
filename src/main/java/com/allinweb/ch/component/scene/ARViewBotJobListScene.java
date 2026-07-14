@@ -25,7 +25,6 @@ public class ARViewBotJobListScene extends ARScene {
         arViewBotJobListPane = ARViewBotJobListPane.getInstance();
     }
 
-    private ARViewBotJobScene arViewBotJobScene;
     private ARWebDriver arWebDriver;
     private ObservableList<WebDriver> webDriverList;
     private Stage modalStage;
@@ -48,8 +47,7 @@ public class ARViewBotJobListScene extends ARScene {
     }
 
     public void initialize(
-            ARViewBotJobScene arViewBotJobScene, ARWebDriver arWebDriver, ObservableList<WebDriver> webDriverList) {
-        this.arViewBotJobScene = arViewBotJobScene;
+            ARWebDriver arWebDriver, ObservableList<WebDriver> webDriverList) {
         this.arWebDriver = arWebDriver;
         this.webDriverList = webDriverList;
     }
@@ -76,7 +74,7 @@ public class ARViewBotJobListScene extends ARScene {
 
     public void showModal() {
 
-        arViewBotJobListPane.initialize(arViewBotJobScene, arWebDriver, webDriverList);
+        arViewBotJobListPane.initialize(arWebDriver, webDriverList);
 
         if (modalStage == null) {
             modalStage = new Stage();

@@ -2,7 +2,6 @@ package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.component.scene.AROrganizationManagerScene;
-import com.allinweb.ch.component.scene.ARViewBotJobScene;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.PerformDBEngine;
 import com.allinweb.ch.facade.PerformDataBase;
@@ -32,7 +31,6 @@ public class ARNewBotJobManagerPane extends ARPane {
     private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
     private static final PerformMessage performMessage = PerformMessage.getInstance();
     private static final AROrganizationManagerScene arOrganizationManagerScene = AROrganizationManagerScene.getInstance();
-    private static final ARViewBotJobScene arViewBotJobScene = ARViewBotJobScene.getInstance();
     private static final ARWebDriver arWebDriver = ARWebDriver.getInstance();
 
     protected static volatile ARNewBotJobManagerPane instance;
@@ -108,8 +106,7 @@ public class ARNewBotJobManagerPane extends ARPane {
 
     public void openBotJobAndClose(BotJobLoadDTO botJob) {
         Platform.runLater(() -> {
-            arViewBotJobScene.initialize(arWebDriver, botJob, isEnabledLicence);
-            arViewBotJobScene.showModal();
+            ARMainDashboardPane.getInstance().openBotJob(botJob);
             closeModal();
         });
     }

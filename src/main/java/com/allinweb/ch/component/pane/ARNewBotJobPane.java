@@ -2,7 +2,6 @@ package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.component.scene.ARNewHomeBankingScene;
-import com.allinweb.ch.component.scene.ARViewBotJobScene;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.PerformDBEngine;
@@ -59,7 +58,6 @@ public class ARNewBotJobPane extends ARPane {
 
     private Pane mainPane;
     private boolean isEnabledLicence;
-    private ARViewBotJobScene arViewBotJobScene;
     private ARWebDriver arWebDriver;
 
     private ARNewBotJobPane() {
@@ -296,9 +294,8 @@ public class ARNewBotJobPane extends ARPane {
     }
 
     // Initialize references for Scene and WebDriver
-    public void initialize(ARViewBotJobScene arViewBotJobScene, ARWebDriver arWebDriver, boolean isEnabledLicence) {
+    public void initialize(ARWebDriver arWebDriver, boolean isEnabledLicence) {
         this.isEnabledLicence = isEnabledLicence;
-        this.arViewBotJobScene = arViewBotJobScene;
         this.arWebDriver = arWebDriver;
 
         ErrorMessage errorMessage = performDBEngine.loadHomeBanking(null);
@@ -430,8 +427,7 @@ public class ARNewBotJobPane extends ARPane {
                     performDataBase.loadQuickBotJobs();
                 }
 
-                arViewBotJobScene.initialize(arWebDriver, createdBotJob, isEnabledLicence);
-                arViewBotJobScene.showModal();
+                ARMainDashboardPane.getInstance().openBotJob(createdBotJob);
 
                 log.info("Success creating new Bot Job ID: " + newBotJobId);
                 Platform.runLater(() -> {

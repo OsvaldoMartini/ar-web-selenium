@@ -3,7 +3,6 @@ package com.allinweb.ch.component.pane;
 import com.allinweb.ch.component.listCell.ARCellFactory;
 import com.allinweb.ch.component.listCell.BotJobListCell;
 import com.allinweb.ch.component.pane.base.ARPane;
-import com.allinweb.ch.component.scene.ARViewBotJobScene;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.PerformActions;
 import com.allinweb.ch.facade.PerformDataBase;
@@ -39,7 +38,6 @@ public class ARViewBotJobListPane extends ARPane {
     // UI components
     private final GridPane header = new GridPane();
     private ListView<BotJobLoadDTO> uiBotJobList;
-    private ARViewBotJobScene arViewBotJobScene;
     private ARWebDriver arWebDriver;
     private ObservableList<WebDriver> webDriverList;
     // Private constructor to prevent instantiation
@@ -61,8 +59,7 @@ public class ARViewBotJobListPane extends ARPane {
 
     // Constructor for Dependency Injection
     public void initialize(
-            ARViewBotJobScene arViewBotJobScene, ARWebDriver arWebDriver, ObservableList<WebDriver> webDriverList) {
-        this.arViewBotJobScene = arViewBotJobScene;
+            ARWebDriver arWebDriver, ObservableList<WebDriver> webDriverList) {
         this.arWebDriver = arWebDriver;
         this.webDriverList = webDriverList;
         initUIComponents();
@@ -84,13 +81,10 @@ public class ARViewBotJobListPane extends ARPane {
         // Setting the cell factory correctly
         uiBotJobList.setCellFactory(new ARCellFactory<>(
                 BotJobListCell.class,
-                arViewBotJobScene,
                 arWebDriver,
-                performDataBase,
-                performActions,
-                performMessage,
                 (ObservableList<BotJobLoadDTO>) botJobList,
-                webDriverList)::call);
+                webDriverList,
+                Boolean.FALSE)::call);
 
         // Anchor positioning
         AnchorPane.setTopAnchor(uiBotJobList, ARConstants.SPACE_M * 2);

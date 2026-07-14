@@ -1,11 +1,11 @@
 package com.allinweb.ch.facade;
 
 import com.allinweb.ch.component.pane.ARConfigManagerPane;
+import com.allinweb.ch.component.pane.BotJobDetailsWorkspaceHost;
 import com.allinweb.ch.component.scene.ARConfigManagerScene;
 import com.allinweb.ch.component.scene.ARNewBotJobScene;
 import com.allinweb.ch.component.scene.AROrganizationManagerScene;
 import com.allinweb.ch.component.scene.ARScannedElementScene;
-import com.allinweb.ch.component.scene.ARViewBotJobScene;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.model.BotJobLoadDTO;
 import com.allinweb.ch.model.HomeBankingLoadDTO;
@@ -382,7 +382,7 @@ public class ConfigService {
 
     private void closeAllScenes() {
         ARNewBotJobScene.getInstance().closeModal();
-        ARViewBotJobScene.getInstance().closeModal();
+        BotJobDetailsWorkspaceHost.getInstance().closeWorkspaceIfIdle();
         AROrganizationManagerScene.getInstance().closeModal();
         ARScannedElementScene.getInstance().closeModal();
         ARScannedElementScene.getInstance().closeWebDrivers();

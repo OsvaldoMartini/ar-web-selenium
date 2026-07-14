@@ -54,7 +54,6 @@ public class ARConfigurationPane extends ARPane {
     private static final PerformInitializer performInitializer;
     private static final ARWebDriver arWebDriver = ARWebDriver.getInstance();
     private static final ARScannedElementScene arScannedElementScene;
-    private static final ARViewBotJobScene arViewBotJobScene;
     private static final ARNewBotJobScene arNewBotJobScene;
     protected static volatile ARConfigurationPane instance;
     protected static volatile ARMainPane arMainPane = ARMainPane.getInstance();
@@ -62,7 +61,6 @@ public class ARConfigurationPane extends ARPane {
     // Static block to initialize
     static {
         arScannedElementScene = ARScannedElementScene.getInstance();
-        arViewBotJobScene = ARViewBotJobScene.getInstance();
         arNewBotJobScene = ARNewBotJobScene.getInstance();
         arOrganizationManagerScene = AROrganizationManagerScene.getInstance();
 
@@ -1637,9 +1635,7 @@ public class ARConfigurationPane extends ARPane {
         if (arNewBotJobScene != null) {
             arNewBotJobScene.closeModal();
         }
-        if (arViewBotJobScene != null) {
-            arViewBotJobScene.closeModal();
-        }
+        BotJobDetailsWorkspaceHost.getInstance().closeWorkspaceIfIdle();
         if (arOrganizationManagerScene != null) {
             arOrganizationManagerScene.closeModal();
         }

@@ -28,7 +28,6 @@ public class ARNewBotJobScene extends ARScene {
     private Stage modalStage;
     private Scene modalScene;
     //    ListView<BotJobLoadDTO> viewBotJobListView;
-    private ARViewBotJobScene arViewBotJobScene;
     private ARWebDriver arWebDriver;
     private ObservableList<WebDriver> webDriverList;
     private boolean isEnabledLicence;
@@ -50,12 +49,10 @@ public class ARNewBotJobScene extends ARScene {
     }
 
     public void initialize(
-            ARViewBotJobScene arViewBotJobScene,
             ARWebDriver arWebDriver,
             ObservableList<WebDriver> webDriverList,
             boolean isEnabledLicence) {
         this.isEnabledLicence = isEnabledLicence;
-        this.arViewBotJobScene = arViewBotJobScene;
         this.arWebDriver = arWebDriver;
         this.webDriverList = webDriverList;
     }
@@ -63,7 +60,6 @@ public class ARNewBotJobScene extends ARScene {
     @Override
     public IARPane buildPane() {
         // Create ARNewBotJobPane without passing ListView here
-        //        arNewBotJobPane.initialize(arViewBotJobScene, arWebDriver, botJobList);
         return arNewBotJobPane;
     }
 
@@ -84,7 +80,7 @@ public class ARNewBotJobScene extends ARScene {
 
     public void showModal(Stage primareStage) {
 
-        arNewBotJobPane.initialize(arViewBotJobScene, arWebDriver, isEnabledLicence);
+        arNewBotJobPane.initialize(arWebDriver, isEnabledLicence);
 
         if (modalStage == null) {
             modalStage = new Stage();

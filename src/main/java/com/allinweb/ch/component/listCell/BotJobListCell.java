@@ -1,6 +1,6 @@
 package com.allinweb.ch.component.listCell;
 
-import com.allinweb.ch.component.scene.ARViewBotJobScene;
+import com.allinweb.ch.component.pane.ARMainDashboardPane;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.PerformDataBase;
@@ -35,19 +35,16 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
         performMessage = PerformMessage.getInstance();
     }
 
-    private ARViewBotJobScene arViewBotJobScene;
     private ARWebDriver arWebDriver;
     private ObservableList<BotJobLoadDTO> botJobList;
     private ObservableList<WebDriver> webDriverList;
     private boolean isEnabledLicence;
 
     public BotJobListCell(
-            ARViewBotJobScene arViewBotJobScene,
             ARWebDriver arWebDriver,
             ObservableList<BotJobLoadDTO> botJobList,
             ObservableList<WebDriver> webDriverList,
             Boolean isEnabledLicence) {
-        this.arViewBotJobScene = arViewBotJobScene;
         this.arWebDriver = arWebDriver;
         this.botJobList = botJobList;
         this.webDriverList = webDriverList;
@@ -185,8 +182,7 @@ public class BotJobListCell extends ListCell<BotJobLoadDTO> {
 
             row.setOnMouseClicked(mouseEvent -> {
                 if (mouseEvent.getClickCount() == 2) {
-                    arViewBotJobScene.initialize(arWebDriver, item, isEnabledLicence);
-                    arViewBotJobScene.showModal();
+                    ARMainDashboardPane.getInstance().openBotJob(item);
                 }
             });
 

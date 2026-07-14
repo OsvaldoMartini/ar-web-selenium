@@ -48,7 +48,6 @@ public class ARMainPane extends ARPane {
     private static final PerformDataBase performDataBase;
     private static final PerformMessage performMessage;
     private static final ARConfigurationScene arConfigurationScene;
-    private static final ARViewBotJobScene arViewBotJobScene;
     private static final ARNewBotJobScene arNewBotJobScene;
     private static final ARNewHomeBankingScene arNewHomeBankingScene;
     private static final AROrganizationManagerScene arOrganizationManagerScene;
@@ -66,7 +65,6 @@ public class ARMainPane extends ARPane {
         performDataBase = PerformDataBase.getInstance();
         performMessage = PerformMessage.getInstance();
         arConfigurationScene = ARConfigurationScene.getInstance();
-        arViewBotJobScene = ARViewBotJobScene.getInstance();
         arNewHomeBankingScene = ARNewHomeBankingScene.getInstance();
         arOrganizationManagerScene = AROrganizationManagerScene.getInstance();
         arWebDriver = ARWebDriver.getInstance();
@@ -232,14 +230,13 @@ public class ARMainPane extends ARPane {
         viewBotJobListView.setCellFactory(
                 new ARCellFactory<>(
                         BotJobListCell.class,
-                        arViewBotJobScene,
                         arWebDriver,
                         botJobList,
                         webDriverList,
                         isEnabledLicence)::call);
 
         arConfigurationScene.initialize(viewBotJobListView, isEnabledLicence);
-        arNewBotJobScene.initialize(arViewBotJobScene, arWebDriver, webDriverList, isEnabledLicence);
+        arNewBotJobScene.initialize(arWebDriver, webDriverList, isEnabledLicence);
         arWebDriver.initialize(webDriverList);
 
         // 🔹 Wrap buttonPane + aiTextArea
@@ -302,7 +299,7 @@ public class ARMainPane extends ARPane {
 
             if (!performLists.getListHomeUrl().isEmpty()) {
 
-                arNewBotJobScene.initialize(arViewBotJobScene, arWebDriver, webDriverList, isEnabledLicence);
+                arNewBotJobScene.initialize(arWebDriver, webDriverList, isEnabledLicence);
 
                 Stage currentStage = (Stage) cloneBotJobButton.getScene().getWindow();
                 arNewBotJobScene.showModal(currentStage);
@@ -407,9 +404,7 @@ public class ARMainPane extends ARPane {
                     reloadList();
 
                     Platform.runLater(() -> {
-                        // new ARViewBotJobScene(selecBotJobDTO).showModal();
-                        arViewBotJobScene.initialize(arWebDriver, selecBotJobDTO, isEnabledLicence);
-                        arViewBotJobScene.showModal();
+                        ARMainDashboardPane.getInstance().openBotJob(selecBotJobDTO);
 
                         // new Alert(AlertType.WARNING, "Error" + selecBotJobDTO.getName()).show();
                     });

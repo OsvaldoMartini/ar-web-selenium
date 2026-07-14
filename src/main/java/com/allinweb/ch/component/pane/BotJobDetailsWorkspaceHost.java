@@ -469,7 +469,6 @@ public class BotJobDetailsWorkspaceHost {
                     selectedBotJob.getHomeBankingId(), selectedBotJob.getName(), "component_block");
         }
 
-        initComponentWorkspace();
         componentBox = new HBox(new Node[] {webViewTasks});
         firstLoad = false;
         HBox.setHgrow(webViewTasks, Priority.ALWAYS);
@@ -1101,24 +1100,6 @@ public class BotJobDetailsWorkspaceHost {
         //        });
     }
 
-    public Pane getPaneReference() {
-        //        mainPane.setUserData(this);
-        return mainPane;
-    }
-
-    private void initComponentWorkspace() {
-        this.componentContainer = new VBox(new Node[] {webViewComp});
-        HBox.setHgrow(this.webViewComp, Priority.ALWAYS);
-        VBox.setVgrow(this.webViewComp, Priority.ALWAYS); // Ensures vertical growth
-
-        this.componentContainer.setSpacing(ARConstants.SPACE_XS);
-
-        this.componentContainer.setMaxWidth(800.0D);
-        this.componentContainer.setVisible(false);
-        this.componentContainer.setManaged(false);
-        isComponentBoxVisible = false;
-    }
-
     public BotJobLoadDTO getBotJobDTO() {
         return selectedBotJob;
     }
@@ -1593,28 +1574,7 @@ public class BotJobDetailsWorkspaceHost {
 
     private void showBotJobWorkspace() {
         headlessSurface = "botJob";
-        if (componentBox == null) {
-            ARMainDashboardPane.getInstance().showBotJobSurface("botJobTasks", reactContext("botJobTasks"));
-            return;
-        }
-        if (componentBox == null) return;
-        componentBox.getChildren().setAll(webViewTasks);
-        HBox.setHgrow(webViewTasks, Priority.ALWAYS);
-        VBox.setVgrow(webViewTasks, Priority.ALWAYS);
-        if (componentContainer != null) {
-            componentContainer.setVisible(false);
-            componentContainer.setManaged(false);
-        }
-        isComponentBoxVisible = false;
-        isPreScannerVisible = false;
-        componentBox.requestLayout();
-    }
-
-    private void reloadReactWorkspaceSurfaces() {
-        String indexUrl = WebBuildExtractor.getIndexUrl();
-        if (webEngineTasks != null) webEngineTasks.load(indexUrl);
-        if (webEngineComp != null) webEngineComp.load(indexUrl);
-        if (webEnginePreScanner != null) webEnginePreScanner.load(indexUrl);
+        ARMainDashboardPane.getInstance().showBotJobSurface("botJobTasks", reactContext("botJobTasks"));
     }
 
     private void suspendReactWorkspaceSurfaces(int botJobId) {
@@ -1623,77 +1583,16 @@ public class BotJobDetailsWorkspaceHost {
             WebSocketSessionManager.closeSession(workspaceSession);
             botJobTransferPathRegistry.clear(workspaceSession, botJobId);
         }
-        runOnFxThread(() -> {
-            suspendReactWorkspaceSurface(webEngineTasks);
-            suspendReactWorkspaceSurface(webEngineComp);
-            suspendReactWorkspaceSurface(webEnginePreScanner);
-        });
-    }
-
-    private void suspendReactWorkspaceSurface(WebEngine webEngine) {
-        if (webEngine == null) return;
-        cancelPendingWebViewBootstrap(webEngine);
-        webEngine.getLoadWorker().cancel();
-        webEngine.load("about:blank");
-    }
-
-    private void detachReactWorkspaceLoadListeners() {
-        runOnFxThread(() -> {
-            for (Map.Entry<WebEngine, ChangeListener<Worker.State>> entry :
-                    new ArrayList<>(webViewLoadListeners.entrySet())) {
-                entry.getKey().getLoadWorker().stateProperty().removeListener(entry.getValue());
-                cancelPendingWebViewBootstrap(entry.getKey());
-            }
-            webViewLoadListeners.clear();
-            pendingWebViewBootstraps.clear();
-        });
-    }
-
-    private void runOnFxThread(Runnable operation) {
-        if (Platform.isFxApplicationThread()) {
-            operation.run();
-            return;
-        }
-        try {
-            Platform.runLater(operation);
-        } catch (IllegalStateException error) {
-            log.debug("JavaFX runtime is unavailable while retiring Bot Job WebViews: {}", error.getMessage());
-        }
     }
 
     private void showComponentsWorkspace() {
         headlessSurface = "components";
-        if (componentBox == null) {
-            ARMainDashboardPane.getInstance().showBotJobSurface("componentTasks", reactContext("componentTasks"));
-            return;
-        }
-        if (componentContainer == null || componentsVisible()) return;
-        componentBox.getChildren().setAll(webViewTasks, componentContainer);
-        HBox.setHgrow(webViewTasks, Priority.ALWAYS);
-        componentContainer.setVisible(true);
-        componentContainer.setManaged(true);
-        isComponentBoxVisible = true;
-        isPreScannerVisible = false;
-        componentBox.requestLayout();
+        ARMainDashboardPane.getInstance().showBotJobSurface("componentTasks", reactContext("componentTasks"));
     }
 
     private void showPreScanWorkspace() {
         headlessSurface = "preScan";
-        if (componentBox == null) {
-            ARMainDashboardPane.getInstance().showBotJobSurface("preScannerGrid", reactContext("preScannerGrid"));
-            return;
-        }
-        if (componentBox == null || componentBox.getChildren().contains(webViewPreScanner)) return;
-        componentBox.getChildren().setAll(webViewPreScanner);
-        HBox.setHgrow(webViewPreScanner, Priority.ALWAYS);
-        VBox.setVgrow(webViewPreScanner, Priority.ALWAYS);
-        if (componentContainer != null) {
-            componentContainer.setVisible(false);
-            componentContainer.setManaged(false);
-        }
-        isComponentBoxVisible = false;
-        isPreScannerVisible = true;
-        componentBox.requestLayout();
+        ARMainDashboardPane.getInstance().showBotJobSurface("preScannerGrid", reactContext("preScannerGrid"));
     }
 
     /** Applies persisted React metadata to the active desktop execution context on the FX thread. */
@@ -1729,17 +1628,11 @@ public class BotJobDetailsWorkspaceHost {
     }
 
     private boolean componentsVisible() {
-        if (componentBox == null) return "components".equals(headlessSurface);
-        return componentBox != null
-                && componentContainer != null
-                && componentBox.getChildren().contains(componentContainer);
+        return "components".equals(headlessSurface);
     }
 
     private String activeWorkspaceSurface() {
-        if (componentBox == null) return headlessSurface;
-        if (componentBox != null && componentBox.getChildren().contains(webViewPreScanner)) return "preScan";
-        if (componentsVisible()) return "components";
-        return "botJob";
+        return headlessSurface;
     }
 
     private static String workspaceActionMessage(BotJobWorkspaceAction action) {
@@ -1758,7 +1651,6 @@ public class BotJobDetailsWorkspaceHost {
         if (selectedBotJob != null && selectedBotJob.getId() != null) {
             suspendReactWorkspaceSurfaces(selectedBotJob.getId());
         }
-        detachReactWorkspaceLoadListeners();
         BotJobWorkspaceController.getInstance().deactivate(workspaceControllerGeneration);
         instance = null;
     }
@@ -1837,6 +1729,12 @@ public class BotJobDetailsWorkspaceHost {
     public boolean canCloseWorkspace() {
         return workspaceCloseCoordinator.canClose(
                 selectedBotJob == null ? null : selectedBotJob.getId());
+    }
+
+    public boolean closeWorkspaceIfIdle() {
+        if (!canCloseWorkspace()) return false;
+        markWorkspaceClosed();
+        return true;
     }
 
 }
