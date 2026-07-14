@@ -222,12 +222,10 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
             new ScannerBrowserTabSelector(new PaneBrowserTabSelectorOperations());
     private final ScannerBrowserTabNavigator scannerBrowserTabNavigator =
             new ScannerBrowserTabNavigator(new PaneBrowserTabNavigatorOperations());
-
-    private final ScheduledExecutorService screenshotScheduler =
-            AppExecutors.get().scheduler(ExecutorsManager.Pool.SCREENSHOT_SCHEDULER);
-
-    // Handle to cancel the periodic task (instead of shutting down scheduler)
-    private ScheduledFuture<?> screenshotFuture;
+    private final ScannerScreenshotLoop scannerScreenshotLoop =
+            new ScannerScreenshotLoop(
+                    AppExecutors.get().scheduler(ExecutorsManager.Pool.SCREENSHOT_SCHEDULER),
+                    new PaneScreenshotLoopOperations());
 
     private int portSocketInitial = 54525;
     private volatile String pendingDomReviewHtml;
@@ -3972,32 +3970,27 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
     //    }
 
     private void startScreenshotLoop() {
-        // already running?
-        if (screenshotFuture != null && !screenshotFuture.isCancelled() && !screenshotFuture.isDone()) {
-            return;
-        }
-
-        screenshotFuture = screenshotScheduler.scheduleAtFixedRate(
-                () -> {
-                    try {
-                        if (!isJobRunning.get()) {
-                            stopScreenshotLoop(); // cancels only this task
-                            return;
-                        }
-                        //                        sendScreenshotToListener();
-                    } catch (Exception e) {
-                        log.warn("Error in screenshot loop", e);
-                    }
-                },
-                0,
-                500,
-                TimeUnit.MILLISECONDS);
+        scannerScreenshotLoop.start();
     }
 
     private void stopScreenshotLoop() {
-        if (screenshotFuture != null) {
-            screenshotFuture.cancel(true);
-            screenshotFuture = null;
+        scannerScreenshotLoop.stop();
+    }
+
+    private final class PaneScreenshotLoopOperations implements ScannerScreenshotLoop.Operations {
+        @Override
+        public boolean isJobRunning() {
+            return ARScannedElementPane.this.isJobRunning.get();
+        }
+
+        @Override
+        public void sendScreenshotIfAvailable() {
+            // sendScreenshotToListener();
+        }
+
+        @Override
+        public void reportScreenshotLoopError(Exception error) {
+            log.warn("Error in screenshot loop", error);
         }
     }
 
