@@ -3291,6 +3291,44 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
         return recallJobExecutionId() > 0L;
     }
 
+    private final class PanePreLaunchExecutionOperations implements ScannerPreLaunchExecutionTask.Operations {
+        @Override
+        public boolean executeJob() {
+            return ARScannedElementPane.this.executeJob();
+        }
+
+        @Override
+        public void reportExecutionError(Throwable error) {
+            log.error("executeJob() terminated with exception: {}", error.getMessage(), error);
+        }
+
+        @Override
+        public void completeExecution(long executionId, boolean executionPassed) {
+            jobExecutionOutcomes.completed(executionId, executionPassed);
+            completedJobExecutionId.accumulateAndGet(executionId, Math::max);
+        }
+
+        @Override
+        public void clearActiveExecution(long executionId) {
+            activeJobExecutionId.compareAndSet(executionId, 0L);
+        }
+
+        @Override
+        public void markNotRunning() {
+            isJobRunning.set(false);
+        }
+
+        @Override
+        public void stopScreenshotLoop() {
+            ARScannedElementPane.this.stopScreenshotLoop();
+        }
+
+        @Override
+        public void reenableLaunchButton() {
+            ARScannedElementPane.this.reenableLaunchButton();
+        }
+    }
+
     private long recallJobExecutionId() {
         long submittedExecutionId = 0L;
         long currentExecution = activeJobExecutionId.get();
@@ -3306,31 +3344,8 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
             try {
                 //                startScreenshotLoop();
 
-                executorServicePreLaunch.submit(() -> {
-                    boolean executionPassed = false;
-                    try {
-                        executionPassed = executeJob();
-                    } catch (Throwable t) {
-                        // executeJob() returns boolean but can still propagate
-                        // uncaught exceptions from deep helpers / driver calls.
-                        // Log here — the executor would otherwise swallow it
-                        // silently since we never look at the Future — and let
-                        // the finally block re-enable the UI so the user can
-                        // launch again instead of being stuck on a dead button.
-                        log.error("executeJob() terminated with exception: {}", t.getMessage(), t);
-                    } finally {
-                        jobExecutionOutcomes.completed(executionId, executionPassed);
-                        completedJobExecutionId.accumulateAndGet(executionId, Math::max);
-                        activeJobExecutionId.compareAndSet(executionId, 0L);
-                        isJobRunning.set(false);
-                        stopScreenshotLoop();
-                        // Always re-enable Launch so the user can restart after
-                        // success, failure, Stop button, client-side Pause /
-                        // Continue Scan, Close Browser, exception — every way
-                        // executeJob can end.
-                        reenableLaunchButton();
-                    }
-                });
+                executorServicePreLaunch.submit(
+                        new ScannerPreLaunchExecutionTask(executionId, new PanePreLaunchExecutionOperations()));
                 submittedExecutionId = executionId;
             } catch (Exception e) {
                 jobExecutionOutcomes.completed(executionId, false);
