@@ -542,10 +542,10 @@ public class SimpleWebSocketServer {
                 case "botJobDetails.environments.refresh":
                     handleBotJobDetailsEnvironmentRefresh(jsonObjMSG, session);
                     break;
-                case "scanner.bootstrap":
+                case ScannerWorkspaceOperations.BOOTSTRAP_COMMAND:
                     handleScannerBootstrap(jsonObjMSG, session);
                     break;
-                case "scanner.action":
+                case ScannerWorkspaceOperations.ACTION_COMMAND:
                     handleScannerAction(jsonObjMSG, session);
                     break;
                 case "newBotJob.bootstrap":
@@ -985,11 +985,18 @@ public class SimpleWebSocketServer {
 
     private void handleScannerBootstrap(JsonObject envelope, Session transportSession) {
         handleScannerRequest(
-                envelope, transportSession, "scanner.bootstrapResponse", scannerWorkspaceService::bootstrap);
+                envelope,
+                transportSession,
+                ScannerWorkspaceOperations.BOOTSTRAP_RESPONSE,
+                scannerWorkspaceService::bootstrap);
     }
 
     private void handleScannerAction(JsonObject envelope, Session transportSession) {
-        handleScannerRequest(envelope, transportSession, "scanner.actionResponse", scannerWorkspaceService::action);
+        handleScannerRequest(
+                envelope,
+                transportSession,
+                ScannerWorkspaceOperations.ACTION_RESPONSE,
+                scannerWorkspaceService::action);
     }
 
     private void handleScannerRequest(
@@ -1031,7 +1038,7 @@ public class SimpleWebSocketServer {
                     response.state().homeBankingId(),
                     sessionId,
                     event,
-                    "scanner.state");
+                    ScannerWorkspaceOperations.STATE_EVENT);
         }
     }
 

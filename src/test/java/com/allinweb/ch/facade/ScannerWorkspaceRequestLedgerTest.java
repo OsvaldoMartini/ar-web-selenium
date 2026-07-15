@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.allinweb.ch.model.ScannerWorkspaceRequest;
+import com.allinweb.ch.model.ScannerWorkspaceOperations;
 import com.allinweb.ch.model.ScannerWorkspaceResponse;
 import com.google.gson.JsonObject;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -20,9 +21,9 @@ class ScannerWorkspaceRequestLedgerTest {
         ScannerWorkspaceRequest request = request("scannerGrid", "same-id", 42, "REFRESH_STATE");
 
         ScannerWorkspaceResponse first = ledger.executeOnce(
-                request, "scanner.actionResponse", () -> success(request, executions));
+                request, ScannerWorkspaceOperations.ACTION_RESPONSE, () -> success(request, executions));
         ScannerWorkspaceResponse duplicate = ledger.executeOnce(
-                request, "scanner.actionResponse", () -> success(request, executions));
+                request, ScannerWorkspaceOperations.ACTION_RESPONSE, () -> success(request, executions));
 
         assertSame(first, duplicate);
         assertEquals(1, executions.get());
@@ -35,10 +36,10 @@ class ScannerWorkspaceRequestLedgerTest {
         AtomicInteger executions = new AtomicInteger();
         ScannerWorkspaceRequest first = request("scannerGrid", "same-id", 42, "REFRESH_STATE");
         ScannerWorkspaceRequest conflicting = request("scannerGrid", "same-id", 42, "CLEAR_GRID");
-        ledger.executeOnce(first, "scanner.actionResponse", () -> success(first, executions));
+        ledger.executeOnce(first, ScannerWorkspaceOperations.ACTION_RESPONSE, () -> success(first, executions));
 
         ScannerWorkspaceResponse response = ledger.executeOnce(
-                conflicting, "scanner.actionResponse", () -> success(conflicting, executions));
+                conflicting, ScannerWorkspaceOperations.ACTION_RESPONSE, () -> success(conflicting, executions));
 
         assertEquals(1, executions.get());
         assertFalse(response.ok());
@@ -56,10 +57,10 @@ class ScannerWorkspaceRequestLedgerTest {
         body.addProperty("botJobId", 42);
         body.add("action", new JsonObject());
         ScannerWorkspaceRequest conflicting = new ScannerWorkspaceRequest("scannerGrid", "same-id", 42, body);
-        ledger.executeOnce(first, "scanner.actionResponse", () -> success(first, executions));
+        ledger.executeOnce(first, ScannerWorkspaceOperations.ACTION_RESPONSE, () -> success(first, executions));
 
         ScannerWorkspaceResponse response = ledger.executeOnce(
-                conflicting, "scanner.actionResponse", () -> success(conflicting, executions));
+                conflicting, ScannerWorkspaceOperations.ACTION_RESPONSE, () -> success(conflicting, executions));
 
         assertEquals(1, executions.get());
         assertFalse(response.ok());
@@ -74,9 +75,9 @@ class ScannerWorkspaceRequestLedgerTest {
         ScannerWorkspaceRequest scanner = request("scannerGrid", "shared-id", 42, "REFRESH_STATE");
         ScannerWorkspaceRequest preScanner = request("preScannerGrid", "shared-id", 42, "REFRESH_STATE");
 
-        ledger.executeOnce(scanner, "scanner.actionResponse", () -> success(scanner, executions));
-        ledger.executeOnce(preScanner, "scanner.actionResponse", () -> success(preScanner, executions));
-        ledger.executeOnce(scanner, "scanner.bootstrapResponse", () -> success(scanner, executions));
+        ledger.executeOnce(scanner, ScannerWorkspaceOperations.ACTION_RESPONSE, () -> success(scanner, executions));
+        ledger.executeOnce(preScanner, ScannerWorkspaceOperations.ACTION_RESPONSE, () -> success(preScanner, executions));
+        ledger.executeOnce(scanner, ScannerWorkspaceOperations.BOOTSTRAP_RESPONSE, () -> success(scanner, executions));
 
         assertEquals(3, executions.get());
     }
@@ -88,9 +89,9 @@ class ScannerWorkspaceRequestLedgerTest {
         ScannerWorkspaceRequest first = request("scannerGrid", "first", 42, "REFRESH_STATE");
         ScannerWorkspaceRequest second = request("scannerGrid", "second", 42, "REFRESH_STATE");
 
-        ledger.executeOnce(first, "scanner.actionResponse", () -> success(first, executions));
-        ledger.executeOnce(second, "scanner.actionResponse", () -> success(second, executions));
-        ledger.executeOnce(first, "scanner.actionResponse", () -> success(first, executions));
+        ledger.executeOnce(first, ScannerWorkspaceOperations.ACTION_RESPONSE, () -> success(first, executions));
+        ledger.executeOnce(second, ScannerWorkspaceOperations.ACTION_RESPONSE, () -> success(second, executions));
+        ledger.executeOnce(first, ScannerWorkspaceOperations.ACTION_RESPONSE, () -> success(first, executions));
 
         assertEquals(3, executions.get());
     }
