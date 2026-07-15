@@ -61,6 +61,9 @@ public class SimpleWebSocketServer {
     private static final Map<String, Boolean> processedBlockDeletes = new LinkedHashMap<>();
     private static final InstructionMoveValidator instructionMoveValidator = new InstructionMoveValidator();
     private final Gson gson = new Gson();
+    private final BotJobWorkspaceCapabilityService botJobWorkspaceCapabilityService =
+            BotJobWorkspaceCapabilityService.getInstance();
+    private final ScannerMobileTestRoute scannerMobileTestRoute = ScannerMobileTestRoute.standard();
     private PayloadJson payloadEmpty;
     private RowStatus rowStatus = new RowStatus();
     // Private constructor to prevent instantiation
@@ -2335,10 +2338,8 @@ public class SimpleWebSocketServer {
                                     splitDTO.setProjectType(j.getPriority());
                                 });
                     }
-                    if (splitDTO.getProjectType() != null
-                            && (splitDTO.getProjectType().equalsIgnoreCase("Android")
-                                    || splitDTO.getProjectType().equalsIgnoreCase("iOS"))) {
-                        sessionIdToSend = ScannerWorkspaceSessions.MOBILE_RETURN_SERVER;
+                    if (botJobWorkspaceCapabilityService.supportsNativeMobileTools(splitDTO.getProjectType())) {
+                        sessionIdToSend = scannerMobileTestRoute.returnSessionId();
                         splitDTO.setSessionId(sessionIdToSend);
                     }
 
