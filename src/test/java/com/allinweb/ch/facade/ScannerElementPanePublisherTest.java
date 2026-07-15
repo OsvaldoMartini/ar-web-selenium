@@ -37,14 +37,35 @@ class ScannerElementPanePublisherTest {
         assertEquals(ScannerWorkspaceOperations.UPDATE_BLOCKS, sender.messages.get(0).operationId);
     }
 
+    @Test
+    void publishesRawJsonToScannerElementPane() {
+        RecordingSender sender = new RecordingSender();
+        ScannerElementPanePublisher publisher = new ScannerElementPanePublisher(sender);
+
+        publisher.publishRawJson("{\"ok\":true}");
+
+        assertEquals(1, sender.rawMessages.size());
+        assertEquals(ScannerWorkspaceSessions.SCANNER_ELEMENT_PANE, sender.rawMessages.get(0).sessionId);
+        assertEquals("{\"ok\":true}", sender.rawMessages.get(0).json);
+        assertEquals(ScannerWorkspaceSessions.SCANNER_ELEMENT_PANE, publisher.destinationSessionId());
+    }
+
     private static final class RecordingSender implements ScannerElementPanePublisher.Sender {
         private final List<Message> messages = new ArrayList<>();
+        private final List<RawMessage> rawMessages = new ArrayList<>();
 
         @Override
         public void sendMessageJson(int homeBankingId, String sessionId, String json, String operationId) {
             messages.add(new Message(homeBankingId, sessionId, json, operationId));
         }
+
+        @Override
+        public void sendMessageJson(String sessionId, String json) {
+            rawMessages.add(new RawMessage(sessionId, json));
+        }
     }
 
     private record Message(int homeBankingId, String sessionId, String json, String operationId) {}
+
+    private record RawMessage(String sessionId, String json) {}
 }

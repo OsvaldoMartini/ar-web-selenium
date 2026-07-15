@@ -22,9 +22,17 @@ public final class ScannerElementPanePublisher {
     public void publish(int homeBankingId, Object payload, String operationId) {
         sender.sendMessageJson(
                 homeBankingId,
-                ScannerWorkspaceSessions.SCANNER_ELEMENT_PANE,
+                destinationSessionId(),
                 gson.toJson(payload),
                 operationId);
+    }
+
+    public void publishRawJson(String jsonPayload) {
+        sender.sendMessageJson(destinationSessionId(), jsonPayload);
+    }
+
+    public String destinationSessionId() {
+        return ScannerWorkspaceSessions.SCANNER_ELEMENT_PANE;
     }
 
     public void publishOpenOcrConfig(int homeBankingId, Object payload) {
@@ -37,6 +45,8 @@ public final class ScannerElementPanePublisher {
 
     interface Sender {
         void sendMessageJson(int homeBankingId, String sessionId, String json, String operationId);
+
+        void sendMessageJson(String sessionId, String json);
     }
 
     private static final class WebSocketSessionSender implements Sender {
@@ -45,6 +55,11 @@ public final class ScannerElementPanePublisher {
         @Override
         public void sendMessageJson(int homeBankingId, String sessionId, String json, String operationId) {
             sessions.sendMessageJson(homeBankingId, sessionId, json, operationId);
+        }
+
+        @Override
+        public void sendMessageJson(String sessionId, String json) {
+            sessions.sendMessageJson(sessionId, json);
         }
     }
 }

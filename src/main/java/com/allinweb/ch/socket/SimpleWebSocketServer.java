@@ -66,6 +66,7 @@ public class SimpleWebSocketServer {
     private final ScannerMobileTestRoute scannerMobileTestRoute = ScannerMobileTestRoute.standard();
     private final ScannerMobilePickRoute scannerMobilePickRoute = ScannerMobilePickRoute.standard();
     private final ScannerBlockUpdatePublisher scannerBlockUpdatePublisher = new ScannerBlockUpdatePublisher();
+    private final ScannerElementPanePublisher scannerElementPanePublisher = new ScannerElementPanePublisher();
     private static final ScannerWorkspaceSessionClassifier scannerWorkspaceSessionClassifier =
             new ScannerWorkspaceSessionClassifier();
     private PayloadJson payloadEmpty;
@@ -105,8 +106,8 @@ public class SimpleWebSocketServer {
         return ScannerWorkspaceSessions.PERFORM_LIST_DATA.equals(sessionId);
     }
 
-    private static boolean isScannerElementPaneOpen() {
-        return WebSocketSessionManager.isSessionOpen(ScannerWorkspaceSessions.SCANNER_ELEMENT_PANE);
+    private boolean isScannerElementPaneOpen() {
+        return WebSocketSessionManager.isSessionOpen(scannerElementPanePublisher.destinationSessionId());
     }
 
     public static SimpleWebSocketServer getInstance() {
@@ -2418,8 +2419,7 @@ public class SimpleWebSocketServer {
                                 performMessage.errorMessageOperationFailed(applyError);
                             }
                         } else {
-                            webSocketSessionManager.sendMessageJson(
-                                    ScannerWorkspaceSessions.SCANNER_ELEMENT_PANE, gson.toJson(splitDTO));
+                            scannerElementPanePublisher.publishRawJson(gson.toJson(splitDTO));
                         }
                     }
                     alreadySentMgsSocket = true;
