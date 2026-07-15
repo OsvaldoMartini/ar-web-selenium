@@ -319,7 +319,10 @@ public class PerformLists {
 
                     String jsonData = gson.toJson(blockMoveDTO);
                     webSocketSessionManager.sendMessageJson(
-                            homeBankingId, "scanner-element-pane", jsonData, "UPDATE_BLOCKS");
+                            homeBankingId,
+                            ScannerWorkspaceSessions.SCANNER_ELEMENT_PANE,
+                            jsonData,
+                            "UPDATE_BLOCKS");
 
                     break;
                 case "UPDATE_BLOCKS_COMP":

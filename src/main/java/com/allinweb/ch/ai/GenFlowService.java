@@ -12,6 +12,7 @@ import com.allinweb.ch.model.BlockMoveDTO;
 import com.allinweb.ch.model.BotJobLoadDTO;
 import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.model.ReferenceLoadDTO;
+import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.util.ARConstantsEngine;
 import com.allinweb.ch.util.ARPropertyEnum;
@@ -370,7 +371,10 @@ public final class GenFlowService {
 
             String blockSignal = gson.toJson(new BlockMoveDTO());
             webSocketSessionManager.sendMessageJson(
-                    botJob.getHomeBankingId(), "scanner-element-pane", blockSignal, "UPDATE_BLOCKS");
+                    botJob.getHomeBankingId(),
+                    ScannerWorkspaceSessions.SCANNER_ELEMENT_PANE,
+                    blockSignal,
+                    "UPDATE_BLOCKS");
 
             if (!performLists.getListBotJob().isEmpty()) {
                 List<InstructionLoad> viewData = performLists.buildJsonViewData(performLists.getListBotJob());
