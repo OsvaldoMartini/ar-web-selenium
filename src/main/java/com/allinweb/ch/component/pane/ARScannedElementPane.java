@@ -6917,9 +6917,10 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
             appendLog("XML deep scan complete. Elements kept: " + results.size(), "info");
 
             // ---- Wrap in SplitDTO and send as before ----
+            ScannerMobilePickRoute route = ScannerMobilePickRoute.standard();
             splitDTO.setType(ScannerWorkspaceOperations.SEARCH_TOOL);
-            splitDTO.setSessionId(ScannerWorkspaceSessions.MOBILE_SCANNER_GRID);
-            splitDTO.setOperationId(ScannerWorkspaceOperations.ADD_PICK_ONE);
+            splitDTO.setSessionId(route.payloadSessionId());
+            splitDTO.setOperationId(route.payloadOperationId());
             splitDTO.setElementDetails(results.toArray(new ElementDTO[0]));
 
             sendChunks(
@@ -6927,8 +6928,8 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
                     25,
                     splitDTO,
                     webSocketSessionManager,
-                    ScannerWorkspaceSessions.SCANNER_TOOL,
-                    ScannerWorkspaceSessions.SCANNER_GRID);
+                    route.sourceSessionId(),
+                    route.chunkOperationId());
 
             List<String> excludeList = List.of("optional", "blockMarked", "editMode");
             String jsonPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
