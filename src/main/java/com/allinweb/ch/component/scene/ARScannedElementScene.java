@@ -71,6 +71,7 @@ public class ARScannedElementScene extends ARScene {
     private PayloadJson payloadEmpty;
     private List<InstructionLoad> instructionList = new ArrayList<>();
     private final ScannerGridStatusPublisher scannerGridStatusPublisher = new ScannerGridStatusPublisher();
+    private final ScannerElementPanePublisher scannerElementPanePublisher = new ScannerElementPanePublisher();
     private final BotJobWorkspaceCapabilityService botJobWorkspaceCapabilityService =
             BotJobWorkspaceCapabilityService.getInstance();
     private final ScannerMobileTestRoute scannerMobileTestRoute = ScannerMobileTestRoute.standard();
@@ -105,7 +106,7 @@ public class ARScannedElementScene extends ARScene {
         }
 
         if (!isConnectWebSocket) {
-            connectWebSocketClient(portSocketInitial, ScannerWorkspaceSessions.SCANNER_ELEMENT_PANE);
+            connectWebSocketClient(portSocketInitial, scannerElementPanePublisher.destinationSessionId());
         }
 
         ErrorMessage errorMessage = performDataBase.loadBlocks(currentBotJob.getId(), "", "block");
@@ -125,7 +126,7 @@ public class ARScannedElementScene extends ARScene {
                     try {
                         if (session != null && session.isOpen()) {
                             session.getBasicRemote()
-                                    .sendText("ping-" + ScannerWorkspaceSessions.SCANNER_ELEMENT_PANE);
+                                    .sendText("ping-" + scannerElementPanePublisher.destinationSessionId());
                         }
                     } catch (IOException e) {
                         log.error("Error sending ping: " + e.getMessage());
