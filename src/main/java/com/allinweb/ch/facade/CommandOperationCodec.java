@@ -1,6 +1,7 @@
 package com.allinweb.ch.facade;
 
 import com.allinweb.ch.model.InstructionLoad;
+import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonArray;
 import java.sql.PreparedStatement;
@@ -127,7 +128,8 @@ public final class CommandOperationCodec {
     private Relation relation(JsonObject body) throws SQLException {
         Integer parentId = nullableInteger(body, "parentId");
         Integer variableId = nullableInteger(body, "variableId");
-        boolean component = "componentTasks".equals(string(body, "targetSessionId", "botJobTasks"));
+        boolean component = ScannerWorkspaceSessions.COMPONENT_TASKS.equals(
+                string(body, "targetSessionId", ScannerWorkspaceSessions.BOT_JOB_TASKS));
         String instructionTable = component ? "component_instruction" : "instruction";
         String variableTable = component ? "component_variable" : "variable";
         String webFieldName = "";

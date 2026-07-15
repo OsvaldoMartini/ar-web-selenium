@@ -2,6 +2,8 @@ package com.allinweb.ch.facade;
 
 import com.allinweb.ch.model.BotJobLoadDTO;
 import com.allinweb.ch.model.InstructionLoad;
+import com.allinweb.ch.model.ScannerWorkspaceOperations;
+import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import com.allinweb.ch.util.ErrorMessage;
 import com.google.gson.JsonObject;
 import java.nio.file.Path;
@@ -63,7 +65,7 @@ public final class ExcelExportService {
         }
 
         String sessionId = str(body, "sessionId");
-        boolean component = sessionId.contains("componentTasks");
+        boolean component = isComponentSession(sessionId);
         String table = component ? "component_block" : "block";
         int ownerId = component ? integer(body, "homeBankingId") : integer(body, "botJobId");
         int blockId = integer(body, "blockId");
@@ -76,7 +78,9 @@ public final class ExcelExportService {
         Map<String, Object> response = context(body);
         response.put("exportFile", encoded);
         response.put("instructions", instructions);
-        response.put("updateOperation", component ? "componentsUpdate" : "updateInstructions");
+        response.put("updateOperation", component
+                ? ScannerWorkspaceOperations.COMPONENTS_UPDATE
+                : ScannerWorkspaceOperations.UPDATE_INSTRUCTIONS);
         response.put("message", clear ? "Excel export configuration cleared" : "Excel export configuration saved");
         return response;
     }
@@ -116,7 +120,7 @@ public final class ExcelExportService {
         int homeBankingId = integer(body, "homeBankingId");
         String sessionId = str(body, "sessionId");
         if (blockId <= 0 || sessionId.isBlank()) return failure("Excel export block context is invalid.");
-        if (sessionId.contains("componentTasks") ? homeBankingId <= 0 : botJobId <= 0) {
+        if (isComponentSession(sessionId) ? homeBankingId <= 0 : botJobId <= 0) {
             return failure("Excel export owner context is invalid.");
         }
         Map<String, Object> response = new LinkedHashMap<>();
@@ -149,5 +153,9 @@ public final class ExcelExportService {
 
     private boolean bool(JsonObject body, String key) {
         return body != null && body.has(key) && body.get(key).getAsBoolean();
+    }
+
+    private boolean isComponentSession(String sessionId) {
+        return sessionId != null && sessionId.contains(ScannerWorkspaceSessions.COMPONENT_TASKS);
     }
 }
