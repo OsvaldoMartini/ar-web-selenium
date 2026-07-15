@@ -6887,8 +6887,6 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
 
         appendLog("Starting XML-based deep scan (pageSource)...", "info");
 
-        boolean activateSent = false;
-
         try {
             Thread.sleep(500);
         } catch (InterruptedException ie) {
@@ -6986,36 +6984,8 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
 
             appendLog("Payload sent. Elements in payload: " + results.size(), "info");
 
-            //            SwingUtilities.invokeLater(() -> {
-            //                arObjectsLabel.setText("Objects detected: " + results.size() + ".                    ");
-            //            });
-
-            //            splitDTO.setType("REACTIVATE_BUTTONS");
-            //            splitDTO.setSessionId("mobileScannerVision");
-            //            splitDTO.setOperationId("activate-scanner-app");
-            //            splitDTO.setElementDetails(null);
-            //
-            //            String jsonData = gson.toJson(splitDTO);
-            //            webSocketSessionManager.sendMessageJson(
-            //                    splitDTO.getHomeBankingId(), "mobile-return-server", jsonData,
-            // "activate-scanner-app");
-
-            activateSent = true;
-
         } catch (Exception e) {
             appendLog("XML deep scan failed: " + e.getMessage(), "error");
-        } finally {
-            //            if (!activateSent) {
-            //                splitDTO.setType("REACTIVATE_BUTTONS");
-            //                splitDTO.setSessionId("mobileScannerGrid");
-            //                splitDTO.setOperationId("activate-scanner-app");
-            //                splitDTO.setElementDetails(null);
-            //
-            //                String jsonData = gson.toJson(splitDTO);
-            //                webSocketSessionManager.sendMessageJson(
-            //                        splitDTO.getHomeBankingId(), "mobile-return-server", jsonData,
-            // "activate-scanner-app");
-            //            }
         }
     }
 
