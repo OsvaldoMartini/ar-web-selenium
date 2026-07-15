@@ -3,6 +3,7 @@ package com.allinweb.ch.facade;
 import com.allinweb.ch.model.BlockLoadDTO;
 import com.allinweb.ch.model.BotJobLoadDTO;
 import com.allinweb.ch.model.ElementDTO;
+import com.allinweb.ch.model.ScannerWorkspaceOperations;
 import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import com.allinweb.ch.model.SplitDTO;
 import com.allinweb.ch.util.ErrorMessage;
@@ -49,7 +50,7 @@ public final class BotJobPreScanPayloadService {
         payload.setBotJobName(botJob.getName());
         payload.setType("SEARCH_TOOL");
         payload.setSessionId(ScannerWorkspaceSessions.PRE_SCANNER_GRID);
-        payload.setOperationId("searchTerms");
+        payload.setOperationId(ScannerWorkspaceOperations.SEARCH_TERMS);
         payload.setElementDetails((elements == null ? List.<ElementDTO>of() : elements).toArray(new ElementDTO[0]));
         payload.setBlocks(options);
         return new Result(payload, warning);
