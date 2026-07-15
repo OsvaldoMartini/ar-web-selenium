@@ -25,6 +25,10 @@ public final class BotJobPreScanPayloadService {
         return INSTANCE;
     }
 
+    public String searchTermsFieldName() {
+        return ScannerWorkspacePayloads.searchTermsFieldName();
+    }
+
     public Result build(BotJobLoadDTO botJob, List<ElementDTO> elements) {
         if (botJob == null || botJob.getId() == null || botJob.getId() <= 0) {
             throw new IllegalArgumentException("An active Bot Job is required");

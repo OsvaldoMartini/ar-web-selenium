@@ -38,6 +38,13 @@ class BotJobPreScanPayloadServiceTest {
     }
 
     @Test
+    void exposesSearchTermsFieldName() {
+        BotJobPreScanPayloadService service = new BotJobPreScanPayloadService(new Data(List.of(), null));
+
+        assertEquals(ScannerWorkspaceOperations.SEARCH_TERMS, service.searchTermsFieldName());
+    }
+
+    @Test
     void emptyCacheLoadsOnceAndReturnsDatabaseWarningWithEmptyElements() {
         List<BlockLoadDTO> blocks = new ArrayList<>();
         ErrorMessage warning = new ErrorMessage("DB", "Blocks", "failed");

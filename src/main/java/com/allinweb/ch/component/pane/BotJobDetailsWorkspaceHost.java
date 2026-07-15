@@ -357,8 +357,8 @@ public class BotJobDetailsWorkspaceHost {
             return;
         }
 
-        String searchTerms = jsonEntry != null && jsonEntry.has(ScannerWorkspaceOperations.SEARCH_TERMS)
-                ? jsonEntry.get(ScannerWorkspaceOperations.SEARCH_TERMS).getAsString()
+        String searchTerms = jsonEntry != null && jsonEntry.has(preScanPayloadService.searchTermsFieldName())
+                ? jsonEntry.get(preScanPayloadService.searchTermsFieldName()).getAsString()
                 : "";
         boolean searchHidden = jsonEntry != null
                 && jsonEntry.has("searchHiddenFields")
@@ -746,7 +746,7 @@ public class BotJobDetailsWorkspaceHost {
                 selectedBotJob.getHomeBankingId(),
                 ScannerWorkspaceSessions.PRE_SCANNER_GRID,
                 gson.toJson(result.payload()),
-                ScannerWorkspaceOperations.SEARCH_TERMS);
+                result.payload().getOperationId());
     }
 
     private void callScannerTool(BotJobLoadDTO scannerBotJob) {
