@@ -3,7 +3,6 @@ package com.allinweb.ch.facade;
 import com.allinweb.ch.model.ElementDTO;
 import com.allinweb.ch.model.ScannerWorkspaceOperations;
 import com.allinweb.ch.model.ScannerWorkspaceRequest;
-import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import com.allinweb.ch.model.ScannerWorkspaceState;
 import com.allinweb.ch.model.SplitDTO;
 import com.google.gson.JsonArray;
@@ -12,6 +11,8 @@ import java.util.Arrays;
 import java.util.List;
 
 final class ScannerWorkspacePayloads {
+    private static final ScannerGridPublisher SCANNER_GRID_PUBLISHER =
+            new ScannerGridPublisher(new NoopScannerGridSender());
     private static final String[] DEFAULT_PAGE_SCAN_TERMS = {
         "input",
         "textarea",
@@ -90,15 +91,16 @@ final class ScannerWorkspacePayloads {
     }
 
     static SplitDTO payload(ScannerWorkspaceState state, List<ElementDTO> elements) {
-        SplitDTO payload = new SplitDTO();
-        payload.setHomeBankingId(state.homeBankingId());
-        payload.setBotJobId(state.botJobId());
-        payload.setBotJobName(state.botJobName());
-        payload.setType(ScannerWorkspaceOperations.SEARCH_TOOL);
-        payload.setSessionId(ScannerWorkspaceSessions.SCANNER_GRID);
-        payload.setOperationId(ScannerWorkspaceOperations.SEARCH_TERMS);
-        payload.setElementDetails(elements.toArray(new ElementDTO[0]));
-        payload.setBlocks(state.blocks().stream().map(ScannerWorkspaceBlockOptions::from).toList());
-        return payload;
+        return SCANNER_GRID_PUBLISHER.searchTermsPayload(
+                state.homeBankingId(),
+                state.botJobId(),
+                state.botJobName(),
+                elements.toArray(new ElementDTO[0]),
+                state.blocks().stream().map(ScannerWorkspaceBlockOptions::from).toList());
+    }
+
+    private static final class NoopScannerGridSender implements ScannerGridPublisher.Sender {
+        @Override
+        public void sendMessageJson(int homeBankingId, String sessionId, String json, String operationId) {}
     }
 }
