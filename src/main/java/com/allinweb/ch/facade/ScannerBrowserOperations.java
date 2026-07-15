@@ -82,15 +82,16 @@ final class ScannerBrowserOperations implements ScannerWorkspaceService.BrowserO
     public List<ElementDTO> scanPage(String[] searchTerms, int homeBankingId, int botJobId) {
         PerformActions actions = PerformActions.getInstance();
         WebDriver driver = actions.getCurrentDriver();
+        ScannerSearchRoute route = ScannerSearchRoute.standardPageScanner();
         PerformListElements.ScanResult scan = PerformListElements.getInstance().scanElements(
                 actions.getCurrentARWebDriver(),
                 driver,
                 searchTerms,
                 false,
                 54525,
-                ScannerWorkspaceSessions.SCANNER_TOOL,
-                ScannerWorkspaceSessions.SCANNER_GRID,
-                ScannerWorkspaceOperations.SEARCH_TERMS,
+                route.sourceSessionId(),
+                route.destinationSessionId(),
+                route.operationId(),
                 homeBankingId,
                 botJobId,
                 List.of());
