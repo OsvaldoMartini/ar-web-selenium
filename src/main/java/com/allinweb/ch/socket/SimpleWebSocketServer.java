@@ -70,6 +70,42 @@ public class SimpleWebSocketServer {
         return sessionId != null && sessionId.contains(expectedSessionId);
     }
 
+    private static boolean isBotJobTasksSession(String sessionId) {
+        return sessionIdContains(sessionId, ScannerWorkspaceSessions.BOT_JOB_TASKS);
+    }
+
+    private static boolean isComponentInstructionWorkspaceSession(String sessionId) {
+        return sessionIdContains(sessionId, ScannerWorkspaceSessions.COMPONENT_TASKS);
+    }
+
+    private static boolean isBotJobInstructionWorkspaceSession(String sessionId) {
+        return isBotJobTasksSession(sessionId)
+                || sessionIdContains(sessionId, ScannerWorkspaceSessions.SCANNER_TOOL)
+                || sessionIdContains(sessionId, ScannerWorkspaceSessions.SCANNER_GRID)
+                || sessionIdContains(sessionId, ScannerWorkspaceSessions.MOBILE_SCANNER_GRID)
+                || sessionIdContains(sessionId, ScannerWorkspaceSessions.SCANNER_ELEMENT_PANE);
+    }
+
+    private static boolean isScannerGridSession(String sessionId) {
+        return ScannerWorkspaceSessions.SCANNER_GRID.equals(sessionId);
+    }
+
+    private static boolean isScannerToolSession(String sessionId) {
+        return ScannerWorkspaceSessions.SCANNER_TOOL.equals(sessionId);
+    }
+
+    private static boolean isScannerElementPaneSession(String sessionId) {
+        return ScannerWorkspaceSessions.SCANNER_ELEMENT_PANE.equals(sessionId);
+    }
+
+    private static boolean isPerformListDataSession(String sessionId) {
+        return ScannerWorkspaceSessions.PERFORM_LIST_DATA.equals(sessionId);
+    }
+
+    private static boolean isScannerElementPaneOpen() {
+        return WebSocketSessionManager.isSessionOpen(ScannerWorkspaceSessions.SCANNER_ELEMENT_PANE);
+    }
+
     public static SimpleWebSocketServer getInstance() {
         if (instance == null) {
             synchronized (SimpleWebSocketServer.class) {
@@ -1960,18 +1996,14 @@ public class SimpleWebSocketServer {
         int whereId = -1;
 
         if (sessionIdToSend != null) {
-            if (sessionIdContains(sessionIdToSend, ScannerWorkspaceSessions.BOT_JOB_TASKS)
-                    || sessionIdContains(sessionIdToSend, ScannerWorkspaceSessions.SCANNER_TOOL)
-                    || sessionIdContains(sessionIdToSend, ScannerWorkspaceSessions.SCANNER_GRID)
-                    || sessionIdContains(sessionIdToSend, ScannerWorkspaceSessions.MOBILE_SCANNER_GRID)
-                    || sessionIdContains(sessionIdToSend, ScannerWorkspaceSessions.SCANNER_ELEMENT_PANE)) {
+            if (isBotJobInstructionWorkspaceSession(sessionIdToSend)) {
                 instrTable = "instruction";
                 blockTable = "block";
                 variableTable = "variable";
                 whereId = splitDTO.getBotJobId() != null ? splitDTO.getBotJobId() : -1;
                 updteBlocks = ScannerWorkspaceOperations.UPDATE_BLOCKS;
                 updateAction = ScannerWorkspaceOperations.UPDATE_INSTRUCTIONS;
-            } else if (sessionIdContains(sessionIdToSend, ScannerWorkspaceSessions.COMPONENT_TASKS)) {
+            } else if (isComponentInstructionWorkspaceSession(sessionIdToSend)) {
                 instrTable = "component_instruction";
                 blockTable = "component_block";
                 variableTable = "component_variable";
@@ -2135,7 +2167,7 @@ public class SimpleWebSocketServer {
                     alreadySentMgsSocket = true;
                     break;
                 case ScannerWorkspaceOperations.CLOSE_BROWSER:
-                    if (sessionIdToSend.equals(ScannerWorkspaceSessions.SCANNER_ELEMENT_PANE)) {
+                    if (isScannerElementPaneSession(sessionIdToSend)) {
                         splitDTO.setOperationId(ScannerWorkspaceOperations.CLOSE_BROWSER_OPERATION);
                         String jsonData = gson.toJson(splitDTO);
                         webSocketSessionManager.sendMessageJson(
@@ -2147,7 +2179,7 @@ public class SimpleWebSocketServer {
                     alreadySentMgsSocket = true;
                     break;
                 case ScannerWorkspaceOperations.HOVERED_ROW:
-                    if (sessionIdToSend.equals(ScannerWorkspaceSessions.SCANNER_TOOL)) {
+                    if (isScannerToolSession(sessionIdToSend)) {
                         splitDTO.setOperationId(ScannerWorkspaceOperations.HIGHLIGHT);
                         String jsonData = gson.toJson(splitDTO);
                         webSocketSessionManager.sendMessageJson(homeBankingId, sessionIdToSend, jsonData, null);
@@ -2164,7 +2196,7 @@ public class SimpleWebSocketServer {
                     break;
                 }
                 case ScannerWorkspaceOperations.SEARCH_TOOL:
-                    if (sessionIdToSend.equals(ScannerWorkspaceSessions.SCANNER_GRID)) {
+                    if (isScannerGridSession(sessionIdToSend)) {
                         // 1. UI gets the raw DTOs immediately (resolver enrichment is async-from-UI's POV).
                         String jsonData = gson.toJson(splitDTO);
                         webSocketSessionManager.sendMessageJson(
@@ -2276,7 +2308,7 @@ public class SimpleWebSocketServer {
                     break;
                 case ScannerWorkspaceOperations.UPDATE_LIST_ELEMENTS:
                     // calls perform list block update
-                    if (sessionIdToSend.equals(ScannerWorkspaceSessions.PERFORM_LIST_DATA)) {
+                    if (isPerformListDataSession(sessionIdToSend)) {
                         splitDTO.setType(ScannerWorkspaceOperations.UPDATE_LIST_ELEMENTS);
                         String jsonData = gson.toJson(splitDTO);
                         webSocketSessionManager.sendMessageJson(
@@ -2369,7 +2401,7 @@ public class SimpleWebSocketServer {
                         boolean isTestType = ScannerWorkspaceOperations.TEST_CLICK_DTO.equals(type)
                                 || ScannerWorkspaceOperations.TEST_INPUT_DTO.equals(type);
                         boolean paneOpen =
-                                WebSocketSessionManager.isSessionOpen(ScannerWorkspaceSessions.SCANNER_ELEMENT_PANE);
+                                isScannerElementPaneOpen();
                         if (isTestType && !paneOpen) {
                             // PRE SCAN dashboard row test with AR Web Factory closed: the scanned
                             // page lives in the isolated pre-scan browser, so the test runs there.
@@ -2584,9 +2616,9 @@ public class SimpleWebSocketServer {
 
                     if (type.equals("INSERT_AFTER_ELSEIF") || type.equals("INSERT_BEFORE_ELSEIF")) {
                         alreadySentMgsSocket = false;
-                        if (sessionIdContains(sessionIdToSend, ScannerWorkspaceSessions.BOT_JOB_TASKS)) {
+                        if (isBotJobTasksSession(sessionIdToSend)) {
                             performLists.getListBotJob().clear();
-                        } else if (sessionIdContains(sessionIdToSend, ScannerWorkspaceSessions.COMPONENT_TASKS)) {
+                        } else if (isComponentInstructionWorkspaceSession(sessionIdToSend)) {
                             performLists.getListBotJob().clear();
                         }
                     } else {
@@ -2960,16 +2992,14 @@ public class SimpleWebSocketServer {
             performMessage.errorMessageOperationFailed(errorMessage);
         }
 
-        if (!alreadySentMgsSocket
-                && sessionIdContains(sessionIdToSend, ScannerWorkspaceSessions.BOT_JOB_TASKS)) {
+        if (!alreadySentMgsSocket && isBotJobTasksSession(sessionIdToSend)) {
             if (performLists.getListBotJob().isEmpty()) {
                 errorMessage = performDBEngine.loadCompleteJobs(botJobIdTask);
                 if (errorMessage != null) {
                     performMessage.errorMessageOperationFailed(errorMessage);
                 }
             }
-        } else if (!alreadySentMgsSocket
-                && sessionIdContains(sessionIdToSend, ScannerWorkspaceSessions.COMPONENT_TASKS)) {
+        } else if (!alreadySentMgsSocket && isComponentInstructionWorkspaceSession(sessionIdToSend)) {
             if (performLists.getListBotJobComp().isEmpty()) {
                 errorMessage = performDataBase.loadComponentsComplete(homeBankingId, botJobIdTask, botJobNameTask);
                 if (errorMessage != null) {
