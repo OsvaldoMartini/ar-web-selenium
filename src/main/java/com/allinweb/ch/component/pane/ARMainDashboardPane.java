@@ -11,6 +11,7 @@ import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.model.BotJobLoadDTO;
 import com.allinweb.ch.model.BlockLoadDTO;
 import com.allinweb.ch.model.HomeBankingLoadDTO;
+import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
@@ -233,7 +234,9 @@ public class ARMainDashboardPane extends ARPane implements BotJobDetailsPresenta
         Platform.runLater(() -> {
             reloadBlocks(botJob);
             botJobDetailsHost.initialize(botJob, isEnabledLicence);
-            showSurface("botJobTasks", botJobDetailsHost.reactContext("botJobTasks"));
+            showSurface(
+                    ScannerWorkspaceSessions.BOT_JOB_TASKS,
+                    botJobDetailsHost.reactContext(ScannerWorkspaceSessions.BOT_JOB_TASKS));
         });
     }
 
