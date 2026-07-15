@@ -1,399 +1,276 @@
 # Session Handoff
 
-Date: 2026-07-14
+Date: 2026-07-15
 
-## Repository
+## Current Goal
 
-- Path: `D:\Projects\AllinWeb\ar-web-selenium`
+Continue the Scanner / AR Web Factory migration removal.
+
+Direction from the user:
+
+- Keep Java as the minimal backend/service side.
+- Move scanner frontend logic into the React/TypeScript container.
+- Create/extract new TypeScript methods/functions and typed WebSocket contracts.
+- Test with Playwright/browser validation as much as possible when the app can launch cleanly.
+- For each medium migration modification, commit and push.
+- Do not change frontend design unless required for the migration.
+
+## Repositories
+
+Backend:
+
+- Path: `D:\Projects\ar-web-selenium`
 - Branch: `refactor/perform-actions-decomposition`
-- Current status when written: only `SESSION_HANDOFF.md` is being modified for this handoff update; no migration source changed in this terminal
-- Backend base commit for this handoff: `909abdd0 docs: add migration document index to handoff`
+- Status when written: clean except this handoff update
+- Recent commits:
+  - `ebdee6c0 test: reuse scanner contract constants`
+  - `3dcb9733 refactor: reuse scanner operation id in pre scan host`
+  - `34640069 refactor: reuse scanner constants in browser services`
+  - `d3923855 refactor: centralize scanner search terms operation`
+  - `ef626b03 refactor: reuse scanner session ids in pre scan workspace`
 
-Recent backend commits before this handoff update:
+Frontend:
 
-```text
-909abdd0 docs: add migration document index to handoff
-7135ad8b refactor: remove retired bot job details legacy blocks
-0a42bb20 refactor: isolate bot job details presentation
-b582dbd3 refactor: retire bot job details scene
-562c4eda refactor: detach bot job details from pane lifecycle
-```
-
-## User Constraints
-
-- Continue the migration away from JavaFX.
-- The user explicitly selected the Scanner / AR Web Factory migration as the next large initiative and authorized starting it in the next terminal.
-- Scanner-related React and backend/service changes are in scope for that initiative.
-- Do not modify the Bot Job Details design as part of the Scanner work.
-- The user explicitly authorized committing and pushing this handoff-only update.
-- Do not infer authorization to deploy artifacts or mutate production data.
-- This terminal was explicitly limited to updating this handoff. No migration implementation, test, build, package, deployment, or runtime validation was performed here.
-- Production data/config available for runtime validation when needed:
-  - Database: `D:\Projects\ARWeb-Linux\ARWeb\database.db`
-  - Production config: `D:\Projects\ARWeb-Linux\Config-4.2\ARWeb.config`
-- Automated/backend tests should use:
-  - `D:\Projects\AllinWeb\ar-web-selenium\Config-4.2\TESTS.config`
-- Preserve production data. Runtime navigation is OK; avoid destructive mutations.
-
-## Current Migration State
-
-Completed and pushed:
-
-- `ARViewBotJobPane.java` was replaced by `BotJobDetailsWorkspaceHost.java`.
-- `BotJobDetailsWorkspaceHost` no longer extends `ARPane`.
-- `ARViewBotJobScene.java` was deleted.
-- All source callers were redirected to `ARMainDashboardPane.openBotJob(...)`.
-- `BotJobDetailsPresentationPort` was added.
-- `ARMainDashboardPane` now owns the JavaFX presentation duties for Bot Job Details:
-  - JavaFX thread execution
-  - the single React WebView surface
-  - organization modal presentation
-  - scanner modal open/close/current-job
-  - test-run delegation to `ARScannedElementPane`
-  - native directory/report choosers
-  - window title updates
-- `BotJobDetailsWorkspaceHost` compiles with no direct JavaFX imports and no direct dependency on:
-  - `ARMainDashboardPane`
-  - `ARScannedElementPane`
-  - `ARScannedElementScene`
-  - `AROrganizationManagerScene`
-- `BotJobDetailsJavaFxRetirementTest` was added to assert the pane/scene retirement boundary.
-- Clone Job React/backend migration was already completed before this handoff:
-  - backend clone contract/service implemented
-  - React Clone Job implemented/deployed
-  - `ARSaveClonePane` and `ARSaveCloneScene` deleted
-
-## Next Initiative Selected: Scanner / AR Web Factory
-
-The user selected the largest remaining JavaFX surface as the next initiative:
-
-> Scanner / AR Web Factory: migrate reachable controls and lifecycle to React/services, decouple
-> `ARScannedElementPane` / `ARScannedElementScene`, then delete them.
-
-This is explicit authorization to begin that initiative in the next terminal. Do not continue it in
-the terminal that wrote this handoff.
-
-### Current backend inventory
-
-- `ARScannedElementPane.java` still exists and is approximately 10,075 lines / 488 KB.
-- `ARScannedElementScene.java` still exists and is approximately 975 lines / 47 KB.
-- `AbstractARScannedElementPane.java` is a 14-line zero-reference residue; it can be removed after a
-  normal zero-reference audit, but its deletion alone is not meaningful migration progress.
-- The pane and scene have an eager circular singleton dependency and are not presentation-only:
-  - the pane initializes `ARScannedElementScene.getInstance()`
-  - the scene initializes `ARScannedElementPane.getInstance()`
-  - the scene directly reads/writes pane controls and calls pane business methods
-- The pane currently mixes:
-  - JavaFX controls and WebView ownership
-  - browser/tab/DOM operations
-  - TEST RUN / STOP and terminal-result behavior
-  - block creation and persistence glue
-  - a roughly 2,376-line `executeJob(...)` execution engine
-  - Appium/Web XML parsing and scan DTO construction
-  - WebSocket publication, filesystem/CSV work, OCR, support, and plugin management
-- The scene currently mixes:
-  - current-job/session initialization and loopback WebSocket ownership
-  - JSON command routing
-  - Stage/modal and browser shutdown
-  - element insert/update/test persistence and status publication
-- Important active couplings remain:
-  - `ARMainDashboardPane` owns scanner open/close/current-job presentation and delegates TEST RUN calls to the pane
-  - `ConfigService` and `ARConfigurationPane` close scanner scene/drivers
-  - `PerformListElements` and `SimpleWebSocketServer` query scanner context through the scene
-  - `SimpleWebSocketServer` still calls pane support/DOM handlers
-  - `TargetElementHelper` accepts a concrete `ARScannedElementPane` and writes/calls pane state
-
-### Current React inventory
-
-Frontend repository:
-
-- Path: `D:\Projects\AllinWeb\abr-react-ts-grid`
+- Path: `D:\Projects\ar-react-ts-grid`
 - Branch: `VERSION-4.6`
-- HEAD/remote when audited: `d48ecd3f1564eb26f48c5a325dbaac5d6c67f850`
-- Worktree is not clean: `src/index.tsx` has a pre-existing user change.
-  - Its substantive change hardcodes Bot Job `9` / `Apre Acconto` and Home Banking `2` /
-    `Banca Stato` defaults.
-  - The diff also contains line-ending churn.
-  - Preserve this change; do not overwrite or normalize the file incidentally.
+- Status when written: `src/components/GridItemScannMobile.tsx` is modified and needs the next pass
+- Recent commits:
+  - `ff476a6 refactor: reuse scanner sessions in grid messages`
+  - `f27ff57 refactor: reuse scanner session ids in app routing`
+  - `e48232c refactor: centralize scanner compatibility ids`
+  - `209f8cc refactor: centralize scanner session ids`
+  - `55dc621 refactor: centralize scanner baseline statuses`
 
-Already present:
+## Files To Read First
 
-- `GridItemScann` supports normal `scannerGrid` and `preScannerGrid` / `mode="preScan"`.
-- `ScannerWorkspaceHeader` exists.
-- The React scan-results editor already covers grouping, search, pagination, Keep/Delete/Clear,
-  Memory List, target block/create/apply, row rename/save/tests, OCR review/config/results, and
-  scan-result chunk accumulation.
-- Pre Scan already has a React toolbar/status for Page Scanner, OCR, refresh, clear, focus profiles,
-  search terms, and status.
-- Backend prerequisites already include `PreScanBrowserSession`, `PreScanWorkflowService`,
-  `PreScanApplyService`, `PlaywrightElementScanner`, OCR services, `BlockCreationService`, and
-  `BotJobScannerCoordinator`.
-- `ARPlaywrightDriver` already contains new-tab adoption, newest-page selection, `context.onPage`
-  handling, and closed-tab fallback. Parts of the TEST RUN/Page Scanner roadmap are implemented even
-  though that document is not checked off.
+Read these first before continuing:
 
-Still missing in normal AR Web Factory mode:
+1. Frontend active dirty slice:
+   - `D:\Projects\ar-react-ts-grid\src\components\GridItemScannMobile.tsx`
+   - `D:\Projects\ar-react-ts-grid\src\components\scanner\Scanner.operations.ts`
+   - `D:\Projects\ar-react-ts-grid\src\components\scanner\Scanner.sessions.ts`
+   - `D:\Projects\ar-react-ts-grid\src\components\scanner\Scanner.controllerStatus.ts`
+   - `D:\Projects\ar-react-ts-grid\src\components\scanner\Scanner.controllerTiming.ts`
 
-- A typed scanner bootstrap/state/action contract.
-- Authoritative state for job, URL, blocks, browser/active-tab state, focus/search, OCR, capabilities,
-  pending actions, and execution state.
-- React-owned scanner/browser lifecycle controls; normal `scannerGrid` currently has only the
-  identity/status header plus the result editor.
-- Request IDs, revisions/correlation, stale-response rejection, consistent timeout/error behavior,
-  and disconnected/busy gating.
-- Dedicated `ScannerToolbar`, `ScannerExecutionPanel`, controller/reducer, and focused React tests.
-- Removal of the hardcoded legacy `scanner-element-pane` destination used by insert/update/block/row
-  messages. Keep it or provide an alias until each command has migrated.
-- Explicit retained TEST RUN browser result state and a `Scan Test Result` source-selection flow.
+2. Frontend scanner comparison files:
+   - `D:\Projects\ar-react-ts-grid\src\components\GridItemScann.tsx`
+   - `D:\Projects\ar-react-ts-grid\src\components\GridItem.tsx`
+   - `D:\Projects\ar-react-ts-grid\src\components\GridItemComp.tsx`
+   - `D:\Projects\ar-react-ts-grid\src\index.tsx`
+   - `D:\Projects\ar-react-ts-grid\src\components\scanner\*.test.ts`
 
-### Visibility and scope rule
+3. Backend scanner contract/constants:
+   - `src/main/java/com/allinweb/ch/scanner/ScannerWorkspaceOperations.java`
+   - `src/main/java/com/allinweb/ch/scanner/ScannerWorkspaceSessions.java`
+   - `src/main/java/com/allinweb/ch/scanner/ScannerWorkspacePayloads.java`
+   - `src/test/java/com/allinweb/ch/scanner/ScannerWorkspaceOperationsTest.java`
+   - `src/test/java/com/allinweb/ch/scanner/ScannerWorkspaceSessionsTest.java`
 
-Before migrating any control, verify that it is visible and reachable in the current legacy pane.
-Do not revive hidden/dormant controls without a product decision.
+4. Backend biggest remaining runtime cleanup:
+   - `src/main/java/com/allinweb/ch/websocket/SimpleWebSocketServer.java`
 
-Currently excluded unless the user changes that decision:
+5. JavaFX legacy scanner files:
+   - `src/main/java/com/allinweb/ch/component/pane/ARScannedElementPane.java`
+   - `src/main/java/com/allinweb/ch/component/scene/ARScannedElementScene.java`
 
-- Clone / Hover Pick
-- Send DOM / HTML review
-- Request Support
-- plugin update controls
-- legacy hidden-field toggle
-- other controls whose legacy JavaFX node is `setVisible(false)`
+6. Smaller backend cleanup targets:
+   - `src/main/java/com/allinweb/ch/service/GenFlowService.java`
+   - `src/main/java/com/allinweb/ch/component/pane/PerformLists.java`
+   - `src/main/java/com/allinweb/ch/component/pane/PerformListElements.java`
+   - `src/main/java/com/allinweb/ch/component/pane/PerformPreLoad.java`
+   - `src/main/java/com/allinweb/ch/component/pane/PerformCloseBrowser.java`
+   - `src/main/java/com/allinweb/ch/plugin/PluginContext.java`
+   - `src/main/java/com/allinweb/ch/component/pane/BotJobDetailsWorkspaceHost.java`
 
-The older Pre Scan roadmap says `ARScannedElementPane` stays for other clients. That statement
-conflicts with the newly selected global pane/scene retirement goal. Treat the user's latest explicit
-selection as authoritative, while preserving client behavior during staged migration.
+## What Is Missing To Finish
 
-### Recommended first work in the next terminal
+### 1. Finish The Current Frontend Mobile Scanner Slice
 
-Do not begin by editing or deleting the 2,376-line `executeJob(...)` method.
+Current active file:
 
-1. Recheck both repository states and preserve unrelated changes.
-2. Re-audit visible/reachable normal Scanner controls against current source; roadmap inventories are
-   partly stale.
-3. Create a small JavaFX-free scanner selection/execution context and change `TargetElementHelper` to
-   depend on that context/callback interface instead of `ARScannedElementPane`. Keep a pane adapter so
-   behavior is unchanged and add focused mapping tests.
-4. Start the first end-to-end vertical slice:
-   - typed `scanner.bootstrap` and `scanner.state` payloads
-   - one correlated `scanner.action` envelope with `requestId`, session/job validation, pending state,
-     structured success/failure, and stale-response rejection
-   - React `Scanner.contract.ts` and `useScannerController.ts` with focused tests
-   - render one already-visible, read-only scanner action and live status in normal `scannerGrid`,
-     preferably Page Scanner or Refresh after confirming the reachable legacy behavior
-   - reuse the extracted Pre Scan/Playwright services rather than copying pane logic
-5. Keep the existing DTO grid and legacy `scanner-element-pane` persistence routes working during this
-   first slice.
-6. Remove a JavaFX control only after its React replacement passes contract, loopback, and runtime parity.
+- `D:\Projects\ar-react-ts-grid\src\components\GridItemScannMobile.tsx`
 
-Recommended later slices:
+Next actions:
 
-1. Read-only scan controls: focus/search, Page Scanner, refresh, clear-grid, status, and active-tab/browser state.
-2. Scene insert/update/block command routing behind a JavaFX-free service, reusing/generalizing
-   `PreScanApplyService`.
-3. Row tests, block creation/apply, OCR, and remaining reachable result-editor commands.
-4. Pre-Launch, TEST RUN/STOP, execution ownership, and immutable run state.
-5. Browser/session shutdown and configuration/dashboard caller decoupling.
-6. Zero-reference audit, then retire `ARScannedElementPane`, `ARScannedElementScene`, and
-   `AbstractARScannedElementPane`.
+- Review the current diff in `GridItemScannMobile.tsx`.
+- Replace remaining scanner operation/session literals where safe.
+- Prefer existing constants from:
+  - `Scanner.operations.ts`
+  - `Scanner.sessions.ts`
+- Likely remaining safe replacement:
+  - replace runtime `searchTerms` operation checks with `SCANNER_SEARCH_TERMS_OPERATION`
+- Keep payload field names such as JSON property `searchTerms` only where they are actual wire payload keys.
+- Run frontend scanner tests and build.
+- Commit and push this slice.
 
-### Scanner validation gates
-
-- Focused Java service/contract tests for session/job isolation, request replay/correlation, stale
-  responses, browser ownership, and lifecycle races.
-- Focused React controller/component tests for connected/disconnected, busy/disabled, success,
-  failure, timeout, keyboard behavior, and one request per action.
-- Localhost/mock-socket Playwright, then real loopback integration.
-- Same-tab, new-tab, multiple-tab, closed-tab, isolated Pre Scan, double-click, STOP, and shutdown cases.
-- Scanner row tests, block create/apply, OCR, element persistence, and browser shutdown must pass before
-  pane/scene deletion.
-- Use isolated test data for mutation-capable tests; keep production database/config read-only.
-- Run `git diff --check`, backend compile/focused tests, frontend tests/build, deployed build
-  manifest/hash comparison, and eventually the full backend suite.
-- Do not claim retirement until a zero-caller audit and desktop runtime parity are recorded.
-
-## Verification Already Done
-
-Backend focused non-browser suite:
-
-```text
-98 tests, 0 failures, 0 errors, 0 skipped
-```
-
-Compile/test-compile after the current refactor:
-
-```text
-317 main sources
-87 test sources
-```
-
-Package:
-
-```text
-mvn -DskipTests package
-```
-
-Packaged/deployed JAR:
-
-```text
-SHA-256: F880EED77054AA131F5F464F7DAB826BF9E1871196DB5ADC265D718C969F55F7
-Target:  D:\Projects\ARWeb-Linux\ARWeb-Scanner\AR_Web_Scanner-4.2.jar
-Backup:  D:\Projects\ARWeb-Linux\ARWeb-Scanner\AR_Web_Scanner-4.2.jar.20260714-035759.bak
-```
-
-Runtime launch:
-
-- The deployed app launched successfully.
-- Dashboard title observed: `AR Web Main Dashboard`.
-- Screenshot path: `D:\Projects\AllinWeb\ar-web-selenium\target\runtime-dashboard-retired.png`
-- The screenshot showed the production dashboard and Bot Job rows.
-
-Playwright/browser status:
-
-- A focused browser run reached the UI and failed on the two known blockers only:
-  - metadata `Edit` entry point is missing
-  - `CREATE_BAT` is covered by another layer
-- These were known before this stop point and are not new regressions from the pane/scene retirement.
-- A sandboxed browser run also failed with `spawn EPERM`, which is an environment limitation.
-
-## Not Proven Yet
-
-Do not mark the migration complete yet.
-
-Still missing:
-
-- Runtime close/reopen validation for Bot Job Details.
-- Runtime A -> B Bot Job switching validation.
-- Confirmation that opening Bot Job Details no longer creates a separate `ARViewBotJobScene` modal/window.
-- Full backend suite after final cleanup.
-- Roadmap/checklist updates with the final evidence.
-
-There was an attempted Windows mouse automation after runtime launch. It did not prove A -> B switching because the follow-up screenshot captured only the terminal, not the dashboard. Treat runtime A/B validation as still pending.
-
-## Cleanup Completed
-
-`BotJobDetailsWorkspaceHost.java` no longer contains the retired implementation blocks that had been left inside comments:
-
-- `/* Retired embedded Bot Job WebView implementation.`
-- `/* Retired duplicate direct Scanner scene launcher.`
-
-After removal, `mvn -DskipTests test-compile` passed on 2026-07-14 with 317 main sources and 87 test sources compiled.
-
-## Roadmaps To Update Later
-
-Only update these after final runtime evidence and full-suite evidence are collected:
-
-- `specifications/migrations/CLAUDE_vs_CODEX_MIGRATION_CHECKS_2026_07_12.md`
-- `specifications/migrations/ROADMAP_REMAINING_LEGACY_PANELS_REACT_2026_07_12.md`
-
-Relevant current stale sections:
-
-- `CLAUDE_vs_CODEX_MIGRATION_CHECKS_2026_07_12.md` around Task 1, near the `ARViewBotJobPane` reduction checklist.
-- `ROADMAP_REMAINING_LEGACY_PANELS_REACT_2026_07_12.md` around Phase 2D and the 2026-07-14 log.
-
-## Important Documents
-
-Read first:
-
-- `SESSION_HANDOFF.md` — current resume point, selected Scanner initiative, repository state, scope,
-  first-slice recommendation, and validation gates.
-- `specifications/migrations/ROADMAP_REMAINING_LEGACY_PANELS_REACT_2026_07_12.md` — umbrella roadmap;
-  read Phase 4, but verify every claim against current source because parts are stale.
-- `specifications/migrations/ROADMAP_PRE_SCAN_REACT_DASHBOARD.md` — completed Pre Scan capabilities,
-  extracted services, visibility rule, and behavior that should be reused.
-- `specifications/migrations/ROADMAP_TEST_RUN_PAGE_SCANNER_SESSION.md` — active-page/browser-source
-  lifecycle and validation matrix; some driver work is already implemented but unchecked.
-- `specifications/migrations/CLAUDE_vs_CODEX_MIGRATION_CHECKS_2026_07_12.md` — Bot Job Details,
-  TEST RUN, execution semantics, and JavaFX-retirement cautions.
-
-Migration roadmaps:
-
-- `specifications/migrations/ROADMAP_CLONE_JOB_REACT_BACKEND.md`
-- `specifications/migrations/ROADMAP_PRE_SCAN_REACT_DASHBOARD.md`
-- `specifications/migrations/ROADMAP_TEST_RUN_PAGE_SCANNER_SESSION.md`
-- `specifications/migrations/ROADMAP_NEW_BOT_JOB_REACT_BACKEND.md`
-- `specifications/migrations/ROADMAP_NEW_ORGANIZATION_REACT_BACKEND.md`
-- `specifications/migrations/ROADMAP_CONFIG_PAGE_REACT_BACKEND.md`
-- `specifications/migrations/ROADMAP_OCR_CONFIG_RESULTS_REACT_BACKEND.md`
-- `specifications/migrations/ROADMAP_MAIN_PAGE_REACT_DASHBOARD.md`
-- `specifications/migrations/ROADMAP_LICENSE_ABOUT_ACTIVATION_REACT_BACKEND.md`
-- `specifications/migrations/ROADMAP_POST_JAVAFX_NODE_TYPESCRIPT_PLATFORM.md`
-- `specifications/migrations/ROADMAP_SAVE_COMPONENT_REACT_BACKEND.md`
-- `specifications/migrations/ROADMAP_EXCEL_FILE_REACT_BACKEND.md`
-
-Execution and command-logic documents:
-
-- `specifications/migrations/INSTRUCTION_ACTION_CAPABILITY_MATRIX.md`
-- `specifications/migrations/INSTRUCTION_COMMAND_RULES_AUDIT.md`
-- `specifications/migrations/ROADMAP_COMMAND_CAPABILITY_ENGINE.md`
-- `specifications/migrations/ROADMAP_INSTRUCTION_GRAPH_AND_DRAG_DROP.md`
-
-Tracking, notes, and migration cautions:
-
-- `specifications/migrations/MIGRATION_TRACKER_2026-07-11.md`
-- `specifications/migrations/MIGRATION ROAD MAP MY NOTES.md`
-- `specifications/migrations/IMPORTANTE STEPS MIGRATION.md`
-- `specifications/migrations/GUIDANCES CLAUDE vs CODEX.md`
-- `specifications/migrations/NEGATIVE IMPACTS MIGRATION.md`
-- `specifications/migrations/Playwright_Migration_Roadmap.html`
-
-General project docs:
-
-- `README.md`
-- `CLAUDE.md`
-- `README-DATABASE.md`
-- `README-DEBUG.md`
-- `WEBDRIVER.md`
-- `WebDriver-With-Load-Wait.md`
-- `APPIUM README.md`
-- `OCRS README.md`
-
-## Resume Checklist
-
-1. Read the Scanner initiative section above and the three Scanner/umbrella roadmaps listed under
-   Important Documents.
-
-2. Check both repositories before editing:
+Suggested commands:
 
 ```powershell
-cd D:\Projects\AllinWeb\ar-web-selenium
-git status --short
-git log -5 --oneline
-
-git -C D:\Projects\AllinWeb\abr-react-ts-grid status --short
-git -C D:\Projects\AllinWeb\abr-react-ts-grid diff -- src/index.tsx
-git -C D:\Projects\AllinWeb\abr-react-ts-grid log -5 --oneline
+git -C D:\Projects\ar-react-ts-grid diff -- src/components/GridItemScannMobile.tsx
+rg -n -C 3 "searchTerms|scannerTool|scannerGrid|preScannerGrid|scanner-element-pane" D:\Projects\ar-react-ts-grid\src\components\GridItemScannMobile.tsx
+npm test -- --watchAll=false src/components/scanner
+npm run build
+git -C D:\Projects\ar-react-ts-grid diff --check
+git -C D:\Projects\ar-react-ts-grid add src/components/GridItemScannMobile.tsx
+git -C D:\Projects\ar-react-ts-grid commit -m "refactor: reuse scanner operation id in mobile grid"
+git -C D:\Projects\ar-react-ts-grid push origin VERSION-4.6
 ```
 
-The backend should be clean after this handoff commit is pulled. The frontend already has a
-user-owned `src/index.tsx` modification; preserve it.
+### 2. Backend WebSocket Server Cleanup
 
-3. Re-audit active normal Scanner controls and message/caller ownership before choosing removal points:
+Biggest remaining backend runtime file:
+
+- `src/main/java/com/allinweb/ch/websocket/SimpleWebSocketServer.java`
+
+Known runtime literals still to clean carefully:
+
+- `scannerGrid`
+- `preScannerGrid`
+- `scannerTool`
+- `scanner-element-pane`
+
+Likely work:
+
+- Reuse `ScannerWorkspaceSessions.SCANNER_GRID`.
+- Reuse `ScannerWorkspaceSessions.PRE_SCANNER_GRID`.
+- Reuse `ScannerWorkspaceSessions.SCANNER_TOOL`.
+- Add `ScannerWorkspaceSessions.SCANNER_ELEMENT_PANE = "scanner-element-pane"` if it does not exist yet.
+- Update `ScannerWorkspaceSessionsTest`.
+- Replace exact string comparisons and sends first.
+- Be careful with regex checks such as `matches(".*scannerTool.*")`; replace with helper methods or constant-based contains logic only when behavior is identical.
+- Keep compatibility destinations until React owns the replacement route.
+
+Suggested focused tests after this slice:
 
 ```powershell
-rg -n "setVisible|new Button|Button\(|scanner-element-pane|ARScannedElementPane|ARScannedElementScene" src/main/java
-rg -n "scanner-element-pane|scannerGrid|preScannerGrid|ScannerWorkspaceHeader" D:\Projects\AllinWeb\abr-react-ts-grid\src
+& 'D:\Installed\apache-maven-3.9.16\bin\mvn.cmd' '-Dtest=ScannerWorkspaceSessionsTest,ScannerWorkspaceOperationsTest,ScannerWorkspaceServiceTest,ScannerWorkspaceRequestLedgerTest,ScannerWorkspaceRequestTest,ScannerWorkspaceResponseTest' test
+git diff --check
 ```
 
-4. Begin with the small `TargetElementHelper` context/callback decoupling and focused tests, then build
-   the typed Scanner bootstrap/state/action vertical slice described above.
+### 3. JavaFX Legacy Scanner Pane Cleanup
 
-5. Keep behavior additive during early slices. Do not delete the pane/scene, remove legacy message
-   aliases, or touch `executeJob(...)` until equivalent routes and lifecycle evidence exist.
+The big Java-side migration target remains:
 
-6. After each implemented slice, run proportionate focused Java and React tests. Compile/build when
-   required by the implementation. Obtain separate authorization before deployment or production-data
-   mutation.
+- `src/main/java/com/allinweb/ch/component/pane/ARScannedElementPane.java`
 
-7. Keep the older Bot Job Details proof gaps visible:
-   - close/reopen runtime validation
-   - Bot Job A -> B switching
-   - confirmation that no retired separate scene/window appears
-   - full backend suite and roadmap evidence
-   - known metadata `Edit` and `CREATE_BAT` Playwright blockers
+This file is large and behavior-sensitive. Split it into small safe commits.
 
-## Important Reminder
+Known cleanup areas:
 
-The user has now explicitly chosen Scanner / AR Web Factory as the next migration initiative. The
-terminal that wrote this report was limited to the handoff only. The next terminal may begin the
-Scanner work from the staged checklist above.
+- Old scanner WebSocket sends.
+- Hardcoded scanner session destinations.
+- Direct JavaFX control state mixed with scanner business logic.
+- Browser/tab/DOM operations.
+- TEST RUN / STOP and terminal-result behavior.
+- Block creation and persistence glue.
+- Appium/Web XML parsing and scan DTO construction.
+- OCR, filesystem/CSV, support, and plugin management.
+
+Do not start by deleting or rewriting the large execution engine. First extract small service/context boundaries and preserve behavior.
+
+### 4. Small Backend Cleanup
+
+After `SimpleWebSocketServer.java`, continue with smaller files that still contain scanner/session/searchTerms literals or old Java-side contract knowledge:
+
+- `ARScannedElementScene.java`
+- `GenFlowService.java`
+- `PerformLists.java`
+- `PerformListElements.java`
+- `PerformPreLoad.java`
+- `PerformCloseBrowser.java`
+- `PluginContext.java`
+- `ScannerWorkspacePayloads.java`
+- `BotJobDetailsWorkspaceHost.java`
+
+Keep these changes small and commit each medium slice.
+
+### 5. Tests Cleanup
+
+Some tests still hardcode scanner contract values:
+
+- `scannerGrid`
+- `preScannerGrid`
+- `scannerTool`
+- `scanner-element-pane`
+- `searchTerms`
+
+This is lower risk than runtime code. Update tests after runtime constants are stable.
+
+Prioritize tests that validate new constants:
+
+- `ScannerWorkspaceOperationsTest`
+- `ScannerWorkspaceSessionsTest`
+- frontend scanner contract/helper tests under `src/components/scanner`
+
+### 6. End-To-End Validation
+
+Required final validation path:
+
+- Full frontend build.
+- Focused frontend scanner tests.
+- Focused backend Maven scanner tests.
+- Backend compile/package when practical.
+- Playwright/browser validation if the app can be launched cleanly.
+
+Do not claim scanner pane/scene retirement until:
+
+- Runtime routes are migrated or compatibility-routed.
+- React owns the reachable scanner controls.
+- Java side is reduced to services/backends.
+- Zero-reference audit confirms `ARScannedElementPane` and `ARScannedElementScene` can be deleted.
+- Desktop runtime parity is recorded.
+
+## Already Completed In This Migration Pass
+
+Frontend extraction/cleanup already pushed:
+
+- scanner response matching helpers
+- scanner action status helpers
+- bootstrap/action response handling helpers
+- transport message builder
+- controller reset state helper
+- bootstrap/action request eligibility helpers
+- message cursor helper
+- request id formatting helper
+- controller failure statuses
+- controller timing
+- baseline statuses
+- scanner operation constants
+- scanner session constants
+- scanner compatibility ids
+- app routing and grid message reuse of scanner session constants
+
+Backend extraction/cleanup already pushed:
+
+- scanner request body parser
+- scanner workspace operation ids
+- scanner workspace session ids
+- pre scan workspace session reuse
+- scanner search terms operation constant
+- browser service scanner constant reuse
+- pre scan host scanner operation id reuse
+- scanner contract constant test reuse
+
+## Recent Verification
+
+Frontend recent verification:
+
+- `npm test -- --watchAll=false src/components/scanner`
+  - previously passed: 19 suites / 70 tests
+  - known warnings: React `act` deprecation, CRA Babel preset warning, worker force-exited warning
+- `npm run build`
+  - previously passed
+  - known existing ESLint warnings in unrelated files
+
+Backend recent verification:
+
+- Focused Maven scanner/service tests previously passed.
+- Known Maven warnings:
+  - duplicate `javafx-maven-plugin`
+  - deprecation/unchecked compile warnings
+
+## Current Important Caution
+
+The frontend file `GridItemScannMobile.tsx` is already modified. Read and preserve that diff before editing.
+
+Do not change frontend CSS/design while doing the scanner contract cleanup unless a functional migration requires it.
