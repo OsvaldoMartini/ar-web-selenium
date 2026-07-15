@@ -66,6 +66,8 @@ public class SimpleWebSocketServer {
     private final ScannerMobileTestRoute scannerMobileTestRoute = ScannerMobileTestRoute.standard();
     private final ScannerMobilePickRoute scannerMobilePickRoute = ScannerMobilePickRoute.standard();
     private final ScannerBlockUpdatePublisher scannerBlockUpdatePublisher = new ScannerBlockUpdatePublisher();
+    private static final ScannerWorkspaceSessionClassifier scannerWorkspaceSessionClassifier =
+            new ScannerWorkspaceSessionClassifier();
     private PayloadJson payloadEmpty;
     private RowStatus rowStatus = new RowStatus();
     // Private constructor to prevent instantiation
@@ -84,23 +86,19 @@ public class SimpleWebSocketServer {
     }
 
     private static boolean isBotJobInstructionWorkspaceSession(String sessionId) {
-        return isBotJobTasksSession(sessionId)
-                || sessionIdContains(sessionId, ScannerWorkspaceSessions.SCANNER_TOOL)
-                || sessionIdContains(sessionId, ScannerWorkspaceSessions.SCANNER_GRID)
-                || sessionIdContains(sessionId, ScannerWorkspaceSessions.MOBILE_SCANNER_GRID)
-                || sessionIdContains(sessionId, ScannerWorkspaceSessions.SCANNER_ELEMENT_PANE);
+        return scannerWorkspaceSessionClassifier.isInstructionWorkspaceSession(sessionId);
     }
 
     private static boolean isScannerGridSession(String sessionId) {
-        return ScannerWorkspaceSessions.SCANNER_GRID.equals(sessionId);
+        return scannerWorkspaceSessionClassifier.isScannerGridSession(sessionId);
     }
 
     private static boolean isScannerToolSession(String sessionId) {
-        return ScannerWorkspaceSessions.SCANNER_TOOL.equals(sessionId);
+        return scannerWorkspaceSessionClassifier.isScannerToolSession(sessionId);
     }
 
     private static boolean isScannerElementPaneSession(String sessionId) {
-        return ScannerWorkspaceSessions.SCANNER_ELEMENT_PANE.equals(sessionId);
+        return scannerWorkspaceSessionClassifier.isScannerElementPaneSession(sessionId);
     }
 
     private static boolean isPerformListDataSession(String sessionId) {
