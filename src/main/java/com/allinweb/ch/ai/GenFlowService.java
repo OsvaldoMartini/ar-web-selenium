@@ -12,6 +12,7 @@ import com.allinweb.ch.model.BlockMoveDTO;
 import com.allinweb.ch.model.BotJobLoadDTO;
 import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.model.ReferenceLoadDTO;
+import com.allinweb.ch.model.ScannerWorkspaceOperations;
 import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.util.ARConstantsEngine;
@@ -374,7 +375,7 @@ public final class GenFlowService {
                     botJob.getHomeBankingId(),
                     ScannerWorkspaceSessions.SCANNER_ELEMENT_PANE,
                     blockSignal,
-                    "UPDATE_BLOCKS");
+                    ScannerWorkspaceOperations.UPDATE_BLOCKS);
 
             if (!performLists.getListBotJob().isEmpty()) {
                 List<InstructionLoad> viewData = performLists.buildJsonViewData(performLists.getListBotJob());

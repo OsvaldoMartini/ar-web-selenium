@@ -39,6 +39,9 @@ public final class ScannerWorkspaceOperations {
     public static final String TEST_INPUT_DTO = "TEST_INPUT_DTO";
     public static final String ACTION_EXECUTOR = "ACTION_EXECUTOR";
     public static final String UPDATE_LIST_ELEMENTS = "UPDATE_LIST_ELEMENTS";
+    public static final String UPDATE_BLOCKS = "UPDATE_BLOCKS";
+    public static final String UPDATE_BLOCKS_COMP = "UPDATE_BLOCKS_COMP";
+    public static final String BLOCKS_UPDATE = "blocksUpdate";
     public static final String PRE_SCAN_PAGE = "PRE_SCAN_PAGE";
     public static final String PRE_SCAN_REFRESH_PAGE = "PRE_SCAN_REFRESH_PAGE";
     public static final String PRE_SCAN_CLEAR_GRID = "PRE_SCAN_CLEAR_GRID";

@@ -4216,7 +4216,7 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
                     currentBotJob.getHomeBankingId(),
                     ScannerWorkspaceSessions.SCANNER_ELEMENT_PANE,
                     json,
-                    "UPDATE_BLOCKS");
+                    ScannerWorkspaceOperations.UPDATE_BLOCKS);
         } catch (Exception broadcastErr) {
             // Broadcast failure is non-fatal — the DB is consistent and this pane's
             // own combo will refresh via loadAllBlocks() in the caller.

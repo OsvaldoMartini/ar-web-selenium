@@ -313,21 +313,21 @@ public class PerformLists {
                     addMapElementsTarget(List.of(splitDTO.getElementDetails()));
 
                     break;
-                case "UPDATE_BLOCKS":
+                case ScannerWorkspaceOperations.UPDATE_BLOCKS:
                     BlockMoveDTO blockMoveDTO = gson.fromJson(body, BlockMoveDTO.class);
-                    blockMoveDTO.setType("UPDATE_BLOCKS");
+                    blockMoveDTO.setType(ScannerWorkspaceOperations.UPDATE_BLOCKS);
 
                     String jsonData = gson.toJson(blockMoveDTO);
                     webSocketSessionManager.sendMessageJson(
                             homeBankingId,
                             ScannerWorkspaceSessions.SCANNER_ELEMENT_PANE,
                             jsonData,
-                            "UPDATE_BLOCKS");
+                            ScannerWorkspaceOperations.UPDATE_BLOCKS);
 
                     break;
-                case "UPDATE_BLOCKS_COMP":
+                case ScannerWorkspaceOperations.UPDATE_BLOCKS_COMP:
                     blockMoveDTO = gson.fromJson(jsonObjMSG, BlockMoveDTO.class);
-                    blockMoveDTO.setType("UPDATE_BLOCKS_COMP");
+                    blockMoveDTO.setType(ScannerWorkspaceOperations.UPDATE_BLOCKS_COMP);
 
                     jsonData = gson.toJson(blockMoveDTO);
                     break;

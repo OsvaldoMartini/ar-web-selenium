@@ -1960,14 +1960,14 @@ public class SimpleWebSocketServer {
                 blockTable = "block";
                 variableTable = "variable";
                 whereId = splitDTO.getBotJobId() != null ? splitDTO.getBotJobId() : -1;
-                updteBlocks = "UPDATE_BLOCKS";
+                updteBlocks = ScannerWorkspaceOperations.UPDATE_BLOCKS;
                 updateAction = "updateInstructions";
             } else if (sessionIdToSend.matches(".*componentTasks.*")) {
                 instrTable = "component_instruction";
                 blockTable = "component_block";
                 variableTable = "component_variable";
                 whereId = splitDTO.getHomeBankingId() != null ? splitDTO.getHomeBankingId() : -1;
-                updteBlocks = "UPDATE_BLOCKS_COMP";
+                updteBlocks = ScannerWorkspaceOperations.UPDATE_BLOCKS_COMP;
                 updateAction = "componentsUpdate";
             }
         }
@@ -2407,10 +2407,13 @@ public class SimpleWebSocketServer {
                 case "COMPONENT_INJECT":
                     injectBlockComponent(splitDTO);
                     // calls perform list block update
-                    splitDTO.setType("UPDATE_BLOCKS");
+                    splitDTO.setType(ScannerWorkspaceOperations.UPDATE_BLOCKS);
                     jsonData = gson.toJson(splitDTO);
                     webSocketSessionManager.sendMessageJson(
-                            homeBankingId, ScannerWorkspaceSessions.PERFORM_LIST_DATA, jsonData, "UPDATE_BLOCKS");
+                            homeBankingId,
+                            ScannerWorkspaceSessions.PERFORM_LIST_DATA,
+                            jsonData,
+                            ScannerWorkspaceOperations.UPDATE_BLOCKS);
                     alreadySentMgsSocket = true;
                     break;
                 case "BLOCK_CREATE":
@@ -2428,11 +2431,17 @@ public class SimpleWebSocketServer {
                     webSocketSessionManager.sendMessageJson(
                             homeBankingId, ScannerWorkspaceSessions.PERFORM_LIST_DATA, jsonData, updteBlocks);
                     webSocketSessionManager.sendMessageJson(
-                            homeBankingId, ScannerWorkspaceSessions.SCANNER_GRID, jsonData, "blocksUpdate");
+                            homeBankingId,
+                            ScannerWorkspaceSessions.SCANNER_GRID,
+                            jsonData,
+                            ScannerWorkspaceOperations.BLOCKS_UPDATE);
                     // The pre-scan dashboard has its own session; without this its block
                     // dropdown never refreshes after Create new block.
                     webSocketSessionManager.sendMessageJson(
-                            homeBankingId, ScannerWorkspaceSessions.PRE_SCANNER_GRID, jsonData, "blocksUpdate");
+                            homeBankingId,
+                            ScannerWorkspaceSessions.PRE_SCANNER_GRID,
+                            jsonData,
+                            ScannerWorkspaceOperations.BLOCKS_UPDATE);
                     alreadySentMgsSocket = false;
                     break;
                 case "BLOCKS_SPLITTER":
