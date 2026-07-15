@@ -1,6 +1,7 @@
 package com.allinweb.ch.component.scene;
 
 import com.allinweb.ch.component.pane.ARScannedElementPane;
+import com.allinweb.ch.component.pane.ARScannedElementPaneProvider;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.driver.ARWebDriver;
@@ -45,7 +46,6 @@ public class ARScannedElementScene extends ARScene {
     private static final PerformDBEngine performDBEngine = PerformDBEngine.getInstance();
     private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
     private static final TargetElementHelper targetElementHelper = TargetElementHelper.getInstance();
-    private static final ARScannedElementPane arScannedElementPane = ARScannedElementPane.getInstance();
     private static final ARWebDriver arWebDriver = ARWebDriver.getInstance();
     private static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
     private static final PerformMessage performMessage = PerformMessage.getInstance();
@@ -72,6 +72,7 @@ public class ARScannedElementScene extends ARScene {
     private List<InstructionLoad> instructionList = new ArrayList<>();
     private final ScannerGridStatusPublisher scannerGridStatusPublisher = new ScannerGridStatusPublisher();
     private final ScannerElementPanePublisher scannerElementPanePublisher = new ScannerElementPanePublisher();
+    private final ARScannedElementPane arScannedElementPane;
     private final BotJobWorkspaceCapabilityService botJobWorkspaceCapabilityService =
             BotJobWorkspaceCapabilityService.getInstance();
     private final ScannerMobileTestRoute scannerMobileTestRoute = ScannerMobileTestRoute.standard();
@@ -79,6 +80,7 @@ public class ARScannedElementScene extends ARScene {
     private ARScannedElementScene() {
 
         super();
+        this.arScannedElementPane = ARScannedElementPaneProvider.getInstance().currentPane();
     }
 
     public static ARScannedElementScene getInstance() {
@@ -295,7 +297,7 @@ public class ARScannedElementScene extends ARScene {
                                 }
 
                                 // Clean ARScannedElementPane singleton instance
-                                ARScannedElementPane.getInstance().destroy();
+                                arScannedElementPane.destroy();
                                 ARScannedElementScene.getInstance().destroyPanel(); //
                             });
                         }
