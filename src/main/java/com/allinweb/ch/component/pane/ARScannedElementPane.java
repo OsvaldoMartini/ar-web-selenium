@@ -3093,16 +3093,12 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
     }
 
     private SplitDTO scannerGridSearchPayload(int homeBankingId, int botJobId, ElementDTO[] elements) {
-        SplitDTO payload = new SplitDTO();
-        payload.setHomeBankingId(homeBankingId);
-        payload.setBotJobId(botJobId);
-        payload.setBotJobName(this.currentBotJob.getName());
-        payload.setType(ScannerWorkspaceOperations.SEARCH_TOOL);
-        payload.setSessionId(ScannerWorkspaceSessions.SCANNER_GRID);
-        payload.setOperationId(ScannerWorkspaceOperations.SEARCH_TERMS);
-        payload.setElementDetails(elements);
-        payload.setBlocks(scannerBlockOptions(homeBankingId, botJobId));
-        return payload;
+        return scannerGridPublisher.searchTermsPayload(
+                homeBankingId,
+                botJobId,
+                this.currentBotJob.getName(),
+                elements,
+                scannerBlockOptions(homeBankingId, botJobId));
     }
 
     private List<Map<String, Object>> scannerBlockOptions(int homeBankingId, int botJobId) {
@@ -3111,13 +3107,7 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
                 .filter(block -> block.getBotJobId() == null || Objects.equals(block.getBotJobId(), botJobId))
                 .sorted(Comparator.comparingInt(
                         block -> block.getBlockOrderNumber() == null ? Integer.MAX_VALUE : block.getBlockOrderNumber()))
-                .map(block -> {
-                    Map<String, Object> option = new LinkedHashMap<>();
-                    option.put("blockId", block.getId());
-                    option.put("blockOrderNumber", block.getBlockOrderNumber());
-                    option.put("blockName", block.getName());
-                    return option;
-                })
+                .map(ScannerWorkspaceBlockOptions::from)
                 .toList();
     }
 

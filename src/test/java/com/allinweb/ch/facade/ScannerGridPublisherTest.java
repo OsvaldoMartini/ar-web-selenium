@@ -10,6 +10,7 @@ import com.allinweb.ch.model.SplitDTO;
 import com.google.gson.Gson;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class ScannerGridPublisherTest {
@@ -61,6 +62,30 @@ class ScannerGridPublisherTest {
         assertEquals("Scanner chunk size must be positive", error.getMessage());
         assertEquals(0, sender.messages.size());
         assertEquals(1, payload.getElementDetails().length);
+    }
+
+    @Test
+    void createsSearchTermsPayloadWithScannerGridContractFields() {
+        ScannerGridPublisher publisher = new ScannerGridPublisher(new RecordingSender());
+        ElementDTO element = new ElementDTO();
+        element.setDefinedName("Login");
+
+        SplitDTO payload = publisher.searchTermsPayload(
+                7,
+                42,
+                "Payments",
+                new ElementDTO[] {element},
+                List.of(Map.of("blockId", 91, "blockOrderNumber", 1, "blockName", "Login")));
+
+        assertEquals(7, payload.getHomeBankingId());
+        assertEquals(42, payload.getBotJobId());
+        assertEquals("Payments", payload.getBotJobName());
+        assertEquals(ScannerWorkspaceOperations.SEARCH_TOOL, payload.getType());
+        assertEquals(ScannerWorkspaceSessions.SCANNER_GRID, payload.getSessionId());
+        assertEquals(ScannerWorkspaceOperations.SEARCH_TERMS, payload.getOperationId());
+        assertEquals(1, payload.getElementDetails().length);
+        assertEquals("Login", payload.getElementDetails()[0].getDefinedName());
+        assertEquals(1, payload.getBlocks().size());
     }
 
     private SplitDTO payload(String... names) {

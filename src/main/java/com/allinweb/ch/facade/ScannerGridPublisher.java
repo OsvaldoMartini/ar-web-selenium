@@ -2,11 +2,13 @@ package com.allinweb.ch.facade;
 
 import com.allinweb.ch.model.ElementDTO;
 import com.allinweb.ch.model.ScannerWorkspaceOperations;
+import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import com.allinweb.ch.model.SplitDTO;
 import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.google.gson.Gson;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 public final class ScannerGridPublisher implements ScannerWorkspaceService.GridPublisher {
     private final Sender sender;
@@ -23,6 +25,24 @@ public final class ScannerGridPublisher implements ScannerWorkspaceService.GridP
     @Override
     public void publishSearchTerms(String sessionId, int homeBankingId, SplitDTO payload) {
         sender.sendMessageJson(homeBankingId, sessionId, gson.toJson(payload), ScannerWorkspaceOperations.SEARCH_TERMS);
+    }
+
+    public SplitDTO searchTermsPayload(
+            int homeBankingId,
+            int botJobId,
+            String botJobName,
+            ElementDTO[] elements,
+            List<Map<String, Object>> blocks) {
+        SplitDTO payload = new SplitDTO();
+        payload.setHomeBankingId(homeBankingId);
+        payload.setBotJobId(botJobId);
+        payload.setBotJobName(botJobName);
+        payload.setType(ScannerWorkspaceOperations.SEARCH_TOOL);
+        payload.setSessionId(ScannerWorkspaceSessions.SCANNER_GRID);
+        payload.setOperationId(ScannerWorkspaceOperations.SEARCH_TERMS);
+        payload.setElementDetails(elements == null ? new ElementDTO[0] : elements);
+        payload.setBlocks(blocks == null ? List.of() : blocks);
+        return payload;
     }
 
     @Override
