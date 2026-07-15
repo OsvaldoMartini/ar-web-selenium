@@ -8,6 +8,7 @@ import com.allinweb.ch.facade.PerformDBEngine;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
+import com.allinweb.ch.facade.ScannerTestRunHandlers;
 import com.allinweb.ch.model.BotJobLoadDTO;
 import com.allinweb.ch.model.BlockLoadDTO;
 import com.allinweb.ch.model.HomeBankingLoadDTO;
@@ -197,29 +198,29 @@ public class ARMainDashboardPane extends ARPane implements BotJobDetailsPresenta
             int blockOrderNumber,
             String endpointUrl,
             boolean runSingleBlock,
-            BooleanSupplier cancellationRequested) {
-        return ARScannedElementPane.getInstance().submitTestRunBlockPlaywright(
-                botJob, blockOrderNumber, endpointUrl, runSingleBlock, cancellationRequested);
+        BooleanSupplier cancellationRequested) {
+        return ScannerTestRunHandlers.getInstance()
+                .startTestRun(botJob, blockOrderNumber, endpointUrl, runSingleBlock, cancellationRequested);
     }
 
     @Override
     public void cancelTestRunStartup() {
-        ARScannedElementPane.getInstance().cancelTestRunStartup();
+        ScannerTestRunHandlers.getInstance().cancelTestRunStartup();
     }
 
     @Override
     public boolean stopTestRun(long executionId) {
-        return ARScannedElementPane.getInstance().stopTestRun(executionId);
+        return ScannerTestRunHandlers.getInstance().stopTestRun(executionId);
     }
 
     @Override
     public boolean isTestRunComplete(long executionId) {
-        return ARScannedElementPane.getInstance().isTestRunExecutionComplete(executionId);
+        return ScannerTestRunHandlers.getInstance().isTestRunComplete(executionId);
     }
 
     @Override
     public String testRunTerminalOutcome(long executionId) {
-        return ARScannedElementPane.getInstance().testRunExecutionTerminalState(executionId);
+        return ScannerTestRunHandlers.getInstance().testRunTerminalOutcome(executionId);
     }
 
     public void closeCloneJob() {

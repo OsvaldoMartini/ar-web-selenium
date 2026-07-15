@@ -86,7 +86,8 @@ import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
 
 @Slf4j
-public class ARScannedElementPane extends ARPane implements ScannerPreLaunchControls, ScannerSupportRequestHandler {
+public class ARScannedElementPane extends ARPane
+        implements ScannerPreLaunchControls, ScannerSupportRequestHandler, ScannerTestRunHandler {
 
     private static final Logger logLaunch = LoggerFactory.getLogger("com.allinweb.launch");
     private static final Logger logOperations = LoggerFactory.getLogger("com.allinweb.operations");
@@ -361,6 +362,7 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
     private ARScannedElementPane() {
         ScannerWorkspaceService.getInstance().installExecutionOperations(new ScannerPaneExecutionOperations(this));
         ScannerSupportRequestHandlers.getInstance().register(this);
+        ScannerTestRunHandlers.getInstance().register(this);
     }
 
     private static List<ElementScanProfile> buildElementScanProfiles() {
@@ -885,6 +887,7 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
 
     public void destroy() {
         ScannerSupportRequestHandlers.getInstance().unregister(this);
+        ScannerTestRunHandlers.getInstance().unregister(this);
         clearPane(getPaneReference());
         pane = null;
         scene = null;
@@ -3573,6 +3576,17 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
         }
     }
 
+    @Override
+    public long startTestRun(
+            BotJobLoadDTO botJob,
+            int blockOrderNumber,
+            String endpointUrl,
+            boolean runSingleBlock,
+            BooleanSupplier cancellationRequested) {
+        return submitTestRunBlockPlaywright(
+                botJob, blockOrderNumber, endpointUrl, runSingleBlock, cancellationRequested);
+    }
+
     private BotJobLoadDTO currentTestRunBotJob() {
         return currentBotJob;
     }
@@ -3626,8 +3640,18 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
         return scannerTestRunStopper.isExecutionComplete(executionId);
     }
 
+    @Override
+    public boolean isTestRunComplete(long executionId) {
+        return isTestRunExecutionComplete(executionId);
+    }
+
     public String testRunExecutionTerminalState(long executionId) {
         return scannerTestRunStopper.terminalState(executionId);
+    }
+
+    @Override
+    public String testRunTerminalOutcome(long executionId) {
+        return testRunExecutionTerminalState(executionId);
     }
 
     private String currentPlaywrightUrl() {
