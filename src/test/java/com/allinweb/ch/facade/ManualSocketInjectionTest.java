@@ -85,8 +85,7 @@ public class ManualSocketInjectionTest {
             Thread.sleep(500);
 
             // ── 5. Inject the manual script ─────────────────────────────────────
-            // The script is a self-invoking IIFE with hardcoded args (port 55687,
-            // sessionId "scannerTool", etc.) — inject it as-is, no wrapping.
+            // The script is a self-invoking IIFE with hardcoded manual args.
             JavascriptExecutor js = (JavascriptExecutor) driver;
             js.executeScript(script);
 

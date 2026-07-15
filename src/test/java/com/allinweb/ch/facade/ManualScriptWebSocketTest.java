@@ -25,7 +25,7 @@ import java.util.Map;
  *          [],                                // hiddenFields
  *          9999,                              // socketPort (the one printed below)
  *          "test-session-1",                  // sessionId
- *          "scannerGrid",                     // destination
+ *          ScannerWorkspaceSessions.SCANNER_GRID destination
  *          "op-1", "hb-1", "job-1"            // operationId, homeBankingId, botJobId
  *        );
  *   4. This server logs every frame received (base64-decoded when possible).

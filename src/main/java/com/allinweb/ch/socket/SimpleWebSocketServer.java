@@ -2049,7 +2049,7 @@ public class SimpleWebSocketServer {
                     alreadySentMgsSocket = true;
                     break;
 
-                case ScannerWorkspaceOperations.MOBILE_LOAD_JOBS: //  DATA CONTROL FOR THE MOBILE mobileScannerGrid
+                case ScannerWorkspaceOperations.MOBILE_LOAD_JOBS: // DATA CONTROL FOR THE MOBILE SCANNER GRID
                     if (isMobileReturnSession(sessionId)) {
                         splitDTO.setOperationId(ScannerWorkspaceOperations.BOT_JOB_LIST);
 
@@ -2068,7 +2068,7 @@ public class SimpleWebSocketServer {
                     }
                     alreadySentMgsSocket = true;
                     break;
-                case ScannerWorkspaceOperations.MOBILE_VALIDATE_FIELDS: //  DATA CONTROL FOR THE MOBILE mobileScannerGrid
+                case ScannerWorkspaceOperations.MOBILE_VALIDATE_FIELDS: // DATA CONTROL FOR THE MOBILE SCANNER GRID
                     if (isMobileReturnSession(sessionId)) {
                         splitDTO.setOperationId(ScannerWorkspaceOperations.VALIDATE_FIELDS);
 
