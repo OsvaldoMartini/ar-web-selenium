@@ -1263,10 +1263,7 @@ public class SimpleWebSocketServer {
         event.put("requestId", causeRequestId);
         event.put("botJobId", response.botJobId());
         event.put("state", response.state());
-        for (String targetId : List.of(
-                ScannerWorkspaceSessions.BOT_JOB_TASKS,
-                ScannerWorkspaceSessions.COMPONENT_TASKS,
-                ScannerWorkspaceSessions.PRE_SCANNER_GRID)) {
+        for (String targetId : BotJobWorkspaceSessions.stateTargets()) {
             Session target = WebSocketSessionManager.getSession(targetId);
             if (target != null && target.isOpen()) {
                 sendBotJobDetailsResponse(
@@ -1301,10 +1298,7 @@ public class SimpleWebSocketServer {
         event.put("botJobId", botJobId);
         event.put("state", state);
         List<CompletableFuture<Void>> sends = new ArrayList<>();
-        for (String targetId : List.of(
-                ScannerWorkspaceSessions.BOT_JOB_TASKS,
-                ScannerWorkspaceSessions.COMPONENT_TASKS,
-                ScannerWorkspaceSessions.PRE_SCANNER_GRID)) {
+        for (String targetId : BotJobWorkspaceSessions.stateTargets()) {
             Session target = WebSocketSessionManager.getSession(targetId);
             if (target != null && target.isOpen()) {
                 sends.add(sendBotJobDetailsResponseAcknowledged(

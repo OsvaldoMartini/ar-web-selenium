@@ -1,15 +1,7 @@
 package com.allinweb.ch.facade;
 
-import com.allinweb.ch.model.ScannerWorkspaceSessions;
-import java.util.List;
-
 /** UI-independent close gate and cleanup ordering for the Bot Job Details workspace. */
 public final class BotJobWorkspaceCloseCoordinator {
-
-    private static final List<String> SESSIONS = List.of(
-            ScannerWorkspaceSessions.BOT_JOB_TASKS,
-            ScannerWorkspaceSessions.COMPONENT_TASKS,
-            ScannerWorkspaceSessions.PRE_SCANNER_GRID);
 
     private final BusyPort busy;
     private final ExecutionPort execution;
@@ -56,7 +48,7 @@ public final class BotJobWorkspaceCloseCoordinator {
                 surfaceFailure = failure;
             } finally {
                 execution.close(botJobId);
-                for (String session : SESSIONS) sessions.clear(session, botJobId);
+                for (String session : BotJobWorkspaceSessions.stateTargets()) sessions.clear(session, botJobId);
             }
         }
         try {
