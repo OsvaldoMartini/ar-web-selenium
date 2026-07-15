@@ -34,11 +34,11 @@ class WebSocketSessionManagerTest {
         Session original = openSession();
         Session duplicate = openSession();
 
-        assertTrue(WebSocketSessionManager.addSession("botJobTasks", original));
-        assertFalse(WebSocketSessionManager.addSession("botJobTasks", duplicate));
+        assertTrue(WebSocketSessionManager.addSession(ScannerWorkspaceSessions.BOT_JOB_TASKS, original));
+        assertFalse(WebSocketSessionManager.addSession(ScannerWorkspaceSessions.BOT_JOB_TASKS, duplicate));
 
-        assertSame(original, WebSocketSessionManager.getSession("botJobTasks"));
-        assertEquals("botJobTasks", manager.getSessionIdBySession(original));
+        assertSame(original, WebSocketSessionManager.getSession(ScannerWorkspaceSessions.BOT_JOB_TASKS));
+        assertEquals(ScannerWorkspaceSessions.BOT_JOB_TASKS, manager.getSessionIdBySession(original));
         assertNull(manager.getSessionIdBySession(duplicate));
     }
 
@@ -75,26 +75,26 @@ class WebSocketSessionManagerTest {
         Session session = openSession();
 
         assertTrue(WebSocketSessionManager.addSession("mainDashboard", session));
-        assertFalse(WebSocketSessionManager.addSession("botJobTasks", session));
-        assertNull(WebSocketSessionManager.getSession("botJobTasks"));
+        assertFalse(WebSocketSessionManager.addSession(ScannerWorkspaceSessions.BOT_JOB_TASKS, session));
+        assertNull(WebSocketSessionManager.getSession(ScannerWorkspaceSessions.BOT_JOB_TASKS));
         assertEquals("mainDashboard", manager.getSessionIdBySession(session));
     }
 
     @Test
     void retiringLogicalSessionClosesAndUnregistersItsExactTransport() throws Exception {
         Session session = openSession();
-        assertTrue(WebSocketSessionManager.addSession("botJobTasks", session));
+        assertTrue(WebSocketSessionManager.addSession(ScannerWorkspaceSessions.BOT_JOB_TASKS, session));
 
-        assertTrue(WebSocketSessionManager.closeSession("botJobTasks"));
-        assertFalse(WebSocketSessionManager.closeSession("botJobTasks"));
+        assertTrue(WebSocketSessionManager.closeSession(ScannerWorkspaceSessions.BOT_JOB_TASKS));
+        assertFalse(WebSocketSessionManager.closeSession(ScannerWorkspaceSessions.BOT_JOB_TASKS));
 
         verify(session).close();
-        assertNull(WebSocketSessionManager.getSession("botJobTasks"));
+        assertNull(WebSocketSessionManager.getSession(ScannerWorkspaceSessions.BOT_JOB_TASKS));
         assertNull(manager.getSessionIdBySession(session));
 
         Session replacement = openSession();
-        assertTrue(WebSocketSessionManager.addSession("botJobTasks", replacement));
-        assertSame(replacement, WebSocketSessionManager.getSession("botJobTasks"));
+        assertTrue(WebSocketSessionManager.addSession(ScannerWorkspaceSessions.BOT_JOB_TASKS, replacement));
+        assertSame(replacement, WebSocketSessionManager.getSession(ScannerWorkspaceSessions.BOT_JOB_TASKS));
     }
 
     private Session openSession() {

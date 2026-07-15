@@ -51,13 +51,13 @@ class SimpleWebSocketServerSessionLifecycleTest {
 
     @Test
     void rejectsDuplicateLiveConnectionAndKeepsOriginal() throws Exception {
-        Session original = sessionWithId("botJobTasks", true);
-        Session duplicate = sessionWithId("botJobTasks", true);
+        Session original = sessionWithId(ScannerWorkspaceSessions.BOT_JOB_TASKS, true);
+        Session duplicate = sessionWithId(ScannerWorkspaceSessions.BOT_JOB_TASKS, true);
 
         endpoint.onOpen(original);
         endpoint.onOpen(duplicate);
 
-        assertSame(original, WebSocketSessionManager.getSession("botJobTasks"));
+        assertSame(original, WebSocketSessionManager.getSession(ScannerWorkspaceSessions.BOT_JOB_TASKS));
         verify(original, never()).close(org.mockito.ArgumentMatchers.any(CloseReason.class));
         verify(duplicate)
                 .close(argThat(reason -> CloseReason.CloseCodes.VIOLATED_POLICY.equals(reason.getCloseCode())));
@@ -108,7 +108,7 @@ class SimpleWebSocketServerSessionLifecycleTest {
 
     @Test
     void exactSocketCloseRevokesEveryTransferFolderGrantForTheLogicalSession() throws Exception {
-        String logicalSession = "botJobTasks";
+        String logicalSession = ScannerWorkspaceSessions.BOT_JOB_TASKS;
         Session session = sessionWithId(logicalSession, true);
         Path selected = Files.createDirectory(temporaryDirectory.resolve("exports"));
         BotJobTransferPathRegistry paths = BotJobTransferPathRegistry.getInstance();
@@ -125,7 +125,7 @@ class SimpleWebSocketServerSessionLifecycleTest {
 
     @Test
     void acknowledgedBotJobStateSendPropagatesAsynchronousTransportFailure() {
-        Session session = sessionWithId("botJobTasks", true);
+        Session session = sessionWithId(ScannerWorkspaceSessions.BOT_JOB_TASKS, true);
         RemoteEndpoint.Async asyncRemote = mock(RemoteEndpoint.Async.class);
         when(session.getAsyncRemote()).thenReturn(asyncRemote);
         doAnswer(invocation -> {
@@ -139,7 +139,11 @@ class SimpleWebSocketServerSessionLifecycleTest {
         CompletionException failure = assertThrows(
                 CompletionException.class,
                 () -> endpoint.sendBotJobDetailsResponseAcknowledged(
-                                session, 7, "botJobTasks", Map.of("state", "PASSED"), "botJobDetails.state")
+                                session,
+                                7,
+                                ScannerWorkspaceSessions.BOT_JOB_TASKS,
+                                Map.of("state", "PASSED"),
+                                "botJobDetails.state")
                         .join());
 
         assertSame(IOException.class, failure.getCause().getClass());
@@ -147,7 +151,7 @@ class SimpleWebSocketServerSessionLifecycleTest {
 
     @Test
     void acknowledgedBotJobStateSendCompletesOnlyAfterTransportAcknowledgement() {
-        Session session = sessionWithId("botJobTasks", true);
+        Session session = sessionWithId(ScannerWorkspaceSessions.BOT_JOB_TASKS, true);
         RemoteEndpoint.Async asyncRemote = mock(RemoteEndpoint.Async.class);
         when(session.getAsyncRemote()).thenReturn(asyncRemote);
         doAnswer(invocation -> {
@@ -159,7 +163,11 @@ class SimpleWebSocketServerSessionLifecycleTest {
                 .sendText(anyString(), any(SendHandler.class));
 
         endpoint.sendBotJobDetailsResponseAcknowledged(
-                        session, 7, "botJobTasks", Map.of("state", "PASSED"), "botJobDetails.state")
+                        session,
+                        7,
+                        ScannerWorkspaceSessions.BOT_JOB_TASKS,
+                        Map.of("state", "PASSED"),
+                        "botJobDetails.state")
                 .join();
 
         verify(asyncRemote).sendText(anyString(), any(SendHandler.class));
