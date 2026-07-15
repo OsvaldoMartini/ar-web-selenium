@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.allinweb.ch.model.BotJobToolbarAction;
 import com.allinweb.ch.model.BotJobToolbarActionResult;
+import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
@@ -118,7 +119,7 @@ class BotJobDetailsToolbarLedgerTest {
         BotJobDetailsToolbarLedger ledger = new BotJobDetailsToolbarLedger(4);
         AtomicInteger executions = new AtomicInteger();
 
-        for (String session : new String[] {"botJobTasks", "preScannerGrid"}) {
+        for (String session : new String[] {"botJobTasks", ScannerWorkspaceSessions.PRE_SCANNER_GRID}) {
             BotJobToolbarActionResult result = ledger.executeOnce(
                             session,
                             "shared-request",
