@@ -40,6 +40,8 @@ class ScannerWorkspaceOperationsTest {
         assertEquals("NEW_ELEMENT_DTO", ScannerWorkspaceOperations.NEW_ELEMENT_DTO);
         assertEquals("SEND_ALL_ELEMENTS_DTO", ScannerWorkspaceOperations.SEND_ALL_ELEMENTS_DTO);
         assertEquals("UPDATE_ALL_ELEMENTS_DTO", ScannerWorkspaceOperations.UPDATE_ALL_ELEMENTS_DTO);
+        assertEquals("activate-insert-all", ScannerWorkspaceOperations.ACTIVATE_INSERT_ALL);
+        assertEquals("activate-update-all", ScannerWorkspaceOperations.ACTIVATE_UPDATE_ALL);
         assertEquals("DEL_ELEMENT_DTO", ScannerWorkspaceOperations.DEL_ELEMENT_DTO);
         assertEquals("DETAILS_ELEMENT_DTO", ScannerWorkspaceOperations.DETAILS_ELEMENT_DTO);
         assertEquals("TEST_CLICK_DTO", ScannerWorkspaceOperations.TEST_CLICK_DTO);

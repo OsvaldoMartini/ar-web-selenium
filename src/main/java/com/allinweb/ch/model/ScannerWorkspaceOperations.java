@@ -33,6 +33,8 @@ public final class ScannerWorkspaceOperations {
     public static final String NEW_ELEMENT_DTO = "NEW_ELEMENT_DTO";
     public static final String SEND_ALL_ELEMENTS_DTO = "SEND_ALL_ELEMENTS_DTO";
     public static final String UPDATE_ALL_ELEMENTS_DTO = "UPDATE_ALL_ELEMENTS_DTO";
+    public static final String ACTIVATE_INSERT_ALL = "activate-insert-all";
+    public static final String ACTIVATE_UPDATE_ALL = "activate-update-all";
     public static final String DEL_ELEMENT_DTO = "DEL_ELEMENT_DTO";
     public static final String DETAILS_ELEMENT_DTO = "DETAILS_ELEMENT_DTO";
     public static final String TEST_CLICK_DTO = "TEST_CLICK_DTO";

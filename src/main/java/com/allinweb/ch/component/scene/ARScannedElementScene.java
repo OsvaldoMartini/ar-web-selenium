@@ -846,7 +846,7 @@ public class ARScannedElementScene extends ARScene {
 
                     sendStatusButton(
                             ScannerWorkspaceSessions.SCANNER_GRID,
-                            "activate-insert-all",
+                            ScannerWorkspaceOperations.ACTIVATE_INSERT_ALL,
                             "Insert All Elements button activated");
 
                     //                    updateBotJobTasks();
@@ -867,7 +867,7 @@ public class ARScannedElementScene extends ARScene {
                 updateBotJobTasks(this.currentBotJob.getId());
                 sendStatusButton(
                         ScannerWorkspaceSessions.SCANNER_GRID,
-                        "activate-insert-all",
+                        ScannerWorkspaceOperations.ACTIVATE_INSERT_ALL,
                         "Insert All Elements button activated");
 
                 if (errorMessage != null) {
@@ -877,7 +877,7 @@ public class ARScannedElementScene extends ARScene {
         } else {
             sendStatusButton(
                     ScannerWorkspaceSessions.SCANNER_GRID,
-                    "activate-insert-all",
+                    ScannerWorkspaceOperations.ACTIVATE_INSERT_ALL,
                     "Insert All Elements button activated");
         }
     }
@@ -931,7 +931,7 @@ public class ARScannedElementScene extends ARScene {
                 updateBotJobTasks(this.currentBotJob.getId());
                 sendStatusButton(
                         ScannerWorkspaceSessions.SCANNER_GRID,
-                        "activate-update-all",
+                        ScannerWorkspaceOperations.ACTIVATE_UPDATE_ALL,
                         "Update All Elements button activated");
                 if (errorMessage != null) {
                     performMessage.errorMessageOperationFailed(errorMessage);
@@ -940,7 +940,7 @@ public class ARScannedElementScene extends ARScene {
         } else {
             sendStatusButton(
                     ScannerWorkspaceSessions.SCANNER_GRID,
-                    "activate-update-all",
+                    ScannerWorkspaceOperations.ACTIVATE_UPDATE_ALL,
                     "Update All Elements button activated");
         }
     }
