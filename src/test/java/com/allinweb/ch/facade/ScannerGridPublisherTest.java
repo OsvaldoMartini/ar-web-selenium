@@ -80,6 +80,13 @@ class ScannerGridPublisherTest {
     }
 
     @Test
+    void exposesSearchTermsOperationId() {
+        ScannerGridPublisher publisher = new ScannerGridPublisher(new RecordingSender());
+
+        assertEquals(ScannerWorkspaceOperations.SEARCH_TERMS, publisher.searchTermsOperationId());
+    }
+
+    @Test
     void publishesChunksWithoutMutatingOriginalPayload() {
         RecordingSender sender = new RecordingSender();
         ScannerGridPublisher publisher = new ScannerGridPublisher(sender);

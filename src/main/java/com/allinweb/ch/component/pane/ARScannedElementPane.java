@@ -8431,7 +8431,7 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
                 finalPort,
                 socketSessionId,
                 destinationId,
-                ScannerWorkspaceOperations.SEARCH_TERMS,
+                scannerGridPublisher.searchTermsOperationId(),
                 this.currentBotJob.getHomeBankingId(),
                 this.currentBotJob.getId());
     }

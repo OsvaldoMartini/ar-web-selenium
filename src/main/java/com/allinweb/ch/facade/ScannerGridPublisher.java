@@ -47,6 +47,10 @@ public final class ScannerGridPublisher implements ScannerWorkspaceService.GridP
         return ScannerWorkspaceSessions.SCANNER_GRID;
     }
 
+    public String searchTermsOperationId() {
+        return ScannerWorkspaceOperations.SEARCH_TERMS;
+    }
+
     public SplitDTO searchTermsPayload(
             int homeBankingId,
             int botJobId,
@@ -59,7 +63,7 @@ public final class ScannerGridPublisher implements ScannerWorkspaceService.GridP
         payload.setBotJobName(botJobName);
         payload.setType(ScannerWorkspaceOperations.SEARCH_TOOL);
         payload.setSessionId(destinationSessionId());
-        payload.setOperationId(ScannerWorkspaceOperations.SEARCH_TERMS);
+        payload.setOperationId(searchTermsOperationId());
         payload.setElementDetails(elements == null ? new ElementDTO[0] : elements);
         payload.setBlocks(blocks == null ? List.of() : blocks);
         return payload;
@@ -76,7 +80,7 @@ public final class ScannerGridPublisher implements ScannerWorkspaceService.GridP
             int end = Math.min(i + chunkSize, elements.size());
             SplitDTO chunkPayload = chunkPayload(payload, elements.subList(i, end));
             sender.sendMessageJson(
-                    homeBankingId, sessionId, gson.toJson(chunkPayload), ScannerWorkspaceOperations.SEARCH_TERMS);
+                    homeBankingId, sessionId, gson.toJson(chunkPayload), searchTermsOperationId());
         }
     }
 
