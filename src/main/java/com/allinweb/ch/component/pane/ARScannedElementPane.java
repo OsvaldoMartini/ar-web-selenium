@@ -1794,18 +1794,11 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
             if (webEngine != null) {
                 //                webEngine.reload();
 
-                var processDTO = new SplitDTO();
-                processDTO.setHomeBankingId(this.currentBotJob.getHomeBankingId());
-                processDTO.setBotJobId(this.currentBotJob.getId());
-                processDTO.setBotJobName(this.currentBotJob.getName());
-                processDTO.setSessionId(ScannerWorkspaceSessions.SCANNER_GRID); // + this.currentBotJob.getHomeBankingId());
-                processDTO.setOperationId(ScannerWorkspaceOperations.SEARCH_TERMS);
-                processDTO.setElementDetails(new ElementDTO[0]);
-                webSocketSessionManager.sendMessageJson(
+                SplitDTO processDTO = scannerGridSearchPayload(
                         this.currentBotJob.getHomeBankingId(),
-                        ScannerWorkspaceSessions.SCANNER_GRID,
-                        gson.toJson(processDTO),
-                        ScannerWorkspaceOperations.SEARCH_TERMS);
+                        this.currentBotJob.getId(),
+                        new ElementDTO[0]);
+                scannerGridPublisher.publishScannerGridSearchTerms(this.currentBotJob.getHomeBankingId(), processDTO);
 
                 Platform.runLater(() -> {
                     countdownTextField.setText("Pre-Launch status: Ready");
@@ -3080,11 +3073,11 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
         // Reset the grid before streaming chunks so a fresh scan doesn't
         // accumulate on top of a previous page's results.
         SplitDTO reset = scannerGridSearchPayload(homeBankingId, botJobId, new ElementDTO[0]);
-        scannerGridPublisher.publishSearchTerms(ScannerWorkspaceSessions.SCANNER_GRID, homeBankingId, reset);
+        scannerGridPublisher.publishScannerGridSearchTerms(homeBankingId, reset);
 
         SplitDTO payload = scannerGridSearchPayload(homeBankingId, botJobId, elements.toArray(new ElementDTO[0]));
 
-        scannerGridPublisher.publishSearchTermsChunks(ScannerWorkspaceSessions.SCANNER_GRID, 0, payload, 25);
+        scannerGridPublisher.publishScannerGridSearchTermsChunks(0, payload, 25);
         appendLog(
                 "Page Scanner: sent " + elements.size() + " elements to " + ScannerWorkspaceSessions.SCANNER_GRID + ".",
                 "info");

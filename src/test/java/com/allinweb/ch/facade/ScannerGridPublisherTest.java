@@ -33,6 +33,19 @@ class ScannerGridPublisherTest {
     }
 
     @Test
+    void publishesScannerGridSearchTermsWithoutCallerSupplyingSessionId() {
+        RecordingSender sender = new RecordingSender();
+        ScannerGridPublisher publisher = new ScannerGridPublisher(sender);
+        SplitDTO payload = payload("one");
+
+        publisher.publishScannerGridSearchTerms(2, payload);
+
+        assertEquals(1, sender.messages.size());
+        assertEquals(ScannerWorkspaceSessions.SCANNER_GRID, sender.messages.get(0).sessionId);
+        assertEquals(ScannerWorkspaceOperations.SEARCH_TERMS, sender.messages.get(0).operationId);
+    }
+
+    @Test
     void publishesChunksWithoutMutatingOriginalPayload() {
         RecordingSender sender = new RecordingSender();
         ScannerGridPublisher publisher = new ScannerGridPublisher(sender);
@@ -47,6 +60,22 @@ class ScannerGridPublisherTest {
         assertEquals(5, payload.getElementDetails().length);
         assertEquals("one", payload.getElementDetails()[0].getDefinedName());
         assertEquals("five", payload.getElementDetails()[4].getDefinedName());
+    }
+
+    @Test
+    void publishesScannerGridSearchTermChunksWithoutCallerSupplyingSessionId() {
+        RecordingSender sender = new RecordingSender();
+        ScannerGridPublisher publisher = new ScannerGridPublisher(sender);
+        SplitDTO payload = payload("one", "two", "three");
+
+        publisher.publishScannerGridSearchTermsChunks(2, payload, 2);
+
+        assertEquals(2, sender.messages.size());
+        assertEquals(List.of(ScannerWorkspaceSessions.SCANNER_GRID, ScannerWorkspaceSessions.SCANNER_GRID),
+                sender.messages.stream().map(message -> message.sessionId).toList());
+        assertEquals(List.of(2, 1), sender.messages.stream()
+                .map(message -> gson.fromJson(message.json, SplitDTO.class).getElementDetails().length)
+                .toList());
     }
 
     @Test

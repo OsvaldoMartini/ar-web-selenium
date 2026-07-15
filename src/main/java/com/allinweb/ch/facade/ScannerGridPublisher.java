@@ -27,6 +27,14 @@ public final class ScannerGridPublisher implements ScannerWorkspaceService.GridP
         sender.sendMessageJson(homeBankingId, sessionId, gson.toJson(payload), ScannerWorkspaceOperations.SEARCH_TERMS);
     }
 
+    public void publishScannerGridSearchTerms(int homeBankingId, SplitDTO payload) {
+        publishSearchTerms(ScannerWorkspaceSessions.SCANNER_GRID, homeBankingId, payload);
+    }
+
+    public void publishScannerGridSearchTermsChunks(int homeBankingId, SplitDTO payload, int chunkSize) {
+        publishSearchTermsChunks(ScannerWorkspaceSessions.SCANNER_GRID, homeBankingId, payload, chunkSize);
+    }
+
     public SplitDTO searchTermsPayload(
             int homeBankingId,
             int botJobId,
