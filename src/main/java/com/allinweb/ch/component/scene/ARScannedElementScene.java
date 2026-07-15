@@ -209,8 +209,9 @@ public class ARScannedElementScene extends ARScene {
             body = jsonObjMSG.has("body") ? jsonObjMSG.get("body").getAsString() : "unknown";
             if (!body.equalsIgnoreCase("unknown")) {
                 JsonObject objSecond = JsonParser.parseString(body).getAsJsonObject();
-                if (objSecond.has("type") && objSecond.get("type").getAsString().equalsIgnoreCase("CLOSE_BROWSER")) {
-                    type = "CLOSE_BROWSER";
+                if (objSecond.has("type")
+                        && objSecond.get("type").getAsString().equalsIgnoreCase(ScannerWorkspaceOperations.CLOSE_BROWSER)) {
+                    type = ScannerWorkspaceOperations.CLOSE_BROWSER;
                 } else if (objSecond.has("type")) {
                     type = objSecond.has("type") ? objSecond.get("type").getAsString() : "unknown";
                 } else {
@@ -274,11 +275,11 @@ public class ARScannedElementScene extends ARScene {
                         log.error("Error: " + error.getMessage());
                     }
                     break;
-                case "CLOSE_BROWSER":
+                case ScannerWorkspaceOperations.CLOSE_BROWSER:
                     if (!arScannedElementPane.isJobRunning.get()) {
                         if (arScannedElementPane.launchBotJobButton != null
                                 && !performActions.isJustCalledRefreshPage()) {
-                            log.info("CLOSE_BROWSER");
+                            log.info(ScannerWorkspaceOperations.CLOSE_BROWSER);
                             Platform.runLater(() -> {
                                 Stage stage = (Stage) arScannedElementPane
                                         .launchBotJobButton

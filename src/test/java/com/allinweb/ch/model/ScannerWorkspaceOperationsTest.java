@@ -32,6 +32,11 @@ class ScannerWorkspaceOperationsTest {
         assertEquals("MOBILE_VALIDATE_FIELDS", ScannerWorkspaceOperations.MOBILE_VALIDATE_FIELDS);
         assertEquals("botJobList", ScannerWorkspaceOperations.BOT_JOB_LIST);
         assertEquals("validateFields", ScannerWorkspaceOperations.VALIDATE_FIELDS);
+        assertEquals("CLOSE_BROWSER", ScannerWorkspaceOperations.CLOSE_BROWSER);
+        assertEquals("closeBrowser", ScannerWorkspaceOperations.CLOSE_BROWSER_OPERATION);
+        assertEquals("HOVERED_ROW", ScannerWorkspaceOperations.HOVERED_ROW);
+        assertEquals("highlight", ScannerWorkspaceOperations.HIGHLIGHT);
+        assertEquals("CLEAR_HOVER_PICK_FILE", ScannerWorkspaceOperations.CLEAR_HOVER_PICK_FILE);
         assertEquals("PRE_SCAN_PAGE", ScannerWorkspaceOperations.PRE_SCAN_PAGE);
         assertEquals("PRE_SCAN_REFRESH_PAGE", ScannerWorkspaceOperations.PRE_SCAN_REFRESH_PAGE);
         assertEquals("PRE_SCAN_CLEAR_GRID", ScannerWorkspaceOperations.PRE_SCAN_CLEAR_GRID);

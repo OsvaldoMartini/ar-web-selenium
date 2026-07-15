@@ -2131,24 +2131,27 @@ public class SimpleWebSocketServer {
                     BotJobWorkspaceController.getInstance().preScanCommand(type, jsonEntry);
                     alreadySentMgsSocket = true;
                     break;
-                case "CLOSE_BROWSER":
+                case ScannerWorkspaceOperations.CLOSE_BROWSER:
                     if (sessionIdToSend.equals(ScannerWorkspaceSessions.SCANNER_ELEMENT_PANE)) {
-                        splitDTO.setOperationId("closeBrowser");
+                        splitDTO.setOperationId(ScannerWorkspaceOperations.CLOSE_BROWSER_OPERATION);
                         String jsonData = gson.toJson(splitDTO);
                         webSocketSessionManager.sendMessageJson(
-                                homeBankingId, sessionIdToSend, jsonData, "closeBrowser");
+                                homeBankingId,
+                                sessionIdToSend,
+                                jsonData,
+                                ScannerWorkspaceOperations.CLOSE_BROWSER_OPERATION);
                     }
                     alreadySentMgsSocket = true;
                     break;
-                case "HOVERED_ROW":
+                case ScannerWorkspaceOperations.HOVERED_ROW:
                     if (sessionIdToSend.equals(ScannerWorkspaceSessions.SCANNER_TOOL)) {
-                        splitDTO.setOperationId("highlight");
+                        splitDTO.setOperationId(ScannerWorkspaceOperations.HIGHLIGHT);
                         String jsonData = gson.toJson(splitDTO);
                         webSocketSessionManager.sendMessageJson(homeBankingId, sessionIdToSend, jsonData, null);
                     }
                     alreadySentMgsSocket = true;
                     break;
-                case "CLEAR_HOVER_PICK_FILE": {
+                case ScannerWorkspaceOperations.CLEAR_HOVER_PICK_FILE: {
                     // Picker UI's "Clear Grid All" button when Hover Pick mode is on.
                     // Truncates elementDTO-HP.json + AI-ElementDTO-HP.json so the next pick
                     // starts a fresh cumulative list.

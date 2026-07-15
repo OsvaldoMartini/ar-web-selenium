@@ -25,6 +25,11 @@ public final class ScannerWorkspaceOperations {
     public static final String MOBILE_VALIDATE_FIELDS = "MOBILE_VALIDATE_FIELDS";
     public static final String BOT_JOB_LIST = "botJobList";
     public static final String VALIDATE_FIELDS = "validateFields";
+    public static final String CLOSE_BROWSER = "CLOSE_BROWSER";
+    public static final String CLOSE_BROWSER_OPERATION = "closeBrowser";
+    public static final String HOVERED_ROW = "HOVERED_ROW";
+    public static final String HIGHLIGHT = "highlight";
+    public static final String CLEAR_HOVER_PICK_FILE = "CLEAR_HOVER_PICK_FILE";
     public static final String PRE_SCAN_PAGE = "PRE_SCAN_PAGE";
     public static final String PRE_SCAN_REFRESH_PAGE = "PRE_SCAN_REFRESH_PAGE";
     public static final String PRE_SCAN_CLEAR_GRID = "PRE_SCAN_CLEAR_GRID";
