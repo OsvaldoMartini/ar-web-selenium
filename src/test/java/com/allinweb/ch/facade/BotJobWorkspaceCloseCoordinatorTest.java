@@ -36,7 +36,7 @@ class BotJobWorkspaceCloseCoordinatorTest {
         assertEquals(List.of(
                 "suspend:42", "registry:42", "session:" + ScannerWorkspaceSessions.BOT_JOB_TASKS + ":42",
                 "session:" + ScannerWorkspaceSessions.COMPONENT_TASKS + ":42",
-                "session:" + ScannerWorkspaceSessions.PRE_SCANNER_GRID + ":42", "browser"), calls);
+                "session:" + preScannerGridSession() + ":42", "browser"), calls);
     }
 
     @Test
@@ -74,7 +74,7 @@ class BotJobWorkspaceCloseCoordinatorTest {
                 "registry",
                 ScannerWorkspaceSessions.BOT_JOB_TASKS,
                 ScannerWorkspaceSessions.COMPONENT_TASKS,
-                ScannerWorkspaceSessions.PRE_SCANNER_GRID), calls);
+                preScannerGridSession()), calls);
         assertEquals(List.of("browser failed"), errors);
     }
 
@@ -90,5 +90,9 @@ class BotJobWorkspaceCloseCoordinatorTest {
                 (session, id) -> calls.add("session:" + session + ":" + id),
                 () -> calls.add("browser"),
                 failure -> calls.add("error:" + failure.getMessage()));
+    }
+
+    private static String preScannerGridSession() {
+        return PreScannerGridRoute.standardSearchTerms().destinationSessionId();
     }
 }

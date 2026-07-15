@@ -120,7 +120,8 @@ class BotJobDetailsToolbarLedgerTest {
         AtomicInteger executions = new AtomicInteger();
 
         for (String session : new String[] {
-                ScannerWorkspaceSessions.BOT_JOB_TASKS, ScannerWorkspaceSessions.PRE_SCANNER_GRID}) {
+                ScannerWorkspaceSessions.BOT_JOB_TASKS,
+                PreScannerGridRoute.standardSearchTerms().destinationSessionId()}) {
             BotJobToolbarActionResult result = ledger.executeOnce(
                             session,
                             "shared-request",

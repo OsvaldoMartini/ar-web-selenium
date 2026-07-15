@@ -15,7 +15,7 @@ class BotJobWorkspaceSessionsTest {
                 List.of(
                         ScannerWorkspaceSessions.BOT_JOB_TASKS,
                         ScannerWorkspaceSessions.COMPONENT_TASKS,
-                        ScannerWorkspaceSessions.PRE_SCANNER_GRID),
+                        PreScannerGridRoute.standardSearchTerms().destinationSessionId()),
                 BotJobWorkspaceSessions.stateTargets());
     }
 
