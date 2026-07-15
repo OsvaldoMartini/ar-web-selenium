@@ -56,11 +56,15 @@ final class ScannerWorkspacePayloads {
         return List.of(DEFAULT_PAGE_SCAN_TERMS);
     }
 
+    static String searchTermsFieldName() {
+        return ScannerWorkspaceOperations.SEARCH_TERMS;
+    }
+
     static String[] searchTerms(ScannerWorkspaceRequest request) {
-        if (!request.body().has(ScannerWorkspaceOperations.SEARCH_TERMS)) {
+        if (!request.body().has(searchTermsFieldName())) {
             return Arrays.copyOf(DEFAULT_PAGE_SCAN_TERMS, DEFAULT_PAGE_SCAN_TERMS.length);
         }
-        JsonElement value = request.body().get(ScannerWorkspaceOperations.SEARCH_TERMS);
+        JsonElement value = request.body().get(searchTermsFieldName());
         if (value == null || value.isJsonNull()) {
             return Arrays.copyOf(DEFAULT_PAGE_SCAN_TERMS, DEFAULT_PAGE_SCAN_TERMS.length);
         }

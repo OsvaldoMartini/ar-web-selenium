@@ -1,6 +1,5 @@
 package com.allinweb.ch.facade;
 
-import com.allinweb.ch.model.ScannerWorkspaceOperations;
 import com.google.gson.Gson;
 import java.util.HashMap;
 import java.util.List;
@@ -109,7 +108,7 @@ public class PluginContext {
             int homeBankingId,
             int botJobId) {
         if (searchTerms != null) {
-            fields.put(ScannerWorkspaceOperations.SEARCH_TERMS, searchTerms);
+            fields.put(ScannerWorkspacePayloads.searchTermsFieldName(), searchTerms);
         }
         fields.put(FIELD_HIDDEN_FIELDS, hiddenFields);
         fields.put(FIELD_PORT, port);

@@ -26,7 +26,7 @@ class PluginContextTest {
 
         assertEquals("pageScanner", context.get("pluginId"));
         assertEquals(2, context.get("apiVersion"));
-        assertEquals(List.of("button", "input"), context.get(ScannerWorkspaceOperations.SEARCH_TERMS));
+        assertEquals(List.of("button", "input"), context.get(ScannerWorkspacePayloads.searchTermsFieldName()));
         assertEquals(ScannerWorkspaceSessions.SCANNER_TOOL, context.get("sessionId"));
         assertEquals(ScannerWorkspaceSessions.SCANNER_GRID, context.get("destination"));
         assertEquals(ScannerWorkspaceOperations.SEARCH_TERMS, context.get("operationId"));
@@ -49,7 +49,7 @@ class PluginContextTest {
                 .toJsContext();
 
         assertEquals("hoverPick", context.get("pluginId"));
-        assertFalse(context.containsKey(ScannerWorkspaceOperations.SEARCH_TERMS));
+        assertFalse(context.containsKey(ScannerWorkspacePayloads.searchTermsFieldName()));
         assertEquals(true, context.get("hiddenFields"));
         assertEquals("https://bank.example", context.get("targetOriginURL"));
         assertEquals("https://bank.example", context.get("trustedOriginURL"));
