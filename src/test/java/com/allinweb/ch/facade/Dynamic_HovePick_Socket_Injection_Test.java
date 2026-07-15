@@ -1,6 +1,7 @@
 package com.allinweb.ch.facade;
 
 import com.allinweb.ch.driver.ARWebDriver;
+import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import com.allinweb.ch.util.ARConstantsEngine;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
@@ -103,14 +104,14 @@ public class Dynamic_HovePick_Socket_Injection_Test {
 
             // ── 5. Inject the hoverPick script ──────────────────────────────────
             // 9 positional args matching the trailing `})( arguments[0..8] );`.
-            String sessionId = "scannerTool";
+            String sessionId = ScannerWorkspaceSessions.SCANNER_TOOL;
             JavascriptExecutor js = (JavascriptExecutor) driver;
             js.executeScript(
                     script,
                     false, // hiddenFields
                     port, // socketPort
                     sessionId, // sessionId
-                    "scannerGrid", // destination
+                    ScannerWorkspaceSessions.SCANNER_GRID, // destination
                     "addPickOne", // operationId
                     2L, // homeBankingId
                     66L, // botJobId

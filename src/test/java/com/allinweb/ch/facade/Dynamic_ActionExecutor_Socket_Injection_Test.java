@@ -1,6 +1,7 @@
 package com.allinweb.ch.facade;
 
 import com.allinweb.ch.driver.ARWebDriver;
+import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import com.allinweb.ch.util.ARConstantsEngine;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
@@ -109,7 +110,7 @@ public class Dynamic_ActionExecutor_Socket_Injection_Test {
                     script,
                     port, // socketPort
                     sessionId, // sessionId
-                    "scannerGrid", // destination
+                    ScannerWorkspaceSessions.SCANNER_GRID, // destination
                     "actionExecutor", // operationId
                     184L, // homeBankingId
                     310L); // botJobId
