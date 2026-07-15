@@ -1413,8 +1413,6 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
 
         String jsonData = gson.toJson(payloadEmpty);
 
-        // sessionIdFromJava
-        // (SENDER: scannerTool) -> scannerGrid /  (SENDER: insertTool) -> botJobTasks /
         sessionIdFromJava = ScannerWorkspaceSessions.SCANNER_GRID; // + this.currentBotJob.getHomeBankingId();
         buildWebView(
                 webEngine,
@@ -1454,28 +1452,6 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
             arScannedElementScene.closeModal();
             return false;
         }
-        // "scannerTool", "scannerGrid", "searchTerms"
-        //        performPreLoad.dynamicLoadElementsDTO(
-        //                performActions.getCurrentDriver(),
-        //                performActions.getCurrentDriver().getCurrentUrl(),
-        //                defaultSearch,
-        //                searchHiddenFields,
-        //                portSocketInitial,
-        //                "scannerTool",
-        //                "scannerGrid",
-        //                "searchTerms");
-
-        //        Platform.runLater(() -> {
-        //            performCloseBrowser.dynamicCloseBrowser(
-        //                    performActions.getCurrentDriver(),
-        //                    portSocketInitial,
-        //                    "closeBrowser",
-        //                    "scannerGrid",
-        //                    "closeBrowser",
-        //                    this.currentBotJob.getHomeBankingId(),
-        //                    homeBanking.getUrl());
-        //        });
-
         performActions.getIframeElementsMap();
 
         handleWindowHandlesChange();
@@ -1613,8 +1589,7 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
                 finalPort,
                 sessionIdFromJava);
 
-        // Surface WebView failures — JS errors and failed loads are otherwise silent, which is why
-        // the scanner grid (scannerGrid) could fail to connect with no trace in the log.
+        // Surface WebView failures; JS errors and failed loads are otherwise silent.
         webEngine.setOnError(e -> log.error("[webview-js] {}", e.getMessage()));
         webEngine.setOnAlert(e -> log.info("[webview-alert] {}", e.getData()));
 
@@ -1813,16 +1788,6 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
 
             }
 
-            //            Platform.runLater(() -> {
-            //                performCloseBrowser.dynamicCloseBrowser(
-            //                        performActions.getCurrentDriver(),
-            //                        portSocketInitial,
-            //                        "closeBrowser",
-            //                        "scannerGrid",
-            //                        "closeBrowser",
-            //                        this.currentBotJob.getHomeBankingId(),
-            //                        homeBanking.getUrl());
-            //            });
         });
 
         cleanListButton.setOnAction(e -> {
@@ -3088,7 +3053,6 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
             int homeBankingId,
             int botJobId,
             List<String> extendedRules) {
-        // "scannerTool", "scannerGrid", "searchTerms"
         PerformListElements.ScanResult scan = performListElements.scanElements(
                 currentARWebDriver,
                 driver,
