@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -34,7 +35,8 @@ class BotJobWorkspaceCloseCoordinatorTest {
 
         assertEquals(List.of(
                 "suspend:42", "registry:42", "session:botJobTasks:42",
-                "session:componentTasks:42", "session:preScannerGrid:42", "browser"), calls);
+                "session:componentTasks:42",
+                "session:" + ScannerWorkspaceSessions.PRE_SCANNER_GRID + ":42", "browser"), calls);
     }
 
     @Test
@@ -68,7 +70,8 @@ class BotJobWorkspaceCloseCoordinatorTest {
         IllegalStateException failure = assertThrows(IllegalStateException.class, () -> coordinator.close(42));
 
         assertEquals("surface failed", failure.getMessage());
-        assertEquals(List.of("registry", "botJobTasks", "componentTasks", "preScannerGrid"), calls);
+        assertEquals(List.of(
+                "registry", "botJobTasks", "componentTasks", ScannerWorkspaceSessions.PRE_SCANNER_GRID), calls);
         assertEquals(List.of("browser failed"), errors);
     }
 

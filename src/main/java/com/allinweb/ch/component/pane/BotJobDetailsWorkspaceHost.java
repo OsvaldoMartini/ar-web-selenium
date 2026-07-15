@@ -685,7 +685,10 @@ public class BotJobDetailsWorkspaceHost {
         payload.put("botJobName", selectedBotJob.getName());
         payload.put("homeBankingId", selectedBotJob.getHomeBankingId());
         webSocketSessionManager.sendMessageJson(
-                selectedBotJob.getHomeBankingId(), "preScannerGrid", gson.toJson(payload), "preScanStatus");
+                selectedBotJob.getHomeBankingId(),
+                ScannerWorkspaceSessions.PRE_SCANNER_GRID,
+                gson.toJson(payload),
+                "preScanStatus");
     }
 
     private String selectedEndpointUrl() {
@@ -738,7 +741,7 @@ public class BotJobDetailsWorkspaceHost {
         }
         webSocketSessionManager.sendMessageJson(
                 selectedBotJob.getHomeBankingId(),
-                "preScannerGrid",
+                ScannerWorkspaceSessions.PRE_SCANNER_GRID,
                 gson.toJson(result.payload()),
                 "searchTerms");
     }
@@ -1321,7 +1324,8 @@ public class BotJobDetailsWorkspaceHost {
 
     private void suspendReactWorkspaceSurfaces(int botJobId) {
         webViewBootstrap.deactivate(botJobId);
-        for (String workspaceSession : List.of("botJobTasks", "componentTasks", "preScannerGrid")) {
+        for (String workspaceSession : List.of(
+                "botJobTasks", "componentTasks", ScannerWorkspaceSessions.PRE_SCANNER_GRID)) {
             WebSocketSessionManager.closeSession(workspaceSession);
             botJobTransferPathRegistry.clear(workspaceSession, botJobId);
         }
@@ -1334,7 +1338,9 @@ public class BotJobDetailsWorkspaceHost {
 
     private void showPreScanWorkspace() {
         headlessSurface = "preScan";
-        presentation().showSurface("preScannerGrid", reactContext("preScannerGrid"));
+        presentation().showSurface(
+                ScannerWorkspaceSessions.PRE_SCANNER_GRID,
+                reactContext(ScannerWorkspaceSessions.PRE_SCANNER_GRID));
     }
 
     /** Applies persisted React metadata to the active desktop execution context on the FX thread. */
