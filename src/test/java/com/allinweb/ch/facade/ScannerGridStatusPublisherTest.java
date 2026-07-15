@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 import com.allinweb.ch.model.ScannerWorkspaceOperations;
-import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import com.allinweb.ch.model.SplitDTO;
 import com.allinweb.ch.model.WebSocketSignal;
 import com.google.gson.Gson;
@@ -26,11 +25,11 @@ class ScannerGridStatusPublisherTest {
         assertEquals(1, sender.messages.size());
         Message message = sender.messages.get(0);
         assertEquals(7, message.homeBankingId);
-        assertEquals(ScannerWorkspaceSessions.SCANNER_GRID, message.sessionId);
+        assertEquals(publisher.destinationSessionId(), message.sessionId);
         assertEquals(ScannerWorkspaceOperations.ACTIVATE_INSERT_ALL, message.operationId);
 
         WebSocketSignal signal = gson.fromJson(message.json, WebSocketSignal.class);
-        assertEquals(ScannerWorkspaceSessions.SCANNER_GRID, signal.getSessionId());
+        assertEquals(publisher.destinationSessionId(), signal.getSessionId());
         assertEquals(ScannerWorkspaceOperations.ACTIVATE_INSERT_ALL, signal.getOperationId());
         assertEquals("ready", signal.getMessage());
         assertNull(signal.getSplitDTO());
@@ -53,7 +52,7 @@ class ScannerGridStatusPublisherTest {
     void exposesDestinationSessionId() {
         ScannerGridStatusPublisher publisher = new ScannerGridStatusPublisher(new RecordingSender());
 
-        assertEquals(ScannerWorkspaceSessions.SCANNER_GRID, publisher.destinationSessionId());
+        assertEquals(ScannerSearchRoute.standardPageScanner().destinationSessionId(), publisher.destinationSessionId());
     }
 
     private static final class RecordingSender implements ScannerGridStatusPublisher.Sender {

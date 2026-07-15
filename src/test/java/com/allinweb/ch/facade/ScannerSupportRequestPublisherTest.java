@@ -2,7 +2,6 @@ package com.allinweb.ch.facade;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import java.util.ArrayList;
@@ -23,7 +22,7 @@ class ScannerSupportRequestPublisherTest {
         Message message = sender.messages.get(0);
         JsonObject body = gson.fromJson(message.json, JsonObject.class);
         assertEquals(2, message.homeBankingId);
-        assertEquals(ScannerWorkspaceSessions.SCANNER_GRID, message.sessionId);
+        assertEquals(publisher.destinationSessionId(), message.sessionId);
         assertEquals(ScannerSupportRequestPublisher.SEND_DOM_REVIEW, message.operationId);
         assertEquals("https://bank.example", body.get("url").getAsString());
         assertEquals("Login", body.get("title").getAsString());
@@ -57,7 +56,7 @@ class ScannerSupportRequestPublisherTest {
 
         Message message = sender.messages.get(0);
         assertEquals(ScannerSupportRequestPublisher.REQUEST_SUPPORT_ELEMENTS, message.operationId);
-        assertEquals(ScannerWorkspaceSessions.SCANNER_GRID, message.sessionId);
+        assertEquals(publisher.destinationSessionId(), message.sessionId);
     }
 
     @Test
@@ -65,7 +64,7 @@ class ScannerSupportRequestPublisherTest {
         ScannerSupportRequestPublisher publisher =
                 new ScannerSupportRequestPublisher(new RecordingSender(), new FixedSystemContext());
 
-        assertEquals(ScannerWorkspaceSessions.SCANNER_GRID, publisher.destinationSessionId());
+        assertEquals(ScannerSearchRoute.standardPageScanner().destinationSessionId(), publisher.destinationSessionId());
     }
 
     @Test
