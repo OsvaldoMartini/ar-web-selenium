@@ -8,10 +8,16 @@ import com.allinweb.ch.model.FieldData;
 import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.util.ARConstantsEngine;
 import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /** Verifies execution adopts a popup and Page Scanner operations use that same active tab. */
 class PlaywrightNewTabScannerTest {
+
+    @BeforeEach
+    void requirePlaywrightBrowser() {
+        PlaywrightTestSupport.assumeBrowserLaunchAvailable();
+    }
 
     @Test
     void ordinaryClickAndInputContinueOnCurrentTab() {

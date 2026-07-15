@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.allinweb.ch.driver.PlaywrightTestSupport;
 import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -247,6 +248,7 @@ class BotJobDetailsToolbarPlaywrightTest {
 
     @BeforeEach
     void serveDeployedReactBuild() throws IOException {
+        PlaywrightTestSupport.assumeBrowserLaunchAvailable();
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/", this::serveBuildFile);
         serverExecutor = Executors.newCachedThreadPool(runnable -> {
@@ -681,18 +683,7 @@ class BotJobDetailsToolbarPlaywrightTest {
     }
 
     private static Path locateChromeExecutable() {
-        String override = System.getenv("CHROME_EXECUTABLE_PATH");
-        List<Path> candidates = new java.util.ArrayList<>();
-        if (override != null && !override.isBlank()) candidates.add(Path.of(override));
-        candidates.add(Path.of("C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"));
-        candidates.add(Path.of("C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe"));
-        candidates.add(Path.of("/usr/bin/google-chrome"));
-        candidates.add(Path.of("/usr/bin/chromium"));
-        return candidates.stream()
-                .map(Path::toAbsolutePath)
-                .map(Path::normalize)
-                .filter(Files::isRegularFile)
-                .findFirst()
+        return PlaywrightTestSupport.locateBrowserExecutable()
                 .orElseThrow(() -> new IllegalStateException(
                         "Chrome is required for this deterministic Playwright test; set CHROME_EXECUTABLE_PATH"));
     }

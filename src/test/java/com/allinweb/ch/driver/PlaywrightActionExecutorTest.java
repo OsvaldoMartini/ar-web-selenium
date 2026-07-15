@@ -8,6 +8,7 @@ import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.model.ReferenceLoadDTO;
 import com.allinweb.ch.util.ARConstantsEngine;
 import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -18,6 +19,11 @@ import org.junit.jupiter.api.Test;
  * text() (innerText) is empty for inputs.
  */
 class PlaywrightActionExecutorTest {
+
+    @BeforeEach
+    void requirePlaywrightBrowser() {
+        PlaywrightTestSupport.assumeBrowserLaunchAvailable();
+    }
 
     @Test
     void clicksByReferenceWhenXpathAbsent() {

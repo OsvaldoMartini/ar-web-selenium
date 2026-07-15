@@ -10,9 +10,15 @@ import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.model.ReferenceLoadDTO;
 import com.allinweb.ch.util.ARConstantsEngine;
 import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class PlaywrightAutomationSmokeTest {
+
+    @BeforeEach
+    void requirePlaywrightBrowser() {
+        PlaywrightTestSupport.assumeBrowserLaunchAvailable();
+    }
 
     @Test
     void scansMockBankingPageAndRunsActions() {

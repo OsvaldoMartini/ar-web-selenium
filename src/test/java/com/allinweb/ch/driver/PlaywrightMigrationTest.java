@@ -8,6 +8,7 @@ import com.allinweb.ch.model.ElementDTO;
 import com.allinweb.ch.util.ARConstantsEngine;
 import java.util.List;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -20,6 +21,11 @@ import org.junit.jupiter.api.Test;
  * {@link PlaywrightAutomationSmokeTest}.
  */
 class PlaywrightMigrationTest {
+
+    @BeforeEach
+    void requirePlaywrightBrowser() {
+        PlaywrightTestSupport.assumeBrowserLaunchAvailable();
+    }
 
     @Test
     void newWrapperMethodsWork() {

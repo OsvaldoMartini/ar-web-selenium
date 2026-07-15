@@ -23,6 +23,7 @@ import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Callable;
@@ -49,7 +50,7 @@ public class ARPlaywrightDriver {
         run(() -> {
             closeInternal();
 
-            playwright = Playwright.create();
+            playwright = createPlaywright();
             browser = launchBrowser(browserType, optionsConfig);
             // bypassCSP so injected plugins (hoverPick/actionExecutor) can open their WebSocket back
             // to the Java server on sites with a strict connect-src Content-Security-Policy.
@@ -77,7 +78,7 @@ public class ARPlaywrightDriver {
             }
 
             closeInternal();
-            playwright = Playwright.create();
+            playwright = createPlaywright();
             browser = launchBrowser(browserType, optionsConfig, headless);
             context = browser.newContext(
                     new Browser.NewContextOptions().setBypassCSP(true).setViewportSize(null));
@@ -108,7 +109,7 @@ public class ARPlaywrightDriver {
         run(() -> {
             closeInternal();
             URI allowedOrigin = URI.create(url);
-            playwright = Playwright.create();
+            playwright = createPlaywright();
             browser = launchBrowser(browserType, "", headless);
             context = browser.newContext(new Browser.NewContextOptions()
                     .setBypassCSP(false)
@@ -500,7 +501,15 @@ public class ARPlaywrightDriver {
             return playwright.chromium().launch(options);
         }
 
+        String chromePath = findChromeExecutable();
+        if (chromePath != null) {
+            options.setExecutablePath(Paths.get(chromePath));
+        }
         return playwright.chromium().launch(options);
+    }
+
+    private static Playwright createPlaywright() {
+        return Playwright.create(new Playwright.CreateOptions().setEnv(Map.of("PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD", "1")));
     }
 
     private static List<String> parseArguments(String optionsConfig) {
@@ -534,6 +543,23 @@ public class ARPlaywrightDriver {
 
         for (String candidate : candidates) {
             if (candidate != null && Paths.get(candidate).toFile().exists()) {
+                return candidate;
+            }
+        }
+        return null;
+    }
+
+    private static String findChromeExecutable() {
+        String[] candidates = {
+            System.getenv("CHROME_EXECUTABLE_PATH"),
+            System.getenv("ProgramFiles") + "\\Google\\Chrome\\Application\\chrome.exe",
+            System.getenv("ProgramFiles(x86)") + "\\Google\\Chrome\\Application\\chrome.exe",
+            "/usr/bin/google-chrome",
+            "/usr/bin/chromium"
+        };
+
+        for (String candidate : candidates) {
+            if (candidate != null && !candidate.isBlank() && Paths.get(candidate).toFile().exists()) {
                 return candidate;
             }
         }

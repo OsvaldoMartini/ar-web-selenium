@@ -9,6 +9,7 @@ import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.util.ARConstantsEngine;
 import java.util.List;
 import java.util.Map;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -19,6 +20,11 @@ import org.junit.jupiter.api.Test;
  * selected, then emit the same draft fields sent by {@code commandEditor.apply}.
  */
 class GotoCommandEditorPlaywrightTest {
+
+    @BeforeEach
+    void requirePlaywrightBrowser() {
+        PlaywrightTestSupport.assumeBrowserLaunchAvailable();
+    }
 
     @Test
     void selectsGotoDestinationAndEmitsApplyPayload() {
