@@ -3919,13 +3919,13 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
 
     private void setPayloadEmpty(String destination) {
         List<BlockLoadDTO> blocks = Collections.emptyList();
-        if (destination.equalsIgnoreCase("botJobTasks")) {
+        if (destination.equalsIgnoreCase(ScannerWorkspaceSessions.BOT_JOB_TASKS)) {
             if (!performLists.getListBotJob().isEmpty()
                     && performLists.getListBlock().isEmpty()) {
                 performDataBase.loadBlocks(currentBotJob.getId(), "", "block");
             }
             blocks = performLists.getListBlock();
-        } else if (destination.equalsIgnoreCase("componentTasks")) {
+        } else if (destination.equalsIgnoreCase(ScannerWorkspaceSessions.COMPONENT_TASKS)) {
             if (!performLists.getListBotJobComp().isEmpty()
                     && performLists.getListBlockComp().isEmpty()) {
                 performDataBase.loadBlocks(currentBotJob.getHomeBankingId(), "", "component_block");
@@ -4559,7 +4559,7 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
 
         //        List<InputInfo> inputs = new ArrayList<>();
 
-        sessionRowStatus = "botJobTasks"; // + botJobId;
+        sessionRowStatus = ScannerWorkspaceSessions.BOT_JOB_TASKS; // + botJobId;
 
         variablesLoaded = performLists.getListVariable();
         //        Map<String, String> mapSavedLocators = new HashMap<>();
