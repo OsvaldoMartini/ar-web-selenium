@@ -4263,16 +4263,15 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
         revertPickInjections(performActions.getCurrentDriver());
 
         int finalPort = portSocketInitial;
-        String socketSessionId = ScannerWorkspaceSessions.SCANNER_TOOL;
-        String destinationId = ScannerWorkspaceSessions.SCANNER_GRID;
+        ScannerSearchRoute route = ScannerSearchRoute.standardPageScanner();
 
         periodicSearchThread(
                 performActions.getCurrentDriver(),
                 dataArray,
                 finalPort,
-                socketSessionId,
-                destinationId,
-                ScannerWorkspaceOperations.SEARCH_TERMS,
+                route.sourceSessionId(),
+                route.destinationSessionId(),
+                route.operationId(),
                 this.currentBotJob.getHomeBankingId(),
                 this.currentBotJob.getId(),
                 extendedRules);
