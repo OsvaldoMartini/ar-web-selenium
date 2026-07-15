@@ -3079,26 +3079,10 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
 
         // Reset the grid before streaming chunks so a fresh scan doesn't
         // accumulate on top of a previous page's results.
-        SplitDTO reset = new SplitDTO();
-        reset.setHomeBankingId(homeBankingId);
-        reset.setBotJobId(botJobId);
-        reset.setBotJobName(this.currentBotJob.getName());
-        reset.setType("SEARCH_TOOL");
-        reset.setSessionId(ScannerWorkspaceSessions.SCANNER_GRID);
-        reset.setOperationId(ScannerWorkspaceOperations.SEARCH_TERMS);
-        reset.setElementDetails(new ElementDTO[0]);
-        reset.setBlocks(scannerBlockOptions(homeBankingId, botJobId));
+        SplitDTO reset = scannerGridSearchPayload(homeBankingId, botJobId, new ElementDTO[0]);
         scannerGridPublisher.publishSearchTerms(ScannerWorkspaceSessions.SCANNER_GRID, homeBankingId, reset);
 
-        SplitDTO payload = new SplitDTO();
-        payload.setHomeBankingId(homeBankingId);
-        payload.setBotJobId(botJobId);
-        payload.setBotJobName(this.currentBotJob.getName());
-        payload.setType("SEARCH_TOOL");
-        payload.setSessionId(ScannerWorkspaceSessions.SCANNER_GRID);
-        payload.setOperationId(ScannerWorkspaceOperations.SEARCH_TERMS);
-        payload.setElementDetails(elements.toArray(new ElementDTO[0]));
-        payload.setBlocks(scannerBlockOptions(homeBankingId, botJobId));
+        SplitDTO payload = scannerGridSearchPayload(homeBankingId, botJobId, elements.toArray(new ElementDTO[0]));
 
         scannerGridPublisher.publishSearchTermsChunks(ScannerWorkspaceSessions.SCANNER_GRID, 0, payload, 25);
         appendLog(
@@ -3106,6 +3090,19 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
                 "info");
 
         flashFoundElements(driver, elements);
+    }
+
+    private SplitDTO scannerGridSearchPayload(int homeBankingId, int botJobId, ElementDTO[] elements) {
+        SplitDTO payload = new SplitDTO();
+        payload.setHomeBankingId(homeBankingId);
+        payload.setBotJobId(botJobId);
+        payload.setBotJobName(this.currentBotJob.getName());
+        payload.setType(ScannerWorkspaceOperations.SEARCH_TOOL);
+        payload.setSessionId(ScannerWorkspaceSessions.SCANNER_GRID);
+        payload.setOperationId(ScannerWorkspaceOperations.SEARCH_TERMS);
+        payload.setElementDetails(elements);
+        payload.setBlocks(scannerBlockOptions(homeBankingId, botJobId));
+        return payload;
     }
 
     private List<Map<String, Object>> scannerBlockOptions(int homeBankingId, int botJobId) {
@@ -6954,7 +6951,7 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
             appendLog("XML deep scan complete. Elements kept: " + results.size(), "info");
 
             // ---- Wrap in SplitDTO and send as before ----
-            splitDTO.setType("SEARCH_TOOL");
+            splitDTO.setType(ScannerWorkspaceOperations.SEARCH_TOOL);
             splitDTO.setSessionId("mobileScannerGrid");
             splitDTO.setOperationId("addPickOne");
             splitDTO.setElementDetails(results.toArray(new ElementDTO[0]));

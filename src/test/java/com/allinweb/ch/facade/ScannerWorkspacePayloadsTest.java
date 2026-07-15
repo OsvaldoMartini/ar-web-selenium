@@ -57,7 +57,7 @@ class ScannerWorkspacePayloadsTest {
         assertEquals("Apre Acconto", payload.getBotJobName());
         assertEquals(ScannerWorkspaceSessions.SCANNER_GRID, payload.getSessionId());
         assertEquals(ScannerWorkspaceOperations.SEARCH_TERMS, payload.getOperationId());
-        assertEquals("SEARCH_TOOL", payload.getType());
+        assertEquals(ScannerWorkspaceOperations.SEARCH_TOOL, payload.getType());
         assertEquals(1, payload.getElementDetails().length);
         assertEquals("Login input", payload.getElementDetails()[0].getDefinedName());
         assertEquals(1, payload.getBlocks().size());

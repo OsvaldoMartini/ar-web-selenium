@@ -2149,7 +2149,7 @@ public class SimpleWebSocketServer {
                     alreadySentMgsSocket = true;
                     break;
                 }
-                case "SEARCH_TOOL":
+                case ScannerWorkspaceOperations.SEARCH_TOOL:
                     if (sessionIdToSend.equals(ScannerWorkspaceSessions.SCANNER_GRID)) {
                         // 1. UI gets the raw DTOs immediately (resolver enrichment is async-from-UI's POV).
                         String jsonData = gson.toJson(splitDTO);

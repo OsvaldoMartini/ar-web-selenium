@@ -96,7 +96,7 @@ final class ScannerWorkspacePayloads {
         payload.setHomeBankingId(state.homeBankingId());
         payload.setBotJobId(state.botJobId());
         payload.setBotJobName(state.botJobName());
-        payload.setType("SEARCH_TOOL");
+        payload.setType(ScannerWorkspaceOperations.SEARCH_TOOL);
         payload.setSessionId(ScannerWorkspaceSessions.SCANNER_GRID);
         payload.setOperationId(ScannerWorkspaceOperations.SEARCH_TERMS);
         payload.setElementDetails(elements.toArray(new ElementDTO[0]));

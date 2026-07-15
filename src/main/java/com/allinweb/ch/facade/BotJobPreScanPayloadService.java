@@ -48,7 +48,7 @@ public final class BotJobPreScanPayloadService {
         payload.setHomeBankingId(botJob.getHomeBankingId());
         payload.setBotJobId(botJob.getId());
         payload.setBotJobName(botJob.getName());
-        payload.setType("SEARCH_TOOL");
+        payload.setType(ScannerWorkspaceOperations.SEARCH_TOOL);
         payload.setSessionId(ScannerWorkspaceSessions.PRE_SCANNER_GRID);
         payload.setOperationId(ScannerWorkspaceOperations.SEARCH_TERMS);
         payload.setElementDetails((elements == null ? List.<ElementDTO>of() : elements).toArray(new ElementDTO[0]));
