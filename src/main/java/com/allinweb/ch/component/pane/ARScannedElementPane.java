@@ -143,6 +143,7 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
     private final AtomicBoolean testRunStartupActive = new AtomicBoolean(false);
     private final Gson gson = new Gson();
     private final ScannerGridPublisher scannerGridPublisher = new ScannerGridPublisher();
+    private final ScannerElementPanePublisher scannerElementPanePublisher = new ScannerElementPanePublisher();
     private final ScannerSupportRequestPublisher scannerSupportRequestPublisher = new ScannerSupportRequestPublisher();
     private final ScannerSupportFileService scannerSupportFileService = new ScannerSupportFileService();
     private final ScannerPreLaunchStarter scannerPreLaunchStarter =
@@ -2831,11 +2832,7 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
             Map<String, Object> payload = new LinkedHashMap<>();
             payload.put("homeBankingId", hbId);
             payload.put("homeUrlId", urlId);
-            WebSocketSessionManager.getInstance().sendMessageJson(
-                    hbId == null ? 0 : hbId,
-                    ScannerWorkspaceSessions.SCANNER_ELEMENT_PANE,
-                    new Gson().toJson(payload),
-                    "openOcrConfig");
+            scannerElementPanePublisher.publishOpenOcrConfig(hbId == null ? 0 : hbId, payload);
         });
 
         searchButton.setOnAction(e -> searchTermsBtn(searchTermsField.getText().trim(), Collections.emptyList()));
@@ -4186,12 +4183,7 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
         // 4. Broadcast to sibling Java panes so their combos rebuild.
         try {
             BlockMoveDTO signal = new BlockMoveDTO();
-            String json = gson.toJson(signal);
-            webSocketSessionManager.sendMessageJson(
-                    currentBotJob.getHomeBankingId(),
-                    ScannerWorkspaceSessions.SCANNER_ELEMENT_PANE,
-                    json,
-                    ScannerWorkspaceOperations.UPDATE_BLOCKS);
+            scannerElementPanePublisher.publishUpdateBlocks(currentBotJob.getHomeBankingId(), signal);
         } catch (Exception broadcastErr) {
             // Broadcast failure is non-fatal — the DB is consistent and this pane's
             // own combo will refresh via loadAllBlocks() in the caller.
