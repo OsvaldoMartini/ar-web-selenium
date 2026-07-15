@@ -1,5 +1,6 @@
 package com.allinweb.ch.facade;
 
+import com.allinweb.ch.model.ScannerWorkspaceOperations;
 import com.google.gson.Gson;
 import java.util.HashMap;
 import java.util.List;
@@ -34,7 +35,7 @@ public class PluginContext {
             int homeBankingId,
             int botJobId) {
         PluginContext ctx = new PluginContext("pageScanner");
-        ctx.fields.put("searchTerms", searchTerms);
+        ctx.fields.put(ScannerWorkspaceOperations.SEARCH_TERMS, searchTerms);
         ctx.fields.put("hiddenFields", hiddenFields);
         ctx.fields.put("port", port);
         ctx.fields.put("sessionId", sessionId);
@@ -78,7 +79,7 @@ public class PluginContext {
             int homeBankingId,
             int botJobId) {
         PluginContext ctx = new PluginContext("searchList");
-        ctx.fields.put("searchTerms", searchTerms);
+        ctx.fields.put(ScannerWorkspaceOperations.SEARCH_TERMS, searchTerms);
         ctx.fields.put("hiddenFields", hiddenFields);
         ctx.fields.put("port", port);
         ctx.fields.put("sessionId", sessionId);
@@ -99,7 +100,7 @@ public class PluginContext {
             int homeBankingId,
             int botJobId) {
         PluginContext ctx = new PluginContext("searchListAsync");
-        ctx.fields.put("searchTerms", searchTerms);
+        ctx.fields.put(ScannerWorkspaceOperations.SEARCH_TERMS, searchTerms);
         ctx.fields.put("hiddenFields", hiddenFields);
         ctx.fields.put("port", port);
         ctx.fields.put("sessionId", sessionId);
