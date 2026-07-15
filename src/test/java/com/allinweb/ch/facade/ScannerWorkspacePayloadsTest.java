@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.allinweb.ch.model.ElementDTO;
+import com.allinweb.ch.model.ScannerWorkspaceOperations;
 import com.allinweb.ch.model.ScannerWorkspaceRequest;
 import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import com.allinweb.ch.model.ScannerWorkspaceState;
@@ -29,7 +30,7 @@ class ScannerWorkspacePayloadsTest {
         terms.add("");
         terms.add("button");
         JsonObject body = body();
-        body.add("searchTerms", terms);
+        body.add(ScannerWorkspaceOperations.SEARCH_TERMS, terms);
         ScannerWorkspaceRequest request = new ScannerWorkspaceRequest(
                 ScannerWorkspaceSessions.SCANNER_GRID, "payload-1", 42, body);
 
@@ -55,7 +56,7 @@ class ScannerWorkspacePayloadsTest {
         assertEquals(42, payload.getBotJobId());
         assertEquals("Apre Acconto", payload.getBotJobName());
         assertEquals(ScannerWorkspaceSessions.SCANNER_GRID, payload.getSessionId());
-        assertEquals("searchTerms", payload.getOperationId());
+        assertEquals(ScannerWorkspaceOperations.SEARCH_TERMS, payload.getOperationId());
         assertEquals("SEARCH_TOOL", payload.getType());
         assertEquals(1, payload.getElementDetails().length);
         assertEquals("Login input", payload.getElementDetails()[0].getDefinedName());
@@ -64,7 +65,7 @@ class ScannerWorkspacePayloadsTest {
 
     private ScannerWorkspaceRequest request(String searchTerms) {
         JsonObject body = body();
-        if (searchTerms != null) body.addProperty("searchTerms", searchTerms);
+        if (searchTerms != null) body.addProperty(ScannerWorkspaceOperations.SEARCH_TERMS, searchTerms);
         return new ScannerWorkspaceRequest(ScannerWorkspaceSessions.SCANNER_GRID, "payload-1", 42, body);
     }
 

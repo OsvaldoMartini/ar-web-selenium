@@ -58,10 +58,10 @@ final class ScannerWorkspacePayloads {
     }
 
     static String[] searchTerms(ScannerWorkspaceRequest request) {
-        if (!request.body().has("searchTerms")) {
+        if (!request.body().has(ScannerWorkspaceOperations.SEARCH_TERMS)) {
             return Arrays.copyOf(DEFAULT_PAGE_SCAN_TERMS, DEFAULT_PAGE_SCAN_TERMS.length);
         }
-        JsonElement value = request.body().get("searchTerms");
+        JsonElement value = request.body().get(ScannerWorkspaceOperations.SEARCH_TERMS);
         if (value == null || value.isJsonNull()) {
             return Arrays.copyOf(DEFAULT_PAGE_SCAN_TERMS, DEFAULT_PAGE_SCAN_TERMS.length);
         }

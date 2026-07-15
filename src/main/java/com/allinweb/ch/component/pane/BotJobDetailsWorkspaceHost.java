@@ -357,8 +357,8 @@ public class BotJobDetailsWorkspaceHost {
             return;
         }
 
-        String searchTerms = jsonEntry != null && jsonEntry.has("searchTerms")
-                ? jsonEntry.get("searchTerms").getAsString()
+        String searchTerms = jsonEntry != null && jsonEntry.has(ScannerWorkspaceOperations.SEARCH_TERMS)
+                ? jsonEntry.get(ScannerWorkspaceOperations.SEARCH_TERMS).getAsString()
                 : "";
         boolean searchHidden = jsonEntry != null
                 && jsonEntry.has("searchHiddenFields")
