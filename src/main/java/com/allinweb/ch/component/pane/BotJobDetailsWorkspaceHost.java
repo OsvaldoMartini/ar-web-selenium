@@ -436,7 +436,7 @@ public class BotJobDetailsWorkspaceHost {
             log.info(
                     "PRE SCAN - sent {} elements to {}",
                     elements == null ? 0 : elements.size(),
-                    ScannerWorkspaceSessions.PRE_SCANNER_GRID);
+                    preScanPayloadService.destinationSessionId());
         } catch (Exception error) {
             log.error("PRE SCAN failed", error);
             sendPreScanStatus("failed", String.valueOf(error.getMessage()), 0);
@@ -689,7 +689,7 @@ public class BotJobDetailsWorkspaceHost {
         payload.put("homeBankingId", selectedBotJob.getHomeBankingId());
         webSocketSessionManager.sendMessageJson(
                 selectedBotJob.getHomeBankingId(),
-                ScannerWorkspaceSessions.PRE_SCANNER_GRID,
+                preScanPayloadService.destinationSessionId(),
                 gson.toJson(payload),
                 "preScanStatus");
     }
@@ -744,7 +744,7 @@ public class BotJobDetailsWorkspaceHost {
         }
         webSocketSessionManager.sendMessageJson(
                 selectedBotJob.getHomeBankingId(),
-                ScannerWorkspaceSessions.PRE_SCANNER_GRID,
+                result.payload().getSessionId(),
                 gson.toJson(result.payload()),
                 result.payload().getOperationId());
     }
@@ -1332,7 +1332,7 @@ public class BotJobDetailsWorkspaceHost {
         for (String workspaceSession : List.of(
                 ScannerWorkspaceSessions.BOT_JOB_TASKS,
                 ScannerWorkspaceSessions.COMPONENT_TASKS,
-                ScannerWorkspaceSessions.PRE_SCANNER_GRID)) {
+                preScanPayloadService.destinationSessionId())) {
             WebSocketSessionManager.closeSession(workspaceSession);
             botJobTransferPathRegistry.clear(workspaceSession, botJobId);
         }
@@ -1348,8 +1348,8 @@ public class BotJobDetailsWorkspaceHost {
     private void showPreScanWorkspace() {
         headlessSurface = "preScan";
         presentation().showSurface(
-                ScannerWorkspaceSessions.PRE_SCANNER_GRID,
-                reactContext(ScannerWorkspaceSessions.PRE_SCANNER_GRID));
+                preScanPayloadService.destinationSessionId(),
+                reactContext(preScanPayloadService.destinationSessionId()));
     }
 
     /** Applies persisted React metadata to the active desktop execution context on the FX thread. */

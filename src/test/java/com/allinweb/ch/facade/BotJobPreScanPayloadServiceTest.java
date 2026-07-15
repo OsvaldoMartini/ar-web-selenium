@@ -45,6 +45,13 @@ class BotJobPreScanPayloadServiceTest {
     }
 
     @Test
+    void exposesDestinationSessionId() {
+        BotJobPreScanPayloadService service = new BotJobPreScanPayloadService(new Data(List.of(), null));
+
+        assertEquals(ScannerWorkspaceSessions.PRE_SCANNER_GRID, service.destinationSessionId());
+    }
+
+    @Test
     void emptyCacheLoadsOnceAndReturnsDatabaseWarningWithEmptyElements() {
         List<BlockLoadDTO> blocks = new ArrayList<>();
         ErrorMessage warning = new ErrorMessage("DB", "Blocks", "failed");
