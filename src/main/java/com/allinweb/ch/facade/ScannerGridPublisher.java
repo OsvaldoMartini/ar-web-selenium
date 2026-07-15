@@ -8,11 +8,11 @@ import com.google.gson.Gson;
 import java.util.Arrays;
 import java.util.List;
 
-final class ScannerGridPublisher implements ScannerWorkspaceService.GridPublisher {
+public final class ScannerGridPublisher implements ScannerWorkspaceService.GridPublisher {
     private final Sender sender;
     private final Gson gson = new Gson();
 
-    ScannerGridPublisher() {
+    public ScannerGridPublisher() {
         this(new WebSocketSessionSender());
     }
 

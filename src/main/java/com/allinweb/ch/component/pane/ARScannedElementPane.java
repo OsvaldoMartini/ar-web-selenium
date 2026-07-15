@@ -142,6 +142,7 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
                     jobExecutionOutcomes);
     private final AtomicBoolean testRunStartupActive = new AtomicBoolean(false);
     private final Gson gson = new Gson();
+    private final ScannerGridPublisher scannerGridPublisher = new ScannerGridPublisher();
     private final ScannerPreLaunchStarter scannerPreLaunchStarter =
             new ScannerPreLaunchStarter(new PanePreLaunchStartOperations());
     private final ScannerPreLaunchStopper scannerPreLaunchStopper =
@@ -3340,11 +3341,7 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
         reset.setOperationId(ScannerWorkspaceOperations.SEARCH_TERMS);
         reset.setElementDetails(new ElementDTO[0]);
         reset.setBlocks(scannerBlockOptions(homeBankingId, botJobId));
-        webSocketSessionManager.sendMessageJson(
-                homeBankingId,
-                ScannerWorkspaceSessions.SCANNER_GRID,
-                new Gson().toJson(reset),
-                ScannerWorkspaceOperations.SEARCH_TERMS);
+        scannerGridPublisher.publishSearchTerms(ScannerWorkspaceSessions.SCANNER_GRID, homeBankingId, reset);
 
         SplitDTO payload = new SplitDTO();
         payload.setHomeBankingId(homeBankingId);
@@ -3356,13 +3353,7 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
         payload.setElementDetails(elements.toArray(new ElementDTO[0]));
         payload.setBlocks(scannerBlockOptions(homeBankingId, botJobId));
 
-        sendChunks(
-                elements,
-                25,
-                payload,
-                webSocketSessionManager,
-                ScannerWorkspaceSessions.SCANNER_GRID,
-                ScannerWorkspaceOperations.SEARCH_TERMS);
+        scannerGridPublisher.publishSearchTermsChunks(ScannerWorkspaceSessions.SCANNER_GRID, 0, payload, 25);
         appendLog("Page Scanner: sent " + elements.size() + " elements to scannerGrid.", "info");
 
         flashFoundElements(driver, elements);
