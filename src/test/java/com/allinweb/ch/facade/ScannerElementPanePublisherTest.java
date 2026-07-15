@@ -3,7 +3,6 @@ package com.allinweb.ch.facade;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.allinweb.ch.model.ScannerWorkspaceOperations;
-import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -20,7 +19,7 @@ class ScannerElementPanePublisherTest {
 
         assertEquals(1, sender.messages.size());
         assertEquals(7, sender.messages.get(0).homeBankingId);
-        assertEquals(ScannerWorkspaceSessions.SCANNER_ELEMENT_PANE, sender.messages.get(0).sessionId);
+        assertEquals(publisher.destinationSessionId(), sender.messages.get(0).sessionId);
         assertEquals(ScannerElementPanePublisher.OPEN_OCR_CONFIG, sender.messages.get(0).operationId);
         assertEquals("{\"homeUrlId\":9}", sender.messages.get(0).json);
     }
@@ -33,7 +32,7 @@ class ScannerElementPanePublisherTest {
         publisher.publishUpdateBlocks(7, Map.of("type", ScannerWorkspaceOperations.UPDATE_BLOCKS));
 
         assertEquals(1, sender.messages.size());
-        assertEquals(ScannerWorkspaceSessions.SCANNER_ELEMENT_PANE, sender.messages.get(0).sessionId);
+        assertEquals(publisher.destinationSessionId(), sender.messages.get(0).sessionId);
         assertEquals(ScannerWorkspaceOperations.UPDATE_BLOCKS, sender.messages.get(0).operationId);
     }
 
@@ -45,9 +44,8 @@ class ScannerElementPanePublisherTest {
         publisher.publishRawJson("{\"ok\":true}");
 
         assertEquals(1, sender.rawMessages.size());
-        assertEquals(ScannerWorkspaceSessions.SCANNER_ELEMENT_PANE, sender.rawMessages.get(0).sessionId);
+        assertEquals(publisher.destinationSessionId(), sender.rawMessages.get(0).sessionId);
         assertEquals("{\"ok\":true}", sender.rawMessages.get(0).json);
-        assertEquals(ScannerWorkspaceSessions.SCANNER_ELEMENT_PANE, publisher.destinationSessionId());
     }
 
     private static final class RecordingSender implements ScannerElementPanePublisher.Sender {
