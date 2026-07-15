@@ -111,14 +111,14 @@ public final class VariableEditorService {
 
     private void publishInstructionRefresh(Context context) {
         ErrorMessage error;
-        if ("componentTasks".equals(context.sessionId)) {
+        if (isComponentSession(context.sessionId)) {
             error = database.loadComponentsComplete(
                     context.homeBankingId, context.botJobId, context.botJobName);
         } else {
             error = engine.loadCompleteJobs(context.botJobId);
         }
         if (error != null) return;
-        List<BotJobLoadDTO> jobs = "componentTasks".equals(context.sessionId)
+        List<BotJobLoadDTO> jobs = isComponentSession(context.sessionId)
                 ? lists.getListBotJobComp()
                 : lists.getListBotJob();
         List<InstructionLoad> instructions = lists.buildJsonViewData(jobs);
@@ -162,7 +162,7 @@ public final class VariableEditorService {
     }
 
     private int currentUsageCount(Context context, int variableId) {
-        String ownerColumn = "componentTasks".equals(context.sessionId) ? "home_banking_id" : "bot_job_id";
+        String ownerColumn = isComponentSession(context.sessionId) ? "home_banking_id" : "bot_job_id";
         String sql = "SELECT COUNT(*) FROM " + context.instructionTable
                 + " WHERE variable_id=? AND " + ownerColumn + "=?";
         try (Connection connection = database.getConnection();
@@ -178,8 +178,8 @@ public final class VariableEditorService {
     }
 
     private Context context(JsonObject body) {
-        String session = string(body, "targetSessionId", "botJobTasks");
-        boolean component = "componentTasks".equals(session);
+        String session = string(body, "targetSessionId", ScannerWorkspaceSessions.BOT_JOB_TASKS);
+        boolean component = isComponentSession(session);
         int botJobId = integer(body, "botJobId", -1);
         return new Context(
                 session,
@@ -211,6 +211,10 @@ public final class VariableEditorService {
 
     private static Integer nullableInteger(JsonObject body, String key) {
         return body != null && body.has(key) && !body.get(key).isJsonNull() ? body.get(key).getAsInt() : null;
+    }
+
+    private static boolean isComponentSession(String sessionId) {
+        return ScannerWorkspaceSessions.COMPONENT_TASKS.equals(sessionId);
     }
 
     private record Context(
