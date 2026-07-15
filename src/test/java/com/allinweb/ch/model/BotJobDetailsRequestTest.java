@@ -11,13 +11,13 @@ class BotJobDetailsRequestTest {
     @Test
     void parsesStringBodyBoundToMatchingTransportSession() {
         JsonObject envelope = new JsonObject();
-        envelope.addProperty("sessionId", "botJobTasks");
+        envelope.addProperty("sessionId", ScannerWorkspaceSessions.BOT_JOB_TASKS);
         envelope.addProperty(
                 "body", "{\"requestId\":\"refresh-1\",\"botJobId\":42,\"action\":\"REFRESH\"}");
 
-        BotJobDetailsRequest request = BotJobDetailsRequest.parse(envelope, "botJobTasks");
+        BotJobDetailsRequest request = BotJobDetailsRequest.parse(envelope, ScannerWorkspaceSessions.BOT_JOB_TASKS);
 
-        assertEquals("botJobTasks", request.sessionId());
+        assertEquals(ScannerWorkspaceSessions.BOT_JOB_TASKS, request.sessionId());
         assertEquals("refresh-1", request.requestId());
         assertEquals(42, request.botJobId());
         assertEquals("REFRESH", request.body().get("action").getAsString());
@@ -42,11 +42,11 @@ class BotJobDetailsRequestTest {
     @Test
     void rejectsClientSessionClaimThatDoesNotMatchTransport() {
         JsonObject envelope = envelope("request-1", 42);
-        envelope.addProperty("sessionId", "componentTasks");
+        envelope.addProperty("sessionId", ScannerWorkspaceSessions.COMPONENT_TASKS);
 
         assertThrows(
                 IllegalArgumentException.class,
-                () -> BotJobDetailsRequest.parse(envelope, "botJobTasks"));
+                () -> BotJobDetailsRequest.parse(envelope, ScannerWorkspaceSessions.BOT_JOB_TASKS));
     }
 
     @Test
@@ -64,20 +64,20 @@ class BotJobDetailsRequestTest {
 
         assertThrows(
                 IllegalArgumentException.class,
-                () -> BotJobDetailsRequest.parse(missing, "botJobTasks"));
+                () -> BotJobDetailsRequest.parse(missing, ScannerWorkspaceSessions.BOT_JOB_TASKS));
         assertThrows(
                 IllegalArgumentException.class,
-                () -> BotJobDetailsRequest.parse(blank, "botJobTasks"));
+                () -> BotJobDetailsRequest.parse(blank, ScannerWorkspaceSessions.BOT_JOB_TASKS));
     }
 
     @Test
     void rejectsNonPositiveBotJobId() {
         assertThrows(
                 IllegalArgumentException.class,
-                () -> BotJobDetailsRequest.parse(envelope("request-1", 0), "botJobTasks"));
+                () -> BotJobDetailsRequest.parse(envelope("request-1", 0), ScannerWorkspaceSessions.BOT_JOB_TASKS));
         assertThrows(
                 IllegalArgumentException.class,
-                () -> BotJobDetailsRequest.parse(envelope("request-2", -7), "botJobTasks"));
+                () -> BotJobDetailsRequest.parse(envelope("request-2", -7), ScannerWorkspaceSessions.BOT_JOB_TASKS));
     }
 
     @Test

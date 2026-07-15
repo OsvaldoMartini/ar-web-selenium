@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.allinweb.ch.model.BotJobLoadDTO;
 import com.allinweb.ch.model.HomeBankingLoadDTO;
+import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import com.google.gson.Gson;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
@@ -17,15 +18,15 @@ class BotJobDetailsWebViewBootstrapTest {
     void reusedLoadCallbackResolvesTheNewActiveBotJob() {
         BotJobDetailsWebViewBootstrap bootstrap = new BotJobDetailsWebViewBootstrap();
         bootstrap.activate(job(42, 7, "Organization A", "Job A"));
-        bootstrap.updatePayload(42, "botJobTasks", "[{\"job\":\"A\"}]");
+        bootstrap.updatePayload(42, ScannerWorkspaceSessions.BOT_JOB_TASKS, "[{\"job\":\"A\"}]");
 
         Supplier<BotJobDetailsWebViewBootstrap.Context> reusedLoadCallback =
-                () -> bootstrap.resolve("botJobTasks");
+                () -> bootstrap.resolve(ScannerWorkspaceSessions.BOT_JOB_TASKS);
         assertEquals(42, reusedLoadCallback.get().botJobId());
 
         bootstrap.activate(job(84, 9, "Organization B", "Job B"));
-        assertFalse(bootstrap.updatePayload(42, "botJobTasks", "[{\"job\":\"STALE_A\"}]"));
-        assertTrue(bootstrap.updatePayload(84, "botJobTasks", "[{\"job\":\"B\"}]"));
+        assertFalse(bootstrap.updatePayload(42, ScannerWorkspaceSessions.BOT_JOB_TASKS, "[{\"job\":\"STALE_A\"}]"));
+        assertTrue(bootstrap.updatePayload(84, ScannerWorkspaceSessions.BOT_JOB_TASKS, "[{\"job\":\"B\"}]"));
 
         BotJobDetailsWebViewBootstrap.Context switched = reusedLoadCallback.get();
         assertEquals(84, switched.botJobId());
@@ -42,7 +43,7 @@ class BotJobDetailsWebViewBootstrapTest {
 
         assertTrue(bootstrap.deactivate(42));
         assertFalse(bootstrap.deactivate(42));
-        assertThrows(IllegalStateException.class, () -> bootstrap.resolve("botJobTasks"));
+        assertThrows(IllegalStateException.class, () -> bootstrap.resolve(ScannerWorkspaceSessions.BOT_JOB_TASKS));
     }
 
     @Test
@@ -50,19 +51,19 @@ class BotJobDetailsWebViewBootstrapTest {
         BotJobDetailsWebViewBootstrap bootstrap = new BotJobDetailsWebViewBootstrap();
         BotJobLoadDTO job = job(42, 7, "Organization A", "Job A");
         bootstrap.activate(job);
-        assertTrue(bootstrap.updatePayload(42, "botJobTasks", "[{\"generation\":1}]"));
+        assertTrue(bootstrap.updatePayload(42, ScannerWorkspaceSessions.BOT_JOB_TASKS, "[{\"generation\":1}]"));
         assertTrue(bootstrap.deactivate(42));
 
         bootstrap.activate(job);
 
-        assertEquals("[]", bootstrap.resolve("botJobTasks").jsonData());
+        assertEquals("[]", bootstrap.resolve(ScannerWorkspaceSessions.BOT_JOB_TASKS).jsonData());
     }
 
     @Test
     void initializationScriptEscapesNamesAsJsonStrings() {
         BotJobDetailsWebViewBootstrap bootstrap = new BotJobDetailsWebViewBootstrap();
         bootstrap.activate(job(42, 7, "O'Brien\\Bank\nQA", "Job 'A'\\nightly"));
-        BotJobDetailsWebViewBootstrap.Context context = bootstrap.resolve("botJobTasks");
+        BotJobDetailsWebViewBootstrap.Context context = bootstrap.resolve(ScannerWorkspaceSessions.BOT_JOB_TASKS);
         Gson gson = new Gson();
 
         String script = BotJobDetailsWebViewBootstrap.initializationScript(context, 8080, gson);

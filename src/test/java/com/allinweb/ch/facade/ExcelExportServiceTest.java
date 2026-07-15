@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import com.google.gson.JsonObject;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -35,7 +36,7 @@ class ExcelExportServiceTest {
 
     @Test
     void bootstrapReturnsTypedOptionsForValidBotJobContext() {
-        JsonObject body = context("botJobTasks", 19, 2);
+        JsonObject body = context(ScannerWorkspaceSessions.BOT_JOB_TASKS, 19, 2);
         body.addProperty("exportFile", "/tmp/export.csv:|");
         Map<String, Object> response = service.bootstrap(body);
         assertTrue((Boolean) response.get("ok"));
@@ -47,7 +48,7 @@ class ExcelExportServiceTest {
     void rejectsInvalidContextAndFieldsBeforePersistence() {
         assertFalse((Boolean) service.bootstrap(new JsonObject()).get("ok"));
 
-        JsonObject body = context("botJobTasks", 19, 2);
+        JsonObject body = context(ScannerWorkspaceSessions.BOT_JOB_TASKS, 19, 2);
         body.addProperty("directory", "/tmp");
         body.addProperty("filename", "../report");
         body.addProperty("fileType", ".csv");
@@ -59,7 +60,7 @@ class ExcelExportServiceTest {
 
     @Test
     void requiresHomeBankingOwnerForComponentContext() {
-        JsonObject body = context("componentTasks", 19, -1);
+        JsonObject body = context(ScannerWorkspaceSessions.COMPONENT_TASKS, 19, -1);
         Map<String, Object> response = service.bootstrap(body);
         assertFalse((Boolean) response.get("ok"));
         assertEquals("Excel export owner context is invalid.", response.get("error"));

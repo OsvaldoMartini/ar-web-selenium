@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import java.util.Map;
@@ -42,7 +43,7 @@ class SaveComponentServiceTest {
     private JsonObject validContext() {
         JsonObject body = new JsonObject();
         body.addProperty("requestId", "component-test");
-        body.addProperty("sessionId", "botJobTasks");
+        body.addProperty("sessionId", ScannerWorkspaceSessions.BOT_JOB_TASKS);
         body.addProperty("homeBankingId", 2);
         body.addProperty("botJobId", 19);
         body.addProperty("botJobName", "Home Banking");
