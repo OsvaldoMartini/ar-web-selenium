@@ -24,7 +24,7 @@ public final class ScannerGridPublisher implements ScannerWorkspaceService.GridP
 
     @Override
     public void publishSearchTerms(String sessionId, int homeBankingId, SplitDTO payload) {
-        sender.sendMessageJson(homeBankingId, sessionId, gson.toJson(payload), ScannerWorkspaceOperations.SEARCH_TERMS);
+        sender.sendMessageJson(homeBankingId, sessionId, gson.toJson(payload), searchTermsOperationId());
     }
 
     public void publishScannerGridSearchTerms(int homeBankingId, SplitDTO payload) {
@@ -32,7 +32,7 @@ public final class ScannerGridPublisher implements ScannerWorkspaceService.GridP
     }
 
     public void publishScannerGridSearchTermsPayload(int homeBankingId, Object payload) {
-        publishScannerGrid(homeBankingId, payload, ScannerWorkspaceOperations.SEARCH_TERMS);
+        publishScannerGrid(homeBankingId, payload, searchTermsOperationId());
     }
 
     public void publishScannerGridSearchTermsChunks(int homeBankingId, SplitDTO payload, int chunkSize) {
