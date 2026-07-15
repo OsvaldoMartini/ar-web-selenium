@@ -11,6 +11,7 @@ import com.allinweb.ch.model.BotJobDetailsResponse;
 import com.allinweb.ch.model.BotJobLoadDTO;
 import com.allinweb.ch.model.BotJobToolbarContext;
 import com.allinweb.ch.model.HomeBankingLoadDTO;
+import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import com.allinweb.ch.util.ErrorMessage;
 import com.google.gson.JsonObject;
 import java.sql.SQLException;
@@ -62,7 +63,8 @@ class BotJobDetailsServiceTest {
     @Test
     void rejectsWrongActiveJobBeforeReadingDatabase() {
         JsonObject body = new JsonObject();
-        BotJobDetailsResponse response = service.bootstrap(new BotJobDetailsRequest("botJobTasks", "b-2", 99, body));
+        BotJobDetailsResponse response = service.bootstrap(
+                new BotJobDetailsRequest(ScannerWorkspaceSessions.BOT_JOB_TASKS, "b-2", 99, body));
 
         assertFalse(response.ok());
         assertEquals("BOOTSTRAP_FAILED", response.errorCode());
@@ -135,7 +137,7 @@ class BotJobDetailsServiceTest {
     }
 
     private BotJobDetailsRequest request(String requestId, JsonObject body) {
-        return new BotJobDetailsRequest("botJobTasks", requestId, 42, body);
+        return new BotJobDetailsRequest(ScannerWorkspaceSessions.BOT_JOB_TASKS, requestId, 42, body);
     }
 
     private JsonObject metadataBody(long revision, String name, int homeUrlId) {

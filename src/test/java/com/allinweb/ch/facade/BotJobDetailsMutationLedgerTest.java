@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 
 import com.allinweb.ch.model.BotJobDetailsRequest;
 import com.allinweb.ch.model.BotJobDetailsResponse;
+import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import com.google.gson.JsonObject;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
@@ -55,7 +56,7 @@ class BotJobDetailsMutationLedgerTest {
     }
 
     private BotJobDetailsRequest request(String requestId) {
-        return new BotJobDetailsRequest("botJobTasks", requestId, 42, new JsonObject());
+        return new BotJobDetailsRequest(ScannerWorkspaceSessions.BOT_JOB_TASKS, requestId, 42, new JsonObject());
     }
 
     private BotJobDetailsResponse response(BotJobDetailsRequest request, AtomicInteger mutations) {
