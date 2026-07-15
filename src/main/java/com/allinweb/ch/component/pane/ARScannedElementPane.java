@@ -1396,7 +1396,10 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
     private void refreshGrids() {
         String jsonData = gson.toJson(payloadEmpty);
         webSocketSessionManager.sendMessageJson(
-                this.currentBotJob.getHomeBankingId(), "scannerGrid", jsonData, "searchTerms");
+                this.currentBotJob.getHomeBankingId(),
+                ScannerWorkspaceSessions.SCANNER_GRID,
+                jsonData,
+                ScannerWorkspaceOperations.SEARCH_TERMS);
     }
 
     private boolean initializeWebView() {
@@ -1409,7 +1412,7 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
 
         // sessionIdFromJava
         // (SENDER: scannerTool) -> scannerGrid /  (SENDER: insertTool) -> botJobTasks /
-        sessionIdFromJava = "scannerGrid"; // + this.currentBotJob.getHomeBankingId();
+        sessionIdFromJava = ScannerWorkspaceSessions.SCANNER_GRID; // + this.currentBotJob.getHomeBankingId();
         buildWebView(
                 webEngine,
                 jsonData,
@@ -1827,11 +1830,14 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
                 processDTO.setHomeBankingId(this.currentBotJob.getHomeBankingId());
                 processDTO.setBotJobId(this.currentBotJob.getId());
                 processDTO.setBotJobName(this.currentBotJob.getName());
-                processDTO.setSessionId("scannerGrid"); // + this.currentBotJob.getHomeBankingId());
-                processDTO.setOperationId("searchTerms");
+                processDTO.setSessionId(ScannerWorkspaceSessions.SCANNER_GRID); // + this.currentBotJob.getHomeBankingId());
+                processDTO.setOperationId(ScannerWorkspaceOperations.SEARCH_TERMS);
                 processDTO.setElementDetails(new ElementDTO[0]);
                 webSocketSessionManager.sendMessageJson(
-                        this.currentBotJob.getHomeBankingId(), "scannerGrid", gson.toJson(processDTO), "searchTerms");
+                        this.currentBotJob.getHomeBankingId(),
+                        ScannerWorkspaceSessions.SCANNER_GRID,
+                        gson.toJson(processDTO),
+                        ScannerWorkspaceOperations.SEARCH_TERMS);
 
                 Platform.runLater(() -> {
                     countdownTextField.setText("Pre-Launch status: Ready");
@@ -2145,7 +2151,8 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
             body.addProperty("htmlSizeKb", htmlSizeKb);
 
             int hbId = this.currentBotJob != null ? this.currentBotJob.getHomeBankingId() : 0;
-            webSocketSessionManager.sendMessageJson(hbId, "scannerGrid", body.toString(), "SEND_DOM_REVIEW");
+            webSocketSessionManager.sendMessageJson(
+                    hbId, ScannerWorkspaceSessions.SCANNER_GRID, body.toString(), "SEND_DOM_REVIEW");
             log.info("sendCurrentDomForReview — WS message sent to scannerGrid, waiting for user response");
 
         } catch (Exception ex) {
@@ -2287,7 +2294,8 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
             body.addProperty("email", licenseEmail != null ? licenseEmail : "");
 
             int hbId = this.currentBotJob != null ? this.currentBotJob.getHomeBankingId() : 0;
-            webSocketSessionManager.sendMessageJson(hbId, "scannerGrid", body.toString(), "REQUEST_SUPPORT");
+            webSocketSessionManager.sendMessageJson(
+                    hbId, ScannerWorkspaceSessions.SCANNER_GRID, body.toString(), "REQUEST_SUPPORT");
             log.info("requestSupport — WS message sent to scannerGrid");
 
         } catch (Exception ex) {
@@ -2318,7 +2326,8 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
             body.addProperty("email", licenseEmail != null ? licenseEmail : "");
 
             int hbId = this.currentBotJob != null ? this.currentBotJob.getHomeBankingId() : 0;
-            webSocketSessionManager.sendMessageJson(hbId, "scannerGrid", body.toString(), "REQUEST_SUPPORT_ELEMENTS");
+            webSocketSessionManager.sendMessageJson(
+                    hbId, ScannerWorkspaceSessions.SCANNER_GRID, body.toString(), "REQUEST_SUPPORT_ELEMENTS");
             log.info("requestSupportElements — WS message sent to scannerGrid");
 
         } catch (Exception ex) {
@@ -3086,7 +3095,7 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
             payload.put("homeUrlId", urlId);
             WebSocketSessionManager.getInstance().sendMessageJson(
                     hbId == null ? 0 : hbId,
-                    "scanner-element-pane",
+                    ScannerWorkspaceSessions.SCANNER_ELEMENT_PANE,
                     new Gson().toJson(payload),
                     "openOcrConfig");
         });
@@ -3139,7 +3148,7 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
             processDTO.setHomeBankingId(this.currentBotJob.getHomeBankingId());
             processDTO.setBotJobId(this.currentBotJob.getId());
             processDTO.setBotJobName(this.currentBotJob.getName());
-            processDTO.setSessionId("scannerGrid");
+            processDTO.setSessionId(ScannerWorkspaceSessions.SCANNER_GRID);
             processDTO.setOperationId("clonedElement");
 
             List<ElementDTO> detailsList = new ArrayList<>();
@@ -3178,7 +3187,10 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
             }
 
             webSocketSessionManager.sendMessageJson(
-                    this.currentBotJob.getHomeBankingId(), "scannerGrid", gson.toJson(processDTO), "clonedElement");
+                    this.currentBotJob.getHomeBankingId(),
+                    ScannerWorkspaceSessions.SCANNER_GRID,
+                    gson.toJson(processDTO),
+                    "clonedElement");
         }
     }
 
@@ -3324,23 +3336,33 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
         reset.setBotJobId(botJobId);
         reset.setBotJobName(this.currentBotJob.getName());
         reset.setType("SEARCH_TOOL");
-        reset.setSessionId("scannerGrid");
-        reset.setOperationId("searchTerms");
+        reset.setSessionId(ScannerWorkspaceSessions.SCANNER_GRID);
+        reset.setOperationId(ScannerWorkspaceOperations.SEARCH_TERMS);
         reset.setElementDetails(new ElementDTO[0]);
         reset.setBlocks(scannerBlockOptions(homeBankingId, botJobId));
-        webSocketSessionManager.sendMessageJson(homeBankingId, "scannerGrid", new Gson().toJson(reset), "searchTerms");
+        webSocketSessionManager.sendMessageJson(
+                homeBankingId,
+                ScannerWorkspaceSessions.SCANNER_GRID,
+                new Gson().toJson(reset),
+                ScannerWorkspaceOperations.SEARCH_TERMS);
 
         SplitDTO payload = new SplitDTO();
         payload.setHomeBankingId(homeBankingId);
         payload.setBotJobId(botJobId);
         payload.setBotJobName(this.currentBotJob.getName());
         payload.setType("SEARCH_TOOL");
-        payload.setSessionId("scannerGrid");
-        payload.setOperationId("searchTerms");
+        payload.setSessionId(ScannerWorkspaceSessions.SCANNER_GRID);
+        payload.setOperationId(ScannerWorkspaceOperations.SEARCH_TERMS);
         payload.setElementDetails(elements.toArray(new ElementDTO[0]));
         payload.setBlocks(scannerBlockOptions(homeBankingId, botJobId));
 
-        sendChunks(elements, 25, payload, webSocketSessionManager, "scannerGrid", "searchTerms");
+        sendChunks(
+                elements,
+                25,
+                payload,
+                webSocketSessionManager,
+                ScannerWorkspaceSessions.SCANNER_GRID,
+                ScannerWorkspaceOperations.SEARCH_TERMS);
         appendLog("Page Scanner: sent " + elements.size() + " elements to scannerGrid.", "info");
 
         flashFoundElements(driver, elements);
@@ -4454,7 +4476,10 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
             BlockMoveDTO signal = new BlockMoveDTO();
             String json = gson.toJson(signal);
             webSocketSessionManager.sendMessageJson(
-                    currentBotJob.getHomeBankingId(), "scanner-element-pane", json, "UPDATE_BLOCKS");
+                    currentBotJob.getHomeBankingId(),
+                    ScannerWorkspaceSessions.SCANNER_ELEMENT_PANE,
+                    json,
+                    "UPDATE_BLOCKS");
         } catch (Exception broadcastErr) {
             // Broadcast failure is non-fatal — the DB is consistent and this pane's
             // own combo will refresh via loadAllBlocks() in the caller.
@@ -4534,8 +4559,8 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
         revertPickInjections(performActions.getCurrentDriver());
 
         int finalPort = portSocketInitial;
-        String socketSessionId = "scannerTool";
-        String destinationId = "scannerGrid";
+        String socketSessionId = ScannerWorkspaceSessions.SCANNER_TOOL;
+        String destinationId = ScannerWorkspaceSessions.SCANNER_GRID;
 
         periodicSearchThread(
                 performActions.getCurrentDriver(),
@@ -4543,7 +4568,7 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
                 finalPort,
                 socketSessionId,
                 destinationId,
-                "searchTerms",
+                ScannerWorkspaceOperations.SEARCH_TERMS,
                 this.currentBotJob.getHomeBankingId(),
                 this.currentBotJob.getId(),
                 extendedRules);
@@ -7194,7 +7219,13 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
             splitDTO.setOperationId("addPickOne");
             splitDTO.setElementDetails(results.toArray(new ElementDTO[0]));
 
-            sendChunks(results, 25, splitDTO, webSocketSessionManager, "scannerTool", "scannerGrid");
+            sendChunks(
+                    results,
+                    25,
+                    splitDTO,
+                    webSocketSessionManager,
+                    ScannerWorkspaceSessions.SCANNER_TOOL,
+                    ScannerWorkspaceSessions.SCANNER_GRID);
 
             List<String> excludeList = List.of("optional", "blockMarked", "editMode");
             String jsonPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
@@ -8724,7 +8755,7 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
                 finalPort,
                 socketSessionId,
                 destinationId,
-                "searchTerms",
+                ScannerWorkspaceOperations.SEARCH_TERMS,
                 this.currentBotJob.getHomeBankingId(),
                 this.currentBotJob.getId());
     }
