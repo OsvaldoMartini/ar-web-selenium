@@ -65,6 +65,7 @@ public class SimpleWebSocketServer {
             BotJobWorkspaceCapabilityService.getInstance();
     private final ScannerMobileTestRoute scannerMobileTestRoute = ScannerMobileTestRoute.standard();
     private final ScannerMobilePickRoute scannerMobilePickRoute = ScannerMobilePickRoute.standard();
+    private final ScannerBlockUpdatePublisher scannerBlockUpdatePublisher = new ScannerBlockUpdatePublisher();
     private PayloadJson payloadEmpty;
     private RowStatus rowStatus = new RowStatus();
     // Private constructor to prevent instantiation
@@ -2456,20 +2457,7 @@ public class SimpleWebSocketServer {
                     }
                     splitDTO.setType(updteBlocks);
                     jsonData = gson.toJson(splitDTO);
-                    webSocketSessionManager.sendMessageJson(
-                            homeBankingId, ScannerWorkspaceSessions.PERFORM_LIST_DATA, jsonData, updteBlocks);
-                    webSocketSessionManager.sendMessageJson(
-                            homeBankingId,
-                            ScannerWorkspaceSessions.SCANNER_GRID,
-                            jsonData,
-                            ScannerWorkspaceOperations.BLOCKS_UPDATE);
-                    // The pre-scan dashboard has its own session; without this its block
-                    // dropdown never refreshes after Create new block.
-                    webSocketSessionManager.sendMessageJson(
-                            homeBankingId,
-                            ScannerWorkspaceSessions.PRE_SCANNER_GRID,
-                            jsonData,
-                            ScannerWorkspaceOperations.BLOCKS_UPDATE);
+                    scannerBlockUpdatePublisher.publishBlockCreationUpdate(homeBankingId, jsonData, updteBlocks);
                     alreadySentMgsSocket = false;
                     break;
                 case "BLOCKS_SPLITTER":
