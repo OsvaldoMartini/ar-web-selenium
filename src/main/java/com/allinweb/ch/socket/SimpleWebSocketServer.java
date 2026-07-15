@@ -2117,9 +2117,9 @@ public class SimpleWebSocketServer {
                                     elementsSupportAction, elementsSupportMessage, elementsJson);
                     alreadySentMgsSocket = true;
                     break;
-                case "PRE_SCAN_PAGE":
-                case "PRE_SCAN_REFRESH_PAGE":
-                case "PRE_SCAN_CLEAR_GRID":
+                case ScannerWorkspaceOperations.PRE_SCAN_PAGE:
+                case ScannerWorkspaceOperations.PRE_SCAN_REFRESH_PAGE:
+                case ScannerWorkspaceOperations.PRE_SCAN_CLEAR_GRID:
                     BotJobWorkspaceController.getInstance().preScanCommand(type, jsonEntry);
                     alreadySentMgsSocket = true;
                     break;

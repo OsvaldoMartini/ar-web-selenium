@@ -22,7 +22,7 @@ class BotJobWorkspaceControllerTest {
         controller.workspaceAction(BotJobWorkspaceAction.REFRESH, 42);
         controller.toolbarAction(BotJobToolbarAction.OPEN_EXCEL, request);
         controller.applyMetadata(null);
-        controller.preScanCommand("PRE_SCAN_PAGE", new JsonObject());
+        controller.preScanCommand(ScannerWorkspaceOperations.PRE_SCAN_PAGE, new JsonObject());
         controller.preScanElementTest(new SplitDTO(), "TEST_CLICK_DTO");
 
         assertEquals(List.of("workspace", "toolbar", "metadata", "command", "test"), host.calls);
@@ -36,7 +36,7 @@ class BotJobWorkspaceControllerTest {
         controller.activate(second);
 
         controller.deactivate(first);
-        controller.preScanCommand("PRE_SCAN_PAGE", new JsonObject());
+        controller.preScanCommand(ScannerWorkspaceOperations.PRE_SCAN_PAGE, new JsonObject());
 
         assertEquals(List.of("command"), second.calls);
     }
@@ -49,7 +49,7 @@ class BotJobWorkspaceControllerTest {
 
         assertThrows(
                 IllegalStateException.class,
-                () -> controller.preScanCommand("PRE_SCAN_PAGE", new JsonObject()));
+                () -> controller.preScanCommand(ScannerWorkspaceOperations.PRE_SCAN_PAGE, new JsonObject()));
     }
 
     private static final class Host implements BotJobWorkspaceController.HostPort {

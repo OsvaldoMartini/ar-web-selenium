@@ -339,12 +339,12 @@ public class BotJobDetailsWorkspaceHost {
 
 
     public void handlePreScanCommand(String type, JsonObject jsonEntry) {
-        if ("PRE_SCAN_CLEAR_GRID".equals(type)) {
+        if (ScannerWorkspaceOperations.PRE_SCAN_CLEAR_GRID.equals(type)) {
             sendPreScanReset();
             return;
         }
 
-        if ("PRE_SCAN_REFRESH_PAGE".equals(type)) {
+        if (ScannerWorkspaceOperations.PRE_SCAN_REFRESH_PAGE.equals(type)) {
             Thread worker = new Thread(
                     this::refreshPreScanPage,
                     "pre-scan-refresh-" + (selectedBotJob == null ? "unknown" : selectedBotJob.getId()));
@@ -353,7 +353,7 @@ public class BotJobDetailsWorkspaceHost {
             return;
         }
 
-        if (!"PRE_SCAN_PAGE".equals(type)) {
+        if (!ScannerWorkspaceOperations.PRE_SCAN_PAGE.equals(type)) {
             return;
         }
 

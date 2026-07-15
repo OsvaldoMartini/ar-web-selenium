@@ -14,5 +14,10 @@ class ScannerWorkspaceOperationsTest {
         assertEquals("scanner.actionResponse", ScannerWorkspaceOperations.ACTION_RESPONSE);
         assertEquals("scanner.state", ScannerWorkspaceOperations.STATE_EVENT);
         assertEquals("searchTerms", ScannerWorkspaceOperations.SEARCH_TERMS);
+        assertEquals("PRE_SCAN_PAGE", ScannerWorkspaceOperations.PRE_SCAN_PAGE);
+        assertEquals("PRE_SCAN_REFRESH_PAGE", ScannerWorkspaceOperations.PRE_SCAN_REFRESH_PAGE);
+        assertEquals("PRE_SCAN_CLEAR_GRID", ScannerWorkspaceOperations.PRE_SCAN_CLEAR_GRID);
+        assertEquals("PRE_SCAN_SEND_DOM_REVIEW", ScannerWorkspaceOperations.PRE_SCAN_SEND_DOM_REVIEW);
+        assertEquals("PRE_SCAN_REQUEST_SUPPORT", ScannerWorkspaceOperations.PRE_SCAN_REQUEST_SUPPORT);
     }
 }
