@@ -19,5 +19,6 @@ class ScannerWorkspaceOperationsTest {
         assertEquals("PRE_SCAN_CLEAR_GRID", ScannerWorkspaceOperations.PRE_SCAN_CLEAR_GRID);
         assertEquals("PRE_SCAN_SEND_DOM_REVIEW", ScannerWorkspaceOperations.PRE_SCAN_SEND_DOM_REVIEW);
         assertEquals("PRE_SCAN_REQUEST_SUPPORT", ScannerWorkspaceOperations.PRE_SCAN_REQUEST_SUPPORT);
+        assertEquals("SCANNER_APP", ScannerWorkspaceOperations.SCANNER_APP);
     }
 }

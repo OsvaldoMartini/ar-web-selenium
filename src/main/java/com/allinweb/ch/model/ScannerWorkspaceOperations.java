@@ -12,6 +12,7 @@ public final class ScannerWorkspaceOperations {
     public static final String PRE_SCAN_CLEAR_GRID = "PRE_SCAN_CLEAR_GRID";
     public static final String PRE_SCAN_SEND_DOM_REVIEW = "PRE_SCAN_SEND_DOM_REVIEW";
     public static final String PRE_SCAN_REQUEST_SUPPORT = "PRE_SCAN_REQUEST_SUPPORT";
+    public static final String SCANNER_APP = "SCANNER_APP";
 
     private ScannerWorkspaceOperations() {}
 }

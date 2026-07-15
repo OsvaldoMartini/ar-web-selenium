@@ -2013,7 +2013,7 @@ public class SimpleWebSocketServer {
                     break;
                 case "ATTACHED_DEVICE":
                 case "DISCOVERY_APP":
-                case "SCANNER_APP":
+                case ScannerWorkspaceOperations.SCANNER_APP:
                 case "MOBILE_SCROLL_UP":
                 case "MOBILE_SCROLL_DOWN":
                 case "MOBILE_BACK":
