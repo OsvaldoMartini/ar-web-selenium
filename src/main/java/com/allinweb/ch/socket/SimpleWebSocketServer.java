@@ -277,8 +277,11 @@ public class SimpleWebSocketServer {
                     Map<String, Object> componentResponse = saveComponentService.save(extractBody(jsonObjMSG));
                     sendCommandEditorResponse(homeBankingId, sessionId, "componentSave.applyResponse", componentResponse);
                     if (Boolean.TRUE.equals(componentResponse.get("ok"))) {
-                        webSocketSessionManager.sendMessageJson(homeBankingId, "componentTasks",
-                                gson.toJson(componentResponse.get("instructions")), "componentsUpdate");
+                        webSocketSessionManager.sendMessageJson(
+                                homeBankingId,
+                                ScannerWorkspaceSessions.COMPONENT_TASKS,
+                                gson.toJson(componentResponse.get("instructions")),
+                                ScannerWorkspaceOperations.COMPONENTS_UPDATE);
                     }
                     break;
                 case "ocrConfig.bootstrap":
@@ -360,7 +363,7 @@ public class SimpleWebSocketServer {
                             && commandApplyResponse.get("instructions").isJsonArray()) {
                         String targetSessionId = commandLogValue(commandApplyBody, "targetSessionId");
                         if ("<missing>".equals(targetSessionId) || "<blank>".equals(targetSessionId)) {
-                            targetSessionId = "botJobTasks";
+                            targetSessionId = ScannerWorkspaceSessions.BOT_JOB_TASKS;
                         }
                         String updateOperationId = instructionRealtimePublisher.snapshotOperation(targetSessionId);
                         instructionRealtimePublisher.publishMutationThenSnapshot(
@@ -1220,7 +1223,10 @@ public class SimpleWebSocketServer {
         event.put("requestId", causeRequestId);
         event.put("botJobId", response.botJobId());
         event.put("state", response.state());
-        for (String targetId : List.of("botJobTasks", "componentTasks", ScannerWorkspaceSessions.PRE_SCANNER_GRID)) {
+        for (String targetId : List.of(
+                ScannerWorkspaceSessions.BOT_JOB_TASKS,
+                ScannerWorkspaceSessions.COMPONENT_TASKS,
+                ScannerWorkspaceSessions.PRE_SCANNER_GRID)) {
             Session target = WebSocketSessionManager.getSession(targetId);
             if (target != null && target.isOpen()) {
                 sendBotJobDetailsResponse(
@@ -1255,7 +1261,10 @@ public class SimpleWebSocketServer {
         event.put("botJobId", botJobId);
         event.put("state", state);
         List<CompletableFuture<Void>> sends = new ArrayList<>();
-        for (String targetId : List.of("botJobTasks", "componentTasks", ScannerWorkspaceSessions.PRE_SCANNER_GRID)) {
+        for (String targetId : List.of(
+                ScannerWorkspaceSessions.BOT_JOB_TASKS,
+                ScannerWorkspaceSessions.COMPONENT_TASKS,
+                ScannerWorkspaceSessions.PRE_SCANNER_GRID)) {
             Session target = WebSocketSessionManager.getSession(targetId);
             if (target != null && target.isOpen()) {
                 sends.add(sendBotJobDetailsResponseAcknowledged(
@@ -1897,7 +1906,7 @@ public class SimpleWebSocketServer {
 
             instructionRealtimePublisher.publishExecutionStatus(
                     splitDTO.getHomeBankingId(),
-                    "botJobTasks",
+                    ScannerWorkspaceSessions.BOT_JOB_TASKS,
                     rowStatus.getInstructionId(),
                     rowStatus.getColor());
             return;
@@ -1951,7 +1960,7 @@ public class SimpleWebSocketServer {
         int whereId = -1;
 
         if (sessionIdToSend != null) {
-            if (sessionIdToSend.matches(".*botJobTasks.*")
+            if (sessionIdContains(sessionIdToSend, ScannerWorkspaceSessions.BOT_JOB_TASKS)
                     || sessionIdContains(sessionIdToSend, ScannerWorkspaceSessions.SCANNER_TOOL)
                     || sessionIdContains(sessionIdToSend, ScannerWorkspaceSessions.SCANNER_GRID)
                     || sessionIdContains(sessionIdToSend, ScannerWorkspaceSessions.MOBILE_SCANNER_GRID)
@@ -1961,14 +1970,14 @@ public class SimpleWebSocketServer {
                 variableTable = "variable";
                 whereId = splitDTO.getBotJobId() != null ? splitDTO.getBotJobId() : -1;
                 updteBlocks = ScannerWorkspaceOperations.UPDATE_BLOCKS;
-                updateAction = "updateInstructions";
-            } else if (sessionIdToSend.matches(".*componentTasks.*")) {
+                updateAction = ScannerWorkspaceOperations.UPDATE_INSTRUCTIONS;
+            } else if (sessionIdContains(sessionIdToSend, ScannerWorkspaceSessions.COMPONENT_TASKS)) {
                 instrTable = "component_instruction";
                 blockTable = "component_block";
                 variableTable = "component_variable";
                 whereId = splitDTO.getHomeBankingId() != null ? splitDTO.getHomeBankingId() : -1;
                 updteBlocks = ScannerWorkspaceOperations.UPDATE_BLOCKS_COMP;
-                updateAction = "componentsUpdate";
+                updateAction = ScannerWorkspaceOperations.COMPONENTS_UPDATE;
             }
         }
 
@@ -2590,9 +2599,9 @@ public class SimpleWebSocketServer {
 
                     if (type.equals("INSERT_AFTER_ELSEIF") || type.equals("INSERT_BEFORE_ELSEIF")) {
                         alreadySentMgsSocket = false;
-                        if (sessionIdToSend.matches(".*botJobTasks.*")) {
+                        if (sessionIdContains(sessionIdToSend, ScannerWorkspaceSessions.BOT_JOB_TASKS)) {
                             performLists.getListBotJob().clear();
-                        } else if (sessionIdToSend.matches(".*componentTasks.*")) {
+                        } else if (sessionIdContains(sessionIdToSend, ScannerWorkspaceSessions.COMPONENT_TASKS)) {
                             performLists.getListBotJob().clear();
                         }
                     } else {
@@ -2966,7 +2975,8 @@ public class SimpleWebSocketServer {
             performMessage.errorMessageOperationFailed(errorMessage);
         }
 
-        if (!alreadySentMgsSocket && (sessionIdToSend != null && sessionIdToSend.matches(".*botJobTasks.*"))) {
+        if (!alreadySentMgsSocket
+                && sessionIdContains(sessionIdToSend, ScannerWorkspaceSessions.BOT_JOB_TASKS)) {
             if (performLists.getListBotJob().isEmpty()) {
                 errorMessage = performDBEngine.loadCompleteJobs(botJobIdTask);
                 if (errorMessage != null) {
@@ -2974,7 +2984,7 @@ public class SimpleWebSocketServer {
                 }
             }
         } else if (!alreadySentMgsSocket
-                && (sessionIdToSend != null && sessionIdToSend.matches(".*componentTasks.*"))) {
+                && sessionIdContains(sessionIdToSend, ScannerWorkspaceSessions.COMPONENT_TASKS)) {
             if (performLists.getListBotJobComp().isEmpty()) {
                 errorMessage = performDataBase.loadComponentsComplete(homeBankingId, botJobIdTask, botJobNameTask);
                 if (errorMessage != null) {
@@ -3023,7 +3033,7 @@ public class SimpleWebSocketServer {
                     jsonData = gson.toJson(instructionLoads);
                 }
             }
-            if ("updateInstructions".equals(updateAction)) {
+            if (ScannerWorkspaceOperations.UPDATE_INSTRUCTIONS.equals(updateAction)) {
                 JsonObject updatePayload = new JsonObject();
                 updatePayload.add("instructions", gson.toJsonTree(instructionLoads));
                 updatePayload.add("blocks", gson.toJsonTree(mapBlockOptions("block", botJobIdTask)));
@@ -3347,7 +3357,10 @@ public class SimpleWebSocketServer {
                 jsonData = gson.toJson(blockLoopInstructions);
             }
             webSocketSessionManager.sendMessageJson(
-                    blockDetailsDTO.getHomeBankingId(), blockDetailsDTO.getSessionId(), jsonData, "updateInstructions");
+                    blockDetailsDTO.getHomeBankingId(),
+                    blockDetailsDTO.getSessionId(),
+                    jsonData,
+                    ScannerWorkspaceOperations.UPDATE_INSTRUCTIONS);
 
         } else {
             performDataBase.deleteBlockDirect("block", blockDetailsDTO.getBotJobId(), newBlockId);
@@ -3357,7 +3370,7 @@ public class SimpleWebSocketServer {
     private void setPayloadEmpty(String destination, int homeBankId, int botJobId, String botJobName) {
         int blockId = -1;
         int whereId = -1;
-        if (destination.equalsIgnoreCase("botJobTasks")) {
+        if (destination.equalsIgnoreCase(ScannerWorkspaceSessions.BOT_JOB_TASKS)) {
             if (performLists.getListBlock().isEmpty()) {
                 performDataBase.loadBlocks(botJobId, botJobName, "block");
             }
@@ -3366,7 +3379,7 @@ public class SimpleWebSocketServer {
                 blockId = performLists.getListBlock().get(0).getId();
             }
 
-        } else if (destination.equalsIgnoreCase("componentTasks")) {
+        } else if (destination.equalsIgnoreCase(ScannerWorkspaceSessions.COMPONENT_TASKS)) {
             if (!performLists.getListBotJobComp().isEmpty()
                     && performLists.getListBlockComp().isEmpty()) {
                 performDataBase.loadBlocks(homeBankId, "", "component_block");

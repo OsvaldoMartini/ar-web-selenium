@@ -243,20 +243,20 @@ public class ARScannedElementScene extends ARScene {
                         previousBlock = type;
                     }
 
-                    String blockUpdate = blockMoveDTO.getSessionId().equals("componentTasks")
+                    String blockUpdate = blockMoveDTO.getSessionId().equals(ScannerWorkspaceSessions.COMPONENT_TASKS)
                             ? ScannerWorkspaceOperations.UPDATE_BLOCKS_COMP
                             : ScannerWorkspaceOperations.UPDATE_BLOCKS;
 
                     String blockTable =
-                            blockMoveDTO.getSessionId().equals("componentTasks") ? "component_block" : "block";
+                            blockMoveDTO.getSessionId().equals(ScannerWorkspaceSessions.COMPONENT_TASKS) ? "component_block" : "block";
 
                     // Attempt to get it from currentBotJob
-                    int whereId = blockMoveDTO.getSessionId().equals("componentTasks")
+                    int whereId = blockMoveDTO.getSessionId().equals(ScannerWorkspaceSessions.COMPONENT_TASKS)
                             ? currentBotJob.getHomeBankingId() != null ? currentBotJob.getHomeBankingId() : -1
                             : currentBotJob.getId() != null ? currentBotJob.getId() : -1;
 
                     if (whereId == -1) {
-                        whereId = blockMoveDTO.getSessionId().equals("componentTasks")
+                        whereId = blockMoveDTO.getSessionId().equals(ScannerWorkspaceSessions.COMPONENT_TASKS)
                                 ? blockMoveDTO.getHomeBankingId() != null ? blockMoveDTO.getHomeBankingId() : -1
                                 : blockMoveDTO.getBotJobId() != null ? blockMoveDTO.getBotJobId() : -1;
                     }
@@ -307,7 +307,7 @@ public class ARScannedElementScene extends ARScene {
                     // Extract the "body" field from the JsonObject
 
                     blockUpdate =
-                            splitDTO.getSessionId().equals("componentTasks")
+                            splitDTO.getSessionId().equals(ScannerWorkspaceSessions.COMPONENT_TASKS)
                                     ? ScannerWorkspaceOperations.UPDATE_BLOCKS_COMP
                                     : ScannerWorkspaceOperations.UPDATE_BLOCKS;
 
@@ -326,7 +326,7 @@ public class ARScannedElementScene extends ARScene {
                     // Extract the "body" field from the JsonObject
 
                     blockUpdate =
-                            splitDTO.getSessionId().equals("componentTasks")
+                            splitDTO.getSessionId().equals(ScannerWorkspaceSessions.COMPONENT_TASKS)
                                     ? ScannerWorkspaceOperations.UPDATE_BLOCKS_COMP
                                     : ScannerWorkspaceOperations.UPDATE_BLOCKS;
 
@@ -405,14 +405,14 @@ public class ARScannedElementScene extends ARScene {
                                 ? splitDTO.getBotJobId()
                                 : currentBotJob.getId() != null ? currentBotJob.getId() : -1;
 
-                        if (splitDTO.getSessionId().equals("componentTasks")) {
+                        if (splitDTO.getSessionId().equals(ScannerWorkspaceSessions.COMPONENT_TASKS)) {
                             tableName = "component_instruction";
                             whereId = splitDTO.getHomeBankingId() != null
                                     ? splitDTO.getHomeBankingId()
                                     : currentBotJob.getHomeBankingId() != null ? currentBotJob.getHomeBankingId() : -1;
                         }
 
-                        blockUpdate = splitDTO.getSessionId().equals("componentTasks")
+                        blockUpdate = splitDTO.getSessionId().equals(ScannerWorkspaceSessions.COMPONENT_TASKS)
                                 ? ScannerWorkspaceOperations.UPDATE_BLOCKS_COMP
                                 : ScannerWorkspaceOperations.UPDATE_BLOCKS;
 
@@ -488,7 +488,7 @@ public class ARScannedElementScene extends ARScene {
                     //                    splitDTO = gson.fromJson(jsonObjMSG, SplitDTO.class);
 
                     if (type.equals(ScannerWorkspaceOperations.TEST_CLICK_DTO)) {
-                        blockUpdate = splitDTO.getSessionId().equals("componentTasks")
+                        blockUpdate = splitDTO.getSessionId().equals(ScannerWorkspaceSessions.COMPONENT_TASKS)
                                 ? ScannerWorkspaceOperations.UPDATE_BLOCKS_COMP
                                 : ScannerWorkspaceOperations.UPDATE_BLOCKS;
 
@@ -823,7 +823,7 @@ public class ARScannedElementScene extends ARScene {
             if (instructionList.size() > 0) {
 
                 ErrorMessage errorMessage = performDataBase.insertInstructionsBatch(
-                        "botJobTasks",
+                        ScannerWorkspaceSessions.BOT_JOB_TASKS,
                         instructionList,
                         currentBotJob.getId(),
                         currentBlockId,
@@ -914,7 +914,7 @@ public class ARScannedElementScene extends ARScene {
             if (instructionList.size() > 0) {
 
                 ErrorMessage errorMessage = performDataBase.updateInstructionsBatchByNameAndBlockId(
-                        "botJobTasks",
+                        ScannerWorkspaceSessions.BOT_JOB_TASKS,
                         instructionList,
                         currentBotJob.getId(),
                         currentBlockId,
@@ -924,7 +924,8 @@ public class ARScannedElementScene extends ARScene {
                 instructionList.removeIf(instruction -> instruction.getId() == null);
 
                 if (errorMessage == null) {
-                    errorMessage = performDataBase.upsertReferencesBatch("botJobTasks", instructionList);
+                    errorMessage = performDataBase.upsertReferencesBatch(
+                            ScannerWorkspaceSessions.BOT_JOB_TASKS, instructionList);
                 }
 
                 updateBotJobTasks(this.currentBotJob.getId());
@@ -974,9 +975,9 @@ public class ARScannedElementScene extends ARScene {
         }
         webSocketSessionManager.sendMessageJson(
                 currentBotJob.getHomeBankingId(),
-                "botJobTasks", // + currentBotJobId,
+                ScannerWorkspaceSessions.BOT_JOB_TASKS, // + currentBotJobId,
                 jsonData,
-                "updateInstructions");
+                ScannerWorkspaceOperations.UPDATE_INSTRUCTIONS);
     }
 
     private SplitDTO parseSplitDTO(JsonObject jsonEntry) {
