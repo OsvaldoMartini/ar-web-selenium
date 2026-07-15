@@ -2192,15 +2192,8 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
 
     private void requestSupport() {
         try {
-            String currentUrl = "(no browser)";
-            try {
-                org.openqa.selenium.WebDriver driver = performActions.getCurrentDriver();
-                if (driver != null) currentUrl = driver.getCurrentUrl();
-            } catch (Exception ignored) {
-            }
-
             int hbId = this.currentBotJob != null ? this.currentBotJob.getHomeBankingId() : 0;
-            scannerSupportRequestPublisher.publishSupportRequest(hbId, currentUrl);
+            scannerSupportRequestPublisher.publishSupportRequest(hbId, currentBrowserUrlOr("(no browser)"));
             log.info("requestSupport — WS message sent to {}", ScannerWorkspaceSessions.SCANNER_GRID);
 
         } catch (Exception ex) {
@@ -2216,19 +2209,21 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
      */
     public void requestSupportElements() {
         try {
-            String currentUrl = "(no browser)";
-            try {
-                org.openqa.selenium.WebDriver driver = performActions.getCurrentDriver();
-                if (driver != null) currentUrl = driver.getCurrentUrl();
-            } catch (Exception ignored) {
-            }
-
             int hbId = this.currentBotJob != null ? this.currentBotJob.getHomeBankingId() : 0;
-            scannerSupportRequestPublisher.publishElementsSupportRequest(hbId, currentUrl);
+            scannerSupportRequestPublisher.publishElementsSupportRequest(hbId, currentBrowserUrlOr("(no browser)"));
             log.info("requestSupportElements — WS message sent to {}", ScannerWorkspaceSessions.SCANNER_GRID);
 
         } catch (Exception ex) {
             log.error("requestSupportElements failed", ex);
+        }
+    }
+
+    private String currentBrowserUrlOr(String fallback) {
+        try {
+            org.openqa.selenium.WebDriver driver = performActions.getCurrentDriver();
+            return driver == null ? fallback : driver.getCurrentUrl();
+        } catch (Exception ignored) {
+            return fallback;
         }
     }
 
