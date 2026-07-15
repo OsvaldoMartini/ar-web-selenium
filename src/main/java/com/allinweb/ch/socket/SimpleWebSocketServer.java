@@ -2077,7 +2077,7 @@ public class SimpleWebSocketServer {
                         // Convert your JsonObject to a proper JSON string
                         sendStatusButton(
                                 splitDTO.getHomeBankingId(),
-                                ScannerWorkspaceSessions.MOBILE_SCANNER_GRID,
+                                scannerMobilePickRoute.payloadSessionId(),
                                 operationId,
                                 "Activated button ",
                                 splitDTO);
@@ -2204,7 +2204,7 @@ public class SimpleWebSocketServer {
                         // 1. UI gets the raw DTOs immediately (resolver enrichment is async-from-UI's POV).
                         String jsonData = gson.toJson(splitDTO);
                         webSocketSessionManager.sendMessageJson(
-                                homeBankingId, sessionIdToSend, jsonData, ScannerWorkspaceOperations.ADD_PICK_ONE);
+                                homeBankingId, sessionIdToSend, jsonData, scannerMobilePickRoute.payloadOperationId());
 
                         String jsonPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
 
@@ -2267,7 +2267,7 @@ public class SimpleWebSocketServer {
                                 splitDTO.getElementDetails(), excludeList, "AI-ElementDTO-HP", jsonPath, true);
                     } else if (isMobileReturnSession(sessionIdToSend)) {
                         sendMobileScannerGridPayload(
-                                homeBankingId, ScannerWorkspaceOperations.ADD_PICK_ONE, splitDTO);
+                                homeBankingId, scannerMobilePickRoute.payloadOperationId(), splitDTO);
 
                         String jsonPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
 
