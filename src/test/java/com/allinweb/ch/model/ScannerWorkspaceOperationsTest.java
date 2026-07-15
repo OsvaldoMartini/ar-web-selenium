@@ -13,5 +13,6 @@ class ScannerWorkspaceOperationsTest {
         assertEquals("scanner.bootstrapResponse", ScannerWorkspaceOperations.BOOTSTRAP_RESPONSE);
         assertEquals("scanner.actionResponse", ScannerWorkspaceOperations.ACTION_RESPONSE);
         assertEquals("scanner.state", ScannerWorkspaceOperations.STATE_EVENT);
+        assertEquals("searchTerms", ScannerWorkspaceOperations.SEARCH_TERMS);
     }
 }

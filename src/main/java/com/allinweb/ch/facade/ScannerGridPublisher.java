@@ -1,6 +1,7 @@
 package com.allinweb.ch.facade;
 
 import com.allinweb.ch.model.ElementDTO;
+import com.allinweb.ch.model.ScannerWorkspaceOperations;
 import com.allinweb.ch.model.SplitDTO;
 import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.google.gson.Gson;
@@ -21,7 +22,7 @@ final class ScannerGridPublisher implements ScannerWorkspaceService.GridPublishe
 
     @Override
     public void publishSearchTerms(String sessionId, int homeBankingId, SplitDTO payload) {
-        sender.sendMessageJson(homeBankingId, sessionId, gson.toJson(payload), "searchTerms");
+        sender.sendMessageJson(homeBankingId, sessionId, gson.toJson(payload), ScannerWorkspaceOperations.SEARCH_TERMS);
     }
 
     @Override
@@ -34,7 +35,8 @@ final class ScannerGridPublisher implements ScannerWorkspaceService.GridPublishe
         for (int i = 0; i < elements.size(); i += chunkSize) {
             int end = Math.min(i + chunkSize, elements.size());
             SplitDTO chunkPayload = chunkPayload(payload, elements.subList(i, end));
-            sender.sendMessageJson(homeBankingId, sessionId, gson.toJson(chunkPayload), "searchTerms");
+            sender.sendMessageJson(
+                    homeBankingId, sessionId, gson.toJson(chunkPayload), ScannerWorkspaceOperations.SEARCH_TERMS);
         }
     }
 

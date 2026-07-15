@@ -6,6 +6,7 @@ public final class ScannerWorkspaceOperations {
     public static final String BOOTSTRAP_RESPONSE = "scanner.bootstrapResponse";
     public static final String ACTION_RESPONSE = "scanner.actionResponse";
     public static final String STATE_EVENT = "scanner.state";
+    public static final String SEARCH_TERMS = "searchTerms";
 
     private ScannerWorkspaceOperations() {}
 }

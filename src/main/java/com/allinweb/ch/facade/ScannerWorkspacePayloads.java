@@ -1,6 +1,7 @@
 package com.allinweb.ch.facade;
 
 import com.allinweb.ch.model.ElementDTO;
+import com.allinweb.ch.model.ScannerWorkspaceOperations;
 import com.allinweb.ch.model.ScannerWorkspaceRequest;
 import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import com.allinweb.ch.model.ScannerWorkspaceState;
@@ -97,7 +98,7 @@ final class ScannerWorkspacePayloads {
         payload.setBotJobName(state.botJobName());
         payload.setType("SEARCH_TOOL");
         payload.setSessionId(ScannerWorkspaceSessions.SCANNER_GRID);
-        payload.setOperationId("searchTerms");
+        payload.setOperationId(ScannerWorkspaceOperations.SEARCH_TERMS);
         payload.setElementDetails(elements.toArray(new ElementDTO[0]));
         payload.setBlocks(state.blocks().stream().map(block -> {
             Map<String, Object> option = new LinkedHashMap<>();

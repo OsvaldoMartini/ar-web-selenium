@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.allinweb.ch.model.ElementDTO;
+import com.allinweb.ch.model.ScannerWorkspaceOperations;
+import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import com.allinweb.ch.model.SplitDTO;
 import com.google.gson.Gson;
 import java.util.ArrayList;
@@ -20,12 +22,12 @@ class ScannerGridPublisherTest {
         ScannerGridPublisher publisher = new ScannerGridPublisher(sender);
         SplitDTO payload = payload("one", "two", "three");
 
-        publisher.publishSearchTerms("scannerGrid", 2, payload);
+        publisher.publishSearchTerms(ScannerWorkspaceSessions.SCANNER_GRID, 2, payload);
 
         assertEquals(1, sender.messages.size());
-        assertEquals("scannerGrid", sender.messages.get(0).sessionId);
+        assertEquals(ScannerWorkspaceSessions.SCANNER_GRID, sender.messages.get(0).sessionId);
         assertEquals(2, sender.messages.get(0).homeBankingId);
-        assertEquals("searchTerms", sender.messages.get(0).operationId);
+        assertEquals(ScannerWorkspaceOperations.SEARCH_TERMS, sender.messages.get(0).operationId);
         assertEquals(3, payload.getElementDetails().length);
     }
 
@@ -35,7 +37,7 @@ class ScannerGridPublisherTest {
         ScannerGridPublisher publisher = new ScannerGridPublisher(sender);
         SplitDTO payload = payload("one", "two", "three", "four", "five");
 
-        publisher.publishSearchTermsChunks("scannerGrid", 2, payload, 2);
+        publisher.publishSearchTermsChunks(ScannerWorkspaceSessions.SCANNER_GRID, 2, payload, 2);
 
         assertEquals(3, sender.messages.size());
         assertEquals(List.of(2, 2, 1), sender.messages.stream()
@@ -54,7 +56,7 @@ class ScannerGridPublisherTest {
 
         IllegalArgumentException error = assertThrows(
                 IllegalArgumentException.class,
-                () -> publisher.publishSearchTermsChunks("scannerGrid", 2, payload, 0));
+                () -> publisher.publishSearchTermsChunks(ScannerWorkspaceSessions.SCANNER_GRID, 2, payload, 0));
 
         assertEquals("Scanner chunk size must be positive", error.getMessage());
         assertEquals(0, sender.messages.size());
@@ -63,8 +65,8 @@ class ScannerGridPublisherTest {
 
     private SplitDTO payload(String... names) {
         SplitDTO payload = new SplitDTO();
-        payload.setSessionId("scannerGrid");
-        payload.setOperationId("searchTerms");
+        payload.setSessionId(ScannerWorkspaceSessions.SCANNER_GRID);
+        payload.setOperationId(ScannerWorkspaceOperations.SEARCH_TERMS);
         payload.setHomeBankingId(2);
         payload.setBotJobId(42);
         ElementDTO[] elements = new ElementDTO[names.length];
