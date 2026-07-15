@@ -2101,7 +2101,7 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
             scannerSupportRequestPublisher.publishDomReview(hbId, currentUrl, pageTitle, rawHtml);
             log.info(
                     "sendCurrentDomForReview — WS message sent to {}, waiting for user response",
-                    ScannerWorkspaceSessions.SCANNER_GRID);
+                    scannerSupportRequestPublisher.destinationSessionId());
 
         } catch (Exception ex) {
             log.error("sendCurrentDomForReview failed", ex);
@@ -2183,7 +2183,7 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
         try {
             int hbId = this.currentBotJob != null ? this.currentBotJob.getHomeBankingId() : 0;
             scannerSupportRequestPublisher.publishSupportRequest(hbId, currentBrowserUrlOr("(no browser)"));
-            log.info("requestSupport — WS message sent to {}", ScannerWorkspaceSessions.SCANNER_GRID);
+            log.info("requestSupport — WS message sent to {}", scannerSupportRequestPublisher.destinationSessionId());
 
         } catch (Exception ex) {
             log.error("requestSupport failed", ex);
@@ -2200,7 +2200,9 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
         try {
             int hbId = this.currentBotJob != null ? this.currentBotJob.getHomeBankingId() : 0;
             scannerSupportRequestPublisher.publishElementsSupportRequest(hbId, currentBrowserUrlOr("(no browser)"));
-            log.info("requestSupportElements — WS message sent to {}", ScannerWorkspaceSessions.SCANNER_GRID);
+            log.info(
+                    "requestSupportElements — WS message sent to {}",
+                    scannerSupportRequestPublisher.destinationSessionId());
 
         } catch (Exception ex) {
             log.error("requestSupportElements failed", ex);

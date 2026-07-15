@@ -61,6 +61,14 @@ class ScannerSupportRequestPublisherTest {
     }
 
     @Test
+    void exposesDestinationSessionId() {
+        ScannerSupportRequestPublisher publisher =
+                new ScannerSupportRequestPublisher(new RecordingSender(), new FixedSystemContext());
+
+        assertEquals(ScannerWorkspaceSessions.SCANNER_GRID, publisher.destinationSessionId());
+    }
+
+    @Test
     void exposesSupportResponseOperationIds() {
         assertEquals("DOM_REVIEW_RESPONSE", ScannerSupportRequestPublisher.DOM_REVIEW_RESPONSE);
         assertEquals("SUPPORT_REQUEST_RESPONSE", ScannerSupportRequestPublisher.SUPPORT_REQUEST_RESPONSE);

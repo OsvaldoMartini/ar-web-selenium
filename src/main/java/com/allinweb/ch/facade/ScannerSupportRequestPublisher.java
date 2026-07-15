@@ -46,6 +46,10 @@ public final class ScannerSupportRequestPublisher {
         send(homeBankingId, baseBody(currentUrl), REQUEST_SUPPORT_ELEMENTS);
     }
 
+    public String destinationSessionId() {
+        return ScannerWorkspaceSessions.SCANNER_GRID;
+    }
+
     private JsonObject baseBody(String currentUrl) {
         JsonObject body = new JsonObject();
         body.addProperty("url", currentUrl);
@@ -56,7 +60,7 @@ public final class ScannerSupportRequestPublisher {
     }
 
     private void send(int homeBankingId, JsonObject body, String operationId) {
-        sender.sendMessageJson(homeBankingId, ScannerWorkspaceSessions.SCANNER_GRID, gson.toJson(body), operationId);
+        sender.sendMessageJson(homeBankingId, destinationSessionId(), gson.toJson(body), operationId);
     }
 
     interface Sender {
