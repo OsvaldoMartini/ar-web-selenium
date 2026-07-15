@@ -20,6 +20,7 @@ import java.util.Map;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import com.allinweb.ch.facade.BotJobTransferPathRegistry;
+import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import com.google.gson.JsonObject;
 import javax.websocket.CloseReason;
 import javax.websocket.RemoteEndpoint;
@@ -75,22 +76,22 @@ class SimpleWebSocketServerSessionLifecycleTest {
 
     @Test
     void staleCloseCannotRemoveReplacementConnectionOrPreserveItsTransferGrant() throws Exception {
-        Session original = sessionWithId("scannerGrid", false);
-        Session replacement = sessionWithId("scannerGrid", true);
+        Session original = sessionWithId(ScannerWorkspaceSessions.SCANNER_GRID, false);
+        Session replacement = sessionWithId(ScannerWorkspaceSessions.SCANNER_GRID, true);
         endpoint.onOpen(original);
         Path selected = Files.createDirectory(temporaryDirectory.resolve("stale-exports"));
         BotJobTransferPathRegistry paths = BotJobTransferPathRegistry.getInstance();
-        paths.select("scannerGrid", 42, selected.toFile());
+        paths.select(ScannerWorkspaceSessions.SCANNER_GRID, 42, selected.toFile());
         endpoint.onOpen(replacement);
 
         assertThrows(
                 IllegalStateException.class,
-                () -> paths.require("scannerGrid", 42, selected.toString()));
+                () -> paths.require(ScannerWorkspaceSessions.SCANNER_GRID, 42, selected.toString()));
 
         endpoint.onClose(
                 original, new CloseReason(CloseReason.CloseCodes.NORMAL_CLOSURE, "old transport closed"));
 
-        assertSame(replacement, WebSocketSessionManager.getSession("scannerGrid"));
+        assertSame(replacement, WebSocketSessionManager.getSession(ScannerWorkspaceSessions.SCANNER_GRID));
     }
 
     @Test

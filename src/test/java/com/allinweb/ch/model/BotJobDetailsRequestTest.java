@@ -31,9 +31,9 @@ class BotJobDetailsRequestTest {
         JsonObject envelope = new JsonObject();
         envelope.add("body", body);
 
-        BotJobDetailsRequest request = BotJobDetailsRequest.parse(envelope, "preScannerGrid");
+        BotJobDetailsRequest request = BotJobDetailsRequest.parse(envelope, ScannerWorkspaceSessions.PRE_SCANNER_GRID);
 
-        assertEquals("preScannerGrid", request.sessionId());
+        assertEquals(ScannerWorkspaceSessions.PRE_SCANNER_GRID, request.sessionId());
         assertEquals("bootstrap-1", request.requestId());
         assertEquals(7, request.botJobId());
         assertEquals(7, request.body().get("botJobId").getAsInt());

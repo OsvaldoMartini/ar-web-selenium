@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.allinweb.ch.model.ScannerWorkspaceAction;
 import com.allinweb.ch.model.ScannerWorkspaceRequest;
+import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import com.google.gson.JsonObject;
 import org.junit.jupiter.api.Test;
 
@@ -53,7 +54,7 @@ class ScannerWorkspaceActionParserTest {
     }
 
     private ScannerWorkspaceRequest request(JsonObject body) {
-        return new ScannerWorkspaceRequest("scannerGrid", "action-parser-1", 42, body);
+        return new ScannerWorkspaceRequest(ScannerWorkspaceSessions.SCANNER_GRID, "action-parser-1", 42, body);
     }
 
     private JsonObject body() {

@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import com.allinweb.ch.model.ElementDTO;
 import com.allinweb.ch.model.ScannerWorkspaceAction;
 import com.allinweb.ch.model.ScannerWorkspaceRequest;
+import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import com.allinweb.ch.model.ScannerWorkspaceState;
 import com.allinweb.ch.model.SplitDTO;
 import com.google.gson.JsonObject;
@@ -75,7 +76,7 @@ class ScannerWorkspaceActionExecutorTest {
         body.addProperty("requestId", requestId);
         body.addProperty("botJobId", 42);
         body.addProperty("action", action);
-        return new ScannerWorkspaceRequest("scannerGrid", requestId, 42, body);
+        return new ScannerWorkspaceRequest(ScannerWorkspaceSessions.SCANNER_GRID, requestId, 42, body);
     }
 
     private ElementDTO element(String name) {

@@ -309,7 +309,7 @@ class ScannerWorkspaceServiceTest {
         body.addProperty("requestId", requestId);
         body.addProperty("botJobId", 42);
         if (action != null) body.addProperty("action", action);
-        if (searchTerms != null) body.addProperty("searchTerms", searchTerms);
+        if (searchTerms != null) body.addProperty(ScannerWorkspaceOperations.SEARCH_TERMS, searchTerms);
         return new ScannerWorkspaceRequest(ScannerWorkspaceSessions.SCANNER_GRID, requestId, 42, body);
     }
 

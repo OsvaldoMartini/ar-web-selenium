@@ -9,6 +9,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import javax.websocket.Session;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -47,15 +48,15 @@ class WebSocketSessionManagerTest {
         Session replacement = openSession();
         when(original.isOpen()).thenReturn(false);
 
-        assertTrue(WebSocketSessionManager.addSession("scannerGrid", original));
-        assertTrue(WebSocketSessionManager.addSession("scannerGrid", replacement));
-        assertFalse(WebSocketSessionManager.removeSession("scannerGrid", original));
+        assertTrue(WebSocketSessionManager.addSession(ScannerWorkspaceSessions.SCANNER_GRID, original));
+        assertTrue(WebSocketSessionManager.addSession(ScannerWorkspaceSessions.SCANNER_GRID, replacement));
+        assertFalse(WebSocketSessionManager.removeSession(ScannerWorkspaceSessions.SCANNER_GRID, original));
 
-        assertSame(replacement, WebSocketSessionManager.getSession("scannerGrid"));
+        assertSame(replacement, WebSocketSessionManager.getSession(ScannerWorkspaceSessions.SCANNER_GRID));
         assertNull(manager.getSessionIdBySession(original));
-        assertEquals("scannerGrid", manager.getSessionIdBySession(replacement));
-        assertTrue(WebSocketSessionManager.removeSession("scannerGrid", replacement));
-        assertNull(WebSocketSessionManager.getSession("scannerGrid"));
+        assertEquals(ScannerWorkspaceSessions.SCANNER_GRID, manager.getSessionIdBySession(replacement));
+        assertTrue(WebSocketSessionManager.removeSession(ScannerWorkspaceSessions.SCANNER_GRID, replacement));
+        assertNull(WebSocketSessionManager.getSession(ScannerWorkspaceSessions.SCANNER_GRID));
         assertNull(manager.getSessionIdBySession(replacement));
     }
 
