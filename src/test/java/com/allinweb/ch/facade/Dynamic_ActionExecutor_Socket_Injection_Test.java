@@ -1,7 +1,6 @@
 package com.allinweb.ch.facade;
 
 import com.allinweb.ch.driver.ARWebDriver;
-import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import com.allinweb.ch.util.ARConstantsEngine;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
@@ -104,13 +103,14 @@ public class Dynamic_ActionExecutor_Socket_Injection_Test {
             Thread.sleep(500);
 
             // ── 5. Inject the actionExecutor (executeScript, 6 positional args) ─
+            ScannerSearchRoute route = ScannerSearchRoute.standardPageScanner();
             String sessionId = "actionExec-test-1";
             JavascriptExecutor js = (JavascriptExecutor) driver;
             Object result = js.executeScript(
                     script,
                     port, // socketPort
                     sessionId, // sessionId
-                    ScannerWorkspaceSessions.SCANNER_GRID, // destination
+                    route.destinationSessionId(), // destination
                     "actionExecutor", // operationId
                     184L, // homeBankingId
                     310L); // botJobId

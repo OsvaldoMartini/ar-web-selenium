@@ -105,14 +105,15 @@ public class Dynamic_HovePick_Socket_Injection_Test {
 
             // ── 5. Inject the hoverPick script ──────────────────────────────────
             // 9 positional args matching the trailing `})( arguments[0..8] );`.
-            String sessionId = ScannerWorkspaceSessions.SCANNER_TOOL;
+            ScannerSearchRoute route = ScannerSearchRoute.standardPageScanner();
+            String sessionId = route.sourceSessionId();
             JavascriptExecutor js = (JavascriptExecutor) driver;
             js.executeScript(
                     script,
                     false, // hiddenFields
                     port, // socketPort
                     sessionId, // sessionId
-                    ScannerWorkspaceSessions.SCANNER_GRID, // destination
+                    route.destinationSessionId(), // destination
                     ScannerWorkspaceOperations.ADD_PICK_ONE, // operationId
                     2L, // homeBankingId
                     66L, // botJobId

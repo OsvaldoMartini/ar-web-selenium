@@ -1,8 +1,6 @@
 package com.allinweb.ch.facade;
 
 import com.allinweb.ch.driver.ARWebDriver;
-import com.allinweb.ch.model.ScannerWorkspaceOperations;
-import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import com.allinweb.ch.util.ARConstantsEngine;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
@@ -83,7 +81,8 @@ public class Dynamic_PageScanner_Async_Socket_Injection_Test {
             // Script timeout > 20s (matches the in-script safety net).
             driver.manage().timeouts().scriptTimeout(Duration.ofSeconds(30));
 
-            String sessionId = ScannerWorkspaceSessions.SCANNER_TOOL;
+            ScannerSearchRoute route = ScannerSearchRoute.standardPageScanner();
+            String sessionId = route.sourceSessionId();
             JavascriptExecutor js = (JavascriptExecutor) driver;
 
             long t0 = System.currentTimeMillis();
@@ -93,8 +92,8 @@ public class Dynamic_PageScanner_Async_Socket_Injection_Test {
                     false, // hiddenFields
                     0, // socketPort (unused — WebSocket is mocked)
                     sessionId, // sessionId
-                    ScannerWorkspaceSessions.SCANNER_GRID, // destination
-                    ScannerWorkspaceOperations.SEARCH_TERMS, // operationId
+                    route.destinationSessionId(), // destination
+                    route.operationId(), // operationId
                     184L, // homeBankingId
                     310L); // botJobId
             long elapsed = System.currentTimeMillis() - t0;

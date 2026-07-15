@@ -1,8 +1,6 @@
 package com.allinweb.ch.facade;
 
 import com.allinweb.ch.driver.ARWebDriver;
-import com.allinweb.ch.model.ScannerWorkspaceOperations;
-import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import com.allinweb.ch.util.ARConstantsEngine;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
@@ -104,7 +102,8 @@ public class Dynamic_PageScanner_Socket_Injection_Test {
             // ── 5. Inject the dynamic script ────────────────────────────────────
             // The script ends with `})( arguments[0], ..., arguments[7] );` so
             // Selenium's executeScript args become the IIFE parameters directly.
-            String sessionId = ScannerWorkspaceSessions.SCANNER_TOOL;
+            ScannerSearchRoute route = ScannerSearchRoute.standardPageScanner();
+            String sessionId = route.sourceSessionId();
             JavascriptExecutor js = (JavascriptExecutor) driver;
             Object result = js.executeScript(
                     script,
@@ -112,8 +111,8 @@ public class Dynamic_PageScanner_Socket_Injection_Test {
                     false, // hiddenFields
                     port, // socketPort
                     sessionId, // sessionId
-                    ScannerWorkspaceSessions.SCANNER_GRID, // destination
-                    ScannerWorkspaceOperations.SEARCH_TERMS, // operationId
+                    route.destinationSessionId(), // destination
+                    route.operationId(), // operationId
                     184L, // homeBankingId
                     310L); // botJobId
 
