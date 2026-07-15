@@ -61,6 +61,29 @@ class ScannerSupportFileServiceTest {
         assertTrue(root.get("htmlSha256").getAsString().startsWith("sha256:"));
     }
 
+    @Test
+    void elementsReviewBuildsSupportFileEnvelope() {
+        ScannerSupportFileService service = new ScannerSupportFileService(
+                new TestSupportContext(),
+                () -> Instant.parse("2026-07-15T11:00:00Z"),
+                () -> LocalDateTime.of(2026, 7, 15, 13, 5, 6));
+
+        ScannerSupportFileService.SupportFile file =
+                service.elementsReview(null, "[{\"id\":7,\"tagName\":\"button\",\"xPath\":\"//button\"}]", "Check it");
+
+        JsonObject root = JsonParser.parseString(file.json()).getAsJsonObject();
+
+        assertEquals("2026-07-15_13-05-06_elements_review.support", file.suggestedFileName());
+        assertEquals("elements-review", root.get("kind").getAsString());
+        assertEquals("Check it", root.get("message").getAsString());
+        assertEquals(1, root.get("elementCount").getAsInt());
+        assertEquals("test@example.test", root.get("email").getAsString());
+        assertEquals("Owner", root.get("requesterName").getAsString());
+        assertEquals("Test User", root.get("userName").getAsString());
+        assertEquals("Test Org", root.get("organizationName").getAsString());
+        assertEquals("www.example.com", root.getAsJsonObject("browser").get("url").getAsString());
+    }
+
     private static String gunzipBase64(String value) throws Exception {
         byte[] compressed = Base64.getDecoder().decode(value);
         try (GZIPInputStream gzip = new GZIPInputStream(new ByteArrayInputStream(compressed))) {
@@ -92,6 +115,21 @@ class ScannerSupportFileServiceTest {
         public String appVersion() {
             return "4.6-test";
         }
+
+        @Override
+        public String licenseOwner() {
+            return "Owner";
+        }
+
+        @Override
+        public String organizationName() {
+            return "Test Org";
+        }
+
+        @Override
+        public String systemUserName() {
+            return "Test User";
+        }
     }
 
     private static final class EmptySupportContext implements ScannerSupportFileService.SupportContext {
@@ -107,6 +145,21 @@ class ScannerSupportFileServiceTest {
 
         @Override
         public String appVersion() {
+            return null;
+        }
+
+        @Override
+        public String licenseOwner() {
+            return null;
+        }
+
+        @Override
+        public String organizationName() {
+            return null;
+        }
+
+        @Override
+        public String systemUserName() {
             return null;
         }
     }

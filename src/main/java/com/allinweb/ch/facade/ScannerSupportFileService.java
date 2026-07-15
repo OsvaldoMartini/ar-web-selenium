@@ -16,6 +16,7 @@ import java.util.Base64;
 import java.util.Objects;
 import java.util.function.Supplier;
 import java.util.zip.GZIPOutputStream;
+import org.openqa.selenium.WebDriver;
 
 public final class ScannerSupportFileService {
 
@@ -25,17 +26,27 @@ public final class ScannerSupportFileService {
     private final SupportContext context;
     private final Supplier<Instant> capturedAt;
     private final Supplier<LocalDateTime> fileTime;
+    private final SupportCapture supportCapture;
     private final Gson gson;
 
     public ScannerSupportFileService() {
-        this(new DefaultSupportContext(), Instant::now, LocalDateTime::now);
+        this(new DefaultSupportContext(), Instant::now, LocalDateTime::now, new SupportCapture());
     }
 
     ScannerSupportFileService(
             SupportContext context, Supplier<Instant> capturedAt, Supplier<LocalDateTime> fileTime) {
+        this(context, capturedAt, fileTime, new SupportCapture());
+    }
+
+    ScannerSupportFileService(
+            SupportContext context,
+            Supplier<Instant> capturedAt,
+            Supplier<LocalDateTime> fileTime,
+            SupportCapture supportCapture) {
         this.context = Objects.requireNonNull(context, "context");
         this.capturedAt = Objects.requireNonNull(capturedAt, "capturedAt");
         this.fileTime = Objects.requireNonNull(fileTime, "fileTime");
+        this.supportCapture = Objects.requireNonNull(supportCapture, "supportCapture");
         this.gson = new GsonBuilder().setPrettyPrinting().create();
     }
 
@@ -62,6 +73,30 @@ public final class ScannerSupportFileService {
 
         String suggestedName = fileTime.get().format(SUPPORT_FILE_TIMESTAMP) + "_page_review.support";
         return new SupportFile(suggestedName, gson.toJson(support));
+    }
+
+    public SupportFile elementsReview(WebDriver driver, String elementDetailsJson, String message) {
+        JsonObject support = supportCapture.buildElementsReviewEnvelope(driver, elementDetailsJson, message, null);
+        support.addProperty("email", safe(context.licenseEmail()));
+        support.addProperty("requesterName", safe(context.licenseOwner()));
+        support.addProperty("userName", safe(context.systemUserName()));
+        support.addProperty("organizationName", safe(context.organizationName()));
+        maskBrowserUrl(support);
+
+        String suggestedName = fileTime.get().format(SUPPORT_FILE_TIMESTAMP) + "_elements_review.support";
+        return new SupportFile(suggestedName, gson.toJson(support));
+    }
+
+    private static void maskBrowserUrl(JsonObject support) {
+        if (!support.has("browser") || !support.get("browser").isJsonObject()) {
+            return;
+        }
+        JsonObject browser = support.getAsJsonObject("browser");
+        browser.addProperty("url", "www.example.com");
+        if (browser.has("title")) {
+            String title = browser.get("title").getAsString();
+            browser.addProperty("title", title.replaceAll("https?://[^\\s/]+", "www.example.com"));
+        }
     }
 
     private static String gzipAndBase64(byte[] bytes) {
@@ -102,6 +137,12 @@ public final class ScannerSupportFileService {
         String licenseEmail();
 
         String appVersion();
+
+        String licenseOwner();
+
+        String organizationName();
+
+        String systemUserName();
     }
 
     private static final class DefaultSupportContext implements SupportContext {
@@ -118,6 +159,21 @@ public final class ScannerSupportFileService {
         @Override
         public String appVersion() {
             return ARPropertyManager.getInstance().getProperty(ARPropertyEnum.VERSION);
+        }
+
+        @Override
+        public String licenseOwner() {
+            return ARPropertyManager.getInstance().getProperty(ARPropertyEnum.LICENSE_OWNER);
+        }
+
+        @Override
+        public String organizationName() {
+            return ARPropertyManager.getInstance().getProperty(ARPropertyEnum.LICENSE_ORG_NAME);
+        }
+
+        @Override
+        public String systemUserName() {
+            return SystemDetails.getSystemUserName();
         }
     }
 }

@@ -2300,36 +2300,12 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
                     out.showAndWait();
 
                 } else if ("save".equals(action)) {
-                    String email = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.LICENSE_EMAIL);
-                    String orgName = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.LICENSE_ORG_NAME);
-                    String ownerName = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.LICENSE_OWNER);
-
-                    // Page-Review envelope, elements-review variant. Same kind as Send path.
-                    com.allinweb.ch.facade.SupportCapture capture = new com.allinweb.ch.facade.SupportCapture();
-                    com.google.gson.JsonObject support =
-                            capture.buildElementsReviewEnvelope(driver, elementDetailsJson, message, null);
-                    support.addProperty("email", email != null ? email : "");
-                    support.addProperty("requesterName", ownerName != null ? ownerName : "");
-                    support.addProperty("userName", com.allinweb.ch.license.SystemDetails.getSystemUserName());
-                    support.addProperty("organizationName", orgName != null ? orgName : "");
-
-                    // Mask URLs for compliance — replace real URLs with placeholder
-                    if (support.has("browser") && support.get("browser").isJsonObject()) {
-                        com.google.gson.JsonObject browser = support.getAsJsonObject("browser");
-                        browser.addProperty("url", "www.example.com");
-                        if (browser.has("title")) {
-                            String title = browser.get("title").getAsString();
-                            browser.addProperty("title", title.replaceAll("https?://[^\\s/]+", "www.example.com"));
-                        }
-                    }
-
-                    String timestamp = java.time.LocalDateTime.now()
-                            .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
-                    String suggestedName = timestamp + "_elements_review.support";
+                    ScannerSupportFileService.SupportFile supportFile =
+                            scannerSupportFileService.elementsReview(driver, elementDetailsJson, message);
 
                     javafx.stage.FileChooser fc = new javafx.stage.FileChooser();
                     fc.setTitle("Save Elements Review");
-                    fc.setInitialFileName(suggestedName);
+                    fc.setInitialFileName(supportFile.suggestedFileName());
                     fc.getExtensionFilters()
                             .add(new javafx.stage.FileChooser.ExtensionFilter(
                                     "Support Files (*.support)", "*.support"));
@@ -2337,12 +2313,7 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
                     if (chosen == null) return;
 
                     java.nio.file.Files.writeString(
-                            chosen.toPath(),
-                            new com.google.gson.GsonBuilder()
-                                    .setPrettyPrinting()
-                                    .create()
-                                    .toJson(support),
-                            java.nio.charset.StandardCharsets.UTF_8);
+                            chosen.toPath(), supportFile.json(), java.nio.charset.StandardCharsets.UTF_8);
 
                     javafx.scene.control.Alert out =
                             new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.INFORMATION);
