@@ -2073,31 +2073,32 @@ public class SimpleWebSocketServer {
                     }
                     alreadySentMgsSocket = true;
                     break;
-                case "DOM_REVIEW_RESPONSE":
+                case ScannerSupportRequestPublisher.DOM_REVIEW_RESPONSE:
                     String reviewAction =
                             jsonEntry.has("action") ? jsonEntry.get("action").getAsString() : "cancel";
-                    log.info("DOM_REVIEW_RESPONSE received: action={}", reviewAction);
+                    log.info("{} received: action={}", ScannerSupportRequestPublisher.DOM_REVIEW_RESPONSE, reviewAction);
                     ARScannedElementPane.getInstance().handleDomReviewResponse(reviewAction);
                     alreadySentMgsSocket = true;
                     break;
-                case "SUPPORT_REQUEST_RESPONSE":
+                case ScannerSupportRequestPublisher.SUPPORT_REQUEST_RESPONSE:
                     String supportAction =
                             jsonEntry.has("action") ? jsonEntry.get("action").getAsString() : "cancel";
                     String supportMessage =
                             jsonEntry.has("message") ? jsonEntry.get("message").getAsString() : "";
                     log.info(
-                            "SUPPORT_REQUEST_RESPONSE received: action={}, messageLen={}",
+                            "{} received: action={}, messageLen={}",
+                            ScannerSupportRequestPublisher.SUPPORT_REQUEST_RESPONSE,
                             supportAction,
                             supportMessage.length());
                     ARScannedElementPane.getInstance().handleSupportRequestResponse(supportAction, supportMessage);
                     alreadySentMgsSocket = true;
                     break;
-                case "REQUEST_SUPPORT_ELEMENTS":
-                    log.info("REQUEST_SUPPORT_ELEMENTS received");
+                case ScannerSupportRequestPublisher.REQUEST_SUPPORT_ELEMENTS:
+                    log.info("{} received", ScannerSupportRequestPublisher.REQUEST_SUPPORT_ELEMENTS);
                     ARScannedElementPane.getInstance().requestSupportElements();
                     alreadySentMgsSocket = true;
                     break;
-                case "SUPPORT_REQUEST_ELEMENTS_RESPONSE":
+                case ScannerSupportRequestPublisher.SUPPORT_REQUEST_ELEMENTS_RESPONSE:
                     String elementsSupportAction =
                             jsonEntry.has("action") ? jsonEntry.get("action").getAsString() : "cancel";
                     String elementsSupportMessage =
@@ -2106,7 +2107,8 @@ public class SimpleWebSocketServer {
                             ? jsonEntry.get("elementDetails").toString()
                             : "[]";
                     log.info(
-                            "SUPPORT_REQUEST_ELEMENTS_RESPONSE received: action={}, messageLen={}, elementsJsonLen={}",
+                            "{} received: action={}, messageLen={}, elementsJsonLen={}",
+                            ScannerSupportRequestPublisher.SUPPORT_REQUEST_ELEMENTS_RESPONSE,
                             elementsSupportAction,
                             elementsSupportMessage.length(),
                             elementsJson.length());

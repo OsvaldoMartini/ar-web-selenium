@@ -60,6 +60,15 @@ class ScannerSupportRequestPublisherTest {
         assertEquals(ScannerWorkspaceSessions.SCANNER_GRID, message.sessionId);
     }
 
+    @Test
+    void exposesSupportResponseOperationIds() {
+        assertEquals("DOM_REVIEW_RESPONSE", ScannerSupportRequestPublisher.DOM_REVIEW_RESPONSE);
+        assertEquals("SUPPORT_REQUEST_RESPONSE", ScannerSupportRequestPublisher.SUPPORT_REQUEST_RESPONSE);
+        assertEquals(
+                "SUPPORT_REQUEST_ELEMENTS_RESPONSE",
+                ScannerSupportRequestPublisher.SUPPORT_REQUEST_ELEMENTS_RESPONSE);
+    }
+
     private static final class RecordingSender implements ScannerSupportRequestPublisher.Sender {
         private final List<Message> messages = new ArrayList<>();
 

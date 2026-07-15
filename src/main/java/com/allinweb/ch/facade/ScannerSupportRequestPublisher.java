@@ -13,6 +13,9 @@ public final class ScannerSupportRequestPublisher {
     public static final String SEND_DOM_REVIEW = "SEND_DOM_REVIEW";
     public static final String REQUEST_SUPPORT = "REQUEST_SUPPORT";
     public static final String REQUEST_SUPPORT_ELEMENTS = "REQUEST_SUPPORT_ELEMENTS";
+    public static final String DOM_REVIEW_RESPONSE = "DOM_REVIEW_RESPONSE";
+    public static final String SUPPORT_REQUEST_RESPONSE = "SUPPORT_REQUEST_RESPONSE";
+    public static final String SUPPORT_REQUEST_ELEMENTS_RESPONSE = "SUPPORT_REQUEST_ELEMENTS_RESPONSE";
 
     private final Sender sender;
     private final SystemContext systemContext;
