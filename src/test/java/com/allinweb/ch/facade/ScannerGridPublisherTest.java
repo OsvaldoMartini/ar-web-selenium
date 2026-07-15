@@ -46,6 +46,19 @@ class ScannerGridPublisherTest {
     }
 
     @Test
+    void publishesScannerGridSearchTermsPayloadWithoutCallerSupplyingOperation() {
+        RecordingSender sender = new RecordingSender();
+        ScannerGridPublisher publisher = new ScannerGridPublisher(sender);
+
+        publisher.publishScannerGridSearchTermsPayload(2, java.util.Map.of("id", 42));
+
+        assertEquals(1, sender.messages.size());
+        assertEquals(ScannerWorkspaceSessions.SCANNER_GRID, sender.messages.get(0).sessionId);
+        assertEquals(ScannerWorkspaceOperations.SEARCH_TERMS, sender.messages.get(0).operationId);
+        assertEquals("{\"id\":42}", sender.messages.get(0).json);
+    }
+
+    @Test
     void publishesScannerGridPayloadWithCallerSuppliedOperation() {
         RecordingSender sender = new RecordingSender();
         ScannerGridPublisher publisher = new ScannerGridPublisher(sender);

@@ -1398,8 +1398,7 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
     }
 
     private void refreshGrids() {
-        scannerGridPublisher.publishScannerGrid(
-                this.currentBotJob.getHomeBankingId(), payloadEmpty, ScannerWorkspaceOperations.SEARCH_TERMS);
+        scannerGridPublisher.publishScannerGridSearchTermsPayload(this.currentBotJob.getHomeBankingId(), payloadEmpty);
     }
 
     private boolean initializeWebView() {

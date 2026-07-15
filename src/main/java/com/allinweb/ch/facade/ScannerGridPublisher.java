@@ -28,6 +28,10 @@ public final class ScannerGridPublisher implements ScannerWorkspaceService.GridP
     }
 
     public void publishScannerGridSearchTerms(int homeBankingId, SplitDTO payload) {
+        publishScannerGridSearchTermsPayload(homeBankingId, payload);
+    }
+
+    public void publishScannerGridSearchTermsPayload(int homeBankingId, Object payload) {
         publishScannerGrid(homeBankingId, payload, ScannerWorkspaceOperations.SEARCH_TERMS);
     }
 
