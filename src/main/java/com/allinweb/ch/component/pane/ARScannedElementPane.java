@@ -143,6 +143,7 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
     private final AtomicBoolean testRunStartupActive = new AtomicBoolean(false);
     private final Gson gson = new Gson();
     private final ScannerGridPublisher scannerGridPublisher = new ScannerGridPublisher();
+    private final ScannerSupportRequestPublisher scannerSupportRequestPublisher = new ScannerSupportRequestPublisher();
     private final ScannerPreLaunchStarter scannerPreLaunchStarter =
             new ScannerPreLaunchStarter(new PanePreLaunchStartOperations());
     private final ScannerPreLaunchStopper scannerPreLaunchStopper =
@@ -2128,7 +2129,6 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
             }
             pendingDomReviewHtml = rawHtml;
 
-            String licenseEmail = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.LICENSE_EMAIL);
             String currentUrl;
             try {
                 currentUrl = driver.getCurrentUrl();
@@ -2141,19 +2141,9 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
             } catch (Exception ex) {
                 pageTitle = "";
             }
-            String pcName = com.allinweb.ch.license.SystemDetails.getSystemComputerName();
-            int htmlSizeKb = rawHtml.getBytes(java.nio.charset.StandardCharsets.UTF_8).length / 1024;
-
-            com.google.gson.JsonObject body = new com.google.gson.JsonObject();
-            body.addProperty("url", currentUrl);
-            body.addProperty("title", pageTitle != null ? pageTitle : "");
-            body.addProperty("pcName", pcName);
-            body.addProperty("email", licenseEmail != null ? licenseEmail : "");
-            body.addProperty("htmlSizeKb", htmlSizeKb);
 
             int hbId = this.currentBotJob != null ? this.currentBotJob.getHomeBankingId() : 0;
-            webSocketSessionManager.sendMessageJson(
-                    hbId, ScannerWorkspaceSessions.SCANNER_GRID, body.toString(), "SEND_DOM_REVIEW");
+            scannerSupportRequestPublisher.publishDomReview(hbId, currentUrl, pageTitle, rawHtml);
             log.info("sendCurrentDomForReview — WS message sent to scannerGrid, waiting for user response");
 
         } catch (Exception ex) {
@@ -2280,8 +2270,6 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
 
     private void requestSupport() {
         try {
-            String licenseEmail = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.LICENSE_EMAIL);
-            String pcName = com.allinweb.ch.license.SystemDetails.getSystemComputerName();
             String currentUrl = "(no browser)";
             try {
                 org.openqa.selenium.WebDriver driver = performActions.getCurrentDriver();
@@ -2289,14 +2277,8 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
             } catch (Exception ignored) {
             }
 
-            com.google.gson.JsonObject body = new com.google.gson.JsonObject();
-            body.addProperty("url", currentUrl);
-            body.addProperty("pcName", pcName);
-            body.addProperty("email", licenseEmail != null ? licenseEmail : "");
-
             int hbId = this.currentBotJob != null ? this.currentBotJob.getHomeBankingId() : 0;
-            webSocketSessionManager.sendMessageJson(
-                    hbId, ScannerWorkspaceSessions.SCANNER_GRID, body.toString(), "REQUEST_SUPPORT");
+            scannerSupportRequestPublisher.publishSupportRequest(hbId, currentUrl);
             log.info("requestSupport — WS message sent to scannerGrid");
 
         } catch (Exception ex) {
@@ -2312,8 +2294,6 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
      */
     public void requestSupportElements() {
         try {
-            String licenseEmail = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.LICENSE_EMAIL);
-            String pcName = com.allinweb.ch.license.SystemDetails.getSystemComputerName();
             String currentUrl = "(no browser)";
             try {
                 org.openqa.selenium.WebDriver driver = performActions.getCurrentDriver();
@@ -2321,14 +2301,8 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
             } catch (Exception ignored) {
             }
 
-            com.google.gson.JsonObject body = new com.google.gson.JsonObject();
-            body.addProperty("url", currentUrl);
-            body.addProperty("pcName", pcName);
-            body.addProperty("email", licenseEmail != null ? licenseEmail : "");
-
             int hbId = this.currentBotJob != null ? this.currentBotJob.getHomeBankingId() : 0;
-            webSocketSessionManager.sendMessageJson(
-                    hbId, ScannerWorkspaceSessions.SCANNER_GRID, body.toString(), "REQUEST_SUPPORT_ELEMENTS");
+            scannerSupportRequestPublisher.publishElementsSupportRequest(hbId, currentUrl);
             log.info("requestSupportElements — WS message sent to scannerGrid");
 
         } catch (Exception ex) {
