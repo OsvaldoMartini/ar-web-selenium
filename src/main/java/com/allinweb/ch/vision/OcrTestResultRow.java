@@ -13,7 +13,7 @@ public class OcrTestResultRow {
     private final String definedName; // ElementTextResolver output — slugged unique identifier
     private final String matchQuality; // EXACT_CONTAIN | OVERLAP | PROXIMITY | NONE
     private final String tag;
-    private final String domText; // ElementDTO.someText at test time (already resolved when written by SEARCH_TOOL)
+    private final String domText; // ElementDTO.someText at test time (already resolved by scanner payload creation)
     private final String ocrText; // OcrCorrelationResult.ocrText (joined primary-tier words)
     private final String xPath;
     private final String xPathShort;

@@ -20,7 +20,7 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * JDBC access for the Roadmap 3 locator tables.
  *
- * <p>{@link #upsertOnPick(ElementDTO, Integer, Integer)} is the hook called from SEARCH_TOOL
+ * <p>{@link #upsertOnPick(ElementDTO, Integer, Integer)} is the hook called from scanner payload handling
  * and {@code PerformListElements.runScan} after the text resolver runs. First sight of a
  * (hbId, homeUrlId, definedName) tuple inserts a row with all {@code *_original} columns
  * populated; every subsequent sight rewrites the {@code *_current} columns and bumps

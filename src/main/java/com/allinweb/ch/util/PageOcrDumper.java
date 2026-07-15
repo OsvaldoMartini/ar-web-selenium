@@ -139,7 +139,7 @@ public final class PageOcrDumper {
             // 4. Persist raw OCR dump
             writeOcrDump(diagDir.resolve("ocr-HP.json"), ocr, dpr, image.getWidth(), image.getHeight());
 
-            // 5. Read DOM rects (written by PageDiagnosticDumper.dumpRects earlier in SEARCH_TOOL)
+            // 5. Read DOM rects (written by PageDiagnosticDumper.dumpRects earlier in the scan)
             List<OcrDomCorrelator.RectEntry> rects = readRects(diagDir.resolve(prefix + "-rects.json"));
 
             // 6. Correlate (with per-tag thresholds from config)

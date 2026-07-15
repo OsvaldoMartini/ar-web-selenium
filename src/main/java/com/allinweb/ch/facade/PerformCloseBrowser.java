@@ -104,7 +104,7 @@ public class PerformCloseBrowser {
                               // Convert the buffer to a Base64 string
                               wSocket.send(base64Message);
                               // wSocket.send(JSON.stringify(message));
-                              //console.log("Sent SEARCH_TOOL:", subscriptionMessage);
+                              //console.log("Sent scanner payload:", subscriptionMessage);
                               //console.log("Sent ENCODED Length:", base64Message.length);
                               //console.log("Sent ENCODED:", base64Message);
                             } catch (sendError) {
