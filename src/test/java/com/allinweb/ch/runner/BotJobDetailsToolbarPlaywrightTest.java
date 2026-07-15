@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.microsoft.playwright.Browser;
@@ -46,7 +47,7 @@ class BotJobDetailsToolbarPlaywrightTest {
     private static final int BOT_JOB_ID = 42;
     private static final int HOME_BANKING_ID = 7;
     private static final int SOCKET_PORT = 54525;
-    private static final String SESSION_ID = "botJobTasks";
+    private static final String SESSION_ID = ScannerWorkspaceSessions.BOT_JOB_TASKS;
     private static final String SELECTED_TRANSFER_PATH = "C:/ARWeb/TestTransfer";
     private static final Path BUILD_ROOT =
             Path.of("src", "main", "resources", "build").toAbsolutePath().normalize();
@@ -135,7 +136,7 @@ class BotJobDetailsToolbarPlaywrightTest {
               class MockWebSocket {
                 constructor(url) {
                   this.url = String(url);
-                  this.sessionId = new URL(this.url).searchParams.get('sessionId') || 'botJobTasks';
+                  this.sessionId = new URL(this.url).searchParams.get('sessionId') || '%s';
                   this.readyState = MockWebSocket.CONNECTING;
                   this.onopen = null;
                   this.onmessage = null;
@@ -238,7 +239,7 @@ class BotJobDetailsToolbarPlaywrightTest {
                 value: MockWebSocket
               });
             })();
-            """;
+            """.formatted(SESSION_ID);
 
     private HttpServer server;
     private ExecutorService serverExecutor;
