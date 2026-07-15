@@ -64,7 +64,7 @@ public final class PreScanApplyService {
 
     /**
      * Inserts the applied elements as instructions at the end of the chosen block, then pushes
-     * the refreshed instruction list to the {@code botJobTasks} grid — the same outcome as the
+     * the refreshed instruction list to the task grid — the same outcome as the
      * pane path. Returns null on success.
      */
     public synchronized ErrorMessage applyElements(SplitDTO splitDTO) {

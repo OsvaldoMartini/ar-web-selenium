@@ -3392,10 +3392,6 @@ public class PerformDataBase {
         instruction.setActionCustomMaxWaitSec(30);
         instruction.setOnHoldSeconds(onHold);
 
-        // Define where to get the BlockId
-        //        instruction.setBlockId(splitDTO.getBotJobId());
-        //        if (!splitDTO.getSessionId().equals("componentTasks")) {
-
         if (blockLoadFound != null) {
             instruction.setBlockId(blockLoadFound.getId());
         } else {
@@ -3412,11 +3408,6 @@ public class PerformDataBase {
                 // IT SETS THE NEW TARGET IN CASE TO ADD MORE INSTRUCTIONS
                 splitDTO.setBlockId(newBlockId);
 
-                //                String tableName = "block";
-                //                if (splitDTO.getSessionId().equals("componentTasks")) {
-                //                    tableName = "component_block";
-                //                }
-                //                loadBlocks(splitDTO.getBotJobId(), splitDTO.getBotJobName(), tableName);
                 instruction.setBlockId(newBlockId);
             } else {
                 return errorMessage;

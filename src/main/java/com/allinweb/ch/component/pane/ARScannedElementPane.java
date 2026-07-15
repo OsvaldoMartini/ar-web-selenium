@@ -8560,7 +8560,6 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
             String operationId,
             int homeBankingId,
             int botJobId) {
-        // "UPDATE_LIST_ELEMENTS", "perform-list-data", "searchTerms"
         ErrorMessage errorMessage = performListElements.dynamicLoadElementsDTO(
                 currentARWebDriver,
                 driver,

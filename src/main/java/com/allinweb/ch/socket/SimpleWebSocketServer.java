@@ -2392,7 +2392,7 @@ public class SimpleWebSocketServer {
                         } else if (isInsertType && !paneOpen) {
                             // PRE SCAN dashboard Apply with AR Web Factory closed: the pane
                             // session would swallow the message, so persist via the pane-free
-                            // service instead (same insert + botJobTasks refresh).
+                            // service instead (same insert + task grid refresh).
                             ErrorMessage applyError =
                                     PreScanApplyService.getInstance().applyElements(splitDTO);
                             if (applyError != null) {
@@ -2920,7 +2920,7 @@ public class SimpleWebSocketServer {
                     if (errorMessage == null) errorMessage = performDataBase.loadInstructions(whereId, -1, -1, instrTable);
                     if (errorMessage == null) errorMessage = performDataBase.loadBlocks(whereId, "", blockTable);
                     // loadInstructions/loadBlocks refresh only the GLOBAL lists; the
-                    // updateInstructions snapshot pushed below is built from the NESTED
+                    // task-update snapshot pushed below is built from the NESTED
                     // listBotJob.blockLoadDTOList (buildJsonViewData), so the deleted
                     // block must be evicted there too or it reappears on the board.
                     if (errorMessage == null) {
@@ -2994,8 +2994,8 @@ public class SimpleWebSocketServer {
         }
 
         // Send mutation acknowledgement before the refreshed grid. The React grid consumes the
-        // newest WebSocket message in a batched render, so updateInstructions/componentsUpdate
-        // must be the final message or a following success response can hide the live refresh.
+        // newest WebSocket message in a batched render, so the task-update operation must be
+        // the final message or a following success response can hide the live refresh.
         if ("ROW_MOVE".equals(type) || "DELETE_INSTRUCTION".equals(type) || "DELETE_BLOCK".equals(type)) {
             JsonObject mutationResponse = new JsonObject();
             mutationResponse.addProperty("ok", errorMessage == null);
@@ -3061,8 +3061,6 @@ public class SimpleWebSocketServer {
                 }
             }
 
-            //            broadcastMessageToAll(homeBankingId, "componentTasks", jsonData, "componentsUpdate");
-            //            sendMessageJson(sessionIdToSend, jsonData, "componentsUpdate");
         }
 
     }

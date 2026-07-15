@@ -318,7 +318,7 @@ public class PerformCloseBrowser {
                     // })(
                     //   61757,
                     //   "closeBrowser",
-                    //   "scanner-element-pane",
+                    //   ScannerWorkspaceSessions.SCANNER_ELEMENT_PANE,
                     //   "closeBrowser",
                     //   2,
                     //   "https://www.tradingview.com/",
