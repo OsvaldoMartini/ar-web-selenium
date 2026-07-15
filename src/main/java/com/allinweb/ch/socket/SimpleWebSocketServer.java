@@ -66,6 +66,10 @@ public class SimpleWebSocketServer {
     // Private constructor to prevent instantiation
     public SimpleWebSocketServer() {}
 
+    private static boolean sessionIdContains(String sessionId, String expectedSessionId) {
+        return sessionId != null && sessionId.contains(expectedSessionId);
+    }
+
     public static SimpleWebSocketServer getInstance() {
         if (instance == null) {
             synchronized (SimpleWebSocketServer.class) {
@@ -1216,7 +1220,7 @@ public class SimpleWebSocketServer {
         event.put("requestId", causeRequestId);
         event.put("botJobId", response.botJobId());
         event.put("state", response.state());
-        for (String targetId : List.of("botJobTasks", "componentTasks", "preScannerGrid")) {
+        for (String targetId : List.of("botJobTasks", "componentTasks", ScannerWorkspaceSessions.PRE_SCANNER_GRID)) {
             Session target = WebSocketSessionManager.getSession(targetId);
             if (target != null && target.isOpen()) {
                 sendBotJobDetailsResponse(
@@ -1251,7 +1255,7 @@ public class SimpleWebSocketServer {
         event.put("botJobId", botJobId);
         event.put("state", state);
         List<CompletableFuture<Void>> sends = new ArrayList<>();
-        for (String targetId : List.of("botJobTasks", "componentTasks", "preScannerGrid")) {
+        for (String targetId : List.of("botJobTasks", "componentTasks", ScannerWorkspaceSessions.PRE_SCANNER_GRID)) {
             Session target = WebSocketSessionManager.getSession(targetId);
             if (target != null && target.isOpen()) {
                 sends.add(sendBotJobDetailsResponseAcknowledged(
@@ -1948,10 +1952,10 @@ public class SimpleWebSocketServer {
 
         if (sessionIdToSend != null) {
             if (sessionIdToSend.matches(".*botJobTasks.*")
-                    || sessionIdToSend.matches(".*scannerTool.*")
-                    || sessionIdToSend.matches(".*scannerGrid.*")
+                    || sessionIdContains(sessionIdToSend, ScannerWorkspaceSessions.SCANNER_TOOL)
+                    || sessionIdContains(sessionIdToSend, ScannerWorkspaceSessions.SCANNER_GRID)
                     || sessionIdToSend.matches(".*mobileScannerGrid.*")
-                    || sessionIdToSend.matches(".*scanner-element-pane.*")) {
+                    || sessionIdContains(sessionIdToSend, ScannerWorkspaceSessions.SCANNER_ELEMENT_PANE)) {
                 instrTable = "instruction";
                 blockTable = "block";
                 variableTable = "variable";
@@ -2118,7 +2122,7 @@ public class SimpleWebSocketServer {
                     alreadySentMgsSocket = true;
                     break;
                 case "CLOSE_BROWSER":
-                    if (sessionIdToSend.equals("scanner-element-pane")) {
+                    if (sessionIdToSend.equals(ScannerWorkspaceSessions.SCANNER_ELEMENT_PANE)) {
                         splitDTO.setOperationId("closeBrowser");
                         String jsonData = gson.toJson(splitDTO);
                         webSocketSessionManager.sendMessageJson(
@@ -2127,7 +2131,7 @@ public class SimpleWebSocketServer {
                     alreadySentMgsSocket = true;
                     break;
                 case "HOVERED_ROW":
-                    if (sessionIdToSend.equals("scannerTool")) {
+                    if (sessionIdToSend.equals(ScannerWorkspaceSessions.SCANNER_TOOL)) {
                         splitDTO.setOperationId("highlight");
                         String jsonData = gson.toJson(splitDTO);
                         webSocketSessionManager.sendMessageJson(homeBankingId, sessionIdToSend, jsonData, null);
@@ -2144,7 +2148,7 @@ public class SimpleWebSocketServer {
                     break;
                 }
                 case "SEARCH_TOOL":
-                    if (sessionIdToSend.equals("scannerGrid")) {
+                    if (sessionIdToSend.equals(ScannerWorkspaceSessions.SCANNER_GRID)) {
                         // 1. UI gets the raw DTOs immediately (resolver enrichment is async-from-UI's POV).
                         String jsonData = gson.toJson(splitDTO);
                         webSocketSessionManager.sendMessageJson(homeBankingId, sessionIdToSend, jsonData, "addPickOne");
@@ -2344,7 +2348,8 @@ public class SimpleWebSocketServer {
                     } else if (splitDTO.getElementDetails() != null && splitDTO.getElementDetails().length > 0) {
                         boolean isInsertType = "NEW_ELEMENT_DTO".equals(type) || "SEND_ALL_ELEMENTS_DTO".equals(type);
                         boolean isTestType = "TEST_CLICK_DTO".equals(type) || "TEST_INPUT_DTO".equals(type);
-                        boolean paneOpen = WebSocketSessionManager.isSessionOpen("scanner-element-pane");
+                        boolean paneOpen =
+                                WebSocketSessionManager.isSessionOpen(ScannerWorkspaceSessions.SCANNER_ELEMENT_PANE);
                         if (isTestType && !paneOpen) {
                             // PRE SCAN dashboard row test with AR Web Factory closed: the scanned
                             // page lives in the isolated pre-scan browser, so the test runs there.
@@ -2360,7 +2365,8 @@ public class SimpleWebSocketServer {
                                 performMessage.errorMessageOperationFailed(applyError);
                             }
                         } else {
-                            webSocketSessionManager.sendMessageJson("scanner-element-pane", gson.toJson(splitDTO));
+                            webSocketSessionManager.sendMessageJson(
+                                    ScannerWorkspaceSessions.SCANNER_ELEMENT_PANE, gson.toJson(splitDTO));
                         }
                     }
                     alreadySentMgsSocket = true;
@@ -2394,10 +2400,12 @@ public class SimpleWebSocketServer {
                     splitDTO.setType(updteBlocks);
                     jsonData = gson.toJson(splitDTO);
                     webSocketSessionManager.sendMessageJson(homeBankingId, "perform-list-data", jsonData, updteBlocks);
-                    webSocketSessionManager.sendMessageJson(homeBankingId, "scannerGrid", jsonData, "blocksUpdate");
+                    webSocketSessionManager.sendMessageJson(
+                            homeBankingId, ScannerWorkspaceSessions.SCANNER_GRID, jsonData, "blocksUpdate");
                     // The pre-scan dashboard has its own session; without this its block
                     // dropdown never refreshes after Create new block.
-                    webSocketSessionManager.sendMessageJson(homeBankingId, "preScannerGrid", jsonData, "blocksUpdate");
+                    webSocketSessionManager.sendMessageJson(
+                            homeBankingId, ScannerWorkspaceSessions.PRE_SCANNER_GRID, jsonData, "blocksUpdate");
                     alreadySentMgsSocket = false;
                     break;
                 case "BLOCKS_SPLITTER":
