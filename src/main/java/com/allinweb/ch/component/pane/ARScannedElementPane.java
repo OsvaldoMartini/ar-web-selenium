@@ -1397,12 +1397,8 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
     }
 
     private void refreshGrids() {
-        String jsonData = gson.toJson(payloadEmpty);
-        webSocketSessionManager.sendMessageJson(
-                this.currentBotJob.getHomeBankingId(),
-                ScannerWorkspaceSessions.SCANNER_GRID,
-                jsonData,
-                ScannerWorkspaceOperations.SEARCH_TERMS);
+        scannerGridPublisher.publishScannerGrid(
+                this.currentBotJob.getHomeBankingId(), payloadEmpty, ScannerWorkspaceOperations.SEARCH_TERMS);
     }
 
     private boolean initializeWebView() {
@@ -2928,11 +2924,7 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
                 detailsArray[x].setId(x + 1);
             }
 
-            webSocketSessionManager.sendMessageJson(
-                    this.currentBotJob.getHomeBankingId(),
-                    ScannerWorkspaceSessions.SCANNER_GRID,
-                    gson.toJson(processDTO),
-                    "clonedElement");
+            scannerGridPublisher.publishScannerGrid(this.currentBotJob.getHomeBankingId(), processDTO, "clonedElement");
         }
     }
 

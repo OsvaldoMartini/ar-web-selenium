@@ -46,6 +46,20 @@ class ScannerGridPublisherTest {
     }
 
     @Test
+    void publishesScannerGridPayloadWithCallerSuppliedOperation() {
+        RecordingSender sender = new RecordingSender();
+        ScannerGridPublisher publisher = new ScannerGridPublisher(sender);
+
+        publisher.publishScannerGrid(2, java.util.Map.of("ok", true), "clonedElement");
+
+        assertEquals(1, sender.messages.size());
+        assertEquals(2, sender.messages.get(0).homeBankingId);
+        assertEquals(ScannerWorkspaceSessions.SCANNER_GRID, sender.messages.get(0).sessionId);
+        assertEquals("clonedElement", sender.messages.get(0).operationId);
+        assertEquals("{\"ok\":true}", sender.messages.get(0).json);
+    }
+
+    @Test
     void publishesChunksWithoutMutatingOriginalPayload() {
         RecordingSender sender = new RecordingSender();
         ScannerGridPublisher publisher = new ScannerGridPublisher(sender);
