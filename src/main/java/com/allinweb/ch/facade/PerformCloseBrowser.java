@@ -11,7 +11,7 @@ public class PerformCloseBrowser {
     private static JavascriptExecutor jsExecutor;
     private String jsCloseBrowserInject =
             """
-                    // CLOSE BROWSER IN USE CSP (SENDER: scannerTool) -> scannerGrid
+                    // CLOSE BROWSER IN USE CSP
                     (function (
                       socketPort,
                       sessionId,
@@ -276,8 +276,8 @@ public class PerformCloseBrowser {
                         if (wSocket && wSocket.readyState === WebSocket.OPEN) {
                           const message = {
                             type: "CLOSE_BROWSER",
-                            sessionId: `scanner-element-pane`, //-${window.homeBankingId}`,
-                            operationId: "closeBrowser",
+                            sessionId: `${window.destination}`,
+                            operationId: window.operationId,
                             homeBankingId: window.homeBankingId,
                             details: window.allElementInfo, // Send allElementInfo
                           };
@@ -318,7 +318,7 @@ public class PerformCloseBrowser {
                     // })(
                     //   61757,
                     //   "closeBrowser",
-                    //   "scanner-element-pane-2",
+                    //   "scanner-element-pane",
                     //   "closeBrowser",
                     //   2,
                     //   "https://www.tradingview.com/",
