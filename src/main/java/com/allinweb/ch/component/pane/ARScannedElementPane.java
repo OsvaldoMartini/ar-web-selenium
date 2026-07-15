@@ -6952,8 +6952,8 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
 
             // ---- Wrap in SplitDTO and send as before ----
             splitDTO.setType(ScannerWorkspaceOperations.SEARCH_TOOL);
-            splitDTO.setSessionId("mobileScannerGrid");
-            splitDTO.setOperationId("addPickOne");
+            splitDTO.setSessionId(ScannerWorkspaceSessions.MOBILE_SCANNER_GRID);
+            splitDTO.setOperationId(ScannerWorkspaceOperations.ADD_PICK_ONE);
             splitDTO.setElementDetails(results.toArray(new ElementDTO[0]));
 
             sendChunks(

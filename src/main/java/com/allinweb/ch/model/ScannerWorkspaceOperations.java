@@ -8,6 +8,7 @@ public final class ScannerWorkspaceOperations {
     public static final String STATE_EVENT = "scanner.state";
     public static final String SEARCH_TERMS = "searchTerms";
     public static final String SEARCH_TOOL = "SEARCH_TOOL";
+    public static final String ADD_PICK_ONE = "addPickOne";
     public static final String PRE_SCAN_PAGE = "PRE_SCAN_PAGE";
     public static final String PRE_SCAN_REFRESH_PAGE = "PRE_SCAN_REFRESH_PAGE";
     public static final String PRE_SCAN_CLEAR_GRID = "PRE_SCAN_CLEAR_GRID";

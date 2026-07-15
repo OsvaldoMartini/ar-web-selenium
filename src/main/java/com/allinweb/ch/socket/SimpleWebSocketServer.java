@@ -1954,7 +1954,7 @@ public class SimpleWebSocketServer {
             if (sessionIdToSend.matches(".*botJobTasks.*")
                     || sessionIdContains(sessionIdToSend, ScannerWorkspaceSessions.SCANNER_TOOL)
                     || sessionIdContains(sessionIdToSend, ScannerWorkspaceSessions.SCANNER_GRID)
-                    || sessionIdToSend.matches(".*mobileScannerGrid.*")
+                    || sessionIdContains(sessionIdToSend, ScannerWorkspaceSessions.MOBILE_SCANNER_GRID)
                     || sessionIdContains(sessionIdToSend, ScannerWorkspaceSessions.SCANNER_ELEMENT_PANE)) {
                 instrTable = "instruction";
                 blockTable = "block";
@@ -2036,7 +2036,7 @@ public class SimpleWebSocketServer {
                         // Convert your JsonObject to a proper JSON string
                         sendStatusButton(
                                 splitDTO.getHomeBankingId(),
-                                "mobileScannerGrid",
+                                ScannerWorkspaceSessions.MOBILE_SCANNER_GRID,
                                 operationId,
                                 "Activated button ",
                                 splitDTO);
@@ -2055,7 +2055,7 @@ public class SimpleWebSocketServer {
                                     .orElse(Collections.emptyList());
                             String jsonData = gson.toJson(fetched);
                             webSocketSessionManager.sendMessageJson(
-                                    homeBankingId, "mobileScannerGrid", jsonData, "botJobList");
+                                    homeBankingId, ScannerWorkspaceSessions.MOBILE_SCANNER_GRID, jsonData, "botJobList");
                         }
                         performDataBase.setMobileDevices(false);
                     }
@@ -2068,7 +2068,7 @@ public class SimpleWebSocketServer {
                         performDataBase.setMobileDevices(true);
                         String jsonData = gson.toJson(splitDTO.getFieldsToValidate());
                         webSocketSessionManager.sendMessageJson(
-                                homeBankingId, "mobileScannerGrid", jsonData, "validateFields");
+                                homeBankingId, ScannerWorkspaceSessions.MOBILE_SCANNER_GRID, jsonData, "validateFields");
                         performDataBase.setMobileDevices(false);
                     }
                     alreadySentMgsSocket = true;
@@ -2153,7 +2153,8 @@ public class SimpleWebSocketServer {
                     if (sessionIdToSend.equals(ScannerWorkspaceSessions.SCANNER_GRID)) {
                         // 1. UI gets the raw DTOs immediately (resolver enrichment is async-from-UI's POV).
                         String jsonData = gson.toJson(splitDTO);
-                        webSocketSessionManager.sendMessageJson(homeBankingId, sessionIdToSend, jsonData, "addPickOne");
+                        webSocketSessionManager.sendMessageJson(
+                                homeBankingId, sessionIdToSend, jsonData, ScannerWorkspaceOperations.ADD_PICK_ONE);
 
                         String jsonPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
 
@@ -2217,7 +2218,10 @@ public class SimpleWebSocketServer {
                     } else if (sessionIdToSend.equals("mobile-return-server")) {
                         String jsonData = gson.toJson(splitDTO);
                         webSocketSessionManager.sendMessageJson(
-                                homeBankingId, "mobileScannerGrid", jsonData, "addPickOne");
+                                homeBankingId,
+                                ScannerWorkspaceSessions.MOBILE_SCANNER_GRID,
+                                jsonData,
+                                ScannerWorkspaceOperations.ADD_PICK_ONE);
 
                         String jsonPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
 

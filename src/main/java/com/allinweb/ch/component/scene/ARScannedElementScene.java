@@ -348,11 +348,11 @@ public class ARScannedElementScene extends ARScene {
                     if (splitDTO.getProjectType() != null
                             && (splitDTO.getProjectType().equalsIgnoreCase("Android")
                                     || splitDTO.getProjectType().equalsIgnoreCase("iOS"))) {
-                        sessionId = "mobileScannerGrid";
+                        sessionId = ScannerWorkspaceSessions.MOBILE_SCANNER_GRID;
                         splitDTO.setSessionId(sessionId);
                     }
 
-                    if ("mobileScannerGrid".equals(sessionId)) {
+                    if (ScannerWorkspaceSessions.MOBILE_SCANNER_GRID.equals(sessionId)) {
 
                         // Safely extract the first element ID (if present)
                         Integer elementId = Optional.ofNullable(splitDTO.getElementDetails())

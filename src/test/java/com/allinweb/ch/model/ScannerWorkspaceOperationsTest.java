@@ -15,6 +15,7 @@ class ScannerWorkspaceOperationsTest {
         assertEquals("scanner.state", ScannerWorkspaceOperations.STATE_EVENT);
         assertEquals("searchTerms", ScannerWorkspaceOperations.SEARCH_TERMS);
         assertEquals("SEARCH_TOOL", ScannerWorkspaceOperations.SEARCH_TOOL);
+        assertEquals("addPickOne", ScannerWorkspaceOperations.ADD_PICK_ONE);
         assertEquals("PRE_SCAN_PAGE", ScannerWorkspaceOperations.PRE_SCAN_PAGE);
         assertEquals("PRE_SCAN_REFRESH_PAGE", ScannerWorkspaceOperations.PRE_SCAN_REFRESH_PAGE);
         assertEquals("PRE_SCAN_CLEAR_GRID", ScannerWorkspaceOperations.PRE_SCAN_CLEAR_GRID);

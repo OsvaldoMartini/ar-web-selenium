@@ -9,6 +9,7 @@ class ScannerWorkspaceSessionsTest {
     void keepsScannerWorkspaceSessionIdsStable() {
         assertEquals("scannerGrid", ScannerWorkspaceSessions.SCANNER_GRID);
         assertEquals("preScannerGrid", ScannerWorkspaceSessions.PRE_SCANNER_GRID);
+        assertEquals("mobileScannerGrid", ScannerWorkspaceSessions.MOBILE_SCANNER_GRID);
         assertEquals("scannerTool", ScannerWorkspaceSessions.SCANNER_TOOL);
         assertEquals("scanner-element-pane", ScannerWorkspaceSessions.SCANNER_ELEMENT_PANE);
     }

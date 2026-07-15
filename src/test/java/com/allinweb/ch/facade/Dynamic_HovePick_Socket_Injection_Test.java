@@ -1,6 +1,7 @@
 package com.allinweb.ch.facade;
 
 import com.allinweb.ch.driver.ARWebDriver;
+import com.allinweb.ch.model.ScannerWorkspaceOperations;
 import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import com.allinweb.ch.util.ARConstantsEngine;
 import com.allinweb.ch.util.ARPropertyEnum;
@@ -112,7 +113,7 @@ public class Dynamic_HovePick_Socket_Injection_Test {
                     port, // socketPort
                     sessionId, // sessionId
                     ScannerWorkspaceSessions.SCANNER_GRID, // destination
-                    "addPickOne", // operationId
+                    ScannerWorkspaceOperations.ADD_PICK_ONE, // operationId
                     2L, // homeBankingId
                     66L, // botJobId
                     TEST_PAGE, // targetOriginURL
