@@ -17,6 +17,9 @@ class BotJobWorkspaceCapabilityServiceTest {
         assertTrue(service.supportsDesktopBrowserTools("Web App"));
         assertTrue(service.supportsDesktopBrowserTools("Rest Api"));
         assertFalse(service.supportsDesktopBrowserTools("Android"));
+        assertTrue(service.supportsNativeMobileTools("Android"));
+        assertTrue(service.supportsNativeMobileTools("iOS"));
+        assertFalse(service.supportsNativeMobileTools("Web App"));
         assertThrows(IllegalStateException.class, () -> service.requirePreScan("iOS"));
     }
 

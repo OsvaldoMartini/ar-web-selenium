@@ -20,6 +20,12 @@ public final class BotJobWorkspaceCapabilityService {
                 || "Rest Api".equalsIgnoreCase(normalized);
     }
 
+    public boolean supportsNativeMobileTools(String projectType) {
+        String normalized = projectType == null ? "" : projectType.trim();
+        return ARPropertyEnum.ANDROID.getValue().equalsIgnoreCase(normalized)
+                || ARPropertyEnum.IOS.getValue().equalsIgnoreCase(normalized);
+    }
+
     public void requirePreScan(String projectType) {
         if (!supportsDesktopBrowserTools(projectType)) {
             throw new IllegalStateException("Pre Scan is unavailable for this Bot Job type");

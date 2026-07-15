@@ -71,6 +71,9 @@ public class ARScannedElementScene extends ARScene {
     private PayloadJson payloadEmpty;
     private List<InstructionLoad> instructionList = new ArrayList<>();
     private final ScannerGridStatusPublisher scannerGridStatusPublisher = new ScannerGridStatusPublisher();
+    private final BotJobWorkspaceCapabilityService botJobWorkspaceCapabilityService =
+            BotJobWorkspaceCapabilityService.getInstance();
+    private final ScannerMobileTestRoute scannerMobileTestRoute = ScannerMobileTestRoute.standard();
     // Private constructor to prevent instantiation
     private ARScannedElementScene() {
 
@@ -351,14 +354,12 @@ public class ARScannedElementScene extends ARScene {
                                     splitDTO.setProjectType(j.getPriority());
                                 });
                     }
-                    if (splitDTO.getProjectType() != null
-                            && (splitDTO.getProjectType().equalsIgnoreCase("Android")
-                                    || splitDTO.getProjectType().equalsIgnoreCase("iOS"))) {
-                        sessionId = ScannerWorkspaceSessions.MOBILE_SCANNER_GRID;
+                    if (botJobWorkspaceCapabilityService.supportsNativeMobileTools(splitDTO.getProjectType())) {
+                        sessionId = scannerMobileTestRoute.scannerSessionId();
                         splitDTO.setSessionId(sessionId);
                     }
 
-                    if (ScannerWorkspaceSessions.MOBILE_SCANNER_GRID.equals(sessionId)) {
+                    if (scannerMobileTestRoute.isScannerSession(sessionId)) {
 
                         // Safely extract the first element ID (if present)
                         Integer elementId = Optional.ofNullable(splitDTO.getElementDetails())
@@ -391,7 +392,7 @@ public class ARScannedElementScene extends ARScene {
                                 && !ScannerWorkspaceOperations.SEND_ALL_ELEMENTS_DTO.equals(type)) {
                             webSocketSessionManager.sendMessageJson(
                                     splitDTO.getHomeBankingId(),
-                                    ScannerWorkspaceSessions.MOBILE_RETURN_SERVER,
+                                    scannerMobileTestRoute.returnSessionId(),
                                     jsonData,
                                     type);
                         }
