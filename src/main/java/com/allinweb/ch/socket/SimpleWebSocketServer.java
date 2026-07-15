@@ -64,6 +64,7 @@ public class SimpleWebSocketServer {
     private final BotJobWorkspaceCapabilityService botJobWorkspaceCapabilityService =
             BotJobWorkspaceCapabilityService.getInstance();
     private final ScannerMobileTestRoute scannerMobileTestRoute = ScannerMobileTestRoute.standard();
+    private final ScannerMobilePickRoute scannerMobilePickRoute = ScannerMobilePickRoute.standard();
     private PayloadJson payloadEmpty;
     private RowStatus rowStatus = new RowStatus();
     // Private constructor to prevent instantiation
@@ -3546,15 +3547,15 @@ public class SimpleWebSocketServer {
         webSocketSessionManager.sendMessageJson(homeBankId, sessionId, gson.toJson(response), operationId);
     }
 
-    private static boolean isMobileReturnSession(String sessionId) {
-        return ScannerWorkspaceSessions.MOBILE_RETURN_SERVER.equals(sessionId);
+    private boolean isMobileReturnSession(String sessionId) {
+        return scannerMobileTestRoute.returnSessionId().equals(sessionId);
     }
 
     private void forwardToMobileReturn(int homeBankingId, String operationId, SplitDTO splitDTO) {
         splitDTO.setOperationId(operationId);
         webSocketSessionManager.sendMessageJson(
                 homeBankingId,
-                ScannerWorkspaceSessions.MOBILE_RETURN_SERVER,
+                scannerMobileTestRoute.returnSessionId(),
                 gson.toJson(splitDTO),
                 operationId);
     }
@@ -3562,7 +3563,7 @@ public class SimpleWebSocketServer {
     private void sendMobileScannerGridPayload(int homeBankingId, String operationId, Object payload) {
         webSocketSessionManager.sendMessageJson(
                 homeBankingId,
-                ScannerWorkspaceSessions.MOBILE_SCANNER_GRID,
+                scannerMobilePickRoute.payloadSessionId(),
                 gson.toJson(payload),
                 operationId);
     }
