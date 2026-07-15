@@ -70,6 +70,7 @@ public class ARScannedElementScene extends ARScene {
     private String previousBlock = null;
     private PayloadJson payloadEmpty;
     private List<InstructionLoad> instructionList = new ArrayList<>();
+    private final ScannerGridStatusPublisher scannerGridStatusPublisher = new ScannerGridStatusPublisher();
     // Private constructor to prevent instantiation
     private ARScannedElementScene() {
 
@@ -844,10 +845,8 @@ public class ARScannedElementScene extends ARScene {
                                     + performDataBase.getIdsInstrucAfter().size(),
                             0);
 
-                    sendStatusButton(
-                            ScannerWorkspaceSessions.SCANNER_GRID,
-                            ScannerWorkspaceOperations.ACTIVATE_INSERT_ALL,
-                            "Insert All Elements button activated");
+                    sendScannerGridStatusButton(
+                            ScannerWorkspaceOperations.ACTIVATE_INSERT_ALL, "Insert All Elements button activated");
 
                     //                    updateBotJobTasks();
 
@@ -865,20 +864,16 @@ public class ARScannedElementScene extends ARScene {
                 }
 
                 updateBotJobTasks(this.currentBotJob.getId());
-                sendStatusButton(
-                        ScannerWorkspaceSessions.SCANNER_GRID,
-                        ScannerWorkspaceOperations.ACTIVATE_INSERT_ALL,
-                        "Insert All Elements button activated");
+                sendScannerGridStatusButton(
+                        ScannerWorkspaceOperations.ACTIVATE_INSERT_ALL, "Insert All Elements button activated");
 
                 if (errorMessage != null) {
                     performMessage.errorMessageOperationFailed(errorMessage);
                 }
             }
         } else {
-            sendStatusButton(
-                    ScannerWorkspaceSessions.SCANNER_GRID,
-                    ScannerWorkspaceOperations.ACTIVATE_INSERT_ALL,
-                    "Insert All Elements button activated");
+            sendScannerGridStatusButton(
+                    ScannerWorkspaceOperations.ACTIVATE_INSERT_ALL, "Insert All Elements button activated");
         }
     }
 
@@ -929,32 +924,20 @@ public class ARScannedElementScene extends ARScene {
                 }
 
                 updateBotJobTasks(this.currentBotJob.getId());
-                sendStatusButton(
-                        ScannerWorkspaceSessions.SCANNER_GRID,
-                        ScannerWorkspaceOperations.ACTIVATE_UPDATE_ALL,
-                        "Update All Elements button activated");
+                sendScannerGridStatusButton(
+                        ScannerWorkspaceOperations.ACTIVATE_UPDATE_ALL, "Update All Elements button activated");
                 if (errorMessage != null) {
                     performMessage.errorMessageOperationFailed(errorMessage);
                 }
             }
         } else {
-            sendStatusButton(
-                    ScannerWorkspaceSessions.SCANNER_GRID,
-                    ScannerWorkspaceOperations.ACTIVATE_UPDATE_ALL,
-                    "Update All Elements button activated");
+            sendScannerGridStatusButton(
+                    ScannerWorkspaceOperations.ACTIVATE_UPDATE_ALL, "Update All Elements button activated");
         }
     }
 
-    private void sendStatusButton(String sessionId, String operationId, String message) {
-        WebSocketSignal webSockteSocketSignal = WebSocketSignal.builder()
-                .sessionId(sessionId)
-                .operationId(operationId)
-                .message(message)
-                .build();
-
-        String jsonData = gson.toJson(webSockteSocketSignal);
-
-        webSocketSessionManager.sendMessageJson(currentBotJob.getHomeBankingId(), sessionId, jsonData, operationId);
+    private void sendScannerGridStatusButton(String operationId, String message) {
+        scannerGridStatusPublisher.publishScannerGridStatus(currentBotJob.getHomeBankingId(), operationId, message);
     }
 
     public void destroyPanel() {
