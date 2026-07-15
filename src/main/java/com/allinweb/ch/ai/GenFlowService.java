@@ -269,7 +269,7 @@ public final class GenFlowService {
 
             List<InstructionLoad> rows = buildInstructions(planBlock, newBlockId, botJob);
             ErrorMessage insErr = performDataBase.insertInstructionsBatch(
-                    "botJobTasks", rows, botJobId, newBlockId, botJob.getHomeBankingId());
+                    ScannerWorkspaceSessions.BOT_JOB_TASKS, rows, botJobId, newBlockId, botJob.getHomeBankingId());
             if (insErr != null) {
                 throw new GenFlowException(
                         "GEN FLOW - Instruction Insert Failed",
@@ -380,7 +380,7 @@ public final class GenFlowService {
             if (!performLists.getListBotJob().isEmpty()) {
                 List<InstructionLoad> viewData = performLists.buildJsonViewData(performLists.getListBotJob());
                 com.allinweb.ch.socket.InstructionRealtimePublisher.getInstance()
-                        .publishSnapshot(botJob.getHomeBankingId(), "botJobTasks", viewData);
+                        .publishSnapshot(botJob.getHomeBankingId(), ScannerWorkspaceSessions.BOT_JOB_TASKS, viewData);
             }
         } catch (Exception e) {
             log.warn("GEN FLOW — post-insert broadcast failed (non-fatal): {}", e.getMessage());
