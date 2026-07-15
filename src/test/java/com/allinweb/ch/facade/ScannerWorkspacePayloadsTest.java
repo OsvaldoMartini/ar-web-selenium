@@ -61,6 +61,9 @@ class ScannerWorkspacePayloadsTest {
         assertEquals(1, payload.getElementDetails().length);
         assertEquals("Login input", payload.getElementDetails()[0].getDefinedName());
         assertEquals(1, payload.getBlocks().size());
+        assertEquals(100, payload.getBlocks().get(0).get(ScannerWorkspaceBlockOptions.BLOCK_ID));
+        assertEquals(1, payload.getBlocks().get(0).get(ScannerWorkspaceBlockOptions.BLOCK_ORDER_NUMBER));
+        assertEquals("Login", payload.getBlocks().get(0).get(ScannerWorkspaceBlockOptions.BLOCK_NAME));
     }
 
     private ScannerWorkspaceRequest request(String searchTerms) {

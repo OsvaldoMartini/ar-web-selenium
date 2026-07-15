@@ -8,7 +8,6 @@ import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import com.allinweb.ch.model.SplitDTO;
 import com.allinweb.ch.util.ErrorMessage;
 import java.util.Comparator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -41,7 +40,7 @@ public final class BotJobPreScanPayloadService {
                         block -> block.getBlockOrderNumber() == null
                                 ? Integer.MAX_VALUE
                                 : block.getBlockOrderNumber()))
-                .map(BotJobPreScanPayloadService::option)
+                .map(ScannerWorkspaceBlockOptions::from)
                 .toList();
 
         SplitDTO payload = new SplitDTO();
@@ -54,14 +53,6 @@ public final class BotJobPreScanPayloadService {
         payload.setElementDetails((elements == null ? List.<ElementDTO>of() : elements).toArray(new ElementDTO[0]));
         payload.setBlocks(options);
         return new Result(payload, warning);
-    }
-
-    private static Map<String, Object> option(BlockLoadDTO block) {
-        Map<String, Object> option = new LinkedHashMap<>();
-        option.put("blockId", block.getId());
-        option.put("blockOrderNumber", block.getBlockOrderNumber());
-        option.put("blockName", block.getName());
-        return option;
     }
 
     public record Result(SplitDTO payload, ErrorMessage warning) {}

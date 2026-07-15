@@ -9,9 +9,7 @@ import com.allinweb.ch.model.SplitDTO;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import java.util.Arrays;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 final class ScannerWorkspacePayloads {
     private static final String[] DEFAULT_PAGE_SCAN_TERMS = {
@@ -100,13 +98,7 @@ final class ScannerWorkspacePayloads {
         payload.setSessionId(ScannerWorkspaceSessions.SCANNER_GRID);
         payload.setOperationId(ScannerWorkspaceOperations.SEARCH_TERMS);
         payload.setElementDetails(elements.toArray(new ElementDTO[0]));
-        payload.setBlocks(state.blocks().stream().map(block -> {
-            Map<String, Object> option = new LinkedHashMap<>();
-            option.put("blockId", block.id());
-            option.put("blockOrderNumber", block.order());
-            option.put("blockName", block.name());
-            return option;
-        }).toList());
+        payload.setBlocks(state.blocks().stream().map(ScannerWorkspaceBlockOptions::from).toList());
         return payload;
     }
 }
