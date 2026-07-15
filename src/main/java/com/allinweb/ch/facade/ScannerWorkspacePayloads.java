@@ -2,6 +2,7 @@ package com.allinweb.ch.facade;
 
 import com.allinweb.ch.model.ElementDTO;
 import com.allinweb.ch.model.ScannerWorkspaceRequest;
+import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import com.allinweb.ch.model.ScannerWorkspaceState;
 import com.allinweb.ch.model.SplitDTO;
 import com.google.gson.JsonArray;
@@ -95,7 +96,7 @@ final class ScannerWorkspacePayloads {
         payload.setBotJobId(state.botJobId());
         payload.setBotJobName(state.botJobName());
         payload.setType("SEARCH_TOOL");
-        payload.setSessionId("scannerGrid");
+        payload.setSessionId(ScannerWorkspaceSessions.SCANNER_GRID);
         payload.setOperationId("searchTerms");
         payload.setElementDetails(elements.toArray(new ElementDTO[0]));
         payload.setBlocks(state.blocks().stream().map(block -> {

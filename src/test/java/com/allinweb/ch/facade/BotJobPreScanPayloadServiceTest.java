@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import com.allinweb.ch.model.BlockLoadDTO;
 import com.allinweb.ch.model.BotJobLoadDTO;
 import com.allinweb.ch.model.ElementDTO;
+import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import com.allinweb.ch.util.ErrorMessage;
 import java.util.ArrayList;
 import java.util.List;
@@ -27,7 +28,7 @@ class BotJobPreScanPayloadServiceTest {
         BotJobPreScanPayloadService.Result result = service.build(job(), List.of(element));
 
         assertEquals(42, result.payload().getBotJobId());
-        assertEquals("preScannerGrid", result.payload().getSessionId());
+        assertEquals(ScannerWorkspaceSessions.PRE_SCANNER_GRID, result.payload().getSessionId());
         assertEquals(1, result.payload().getElementDetails().length);
         assertEquals(List.of(1, 4, 3), result.payload().getBlocks().stream()
                 .map(option -> (Integer) option.get("blockId"))

@@ -1,6 +1,7 @@
 package com.allinweb.ch.facade;
 
 import com.allinweb.ch.model.ElementDTO;
+import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import com.allinweb.ch.model.ScannerWorkspaceState;
 import java.util.ArrayList;
 import java.util.List;
@@ -87,7 +88,7 @@ final class ScannerBrowserOperations implements ScannerWorkspaceService.BrowserO
                 false,
                 54525,
                 "scannerTool",
-                "scannerGrid",
+                ScannerWorkspaceSessions.SCANNER_GRID,
                 "searchTerms",
                 homeBankingId,
                 botJobId,
