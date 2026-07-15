@@ -2270,18 +2270,21 @@ public class SimpleWebSocketServer {
                     }
                     alreadySentMgsSocket = true;
                     break;
-                case "ACTION_EXECUTOR":
+                case ScannerWorkspaceOperations.ACTION_EXECUTOR:
                     // Route actionExecutor results to the ActionExecutorClient
                     actionExecutorClient.onResult(jsonEntry);
                     alreadySentMgsSocket = true;
                     break;
-                case "UPDATE_LIST_ELEMENTS":
+                case ScannerWorkspaceOperations.UPDATE_LIST_ELEMENTS:
                     // calls perform list block update
-                    if (sessionIdToSend.equals("perform-list-data")) {
-                        splitDTO.setType("UPDATE_LIST_ELEMENTS");
+                    if (sessionIdToSend.equals(ScannerWorkspaceSessions.PERFORM_LIST_DATA)) {
+                        splitDTO.setType(ScannerWorkspaceOperations.UPDATE_LIST_ELEMENTS);
                         String jsonData = gson.toJson(splitDTO);
                         webSocketSessionManager.sendMessageJson(
-                                homeBankingId, "perform-list-data", jsonData, "UPDATE_LIST_ELEMENTS");
+                                homeBankingId,
+                                ScannerWorkspaceSessions.PERFORM_LIST_DATA,
+                                jsonData,
+                                ScannerWorkspaceOperations.UPDATE_LIST_ELEMENTS);
                     }
                     alreadySentMgsSocket = true;
                     break;
@@ -2407,7 +2410,7 @@ public class SimpleWebSocketServer {
                     splitDTO.setType("UPDATE_BLOCKS");
                     jsonData = gson.toJson(splitDTO);
                     webSocketSessionManager.sendMessageJson(
-                            homeBankingId, "perform-list-data", jsonData, "UPDATE_BLOCKS");
+                            homeBankingId, ScannerWorkspaceSessions.PERFORM_LIST_DATA, jsonData, "UPDATE_BLOCKS");
                     alreadySentMgsSocket = true;
                     break;
                 case "BLOCK_CREATE":
@@ -2422,7 +2425,8 @@ public class SimpleWebSocketServer {
                     }
                     splitDTO.setType(updteBlocks);
                     jsonData = gson.toJson(splitDTO);
-                    webSocketSessionManager.sendMessageJson(homeBankingId, "perform-list-data", jsonData, updteBlocks);
+                    webSocketSessionManager.sendMessageJson(
+                            homeBankingId, ScannerWorkspaceSessions.PERFORM_LIST_DATA, jsonData, updteBlocks);
                     webSocketSessionManager.sendMessageJson(
                             homeBankingId, ScannerWorkspaceSessions.SCANNER_GRID, jsonData, "blocksUpdate");
                     // The pre-scan dashboard has its own session; without this its block
@@ -2455,7 +2459,8 @@ public class SimpleWebSocketServer {
                     // calls perform list block update
                     splitDTO.setType(updteBlocks);
                     jsonData = gson.toJson(splitDTO);
-                    webSocketSessionManager.sendMessageJson(homeBankingId, "perform-list-data", jsonData, updteBlocks);
+                    webSocketSessionManager.sendMessageJson(
+                            homeBankingId, ScannerWorkspaceSessions.PERFORM_LIST_DATA, jsonData, updteBlocks);
                     alreadySentMgsSocket = false;
                     break;
                 case "BLOCK_MOVE":
@@ -2475,7 +2480,7 @@ public class SimpleWebSocketServer {
                             splitDTO.setType(updteBlocks);
                             jsonData = gson.toJson(splitDTO);
                             webSocketSessionManager.sendMessageJson(
-                                    homeBankingId, "perform-list-data", jsonData, updteBlocks);
+                                    homeBankingId, ScannerWorkspaceSessions.PERFORM_LIST_DATA, jsonData, updteBlocks);
                         }
 
                     } catch (Exception error) {
@@ -2560,7 +2565,8 @@ public class SimpleWebSocketServer {
                     // calls perform list block update
                     splitDTO.setType(updteBlocks);
                     jsonData = gson.toJson(splitDTO);
-                    webSocketSessionManager.sendMessageJson(homeBankingId, "perform-list-data", jsonData, updteBlocks);
+                    webSocketSessionManager.sendMessageJson(
+                            homeBankingId, ScannerWorkspaceSessions.PERFORM_LIST_DATA, jsonData, updteBlocks);
 
                     alreadySentMgsSocket = false;
                     break;
@@ -2597,7 +2603,7 @@ public class SimpleWebSocketServer {
                         splitDTO.setType(updteBlocks);
                         jsonData = gson.toJson(splitDTO);
                         webSocketSessionManager.sendMessageJson(
-                                homeBankingId, "perform-list-data", jsonData, updteBlocks);
+                                homeBankingId, ScannerWorkspaceSessions.PERFORM_LIST_DATA, jsonData, updteBlocks);
 
                         alreadySentMgsSocket = false;
                     }
@@ -2672,7 +2678,8 @@ public class SimpleWebSocketServer {
                     performLists.updateMemoryBlockName(blockTable, whereId, blockId, blockName);
 
                     jsonData = gson.toJson(splitDTO);
-                    webSocketSessionManager.sendMessageJson(homeBankingId, "perform-list-data", jsonData, updteBlocks);
+                    webSocketSessionManager.sendMessageJson(
+                            homeBankingId, ScannerWorkspaceSessions.PERFORM_LIST_DATA, jsonData, updteBlocks);
                     alreadySentMgsSocket = false;
                     break;
                 case "DELETE_INSTRUCTION": {
@@ -2870,7 +2877,7 @@ public class SimpleWebSocketServer {
                             splitDTO.setType(updteBlocks);
                             jsonData = gson.toJson(splitDTO);
                             webSocketSessionManager.sendMessageJson(
-                                    homeBankingId, "perform-list-data", jsonData, updteBlocks);
+                                    homeBankingId, ScannerWorkspaceSessions.PERFORM_LIST_DATA, jsonData, updteBlocks);
                         }
                     }
 
@@ -2906,7 +2913,8 @@ public class SimpleWebSocketServer {
                     // calls perform list block update
                     splitDTO.setType(updteBlocks);
                     jsonData = gson.toJson(splitDTO);
-                    webSocketSessionManager.sendMessageJson(homeBankingId, "perform-list-data", jsonData, updteBlocks);
+                    webSocketSessionManager.sendMessageJson(
+                            homeBankingId, ScannerWorkspaceSessions.PERFORM_LIST_DATA, jsonData, updteBlocks);
 
                     alreadySentMgsSocket = false;
                     break;
@@ -2921,7 +2929,8 @@ public class SimpleWebSocketServer {
                     // calls perform list block update
                     splitDTO.setType(updteBlocks);
                     jsonData = gson.toJson(splitDTO);
-                    webSocketSessionManager.sendMessageJson(homeBankingId, "perform-list-data", jsonData, updteBlocks);
+                    webSocketSessionManager.sendMessageJson(
+                            homeBankingId, ScannerWorkspaceSessions.PERFORM_LIST_DATA, jsonData, updteBlocks);
                     alreadySentMgsSocket = false;
                     break;
                 default:

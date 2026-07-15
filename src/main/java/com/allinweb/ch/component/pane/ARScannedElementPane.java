@@ -8482,8 +8482,8 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
         if (performActions == null || performActions.getCurrentDriver() == null) return;
 
         int finalPort = portSocketInitial;
-        String socketSessionId = "UPDATE_LIST_ELEMENTS";
-        String destinationId = "perform-list-data";
+        String socketSessionId = ScannerWorkspaceOperations.UPDATE_LIST_ELEMENTS;
+        String destinationId = ScannerWorkspaceSessions.PERFORM_LIST_DATA;
         String[] dataArray = new String[] {"input", "textarea", "button", "a", "select", "label"};
 
         updateListElements(

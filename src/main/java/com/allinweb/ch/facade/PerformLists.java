@@ -135,7 +135,7 @@ public class PerformLists {
                 () -> {
                     try {
                         if (session != null && session.isOpen()) {
-                            session.getBasicRemote().sendText("ping-perform-list-data");
+                            session.getBasicRemote().sendText("ping-" + ScannerWorkspaceSessions.PERFORM_LIST_DATA);
                         }
                     } catch (IOException e) {
                         log.error("Error sending ping: {}", e.getMessage(), e);
@@ -306,9 +306,9 @@ public class PerformLists {
 
             // Process the message based on its type
             switch (type) {
-                case "UPDATE_LIST_ELEMENTS":
+                case ScannerWorkspaceOperations.UPDATE_LIST_ELEMENTS:
                     SplitDTO splitDTO = gson.fromJson(body, SplitDTO.class);
-                    splitDTO.setType("UPDATE_LIST_ELEMENTS");
+                    splitDTO.setType(ScannerWorkspaceOperations.UPDATE_LIST_ELEMENTS);
 
                     addMapElementsTarget(List.of(splitDTO.getElementDetails()));
 

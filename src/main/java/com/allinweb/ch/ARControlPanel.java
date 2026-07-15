@@ -8,6 +8,7 @@ import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.facade.PluginFileWatcher;
 import com.allinweb.ch.license.LicenceVal;
 import com.allinweb.ch.license.LicenseManager;
+import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import com.allinweb.ch.socket.ARWebSocketServer;
 import com.allinweb.ch.socket.ARWebSocketServerIP;
 import com.allinweb.ch.socket.WebSocketSessionManager;
@@ -148,7 +149,7 @@ public class ARControlPanel extends Application {
         if (!fullServersStarted.compareAndSet(false, true)) return;
         arWebSocketServerIP = ARWebSocketServerIP.getInstance();
         arWebSocketServer = ARWebSocketServer.getInstance();
-        performDataBase.callSocketLists("perform-list-data", "non-negotiable");
+        performDataBase.callSocketLists(ScannerWorkspaceSessions.PERFORM_LIST_DATA, "non-negotiable");
 
         // Start watching plugins directory for .min.js changes (hot reload)
         PluginFileWatcher.getInstance().start();

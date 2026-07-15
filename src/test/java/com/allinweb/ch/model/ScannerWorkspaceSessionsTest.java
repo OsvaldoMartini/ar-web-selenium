@@ -11,6 +11,7 @@ class ScannerWorkspaceSessionsTest {
         assertEquals("preScannerGrid", ScannerWorkspaceSessions.PRE_SCANNER_GRID);
         assertEquals("mobileScannerGrid", ScannerWorkspaceSessions.MOBILE_SCANNER_GRID);
         assertEquals("mobile-return-server", ScannerWorkspaceSessions.MOBILE_RETURN_SERVER);
+        assertEquals("perform-list-data", ScannerWorkspaceSessions.PERFORM_LIST_DATA);
         assertEquals("scannerTool", ScannerWorkspaceSessions.SCANNER_TOOL);
         assertEquals("scanner-element-pane", ScannerWorkspaceSessions.SCANNER_ELEMENT_PANE);
     }

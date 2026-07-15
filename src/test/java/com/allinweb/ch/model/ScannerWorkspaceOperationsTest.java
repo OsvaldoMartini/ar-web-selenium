@@ -44,6 +44,8 @@ class ScannerWorkspaceOperationsTest {
         assertEquals("DETAILS_ELEMENT_DTO", ScannerWorkspaceOperations.DETAILS_ELEMENT_DTO);
         assertEquals("TEST_CLICK_DTO", ScannerWorkspaceOperations.TEST_CLICK_DTO);
         assertEquals("TEST_INPUT_DTO", ScannerWorkspaceOperations.TEST_INPUT_DTO);
+        assertEquals("ACTION_EXECUTOR", ScannerWorkspaceOperations.ACTION_EXECUTOR);
+        assertEquals("UPDATE_LIST_ELEMENTS", ScannerWorkspaceOperations.UPDATE_LIST_ELEMENTS);
         assertEquals("PRE_SCAN_PAGE", ScannerWorkspaceOperations.PRE_SCAN_PAGE);
         assertEquals("PRE_SCAN_REFRESH_PAGE", ScannerWorkspaceOperations.PRE_SCAN_REFRESH_PAGE);
         assertEquals("PRE_SCAN_CLEAR_GRID", ScannerWorkspaceOperations.PRE_SCAN_CLEAR_GRID);
