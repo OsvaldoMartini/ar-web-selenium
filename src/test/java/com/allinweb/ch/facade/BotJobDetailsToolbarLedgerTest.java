@@ -21,7 +21,7 @@ class BotJobDetailsToolbarLedgerTest {
         AtomicInteger executions = new AtomicInteger();
 
         CompletableFuture<BotJobToolbarActionResult> first = ledger.executeOnce(
-                "botJobTasks",
+                ScannerWorkspaceSessions.BOT_JOB_TASKS,
                 "request-1",
                 42,
                 BotJobToolbarAction.SET_NAVIGATION_TIME,
@@ -32,7 +32,7 @@ class BotJobDetailsToolbarLedgerTest {
                             BotJobToolbarAction.SET_NAVIGATION_TIME, "Navigation time updated"));
                 });
         CompletableFuture<BotJobToolbarActionResult> replay = ledger.executeOnce(
-                "botJobTasks",
+                ScannerWorkspaceSessions.BOT_JOB_TASKS,
                 "request-1",
                 42,
                 BotJobToolbarAction.SET_NAVIGATION_TIME,
@@ -55,7 +55,7 @@ class BotJobDetailsToolbarLedgerTest {
         AtomicInteger executions = new AtomicInteger();
 
         ledger.executeOnce(
-                        "botJobTasks",
+                        ScannerWorkspaceSessions.BOT_JOB_TASKS,
                         "request-2",
                         42,
                         BotJobToolbarAction.TEST_RUN,
@@ -68,7 +68,7 @@ class BotJobDetailsToolbarLedgerTest {
                 .join();
 
         BotJobToolbarActionResult changedPayload = ledger.executeOnce(
-                        "botJobTasks",
+                        ScannerWorkspaceSessions.BOT_JOB_TASKS,
                         "request-2",
                         42,
                         BotJobToolbarAction.TEST_RUN,
@@ -80,7 +80,7 @@ class BotJobDetailsToolbarLedgerTest {
                         })
                 .join();
         BotJobToolbarActionResult changedAction = ledger.executeOnce(
-                        "botJobTasks",
+                        ScannerWorkspaceSessions.BOT_JOB_TASKS,
                         "request-2",
                         42,
                         BotJobToolbarAction.STOP_TEST_RUN,
@@ -92,7 +92,7 @@ class BotJobDetailsToolbarLedgerTest {
                         })
                 .join();
         BotJobToolbarActionResult changedJob = ledger.executeOnce(
-                        "botJobTasks",
+                        ScannerWorkspaceSessions.BOT_JOB_TASKS,
                         "request-2",
                         99,
                         BotJobToolbarAction.TEST_RUN,
@@ -119,7 +119,8 @@ class BotJobDetailsToolbarLedgerTest {
         BotJobDetailsToolbarLedger ledger = new BotJobDetailsToolbarLedger(4);
         AtomicInteger executions = new AtomicInteger();
 
-        for (String session : new String[] {"botJobTasks", ScannerWorkspaceSessions.PRE_SCANNER_GRID}) {
+        for (String session : new String[] {
+                ScannerWorkspaceSessions.BOT_JOB_TASKS, ScannerWorkspaceSessions.PRE_SCANNER_GRID}) {
             BotJobToolbarActionResult result = ledger.executeOnce(
                             session,
                             "shared-request",
@@ -146,7 +147,7 @@ class BotJobDetailsToolbarLedgerTest {
         assertThrows(
                 IllegalStateException.class,
                 () -> ledger.executeOnce(
-                        "botJobTasks",
+                        ScannerWorkspaceSessions.BOT_JOB_TASKS,
                         "request-null",
                         42,
                         BotJobToolbarAction.OPEN_EXCEL,

@@ -34,8 +34,8 @@ class BotJobWorkspaceCloseCoordinatorTest {
         coordinator.close(42);
 
         assertEquals(List.of(
-                "suspend:42", "registry:42", "session:botJobTasks:42",
-                "session:componentTasks:42",
+                "suspend:42", "registry:42", "session:" + ScannerWorkspaceSessions.BOT_JOB_TASKS + ":42",
+                "session:" + ScannerWorkspaceSessions.COMPONENT_TASKS + ":42",
                 "session:" + ScannerWorkspaceSessions.PRE_SCANNER_GRID + ":42", "browser"), calls);
     }
 
@@ -71,7 +71,10 @@ class BotJobWorkspaceCloseCoordinatorTest {
 
         assertEquals("surface failed", failure.getMessage());
         assertEquals(List.of(
-                "registry", "botJobTasks", "componentTasks", ScannerWorkspaceSessions.PRE_SCANNER_GRID), calls);
+                "registry",
+                ScannerWorkspaceSessions.BOT_JOB_TASKS,
+                ScannerWorkspaceSessions.COMPONENT_TASKS,
+                ScannerWorkspaceSessions.PRE_SCANNER_GRID), calls);
         assertEquals(List.of("browser failed"), errors);
     }
 
