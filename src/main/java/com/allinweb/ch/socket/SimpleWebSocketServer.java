@@ -2013,11 +2013,8 @@ public class SimpleWebSocketServer {
 
             switch (type) {
                 case ScannerWorkspaceOperations.LAUNCH_BOT_JOB_TEST:
-                    if (sessionIdToSend.equals(ScannerWorkspaceSessions.MOBILE_RETURN_SERVER)) {
-                        splitDTO.setOperationId(type);
-                        String jsonData = gson.toJson(splitDTO);
-                        webSocketSessionManager.sendMessageJson(
-                                homeBankingId, ScannerWorkspaceSessions.MOBILE_RETURN_SERVER, jsonData, type);
+                    if (isMobileReturnSession(sessionIdToSend)) {
+                        forwardToMobileReturn(homeBankingId, type, splitDTO);
                     }
                     alreadySentMgsSocket = true;
                     break;
@@ -2032,16 +2029,13 @@ public class SimpleWebSocketServer {
                 case ScannerWorkspaceOperations.MOBILE_CLOSE_ALL:
                 case ScannerWorkspaceOperations.MOBILE_NEXT_DONE:
                 case ScannerWorkspaceOperations.MOBILE_CLOSE_KEYBOARD:
-                    if (sessionIdToSend.equals(ScannerWorkspaceSessions.MOBILE_RETURN_SERVER)) {
-                        splitDTO.setOperationId(type);
-                        String jsonData = gson.toJson(splitDTO);
-                        webSocketSessionManager.sendMessageJson(
-                                homeBankingId, ScannerWorkspaceSessions.MOBILE_RETURN_SERVER, jsonData, type);
+                    if (isMobileReturnSession(sessionIdToSend)) {
+                        forwardToMobileReturn(homeBankingId, type, splitDTO);
                     }
                     alreadySentMgsSocket = true;
                     break;
                 case ScannerWorkspaceOperations.REACTIVATE_BUTTONS:
-                    if (sessionId.equals(ScannerWorkspaceSessions.MOBILE_RETURN_SERVER)) {
+                    if (isMobileReturnSession(sessionId)) {
                         splitDTO.setElementDetails(null);
 
                         // Convert your JsonObject to a proper JSON string
@@ -2056,37 +2050,37 @@ public class SimpleWebSocketServer {
                     break;
 
                 case ScannerWorkspaceOperations.MOBILE_LOAD_JOBS: //  DATA CONTROL FOR THE MOBILE mobileScannerGrid
-                    if (sessionId.equals(ScannerWorkspaceSessions.MOBILE_RETURN_SERVER)) {
+                    if (isMobileReturnSession(sessionId)) {
                         splitDTO.setOperationId(ScannerWorkspaceOperations.BOT_JOB_LIST);
 
-                        performDataBase.setMobileDevices(true);
-                        errorMessage = performDataBase.loadQuickBotJobs();
-                        if (errorMessage == null) {
-                            List<BotJobLoadDTO> fetched = Optional.ofNullable(performLists.getQuickBotJobs())
-                                    .orElse(Collections.emptyList());
-                            String jsonData = gson.toJson(fetched);
-                            webSocketSessionManager.sendMessageJson(
-                                    homeBankingId,
-                                    ScannerWorkspaceSessions.MOBILE_SCANNER_GRID,
-                                    jsonData,
-                                    ScannerWorkspaceOperations.BOT_JOB_LIST);
+                        try {
+                            performDataBase.setMobileDevices(true);
+                            errorMessage = performDataBase.loadQuickBotJobs();
+                            if (errorMessage == null) {
+                                List<BotJobLoadDTO> fetched = Optional.ofNullable(performLists.getQuickBotJobs())
+                                        .orElse(Collections.emptyList());
+                                sendMobileScannerGridPayload(
+                                        homeBankingId, ScannerWorkspaceOperations.BOT_JOB_LIST, fetched);
+                            }
+                        } finally {
+                            performDataBase.setMobileDevices(false);
                         }
-                        performDataBase.setMobileDevices(false);
                     }
                     alreadySentMgsSocket = true;
                     break;
                 case ScannerWorkspaceOperations.MOBILE_VALIDATE_FIELDS: //  DATA CONTROL FOR THE MOBILE mobileScannerGrid
-                    if (sessionId.equals(ScannerWorkspaceSessions.MOBILE_RETURN_SERVER)) {
+                    if (isMobileReturnSession(sessionId)) {
                         splitDTO.setOperationId(ScannerWorkspaceOperations.VALIDATE_FIELDS);
 
-                        performDataBase.setMobileDevices(true);
-                        String jsonData = gson.toJson(splitDTO.getFieldsToValidate());
-                        webSocketSessionManager.sendMessageJson(
-                                homeBankingId,
-                                ScannerWorkspaceSessions.MOBILE_SCANNER_GRID,
-                                jsonData,
-                                ScannerWorkspaceOperations.VALIDATE_FIELDS);
-                        performDataBase.setMobileDevices(false);
+                        try {
+                            performDataBase.setMobileDevices(true);
+                            sendMobileScannerGridPayload(
+                                    homeBankingId,
+                                    ScannerWorkspaceOperations.VALIDATE_FIELDS,
+                                    splitDTO.getFieldsToValidate());
+                        } finally {
+                            performDataBase.setMobileDevices(false);
+                        }
                     }
                     alreadySentMgsSocket = true;
                     break;
@@ -2235,13 +2229,9 @@ public class SimpleWebSocketServer {
                                 "attributeValue");
                         performMessage.outputJsonElementDTO(
                                 splitDTO.getElementDetails(), excludeList, "AI-ElementDTO-HP", jsonPath, true);
-                    } else if (sessionIdToSend.equals(ScannerWorkspaceSessions.MOBILE_RETURN_SERVER)) {
-                        String jsonData = gson.toJson(splitDTO);
-                        webSocketSessionManager.sendMessageJson(
-                                homeBankingId,
-                                ScannerWorkspaceSessions.MOBILE_SCANNER_GRID,
-                                jsonData,
-                                ScannerWorkspaceOperations.ADD_PICK_ONE);
+                    } else if (isMobileReturnSession(sessionIdToSend)) {
+                        sendMobileScannerGridPayload(
+                                homeBankingId, ScannerWorkspaceOperations.ADD_PICK_ONE, splitDTO);
 
                         String jsonPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
 
@@ -2320,7 +2310,7 @@ public class SimpleWebSocketServer {
                         splitDTO.setSessionId(sessionIdToSend);
                     }
 
-                    if (ScannerWorkspaceSessions.MOBILE_RETURN_SERVER.equals(sessionIdToSend)) {
+                    if (isMobileReturnSession(sessionIdToSend)) {
 
                         // Safely extract the first element ID (if present)
                         Integer elementId = Optional.ofNullable(splitDTO.getElementDetails())
@@ -2348,15 +2338,10 @@ public class SimpleWebSocketServer {
                         }
 
                         splitDTO.setOperationId(type);
-                        String jsonData = gson.toJson(splitDTO);
 
                         if (!ScannerWorkspaceOperations.NEW_ELEMENT_DTO.equals(type)
                                 && !ScannerWorkspaceOperations.SEND_ALL_ELEMENTS_DTO.equals(type)) {
-                            webSocketSessionManager.sendMessageJson(
-                                    homeBankingId,
-                                    ScannerWorkspaceSessions.MOBILE_RETURN_SERVER,
-                                    jsonData,
-                                    type);
+                            forwardToMobileReturn(homeBankingId, type, splitDTO);
                         } else {
                             ErrorMessage applyError = null;
                             try {
@@ -3528,6 +3513,27 @@ public class SimpleWebSocketServer {
     private void sendCommandEditorResponse(
             int homeBankId, String sessionId, String operationId, Object response) {
         webSocketSessionManager.sendMessageJson(homeBankId, sessionId, gson.toJson(response), operationId);
+    }
+
+    private static boolean isMobileReturnSession(String sessionId) {
+        return ScannerWorkspaceSessions.MOBILE_RETURN_SERVER.equals(sessionId);
+    }
+
+    private void forwardToMobileReturn(int homeBankingId, String operationId, SplitDTO splitDTO) {
+        splitDTO.setOperationId(operationId);
+        webSocketSessionManager.sendMessageJson(
+                homeBankingId,
+                ScannerWorkspaceSessions.MOBILE_RETURN_SERVER,
+                gson.toJson(splitDTO),
+                operationId);
+    }
+
+    private void sendMobileScannerGridPayload(int homeBankingId, String operationId, Object payload) {
+        webSocketSessionManager.sendMessageJson(
+                homeBankingId,
+                ScannerWorkspaceSessions.MOBILE_SCANNER_GRID,
+                gson.toJson(payload),
+                operationId);
     }
 
     private static String commandLogValue(JsonObject body, String field) {
