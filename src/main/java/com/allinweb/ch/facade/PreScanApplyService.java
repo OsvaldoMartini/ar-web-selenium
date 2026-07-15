@@ -22,7 +22,7 @@ import lombok.extern.slf4j.Slf4j;
  * pane is closed.
  *
  * <p>The legacy Apply path forwards {@code NEW_ELEMENT_DTO} / {@code SEND_ALL_ELEMENTS_DTO} to the
- * {@code scanner-element-pane} WebSocket session, consumed by {@code ARScannedElementScene} →
+ * scanner element WebSocket session, consumed by {@code ARScannedElementScene} ->
  * {@code performInsertManyDTO} — which silently no-ops when AR Web Factory isn't open. This
  * service is the pane-free equivalent used as the fallback: it mirrors
  * {@code ARScannedElementPane.prepareToInsertElementDTO} (manyElements=true) field-for-field but

@@ -19,7 +19,6 @@ import org.openqa.selenium.WebDriver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// SEARCH IN USE (SENDER: scannerTool)  UPDATE_LIST_ELEMENTS_ASYNC
 @Slf4j
 public class PerformListElements {
     private static final Logger logOperations = LoggerFactory.getLogger("com.allinweb.operations");
@@ -237,8 +236,7 @@ public class PerformListElements {
 
     /**
      * Same scan as {@link #dynamicLoadElementsDTO}, but also returns the parsed
-     * element list so callers can forward it (e.g. push directly to scannerGrid
-     * via WebSocket) without re-running the JS.
+     * element list so callers can forward it via WebSocket without re-running the JS.
      *
      * Side effects are identical: resets and repopulates {@code performLists}
      * target-element cache on success.
