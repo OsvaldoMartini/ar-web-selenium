@@ -2145,7 +2145,9 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
 
             int hbId = this.currentBotJob != null ? this.currentBotJob.getHomeBankingId() : 0;
             scannerSupportRequestPublisher.publishDomReview(hbId, currentUrl, pageTitle, rawHtml);
-            log.info("sendCurrentDomForReview — WS message sent to scannerGrid, waiting for user response");
+            log.info(
+                    "sendCurrentDomForReview — WS message sent to {}, waiting for user response",
+                    ScannerWorkspaceSessions.SCANNER_GRID);
 
         } catch (Exception ex) {
             log.error("sendCurrentDomForReview failed", ex);
@@ -2234,7 +2236,7 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
 
             int hbId = this.currentBotJob != null ? this.currentBotJob.getHomeBankingId() : 0;
             scannerSupportRequestPublisher.publishSupportRequest(hbId, currentUrl);
-            log.info("requestSupport — WS message sent to scannerGrid");
+            log.info("requestSupport — WS message sent to {}", ScannerWorkspaceSessions.SCANNER_GRID);
 
         } catch (Exception ex) {
             log.error("requestSupport failed", ex);
@@ -2258,7 +2260,7 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
 
             int hbId = this.currentBotJob != null ? this.currentBotJob.getHomeBankingId() : 0;
             scannerSupportRequestPublisher.publishElementsSupportRequest(hbId, currentUrl);
-            log.info("requestSupportElements — WS message sent to scannerGrid");
+            log.info("requestSupportElements — WS message sent to {}", ScannerWorkspaceSessions.SCANNER_GRID);
 
         } catch (Exception ex) {
             log.error("requestSupportElements failed", ex);
@@ -3254,7 +3256,9 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
         payload.setBlocks(scannerBlockOptions(homeBankingId, botJobId));
 
         scannerGridPublisher.publishSearchTermsChunks(ScannerWorkspaceSessions.SCANNER_GRID, 0, payload, 25);
-        appendLog("Page Scanner: sent " + elements.size() + " elements to scannerGrid.", "info");
+        appendLog(
+                "Page Scanner: sent " + elements.size() + " elements to " + ScannerWorkspaceSessions.SCANNER_GRID + ".",
+                "info");
 
         flashFoundElements(driver, elements);
     }

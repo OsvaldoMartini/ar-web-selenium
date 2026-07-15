@@ -433,7 +433,10 @@ public class BotJobDetailsWorkspaceHost {
                     count == 0 ? "empty" : "done",
                     count == 0 ? "No elements found." : "Found " + count + " web element(s).",
                     count);
-            log.info("PRE SCAN - sent {} elements to preScannerGrid", elements == null ? 0 : elements.size());
+            log.info(
+                    "PRE SCAN - sent {} elements to {}",
+                    elements == null ? 0 : elements.size(),
+                    ScannerWorkspaceSessions.PRE_SCANNER_GRID);
         } catch (Exception error) {
             log.error("PRE SCAN failed", error);
             sendPreScanStatus("failed", String.valueOf(error.getMessage()), 0);
