@@ -6,15 +6,14 @@ import com.allinweb.ch.ai.GenFlowPlanParser.ValidatedStep;
 import com.allinweb.ch.facade.PerformDBEngine;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformLists;
+import com.allinweb.ch.facade.ScannerElementPanePublisher;
 import com.allinweb.ch.model.BlockDetailsDTO;
 import com.allinweb.ch.model.BlockLoadDTO;
 import com.allinweb.ch.model.BlockMoveDTO;
 import com.allinweb.ch.model.BotJobLoadDTO;
 import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.model.ReferenceLoadDTO;
-import com.allinweb.ch.model.ScannerWorkspaceOperations;
 import com.allinweb.ch.model.ScannerWorkspaceSessions;
-import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.util.ARConstantsEngine;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
@@ -54,7 +53,7 @@ public final class GenFlowService {
     private final PerformDataBase performDataBase = PerformDataBase.getInstance();
     private final PerformLists performLists = PerformLists.getInstance();
     private final PerformDBEngine performDBEngine = PerformDBEngine.getInstance();
-    private final WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
+    private final ScannerElementPanePublisher scannerElementPanePublisher = new ScannerElementPanePublisher();
     private final ARPropertyManager propertyManager = ARPropertyManager.getInstance();
     private final Gson gson = new Gson();
 
@@ -370,12 +369,7 @@ public final class GenFlowService {
             performDataBase.loadBlocks(botJob.getId(), "", "block");
             performDBEngine.loadCompleteJobs(botJob.getId());
 
-            String blockSignal = gson.toJson(new BlockMoveDTO());
-            webSocketSessionManager.sendMessageJson(
-                    botJob.getHomeBankingId(),
-                    ScannerWorkspaceSessions.SCANNER_ELEMENT_PANE,
-                    blockSignal,
-                    ScannerWorkspaceOperations.UPDATE_BLOCKS);
+            scannerElementPanePublisher.publishUpdateBlocks(botJob.getHomeBankingId(), new BlockMoveDTO());
 
             if (!performLists.getListBotJob().isEmpty()) {
                 List<InstructionLoad> viewData = performLists.buildJsonViewData(performLists.getListBotJob());
