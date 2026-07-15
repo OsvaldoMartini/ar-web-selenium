@@ -37,6 +37,6 @@ class ScannerWorkspaceResponseTest {
         body.addProperty("requestId", "response-1");
         body.addProperty("botJobId", 42);
         body.addProperty("action", "CLEAR_GRID");
-        return new ScannerWorkspaceRequest("scannerGrid", "response-1", 42, body);
+        return new ScannerWorkspaceRequest(ScannerWorkspaceSessions.SCANNER_GRID, "response-1", 42, body);
     }
 }

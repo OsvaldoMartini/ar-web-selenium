@@ -5,8 +5,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.allinweb.ch.model.BotJobDetailsState;
 import com.allinweb.ch.model.ElementDTO;
+import com.allinweb.ch.model.ScannerWorkspaceOperations;
 import com.allinweb.ch.model.ScannerWorkspaceRequest;
 import com.allinweb.ch.model.ScannerWorkspaceResponse;
+import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import com.allinweb.ch.model.ScannerWorkspaceState;
 import com.allinweb.ch.model.SplitDTO;
 import com.google.gson.JsonObject;
@@ -98,7 +100,8 @@ class ScannerWorkspaceServiceTest {
         body.add("action", new JsonObject());
 
         ScannerWorkspaceResponse response =
-                service.action(new ScannerWorkspaceRequest("scannerGrid", "non-string-action-1", 42, body));
+                service.action(new ScannerWorkspaceRequest(
+                        ScannerWorkspaceSessions.SCANNER_GRID, "non-string-action-1", 42, body));
 
         assertEquals(false, response.ok());
         assertEquals("INVALID_SCANNER_ACTION", response.errorCode());
@@ -119,11 +122,11 @@ class ScannerWorkspaceServiceTest {
         assertEquals("CLEAR_GRID", response.action());
         assertEquals(1, publisher.calls.size());
         RecordingPublisher.Call call = publisher.calls.get(0);
-        assertEquals("scannerGrid", call.sessionId);
+        assertEquals(ScannerWorkspaceSessions.SCANNER_GRID, call.sessionId);
         assertEquals(2, call.homeBankingId);
         assertEquals(42, call.payload.getBotJobId());
-        assertEquals("scannerGrid", call.payload.getSessionId());
-        assertEquals("searchTerms", call.payload.getOperationId());
+        assertEquals(ScannerWorkspaceSessions.SCANNER_GRID, call.payload.getSessionId());
+        assertEquals(ScannerWorkspaceOperations.SEARCH_TERMS, call.payload.getOperationId());
         assertEquals(0, call.payload.getElementDetails().length);
     }
 
@@ -307,7 +310,7 @@ class ScannerWorkspaceServiceTest {
         body.addProperty("botJobId", 42);
         if (action != null) body.addProperty("action", action);
         if (searchTerms != null) body.addProperty("searchTerms", searchTerms);
-        return new ScannerWorkspaceRequest("scannerGrid", requestId, 42, body);
+        return new ScannerWorkspaceRequest(ScannerWorkspaceSessions.SCANNER_GRID, requestId, 42, body);
     }
 
     private ElementDTO element(String name) {
