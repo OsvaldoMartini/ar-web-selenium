@@ -86,7 +86,7 @@ import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
 
 @Slf4j
-public class ARScannedElementPane extends ARPane implements ScannerPreLaunchControls {
+public class ARScannedElementPane extends ARPane implements ScannerPreLaunchControls, ScannerSupportRequestHandler {
 
     private static final Logger logLaunch = LoggerFactory.getLogger("com.allinweb.launch");
     private static final Logger logOperations = LoggerFactory.getLogger("com.allinweb.operations");
@@ -360,6 +360,7 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
     // Private constructor to prevent instantiation
     private ARScannedElementPane() {
         ScannerWorkspaceService.getInstance().installExecutionOperations(new ScannerPaneExecutionOperations(this));
+        ScannerSupportRequestHandlers.getInstance().register(this);
     }
 
     private static List<ElementScanProfile> buildElementScanProfiles() {
@@ -883,6 +884,7 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
     }
 
     public void destroy() {
+        ScannerSupportRequestHandlers.getInstance().unregister(this);
         clearPane(getPaneReference());
         pane = null;
         scene = null;

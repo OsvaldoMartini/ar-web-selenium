@@ -1,7 +1,6 @@
 package com.allinweb.ch.socket;
 
 import com.allinweb.ch.ARControlPanel;
-import com.allinweb.ch.component.pane.ARScannedElementPane;
 import com.allinweb.ch.component.pane.ARMainDashboardPane;
 import com.allinweb.ch.facade.*;
 import com.allinweb.ch.model.*;
@@ -2118,7 +2117,7 @@ public class SimpleWebSocketServer {
                     String reviewAction =
                             jsonEntry.has("action") ? jsonEntry.get("action").getAsString() : "cancel";
                     log.info("{} received: action={}", ScannerSupportRequestPublisher.DOM_REVIEW_RESPONSE, reviewAction);
-                    ARScannedElementPane.getInstance().handleDomReviewResponse(reviewAction);
+                    ScannerSupportRequestHandlers.getInstance().handleDomReviewResponse(reviewAction);
                     alreadySentMgsSocket = true;
                     break;
                 case ScannerSupportRequestPublisher.SUPPORT_REQUEST_RESPONSE:
@@ -2131,12 +2130,13 @@ public class SimpleWebSocketServer {
                             ScannerSupportRequestPublisher.SUPPORT_REQUEST_RESPONSE,
                             supportAction,
                             supportMessage.length());
-                    ARScannedElementPane.getInstance().handleSupportRequestResponse(supportAction, supportMessage);
+                    ScannerSupportRequestHandlers.getInstance()
+                            .handleSupportRequestResponse(supportAction, supportMessage);
                     alreadySentMgsSocket = true;
                     break;
                 case ScannerSupportRequestPublisher.REQUEST_SUPPORT_ELEMENTS:
                     log.info("{} received", ScannerSupportRequestPublisher.REQUEST_SUPPORT_ELEMENTS);
-                    ARScannedElementPane.getInstance().requestSupportElements();
+                    ScannerSupportRequestHandlers.getInstance().requestSupportElements();
                     alreadySentMgsSocket = true;
                     break;
                 case ScannerSupportRequestPublisher.SUPPORT_REQUEST_ELEMENTS_RESPONSE:
@@ -2153,7 +2153,7 @@ public class SimpleWebSocketServer {
                             elementsSupportAction,
                             elementsSupportMessage.length(),
                             elementsJson.length());
-                    ARScannedElementPane.getInstance()
+                    ScannerSupportRequestHandlers.getInstance()
                             .handleSupportRequestElementsResponse(
                                     elementsSupportAction, elementsSupportMessage, elementsJson);
                     alreadySentMgsSocket = true;
