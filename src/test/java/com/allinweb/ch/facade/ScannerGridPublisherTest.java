@@ -73,6 +73,13 @@ class ScannerGridPublisherTest {
     }
 
     @Test
+    void exposesDestinationSessionId() {
+        ScannerGridPublisher publisher = new ScannerGridPublisher(new RecordingSender());
+
+        assertEquals(ScannerWorkspaceSessions.SCANNER_GRID, publisher.destinationSessionId());
+    }
+
+    @Test
     void publishesChunksWithoutMutatingOriginalPayload() {
         RecordingSender sender = new RecordingSender();
         ScannerGridPublisher publisher = new ScannerGridPublisher(sender);

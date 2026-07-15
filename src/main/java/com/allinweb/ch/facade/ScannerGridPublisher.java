@@ -36,11 +36,15 @@ public final class ScannerGridPublisher implements ScannerWorkspaceService.GridP
     }
 
     public void publishScannerGridSearchTermsChunks(int homeBankingId, SplitDTO payload, int chunkSize) {
-        publishSearchTermsChunks(ScannerWorkspaceSessions.SCANNER_GRID, homeBankingId, payload, chunkSize);
+        publishSearchTermsChunks(destinationSessionId(), homeBankingId, payload, chunkSize);
     }
 
     public void publishScannerGrid(int homeBankingId, Object payload, String operationId) {
-        sender.sendMessageJson(homeBankingId, ScannerWorkspaceSessions.SCANNER_GRID, gson.toJson(payload), operationId);
+        sender.sendMessageJson(homeBankingId, destinationSessionId(), gson.toJson(payload), operationId);
+    }
+
+    public String destinationSessionId() {
+        return ScannerWorkspaceSessions.SCANNER_GRID;
     }
 
     public SplitDTO searchTermsPayload(
@@ -54,7 +58,7 @@ public final class ScannerGridPublisher implements ScannerWorkspaceService.GridP
         payload.setBotJobId(botJobId);
         payload.setBotJobName(botJobName);
         payload.setType(ScannerWorkspaceOperations.SEARCH_TOOL);
-        payload.setSessionId(ScannerWorkspaceSessions.SCANNER_GRID);
+        payload.setSessionId(destinationSessionId());
         payload.setOperationId(ScannerWorkspaceOperations.SEARCH_TERMS);
         payload.setElementDetails(elements == null ? new ElementDTO[0] : elements);
         payload.setBlocks(blocks == null ? List.of() : blocks);

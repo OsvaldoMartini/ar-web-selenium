@@ -1409,7 +1409,7 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
 
         String jsonData = gson.toJson(payloadEmpty);
 
-        sessionIdFromJava = ScannerWorkspaceSessions.SCANNER_GRID; // + this.currentBotJob.getHomeBankingId();
+        sessionIdFromJava = scannerGridPublisher.destinationSessionId(); // + this.currentBotJob.getHomeBankingId();
         buildWebView(
                 webEngine,
                 jsonData,
@@ -2884,7 +2884,7 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
             processDTO.setHomeBankingId(this.currentBotJob.getHomeBankingId());
             processDTO.setBotJobId(this.currentBotJob.getId());
             processDTO.setBotJobName(this.currentBotJob.getName());
-            processDTO.setSessionId(ScannerWorkspaceSessions.SCANNER_GRID);
+            processDTO.setSessionId(scannerGridPublisher.destinationSessionId());
             processDTO.setOperationId("clonedElement");
 
             List<ElementDTO> detailsList = new ArrayList<>();
@@ -3069,7 +3069,8 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
 
         scannerGridPublisher.publishScannerGridSearchTermsChunks(0, payload, 25);
         appendLog(
-                "Page Scanner: sent " + elements.size() + " elements to " + ScannerWorkspaceSessions.SCANNER_GRID + ".",
+                "Page Scanner: sent " + elements.size() + " elements to "
+                        + scannerGridPublisher.destinationSessionId() + ".",
                 "info");
 
         flashFoundElements(driver, elements);
