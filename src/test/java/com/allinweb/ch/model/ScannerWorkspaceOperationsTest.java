@@ -49,6 +49,8 @@ class ScannerWorkspaceOperationsTest {
         assertEquals("UPDATE_BLOCKS", ScannerWorkspaceOperations.UPDATE_BLOCKS);
         assertEquals("UPDATE_BLOCKS_COMP", ScannerWorkspaceOperations.UPDATE_BLOCKS_COMP);
         assertEquals("blocksUpdate", ScannerWorkspaceOperations.BLOCKS_UPDATE);
+        assertEquals("updateInstructions", ScannerWorkspaceOperations.UPDATE_INSTRUCTIONS);
+        assertEquals("componentsUpdate", ScannerWorkspaceOperations.COMPONENTS_UPDATE);
         assertEquals("PRE_SCAN_PAGE", ScannerWorkspaceOperations.PRE_SCAN_PAGE);
         assertEquals("PRE_SCAN_REFRESH_PAGE", ScannerWorkspaceOperations.PRE_SCAN_REFRESH_PAGE);
         assertEquals("PRE_SCAN_CLEAR_GRID", ScannerWorkspaceOperations.PRE_SCAN_CLEAR_GRID);

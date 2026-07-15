@@ -1,6 +1,8 @@
 package com.allinweb.ch.socket;
 
 import com.allinweb.ch.model.RowStatus;
+import com.allinweb.ch.model.ScannerWorkspaceOperations;
+import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import com.google.gson.Gson;
 import lombok.extern.slf4j.Slf4j;
 
@@ -25,7 +27,9 @@ public final class InstructionRealtimePublisher {
     }
 
     public String snapshotOperation(String sessionId) {
-        return "componentTasks".equals(sessionId) ? "componentsUpdate" : "updateInstructions";
+        return ScannerWorkspaceSessions.COMPONENT_TASKS.equals(sessionId)
+                ? ScannerWorkspaceOperations.COMPONENTS_UPDATE
+                : ScannerWorkspaceOperations.UPDATE_INSTRUCTIONS;
     }
 
     public void publishResponse(

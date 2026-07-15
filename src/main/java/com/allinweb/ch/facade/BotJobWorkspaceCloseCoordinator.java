@@ -7,7 +7,9 @@ import java.util.List;
 public final class BotJobWorkspaceCloseCoordinator {
 
     private static final List<String> SESSIONS = List.of(
-            "botJobTasks", "componentTasks", ScannerWorkspaceSessions.PRE_SCANNER_GRID);
+            ScannerWorkspaceSessions.BOT_JOB_TASKS,
+            ScannerWorkspaceSessions.COMPONENT_TASKS,
+            ScannerWorkspaceSessions.PRE_SCANNER_GRID);
 
     private final BusyPort busy;
     private final ExecutionPort execution;

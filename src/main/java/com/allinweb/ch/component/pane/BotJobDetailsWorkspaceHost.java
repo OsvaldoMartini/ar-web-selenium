@@ -326,15 +326,15 @@ public class BotJobDetailsWorkspaceHost {
     }
 
     private void applyGridSnapshot(BotJobWorkspaceService.GridSnapshot snapshot, boolean publish) {
-        webViewBootstrap.updatePayload(selectedBotJob.getId(), "botJobTasks", snapshot.botJobJson());
-        webViewBootstrap.updatePayload(selectedBotJob.getId(), "componentTasks", snapshot.componentJson());
+        webViewBootstrap.updatePayload(selectedBotJob.getId(), ScannerWorkspaceSessions.BOT_JOB_TASKS, snapshot.botJobJson());
+        webViewBootstrap.updatePayload(selectedBotJob.getId(), ScannerWorkspaceSessions.COMPONENT_TASKS, snapshot.componentJson());
         if (!publish) return;
         com.allinweb.ch.socket.InstructionRealtimePublisher publisher =
                 com.allinweb.ch.socket.InstructionRealtimePublisher.getInstance();
         publisher.publishSerializedSnapshot(
-                selectedBotJob.getHomeBankingId(), "botJobTasks", snapshot.botJobJson());
+                selectedBotJob.getHomeBankingId(), ScannerWorkspaceSessions.BOT_JOB_TASKS, snapshot.botJobJson());
         publisher.publishSerializedSnapshot(
-                selectedBotJob.getHomeBankingId(), "componentTasks", snapshot.componentJson());
+                selectedBotJob.getHomeBankingId(), ScannerWorkspaceSessions.COMPONENT_TASKS, snapshot.componentJson());
     }
 
 
@@ -1322,13 +1322,17 @@ public class BotJobDetailsWorkspaceHost {
 
     private void showBotJobWorkspace() {
         headlessSurface = "botJob";
-        presentation().showSurface("botJobTasks", reactContext("botJobTasks"));
+        presentation().showSurface(
+                ScannerWorkspaceSessions.BOT_JOB_TASKS,
+                reactContext(ScannerWorkspaceSessions.BOT_JOB_TASKS));
     }
 
     private void suspendReactWorkspaceSurfaces(int botJobId) {
         webViewBootstrap.deactivate(botJobId);
         for (String workspaceSession : List.of(
-                "botJobTasks", "componentTasks", ScannerWorkspaceSessions.PRE_SCANNER_GRID)) {
+                ScannerWorkspaceSessions.BOT_JOB_TASKS,
+                ScannerWorkspaceSessions.COMPONENT_TASKS,
+                ScannerWorkspaceSessions.PRE_SCANNER_GRID)) {
             WebSocketSessionManager.closeSession(workspaceSession);
             botJobTransferPathRegistry.clear(workspaceSession, botJobId);
         }
@@ -1336,7 +1340,9 @@ public class BotJobDetailsWorkspaceHost {
 
     private void showComponentsWorkspace() {
         headlessSurface = "components";
-        presentation().showSurface("componentTasks", reactContext("componentTasks"));
+        presentation().showSurface(
+                ScannerWorkspaceSessions.COMPONENT_TASKS,
+                reactContext(ScannerWorkspaceSessions.COMPONENT_TASKS));
     }
 
     private void showPreScanWorkspace() {

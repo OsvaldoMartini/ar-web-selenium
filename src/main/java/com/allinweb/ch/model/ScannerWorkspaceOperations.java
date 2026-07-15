@@ -42,6 +42,8 @@ public final class ScannerWorkspaceOperations {
     public static final String UPDATE_BLOCKS = "UPDATE_BLOCKS";
     public static final String UPDATE_BLOCKS_COMP = "UPDATE_BLOCKS_COMP";
     public static final String BLOCKS_UPDATE = "blocksUpdate";
+    public static final String UPDATE_INSTRUCTIONS = "updateInstructions";
+    public static final String COMPONENTS_UPDATE = "componentsUpdate";
     public static final String PRE_SCAN_PAGE = "PRE_SCAN_PAGE";
     public static final String PRE_SCAN_REFRESH_PAGE = "PRE_SCAN_REFRESH_PAGE";
     public static final String PRE_SCAN_CLEAR_GRID = "PRE_SCAN_CLEAR_GRID";

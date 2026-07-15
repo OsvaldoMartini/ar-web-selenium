@@ -3,6 +3,7 @@ package com.allinweb.ch.facade;
 import com.allinweb.ch.model.ElementDTO;
 import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.model.ReferenceLoadDTO;
+import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import com.allinweb.ch.model.SplitDTO;
 import com.allinweb.ch.model.TargetElement;
 import com.allinweb.ch.socket.WebSocketSessionManager;
@@ -107,7 +108,7 @@ public final class PreScanApplyService {
         }
 
         ErrorMessage insertError = performDataBase.insertInstructionsBatch(
-                "botJobTasks", instructionList, botJobId, blockId, homeBankingId);
+                ScannerWorkspaceSessions.BOT_JOB_TASKS, instructionList, botJobId, blockId, homeBankingId);
         if (insertError != null) {
             return insertError;
         }
@@ -222,6 +223,6 @@ public final class PreScanApplyService {
             jsonData = gson.toJson(view);
         }
         com.allinweb.ch.socket.InstructionRealtimePublisher.getInstance()
-                .publishSerializedSnapshot(homeBankingId, "botJobTasks", jsonData);
+                .publishSerializedSnapshot(homeBankingId, ScannerWorkspaceSessions.BOT_JOB_TASKS, jsonData);
     }
 }
