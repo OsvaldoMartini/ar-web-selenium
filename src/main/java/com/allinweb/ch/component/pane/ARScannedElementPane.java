@@ -144,6 +144,7 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
     private final Gson gson = new Gson();
     private final ScannerGridPublisher scannerGridPublisher = new ScannerGridPublisher();
     private final ScannerSupportRequestPublisher scannerSupportRequestPublisher = new ScannerSupportRequestPublisher();
+    private final ScannerSupportFileService scannerSupportFileService = new ScannerSupportFileService();
     private final ScannerPreLaunchStarter scannerPreLaunchStarter =
             new ScannerPreLaunchStarter(new PanePreLaunchStartOperations());
     private final ScannerPreLaunchStopper scannerPreLaunchStopper =
@@ -2181,8 +2182,6 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
                     out.showAndWait();
 
                 } else if ("save".equals(action)) {
-                    String email = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.LICENSE_EMAIL);
-                    String appVersion = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.VERSION);
                     String url = "(unknown)";
                     String title = "";
                     try {
@@ -2192,51 +2191,12 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
                         }
                     } catch (Exception ignored) {
                     }
-                    String safeHost;
-                    try {
-                        safeHost = new java.net.URL(url).getHost().replaceAll("[^a-zA-Z0-9.-]", "_");
-                    } catch (Exception e) {
-                        safeHost = "unknown";
-                    }
-
-                    // Gzip + base64 the HTML
-                    byte[] htmlBytes = html.getBytes(java.nio.charset.StandardCharsets.UTF_8);
-                    java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream();
-                    try (java.util.zip.GZIPOutputStream gz = new java.util.zip.GZIPOutputStream(bos)) {
-                        gz.write(htmlBytes);
-                    }
-                    String htmlB64 = java.util.Base64.getEncoder().encodeToString(bos.toByteArray());
-                    java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-256");
-                    byte[] digest = md.digest(htmlBytes);
-                    StringBuilder hexHash = new StringBuilder(digest.length * 2);
-                    for (byte b : digest) hexHash.append(String.format("%02x", b));
-
-                    // Build .support JSON envelope
-                    com.google.gson.JsonObject support = new com.google.gson.JsonObject();
-                    support.addProperty("schemaVersion", "1");
-                    support.addProperty("capturedAt", java.time.Instant.now().toString());
-                    support.addProperty("pcName", com.allinweb.ch.license.SystemDetails.getSystemComputerName());
-                    support.addProperty("email", email != null ? email : "");
-                    support.addProperty("appVersion", appVersion != null ? appVersion : "");
-                    support.addProperty("failedPlugin", "pageScanner");
-                    support.addProperty("failureReason", "User-initiated local capture");
-
-                    com.google.gson.JsonObject browser = new com.google.gson.JsonObject();
-                    browser.addProperty("url", url);
-                    browser.addProperty("title", title != null ? title : "");
-                    support.add("browser", browser);
-
-                    support.addProperty("html", htmlB64);
-                    support.addProperty("htmlSha256", "sha256:" + hexHash);
-
-                    // File chooser
-                    String timestamp = java.time.LocalDateTime.now()
-                            .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"));
-                    String suggestedName = timestamp + "_page_review.support";
+                    ScannerSupportFileService.SupportFile supportFile =
+                            scannerSupportFileService.pageReview(html, url, title);
 
                     javafx.stage.FileChooser fc = new javafx.stage.FileChooser();
                     fc.setTitle("Save Support File");
-                    fc.setInitialFileName(suggestedName);
+                    fc.setInitialFileName(supportFile.suggestedFileName());
                     fc.getExtensionFilters()
                             .add(new javafx.stage.FileChooser.ExtensionFilter(
                                     "Support Files (*.support)", "*.support"));
@@ -2247,12 +2207,7 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
                     }
 
                     java.nio.file.Files.writeString(
-                            chosen.toPath(),
-                            new com.google.gson.GsonBuilder()
-                                    .setPrettyPrinting()
-                                    .create()
-                                    .toJson(support),
-                            java.nio.charset.StandardCharsets.UTF_8);
+                            chosen.toPath(), supportFile.json(), java.nio.charset.StandardCharsets.UTF_8);
 
                     log.info("DOM capture saved to {}", chosen.getAbsolutePath());
                     javafx.scene.control.Alert out =
