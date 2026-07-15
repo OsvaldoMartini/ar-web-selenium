@@ -43,6 +43,7 @@ public class PerformLists {
     private static final WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
     private static final TargetElementHelper targetElementHelper = TargetElementHelper.getInstance();
     private PerformActions performActions = PerformActions.getInstance();
+    private final ScannerElementPanePublisher scannerElementPanePublisher = new ScannerElementPanePublisher();
     // Static final variable to hold the singleton instance
     protected static volatile PerformLists instance;
     private final Gson gson = new Gson();
@@ -317,19 +318,14 @@ public class PerformLists {
                     BlockMoveDTO blockMoveDTO = gson.fromJson(body, BlockMoveDTO.class);
                     blockMoveDTO.setType(ScannerWorkspaceOperations.UPDATE_BLOCKS);
 
-                    String jsonData = gson.toJson(blockMoveDTO);
-                    webSocketSessionManager.sendMessageJson(
-                            homeBankingId,
-                            ScannerWorkspaceSessions.SCANNER_ELEMENT_PANE,
-                            jsonData,
-                            ScannerWorkspaceOperations.UPDATE_BLOCKS);
+                    scannerElementPanePublisher.publishUpdateBlocks(homeBankingId, blockMoveDTO);
 
                     break;
                 case ScannerWorkspaceOperations.UPDATE_BLOCKS_COMP:
                     blockMoveDTO = gson.fromJson(jsonObjMSG, BlockMoveDTO.class);
                     blockMoveDTO.setType(ScannerWorkspaceOperations.UPDATE_BLOCKS_COMP);
 
-                    jsonData = gson.toJson(blockMoveDTO);
+                    String jsonData = gson.toJson(blockMoveDTO);
                     break;
                 case "UPDATE_BOT_JOBS":
                     jsonData = gson.toJson("[]");
