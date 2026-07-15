@@ -37,6 +37,13 @@ class ScannerWorkspaceOperationsTest {
         assertEquals("HOVERED_ROW", ScannerWorkspaceOperations.HOVERED_ROW);
         assertEquals("highlight", ScannerWorkspaceOperations.HIGHLIGHT);
         assertEquals("CLEAR_HOVER_PICK_FILE", ScannerWorkspaceOperations.CLEAR_HOVER_PICK_FILE);
+        assertEquals("NEW_ELEMENT_DTO", ScannerWorkspaceOperations.NEW_ELEMENT_DTO);
+        assertEquals("SEND_ALL_ELEMENTS_DTO", ScannerWorkspaceOperations.SEND_ALL_ELEMENTS_DTO);
+        assertEquals("UPDATE_ALL_ELEMENTS_DTO", ScannerWorkspaceOperations.UPDATE_ALL_ELEMENTS_DTO);
+        assertEquals("DEL_ELEMENT_DTO", ScannerWorkspaceOperations.DEL_ELEMENT_DTO);
+        assertEquals("DETAILS_ELEMENT_DTO", ScannerWorkspaceOperations.DETAILS_ELEMENT_DTO);
+        assertEquals("TEST_CLICK_DTO", ScannerWorkspaceOperations.TEST_CLICK_DTO);
+        assertEquals("TEST_INPUT_DTO", ScannerWorkspaceOperations.TEST_INPUT_DTO);
         assertEquals("PRE_SCAN_PAGE", ScannerWorkspaceOperations.PRE_SCAN_PAGE);
         assertEquals("PRE_SCAN_REFRESH_PAGE", ScannerWorkspaceOperations.PRE_SCAN_REFRESH_PAGE);
         assertEquals("PRE_SCAN_CLEAR_GRID", ScannerWorkspaceOperations.PRE_SCAN_CLEAR_GRID);

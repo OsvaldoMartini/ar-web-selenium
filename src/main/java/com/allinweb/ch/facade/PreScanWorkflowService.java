@@ -5,6 +5,7 @@ import com.allinweb.ch.model.ElementDTO;
 import com.allinweb.ch.model.FieldData;
 import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.model.OcrConfig;
+import com.allinweb.ch.model.ScannerWorkspaceOperations;
 import com.allinweb.ch.util.PageDiagnosticDumper;
 import com.allinweb.ch.util.PageOcrDumper;
 import com.google.common.base.Strings;
@@ -99,7 +100,7 @@ public final class PreScanWorkflowService {
             return;
         }
         if (element == null) return;
-        boolean click = "TEST_CLICK_DTO".equals(testType);
+        boolean click = ScannerWorkspaceOperations.TEST_CLICK_DTO.equals(testType);
         String actionLabel = click ? "Test Click" : "Test Input";
         String label = label(element);
         try {

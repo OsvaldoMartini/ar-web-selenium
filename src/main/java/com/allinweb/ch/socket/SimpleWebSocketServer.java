@@ -2285,13 +2285,13 @@ public class SimpleWebSocketServer {
                     }
                     alreadySentMgsSocket = true;
                     break;
-                case "NEW_ELEMENT_DTO":
-                case "SEND_ALL_ELEMENTS_DTO":
-                case "UPDATE_ALL_ELEMENTS_DTO":
-                case "DEL_ELEMENT_DTO":
-                case "DETAILS_ELEMENT_DTO":
-                case "TEST_CLICK_DTO":
-                case "TEST_INPUT_DTO": {
+                case ScannerWorkspaceOperations.NEW_ELEMENT_DTO:
+                case ScannerWorkspaceOperations.SEND_ALL_ELEMENTS_DTO:
+                case ScannerWorkspaceOperations.UPDATE_ALL_ELEMENTS_DTO:
+                case ScannerWorkspaceOperations.DEL_ELEMENT_DTO:
+                case ScannerWorkspaceOperations.DETAILS_ELEMENT_DTO:
+                case ScannerWorkspaceOperations.TEST_CLICK_DTO:
+                case ScannerWorkspaceOperations.TEST_INPUT_DTO: {
                     if (!performLists.getListBotJob().isEmpty() && splitDTO.getBotJobId() != null) {
                         performLists.getListBotJob().stream()
                                 .filter(j -> java.util.Objects.equals(j.getId(), splitDTO.getBotJobId()))
@@ -2338,7 +2338,8 @@ public class SimpleWebSocketServer {
                         splitDTO.setOperationId(type);
                         String jsonData = gson.toJson(splitDTO);
 
-                        if (!"NEW_ELEMENT_DTO".equals(type) && !"SEND_ALL_ELEMENTS_DTO".equals(type)) {
+                        if (!ScannerWorkspaceOperations.NEW_ELEMENT_DTO.equals(type)
+                                && !ScannerWorkspaceOperations.SEND_ALL_ELEMENTS_DTO.equals(type)) {
                             webSocketSessionManager.sendMessageJson(
                                     homeBankingId,
                                     ScannerWorkspaceSessions.MOBILE_RETURN_SERVER,
@@ -2366,8 +2367,10 @@ public class SimpleWebSocketServer {
                             }
                         }
                     } else if (splitDTO.getElementDetails() != null && splitDTO.getElementDetails().length > 0) {
-                        boolean isInsertType = "NEW_ELEMENT_DTO".equals(type) || "SEND_ALL_ELEMENTS_DTO".equals(type);
-                        boolean isTestType = "TEST_CLICK_DTO".equals(type) || "TEST_INPUT_DTO".equals(type);
+                        boolean isInsertType = ScannerWorkspaceOperations.NEW_ELEMENT_DTO.equals(type)
+                                || ScannerWorkspaceOperations.SEND_ALL_ELEMENTS_DTO.equals(type);
+                        boolean isTestType = ScannerWorkspaceOperations.TEST_CLICK_DTO.equals(type)
+                                || ScannerWorkspaceOperations.TEST_INPUT_DTO.equals(type);
                         boolean paneOpen =
                                 WebSocketSessionManager.isSessionOpen(ScannerWorkspaceSessions.SCANNER_ELEMENT_PANE);
                         if (isTestType && !paneOpen) {

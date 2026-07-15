@@ -23,7 +23,7 @@ class BotJobWorkspaceControllerTest {
         controller.toolbarAction(BotJobToolbarAction.OPEN_EXCEL, request);
         controller.applyMetadata(null);
         controller.preScanCommand(ScannerWorkspaceOperations.PRE_SCAN_PAGE, new JsonObject());
-        controller.preScanElementTest(new SplitDTO(), "TEST_CLICK_DTO");
+        controller.preScanElementTest(new SplitDTO(), ScannerWorkspaceOperations.TEST_CLICK_DTO);
 
         assertEquals(List.of("workspace", "toolbar", "metadata", "command", "test"), host.calls);
     }

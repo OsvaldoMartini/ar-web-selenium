@@ -301,8 +301,8 @@ public class ARScannedElementScene extends ARScene {
                     }
 
                     break;
-                case "NEW_ELEMENT_DTO":
-                case "SEND_ALL_ELEMENTS_DTO":
+                case ScannerWorkspaceOperations.NEW_ELEMENT_DTO:
+                case ScannerWorkspaceOperations.SEND_ALL_ELEMENTS_DTO:
                     arScannedElementPane.checkRunningProcess();
                     // Extract the "body" field from the JsonObject
 
@@ -315,11 +315,11 @@ public class ARScannedElementScene extends ARScene {
                         previousBlock = blockUpdate;
                     }
 
-                    boolean isMany = "SEND_ALL_ELEMENTS_DTO".equalsIgnoreCase(type);
+                    boolean isMany = ScannerWorkspaceOperations.SEND_ALL_ELEMENTS_DTO.equalsIgnoreCase(type);
                     stepsInsertManyDTO(splitDTO, isMany);
                     //                    stepsInsertOneDTO(targetSelected);
                     break;
-                case "UPDATE_ALL_ELEMENTS_DTO":
+                case ScannerWorkspaceOperations.UPDATE_ALL_ELEMENTS_DTO:
                     arScannedElementPane.checkRunningProcess();
                     // Extract the "body" field from the JsonObject
 
@@ -335,8 +335,8 @@ public class ARScannedElementScene extends ARScene {
                     stepsUpdateManyDTO(splitDTO);
                     //                    stepsInsertOneDTO(targetSelected);
                     break;
-                case "TEST_CLICK_DTO":
-                case "TEST_INPUT_DTO":
+                case ScannerWorkspaceOperations.TEST_CLICK_DTO:
+                case ScannerWorkspaceOperations.TEST_INPUT_DTO:
                     if (!performLists.getListBotJob().isEmpty() && splitDTO.getBotJobId() != null) {
                         performLists.getListBotJob().stream()
                                 .filter(j -> java.util.Objects.equals(j.getId(), splitDTO.getBotJobId()))
@@ -382,7 +382,8 @@ public class ARScannedElementScene extends ARScene {
                         splitDTO.setOperationId(type);
                         String jsonData = gson.toJson(splitDTO);
 
-                        if (!"NEW_ELEMENT_DTO".equals(type) && !"SEND_ALL_ELEMENTS_DTO".equals(type)) {
+                        if (!ScannerWorkspaceOperations.NEW_ELEMENT_DTO.equals(type)
+                                && !ScannerWorkspaceOperations.SEND_ALL_ELEMENTS_DTO.equals(type)) {
                             webSocketSessionManager.sendMessageJson(
                                     splitDTO.getHomeBankingId(),
                                     ScannerWorkspaceSessions.MOBILE_RETURN_SERVER,
@@ -477,12 +478,12 @@ public class ARScannedElementScene extends ARScene {
                         }
                         break;
                     }
-                case "DEL_ELEMENT_DTO":
-                case "DETAILS_ELEMENT_DTO":
+                case ScannerWorkspaceOperations.DEL_ELEMENT_DTO:
+                case ScannerWorkspaceOperations.DETAILS_ELEMENT_DTO:
                     // Extract the "body" field from the JsonObject
                     //                    splitDTO = gson.fromJson(jsonObjMSG, SplitDTO.class);
 
-                    if (type.equals("TEST_CLICK_DTO")) {
+                    if (type.equals(ScannerWorkspaceOperations.TEST_CLICK_DTO)) {
                         blockUpdate = splitDTO.getSessionId().equals("componentTasks")
                                 ? "UPDATE_BLOCKS_COMP"
                                 : "UPDATE_BLOCKS";

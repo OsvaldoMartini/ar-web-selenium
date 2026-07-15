@@ -30,6 +30,13 @@ public final class ScannerWorkspaceOperations {
     public static final String HOVERED_ROW = "HOVERED_ROW";
     public static final String HIGHLIGHT = "highlight";
     public static final String CLEAR_HOVER_PICK_FILE = "CLEAR_HOVER_PICK_FILE";
+    public static final String NEW_ELEMENT_DTO = "NEW_ELEMENT_DTO";
+    public static final String SEND_ALL_ELEMENTS_DTO = "SEND_ALL_ELEMENTS_DTO";
+    public static final String UPDATE_ALL_ELEMENTS_DTO = "UPDATE_ALL_ELEMENTS_DTO";
+    public static final String DEL_ELEMENT_DTO = "DEL_ELEMENT_DTO";
+    public static final String DETAILS_ELEMENT_DTO = "DETAILS_ELEMENT_DTO";
+    public static final String TEST_CLICK_DTO = "TEST_CLICK_DTO";
+    public static final String TEST_INPUT_DTO = "TEST_INPUT_DTO";
     public static final String PRE_SCAN_PAGE = "PRE_SCAN_PAGE";
     public static final String PRE_SCAN_REFRESH_PAGE = "PRE_SCAN_REFRESH_PAGE";
     public static final String PRE_SCAN_CLEAR_GRID = "PRE_SCAN_CLEAR_GRID";

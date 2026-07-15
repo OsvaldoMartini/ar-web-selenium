@@ -1065,7 +1065,7 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
                 testType,
                 originTarget == null ? "(null target)" : originTarget.getForceCoordinates());
         TargetElement targetDeepCopy = originTarget.deepCopy();
-        String displayAction = "TEST_CLICK_DTO".equals(testType) ? "CLICK" : "INSERT";
+        String displayAction = ScannerWorkspaceOperations.TEST_CLICK_DTO.equals(testType) ? "CLICK" : "INSERT";
         String inputValue = !Strings.isNullOrEmpty(inputValueOverride)
                 ? inputValueOverride
                 : testActionsField.getText() == null ? "" : testActionsField.getText();
@@ -1125,7 +1125,7 @@ public class ARScannedElementPane extends ARPane implements ScannerPreLaunchCont
             // S/N/T/E/F badges by stepsInsertManyDTO.
             InstructionLoad synthetic = performActions.buildNewInstruction(
                     targetDeepCopy.getTagType(),
-                    "TEST_CLICK_DTO".equals(testType) ? ARConstantsEngine.CLICK : ARConstantsEngine.INSERT,
+                    ScannerWorkspaceOperations.TEST_CLICK_DTO.equals(testType) ? ARConstantsEngine.CLICK : ARConstantsEngine.INSERT,
                     false,
                     0,
                     targetDeepCopy);

@@ -9,6 +9,7 @@ import com.allinweb.ch.driver.ARPlaywrightDriver;
 import com.allinweb.ch.model.ElementDTO;
 import com.allinweb.ch.model.FieldData;
 import com.allinweb.ch.model.InstructionLoad;
+import com.allinweb.ch.model.ScannerWorkspaceOperations;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -77,8 +78,8 @@ class PreScanWorkflowServiceTest {
         service.refresh(context("https://example.test"), sink);
         ElementDTO input = element("input");
         input.setSomeText("Email");
-        service.testElement(input, "TEST_INPUT_DTO", sink);
-        service.testElement(input, "TEST_CLICK_DTO", sink);
+        service.testElement(input, ScannerWorkspaceOperations.TEST_INPUT_DTO, sink);
+        service.testElement(input, ScannerWorkspaceOperations.TEST_CLICK_DTO, sink);
 
         assertEquals(1, browser.reloadCalls);
         assertEquals("abc", browser.fillData.getValue());
