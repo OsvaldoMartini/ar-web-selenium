@@ -6,6 +6,7 @@ import com.allinweb.ch.model.BlockLoadDTO;
 import com.allinweb.ch.model.BlockOrderDetailDTO;
 import com.allinweb.ch.model.DetailsDTO;
 import com.allinweb.ch.model.InstructionLoad;
+import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import com.allinweb.ch.model.SplitDTO;
 import com.allinweb.ch.model.UpdatedRow;
 import com.allinweb.ch.socket.WebSocketSessionManager;
@@ -55,24 +56,25 @@ public final class CommandEditorService {
 
     public JsonObject bootstrap(JsonObject body) {
         JsonObject response = new JsonObject();
-        String sessionId = string(body, "targetSessionId", "botJobTasks");
-        int whereId = "componentTasks".equals(sessionId)
+        String sessionId = string(body, "targetSessionId", ScannerWorkspaceSessions.BOT_JOB_TASKS);
+        boolean componentSession = isComponentSession(sessionId);
+        int whereId = componentSession
                 ? integer(body, "homeBankingId", -1)
                 : integer(body, "botJobId", -1);
-        String variableTable = "componentTasks".equals(sessionId) ? "component_variable" : "variable";
-        String blockTable = "componentTasks".equals(sessionId) ? "component_block" : "block";
+        String variableTable = componentSession ? "component_variable" : "variable";
+        String blockTable = componentSession ? "component_block" : "block";
         int instructionId = integer(body, "instructionId", -1);
         String instructionName = string(body, "instructionName", "");
 
         ErrorMessage error = database.loadInstructions(
-                whereId, -1, -1, "componentTasks".equals(sessionId) ? "component_instruction" : "instruction");
+                whereId, -1, -1, componentSession ? "component_instruction" : "instruction");
         if (error == null) error = database.loadBlocks(whereId, "", blockTable);
 
         response.addProperty("ok", error == null);
         response.add("variables", loadVariables(variableTable, whereId));
         response.add("webFields", webFields(sessionId));
         response.add("blocks", gson.toJsonTree(
-                "componentTasks".equals(sessionId) ? lists.getListBlockComp() : lists.getListBlock()));
+                componentSession ? lists.getListBlockComp() : lists.getListBlock()));
         boolean excelGotoConflict = excelGotoExists(
                 sessionId,
                 integer(body, "botJobId", -1),
@@ -94,13 +96,14 @@ public final class CommandEditorService {
     }
 
     public JsonObject memoryCapabilities(JsonObject body) {
-        String sessionId = string(body, "targetSessionId", "botJobTasks");
+        String sessionId = string(body, "targetSessionId", ScannerWorkspaceSessions.BOT_JOB_TASKS);
+        boolean componentSession = isComponentSession(sessionId);
         ErrorMessage error = reloadInstructions(body, sessionId);
-        int whereId = "componentTasks".equals(sessionId)
+        int whereId = componentSession
                 ? integer(body, "homeBankingId", -1)
                 : integer(body, "botJobId", -1);
         if (error == null) {
-            error = database.loadBlocks(whereId, "", "componentTasks".equals(sessionId) ? "component_block" : "block");
+            error = database.loadBlocks(whereId, "", componentSession ? "component_block" : "block");
         }
         JsonObject response = new JsonObject();
         response.addProperty("ok", error == null);
@@ -108,7 +111,7 @@ public final class CommandEditorService {
         JsonArray blockCapabilities = new JsonArray();
         if (error == null) {
             List<InstructionLoad> instructionRows = instructions(sessionId);
-            List<BlockLoadDTO> blockRows = "componentTasks".equals(sessionId)
+            List<BlockLoadDTO> blockRows = componentSession
                     ? lists.getListBlockComp()
                     : lists.getListBlock();
             Set<Integer> protectedIds = memoryProtectedIds(instructionRows);
@@ -239,7 +242,7 @@ public final class CommandEditorService {
 
     public ErrorMessage validateMoveRevision(SplitDTO split) {
         if (split == null) return new ErrorMessage("Move Instruction Refused", "Missing request", "ROW_MOVE payload is missing.");
-        String sessionId = "componentTasks".equals(split.getSessionId()) ? "componentTasks" : "botJobTasks";
+        String sessionId = targetTaskSession(split.getSessionId());
         JsonObject body = new JsonObject();
         body.addProperty("botJobId", split.getBotJobId() == null ? -1 : split.getBotJobId());
         body.addProperty("homeBankingId", split.getHomeBankingId() == null ? -1 : split.getHomeBankingId());
@@ -256,7 +259,7 @@ public final class CommandEditorService {
 
     public ErrorMessage validateDeleteRevision(SplitDTO split) {
         if (split == null) return new ErrorMessage("Delete Instruction Refused", "Missing request", "Delete payload is missing.");
-        String sessionId = "componentTasks".equals(split.getSessionId()) ? "componentTasks" : "botJobTasks";
+        String sessionId = targetTaskSession(split.getSessionId());
         JsonObject body = new JsonObject();
         body.addProperty("botJobId", split.getBotJobId() == null ? -1 : split.getBotJobId());
         body.addProperty("homeBankingId", split.getHomeBankingId() == null ? -1 : split.getHomeBankingId());
@@ -321,7 +324,7 @@ public final class CommandEditorService {
     }
 
     private JsonArray webFields(String sessionId) {
-        List<InstructionLoad> instructions = "componentTasks".equals(sessionId)
+        List<InstructionLoad> instructions = isComponentSession(sessionId)
                 ? lists.getListInstructionComp()
                 : lists.getListInstruction();
         JsonArray rows = new JsonArray();
@@ -373,9 +376,10 @@ public final class CommandEditorService {
     }
 
     private String variableType(String sessionId, int variableId, int botJobId, int homeBankingId) {
-        String table = "componentTasks".equals(sessionId) ? "component_variable" : "variable";
-        String ownerColumn = "componentTasks".equals(sessionId) ? "home_banking_id" : "bot_job_id";
-        int whereId = "componentTasks".equals(sessionId) ? homeBankingId : botJobId;
+        boolean componentSession = isComponentSession(sessionId);
+        String table = componentSession ? "component_variable" : "variable";
+        String ownerColumn = componentSession ? "home_banking_id" : "bot_job_id";
+        int whereId = componentSession ? homeBankingId : botJobId;
         String sql = "SELECT type FROM " + table + " WHERE id=? AND " + ownerColumn + "=?";
         try (PreparedStatement statement = database.getConnection().prepareStatement(sql)) {
             statement.setInt(1, variableId);
@@ -404,7 +408,7 @@ public final class CommandEditorService {
             return completed;
         }
         JsonObject response = new JsonObject();
-        String targetSession = string(body, "targetSessionId", "botJobTasks");
+        String targetSession = string(body, "targetSessionId", ScannerWorkspaceSessions.BOT_JOB_TASKS);
         ErrorMessage loadError = reloadInstructions(body, targetSession);
         if (loadError != null) return failure(loadError.getErrorMessage());
         JsonObject stale = validateGraphRevision(body, targetSession);
@@ -522,14 +526,14 @@ public final class CommandEditorService {
             return failure(error.getErrorMessage());
         }
 
-        if ("componentTasks".equals(targetSession)) {
+        if (isComponentSession(targetSession)) {
             error = database.loadComponentsComplete(split.getHomeBankingId(), split.getBotJobId(), split.getBotJobName());
         } else {
             error = engine.loadCompleteJobs(split.getBotJobId());
         }
         if (error != null) return failure(error.getErrorMessage());
 
-        List<BotJobLoadDTO> jobs = "componentTasks".equals(targetSession)
+        List<BotJobLoadDTO> jobs = isComponentSession(targetSession)
                 ? lists.getListBotJobComp()
                 : lists.getListBotJob();
         List<InstructionLoad> instructions = lists.buildJsonViewData(jobs);
@@ -555,13 +559,14 @@ public final class CommandEditorService {
         String requestId = string(body, "requestId", "").trim();
         JsonObject completed = completedRequest(requestId);
         if (completed != null) return completed;
-        String targetSession = string(body, "targetSessionId", "botJobTasks");
-        int whereId = "componentTasks".equals(targetSession)
+        String targetSession = string(body, "targetSessionId", ScannerWorkspaceSessions.BOT_JOB_TASKS);
+        boolean componentSession = isComponentSession(targetSession);
+        int whereId = componentSession
                 ? integer(body, "homeBankingId", -1)
                 : integer(body, "botJobId", -1);
         int blockId = integer(body, "blockId", -1);
         int anchorId = integer(body, "instructionId", -1);
-        String instructionTable = "componentTasks".equals(targetSession)
+        String instructionTable = componentSession
                 ? "component_instruction"
                 : "instruction";
         ErrorMessage error = database.loadInstructions(whereId, -1, -1, instructionTable);
@@ -569,7 +574,7 @@ public final class CommandEditorService {
         JsonObject stale = validateGraphRevision(body, targetSession);
         if (stale != null) return stale;
 
-        List<InstructionLoad> blockRows = ("componentTasks".equals(targetSession)
+        List<InstructionLoad> blockRows = (componentSession
                         ? lists.getListInstructionComp()
                         : lists.getListInstruction())
                 .stream()
@@ -637,8 +642,8 @@ public final class CommandEditorService {
 
     public JsonObject previewSplit(JsonObject body) {
         JsonObject response = new JsonObject();
-        String targetSession = string(body, "targetSessionId", "botJobTasks");
-        if ("componentTasks".equals(targetSession)) return failure("Component blocks cannot be split here.");
+        String targetSession = string(body, "targetSessionId", ScannerWorkspaceSessions.BOT_JOB_TASKS);
+        if (isComponentSession(targetSession)) return failure("Component blocks cannot be split here.");
 
         ErrorMessage loadError = reloadInstructions(body, targetSession);
         if (loadError != null) return failure(loadError.getErrorMessage());
@@ -677,7 +682,7 @@ public final class CommandEditorService {
     }
 
     public JsonObject previewMove(JsonObject body) {
-        String targetSession = string(body, "targetSessionId", "botJobTasks");
+        String targetSession = string(body, "targetSessionId", ScannerWorkspaceSessions.BOT_JOB_TASKS);
         ErrorMessage loadError = reloadInstructions(body, targetSession);
         if (loadError != null) return failure(loadError.getErrorMessage());
         JsonObject stale = validateGraphRevision(body, targetSession);
@@ -689,7 +694,7 @@ public final class CommandEditorService {
         if (group.isEmpty()) return failure("The move instruction no longer exists.");
         if (destinationBlockId < 1) return failure("A destination block is required.");
 
-        boolean destinationExists = ("componentTasks".equals(targetSession)
+        boolean destinationExists = (isComponentSession(targetSession)
                         ? lists.getListBlockComp()
                         : lists.getListBlock())
                 .stream()
@@ -748,10 +753,10 @@ public final class CommandEditorService {
         if (split.getGraphRevision() == null || split.getGraphRevision().isBlank()) {
             return splitError("Instruction graph revision is required. Reopen the command panel.");
         }
-        if (!split.getGraphRevision().equals(graphRevision("botJobTasks"))) {
+        if (!split.getGraphRevision().equals(graphRevision(ScannerWorkspaceSessions.BOT_JOB_TASKS))) {
             return splitError("Instructions changed while this panel was open. Reopen it before splitting.");
         }
-        if (!canSplit("botJobTasks", split.getInstructionId())) {
+        if (!canSplit(ScannerWorkspaceSessions.BOT_JOB_TASKS, split.getInstructionId())) {
             return splitError("Split Component is not allowed at the selected instruction.");
         }
         String partitionError = validateSplitPartition(split);
@@ -760,12 +765,12 @@ public final class CommandEditorService {
     }
 
     private String validateSplitPartition(SplitDTO split) {
-        InstructionLoad anchor = instructions("botJobTasks").stream()
+        InstructionLoad anchor = instructions(ScannerWorkspaceSessions.BOT_JOB_TASKS).stream()
                 .filter(row -> row != null && row.getId() != null && row.getId().equals(split.getInstructionId()))
                 .findFirst()
                 .orElse(null);
         if (anchor == null || anchor.getBlockId() == null) return "The split anchor no longer exists.";
-        List<InstructionLoad> currentRows = instructions("botJobTasks").stream()
+        List<InstructionLoad> currentRows = instructions(ScannerWorkspaceSessions.BOT_JOB_TASKS).stream()
                 .filter(row -> row != null && anchor.getBlockId().equals(row.getBlockId()))
                 .sorted(Comparator.comparingInt(row -> row.getInstructionOrderNumber() == null
                         ? Integer.MAX_VALUE
@@ -883,7 +888,7 @@ public final class CommandEditorService {
     }
 
     private boolean canSplit(String sessionId, int instructionId) {
-        if ("componentTasks".equals(sessionId)) return false;
+        if (isComponentSession(sessionId)) return false;
         InstructionLoad selected = instructions(sessionId).stream()
                 .filter(row -> row != null && row.getId() != null && row.getId() == instructionId)
                 .findFirst()
@@ -908,13 +913,13 @@ public final class CommandEditorService {
 
     private JsonObject refreshAfterMutation(SplitDTO split, String message, JsonObject request) {
         ErrorMessage error;
-        if ("componentTasks".equals(split.getSessionId())) {
+        if (isComponentSession(split.getSessionId())) {
             error = database.loadComponentsComplete(split.getHomeBankingId(), split.getBotJobId(), split.getBotJobName());
         } else {
             error = engine.loadCompleteJobs(split.getBotJobId());
         }
         if (error != null) return failure(error.getErrorMessage());
-        List<BotJobLoadDTO> jobs = "componentTasks".equals(split.getSessionId())
+        List<BotJobLoadDTO> jobs = isComponentSession(split.getSessionId())
                 ? lists.getListBotJobComp()
                 : lists.getListBotJob();
         List<InstructionLoad> instructions = lists.buildJsonViewData(jobs);
@@ -951,11 +956,11 @@ public final class CommandEditorService {
     }
 
     private List<InstructionLoad> instructions(String sessionId) {
-        return "componentTasks".equals(sessionId) ? lists.getListInstructionComp() : lists.getListInstruction();
+        return isComponentSession(sessionId) ? lists.getListInstructionComp() : lists.getListInstruction();
     }
 
     private ErrorMessage reloadInstructions(JsonObject body, String sessionId) {
-        boolean component = "componentTasks".equals(sessionId);
+        boolean component = isComponentSession(sessionId);
         int ownerId = component ? integer(body, "homeBankingId", -1) : integer(body, "botJobId", -1);
         return database.loadInstructions(ownerId, -1, -1, component ? "component_instruction" : "instruction");
     }
@@ -975,7 +980,7 @@ public final class CommandEditorService {
 
     private boolean excelGotoExists(
             String sessionId, int botJobId, int homeBankingId, int excludedInstructionId) {
-        boolean component = "componentTasks".equals(sessionId);
+        boolean component = isComponentSession(sessionId);
         String table = component ? "component_instruction" : "instruction";
         String owner = component ? "home_banking_id" : "bot_job_id";
         int ownerId = component ? homeBankingId : botJobId;
@@ -1010,7 +1015,7 @@ public final class CommandEditorService {
 
     private boolean variableBelongsToWebField(
             String sessionId, int variableId, int webFieldId, int botJobId, int homeBankingId) {
-        boolean component = "componentTasks".equals(sessionId);
+        boolean component = isComponentSession(sessionId);
         String table = component ? "component_variable" : "variable";
         String ownerColumn = component ? "home_banking_id" : "bot_job_id";
         int ownerId = component ? homeBankingId : botJobId;
@@ -1026,6 +1031,16 @@ public final class CommandEditorService {
         } catch (SQLException exception) {
             return false;
         }
+    }
+
+    private static String targetTaskSession(String sessionId) {
+        return isComponentSession(sessionId)
+                ? ScannerWorkspaceSessions.COMPONENT_TASKS
+                : ScannerWorkspaceSessions.BOT_JOB_TASKS;
+    }
+
+    private static boolean isComponentSession(String sessionId) {
+        return ScannerWorkspaceSessions.COMPONENT_TASKS.equals(sessionId);
     }
 
     private static String string(JsonObject body, String key, String fallback) {
