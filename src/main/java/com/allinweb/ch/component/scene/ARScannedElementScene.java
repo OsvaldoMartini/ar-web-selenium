@@ -101,7 +101,7 @@ public class ARScannedElementScene extends ARScene {
         }
 
         if (!isConnectWebSocket) {
-            connectWebSocketClient(portSocketInitial, "scanner-element-pane");
+            connectWebSocketClient(portSocketInitial, ScannerWorkspaceSessions.SCANNER_ELEMENT_PANE);
         }
 
         ErrorMessage errorMessage = performDataBase.loadBlocks(currentBotJob.getId(), "", "block");
@@ -121,7 +121,7 @@ public class ARScannedElementScene extends ARScene {
                     try {
                         if (session != null && session.isOpen()) {
                             session.getBasicRemote()
-                                    .sendText("ping-scanner-element-pane"); // Or a specific keep-alive message
+                                    .sendText("ping-" + ScannerWorkspaceSessions.SCANNER_ELEMENT_PANE);
                         }
                     } catch (IOException e) {
                         log.error("Error sending ping: " + e.getMessage());
@@ -835,7 +835,10 @@ public class ARScannedElementScene extends ARScene {
                                     + performDataBase.getIdsInstrucAfter().size(),
                             0);
 
-                    sendStatusButton("scannerGrid", "activate-insert-all", "Insert All Elements button activated");
+                    sendStatusButton(
+                            ScannerWorkspaceSessions.SCANNER_GRID,
+                            "activate-insert-all",
+                            "Insert All Elements button activated");
 
                     //                    updateBotJobTasks();
 
@@ -853,14 +856,20 @@ public class ARScannedElementScene extends ARScene {
                 }
 
                 updateBotJobTasks(this.currentBotJob.getId());
-                sendStatusButton("scannerGrid", "activate-insert-all", "Insert All Elements button activated");
+                sendStatusButton(
+                        ScannerWorkspaceSessions.SCANNER_GRID,
+                        "activate-insert-all",
+                        "Insert All Elements button activated");
 
                 if (errorMessage != null) {
                     performMessage.errorMessageOperationFailed(errorMessage);
                 }
             }
         } else {
-            sendStatusButton("scannerGrid", "activate-insert-all", "Insert All Elements button activated");
+            sendStatusButton(
+                    ScannerWorkspaceSessions.SCANNER_GRID,
+                    "activate-insert-all",
+                    "Insert All Elements button activated");
         }
     }
 
@@ -910,13 +919,19 @@ public class ARScannedElementScene extends ARScene {
                 }
 
                 updateBotJobTasks(this.currentBotJob.getId());
-                sendStatusButton("scannerGrid", "activate-update-all", "Update All Elements button activated");
+                sendStatusButton(
+                        ScannerWorkspaceSessions.SCANNER_GRID,
+                        "activate-update-all",
+                        "Update All Elements button activated");
                 if (errorMessage != null) {
                     performMessage.errorMessageOperationFailed(errorMessage);
                 }
             }
         } else {
-            sendStatusButton("scannerGrid", "activate-update-all", "Update All Elements button activated");
+            sendStatusButton(
+                    ScannerWorkspaceSessions.SCANNER_GRID,
+                    "activate-update-all",
+                    "Update All Elements button activated");
         }
     }
 
