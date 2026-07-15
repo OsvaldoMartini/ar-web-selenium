@@ -2607,7 +2607,7 @@ public class PerformDataBase {
             Integer homeBankingId) {
 
         String tableName = "instruction";
-        if ("componentTasks".equals(typeTask)) {
+        if (isComponentTask(typeTask)) {
             tableName = "component_instruction";
         }
 
@@ -2676,7 +2676,7 @@ public class PerformDataBase {
                 addColumnValue.accept("variable_id", instructionLoad.getVariableId());
                 addColumnValue.accept("block_id", currentBlockId);
 
-                if ("componentTasks".equals(typeTask)) {
+                if (isComponentTask(typeTask)) {
                     addColumnValue.accept("home_banking_id", homeBankingId);
                 } else {
                     addColumnValue.accept("bot_job_id", currentBotJobId);
@@ -2764,7 +2764,7 @@ public class PerformDataBase {
             Integer homeBankingId) {
 
         String tableName = "instruction";
-        if ("componentTasks".equals(typeTask)) {
+        if (isComponentTask(typeTask)) {
             tableName = "component_instruction";
         }
 
@@ -2776,7 +2776,7 @@ public class PerformDataBase {
         try (Connection conn = getConnection()) {
             conn.setAutoCommit(false);
 
-            boolean isComponent = "componentTasks".equals(typeTask);
+            boolean isComponent = isComponentTask(typeTask);
 
             // Prepared once (faster + cleaner)
             StringBuilder countSql = new StringBuilder(
@@ -2921,7 +2921,7 @@ public class PerformDataBase {
             Integer homeBankingId) {
 
         String tableName = "instruction";
-        if ("componentTasks".equals(typeTask)) {
+        if (isComponentTask(typeTask)) {
             tableName = "component_instruction";
         }
 
@@ -2982,7 +2982,7 @@ public class PerformDataBase {
                 addColumnValue.accept("variable_id", instructionLoad.getVariableId());
                 addColumnValue.accept("block_id", currentBlockId);
 
-                if ("componentTasks".equals(typeTask)) {
+                if (isComponentTask(typeTask)) {
                     addColumnValue.accept("home_banking_id", homeBankingId);
                 } else {
                     addColumnValue.accept("bot_job_id", currentBotJobId);
@@ -3049,7 +3049,7 @@ public class PerformDataBase {
     public ErrorMessage updateInstructionParentIdOnly(String typeTask, List<InstructionOperationDTO> operations) {
 
         String tableName = "instruction";
-        if ("componentTasks".equals(typeTask)) {
+        if (isComponentTask(typeTask)) {
             tableName = "component_instruction";
         }
 
@@ -3093,7 +3093,7 @@ public class PerformDataBase {
             Integer homeBankingId) {
 
         String tableName = "instruction";
-        if (typeTask.equals("componentTasks")) {
+        if (isComponentTask(typeTask)) {
             tableName = "component_instruction";
         }
 
@@ -3139,7 +3139,7 @@ public class PerformDataBase {
             addColumnValue.accept("variable_id", InstructionOperation.getVariableId());
             addColumnValue.accept("block_id", currentBlockId);
 
-            if (typeTask.equals("componentTasks")) {
+            if (isComponentTask(typeTask)) {
                 addColumnValue.accept("home_banking_id", homeBankingId);
             } else {
                 addColumnValue.accept("bot_job_id", currentBotJobId);
@@ -3287,7 +3287,7 @@ public class PerformDataBase {
         String instrName = "instruction";
         String blockTable = "block";
         int whereId = splitDTO.getBotJobId();
-        if (splitDTO.getSessionId().equals("componentTasks")) {
+        if (isComponentTask(splitDTO.getSessionId())) {
             instrName = "component_instruction";
             blockTable = "component_block";
             whereId = splitDTO.getHomeBankingId();
@@ -3854,7 +3854,7 @@ public class PerformDataBase {
 
     public ErrorMessage upsertReferencesBatch(String typeTask, List<InstructionLoad> instructionList) {
 
-        boolean isComponent = "componentTasks".equals(typeTask);
+        boolean isComponent = isComponentTask(typeTask);
 
         String tableName = isComponent ? "component_reference" : "reference";
 
@@ -8859,6 +8859,10 @@ public class PerformDataBase {
 
     public boolean isConnDBWorks() {
         return connDBWorks;
+    }
+
+    private boolean isComponentTask(String typeTask) {
+        return ScannerWorkspaceSessions.COMPONENT_TASKS.equals(typeTask);
     }
 
     public ErrorMessage checkGapsBlockOrder(
