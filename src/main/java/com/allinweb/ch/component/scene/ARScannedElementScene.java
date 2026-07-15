@@ -383,7 +383,10 @@ public class ARScannedElementScene extends ARScene {
 
                         if (!"NEW_ELEMENT_DTO".equals(type) && !"SEND_ALL_ELEMENTS_DTO".equals(type)) {
                             webSocketSessionManager.sendMessageJson(
-                                    splitDTO.getHomeBankingId(), "mobile-return-server", jsonData, type);
+                                    splitDTO.getHomeBankingId(),
+                                    ScannerWorkspaceSessions.MOBILE_RETURN_SERVER,
+                                    jsonData,
+                                    type);
                         }
                     } else {
                         arScannedElementPane.checkRunningProcess();

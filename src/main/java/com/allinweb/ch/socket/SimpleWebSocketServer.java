@@ -2003,34 +2003,36 @@ public class SimpleWebSocketServer {
             }
 
             switch (type) {
-                case "LAUNCH_BOT_JOB_TEST":
-                    if (sessionIdToSend.equals("mobile-return-server")) {
+                case ScannerWorkspaceOperations.LAUNCH_BOT_JOB_TEST:
+                    if (sessionIdToSend.equals(ScannerWorkspaceSessions.MOBILE_RETURN_SERVER)) {
                         splitDTO.setOperationId(type);
                         String jsonData = gson.toJson(splitDTO);
-                        webSocketSessionManager.sendMessageJson(homeBankingId, "mobile-return-server", jsonData, type);
+                        webSocketSessionManager.sendMessageJson(
+                                homeBankingId, ScannerWorkspaceSessions.MOBILE_RETURN_SERVER, jsonData, type);
                     }
                     alreadySentMgsSocket = true;
                     break;
-                case "ATTACHED_DEVICE":
-                case "DISCOVERY_APP":
+                case ScannerWorkspaceOperations.ATTACHED_DEVICE:
+                case ScannerWorkspaceOperations.DISCOVERY_APP:
                 case ScannerWorkspaceOperations.SCANNER_APP:
-                case "MOBILE_SCROLL_UP":
-                case "MOBILE_SCROLL_DOWN":
-                case "MOBILE_BACK":
-                case "MOBILE_HOME":
-                case "MOBILE_RECENTS":
-                case "MOBILE_CLOSE_ALL":
-                case "MOBILE_NEXT_DONE":
-                case "MOBILE_CLOSE_KEYBOARD":
-                    if (sessionIdToSend.equals("mobile-return-server")) {
+                case ScannerWorkspaceOperations.MOBILE_SCROLL_UP:
+                case ScannerWorkspaceOperations.MOBILE_SCROLL_DOWN:
+                case ScannerWorkspaceOperations.MOBILE_BACK:
+                case ScannerWorkspaceOperations.MOBILE_HOME:
+                case ScannerWorkspaceOperations.MOBILE_RECENTS:
+                case ScannerWorkspaceOperations.MOBILE_CLOSE_ALL:
+                case ScannerWorkspaceOperations.MOBILE_NEXT_DONE:
+                case ScannerWorkspaceOperations.MOBILE_CLOSE_KEYBOARD:
+                    if (sessionIdToSend.equals(ScannerWorkspaceSessions.MOBILE_RETURN_SERVER)) {
                         splitDTO.setOperationId(type);
                         String jsonData = gson.toJson(splitDTO);
-                        webSocketSessionManager.sendMessageJson(homeBankingId, "mobile-return-server", jsonData, type);
+                        webSocketSessionManager.sendMessageJson(
+                                homeBankingId, ScannerWorkspaceSessions.MOBILE_RETURN_SERVER, jsonData, type);
                     }
                     alreadySentMgsSocket = true;
                     break;
-                case "REACTIVATE_BUTTONS":
-                    if (sessionId.equals("mobile-return-server")) {
+                case ScannerWorkspaceOperations.REACTIVATE_BUTTONS:
+                    if (sessionId.equals(ScannerWorkspaceSessions.MOBILE_RETURN_SERVER)) {
                         splitDTO.setElementDetails(null);
 
                         // Convert your JsonObject to a proper JSON string
@@ -2044,9 +2046,9 @@ public class SimpleWebSocketServer {
                     alreadySentMgsSocket = true;
                     break;
 
-                case "MOBILE_LOAD_JOBS": //  DATA CONTROL FOR THE MOBILE mobileScannerGrid
-                    if (sessionId.equals("mobile-return-server")) {
-                        splitDTO.setOperationId("botJobList");
+                case ScannerWorkspaceOperations.MOBILE_LOAD_JOBS: //  DATA CONTROL FOR THE MOBILE mobileScannerGrid
+                    if (sessionId.equals(ScannerWorkspaceSessions.MOBILE_RETURN_SERVER)) {
+                        splitDTO.setOperationId(ScannerWorkspaceOperations.BOT_JOB_LIST);
 
                         performDataBase.setMobileDevices(true);
                         errorMessage = performDataBase.loadQuickBotJobs();
@@ -2055,20 +2057,26 @@ public class SimpleWebSocketServer {
                                     .orElse(Collections.emptyList());
                             String jsonData = gson.toJson(fetched);
                             webSocketSessionManager.sendMessageJson(
-                                    homeBankingId, ScannerWorkspaceSessions.MOBILE_SCANNER_GRID, jsonData, "botJobList");
+                                    homeBankingId,
+                                    ScannerWorkspaceSessions.MOBILE_SCANNER_GRID,
+                                    jsonData,
+                                    ScannerWorkspaceOperations.BOT_JOB_LIST);
                         }
                         performDataBase.setMobileDevices(false);
                     }
                     alreadySentMgsSocket = true;
                     break;
-                case "MOBILE_VALIDATE_FIELDS": //  DATA CONTROL FOR THE MOBILE mobileScannerGrid
-                    if (sessionId.equals("mobile-return-server")) {
-                        splitDTO.setOperationId("validateFields");
+                case ScannerWorkspaceOperations.MOBILE_VALIDATE_FIELDS: //  DATA CONTROL FOR THE MOBILE mobileScannerGrid
+                    if (sessionId.equals(ScannerWorkspaceSessions.MOBILE_RETURN_SERVER)) {
+                        splitDTO.setOperationId(ScannerWorkspaceOperations.VALIDATE_FIELDS);
 
                         performDataBase.setMobileDevices(true);
                         String jsonData = gson.toJson(splitDTO.getFieldsToValidate());
                         webSocketSessionManager.sendMessageJson(
-                                homeBankingId, ScannerWorkspaceSessions.MOBILE_SCANNER_GRID, jsonData, "validateFields");
+                                homeBankingId,
+                                ScannerWorkspaceSessions.MOBILE_SCANNER_GRID,
+                                jsonData,
+                                ScannerWorkspaceOperations.VALIDATE_FIELDS);
                         performDataBase.setMobileDevices(false);
                     }
                     alreadySentMgsSocket = true;
@@ -2215,7 +2223,7 @@ public class SimpleWebSocketServer {
                                 "attributeValue");
                         performMessage.outputJsonElementDTO(
                                 splitDTO.getElementDetails(), excludeList, "AI-ElementDTO-HP", jsonPath, true);
-                    } else if (sessionIdToSend.equals("mobile-return-server")) {
+                    } else if (sessionIdToSend.equals(ScannerWorkspaceSessions.MOBILE_RETURN_SERVER)) {
                         String jsonData = gson.toJson(splitDTO);
                         webSocketSessionManager.sendMessageJson(
                                 homeBankingId,
@@ -2293,11 +2301,11 @@ public class SimpleWebSocketServer {
                     if (splitDTO.getProjectType() != null
                             && (splitDTO.getProjectType().equalsIgnoreCase("Android")
                                     || splitDTO.getProjectType().equalsIgnoreCase("iOS"))) {
-                        sessionIdToSend = "mobile-return-server";
+                        sessionIdToSend = ScannerWorkspaceSessions.MOBILE_RETURN_SERVER;
                         splitDTO.setSessionId(sessionIdToSend);
                     }
 
-                    if ("mobile-return-server".equals(sessionIdToSend)) {
+                    if (ScannerWorkspaceSessions.MOBILE_RETURN_SERVER.equals(sessionIdToSend)) {
 
                         // Safely extract the first element ID (if present)
                         Integer elementId = Optional.ofNullable(splitDTO.getElementDetails())
@@ -2329,7 +2337,10 @@ public class SimpleWebSocketServer {
 
                         if (!"NEW_ELEMENT_DTO".equals(type) && !"SEND_ALL_ELEMENTS_DTO".equals(type)) {
                             webSocketSessionManager.sendMessageJson(
-                                    homeBankingId, "mobile-return-server", jsonData, type);
+                                    homeBankingId,
+                                    ScannerWorkspaceSessions.MOBILE_RETURN_SERVER,
+                                    jsonData,
+                                    type);
                         } else {
                             ErrorMessage applyError = null;
                             try {
