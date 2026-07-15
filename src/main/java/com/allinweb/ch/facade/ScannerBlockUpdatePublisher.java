@@ -16,15 +16,29 @@ public final class ScannerBlockUpdatePublisher {
     }
 
     public void publishBlockCreationUpdate(int homeBankingId, String jsonPayload, String performListOperationId) {
-        sender.sendMessageJson(
-                homeBankingId, ScannerWorkspaceSessions.PERFORM_LIST_DATA, jsonPayload, performListOperationId);
-        sender.sendMessageJson(
-                homeBankingId, ScannerWorkspaceSessions.SCANNER_GRID, jsonPayload, ScannerWorkspaceOperations.BLOCKS_UPDATE);
+        sender.sendMessageJson(homeBankingId, performListDestinationSessionId(), jsonPayload, performListOperationId);
+        sender.sendMessageJson(homeBankingId, scannerGridDestinationSessionId(), jsonPayload, blocksUpdateOperationId());
         sender.sendMessageJson(
                 homeBankingId,
-                ScannerWorkspaceSessions.PRE_SCANNER_GRID,
+                preScannerGridDestinationSessionId(),
                 jsonPayload,
-                ScannerWorkspaceOperations.BLOCKS_UPDATE);
+                blocksUpdateOperationId());
+    }
+
+    public String performListDestinationSessionId() {
+        return ScannerWorkspaceSessions.PERFORM_LIST_DATA;
+    }
+
+    public String scannerGridDestinationSessionId() {
+        return ScannerWorkspaceSessions.SCANNER_GRID;
+    }
+
+    public String preScannerGridDestinationSessionId() {
+        return ScannerWorkspaceSessions.PRE_SCANNER_GRID;
+    }
+
+    public String blocksUpdateOperationId() {
+        return ScannerWorkspaceOperations.BLOCKS_UPDATE;
     }
 
     interface Sender {
