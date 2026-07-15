@@ -315,17 +315,6 @@ public class PerformCloseBrowser {
                       arguments[5],
                       arguments[6]
                     );
-                    // })(
-                    //   61757,
-                    //   "closeBrowser",
-                    //   ScannerWorkspaceSessions.SCANNER_ELEMENT_PANE,
-                    //   "closeBrowser",
-                    //   2,
-                    //   "https://www.tradingview.com/",
-                    //   "https://www.tradingview.com/"
-                    //   // "https://www.bloomberg.com/",
-                    //   // "https://www.bloomberg.com/"
-                    // );
                     """;
 
     // Private constructor to prevent instantiation
