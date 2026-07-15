@@ -17,12 +17,23 @@ import java.util.Map;
 public class PluginContext {
 
     private static final Gson GSON = new Gson();
+    private static final String FIELD_PLUGIN_ID = "pluginId";
+    private static final String FIELD_API_VERSION = "apiVersion";
+    private static final String FIELD_HIDDEN_FIELDS = "hiddenFields";
+    private static final String FIELD_PORT = "port";
+    private static final String FIELD_SESSION_ID = "sessionId";
+    private static final String FIELD_DESTINATION = "destination";
+    private static final String FIELD_OPERATION_ID = "operationId";
+    private static final String FIELD_HOME_BANKING_ID = "homeBankingId";
+    private static final String FIELD_BOT_JOB_ID = "botJobId";
+    private static final String FIELD_TARGET_ORIGIN_URL = "targetOriginURL";
+    private static final String FIELD_TRUSTED_ORIGIN_URL = "trustedOriginURL";
 
     private final Map<String, Object> fields = new HashMap<>();
 
     private PluginContext(String pluginId) {
-        fields.put("pluginId", pluginId);
-        fields.put("apiVersion", 2);
+        fields.put(FIELD_PLUGIN_ID, pluginId);
+        fields.put(FIELD_API_VERSION, 2);
     }
 
     public static PluginContext forPageScanner(
@@ -35,14 +46,8 @@ public class PluginContext {
             int homeBankingId,
             int botJobId) {
         PluginContext ctx = new PluginContext("pageScanner");
-        ctx.fields.put(ScannerWorkspaceOperations.SEARCH_TERMS, searchTerms);
-        ctx.fields.put("hiddenFields", hiddenFields);
-        ctx.fields.put("port", port);
-        ctx.fields.put("sessionId", sessionId);
-        ctx.fields.put("destination", destination);
-        ctx.fields.put("operationId", operationId);
-        ctx.fields.put("homeBankingId", homeBankingId);
-        ctx.fields.put("botJobId", botJobId);
+        ctx.putScannerFields(
+                searchTerms, hiddenFields, port, sessionId, destination, operationId, homeBankingId, botJobId);
         return ctx;
     }
 
@@ -57,15 +62,10 @@ public class PluginContext {
             String targetOriginURL,
             String trustedOriginURL) {
         PluginContext ctx = new PluginContext("hoverPick");
-        ctx.fields.put("hiddenFields", hiddenFields);
-        ctx.fields.put("port", port);
-        ctx.fields.put("sessionId", sessionId);
-        ctx.fields.put("destination", destination);
-        ctx.fields.put("operationId", operationId);
-        ctx.fields.put("homeBankingId", homeBankingId);
-        ctx.fields.put("botJobId", botJobId);
-        ctx.fields.put("targetOriginURL", targetOriginURL);
-        ctx.fields.put("trustedOriginURL", trustedOriginURL);
+        ctx.putScannerFields(
+                null, hiddenFields, port, sessionId, destination, operationId, homeBankingId, botJobId);
+        ctx.fields.put(FIELD_TARGET_ORIGIN_URL, targetOriginURL);
+        ctx.fields.put(FIELD_TRUSTED_ORIGIN_URL, trustedOriginURL);
         return ctx;
     }
 
@@ -79,14 +79,8 @@ public class PluginContext {
             int homeBankingId,
             int botJobId) {
         PluginContext ctx = new PluginContext("searchList");
-        ctx.fields.put(ScannerWorkspaceOperations.SEARCH_TERMS, searchTerms);
-        ctx.fields.put("hiddenFields", hiddenFields);
-        ctx.fields.put("port", port);
-        ctx.fields.put("sessionId", sessionId);
-        ctx.fields.put("destination", destination);
-        ctx.fields.put("operationId", operationId);
-        ctx.fields.put("homeBankingId", homeBankingId);
-        ctx.fields.put("botJobId", botJobId);
+        ctx.putScannerFields(
+                searchTerms, hiddenFields, port, sessionId, destination, operationId, homeBankingId, botJobId);
         return ctx;
     }
 
@@ -100,15 +94,30 @@ public class PluginContext {
             int homeBankingId,
             int botJobId) {
         PluginContext ctx = new PluginContext("searchListAsync");
-        ctx.fields.put(ScannerWorkspaceOperations.SEARCH_TERMS, searchTerms);
-        ctx.fields.put("hiddenFields", hiddenFields);
-        ctx.fields.put("port", port);
-        ctx.fields.put("sessionId", sessionId);
-        ctx.fields.put("destination", destination);
-        ctx.fields.put("operationId", operationId);
-        ctx.fields.put("homeBankingId", homeBankingId);
-        ctx.fields.put("botJobId", botJobId);
+        ctx.putScannerFields(
+                searchTerms, hiddenFields, port, sessionId, destination, operationId, homeBankingId, botJobId);
         return ctx;
+    }
+
+    private void putScannerFields(
+            List<String> searchTerms,
+            boolean hiddenFields,
+            int port,
+            String sessionId,
+            String destination,
+            String operationId,
+            int homeBankingId,
+            int botJobId) {
+        if (searchTerms != null) {
+            fields.put(ScannerWorkspaceOperations.SEARCH_TERMS, searchTerms);
+        }
+        fields.put(FIELD_HIDDEN_FIELDS, hiddenFields);
+        fields.put(FIELD_PORT, port);
+        fields.put(FIELD_SESSION_ID, sessionId);
+        fields.put(FIELD_DESTINATION, destination);
+        fields.put(FIELD_OPERATION_ID, operationId);
+        fields.put(FIELD_HOME_BANKING_ID, homeBankingId);
+        fields.put(FIELD_BOT_JOB_ID, botJobId);
     }
 
     /**
