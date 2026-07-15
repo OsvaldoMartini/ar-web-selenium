@@ -743,7 +743,7 @@ public class BotJobDetailsWorkspaceHost {
                 selectedBotJob.getHomeBankingId(),
                 ScannerWorkspaceSessions.PRE_SCANNER_GRID,
                 gson.toJson(result.payload()),
-                "searchTerms");
+                ScannerWorkspaceOperations.SEARCH_TERMS);
     }
 
     private void callScannerTool(BotJobLoadDTO scannerBotJob) {
