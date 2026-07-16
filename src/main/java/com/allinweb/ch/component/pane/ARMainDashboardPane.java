@@ -230,6 +230,7 @@ public class ARMainDashboardPane extends ARPane implements BotJobDetailsPresenta
         Platform.runLater(() -> dispatchReactSession(SESSION_ID));
     }
 
+    @Override
     public void openCloneOrganizations() {
         Platform.runLater(() -> arOrganizationManagerScene.showModal(currentStage()));
     }

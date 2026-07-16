@@ -9,6 +9,10 @@ public interface MainDashboardPresentation {
 
     void openCloneBotJob(BotJobLoadDTO botJob);
 
+    void openCloneOrganizations();
+
+    void closeCloneJob();
+
     void openBotJob(BotJobLoadDTO botJob);
 
     void openConfig();

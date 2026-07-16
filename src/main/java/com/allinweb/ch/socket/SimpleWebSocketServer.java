@@ -1,6 +1,5 @@
 package com.allinweb.ch.socket;
 
-import com.allinweb.ch.component.pane.ARMainDashboardPane;
 import com.allinweb.ch.facade.*;
 import com.allinweb.ch.model.*;
 import com.allinweb.ch.util.*;
@@ -623,11 +622,11 @@ public class SimpleWebSocketServer {
                     sendCloneJobResponse(sessionId, cloneJobService.create(extractBody(jsonObjMSG)), "cloneJob.cloneResponse");
                     break;
                 case "cloneJob.openOrganizations":
-                    ARMainDashboardPane.getInstance().openCloneOrganizations();
+                    MainDashboardPresentationRegistry.getInstance().current().openCloneOrganizations();
                     sendCloneJobResponse(sessionId, java.util.Map.of("ok", true, "message", "Organizations opened"), "cloneJob.actionResponse");
                     break;
                 case "cloneJob.cancel":
-                    ARMainDashboardPane.getInstance().closeCloneJob();
+                    MainDashboardPresentationRegistry.getInstance().current().closeCloneJob();
                     break;
                 case "config.bootstrap":
                     handleConfigBootstrap(sessionId);

@@ -39,6 +39,12 @@ public final class MainDashboardPresentationRegistry {
         public void openCloneBotJob(BotJobLoadDTO botJob) {}
 
         @Override
+        public void openCloneOrganizations() {}
+
+        @Override
+        public void closeCloneJob() {}
+
+        @Override
         public void openBotJob(BotJobLoadDTO botJob) {}
 
         @Override
