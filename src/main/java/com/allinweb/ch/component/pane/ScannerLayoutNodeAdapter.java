@@ -55,4 +55,19 @@ final class ScannerLayoutNodeAdapter {
         column.setSpacing(6);
         return column;
     }
+
+    VBox scannerContentColumn() {
+        VBox column = new VBox();
+        column.setSpacing(10);
+        column.setPadding(new Insets(10));
+        VBox.setVgrow(column, Priority.ALWAYS);
+        return column;
+    }
+
+    HBox launchButtonRow(Node... children) {
+        HBox row = new HBox();
+        row.setSpacing(10);
+        row.getChildren().addAll(children);
+        return row;
+    }
 }

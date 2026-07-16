@@ -1855,17 +1855,10 @@ public class ARScannedElementPane extends ARPane
 
             topPane.getChildren().addAll(gridPaneTop, lblPluginHint); // Add gridPaneTop + hint to topPane
 
-            verticalBox = new VBox();
-            verticalBox.setSpacing(10);
-            verticalBox.setPadding(new Insets(10));
-            VBox.setVgrow(verticalBox, Priority.ALWAYS);
+            verticalBox = scannerLayoutNodeAdapter.scannerContentColumn();
 
             // Create an HBox to hold launchBotJobButton and stopBotJobButton
-            HBox hBoxLaunchButon = new HBox();
-            hBoxLaunchButon.setSpacing(10); // Optional: adjust spacing between buttons
-
-            // Add buttons to the HBox
-            hBoxLaunchButon.getChildren().addAll(launchBotJobButton, stopBotJobButton);
+            HBox hBoxLaunchButon = scannerLayoutNodeAdapter.launchButtonRow(launchBotJobButton, stopBotJobButton);
 
             HBox boxName = new HBox();
             boxName.setSpacing(5);
