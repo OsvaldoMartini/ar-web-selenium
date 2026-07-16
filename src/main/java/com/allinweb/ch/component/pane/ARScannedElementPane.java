@@ -164,6 +164,7 @@ public class ARScannedElementPane extends ARPane
             new ScannerSupportCaptureSendService();
     private final ScannerSupportResponseActionService scannerSupportResponseActionService =
             new ScannerSupportResponseActionService();
+    private final ScannerStageAdapter scannerStageAdapter = new ScannerStageAdapter();
     private final ScannerPluginAlertAdapter scannerPluginAlertAdapter = new ScannerPluginAlertAdapter();
     private final ScannerPluginPickerDialogAdapter scannerPluginPickerDialogAdapter =
             new ScannerPluginPickerDialogAdapter();
@@ -934,13 +935,7 @@ public class ARScannedElementPane extends ARPane
 
     @Override
     public void closeLaunchWindowIfPresent() {
-        if (launchBotJobButton == null || launchBotJobButton.getScene() == null) {
-            return;
-        }
-        javafx.stage.Window window = launchBotJobButton.getScene().getWindow();
-        if (window instanceof Stage stage) {
-            stage.close();
-        }
+        scannerStageAdapter.closeOwnerWindow(launchBotJobButton);
     }
 
     @Override
@@ -3627,10 +3622,7 @@ public class ARScannedElementPane extends ARPane
 
     private void Close() {
         log.info("ARScannedElementPane Close()");
-        Platform.runLater(() -> {
-            Stage stage = (Stage) mainPane.getScene().getWindow();
-            stage.close();
-        });
+        scannerStageAdapter.closeOwnerWindow(mainPane);
     }
 
     private Button createPathButton() {
@@ -4024,12 +4016,7 @@ public class ARScannedElementPane extends ARPane
 
     // 🔹 Method to close the window
     public void closePane() {
-        if (this.stage != null) {
-            Platform.runLater(() -> {
-                this.stage.close();
-                instance = null; // optional reset for singleton
-            });
-        }
+        scannerStageAdapter.close(this.stage, () -> instance = null);
     }
 
     private void searchTermsBtn(String searchTerms, List<String> extendedRules) {
