@@ -152,6 +152,8 @@ public class ARScannedElementPane extends ARPane
             new ScannerBlockOptionSelectionService();
     private final ScannerModalBlockCreationService scannerModalBlockCreationService =
             new ScannerModalBlockCreationService();
+    private final ScannerCreateBlockModalPresentationService scannerCreateBlockModalPresentationService =
+            new ScannerCreateBlockModalPresentationService();
     private final ScannerPageScanService scannerPageScanService = new ScannerPageScanService(performListElements);
     private final ScannerElementPanePublisher scannerElementPanePublisher = new ScannerElementPanePublisher();
     private final ScannerSupportRequestPublisher scannerSupportRequestPublisher = new ScannerSupportRequestPublisher();
@@ -4013,12 +4015,14 @@ public class ARScannedElementPane extends ARPane
      */
     private void openCreateBlockModal(Runnable afterCreate) {
         final boolean reactive = afterCreate != null;
+        ScannerCreateBlockModalPresentationService.Presentation presentation =
+                scannerCreateBlockModalPresentationService.presentation(reactive);
 
         List<BlockLoadDTO> existingSorted =
                 scannerCreateBlockPlanner.sortedBlocksForBotJob(currentBotJob.getId(), performLists.getListBlock());
 
         javafx.scene.control.Dialog<javafx.scene.control.ButtonType> dialog = new javafx.scene.control.Dialog<>();
-        dialog.setTitle(reactive ? "No block selected — create one" : "Create new block");
+        dialog.setTitle(presentation.title());
         dialog.initModality(Modality.APPLICATION_MODAL);
 
         VBox root = new VBox(10);
@@ -4029,7 +4033,7 @@ public class ARScannedElementPane extends ARPane
         root.setMinWidth(460);
 
         if (reactive) {
-            Label banner = new Label("No Block Selected — pick an existing block below or create a new one.");
+            Label banner = new Label(presentation.banner());
             banner.setWrapText(true);
             banner.setMaxWidth(Double.MAX_VALUE);
             banner.setStyle("-fx-background-color:#ffebee; -fx-text-fill:#C62828; -fx-font-weight:bold; "
@@ -4037,11 +4041,11 @@ public class ARScannedElementPane extends ARPane
             root.getChildren().add(banner);
         }
 
-        Label nameLabel = new Label("Block name:");
+        Label nameLabel = new Label(presentation.nameLabel());
         TextField nameField = new TextField();
-        nameField.setPromptText("e.g. Login Flow");
+        nameField.setPromptText(presentation.namePrompt());
 
-        Label posLabel = new Label("Insert position:");
+        Label posLabel = new Label(presentation.positionLabel());
         ComboBox<String> posCombo = new ComboBox<>();
         posCombo.setMaxWidth(Double.MAX_VALUE);
         List<String> posOptions = scannerCreateBlockPlanner.positionOptions(existingSorted);
@@ -4066,13 +4070,14 @@ public class ARScannedElementPane extends ARPane
                         posLabel,
                         posCombo,
                         new javafx.scene.control.Separator(),
-                        new Label("Preview:"),
+                        new Label(presentation.previewLabel()),
                         previewLabel);
 
         dialog.getDialogPane().setContent(root);
 
         javafx.scene.control.ButtonType createBtn =
-                new javafx.scene.control.ButtonType("Create", javafx.scene.control.ButtonBar.ButtonData.OK_DONE);
+                new javafx.scene.control.ButtonType(
+                        presentation.createButton(), javafx.scene.control.ButtonBar.ButtonData.OK_DONE);
         dialog.getDialogPane().getButtonTypes().addAll(createBtn, javafx.scene.control.ButtonType.CANCEL);
 
         // Disable Create until there's a name.
