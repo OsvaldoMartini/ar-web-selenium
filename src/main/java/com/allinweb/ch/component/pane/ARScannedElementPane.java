@@ -1932,14 +1932,10 @@ public class ARScannedElementPane extends ARPane
 
             HBox.setHgrow(componentBox, Priority.ALWAYS);
 
-            StackPane stackCurrentURL = new StackPane();
-            stackCurrentURL.getChildren().add(currentURL);
-            stackCurrentURL.setAlignment(Pos.CENTER);
-            HBox currentURLBox = new HBox(stackCurrentURL);
+            HBox currentURLBox = scannerLayoutNodeAdapter.centeredBox(currentURL);
 
             Label labelOthers = scannerFieldLabelsAdapter.webElementsFound();
-            StackPane stackLabelOthers = new StackPane();
-            HBox othersBox = new HBox();
+            HBox othersBox = scannerLayoutNodeAdapter.spacedRow(0);
             createSpacerHoriz();
             othersBox
                     .getChildren()
@@ -1951,9 +1947,7 @@ public class ARScannedElementPane extends ARPane
                             sendDomButton,
                             createSpacerHoriz(),
                             cleanListButton);
-            stackLabelOthers.getChildren().addAll(othersBox);
-
-            stackLabelOthers.setAlignment(Pos.CENTER);
+            StackPane stackLabelOthers = scannerLayoutNodeAdapter.centeredStack(othersBox);
             elements2VBox = new VBox(stackLabelOthers, componentBox);
             HBox.setHgrow(elements2VBox, Priority.ALWAYS);
             boxListViews.getChildren().addAll(elements2VBox, textFieldVBox);

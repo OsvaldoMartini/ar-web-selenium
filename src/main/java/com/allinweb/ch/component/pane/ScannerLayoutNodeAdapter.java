@@ -10,6 +10,7 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 
@@ -83,5 +84,19 @@ final class ScannerLayoutNodeAdapter {
         column.setSpacing(6);
         column.getChildren().addAll(children);
         return column;
+    }
+
+    HBox centeredBox(Node child) {
+        StackPane stack = new StackPane();
+        stack.getChildren().add(child);
+        stack.setAlignment(Pos.CENTER);
+        return new HBox(stack);
+    }
+
+    StackPane centeredStack(Node child) {
+        StackPane stack = new StackPane();
+        stack.getChildren().add(child);
+        stack.setAlignment(Pos.CENTER);
+        return stack;
     }
 }
