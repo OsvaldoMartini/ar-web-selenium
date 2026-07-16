@@ -147,6 +147,8 @@ public class ARScannedElementPane extends ARPane
             new ScannerGridSearchResultsService(scannerGridPublisher, new PaneScannerGridBlocksPort());
     private final ScannerBlockValidationService scannerBlockValidationService =
             new ScannerBlockValidationService();
+    private final ScannerModalBlockCreationService scannerModalBlockCreationService =
+            new ScannerModalBlockCreationService();
     private final ScannerPageScanService scannerPageScanService = new ScannerPageScanService(performListElements);
     private final ScannerElementPanePublisher scannerElementPanePublisher = new ScannerElementPanePublisher();
     private final ScannerSupportRequestPublisher scannerSupportRequestPublisher = new ScannerSupportRequestPublisher();
@@ -4232,43 +4234,60 @@ public class ARScannedElementPane extends ARPane
      */
     private ErrorMessage createAndBroadcastNewBlock(String name, int targetOrder) {
         int botJobId = currentBotJob.getId();
+        return scannerModalBlockCreationService.create(
+                name,
+                targetOrder,
+                new ScannerModalBlockCreationService.Context(
+                        botJobId,
+                        currentBotJob.getHomeBankingId(),
+                        scannerCreateBlockPlanner),
+                new PaneModalBlockCreationOperations());
+    }
 
-        // 1. Renumber existing blocks at or after targetOrder (shift +1).
-        List<BlockLoadDTO> toRenumber =
-                scannerCreateBlockPlanner.buildRenumberPlan(botJobId, targetOrder, performLists.getListBlock());
-        if (!toRenumber.isEmpty()) {
-            ErrorMessage err = performDataBase.updateSwiftBlockOrderNumber("block", botJobId, toRenumber);
-            if (err != null) return err;
+    private final class PaneModalBlockCreationOperations implements ScannerModalBlockCreationService.Operations {
+        @Override
+        public List<BlockLoadDTO> blocks() {
+            return performLists.getListBlock();
+        }
+
+        @Override
+        public ErrorMessage updateBlockOrder(int botJobId, List<BlockLoadDTO> toRenumber) {
+            return performDataBase.updateSwiftBlockOrderNumber("block", botJobId, toRenumber);
+        }
+
+        @Override
+        public void updateMemoryBlockOrder(int botJobId, List<BlockLoadDTO> toRenumber) {
             performLists.updateMemorySwiftBlockOrder("block", botJobId, toRenumber);
         }
 
-        // 2. Insert the new block row.
-        BlockDetailsDTO newBlock = new BlockDetailsDTO();
-        newBlock.setBlockName(name);
-        newBlock.setBlockOrderNumber(targetOrder);
-        newBlock.setBotJobId(botJobId);
-        newBlock.setActive(true);
-        newBlock.setForceOrder(true);
-        ErrorMessage err = performDataBase.insertNewBlock("block", botJobId, newBlock);
-        if (err != null) return err;
-
-        // 3. Refresh memory (same calls splitBlocks makes).
-        performDataBase.loadBlocks(botJobId, "", "block");
-        performDBEngine.loadCompleteJobs(botJobId);
-
-        // 4. Broadcast to sibling Java panes so their combos rebuild.
-        try {
-            BlockMoveDTO signal = new BlockMoveDTO();
-            scannerElementPanePublisher.publishUpdateBlocks(currentBotJob.getHomeBankingId(), signal);
-        } catch (Exception broadcastErr) {
-            // Broadcast failure is non-fatal — the DB is consistent and this pane's
-            // own combo will refresh via loadAllBlocks() in the caller.
-            logOperations.warn(
-                    "createAndBroadcastNewBlock — UPDATE_BLOCKS broadcast failed (non-fatal): {}",
-                    broadcastErr.getMessage());
+        @Override
+        public ErrorMessage insertBlock(int botJobId, BlockDetailsDTO block) {
+            return performDataBase.insertNewBlock("block", botJobId, block);
         }
-        return null;
+
+        @Override
+        public void reloadBlocks(int botJobId) {
+            performDataBase.loadBlocks(botJobId, "", "block");
+        }
+
+        @Override
+        public void reloadCompleteJobs(int botJobId) {
+            performDBEngine.loadCompleteJobs(botJobId);
+        }
+
+        @Override
+        public void publishUpdateBlocks(int homeBankingId, BlockMoveDTO signal) {
+            scannerElementPanePublisher.publishUpdateBlocks(homeBankingId, signal);
+        }
+
+        @Override
+        public void publishUpdateBlocksFailed(Exception error) {
+            logOperations.warn(
+                    "createAndBroadcastNewBlock - UPDATE_BLOCKS broadcast failed (non-fatal): {}",
+                    error.getMessage());
+        }
     }
+
 
     // Allow the stage to be set from outside when pane is shown
     public void setStage(Stage stage) {
