@@ -211,6 +211,8 @@ public class ARScannedElementPane extends ARPane
             new ScannerPreLaunchStatusTextAreaAdapter();
     private final ScannerTestActionCheckboxesAdapter scannerTestActionCheckboxesAdapter =
             new ScannerTestActionCheckboxesAdapter();
+    private final ScannerTestActionLabelAdapter scannerTestActionLabelAdapter =
+            new ScannerTestActionLabelAdapter();
     private final UiThreadDispatcher uiThreadDispatcher = UiThreadDispatcher.getInstance();
     private final ScannerDomReviewSnapshotService scannerDomReviewSnapshotService =
             new ScannerDomReviewSnapshotService();
@@ -1668,7 +1670,7 @@ public class ARScannedElementPane extends ARPane
 
         checkNotShowTestMsg = scannerTestMessageSuppressionCheckboxAdapter.build();
 
-        testActionLabel = new Label("Test Actions :");
+        testActionLabel = scannerTestActionLabelAdapter.build();
 
         ScannerTestActionCheckboxesAdapter.Checkboxes testActionCheckboxes =
                 scannerTestActionCheckboxesAdapter.build();
