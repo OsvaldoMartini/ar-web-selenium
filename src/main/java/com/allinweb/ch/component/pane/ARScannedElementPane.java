@@ -41,8 +41,6 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
-import javafx.animation.FadeTransition;
-import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -184,6 +182,7 @@ public class ARScannedElementPane extends ARPane
             new ScannerPluginPortalBannerAdapter();
     private final ScannerPluginUpdateButtonAdapter scannerPluginUpdateButtonAdapter =
             new ScannerPluginUpdateButtonAdapter();
+    private final ScannerPluginHintAdapter scannerPluginHintAdapter = new ScannerPluginHintAdapter();
     private final UiThreadDispatcher uiThreadDispatcher = UiThreadDispatcher.getInstance();
     private final ScannerDomReviewSnapshotService scannerDomReviewSnapshotService =
             new ScannerDomReviewSnapshotService();
@@ -8971,26 +8970,7 @@ public class ARScannedElementPane extends ARPane
      * @param seconds display time before fade
      */
     private void showPluginHint(String message, String color, double seconds) {
-        Platform.runLater(() -> {
-            lblPluginHint.setText(message);
-            lblPluginHint.setStyle(
-                    "-fx-font-size: 11px; -fx-padding: 0 0 0 10; -fx-text-fill: " + color + "; -fx-font-weight: bold;");
-            lblPluginHint.setOpacity(1.0);
-            lblPluginHint.setVisible(true);
-            lblPluginHint.setManaged(true);
-            PauseTransition pause = new PauseTransition(javafx.util.Duration.seconds(seconds));
-            pause.setOnFinished(ev -> {
-                FadeTransition fade = new FadeTransition(javafx.util.Duration.seconds(1.5), lblPluginHint);
-                fade.setFromValue(1.0);
-                fade.setToValue(0.0);
-                fade.setOnFinished(fe -> {
-                    lblPluginHint.setVisible(false);
-                    lblPluginHint.setManaged(false);
-                });
-                fade.play();
-            });
-            pause.play();
-        });
+        scannerPluginHintAdapter.show(lblPluginHint, message, color, seconds);
     }
 
     /**
