@@ -84,6 +84,8 @@ public class ARScannedElementScene extends ARScene {
             new ScannerUpdatePreparationService();
     private final ScannerInsertPersistenceService scannerInsertPersistenceService =
             new ScannerInsertPersistenceService(new SceneInsertPersistenceDataPort());
+    private final ScannerUpdatePersistenceService scannerUpdatePersistenceService =
+            new ScannerUpdatePersistenceService(new SceneUpdatePersistenceDataPort());
     private final BotJobWorkspaceCapabilityService botJobWorkspaceCapabilityService =
             BotJobWorkspaceCapabilityService.getInstance();
     private final ScannerMobileTestRoute scannerMobileTestRoute = ScannerMobileTestRoute.standard();
@@ -785,26 +787,20 @@ public class ARScannedElementScene extends ARScene {
 
             if (instructionList.size() > 0) {
 
-                ErrorMessage errorMessage = performDataBase.updateInstructionsBatchByNameAndBlockId(
-                        ScannerWorkspaceSessions.BOT_JOB_TASKS,
+                ScannerUpdatePersistenceService.Result updateResult = scannerUpdatePersistenceService.persist(
                         instructionList,
                         currentBotJob.getId(),
                         currentBlockId,
                         currentBotJob.getHomeBankingId());
 
-                log.info("Total:" + performDataBase.getIdsInstrucAfter().size());
-                instructionList.removeIf(instruction -> instruction.getId() == null);
-
-                if (errorMessage == null) {
-                    errorMessage = performDataBase.upsertReferencesBatch(
-                            ScannerWorkspaceSessions.BOT_JOB_TASKS, instructionList);
-                }
-
-                updateBotJobTasks(this.currentBotJob.getId());
-                sendScannerGridStatusButton(
-                        ScannerWorkspaceOperations.ACTIVATE_UPDATE_ALL, "Update All Elements button activated");
-                if (errorMessage != null) {
-                    performMessage.errorMessageOperationFailed(errorMessage);
+                if (updateResult.status() == ScannerUpdatePersistenceService.Status.PERSISTED) {
+                    log.info("Total:" + updateResult.updatedCount());
+                    updateBotJobTasks(this.currentBotJob.getId());
+                    sendScannerGridStatusButton(
+                            ScannerWorkspaceOperations.ACTIVATE_UPDATE_ALL, "Update All Elements button activated");
+                    if (updateResult.error() != null) {
+                        performMessage.errorMessageOperationFailed(updateResult.error());
+                    }
                 }
             }
         } else {
@@ -934,6 +930,29 @@ public class ARScannedElementScene extends ARScene {
         @Override
         public ErrorMessage insertReferencesBatch(List<InstructionLoad> instructions) {
             return performDataBase.insertReferencesBatch(instructions);
+        }
+    }
+
+    private static final class SceneUpdatePersistenceDataPort implements ScannerUpdatePersistenceService.DataPort {
+        @Override
+        public ErrorMessage updateInstructionsBatchByNameAndBlockId(
+                String sessionId,
+                List<InstructionLoad> instructions,
+                int botJobId,
+                int blockId,
+                int homeBankingId) {
+            return performDataBase.updateInstructionsBatchByNameAndBlockId(
+                    sessionId, instructions, botJobId, blockId, homeBankingId);
+        }
+
+        @Override
+        public List<Integer> updatedInstructionIds() {
+            return performDataBase.getIdsInstrucAfter();
+        }
+
+        @Override
+        public ErrorMessage upsertReferencesBatch(String sessionId, List<InstructionLoad> instructions) {
+            return performDataBase.upsertReferencesBatch(sessionId, instructions);
         }
     }
 }
