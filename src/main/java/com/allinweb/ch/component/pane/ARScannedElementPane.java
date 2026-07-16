@@ -170,6 +170,8 @@ public class ARScannedElementPane extends ARPane
             new ScannerTestRunStartupPreparation(new PaneTestRunStartupOperations());
     private final ScannerInstructionMessageService scannerInstructionMessageService =
             new ScannerInstructionMessageService();
+    private final ScannerSearchCleanupService scannerSearchCleanupService =
+            new ScannerSearchCleanupService();
     private final ScannerTestRunBotJobPreparation scannerTestRunBotJobPreparation =
             new ScannerTestRunBotJobPreparation(new PaneTestRunBotJobOperations());
     private final ScannerTestRunExecutionStart scannerTestRunExecutionStart =
@@ -4334,12 +4336,7 @@ public class ARScannedElementPane extends ARPane
 
         handleSearchTermClick(request);
 
-        try {
-            Thread.sleep(2000);
-            revertSearchTermsInjections(performActions.getCurrentDriver());
-        } catch (Exception e) {
-
-        }
+        scannerSearchCleanupService.afterSearchDelay(new PaneSearchCleanupOperations(), 2000);
     }
 
     private String selectedProfileSearchText() {
@@ -4352,15 +4349,7 @@ public class ARScannedElementPane extends ARPane
 
         // Selenium frame reset — skip in Playwright-only mode (no Selenium driver). The scan below
         // routes through the Playwright scanner (PerformListElements.scanElements -> currentARWebDriver).
-        if (performActions.getCurrentDriver() != null) {
-            performActions.getCurrentDriver().switchTo().defaultContent();
-        }
-
-        xpathTextPrevious = "";
-        //        targetSelected = null;
-
-        revertCloneInjections(performActions.getCurrentDriver());
-        revertPickInjections(performActions.getCurrentDriver());
+        scannerSearchCleanupService.beforeSearch(new PaneSearchCleanupOperations());
 
         periodicSearchThread(
                 performActions.getCurrentDriver(),
@@ -4385,6 +4374,43 @@ public class ARScannedElementPane extends ARPane
             jsExecutor = (JavascriptExecutor) driver;
             jsExecutor.executeScript("window.revertSearchInjections();");
         } catch (Exception ignore) {
+        }
+    }
+
+    private final class PaneSearchCleanupOperations implements ScannerSearchCleanupService.Operations {
+        @Override
+        public boolean hasCurrentDriver() {
+            return performActions.getCurrentDriver() != null;
+        }
+
+        @Override
+        public void switchToDefaultContent() {
+            performActions.getCurrentDriver().switchTo().defaultContent();
+        }
+
+        @Override
+        public void clearPreviousXPath() {
+            xpathTextPrevious = "";
+        }
+
+        @Override
+        public void revertCloneInjections() {
+            ARScannedElementPane.this.revertCloneInjections(performActions.getCurrentDriver());
+        }
+
+        @Override
+        public void revertPickInjections() {
+            ARScannedElementPane.this.revertPickInjections(performActions.getCurrentDriver());
+        }
+
+        @Override
+        public void sleep(long millis) throws InterruptedException {
+            Thread.sleep(millis);
+        }
+
+        @Override
+        public void revertSearchTermsInjections() {
+            ARScannedElementPane.this.revertSearchTermsInjections(performActions.getCurrentDriver());
         }
     }
 
