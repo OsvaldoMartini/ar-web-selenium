@@ -5,9 +5,34 @@ import java.util.ArrayList;
 import java.util.List;
 
 public final class ScannerCreateBlockPlanner {
+    public static final String AT_END = "At end";
+
+    public List<BlockLoadDTO> sortedBlocksForBotJob(int botJobId, List<BlockLoadDTO> blocks) {
+        List<BlockLoadDTO> sorted = new ArrayList<>();
+        for (BlockLoadDTO block : blocks) {
+            if (block.getBotJobId() == null || !block.getBotJobId().equals(botJobId)) {
+                continue;
+            }
+            if (block.getBlockOrderNumber() == null) {
+                continue;
+            }
+            sorted.add(block);
+        }
+        sorted.sort(java.util.Comparator.comparingInt(BlockLoadDTO::getBlockOrderNumber));
+        return sorted;
+    }
+
+    public List<String> positionOptions(List<BlockLoadDTO> existingSorted) {
+        List<String> options = new ArrayList<>();
+        options.add(AT_END);
+        for (BlockLoadDTO block : existingSorted) {
+            options.add("Before " + block.getBlockOrderNumber() + "# " + block.getName());
+        }
+        return options;
+    }
 
     public int computeInsertOrderNumber(String positionLabel, List<BlockLoadDTO> existingSorted) {
-        if (positionLabel == null || positionLabel.startsWith("At end")) {
+        if (positionLabel == null || positionLabel.startsWith(AT_END)) {
             int max = 0;
             for (BlockLoadDTO block : existingSorted) {
                 if (block.getBlockOrderNumber() != null && block.getBlockOrderNumber() > max) {

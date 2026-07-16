@@ -4104,11 +4104,8 @@ public class ARScannedElementPane extends ARPane
     private void openCreateBlockModal(Runnable afterCreate) {
         final boolean reactive = afterCreate != null;
 
-        List<BlockLoadDTO> existingSorted = performLists.getListBlock().stream()
-                .filter(b -> b.getBotJobId() != null && b.getBotJobId().equals(currentBotJob.getId()))
-                .filter(b -> b.getBlockOrderNumber() != null)
-                .sorted(java.util.Comparator.comparingInt(BlockLoadDTO::getBlockOrderNumber))
-                .collect(java.util.stream.Collectors.toList());
+        List<BlockLoadDTO> existingSorted =
+                scannerCreateBlockPlanner.sortedBlocksForBotJob(currentBotJob.getId(), performLists.getListBlock());
 
         javafx.scene.control.Dialog<javafx.scene.control.ButtonType> dialog = new javafx.scene.control.Dialog<>();
         dialog.setTitle(reactive ? "No block selected — create one" : "Create new block");
@@ -4135,14 +4132,9 @@ public class ARScannedElementPane extends ARPane
         nameField.setPromptText("e.g. Login Flow");
 
         Label posLabel = new Label("Insert position:");
-        final String AT_END = "At end";
         ComboBox<String> posCombo = new ComboBox<>();
         posCombo.setMaxWidth(Double.MAX_VALUE);
-        List<String> posOptions = new java.util.ArrayList<>();
-        posOptions.add(AT_END);
-        for (BlockLoadDTO b : existingSorted) {
-            posOptions.add("Before " + b.getBlockOrderNumber() + "# " + b.getName());
-        }
+        List<String> posOptions = scannerCreateBlockPlanner.positionOptions(existingSorted);
         posCombo.setItems(FXCollections.observableArrayList(posOptions));
         posCombo.getSelectionModel().selectFirst();
 

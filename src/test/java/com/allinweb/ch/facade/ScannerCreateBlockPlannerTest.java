@@ -10,6 +10,32 @@ import org.junit.jupiter.api.Test;
 class ScannerCreateBlockPlannerTest {
 
     @Test
+    void sortedBlocksForBotJobFiltersAndOrdersBlocks() {
+        ScannerCreateBlockPlanner planner = new ScannerCreateBlockPlanner();
+
+        List<BlockLoadDTO> sorted = planner.sortedBlocksForBotJob(
+                7,
+                List.of(
+                        block(8, 1, "Other"),
+                        block(7, 3, "Last"),
+                        block(7, null, "No order"),
+                        block(7, 1, "First")));
+
+        assertEquals(2, sorted.size());
+        assertEquals("First", sorted.get(0).getName());
+        assertEquals("Last", sorted.get(1).getName());
+    }
+
+    @Test
+    void positionOptionsBuildsAtEndAndBeforeLabels() {
+        ScannerCreateBlockPlanner planner = new ScannerCreateBlockPlanner();
+
+        assertEquals(
+                List.of("At end", "Before 1# Login", "Before 2# Confirm"),
+                planner.positionOptions(List.of(block(7, 1, "Login"), block(7, 2, "Confirm"))));
+    }
+
+    @Test
     void computeInsertOrderNumberAppendsAfterMaxOrderForAtEndOrNull() {
         ScannerCreateBlockPlanner planner = new ScannerCreateBlockPlanner();
         List<BlockLoadDTO> blocks =
