@@ -89,6 +89,8 @@ public class ARScannedElementScene extends ARScene {
             ScannerBotJobTasksPublisher.getInstance();
     private final ScannerInstructionOrderService scannerInstructionOrderService =
             new ScannerInstructionOrderService(new SceneInstructionOrderDataPort());
+    private final ScannerBlockUpdateRouteService scannerBlockUpdateRouteService =
+            new ScannerBlockUpdateRouteService();
     private final BotJobWorkspaceCapabilityService botJobWorkspaceCapabilityService =
             BotJobWorkspaceCapabilityService.getInstance();
     private final ScannerMobileTestRoute scannerMobileTestRoute = ScannerMobileTestRoute.standard();
@@ -258,39 +260,15 @@ public class ARScannedElementScene extends ARScene {
                     jsonObjMSG.has("sessionId") ? jsonObjMSG.get("sessionId").getAsString() : "unknown";
 
             SplitDTO splitDTO = parseSplitDTO(jsonObjMSG);
+            String blockUpdate;
 
             // Process the message based on its type
             switch (type) {
                 case ScannerWorkspaceOperations.UPDATE_BLOCKS:
                     BlockMoveDTO blockMoveDTO = gson.fromJson(body, BlockMoveDTO.class);
-
-                    if (previousBlock != null && !previousBlock.equals(type)) {
-                        previousBlock = type;
-                    }
-
-                    String blockUpdate = blockMoveDTO.getSessionId().equals(ScannerWorkspaceSessions.COMPONENT_TASKS)
-                            ? ScannerWorkspaceOperations.UPDATE_BLOCKS_COMP
-                            : ScannerWorkspaceOperations.UPDATE_BLOCKS;
-
-                    String blockTable =
-                            blockMoveDTO.getSessionId().equals(ScannerWorkspaceSessions.COMPONENT_TASKS) ? "component_block" : "block";
-
-                    // Attempt to get it from currentBotJob
-                    int whereId = blockMoveDTO.getSessionId().equals(ScannerWorkspaceSessions.COMPONENT_TASKS)
-                            ? currentBotJob.getHomeBankingId() != null ? currentBotJob.getHomeBankingId() : -1
-                            : currentBotJob.getId() != null ? currentBotJob.getId() : -1;
-
-                    if (whereId == -1) {
-                        whereId = blockMoveDTO.getSessionId().equals(ScannerWorkspaceSessions.COMPONENT_TASKS)
-                                ? blockMoveDTO.getHomeBankingId() != null ? blockMoveDTO.getHomeBankingId() : -1
-                                : blockMoveDTO.getBotJobId() != null ? blockMoveDTO.getBotJobId() : -1;
-                    }
-
-                    if (previousBlock != null && !previousBlock.equals(blockUpdate)) {
-                        previousBlock = blockUpdate;
-                    } else if (previousBlock == null) {
-                        previousBlock = blockUpdate;
-                    }
+                    ScannerBlockUpdateRouteService.Result blockRoute =
+                            scannerBlockUpdateRouteService.resolve(type, blockMoveDTO, currentBotJob, previousBlock);
+                    previousBlock = blockRoute.previousBlock();
 
                     try {
 
