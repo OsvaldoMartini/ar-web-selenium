@@ -159,6 +159,8 @@ public class ARScannedElementPane extends ARPane
     private final ScannerSupportFileSaveService scannerSupportFileSaveService = new ScannerSupportFileSaveService();
     private final ScannerSupportFileChooserService scannerSupportFileChooserService =
             new ScannerSupportFileChooserService();
+    private final ScannerSupportFileChooserAdapter scannerSupportFileChooserAdapter =
+            new ScannerSupportFileChooserAdapter(scannerSupportFileChooserService);
     private final ScannerSupportSavedFileMessageService scannerSupportSavedFileMessageService =
             new ScannerSupportSavedFileMessageService();
     private final ScannerSupportCaptureResultService scannerSupportCaptureResultService =
@@ -2106,14 +2108,7 @@ public class ARScannedElementPane extends ARPane
                     ScannerSupportFileChooserService.Request chooserRequest =
                             scannerSupportFileChooserService.pageReview(supportFile);
 
-                    javafx.stage.FileChooser fc = new javafx.stage.FileChooser();
-                    fc.setTitle(chooserRequest.title());
-                    fc.setInitialFileName(chooserRequest.initialFileName());
-                    fc.getExtensionFilters()
-                            .add(new javafx.stage.FileChooser.ExtensionFilter(
-                                    scannerSupportFileChooserService.extensionDescription(),
-                                    scannerSupportFileChooserService.extensionPattern()));
-                    java.io.File chosen = fc.showSaveDialog(stage);
+                    java.io.File chosen = scannerSupportFileChooserAdapter.showSaveDialog(stage, chooserRequest);
                     if (chosen == null) {
                         log.info("DOM capture save cancelled by user");
                         return;
@@ -2257,14 +2252,7 @@ public class ARScannedElementPane extends ARPane
                     ScannerSupportFileChooserService.Request chooserRequest =
                             scannerSupportFileChooserService.elementsReview(supportFile);
 
-                    javafx.stage.FileChooser fc = new javafx.stage.FileChooser();
-                    fc.setTitle(chooserRequest.title());
-                    fc.setInitialFileName(chooserRequest.initialFileName());
-                    fc.getExtensionFilters()
-                            .add(new javafx.stage.FileChooser.ExtensionFilter(
-                                    scannerSupportFileChooserService.extensionDescription(),
-                                    scannerSupportFileChooserService.extensionPattern()));
-                    java.io.File chosen = fc.showSaveDialog(stage);
+                    java.io.File chosen = scannerSupportFileChooserAdapter.showSaveDialog(stage, chooserRequest);
                     if (chosen == null) return;
 
                     ScannerSupportFileSaveService.SavedSupportFile savedSupportFile =
