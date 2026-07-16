@@ -158,13 +158,14 @@ public class ARScannedElementPane extends ARPane
     private final ScannerElementPanePublisher scannerElementPanePublisher = new ScannerElementPanePublisher();
     private final ScannerSupportRequestPublisher scannerSupportRequestPublisher = new ScannerSupportRequestPublisher();
     private final ScannerSupportRequestService scannerSupportRequestService = new ScannerSupportRequestService();
-    private final ScannerSupportFileService scannerSupportFileService = new ScannerSupportFileService();
     private final ScannerSupportFileSaveService scannerSupportFileSaveService = new ScannerSupportFileSaveService();
     private final ScannerSupportCaptureResultService scannerSupportCaptureResultService =
             new ScannerSupportCaptureResultService();
     private final ScannerDomReviewSnapshotService scannerDomReviewSnapshotService =
             new ScannerDomReviewSnapshotService();
     private final ScannerPageReviewFileService scannerPageReviewFileService = new ScannerPageReviewFileService();
+    private final ScannerElementsReviewFileService scannerElementsReviewFileService =
+            new ScannerElementsReviewFileService();
     private final ScannerPreLaunchStarter scannerPreLaunchStarter =
             new ScannerPreLaunchStarter(new PanePreLaunchStartOperations());
     private final ScannerPreLaunchStopper scannerPreLaunchStopper =
@@ -2293,7 +2294,7 @@ public class ARScannedElementPane extends ARPane
 
                 } else if ("save".equals(action)) {
                     ScannerSupportFileService.SupportFile supportFile =
-                            scannerSupportFileService.elementsReview(driver, elementDetailsJson, message);
+                            scannerElementsReviewFileService.elementsReview(driver, elementDetailsJson, message);
 
                     javafx.stage.FileChooser fc = new javafx.stage.FileChooser();
                     fc.setTitle("Save Elements Review");
