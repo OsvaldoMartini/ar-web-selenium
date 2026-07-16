@@ -195,6 +195,8 @@ public class ARScannedElementPane extends ARPane
             new ScannerPluginListContentAdapter();
     private final ScannerPluginListDialogAdapter scannerPluginListDialogAdapter =
             new ScannerPluginListDialogAdapter();
+    private final ScannerPluginManifestFetchTaskAdapter scannerPluginManifestFetchTaskAdapter =
+            new ScannerPluginManifestFetchTaskAdapter();
     private final ScannerLayoutNodeAdapter scannerLayoutNodeAdapter = new ScannerLayoutNodeAdapter();
     private final ScannerRefreshBlocksButtonAdapter scannerRefreshBlocksButtonAdapter =
             new ScannerRefreshBlocksButtonAdapter();
@@ -9234,13 +9236,8 @@ public class ARScannedElementPane extends ARPane
         final String serverBase = manifestUrl.substring(0, manifestUrl.lastIndexOf("/plugins/manifest.json"));
 
         // ── Background fetch ──────────────────────────────────────────────────
-        Task<PluginManifestDTO> fetchTask = new Task<>() {
-            @Override
-            protected PluginManifestDTO call() throws Exception {
-                updateMessage("Connecting to plugin server…");
-                return fetchManifest(manifestUrl);
-            }
-        };
+        Task<PluginManifestDTO> fetchTask =
+                scannerPluginManifestFetchTaskAdapter.build(() -> fetchManifest(manifestUrl));
 
         fetchTask.setOnSucceeded(evt -> {
             PluginManifestDTO manifest = fetchTask.getValue();
