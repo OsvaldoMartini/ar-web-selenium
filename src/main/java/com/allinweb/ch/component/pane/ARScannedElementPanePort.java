@@ -1,6 +1,5 @@
 package com.allinweb.ch.component.pane;
 
-import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.ScannerElementTestActionService;
 import com.allinweb.ch.facade.ScannerInsertPreparationService;
@@ -12,7 +11,7 @@ import com.allinweb.ch.model.TargetElement;
 import java.util.List;
 
 /** Narrow scene-facing port for the legacy AR Web Factory scanner pane. */
-public interface ARScannedElementPanePort extends IARPane,
+public interface ARScannedElementPanePort extends
         ScannerElementTestActionService.PanePort,
         ScannerInsertPreparationService.PanePort,
         ScannerInsertBlockSelectionService.PanePort {

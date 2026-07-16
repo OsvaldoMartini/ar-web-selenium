@@ -1,5 +1,6 @@
 package com.allinweb.ch.component.pane;
 
+import com.allinweb.ch.component.pane.base.IARPane;
 import java.util.Objects;
 import java.util.function.Supplier;
 import javafx.stage.Stage;
@@ -18,6 +19,11 @@ public final class ARScannedElementPaneProvider {
 
     public synchronized ARScannedElementPanePort currentPane() {
         return paneSupplier.get();
+    }
+
+    public synchronized IARPane currentPaneView() {
+        ARScannedElementPanePort pane = currentPane();
+        return pane instanceof IARPane paneView ? paneView : null;
     }
 
     public synchronized void setStage(Stage stage) {

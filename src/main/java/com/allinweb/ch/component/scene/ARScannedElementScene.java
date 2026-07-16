@@ -393,7 +393,7 @@ public class ARScannedElementScene extends ARScene {
         //                blockLoadDTO,
         //                executorWebSocket,
         //                executorServicePreLaunch);
-        return arScannedElementPane;
+        return ARScannedElementPaneProvider.getInstance().currentPaneView();
     }
 
     public void handleCloseRequest() {
