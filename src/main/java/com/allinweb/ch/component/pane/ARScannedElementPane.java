@@ -170,6 +170,7 @@ public class ARScannedElementPane extends ARPane
             new ScannerSupportCaptureSendService();
     private final ScannerSupportResponseActionService scannerSupportResponseActionService =
             new ScannerSupportResponseActionService();
+    private final UiThreadDispatcher uiThreadDispatcher = UiThreadDispatcher.getInstance();
     private final ScannerDomReviewSnapshotService scannerDomReviewSnapshotService =
             new ScannerDomReviewSnapshotService();
     private final ScannerPageReviewFileService scannerPageReviewFileService = new ScannerPageReviewFileService();
@@ -2084,7 +2085,7 @@ public class ARScannedElementPane extends ARPane
             return;
         }
 
-        javafx.application.Platform.runLater(() -> {
+        uiThreadDispatcher.execute(() -> {
             try {
                 org.openqa.selenium.WebDriver driver = performActions.getCurrentDriver();
                 if (responseAction == ScannerSupportResponseActionService.Action.SEND) {
@@ -2215,7 +2216,7 @@ public class ARScannedElementPane extends ARPane
             return;
         }
 
-        javafx.application.Platform.runLater(() -> {
+        uiThreadDispatcher.execute(() -> {
             try {
                 org.openqa.selenium.WebDriver driver = performActions.getCurrentDriver();
 
