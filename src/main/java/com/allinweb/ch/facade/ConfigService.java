@@ -1,11 +1,11 @@
 package com.allinweb.ch.facade;
 
 import com.allinweb.ch.component.pane.ARConfigManagerPane;
+import com.allinweb.ch.component.pane.ARMainDashboardPane;
 import com.allinweb.ch.component.pane.BotJobDetailsWorkspaceHost;
 import com.allinweb.ch.component.scene.ARConfigManagerScene;
 import com.allinweb.ch.component.scene.ARNewBotJobScene;
 import com.allinweb.ch.component.scene.AROrganizationManagerScene;
-import com.allinweb.ch.component.scene.ARScannedElementScene;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.model.BotJobLoadDTO;
 import com.allinweb.ch.model.HomeBankingLoadDTO;
@@ -41,6 +41,8 @@ public class ConfigService {
     private static final MainDashboardService mainDashboardService = MainDashboardService.getInstance();
     private static final WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
     private static final Gson gson = new Gson();
+    private static final ConfigSceneShutdownService sceneShutdownService =
+            new ConfigSceneShutdownService(new JavaFxScenesPort());
 
     protected static volatile ConfigService instance;
 
@@ -381,13 +383,44 @@ public class ConfigService {
     }
 
     private void closeAllScenes() {
-        ARNewBotJobScene.getInstance().closeModal();
-        BotJobDetailsWorkspaceHost.getInstance().closeWorkspaceIfIdle();
-        AROrganizationManagerScene.getInstance().closeModal();
-        ARScannedElementScene.getInstance().closeModal();
-        ARScannedElementScene.getInstance().closeWebDrivers();
-        ARWebDriver.getInstance().closeAllDrivers();
-        ARWebDriver.getInstance().closeCurrentDriver();
+        sceneShutdownService.closeAll();
+    }
+
+    private static final class JavaFxScenesPort implements ConfigSceneShutdownService.ScenesPort {
+        @Override
+        public void closeNewBotJob() {
+            ARNewBotJobScene.getInstance().closeModal();
+        }
+
+        @Override
+        public void closeBotJobWorkspaceIfIdle() {
+            BotJobDetailsWorkspaceHost.getInstance().closeWorkspaceIfIdle();
+        }
+
+        @Override
+        public void closeOrganizationManager() {
+            AROrganizationManagerScene.getInstance().closeModal();
+        }
+
+        @Override
+        public void closeScanner() {
+            ARMainDashboardPane.getInstance().closeScanner();
+        }
+
+        @Override
+        public void closeScannerWebDrivers() {
+            ARMainDashboardPane.getInstance().closeScannerWebDrivers();
+        }
+
+        @Override
+        public void closeAllWebDrivers() {
+            ARWebDriver.getInstance().closeAllDrivers();
+        }
+
+        @Override
+        public void closeCurrentWebDriver() {
+            ARWebDriver.getInstance().closeCurrentDriver();
+        }
     }
 
     private String prop(ARPropertyEnum property) {
