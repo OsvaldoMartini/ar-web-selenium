@@ -1,0 +1,72 @@
+package com.allinweb.ch.component.scene;
+
+import com.allinweb.ch.component.pane.ARScannedElementPanePort;
+import com.allinweb.ch.component.pane.base.IARPane;
+import com.allinweb.ch.facade.ScannerModalStageService;
+import java.util.function.Supplier;
+import javafx.application.Platform;
+import javafx.scene.Scene;
+import javafx.scene.image.Image;
+import javafx.stage.Modality;
+import javafx.stage.Stage;
+
+final class JavaFxScannerModalStageFactory implements ScannerModalStageService.StageFactory {
+    private final ARScannedElementPanePort scannerPane;
+    private final Supplier<IARPane> paneFactory;
+    private final Image icon;
+
+    JavaFxScannerModalStageFactory(
+            ARScannedElementPanePort scannerPane, Supplier<IARPane> paneFactory, Image icon) {
+        this.scannerPane = scannerPane;
+        this.paneFactory = paneFactory;
+        this.icon = icon;
+    }
+
+    @Override
+    public ScannerModalStageService.ModalStage create(ScannerModalStageService.Config config) {
+        Stage stage = new Stage();
+        scannerPane.setStage(stage);
+        stage.getIcons().add(icon);
+        IARPane pane = paneFactory.get();
+        if (pane == null) {
+            return null;
+        }
+        Scene scene = new Scene(pane.createPane(), config.width(), config.height());
+        stage.setScene(scene);
+        stage.setTitle(config.title());
+        stage.initModality(Modality.WINDOW_MODAL);
+        stage.setAlwaysOnTop(true);
+        stage.toFront();
+        stage.setAlwaysOnTop(false);
+        stage.setOnShown(event -> Platform.runLater(() -> stage.setAlwaysOnTop(false)));
+        return new JavaFxScannerModalStage(stage);
+    }
+
+    private static final class JavaFxScannerModalStage implements ScannerModalStageService.ModalStage {
+        private final Stage stage;
+
+        private JavaFxScannerModalStage(Stage stage) {
+            this.stage = stage;
+        }
+
+        @Override
+        public void setTitle(String title) {
+            stage.setTitle(title);
+        }
+
+        @Override
+        public boolean isShowing() {
+            return stage.isShowing();
+        }
+
+        @Override
+        public void showAndWait() {
+            stage.showAndWait();
+        }
+
+        @Override
+        public void close() {
+            stage.close();
+        }
+    }
+}

@@ -21,8 +21,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.*;
 import javafx.application.Platform;
-import javafx.scene.Scene;
-import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import javax.websocket.*;
@@ -496,7 +494,7 @@ public class ARScannedElementScene extends ARScene {
 
                 modalStage = scannerModalStageService.show(
                         modalStage,
-                        new SceneScannerModalStageFactory(),
+                        new JavaFxScannerModalStageFactory(arScannedElementPane, this::buildPane, icon),
                         new ScannerModalStageService.Config(getTitle(), getSceneWidth(), getSceneHeight()));
                 if (modalStage == null) {
                     log.error("Failed to build pane for modal.");
@@ -795,56 +793,6 @@ public class ARScannedElementScene extends ARScene {
         @Override
         public TargetElement extractPickClone(ElementDTO elementDTO) {
             return targetElementHelper.extractPickClone(elementDTO);
-        }
-    }
-
-    private final class SceneScannerModalStageFactory implements ScannerModalStageService.StageFactory {
-        @Override
-        public ScannerModalStageService.ModalStage create(ScannerModalStageService.Config config) {
-            Stage stage = new Stage();
-            arScannedElementPane.setStage(stage);
-            stage.getIcons().add(icon);
-            IARPane pane = buildPane();
-            if (pane == null) {
-                return null;
-            }
-            Scene scene = new Scene(pane.createPane(), config.width(), config.height());
-            stage.setScene(scene);
-            stage.setTitle(config.title());
-            stage.initModality(Modality.WINDOW_MODAL);
-            stage.setAlwaysOnTop(true);
-            stage.toFront();
-            stage.setAlwaysOnTop(false);
-            stage.setOnShown(event -> Platform.runLater(() -> stage.setAlwaysOnTop(false)));
-            return new JavaFxScannerModalStage(stage);
-        }
-    }
-
-    private static final class JavaFxScannerModalStage implements ScannerModalStageService.ModalStage {
-        private final Stage stage;
-
-        private JavaFxScannerModalStage(Stage stage) {
-            this.stage = stage;
-        }
-
-        @Override
-        public void setTitle(String title) {
-            stage.setTitle(title);
-        }
-
-        @Override
-        public boolean isShowing() {
-            return stage.isShowing();
-        }
-
-        @Override
-        public void showAndWait() {
-            stage.showAndWait();
-        }
-
-        @Override
-        public void close() {
-            stage.close();
         }
     }
 
