@@ -201,6 +201,8 @@ public class ARScannedElementPane extends ARPane
             new ScannerPluginBackgroundThreadAdapter();
     private final ScannerPluginSingleDownloadTaskAdapter scannerPluginSingleDownloadTaskAdapter =
             new ScannerPluginSingleDownloadTaskAdapter();
+    private final ScannerPluginBatchDownloadTaskAdapter scannerPluginBatchDownloadTaskAdapter =
+            new ScannerPluginBatchDownloadTaskAdapter();
     private final ScannerLayoutNodeAdapter scannerLayoutNodeAdapter = new ScannerLayoutNodeAdapter();
     private final ScannerRefreshBlocksButtonAdapter scannerRefreshBlocksButtonAdapter =
             new ScannerRefreshBlocksButtonAdapter();
@@ -9152,81 +9154,11 @@ public class ARScannedElementPane extends ARPane
     private void runDownloadPlugins(List<PluginDTO> plugins, String serverBase, String pathPlugins) {
         Path pluginsDir = Paths.get(pathPlugins);
 
-        Task<Integer> downloadTask = new Task<>() {
-            @Override
-            protected Integer call() throws Exception {
-                HttpClient client = HttpClient.newBuilder()
-                        .connectTimeout(Duration.ofSeconds(15))
-                        .followRedirects(HttpClient.Redirect.NORMAL)
-                        .build();
-
-                Files.createDirectories(pluginsDir);
-                int successCount = 0;
-
-                for (int i = 0; i < plugins.size(); i++) {
-                    if (isCancelled()) break;
-
-                    PluginDTO plugin = plugins.get(i);
-                    String zipUrl = serverBase + plugin.getDownloadUrl();
-                    updateMessage("Downloading " + plugin.getName() + "…");
-                    scannerPluginBatchDownloadProgressDialogAdapter.updateCounter(i + 1, plugins.size());
-
-                    log.info("PluginDownload - GET {}", zipUrl);
-
-                    HttpRequest req = HttpRequest.newBuilder()
-                            .uri(URI.create(zipUrl))
-                            .timeout(Duration.ofSeconds(60))
-                            .build();
-
-                    HttpResponse<InputStream> resp = client.send(req, HttpResponse.BodyHandlers.ofInputStream());
-
-                    if (resp.statusCode() != 200) {
-                        log.warn("PluginDownload - HTTP {} for {}", resp.statusCode(), zipUrl);
-                        updateMessage("⚠  Skipped " + plugin.getName() + " (HTTP " + resp.statusCode() + ")");
-                        Thread.sleep(600);
-                        continue;
-                    }
-
-                    // Download to temp file
-                    Path tempZip = Files.createTempFile("ar-plugin-" + plugin.getId() + "-", ".zip");
-                    try (InputStream body = resp.body();
-                            OutputStream out = Files.newOutputStream(tempZip)) {
-                        body.transferTo(out);
-                    }
-
-                    // Extract into pluginsDir
-                    updateMessage("Extracting " + plugin.getName() + "…");
-                    try (ZipInputStream zis =
-                            new ZipInputStream(Files.newInputStream(tempZip), StandardCharsets.UTF_8)) {
-                        ZipEntry entry;
-                        while ((entry = zis.getNextEntry()) != null) {
-                            Path target = pluginsDir.resolve(entry.getName()).normalize();
-                            if (!target.startsWith(pluginsDir)) {
-                                log.warn("PluginDownload - zip-slip blocked: {}", entry.getName());
-                                continue;
-                            }
-                            if (entry.isDirectory()) {
-                                Files.createDirectories(target);
-                            } else {
-                                Files.createDirectories(target.getParent());
-                                try (OutputStream fo = Files.newOutputStream(target)) {
-                                    byte[] buf = new byte[8192];
-                                    int len;
-                                    while ((len = zis.read(buf)) != -1) fo.write(buf, 0, len);
-                                }
-                            }
-                            zis.closeEntry();
-                        }
-                    }
-                    Files.deleteIfExists(tempZip);
-                    successCount++;
-                    updateProgress(i + 1, plugins.size());
-                    log.info("PluginDownload - installed: {}", plugin.getName());
-                }
-
-                return successCount;
-            }
-        };
+        Task<Integer> downloadTask = scannerPluginBatchDownloadTaskAdapter.build(
+                plugins,
+                serverBase,
+                pluginsDir,
+                scannerPluginBatchDownloadProgressDialogAdapter::updateCounter);
 
         scannerPluginBatchDownloadProgressDialogAdapter.bind(plugins.size(), downloadTask);
 
