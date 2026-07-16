@@ -207,6 +207,8 @@ public class ARScannedElementPane extends ARPane
             new ScannerTestMessageSuppressionCheckboxAdapter();
     private final ScannerIframeIndicatorAdapter scannerIframeIndicatorAdapter =
             new ScannerIframeIndicatorAdapter();
+    private final ScannerPreLaunchStatusTextAreaAdapter scannerPreLaunchStatusTextAreaAdapter =
+            new ScannerPreLaunchStatusTextAreaAdapter();
     private final UiThreadDispatcher uiThreadDispatcher = UiThreadDispatcher.getInstance();
     private final ScannerDomReviewSnapshotService scannerDomReviewSnapshotService =
             new ScannerDomReviewSnapshotService();
@@ -1684,9 +1686,7 @@ public class ARScannedElementPane extends ARPane
 
         //        textFlowResult = new TextFlow();
 
-        countdownTextField = new TextArea("Pre-Launch status: Ready");
-        countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
-        countdownTextField.setEditable(true);
+        countdownTextField = scannerPreLaunchStatusTextAreaAdapter.build();
 
         // HOVER PICK removed: interactive per-element picking relied on Selenium JS-injection over a
         // page-opened WebSocket that doesn't work under the single Playwright browser. The regular
