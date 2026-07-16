@@ -4058,8 +4058,8 @@ public class ARScannedElementPane extends ARPane
         previewLabel.setStyle(presentation.previewStyle());
 
         Runnable updatePreview = () -> {
-            int targetOrder = computeInsertOrderNumber(posCombo.getValue(), existingSorted);
-            previewLabel.setText(buildCreateBlockPreview(targetOrder, existingSorted));
+            int targetOrder = scannerCreateBlockPlanner.computeInsertOrderNumber(posCombo.getValue(), existingSorted);
+            previewLabel.setText(scannerCreateBlockPlanner.buildCreateBlockPreview(targetOrder, existingSorted));
         };
         posCombo.valueProperty().addListener((o, ov, nv) -> updatePreview.run());
         updatePreview.run();
@@ -4096,7 +4096,7 @@ public class ARScannedElementPane extends ARPane
         }
 
         String name = nameField.getText().trim();
-        int orderNumber = computeInsertOrderNumber(posCombo.getValue(), existingSorted);
+        int orderNumber = scannerCreateBlockPlanner.computeInsertOrderNumber(posCombo.getValue(), existingSorted);
         ErrorMessage err = createAndBroadcastNewBlock(name, orderNumber);
         if (err != null) {
             performMessage.errorMessageOperationFailed(err);
@@ -4112,20 +4112,6 @@ public class ARScannedElementPane extends ARPane
                     .ifPresent(opt -> comboBoxBlocks.getSelectionModel().select(opt));
             if (afterCreate != null) afterCreate.run();
         });
-    }
-
-    /**
-     * Resolve the chosen position label to an absolute {@code block_order_number}.
-     * "At end" → max(existing) + 1. "Before N# Name" → N (the existing row at
-     * position N and every row after it shift down by one).
-     */
-    private int computeInsertOrderNumber(String positionLabel, List<BlockLoadDTO> existingSorted) {
-        return scannerCreateBlockPlanner.computeInsertOrderNumber(positionLabel, existingSorted);
-    }
-
-    /** Human-readable preview of which blocks will have their order number shifted. */
-    private String buildCreateBlockPreview(int targetOrder, List<BlockLoadDTO> existingSorted) {
-        return scannerCreateBlockPlanner.buildCreateBlockPreview(targetOrder, existingSorted);
     }
 
     /**
