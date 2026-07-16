@@ -70,4 +70,11 @@ final class ScannerLayoutNodeAdapter {
         row.getChildren().addAll(children);
         return row;
     }
+
+    HBox spacedRow(double spacing, Node... children) {
+        HBox row = new HBox();
+        row.setSpacing(spacing);
+        row.getChildren().addAll(children);
+        return row;
+    }
 }

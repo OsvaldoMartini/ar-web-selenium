@@ -1860,9 +1860,6 @@ public class ARScannedElementPane extends ARPane
             // Create an HBox to hold launchBotJobButton and stopBotJobButton
             HBox hBoxLaunchButon = scannerLayoutNodeAdapter.launchButtonRow(launchBotJobButton, stopBotJobButton);
 
-            HBox boxName = new HBox();
-            boxName.setSpacing(5);
-
             // Ensure the label expands and takes all available space
             HBox.setHgrow(definedNameLabel, Priority.ALWAYS);
             definedNameLabel.setMaxWidth(Double.MAX_VALUE); // Allows full width usage
@@ -1870,10 +1867,7 @@ public class ARScannedElementPane extends ARPane
             // Ensure the button has a reasonable width
             cloneElementsButton.setMinWidth(50); // Adjust as needed
 
-            boxName.getChildren().addAll(definedNameLabel, cloneElementsButton);
-
-            HBox boxActions = new HBox();
-            boxActions.setSpacing(5);
+            HBox boxName = scannerLayoutNodeAdapter.spacedRow(5, definedNameLabel, cloneElementsButton);
 
             testActionLabel.setMinWidth(100);
 
@@ -1882,10 +1876,7 @@ public class ARScannedElementPane extends ARPane
             HBox.setHgrow(testActionsField, Priority.ALWAYS);
             testActionsField.setMaxWidth(Double.MAX_VALUE); // Ensures full width usage
 
-            boxActions.getChildren().addAll(testActionLabel, testActionsField);
-
-            HBox boxCoordinates = new HBox();
-            boxCoordinates.setSpacing(5);
+            HBox boxActions = scannerLayoutNodeAdapter.spacedRow(5, testActionLabel, testActionsField);
 
             // Ensure the label has a reasonable width
             coordsTextFieldLabel.setMinWidth(120);
@@ -1894,7 +1885,7 @@ public class ARScannedElementPane extends ARPane
             HBox.setHgrow(coordsTextField, Priority.ALWAYS);
             coordsTextField.setMaxWidth(Double.MAX_VALUE); // Ensures full width usage
 
-            boxCoordinates.getChildren().addAll(coordsTextFieldLabel, coordsTextField);
+            HBox boxCoordinates = scannerLayoutNodeAdapter.spacedRow(5, coordsTextFieldLabel, coordsTextField);
 
             HBox hBoxPickClone = new HBox();
             hBoxPickClone.getChildren().addAll(createSpacerHoriz(), checkCloneElement, createSpacerHoriz());
