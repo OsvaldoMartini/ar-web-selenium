@@ -178,6 +178,8 @@ public class ARScannedElementPane extends ARPane
             new ScannerPluginPickerDialogAdapter();
     private final ScannerPluginDownloadProgressDialogAdapter scannerPluginDownloadProgressDialogAdapter =
             new ScannerPluginDownloadProgressDialogAdapter();
+    private final ScannerPluginBatchDownloadProgressDialogAdapter scannerPluginBatchDownloadProgressDialogAdapter =
+            new ScannerPluginBatchDownloadProgressDialogAdapter();
     private final UiThreadDispatcher uiThreadDispatcher = UiThreadDispatcher.getInstance();
     private final ScannerDomReviewSnapshotService scannerDomReviewSnapshotService =
             new ScannerDomReviewSnapshotService();
@@ -9645,24 +9647,6 @@ public class ARScannedElementPane extends ARPane
     private void runDownloadPlugins(List<PluginDTO> plugins, String serverBase, String pathPlugins) {
         Path pluginsDir = Paths.get(pathPlugins);
 
-        // ── Progress dialog ───────────────────────────────────────────────────
-        ProgressBar progressBar = new ProgressBar(0);
-        progressBar.setPrefWidth(400);
-        Label statusLabel = new Label("Starting…");
-        Label counterLabel = new Label("0 / " + plugins.size());
-        statusLabel.setStyle("-fx-font-size: 12px;");
-        counterLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #636e72;");
-
-        VBox dialogContent = new VBox(8, statusLabel, progressBar, counterLabel);
-        dialogContent.setPadding(new Insets(12));
-
-        Alert progressDialog = new Alert(Alert.AlertType.INFORMATION);
-        progressDialog.setTitle("Plugin Test");
-        progressDialog.setHeaderText("Downloading Plugins");
-        progressDialog.getDialogPane().setContent(dialogContent);
-        progressDialog.getButtonTypes().setAll(ButtonType.CANCEL);
-
-        // ── Background task ───────────────────────────────────────────────────
         Task<Integer> downloadTask = new Task<>() {
             @Override
             protected Integer call() throws Exception {
@@ -9680,8 +9664,7 @@ public class ARScannedElementPane extends ARPane
                     PluginDTO plugin = plugins.get(i);
                     String zipUrl = serverBase + plugin.getDownloadUrl();
                     updateMessage("Downloading " + plugin.getName() + "…");
-                    Platform.runLater(
-                            () -> counterLabel.setText((plugins.indexOf(plugin) + 1) + " / " + plugins.size()));
+                    scannerPluginBatchDownloadProgressDialogAdapter.updateCounter(i + 1, plugins.size());
 
                     log.info("PluginDownload - GET {}", zipUrl);
 
@@ -9740,11 +9723,10 @@ public class ARScannedElementPane extends ARPane
             }
         };
 
-        progressBar.progressProperty().bind(downloadTask.progressProperty());
-        statusLabel.textProperty().bind(downloadTask.messageProperty());
+        scannerPluginBatchDownloadProgressDialogAdapter.bind(plugins.size(), downloadTask);
 
         downloadTask.setOnSucceeded(evt -> {
-            progressDialog.close();
+            scannerPluginBatchDownloadProgressDialogAdapter.close();
             int count = downloadTask.getValue();
             // Refresh pluginUpdateButton
             Platform.runLater(() -> {
@@ -9765,19 +9747,18 @@ public class ARScannedElementPane extends ARPane
         });
 
         downloadTask.setOnFailed(evt -> {
-            progressDialog.close();
+            scannerPluginBatchDownloadProgressDialogAdapter.close();
             Throwable ex = downloadTask.getException();
             log.error("PluginDownload - failed", ex);
             showPluginTestAlert(Alert.AlertType.ERROR, "Download failed", ex.getMessage());
         });
 
-        progressDialog.setOnCloseRequest(e -> downloadTask.cancel());
 
         Thread t = new Thread(downloadTask);
         t.setDaemon(true);
         t.setName("plugin-download-thread");
         t.start();
 
-        progressDialog.show();
+        scannerPluginBatchDownloadProgressDialogAdapter.show();
     }
 }
