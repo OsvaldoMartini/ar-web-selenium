@@ -205,6 +205,8 @@ public class ARScannedElementPane extends ARPane
             new ScannerPluginSingleDownloadTaskAdapter();
     private final ScannerPluginBatchDownloadTaskAdapter scannerPluginBatchDownloadTaskAdapter =
             new ScannerPluginBatchDownloadTaskAdapter();
+    private final ScannerPluginPickerManifestFetchAdapter scannerPluginPickerManifestFetchAdapter =
+            new ScannerPluginPickerManifestFetchAdapter();
     private final ScannerLayoutNodeAdapter scannerLayoutNodeAdapter = new ScannerLayoutNodeAdapter();
     private final ScannerRefreshBlocksButtonAdapter scannerRefreshBlocksButtonAdapter =
             new ScannerRefreshBlocksButtonAdapter();
@@ -8810,67 +8812,13 @@ public class ARScannedElementPane extends ARPane
 
         log.info("UpdatePlugins - fetching manifest from: {}", manifestUrl);
 
-        // ── Fetch manifest on background thread, then show picker on FX thread ──
-        Thread fetchThread = new Thread(() -> {
-            try {
-                HttpClient client = HttpClient.newBuilder()
-                        .connectTimeout(Duration.ofSeconds(10))
-                        .followRedirects(HttpClient.Redirect.NORMAL)
-                        .build();
-
-                HttpRequest req = HttpRequest.newBuilder()
-                        .uri(URI.create(manifestUrl))
-                        .timeout(Duration.ofSeconds(15))
-                        .build();
-
-                HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString());
-
-                if (resp.statusCode() != 200) {
-                    throw new IOException("Server returned HTTP " + resp.statusCode() + " for: " + manifestUrl);
-                }
-
-                // Strip BOM and parse JSON (lenient mode - some servers add BOM or trailing whitespace)
-                String jsonBody = resp.body().trim();
-                if (jsonBody.startsWith("\uFEFF")) {
-                    jsonBody = jsonBody.substring(1); // strip UTF-8 BOM
-                }
-                com.google.gson.stream.JsonReader reader =
-                        new com.google.gson.stream.JsonReader(new java.io.StringReader(jsonBody));
-                reader.setLenient(true);
-                com.google.gson.JsonObject root =
-                        com.google.gson.JsonParser.parseReader(reader).getAsJsonObject();
-                com.google.gson.JsonArray pluginsArray = root.getAsJsonArray("plugins");
-
-                if (pluginsArray == null || pluginsArray.size() == 0) {
-                    throw new IOException("Manifest contains no plugins.");
-                }
-
-                // Build plugin list
-                List<String[]> plugins = new ArrayList<>(); // [name, description, version, size, fileName]
-                for (int i = 0; i < pluginsArray.size(); i++) {
-                    com.google.gson.JsonObject p = pluginsArray.get(i).getAsJsonObject();
-                    plugins.add(new String[] {
-                        p.has("name") ? p.get("name").getAsString() : "Unknown",
-                        p.has("description") ? p.get("description").getAsString() : "",
-                        p.has("version") ? p.get("version").getAsString() : "",
-                        p.has("size") ? p.get("size").getAsString() : "",
-                        p.has("fileName") ? p.get("fileName").getAsString() : ""
-                    });
-                }
-
-                log.info("UpdatePlugins - manifest loaded: {} plugins available", plugins.size());
-
-                // Show picker on FX thread
-                Platform.runLater(() -> showPluginPicker(plugins, baseUrl, pluginsDir));
-
-            } catch (Exception ex) {
-                log.error("UpdatePlugins - failed to fetch manifest from: {}", manifestUrl, ex);
-                Platform.runLater(() -> showPluginTestAlert(
+        Thread fetchThread = scannerPluginPickerManifestFetchAdapter.build(
+                manifestUrl,
+                plugins -> Platform.runLater(() -> showPluginPicker(plugins, baseUrl, pluginsDir)),
+                ex -> Platform.runLater(() -> showPluginTestAlert(
                         Alert.AlertType.ERROR,
                         "Cannot load plugin list",
-                        "Failed to fetch manifest.json from:\n" + manifestUrl + "\n\n" + ex.getMessage()));
-            }
-        });
+                        "Failed to fetch manifest.json from:\n" + manifestUrl + "\n\n" + ex.getMessage())));
         scannerPluginBackgroundThreadAdapter.start(fetchThread, "plugin-manifest-fetch");
     }
 
