@@ -10,7 +10,12 @@ public final class ScannerCreateBlockModalPresentationService {
                 "e.g. Login Flow",
                 "Insert position:",
                 "Preview:",
-                "Create");
+                "Create",
+                10,
+                460,
+                "-fx-background-color:#ffebee; -fx-text-fill:#C62828; -fx-font-weight:bold; "
+                        + "-fx-padding:8; -fx-border-color:#EF9A9A; -fx-border-width:1; -fx-border-radius:4;",
+                "-fx-text-fill:#6A1B9A; -fx-font-style:italic;");
     }
 
     public record Presentation(
@@ -20,5 +25,9 @@ public final class ScannerCreateBlockModalPresentationService {
             String namePrompt,
             String positionLabel,
             String previewLabel,
-            String createButton) {}
+            String createButton,
+            int verticalSpacing,
+            int minWidth,
+            String bannerStyle,
+            String previewStyle) {}
 }

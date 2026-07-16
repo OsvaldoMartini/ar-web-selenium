@@ -4025,19 +4025,18 @@ public class ARScannedElementPane extends ARPane
         dialog.setTitle(presentation.title());
         dialog.initModality(Modality.APPLICATION_MODAL);
 
-        VBox root = new VBox(10);
+        VBox root = new VBox(presentation.verticalSpacing());
         // Insets(top, right, bottom, left) — +20 on the bottom vs. the uniform
         // 15 we had before, so the dialog ends up 20px taller without
         // touching the dialog pane directly.
         root.setPadding(new Insets(15, 15, 35, 15));
-        root.setMinWidth(460);
+        root.setMinWidth(presentation.minWidth());
 
         if (reactive) {
             Label banner = new Label(presentation.banner());
             banner.setWrapText(true);
             banner.setMaxWidth(Double.MAX_VALUE);
-            banner.setStyle("-fx-background-color:#ffebee; -fx-text-fill:#C62828; -fx-font-weight:bold; "
-                    + "-fx-padding:8; -fx-border-color:#EF9A9A; -fx-border-width:1; -fx-border-radius:4;");
+            banner.setStyle(presentation.bannerStyle());
             root.getChildren().add(banner);
         }
 
@@ -4054,7 +4053,7 @@ public class ARScannedElementPane extends ARPane
 
         Label previewLabel = new Label();
         previewLabel.setWrapText(true);
-        previewLabel.setStyle("-fx-text-fill:#6A1B9A; -fx-font-style:italic;");
+        previewLabel.setStyle(presentation.previewStyle());
 
         Runnable updatePreview = () -> {
             int targetOrder = computeInsertOrderNumber(posCombo.getValue(), existingSorted);

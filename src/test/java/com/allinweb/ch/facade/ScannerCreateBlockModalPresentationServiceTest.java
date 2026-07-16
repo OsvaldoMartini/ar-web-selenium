@@ -21,6 +21,9 @@ class ScannerCreateBlockModalPresentationServiceTest {
         assertEquals("Insert position:", presentation.positionLabel());
         assertEquals("Preview:", presentation.previewLabel());
         assertEquals("Create", presentation.createButton());
+        assertEquals(10, presentation.verticalSpacing());
+        assertEquals(460, presentation.minWidth());
+        assertEquals("-fx-text-fill:#6A1B9A; -fx-font-style:italic;", presentation.previewStyle());
     }
 
     @Test
@@ -31,5 +34,9 @@ class ScannerCreateBlockModalPresentationServiceTest {
         assertEquals(
                 "No Block Selected - pick an existing block below or create a new one.",
                 presentation.banner());
+        assertEquals(
+                "-fx-background-color:#ffebee; -fx-text-fill:#C62828; -fx-font-weight:bold; "
+                        + "-fx-padding:8; -fx-border-color:#EF9A9A; -fx-border-width:1; -fx-border-radius:4;",
+                presentation.bannerStyle());
     }
 }
