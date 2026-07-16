@@ -1,6 +1,5 @@
 package com.allinweb.ch.socket;
 
-import com.allinweb.ch.ARControlPanel;
 import com.allinweb.ch.component.pane.ARMainDashboardPane;
 import com.allinweb.ch.facade.*;
 import com.allinweb.ch.model.*;
@@ -283,13 +282,15 @@ public class SimpleWebSocketServer {
                     break;
                 case "license.activate":
                     JsonObject activationResponse = LicenseService.getInstance().activate(extractBody(jsonObjMSG));
-                    if (isActiveLicenseResponse(activationResponse)) ARControlPanel.continueAfterLicenseActivation();
+                    if (isActiveLicenseResponse(activationResponse))
+                        ApplicationStartupLifecycle.getInstance().continueAfterActivation();
                     sendCommandEditorResponse(homeBankingId, sessionId, "license.activateResponse", activationResponse);
                     publishLicenseStatus(activationResponse);
                     break;
                 case "license.useExisting":
                     JsonObject existingResponse = LicenseService.getInstance().useExisting(extractBody(jsonObjMSG));
-                    if (isActiveLicenseResponse(existingResponse)) ARControlPanel.continueAfterLicenseActivation();
+                    if (isActiveLicenseResponse(existingResponse))
+                        ApplicationStartupLifecycle.getInstance().continueAfterActivation();
                     sendCommandEditorResponse(homeBankingId, sessionId, "license.useExistingResponse", existingResponse);
                     publishLicenseStatus(existingResponse);
                     break;

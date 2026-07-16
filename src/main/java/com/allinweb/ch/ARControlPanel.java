@@ -2,6 +2,7 @@ package com.allinweb.ch;
 
 import com.allinweb.ch.component.scene.ARConfigurationScene;
 import com.allinweb.ch.component.scene.ARMainScene;
+import com.allinweb.ch.facade.ApplicationStartupLifecycle;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformInitializer;
 import com.allinweb.ch.facade.PerformMessage;
@@ -47,9 +48,8 @@ public class ARControlPanel extends Application {
     private static ARWebSocketServer arWebSocketServer; // Static block to initialize
     private static String defaultConfigurationFileName = ARConstants.USER_PATH + ARConstants.FILE_DEFAULT_CONFIG;
     private static boolean isEnabledLicence = true;
-    private static final AtomicBoolean startupActivationPending = new AtomicBoolean(false);
-    private static final AtomicBoolean activationContinuationStarted = new AtomicBoolean(false);
     private static final AtomicBoolean fullServersStarted = new AtomicBoolean(false);
+    private static final ApplicationStartupLifecycle startupLifecycle = ApplicationStartupLifecycle.getInstance();
 
     static {
         performDataBase = PerformDataBase.getInstance();
@@ -277,7 +277,10 @@ public class ARControlPanel extends Application {
     }
 
     private static void showActivationRequired() {
-        startupActivationPending.set(true);
+        startupLifecycle.waitForActivation(() -> {
+            databaseControl();
+            initializeServers();
+        });
         Platform.runLater(() -> {
             arMainScene.initialize(isEnabledLicence, "activationRequired");
             arMainScene.showModal();
@@ -285,11 +288,7 @@ public class ARControlPanel extends Application {
     }
 
     public static void continueAfterLicenseActivation() {
-        if (!startupActivationPending.get()) return;
-        if (!activationContinuationStarted.compareAndSet(false, true)) return;
-        startupActivationPending.set(false);
-        databaseControl();
-        initializeServers();
+        startupLifecycle.continueAfterActivation();
     }
 
     public static String getTodaysDate(int day) {
