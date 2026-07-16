@@ -80,6 +80,8 @@ public class ARScannedElementScene extends ARScene {
     private final ScannerInsertBlockSelectionService scannerInsertBlockSelectionService;
     private final ScannerInsertPreparationService scannerInsertPreparationService =
             new ScannerInsertPreparationService();
+    private final ScannerUpdatePreparationService scannerUpdatePreparationService =
+            new ScannerUpdatePreparationService();
     private final ScannerInsertPersistenceService scannerInsertPersistenceService =
             new ScannerInsertPersistenceService(new SceneInsertPersistenceDataPort());
     private final BotJobWorkspaceCapabilityService botJobWorkspaceCapabilityService =
@@ -772,26 +774,14 @@ public class ARScannedElementScene extends ARScene {
 
             int nextOrder = instruc.size() + 1;
 
-            instructionList.clear();
-            targetElementHelper.initialize(performActions, arScannedElementPane.scannerTargetContext());
-
-            for (ElementDTO elementDTO : processDTO.getElementDetails()) {
-                TargetElement targetEach = targetElementHelper.extractPickClone(elementDTO);
-
-                WebElement elementFound = performActions.findWebElement(targetEach);
-                if (targetEach.getElement() == null && elementFound != null) {
-                    targetEach.setElement(elementFound);
-                }
-                // 3 Different Coordinates
-                // Original from JavaScript
-                // WebDriver Selenium ElementFound
-                // FallBack React Computed
-                //                performActions.defineSavedReferenced(targetEach);
-
-                arScannedElementPane.prepareToInsertElementDTO(
-                        instructionList, currentBlockId, nextOrder, targetEach, true);
-                nextOrder++;
-            }
+            scannerUpdatePreparationService.prepare(
+                    new SceneInsertActionsPort(),
+                    new SceneInsertTargetExtractor(),
+                    arScannedElementPane,
+                    instructionList,
+                    processDTO.getElementDetails(),
+                    currentBlockId,
+                    nextOrder);
 
             if (instructionList.size() > 0) {
 
