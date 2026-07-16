@@ -48,9 +48,7 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.geometry.Insets;
-import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
-import javafx.geometry.VPos;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.control.Alert;
@@ -197,6 +195,7 @@ public class ARScannedElementPane extends ARPane
             new ScannerPluginListContentAdapter();
     private final ScannerPluginListDialogAdapter scannerPluginListDialogAdapter =
             new ScannerPluginListDialogAdapter();
+    private final ScannerLayoutNodeAdapter scannerLayoutNodeAdapter = new ScannerLayoutNodeAdapter();
     private final UiThreadDispatcher uiThreadDispatcher = UiThreadDispatcher.getInstance();
     private final ScannerDomReviewSnapshotService scannerDomReviewSnapshotService =
             new ScannerDomReviewSnapshotService();
@@ -2367,27 +2366,16 @@ public class ARScannedElementPane extends ARPane
     }
 
     private Node createSpacerVert() {
-        // Create a Region as a spacer
-        Region spacer = new Region();
-        VBox.setVgrow(spacer, Priority.ALWAYS); // Make spacer expand vertically
-        return spacer;
+        return scannerLayoutNodeAdapter.verticalSpacer();
     }
 
     private Node createSpacerHoriz() {
-        // Create a Region as a spacer
-        Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS); // Make spacer expand vertically
-        return spacer;
+        return scannerLayoutNodeAdapter.horizontalSpacer();
     }
 
     // Method to create a custom separator with specified color and width
     private Separator createCustomSeparator(Color color, double width) {
-        Separator separator = new Separator();
-        separator.setOrientation(Orientation.HORIZONTAL);
-        separator.setValignment(VPos.CENTER); // Extend the line horizontally
-        separator.setPrefHeight(2); // Default height
-        separator.setStyle("-fx-background-color: " + color.toString().replace("0x", "#") + ";");
-        return separator;
+        return scannerLayoutNodeAdapter.separator(color, width);
     }
 
     public void requestPreLaunchFromWorkspace(int botJobId) {
