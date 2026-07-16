@@ -174,6 +174,8 @@ public class ARScannedElementPane extends ARPane
     private final ScannerSupportResponseActionService scannerSupportResponseActionService =
             new ScannerSupportResponseActionService();
     private final ScannerPluginAlertAdapter scannerPluginAlertAdapter = new ScannerPluginAlertAdapter();
+    private final ScannerPluginPickerDialogAdapter scannerPluginPickerDialogAdapter =
+            new ScannerPluginPickerDialogAdapter();
     private final UiThreadDispatcher uiThreadDispatcher = UiThreadDispatcher.getInstance();
     private final ScannerDomReviewSnapshotService scannerDomReviewSnapshotService =
             new ScannerDomReviewSnapshotService();
@@ -9118,62 +9120,25 @@ public class ARScannedElementPane extends ARPane
      * User picks one, clicks Download, and the ZIP is downloaded + extracted.
      */
     private void showPluginPicker(List<String[]> plugins, String baseUrl, Path pluginsDir) {
-        // Build ComboBox items: "Name (version) - size"
-        ComboBox<String> comboBox = new ComboBox<>();
-        for (String[] p : plugins) {
-            String label = p[0]; // name
-            if (!p[2].isEmpty()) label += "  (v" + p[2] + ")";
-            if (!p[3].isEmpty()) label += "  -  " + p[3];
-            comboBox.getItems().add(label);
+        Optional<ScannerPluginPickerDialogAdapter.Selection> selection =
+                scannerPluginPickerDialogAdapter.show(plugins);
+        if (selection.isEmpty()) {
+            return;
         }
-        comboBox.getSelectionModel().selectFirst();
-        comboBox.setPrefWidth(400);
 
-        // Description label updates on selection
-        Label descLabel = new Label(plugins.get(0)[1]);
-        descLabel.setWrapText(true);
-        descLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #555;");
-        descLabel.setPrefWidth(400);
-
-        comboBox.getSelectionModel().selectedIndexProperty().addListener((obs, oldVal, newVal) -> {
-            int idx = newVal.intValue();
-            if (idx >= 0 && idx < plugins.size()) {
-                descLabel.setText(plugins.get(idx)[1]);
-            }
-        });
-
-        VBox content = new VBox(8, new Label("Select a plugin to download:"), comboBox, descLabel);
-        content.setPadding(new Insets(10));
-
-        Alert pickerDialog = new Alert(Alert.AlertType.CONFIRMATION);
-        pickerDialog.setTitle("Download Plugin");
-        pickerDialog.setHeaderText("Available Plugins");
-        pickerDialog.getDialogPane().setContent(content);
-        pickerDialog
-                .getButtonTypes()
-                .setAll(new ButtonType("Download", ButtonBar.ButtonData.OK_DONE), ButtonType.CANCEL);
-
-        Optional<ButtonType> result = pickerDialog.showAndWait();
-        if (result.isPresent() && result.get().getButtonData() == ButtonBar.ButtonData.OK_DONE) {
-            int selectedIndex = comboBox.getSelectionModel().getSelectedIndex();
-            if (selectedIndex >= 0) {
-                String[] selected = plugins.get(selectedIndex);
-                String fileName = selected[4]; // fileName from manifest
-                String pluginName = selected[0];
-
-                if (fileName.isEmpty()) {
-                    showPluginTestAlert(
-                            Alert.AlertType.ERROR,
-                            "Invalid plugin",
-                            "The selected plugin has no fileName in the manifest.");
-                    return;
-                }
-
-                String downloadUrl = baseUrl + fileName;
-                log.info("UpdatePlugins - user selected: {} -> {}", pluginName, downloadUrl);
-                downloadAndExtractPlugin(downloadUrl, fileName, pluginName, pluginsDir);
-            }
+        String fileName = selection.get().fileName();
+        String pluginName = selection.get().pluginName();
+        if (fileName.isEmpty()) {
+            showPluginTestAlert(
+                    Alert.AlertType.ERROR,
+                    "Invalid plugin",
+                    "The selected plugin has no fileName in the manifest.");
+            return;
         }
+
+        String downloadUrl = baseUrl + fileName;
+        log.info("UpdatePlugins - user selected: {} -> {}", pluginName, downloadUrl);
+        downloadAndExtractPlugin(downloadUrl, fileName, pluginName, pluginsDir);
     }
 
     /**
