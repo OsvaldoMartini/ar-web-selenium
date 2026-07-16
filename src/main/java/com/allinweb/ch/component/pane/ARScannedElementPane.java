@@ -180,6 +180,8 @@ public class ARScannedElementPane extends ARPane
             new ScannerPluginPortalBannerAdapter();
     private final ScannerPluginUpdateButtonAdapter scannerPluginUpdateButtonAdapter =
             new ScannerPluginUpdateButtonAdapter();
+    private final ScannerPluginUpdateButtonRefreshAdapter scannerPluginUpdateButtonRefreshAdapter =
+            new ScannerPluginUpdateButtonRefreshAdapter();
     private final ScannerPluginHintAdapter scannerPluginHintAdapter = new ScannerPluginHintAdapter();
     private final ScannerPluginStatusButtonAdapter scannerPluginStatusButtonAdapter =
             new ScannerPluginStatusButtonAdapter();
@@ -8910,18 +8912,8 @@ public class ARScannedElementPane extends ARPane
 
         downloadTask.setOnSucceeded(e -> {
             scannerPluginDownloadProgressDialogAdapter.close();
-            Platform.runLater(() -> {
-                try {
-                    GridPane grid = (GridPane) pluginUpdateButton.getParent();
-                    if (grid != null) {
-                        grid.getChildren().remove(pluginUpdateButton);
-                        pluginUpdateButton = buildPluginUpdateButton();
-                        grid.add(pluginUpdateButton, 1, 0);
-                    }
-                } catch (Exception ex) {
-                    log.warn("UpdatePlugins - could not refresh pluginUpdateButton", ex);
-                }
-            });
+            Platform.runLater(() -> pluginUpdateButton =
+                    scannerPluginUpdateButtonRefreshAdapter.refresh(pluginUpdateButton, this::buildPluginUpdateButton));
             showPluginTestAlert(
                     Alert.AlertType.INFORMATION,
                     "Download complete",
@@ -9166,16 +9158,8 @@ public class ARScannedElementPane extends ARPane
             scannerPluginBatchDownloadProgressDialogAdapter.close();
             int count = downloadTask.getValue();
             // Refresh pluginUpdateButton
-            Platform.runLater(() -> {
-                if (pluginUpdateButton.getParent() instanceof GridPane grid) {
-                    int idx = grid.getChildren().indexOf(pluginUpdateButton);
-                    if (idx >= 0) {
-                        grid.getChildren().remove(pluginUpdateButton);
-                        pluginUpdateButton = buildPluginUpdateButton();
-                        grid.add(pluginUpdateButton, 1, 0);
-                    }
-                }
-            });
+            Platform.runLater(() -> pluginUpdateButton =
+                    scannerPluginUpdateButtonRefreshAdapter.refresh(pluginUpdateButton, this::buildPluginUpdateButton));
             showPluginTestAlert(
                     Alert.AlertType.INFORMATION,
                     "Download complete",
