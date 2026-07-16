@@ -195,6 +195,8 @@ public class ARScannedElementPane extends ARPane
             new ScannerPluginListTableAdapter();
     private final ScannerPluginListContentAdapter scannerPluginListContentAdapter =
             new ScannerPluginListContentAdapter();
+    private final ScannerPluginListDialogAdapter scannerPluginListDialogAdapter =
+            new ScannerPluginListDialogAdapter();
     private final UiThreadDispatcher uiThreadDispatcher = UiThreadDispatcher.getInstance();
     private final ScannerDomReviewSnapshotService scannerDomReviewSnapshotService =
             new ScannerDomReviewSnapshotService();
@@ -9382,41 +9384,13 @@ public class ARScannedElementPane extends ARPane
         TableView<PluginDTO> table = scannerPluginListTableAdapter.build(manifest);
         ScannerPluginListContentAdapter.Result contentResult =
                 scannerPluginListContentAdapter.build(manifest, table);
-        VBox content = contentResult.content();
-        Button btnDownloadSelected = contentResult.downloadSelected();
-        Button btnDownloadAll = contentResult.downloadAll();
-        Button btnClose = contentResult.close();
-
-        // ── Dialog wrapper ────────────────────────────────────────────────────
-        Dialog<Void> dialog = new Dialog<>();
-        dialog.setTitle("Plugin Test");
-        dialog.setHeaderText("Available Plugins");
-        dialog.getDialogPane().setContent(content);
-        dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
-        // Hide the built-in close button - we use our own btnClose
-        dialog.getDialogPane().lookupButton(ButtonType.CLOSE).setVisible(false);
-
-        // ── Button actions ────────────────────────────────────────────────────
-        btnClose.setOnAction(e -> dialog.close());
-
-        btnDownloadSelected.setOnAction(e -> {
-            List<PluginDTO> selected = new ArrayList<>(table.getSelectionModel().getSelectedItems());
-            if (selected.isEmpty()) {
-                showPluginTestAlert(
-                        Alert.AlertType.INFORMATION, "No selection", "Select at least one plugin to download.");
-                return;
-            }
-            dialog.close();
-            runDownloadPlugins(selected, serverBase, pathPlugins);
-        });
-
-        btnDownloadAll.setOnAction(e -> {
-            List<PluginDTO> all = new ArrayList<>(manifest.getPlugins());
-            dialog.close();
-            runDownloadPlugins(all, serverBase, pathPlugins);
-        });
-
-        dialog.showAndWait();
+        scannerPluginListDialogAdapter.show(
+                contentResult,
+                table,
+                manifest.getPlugins(),
+                () -> showPluginTestAlert(
+                        Alert.AlertType.INFORMATION, "No selection", "Select at least one plugin to download."),
+                selected -> runDownloadPlugins(selected, serverBase, pathPlugins));
     }
 
     // ── Individual Plugin Download ────────────────────────────────────────────
