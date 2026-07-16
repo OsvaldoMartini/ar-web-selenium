@@ -3,6 +3,8 @@ package com.allinweb.ch.component.scene;
 import com.allinweb.ch.component.pane.ARScannedElementPaneProvider;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.facade.ScannerModalStageService;
+import com.allinweb.ch.util.ARConstants;
+import java.util.Objects;
 import java.util.function.Supplier;
 import javafx.application.Platform;
 import javafx.scene.Scene;
@@ -13,17 +15,14 @@ import javafx.stage.Stage;
 final class JavaFxScannerModalStageFactory implements ScannerModalStageService.StageFactory {
     private final ARScannedElementPaneProvider scannerPaneProvider;
     private final Supplier<IARPane> paneFactory;
-    private final Image icon;
     private final Runnable closeRequest;
 
     JavaFxScannerModalStageFactory(
             ARScannedElementPaneProvider scannerPaneProvider,
             Supplier<IARPane> paneFactory,
-            Image icon,
             Runnable closeRequest) {
         this.scannerPaneProvider = scannerPaneProvider;
         this.paneFactory = paneFactory;
-        this.icon = icon;
         this.closeRequest = closeRequest;
     }
 
@@ -31,7 +30,10 @@ final class JavaFxScannerModalStageFactory implements ScannerModalStageService.S
     public ScannerModalStageService.ModalStage create(ScannerModalStageService.Config config) {
         Stage stage = new Stage();
         scannerPaneProvider.setStage(stage);
-        stage.getIcons().add(icon);
+        Image icon = loadIcon();
+        if (icon != null) {
+            stage.getIcons().add(icon);
+        }
         IARPane pane = paneFactory.get();
         if (pane == null) {
             return null;
@@ -46,6 +48,14 @@ final class JavaFxScannerModalStageFactory implements ScannerModalStageService.S
         stage.setOnShown(event -> Platform.runLater(() -> stage.setAlwaysOnTop(false)));
         stage.setOnCloseRequest(event -> closeRequest.run());
         return new JavaFxScannerModalStage(stage);
+    }
+
+    private Image loadIcon() {
+        try {
+            return new Image(Objects.requireNonNull(getClass().getResourceAsStream(ARConstants.ICON_APPLICATION)));
+        } catch (Exception error) {
+            return null;
+        }
     }
 
     private static final class JavaFxScannerModalStage implements ScannerModalStageService.ModalStage {

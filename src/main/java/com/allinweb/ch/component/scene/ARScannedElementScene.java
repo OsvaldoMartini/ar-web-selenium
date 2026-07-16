@@ -2,8 +2,6 @@ package com.allinweb.ch.component.scene;
 
 import com.allinweb.ch.component.pane.ARScannedElementPaneProvider;
 import com.allinweb.ch.component.pane.ARScannedElementPanePort;
-import com.allinweb.ch.component.pane.base.IARPane;
-import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.*;
 import com.allinweb.ch.model.*;
@@ -28,7 +26,7 @@ import org.openqa.selenium.WebElement;
 
 @ClientEndpoint
 @Slf4j
-public class ARScannedElementScene extends ARScene {
+public class ARScannedElementScene {
 
     private static final Double SCENE_HEIGHT = 650D;
     private static final Double SCENE_WIDTH = 1100D;
@@ -97,7 +95,6 @@ public class ARScannedElementScene extends ARScene {
     // Private constructor to prevent instantiation
     private ARScannedElementScene() {
 
-        super();
         this.arScannedElementPane = ARScannedElementPaneProvider.getInstance().currentPane();
         ScannerShellLifecycle.getInstance().install(new SceneScannerShellHandler());
         this.scannerInsertBlockSelectionService =
@@ -384,18 +381,6 @@ public class ARScannedElementScene extends ARScene {
         }
     }
 
-    @Override
-    public IARPane buildPane() {
-        //        arScannedElementPane.initialize(
-        //                arWebDriver,
-        //                homeBankingLoadDTO,
-        //                botJobLoadDTO,
-        //                blockLoadDTO,
-        //                executorWebSocket,
-        //                executorServicePreLaunch);
-        return ARScannedElementPaneProvider.getInstance().currentPaneView();
-    }
-
     public void handleCloseRequest() {
         log.info("Handle Close: Exiting Threads and Quitting WebDriver");
         scannerCloseRequestService.close(new SceneCloseRequest());
@@ -421,17 +406,14 @@ public class ARScannedElementScene extends ARScene {
         UiThreadDispatcher.getInstance().execute(() -> arWebDriver.getWebDriverList().clear());
     }
 
-    @Override
     public String getTitle() {
         return TITLE;
     }
 
-    @Override
     public Double getSceneHeight() {
         return SCENE_HEIGHT;
     }
 
-    @Override
     public Double getSceneWidth() {
         return SCENE_WIDTH;
     }
@@ -455,7 +437,7 @@ public class ARScannedElementScene extends ARScene {
     private final class SceneCloseRequest implements ScannerCloseRequestService.CloseRequest {
         @Override
         public void interruptThreads() {
-            threadList.forEach(ARScannedElementScene.this::interruptThread);
+            // ARScannedElementScene no longer owns UI threads directly; executor shutdown is handled below.
         }
 
         @Override
@@ -502,8 +484,7 @@ public class ARScannedElementScene extends ARScene {
                         modalStage,
                         new JavaFxScannerModalStageFactory(
                                 ARScannedElementPaneProvider.getInstance(),
-                                this::buildPane,
-                                icon,
+                                ARScannedElementPaneProvider.getInstance()::currentPaneView,
                                 this::handleCloseRequest),
                         new ScannerModalStageService.Config(getTitle(), getSceneWidth(), getSceneHeight()));
                 if (modalStage == null) {
