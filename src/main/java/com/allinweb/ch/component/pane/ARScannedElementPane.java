@@ -216,6 +216,8 @@ public class ARScannedElementPane extends ARPane
     private final ScannerHiddenCloneCheckboxAdapter scannerHiddenCloneCheckboxAdapter =
             new ScannerHiddenCloneCheckboxAdapter();
     private final ScannerFieldLabelsAdapter scannerFieldLabelsAdapter = new ScannerFieldLabelsAdapter();
+    private final ScannerCurrentUrlTextAdapter scannerCurrentUrlTextAdapter =
+            new ScannerCurrentUrlTextAdapter();
     private final UiThreadDispatcher uiThreadDispatcher = UiThreadDispatcher.getInstance();
     private final ScannerDomReviewSnapshotService scannerDomReviewSnapshotService =
             new ScannerDomReviewSnapshotService();
@@ -1790,9 +1792,7 @@ public class ARScannedElementPane extends ARPane
             }
         });
 
-        currentURL = new Text("");
-        currentURL.setFill(Color.BLUE);
-        currentURL.setStyle("-fx-font-size: 16px;");
+        currentURL = scannerCurrentUrlTextAdapter.build();
 
         HomeUrlDTO homeUrlDTO = performLists.getHomeUrlByBankId(
                 this.currentBotJob.getHomeBankingId(), this.currentBotJob.getHomeUrlId());
