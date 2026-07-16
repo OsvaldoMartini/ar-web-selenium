@@ -173,6 +173,7 @@ public class ARScannedElementPane extends ARPane
             new ScannerSupportCaptureSendService();
     private final ScannerSupportResponseActionService scannerSupportResponseActionService =
             new ScannerSupportResponseActionService();
+    private final ScannerPluginAlertAdapter scannerPluginAlertAdapter = new ScannerPluginAlertAdapter();
     private final UiThreadDispatcher uiThreadDispatcher = UiThreadDispatcher.getInstance();
     private final ScannerDomReviewSnapshotService scannerDomReviewSnapshotService =
             new ScannerDomReviewSnapshotService();
@@ -856,14 +857,6 @@ public class ARScannedElementPane extends ARPane
                                 + "}"
                                 + "return absoluteXPath(arguments[0]);",
                         element);
-    }
-
-    private static void showAlertInfo(String title, String header, String content) {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle(title);
-        alert.setHeaderText(header);
-        alert.setContentText(content);
-        alert.showAndWait();
     }
 
     private static String loadScriptFromResource(String resourcePath) throws IOException {
@@ -9398,13 +9391,7 @@ public class ARScannedElementPane extends ARPane
     }
 
     private void showPluginTestAlert(Alert.AlertType type, String header, String body) {
-        Platform.runLater(() -> {
-            Alert alert = new Alert(type);
-            alert.setTitle("Plugin Test");
-            alert.setHeaderText(header);
-            alert.setContentText(body);
-            alert.showAndWait();
-        });
+        scannerPluginAlertAdapter.show(type, header, body);
     }
 
     // ════════════════════════════════════════════════════════════════════════════
