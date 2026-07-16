@@ -213,6 +213,8 @@ public class ARScannedElementPane extends ARPane
             new ScannerTestActionCheckboxesAdapter();
     private final ScannerTestActionLabelAdapter scannerTestActionLabelAdapter =
             new ScannerTestActionLabelAdapter();
+    private final ScannerHiddenCloneCheckboxAdapter scannerHiddenCloneCheckboxAdapter =
+            new ScannerHiddenCloneCheckboxAdapter();
     private final UiThreadDispatcher uiThreadDispatcher = UiThreadDispatcher.getInstance();
     private final ScannerDomReviewSnapshotService scannerDomReviewSnapshotService =
             new ScannerDomReviewSnapshotService();
@@ -1699,10 +1701,7 @@ public class ARScannedElementPane extends ARPane
         // scanner (search terms -> scan -> select-all -> insert-all) is the supported authoring path.
         // The control is kept as a hidden field so the ~few references to it stay valid, but it is
         // never shown, enabled, or wired to an action.
-        checkCloneElement = new CheckBox("HOVER PICK ");
-        checkCloneElement.setVisible(false);
-        checkCloneElement.setManaged(false);
-        checkCloneElement.setDisable(true);
+        checkCloneElement = scannerHiddenCloneCheckboxAdapter.build();
 
         searchTermsLabel = new Label("Search by :");
         elementFocusLabel = new Label("Focus :");
