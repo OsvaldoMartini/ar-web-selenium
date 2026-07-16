@@ -215,6 +215,7 @@ public class ARScannedElementPane extends ARPane
             new ScannerTestActionLabelAdapter();
     private final ScannerHiddenCloneCheckboxAdapter scannerHiddenCloneCheckboxAdapter =
             new ScannerHiddenCloneCheckboxAdapter();
+    private final ScannerFieldLabelsAdapter scannerFieldLabelsAdapter = new ScannerFieldLabelsAdapter();
     private final UiThreadDispatcher uiThreadDispatcher = UiThreadDispatcher.getInstance();
     private final ScannerDomReviewSnapshotService scannerDomReviewSnapshotService =
             new ScannerDomReviewSnapshotService();
@@ -1703,10 +1704,10 @@ public class ARScannedElementPane extends ARPane
         // never shown, enabled, or wired to an action.
         checkCloneElement = scannerHiddenCloneCheckboxAdapter.build();
 
-        searchTermsLabel = new Label("Search by :");
-        elementFocusLabel = new Label("Focus :");
-        defineNameLabel = new Label("DEFINE ELEMENT NAME");
-        coordsTextFieldLabel = new Label("Main Coordinates");
+        searchTermsLabel = scannerFieldLabelsAdapter.searchTerms();
+        elementFocusLabel = scannerFieldLabelsAdapter.elementFocus();
+        defineNameLabel = scannerFieldLabelsAdapter.defineName();
+        coordsTextFieldLabel = scannerFieldLabelsAdapter.coordinates();
 
         elementFocusComboBox = new ComboBox<>(FXCollections.observableArrayList(ELEMENT_SCAN_PROFILES));
         elementFocusComboBox.setPrefWidth(260);
@@ -1732,15 +1733,9 @@ public class ARScannedElementPane extends ARPane
 
         // Read-only mirror of the picked element's display name (clientNamed → definedName →
         // someText → tagName). Renames live in the React grid via instruction.client_named.
-        definedNameLabel = new Label(DEFINED_NAME_PLACEHOLDER);
-        definedNameLabel.setStyle("-fx-border-color: #9aa0a6; "
-                + "-fx-border-radius: 3; "
-                + "-fx-background-color: #f8f9fa; "
-                + "-fx-background-radius: 3; "
-                + "-fx-padding: 4 8 4 8; "
-                + "-fx-text-fill: #202124;");
+        definedNameLabel = scannerFieldLabelsAdapter.definedName(DEFINED_NAME_PLACEHOLDER);
 
-        coordsTextFieldLabel = new Label("Main Coordinates");
+        coordsTextFieldLabel = scannerFieldLabelsAdapter.coordinates();
 
         searchAttribValueField = new TextField();
         searchAttribValueField.setPromptText("Search per Attrib");
