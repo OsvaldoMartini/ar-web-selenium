@@ -2,6 +2,7 @@ package com.allinweb.ch;
 
 import com.allinweb.ch.component.scene.ARConfigManagerScene;
 import com.allinweb.ch.component.scene.ARMainScene;
+import com.allinweb.ch.component.scene.ARNewBotJobManagerScene;
 import com.allinweb.ch.component.scene.AROrganizationManagerScene;
 import com.allinweb.ch.facade.ApplicationStartupLifecycle;
 import com.allinweb.ch.facade.PerformDataBase;
@@ -44,6 +45,7 @@ public class ARControlPanel extends Application {
     private static final PerformInitializer performInitializer;
     private static final ARConfigManagerScene arConfigManagerScene;
     private static final ARMainScene arMainScene;
+    private static final ARNewBotJobManagerScene arNewBotJobManagerScene;
     private static final AROrganizationManagerScene arOrganizationManagerScene;
     private static WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
     private static ARWebSocketServerIP arWebSocketServerIP;
@@ -60,6 +62,7 @@ public class ARControlPanel extends Application {
         arPropertyManager = ARPropertyManager.getInstance();
         arConfigManagerScene = ARConfigManagerScene.getInstance();
         arMainScene = ARMainScene.getInstance();
+        arNewBotJobManagerScene = ARNewBotJobManagerScene.getInstance();
         arOrganizationManagerScene = AROrganizationManagerScene.getInstance();
     }
 

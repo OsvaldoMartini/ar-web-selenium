@@ -1,12 +1,12 @@
 package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.component.pane.base.ARPane;
-import com.allinweb.ch.component.scene.ARConfigManagerScene;
-import com.allinweb.ch.component.scene.ARNewBotJobManagerScene;
 import com.allinweb.ch.driver.ARWebDriver;
+import com.allinweb.ch.facade.ConfigManagerLifecycle;
 import com.allinweb.ch.facade.MainDashboardService;
 import com.allinweb.ch.facade.MainDashboardPresentation;
 import com.allinweb.ch.facade.MainDashboardPresentationRegistry;
+import com.allinweb.ch.facade.NewBotJobManagerLifecycle;
 import com.allinweb.ch.facade.OrganizationManagerLifecycle;
 import com.allinweb.ch.facade.PerformDBEngine;
 import com.allinweb.ch.facade.PerformDataBase;
@@ -53,9 +53,7 @@ public class ARMainDashboardPane extends ARPane implements BotJobDetailsPresenta
     private static final MainDashboardService mainDashboardService = MainDashboardService.getInstance();
     private static final WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
     private static final Gson gson = new Gson();
-    private static final ARConfigManagerScene arConfigManagerScene = ARConfigManagerScene.getInstance();
     private static final BotJobDetailsWorkspaceHost botJobDetailsHost = BotJobDetailsWorkspaceHost.getInstance();
-    private static final ARNewBotJobManagerScene arNewBotJobManagerScene = ARNewBotJobManagerScene.getInstance();
     private static final ARWebDriver arWebDriver = ARWebDriver.getInstance();
 
     protected static volatile ARMainDashboardPane instance;
@@ -155,8 +153,7 @@ public class ARMainDashboardPane extends ARPane implements BotJobDetailsPresenta
                         0);
                 return;
             }
-            arNewBotJobManagerScene.initialize(isEnabledLicence);
-            arNewBotJobManagerScene.showModal(currentStage());
+            NewBotJobManagerLifecycle.getInstance().openNewBotJob(isEnabledLicence);
             performDataBase.loadQuickBotJobs();
             pushReactDashboardList();
         });
@@ -286,8 +283,7 @@ public class ARMainDashboardPane extends ARPane implements BotJobDetailsPresenta
 
     public void openConfig() {
         Platform.runLater(() -> {
-            arConfigManagerScene.initialize(isEnabledLicence);
-            arConfigManagerScene.showModal(currentStage());
+            ConfigManagerLifecycle.getInstance().openConfig(isEnabledLicence);
             performDataBase.loadQuickBotJobs();
             pushReactDashboardList();
         });

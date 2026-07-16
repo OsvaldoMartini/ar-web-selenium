@@ -3,6 +3,7 @@ package com.allinweb.ch.component.scene;
 import com.allinweb.ch.component.pane.ARNewBotJobManagerPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
+import com.allinweb.ch.facade.NewBotJobManagerLifecycle;
 import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.stage.Modality;
@@ -25,6 +26,7 @@ public class ARNewBotJobManagerScene extends ARScene {
 
     private ARNewBotJobManagerScene() {
         super();
+        NewBotJobManagerLifecycle.getInstance().install(new SceneNewBotJobManagerHandler());
     }
 
     public static ARNewBotJobManagerScene getInstance() {
@@ -42,6 +44,10 @@ public class ARNewBotJobManagerScene extends ARScene {
         this.isEnabledLicence = isEnabledLicence;
     }
 
+    public void showModal() {
+        showModal(null);
+    }
+
     public void showModal(Stage parentStage) {
         if (modalStage == null) {
             modalStage = new Stage();
@@ -55,7 +61,9 @@ public class ARNewBotJobManagerScene extends ARScene {
             modalScene = new Scene(pane.createPane(), getSceneWidth(), getSceneHeight());
             modalStage.setScene(modalScene);
             modalStage.setTitle(getTitle());
-            modalStage.initOwner(parentStage);
+            if (parentStage != null) {
+                modalStage.initOwner(parentStage);
+            }
             modalStage.initModality(Modality.NONE);
             modalStage.setAlwaysOnTop(true);
             modalStage.setOnShown(event -> Platform.runLater(() -> modalStage.setAlwaysOnTop(false)));
@@ -96,5 +104,18 @@ public class ARNewBotJobManagerScene extends ARScene {
     @Override
     public String getTitle() {
         return TITLE;
+    }
+
+    private final class SceneNewBotJobManagerHandler implements NewBotJobManagerLifecycle.Handler {
+        @Override
+        public void openNewBotJob(boolean enabledLicence) {
+            ARNewBotJobManagerScene.this.initialize(enabledLicence);
+            ARNewBotJobManagerScene.this.showModal();
+        }
+
+        @Override
+        public void closeModal() {
+            ARNewBotJobManagerScene.this.closeModal();
+        }
     }
 }

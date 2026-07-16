@@ -3,6 +3,7 @@ package com.allinweb.ch.component.scene;
 import com.allinweb.ch.component.pane.ARConfigManagerPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
+import com.allinweb.ch.facade.ConfigManagerLifecycle;
 import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.stage.Modality;
@@ -25,6 +26,7 @@ public class ARConfigManagerScene extends ARScene {
 
     private ARConfigManagerScene() {
         super();
+        ConfigManagerLifecycle.getInstance().install(new SceneConfigManagerHandler());
     }
 
     public static ARConfigManagerScene getInstance() {
@@ -102,5 +104,18 @@ public class ARConfigManagerScene extends ARScene {
     @Override
     public String getTitle() {
         return TITLE;
+    }
+
+    private final class SceneConfigManagerHandler implements ConfigManagerLifecycle.Handler {
+        @Override
+        public void openConfig(boolean enabledLicence) {
+            ARConfigManagerScene.this.initialize(enabledLicence);
+            ARConfigManagerScene.this.showModal();
+        }
+
+        @Override
+        public void closeModal() {
+            ARConfigManagerScene.this.closeModal();
+        }
     }
 }
