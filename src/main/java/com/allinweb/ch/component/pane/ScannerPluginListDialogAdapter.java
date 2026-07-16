@@ -4,15 +4,15 @@ import com.allinweb.ch.model.PluginDTO;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Dialog;
-import javafx.scene.control.TableView;
 
 final class ScannerPluginListDialogAdapter {
 
     void show(
             ScannerPluginListContentAdapter.Result content,
-            TableView<PluginDTO> table,
+            Supplier<List<PluginDTO>> selectedPlugins,
             List<PluginDTO> allPlugins,
             Runnable onNoSelection,
             Consumer<List<PluginDTO>> onDownload) {
@@ -26,7 +26,7 @@ final class ScannerPluginListDialogAdapter {
         content.close().setOnAction(e -> dialog.close());
 
         content.downloadSelected().setOnAction(e -> {
-            List<PluginDTO> selected = new ArrayList<>(table.getSelectionModel().getSelectedItems());
+            List<PluginDTO> selected = selectedPlugins.get();
             if (selected.isEmpty()) {
                 onNoSelection.run();
                 return;

@@ -2,15 +2,19 @@ package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.model.PluginDTO;
 import com.allinweb.ch.model.PluginManifestDTO;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Supplier;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
+import javafx.scene.Node;
 import javafx.scene.control.SelectionMode;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 
 final class ScannerPluginListTableAdapter {
 
-    TableView<PluginDTO> build(PluginManifestDTO manifest) {
+    Result build(PluginManifestDTO manifest) {
         TableView<PluginDTO> table = new TableView<>();
         table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
         table.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
@@ -34,7 +38,7 @@ final class ScannerPluginListTableAdapter {
 
         table.getColumns().addAll(icon, name, version, size, description);
         table.setItems(FXCollections.observableArrayList(manifest.getPlugins()));
-        return table;
+        return new Result(table, () -> new ArrayList<>(table.getSelectionModel().getSelectedItems()));
     }
 
     private static TableColumn<PluginDTO, String> column(
@@ -43,4 +47,6 @@ final class ScannerPluginListTableAdapter {
         column.setCellValueFactory(c -> new SimpleStringProperty(value.apply(c.getValue())));
         return column;
     }
+
+    record Result(Node table, Supplier<List<PluginDTO>> selectedPlugins) {}
 }

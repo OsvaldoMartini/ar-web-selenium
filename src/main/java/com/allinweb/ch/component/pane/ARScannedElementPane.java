@@ -9285,12 +9285,12 @@ public class ARScannedElementPane extends ARPane
      */
     private void showPluginListDialog(PluginManifestDTO manifest, String serverBase, String pathPlugins) {
 
-        TableView<PluginDTO> table = scannerPluginListTableAdapter.build(manifest);
+        ScannerPluginListTableAdapter.Result tableResult = scannerPluginListTableAdapter.build(manifest);
         ScannerPluginListContentAdapter.Result contentResult =
-                scannerPluginListContentAdapter.build(manifest, table);
+                scannerPluginListContentAdapter.build(manifest, tableResult.table());
         scannerPluginListDialogAdapter.show(
                 contentResult,
-                table,
+                tableResult.selectedPlugins(),
                 manifest.getPlugins(),
                 () -> showPluginTestAlert(
                         Alert.AlertType.INFORMATION, "No selection", "Select at least one plugin to download."),

@@ -4,15 +4,15 @@ import com.allinweb.ch.model.PluginDTO;
 import com.allinweb.ch.model.PluginManifestDTO;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
-import javafx.scene.control.TableView;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 
 final class ScannerPluginListContentAdapter {
 
-    Result build(PluginManifestDTO manifest, TableView<PluginDTO> table) {
+    Result build(PluginManifestDTO manifest, Node table) {
         String headerText = "Plugin List  \u00B7  manifest v" + manifest.getVersion()
                 + (manifest.getUpdated() != null ? "  \u00B7  updated " + manifest.getUpdated() : "");
         Label headerLabel = new Label(headerText);
