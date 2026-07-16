@@ -75,6 +75,8 @@ public class ARScannedElementScene extends ARScene {
     private final ARScannedElementPanePort arScannedElementPane;
     private final ScannerElementTestActionService scannerElementTestActionService =
             new ScannerElementTestActionService();
+    private final ScannerElementTestLookupService scannerElementTestLookupService =
+            new ScannerElementTestLookupService(new SceneElementTestListsPort(), new SceneElementTestDataPort());
     private final BotJobWorkspaceCapabilityService botJobWorkspaceCapabilityService =
             BotJobWorkspaceCapabilityService.getInstance();
     private final ScannerMobileTestRoute scannerMobileTestRoute = ScannerMobileTestRoute.standard();
@@ -400,18 +402,6 @@ public class ARScannedElementScene extends ARScene {
                         // Extract the "body" field from the JsonObject
                         //                    splitDTO = gson.fromJson(jsonObjMSG, SplitDTO.class);
 
-                        String tableName = "instruction";
-                        whereId = splitDTO.getBotJobId() != null
-                                ? splitDTO.getBotJobId()
-                                : currentBotJob.getId() != null ? currentBotJob.getId() : -1;
-
-                        if (splitDTO.getSessionId().equals(ScannerWorkspaceSessions.COMPONENT_TASKS)) {
-                            tableName = "component_instruction";
-                            whereId = splitDTO.getHomeBankingId() != null
-                                    ? splitDTO.getHomeBankingId()
-                                    : currentBotJob.getHomeBankingId() != null ? currentBotJob.getHomeBankingId() : -1;
-                        }
-
                         blockUpdate = splitDTO.getSessionId().equals(ScannerWorkspaceSessions.COMPONENT_TASKS)
                                 ? ScannerWorkspaceOperations.UPDATE_BLOCKS_COMP
                                 : ScannerWorkspaceOperations.UPDATE_BLOCKS;
@@ -422,32 +412,14 @@ public class ARScannedElementScene extends ARScene {
                             previousBlock = blockUpdate;
                         }
 
-                        if (splitDTO.getOperationId() != null
-                                && splitDTO.getOperationId().equalsIgnoreCase("TEST_STEP")) {
-
-                            // I want all Instructions
-                            if (tableName.equals("instruction")
-                                            && performLists.getListInstruction().isEmpty()
-                                    || (tableName.equals("component_instruction")
-                                            && performLists
-                                                    .getListInstructionComp()
-                                                    .isEmpty())) {
-
-                                ErrorMessage errorMessage =
-                                        performDataBase.loadInstructions(whereId, -1, -1, tableName);
-                                if (errorMessage != null) {
-                                    performMessage.errorMessageOperationFailed(errorMessage);
-                                }
-                            }
-
-                            InstructionLoad instruction = performLists.getInstructionById(
-                                    tableName, whereId, splitDTO.getElementDetails()[0].getId());
-                            if (instruction != null && instruction.getId() != null) {
-                                ElementDTO elementDTO = performActions.buildElementDTO(instruction);
-                                runElementTestAction(elementDTO, splitDTO);
-                            } else {
-                                runElementTestAction(splitDTO.getElementDetails()[0], splitDTO);
-                            }
+                        ScannerElementTestLookupService.Result testLookup =
+                                scannerElementTestLookupService.resolve(splitDTO, currentBotJob);
+                        if (testLookup.loadError() != null) {
+                            performMessage.errorMessageOperationFailed(testLookup.loadError());
+                        }
+                        if (testLookup.instruction() != null && testLookup.instruction().getId() != null) {
+                            ElementDTO elementDTO = performActions.buildElementDTO(testLookup.instruction());
+                            runElementTestAction(elementDTO, splitDTO);
                         } else {
                             runElementTestAction(splitDTO.getElementDetails()[0], splitDTO);
                         }
@@ -942,6 +914,27 @@ public class ARScannedElementScene extends ARScene {
         } catch (Exception error) {
             log.error("Cannot parse SplitDTO: " + error.getMessage() + " | JSON: " + jsonEntry);
             return null;
+        }
+    }
+
+    private static final class SceneElementTestListsPort implements ScannerElementTestLookupService.ListsPort {
+        @Override
+        public boolean isInstructionListEmpty(String tableName) {
+            return ScannerElementTestLookupService.BOT_JOB_INSTRUCTION_TABLE.equals(tableName)
+                    ? performLists.getListInstruction().isEmpty()
+                    : performLists.getListInstructionComp().isEmpty();
+        }
+
+        @Override
+        public InstructionLoad getInstructionById(String tableName, int whereId, int instructionId) {
+            return performLists.getInstructionById(tableName, whereId, instructionId);
+        }
+    }
+
+    private static final class SceneElementTestDataPort implements ScannerElementTestLookupService.DataPort {
+        @Override
+        public ErrorMessage loadInstructions(int whereId, String tableName) {
+            return performDataBase.loadInstructions(whereId, -1, -1, tableName);
         }
     }
 }
