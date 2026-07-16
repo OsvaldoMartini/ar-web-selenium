@@ -223,6 +223,8 @@ public class ARScannedElementPane extends ARPane
             new ScannerPreLaunchStatusTextAreaAdapter();
     private final ScannerTestActionCheckboxesAdapter scannerTestActionCheckboxesAdapter =
             new ScannerTestActionCheckboxesAdapter();
+    private final ScannerTestActionCheckboxStateAdapter scannerTestActionCheckboxStateAdapter =
+            new ScannerTestActionCheckboxStateAdapter();
     private final ScannerTestActionLabelAdapter scannerTestActionLabelAdapter =
             new ScannerTestActionLabelAdapter();
     private final ScannerHiddenCloneCheckboxAdapter scannerHiddenCloneCheckboxAdapter =
@@ -1048,14 +1050,11 @@ public class ARScannedElementPane extends ARPane
 
         String actionReq = targetInsert.getTagName();
         if (!manyElements) {
-            actionReq = checkClickElement.isSelected()
-                    ? ARConstants.CLICK
-                    : checkInputText.isSelected()
-                            ? ARConstants.INSERT
-                            : checkOutputText.isSelected() ? ARConstants.OUTPUT : ARConstants.OTHER;
+            actionReq = scannerTestActionCheckboxStateAdapter.selectedAction(
+                    checkClickElement, checkInputText, checkOutputText);
         }
 
-        targetInsert.setClickElement(checkClickElement.isSelected());
+        targetInsert.setClickElement(scannerTestActionCheckboxStateAdapter.clickSelected(checkClickElement));
         WebElementTagNameEnum tagType = targetInsert.getTagType();
 
         Integer currentBotJobId = currentBotJob.getId();
@@ -2774,7 +2773,7 @@ public class ARScannedElementPane extends ARPane
 
             List<ElementDTO> detailsList = new ArrayList<>();
 
-            if (checkInputText.isSelected()) {
+            if (scannerTestActionCheckboxStateAdapter.inputSelected(checkInputText)) {
                 ElementDTO inputElementDTO = elementDTO.deepCopy(); // Create a copy
                 inputElementDTO.setTypeElement(
                         WebElementTagNameEnum.INPUT.getValue().toLowerCase());
@@ -2782,7 +2781,7 @@ public class ARScannedElementPane extends ARPane
                         WebElementTagNameEnum.INPUT.getValue().toLowerCase());
                 detailsList.add(inputElementDTO);
             }
-            if (checkClickElement.isSelected()) {
+            if (scannerTestActionCheckboxStateAdapter.clickSelected(checkClickElement)) {
                 ElementDTO buttonElementDTO = elementDTO.deepCopy(); // Create a copy
                 buttonElementDTO.setTypeElement(
                         WebElementTagNameEnum.BUTTON.getValue().toLowerCase());
@@ -2790,7 +2789,7 @@ public class ARScannedElementPane extends ARPane
                         WebElementTagNameEnum.BUTTON.getValue().toLowerCase());
                 detailsList.add(buttonElementDTO);
             }
-            if (checkOutputText.isSelected()) {
+            if (scannerTestActionCheckboxStateAdapter.outputSelected(checkOutputText)) {
                 ElementDTO outputElementDTO = elementDTO.deepCopy(); // Create a copy
                 outputElementDTO.setTypeElement(
                         WebElementTagNameEnum.OUTPUT.getValue().toLowerCase());
@@ -4119,11 +4118,7 @@ public class ARScannedElementPane extends ARPane
     public void defineCheckBoxesClickable(TargetElement targetCheck) {
         ScannerActionDefaultsService.Decision decision =
                 scannerActionDefaultsService.decide(targetCheck, isClickable(targetCheck.getElement()));
-        Platform.runLater(() -> {
-            checkClickElement.setSelected(decision.click());
-            checkInputText.setSelected(decision.input());
-            checkOutputText.setSelected(decision.output());
-        });
+        scannerTestActionCheckboxStateAdapter.apply(decision, checkClickElement, checkInputText, checkOutputText);
     }
 
     private boolean isClickable(WebElement element) {
