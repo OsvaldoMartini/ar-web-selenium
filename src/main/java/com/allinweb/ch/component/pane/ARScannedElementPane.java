@@ -174,6 +174,8 @@ public class ARScannedElementPane extends ARPane
             new ScannerSearchCleanupService();
     private final ScannerSyntheticReferenceService scannerSyntheticReferenceService =
             new ScannerSyntheticReferenceService();
+    private final ScannerCsvContentService scannerCsvContentService =
+            new ScannerCsvContentService();
     private final ScannerTestRunBotJobPreparation scannerTestRunBotJobPreparation =
             new ScannerTestRunBotJobPreparation(new PaneTestRunBotJobOperations());
     private final ScannerTestRunExecutionStart scannerTestRunExecutionStart =
@@ -4022,16 +4024,7 @@ public class ARScannedElementPane extends ARPane
      * @return the complete CSV content as a String
      */
     public String getCsvContent(CsvTable tableCSV) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("0: ").append(String.join(",", tableCSV.getColumns())).append("\n");
-
-        int rowNumber = 1;
-        //        for (List<String> row : rowsCSV) {
-        //            sb.append(rowNumber).append(": ").append(String.join(",", row)).append("\n");
-        //            rowNumber++;
-        //        }
-        //        sb.append(END_OF_FILE_MARKER);
-        return sb.toString();
+        return scannerCsvContentService.headerOnlyContent(tableCSV);
     }
 
     /** Sentinel {@code BlockOptions.blockId} that identifies the "+ Create new block…" entry
@@ -8643,40 +8636,7 @@ public class ARScannedElementPane extends ARPane
      * @return the formatted CSV content as a String
      */
     public String getBancaStatoCsvContent(CsvTable tableCSV, String delimiter) {
-        StringBuilder sb = new StringBuilder();
-
-        // Header
-        sb.append("KEY")
-                .append(delimiter)
-                .append(String.join(delimiter, tableCSV.getColumns()))
-                .append("\n");
-
-        int totalRows = (tableCSV == null || tableCSV.getRows() == null)
-                ? 0
-                : tableCSV.getRows().size();
-
-        // Data rows
-        for (int i = 0; i < totalRows; i++) {
-            CsvRow row = tableCSV.getRows().get(i);
-
-            String externalKey = (totalRows == 1) ? "EXTERNAL" : "EXTERNAL_" + (i + 1);
-
-            sb.append(externalKey).append(delimiter);
-
-            // values in the same order as columnsCSV
-            for (int c = 0; c < tableCSV.getColumns().size(); c++) {
-                String col = tableCSV.getColumns().get(c);
-                sb.append(row != null ? row.get(col) : "");
-                if (c < tableCSV.getColumns().size() - 1) {
-                    sb.append(delimiter);
-                }
-            }
-
-            sb.append("\n");
-        }
-
-        //        sb.append(END_OF_FILE_MARKER);
-        return sb.toString();
+        return scannerCsvContentService.bancaStatoContent(tableCSV, delimiter);
     }
 
     private void saveExcelWrite(
