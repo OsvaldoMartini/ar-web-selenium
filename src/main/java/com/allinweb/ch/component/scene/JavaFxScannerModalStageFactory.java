@@ -1,11 +1,12 @@
 package com.allinweb.ch.component.scene;
 
+import com.allinweb.ch.component.pane.ARScannedElementPane;
 import com.allinweb.ch.component.pane.ARScannedElementPaneProvider;
+import com.allinweb.ch.component.pane.ARScannedElementPanePort;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.facade.ScannerModalStageService;
 import com.allinweb.ch.util.ARConstants;
 import java.util.Objects;
-import java.util.function.Supplier;
 import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.scene.image.Image;
@@ -14,27 +15,25 @@ import javafx.stage.Stage;
 
 final class JavaFxScannerModalStageFactory implements ScannerModalStageService.StageFactory {
     private final ARScannedElementPaneProvider scannerPaneProvider;
-    private final Supplier<IARPane> paneFactory;
     private final Runnable closeRequest;
 
     JavaFxScannerModalStageFactory(
             ARScannedElementPaneProvider scannerPaneProvider,
-            Supplier<IARPane> paneFactory,
             Runnable closeRequest) {
         this.scannerPaneProvider = scannerPaneProvider;
-        this.paneFactory = paneFactory;
         this.closeRequest = closeRequest;
     }
 
     @Override
     public ScannerModalStageService.ModalStage create(ScannerModalStageService.Config config) {
         Stage stage = new Stage();
-        scannerPaneProvider.setStage(stage);
+        ARScannedElementPanePort scannerPane = scannerPaneProvider.currentPane();
+        bindStage(scannerPane, stage);
         Image icon = loadIcon();
         if (icon != null) {
             stage.getIcons().add(icon);
         }
-        IARPane pane = paneFactory.get();
+        IARPane pane = paneView(scannerPane);
         if (pane == null) {
             return null;
         }
@@ -48,6 +47,16 @@ final class JavaFxScannerModalStageFactory implements ScannerModalStageService.S
         stage.setOnShown(event -> Platform.runLater(() -> stage.setAlwaysOnTop(false)));
         stage.setOnCloseRequest(event -> closeRequest.run());
         return new JavaFxScannerModalStage(stage);
+    }
+
+    private void bindStage(ARScannedElementPanePort pane, Stage stage) {
+        if (pane instanceof ARScannedElementPane scannerPane) {
+            scannerPane.setStage(stage);
+        }
+    }
+
+    private IARPane paneView(ARScannedElementPanePort pane) {
+        return pane instanceof IARPane paneView ? paneView : null;
     }
 
     private Image loadIcon() {

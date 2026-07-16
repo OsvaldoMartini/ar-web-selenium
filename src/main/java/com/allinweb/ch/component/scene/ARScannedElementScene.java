@@ -484,7 +484,6 @@ public class ARScannedElementScene {
                         modalStage,
                         new JavaFxScannerModalStageFactory(
                                 ARScannedElementPaneProvider.getInstance(),
-                                ARScannedElementPaneProvider.getInstance()::currentPaneView,
                                 this::handleCloseRequest),
                         new ScannerModalStageService.Config(getTitle(), getSceneWidth(), getSceneHeight()));
                 if (modalStage == null) {

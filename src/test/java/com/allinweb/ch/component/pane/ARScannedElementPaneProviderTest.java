@@ -1,10 +1,7 @@
 package com.allinweb.ch.component.pane;
 
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
 
-import com.allinweb.ch.component.pane.base.IARPane;
-import javafx.scene.layout.Pane;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -21,42 +18,6 @@ class ARScannedElementPaneProviderTest {
         provider.installPaneSupplier(() -> null);
 
         assertNull(provider.currentPane());
-    }
-
-    @Test
-    void exposesPaneViewOnlyWhenSupplierResultIsJavaFxPane() {
-        PanePortView pane = new PanePortView();
-        provider.installPaneSupplier(() -> pane);
-
-        assertSame(pane, provider.currentPaneView());
-    }
-
-    @Test
-    void returnsNoPaneViewForNonJavaFxPort() {
-        provider.installPaneSupplier(() -> new NonPanePort());
-
-        assertNull(provider.currentPaneView());
-    }
-
-    private static final class PanePortView extends NonPanePort implements IARPane {
-        @Override
-        public Pane createPane() {
-            return new Pane();
-        }
-
-        @Override
-        public Pane getPaneReference() {
-            return null;
-        }
-
-        @Override
-        public void initUIComponents() {}
-
-        @Override
-        public void initUIBehaviour() {}
-
-        @Override
-        public void clear() {}
     }
 
     private static class NonPanePort implements ARScannedElementPanePort {
