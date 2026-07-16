@@ -2,6 +2,9 @@ package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.component.scene.AROrganizationManagerScene;
+import com.allinweb.ch.facade.MainDashboardPresentationRegistry;
+import com.allinweb.ch.facade.NewBotJobPresentation;
+import com.allinweb.ch.facade.NewBotJobPresentationRegistry;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.PerformDBEngine;
 import com.allinweb.ch.facade.PerformDataBase;
@@ -22,7 +25,7 @@ import javafx.stage.Stage;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class ARNewBotJobManagerPane extends ARPane {
+public class ARNewBotJobManagerPane extends ARPane implements NewBotJobPresentation {
 
     private static final String SESSION_ID = "newBotJobManager";
     private static final int DEFAULT_PORT = 54525;
@@ -42,6 +45,7 @@ public class ARNewBotJobManagerPane extends ARPane {
 
     private ARNewBotJobManagerPane() {
         super();
+        NewBotJobPresentationRegistry.getInstance().install(this);
     }
 
     public static ARNewBotJobManagerPane getInstance() {
@@ -106,7 +110,7 @@ public class ARNewBotJobManagerPane extends ARPane {
 
     public void openBotJobAndClose(BotJobLoadDTO botJob) {
         Platform.runLater(() -> {
-            ARMainDashboardPane.getInstance().openBotJob(botJob);
+            MainDashboardPresentationRegistry.getInstance().current().openBotJob(botJob);
             closeModal();
         });
     }

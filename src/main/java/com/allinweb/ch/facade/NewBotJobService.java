@@ -1,6 +1,5 @@
 package com.allinweb.ch.facade;
 
-import com.allinweb.ch.component.pane.ARNewBotJobManagerPane;
 import com.allinweb.ch.model.BotJobLoadDTO;
 import com.allinweb.ch.model.HomeBankingLoadDTO;
 import com.allinweb.ch.model.HomeUrlDTO;
@@ -106,7 +105,7 @@ public class NewBotJobService {
         }
 
         if (openAfterCreate) {
-            ARNewBotJobManagerPane.getInstance().openBotJobAndClose(createdBotJob);
+            presentation().openBotJobAndClose(createdBotJob);
         }
 
         Map<String, Object> dashboard = mainDashboardService.list();
@@ -119,14 +118,18 @@ public class NewBotJobService {
     }
 
     public Map<String, Object> openOrganizations() {
-        ARNewBotJobManagerPane.getInstance().openOrganizations();
+        presentation().openOrganizations();
         Map<String, Object> response = environmentResponse("Organizations opened");
         return response;
     }
 
     public Map<String, Object> cancel() {
-        ARNewBotJobManagerPane.getInstance().closeModal();
+        presentation().closeModal();
         return ok("Cancelled");
+    }
+
+    private NewBotJobPresentation presentation() {
+        return NewBotJobPresentationRegistry.getInstance().current();
     }
 
     private ErrorMessage reloadEnvironments() {
