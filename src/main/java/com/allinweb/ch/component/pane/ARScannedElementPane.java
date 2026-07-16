@@ -205,6 +205,8 @@ public class ARScannedElementPane extends ARPane
             new ScannerSearchHiddenFieldsButtonAdapter();
     private final ScannerTestMessageSuppressionCheckboxAdapter scannerTestMessageSuppressionCheckboxAdapter =
             new ScannerTestMessageSuppressionCheckboxAdapter();
+    private final ScannerIframeIndicatorAdapter scannerIframeIndicatorAdapter =
+            new ScannerIframeIndicatorAdapter();
     private final UiThreadDispatcher uiThreadDispatcher = UiThreadDispatcher.getInstance();
     private final ScannerDomReviewSnapshotService scannerDomReviewSnapshotService =
             new ScannerDomReviewSnapshotService();
@@ -1668,8 +1670,7 @@ public class ARScannedElementPane extends ARPane
         checkInputText = new CheckBox("For Input");
         checkOutputText = new CheckBox("For Output (Excel Export)");
 
-        iFrameText = new Text("");
-        iFrameText.setStyle("-fx-font-size: 12px; -fx-fill: blue;");
+        iFrameText = scannerIframeIndicatorAdapter.build();
 
         configureButton = builder.buildButton(
                 "Config", ARConstants.SPACE_M, ARConstants.ICON_CONFIG, ARConstants.SPACE_M, new Insets(5.0D));
