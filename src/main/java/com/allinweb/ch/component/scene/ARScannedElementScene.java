@@ -94,6 +94,8 @@ public class ARScannedElementScene extends ARScene {
     private final ScannerMobileTestRoute scannerMobileTestRoute = ScannerMobileTestRoute.standard();
     private final ScannerMobileTestForwarder scannerMobileTestForwarder =
             new ScannerMobileTestForwarder(scannerMobileTestRoute);
+    private final ScannerTestMessageMetadataService scannerTestMessageMetadataService =
+            new ScannerTestMessageMetadataService(new ScannerTestMessageMetadataService.DefaultDataPort());
     // Private constructor to prevent instantiation
     private ARScannedElementScene() {
 
@@ -319,15 +321,7 @@ public class ARScannedElementScene extends ARScene {
                     break;
                 case ScannerWorkspaceOperations.TEST_CLICK_DTO:
                 case ScannerWorkspaceOperations.TEST_INPUT_DTO:
-                    if (!performLists.getListBotJob().isEmpty() && splitDTO.getBotJobId() != null) {
-                        performLists.getListBotJob().stream()
-                                .filter(j -> java.util.Objects.equals(j.getId(), splitDTO.getBotJobId()))
-                                .findFirst()
-                                .ifPresent(j -> {
-                                    splitDTO.setBotJobName(j.getName());
-                                    splitDTO.setProjectType(j.getPriority());
-                                });
-                    }
+                    scannerTestMessageMetadataService.enrich(splitDTO);
                     if (botJobWorkspaceCapabilityService.supportsNativeMobileTools(splitDTO.getProjectType())) {
                         sessionId = scannerMobileTestRoute.scannerSessionId();
                         splitDTO.setSessionId(sessionId);
