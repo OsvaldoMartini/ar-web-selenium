@@ -219,6 +219,8 @@ public class ARScannedElementPane extends ARPane
     private final ScannerCurrentUrlTextAdapter scannerCurrentUrlTextAdapter =
             new ScannerCurrentUrlTextAdapter();
     private final ScannerTextFieldsAdapter scannerTextFieldsAdapter = new ScannerTextFieldsAdapter();
+    private final ScannerElementFocusComboBoxAdapter scannerElementFocusComboBoxAdapter =
+            new ScannerElementFocusComboBoxAdapter();
     private final UiThreadDispatcher uiThreadDispatcher = UiThreadDispatcher.getInstance();
     private final ScannerDomReviewSnapshotService scannerDomReviewSnapshotService =
             new ScannerDomReviewSnapshotService();
@@ -617,7 +619,7 @@ public class ARScannedElementPane extends ARPane
         return Collections.unmodifiableList(profiles);
     }
 
-    private static final class ElementScanProfile {
+    static final class ElementScanProfile {
         private final String label;
         private final String description;
         private final List<String> terms;
@@ -628,11 +630,11 @@ public class ARScannedElementPane extends ARPane
             this.terms = List.of(terms);
         }
 
-        private String label() {
+        String label() {
             return label;
         }
 
-        private String description() {
+        String description() {
             return description;
         }
 
@@ -647,27 +649,6 @@ public class ARScannedElementPane extends ARPane
         @Override
         public String toString() {
             return label;
-        }
-    }
-
-    private static final class ElementScanProfileCell extends ListCell<ElementScanProfile> {
-        @Override
-        protected void updateItem(ElementScanProfile item, boolean empty) {
-            super.updateItem(item, empty);
-            if (empty || item == null) {
-                setText(null);
-                setTooltip(null);
-                setStyle("");
-                return;
-            }
-
-            setText(item.label());
-            setTooltip(new Tooltip(item.description()));
-            if (item.label().startsWith("All -")) {
-                setStyle("-fx-font-weight: bold;");
-            } else {
-                setStyle("");
-            }
         }
     }
 
@@ -1712,12 +1693,8 @@ public class ARScannedElementPane extends ARPane
         defineNameLabel = scannerFieldLabelsAdapter.defineName();
         coordsTextFieldLabel = scannerFieldLabelsAdapter.coordinates();
 
-        elementFocusComboBox = new ComboBox<>(FXCollections.observableArrayList(ELEMENT_SCAN_PROFILES));
-        elementFocusComboBox.setPrefWidth(260);
-        elementFocusComboBox.setTooltip(new Tooltip("Choose which type of web element the Page Scanner should focus."));
-        elementFocusComboBox.getSelectionModel().select(ALL_INTERACTIVE_SCAN_PROFILE);
-        elementFocusComboBox.setButtonCell(new ElementScanProfileCell());
-        elementFocusComboBox.setCellFactory(list -> new ElementScanProfileCell());
+        elementFocusComboBox =
+                scannerElementFocusComboBoxAdapter.build(ELEMENT_SCAN_PROFILES, ALL_INTERACTIVE_SCAN_PROFILE);
         elementFocusComboBox.valueProperty().addListener((obs, oldValue, newValue) -> {
             if (newValue == null || searchTermsField == null) {
                 return;
