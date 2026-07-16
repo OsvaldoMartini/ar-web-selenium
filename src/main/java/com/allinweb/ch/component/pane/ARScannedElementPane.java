@@ -168,6 +168,7 @@ public class ARScannedElementPane extends ARPane
             new ScannerPluginBatchDownloadProgressDialogAdapter();
     private final ScannerPluginPortalBannerAdapter scannerPluginPortalBannerAdapter =
             new ScannerPluginPortalBannerAdapter();
+    private final ScannerExternalBrowserAdapter scannerExternalBrowserAdapter = new ScannerExternalBrowserAdapter();
     private final ScannerPluginUpdateButtonAdapter scannerPluginUpdateButtonAdapter =
             new ScannerPluginUpdateButtonAdapter();
     private final ScannerPluginUpdateButtonRefreshAdapter scannerPluginUpdateButtonRefreshAdapter =
@@ -8445,37 +8446,7 @@ public class ARScannedElementPane extends ARPane
      * the MultiPlugins portal that opens in the system default browser.
      */
     private VBox buildPortalBanner(boolean noPlugins, boolean anyMissing) {
-        return scannerPluginPortalBannerAdapter.build(noPlugins, this::openInDefaultBrowser);
-    }
-
-    /**
-     * Opens a URL in the user's default browser. Tries {@link java.awt.Desktop}
-     * first, falls back to Windows {@code rundll32 url.dll,FileProtocolHandler}.
-     * Silent on failure — cosmetic feature, must never block the UI.
-     */
-    private void openInDefaultBrowser(String url) {
-        try {
-            java.awt.Desktop desktop = java.awt.Desktop.isDesktopSupported() ? java.awt.Desktop.getDesktop() : null;
-            if (desktop != null && desktop.isSupported(java.awt.Desktop.Action.BROWSE)) {
-                desktop.browse(java.net.URI.create(url));
-                return;
-            }
-        } catch (Exception ignored) {
-        }
-        try {
-            String os = System.getProperty("os.name", "").toLowerCase();
-            if (os.contains("win")) {
-                new ProcessBuilder("rundll32", "url.dll,FileProtocolHandler", url)
-                        .inheritIO()
-                        .start();
-            } else if (os.contains("mac")) {
-                new ProcessBuilder("open", url).start();
-            } else {
-                new ProcessBuilder("xdg-open", url).start();
-            }
-        } catch (Exception ex) {
-            log.warn("openInDefaultBrowser - failed to open {}: {}", url, ex.getMessage());
-        }
+        return scannerPluginPortalBannerAdapter.build(noPlugins, scannerExternalBrowserAdapter::open);
     }
 
     /**
