@@ -8,6 +8,15 @@ import javafx.util.Duration;
 
 final class ScannerPluginHintAdapter {
 
+    Label createLabel() {
+        Label label = new Label();
+        label.setStyle("-fx-font-size: 11px;");
+        label.setVisible(false);
+        label.setManaged(false);
+        label.setWrapText(true);
+        return label;
+    }
+
     void show(Label label, String message, String color, double seconds) {
         Platform.runLater(() -> {
             label.setText(message);

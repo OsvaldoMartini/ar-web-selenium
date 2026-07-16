@@ -1637,11 +1637,7 @@ public class ARScannedElementPane extends ARPane
         updatePluginsButton = buildUpdatePluginsButton();
         updatePluginsButton.setVisible(false);
 
-        lblPluginHint = new Label();
-        lblPluginHint.setStyle("-fx-font-size: 11px;");
-        lblPluginHint.setVisible(false);
-        lblPluginHint.setManaged(false);
-        lblPluginHint.setWrapText(true);
+        lblPluginHint = scannerPluginHintAdapter.createLabel();
 
         turnOnOffButton = new Button("Search Hidden Fields: Off");
         turnOnOffButton.setStyle("-fx-background-color: grey; -fx-text-fill: white;");
