@@ -159,6 +159,7 @@ public class ARScannedElementPane extends ARPane
     private final ScannerSupportRequestPublisher scannerSupportRequestPublisher = new ScannerSupportRequestPublisher();
     private final ScannerSupportRequestService scannerSupportRequestService = new ScannerSupportRequestService();
     private final ScannerSupportFileService scannerSupportFileService = new ScannerSupportFileService();
+    private final ScannerSupportFileSaveService scannerSupportFileSaveService = new ScannerSupportFileSaveService();
     private final ScannerPreLaunchStarter scannerPreLaunchStarter =
             new ScannerPreLaunchStarter(new PanePreLaunchStartOperations());
     private final ScannerPreLaunchStopper scannerPreLaunchStopper =
@@ -2178,15 +2179,15 @@ public class ARScannedElementPane extends ARPane
                         return;
                     }
 
-                    java.nio.file.Files.writeString(
-                            chosen.toPath(), supportFile.json(), java.nio.charset.StandardCharsets.UTF_8);
+                    ScannerSupportFileSaveService.SavedSupportFile savedSupportFile =
+                            scannerSupportFileSaveService.save(supportFile, chosen.toPath());
 
                     log.info("DOM capture saved to {}", chosen.getAbsolutePath());
                     javafx.scene.control.Alert out =
                             new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.INFORMATION);
                     out.setHeaderText("Support file saved");
-                    out.setContentText("File: " + chosen.getAbsolutePath()
-                            + "\n\nDrag & drop this file on the Support Portal to create a ticket.");
+                    out.setContentText(savedSupportFile.portalMessage(
+                            "Drag & drop this file on the Support Portal to create a ticket."));
                     out.showAndWait();
                 }
             } catch (Exception ex) {
@@ -2282,14 +2283,14 @@ public class ARScannedElementPane extends ARPane
                     java.io.File chosen = fc.showSaveDialog(stage);
                     if (chosen == null) return;
 
-                    java.nio.file.Files.writeString(
-                            chosen.toPath(), supportFile.json(), java.nio.charset.StandardCharsets.UTF_8);
+                    ScannerSupportFileSaveService.SavedSupportFile savedSupportFile =
+                            scannerSupportFileSaveService.save(supportFile, chosen.toPath());
 
                     javafx.scene.control.Alert out =
                             new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.INFORMATION);
                     out.setHeaderText("Elements review saved");
-                    out.setContentText("File: " + chosen.getAbsolutePath()
-                            + "\n\nDrag & drop this file on the Support Portal to submit.");
+                    out.setContentText(savedSupportFile.portalMessage(
+                            "Drag & drop this file on the Support Portal to submit."));
                     out.showAndWait();
                 }
             } catch (Exception ex) {
