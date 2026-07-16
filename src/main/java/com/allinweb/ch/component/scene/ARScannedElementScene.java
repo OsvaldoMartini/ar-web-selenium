@@ -80,6 +80,8 @@ public class ARScannedElementScene extends ARScene {
     private final ScannerInsertBlockSelectionService scannerInsertBlockSelectionService;
     private final ScannerInsertPreparationService scannerInsertPreparationService =
             new ScannerInsertPreparationService();
+    private final ScannerInsertPersistenceService scannerInsertPersistenceService =
+            new ScannerInsertPersistenceService(new SceneInsertPersistenceDataPort());
     private final BotJobWorkspaceCapabilityService botJobWorkspaceCapabilityService =
             BotJobWorkspaceCapabilityService.getInstance();
     private final ScannerMobileTestRoute scannerMobileTestRoute = ScannerMobileTestRoute.standard();
@@ -726,54 +728,34 @@ public class ARScannedElementScene extends ARScene {
                     nextOrder,
                     isMany);
 
-            if (instructionList.size() > 0) {
-
-                ErrorMessage errorMessage = performDataBase.insertInstructionsBatch(
-                        ScannerWorkspaceSessions.BOT_JOB_TASKS,
-                        instructionList,
-                        currentBotJob.getId(),
-                        currentBlockId,
-                        currentBotJob.getHomeBankingId());
-
-                if (instructionList.size()
-                        != performDataBase.getIdsInstrucAfter().size()) {
+            ScannerInsertPersistenceService.Result insertResult = scannerInsertPersistenceService.persist(
+                    instructionList, currentBotJob.getId(), currentBlockId, currentBotJob.getHomeBankingId());
+            if (insertResult.status() == ScannerInsertPersistenceService.Status.MISMATCH) {
                     log.error(
                             "Error Inserting ALL Elements - Expected (from list):{} - Actual (inserted): {}",
-                            instructionList.size(),
-                            performDataBase.getIdsInstrucAfter().size());
+                            insertResult.expectedCount(),
+                            insertResult.actualCount());
                     performMessage.errorMessage(
                             "Error Inserting ALL Elements",
                             "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Batch Insertion Failed ❌</span>",
                             "<span style='color: #E65100; font-weight: bold;'>Mismatch detected:</span> The number of inserted instructions does not match the expected size.",
-                            "<span style='font-style: italic;'>Expected (from list):</span> " + instructionList.size(),
+                            "<span style='font-style: italic;'>Expected (from list):</span> "
+                                    + insertResult.expectedCount(),
                             "<span style='font-style: italic;'>Actual (inserted):</span> "
-                                    + performDataBase.getIdsInstrucAfter().size(),
+                                    + insertResult.actualCount(),
                             0);
 
-                    sendScannerGridStatusButton(
-                            ScannerWorkspaceOperations.ACTIVATE_INSERT_ALL, "Insert All Elements button activated");
-
-                    //                    updateBotJobTasks();
-
-                    return;
-                }
-
-                if (errorMessage == null) {
-                    for (int i = 0; i < instructionList.size(); i++) {
-                        InstructionLoad instruction = instructionList.get(i);
-                        Integer newId = performDataBase.getIdsInstrucAfter().get(i);
-                        instruction.setId(newId);
-                    }
-
-                    errorMessage = performDataBase.insertReferencesBatch(instructionList);
-                }
-
+                sendScannerGridStatusButton(
+                        ScannerWorkspaceOperations.ACTIVATE_INSERT_ALL, "Insert All Elements button activated");
+                return;
+            }
+            if (insertResult.status() == ScannerInsertPersistenceService.Status.PERSISTED) {
                 updateBotJobTasks(this.currentBotJob.getId());
                 sendScannerGridStatusButton(
                         ScannerWorkspaceOperations.ACTIVATE_INSERT_ALL, "Insert All Elements button activated");
 
-                if (errorMessage != null) {
-                    performMessage.errorMessageOperationFailed(errorMessage);
+                if (insertResult.error() != null) {
+                    performMessage.errorMessageOperationFailed(insertResult.error());
                 }
             }
         } else {
@@ -940,6 +922,28 @@ public class ARScannedElementScene extends ARScene {
         @Override
         public TargetElement extractPickClone(ElementDTO elementDTO) {
             return targetElementHelper.extractPickClone(elementDTO);
+        }
+    }
+
+    private static final class SceneInsertPersistenceDataPort implements ScannerInsertPersistenceService.DataPort {
+        @Override
+        public ErrorMessage insertInstructionsBatch(
+                String sessionId,
+                List<InstructionLoad> instructions,
+                int botJobId,
+                int blockId,
+                int homeBankingId) {
+            return performDataBase.insertInstructionsBatch(sessionId, instructions, botJobId, blockId, homeBankingId);
+        }
+
+        @Override
+        public List<Integer> insertedInstructionIds() {
+            return performDataBase.getIdsInstrucAfter();
+        }
+
+        @Override
+        public ErrorMessage insertReferencesBatch(List<InstructionLoad> instructions) {
+            return performDataBase.insertReferencesBatch(instructions);
         }
     }
 }
