@@ -1,11 +1,11 @@
 package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.component.pane.base.ARPane;
-import com.allinweb.ch.component.scene.AROrganizationManagerScene;
 import com.allinweb.ch.facade.MainDashboardPresentationRegistry;
 import com.allinweb.ch.facade.NewBotJobPresentation;
 import com.allinweb.ch.facade.NewBotJobPresentationRegistry;
 import com.allinweb.ch.driver.ARWebDriver;
+import com.allinweb.ch.facade.OrganizationManagerLifecycle;
 import com.allinweb.ch.facade.PerformDBEngine;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
@@ -33,7 +33,6 @@ public class ARNewBotJobManagerPane extends ARPane implements NewBotJobPresentat
     private static final PerformDBEngine performDBEngine = PerformDBEngine.getInstance();
     private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
     private static final PerformMessage performMessage = PerformMessage.getInstance();
-    private static final AROrganizationManagerScene arOrganizationManagerScene = AROrganizationManagerScene.getInstance();
     private static final ARWebDriver arWebDriver = ARWebDriver.getInstance();
 
     protected static volatile ARNewBotJobManagerPane instance;
@@ -104,7 +103,7 @@ public class ARNewBotJobManagerPane extends ARPane implements NewBotJobPresentat
                 performMessage.errorMessageOperationFailed(errorMessage);
                 return;
             }
-            arOrganizationManagerScene.showModal(currentStage());
+            OrganizationManagerLifecycle.getInstance().openOrganizations();
         });
     }
 

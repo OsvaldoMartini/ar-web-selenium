@@ -2,6 +2,7 @@ package com.allinweb.ch;
 
 import com.allinweb.ch.component.scene.ARConfigManagerScene;
 import com.allinweb.ch.component.scene.ARMainScene;
+import com.allinweb.ch.component.scene.AROrganizationManagerScene;
 import com.allinweb.ch.facade.ApplicationStartupLifecycle;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformInitializer;
@@ -43,6 +44,7 @@ public class ARControlPanel extends Application {
     private static final PerformInitializer performInitializer;
     private static final ARConfigManagerScene arConfigManagerScene;
     private static final ARMainScene arMainScene;
+    private static final AROrganizationManagerScene arOrganizationManagerScene;
     private static WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
     private static ARWebSocketServerIP arWebSocketServerIP;
     private static ARWebSocketServer arWebSocketServer; // Static block to initialize
@@ -58,6 +60,7 @@ public class ARControlPanel extends Application {
         arPropertyManager = ARPropertyManager.getInstance();
         arConfigManagerScene = ARConfigManagerScene.getInstance();
         arMainScene = ARMainScene.getInstance();
+        arOrganizationManagerScene = AROrganizationManagerScene.getInstance();
     }
 
     public static void main(String[] args) {

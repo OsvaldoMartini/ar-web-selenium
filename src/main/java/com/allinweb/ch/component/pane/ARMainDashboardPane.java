@@ -3,11 +3,11 @@ package com.allinweb.ch.component.pane;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.component.scene.ARConfigManagerScene;
 import com.allinweb.ch.component.scene.ARNewBotJobManagerScene;
-import com.allinweb.ch.component.scene.AROrganizationManagerScene;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.MainDashboardService;
 import com.allinweb.ch.facade.MainDashboardPresentation;
 import com.allinweb.ch.facade.MainDashboardPresentationRegistry;
+import com.allinweb.ch.facade.OrganizationManagerLifecycle;
 import com.allinweb.ch.facade.PerformDBEngine;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformLists;
@@ -56,7 +56,6 @@ public class ARMainDashboardPane extends ARPane implements BotJobDetailsPresenta
     private static final ARConfigManagerScene arConfigManagerScene = ARConfigManagerScene.getInstance();
     private static final BotJobDetailsWorkspaceHost botJobDetailsHost = BotJobDetailsWorkspaceHost.getInstance();
     private static final ARNewBotJobManagerScene arNewBotJobManagerScene = ARNewBotJobManagerScene.getInstance();
-    private static final AROrganizationManagerScene arOrganizationManagerScene = AROrganizationManagerScene.getInstance();
     private static final ARWebDriver arWebDriver = ARWebDriver.getInstance();
 
     protected static volatile ARMainDashboardPane instance;
@@ -137,7 +136,7 @@ public class ARMainDashboardPane extends ARPane implements BotJobDetailsPresenta
                 performMessage.errorMessageOperationFailed(errorMessage);
                 return;
             }
-            arOrganizationManagerScene.showModal(currentStage());
+            OrganizationManagerLifecycle.getInstance().openOrganizations();
         });
     }
 
@@ -224,7 +223,7 @@ public class ARMainDashboardPane extends ARPane implements BotJobDetailsPresenta
 
     @Override
     public void openCloneOrganizations() {
-        Platform.runLater(() -> arOrganizationManagerScene.showModal(currentStage()));
+        Platform.runLater(() -> OrganizationManagerLifecycle.getInstance().openOrganizations());
     }
 
     public void openBotJob(BotJobLoadDTO botJob) {

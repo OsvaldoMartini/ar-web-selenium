@@ -1,9 +1,9 @@
 package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.component.pane.base.ARPane;
-import com.allinweb.ch.component.scene.AROrganizationManagerScene;
 import com.allinweb.ch.facade.ConfigPresentation;
 import com.allinweb.ch.facade.ConfigPresentationRegistry;
+import com.allinweb.ch.facade.OrganizationManagerLifecycle;
 import com.allinweb.ch.facade.PerformDBEngine;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
@@ -35,7 +35,6 @@ public class ARConfigManagerPane extends ARPane implements ConfigPresentation {
     private static final PerformDBEngine performDBEngine = PerformDBEngine.getInstance();
     private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
     private static final PerformMessage performMessage = PerformMessage.getInstance();
-    private static final AROrganizationManagerScene arOrganizationManagerScene = AROrganizationManagerScene.getInstance();
 
     protected static volatile ARConfigManagerPane instance;
 
@@ -138,7 +137,7 @@ public class ARConfigManagerPane extends ARPane implements ConfigPresentation {
                 performMessage.errorMessageOperationFailed(errorMessage);
                 return;
             }
-            arOrganizationManagerScene.showModal(currentStage());
+            OrganizationManagerLifecycle.getInstance().openOrganizations();
         });
     }
 
