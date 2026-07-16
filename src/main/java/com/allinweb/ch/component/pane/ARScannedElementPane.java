@@ -193,6 +193,8 @@ public class ARScannedElementPane extends ARPane
             new ScannerPluginUpdateDialogAdapter();
     private final ScannerPluginListTableAdapter scannerPluginListTableAdapter =
             new ScannerPluginListTableAdapter();
+    private final ScannerPluginListContentAdapter scannerPluginListContentAdapter =
+            new ScannerPluginListContentAdapter();
     private final UiThreadDispatcher uiThreadDispatcher = UiThreadDispatcher.getInstance();
     private final ScannerDomReviewSnapshotService scannerDomReviewSnapshotService =
             new ScannerDomReviewSnapshotService();
@@ -9377,34 +9379,13 @@ public class ARScannedElementPane extends ARPane
      */
     private void showPluginListDialog(PluginManifestDTO manifest, String serverBase, String pathPlugins) {
 
-        // ── Header label ──────────────────────────────────────────────────────
-        String headerText = "Plugin List  ·  manifest v" + manifest.getVersion()
-                + (manifest.getUpdated() != null ? "  ·  updated " + manifest.getUpdated() : "");
-        Label headerLabel = new Label(headerText);
-        headerLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #636e72;");
-
         TableView<PluginDTO> table = scannerPluginListTableAdapter.build(manifest);
-
-        // ── Info strip ────────────────────────────────────────────────────────
-        Label infoLabel = new Label("Select one or more plugins, then click Download Selected.");
-        infoLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #636e72;");
-
-        // ── Buttons ───────────────────────────────────────────────────────────
-        Button btnDownloadSelected = new Button("⬇  Download Selected");
-        Button btnDownloadAll = new Button("⬇  Download All");
-        Button btnClose = new Button("Close");
-
-        btnDownloadSelected.setDefaultButton(false);
-        btnDownloadAll.setStyle("-fx-background-color: #0984e3; -fx-text-fill: white;");
-        btnClose.setCancelButton(true);
-
-        HBox buttonBar = new HBox(10, btnDownloadSelected, btnDownloadAll, btnClose);
-        buttonBar.setAlignment(javafx.geometry.Pos.CENTER_RIGHT);
-        buttonBar.setPadding(new Insets(8, 0, 0, 0));
-
-        VBox content = new VBox(8, headerLabel, table, infoLabel, buttonBar);
-        content.setPadding(new Insets(12));
-        content.setPrefWidth(680);
+        ScannerPluginListContentAdapter.Result contentResult =
+                scannerPluginListContentAdapter.build(manifest, table);
+        VBox content = contentResult.content();
+        Button btnDownloadSelected = contentResult.downloadSelected();
+        Button btnDownloadAll = contentResult.downloadAll();
+        Button btnClose = contentResult.close();
 
         // ── Dialog wrapper ────────────────────────────────────────────────────
         Dialog<Void> dialog = new Dialog<>();
