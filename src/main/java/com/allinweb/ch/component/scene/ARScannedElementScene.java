@@ -77,6 +77,7 @@ public class ARScannedElementScene extends ARScene {
             new ScannerElementTestActionService();
     private final ScannerElementTestLookupService scannerElementTestLookupService =
             new ScannerElementTestLookupService(new SceneElementTestListsPort(), new SceneElementTestDataPort());
+    private final ScannerInsertBlockSelectionService scannerInsertBlockSelectionService;
     private final BotJobWorkspaceCapabilityService botJobWorkspaceCapabilityService =
             BotJobWorkspaceCapabilityService.getInstance();
     private final ScannerMobileTestRoute scannerMobileTestRoute = ScannerMobileTestRoute.standard();
@@ -85,6 +86,8 @@ public class ARScannedElementScene extends ARScene {
 
         super();
         this.arScannedElementPane = ARScannedElementPaneProvider.getInstance().currentPane();
+        this.scannerInsertBlockSelectionService =
+                new ScannerInsertBlockSelectionService(new SceneInsertBlockListsPort(), arScannedElementPane);
     }
 
     public static ARScannedElementScene getInstance() {
@@ -690,16 +693,9 @@ public class ARScannedElementScene extends ARScene {
     }
 
     private void stepsInsertManyDTO(SplitDTO processDTO, boolean isMany) {
-        if (processDTO.getBlockId() != null && processDTO.getBlockId() > 0) {
-            performInsertManyDTO(processDTO, isMany);
-            return;
-        }
-        // If blocks exist but the user didn't pick one, open the create-block
-        // modal on the FX thread and chain the insert to its Create handler.
-        // Cancel → nothing happens. If a block IS selected (or no blocks exist
-        // at all, which triggers the Default-Block auto-create inside
-        // validateBlockDB), fall through to performInsertManyDTO directly.
-        if (!performLists.getListBlock().isEmpty() && !arScannedElementPane.isRealBlockSelectedForInsert()) {
+        if (scannerInsertBlockSelectionService.decide(processDTO)
+                == ScannerInsertBlockSelectionService.Decision.PROMPT_FOR_BLOCK) {
+            // Chain the insert after the legacy block picker confirms a block.
             Platform.runLater(() ->
                     arScannedElementPane.ensureBlockSelectedOrPrompt(() -> performInsertManyDTO(processDTO, isMany)));
             return;
@@ -935,6 +931,13 @@ public class ARScannedElementScene extends ARScene {
         @Override
         public ErrorMessage loadInstructions(int whereId, String tableName) {
             return performDataBase.loadInstructions(whereId, -1, -1, tableName);
+        }
+    }
+
+    private static final class SceneInsertBlockListsPort implements ScannerInsertBlockSelectionService.ListsPort {
+        @Override
+        public boolean hasBlocks() {
+            return !performLists.getListBlock().isEmpty();
         }
     }
 }
