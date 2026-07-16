@@ -20,7 +20,6 @@ import java.net.URI;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.*;
-import javafx.stage.Stage;
 import javax.websocket.*;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -397,17 +396,6 @@ public class ARScannedElementScene extends ARScene {
         return arScannedElementPane;
     }
 
-    @Override
-    public void setStageBehaviour(Stage stage) {
-        super.setStageBehaviour(stage); // Call the parent class method
-
-        // Only set the close request handler if it's not already set
-        if (!isCloseHandlerSet) {
-            stage.setOnCloseRequest(event -> handleCloseRequest());
-            isCloseHandlerSet = true; // Update the flag to prevent setting it again
-        }
-    }
-
     public void handleCloseRequest() {
         log.info("Handle Close: Exiting Threads and Quitting WebDriver");
         scannerCloseRequestService.close(new SceneCloseRequest());
@@ -512,7 +500,8 @@ public class ARScannedElementScene extends ARScene {
 
                 modalStage = scannerModalStageService.show(
                         modalStage,
-                        new JavaFxScannerModalStageFactory(arScannedElementPane, this::buildPane, icon),
+                        new JavaFxScannerModalStageFactory(
+                                arScannedElementPane, this::buildPane, icon, this::handleCloseRequest),
                         new ScannerModalStageService.Config(getTitle(), getSceneWidth(), getSceneHeight()));
                 if (modalStage == null) {
                     log.error("Failed to build pane for modal.");

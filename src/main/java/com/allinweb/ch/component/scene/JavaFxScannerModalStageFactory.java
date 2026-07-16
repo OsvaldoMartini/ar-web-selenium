@@ -14,12 +14,14 @@ final class JavaFxScannerModalStageFactory implements ScannerModalStageService.S
     private final ARScannedElementPanePort scannerPane;
     private final Supplier<IARPane> paneFactory;
     private final Image icon;
+    private final Runnable closeRequest;
 
     JavaFxScannerModalStageFactory(
-            ARScannedElementPanePort scannerPane, Supplier<IARPane> paneFactory, Image icon) {
+            ARScannedElementPanePort scannerPane, Supplier<IARPane> paneFactory, Image icon, Runnable closeRequest) {
         this.scannerPane = scannerPane;
         this.paneFactory = paneFactory;
         this.icon = icon;
+        this.closeRequest = closeRequest;
     }
 
     @Override
@@ -39,6 +41,7 @@ final class JavaFxScannerModalStageFactory implements ScannerModalStageService.S
         stage.toFront();
         stage.setAlwaysOnTop(false);
         stage.setOnShown(event -> Platform.runLater(() -> stage.setAlwaysOnTop(false)));
+        stage.setOnCloseRequest(event -> closeRequest.run());
         return new JavaFxScannerModalStage(stage);
     }
 
