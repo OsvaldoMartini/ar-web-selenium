@@ -1,6 +1,6 @@
 package com.allinweb.ch;
 
-import com.allinweb.ch.component.scene.ARConfigurationScene;
+import com.allinweb.ch.component.scene.ARConfigManagerScene;
 import com.allinweb.ch.component.scene.ARMainScene;
 import com.allinweb.ch.facade.ApplicationStartupLifecycle;
 import com.allinweb.ch.facade.PerformDataBase;
@@ -41,7 +41,7 @@ public class ARControlPanel extends Application {
     private static final ARPropertyManager arPropertyManager;
     private static final PerformDataBase performDataBase;
     private static final PerformInitializer performInitializer;
-    private static final ARConfigurationScene arConfigurationScene;
+    private static final ARConfigManagerScene arConfigManagerScene;
     private static final ARMainScene arMainScene;
     private static WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
     private static ARWebSocketServerIP arWebSocketServerIP;
@@ -56,7 +56,7 @@ public class ARControlPanel extends Application {
         performInitializer = PerformInitializer.getInstance();
         performMessage = PerformMessage.getInstance();
         arPropertyManager = ARPropertyManager.getInstance();
-        arConfigurationScene = ARConfigurationScene.getInstance();
+        arConfigManagerScene = ARConfigManagerScene.getInstance();
         arMainScene = ARMainScene.getInstance();
     }
 
@@ -97,9 +97,8 @@ public class ARControlPanel extends Application {
                     arPropertyManager.createDefaultProperties(configurationFile);
                 }
                 Platform.runLater(() -> {
-                    arConfigurationScene.initializeLicense(isEnabledLicence);
-                    arConfigurationScene.showModal();
                     initializeLicenseServer();
+                    showConfigurationFallback();
                     licenseControl();
                 });
             }
@@ -132,8 +131,8 @@ public class ARControlPanel extends Application {
                     arPropertyManager.createDefaultProperties(configurationFile);
                 }
                 Platform.runLater(() -> {
-                    arConfigurationScene.showModal();
                     initializeLicenseServer();
+                    showConfigurationFallback();
                     licenseControl();
                 });
             }
@@ -270,10 +269,15 @@ public class ARControlPanel extends Application {
             });
             if (!performDataBase.isConnDBWorks()) {
                 Platform.runLater(() -> {
-                    arConfigurationScene.showModal();
+                    showConfigurationFallback();
                 });
             }
         }
+    }
+
+    private static void showConfigurationFallback() {
+        arConfigManagerScene.initialize(isEnabledLicence);
+        arConfigManagerScene.showModal();
     }
 
     private static void showActivationRequired() {

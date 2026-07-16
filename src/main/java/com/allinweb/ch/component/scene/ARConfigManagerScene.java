@@ -42,6 +42,10 @@ public class ARConfigManagerScene extends ARScene {
         this.isEnabledLicence = isEnabledLicence;
     }
 
+    public void showModal() {
+        showModal(null);
+    }
+
     public void showModal(Stage parentStage) {
         if (modalStage == null) {
             modalStage = new Stage();
@@ -55,7 +59,9 @@ public class ARConfigManagerScene extends ARScene {
             modalScene = new Scene(pane.createPane(), getSceneWidth(), getSceneHeight());
             modalStage.setScene(modalScene);
             modalStage.setTitle(getTitle());
-            modalStage.initOwner(parentStage);
+            if (parentStage != null) {
+                modalStage.initOwner(parentStage);
+            }
             modalStage.initModality(Modality.NONE);
             modalStage.setAlwaysOnTop(true);
             modalStage.setOnShown(event -> Platform.runLater(() -> modalStage.setAlwaysOnTop(false)));
