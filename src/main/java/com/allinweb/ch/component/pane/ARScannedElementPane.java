@@ -145,6 +145,8 @@ public class ARScannedElementPane extends ARPane
     private final ScannerGridPublisher scannerGridPublisher = new ScannerGridPublisher();
     private final ScannerGridSearchResultsService scannerGridSearchResultsService =
             new ScannerGridSearchResultsService(scannerGridPublisher, new PaneScannerGridBlocksPort());
+    private final ScannerBlockValidationService scannerBlockValidationService =
+            new ScannerBlockValidationService();
     private final ScannerPageScanService scannerPageScanService = new ScannerPageScanService(performListElements);
     private final ScannerElementPanePublisher scannerElementPanePublisher = new ScannerElementPanePublisher();
     private final ScannerSupportRequestPublisher scannerSupportRequestPublisher = new ScannerSupportRequestPublisher();
@@ -958,28 +960,12 @@ public class ARScannedElementPane extends ARPane
     }
 
     public int validateBlockDB(String blockTable, int whereId, String message) {
-        int newBlockID = createBlockIfNone(blockTable, whereId);
-        if (newBlockID > 0) {
-            ErrorMessage errorMessage = performDataBase.loadBlocks(whereId, "", blockTable);
-            if (errorMessage == null) {
-                refreshBlocks(true);
-            }
-        }
+        ScannerBlockValidationService.Result blockValidation =
+                scannerBlockValidationService.validate(blockTable, whereId, new PaneBlockValidationOperations());
+        currentBlockId = blockValidation.currentBlockId();
+        executeSpecificBlock = blockValidation.executeSpecificBlock();
 
-        if (newBlockID > 0) {
-            currentBlockId = newBlockID;
-        } else {
-            try {
-                currentBlockId = comboBoxBlocks.getValue().getBlockId();
-                executeSpecificBlock = comboBoxBlocks.getValue().getBlockOrderNumber() < 0
-                        ? 0
-                        : comboBoxBlocks.getValue().getBlockOrderNumber() - 1;
-            } catch (Exception error) {
-                currentBlockId = -1;
-                executeSpecificBlock = 0;
-            }
-
-            if (currentBlockId < 0) {
+        if (blockValidation.showNoBlockSelected()) {
                 performMessage.errorMessage(
                         "Operation \"" + message + "\" No Block Selected",
                         "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>No Block Selected ❌</span>",
@@ -989,11 +975,38 @@ public class ARScannedElementPane extends ARPane
                         "<span style='color: #455A64;'>Tip: Use the block selector (ComboBox) above the table to choose the target block.</span>",
                         0);
 
-            } else {
-                return currentBlockId;
+        }
+        return blockValidation.returnBlockId();
+    }
+
+    private final class PaneBlockValidationOperations implements ScannerBlockValidationService.Operations {
+        @Override
+        public int createBlockIfNone(String blockTable, int ownerId) {
+            return ARScannedElementPane.this.createBlockIfNone(blockTable, ownerId);
+        }
+
+        @Override
+        public boolean loadBlocks(int ownerId, String blockTable) {
+            ErrorMessage errorMessage = performDataBase.loadBlocks(ownerId, "", blockTable);
+            return errorMessage == null;
+        }
+
+        @Override
+        public void refreshBlocks() {
+            ARScannedElementPane.this.refreshBlocks(true);
+        }
+
+        @Override
+        public ScannerBlockValidationService.SelectedBlock selectedBlock() {
+            try {
+                BlockOptions selected = comboBoxBlocks.getValue();
+                return new ScannerBlockValidationService.SelectedBlock(
+                        selected.getBlockId(),
+                        selected.getBlockOrderNumber());
+            } catch (Exception error) {
+                return null;
             }
         }
-        return newBlockID;
     }
 
     public void prepareToInsertElementDTO(
