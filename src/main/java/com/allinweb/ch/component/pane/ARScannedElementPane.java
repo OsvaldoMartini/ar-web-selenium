@@ -49,7 +49,6 @@ import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
-import javafx.concurrent.Worker;
 import javafx.geometry.Insets;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
@@ -61,8 +60,6 @@ import javafx.scene.layout.*;
 import javafx.scene.layout.Priority;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
-import javafx.scene.web.WebEngine;
-import javafx.scene.web.WebView;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javax.swing.*;
@@ -141,6 +138,7 @@ public class ARScannedElementPane extends ARPane
                     jobExecutionOutcomes);
     private final AtomicBoolean testRunStartupActive = new AtomicBoolean(false);
     private final Gson gson = new Gson();
+    private final ScannerGridContainerAdapter scannerGridContainerAdapter = new ScannerGridContainerAdapter(gson);
     private final ScannerGridPublisher scannerGridPublisher = new ScannerGridPublisher();
     private final ScannerGridSearchResultsService scannerGridSearchResultsService =
             new ScannerGridSearchResultsService(scannerGridPublisher, new PaneScannerGridBlocksPort());
@@ -217,7 +215,6 @@ public class ARScannedElementPane extends ARPane
             new ScannerTestRunResultHandler(new PaneTestRunResultOperations());
     private final ScannerTestRunStopper scannerTestRunStopper =
             new ScannerTestRunStopper(new PaneTestRunStopOperations());
-    private final WebView webView = new WebView();
     public Button launchBotJobButton;
     public CheckBox checkClickElement;
     public CheckBox checkInputText;
@@ -298,7 +295,6 @@ public class ARScannedElementPane extends ARPane
     private HBox topPane;
     private VBox verticalBox;
     private AnchorPane mainPane;
-    private WebEngine webEngine;
     private VBox elements2VBox;
     private HBox componentBox;
     private Button cloneElementsButton;
@@ -1393,7 +1389,7 @@ public class ARScannedElementPane extends ARPane
 
         updateSceneTitleWithCurrentURL(homeUrlDTO.getUrl());
 
-        //        if (!initializeWebView()) {
+        //        if (!initializeScannerGridContainer()) {
         //            return;
         //        }
 
@@ -1414,8 +1410,7 @@ public class ARScannedElementPane extends ARPane
 
             Platform.runLater(() -> refreshGrids());
 
-            componentBox.getChildren().clear();
-            componentBox.getChildren().addAll(this.webView);
+            scannerGridContainerAdapter.attachTo(componentBox);
             //            contentPane.getChildren().clear();
             //            contentPane.getChildren().addAll(topPane, verticalBox);
             componentBox.requestLayout();
@@ -1434,23 +1429,19 @@ public class ARScannedElementPane extends ARPane
         scannerGridPublisher.publishScannerGridSearchTermsPayload(this.currentBotJob.getHomeBankingId(), payloadEmpty);
     }
 
-    private boolean initializeWebView() {
+    private boolean initializeScannerGridContainer() {
         setPayloadEmpty();
-
-        webEngine = webView.getEngine();
-        webEngine.javaScriptEnabledProperty().set(true);
 
         String jsonData = gson.toJson(payloadEmpty);
 
         sessionIdFromJava = scannerGridPublisher.destinationSessionId(); // + this.currentBotJob.getHomeBankingId();
-        buildWebView(
-                webEngine,
+        scannerGridContainerAdapter.load(new ScannerGridBootstrapService.Request(
                 jsonData,
                 portSocketInitial,
                 sessionIdFromJava,
                 this.currentBotJob.getHomeBankingId(),
                 this.currentBotJob.getId(),
-                this.currentBotJob.getName());
+                this.currentBotJob.getName()));
 
         if (isBrowserClosed(performActions.getCurrentDriver()) && performActions.getCurrentDriver() != null) {
             performActions.getCurrentDriver().quit();
@@ -1568,11 +1559,11 @@ public class ARScannedElementPane extends ARPane
     @Override
     public void initUIComponents() {
 
-        if (!initializeWebView()) {
+        if (!initializeScannerGridContainer()) {
             return;
         }
 
-        addCompBoxWebView();
+        addScannerGridContainer();
 
         buildUIComponents();
 
@@ -1595,53 +1586,8 @@ public class ARScannedElementPane extends ARPane
     //        }
     //    }
 
-    private void addCompBoxWebView() {
-        componentBox = new HBox(this.webView);
-
-        HBox.setHgrow(this.webView, Priority.ALWAYS);
-        VBox.setVgrow(this.webView, Priority.ALWAYS);
-    }
-
-    private void buildWebView(
-            WebEngine webEngine,
-            String jsonData,
-            int finalPort,
-            String sessionIdFromJava,
-            int homeBanking,
-            int botJobId,
-            String botJobName) {
-        String indexUrl = WebBuildExtractor.getIndexUrl();
-        log.info(
-                "buildWebView — loading scanner grid WebView: url={} port={} session={}",
-                indexUrl,
-                finalPort,
-                sessionIdFromJava);
-
-        // Surface WebView failures; JS errors and failed loads are otherwise silent.
-        webEngine.setOnError(e -> log.error("[webview-js] {}", e.getMessage()));
-        webEngine.setOnAlert(e -> log.info("[webview-alert] {}", e.getData()));
-
-        webEngine.load(indexUrl);
-
-        webEngine.getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
-            log.info("buildWebView — WebView load state {} -> {}", oldState, newState);
-            if (newState == Worker.State.FAILED) {
-                Throwable ex = webEngine.getLoadWorker().getException();
-                log.error(
-                        "buildWebView — WebView FAILED to load {} : {}", indexUrl, ex == null ? "?" : ex.getMessage());
-            }
-            if (newState == Worker.State.SUCCEEDED) {
-                // After the page has successfully loaded
-                try {
-                    webEngine.executeScript("setTimeout(function() { window.receiveDataFromJava(JSON.stringify("
-                            + jsonData + "), " + finalPort + ", '" + sessionIdFromJava + "', " + homeBanking + ", "
-                            + botJobId + ", '" + botJobName + "' ) }, 1000)");
-                    log.info("buildWebView — receiveDataFromJava dispatched to scanner grid");
-                } catch (Exception e) {
-                    log.error("buildWebView  Error: " + e.getMessage());
-                }
-            }
-        });
+    private void addScannerGridContainer() {
+        componentBox = scannerGridContainerAdapter.componentBox();
     }
 
     private void buildUIComponents() {
@@ -1819,9 +1765,7 @@ public class ARScannedElementPane extends ARPane
         });
 
         cleanListButton.setOnAction(e -> {
-            if (webEngine != null) {
-                //                webEngine.reload();
-
+            if (scannerGridContainerAdapter.isInitialized()) {
                 scannerGridSearchResultsService.publishEmpty(
                         this.currentBotJob.getHomeBankingId(),
                         this.currentBotJob.getId(),
