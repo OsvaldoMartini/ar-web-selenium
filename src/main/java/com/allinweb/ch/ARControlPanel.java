@@ -1,10 +1,9 @@
 package com.allinweb.ch;
 
-import com.allinweb.ch.component.scene.ARConfigManagerScene;
-import com.allinweb.ch.component.scene.ARMainScene;
-import com.allinweb.ch.component.scene.ARNewBotJobManagerScene;
-import com.allinweb.ch.component.scene.AROrganizationManagerScene;
+import com.allinweb.ch.component.scene.JavaFxShellBootstrap;
 import com.allinweb.ch.facade.ApplicationStartupLifecycle;
+import com.allinweb.ch.facade.ConfigManagerLifecycle;
+import com.allinweb.ch.facade.MainShellLifecycle;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformInitializer;
 import com.allinweb.ch.facade.PerformMessage;
@@ -43,10 +42,6 @@ public class ARControlPanel extends Application {
     private static final ARPropertyManager arPropertyManager;
     private static final PerformDataBase performDataBase;
     private static final PerformInitializer performInitializer;
-    private static final ARConfigManagerScene arConfigManagerScene;
-    private static final ARMainScene arMainScene;
-    private static final ARNewBotJobManagerScene arNewBotJobManagerScene;
-    private static final AROrganizationManagerScene arOrganizationManagerScene;
     private static WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
     private static ARWebSocketServerIP arWebSocketServerIP;
     private static ARWebSocketServer arWebSocketServer; // Static block to initialize
@@ -60,10 +55,7 @@ public class ARControlPanel extends Application {
         performInitializer = PerformInitializer.getInstance();
         performMessage = PerformMessage.getInstance();
         arPropertyManager = ARPropertyManager.getInstance();
-        arConfigManagerScene = ARConfigManagerScene.getInstance();
-        arMainScene = ARMainScene.getInstance();
-        arNewBotJobManagerScene = ARNewBotJobManagerScene.getInstance();
-        arOrganizationManagerScene = AROrganizationManagerScene.getInstance();
+        JavaFxShellBootstrap.install();
     }
 
     public static void main(String[] args) {
@@ -238,8 +230,7 @@ public class ARControlPanel extends Application {
                         // webSocketControl();
 
                         Platform.runLater(() -> {
-                            arMainScene.initialize(isEnabledLicence);
-                            arMainScene.showModal();
+                            MainShellLifecycle.getInstance().openMain(isEnabledLicence);
                         });
 
                     } else {
@@ -270,8 +261,7 @@ public class ARControlPanel extends Application {
             //            launch();
             // webSocketControl();
             Platform.runLater(() -> {
-                arMainScene.initialize(isEnabledLicence);
-                arMainScene.showModal();
+                MainShellLifecycle.getInstance().openMain(isEnabledLicence);
             });
             if (!performDataBase.isConnDBWorks()) {
                 Platform.runLater(() -> {
@@ -282,8 +272,7 @@ public class ARControlPanel extends Application {
     }
 
     private static void showConfigurationFallback() {
-        arConfigManagerScene.initialize(isEnabledLicence);
-        arConfigManagerScene.showModal();
+        ConfigManagerLifecycle.getInstance().openConfig(isEnabledLicence);
     }
 
     private static void showActivationRequired() {
@@ -292,8 +281,7 @@ public class ARControlPanel extends Application {
             initializeServers();
         });
         Platform.runLater(() -> {
-            arMainScene.initialize(isEnabledLicence, "activationRequired");
-            arMainScene.showModal();
+            MainShellLifecycle.getInstance().openMain(isEnabledLicence, "activationRequired");
         });
     }
 
@@ -467,7 +455,6 @@ public class ARControlPanel extends Application {
 
     @Override
     public void start(Stage stage) throws Exception {
-        //        ARMainScene primaryStage = new ARMainScene();
         //        primaryStage.show();
     }
 

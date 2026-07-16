@@ -3,6 +3,7 @@ package com.allinweb.ch.component.scene;
 import com.allinweb.ch.component.pane.ARMainDashboardPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
+import com.allinweb.ch.facade.MainShellLifecycle;
 import com.allinweb.ch.util.ARPropertyManager;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
@@ -58,6 +59,7 @@ public class ARMainScene extends ARScene {
     private ARMainScene() {
 
         super();
+        MainShellLifecycle.getInstance().install(new SceneMainShellHandler());
     }
     //    private static final WebSocketSessionManager webSocketSessionManager;
     //    private static final ARWebSocketServerIP arWebSocketServerIP;
@@ -290,4 +292,18 @@ public class ARMainScene extends ARScene {
     //            //            log.info("WebSocket server stopped.");
     //        }
     //    }
+
+    private final class SceneMainShellHandler implements MainShellLifecycle.Handler {
+        @Override
+        public void openMain(boolean enabledLicence) {
+            ARMainScene.this.initialize(enabledLicence);
+            ARMainScene.this.showModal();
+        }
+
+        @Override
+        public void openMain(boolean enabledLicence, String initialSessionId) {
+            ARMainScene.this.initialize(enabledLicence, initialSessionId);
+            ARMainScene.this.showModal();
+        }
+    }
 }
