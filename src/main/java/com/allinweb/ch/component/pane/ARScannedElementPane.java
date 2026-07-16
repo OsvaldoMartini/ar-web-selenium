@@ -155,6 +155,8 @@ public class ARScannedElementPane extends ARPane
             new ScannerPreLaunchStopper(new PanePreLaunchStopOperations());
     private final ScannerPreLaunchWindowBookkeeping scannerPreLaunchWindowBookkeeping =
             new ScannerPreLaunchWindowBookkeeping(new PanePreLaunchWindowBookkeepingOperations());
+    private final ScannerRunningProcessCleanupService scannerRunningProcessCleanupService =
+            new ScannerRunningProcessCleanupService();
     private final ScannerTestRunStartupPreparation scannerTestRunStartupPreparation =
             new ScannerTestRunStartupPreparation(new PaneTestRunStartupOperations());
     private final ScannerTestRunBotJobPreparation scannerTestRunBotJobPreparation =
@@ -3899,12 +3901,39 @@ public class ARScannedElementPane extends ARPane
     }
 
     public void checkRunningProcess() {
-        checkCloneElement.setSelected(false);
-        launchBotJobButton.setDisable(false);
-        revertCloneInjections(performActions.getCurrentDriver());
-        revertHoverPickInjections(performActions.getCurrentDriver());
-        if (isJobRunning.get()) {
-            setInterceptBotJob(true);
+        scannerRunningProcessCleanupService.cleanup(new PaneRunningProcessCleanupOperations());
+    }
+
+    private final class PaneRunningProcessCleanupOperations
+            implements ScannerRunningProcessCleanupService.Operations {
+        @Override
+        public void clearCloneSelection() {
+            checkCloneElement.setSelected(false);
+        }
+
+        @Override
+        public void enableLaunchAction() {
+            launchBotJobButton.setDisable(false);
+        }
+
+        @Override
+        public void revertCloneInjections() {
+            ARScannedElementPane.this.revertCloneInjections(performActions.getCurrentDriver());
+        }
+
+        @Override
+        public void revertHoverPickInjections() {
+            ARScannedElementPane.this.revertHoverPickInjections(performActions.getCurrentDriver());
+        }
+
+        @Override
+        public boolean isJobRunning() {
+            return isJobRunning.get();
+        }
+
+        @Override
+        public void interceptBotJob() {
+            ARScannedElementPane.this.setInterceptBotJob(true);
         }
     }
 
