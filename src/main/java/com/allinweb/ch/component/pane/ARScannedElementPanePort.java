@@ -2,6 +2,7 @@ package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.driver.ARWebDriver;
+import com.allinweb.ch.facade.ScannerElementTestActionService;
 import com.allinweb.ch.facade.ScannerTargetContext;
 import com.allinweb.ch.model.BotJobLoadDTO;
 import com.allinweb.ch.model.InstructionLoad;
@@ -10,7 +11,7 @@ import java.util.List;
 import javafx.stage.Stage;
 
 /** Narrow scene-facing port for the legacy AR Web Factory scanner pane. */
-public interface ARScannedElementPanePort extends IARPane {
+public interface ARScannedElementPanePort extends IARPane, ScannerElementTestActionService.PanePort {
     void initialize(ARWebDriver arWebDriver, BotJobLoadDTO botJob, int portSocketInitial);
 
     void setStage(Stage stage);

@@ -73,6 +73,8 @@ public class ARScannedElementScene extends ARScene {
     private final ScannerGridStatusPublisher scannerGridStatusPublisher = new ScannerGridStatusPublisher();
     private final ScannerElementPanePublisher scannerElementPanePublisher = new ScannerElementPanePublisher();
     private final ARScannedElementPanePort arScannedElementPane;
+    private final ScannerElementTestActionService scannerElementTestActionService =
+            new ScannerElementTestActionService();
     private final BotJobWorkspaceCapabilityService botJobWorkspaceCapabilityService =
             BotJobWorkspaceCapabilityService.getInstance();
     private final ScannerMobileTestRoute scannerMobileTestRoute = ScannerMobileTestRoute.standard();
@@ -442,38 +444,12 @@ public class ARScannedElementScene extends ARScene {
                                     tableName, whereId, splitDTO.getElementDetails()[0].getId());
                             if (instruction != null && instruction.getId() != null) {
                                 ElementDTO elementDTO = performActions.buildElementDTO(instruction);
-                                targetElementHelper.initialize(performActions, arScannedElementPane.scannerTargetContext());
-                                arScannedElementPane.setTargetSelected(targetElementHelper.extractPickClone(elementDTO));
-                                applyForceCoordinatesFromIncomingDto(
-                                        arScannedElementPane.targetSelected(), splitDTO.getElementDetails()[0]);
-                                arScannedElementPane.itPrintsElementDTO();
-                                arScannedElementPane.testingActions(
-                                        arScannedElementPane.targetSelected(),
-                                        splitDTO.getType(),
-                                        splitDTO.getElementDetails()[0].getDefaultValue());
+                                runElementTestAction(elementDTO, splitDTO);
                             } else {
-                                targetElementHelper.initialize(performActions, arScannedElementPane.scannerTargetContext());
-                                arScannedElementPane.setTargetSelected(
-                                        targetElementHelper.extractPickClone(splitDTO.getElementDetails()[0]));
-                                applyForceCoordinatesFromIncomingDto(
-                                        arScannedElementPane.targetSelected(), splitDTO.getElementDetails()[0]);
-                                arScannedElementPane.itPrintsElementDTO();
-                                arScannedElementPane.testingActions(
-                                        arScannedElementPane.targetSelected(),
-                                        splitDTO.getType(),
-                                        splitDTO.getElementDetails()[0].getDefaultValue());
+                                runElementTestAction(splitDTO.getElementDetails()[0], splitDTO);
                             }
                         } else {
-                            targetElementHelper.initialize(performActions, arScannedElementPane.scannerTargetContext());
-                            arScannedElementPane.setTargetSelected(
-                                    targetElementHelper.extractPickClone(splitDTO.getElementDetails()[0]));
-                            applyForceCoordinatesFromIncomingDto(
-                                    arScannedElementPane.targetSelected(), splitDTO.getElementDetails()[0]);
-                            arScannedElementPane.itPrintsElementDTO();
-                            arScannedElementPane.testingActions(
-                                    arScannedElementPane.targetSelected(),
-                                    splitDTO.getType(),
-                                    splitDTO.getElementDetails()[0].getDefaultValue());
+                            runElementTestAction(splitDTO.getElementDetails()[0], splitDTO);
                         }
                         break;
                     }
@@ -730,24 +706,15 @@ public class ARScannedElementScene extends ARScene {
         }
     }
 
-    /**
-     * Copy the per-element F/E/T/N/S bits from the incoming ElementDTO onto
-     * the already-built TargetElement so the test path honours the badges the
-     * user toggled in GridItemScann. {@code extractPickClone} doesn't read
-     * {@code forceCoordinates}, so without this the TargetElement always has
-     * an empty flag string and pressAfter/performWebActions fall back to the
-     * legacy TAB default. Empty/null is left alone.
-     */
-    private void applyForceCoordinatesFromIncomingDto(TargetElement target, ElementDTO elementDTO) {
-        if (target == null || elementDTO == null) return;
-        String incoming = elementDTO.getForceCoordinates();
-        log.info(
-                "applyForceCoordinatesFromIncomingDto - incoming='{}', existingOnTarget='{}'",
-                incoming,
-                target.getForceCoordinates());
-        if (!Strings.isNullOrEmpty(incoming)) {
-            target.setForceCoordinates(incoming);
-        }
+    private void runElementTestAction(ElementDTO sourceElement, SplitDTO splitDTO) {
+        scannerElementTestActionService.run(
+                performActions,
+                targetElementHelper,
+                arScannedElementPane,
+                sourceElement,
+                splitDTO.getElementDetails()[0],
+                splitDTO.getType(),
+                splitDTO.getElementDetails()[0].getDefaultValue());
     }
 
     private void stepsInsertManyDTO(SplitDTO processDTO, boolean isMany) {
