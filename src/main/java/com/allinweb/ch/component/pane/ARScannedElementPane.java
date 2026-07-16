@@ -202,6 +202,8 @@ public class ARScannedElementPane extends ARPane
             new ScannerPluginBatchDownloadTaskAdapter();
     private final ScannerPluginPickerManifestFetchAdapter scannerPluginPickerManifestFetchAdapter =
             new ScannerPluginPickerManifestFetchAdapter();
+    private final ScannerPluginDownloadResultAdapter scannerPluginDownloadResultAdapter =
+            new ScannerPluginDownloadResultAdapter();
     private final ScannerLayoutNodeAdapter scannerLayoutNodeAdapter = new ScannerLayoutNodeAdapter();
     private final ScannerRefreshBlocksButtonAdapter scannerRefreshBlocksButtonAdapter =
             new ScannerRefreshBlocksButtonAdapter();
@@ -8824,21 +8826,12 @@ public class ARScannedElementPane extends ARPane
 
         scannerPluginDownloadProgressDialogAdapter.bind(pluginName, downloadTask);
 
-        downloadTask.setOnSucceeded(e -> {
-            scannerPluginDownloadProgressDialogAdapter.close();
-            Platform.runLater(() -> pluginUpdateButton =
-                    scannerPluginUpdateButtonRefreshAdapter.refresh(pluginUpdateButton, this::buildPluginUpdateButton));
-            showPluginInformation(
-                    "Download complete",
-                    downloadTask.getValue() + "\nDestination: " + pluginsDir);
-        });
-
-        downloadTask.setOnFailed(e -> {
-            scannerPluginDownloadProgressDialogAdapter.close();
-            Throwable ex = downloadTask.getException();
-            log.error("UpdatePlugins - failed", ex);
-            showPluginError("Download failed", ex.getMessage());
-        });
+        scannerPluginDownloadResultAdapter.wireSingle(
+                downloadTask,
+                pluginsDir,
+                scannerPluginDownloadProgressDialogAdapter,
+                this::refreshPluginUpdateButton,
+                new PanePluginNotifier());
 
         scannerPluginBackgroundThreadAdapter.start(downloadTask, "plugin-download-thread");
 
@@ -9072,28 +9065,34 @@ public class ARScannedElementPane extends ARPane
 
         scannerPluginBatchDownloadProgressDialogAdapter.bind(plugins.size(), downloadTask);
 
-        downloadTask.setOnSucceeded(evt -> {
-            scannerPluginBatchDownloadProgressDialogAdapter.close();
-            int count = downloadTask.getValue();
-            // Refresh pluginUpdateButton
-            Platform.runLater(() -> pluginUpdateButton =
-                    scannerPluginUpdateButtonRefreshAdapter.refresh(pluginUpdateButton, this::buildPluginUpdateButton));
-            showPluginInformation(
-                    "Download complete",
-                    count + " of " + plugins.size() + " plugin(s) downloaded and extracted to:\n" + pathPlugins);
-            log.info("PluginDownload - finished: {}/{} plugins", count, plugins.size());
-        });
-
-        downloadTask.setOnFailed(evt -> {
-            scannerPluginBatchDownloadProgressDialogAdapter.close();
-            Throwable ex = downloadTask.getException();
-            log.error("PluginDownload - failed", ex);
-            showPluginError("Download failed", ex.getMessage());
-        });
-
+        scannerPluginDownloadResultAdapter.wireBatch(
+                downloadTask,
+                plugins.size(),
+                pathPlugins,
+                scannerPluginBatchDownloadProgressDialogAdapter,
+                this::refreshPluginUpdateButton,
+                new PanePluginNotifier(),
+                count -> {});
 
         scannerPluginBackgroundThreadAdapter.start(downloadTask, "plugin-download-thread");
 
         scannerPluginBatchDownloadProgressDialogAdapter.show();
+    }
+
+    private void refreshPluginUpdateButton() {
+        pluginUpdateButton =
+                scannerPluginUpdateButtonRefreshAdapter.refresh(pluginUpdateButton, this::buildPluginUpdateButton);
+    }
+
+    private final class PanePluginNotifier implements ScannerPluginDownloadResultAdapter.PluginNotifier {
+        @Override
+        public void information(String header, String body) {
+            showPluginInformation(header, body);
+        }
+
+        @Override
+        public void error(String header, String body) {
+            showPluginError(header, body);
+        }
     }
 }
