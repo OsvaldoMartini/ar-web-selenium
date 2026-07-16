@@ -43,7 +43,7 @@ class ScannerPageScanServiceTest {
     void forwardsScanRequestToPerformListElements() {
         RecordingScanner scanner = new RecordingScanner();
         ScannerPageScanService service = new ScannerPageScanService(scanner);
-        ScannerSearchRoute route = new ScannerSearchRoute("scannerTool", "scannerGrid", "searchTerms");
+        ScannerSearchRoute route = ScannerSearchRoute.standardPageScanner();
         ScannerPageScanService.Request request = new ScannerPageScanService.Request(
                 new String[] {"button"},
                 true,
@@ -59,9 +59,9 @@ class ScannerPageScanServiceTest {
         assertArrayEquals(new String[] {"button"}, scanner.terms);
         assertEquals(true, scanner.hidden);
         assertEquals(54525, scanner.port);
-        assertEquals("scannerTool", scanner.sessionId);
-        assertEquals("scannerGrid", scanner.destination);
-        assertEquals("searchTerms", scanner.operationId);
+        assertEquals(route.sourceSessionId(), scanner.sessionId);
+        assertEquals(route.destinationSessionId(), scanner.destination);
+        assertEquals(route.operationId(), scanner.operationId);
         assertEquals(7, scanner.homeBankingId);
         assertEquals(42, scanner.botJobId);
         assertEquals(List.of("attr:data-testid"), scanner.extendedRules);
