@@ -148,6 +148,8 @@ public class ARScannedElementPane extends ARPane
             new ScannerBlockValidationService();
     private final ScannerActionDefaultsService scannerActionDefaultsService =
             new ScannerActionDefaultsService();
+    private final ScannerDefaultBlockService scannerDefaultBlockService =
+            new ScannerDefaultBlockService();
     private final ScannerModalBlockCreationService scannerModalBlockCreationService =
             new ScannerModalBlockCreationService();
     private final ScannerPageScanService scannerPageScanService = new ScannerPageScanService(performListElements);
@@ -4417,27 +4419,46 @@ public class ARScannedElementPane extends ARPane
     }
 
     public int createBlockIfNone(String blockTable, int whereId) {
+        return scannerDefaultBlockService.createIfNone(blockTable, whereId, new PaneDefaultBlockOperations());
+    }
 
-        // It Prevents Start without blocks
-        ErrorMessage errorMessage = performDataBase.loadBlocks(whereId, null, blockTable);
-        if (errorMessage == null && performLists.getListBlock().isEmpty()) {
-
-            errorMessage =
-                    performDataBase.initiateNewBlock(blockTable, whereId, "Default Block", "Default Block", 1, false);
-
-            if (errorMessage == null) {
-                if (!performDataBase.getIdsBlockAfter().isEmpty()
-                        && performDataBase.getIdsBlockAfter().get(0) > 0) {
-                    return performDataBase.getIdsBlockAfter().get(0);
-                } else {
-                    return -1;
-                }
-            } else {
-
-                performMessage.errorMessageOperationFailed(errorMessage);
-            }
+    private final class PaneDefaultBlockOperations implements ScannerDefaultBlockService.Operations {
+        @Override
+        public ErrorMessage loadBlocks(int ownerId, String blockTable) {
+            return performDataBase.loadBlocks(ownerId, null, blockTable);
         }
-        return -1;
+
+        @Override
+        public boolean blocksEmpty() {
+            return performLists.getListBlock().isEmpty();
+        }
+
+        @Override
+        public ErrorMessage initiateBlock(
+                String blockTable,
+                int ownerId,
+                String blockName,
+                String blockDescription,
+                int blockOrder,
+                boolean forceOrder) {
+            return performDataBase.initiateNewBlock(
+                    blockTable,
+                    ownerId,
+                    blockName,
+                    blockDescription,
+                    blockOrder,
+                    forceOrder);
+        }
+
+        @Override
+        public List<Integer> createdBlockIds() {
+            return performDataBase.getIdsBlockAfter();
+        }
+
+        @Override
+        public void showOperationFailed(ErrorMessage error) {
+            performMessage.errorMessageOperationFailed(error);
+        }
     }
 
     public enum LocatorType {
