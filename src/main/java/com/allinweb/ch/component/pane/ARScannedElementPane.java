@@ -196,6 +196,8 @@ public class ARScannedElementPane extends ARPane
     private final ScannerPluginListDialogAdapter scannerPluginListDialogAdapter =
             new ScannerPluginListDialogAdapter();
     private final ScannerLayoutNodeAdapter scannerLayoutNodeAdapter = new ScannerLayoutNodeAdapter();
+    private final ScannerRefreshBlocksButtonAdapter scannerRefreshBlocksButtonAdapter =
+            new ScannerRefreshBlocksButtonAdapter();
     private final UiThreadDispatcher uiThreadDispatcher = UiThreadDispatcher.getInstance();
     private final ScannerDomReviewSnapshotService scannerDomReviewSnapshotService =
             new ScannerDomReviewSnapshotService();
@@ -3729,11 +3731,7 @@ public class ARScannedElementPane extends ARPane
     }
 
     private Button createPathButton() {
-        Button button = builder.buildButton(
-                "", ARConstants.SPACE_L, ARConstants.ICON_REFRESH, ARConstants.SPACE_M, new Insets(3D));
-        button.setMaxWidth(ARConstants.SPACE_L);
-        AnchorPane.setRightAnchor(button, 0D);
-        return button;
+        return scannerRefreshBlocksButtonAdapter.build(builder);
     }
 
     private void browserNotAttached() {
