@@ -77,4 +77,11 @@ final class ScannerLayoutNodeAdapter {
         row.getChildren().addAll(children);
         return row;
     }
+
+    VBox textFieldColumn(Node... children) {
+        VBox column = new VBox();
+        column.setSpacing(6);
+        column.getChildren().addAll(children);
+        return column;
+    }
 }

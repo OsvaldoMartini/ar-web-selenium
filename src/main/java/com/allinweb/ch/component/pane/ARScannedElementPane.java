@@ -1887,29 +1887,25 @@ public class ARScannedElementPane extends ARPane
 
             HBox boxCoordinates = scannerLayoutNodeAdapter.spacedRow(5, coordsTextFieldLabel, coordsTextField);
 
-            HBox hBoxPickClone = new HBox();
-            hBoxPickClone.getChildren().addAll(createSpacerHoriz(), checkCloneElement, createSpacerHoriz());
+            HBox hBoxPickClone = scannerLayoutNodeAdapter.spacedRow(
+                    0, createSpacerHoriz(), checkCloneElement, createSpacerHoriz());
 
             // Create the VBox for TextFields
-            textFieldVBox = new VBox();
-            textFieldVBox.setSpacing(6); // Adjust spacing between TextFields
-            textFieldVBox
-                    .getChildren()
-                    .addAll(
-                            hBoxPickClone,
-                            defineNameLabel,
-                            boxName,
-                            vBoxCheckBox,
-                            createCustomSeparator(Color.DARKBLUE, 2),
-                            createSpacerVert(),
-                            countdownTextField,
-                            checkNotShowTestMsg,
-                            boxActions,
-                            boxCoordinates,
-                            createSpacerVert(),
-                            createCustomSeparator(Color.DARKBLUE, 2),
-                            hBoxLaunchButon,
-                            configureButton);
+            textFieldVBox = scannerLayoutNodeAdapter.textFieldColumn(
+                    hBoxPickClone,
+                    defineNameLabel,
+                    boxName,
+                    vBoxCheckBox,
+                    createCustomSeparator(Color.DARKBLUE, 2),
+                    createSpacerVert(),
+                    countdownTextField,
+                    checkNotShowTestMsg,
+                    boxActions,
+                    boxCoordinates,
+                    createSpacerVert(),
+                    createCustomSeparator(Color.DARKBLUE, 2),
+                    hBoxLaunchButon,
+                    configureButton);
 
             // Bind button widths to VBox width
             boxActions.maxWidthProperty().bind(textFieldVBox.widthProperty());
