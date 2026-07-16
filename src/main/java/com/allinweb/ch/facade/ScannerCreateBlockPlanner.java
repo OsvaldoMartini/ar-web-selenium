@@ -1,12 +1,12 @@
-package com.allinweb.ch.component.pane;
+package com.allinweb.ch.facade;
 
 import com.allinweb.ch.model.BlockLoadDTO;
 import java.util.ArrayList;
 import java.util.List;
 
-final class ScannerCreateBlockPlanner {
+public final class ScannerCreateBlockPlanner {
 
-    int computeInsertOrderNumber(String positionLabel, List<BlockLoadDTO> existingSorted) {
+    public int computeInsertOrderNumber(String positionLabel, List<BlockLoadDTO> existingSorted) {
         if (positionLabel == null || positionLabel.startsWith("At end")) {
             int max = 0;
             for (BlockLoadDTO block : existingSorted) {
@@ -29,7 +29,7 @@ final class ScannerCreateBlockPlanner {
         return existingSorted.size() + 1;
     }
 
-    String buildCreateBlockPreview(int targetOrder, List<BlockLoadDTO> existingSorted) {
+    public String buildCreateBlockPreview(int targetOrder, List<BlockLoadDTO> existingSorted) {
         List<BlockLoadDTO> shifted = shiftedBlocks(targetOrder, existingSorted);
         if (shifted.isEmpty()) {
             return "New block will be #" + targetOrder + ". No existing blocks are affected.";
@@ -51,6 +51,26 @@ final class ScannerCreateBlockPlanner {
                     .append(block.getName());
         }
         return preview.toString();
+    }
+
+    public List<BlockLoadDTO> buildRenumberPlan(int botJobId, int targetOrder, List<BlockLoadDTO> blocks) {
+        List<BlockLoadDTO> toRenumber = new ArrayList<>();
+        for (BlockLoadDTO block : blocks) {
+            if (block.getBotJobId() == null || !block.getBotJobId().equals(botJobId)) {
+                continue;
+            }
+            if (block.getBlockOrderNumber() == null || block.getBlockOrderNumber() < targetOrder) {
+                continue;
+            }
+
+            BlockLoadDTO shifted = new BlockLoadDTO();
+            shifted.setId(block.getId());
+            shifted.setBlockOrderNumber(block.getBlockOrderNumber() + 1);
+            shifted.setBotJobId(botJobId);
+            shifted.setHomeBankingId(block.getHomeBankingId());
+            toRenumber.add(shifted);
+        }
+        return toRenumber;
     }
 
     private List<BlockLoadDTO> shiftedBlocks(int targetOrder, List<BlockLoadDTO> existingSorted) {

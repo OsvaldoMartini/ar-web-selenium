@@ -4234,23 +4234,8 @@ public class ARScannedElementPane extends ARPane
         int botJobId = currentBotJob.getId();
 
         // 1. Renumber existing blocks at or after targetOrder (shift +1).
-        List<BlockLoadDTO> toRenumber = new java.util.ArrayList<>();
-        for (BlockLoadDTO b : performLists.getListBlock()) {
-            if (b.getBotJobId() == null || !b.getBotJobId().equals(botJobId)) continue;
-            if (b.getBlockOrderNumber() == null) continue;
-            if (b.getBlockOrderNumber() >= targetOrder) {
-                BlockLoadDTO shifted = new BlockLoadDTO();
-                shifted.setId(b.getId());
-                shifted.setBlockOrderNumber(b.getBlockOrderNumber() + 1);
-                // updateSwiftBlockOrderNumber reads botJobId as the WHERE
-                // predicate for the UPDATE — without it the JDBC setInt(3, ...)
-                // NPEs. Also copy homeBankingId for symmetry with the
-                // component_block path.
-                shifted.setBotJobId(botJobId);
-                shifted.setHomeBankingId(b.getHomeBankingId());
-                toRenumber.add(shifted);
-            }
-        }
+        List<BlockLoadDTO> toRenumber =
+                scannerCreateBlockPlanner.buildRenumberPlan(botJobId, targetOrder, performLists.getListBlock());
         if (!toRenumber.isEmpty()) {
             ErrorMessage err = performDataBase.updateSwiftBlockOrderNumber("block", botJobId, toRenumber);
             if (err != null) return err;
