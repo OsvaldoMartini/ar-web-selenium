@@ -155,14 +155,9 @@ public class ARScannedElementPane extends ARPane
     private final ScannerElementPanePublisher scannerElementPanePublisher = new ScannerElementPanePublisher();
     private final ScannerSupportRequestPublisher scannerSupportRequestPublisher = new ScannerSupportRequestPublisher();
     private final ScannerSupportRequestService scannerSupportRequestService = new ScannerSupportRequestService();
-    private final ScannerSupportFileSaveService scannerSupportFileSaveService = new ScannerSupportFileSaveService();
-    private final ScannerSupportFileChooserService scannerSupportFileChooserService =
-            new ScannerSupportFileChooserService();
-    private final ScannerSupportFileChooserAdapter scannerSupportFileChooserAdapter =
-            new ScannerSupportFileChooserAdapter(scannerSupportFileChooserService);
-    private final ScannerSupportSavedFileMessageService scannerSupportSavedFileMessageService =
-            new ScannerSupportSavedFileMessageService();
     private final ScannerSupportAlertAdapter scannerSupportAlertAdapter = new ScannerSupportAlertAdapter();
+    private final ScannerSupportSaveFlowAdapter scannerSupportSaveFlowAdapter =
+            new ScannerSupportSaveFlowAdapter(scannerSupportAlertAdapter);
     private final ScannerSupportCaptureResultService scannerSupportCaptureResultService =
             new ScannerSupportCaptureResultService();
     private final ScannerSupportCaptureSendService scannerSupportCaptureSendService =
@@ -2049,22 +2044,7 @@ public class ARScannedElementPane extends ARPane
                 } else if (responseAction == ScannerSupportResponseActionService.Action.SAVE) {
                     ScannerSupportFileService.SupportFile supportFile =
                             scannerPageReviewFileService.pageReview(html, new PanePageReviewBrowser(driver));
-                    ScannerSupportFileChooserService.Request chooserRequest =
-                            scannerSupportFileChooserService.pageReview(supportFile);
-
-                    java.io.File chosen = scannerSupportFileChooserAdapter.showSaveDialog(stage, chooserRequest);
-                    if (chosen == null) {
-                        log.info("DOM capture save cancelled by user");
-                        return;
-                    }
-
-                    ScannerSupportFileSaveService.SavedSupportFile savedSupportFile =
-                            scannerSupportFileSaveService.save(supportFile, chosen.toPath());
-                    ScannerSupportSavedFileMessageService.Message savedMessage =
-                            scannerSupportSavedFileMessageService.pageReview(savedSupportFile);
-
-                    log.info("DOM capture saved to {}", chosen.getAbsolutePath());
-                    scannerSupportAlertAdapter.showSavedFile(savedMessage);
+                    scannerSupportSaveFlowAdapter.savePageReview(stage, supportFile);
                 }
             } catch (Exception ex) {
                 log.error("handleDomReviewResponse failed", ex);
@@ -2183,18 +2163,7 @@ public class ARScannedElementPane extends ARPane
                 } else if (responseAction == ScannerSupportResponseActionService.Action.SAVE) {
                     ScannerSupportFileService.SupportFile supportFile =
                             scannerElementsReviewFileService.elementsReview(driver, elementDetailsJson, message);
-                    ScannerSupportFileChooserService.Request chooserRequest =
-                            scannerSupportFileChooserService.elementsReview(supportFile);
-
-                    java.io.File chosen = scannerSupportFileChooserAdapter.showSaveDialog(stage, chooserRequest);
-                    if (chosen == null) return;
-
-                    ScannerSupportFileSaveService.SavedSupportFile savedSupportFile =
-                            scannerSupportFileSaveService.save(supportFile, chosen.toPath());
-                    ScannerSupportSavedFileMessageService.Message savedMessage =
-                            scannerSupportSavedFileMessageService.elementsReview(savedSupportFile);
-
-                    scannerSupportAlertAdapter.showSavedFile(savedMessage);
+                    scannerSupportSaveFlowAdapter.saveElementsReview(stage, supportFile);
                 }
             } catch (Exception ex) {
                 log.error("handleSupportRequestElementsResponse failed", ex);
