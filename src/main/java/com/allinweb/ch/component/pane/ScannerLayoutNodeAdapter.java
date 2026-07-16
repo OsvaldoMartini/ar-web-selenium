@@ -99,4 +99,18 @@ final class ScannerLayoutNodeAdapter {
         stack.setAlignment(Pos.CENTER);
         return stack;
     }
+
+    HBox listViewsRow() {
+        HBox row = new HBox();
+        row.setSpacing(5);
+        VBox.setVgrow(row, Priority.ALWAYS);
+        HBox.setHgrow(row, Priority.ALWAYS);
+        return row;
+    }
+
+    VBox elementsColumn(Node header, Node content) {
+        VBox column = new VBox(header, content);
+        HBox.setHgrow(column, Priority.ALWAYS);
+        return column;
+    }
 }

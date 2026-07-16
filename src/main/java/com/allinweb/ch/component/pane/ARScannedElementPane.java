@@ -1923,12 +1923,10 @@ public class ARScannedElementPane extends ARPane
                 stopBotJobButton.setMaxWidth(totalWidth * 0.7);
             });
 
-            HBox boxListViews = new HBox();
+            HBox boxListViews = scannerLayoutNodeAdapter.listViewsRow();
 
             // Bind the height of ListViews to the height of the HBox
             componentBox.prefHeightProperty().bind(boxListViews.heightProperty());
-
-            boxListViews.setSpacing(5);
 
             HBox.setHgrow(componentBox, Priority.ALWAYS);
 
@@ -1948,12 +1946,8 @@ public class ARScannedElementPane extends ARPane
                             createSpacerHoriz(),
                             cleanListButton);
             StackPane stackLabelOthers = scannerLayoutNodeAdapter.centeredStack(othersBox);
-            elements2VBox = new VBox(stackLabelOthers, componentBox);
-            HBox.setHgrow(elements2VBox, Priority.ALWAYS);
+            elements2VBox = scannerLayoutNodeAdapter.elementsColumn(stackLabelOthers, componentBox);
             boxListViews.getChildren().addAll(elements2VBox, textFieldVBox);
-
-            VBox.setVgrow(boxListViews, Priority.ALWAYS);
-            HBox.setHgrow(boxListViews, Priority.ALWAYS);
 
             HBox blockAndUrl = new HBox();
             blockAndUrl.setSpacing(0); // No spacing, use margins instead
