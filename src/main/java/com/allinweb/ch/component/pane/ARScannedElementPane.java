@@ -189,6 +189,8 @@ public class ARScannedElementPane extends ARPane
             new ScannerPluginUpdateTableAdapter();
     private final ScannerPluginUpdateContentAdapter scannerPluginUpdateContentAdapter =
             new ScannerPluginUpdateContentAdapter();
+    private final ScannerPluginUpdateDialogAdapter scannerPluginUpdateDialogAdapter =
+            new ScannerPluginUpdateDialogAdapter();
     private final UiThreadDispatcher uiThreadDispatcher = UiThreadDispatcher.getInstance();
     private final ScannerDomReviewSnapshotService scannerDomReviewSnapshotService =
             new ScannerDomReviewSnapshotService();
@@ -8826,32 +8828,16 @@ public class ARScannedElementPane extends ARPane
 
         VBox content = scannerPluginUpdateContentAdapter.build(tableBox, pluginsDir);
 
-        // ── Dialog ──
-        Alert dialog = new Alert(Alert.AlertType.INFORMATION);
-        dialog.setTitle("Plugin Update");
-        dialog.setHeaderText("Plugins Status");
-        dialog.getDialogPane().setContent(content);
-        dialog.getDialogPane().setPrefWidth(580);
-
-        if (!downloadChecks.isEmpty()) {
-            ButtonType downloadBtn = new ButtonType("Download Selected", ButtonBar.ButtonData.OK_DONE);
-            dialog.getButtonTypes().setAll(downloadBtn, ButtonType.CLOSE);
-
-            Optional<ButtonType> result = dialog.showAndWait();
-            if (result.isPresent() && result.get().getButtonData() == ButtonBar.ButtonData.OK_DONE) {
-                String baseUrl = urlBase.endsWith("/") ? urlBase : urlBase + "/";
-                Path pluginsDirPath = Paths.get(pluginsDir);
-                for (int i = 0; i < downloadChecks.size(); i++) {
-                    if (downloadChecks.get(i).isSelected()) {
-                        String[] row = downloadableRows.get(i);
-                        String downloadUrl = baseUrl + row[4]; // fileName
-                        downloadAndExtractPlugin(downloadUrl, row[4], row[1], pluginsDirPath);
-                    }
+        if (scannerPluginUpdateDialogAdapter.show(content, !downloadChecks.isEmpty())) {
+            String baseUrl = urlBase.endsWith("/") ? urlBase : urlBase + "/";
+            Path pluginsDirPath = Paths.get(pluginsDir);
+            for (int i = 0; i < downloadChecks.size(); i++) {
+                if (downloadChecks.get(i).isSelected()) {
+                    String[] row = downloadableRows.get(i);
+                    String downloadUrl = baseUrl + row[4]; // fileName
+                    downloadAndExtractPlugin(downloadUrl, row[4], row[1], pluginsDirPath);
                 }
             }
-        } else {
-            dialog.getButtonTypes().setAll(ButtonType.CLOSE);
-            dialog.showAndWait();
         }
     }
 
