@@ -182,6 +182,8 @@ public class ARScannedElementPane extends ARPane
             new ScannerPluginBatchDownloadProgressDialogAdapter();
     private final ScannerPluginPortalBannerAdapter scannerPluginPortalBannerAdapter =
             new ScannerPluginPortalBannerAdapter();
+    private final ScannerPluginUpdateButtonAdapter scannerPluginUpdateButtonAdapter =
+            new ScannerPluginUpdateButtonAdapter();
     private final UiThreadDispatcher uiThreadDispatcher = UiThreadDispatcher.getInstance();
     private final ScannerDomReviewSnapshotService scannerDomReviewSnapshotService =
             new ScannerDomReviewSnapshotService();
@@ -8959,11 +8961,7 @@ public class ARScannedElementPane extends ARPane
      * with the ICON_DOWNLOAD icon.
      */
     private Button buildUpdatePluginsButton() {
-        Button btn = builder.buildButton(
-                "", ARConstants.SPACE_ZERO, ARConstants.ICON_DOWNLOAD, ARConstants.SPACE_M, new Insets(5.0D));
-        btn.setTooltip(new Tooltip("Download latest plugins from configured URL"));
-        btn.setOnAction(e -> runPluginUpdate());
-        return btn;
+        return scannerPluginUpdateButtonAdapter.build(builder, this::runPluginUpdate);
     }
 
     /**
