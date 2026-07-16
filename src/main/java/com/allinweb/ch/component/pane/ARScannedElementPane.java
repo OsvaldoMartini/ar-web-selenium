@@ -160,6 +160,8 @@ public class ARScannedElementPane extends ARPane
     private final ScannerSupportRequestService scannerSupportRequestService = new ScannerSupportRequestService();
     private final ScannerSupportFileService scannerSupportFileService = new ScannerSupportFileService();
     private final ScannerSupportFileSaveService scannerSupportFileSaveService = new ScannerSupportFileSaveService();
+    private final ScannerSupportCaptureResultService scannerSupportCaptureResultService =
+            new ScannerSupportCaptureResultService();
     private final ScannerPreLaunchStarter scannerPreLaunchStarter =
             new ScannerPreLaunchStarter(new PanePreLaunchStartOperations());
     private final ScannerPreLaunchStopper scannerPreLaunchStopper =
@@ -2141,17 +2143,14 @@ public class ARScannedElementPane extends ARPane
                 if ("send".equals(action)) {
                     com.allinweb.ch.facade.SupportCapture.CaptureResult r =
                             new com.allinweb.ch.facade.SupportCapture().captureAndSend(driver, null, null, null, null);
+                    ScannerSupportCaptureResultService.AlertMessage message =
+                            scannerSupportCaptureResultService.domCapture(r);
                     javafx.scene.control.Alert out = new javafx.scene.control.Alert(
-                            r.isOk()
+                            message.ok()
                                     ? javafx.scene.control.Alert.AlertType.INFORMATION
                                     : javafx.scene.control.Alert.AlertType.ERROR);
-                    if (r.isOk()) {
-                        out.setHeaderText("DOM capture sent");
-                        out.setContentText("Ticket: " + r.ticketId());
-                    } else {
-                        out.setHeaderText("Could not send DOM capture");
-                        out.setContentText(r.error());
-                    }
+                    out.setHeaderText(message.header());
+                    out.setContentText(message.content());
                     out.showAndWait();
 
                 } else if ("save".equals(action)) {
@@ -2257,17 +2256,14 @@ public class ARScannedElementPane extends ARPane
                     com.allinweb.ch.facade.SupportCapture.CaptureResult r = new com.allinweb.ch.facade.SupportCapture()
                             .captureElementsAndSend(driver, elementDetailsJson, message, null);
 
+                    ScannerSupportCaptureResultService.AlertMessage alertMessage =
+                            scannerSupportCaptureResultService.elementsReview(r);
                     javafx.scene.control.Alert out = new javafx.scene.control.Alert(
-                            r.isOk()
+                            alertMessage.ok()
                                     ? javafx.scene.control.Alert.AlertType.INFORMATION
                                     : javafx.scene.control.Alert.AlertType.ERROR);
-                    if (r.isOk()) {
-                        out.setHeaderText("Elements review sent");
-                        out.setContentText("Ticket: " + r.ticketId());
-                    } else {
-                        out.setHeaderText("Could not send elements review");
-                        out.setContentText(r.error());
-                    }
+                    out.setHeaderText(alertMessage.header());
+                    out.setContentText(alertMessage.content());
                     out.showAndWait();
 
                 } else if ("save".equals(action)) {
