@@ -209,6 +209,8 @@ public class ARScannedElementPane extends ARPane
             new ScannerIframeIndicatorAdapter();
     private final ScannerPreLaunchStatusTextAreaAdapter scannerPreLaunchStatusTextAreaAdapter =
             new ScannerPreLaunchStatusTextAreaAdapter();
+    private final ScannerTestActionCheckboxesAdapter scannerTestActionCheckboxesAdapter =
+            new ScannerTestActionCheckboxesAdapter();
     private final UiThreadDispatcher uiThreadDispatcher = UiThreadDispatcher.getInstance();
     private final ScannerDomReviewSnapshotService scannerDomReviewSnapshotService =
             new ScannerDomReviewSnapshotService();
@@ -1668,9 +1670,11 @@ public class ARScannedElementPane extends ARPane
 
         testActionLabel = new Label("Test Actions :");
 
-        checkClickElement = new CheckBox("For Click");
-        checkInputText = new CheckBox("For Input");
-        checkOutputText = new CheckBox("For Output (Excel Export)");
+        ScannerTestActionCheckboxesAdapter.Checkboxes testActionCheckboxes =
+                scannerTestActionCheckboxesAdapter.build();
+        checkClickElement = testActionCheckboxes.click();
+        checkInputText = testActionCheckboxes.input();
+        checkOutputText = testActionCheckboxes.output();
 
         iFrameText = scannerIframeIndicatorAdapter.build();
 
