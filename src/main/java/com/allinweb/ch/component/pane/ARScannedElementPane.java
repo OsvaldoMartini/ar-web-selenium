@@ -150,6 +150,8 @@ public class ARScannedElementPane extends ARPane
             new ScannerActionDefaultsService();
     private final ScannerDefaultBlockService scannerDefaultBlockService =
             new ScannerDefaultBlockService();
+    private final ScannerBlockOptionSelectionService scannerBlockOptionSelectionService =
+            new ScannerBlockOptionSelectionService();
     private final ScannerModalBlockCreationService scannerModalBlockCreationService =
             new ScannerModalBlockCreationService();
     private final ScannerPageScanService scannerPageScanService = new ScannerPageScanService(performListElements);
@@ -1895,9 +1897,9 @@ public class ARScannedElementPane extends ARPane
         // here, this is the proactive "I want to add a block now" flow.
         comboBoxBlocks.valueProperty().addListener((obs, oldVal, newVal) -> {
             if (newVal == null) return;
-            if (newVal.getBlockId() == null || newVal.getBlockId() != SENTINEL_CREATE_BLOCK_ID) return;
+            if (!scannerBlockOptionSelectionService.isCreateBlockSentinel(newVal)) return;
             Platform.runLater(() -> {
-                if (oldVal != null && oldVal.getBlockId() != null && oldVal.getBlockId() != SENTINEL_CREATE_BLOCK_ID) {
+                if (scannerBlockOptionSelectionService.isRealBlock(oldVal)) {
                     comboBoxBlocks.getSelectionModel().select(oldVal);
                 } else {
                     comboBoxBlocks.getSelectionModel().clearSelection();
@@ -4052,10 +4054,6 @@ public class ARScannedElementPane extends ARPane
     /** Sentinel {@code BlockOptions.blockId} that identifies the "+ Create new block…" entry
      *  appended to the dropdown. Selecting it rolls the selection back and opens the
      *  create-block modal — see {@link #openCreateBlockModal(Runnable)}. */
-    private static final int SENTINEL_CREATE_BLOCK_ID = -999;
-
-    private static final String SENTINEL_CREATE_BLOCK_TEXT = "+ Create new block…";
-
     private void loadAllBlocks() {
         if (comboBoxBlocks != null) {
             Platform.runLater(() -> {
@@ -4063,14 +4061,13 @@ public class ARScannedElementPane extends ARPane
                 List<BlockOptions> listOptions = performLists.loadComboOptions("block", "ScannerPane");
                 // Append the create-new-block sentinel at the end. It's flagged by
                 // blockId == SENTINEL_CREATE_BLOCK_ID; picking it opens the modal.
-                listOptions.add(new BlockOptions(
-                        SENTINEL_CREATE_BLOCK_TEXT, SENTINEL_CREATE_BLOCK_TEXT, null, SENTINEL_CREATE_BLOCK_ID, null));
+                listOptions.add(scannerBlockOptionSelectionService.createBlockSentinel());
                 comboBoxBlocks.setItems(FXCollections.observableArrayList(listOptions));
 
                 if (!listOptions.isEmpty()) {
                     // Select the first real block (skipping the sentinel if it was the only item).
                     BlockOptions first = listOptions.get(0);
-                    if (first != null && first.getBlockId() != null && first.getBlockId() == SENTINEL_CREATE_BLOCK_ID) {
+                    if (scannerBlockOptionSelectionService.isCreateBlockSentinel(first)) {
                         comboBoxBlocks.getSelectionModel().clearSelection();
                     } else {
                         comboBoxBlocks.getSelectionModel().selectFirst();
@@ -4083,7 +4080,7 @@ public class ARScannedElementPane extends ARPane
     /** Returns true when {@code comboBoxBlocks} has a real (non-sentinel) block selected. */
     public boolean isRealBlockSelectedForInsert() {
         BlockOptions v = comboBoxBlocks == null ? null : comboBoxBlocks.getValue();
-        return v != null && v.getBlockId() != null && v.getBlockId() > 0 && v.getBlockId() != SENTINEL_CREATE_BLOCK_ID;
+        return scannerBlockOptionSelectionService.isRealBlock(v);
     }
 
     /**
@@ -4216,7 +4213,7 @@ public class ARScannedElementPane extends ARPane
             for (BlockOptions opt : comboBoxBlocks.getItems()) {
                 if (opt != null
                         && opt.getBlockId() != null
-                        && opt.getBlockId() != SENTINEL_CREATE_BLOCK_ID
+                        && !scannerBlockOptionSelectionService.isCreateBlockSentinel(opt)
                         && name.equalsIgnoreCase(opt.getValue())) {
                     comboBoxBlocks.getSelectionModel().select(opt);
                     break;
