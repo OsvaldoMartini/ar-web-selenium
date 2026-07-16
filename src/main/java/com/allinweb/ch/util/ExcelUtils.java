@@ -1,6 +1,5 @@
 package com.allinweb.ch.util;
 
-import com.allinweb.ch.component.scene.ARAlertScene;
 import com.allinweb.ch.facade.PerformDBEngine;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformLists;
@@ -14,9 +13,6 @@ import java.awt.*;
 import java.io.*;
 import java.util.*;
 import java.util.List;
-import javafx.concurrent.Task;
-import javafx.scene.control.Alert;
-import javafx.scene.control.ButtonType;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellType;
@@ -74,25 +70,18 @@ public class ExcelUtils {
 
         if (!fileCheck.exists() || fileCheck.isDirectory()) {
             // File does not exist or is a directory → create normally
-            Task<Void> excelTask = new Task<>() {
-                @Override
-                protected Void call() throws Exception {
-                    new ExcelUtils()
-                            .generateExcelFiles(extractedData, selectedBotJob.getName(), nameToDuplicate, false);
-                    return null;
-                }
-            };
-            new Thread(excelTask).start();
+            new Thread(
+                            () -> new ExcelUtils()
+                                    .generateExcelFiles(
+                                            extractedData, selectedBotJob.getName(), nameToDuplicate, false),
+                            "excel-data-file-create")
+                    .start();
         } else if (fileCheck.exists() && nameToDuplicate != null && !nameToDuplicate.isBlank()) {
             // File exists, but nameToDuplicate is provided → create new Excel with new name
-            Task<Void> excelTask = new Task<>() {
-                @Override
-                protected Void call() throws Exception {
-                    new ExcelUtils().generateExcelFiles(extractedData, nameToDuplicate, null, false);
-                    return null;
-                }
-            };
-            new Thread(excelTask).start();
+            new Thread(
+                            () -> new ExcelUtils().generateExcelFiles(extractedData, nameToDuplicate, null, false),
+                            "excel-data-file-duplicate")
+                    .start();
         }
     }
 
@@ -205,11 +194,6 @@ public class ExcelUtils {
             try {
                 Desktop.getDesktop().open(file);
             } catch (IOException error) {
-                //                new ARAlertScene(
-                //                        Alert.AlertType.ERROR,
-                //                        "Couldn't open the file",
-                //                        "The file could not be opened. Reason: " + e,
-                //                        ButtonType.OK);
                 log.error("Error: Excel File: {} - {}", file.getAbsolutePath(), error.getMessage());
 
                 performMessage.errorMessage(
@@ -298,11 +282,13 @@ public class ExcelUtils {
         try {
             Desktop.getDesktop().open(file);
         } catch (IOException e) {
-            new ARAlertScene(
-                    Alert.AlertType.ERROR,
+            performMessage.errorMessage(
                     "Couldn't open the file",
                     "The file could not be opened. Reason: " + e,
-                    ButtonType.OK);
+                    null,
+                    null,
+                    null,
+                    0);
         }
     }
 
