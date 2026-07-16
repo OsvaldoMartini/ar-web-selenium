@@ -2047,11 +2047,7 @@ public class ARScannedElementPane extends ARPane
         try {
             org.openqa.selenium.WebDriver driver = performActions.getCurrentDriver();
             if (driver == null) {
-                javafx.scene.control.Alert a =
-                        new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.INFORMATION);
-                a.setHeaderText("No active browser session");
-                a.setContentText("There is no open browser to capture.");
-                a.showAndWait();
+                scannerSupportAlertAdapter.showNoActiveBrowser();
                 return;
             }
 
