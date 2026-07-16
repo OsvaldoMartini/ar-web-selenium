@@ -187,6 +187,8 @@ public class ARScannedElementPane extends ARPane
             new ScannerPluginStatusButtonAdapter();
     private final ScannerPluginUpdateTableAdapter scannerPluginUpdateTableAdapter =
             new ScannerPluginUpdateTableAdapter();
+    private final ScannerPluginUpdateContentAdapter scannerPluginUpdateContentAdapter =
+            new ScannerPluginUpdateContentAdapter();
     private final UiThreadDispatcher uiThreadDispatcher = UiThreadDispatcher.getInstance();
     private final ScannerDomReviewSnapshotService scannerDomReviewSnapshotService =
             new ScannerDomReviewSnapshotService();
@@ -8822,19 +8824,7 @@ public class ARScannedElementPane extends ARPane
         List<CheckBox> downloadChecks = tableResult.downloadChecks();
         List<String[]> downloadableRows = tableResult.downloadableRows();
 
-        // ── Info labels ──
-        Label folderLabel = new Label("Plugins folder:  " + pluginsDir);
-        folderLabel.setWrapText(true);
-        folderLabel.setStyle("-fx-font-size:12px;-fx-font-weight:bold;-fx-text-fill:#1565C0;");
-        folderLabel.setPrefWidth(500);
-
-        Label addLabel = new Label("Plugins can be added via:  Download from server, email, or USB/pendrive copy.");
-        addLabel.setWrapText(true);
-        addLabel.setStyle("-fx-font-size:12px;-fx-font-weight:bold;-fx-text-fill:#1565C0;");
-        addLabel.setPrefWidth(500);
-
-        VBox content = new VBox(10, tableBox, folderLabel, addLabel);
-        content.setPadding(new Insets(10));
+        VBox content = scannerPluginUpdateContentAdapter.build(tableBox, pluginsDir);
 
         // ── Dialog ──
         Alert dialog = new Alert(Alert.AlertType.INFORMATION);
