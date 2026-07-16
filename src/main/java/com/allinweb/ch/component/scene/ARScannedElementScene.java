@@ -22,7 +22,6 @@ import java.util.*;
 import java.util.concurrent.*;
 import javafx.application.Platform;
 import javafx.stage.Stage;
-import javafx.stage.WindowEvent;
 import javax.websocket.*;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -96,6 +95,7 @@ public class ARScannedElementScene extends ARScene {
     private final ScannerElementDetailsSelectionService scannerElementDetailsSelectionService =
             new ScannerElementDetailsSelectionService();
     private final ScannerModalStageService scannerModalStageService = new ScannerModalStageService();
+    private final ScannerCloseRequestService scannerCloseRequestService = new ScannerCloseRequestService();
     // Private constructor to prevent instantiation
     private ARScannedElementScene() {
 
@@ -404,34 +404,14 @@ public class ARScannedElementScene extends ARScene {
 
         // Only set the close request handler if it's not already set
         if (!isCloseHandlerSet) {
-            stage.setOnCloseRequest(this::handleCloseRequest);
+            stage.setOnCloseRequest(event -> handleCloseRequest());
             isCloseHandlerSet = true; // Update the flag to prevent setting it again
         }
     }
 
-    public void handleCloseRequest(WindowEvent event) {
+    public void handleCloseRequest() {
         log.info("Handle Close: Exiting Threads and Quitting WebDriver");
-
-        // Interrupt running threads
-        threadList.forEach(this::interruptThread);
-
-        // Close WebDriver if it's initialized
-        if (arWebDriver != null) {
-            try {
-                closeWebDrivers();
-
-                //                arWebDriver.closeDriver(); // Quit WebDriver
-                arWebDriver.getCurrentDriver().quit(); // Quit WebDriver
-                arWebDriver.setCurrentDriver(null);
-
-                shutDownExecutorService(executorWebSocket);
-                shutDownExecutorService(executorServicePreLaunch);
-
-                log.info("WebDriver quit successfully.");
-            } catch (Exception e) {
-                log.error("Error closing WebDriver: " + e.getMessage());
-            }
-        }
+        scannerCloseRequestService.close(new SceneCloseRequest());
     }
 
     // Method to close all WebDriver instances
@@ -482,6 +462,45 @@ public class ARScannedElementScene extends ARScene {
             executorService.shutdownNow();
             Thread.currentThread().interrupt();
             log.warn("ExecutorService did not terminate" + e.getMessage());
+        }
+    }
+
+    private final class SceneCloseRequest implements ScannerCloseRequestService.CloseRequest {
+        @Override
+        public void interruptThreads() {
+            threadList.forEach(ARScannedElementScene.this::interruptThread);
+        }
+
+        @Override
+        public boolean hasWebDriver() {
+            return arWebDriver != null;
+        }
+
+        @Override
+        public void closeWebDrivers() {
+            ARScannedElementScene.this.closeWebDrivers();
+        }
+
+        @Override
+        public void quitCurrentDriver() {
+            arWebDriver.getCurrentDriver().quit();
+        }
+
+        @Override
+        public void clearCurrentDriver() {
+            arWebDriver.setCurrentDriver(null);
+        }
+
+        @Override
+        public void shutdownExecutors() {
+            shutDownExecutorService(executorWebSocket);
+            shutDownExecutorService(executorServicePreLaunch);
+            log.info("WebDriver quit successfully.");
+        }
+
+        @Override
+        public void closeFailed(Exception error) {
+            log.error("Error closing WebDriver: " + error.getMessage());
         }
     }
 
