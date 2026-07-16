@@ -164,6 +164,7 @@ public class ARScannedElementPane extends ARPane
             new ScannerSupportCaptureResultService();
     private final ScannerDomReviewSnapshotService scannerDomReviewSnapshotService =
             new ScannerDomReviewSnapshotService();
+    private final ScannerPageReviewFileService scannerPageReviewFileService = new ScannerPageReviewFileService();
     private final ScannerPreLaunchStarter scannerPreLaunchStarter =
             new ScannerPreLaunchStarter(new PanePreLaunchStartOperations());
     private final ScannerPreLaunchStopper scannerPreLaunchStopper =
@@ -2146,17 +2147,8 @@ public class ARScannedElementPane extends ARPane
                     out.showAndWait();
 
                 } else if ("save".equals(action)) {
-                    String url = "(unknown)";
-                    String title = "";
-                    try {
-                        if (driver != null) {
-                            url = driver.getCurrentUrl();
-                            title = driver.getTitle();
-                        }
-                    } catch (Exception ignored) {
-                    }
                     ScannerSupportFileService.SupportFile supportFile =
-                            scannerSupportFileService.pageReview(html, url, title);
+                            scannerPageReviewFileService.pageReview(html, new PanePageReviewBrowser(driver));
 
                     javafx.stage.FileChooser fc = new javafx.stage.FileChooser();
                     fc.setTitle("Save Support File");
@@ -2247,6 +2239,24 @@ public class ARScannedElementPane extends ARPane
         @Override
         public String title() {
             return driver.getTitle();
+        }
+    }
+
+    private static final class PanePageReviewBrowser implements ScannerPageReviewFileService.Browser {
+        private final org.openqa.selenium.WebDriver driver;
+
+        private PanePageReviewBrowser(org.openqa.selenium.WebDriver driver) {
+            this.driver = driver;
+        }
+
+        @Override
+        public String currentUrl() {
+            return driver != null ? driver.getCurrentUrl() : "(unknown)";
+        }
+
+        @Override
+        public String title() {
+            return driver != null ? driver.getTitle() : "";
         }
     }
 
