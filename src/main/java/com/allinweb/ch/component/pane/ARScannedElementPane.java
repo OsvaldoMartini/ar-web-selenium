@@ -161,6 +161,8 @@ public class ARScannedElementPane extends ARPane
     private final ScannerSupportFileSaveService scannerSupportFileSaveService = new ScannerSupportFileSaveService();
     private final ScannerSupportCaptureResultService scannerSupportCaptureResultService =
             new ScannerSupportCaptureResultService();
+    private final ScannerSupportCaptureSendService scannerSupportCaptureSendService =
+            new ScannerSupportCaptureSendService();
     private final ScannerDomReviewSnapshotService scannerDomReviewSnapshotService =
             new ScannerDomReviewSnapshotService();
     private final ScannerPageReviewFileService scannerPageReviewFileService = new ScannerPageReviewFileService();
@@ -2135,8 +2137,7 @@ public class ARScannedElementPane extends ARPane
             try {
                 org.openqa.selenium.WebDriver driver = performActions.getCurrentDriver();
                 if ("send".equals(action)) {
-                    com.allinweb.ch.facade.SupportCapture.CaptureResult r =
-                            new com.allinweb.ch.facade.SupportCapture().captureAndSend(driver, null, null, null, null);
+                    SupportCapture.CaptureResult r = scannerSupportCaptureSendService.sendDomCapture(driver);
                     ScannerSupportCaptureResultService.AlertMessage message =
                             scannerSupportCaptureResultService.domCapture(r);
                     javafx.scene.control.Alert out = new javafx.scene.control.Alert(
@@ -2279,8 +2280,8 @@ public class ARScannedElementPane extends ARPane
                 org.openqa.selenium.WebDriver driver = performActions.getCurrentDriver();
 
                 if ("send".equals(action)) {
-                    com.allinweb.ch.facade.SupportCapture.CaptureResult r = new com.allinweb.ch.facade.SupportCapture()
-                            .captureElementsAndSend(driver, elementDetailsJson, message, null);
+                    SupportCapture.CaptureResult r =
+                            scannerSupportCaptureSendService.sendElementsReview(driver, elementDetailsJson, message);
 
                     ScannerSupportCaptureResultService.AlertMessage alertMessage =
                             scannerSupportCaptureResultService.elementsReview(r);
