@@ -36,7 +36,6 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BooleanSupplier;
-import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -682,18 +681,6 @@ public class ARScannedElementPane extends ARPane
         }
     }
 
-    public static String truncate(String someText, int limit) {
-        if (someText == null || someText.isEmpty()) {
-            return someText;
-        }
-
-        if (someText.length() <= limit) {
-            return someText;
-        }
-
-        return someText.substring(0, limit) + "...";
-    }
-
     private static By[] parseLocators(String input) {
         // Split the input string by commas to get individual locator strings
         // DB Access Cannot have "'"
@@ -880,22 +867,6 @@ public class ARScannedElementPane extends ARPane
         } catch (Exception e) {
             return true; // If exception occurs, browser is closed
         }
-    }
-
-    // Helper method for distinct by text
-    private static Predicate<BlockOptions> distinctByText() {
-        Set<String> seen = new HashSet<>();
-        return b -> seen.add(b.getText());
-    }
-
-    // Helper method for distinct by text AND blockOrderNumber
-    private static Predicate<BlockOptions> distinctByTextAndId() {
-        Set<String> seen = new HashSet<>();
-        return b -> {
-            // Combine text and blockOrderNumber as a unique key
-            String key = b.getText() + "#" + b.getBlockId();
-            return seen.add(key);
-        };
     }
 
     public void destroy() {
