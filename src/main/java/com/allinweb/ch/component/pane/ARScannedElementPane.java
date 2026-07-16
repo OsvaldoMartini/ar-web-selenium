@@ -969,7 +969,7 @@ public class ARScannedElementPane extends ARPane
 
         FieldData filedData = new FieldData("martini", "Martini");
         try {
-            if (checkCloneElement.isSelected()) {
+            if (scannerHiddenCloneCheckboxAdapter.isSelected(checkCloneElement)) {
 
                 performActions.executeActionsAtCoordinates(
                         targetPreTest.getCoordinates(), filedData, ARConstants.CLICK, false);
@@ -1285,7 +1285,7 @@ public class ARScannedElementPane extends ARPane
                 // modal is suppressed so testers can click Test Input / Test Click
                 // repeatedly without dismissing a popup every time. Failures still
                 // show via performMessage.errorMessage below.
-                if (checkNotShowTestMsg == null || !checkNotShowTestMsg.isSelected()) {
+                if (scannerTestMessageSuppressionCheckboxAdapter.shouldShowSuccessMessage(checkNotShowTestMsg)) {
                     performMessage.showCustomModalDialogDragWin11(
                             "Test Action Success ✅",
                             "<span style='color:#2E7D32;font-weight:bold;font-size:1.1em;'>" + displayAction
@@ -3731,7 +3731,7 @@ public class ARScannedElementPane extends ARPane
             implements ScannerRunningProcessCleanupService.Operations {
         @Override
         public void clearCloneSelection() {
-            checkCloneElement.setSelected(false);
+            scannerHiddenCloneCheckboxAdapter.clear(checkCloneElement);
         }
 
         @Override

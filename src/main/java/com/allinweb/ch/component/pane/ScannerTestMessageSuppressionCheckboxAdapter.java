@@ -9,4 +9,8 @@ final class ScannerTestMessageSuppressionCheckboxAdapter {
         checkBox.setSelected(true);
         return checkBox;
     }
+
+    boolean shouldShowSuccessMessage(CheckBox checkBox) {
+        return checkBox == null || !checkBox.isSelected();
+    }
 }

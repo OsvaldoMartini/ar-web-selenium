@@ -11,4 +11,14 @@ final class ScannerHiddenCloneCheckboxAdapter {
         checkBox.setDisable(true);
         return checkBox;
     }
+
+    boolean isSelected(CheckBox checkBox) {
+        return checkBox != null && checkBox.isSelected();
+    }
+
+    void clear(CheckBox checkBox) {
+        if (checkBox != null) {
+            checkBox.setSelected(false);
+        }
+    }
 }
