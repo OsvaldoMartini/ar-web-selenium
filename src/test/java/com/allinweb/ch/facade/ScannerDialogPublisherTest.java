@@ -45,6 +45,22 @@ class ScannerDialogPublisherTest {
         verify(session.getBasicRemote()).sendText(contains("\\\"header\\\":\\\"Download failed\\\""));
     }
 
+    @Test
+    void publishesToastEventsToReactScannerSession() throws Exception {
+        session = openSession();
+        WebSocketSessionManager.addSession(ScannerWorkspaceSessions.SCANNER_ELEMENT_PANE, session);
+
+        ScannerDialogPublisher publisher =
+                new ScannerDialogPublisher(new WebSocketSessionManager(), new Gson());
+
+        assertTrue(publisher.toast(ScannerDialogPublisher.Severity.WARNING, "Plugin cache refreshed", 4));
+
+        verify(session.getBasicRemote()).sendText(contains("\"operationId\":\"scanner.dialog.toast\""));
+        verify(session.getBasicRemote()).sendText(contains("\\\"kind\\\":\\\"toast\\\""));
+        verify(session.getBasicRemote()).sendText(contains("\\\"severity\\\":\\\"warning\\\""));
+        verify(session.getBasicRemote()).sendText(contains("\\\"header\\\":\\\"Plugin cache refreshed\\\""));
+    }
+
     private Session openSession() {
         Session openSession = mock(Session.class);
         RemoteEndpoint.Basic remote = mock(RemoteEndpoint.Basic.class);

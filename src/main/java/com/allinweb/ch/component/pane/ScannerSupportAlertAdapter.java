@@ -1,29 +1,57 @@
 package com.allinweb.ch.component.pane;
 
+import com.allinweb.ch.facade.ScannerDialogPublisher;
 import com.allinweb.ch.facade.ScannerSupportCaptureResultService;
 import com.allinweb.ch.facade.ScannerSupportSavedFileMessageService;
+import javafx.application.Platform;
 import javafx.scene.control.Alert;
 
 final class ScannerSupportAlertAdapter {
 
+    private final ScannerDialogPublisher dialogPublisher = ScannerDialogPublisher.getInstance();
+
     void showNoActiveBrowser() {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setHeaderText("No active browser session");
-        alert.setContentText("There is no open browser to capture.");
-        alert.showAndWait();
+        show(
+                ScannerDialogPublisher.Severity.INFO,
+                Alert.AlertType.INFORMATION,
+                "Support",
+                "No active browser session",
+                "There is no open browser to capture.");
     }
 
     void showCaptureResult(ScannerSupportCaptureResultService.AlertMessage message) {
-        Alert alert = new Alert(message.ok() ? Alert.AlertType.INFORMATION : Alert.AlertType.ERROR);
-        alert.setHeaderText(message.header());
-        alert.setContentText(message.content());
-        alert.showAndWait();
+        show(
+                message.ok() ? ScannerDialogPublisher.Severity.INFO : ScannerDialogPublisher.Severity.ERROR,
+                message.ok() ? Alert.AlertType.INFORMATION : Alert.AlertType.ERROR,
+                "Support",
+                message.header(),
+                message.content());
     }
 
     void showSavedFile(ScannerSupportSavedFileMessageService.Message message) {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setHeaderText(message.header());
-        alert.setContentText(message.content());
-        alert.showAndWait();
+        show(
+                ScannerDialogPublisher.Severity.INFO,
+                Alert.AlertType.INFORMATION,
+                "Support",
+                message.header(),
+                message.content());
+    }
+
+    private void show(
+            ScannerDialogPublisher.Severity severity,
+            Alert.AlertType fallbackType,
+            String title,
+            String header,
+            String body) {
+        if (dialogPublisher.alert(severity, title, header, body)) {
+            return;
+        }
+        Platform.runLater(() -> {
+            Alert alert = new Alert(fallbackType);
+            alert.setTitle(title);
+            alert.setHeaderText(header);
+            alert.setContentText(body);
+            alert.showAndWait();
+        });
     }
 }
