@@ -4,7 +4,7 @@ import com.allinweb.ch.builder.WebElementAttributeEnum;
 import com.allinweb.ch.builder.WebElementAttributeTypeValueEnum;
 import com.allinweb.ch.builder.WebElementTagNameEnum;
 import com.allinweb.ch.component.pane.base.ARPane;
-import com.allinweb.ch.component.scene.ARNewHomeBankingScene;
+import com.allinweb.ch.component.scene.AROrganizationManagerScene;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.executors.AppExecutors;
@@ -112,7 +112,7 @@ public class ARScannedElementPane extends ARPane
     private static final PerformListElements performListElements = PerformListElements.getInstance();
     private static final PerformActionExecutorLoad performActionExecutorLoad = PerformActionExecutorLoad.getInstance();
     private static final ActionExecutorClient actionExecutorClient = ActionExecutorClient.getInstance();
-    private static final ARNewHomeBankingScene arNewHomeBankingScene = ARNewHomeBankingScene.getInstance();
+    private static final AROrganizationManagerScene arOrganizationManagerScene = AROrganizationManagerScene.getInstance();
     public static TargetElement targetSelected = new TargetElement();
     protected static volatile ARScannedElementPane instance;
     private static SimpleDateFormat dateFormatter;
@@ -2842,7 +2842,7 @@ public class ARScannedElementPane extends ARPane
             log.info("interceptBotJob changed from " + oldVal + " to " + newVal);
         });
 
-        configureButton.setOnMouseClicked(e -> arNewHomeBankingScene.show());
+        configureButton.setOnMouseClicked(e -> arOrganizationManagerScene.showModal(scannerStage()));
         launchBotJobButton.setOnMouseClicked(e -> startPreLaunchFromWorkspace());
 
         stopBotJobButton.setOnMouseClicked(e -> stopPreLaunchFromWorkspace());
@@ -9883,6 +9883,14 @@ public class ARScannedElementPane extends ARPane
         });
 
         dialog.showAndWait();
+    }
+
+    private Stage scannerStage() {
+        return configureButton != null
+                        && configureButton.getScene() != null
+                        && configureButton.getScene().getWindow() instanceof Stage
+                ? (Stage) configureButton.getScene().getWindow()
+                : null;
     }
 
     // ── Individual Plugin Download ────────────────────────────────────────────
