@@ -850,6 +850,12 @@ public class ARScannedElementScene extends ARScene {
 
     private final class SceneScannerShellHandler implements ScannerShellLifecycle.Handler {
         @Override
+        public void openShell(HomeBankingLoadDTO homeBanking, BotJobLoadDTO botJob, BlockLoadDTO block) {
+            ARScannedElementScene.this.initialize(homeBanking, botJob, block);
+            ARScannedElementScene.this.showModal();
+        }
+
+        @Override
         public void closeWebDrivers() {
             ARScannedElementScene.this.closeWebDrivers();
         }
@@ -857,6 +863,12 @@ public class ARScannedElementScene extends ARScene {
         @Override
         public void closeModal() {
             ARScannedElementScene.this.closeModal();
+        }
+
+        @Override
+        public Integer currentBotJobId() {
+            BotJobLoadDTO current = ARScannedElementScene.this.getCurrentBotJob();
+            return current == null ? null : current.getId();
         }
     }
 

@@ -4,7 +4,6 @@ import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.component.scene.ARConfigManagerScene;
 import com.allinweb.ch.component.scene.ARNewBotJobManagerScene;
 import com.allinweb.ch.component.scene.AROrganizationManagerScene;
-import com.allinweb.ch.component.scene.ARScannedElementScene;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.MainDashboardService;
 import com.allinweb.ch.facade.MainDashboardPresentation;
@@ -13,6 +12,7 @@ import com.allinweb.ch.facade.PerformDBEngine;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
+import com.allinweb.ch.facade.ScannerShellLifecycle;
 import com.allinweb.ch.facade.ScannerTestRunHandlers;
 import com.allinweb.ch.model.BotJobLoadDTO;
 import com.allinweb.ch.model.BlockLoadDTO;
@@ -169,25 +169,22 @@ public class ARMainDashboardPane extends ARPane implements BotJobDetailsPresenta
 
     @Override
     public void openScanner(HomeBankingLoadDTO homeBanking, BotJobLoadDTO botJob, BlockLoadDTO block) {
-        ARScannedElementScene scanner = ARScannedElementScene.getInstance();
-        scanner.initialize(homeBanking, botJob, block);
-        scanner.showModal();
+        ScannerShellLifecycle.getInstance().openShell(homeBanking, botJob, block);
     }
 
     @Override
     public void closeScannerWebDrivers() {
-        ARScannedElementScene.getInstance().closeWebDrivers();
+        ScannerShellLifecycle.getInstance().closeWebDrivers();
     }
 
     @Override
     public void closeScanner() {
-        ARScannedElementScene.getInstance().closeModal();
+        ScannerShellLifecycle.getInstance().closeModal();
     }
 
     @Override
     public Integer currentScannerBotJobId() {
-        BotJobLoadDTO current = ARScannedElementScene.getInstance().getCurrentBotJob();
-        return current == null ? null : current.getId();
+        return ScannerShellLifecycle.getInstance().currentBotJobId();
     }
 
     @Override
