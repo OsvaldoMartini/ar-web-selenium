@@ -35,8 +35,6 @@ import java.util.function.BooleanSupplier;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipInputStream;
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -177,6 +175,7 @@ public class ARScannedElementPane extends ARPane
     private final ScannerPluginHintAdapter scannerPluginHintAdapter = new ScannerPluginHintAdapter();
     private final ScannerPluginStatusButtonAdapter scannerPluginStatusButtonAdapter =
             new ScannerPluginStatusButtonAdapter();
+    private final ScannerLocalPluginInventory scannerLocalPluginInventory = new ScannerLocalPluginInventory();
     private final ScannerPluginUpdateTableAdapter scannerPluginUpdateTableAdapter =
             new ScannerPluginUpdateTableAdapter();
     private final ScannerPluginUpdateContentAdapter scannerPluginUpdateContentAdapter =
@@ -8409,165 +8408,8 @@ public class ARScannedElementPane extends ARPane
      */
     private Button buildPluginUpdateButton() {
         String pluginsDir = arPropertyManager.resolvePluginsDir();
-        int[] counts = countLocalPlugins(pluginsDir);
+        int[] counts = scannerLocalPluginInventory.countLocalPlugins(pluginsDir);
         return scannerPluginStatusButtonAdapter.build(counts[0], counts[1], this::showPluginUpdateDialog);
-    }
-
-    /**
-     * Counts locally installed plugins by reading manifest.json from the plugins folder
-     * and checking which plugin folders exist with a build/*.min.js file.
-     *
-     * @return int[2]: [installed count, total declared in manifest]
-     */
-    private int[] countLocalPlugins(String pluginsDir) {
-        try {
-            Path manifestPath = Paths.get(pluginsDir, "manifest.json");
-            if (!Files.exists(manifestPath)) {
-                // No manifest - fall back to counting plugin subdirectories
-                return countPluginFolders(pluginsDir);
-            }
-            String json = Files.readString(manifestPath, StandardCharsets.UTF_8).trim();
-            if (json.startsWith("\uFEFF")) json = json.substring(1);
-            com.google.gson.JsonObject root =
-                    com.google.gson.JsonParser.parseString(json).getAsJsonObject();
-            com.google.gson.JsonArray plugins = root.getAsJsonArray("plugins");
-            if (plugins == null) return new int[] {0, 0};
-
-            int total = plugins.size();
-            int installed = 0;
-            for (int i = 0; i < plugins.size(); i++) {
-                com.google.gson.JsonObject p = plugins.get(i).getAsJsonObject();
-                String id = p.has("id") ? p.get("id").getAsString() : "";
-                if (!id.isEmpty() && isPluginInstalledLocally(pluginsDir, id)) {
-                    installed++;
-                }
-            }
-            return new int[] {installed, total};
-        } catch (Exception e) {
-            log.warn("countLocalPlugins - failed to read manifest: {}", e.getMessage());
-            return countPluginFolders(pluginsDir);
-        }
-    }
-
-    /**
-     * Fallback: counts plugin subdirectories that contain at least one file.
-     */
-    private int[] countPluginFolders(String pluginsDir) {
-        try {
-            Path dir = Paths.get(pluginsDir);
-            if (!Files.isDirectory(dir)) return new int[] {0, 0};
-            int count = 0;
-            try (var entries = Files.list(dir)) {
-                for (Path entry : entries.toList()) {
-                    if (Files.isDirectory(entry)
-                            && !entry.getFileName().toString().startsWith(".")) {
-                        count++;
-                    }
-                }
-            }
-            return new int[] {count, count};
-        } catch (Exception e) {
-            return new int[] {0, 0};
-        }
-    }
-
-    /**
-     * Checks whether a plugin is installed locally. Pure read-only probe —
-     * never extracts or writes anything.
-     *
-     * Installed means any of:
-     *   - {pluginsDir}/{pluginId}.zip exists (canonical layout — EncryptedPluginLoader
-     *     reads the .enc straight out of the zip in memory)
-     *   - {pluginsDir}/{pluginId}/{pluginId}.min.enc or .min.js exists (legacy
-     *     loose-file layout, still supported by the loader)
-     *   - {pluginsDir}/{pluginId}/build/*.min.enc or .min.js exists (older legacy)
-     *   - {pluginsDir}/{pluginId}/index.js or any .js source (dev layout)
-     */
-    private boolean isPluginInstalledLocally(String pluginsDir, String pluginId) {
-        Path zipFile = Paths.get(pluginsDir, pluginId + ".zip");
-        if (Files.exists(zipFile)) return true;
-
-        Path pluginDir = Paths.get(pluginsDir, pluginId);
-        if (!Files.isDirectory(pluginDir)) return false;
-
-        // Check for .min.enc or .min.js directly in the plugin folder
-        try (var files = Files.list(pluginDir)) {
-            if (files.anyMatch(f -> {
-                String name = f.toString();
-                return name.endsWith(".min.enc") || name.endsWith(".min.js");
-            })) return true;
-        } catch (Exception ignored) {
-        }
-
-        // Also check build/ subfolder (backward compatibility)
-        Path buildDir = pluginDir.resolve("build");
-        if (Files.isDirectory(buildDir)) {
-            try (var files = Files.list(buildDir)) {
-                if (files.anyMatch(f -> {
-                    String name = f.toString();
-                    return name.endsWith(".min.enc") || name.endsWith(".min.js");
-                })) return true;
-            } catch (Exception ignored) {
-            }
-        }
-
-        // Accept index.js or any .js source file
-        if (Files.exists(pluginDir.resolve("index.js"))) return true;
-        try (var files = Files.list(pluginDir)) {
-            if (files.anyMatch(f -> f.toString().endsWith(".js"))) return true;
-        } catch (Exception ignored) {
-        }
-        return false;
-    }
-
-    /**
-     * Extracts a plugin ZIP file into the target directory.
-     * Includes zip-slip protection (rejects entries that escape the target dir).
-     */
-    private void extractPluginZip(Path zipFile, Path targetDir) throws IOException {
-        try (java.util.zip.ZipInputStream zis =
-                new java.util.zip.ZipInputStream(Files.newInputStream(zipFile), StandardCharsets.UTF_8)) {
-            java.util.zip.ZipEntry entry;
-            int fileCount = 0;
-            while ((entry = zis.getNextEntry()) != null) {
-                Path target = targetDir.resolve(entry.getName()).normalize();
-                if (!target.startsWith(targetDir)) {
-                    log.warn("PluginUpdate - SKIPPED zip-slip entry: {}", entry.getName());
-                    continue;
-                }
-                if (entry.isDirectory()) {
-                    Files.createDirectories(target);
-                } else {
-                    Files.createDirectories(target.getParent());
-                    try (java.io.OutputStream out = Files.newOutputStream(target)) {
-                        byte[] buf = new byte[8192];
-                        int len;
-                        while ((len = zis.read(buf)) != -1) {
-                            out.write(buf, 0, len);
-                        }
-                    }
-                    fileCount++;
-                }
-                zis.closeEntry();
-            }
-            log.info("PluginUpdate - extracted {} files from {}", fileCount, zipFile.getFileName());
-        }
-    }
-
-    /**
-     * Returns true if the given plugin script exists in the plugins folder.
-     *
-     * @param relativePath path relative to the plugins folder (e.g. "pluginTest/build/pluginTest.min.js")
-     */
-    private boolean isPluginAvailable(String relativePath) {
-        try {
-            String pluginsDir = arPropertyManager.resolvePluginsDir();
-            Path scriptPath = Paths.get(pluginsDir, relativePath);
-            return Files.exists(scriptPath) && Files.isReadable(scriptPath);
-        } catch (Exception e) {
-            log.warn("PluginCheck - could not check plugin path: {}", relativePath, e);
-            return false;
-        }
     }
 
     /**
@@ -8590,54 +8432,7 @@ public class ARScannedElementPane extends ARPane
         String urlBase = arPropertyManager.getProperty(ARPropertyEnum.URL_PLUGINS);
         boolean serverConfigured = urlBase != null && !urlBase.isBlank();
 
-        // Read local manifest first
-        List<String[]> pluginRows = new ArrayList<>(); // [id, name, version, size, fileName, status]
-        Path localManifest = Paths.get(pluginsDir, "manifest.json");
-
-        try {
-            if (Files.exists(localManifest)) {
-                String json =
-                        Files.readString(localManifest, StandardCharsets.UTF_8).trim();
-                if (json.startsWith("\uFEFF")) json = json.substring(1);
-                com.google.gson.JsonObject root =
-                        com.google.gson.JsonParser.parseString(json).getAsJsonObject();
-                com.google.gson.JsonArray plugins = root.getAsJsonArray("plugins");
-                if (plugins != null) {
-                    for (int i = 0; i < plugins.size(); i++) {
-                        com.google.gson.JsonObject p = plugins.get(i).getAsJsonObject();
-                        String id = p.has("id") ? p.get("id").getAsString() : "";
-                        String name = p.has("name") ? p.get("name").getAsString() : id;
-                        String version = p.has("version") ? p.get("version").getAsString() : "";
-                        String size = p.has("size") ? p.get("size").getAsString() : "";
-                        String fileName = p.has("fileName") ? p.get("fileName").getAsString() : "";
-                        boolean local = !id.isEmpty() && isPluginInstalledLocally(pluginsDir, id);
-                        pluginRows.add(new String[] {id, name, version, size, fileName, local ? "LOCAL" : "MISSING"});
-                    }
-                }
-            }
-        } catch (Exception e) {
-            log.warn("PluginUpdate - could not read local manifest: {}", e.getMessage());
-        }
-
-        // If no manifest, scan folders
-        if (pluginRows.isEmpty()) {
-            try {
-                Path dir = Paths.get(pluginsDir);
-                if (Files.isDirectory(dir)) {
-                    try (var entries = Files.list(dir)) {
-                        for (Path entry : entries.toList()) {
-                            if (Files.isDirectory(entry)
-                                    && !entry.getFileName().toString().startsWith(".")) {
-                                String folderName = entry.getFileName().toString();
-                                pluginRows.add(new String[] {folderName, folderName, "", "", "", "LOCAL"});
-                            }
-                        }
-                    }
-                }
-            } catch (Exception e) {
-                log.warn("PluginUpdate - could not scan plugins folder: {}", e.getMessage());
-            }
-        }
+        List<String[]> pluginRows = scannerLocalPluginInventory.readLocalRows(pluginsDir);
 
         // Build the dialog UI
         final List<String[]> rows = pluginRows;
