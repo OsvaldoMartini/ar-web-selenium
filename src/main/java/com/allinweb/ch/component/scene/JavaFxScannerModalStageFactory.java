@@ -1,6 +1,6 @@
 package com.allinweb.ch.component.scene;
 
-import com.allinweb.ch.component.pane.ARScannedElementPanePort;
+import com.allinweb.ch.component.pane.ARScannedElementPaneProvider;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.facade.ScannerModalStageService;
 import java.util.function.Supplier;
@@ -11,14 +11,17 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 
 final class JavaFxScannerModalStageFactory implements ScannerModalStageService.StageFactory {
-    private final ARScannedElementPanePort scannerPane;
+    private final ARScannedElementPaneProvider scannerPaneProvider;
     private final Supplier<IARPane> paneFactory;
     private final Image icon;
     private final Runnable closeRequest;
 
     JavaFxScannerModalStageFactory(
-            ARScannedElementPanePort scannerPane, Supplier<IARPane> paneFactory, Image icon, Runnable closeRequest) {
-        this.scannerPane = scannerPane;
+            ARScannedElementPaneProvider scannerPaneProvider,
+            Supplier<IARPane> paneFactory,
+            Image icon,
+            Runnable closeRequest) {
+        this.scannerPaneProvider = scannerPaneProvider;
         this.paneFactory = paneFactory;
         this.icon = icon;
         this.closeRequest = closeRequest;
@@ -27,7 +30,7 @@ final class JavaFxScannerModalStageFactory implements ScannerModalStageService.S
     @Override
     public ScannerModalStageService.ModalStage create(ScannerModalStageService.Config config) {
         Stage stage = new Stage();
-        scannerPane.setStage(stage);
+        scannerPaneProvider.setStage(stage);
         stage.getIcons().add(icon);
         IARPane pane = paneFactory.get();
         if (pane == null) {

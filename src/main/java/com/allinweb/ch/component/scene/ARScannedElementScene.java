@@ -501,7 +501,10 @@ public class ARScannedElementScene extends ARScene {
                 modalStage = scannerModalStageService.show(
                         modalStage,
                         new JavaFxScannerModalStageFactory(
-                                arScannedElementPane, this::buildPane, icon, this::handleCloseRequest),
+                                ARScannedElementPaneProvider.getInstance(),
+                                this::buildPane,
+                                icon,
+                                this::handleCloseRequest),
                         new ScannerModalStageService.Config(getTitle(), getSceneWidth(), getSceneHeight()));
                 if (modalStage == null) {
                     log.error("Failed to build pane for modal.");
