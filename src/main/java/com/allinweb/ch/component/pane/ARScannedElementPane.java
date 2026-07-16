@@ -176,6 +176,8 @@ public class ARScannedElementPane extends ARPane
     private final ScannerPluginAlertAdapter scannerPluginAlertAdapter = new ScannerPluginAlertAdapter();
     private final ScannerPluginPickerDialogAdapter scannerPluginPickerDialogAdapter =
             new ScannerPluginPickerDialogAdapter();
+    private final ScannerPluginDownloadProgressDialogAdapter scannerPluginDownloadProgressDialogAdapter =
+            new ScannerPluginDownloadProgressDialogAdapter();
     private final UiThreadDispatcher uiThreadDispatcher = UiThreadDispatcher.getInstance();
     private final ScannerDomReviewSnapshotService scannerDomReviewSnapshotService =
             new ScannerDomReviewSnapshotService();
@@ -9148,20 +9150,6 @@ public class ARScannedElementPane extends ARPane
     private void downloadAndExtractPlugin(String downloadUrl, String fileName, String pluginName, Path pluginsDir) {
         Path metaFile = pluginsDir.resolve(".plugins-meta");
 
-        ProgressBar progressBar = new ProgressBar(0);
-        progressBar.setPrefWidth(350);
-        Label statusLabel = new Label("Downloading " + pluginName + "...");
-        statusLabel.setStyle("-fx-font-size: 12px;");
-
-        VBox dialogContent = new VBox(10, statusLabel, progressBar);
-        dialogContent.setPadding(new Insets(15));
-
-        Alert progressDialog = new Alert(Alert.AlertType.INFORMATION);
-        progressDialog.setTitle("Download Plugin");
-        progressDialog.setHeaderText("Downloading: " + pluginName);
-        progressDialog.getDialogPane().setContent(dialogContent);
-        progressDialog.getButtonTypes().setAll(ButtonType.CANCEL);
-
         Task<String> downloadTask = new Task<>() {
             @Override
             protected String call() throws Exception {
@@ -9306,11 +9294,10 @@ public class ARScannedElementPane extends ARPane
             }
         };
 
-        progressBar.progressProperty().bind(downloadTask.progressProperty());
-        statusLabel.textProperty().bind(downloadTask.messageProperty());
+        scannerPluginDownloadProgressDialogAdapter.bind(pluginName, downloadTask);
 
         downloadTask.setOnSucceeded(e -> {
-            progressDialog.close();
+            scannerPluginDownloadProgressDialogAdapter.close();
             Platform.runLater(() -> {
                 try {
                     GridPane grid = (GridPane) pluginUpdateButton.getParent();
@@ -9330,20 +9317,18 @@ public class ARScannedElementPane extends ARPane
         });
 
         downloadTask.setOnFailed(e -> {
-            progressDialog.close();
+            scannerPluginDownloadProgressDialogAdapter.close();
             Throwable ex = downloadTask.getException();
             log.error("UpdatePlugins - failed", ex);
             showPluginTestAlert(Alert.AlertType.ERROR, "Download failed", ex.getMessage());
         });
-
-        progressDialog.setOnCloseRequest(e -> downloadTask.cancel());
 
         Thread thread = new Thread(downloadTask);
         thread.setDaemon(true);
         thread.setName("plugin-download-thread");
         thread.start();
 
-        progressDialog.show();
+        scannerPluginDownloadProgressDialogAdapter.show();
     }
 
     /**
