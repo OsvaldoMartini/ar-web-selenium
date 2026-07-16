@@ -87,6 +87,8 @@ public class ARScannedElementScene extends ARScene {
             new ScannerUpdatePersistenceService(new SceneUpdatePersistenceDataPort());
     private final ScannerBotJobTasksPublisher scannerBotJobTasksPublisher =
             ScannerBotJobTasksPublisher.getInstance();
+    private final ScannerInstructionOrderService scannerInstructionOrderService =
+            new ScannerInstructionOrderService(new SceneInstructionOrderDataPort());
     private final BotJobWorkspaceCapabilityService botJobWorkspaceCapabilityService =
             BotJobWorkspaceCapabilityService.getInstance();
     private final ScannerMobileTestRoute scannerMobileTestRoute = ScannerMobileTestRoute.standard();
@@ -718,10 +720,7 @@ public class ARScannedElementScene extends ARScene {
                 ? processDTO.getBlockId()
                 : arScannedElementPane.validateBlockDB("block", this.currentBotJob.getId(), insertMsg);
         if (currentBlockId > 0) {
-            performDataBase.loadInstructions(currentBotJob.getId(), currentBlockId, -1, "instruction");
-            List<InstructionLoad> instruc = performLists.getListInstruction();
-
-            int nextOrder = instruc.size() + 1;
+            int nextOrder = scannerInstructionOrderService.nextOrder(currentBotJob.getId(), currentBlockId);
 
             scannerInsertPreparationService.prepare(
                     new SceneInsertActionsPort(),
@@ -772,10 +771,7 @@ public class ARScannedElementScene extends ARScene {
     private void stepsUpdateManyDTO(SplitDTO processDTO) {
         currentBlockId = arScannedElementPane.validateBlockDB("block", this.currentBotJob.getId(), "Update All");
         if (currentBlockId > 0) {
-            performDataBase.loadInstructions(currentBotJob.getId(), currentBlockId, -1, "instruction");
-            List<InstructionLoad> instruc = performLists.getListInstruction();
-
-            int nextOrder = instruc.size() + 1;
+            int nextOrder = scannerInstructionOrderService.nextOrder(currentBotJob.getId(), currentBlockId);
 
             scannerUpdatePreparationService.prepare(
                     new SceneInsertActionsPort(),
@@ -874,6 +870,18 @@ public class ARScannedElementScene extends ARScene {
         @Override
         public boolean hasBlocks() {
             return !performLists.getListBlock().isEmpty();
+        }
+    }
+
+    private static final class SceneInstructionOrderDataPort implements ScannerInstructionOrderService.DataPort {
+        @Override
+        public void loadInstructions(int botJobId, int blockId, int instructionId, String tableName) {
+            performDataBase.loadInstructions(botJobId, blockId, instructionId, tableName);
+        }
+
+        @Override
+        public List<InstructionLoad> instructions() {
+            return performLists.getListInstruction();
         }
     }
 
