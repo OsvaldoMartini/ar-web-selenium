@@ -197,6 +197,8 @@ public class ARScannedElementPane extends ARPane
             new ScannerPluginListDialogAdapter();
     private final ScannerPluginManifestFetchTaskAdapter scannerPluginManifestFetchTaskAdapter =
             new ScannerPluginManifestFetchTaskAdapter();
+    private final ScannerPluginBackgroundThreadAdapter scannerPluginBackgroundThreadAdapter =
+            new ScannerPluginBackgroundThreadAdapter();
     private final ScannerLayoutNodeAdapter scannerLayoutNodeAdapter = new ScannerLayoutNodeAdapter();
     private final ScannerRefreshBlocksButtonAdapter scannerRefreshBlocksButtonAdapter =
             new ScannerRefreshBlocksButtonAdapter();
@@ -8863,9 +8865,7 @@ public class ARScannedElementPane extends ARPane
                         "Failed to fetch manifest.json from:\n" + manifestUrl + "\n\n" + ex.getMessage()));
             }
         });
-        fetchThread.setDaemon(true);
-        fetchThread.setName("plugin-manifest-fetch");
-        fetchThread.start();
+        scannerPluginBackgroundThreadAdapter.start(fetchThread, "plugin-manifest-fetch");
     }
 
     /**
@@ -9074,10 +9074,7 @@ public class ARScannedElementPane extends ARPane
             showPluginTestAlert(Alert.AlertType.ERROR, "Download failed", ex.getMessage());
         });
 
-        Thread thread = new Thread(downloadTask);
-        thread.setDaemon(true);
-        thread.setName("plugin-download-thread");
-        thread.start();
+        scannerPluginBackgroundThreadAdapter.start(downloadTask, "plugin-download-thread");
 
         scannerPluginDownloadProgressDialogAdapter.show();
     }
@@ -9253,10 +9250,7 @@ public class ARScannedElementPane extends ARPane
                     "Failed to fetch manifest.json from:\n" + manifestUrl + "\n\n" + cause.getMessage());
         });
 
-        Thread t = new Thread(fetchTask);
-        t.setDaemon(true);
-        t.setName("plugin-manifest-fetch");
-        t.start();
+        scannerPluginBackgroundThreadAdapter.start(fetchTask, "plugin-manifest-fetch");
     }
 
     /**
@@ -9415,10 +9409,7 @@ public class ARScannedElementPane extends ARPane
         });
 
 
-        Thread t = new Thread(downloadTask);
-        t.setDaemon(true);
-        t.setName("plugin-download-thread");
-        t.start();
+        scannerPluginBackgroundThreadAdapter.start(downloadTask, "plugin-download-thread");
 
         scannerPluginBatchDownloadProgressDialogAdapter.show();
     }
