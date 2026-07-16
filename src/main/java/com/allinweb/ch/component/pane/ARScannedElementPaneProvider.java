@@ -7,7 +7,7 @@ import java.util.function.Supplier;
 public final class ARScannedElementPaneProvider {
     private static final ARScannedElementPaneProvider INSTANCE = new ARScannedElementPaneProvider();
 
-    private Supplier<ARScannedElementPane> paneSupplier = ARScannedElementPane::getInstance;
+    private Supplier<ARScannedElementPanePort> paneSupplier = ARScannedElementPane::getInstance;
 
     private ARScannedElementPaneProvider() {}
 
@@ -15,11 +15,11 @@ public final class ARScannedElementPaneProvider {
         return INSTANCE;
     }
 
-    public synchronized ARScannedElementPane currentPane() {
+    public synchronized ARScannedElementPanePort currentPane() {
         return paneSupplier.get();
     }
 
-    synchronized void installPaneSupplier(Supplier<ARScannedElementPane> paneSupplier) {
+    synchronized void installPaneSupplier(Supplier<ARScannedElementPanePort> paneSupplier) {
         this.paneSupplier = Objects.requireNonNull(paneSupplier, "paneSupplier");
     }
 

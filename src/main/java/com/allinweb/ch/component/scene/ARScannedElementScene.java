@@ -1,7 +1,7 @@
 package com.allinweb.ch.component.scene;
 
-import com.allinweb.ch.component.pane.ARScannedElementPane;
 import com.allinweb.ch.component.pane.ARScannedElementPaneProvider;
+import com.allinweb.ch.component.pane.ARScannedElementPanePort;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.driver.ARWebDriver;
@@ -72,7 +72,7 @@ public class ARScannedElementScene extends ARScene {
     private List<InstructionLoad> instructionList = new ArrayList<>();
     private final ScannerGridStatusPublisher scannerGridStatusPublisher = new ScannerGridStatusPublisher();
     private final ScannerElementPanePublisher scannerElementPanePublisher = new ScannerElementPanePublisher();
-    private final ARScannedElementPane arScannedElementPane;
+    private final ARScannedElementPanePort arScannedElementPane;
     private final BotJobWorkspaceCapabilityService botJobWorkspaceCapabilityService =
             BotJobWorkspaceCapabilityService.getInstance();
     private final ScannerMobileTestRoute scannerMobileTestRoute = ScannerMobileTestRoute.standard();
@@ -283,18 +283,11 @@ public class ARScannedElementScene extends ARScene {
                     }
                     break;
                 case ScannerWorkspaceOperations.CLOSE_BROWSER:
-                    if (!arScannedElementPane.isJobRunning.get()) {
-                        if (arScannedElementPane.launchBotJobButton != null
-                                && !performActions.isJustCalledRefreshPage()) {
+                    if (!arScannedElementPane.isJobRunning()) {
+                        if (!performActions.isJustCalledRefreshPage()) {
                             log.info(ScannerWorkspaceOperations.CLOSE_BROWSER);
                             Platform.runLater(() -> {
-                                Stage stage = (Stage) arScannedElementPane
-                                        .launchBotJobButton
-                                        .getScene()
-                                        .getWindow();
-                                if (stage != null) {
-                                    stage.close(); // <-- actually closes the Stage
-                                }
+                                arScannedElementPane.closeLaunchWindowIfPresent();
 
                                 // Clean ARScannedElementPane singleton instance
                                 arScannedElementPane.destroy();
@@ -449,39 +442,36 @@ public class ARScannedElementScene extends ARScene {
                                     tableName, whereId, splitDTO.getElementDetails()[0].getId());
                             if (instruction != null && instruction.getId() != null) {
                                 ElementDTO elementDTO = performActions.buildElementDTO(instruction);
-                                targetElementHelper.initialize(
-                                        performActions, new JavaFxScannerTargetContext(arScannedElementPane));
-                                arScannedElementPane.targetSelected = targetElementHelper.extractPickClone(elementDTO);
+                                targetElementHelper.initialize(performActions, arScannedElementPane.scannerTargetContext());
+                                arScannedElementPane.setTargetSelected(targetElementHelper.extractPickClone(elementDTO));
                                 applyForceCoordinatesFromIncomingDto(
-                                        arScannedElementPane.targetSelected, splitDTO.getElementDetails()[0]);
+                                        arScannedElementPane.targetSelected(), splitDTO.getElementDetails()[0]);
                                 arScannedElementPane.itPrintsElementDTO();
                                 arScannedElementPane.testingActions(
-                                        arScannedElementPane.targetSelected,
+                                        arScannedElementPane.targetSelected(),
                                         splitDTO.getType(),
                                         splitDTO.getElementDetails()[0].getDefaultValue());
                             } else {
-                                targetElementHelper.initialize(
-                                        performActions, new JavaFxScannerTargetContext(arScannedElementPane));
-                                arScannedElementPane.targetSelected =
-                                        targetElementHelper.extractPickClone(splitDTO.getElementDetails()[0]);
+                                targetElementHelper.initialize(performActions, arScannedElementPane.scannerTargetContext());
+                                arScannedElementPane.setTargetSelected(
+                                        targetElementHelper.extractPickClone(splitDTO.getElementDetails()[0]));
                                 applyForceCoordinatesFromIncomingDto(
-                                        arScannedElementPane.targetSelected, splitDTO.getElementDetails()[0]);
+                                        arScannedElementPane.targetSelected(), splitDTO.getElementDetails()[0]);
                                 arScannedElementPane.itPrintsElementDTO();
                                 arScannedElementPane.testingActions(
-                                        arScannedElementPane.targetSelected,
+                                        arScannedElementPane.targetSelected(),
                                         splitDTO.getType(),
                                         splitDTO.getElementDetails()[0].getDefaultValue());
                             }
                         } else {
-                            targetElementHelper.initialize(
-                                    performActions, new JavaFxScannerTargetContext(arScannedElementPane));
-                            arScannedElementPane.targetSelected =
-                                    targetElementHelper.extractPickClone(splitDTO.getElementDetails()[0]);
+                            targetElementHelper.initialize(performActions, arScannedElementPane.scannerTargetContext());
+                            arScannedElementPane.setTargetSelected(
+                                    targetElementHelper.extractPickClone(splitDTO.getElementDetails()[0]));
                             applyForceCoordinatesFromIncomingDto(
-                                    arScannedElementPane.targetSelected, splitDTO.getElementDetails()[0]);
+                                    arScannedElementPane.targetSelected(), splitDTO.getElementDetails()[0]);
                             arScannedElementPane.itPrintsElementDTO();
                             arScannedElementPane.testingActions(
-                                    arScannedElementPane.targetSelected,
+                                    arScannedElementPane.targetSelected(),
                                     splitDTO.getType(),
                                     splitDTO.getElementDetails()[0].getDefaultValue());
                         }
@@ -503,16 +493,14 @@ public class ARScannedElementScene extends ARScene {
                             previousBlock = blockUpdate;
                         }
 
-                        targetElementHelper.initialize(
-                                performActions, new JavaFxScannerTargetContext(arScannedElementPane));
-                        arScannedElementPane.targetSelected =
-                                targetElementHelper.extractPickClone(splitDTO.getElementDetails()[0]);
+                        targetElementHelper.initialize(performActions, arScannedElementPane.scannerTargetContext());
+                        arScannedElementPane.setTargetSelected(
+                                targetElementHelper.extractPickClone(splitDTO.getElementDetails()[0]));
                         arScannedElementPane.itPrintsElementDTO();
                     } else {
-                        targetElementHelper.initialize(
-                                performActions, new JavaFxScannerTargetContext(arScannedElementPane));
-                        arScannedElementPane.targetSelected =
-                                targetElementHelper.extractPickClone(splitDTO.getElementDetails()[0]);
+                        targetElementHelper.initialize(performActions, arScannedElementPane.scannerTargetContext());
+                        arScannedElementPane.setTargetSelected(
+                                targetElementHelper.extractPickClone(splitDTO.getElementDetails()[0]));
                         arScannedElementPane.itPrintsElementDTO();
                     }
                     break;
@@ -792,7 +780,7 @@ public class ARScannedElementScene extends ARScene {
             int nextOrder = instruc.size() + 1;
 
             instructionList.clear();
-            targetElementHelper.initialize(performActions, new JavaFxScannerTargetContext(arScannedElementPane));
+            targetElementHelper.initialize(performActions, arScannedElementPane.scannerTargetContext());
 
             for (ElementDTO elementDTO : processDTO.getElementDetails()) {
                 TargetElement targetEach = targetElementHelper.extractPickClone(elementDTO);
@@ -817,7 +805,7 @@ public class ARScannedElementScene extends ARScene {
                 if (!isMany) {
                     // definedNameLabel is a read-only display; renames flow through the React
                     // grid and instruction.client_named, not through definedName overrides here.
-                    arScannedElementPane.targetSelected = targetEach;
+                    arScannedElementPane.setTargetSelected(targetEach);
                 }
 
                 arScannedElementPane.prepareToInsertElementDTO(
@@ -890,7 +878,7 @@ public class ARScannedElementScene extends ARScene {
             int nextOrder = instruc.size() + 1;
 
             instructionList.clear();
-            targetElementHelper.initialize(performActions, new JavaFxScannerTargetContext(arScannedElementPane));
+            targetElementHelper.initialize(performActions, arScannedElementPane.scannerTargetContext());
 
             for (ElementDTO elementDTO : processDTO.getElementDetails()) {
                 TargetElement targetEach = targetElementHelper.extractPickClone(elementDTO);

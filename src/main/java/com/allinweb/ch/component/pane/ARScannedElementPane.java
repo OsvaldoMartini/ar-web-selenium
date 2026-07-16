@@ -87,7 +87,10 @@ import org.xml.sax.InputSource;
 
 @Slf4j
 public class ARScannedElementPane extends ARPane
-        implements ScannerPreLaunchControls, ScannerSupportRequestHandler, ScannerTestRunHandler {
+        implements ScannerPreLaunchControls,
+                ScannerSupportRequestHandler,
+                ScannerTestRunHandler,
+                ARScannedElementPanePort {
 
     private static final Logger logLaunch = LoggerFactory.getLogger("com.allinweb.launch");
     private static final Logger logOperations = LoggerFactory.getLogger("com.allinweb.operations");
@@ -892,6 +895,37 @@ public class ARScannedElementPane extends ARPane
         pane = null;
         scene = null;
         instance = null;
+    }
+
+    @Override
+    public boolean isJobRunning() {
+        return isJobRunning.get();
+    }
+
+    @Override
+    public void closeLaunchWindowIfPresent() {
+        if (launchBotJobButton == null || launchBotJobButton.getScene() == null) {
+            return;
+        }
+        javafx.stage.Window window = launchBotJobButton.getScene().getWindow();
+        if (window instanceof Stage stage) {
+            stage.close();
+        }
+    }
+
+    @Override
+    public void setTargetSelected(TargetElement target) {
+        targetSelected = target;
+    }
+
+    @Override
+    public TargetElement targetSelected() {
+        return targetSelected;
+    }
+
+    @Override
+    public ScannerTargetContext scannerTargetContext() {
+        return new JavaFxScannerTargetContext(this);
     }
 
     private void preTestCoordinates(TargetElement targetPreTest) {
