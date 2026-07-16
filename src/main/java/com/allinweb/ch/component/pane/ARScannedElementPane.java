@@ -8797,8 +8797,7 @@ public class ARScannedElementPane extends ARPane
         String urlBase = arPropertyManager.getProperty(ARPropertyEnum.URL_PLUGINS);
 
         if (urlBase == null || urlBase.isBlank()) {
-            showPluginTestAlert(
-                    Alert.AlertType.WARNING,
+            showPluginWarning(
                     "URL not configured",
                     "url_plugins is not set in ARWeb.config.\nGo to Configuration and set the URL Plugins field.");
             return;
@@ -8815,8 +8814,7 @@ public class ARScannedElementPane extends ARPane
         Thread fetchThread = scannerPluginPickerManifestFetchAdapter.build(
                 manifestUrl,
                 plugins -> Platform.runLater(() -> showPluginPicker(plugins, baseUrl, pluginsDir)),
-                ex -> Platform.runLater(() -> showPluginTestAlert(
-                        Alert.AlertType.ERROR,
+                ex -> Platform.runLater(() -> showPluginError(
                         "Cannot load plugin list",
                         "Failed to fetch manifest.json from:\n" + manifestUrl + "\n\n" + ex.getMessage())));
         scannerPluginBackgroundThreadAdapter.start(fetchThread, "plugin-manifest-fetch");
@@ -8836,8 +8834,7 @@ public class ARScannedElementPane extends ARPane
         String fileName = selection.get().fileName();
         String pluginName = selection.get().pluginName();
         if (fileName.isEmpty()) {
-            showPluginTestAlert(
-                    Alert.AlertType.ERROR,
+            showPluginError(
                     "Invalid plugin",
                     "The selected plugin has no fileName in the manifest.");
             return;
@@ -8862,8 +8859,7 @@ public class ARScannedElementPane extends ARPane
             scannerPluginDownloadProgressDialogAdapter.close();
             Platform.runLater(() -> pluginUpdateButton =
                     scannerPluginUpdateButtonRefreshAdapter.refresh(pluginUpdateButton, this::buildPluginUpdateButton));
-            showPluginTestAlert(
-                    Alert.AlertType.INFORMATION,
+            showPluginInformation(
                     "Download complete",
                     downloadTask.getValue() + "\nDestination: " + pluginsDir);
         });
@@ -8872,7 +8868,7 @@ public class ARScannedElementPane extends ARPane
             scannerPluginDownloadProgressDialogAdapter.close();
             Throwable ex = downloadTask.getException();
             log.error("UpdatePlugins - failed", ex);
-            showPluginTestAlert(Alert.AlertType.ERROR, "Download failed", ex.getMessage());
+            showPluginError("Download failed", ex.getMessage());
         });
 
         scannerPluginBackgroundThreadAdapter.start(downloadTask, "plugin-download-thread");
@@ -8880,8 +8876,16 @@ public class ARScannedElementPane extends ARPane
         scannerPluginDownloadProgressDialogAdapter.show();
     }
 
-    private void showPluginTestAlert(Alert.AlertType type, String header, String body) {
-        scannerPluginAlertAdapter.show(type, header, body);
+    private void showPluginWarning(String header, String body) {
+        scannerPluginAlertAdapter.warning(header, body);
+    }
+
+    private void showPluginError(String header, String body) {
+        scannerPluginAlertAdapter.error(header, body);
+    }
+
+    private void showPluginInformation(String header, String body) {
+        scannerPluginAlertAdapter.information(header, body);
     }
 
     // ════════════════════════════════════════════════════════════════════════════
@@ -9010,8 +9014,7 @@ public class ARScannedElementPane extends ARPane
 
         // ── Config guards ─────────────────────────────────────────────────────
         if (urlPlugins == null || urlPlugins.isBlank()) {
-            showPluginTestAlert(
-                    Alert.AlertType.WARNING,
+            showPluginWarning(
                     "URL not configured",
                     "url_plugins is not set in ARWeb.config.\n"
                             + "Go to Configuration → URL Plugins and set it to your server base URL,\n"
@@ -9036,8 +9039,7 @@ public class ARScannedElementPane extends ARPane
         fetchTask.setOnFailed(evt -> {
             Throwable cause = fetchTask.getException();
             log.error("PluginManifest - fetch failed", cause);
-            showPluginTestAlert(
-                    Alert.AlertType.ERROR,
+            showPluginError(
                     "Cannot load plugin list",
                     "Failed to fetch manifest.json from:\n" + manifestUrl + "\n\n" + cause.getMessage());
         });
@@ -9075,8 +9077,7 @@ public class ARScannedElementPane extends ARPane
                 contentResult,
                 tableResult.selectedPlugins(),
                 manifest.getPlugins(),
-                () -> showPluginTestAlert(
-                        Alert.AlertType.INFORMATION, "No selection", "Select at least one plugin to download."),
+                () -> showPluginInformation("No selection", "Select at least one plugin to download."),
                 selected -> runDownloadPlugins(selected, serverBase, pathPlugins));
     }
 
@@ -9108,8 +9109,7 @@ public class ARScannedElementPane extends ARPane
             // Refresh pluginUpdateButton
             Platform.runLater(() -> pluginUpdateButton =
                     scannerPluginUpdateButtonRefreshAdapter.refresh(pluginUpdateButton, this::buildPluginUpdateButton));
-            showPluginTestAlert(
-                    Alert.AlertType.INFORMATION,
+            showPluginInformation(
                     "Download complete",
                     count + " of " + plugins.size() + " plugin(s) downloaded and extracted to:\n" + pathPlugins);
             log.info("PluginDownload - finished: {}/{} plugins", count, plugins.size());
@@ -9119,7 +9119,7 @@ public class ARScannedElementPane extends ARPane
             scannerPluginBatchDownloadProgressDialogAdapter.close();
             Throwable ex = downloadTask.getException();
             log.error("PluginDownload - failed", ex);
-            showPluginTestAlert(Alert.AlertType.ERROR, "Download failed", ex.getMessage());
+            showPluginError("Download failed", ex.getMessage());
         });
 
 
