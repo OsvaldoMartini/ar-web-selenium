@@ -103,6 +103,7 @@ public class ARScannedElementScene extends ARScene {
 
         super();
         this.arScannedElementPane = ARScannedElementPaneProvider.getInstance().currentPane();
+        ScannerShellLifecycle.getInstance().install(new SceneScannerShellHandler());
         this.scannerInsertBlockSelectionService =
                 new ScannerInsertBlockSelectionService(new SceneInsertBlockListsPort(), arScannedElementPane);
     }
@@ -844,6 +845,18 @@ public class ARScannedElementScene extends ARScene {
         @Override
         public void close() {
             stage.close();
+        }
+    }
+
+    private final class SceneScannerShellHandler implements ScannerShellLifecycle.Handler {
+        @Override
+        public void closeWebDrivers() {
+            ARScannedElementScene.this.closeWebDrivers();
+        }
+
+        @Override
+        public void closeModal() {
+            ARScannedElementScene.this.closeModal();
         }
     }
 

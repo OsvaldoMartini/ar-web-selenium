@@ -5,7 +5,6 @@ import com.allinweb.ch.builder.WebElementAttributeTypeValueEnum;
 import com.allinweb.ch.builder.WebElementTagNameEnum;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.component.scene.ARNewHomeBankingScene;
-import com.allinweb.ch.component.scene.ARScannedElementScene;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.executors.AppExecutors;
@@ -101,7 +100,6 @@ public class ARScannedElementPane extends ARPane
     private static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
     private static final ARPriorities arPriorities = ARPriorities.getInstance();
     private static final WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
-    private static final ARScannedElementScene arScannedElementScene = ARScannedElementScene.getInstance();
     private static final PerformLists performLists = PerformLists.getInstance();
     private static final PerformDBEngine performDBEngine = PerformDBEngine.getInstance();
     private static final ScannerPreLaunchExcelLoader scannerPreLaunchExcelLoader = new ScannerPreLaunchExcelLoader();
@@ -1402,8 +1400,7 @@ public class ARScannedElementPane extends ARPane
         performActions.setCurrentDriver(currentARWebDriver.getCurrentDriver());
 
         if (!openWebDriver(false)) {
-            arScannedElementScene.closeWebDrivers();
-            arScannedElementScene.closeModal();
+            ScannerShellLifecycle.getInstance().closeShell();
             return;
         }
 
@@ -1496,8 +1493,7 @@ public class ARScannedElementPane extends ARPane
         }
 
         if (!openWebDriver(true)) {
-            arScannedElementScene.closeWebDrivers();
-            arScannedElementScene.closeModal();
+            ScannerShellLifecycle.getInstance().closeShell();
             return false;
         }
         performActions.getIframeElementsMap();
