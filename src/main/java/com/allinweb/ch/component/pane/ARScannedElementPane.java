@@ -147,6 +147,8 @@ public class ARScannedElementPane extends ARPane
     private final AtomicBoolean testRunStartupActive = new AtomicBoolean(false);
     private final Gson gson = new Gson();
     private final ScannerGridPublisher scannerGridPublisher = new ScannerGridPublisher();
+    private final ScannerGridSearchResultsService scannerGridSearchResultsService =
+            new ScannerGridSearchResultsService(scannerGridPublisher, new PaneScannerGridBlocksPort());
     private final ScannerElementPanePublisher scannerElementPanePublisher = new ScannerElementPanePublisher();
     private final ScannerSupportRequestPublisher scannerSupportRequestPublisher = new ScannerSupportRequestPublisher();
     private final ScannerSupportFileService scannerSupportFileService = new ScannerSupportFileService();
@@ -1839,11 +1841,10 @@ public class ARScannedElementPane extends ARPane
             if (webEngine != null) {
                 //                webEngine.reload();
 
-                SplitDTO processDTO = scannerGridSearchPayload(
+                scannerGridSearchResultsService.publishEmpty(
                         this.currentBotJob.getHomeBankingId(),
                         this.currentBotJob.getId(),
-                        new ElementDTO[0]);
-                scannerGridPublisher.publishScannerGridSearchTerms(this.currentBotJob.getHomeBankingId(), processDTO);
+                        this.currentBotJob.getName());
 
                 Platform.runLater(() -> {
                     countdownTextField.setText("Pre-Launch status: Ready");
@@ -2917,6 +2918,13 @@ public class ARScannedElementPane extends ARPane
         }
     }
 
+    private static final class PaneScannerGridBlocksPort implements ScannerGridSearchResultsService.BlockPort {
+        @Override
+        public List<BlockLoadDTO> blocks() {
+            return performLists.getListBlock();
+        }
+    }
+
     private void cloneElementDTO(TargetElement targetToClone) {
 
         if (targetToClone != null) {
@@ -3109,39 +3117,14 @@ public class ARScannedElementPane extends ARPane
             return;
         }
 
-        // Reset the grid before streaming chunks so a fresh scan doesn't
-        // accumulate on top of a previous page's results.
-        SplitDTO reset = scannerGridSearchPayload(homeBankingId, botJobId, new ElementDTO[0]);
-        scannerGridPublisher.publishScannerGridSearchTerms(homeBankingId, reset);
-
-        SplitDTO payload = scannerGridSearchPayload(homeBankingId, botJobId, elements.toArray(new ElementDTO[0]));
-
-        scannerGridPublisher.publishScannerGridSearchTermsChunks(0, payload, 25);
+        ScannerGridSearchResultsService.Result result = scannerGridSearchResultsService.publishResults(
+                homeBankingId, botJobId, currentBotJob.getName(), elements);
         appendLog(
-                "Page Scanner: sent " + elements.size() + " elements to "
-                        + scannerGridPublisher.destinationSessionId() + ".",
+                "Page Scanner: sent " + result.elementCount() + " elements to "
+                        + result.destinationSessionId() + ".",
                 "info");
 
         flashFoundElements(driver, elements);
-    }
-
-    private SplitDTO scannerGridSearchPayload(int homeBankingId, int botJobId, ElementDTO[] elements) {
-        return scannerGridPublisher.searchTermsPayload(
-                homeBankingId,
-                botJobId,
-                this.currentBotJob.getName(),
-                elements,
-                scannerBlockOptions(homeBankingId, botJobId));
-    }
-
-    private List<Map<String, Object>> scannerBlockOptions(int homeBankingId, int botJobId) {
-        return performLists.getListBlock().stream()
-                .filter(block -> block != null && block.getId() != null)
-                .filter(block -> block.getBotJobId() == null || Objects.equals(block.getBotJobId(), botJobId))
-                .sorted(Comparator.comparingInt(
-                        block -> block.getBlockOrderNumber() == null ? Integer.MAX_VALUE : block.getBlockOrderNumber()))
-                .map(ScannerWorkspaceBlockOptions::from)
-                .toList();
     }
 
     /**
