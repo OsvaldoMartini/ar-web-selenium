@@ -72,6 +72,12 @@ public class ARNewBotJobManagerScene extends ARScene {
         }
     }
 
+    public void closeModal() {
+        if (modalStage != null && modalStage.isShowing()) {
+            modalStage.close();
+        }
+    }
+
     @Override
     public IARPane buildPane() {
         return newBotJobManagerPane;

@@ -17,7 +17,7 @@ public final class JavaFxConfigSceneShutdownPort implements ConfigSceneShutdownP
 
     @Override
     public void closeNewBotJob() {
-        ARNewBotJobScene.getInstance().closeModal();
+        ARNewBotJobManagerScene.getInstance().closeModal();
     }
 
     @Override
