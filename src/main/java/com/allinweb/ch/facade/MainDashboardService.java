@@ -1,6 +1,5 @@
 package com.allinweb.ch.facade;
 
-import com.allinweb.ch.component.pane.ARMainDashboardPane;
 import com.allinweb.ch.model.BlockLoadDTO;
 import com.allinweb.ch.model.BotJobLoadDTO;
 import com.allinweb.ch.model.HomeBankingLoadDTO;
@@ -59,12 +58,12 @@ public class MainDashboardService {
     }
 
     public Map<String, Object> openOrganizations() {
-        ARMainDashboardPane.getInstance().openOrganizations();
+        presentation().openOrganizations();
         return successWithCurrentRows("Organizations opened");
     }
 
     public Map<String, Object> newBotJob() {
-        ARMainDashboardPane.getInstance().openNewBotJob();
+        presentation().openNewBotJob();
         return successWithCurrentRows("New Bot Job opened");
     }
 
@@ -73,7 +72,7 @@ public class MainDashboardService {
         if (botJob == null) {
             return failure("Select a Bot Job first");
         }
-        ARMainDashboardPane.getInstance().openCloneBotJob(botJob);
+        presentation().openCloneBotJob(botJob);
         return successWithCurrentRows("Clone Job opened", botJob.getId());
     }
 
@@ -82,22 +81,22 @@ public class MainDashboardService {
         if (botJob == null) {
             return failure("Select a Bot Job first");
         }
-        ARMainDashboardPane.getInstance().openBotJob(botJob);
+        presentation().openBotJob(botJob);
         return successWithCurrentRows("Bot Job details opened", botJob.getId());
     }
 
     public Map<String, Object> openConfig() {
-        ARMainDashboardPane.getInstance().openConfig();
+        presentation().openConfig();
         return successWithCurrentRows("Configuration opened");
     }
 
     public Map<String, Object> openInfo() {
-        ARMainDashboardPane.getInstance().openInfo();
+        presentation().openInfo();
         return successWithCurrentRows("Info opened");
     }
 
     public Map<String, Object> exit() {
-        ARMainDashboardPane.getInstance().exitApplication();
+        presentation().exitApplication();
         return ok("Exit requested");
     }
 
@@ -109,7 +108,7 @@ public class MainDashboardService {
         if (!isLaunchable(botJob)) {
             return failure("Mobile Bot Jobs can only be executed from AR Mobile");
         }
-        ARMainDashboardPane.getInstance().launchBotJob(botJob);
+        presentation().launchBotJob(botJob);
         return successWithCurrentRows("Launch requested", botJob.getId());
     }
 
@@ -211,5 +210,9 @@ public class MainDashboardService {
         } catch (Exception ignore) {
             return 0;
         }
+    }
+
+    private MainDashboardPresentation presentation() {
+        return MainDashboardPresentationRegistry.getInstance().current();
     }
 }

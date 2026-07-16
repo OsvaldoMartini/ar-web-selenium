@@ -4,6 +4,8 @@ import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.component.scene.*;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.MainDashboardService;
+import com.allinweb.ch.facade.MainDashboardPresentation;
+import com.allinweb.ch.facade.MainDashboardPresentationRegistry;
 import com.allinweb.ch.facade.PerformDBEngine;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformLists;
@@ -38,7 +40,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.WebDriver;
 
 @Slf4j
-public class ARMainDashboardPane extends ARPane implements BotJobDetailsPresentationPort {
+public class ARMainDashboardPane extends ARPane implements BotJobDetailsPresentationPort, MainDashboardPresentation {
 
     private static final String SESSION_ID = "mainDashboard";
     private static final int DEFAULT_PORT = 54525;
@@ -69,6 +71,7 @@ public class ARMainDashboardPane extends ARPane implements BotJobDetailsPresenta
     private ARMainDashboardPane() {
         super();
         botJobDetailsHost.setPresentationPort(this);
+        MainDashboardPresentationRegistry.getInstance().install(this);
     }
 
     public static ARMainDashboardPane getInstance() {
