@@ -13,6 +13,10 @@ public interface MainDashboardPresentation {
 
     void closeCloneJob();
 
+    void closeScanner();
+
+    void closeScannerWebDrivers();
+
     void openBotJob(BotJobLoadDTO botJob);
 
     void openConfig();

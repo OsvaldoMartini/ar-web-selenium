@@ -1,7 +1,6 @@
 package com.allinweb.ch.facade;
 
 import com.allinweb.ch.component.pane.ARConfigManagerPane;
-import com.allinweb.ch.component.pane.ARMainDashboardPane;
 import com.allinweb.ch.component.pane.BotJobDetailsWorkspaceHost;
 import com.allinweb.ch.component.scene.ARConfigManagerScene;
 import com.allinweb.ch.component.scene.ARNewBotJobScene;
@@ -404,12 +403,12 @@ public class ConfigService {
 
         @Override
         public void closeScanner() {
-            ARMainDashboardPane.getInstance().closeScanner();
+            MainDashboardPresentationRegistry.getInstance().current().closeScanner();
         }
 
         @Override
         public void closeScannerWebDrivers() {
-            ARMainDashboardPane.getInstance().closeScannerWebDrivers();
+            MainDashboardPresentationRegistry.getInstance().current().closeScannerWebDrivers();
         }
 
         @Override

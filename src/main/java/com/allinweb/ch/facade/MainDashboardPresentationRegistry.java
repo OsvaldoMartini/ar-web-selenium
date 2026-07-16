@@ -45,6 +45,12 @@ public final class MainDashboardPresentationRegistry {
         public void closeCloneJob() {}
 
         @Override
+        public void closeScanner() {}
+
+        @Override
+        public void closeScannerWebDrivers() {}
+
+        @Override
         public void openBotJob(BotJobLoadDTO botJob) {}
 
         @Override
