@@ -149,6 +149,7 @@ public class ARScannedElementPane extends ARPane
     private final ScannerGridPublisher scannerGridPublisher = new ScannerGridPublisher();
     private final ScannerGridSearchResultsService scannerGridSearchResultsService =
             new ScannerGridSearchResultsService(scannerGridPublisher, new PaneScannerGridBlocksPort());
+    private final ScannerPageScanService scannerPageScanService = new ScannerPageScanService(performListElements);
     private final ScannerElementPanePublisher scannerElementPanePublisher = new ScannerElementPanePublisher();
     private final ScannerSupportRequestPublisher scannerSupportRequestPublisher = new ScannerSupportRequestPublisher();
     private final ScannerSupportFileService scannerSupportFileService = new ScannerSupportFileService();
@@ -3088,18 +3089,17 @@ public class ARScannedElementPane extends ARPane
             int homeBankingId,
             int botJobId,
             List<String> extendedRules) {
-        PerformListElements.ScanResult scan = performListElements.scanElements(
+        PerformListElements.ScanResult scan = scannerPageScanService.scan(
                 currentARWebDriver,
                 driver,
-                dataArray,
-                searchHiddenFields,
-                port,
-                sessionId,
-                destinationId,
-                operationId,
-                homeBankingId,
-                botJobId,
-                extendedRules);
+                new ScannerPageScanService.Request(
+                        dataArray,
+                        searchHiddenFields,
+                        port,
+                        new ScannerSearchRoute(sessionId, destinationId, operationId),
+                        homeBankingId,
+                        botJobId,
+                        extendedRules));
 
         if (scan.error != null) {
             logOperations.error(
@@ -4271,21 +4271,11 @@ public class ARScannedElementPane extends ARPane
             return;
         }
 
-        String[] dataArray;
-
-        //        String[] dataArray = {"with id"};
-        //        String[] dataArray = {"with name"};
-        //        String[] dataArray = {"with text"};
-        //        String[] dataArray = {"button"};
-        //        String[] dataArray = {"input"};
-
-        if (searchTerms != null && !searchTerms.trim().isEmpty()) {
-            dataArray = searchTerms.split("\\s*,\\s*"); // Splitting by comma, allowing spaces around it
-        } else if (elementFocusComboBox != null && elementFocusComboBox.getValue() != null) {
-            dataArray = elementFocusComboBox.getValue().termsArray();
-        } else {
-            dataArray = ALL_INTERACTIVE_SCAN_PROFILE.termsArray();
-        }
+        ElementScanProfile selectedProfile = elementFocusComboBox == null ? null : elementFocusComboBox.getValue();
+        String[] dataArray = scannerPageScanService.terms(
+                searchTerms,
+                selectedProfile == null ? null : selectedProfile.termsArray(),
+                ALL_INTERACTIVE_SCAN_PROFILE.termsArray());
 
         handleSearchTermClick(dataArray, extendedRules == null ? Collections.emptyList() : extendedRules);
 
