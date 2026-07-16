@@ -180,6 +180,8 @@ public class ARScannedElementPane extends ARPane
             new ScannerPluginDownloadProgressDialogAdapter();
     private final ScannerPluginBatchDownloadProgressDialogAdapter scannerPluginBatchDownloadProgressDialogAdapter =
             new ScannerPluginBatchDownloadProgressDialogAdapter();
+    private final ScannerPluginPortalBannerAdapter scannerPluginPortalBannerAdapter =
+            new ScannerPluginPortalBannerAdapter();
     private final UiThreadDispatcher uiThreadDispatcher = UiThreadDispatcher.getInstance();
     private final ScannerDomReviewSnapshotService scannerDomReviewSnapshotService =
             new ScannerDomReviewSnapshotService();
@@ -8803,38 +8805,7 @@ public class ARScannedElementPane extends ARPane
      * the MultiPlugins portal that opens in the system default browser.
      */
     private VBox buildPortalBanner(boolean noPlugins, boolean anyMissing) {
-        VBox banner = new VBox(6);
-        banner.setPadding(new Insets(10, 12, 10, 12));
-        banner.setStyle("-fx-background-color:#fff7ed;"
-                + "-fx-border-color:#fb923c;"
-                + "-fx-border-width:1;"
-                + "-fx-background-radius:6;"
-                + "-fx-border-radius:6;");
-
-        String title = noPlugins ? "No plugins installed yet" : "Some mandatory plugins are missing";
-        Label head = new Label("⚠  " + title);
-        head.setStyle("-fx-font-size:13px;-fx-font-weight:bold;-fx-text-fill:#9a3412;");
-
-        Label body = new Label(
-                noPlugins
-                        ? "To run the scanner you need to install the plugin bundle first."
-                        : "The scanner requires all plugins to be present to work correctly.");
-        body.setStyle("-fx-font-size:12px;-fx-text-fill:#7c2d12;");
-        body.setWrapText(true);
-
-        HBox linkRow = new HBox(6);
-        Label prompt = new Label("Get them from the portal:");
-        prompt.setStyle("-fx-font-size:12px;-fx-text-fill:#7c2d12;");
-
-        javafx.scene.control.Hyperlink portalLink = new javafx.scene.control.Hyperlink("www.multiplugins.ch");
-        portalLink.setStyle("-fx-font-size:12px;-fx-font-weight:bold;-fx-text-fill:#0b5394;-fx-padding:0;");
-        portalLink.setOnAction(e -> openInDefaultBrowser("https://www.multiplugins.ch/portal"));
-
-        linkRow.getChildren().addAll(prompt, portalLink);
-        linkRow.setVisible(false);
-        linkRow.setManaged(false);
-        banner.getChildren().addAll(head, body, linkRow);
-        return banner;
+        return scannerPluginPortalBannerAdapter.build(noPlugins, this::openInDefaultBrowser);
     }
 
     /**
