@@ -1,15 +1,15 @@
-package com.allinweb.ch.component.pane;
+package com.allinweb.ch.facade;
 
 import com.allinweb.ch.model.BlockLoadDTO;
 import com.allinweb.ch.model.BotJobLoadDTO;
 import com.allinweb.ch.model.PayloadJson;
 import java.util.List;
 
-final class ScannerEmptyPayloadBuilder {
+public final class ScannerEmptyPayloadBuilder {
     private static final int NO_BLOCK_ID = -1;
     private static final String DEFAULT_BLOCK_NAME = "1# Default Block";
 
-    PayloadJson build(BotJobLoadDTO currentBotJob, List<BlockLoadDTO> blocks) {
+    public PayloadJson build(BotJobLoadDTO currentBotJob, List<BlockLoadDTO> blocks) {
         int blockId = NO_BLOCK_ID;
         String blockName = DEFAULT_BLOCK_NAME;
 

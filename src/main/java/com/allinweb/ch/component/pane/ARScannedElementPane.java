@@ -245,7 +245,7 @@ public class ARScannedElementPane extends ARPane
             new ScannerBrowserRuntime(new PaneBrowserRuntimeOperations());
     private final ScannerTestActionFormatter scannerTestActionFormatter = new ScannerTestActionFormatter();
     private final ScannerCreateBlockPlanner scannerCreateBlockPlanner = new ScannerCreateBlockPlanner();
-    private final ScannerEmptyPayloadBuilder scannerEmptyPayloadBuilder = new ScannerEmptyPayloadBuilder();
+    private final ScannerEmptyPayloadService scannerEmptyPayloadService = new ScannerEmptyPayloadService();
 
     private int portSocketInitial = 54525;
     private volatile String pendingDomReviewHtml;
@@ -3975,29 +3975,48 @@ public class ARScannedElementPane extends ARPane
     }
 
     public void setPayloadEmpty() {
-        if (!performLists.getListBotJob().isEmpty()
-                && performLists.getListBlock().isEmpty()) {
-            performDataBase.loadBlocks(this.currentBotJob.getId(), "", "block");
-        }
-        this.payloadEmpty = scannerEmptyPayloadBuilder.build(this.currentBotJob, performLists.getListBlock());
+        this.payloadEmpty = scannerEmptyPayloadService.buildDefault(
+                this.currentBotJob,
+                new PaneEmptyPayloadOperations());
     }
 
     private void setPayloadEmpty(String destination) {
-        List<BlockLoadDTO> blocks = Collections.emptyList();
-        if (destination.equalsIgnoreCase(ScannerWorkspaceSessions.BOT_JOB_TASKS)) {
-            if (!performLists.getListBotJob().isEmpty()
-                    && performLists.getListBlock().isEmpty()) {
-                performDataBase.loadBlocks(currentBotJob.getId(), "", "block");
-            }
-            blocks = performLists.getListBlock();
-        } else if (destination.equalsIgnoreCase(ScannerWorkspaceSessions.COMPONENT_TASKS)) {
-            if (!performLists.getListBotJobComp().isEmpty()
-                    && performLists.getListBlockComp().isEmpty()) {
-                performDataBase.loadBlocks(currentBotJob.getHomeBankingId(), "", "component_block");
-            }
-            blocks = performLists.getListBlockComp();
+        this.payloadEmpty = scannerEmptyPayloadService.buildForDestination(
+                destination,
+                this.currentBotJob,
+                new PaneEmptyPayloadOperations());
+    }
+
+    private final class PaneEmptyPayloadOperations implements ScannerEmptyPayloadService.Operations {
+        @Override
+        public boolean hasBotJobs() {
+            return !performLists.getListBotJob().isEmpty();
         }
-        this.payloadEmpty = scannerEmptyPayloadBuilder.build(this.currentBotJob, blocks);
+
+        @Override
+        public boolean hasComponentJobs() {
+            return !performLists.getListBotJobComp().isEmpty();
+        }
+
+        @Override
+        public List<BlockLoadDTO> botJobBlocks() {
+            return performLists.getListBlock();
+        }
+
+        @Override
+        public List<BlockLoadDTO> componentBlocks() {
+            return performLists.getListBlockComp();
+        }
+
+        @Override
+        public void loadBotJobBlocks(int botJobId) {
+            performDataBase.loadBlocks(botJobId, "", "block");
+        }
+
+        @Override
+        public void loadComponentBlocks(int homeBankingId) {
+            performDataBase.loadBlocks(homeBankingId, "", "component_block");
+        }
     }
 
     /**
