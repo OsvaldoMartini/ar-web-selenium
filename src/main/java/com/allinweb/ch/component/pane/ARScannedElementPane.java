@@ -218,6 +218,7 @@ public class ARScannedElementPane extends ARPane
     private final ScannerFieldLabelsAdapter scannerFieldLabelsAdapter = new ScannerFieldLabelsAdapter();
     private final ScannerCurrentUrlTextAdapter scannerCurrentUrlTextAdapter =
             new ScannerCurrentUrlTextAdapter();
+    private final ScannerTextFieldsAdapter scannerTextFieldsAdapter = new ScannerTextFieldsAdapter();
     private final UiThreadDispatcher uiThreadDispatcher = UiThreadDispatcher.getInstance();
     private final ScannerDomReviewSnapshotService scannerDomReviewSnapshotService =
             new ScannerDomReviewSnapshotService();
@@ -1728,10 +1729,7 @@ public class ARScannedElementPane extends ARPane
             appendLog("Page Scanner focus: " + newValue.label(), "info");
         });
 
-        searchTermsField = new TextField();
-        searchTermsField.setPromptText("button, label, input, with id, with text");
-        searchTermsField.setPrefWidth(300);
-        searchTermsField.setText(ALL_INTERACTIVE_SCAN_PROFILE.searchText());
+        searchTermsField = scannerTextFieldsAdapter.searchTerms(ALL_INTERACTIVE_SCAN_PROFILE.searchText());
 
         // Read-only mirror of the picked element's display name (clientNamed → definedName →
         // someText → tagName). Renames live in the React grid via instruction.client_named.
@@ -1739,11 +1737,9 @@ public class ARScannedElementPane extends ARPane
 
         coordsTextFieldLabel = scannerFieldLabelsAdapter.coordinates();
 
-        searchAttribValueField = new TextField();
-        searchAttribValueField.setPromptText("Search per Attrib");
+        searchAttribValueField = scannerTextFieldsAdapter.searchAttribute();
 
-        coordsTextField = new TextField();
-        coordsTextField.setPromptText("Coordinates");
+        coordsTextField = scannerTextFieldsAdapter.coordinates();
 
         leftButton = builder.buildButton(
                 "Previous", ARConstants.SPACE_M, ARConstants.ICON_LEFT, ARConstants.SPACE_M, new Insets(5.0D));
