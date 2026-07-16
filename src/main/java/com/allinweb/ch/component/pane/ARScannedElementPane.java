@@ -162,10 +162,6 @@ public class ARScannedElementPane extends ARPane
     private final ScannerPluginAlertAdapter scannerPluginAlertAdapter = new ScannerPluginAlertAdapter();
     private final ScannerPluginPickerDialogAdapter scannerPluginPickerDialogAdapter =
             new ScannerPluginPickerDialogAdapter();
-    private final ScannerPluginDownloadProgressDialogAdapter scannerPluginDownloadProgressDialogAdapter =
-            new ScannerPluginDownloadProgressDialogAdapter();
-    private final ScannerPluginBatchDownloadProgressDialogAdapter scannerPluginBatchDownloadProgressDialogAdapter =
-            new ScannerPluginBatchDownloadProgressDialogAdapter();
     private final ScannerPluginPortalBannerAdapter scannerPluginPortalBannerAdapter =
             new ScannerPluginPortalBannerAdapter();
     private final ScannerExternalBrowserAdapter scannerExternalBrowserAdapter = new ScannerExternalBrowserAdapter();
@@ -194,14 +190,10 @@ public class ARScannedElementPane extends ARPane
     private final ScannerPluginManifestClient scannerPluginManifestClient = new ScannerPluginManifestClient();
     private final ScannerPluginBackgroundThreadAdapter scannerPluginBackgroundThreadAdapter =
             new ScannerPluginBackgroundThreadAdapter();
-    private final ScannerPluginSingleDownloadTaskAdapter scannerPluginSingleDownloadTaskAdapter =
-            new ScannerPluginSingleDownloadTaskAdapter();
-    private final ScannerPluginBatchDownloadTaskAdapter scannerPluginBatchDownloadTaskAdapter =
-            new ScannerPluginBatchDownloadTaskAdapter();
     private final ScannerPluginPickerManifestFetchAdapter scannerPluginPickerManifestFetchAdapter =
             new ScannerPluginPickerManifestFetchAdapter();
-    private final ScannerPluginDownloadResultAdapter scannerPluginDownloadResultAdapter =
-            new ScannerPluginDownloadResultAdapter();
+    private final ScannerPluginDownloadFlowAdapter scannerPluginDownloadFlowAdapter =
+            new ScannerPluginDownloadFlowAdapter();
     private final ScannerPluginManifestResultAdapter scannerPluginManifestResultAdapter =
             new ScannerPluginManifestResultAdapter();
     private final ScannerLayoutNodeAdapter scannerLayoutNodeAdapter = new ScannerLayoutNodeAdapter();
@@ -8568,21 +8560,13 @@ public class ARScannedElementPane extends ARPane
      * Runs on a background thread with a progress dialog.
      */
     private void downloadAndExtractPlugin(String downloadUrl, String fileName, String pluginName, Path pluginsDir) {
-        Task<String> downloadTask =
-                scannerPluginSingleDownloadTaskAdapter.build(downloadUrl, fileName, pluginName, pluginsDir);
-
-        scannerPluginDownloadProgressDialogAdapter.bind(pluginName, downloadTask);
-
-        scannerPluginDownloadResultAdapter.wireSingle(
-                downloadTask,
+        scannerPluginDownloadFlowAdapter.runSingle(
+                downloadUrl,
+                fileName,
+                pluginName,
                 pluginsDir,
-                scannerPluginDownloadProgressDialogAdapter,
                 this::refreshPluginUpdateButton,
                 new PanePluginNotifier());
-
-        scannerPluginBackgroundThreadAdapter.start(downloadTask, "plugin-download-thread");
-
-        scannerPluginDownloadProgressDialogAdapter.show();
     }
 
     private void showPluginWarning(String header, String body) {
@@ -8738,28 +8722,12 @@ public class ARScannedElementPane extends ARPane
      * @param pathPlugins local target folder
      */
     private void runDownloadPlugins(List<PluginDTO> plugins, String serverBase, String pathPlugins) {
-        Path pluginsDir = Paths.get(pathPlugins);
-
-        Task<Integer> downloadTask = scannerPluginBatchDownloadTaskAdapter.build(
+        scannerPluginDownloadFlowAdapter.runBatch(
                 plugins,
                 serverBase,
-                pluginsDir,
-                scannerPluginBatchDownloadProgressDialogAdapter::updateCounter);
-
-        scannerPluginBatchDownloadProgressDialogAdapter.bind(plugins.size(), downloadTask);
-
-        scannerPluginDownloadResultAdapter.wireBatch(
-                downloadTask,
-                plugins.size(),
                 pathPlugins,
-                scannerPluginBatchDownloadProgressDialogAdapter,
                 this::refreshPluginUpdateButton,
-                new PanePluginNotifier(),
-                count -> {});
-
-        scannerPluginBackgroundThreadAdapter.start(downloadTask, "plugin-download-thread");
-
-        scannerPluginBatchDownloadProgressDialogAdapter.show();
+                new PanePluginNotifier());
     }
 
     private void refreshPluginUpdateButton() {
