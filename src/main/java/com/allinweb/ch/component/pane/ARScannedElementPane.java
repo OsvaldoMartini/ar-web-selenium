@@ -200,6 +200,7 @@ public class ARScannedElementPane extends ARPane
             new ScannerRefreshBlocksButtonAdapter();
     private final ScannerBrowserNotAttachedMessageService scannerBrowserNotAttachedMessageService =
             new ScannerBrowserNotAttachedMessageService();
+    private final ScannerSupportButtonAdapter scannerSupportButtonAdapter = new ScannerSupportButtonAdapter();
     private final UiThreadDispatcher uiThreadDispatcher = UiThreadDispatcher.getInstance();
     private final ScannerDomReviewSnapshotService scannerDomReviewSnapshotService =
             new ScannerDomReviewSnapshotService();
@@ -1645,23 +1646,8 @@ public class ARScannedElementPane extends ARPane
         refreshWebPageButton = builder.buildButton(
                 "Refresh Web Page", ARConstants.SPACE_ZERO, "/refresh.png", ARConstants.SPACE_M, new Insets(5.0D));
 
-        sendDomButton = builder.buildButton(
-                "Send Pure HTML Review",
-                ARConstants.SPACE_ZERO,
-                "/warning_red.png",
-                ARConstants.SPACE_M,
-                new Insets(5.0D));
-        sendDomButton.setTooltip(new javafx.scene.control.Tooltip(
-                "Send sanitized HTML for review — personal data is replaced with synthetic test data."));
-        sendDomButton.setVisible(false);
-        sendDomButton.setManaged(false);
-
-        requestSupportButton =
-                builder.buildButton("", ARConstants.SPACE_ZERO, "/info.png", ARConstants.SPACE_M, new Insets(5.0D));
-        requestSupportButton.setTooltip(new javafx.scene.control.Tooltip(
-                "Request Support — send a text message to the MultiPlugins support team."));
-        requestSupportButton.setVisible(false);
-        requestSupportButton.setManaged(false);
+        sendDomButton = scannerSupportButtonAdapter.buildSendDomReview(builder);
+        requestSupportButton = scannerSupportButtonAdapter.buildRequestSupport(builder);
 
         cleanListButton = builder.buildButton(
                 "Clear Grid", // No text
