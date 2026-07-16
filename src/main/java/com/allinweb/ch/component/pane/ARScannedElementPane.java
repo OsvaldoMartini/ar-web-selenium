@@ -203,6 +203,8 @@ public class ARScannedElementPane extends ARPane
     private final ScannerSupportButtonAdapter scannerSupportButtonAdapter = new ScannerSupportButtonAdapter();
     private final ScannerSearchHiddenFieldsButtonAdapter scannerSearchHiddenFieldsButtonAdapter =
             new ScannerSearchHiddenFieldsButtonAdapter();
+    private final ScannerTestMessageSuppressionCheckboxAdapter scannerTestMessageSuppressionCheckboxAdapter =
+            new ScannerTestMessageSuppressionCheckboxAdapter();
     private final UiThreadDispatcher uiThreadDispatcher = UiThreadDispatcher.getInstance();
     private final ScannerDomReviewSnapshotService scannerDomReviewSnapshotService =
             new ScannerDomReviewSnapshotService();
@@ -1658,8 +1660,7 @@ public class ARScannedElementPane extends ARPane
                 new Insets(2.0) // Reduced padding
                 );
 
-        checkNotShowTestMsg = new CheckBox("Not Show Test Message");
-        checkNotShowTestMsg.setSelected(true);
+        checkNotShowTestMsg = scannerTestMessageSuppressionCheckboxAdapter.build();
 
         testActionLabel = new Label("Test Actions :");
 
