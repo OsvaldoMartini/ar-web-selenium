@@ -78,6 +78,8 @@ public class ARScannedElementScene extends ARScene {
     private final ScannerElementTestLookupService scannerElementTestLookupService =
             new ScannerElementTestLookupService(new SceneElementTestListsPort(), new SceneElementTestDataPort());
     private final ScannerInsertBlockSelectionService scannerInsertBlockSelectionService;
+    private final ScannerInsertPreparationService scannerInsertPreparationService =
+            new ScannerInsertPreparationService();
     private final BotJobWorkspaceCapabilityService botJobWorkspaceCapabilityService =
             BotJobWorkspaceCapabilityService.getInstance();
     private final ScannerMobileTestRoute scannerMobileTestRoute = ScannerMobileTestRoute.standard();
@@ -714,39 +716,15 @@ public class ARScannedElementScene extends ARScene {
 
             int nextOrder = instruc.size() + 1;
 
-            instructionList.clear();
-            targetElementHelper.initialize(performActions, arScannedElementPane.scannerTargetContext());
-
-            for (ElementDTO elementDTO : processDTO.getElementDetails()) {
-                TargetElement targetEach = targetElementHelper.extractPickClone(elementDTO);
-
-                WebElement elementFound = performActions.findWebElement(targetEach);
-                if (targetEach.getElement() == null && elementFound != null) {
-                    targetEach.setElement(elementFound);
-                }
-                // 3 Different Coordinates
-                // Original from JavaScript
-                // WebDriver Selenium ElementFound
-                // FallBack React Computed
-                performActions.defineSavedReferenced(targetEach);
-
-                // Propagate per-element F/E/T/N/S flags toggled in GridItemScann so
-                // prepareToInsertElementDTO can honour them instead of the pane's
-                // single-pick checkboxes. Empty string/null is "use checkboxes".
-                if (!Strings.isNullOrEmpty(elementDTO.getForceCoordinates())) {
-                    targetEach.setForceCoordinates(elementDTO.getForceCoordinates());
-                }
-
-                if (!isMany) {
-                    // definedNameLabel is a read-only display; renames flow through the React
-                    // grid and instruction.client_named, not through definedName overrides here.
-                    arScannedElementPane.setTargetSelected(targetEach);
-                }
-
-                arScannedElementPane.prepareToInsertElementDTO(
-                        instructionList, currentBlockId, nextOrder, targetEach, true);
-                nextOrder++;
-            }
+            scannerInsertPreparationService.prepare(
+                    new SceneInsertActionsPort(),
+                    new SceneInsertTargetExtractor(),
+                    arScannedElementPane,
+                    instructionList,
+                    processDTO.getElementDetails(),
+                    currentBlockId,
+                    nextOrder,
+                    isMany);
 
             if (instructionList.size() > 0) {
 
@@ -938,6 +916,30 @@ public class ARScannedElementScene extends ARScene {
         @Override
         public boolean hasBlocks() {
             return !performLists.getListBlock().isEmpty();
+        }
+    }
+
+    private static final class SceneInsertActionsPort implements ScannerInsertPreparationService.ActionsPort {
+        @Override
+        public WebElement findWebElement(TargetElement target) {
+            return performActions.findWebElement(target);
+        }
+
+        @Override
+        public void defineSavedReferenced(TargetElement target) {
+            performActions.defineSavedReferenced(target);
+        }
+    }
+
+    private static final class SceneInsertTargetExtractor implements ScannerInsertPreparationService.TargetExtractor {
+        @Override
+        public void initialize(ScannerTargetContext scannerTargetContext) {
+            targetElementHelper.initialize(performActions, scannerTargetContext);
+        }
+
+        @Override
+        public TargetElement extractPickClone(ElementDTO elementDTO) {
+            return targetElementHelper.extractPickClone(elementDTO);
         }
     }
 }
