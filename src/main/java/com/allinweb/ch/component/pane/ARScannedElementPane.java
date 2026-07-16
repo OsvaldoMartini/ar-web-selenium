@@ -150,6 +150,8 @@ public class ARScannedElementPane extends ARPane
             new ScannerDefaultBlockService();
     private final ScannerBlockOptionSelectionService scannerBlockOptionSelectionService =
             new ScannerBlockOptionSelectionService();
+    private final ScannerCreatedBlockSelectionService scannerCreatedBlockSelectionService =
+            new ScannerCreatedBlockSelectionService();
     private final ScannerModalBlockCreationService scannerModalBlockCreationService =
             new ScannerModalBlockCreationService();
     private final ScannerCreateBlockModalPresentationService scannerCreateBlockModalPresentationService =
@@ -4105,15 +4107,9 @@ public class ARScannedElementPane extends ARPane
         // downstream insert code sees the right currentBlockId.
         loadAllBlocks();
         Platform.runLater(() -> {
-            for (BlockOptions opt : comboBoxBlocks.getItems()) {
-                if (opt != null
-                        && opt.getBlockId() != null
-                        && !scannerBlockOptionSelectionService.isCreateBlockSentinel(opt)
-                        && name.equalsIgnoreCase(opt.getValue())) {
-                    comboBoxBlocks.getSelectionModel().select(opt);
-                    break;
-                }
-            }
+            scannerCreatedBlockSelectionService
+                    .findCreatedBlock(comboBoxBlocks.getItems(), name)
+                    .ifPresent(opt -> comboBoxBlocks.getSelectionModel().select(opt));
             if (afterCreate != null) afterCreate.run();
         });
     }
