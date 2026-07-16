@@ -198,6 +198,8 @@ public class ARScannedElementPane extends ARPane
     private final ScannerLayoutNodeAdapter scannerLayoutNodeAdapter = new ScannerLayoutNodeAdapter();
     private final ScannerRefreshBlocksButtonAdapter scannerRefreshBlocksButtonAdapter =
             new ScannerRefreshBlocksButtonAdapter();
+    private final ScannerBrowserNotAttachedMessageService scannerBrowserNotAttachedMessageService =
+            new ScannerBrowserNotAttachedMessageService();
     private final UiThreadDispatcher uiThreadDispatcher = UiThreadDispatcher.getInstance();
     private final ScannerDomReviewSnapshotService scannerDomReviewSnapshotService =
             new ScannerDomReviewSnapshotService();
@@ -3737,15 +3739,15 @@ public class ARScannedElementPane extends ARPane
     private void browserNotAttached() {
         String webDriverPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_WEBDRIVER);
         log.error("Error: The Browser attached with this Web Scanner is Not Active");
+        ScannerBrowserNotAttachedMessageService.Message message =
+                scannerBrowserNotAttachedMessageService.message(webDriverPath);
         performMessage.errorMessage(
-                "The Browser attached with this Web Scanner is Not Active",
-                "<span style='font-style: italic;'>Session deleted as the browser has closed the connection!</span>",
-                "<span style='color: #E65100; font-weight: bold;'>WebDriver path:</span> <span style='font-weight: bold;'>"
-                        + webDriverPath + "</span>",
-                "<span style='font-style: italic;'>Please close and Re-Open the Scanner Tool.</span>",
-                "<span style='font-style: italic;'>Details: " + "Web Browser was closed before the Scanner Tool"
-                        + "</span>",
-                0);
+                message.title(),
+                message.header(),
+                message.detail(),
+                message.action(),
+                message.cause(),
+                message.timeoutSeconds());
     }
 
     private int handleGreaterThan(String value1, String value2) {
