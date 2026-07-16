@@ -183,6 +183,8 @@ public class ARScannedElementPane extends ARPane
     private final ScannerPluginUpdateButtonAdapter scannerPluginUpdateButtonAdapter =
             new ScannerPluginUpdateButtonAdapter();
     private final ScannerPluginHintAdapter scannerPluginHintAdapter = new ScannerPluginHintAdapter();
+    private final ScannerPluginStatusButtonAdapter scannerPluginStatusButtonAdapter =
+            new ScannerPluginStatusButtonAdapter();
     private final UiThreadDispatcher uiThreadDispatcher = UiThreadDispatcher.getInstance();
     private final ScannerDomReviewSnapshotService scannerDomReviewSnapshotService =
             new ScannerDomReviewSnapshotService();
@@ -8526,47 +8528,9 @@ public class ARScannedElementPane extends ARPane
      *   - USB drive / pendrive (user copies plugin folders)
      */
     private Button buildPluginUpdateButton() {
-        Button btn = new Button();
-        btn.setVisible(false);
         String pluginsDir = arPropertyManager.resolvePluginsDir();
         int[] counts = countLocalPlugins(pluginsDir);
-        int installed = counts[0];
-        int total = counts[1];
-
-        if (total > 0 && installed == total) {
-            btn.setText("⬤  Plugin Update (" + installed + "/" + total + ")");
-            btn.setStyle("-fx-background-color: #166534;"
-                    + "-fx-text-fill: #dcfce7;"
-                    + "-fx-font-size: 12px;"
-                    + "-fx-font-weight: bold;"
-                    + "-fx-background-radius: 6;"
-                    + "-fx-padding: 6 14 6 14;"
-                    + "-fx-cursor: hand;");
-            btn.setTooltip(new Tooltip("All " + installed + " plugins installed - click to manage"));
-        } else if (total > 0) {
-            btn.setText("⚠  Plugin Update (" + installed + "/" + total + ")");
-            btn.setStyle("-fx-background-color: #7c2d12;"
-                    + "-fx-text-fill: #fed7aa;"
-                    + "-fx-font-size: 12px;"
-                    + "-fx-font-weight: bold;"
-                    + "-fx-background-radius: 6;"
-                    + "-fx-padding: 6 14 6 14;"
-                    + "-fx-cursor: hand;");
-            btn.setTooltip(new Tooltip(installed + " of " + total + " plugins installed - click to download missing"));
-        } else {
-            btn.setText("⚠  Plugin Update");
-            btn.setStyle("-fx-background-color: #7c2d12;"
-                    + "-fx-text-fill: #fed7aa;"
-                    + "-fx-font-size: 12px;"
-                    + "-fx-font-weight: bold;"
-                    + "-fx-background-radius: 6;"
-                    + "-fx-padding: 6 14 6 14;"
-                    + "-fx-cursor: hand;");
-            btn.setTooltip(new Tooltip("No plugins found - click to scan or download"));
-        }
-
-        btn.setOnAction(e -> showPluginUpdateDialog());
-        return btn;
+        return scannerPluginStatusButtonAdapter.build(counts[0], counts[1], this::showPluginUpdateDialog);
     }
 
     /**
