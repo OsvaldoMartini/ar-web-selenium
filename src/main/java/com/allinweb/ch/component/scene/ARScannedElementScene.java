@@ -208,7 +208,7 @@ public class ARScannedElementScene extends ARScene {
                 // Bulk grid payloads (select all -> insert all) exceed the 64KB default receive buffer.
                 container.setDefaultMaxTextMessageBufferSize(8 * 1024 * 1024);
                 container.setDefaultMaxBinaryMessageBufferSize(8 * 1024 * 1024);
-                container.connectToServer(ARScannedElementScene.getInstance(), new URI(serverUri));
+                container.connectToServer(this, new URI(serverUri));
                 latch.await();
                 startKeepAlivePings();
                 isConnectWebSocket = true;
@@ -291,7 +291,7 @@ public class ARScannedElementScene extends ARScene {
 
                                 // Clean ARScannedElementPane singleton instance
                                 arScannedElementPane.destroy();
-                                ARScannedElementScene.getInstance().destroyPanel(); //
+                                destroyPanel();
                             });
                         }
 
