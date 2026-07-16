@@ -157,6 +157,7 @@ public class ARScannedElementPane extends ARPane
     private final ScannerPageScanService scannerPageScanService = new ScannerPageScanService(performListElements);
     private final ScannerElementPanePublisher scannerElementPanePublisher = new ScannerElementPanePublisher();
     private final ScannerSupportRequestPublisher scannerSupportRequestPublisher = new ScannerSupportRequestPublisher();
+    private final ScannerSupportRequestService scannerSupportRequestService = new ScannerSupportRequestService();
     private final ScannerSupportFileService scannerSupportFileService = new ScannerSupportFileService();
     private final ScannerPreLaunchStarter scannerPreLaunchStarter =
             new ScannerPreLaunchStarter(new PanePreLaunchStartOperations());
@@ -176,8 +177,6 @@ public class ARScannedElementPane extends ARPane
             new ScannerSyntheticReferenceService();
     private final ScannerCsvContentService scannerCsvContentService =
             new ScannerCsvContentService();
-    private final ScannerBrowserUrlService scannerBrowserUrlService =
-            new ScannerBrowserUrlService();
     private final ScannerTestRunBotJobPreparation scannerTestRunBotJobPreparation =
             new ScannerTestRunBotJobPreparation(new PaneTestRunBotJobOperations());
     private final ScannerTestRunExecutionStart scannerTestRunExecutionStart =
@@ -2199,8 +2198,8 @@ public class ARScannedElementPane extends ARPane
     private void requestSupport() {
         try {
             int hbId = this.currentBotJob != null ? this.currentBotJob.getHomeBankingId() : 0;
-            scannerSupportRequestPublisher.publishSupportRequest(hbId, currentBrowserUrlOr("(no browser)"));
-            log.info("requestSupport — WS message sent to {}", scannerSupportRequestPublisher.destinationSessionId());
+            String destination = scannerSupportRequestService.requestSupport(hbId, new PaneBrowserUrl());
+            log.info("requestSupport — WS message sent to {}", destination);
 
         } catch (Exception ex) {
             log.error("requestSupport failed", ex);
@@ -2216,18 +2215,12 @@ public class ARScannedElementPane extends ARPane
     public void requestSupportElements() {
         try {
             int hbId = this.currentBotJob != null ? this.currentBotJob.getHomeBankingId() : 0;
-            scannerSupportRequestPublisher.publishElementsSupportRequest(hbId, currentBrowserUrlOr("(no browser)"));
-            log.info(
-                    "requestSupportElements — WS message sent to {}",
-                    scannerSupportRequestPublisher.destinationSessionId());
+            String destination = scannerSupportRequestService.requestElementsSupport(hbId, new PaneBrowserUrl());
+            log.info("requestSupportElements — WS message sent to {}", destination);
 
         } catch (Exception ex) {
             log.error("requestSupportElements failed", ex);
         }
-    }
-
-    private String currentBrowserUrlOr(String fallback) {
-        return scannerBrowserUrlService.currentUrlOr(fallback, new PaneBrowserUrl());
     }
 
     private static final class PaneBrowserUrl implements ScannerBrowserUrlService.Browser {
