@@ -1,6 +1,5 @@
 package com.allinweb.ch.facade;
 
-import com.allinweb.ch.component.pane.ARConfigManagerPane;
 import com.allinweb.ch.component.pane.BotJobDetailsWorkspaceHost;
 import com.allinweb.ch.component.scene.ARConfigManagerScene;
 import com.allinweb.ch.component.scene.ARNewBotJobScene;
@@ -66,7 +65,7 @@ public class ConfigService {
     public Map<String, Object> choosePath(JsonObject body) {
         String field = str(body, "field");
         String mode = str(body, "mode");
-        String path = ARConfigManagerPane.getInstance().choosePath(mode);
+        String path = presentation().choosePath(mode);
         Map<String, Object> response = ok(path == null ? "Path selection cancelled" : "Path selected");
         response.put("field", field);
         response.put("path", path);
@@ -141,7 +140,7 @@ public class ConfigService {
         }
         String folder = str(body, "destinationFolder");
         if (Strings.isNullOrEmpty(folder)) {
-            folder = ARConfigManagerPane.getInstance().choosePath("directory");
+            folder = presentation().choosePath("directory");
         }
         if (Strings.isNullOrEmpty(folder)) {
             return failure("Backup cancelled");
@@ -186,7 +185,7 @@ public class ConfigService {
         }
         String folder = str(body, "sourceFolder");
         if (Strings.isNullOrEmpty(folder)) {
-            folder = ARConfigManagerPane.getInstance().choosePath("directory");
+            folder = presentation().choosePath("directory");
         }
         if (Strings.isNullOrEmpty(folder)) {
             return failure("Restore cancelled");
@@ -244,7 +243,7 @@ public class ConfigService {
     }
 
     public Map<String, Object> openOrganizations() {
-        ARConfigManagerPane.getInstance().openOrganizations();
+        presentation().openOrganizations();
         return configResponse("Organizations opened");
     }
 
@@ -267,7 +266,7 @@ public class ConfigService {
     }
 
     public Map<String, Object> cancel() {
-        ARConfigManagerPane.getInstance().closeModal();
+        presentation().closeModal();
         return ok("Cancelled");
     }
 
@@ -383,6 +382,10 @@ public class ConfigService {
 
     private void closeAllScenes() {
         sceneShutdownService.closeAll();
+    }
+
+    private ConfigPresentation presentation() {
+        return ConfigPresentationRegistry.getInstance().current();
     }
 
     private static final class JavaFxScenesPort implements ConfigSceneShutdownService.ScenesPort {

@@ -2,6 +2,8 @@ package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.component.scene.AROrganizationManagerScene;
+import com.allinweb.ch.facade.ConfigPresentation;
+import com.allinweb.ch.facade.ConfigPresentationRegistry;
 import com.allinweb.ch.facade.PerformDBEngine;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
@@ -25,7 +27,7 @@ import javafx.stage.Stage;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class ARConfigManagerPane extends ARPane {
+public class ARConfigManagerPane extends ARPane implements ConfigPresentation {
 
     private static final String SESSION_ID = "configManager";
     private static final int DEFAULT_PORT = 54525;
@@ -44,6 +46,7 @@ public class ARConfigManagerPane extends ARPane {
 
     private ARConfigManagerPane() {
         super();
+        ConfigPresentationRegistry.getInstance().install(this);
     }
 
     public static ARConfigManagerPane getInstance() {
