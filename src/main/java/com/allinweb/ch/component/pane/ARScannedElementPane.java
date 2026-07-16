@@ -166,6 +166,8 @@ public class ARScannedElementPane extends ARPane
             new ScannerRunningProcessCleanupService();
     private final ScannerTestRunStartupPreparation scannerTestRunStartupPreparation =
             new ScannerTestRunStartupPreparation(new PaneTestRunStartupOperations());
+    private final ScannerInstructionMessageService scannerInstructionMessageService =
+            new ScannerInstructionMessageService();
     private final ScannerTestRunBotJobPreparation scannerTestRunBotJobPreparation =
             new ScannerTestRunBotJobPreparation(new PaneTestRunBotJobOperations());
     private final ScannerTestRunExecutionStart scannerTestRunExecutionStart =
@@ -3972,9 +3974,7 @@ public class ARScannedElementPane extends ARPane
     }
 
     private FieldData updateMSGInstruction(FieldData msgInstruction, String failedMessage) {
-        String currentKey = msgInstruction.getKey();
-        String updatedKey = failedMessage + " - " + currentKey;
-        return new FieldData(updatedKey, msgInstruction.getValue());
+        return scannerInstructionMessageService.prependFailure(msgInstruction, failedMessage);
     }
 
     public void setPayloadEmpty() {
