@@ -23,4 +23,8 @@ final class ScannerTextFieldsAdapter {
         textField.setPromptText("Coordinates");
         return textField;
     }
+
+    TextField testActions() {
+        return new TextField("0001");
+    }
 }

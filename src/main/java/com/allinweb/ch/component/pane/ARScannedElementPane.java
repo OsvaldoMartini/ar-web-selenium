@@ -1914,7 +1914,7 @@ public class ARScannedElementPane extends ARPane
 
             testActionLabel.setMinWidth(100);
 
-            testActionsField = new TextField("0001");
+            testActionsField = scannerTextFieldsAdapter.testActions();
 
             HBox.setHgrow(testActionsField, Priority.ALWAYS);
             testActionsField.setMaxWidth(Double.MAX_VALUE); // Ensures full width usage
