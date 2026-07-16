@@ -191,6 +191,8 @@ public class ARScannedElementPane extends ARPane
             new ScannerPluginUpdateContentAdapter();
     private final ScannerPluginUpdateDialogAdapter scannerPluginUpdateDialogAdapter =
             new ScannerPluginUpdateDialogAdapter();
+    private final ScannerPluginListTableAdapter scannerPluginListTableAdapter =
+            new ScannerPluginListTableAdapter();
     private final UiThreadDispatcher uiThreadDispatcher = UiThreadDispatcher.getInstance();
     private final ScannerDomReviewSnapshotService scannerDomReviewSnapshotService =
             new ScannerDomReviewSnapshotService();
@@ -9381,41 +9383,7 @@ public class ARScannedElementPane extends ARPane
         Label headerLabel = new Label(headerText);
         headerLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #636e72;");
 
-        // ── TableView ─────────────────────────────────────────────────────────
-        TableView<PluginDTO> table = new TableView<>();
-        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
-        table.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
-        table.setPrefHeight(220);
-
-        TableColumn<PluginDTO, String> colIcon = new TableColumn<>("Icon");
-        colIcon.setCellValueFactory(
-                c -> new javafx.beans.property.SimpleStringProperty(c.getValue().getIcon()));
-        colIcon.setPrefWidth(40);
-        colIcon.setMinWidth(40);
-        colIcon.setMaxWidth(40);
-
-        TableColumn<PluginDTO, String> colName = new TableColumn<>("Name");
-        colName.setCellValueFactory(
-                c -> new javafx.beans.property.SimpleStringProperty(c.getValue().getName()));
-        colName.setPrefWidth(130);
-
-        TableColumn<PluginDTO, String> colVersion = new TableColumn<>("Version");
-        colVersion.setCellValueFactory(
-                c -> new javafx.beans.property.SimpleStringProperty(c.getValue().getVersion()));
-        colVersion.setPrefWidth(65);
-
-        TableColumn<PluginDTO, String> colSize = new TableColumn<>("Size");
-        colSize.setCellValueFactory(
-                c -> new javafx.beans.property.SimpleStringProperty(c.getValue().getSize()));
-        colSize.setPrefWidth(55);
-
-        TableColumn<PluginDTO, String> colDesc = new TableColumn<>("Description");
-        colDesc.setCellValueFactory(
-                c -> new javafx.beans.property.SimpleStringProperty(c.getValue().getDescription()));
-
-        //noinspection unchecked
-        table.getColumns().addAll(colIcon, colName, colVersion, colSize, colDesc);
-        table.setItems(FXCollections.observableArrayList(manifest.getPlugins()));
+        TableView<PluginDTO> table = scannerPluginListTableAdapter.build(manifest);
 
         // ── Info strip ────────────────────────────────────────────────────────
         Label infoLabel = new Label("Select one or more plugins, then click Download Selected.");
