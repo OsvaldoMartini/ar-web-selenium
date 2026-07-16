@@ -260,8 +260,6 @@ public class ARScannedElementScene extends ARScene {
                     jsonObjMSG.has("sessionId") ? jsonObjMSG.get("sessionId").getAsString() : "unknown";
 
             SplitDTO splitDTO = parseSplitDTO(jsonObjMSG);
-            String blockUpdate;
-
             // Process the message based on its type
             switch (type) {
                 case ScannerWorkspaceOperations.UPDATE_BLOCKS:
@@ -302,16 +300,8 @@ public class ARScannedElementScene extends ARScene {
                     arScannedElementPane.checkRunningProcess();
                     // Extract the "body" field from the JsonObject
 
-                    blockUpdate =
-                            splitDTO.getSessionId().equals(ScannerWorkspaceSessions.COMPONENT_TASKS)
-                                    ? ScannerWorkspaceOperations.UPDATE_BLOCKS_COMP
-                                    : ScannerWorkspaceOperations.UPDATE_BLOCKS;
-
-                    if (previousBlock != null && !previousBlock.equals(blockUpdate)) {
-                        previousBlock = blockUpdate;
-                    } else if (previousBlock == null) {
-                        previousBlock = blockUpdate;
-                    }
+                    previousBlock = scannerBlockUpdateRouteService.transitionPreviousBlockForSession(
+                            splitDTO.getSessionId(), previousBlock);
 
                     boolean isMany = ScannerWorkspaceOperations.SEND_ALL_ELEMENTS_DTO.equalsIgnoreCase(type);
                     stepsInsertManyDTO(splitDTO, isMany);
@@ -321,16 +311,8 @@ public class ARScannedElementScene extends ARScene {
                     arScannedElementPane.checkRunningProcess();
                     // Extract the "body" field from the JsonObject
 
-                    blockUpdate =
-                            splitDTO.getSessionId().equals(ScannerWorkspaceSessions.COMPONENT_TASKS)
-                                    ? ScannerWorkspaceOperations.UPDATE_BLOCKS_COMP
-                                    : ScannerWorkspaceOperations.UPDATE_BLOCKS;
-
-                    if (previousBlock != null && !previousBlock.equals(blockUpdate)) {
-                        previousBlock = blockUpdate;
-                    } else if (previousBlock == null) {
-                        previousBlock = blockUpdate;
-                    }
+                    previousBlock = scannerBlockUpdateRouteService.transitionPreviousBlockForSession(
+                            splitDTO.getSessionId(), previousBlock);
 
                     stepsUpdateManyDTO(splitDTO);
                     //                    stepsInsertOneDTO(targetSelected);
@@ -394,15 +376,8 @@ public class ARScannedElementScene extends ARScene {
                         // Extract the "body" field from the JsonObject
                         //                    splitDTO = gson.fromJson(jsonObjMSG, SplitDTO.class);
 
-                        blockUpdate = splitDTO.getSessionId().equals(ScannerWorkspaceSessions.COMPONENT_TASKS)
-                                ? ScannerWorkspaceOperations.UPDATE_BLOCKS_COMP
-                                : ScannerWorkspaceOperations.UPDATE_BLOCKS;
-
-                        if (previousBlock != null && !previousBlock.equals(blockUpdate)) {
-                            previousBlock = blockUpdate;
-                        } else if (previousBlock == null) {
-                            previousBlock = blockUpdate;
-                        }
+                        previousBlock = scannerBlockUpdateRouteService.transitionPreviousBlockForSession(
+                                splitDTO.getSessionId(), previousBlock);
 
                         ScannerElementTestLookupService.Result testLookup =
                                 scannerElementTestLookupService.resolve(splitDTO, currentBotJob);
@@ -423,15 +398,8 @@ public class ARScannedElementScene extends ARScene {
                     //                    splitDTO = gson.fromJson(jsonObjMSG, SplitDTO.class);
 
                     if (type.equals(ScannerWorkspaceOperations.TEST_CLICK_DTO)) {
-                        blockUpdate = splitDTO.getSessionId().equals(ScannerWorkspaceSessions.COMPONENT_TASKS)
-                                ? ScannerWorkspaceOperations.UPDATE_BLOCKS_COMP
-                                : ScannerWorkspaceOperations.UPDATE_BLOCKS;
-
-                        if (previousBlock != null && !previousBlock.equals(blockUpdate)) {
-                            previousBlock = blockUpdate;
-                        } else if (previousBlock == null) {
-                            previousBlock = blockUpdate;
-                        }
+                        previousBlock = scannerBlockUpdateRouteService.transitionPreviousBlockForSession(
+                                splitDTO.getSessionId(), previousBlock);
 
                         targetElementHelper.initialize(performActions, arScannedElementPane.scannerTargetContext());
                         arScannedElementPane.setTargetSelected(

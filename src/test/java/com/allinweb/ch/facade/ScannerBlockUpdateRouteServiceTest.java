@@ -85,6 +85,32 @@ class ScannerBlockUpdateRouteServiceTest {
         assertEquals(-1, result.whereId());
     }
 
+    @Test
+    void transitionsPreviousBlockForBotJobSessions() {
+        ScannerBlockUpdateRouteService service = new ScannerBlockUpdateRouteService();
+
+        assertEquals(
+                ScannerWorkspaceOperations.UPDATE_BLOCKS,
+                service.transitionPreviousBlockForSession(ScannerWorkspaceSessions.BOT_JOB_TASKS, null));
+        assertEquals(
+                ScannerWorkspaceOperations.UPDATE_BLOCKS,
+                service.transitionPreviousBlockForSession(
+                        ScannerWorkspaceSessions.BOT_JOB_TASKS, ScannerWorkspaceOperations.UPDATE_BLOCKS_COMP));
+    }
+
+    @Test
+    void transitionsPreviousBlockForComponentSessions() {
+        ScannerBlockUpdateRouteService service = new ScannerBlockUpdateRouteService();
+
+        assertEquals(
+                ScannerWorkspaceOperations.UPDATE_BLOCKS_COMP,
+                service.transitionPreviousBlockForSession(ScannerWorkspaceSessions.COMPONENT_TASKS, null));
+        assertEquals(
+                ScannerWorkspaceOperations.UPDATE_BLOCKS_COMP,
+                service.transitionPreviousBlockForSession(
+                        ScannerWorkspaceSessions.COMPONENT_TASKS, ScannerWorkspaceOperations.UPDATE_BLOCKS_COMP));
+    }
+
     private static BotJobLoadDTO job(Integer botJobId, Integer homeBankingId) {
         BotJobLoadDTO job = new BotJobLoadDTO();
         job.setId(botJobId);

@@ -15,8 +15,16 @@ public final class ScannerBlockUpdateRouteService {
         return new Result(updateOperation, blockTable(move), whereId(move, currentBotJob), nextPreviousBlock);
     }
 
+    public String transitionPreviousBlockForSession(String sessionId, String previousBlock) {
+        return transitionPreviousBlock(previousBlock, updateOperation(sessionId));
+    }
+
     private static String updateOperation(BlockMoveDTO move) {
-        return isComponentSession(move)
+        return updateOperation(move.getSessionId());
+    }
+
+    private static String updateOperation(String sessionId) {
+        return isComponentSession(sessionId)
                 ? ScannerWorkspaceOperations.UPDATE_BLOCKS_COMP
                 : ScannerWorkspaceOperations.UPDATE_BLOCKS;
     }
@@ -33,7 +41,11 @@ public final class ScannerBlockUpdateRouteService {
     }
 
     private static boolean isComponentSession(BlockMoveDTO move) {
-        return ScannerWorkspaceSessions.COMPONENT_TASKS.equals(move.getSessionId());
+        return isComponentSession(move.getSessionId());
+    }
+
+    private static boolean isComponentSession(String sessionId) {
+        return ScannerWorkspaceSessions.COMPONENT_TASKS.equals(sessionId);
     }
 
     private static Integer value(Integer preferred, Integer fallback) {
