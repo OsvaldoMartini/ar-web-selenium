@@ -14,6 +14,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
+import javafx.application.Platform;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -24,10 +25,10 @@ final class ScannerPluginPickerManifestFetchAdapter {
             try {
                 List<String[]> plugins = fetchPlugins(manifestUrl);
                 log.info("UpdatePlugins - manifest loaded: {} plugins available", plugins.size());
-                onSuccess.accept(plugins);
+                Platform.runLater(() -> onSuccess.accept(plugins));
             } catch (Exception ex) {
                 log.error("UpdatePlugins - failed to fetch manifest from: {}", manifestUrl, ex);
-                onFailure.accept(ex);
+                Platform.runLater(() -> onFailure.accept(ex));
             }
         });
     }

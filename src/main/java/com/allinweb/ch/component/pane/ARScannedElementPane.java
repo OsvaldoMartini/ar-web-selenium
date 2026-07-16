@@ -8786,10 +8786,10 @@ public class ARScannedElementPane extends ARPane
 
         Thread fetchThread = scannerPluginPickerManifestFetchAdapter.build(
                 manifestUrl,
-                plugins -> Platform.runLater(() -> showPluginPicker(plugins, baseUrl, pluginsDir)),
-                ex -> Platform.runLater(() -> showPluginError(
+                plugins -> showPluginPicker(plugins, baseUrl, pluginsDir),
+                ex -> showPluginError(
                         "Cannot load plugin list",
-                        "Failed to fetch manifest.json from:\n" + manifestUrl + "\n\n" + ex.getMessage())));
+                        "Failed to fetch manifest.json from:\n" + manifestUrl + "\n\n" + ex.getMessage()));
         scannerPluginBackgroundThreadAdapter.start(fetchThread, "plugin-manifest-fetch");
     }
 
