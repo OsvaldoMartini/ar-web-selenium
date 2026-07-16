@@ -163,6 +163,8 @@ public class ARScannedElementPane extends ARPane
             new ScannerSupportCaptureResultService();
     private final ScannerSupportCaptureSendService scannerSupportCaptureSendService =
             new ScannerSupportCaptureSendService();
+    private final ScannerSupportResponseActionService scannerSupportResponseActionService =
+            new ScannerSupportResponseActionService();
     private final ScannerDomReviewSnapshotService scannerDomReviewSnapshotService =
             new ScannerDomReviewSnapshotService();
     private final ScannerPageReviewFileService scannerPageReviewFileService = new ScannerPageReviewFileService();
@@ -2128,7 +2130,9 @@ public class ARScannedElementPane extends ARPane
         String html = pendingDomReviewHtml;
         pendingDomReviewHtml = null;
 
-        if (html == null || "cancel".equals(action)) {
+        ScannerSupportResponseActionService.Action responseAction =
+                scannerSupportResponseActionService.actionOf(action);
+        if (scannerSupportResponseActionService.isDomReviewCancelled(html, action)) {
             log.info("DOM review cancelled or no pending HTML");
             return;
         }
@@ -2136,7 +2140,7 @@ public class ARScannedElementPane extends ARPane
         javafx.application.Platform.runLater(() -> {
             try {
                 org.openqa.selenium.WebDriver driver = performActions.getCurrentDriver();
-                if ("send".equals(action)) {
+                if (responseAction == ScannerSupportResponseActionService.Action.SEND) {
                     SupportCapture.CaptureResult r = scannerSupportCaptureSendService.sendDomCapture(driver);
                     ScannerSupportCaptureResultService.AlertMessage message =
                             scannerSupportCaptureResultService.domCapture(r);
@@ -2148,7 +2152,7 @@ public class ARScannedElementPane extends ARPane
                     out.setContentText(message.content());
                     out.showAndWait();
 
-                } else if ("save".equals(action)) {
+                } else if (responseAction == ScannerSupportResponseActionService.Action.SAVE) {
                     ScannerSupportFileService.SupportFile supportFile =
                             scannerPageReviewFileService.pageReview(html, new PanePageReviewBrowser(driver));
 
@@ -2270,7 +2274,9 @@ public class ARScannedElementPane extends ARPane
      * on the portal, just {@code kind: "elements-review"}.
      */
     public void handleSupportRequestElementsResponse(String action, String message, String elementDetailsJson) {
-        if ("cancel".equals(action) || message == null || message.isBlank()) {
+        ScannerSupportResponseActionService.Action responseAction =
+                scannerSupportResponseActionService.actionOf(action);
+        if (scannerSupportResponseActionService.isElementsReviewCancelled(action, message)) {
             log.info("Support request (elements) cancelled");
             return;
         }
@@ -2279,7 +2285,7 @@ public class ARScannedElementPane extends ARPane
             try {
                 org.openqa.selenium.WebDriver driver = performActions.getCurrentDriver();
 
-                if ("send".equals(action)) {
+                if (responseAction == ScannerSupportResponseActionService.Action.SEND) {
                     SupportCapture.CaptureResult r =
                             scannerSupportCaptureSendService.sendElementsReview(driver, elementDetailsJson, message);
 
@@ -2293,7 +2299,7 @@ public class ARScannedElementPane extends ARPane
                     out.setContentText(alertMessage.content());
                     out.showAndWait();
 
-                } else if ("save".equals(action)) {
+                } else if (responseAction == ScannerSupportResponseActionService.Action.SAVE) {
                     ScannerSupportFileService.SupportFile supportFile =
                             scannerElementsReviewFileService.elementsReview(driver, elementDetailsJson, message);
 
