@@ -9,5 +9,6 @@ public final class JavaFxShellBootstrap {
         ARMainScene.getInstance();
         ARNewBotJobManagerScene.getInstance();
         AROrganizationManagerScene.getInstance();
+        ARScannedElementScene.getInstance();
     }
 }
