@@ -60,7 +60,6 @@ import javafx.scene.layout.*;
 import javafx.scene.layout.Priority;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
-import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javax.swing.*;
 import javax.xml.XMLConstants;
@@ -279,6 +278,8 @@ public class ARScannedElementPane extends ARPane
             new ScannerBrowserRuntime(new PaneBrowserRuntimeOperations());
     private final ScannerTestActionFormatter scannerTestActionFormatter = new ScannerTestActionFormatter();
     private final ScannerCreateBlockPlanner scannerCreateBlockPlanner = new ScannerCreateBlockPlanner();
+    private final ScannerCreateBlockDialogAdapter scannerCreateBlockDialogAdapter =
+            new ScannerCreateBlockDialogAdapter(scannerCreateBlockPlanner);
     private final ScannerEmptyPayloadService scannerEmptyPayloadService = new ScannerEmptyPayloadService();
 
     private int portSocketInitial = 54525;
@@ -4023,80 +4024,14 @@ public class ARScannedElementPane extends ARPane
         List<BlockLoadDTO> existingSorted =
                 scannerCreateBlockPlanner.sortedBlocksForBotJob(currentBotJob.getId(), performLists.getListBlock());
 
-        javafx.scene.control.Dialog<javafx.scene.control.ButtonType> dialog = new javafx.scene.control.Dialog<>();
-        dialog.setTitle(presentation.title());
-        dialog.initModality(Modality.APPLICATION_MODAL);
-
-        VBox root = new VBox(presentation.verticalSpacing());
-        // Insets(top, right, bottom, left) — +20 on the bottom vs. the uniform
-        // 15 we had before, so the dialog ends up 20px taller without
-        // touching the dialog pane directly.
-        root.setPadding(new Insets(15, 15, 35, 15));
-        root.setMinWidth(presentation.minWidth());
-
-        if (reactive) {
-            Label banner = new Label(presentation.banner());
-            banner.setWrapText(true);
-            banner.setMaxWidth(Double.MAX_VALUE);
-            banner.setStyle(presentation.bannerStyle());
-            root.getChildren().add(banner);
-        }
-
-        Label nameLabel = new Label(presentation.nameLabel());
-        TextField nameField = new TextField();
-        nameField.setPromptText(presentation.namePrompt());
-
-        Label posLabel = new Label(presentation.positionLabel());
-        ComboBox<String> posCombo = new ComboBox<>();
-        posCombo.setMaxWidth(Double.MAX_VALUE);
-        List<String> posOptions = scannerCreateBlockPlanner.positionOptions(existingSorted);
-        posCombo.setItems(FXCollections.observableArrayList(posOptions));
-        posCombo.getSelectionModel().selectFirst();
-
-        Label previewLabel = new Label();
-        previewLabel.setWrapText(true);
-        previewLabel.setStyle(presentation.previewStyle());
-
-        Runnable updatePreview = () -> {
-            int targetOrder = scannerCreateBlockPlanner.computeInsertOrderNumber(posCombo.getValue(), existingSorted);
-            previewLabel.setText(scannerCreateBlockPlanner.buildCreateBlockPreview(targetOrder, existingSorted));
-        };
-        posCombo.valueProperty().addListener((o, ov, nv) -> updatePreview.run());
-        updatePreview.run();
-
-        root.getChildren()
-                .addAll(
-                        nameLabel,
-                        nameField,
-                        posLabel,
-                        posCombo,
-                        new javafx.scene.control.Separator(),
-                        new Label(presentation.previewLabel()),
-                        previewLabel);
-
-        dialog.getDialogPane().setContent(root);
-
-        javafx.scene.control.ButtonType createBtn =
-                new javafx.scene.control.ButtonType(
-                        presentation.createButton(), javafx.scene.control.ButtonBar.ButtonData.OK_DONE);
-        dialog.getDialogPane().getButtonTypes().addAll(createBtn, javafx.scene.control.ButtonType.CANCEL);
-
-        // Disable Create until there's a name.
-        javafx.scene.Node createNode = dialog.getDialogPane().lookupButton(createBtn);
-        createNode.setDisable(true);
-        nameField
-                .textProperty()
-                .addListener((o, ov, nv) ->
-                        createNode.setDisable(nv == null || nv.trim().isEmpty()));
-
-        java.util.Optional<javafx.scene.control.ButtonType> result = dialog.showAndWait();
-        if (result.isEmpty() || result.get() != createBtn) {
-            // User cancelled — drop the pending insert (if any).
+        Optional<ScannerCreateBlockDialogAdapter.Result> result =
+                scannerCreateBlockDialogAdapter.show(presentation, reactive, existingSorted);
+        if (result.isEmpty()) {
             return;
         }
 
-        String name = nameField.getText().trim();
-        int orderNumber = scannerCreateBlockPlanner.computeInsertOrderNumber(posCombo.getValue(), existingSorted);
+        String name = result.get().name();
+        int orderNumber = result.get().orderNumber();
         ErrorMessage err = createAndBroadcastNewBlock(name, orderNumber);
         if (err != null) {
             performMessage.errorMessageOperationFailed(err);
