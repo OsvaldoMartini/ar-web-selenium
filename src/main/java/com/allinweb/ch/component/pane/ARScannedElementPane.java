@@ -172,6 +172,8 @@ public class ARScannedElementPane extends ARPane
             new ScannerInstructionMessageService();
     private final ScannerSearchCleanupService scannerSearchCleanupService =
             new ScannerSearchCleanupService();
+    private final ScannerSyntheticReferenceService scannerSyntheticReferenceService =
+            new ScannerSyntheticReferenceService();
     private final ScannerTestRunBotJobPreparation scannerTestRunBotJobPreparation =
             new ScannerTestRunBotJobPreparation(new PaneTestRunBotJobOperations());
     private final ScannerTestRunExecutionStart scannerTestRunExecutionStart =
@@ -1324,30 +1326,9 @@ public class ARScannedElementPane extends ARPane
     }
 
     private List<ReferenceLoadDTO> buildSyntheticReferences(TargetElement target) {
-        List<ReferenceLoadDTO> references = new ArrayList<>();
-        if (target == null
-                || target.getSavedReferences() == null
-                || target.getSavedReferences().isEmpty()) {
-            return references;
-        }
-
         Integer botJobId = currentBotJob == null ? null : currentBotJob.getId();
         Integer homeBankingId = currentBotJob == null ? null : currentBotJob.getHomeBankingId();
-        for (Map.Entry<String, String> entry : target.getSavedReferences().entrySet()) {
-            if (entry.getKey() == null
-                    || entry.getKey().isBlank()
-                    || entry.getValue() == null
-                    || entry.getValue().isBlank()) {
-                continue;
-            }
-            ReferenceLoadDTO reference = new ReferenceLoadDTO();
-            reference.setReferenceType(entry.getKey());
-            reference.setValue(entry.getValue());
-            reference.setBotJobId(botJobId);
-            reference.setHomeBankingId(homeBankingId);
-            references.add(reference);
-        }
-        return references;
+        return scannerSyntheticReferenceService.build(target, botJobId, homeBankingId);
     }
 
     /** Loose URL equality — ignores trailing slash and #fragment so we don't needlessly re-navigate. */
