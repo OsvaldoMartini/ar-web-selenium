@@ -185,6 +185,8 @@ public class ARScannedElementPane extends ARPane
     private final ScannerPluginHintAdapter scannerPluginHintAdapter = new ScannerPluginHintAdapter();
     private final ScannerPluginStatusButtonAdapter scannerPluginStatusButtonAdapter =
             new ScannerPluginStatusButtonAdapter();
+    private final ScannerPluginUpdateTableAdapter scannerPluginUpdateTableAdapter =
+            new ScannerPluginUpdateTableAdapter();
     private final UiThreadDispatcher uiThreadDispatcher = UiThreadDispatcher.getInstance();
     private final ScannerDomReviewSnapshotService scannerDomReviewSnapshotService =
             new ScannerDomReviewSnapshotService();
@@ -8807,72 +8809,18 @@ public class ARScannedElementPane extends ARPane
      * Builds and shows the Plugin Update UI dialog with a table of plugins and action buttons.
      */
     private void buildPluginUpdateUI(List<String[]> rows, String pluginsDir, String urlBase, boolean serverConfigured) {
-        // ── Table ──
-        VBox tableBox = new VBox(4);
-        tableBox.setPadding(new Insets(5));
+        ScannerPluginUpdateTableAdapter.Result tableResult =
+                scannerPluginUpdateTableAdapter.build(rows, serverConfigured);
+        VBox tableBox = tableResult.tableBox();
 
-        // ── Missing-plugins banner (shown when no plugins OR any are missing) ──
         boolean noPlugins = rows.isEmpty();
         boolean anyMissing = rows.stream().anyMatch(r -> "MISSING".equals(r[5]));
         if (noPlugins || anyMissing) {
-            tableBox.getChildren().add(buildPortalBanner(noPlugins, anyMissing));
+            tableBox.getChildren().add(0, buildPortalBanner(noPlugins, anyMissing));
         }
 
-        // Header
-        HBox header = new HBox(10);
-        Label hName = new Label("Plugin");
-        hName.setPrefWidth(140);
-        hName.setStyle("-fx-font-weight:bold;-fx-font-size:12px;");
-        Label hVer = new Label("Version");
-        hVer.setPrefWidth(60);
-        hVer.setStyle("-fx-font-weight:bold;-fx-font-size:12px;");
-        Label hSize = new Label("Size");
-        hSize.setPrefWidth(60);
-        hSize.setStyle("-fx-font-weight:bold;-fx-font-size:12px;");
-        Label hStatus = new Label("Status");
-        hStatus.setPrefWidth(80);
-        hStatus.setStyle("-fx-font-weight:bold;-fx-font-size:12px;");
-        header.getChildren().addAll(hName, hVer, hSize, hStatus);
-        tableBox.getChildren().add(header);
-
-        List<CheckBox> downloadChecks = new ArrayList<>();
-        List<String[]> downloadableRows = new ArrayList<>();
-
-        for (String[] row : rows) {
-            HBox line = new HBox(10);
-            Label lName = new Label(row[1]);
-            lName.setPrefWidth(140);
-            lName.setStyle("-fx-font-size:12px;");
-            Label lVer = new Label(row[2]);
-            lVer.setPrefWidth(60);
-            lVer.setStyle("-fx-font-size:12px;");
-            Label lSize = new Label(row[3]);
-            lSize.setPrefWidth(60);
-            lSize.setStyle("-fx-font-size:12px;");
-            Label lStatus = new Label();
-            lStatus.setPrefWidth(80);
-            lStatus.setStyle("-fx-font-size:12px;-fx-font-weight:bold;");
-
-            if ("LOCAL".equals(row[5])) {
-                lStatus.setText("✓ Installed");
-                lStatus.setStyle(lStatus.getStyle() + "-fx-text-fill:#166534;");
-                line.getChildren().addAll(lName, lVer, lSize, lStatus);
-            } else {
-                lStatus.setText("✗ Missing");
-                lStatus.setStyle(lStatus.getStyle() + "-fx-text-fill:#dc2626;");
-                CheckBox cb = new CheckBox();
-                cb.setSelected(true); // auto-check missing plugins
-                if (serverConfigured && !row[4].isEmpty()) {
-                    cb.setDisable(false); // user can uncheck to skip download
-                    downloadChecks.add(cb);
-                    downloadableRows.add(row);
-                } else {
-                    cb.setDisable(true); // no server configured - cannot download
-                }
-                line.getChildren().addAll(cb, lName, lVer, lSize, lStatus);
-            }
-            tableBox.getChildren().add(line);
-        }
+        List<CheckBox> downloadChecks = tableResult.downloadChecks();
+        List<String[]> downloadableRows = tableResult.downloadableRows();
 
         // ── Info labels ──
         Label folderLabel = new Label("Plugins folder:  " + pluginsDir);
