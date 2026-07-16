@@ -40,7 +40,6 @@ import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import javafx.concurrent.Task;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -185,17 +184,14 @@ public class ARScannedElementPane extends ARPane
             new ScannerPluginListContentAdapter();
     private final ScannerPluginListDialogAdapter scannerPluginListDialogAdapter =
             new ScannerPluginListDialogAdapter();
-    private final ScannerPluginManifestFetchTaskAdapter scannerPluginManifestFetchTaskAdapter =
-            new ScannerPluginManifestFetchTaskAdapter();
-    private final ScannerPluginManifestClient scannerPluginManifestClient = new ScannerPluginManifestClient();
     private final ScannerPluginBackgroundThreadAdapter scannerPluginBackgroundThreadAdapter =
             new ScannerPluginBackgroundThreadAdapter();
     private final ScannerPluginPickerManifestFetchAdapter scannerPluginPickerManifestFetchAdapter =
             new ScannerPluginPickerManifestFetchAdapter();
     private final ScannerPluginDownloadFlowAdapter scannerPluginDownloadFlowAdapter =
             new ScannerPluginDownloadFlowAdapter();
-    private final ScannerPluginManifestResultAdapter scannerPluginManifestResultAdapter =
-            new ScannerPluginManifestResultAdapter();
+    private final ScannerPluginManifestListFlowAdapter scannerPluginManifestListFlowAdapter =
+            new ScannerPluginManifestListFlowAdapter();
     private final ScannerLayoutNodeAdapter scannerLayoutNodeAdapter = new ScannerLayoutNodeAdapter();
     private final ScannerRefreshBlocksButtonAdapter scannerRefreshBlocksButtonAdapter =
             new ScannerRefreshBlocksButtonAdapter();
@@ -8589,7 +8585,7 @@ public class ARScannedElementPane extends ARPane
     //
     // Required imports (all already present in ARScannedElementPane.java):
     //   java.time.Duration, java.io.InputStream, java.nio.charset.StandardCharsets
-    //   javafx.concurrent.Task, javafx.application.Platform,
+    //   javafx.application.Platform,
     //   javafx.scene.control.*, javafx.scene.layout.*,
     //   javafx.geometry.Insets, javafx.collections.*
     //   com.google.gson.Gson  (already on classpath via pom.xml)
@@ -8598,38 +8594,6 @@ public class ARScannedElementPane extends ARPane
 
     // ── Plugin Manifest ───────────────────────────────────────────────────────
 
-    /**
-     * Derives the manifest.json URL from {@code url_plugins}.
-     *
-     * <p>Convention (server rooted at {@code public/}):
-     * <pre>
-     *   url_plugins  =  http://192.168.1.109:30875          (base)
-     *   manifest     =  http://192.168.1.109:30875/plugins/manifest.json
-     *   zip files    =  http://192.168.1.109:30875 + downloadUrl
-     *                   e.g. http://192.168.1.109:30875/plugins/pageScanner.zip
-     * </pre>
-     *
-     * <p>If {@code url_plugins} already ends with a path (legacy config pointing
-     * directly to a ZIP such as {@code .../plugins/latest.zip}), the method
-     * strips everything from the last {@code /plugins/} segment and appends
-     * {@code /plugins/manifest.json}, so old configs keep working.
-     *
-     * @param urlPlugins  the raw value of the {@code url_plugins} property
-     * @return            the fully-qualified manifest URL string
-     */
-    private static String buildManifestUrl(String urlPlugins) {
-        // Strip trailing slash
-        String base = urlPlugins.endsWith("/") ? urlPlugins.substring(0, urlPlugins.length() - 1) : urlPlugins;
-
-        // If the stored value already looks like a file URL, derive the server root
-        // e.g. "http://host:port/plugins/latest.zip" → "http://host:port"
-        int pluginsIdx = base.lastIndexOf("/plugins/");
-        if (pluginsIdx > 0) {
-            base = base.substring(0, pluginsIdx);
-        }
-
-        return base + "/plugins/manifest.json";
-    }
 
     // ── Plugin List Dialog ────────────────────────────────────────────────────
 
@@ -8660,20 +8624,10 @@ public class ARScannedElementPane extends ARPane
 
         String pathPlugins = arPropertyManager.resolvePluginsDir();
 
-        final String manifestUrl = buildManifestUrl(urlPlugins);
-        final String serverBase = manifestUrl.substring(0, manifestUrl.lastIndexOf("/plugins/manifest.json"));
-
-        // ── Background fetch ──────────────────────────────────────────────────
-        Task<PluginManifestDTO> fetchTask =
-                scannerPluginManifestFetchTaskAdapter.build(() -> scannerPluginManifestClient.fetch(manifestUrl));
-
-        scannerPluginManifestResultAdapter.wire(
-                fetchTask,
-                manifestUrl,
-                manifest -> showPluginListDialog(manifest, serverBase, pathPlugins),
+        scannerPluginManifestListFlowAdapter.fetch(
+                urlPlugins,
+                request -> showPluginListDialog(request.manifest(), request.serverBase(), pathPlugins),
                 new PanePluginNotifier());
-
-        scannerPluginBackgroundThreadAdapter.start(fetchTask, "plugin-manifest-fetch");
     }
 
     /**
