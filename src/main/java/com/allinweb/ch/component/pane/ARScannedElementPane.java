@@ -161,6 +161,8 @@ public class ARScannedElementPane extends ARPane
     private final ScannerSupportFileSaveService scannerSupportFileSaveService = new ScannerSupportFileSaveService();
     private final ScannerSupportFileChooserService scannerSupportFileChooserService =
             new ScannerSupportFileChooserService();
+    private final ScannerSupportSavedFileMessageService scannerSupportSavedFileMessageService =
+            new ScannerSupportSavedFileMessageService();
     private final ScannerSupportCaptureResultService scannerSupportCaptureResultService =
             new ScannerSupportCaptureResultService();
     private final ScannerSupportCaptureSendService scannerSupportCaptureSendService =
@@ -2175,13 +2177,14 @@ public class ARScannedElementPane extends ARPane
 
                     ScannerSupportFileSaveService.SavedSupportFile savedSupportFile =
                             scannerSupportFileSaveService.save(supportFile, chosen.toPath());
+                    ScannerSupportSavedFileMessageService.Message savedMessage =
+                            scannerSupportSavedFileMessageService.pageReview(savedSupportFile);
 
                     log.info("DOM capture saved to {}", chosen.getAbsolutePath());
                     javafx.scene.control.Alert out =
                             new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.INFORMATION);
-                    out.setHeaderText("Support file saved");
-                    out.setContentText(savedSupportFile.portalMessage(
-                            "Drag & drop this file on the Support Portal to create a ticket."));
+                    out.setHeaderText(savedMessage.header());
+                    out.setContentText(savedMessage.content());
                     out.showAndWait();
                 }
             } catch (Exception ex) {
@@ -2322,12 +2325,13 @@ public class ARScannedElementPane extends ARPane
 
                     ScannerSupportFileSaveService.SavedSupportFile savedSupportFile =
                             scannerSupportFileSaveService.save(supportFile, chosen.toPath());
+                    ScannerSupportSavedFileMessageService.Message savedMessage =
+                            scannerSupportSavedFileMessageService.elementsReview(savedSupportFile);
 
                     javafx.scene.control.Alert out =
                             new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.INFORMATION);
-                    out.setHeaderText("Elements review saved");
-                    out.setContentText(savedSupportFile.portalMessage(
-                            "Drag & drop this file on the Support Portal to submit."));
+                    out.setHeaderText(savedMessage.header());
+                    out.setContentText(savedMessage.content());
                     out.showAndWait();
                 }
             } catch (Exception ex) {
