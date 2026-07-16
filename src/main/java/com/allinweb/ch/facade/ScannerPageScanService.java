@@ -27,6 +27,24 @@ public final class ScannerPageScanService {
         return fallbackTerms == null ? new String[0] : fallbackTerms;
     }
 
+    public Request standardRequest(
+            String searchTerms,
+            String[] selectedProfileTerms,
+            String[] fallbackTerms,
+            int port,
+            int homeBankingId,
+            int botJobId,
+            List<String> extendedRules) {
+        return new Request(
+                terms(searchTerms, selectedProfileTerms, fallbackTerms),
+                false,
+                port,
+                ScannerSearchRoute.standardPageScanner(),
+                homeBankingId,
+                botJobId,
+                extendedRules == null ? Collections.emptyList() : extendedRules);
+    }
+
     public PerformListElements.ScanResult scan(ARWebDriver arWebDriver, WebDriver driver, Request request) {
         List<String> rules = request.extendedRules() == null ? Collections.emptyList() : request.extendedRules();
         return scanner.scanElements(

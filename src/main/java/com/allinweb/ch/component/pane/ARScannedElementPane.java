@@ -4326,12 +4326,16 @@ public class ARScannedElementPane extends ARPane
         }
 
         ElementScanProfile selectedProfile = elementFocusComboBox == null ? null : elementFocusComboBox.getValue();
-        String[] dataArray = scannerPageScanService.terms(
+        ScannerPageScanService.Request request = scannerPageScanService.standardRequest(
                 searchTerms,
                 selectedProfile == null ? null : selectedProfile.termsArray(),
-                ALL_INTERACTIVE_SCAN_PROFILE.termsArray());
+                ALL_INTERACTIVE_SCAN_PROFILE.termsArray(),
+                portSocketInitial,
+                this.currentBotJob.getHomeBankingId(),
+                this.currentBotJob.getId(),
+                extendedRules);
 
-        handleSearchTermClick(dataArray, extendedRules == null ? Collections.emptyList() : extendedRules);
+        handleSearchTermClick(request);
 
         try {
             Thread.sleep(2000);
@@ -4346,7 +4350,7 @@ public class ARScannedElementPane extends ARPane
         return selected == null ? ALL_INTERACTIVE_SCAN_PROFILE.searchText() : selected.searchText();
     }
 
-    private void handleSearchTermClick(String[] dataArray, List<String> extendedRules) {
+    private void handleSearchTermClick(ScannerPageScanService.Request request) {
         //        webElementObservableList1.clear();
 
         // Selenium frame reset — skip in Playwright-only mode (no Selenium driver). The scan below
@@ -4361,19 +4365,16 @@ public class ARScannedElementPane extends ARPane
         revertCloneInjections(performActions.getCurrentDriver());
         revertPickInjections(performActions.getCurrentDriver());
 
-        int finalPort = portSocketInitial;
-        ScannerSearchRoute route = ScannerSearchRoute.standardPageScanner();
-
         periodicSearchThread(
                 performActions.getCurrentDriver(),
-                dataArray,
-                finalPort,
-                route.sourceSessionId(),
-                route.destinationSessionId(),
-                route.operationId(),
-                this.currentBotJob.getHomeBankingId(),
-                this.currentBotJob.getId(),
-                extendedRules);
+                request.terms(),
+                request.port(),
+                request.route().sourceSessionId(),
+                request.route().destinationSessionId(),
+                request.route().operationId(),
+                request.homeBankingId(),
+                request.botJobId(),
+                request.extendedRules());
 
         //        Platform.runLater(() -> periodicSearchThread(
         //                performActions.getCurrentDriver(),

@@ -67,6 +67,22 @@ class ScannerPageScanServiceTest {
         assertEquals(List.of("attr:data-testid"), scanner.extendedRules);
     }
 
+    @Test
+    void standardRequestBuildsTermsRouteAndEmptyRules() {
+        ScannerPageScanService service = new ScannerPageScanService(new RecordingScanner());
+
+        ScannerPageScanService.Request request =
+                service.standardRequest("button,input", null, new String[] {"fallback"}, 54525, 7, 42, null);
+
+        assertArrayEquals(new String[] {"button", "input"}, request.terms());
+        assertEquals(false, request.searchHiddenFields());
+        assertEquals(54525, request.port());
+        assertEquals(ScannerSearchRoute.standardPageScanner(), request.route());
+        assertEquals(7, request.homeBankingId());
+        assertEquals(42, request.botJobId());
+        assertEquals(List.of(), request.extendedRules());
+    }
+
     private static final class RecordingScanner implements ScannerPageScanService.ScannerPort {
         private final PerformListElements.ScanResult result =
                 PerformListElements.ScanResult.ofElements(List.of(new ElementDTO()));
