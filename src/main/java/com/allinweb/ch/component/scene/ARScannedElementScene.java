@@ -43,7 +43,6 @@ public class ARScannedElementScene extends ARScene {
     private static final CountDownLatch latch = new CountDownLatch(1);
     private static final WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
     private static final PerformLists performLists = PerformLists.getInstance();
-    private static final PerformDBEngine performDBEngine = PerformDBEngine.getInstance();
     private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
     private static final TargetElementHelper targetElementHelper = TargetElementHelper.getInstance();
     private static final ARWebDriver arWebDriver = ARWebDriver.getInstance();
@@ -86,6 +85,8 @@ public class ARScannedElementScene extends ARScene {
             new ScannerInsertPersistenceService(new SceneInsertPersistenceDataPort());
     private final ScannerUpdatePersistenceService scannerUpdatePersistenceService =
             new ScannerUpdatePersistenceService(new SceneUpdatePersistenceDataPort());
+    private final ScannerBotJobTasksPublisher scannerBotJobTasksPublisher =
+            ScannerBotJobTasksPublisher.getInstance();
     private final BotJobWorkspaceCapabilityService botJobWorkspaceCapabilityService =
             BotJobWorkspaceCapabilityService.getInstance();
     private final ScannerMobileTestRoute scannerMobileTestRoute = ScannerMobileTestRoute.standard();
@@ -818,22 +819,11 @@ public class ARScannedElementScene extends ARScene {
     }
 
     public void updateBotJobTasks(int currentBotJobId) {
-        ErrorMessage errorMessage = performDBEngine.loadCompleteJobs(currentBotJobId);
+        ErrorMessage errorMessage =
+                scannerBotJobTasksPublisher.publish(currentBotJob.getHomeBankingId(), currentBotJobId);
         if (errorMessage != null) {
             performMessage.errorMessageOperationFailed(errorMessage);
-            return;
         }
-
-        String jsonData = "[]";
-        if (!performLists.getListBotJob().isEmpty()) {
-            List<InstructionLoad> blockLoopInstructions = performLists.buildJsonViewData(performLists.getListBotJob());
-            jsonData = gson.toJson(blockLoopInstructions);
-        }
-        webSocketSessionManager.sendMessageJson(
-                currentBotJob.getHomeBankingId(),
-                ScannerWorkspaceSessions.BOT_JOB_TASKS, // + currentBotJobId,
-                jsonData,
-                ScannerWorkspaceOperations.UPDATE_INSTRUCTIONS);
     }
 
     private SplitDTO parseSplitDTO(JsonObject jsonEntry) {
