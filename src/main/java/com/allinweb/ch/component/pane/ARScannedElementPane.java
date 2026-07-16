@@ -1949,11 +1949,8 @@ public class ARScannedElementPane extends ARPane
             elements2VBox = scannerLayoutNodeAdapter.elementsColumn(stackLabelOthers, componentBox);
             boxListViews.getChildren().addAll(elements2VBox, textFieldVBox);
 
-            HBox blockAndUrl = new HBox();
-            blockAndUrl.setSpacing(0); // No spacing, use margins instead
-            HBox.setMargin(comboBoxBlocks, new Insets(0, 3, 0, 0)); // Right margin of 3 pixels
-            HBox.setMargin(refreshBlocksButton, new Insets(0, 3, 0, 0)); // Right margin of 3 pixels
-            blockAndUrl.getChildren().addAll(comboBoxBlocks, refreshBlocksButton, currentURLBox);
+            HBox blockAndUrl =
+                    scannerLayoutNodeAdapter.blockAndUrlRow(comboBoxBlocks, refreshBlocksButton, currentURLBox);
 
             verticalBox.getChildren().addAll(topPane, blockAndUrl, boxListViews);
             VBox.setVgrow(verticalBox, Priority.ALWAYS);

@@ -113,4 +113,13 @@ final class ScannerLayoutNodeAdapter {
         HBox.setHgrow(column, Priority.ALWAYS);
         return column;
     }
+
+    HBox blockAndUrlRow(Node blockSelector, Node refreshButton, Node currentUrlBox) {
+        HBox row = new HBox();
+        row.setSpacing(0);
+        HBox.setMargin(blockSelector, new Insets(0, 3, 0, 0));
+        HBox.setMargin(refreshButton, new Insets(0, 3, 0, 0));
+        row.getChildren().addAll(blockSelector, refreshButton, currentUrlBox);
+        return row;
+    }
 }
