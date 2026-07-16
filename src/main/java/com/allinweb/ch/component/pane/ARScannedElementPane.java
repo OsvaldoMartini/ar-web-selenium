@@ -37,7 +37,6 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BooleanSupplier;
 import java.util.function.Predicate;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -147,6 +146,8 @@ public class ARScannedElementPane extends ARPane
             new ScannerGridSearchResultsService(scannerGridPublisher, new PaneScannerGridBlocksPort());
     private final ScannerBlockValidationService scannerBlockValidationService =
             new ScannerBlockValidationService();
+    private final ScannerActionDefaultsService scannerActionDefaultsService =
+            new ScannerActionDefaultsService();
     private final ScannerModalBlockCreationService scannerModalBlockCreationService =
             new ScannerModalBlockCreationService();
     private final ScannerPageScanService scannerPageScanService = new ScannerPageScanService(performListElements);
@@ -4388,82 +4389,13 @@ public class ARScannedElementPane extends ARPane
     }
 
     public void defineCheckBoxesClickable(TargetElement targetCheck) {
-        boolean clickable = isClickable(targetCheck.getElement());
-
-        boolean tagClickable = false;
-        // Define regex to extract specific tags (e.g., a, button)
-        String regex = "/([^/\\[]+)";
-        Pattern pattern = Pattern.compile(regex);
-
-        // Iterate through each attribute in the array
-        if (targetCheck.getAttributeData() != null) {
-
-            for (AttributeData attribute : targetCheck.getAttributeData()) {
-                // Assuming you want to use the value of the attribute for matching
-                String attributeValue = attribute.getValue(); // Get the value of the attribute
-
-                Matcher matcher = pattern.matcher(attributeValue); // Use the value for matching
-
-                // Check for matches in the current attribute value
-                while (matcher.find()) {
-                    String tag = matcher.group(1);
-                    if (tag.equals("a") || tag.equals("button")) {
-                        logOperations.info("Found clickable tag: <" + tag + ">");
-                        tagClickable = true;
-                        break;
-                    }
-                }
-                if (tagClickable) {
-                    break; // Exit the loop once a clickable tag is found
-                }
-            }
-        }
-
-        Boolean inputContains = targetCheck.getTagName().toLowerCase().contains("input");
-
-        Boolean selectContains = targetCheck.getTagName().toLowerCase().contains("select");
-
-        if (targetCheck.getCloned() == null) {
-
-            boolean finalTagClickable = tagClickable;
-            Platform.runLater(() -> {
-                if (finalTagClickable || clickable) {
-                    checkClickElement.setSelected(true);
-                    checkOutputText.setSelected(false);
-                    checkInputText.setSelected(false);
-
-                } else if (inputContains || selectContains) {
-                    checkInputText.setSelected(inputContains || selectContains);
-                    checkClickElement.setSelected(false);
-                    checkOutputText.setSelected(false);
-
-                } else {
-                    checkClickElement.setSelected(clickable);
-                    checkOutputText.setSelected(!clickable);
-                    checkInputText.setSelected(false);
-                }
-            });
-        } else {
-            Platform.runLater(() -> {
-                if (targetCheck.getTagType().equals(WebElementTagNameEnum.BUTTON)) {
-                    checkClickElement.setSelected(true);
-                    checkOutputText.setSelected(false);
-                    checkInputText.setSelected(false);
-                } else if (targetCheck.getTagType().equals(WebElementTagNameEnum.INPUT)) {
-                    checkClickElement.setSelected(false);
-                    checkOutputText.setSelected(false);
-                    checkInputText.setSelected(true);
-                } else if (targetCheck.getTagType().equals(WebElementTagNameEnum.OUTPUT)) {
-                    checkClickElement.setSelected(false);
-                    checkOutputText.setSelected(true);
-                    checkInputText.setSelected(false);
-                } else {
-                    checkClickElement.setSelected(false);
-                    checkOutputText.setSelected(false);
-                    checkInputText.setSelected(false);
-                }
-            });
-        }
+        ScannerActionDefaultsService.Decision decision =
+                scannerActionDefaultsService.decide(targetCheck, isClickable(targetCheck.getElement()));
+        Platform.runLater(() -> {
+            checkClickElement.setSelected(decision.click());
+            checkInputText.setSelected(decision.input());
+            checkOutputText.setSelected(decision.output());
+        });
     }
 
     private boolean isClickable(WebElement element) {
