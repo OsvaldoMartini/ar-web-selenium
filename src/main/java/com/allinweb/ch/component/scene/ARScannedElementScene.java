@@ -96,6 +96,8 @@ public class ARScannedElementScene extends ARScene {
             new ScannerMobileTestForwarder(scannerMobileTestRoute);
     private final ScannerTestMessageMetadataService scannerTestMessageMetadataService =
             new ScannerTestMessageMetadataService(new ScannerTestMessageMetadataService.DefaultDataPort());
+    private final ScannerElementDetailsSelectionService scannerElementDetailsSelectionService =
+            new ScannerElementDetailsSelectionService();
     // Private constructor to prevent instantiation
     private ARScannedElementScene() {
 
@@ -359,17 +361,11 @@ public class ARScannedElementScene extends ARScene {
                     if (type.equals(ScannerWorkspaceOperations.TEST_CLICK_DTO)) {
                         previousBlock = scannerBlockUpdateRouteService.transitionPreviousBlockForSession(
                                 splitDTO.getSessionId(), previousBlock);
-
-                        targetElementHelper.initialize(performActions, arScannedElementPane.scannerTargetContext());
-                        arScannedElementPane.setTargetSelected(
-                                targetElementHelper.extractPickClone(splitDTO.getElementDetails()[0]));
-                        arScannedElementPane.itPrintsElementDTO();
-                    } else {
-                        targetElementHelper.initialize(performActions, arScannedElementPane.scannerTargetContext());
-                        arScannedElementPane.setTargetSelected(
-                                targetElementHelper.extractPickClone(splitDTO.getElementDetails()[0]));
-                        arScannedElementPane.itPrintsElementDTO();
                     }
+                    scannerElementDetailsSelectionService.select(
+                            new SceneElementDetailsTargetExtractor(),
+                            arScannedElementPane,
+                            splitDTO.getElementDetails()[0]);
                     break;
                 default:
                     break;
@@ -803,6 +799,19 @@ public class ARScannedElementScene extends ARScene {
     }
 
     private static final class SceneInsertTargetExtractor implements ScannerInsertPreparationService.TargetExtractor {
+        @Override
+        public void initialize(ScannerTargetContext scannerTargetContext) {
+            targetElementHelper.initialize(performActions, scannerTargetContext);
+        }
+
+        @Override
+        public TargetElement extractPickClone(ElementDTO elementDTO) {
+            return targetElementHelper.extractPickClone(elementDTO);
+        }
+    }
+
+    private static final class SceneElementDetailsTargetExtractor
+            implements ScannerElementDetailsSelectionService.TargetExtractor {
         @Override
         public void initialize(ScannerTargetContext scannerTargetContext) {
             targetElementHelper.initialize(performActions, scannerTargetContext);
