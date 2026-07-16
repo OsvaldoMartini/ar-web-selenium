@@ -1833,14 +1833,10 @@ public class ARScannedElementPane extends ARPane
         try {
             // Starting the View
 
-            // Create a GridPane for the top section
-            GridPane gridPaneTop = new GridPane();
-            gridPaneTop.setPadding(new Insets(10));
-            gridPaneTop.setHgap(10); // Set horizontal gap between columns
+            GridPane gridPaneTop = scannerLayoutNodeAdapter.scannerTopGrid();
 
             // Add buttons and checkbox to the GridPane
-            HBox pageScannerRow = new HBox(6, pageScannerButton, ocrConfigButton);
-            pageScannerRow.setAlignment(Pos.CENTER_LEFT);
+            HBox pageScannerRow = scannerLayoutNodeAdapter.pageScannerRow(pageScannerButton, ocrConfigButton);
             gridPaneTop.add(pageScannerRow, 0, 0);
             gridPaneTop.add(pluginUpdateButton, 1, 0);
             gridPaneTop.add(updatePluginsButton, 2, 0);
@@ -1854,11 +1850,8 @@ public class ARScannedElementPane extends ARPane
             gridPaneTop.add(rightButton, 8, 0);
             gridPaneTop.add(requestSupportButton, 9, 0);
 
-            VBox vBoxCheckBox = new VBox();
-            vBoxCheckBox
-                    .getChildren()
-                    .addAll(createSpacerVert(), checkClickElement, checkInputText, checkOutputText, iFrameText);
-            vBoxCheckBox.setSpacing(6); // Adjust spacing between CheckBoxes
+            VBox vBoxCheckBox = scannerLayoutNodeAdapter.checkboxColumn(
+                    createSpacerVert(), checkClickElement, checkInputText, checkOutputText, iFrameText);
 
             topPane.getChildren().addAll(gridPaneTop, lblPluginHint); // Add gridPaneTop + hint to topPane
 
