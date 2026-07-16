@@ -2,9 +2,12 @@ package com.allinweb.ch.component.scene;
 
 import com.allinweb.ch.component.pane.BotJobDetailsWorkspaceHost;
 import com.allinweb.ch.driver.ARWebDriver;
+import com.allinweb.ch.facade.ConfigManagerLifecycle;
 import com.allinweb.ch.facade.ConfigSceneShutdownPort;
 import com.allinweb.ch.facade.ConfigSceneShutdownRegistry;
 import com.allinweb.ch.facade.MainDashboardPresentationRegistry;
+import com.allinweb.ch.facade.NewBotJobManagerLifecycle;
+import com.allinweb.ch.facade.OrganizationManagerLifecycle;
 
 public final class JavaFxConfigSceneShutdownPort implements ConfigSceneShutdownPort {
     private static final JavaFxConfigSceneShutdownPort INSTANCE = new JavaFxConfigSceneShutdownPort();
@@ -17,17 +20,18 @@ public final class JavaFxConfigSceneShutdownPort implements ConfigSceneShutdownP
 
     @Override
     public void closeNewBotJob() {
-        ARNewBotJobManagerScene.getInstance().closeModal();
+        NewBotJobManagerLifecycle.getInstance().closeModal();
     }
 
     @Override
     public void closeBotJobWorkspaceIfIdle() {
+        ConfigManagerLifecycle.getInstance().closeModal();
         BotJobDetailsWorkspaceHost.getInstance().closeWorkspaceIfIdle();
     }
 
     @Override
     public void closeOrganizationManager() {
-        AROrganizationManagerScene.getInstance().closeModal();
+        OrganizationManagerLifecycle.getInstance().closeModal();
     }
 
     @Override
