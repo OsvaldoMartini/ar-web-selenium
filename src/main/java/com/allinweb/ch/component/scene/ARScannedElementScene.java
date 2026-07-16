@@ -7,7 +7,6 @@ import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.*;
 import com.allinweb.ch.model.*;
-import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.allinweb.ch.util.ErrorMessage;
@@ -41,7 +40,6 @@ public class ARScannedElementScene extends ARScene {
     private static final String TITLE = "AR Web Factory";
     private static final DateTimeFormatter FORMAT_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
     private static final CountDownLatch latch = new CountDownLatch(1);
-    private static final WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
     private static final PerformLists performLists = PerformLists.getInstance();
     private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
     private static final TargetElementHelper targetElementHelper = TargetElementHelper.getInstance();
@@ -94,6 +92,8 @@ public class ARScannedElementScene extends ARScene {
     private final BotJobWorkspaceCapabilityService botJobWorkspaceCapabilityService =
             BotJobWorkspaceCapabilityService.getInstance();
     private final ScannerMobileTestRoute scannerMobileTestRoute = ScannerMobileTestRoute.standard();
+    private final ScannerMobileTestForwarder scannerMobileTestForwarder =
+            new ScannerMobileTestForwarder(scannerMobileTestRoute);
     // Private constructor to prevent instantiation
     private ARScannedElementScene() {
 
@@ -334,42 +334,7 @@ public class ARScannedElementScene extends ARScene {
                     }
 
                     if (scannerMobileTestRoute.isScannerSession(sessionId)) {
-
-                        // Safely extract the first element ID (if present)
-                        Integer elementId = Optional.ofNullable(splitDTO.getElementDetails())
-                                .filter(arr -> arr.length > 0)
-                                .map(arr -> arr[0])
-                                .map(ElementDTO::getId)
-                                .orElse(null);
-
-                        // Find matching instruction by variableId
-                        InstructionLoad matchingInstruction =
-                                Optional.ofNullable(performLists.getListInstruction())
-                                        .orElse(Collections.emptyList())
-                                        .stream()
-                                        .filter(i -> Objects.equals(i.getId(), elementId))
-                                        .findFirst()
-                                        .orElse(null);
-
-                        // 2) Apply only non-empty values into splitDTO and elementDetails[0]
-                        if (matchingInstruction != null) {
-                            // >>> Add AttrData:* references into elementDetails.attributesData
-                            SplitDTO.applyAttrDataFromReferences(splitDTO, matchingInstruction);
-
-                            SplitDTO.applyInstructionToSplit(splitDTO, matchingInstruction);
-                        }
-
-                        splitDTO.setOperationId(type);
-                        String jsonData = gson.toJson(splitDTO);
-
-                        if (!ScannerWorkspaceOperations.NEW_ELEMENT_DTO.equals(type)
-                                && !ScannerWorkspaceOperations.SEND_ALL_ELEMENTS_DTO.equals(type)) {
-                            webSocketSessionManager.sendMessageJson(
-                                    splitDTO.getHomeBankingId(),
-                                    scannerMobileTestRoute.returnSessionId(),
-                                    jsonData,
-                                    type);
-                        }
+                        scannerMobileTestForwarder.forward(splitDTO, type);
                     } else {
                         arScannedElementPane.checkRunningProcess();
 
