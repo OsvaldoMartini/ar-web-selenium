@@ -201,6 +201,8 @@ public class ARScannedElementPane extends ARPane
     private final ScannerBrowserNotAttachedMessageService scannerBrowserNotAttachedMessageService =
             new ScannerBrowserNotAttachedMessageService();
     private final ScannerSupportButtonAdapter scannerSupportButtonAdapter = new ScannerSupportButtonAdapter();
+    private final ScannerSearchHiddenFieldsButtonAdapter scannerSearchHiddenFieldsButtonAdapter =
+            new ScannerSearchHiddenFieldsButtonAdapter();
     private final UiThreadDispatcher uiThreadDispatcher = UiThreadDispatcher.getInstance();
     private final ScannerDomReviewSnapshotService scannerDomReviewSnapshotService =
             new ScannerDomReviewSnapshotService();
@@ -1640,8 +1642,7 @@ public class ARScannedElementPane extends ARPane
 
         lblPluginHint = scannerPluginHintAdapter.createLabel();
 
-        turnOnOffButton = new Button("Search Hidden Fields: Off");
-        turnOnOffButton.setStyle("-fx-background-color: grey; -fx-text-fill: white;");
+        turnOnOffButton = scannerSearchHiddenFieldsButtonAdapter.build();
 
         refreshWebPageButton = builder.buildButton(
                 "Refresh Web Page", ARConstants.SPACE_ZERO, "/refresh.png", ARConstants.SPACE_M, new Insets(5.0D));
