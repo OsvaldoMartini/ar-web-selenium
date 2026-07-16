@@ -1,7 +1,10 @@
 package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.component.pane.base.ARPane;
-import com.allinweb.ch.component.scene.*;
+import com.allinweb.ch.component.scene.ARConfigManagerScene;
+import com.allinweb.ch.component.scene.ARNewBotJobManagerScene;
+import com.allinweb.ch.component.scene.AROrganizationManagerScene;
+import com.allinweb.ch.component.scene.ARScannedElementScene;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.MainDashboardService;
 import com.allinweb.ch.facade.MainDashboardPresentation;
@@ -25,10 +28,8 @@ import com.google.gson.Gson;
 import java.io.File;
 import java.util.function.BooleanSupplier;
 import javafx.application.Platform;
-import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.concurrent.Worker;
-import javafx.scene.control.ListView;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Pane;
 import javafx.scene.web.WebEngine;
@@ -52,7 +53,6 @@ public class ARMainDashboardPane extends ARPane implements BotJobDetailsPresenta
     private static final MainDashboardService mainDashboardService = MainDashboardService.getInstance();
     private static final WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
     private static final Gson gson = new Gson();
-    private static final ARConfigurationScene arConfigurationScene = ARConfigurationScene.getInstance();
     private static final ARConfigManagerScene arConfigManagerScene = ARConfigManagerScene.getInstance();
     private static final BotJobDetailsWorkspaceHost botJobDetailsHost = BotJobDetailsWorkspaceHost.getInstance();
     private static final ARNewBotJobManagerScene arNewBotJobManagerScene = ARNewBotJobManagerScene.getInstance();
@@ -62,7 +62,6 @@ public class ARMainDashboardPane extends ARPane implements BotJobDetailsPresenta
     protected static volatile ARMainDashboardPane instance;
 
     private final WebView webView = new WebView();
-    private final ListView<BotJobLoadDTO> legacyBotJobListView = new ListView<>();
     private AnchorPane mainPane;
     private ObservableList<WebDriver> webDriverList;
     private boolean isEnabledLicence;
@@ -94,10 +93,6 @@ public class ARMainDashboardPane extends ARPane implements BotJobDetailsPresenta
         this.webDriverList = webDriverList;
         this.isEnabledLicence = isEnabledLicence;
         this.initialSessionId = initialSessionId == null ? SESSION_ID : initialSessionId;
-        if (SESSION_ID.equals(this.initialSessionId)) {
-            refreshLegacyListView();
-            arConfigurationScene.initialize(legacyBotJobListView, isEnabledLicence);
-        }
         arWebDriver.initialize(webDriverList);
     }
 
@@ -164,7 +159,7 @@ public class ARMainDashboardPane extends ARPane implements BotJobDetailsPresenta
             arNewBotJobManagerScene.initialize(isEnabledLicence);
             arNewBotJobManagerScene.showModal(currentStage());
             performDataBase.loadQuickBotJobs();
-            refreshLegacyListView();
+            pushReactDashboardList();
         });
     }
 
@@ -295,11 +290,10 @@ public class ARMainDashboardPane extends ARPane implements BotJobDetailsPresenta
 
     public void openConfig() {
         Platform.runLater(() -> {
-            refreshLegacyListView();
             arConfigManagerScene.initialize(isEnabledLicence);
             arConfigManagerScene.showModal(currentStage());
             performDataBase.loadQuickBotJobs();
-            refreshLegacyListView();
+            pushReactDashboardList();
         });
     }
 
@@ -379,11 +373,6 @@ public class ARMainDashboardPane extends ARPane implements BotJobDetailsPresenta
         return webView.getScene() != null && webView.getScene().getWindow() instanceof Stage
                 ? (Stage) webView.getScene().getWindow()
                 : null;
-    }
-
-    private void refreshLegacyListView() {
-        performDataBase.loadQuickBotJobs();
-        legacyBotJobListView.setItems(FXCollections.observableArrayList(performLists.getQuickBotJobs()));
     }
 
     private void pushReactDashboardList() {
