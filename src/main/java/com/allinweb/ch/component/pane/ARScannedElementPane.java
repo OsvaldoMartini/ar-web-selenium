@@ -204,6 +204,8 @@ public class ARScannedElementPane extends ARPane
             new ScannerPluginPickerManifestFetchAdapter();
     private final ScannerPluginDownloadResultAdapter scannerPluginDownloadResultAdapter =
             new ScannerPluginDownloadResultAdapter();
+    private final ScannerPluginManifestResultAdapter scannerPluginManifestResultAdapter =
+            new ScannerPluginManifestResultAdapter();
     private final ScannerLayoutNodeAdapter scannerLayoutNodeAdapter = new ScannerLayoutNodeAdapter();
     private final ScannerRefreshBlocksButtonAdapter scannerRefreshBlocksButtonAdapter =
             new ScannerRefreshBlocksButtonAdapter();
@@ -8993,18 +8995,11 @@ public class ARScannedElementPane extends ARPane
         Task<PluginManifestDTO> fetchTask =
                 scannerPluginManifestFetchTaskAdapter.build(() -> fetchManifest(manifestUrl));
 
-        fetchTask.setOnSucceeded(evt -> {
-            PluginManifestDTO manifest = fetchTask.getValue();
-            Platform.runLater(() -> showPluginListDialog(manifest, serverBase, pathPlugins));
-        });
-
-        fetchTask.setOnFailed(evt -> {
-            Throwable cause = fetchTask.getException();
-            log.error("PluginManifest - fetch failed", cause);
-            showPluginError(
-                    "Cannot load plugin list",
-                    "Failed to fetch manifest.json from:\n" + manifestUrl + "\n\n" + cause.getMessage());
-        });
+        scannerPluginManifestResultAdapter.wire(
+                fetchTask,
+                manifestUrl,
+                manifest -> showPluginListDialog(manifest, serverBase, pathPlugins),
+                new PanePluginNotifier());
 
         scannerPluginBackgroundThreadAdapter.start(fetchTask, "plugin-manifest-fetch");
     }
