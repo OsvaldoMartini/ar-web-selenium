@@ -30,4 +30,8 @@ final class ScannerFieldLabelsAdapter {
                 + "-fx-text-fill: #202124;");
         return label;
     }
+
+    Label webElementsFound() {
+        return new Label("Web Elements Found");
+    }
 }

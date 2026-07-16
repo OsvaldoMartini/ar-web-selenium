@@ -1991,7 +1991,7 @@ public class ARScannedElementPane extends ARPane
             stackCurrentURL.setAlignment(Pos.CENTER);
             HBox currentURLBox = new HBox(stackCurrentURL);
 
-            Label labelOthers = new Label("Web Elements Found");
+            Label labelOthers = scannerFieldLabelsAdapter.webElementsFound();
             StackPane stackLabelOthers = new StackPane();
             HBox othersBox = new HBox();
             createSpacerHoriz();
