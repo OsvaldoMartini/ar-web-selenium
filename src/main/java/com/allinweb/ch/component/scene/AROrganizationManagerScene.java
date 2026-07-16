@@ -3,6 +3,7 @@ package com.allinweb.ch.component.scene;
 import com.allinweb.ch.component.pane.AROrganizationManagerPane;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
+import com.allinweb.ch.facade.OrganizationManagerLifecycle;
 import javafx.application.Platform;
 import javafx.scene.Scene;
 import javafx.stage.Modality;
@@ -24,6 +25,7 @@ public class AROrganizationManagerScene extends ARScene {
 
     private AROrganizationManagerScene() {
         super();
+        OrganizationManagerLifecycle.getInstance().install(new SceneOrganizationManagerHandler());
     }
 
     public static AROrganizationManagerScene getInstance() {
@@ -35,6 +37,10 @@ public class AROrganizationManagerScene extends ARScene {
             }
         }
         return instance;
+    }
+
+    public void showModal() {
+        showModal(null);
     }
 
     public void showModal(Stage parentStage) {
@@ -49,7 +55,9 @@ public class AROrganizationManagerScene extends ARScene {
             modalScene = new Scene(pane.createPane(), getSceneWidth(), getSceneHeight());
             modalStage.setScene(modalScene);
             modalStage.setTitle(getTitle());
-            modalStage.initOwner(parentStage);
+            if (parentStage != null) {
+                modalStage.initOwner(parentStage);
+            }
             modalStage.initModality(Modality.NONE);
             modalStage.setAlwaysOnTop(true);
             modalStage.setOnShown(event -> Platform.runLater(() -> modalStage.setAlwaysOnTop(false)));
@@ -88,5 +96,17 @@ public class AROrganizationManagerScene extends ARScene {
     @Override
     public String getTitle() {
         return TITLE;
+    }
+
+    private final class SceneOrganizationManagerHandler implements OrganizationManagerLifecycle.Handler {
+        @Override
+        public void openOrganizations() {
+            AROrganizationManagerScene.this.showModal();
+        }
+
+        @Override
+        public void closeModal() {
+            AROrganizationManagerScene.this.closeModal();
+        }
     }
 }
