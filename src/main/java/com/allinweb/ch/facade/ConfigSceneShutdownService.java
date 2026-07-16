@@ -1,36 +1,27 @@
 package com.allinweb.ch.facade;
 
+import java.util.function.Supplier;
+
 /** JavaFX-free shutdown ordering for configuration changes that require closing open workspaces. */
 final class ConfigSceneShutdownService {
-    private final ScenesPort scenes;
+    private final Supplier<ConfigSceneShutdownPort> scenes;
 
-    ConfigSceneShutdownService(ScenesPort scenes) {
+    ConfigSceneShutdownService(ConfigSceneShutdownPort scenes) {
+        this(() -> scenes);
+    }
+
+    ConfigSceneShutdownService(Supplier<ConfigSceneShutdownPort> scenes) {
         this.scenes = scenes;
     }
 
     void closeAll() {
-        scenes.closeNewBotJob();
-        scenes.closeBotJobWorkspaceIfIdle();
-        scenes.closeOrganizationManager();
-        scenes.closeScanner();
-        scenes.closeScannerWebDrivers();
-        scenes.closeAllWebDrivers();
-        scenes.closeCurrentWebDriver();
-    }
-
-    interface ScenesPort {
-        void closeNewBotJob();
-
-        void closeBotJobWorkspaceIfIdle();
-
-        void closeOrganizationManager();
-
-        void closeScanner();
-
-        void closeScannerWebDrivers();
-
-        void closeAllWebDrivers();
-
-        void closeCurrentWebDriver();
+        ConfigSceneShutdownPort current = scenes.get();
+        current.closeNewBotJob();
+        current.closeBotJobWorkspaceIfIdle();
+        current.closeOrganizationManager();
+        current.closeScanner();
+        current.closeScannerWebDrivers();
+        current.closeAllWebDrivers();
+        current.closeCurrentWebDriver();
     }
 }

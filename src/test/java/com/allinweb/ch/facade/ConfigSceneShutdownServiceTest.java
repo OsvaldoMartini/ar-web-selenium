@@ -27,7 +27,7 @@ class ConfigSceneShutdownServiceTest {
                 scenes.calls);
     }
 
-    private static final class RecordingScenes implements ConfigSceneShutdownService.ScenesPort {
+    private static final class RecordingScenes implements ConfigSceneShutdownPort {
         private final List<String> calls = new ArrayList<>();
 
         @Override

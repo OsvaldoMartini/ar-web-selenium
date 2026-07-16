@@ -1,10 +1,5 @@
 package com.allinweb.ch.facade;
 
-import com.allinweb.ch.component.pane.BotJobDetailsWorkspaceHost;
-import com.allinweb.ch.component.scene.ARConfigManagerScene;
-import com.allinweb.ch.component.scene.ARNewBotJobScene;
-import com.allinweb.ch.component.scene.AROrganizationManagerScene;
-import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.model.BotJobLoadDTO;
 import com.allinweb.ch.model.HomeBankingLoadDTO;
 import com.allinweb.ch.socket.WebSocketSessionManager;
@@ -40,7 +35,7 @@ public class ConfigService {
     private static final WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
     private static final Gson gson = new Gson();
     private static final ConfigSceneShutdownService sceneShutdownService =
-            new ConfigSceneShutdownService(new JavaFxScenesPort());
+            new ConfigSceneShutdownService(ConfigSceneShutdownRegistry.getInstance()::current);
 
     protected static volatile ConfigService instance;
 
@@ -386,43 +381,6 @@ public class ConfigService {
 
     private ConfigPresentation presentation() {
         return ConfigPresentationRegistry.getInstance().current();
-    }
-
-    private static final class JavaFxScenesPort implements ConfigSceneShutdownService.ScenesPort {
-        @Override
-        public void closeNewBotJob() {
-            ARNewBotJobScene.getInstance().closeModal();
-        }
-
-        @Override
-        public void closeBotJobWorkspaceIfIdle() {
-            BotJobDetailsWorkspaceHost.getInstance().closeWorkspaceIfIdle();
-        }
-
-        @Override
-        public void closeOrganizationManager() {
-            AROrganizationManagerScene.getInstance().closeModal();
-        }
-
-        @Override
-        public void closeScanner() {
-            MainDashboardPresentationRegistry.getInstance().current().closeScanner();
-        }
-
-        @Override
-        public void closeScannerWebDrivers() {
-            MainDashboardPresentationRegistry.getInstance().current().closeScannerWebDrivers();
-        }
-
-        @Override
-        public void closeAllWebDrivers() {
-            ARWebDriver.getInstance().closeAllDrivers();
-        }
-
-        @Override
-        public void closeCurrentWebDriver() {
-            ARWebDriver.getInstance().closeCurrentDriver();
-        }
     }
 
     private String prop(ARPropertyEnum property) {

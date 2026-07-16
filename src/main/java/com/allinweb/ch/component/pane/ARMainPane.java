@@ -68,6 +68,7 @@ public class ARMainPane extends ARPane {
         arNewHomeBankingScene = ARNewHomeBankingScene.getInstance();
         arOrganizationManagerScene = AROrganizationManagerScene.getInstance();
         arWebDriver = ARWebDriver.getInstance();
+        JavaFxConfigSceneShutdownPort.install();
     }
 
     public final String CONNECTION_TYPE = "jdbc:ucanaccess://";
