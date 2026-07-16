@@ -163,6 +163,7 @@ public class ARScannedElementPane extends ARPane
             new ScannerSupportFileChooserAdapter(scannerSupportFileChooserService);
     private final ScannerSupportSavedFileMessageService scannerSupportSavedFileMessageService =
             new ScannerSupportSavedFileMessageService();
+    private final ScannerSupportAlertAdapter scannerSupportAlertAdapter = new ScannerSupportAlertAdapter();
     private final ScannerSupportCaptureResultService scannerSupportCaptureResultService =
             new ScannerSupportCaptureResultService();
     private final ScannerSupportCaptureSendService scannerSupportCaptureSendService =
@@ -2094,13 +2095,7 @@ public class ARScannedElementPane extends ARPane
                     SupportCapture.CaptureResult r = scannerSupportCaptureSendService.sendDomCapture(driver);
                     ScannerSupportCaptureResultService.AlertMessage message =
                             scannerSupportCaptureResultService.domCapture(r);
-                    javafx.scene.control.Alert out = new javafx.scene.control.Alert(
-                            message.ok()
-                                    ? javafx.scene.control.Alert.AlertType.INFORMATION
-                                    : javafx.scene.control.Alert.AlertType.ERROR);
-                    out.setHeaderText(message.header());
-                    out.setContentText(message.content());
-                    out.showAndWait();
+                    scannerSupportAlertAdapter.showCaptureResult(message);
 
                 } else if (responseAction == ScannerSupportResponseActionService.Action.SAVE) {
                     ScannerSupportFileService.SupportFile supportFile =
@@ -2120,11 +2115,7 @@ public class ARScannedElementPane extends ARPane
                             scannerSupportSavedFileMessageService.pageReview(savedSupportFile);
 
                     log.info("DOM capture saved to {}", chosen.getAbsolutePath());
-                    javafx.scene.control.Alert out =
-                            new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.INFORMATION);
-                    out.setHeaderText(savedMessage.header());
-                    out.setContentText(savedMessage.content());
-                    out.showAndWait();
+                    scannerSupportAlertAdapter.showSavedFile(savedMessage);
                 }
             } catch (Exception ex) {
                 log.error("handleDomReviewResponse failed", ex);
@@ -2238,13 +2229,7 @@ public class ARScannedElementPane extends ARPane
 
                     ScannerSupportCaptureResultService.AlertMessage alertMessage =
                             scannerSupportCaptureResultService.elementsReview(r);
-                    javafx.scene.control.Alert out = new javafx.scene.control.Alert(
-                            alertMessage.ok()
-                                    ? javafx.scene.control.Alert.AlertType.INFORMATION
-                                    : javafx.scene.control.Alert.AlertType.ERROR);
-                    out.setHeaderText(alertMessage.header());
-                    out.setContentText(alertMessage.content());
-                    out.showAndWait();
+                    scannerSupportAlertAdapter.showCaptureResult(alertMessage);
 
                 } else if (responseAction == ScannerSupportResponseActionService.Action.SAVE) {
                     ScannerSupportFileService.SupportFile supportFile =
@@ -2260,11 +2245,7 @@ public class ARScannedElementPane extends ARPane
                     ScannerSupportSavedFileMessageService.Message savedMessage =
                             scannerSupportSavedFileMessageService.elementsReview(savedSupportFile);
 
-                    javafx.scene.control.Alert out =
-                            new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.INFORMATION);
-                    out.setHeaderText(savedMessage.header());
-                    out.setContentText(savedMessage.content());
-                    out.showAndWait();
+                    scannerSupportAlertAdapter.showSavedFile(savedMessage);
                 }
             } catch (Exception ex) {
                 log.error("handleSupportRequestElementsResponse failed", ex);
