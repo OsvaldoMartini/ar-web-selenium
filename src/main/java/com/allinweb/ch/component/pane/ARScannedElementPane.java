@@ -8733,17 +8733,17 @@ public class ARScannedElementPane extends ARPane
             tableBox.getChildren().add(0, buildPortalBanner(noPlugins, anyMissing));
         }
 
-        List<CheckBox> downloadChecks = tableResult.downloadChecks();
-        List<String[]> downloadableRows = tableResult.downloadableRows();
+        List<ScannerPluginUpdateTableAdapter.DownloadSelection> downloadSelections =
+                tableResult.downloadSelections();
 
         VBox content = scannerPluginUpdateContentAdapter.build(tableBox, pluginsDir);
 
-        if (scannerPluginUpdateDialogAdapter.show(content, !downloadChecks.isEmpty())) {
+        if (scannerPluginUpdateDialogAdapter.show(content, !downloadSelections.isEmpty())) {
             String baseUrl = urlBase.endsWith("/") ? urlBase : urlBase + "/";
             Path pluginsDirPath = Paths.get(pluginsDir);
-            for (int i = 0; i < downloadChecks.size(); i++) {
-                if (downloadChecks.get(i).isSelected()) {
-                    String[] row = downloadableRows.get(i);
+            for (ScannerPluginUpdateTableAdapter.DownloadSelection selection : downloadSelections) {
+                if (selection.isSelected()) {
+                    String[] row = selection.row();
                     String downloadUrl = baseUrl + row[4]; // fileName
                     downloadAndExtractPlugin(downloadUrl, row[4], row[1], pluginsDirPath);
                 }

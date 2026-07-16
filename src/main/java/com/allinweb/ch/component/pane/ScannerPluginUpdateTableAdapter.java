@@ -2,6 +2,7 @@ package com.allinweb.ch.component.pane;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BooleanSupplier;
 import javafx.geometry.Insets;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
@@ -23,8 +24,7 @@ final class ScannerPluginUpdateTableAdapter {
                         headerLabel("Status", 80));
         tableBox.getChildren().add(header);
 
-        List<CheckBox> downloadChecks = new ArrayList<>();
-        List<String[]> downloadableRows = new ArrayList<>();
+        List<DownloadSelection> downloadSelections = new ArrayList<>();
 
         for (String[] row : rows) {
             HBox line = new HBox(10);
@@ -45,8 +45,7 @@ final class ScannerPluginUpdateTableAdapter {
                 checkBox.setSelected(true);
                 if (serverConfigured && !row[4].isEmpty()) {
                     checkBox.setDisable(false);
-                    downloadChecks.add(checkBox);
-                    downloadableRows.add(row);
+                    downloadSelections.add(new DownloadSelection(row, checkBox::isSelected));
                 } else {
                     checkBox.setDisable(true);
                 }
@@ -55,7 +54,7 @@ final class ScannerPluginUpdateTableAdapter {
             tableBox.getChildren().add(line);
         }
 
-        return new Result(tableBox, downloadChecks, downloadableRows);
+        return new Result(tableBox, downloadSelections);
     }
 
     private static Label headerLabel(String text, double width) {
@@ -72,5 +71,12 @@ final class ScannerPluginUpdateTableAdapter {
         return label;
     }
 
-    record Result(VBox tableBox, List<CheckBox> downloadChecks, List<String[]> downloadableRows) {}
+    record Result(VBox tableBox, List<DownloadSelection> downloadSelections) {}
+
+    record DownloadSelection(String[] row, BooleanSupplier selected) {
+
+        boolean isSelected() {
+            return selected.getAsBoolean();
+        }
+    }
 }
