@@ -162,6 +162,8 @@ public class ARScannedElementPane extends ARPane
     private final ScannerSupportFileSaveService scannerSupportFileSaveService = new ScannerSupportFileSaveService();
     private final ScannerSupportCaptureResultService scannerSupportCaptureResultService =
             new ScannerSupportCaptureResultService();
+    private final ScannerDomReviewSnapshotService scannerDomReviewSnapshotService =
+            new ScannerDomReviewSnapshotService();
     private final ScannerPreLaunchStarter scannerPreLaunchStarter =
             new ScannerPreLaunchStarter(new PanePreLaunchStartOperations());
     private final ScannerPreLaunchStopper scannerPreLaunchStopper =
@@ -2096,28 +2098,18 @@ public class ARScannedElementPane extends ARPane
                 return;
             }
 
-            String rawHtml = driver.getPageSource();
-            if (rawHtml == null || rawHtml.isBlank()) {
+            Optional<ScannerDomReviewSnapshotService.Snapshot> snapshot =
+                    scannerDomReviewSnapshotService.snapshot(new PaneDomReviewBrowser(driver));
+            if (snapshot.isEmpty()) {
                 log.warn("sendCurrentDomForReview — empty page source");
                 return;
             }
-            pendingDomReviewHtml = rawHtml;
-
-            String currentUrl;
-            try {
-                currentUrl = driver.getCurrentUrl();
-            } catch (Exception ex) {
-                currentUrl = "(unknown)";
-            }
-            String pageTitle;
-            try {
-                pageTitle = driver.getTitle();
-            } catch (Exception ex) {
-                pageTitle = "";
-            }
+            ScannerDomReviewSnapshotService.Snapshot domReviewSnapshot = snapshot.get();
+            pendingDomReviewHtml = domReviewSnapshot.html();
 
             int hbId = this.currentBotJob != null ? this.currentBotJob.getHomeBankingId() : 0;
-            scannerSupportRequestPublisher.publishDomReview(hbId, currentUrl, pageTitle, rawHtml);
+            scannerSupportRequestPublisher.publishDomReview(
+                    hbId, domReviewSnapshot.currentUrl(), domReviewSnapshot.title(), domReviewSnapshot.html());
             log.info(
                     "sendCurrentDomForReview — WS message sent to {}, waiting for user response",
                     scannerSupportRequestPublisher.destinationSessionId());
@@ -2232,6 +2224,29 @@ public class ARScannedElementPane extends ARPane
         @Override
         public String currentUrl() {
             return performActions.getCurrentDriver().getCurrentUrl();
+        }
+    }
+
+    private static final class PaneDomReviewBrowser implements ScannerDomReviewSnapshotService.Browser {
+        private final org.openqa.selenium.WebDriver driver;
+
+        private PaneDomReviewBrowser(org.openqa.selenium.WebDriver driver) {
+            this.driver = driver;
+        }
+
+        @Override
+        public String pageSource() {
+            return driver.getPageSource();
+        }
+
+        @Override
+        public String currentUrl() {
+            return driver.getCurrentUrl();
+        }
+
+        @Override
+        public String title() {
+            return driver.getTitle();
         }
     }
 
