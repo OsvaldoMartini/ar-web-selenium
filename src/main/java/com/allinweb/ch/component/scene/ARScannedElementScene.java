@@ -20,7 +20,6 @@ import java.net.URI;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.*;
-import javafx.application.Platform;
 import javafx.stage.Stage;
 import javax.websocket.*;
 import lombok.Getter;
@@ -284,7 +283,7 @@ public class ARScannedElementScene extends ARScene {
                     if (!arScannedElementPane.isJobRunning()) {
                         if (!performActions.isJustCalledRefreshPage()) {
                             log.info(ScannerWorkspaceOperations.CLOSE_BROWSER);
-                            Platform.runLater(() -> {
+                            UiThreadDispatcher.getInstance().execute(() -> {
                                 arScannedElementPane.closeLaunchWindowIfPresent();
 
                                 // Clean ARScannedElementPane singleton instance
@@ -424,14 +423,14 @@ public class ARScannedElementScene extends ARScene {
                 log.warn("Closing WebDriver: " + e.getMessage());
             }
         }
-        Platform.runLater(() -> {
+        UiThreadDispatcher.getInstance().execute(() -> {
             arWebDriver.getWebDriverList().clear();
             arWebDriver.setCurrentDriver(null); // reset current driver
 
             arWebDriver.closeAllDrivers();
         });
 
-        Platform.runLater(() -> arWebDriver.getWebDriverList().clear());
+        UiThreadDispatcher.getInstance().execute(() -> arWebDriver.getWebDriverList().clear());
     }
 
     @Override
@@ -506,7 +505,7 @@ public class ARScannedElementScene extends ARScene {
 
     public void showModal() {
 
-        Platform.runLater(() -> {
+        UiThreadDispatcher.getInstance().execute(() -> {
             arScannedElementPane.initialize(arWebDriver, currentBotJob, portSocketInitial);
 
             try {
@@ -600,7 +599,7 @@ public class ARScannedElementScene extends ARScene {
         if (scannerInsertBlockSelectionService.decide(processDTO)
                 == ScannerInsertBlockSelectionService.Decision.PROMPT_FOR_BLOCK) {
             // Chain the insert after the legacy block picker confirms a block.
-            Platform.runLater(() ->
+            UiThreadDispatcher.getInstance().execute(() ->
                     arScannedElementPane.ensureBlockSelectedOrPrompt(() -> performInsertManyDTO(processDTO, isMany)));
             return;
         }
