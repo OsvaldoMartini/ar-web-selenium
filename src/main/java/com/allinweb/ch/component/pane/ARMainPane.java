@@ -3,7 +3,11 @@ package com.allinweb.ch.component.pane;
 import com.allinweb.ch.component.listCell.ARCellFactory;
 import com.allinweb.ch.component.listCell.BotJobListCell;
 import com.allinweb.ch.component.pane.base.ARPane;
-import com.allinweb.ch.component.scene.*;
+import com.allinweb.ch.component.scene.ARConfigManagerScene;
+import com.allinweb.ch.component.scene.ARNewBotJobScene;
+import com.allinweb.ch.component.scene.ARNewHomeBankingScene;
+import com.allinweb.ch.component.scene.AROrganizationManagerScene;
+import com.allinweb.ch.component.scene.JavaFxConfigSceneShutdownPort;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.PerformDBEngine;
@@ -47,7 +51,7 @@ public class ARMainPane extends ARPane {
     private static final PerformDBEngine performDBEngine;
     private static final PerformDataBase performDataBase;
     private static final PerformMessage performMessage;
-    private static final ARConfigurationScene arConfigurationScene;
+    private static final ARConfigManagerScene arConfigManagerScene;
     private static final ARNewBotJobScene arNewBotJobScene;
     private static final ARNewHomeBankingScene arNewHomeBankingScene;
     private static final AROrganizationManagerScene arOrganizationManagerScene;
@@ -64,7 +68,7 @@ public class ARMainPane extends ARPane {
         performDBEngine = PerformDBEngine.getInstance();
         performDataBase = PerformDataBase.getInstance();
         performMessage = PerformMessage.getInstance();
-        arConfigurationScene = ARConfigurationScene.getInstance();
+        arConfigManagerScene = ARConfigManagerScene.getInstance();
         arNewHomeBankingScene = ARNewHomeBankingScene.getInstance();
         arOrganizationManagerScene = AROrganizationManagerScene.getInstance();
         arWebDriver = ARWebDriver.getInstance();
@@ -236,7 +240,6 @@ public class ARMainPane extends ARPane {
                         webDriverList,
                         isEnabledLicence)::call);
 
-        arConfigurationScene.initialize(viewBotJobListView, isEnabledLicence);
         arNewBotJobScene.initialize(arWebDriver, webDriverList, isEnabledLicence);
         arWebDriver.initialize(webDriverList);
 
@@ -350,8 +353,8 @@ public class ARMainPane extends ARPane {
         });
 
         configureButton.setOnMouseClicked(e -> {
-            arConfigurationScene.initialize(viewBotJobListView, isEnabledLicence);
-            arConfigurationScene.showModal();
+            arConfigManagerScene.initialize(isEnabledLicence);
+            arConfigManagerScene.showModal(currentStage());
 
             //            try {
             //                performDataBase.changeDbConnection();
@@ -724,5 +727,12 @@ public class ARMainPane extends ARPane {
         botJobList.addAll(performLists.getQuickBotJobs());
 
         viewBotJobListView.setItems(botJobList);
+    }
+
+    private Stage currentStage() {
+        if (configureButton != null && configureButton.getScene() != null && configureButton.getScene().getWindow() instanceof Stage) {
+            return (Stage) configureButton.getScene().getWindow();
+        }
+        return null;
     }
 }
