@@ -19,10 +19,6 @@ import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import java.io.*;
 import java.io.StringReader;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -195,6 +191,7 @@ public class ARScannedElementPane extends ARPane
             new ScannerPluginListDialogAdapter();
     private final ScannerPluginManifestFetchTaskAdapter scannerPluginManifestFetchTaskAdapter =
             new ScannerPluginManifestFetchTaskAdapter();
+    private final ScannerPluginManifestClient scannerPluginManifestClient = new ScannerPluginManifestClient();
     private final ScannerPluginBackgroundThreadAdapter scannerPluginBackgroundThreadAdapter =
             new ScannerPluginBackgroundThreadAdapter();
     private final ScannerPluginSingleDownloadTaskAdapter scannerPluginSingleDownloadTaskAdapter =
@@ -8841,7 +8838,6 @@ public class ARScannedElementPane extends ARPane
     //             replacing (or appending after) the existing showPluginTestAlert method.
     //
     // Required imports (all already present in ARScannedElementPane.java):
-    //   java.net.URI, java.net.http.HttpClient/HttpRequest/HttpResponse,
     //   java.time.Duration, java.io.InputStream, java.nio.charset.StandardCharsets
     //   javafx.concurrent.Task, javafx.application.Platform,
     //   javafx.scene.control.*, javafx.scene.layout.*,
@@ -8885,62 +8881,6 @@ public class ARScannedElementPane extends ARPane
         return base + "/plugins/manifest.json";
     }
 
-    /**
-     * Fetches {@code manifest.json} synchronously on the calling (background) thread.
-     *
-     * @param manifestUrl  full URL to manifest.json
-     * @return             parsed {@link PluginManifestDTO}
-     * @throws Exception   on HTTP error, timeout, or JSON parse failure
-     */
-    private PluginManifestDTO fetchManifest(String manifestUrl) throws Exception {
-        log.info("PluginManifest - fetching: {}", manifestUrl);
-
-        HttpClient client = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(10))
-                .followRedirects(HttpClient.Redirect.NORMAL)
-                .build();
-
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(manifestUrl))
-                .timeout(Duration.ofSeconds(15))
-                .header("Accept", "application/json")
-                .GET()
-                .build();
-
-        HttpResponse<String> response =
-                client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-
-        if (response.statusCode() != 200) {
-            throw new IOException("HTTP " + response.statusCode() + " from: " + manifestUrl);
-        }
-
-        String body = response.body();
-        if (body == null || body.isBlank()) {
-            throw new IOException("Empty response from: " + manifestUrl);
-        }
-
-        log.debug(
-                "PluginManifest - raw JSON ({} chars): {}",
-                body.length(),
-                body.substring(0, Math.min(200, body.length())));
-
-        Gson gson = new Gson();
-        PluginManifestDTO manifest = gson.fromJson(body, PluginManifestDTO.class);
-
-        if (manifest == null) {
-            throw new IOException("Gson returned null - invalid JSON from: " + manifestUrl);
-        }
-        if (manifest.getPlugins() == null || manifest.getPlugins().isEmpty()) {
-            throw new IOException("Manifest parsed but 'plugins' array is missing or empty.");
-        }
-
-        log.info(
-                "PluginManifest - loaded {} plugins (manifest v{})",
-                manifest.getPlugins().size(),
-                manifest.getVersion());
-        return manifest;
-    }
-
     // ── Plugin List Dialog ────────────────────────────────────────────────────
 
     /**
@@ -8975,7 +8915,7 @@ public class ARScannedElementPane extends ARPane
 
         // ── Background fetch ──────────────────────────────────────────────────
         Task<PluginManifestDTO> fetchTask =
-                scannerPluginManifestFetchTaskAdapter.build(() -> fetchManifest(manifestUrl));
+                scannerPluginManifestFetchTaskAdapter.build(() -> scannerPluginManifestClient.fetch(manifestUrl));
 
         scannerPluginManifestResultAdapter.wire(
                 fetchTask,
