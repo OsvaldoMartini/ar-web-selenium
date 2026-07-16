@@ -928,6 +928,16 @@ public class ARScannedElementPane extends ARPane
         return new JavaFxScannerTargetContext(this);
     }
 
+    @Override
+    public void rememberPreviousXPath(String xpath) {
+        xpathTextPrevious = xpath;
+    }
+
+    @Override
+    public void applyActionDefaults(TargetElement targetElement) {
+        defineCheckBoxesClickable(targetElement);
+    }
+
     private void preTestCoordinates(TargetElement targetPreTest) {
 
         FieldData filedData = new FieldData("martini", "Martini");

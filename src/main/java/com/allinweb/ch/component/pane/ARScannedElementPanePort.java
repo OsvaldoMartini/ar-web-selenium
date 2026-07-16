@@ -46,5 +46,9 @@ public interface ARScannedElementPanePort extends IARPane {
             TargetElement target,
             boolean fromElementDto);
 
+    void rememberPreviousXPath(String xpath);
+
+    void applyActionDefaults(TargetElement targetElement);
+
     ScannerTargetContext scannerTargetContext();
 }

@@ -1,6 +1,6 @@
 package com.allinweb.ch.facade;
 
-import com.allinweb.ch.component.pane.ARScannedElementPane;
+import com.allinweb.ch.component.pane.ARScannedElementPanePort;
 import com.allinweb.ch.model.TargetElement;
 import java.util.Objects;
 
@@ -10,19 +10,19 @@ import java.util.Objects;
  */
 public final class JavaFxScannerTargetContext implements ScannerTargetContext {
 
-    private final ARScannedElementPane pane;
+    private final ARScannedElementPanePort pane;
 
-    public JavaFxScannerTargetContext(ARScannedElementPane pane) {
+    public JavaFxScannerTargetContext(ARScannedElementPanePort pane) {
         this.pane = Objects.requireNonNull(pane, "pane");
     }
 
     @Override
     public void rememberPreviousXPath(String xpath) {
-        pane.xpathTextPrevious = xpath;
+        pane.rememberPreviousXPath(xpath);
     }
 
     @Override
     public void applyActionDefaults(TargetElement targetElement) {
-        pane.defineCheckBoxesClickable(targetElement);
+        pane.applyActionDefaults(targetElement);
     }
 }
