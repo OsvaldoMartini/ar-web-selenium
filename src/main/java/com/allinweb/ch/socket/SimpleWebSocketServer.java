@@ -2214,7 +2214,7 @@ public class SimpleWebSocketServer {
                         //    from the "DOM-First (Anti-Drift)" profile when the user has it active.
                         {
                             Integer cfgHbId = homeBankingId > 0 ? homeBankingId : null;
-                            Integer cfgHomeUrlId = currentHomeUrlIdFromScene();
+                            Integer cfgHomeUrlId = currentHomeUrlId();
                             com.allinweb.ch.model.OcrConfig resolverCfg =
                                     com.allinweb.ch.facade.OcrConfigService.getInstance()
                                             .resolveFor(cfgHbId, cfgHomeUrlId);
@@ -2230,7 +2230,7 @@ public class SimpleWebSocketServer {
                         // 4b. Persist locators for Roadmap 3 recovery (no-op if defined_name is empty).
                         try {
                             Integer hbId = homeBankingId > 0 ? homeBankingId : null;
-                            Integer homeUrlId = currentHomeUrlIdFromScene();
+                            Integer homeUrlId = currentHomeUrlId();
                             ElementLocatorRepository.getInstance()
                                     .upsertOnPickBatch(splitDTO.getElementDetails(), hbId, homeUrlId);
                         } catch (Exception locEx) {
@@ -3566,17 +3566,8 @@ public class SimpleWebSocketServer {
         }
     }
 
-    /** Best-effort lookup of the current pick's home_url_id via the scene's currentBotJob. Null when unavailable. */
-    private static Integer currentHomeUrlIdFromScene() {
-        try {
-            com.allinweb.ch.component.scene.ARScannedElementScene scene =
-                    com.allinweb.ch.component.scene.ARScannedElementScene.getInstance();
-            if (scene == null) return null;
-            BotJobLoadDTO job = scene.getCurrentBotJob();
-            return job == null ? null : job.getHomeUrlId();
-        } catch (Throwable t) {
-            // Scene not initialised yet (early boot) or any unexpected NPE — locator scope falls back to bank-level.
-            return null;
-        }
+    /** Best-effort lookup of the current pick's home_url_id. Null when no scanner job is active. */
+    private static Integer currentHomeUrlId() {
+        return ScannerCurrentJobContext.getInstance().currentHomeUrlId();
     }
 }

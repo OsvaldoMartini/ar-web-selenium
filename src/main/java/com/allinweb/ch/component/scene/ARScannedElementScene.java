@@ -122,6 +122,7 @@ public class ARScannedElementScene extends ARScene {
             HomeBankingLoadDTO homeBankingLoadDTO, BotJobLoadDTO botJobLoadDTO, BlockLoadDTO blockLoadDTO) {
         this.homeBankingLoadDTO = homeBankingLoadDTO;
         this.currentBotJob = botJobLoadDTO;
+        ScannerCurrentJobContext.getInstance().setCurrentBotJob(botJobLoadDTO);
         this.blockLoadDTO = blockLoadDTO;
         this.executorWebSocket = Executors.newSingleThreadExecutor();
         this.executorServicePreLaunch = Executors.newSingleThreadExecutor();
@@ -560,6 +561,7 @@ public class ARScannedElementScene extends ARScene {
     public void closeModal() {
         try {
             modalStage = scannerModalStageService.close(modalStage);
+            ScannerCurrentJobContext.getInstance().clear();
         } catch (Exception error) {
             log.error("Browser Closed Before Web Scanner. Error: " + error.getMessage());
         }

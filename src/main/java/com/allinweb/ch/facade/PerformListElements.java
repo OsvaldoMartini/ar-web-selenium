@@ -469,6 +469,10 @@ public class PerformListElements {
         return null;
     }
 
+    private static Integer currentHomeUrlId() {
+        return ScannerCurrentJobContext.getInstance().currentHomeUrlId();
+    }
+
     private void processScanElements(
             ARWebDriver arWebDriver, WebDriver driver, List<ElementDTO> elements, int homeBankingId, int botJobId) {
         performLists.resetListElements();
@@ -484,16 +488,7 @@ public class PerformListElements {
             PerformMessage performMessage = PerformMessage.getInstance();
 
             Integer cfgHbId = homeBankingId > 0 ? homeBankingId : null;
-            Integer cfgHomeUrlId = null;
-            try {
-                com.allinweb.ch.component.scene.ARScannedElementScene scene =
-                        com.allinweb.ch.component.scene.ARScannedElementScene.getInstance();
-                if (scene != null && scene.getCurrentBotJob() != null) {
-                    cfgHomeUrlId = scene.getCurrentBotJob().getHomeUrlId();
-                }
-            } catch (Throwable ignore) {
-                // scene unavailable bank-level scope only
-            }
+            Integer cfgHomeUrlId = currentHomeUrlId();
 
             // DOM rects + OCR: Selenium when present, otherwise the single Playwright browser.
             if (driver != null) {
@@ -515,16 +510,7 @@ public class PerformListElements {
 
             try {
                 Integer hbId = homeBankingId > 0 ? homeBankingId : null;
-                Integer homeUrlId = null;
-                try {
-                    com.allinweb.ch.component.scene.ARScannedElementScene scene =
-                            com.allinweb.ch.component.scene.ARScannedElementScene.getInstance();
-                    if (scene != null && scene.getCurrentBotJob() != null) {
-                        homeUrlId = scene.getCurrentBotJob().getHomeUrlId();
-                    }
-                } catch (Throwable ignore) {
-                    // scene unavailable bank-level scope only
-                }
+                Integer homeUrlId = currentHomeUrlId();
                 ElementLocatorRepository.getInstance().upsertOnPickBatch(asArray, hbId, homeUrlId);
             } catch (Exception locEx) {
                 log.warn("Locator upsert failed (non-fatal): {}", locEx.getMessage());
