@@ -110,6 +110,7 @@ public class ARScannedElementPane extends ARPane
     private static final PerformListElements performListElements = PerformListElements.getInstance();
     private static final PerformActionExecutorLoad performActionExecutorLoad = PerformActionExecutorLoad.getInstance();
     private static final ActionExecutorClient actionExecutorClient = ActionExecutorClient.getInstance();
+    private static final ScannerJavaVersionService scannerJavaVersionService = new ScannerJavaVersionService();
     public static TargetElement targetSelected = new TargetElement();
     protected static volatile ARScannedElementPane instance;
     private static SimpleDateFormat dateFormatter;
@@ -881,17 +882,6 @@ public class ARScannedElementPane extends ARPane
         }
     }
 
-    private static int getMajorJavaVersion(String version) {
-        // For Java 9 and above, the version string starts with the major version (e.g., "17.0.1")
-        // For Java 8 and below, it starts with "1." (e.g., "1.8.0_311")
-        if (version.startsWith("1.")) {
-            return Integer.parseInt(version.substring(2, 3)); // e.g., "1.8" -> 8
-        } else {
-            String[] parts = version.split("\\.");
-            return Integer.parseInt(parts[0]); // e.g., "17.0.1" -> 17
-        }
-    }
-
     // Helper method for distinct by text
     private static Predicate<BlockOptions> distinctByText() {
         Set<String> seen = new HashSet<>();
@@ -1487,7 +1477,7 @@ public class ARScannedElementPane extends ARPane
         String version = System.getProperty("java.version");
         log.info("Detected Java Version: " + version);
 
-        int majorVersion = getMajorJavaVersion(version);
+        int majorVersion = scannerJavaVersionService.majorVersion(version);
         if (majorVersion >= 17) {
             log.info("✅ Java 17 or higher is installed.");
         } else {
