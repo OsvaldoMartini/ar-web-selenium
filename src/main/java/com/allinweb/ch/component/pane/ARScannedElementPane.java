@@ -176,6 +176,8 @@ public class ARScannedElementPane extends ARPane
             new ScannerSyntheticReferenceService();
     private final ScannerCsvContentService scannerCsvContentService =
             new ScannerCsvContentService();
+    private final ScannerBrowserUrlService scannerBrowserUrlService =
+            new ScannerBrowserUrlService();
     private final ScannerTestRunBotJobPreparation scannerTestRunBotJobPreparation =
             new ScannerTestRunBotJobPreparation(new PaneTestRunBotJobOperations());
     private final ScannerTestRunExecutionStart scannerTestRunExecutionStart =
@@ -2264,11 +2266,18 @@ public class ARScannedElementPane extends ARPane
     }
 
     private String currentBrowserUrlOr(String fallback) {
-        try {
-            org.openqa.selenium.WebDriver driver = performActions.getCurrentDriver();
-            return driver == null ? fallback : driver.getCurrentUrl();
-        } catch (Exception ignored) {
-            return fallback;
+        return scannerBrowserUrlService.currentUrlOr(fallback, new PaneBrowserUrl());
+    }
+
+    private static final class PaneBrowserUrl implements ScannerBrowserUrlService.Browser {
+        @Override
+        public boolean hasCurrentDriver() {
+            return performActions.getCurrentDriver() != null;
+        }
+
+        @Override
+        public String currentUrl() {
+            return performActions.getCurrentDriver().getCurrentUrl();
         }
     }
 
