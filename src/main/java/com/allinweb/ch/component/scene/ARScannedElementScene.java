@@ -62,8 +62,7 @@ public class ARScannedElementScene extends ARScene {
     private boolean isConnectWebSocket = false;
     private ExecutorService executorWebSocket;
     private ExecutorService executorServicePreLaunch;
-    private Stage modalStage;
-    private Scene modalScene;
+    private ScannerModalStageService.ModalStage modalStage;
     private String previousBlock = null;
     private PayloadJson payloadEmpty;
     private List<InstructionLoad> instructionList = new ArrayList<>();
@@ -98,6 +97,7 @@ public class ARScannedElementScene extends ARScene {
             new ScannerTestMessageMetadataService(new ScannerTestMessageMetadataService.DefaultDataPort());
     private final ScannerElementDetailsSelectionService scannerElementDetailsSelectionService =
             new ScannerElementDetailsSelectionService();
+    private final ScannerModalStageService scannerModalStageService = new ScannerModalStageService();
     // Private constructor to prevent instantiation
     private ARScannedElementScene() {
 
@@ -492,37 +492,12 @@ public class ARScannedElementScene extends ARScene {
 
             try {
 
+                modalStage = scannerModalStageService.show(
+                        modalStage,
+                        new SceneScannerModalStageFactory(),
+                        new ScannerModalStageService.Config(getTitle(), getSceneWidth(), getSceneHeight()));
                 if (modalStage == null) {
-                    modalStage = new Stage();
-                    Platform.runLater(() -> arScannedElementPane.setStage(modalStage));
-                    modalStage.getIcons().add(icon);
-                    IARPane pane = buildPane();
-                    if (pane != null) {
-                        modalScene = new Scene(pane.createPane(), getSceneWidth(), getSceneHeight());
-                        modalStage.setScene(modalScene);
-                        modalStage.setTitle(getTitle());
-                        modalStage.initModality(Modality.WINDOW_MODAL);
-                        modalStage.setAlwaysOnTop(true); // Set always on top
-                        modalStage.toFront();
-                        // Reset alwaysOnTop after showing so it behaves normally afterward
-                        modalStage.setAlwaysOnTop(false);
-
-                        // Once shown, reset AlwaysOnTop to false so it behaves normally
-                        modalStage.setOnShown(event -> {
-                            Platform.runLater(() -> modalStage.setAlwaysOnTop(false));
-                        });
-                    } else {
-                        // Handle the case where pane creation failed
-                        log.error("Failed to build pane for modal.");
-                        return;
-                    }
-                }
-
-                modalStage.setTitle(getTitle());
-
-                // Check if the stage is already showing
-                if (!modalStage.isShowing()) {
-                    modalStage.showAndWait(); // Show and wait only if not already showing
+                    log.error("Failed to build pane for modal.");
                 }
             } catch (Exception error) {
                 closeWebDrivers();
@@ -584,10 +559,7 @@ public class ARScannedElementScene extends ARScene {
 
     public void closeModal() {
         try {
-            if (modalStage != null) {
-                modalStage.close();
-            }
-            modalStage = null;
+            modalStage = scannerModalStageService.close(modalStage);
         } catch (Exception error) {
             log.error("Browser Closed Before Web Scanner. Error: " + error.getMessage());
         }
@@ -820,6 +792,56 @@ public class ARScannedElementScene extends ARScene {
         @Override
         public TargetElement extractPickClone(ElementDTO elementDTO) {
             return targetElementHelper.extractPickClone(elementDTO);
+        }
+    }
+
+    private final class SceneScannerModalStageFactory implements ScannerModalStageService.StageFactory {
+        @Override
+        public ScannerModalStageService.ModalStage create(ScannerModalStageService.Config config) {
+            Stage stage = new Stage();
+            arScannedElementPane.setStage(stage);
+            stage.getIcons().add(icon);
+            IARPane pane = buildPane();
+            if (pane == null) {
+                return null;
+            }
+            Scene scene = new Scene(pane.createPane(), config.width(), config.height());
+            stage.setScene(scene);
+            stage.setTitle(config.title());
+            stage.initModality(Modality.WINDOW_MODAL);
+            stage.setAlwaysOnTop(true);
+            stage.toFront();
+            stage.setAlwaysOnTop(false);
+            stage.setOnShown(event -> Platform.runLater(() -> stage.setAlwaysOnTop(false)));
+            return new JavaFxScannerModalStage(stage);
+        }
+    }
+
+    private static final class JavaFxScannerModalStage implements ScannerModalStageService.ModalStage {
+        private final Stage stage;
+
+        private JavaFxScannerModalStage(Stage stage) {
+            this.stage = stage;
+        }
+
+        @Override
+        public void setTitle(String title) {
+            stage.setTitle(title);
+        }
+
+        @Override
+        public boolean isShowing() {
+            return stage.isShowing();
+        }
+
+        @Override
+        public void showAndWait() {
+            stage.showAndWait();
+        }
+
+        @Override
+        public void close() {
+            stage.close();
         }
     }
 
