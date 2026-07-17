@@ -32,6 +32,8 @@ class BotJobDetailsJavaFxRetirementTest {
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerStageAdapter.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerCurrentUrlTextAdapter.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerIframeIndicatorAdapter.java")));
+        assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerFieldLabelsAdapter.java")));
+        assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerTestActionLabelAdapter.java")));
     }
 
     @Test
@@ -100,5 +102,15 @@ class BotJobDetailsJavaFxRetirementTest {
         assertFalse(compiledSource.contains("javafx.scene.text.Text"));
         assertFalse(compiledSource.contains("ScannerCurrentUrlTextAdapter"));
         assertFalse(compiledSource.contains("ScannerIframeIndicatorAdapter"));
+    }
+
+    @Test
+    void scannerPaneDoesNotUseStaticLabelAdapters() throws IOException {
+        String source = Files.readString(SOURCE_ROOT.resolve("component/pane/ARScannedElementPane.java"));
+        String compiledSource = source.replaceAll("(?s)/\\*.*?\\*/", "");
+
+        assertFalse(compiledSource.contains("ScannerFieldLabelsAdapter"));
+        assertFalse(compiledSource.contains("ScannerTestActionLabelAdapter"));
+        assertFalse(compiledSource.contains("definedNameLabel"));
     }
 }

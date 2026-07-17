@@ -187,11 +187,8 @@ public class ARScannedElementPane
             new ScannerTestActionCheckboxesAdapter();
     private final ScannerTestActionCheckboxStateAdapter scannerTestActionCheckboxStateAdapter =
             new ScannerTestActionCheckboxStateAdapter();
-    private final ScannerTestActionLabelAdapter scannerTestActionLabelAdapter =
-            new ScannerTestActionLabelAdapter();
     private final ScannerHiddenCloneCheckboxAdapter scannerHiddenCloneCheckboxAdapter =
             new ScannerHiddenCloneCheckboxAdapter();
-    private final ScannerFieldLabelsAdapter scannerFieldLabelsAdapter = new ScannerFieldLabelsAdapter();
     private final ScannerTextFieldsAdapter scannerTextFieldsAdapter = new ScannerTextFieldsAdapter();
     private final ScannerElementFocusComboBoxAdapter scannerElementFocusComboBoxAdapter =
             new ScannerElementFocusComboBoxAdapter();
@@ -249,8 +246,8 @@ public class ARScannedElementPane
     public CheckBox checkInputText;
     public CheckBox checkOutputText;
     private static final String DEFINED_NAME_PLACEHOLDER = "PICK AN ELEMENT";
-    public Label definedNameLabel;
     public TextField searchAttribValueField;
+    private String definedNameText = DEFINED_NAME_PLACEHOLDER;
     public String xpathTextPrevious;
     protected AtomicBoolean interceptBotJob = new AtomicBoolean(false);
     double comboWidth = 200;
@@ -343,16 +340,11 @@ public class ARScannedElementPane
     private Button turnOnOffButton;
     private Button searchButton;
     private CheckBox checkCloneElement;
-    private Label testActionLabel;
     /** Suppresses the green "Test Action Success" modal when checked. Defaults
      *  to selected so testers can click Test Input / Test Click repeatedly
      *  without dismissing a popup every time. Failures still surface normally. */
     private CheckBox checkNotShowTestMsg;
 
-    private Label searchTermsLabel;
-    private Label elementFocusLabel;
-    private Label defineNameLabel;
-    private Label coordsTextFieldLabel;
     private String currentUrlText = "";
     private VBox textFieldVBox;
     //    private TextFlow textFlowResult;
@@ -1292,7 +1284,7 @@ public class ARScannedElementPane
                 }
             }
             uiThreadDispatcher.execute(() -> {
-                definedNameLabel.setText(DEFINED_NAME_PLACEHOLDER);
+                definedNameText = DEFINED_NAME_PLACEHOLDER;
                 searchAttribValueField.clear();
             });
         }
@@ -1620,8 +1612,6 @@ public class ARScannedElementPane
 
         checkNotShowTestMsg = scannerTestMessageSuppressionCheckboxAdapter.build();
 
-        testActionLabel = scannerTestActionLabelAdapter.build();
-
         ScannerTestActionCheckboxesAdapter.Checkboxes testActionCheckboxes =
                 scannerTestActionCheckboxesAdapter.build();
         checkClickElement = testActionCheckboxes.click();
@@ -1649,11 +1639,6 @@ public class ARScannedElementPane
         // never shown, enabled, or wired to an action.
         checkCloneElement = scannerHiddenCloneCheckboxAdapter.build();
 
-        searchTermsLabel = scannerFieldLabelsAdapter.searchTerms();
-        elementFocusLabel = scannerFieldLabelsAdapter.elementFocus();
-        defineNameLabel = scannerFieldLabelsAdapter.defineName();
-        coordsTextFieldLabel = scannerFieldLabelsAdapter.coordinates();
-
         elementFocusComboBox =
                 scannerElementFocusComboBoxAdapter.build(ELEMENT_SCAN_PROFILES, ALL_INTERACTIVE_SCAN_PROFILE);
         elementFocusComboBox.valueProperty().addListener((obs, oldValue, newValue) -> {
@@ -1671,10 +1656,6 @@ public class ARScannedElementPane
 
         // Read-only mirror of the picked element's display name (clientNamed → definedName →
         // someText → tagName). Renames live in the React grid via instruction.client_named.
-        definedNameLabel = scannerFieldLabelsAdapter.definedName(DEFINED_NAME_PLACEHOLDER);
-
-        coordsTextFieldLabel = scannerFieldLabelsAdapter.coordinates();
-
         searchAttribValueField = scannerTextFieldsAdapter.searchAttribute();
 
         coordsTextField = scannerTextFieldsAdapter.coordinates();
@@ -1799,9 +1780,7 @@ public class ARScannedElementPane
             gridPaneTop.add(pageScannerRow, 0, 0);
             gridPaneTop.add(pluginUpdateButton, 1, 0);
             gridPaneTop.add(updatePluginsButton, 2, 0);
-            gridPaneTop.add(elementFocusLabel, 3, 0);
             gridPaneTop.add(elementFocusComboBox, 4, 0);
-            gridPaneTop.add(searchTermsLabel, 3, 1);
             gridPaneTop.add(searchTermsField, 4, 1);
             gridPaneTop.add(searchButton, 5, 0);
             gridPaneTop.add(turnOnOffButton, 6, 0);
@@ -1819,32 +1798,23 @@ public class ARScannedElementPane
             // Create an HBox to hold launchBotJobButton and stopBotJobButton
             HBox hBoxLaunchButon = scannerLayoutNodeAdapter.launchButtonRow(launchBotJobButton, stopBotJobButton);
 
-            // Ensure the label expands and takes all available space
-            HBox.setHgrow(definedNameLabel, Priority.ALWAYS);
-            definedNameLabel.setMaxWidth(Double.MAX_VALUE); // Allows full width usage
-
             // Ensure the button has a reasonable width
             cloneElementsButton.setMinWidth(50); // Adjust as needed
 
-            HBox boxName = scannerLayoutNodeAdapter.spacedRow(5, definedNameLabel, cloneElementsButton);
-
-            testActionLabel.setMinWidth(100);
+            HBox boxName = scannerLayoutNodeAdapter.spacedRow(5, cloneElementsButton);
 
             testActionsField = scannerTextFieldsAdapter.testActions();
 
             HBox.setHgrow(testActionsField, Priority.ALWAYS);
             testActionsField.setMaxWidth(Double.MAX_VALUE); // Ensures full width usage
 
-            HBox boxActions = scannerLayoutNodeAdapter.spacedRow(5, testActionLabel, testActionsField);
-
-            // Ensure the label has a reasonable width
-            coordsTextFieldLabel.setMinWidth(120);
+            HBox boxActions = scannerLayoutNodeAdapter.spacedRow(5, testActionsField);
 
             // Allow the TextField to take up the remaining space
             HBox.setHgrow(coordsTextField, Priority.ALWAYS);
             coordsTextField.setMaxWidth(Double.MAX_VALUE); // Ensures full width usage
 
-            HBox boxCoordinates = scannerLayoutNodeAdapter.spacedRow(5, coordsTextFieldLabel, coordsTextField);
+            HBox boxCoordinates = scannerLayoutNodeAdapter.spacedRow(5, coordsTextField);
 
             HBox hBoxPickClone = scannerLayoutNodeAdapter.spacedRow(
                     0, createSpacerHoriz(), checkCloneElement, createSpacerHoriz());
@@ -1852,7 +1822,6 @@ public class ARScannedElementPane
             // Create the VBox for TextFields
             textFieldVBox = scannerLayoutNodeAdapter.textFieldColumn(
                     hBoxPickClone,
-                    defineNameLabel,
                     boxName,
                     vBoxCheckBox,
                     createCustomSeparator(Color.DARKBLUE, 2),
@@ -1889,14 +1858,11 @@ public class ARScannedElementPane
 
             HBox.setHgrow(componentBox, Priority.ALWAYS);
 
-            Label labelOthers = scannerFieldLabelsAdapter.webElementsFound();
             HBox othersBox = scannerLayoutNodeAdapter.spacedRow(0);
             createSpacerHoriz();
             othersBox
                     .getChildren()
                     .addAll(
-                            labelOthers,
-                            createSpacerHoriz(),
                             refreshWebPageButton,
                             createSpacerHoriz(),
                             sendDomButton,
@@ -2629,7 +2595,7 @@ public class ARScannedElementPane
             if (targetSelected != null && targetSelected.getElement() != null) {
                 cloneElementDTO(targetSelected);
                 uiThreadDispatcher.execute(() -> {
-                    definedNameLabel.setText(DEFINED_NAME_PLACEHOLDER);
+                    definedNameText = DEFINED_NAME_PLACEHOLDER;
                     searchAttribValueField.clear();
                 });
             } else {
@@ -2786,7 +2752,7 @@ public class ARScannedElementPane
                                         : Strings.nullToEmpty(targetSelected.getTagName());
 
                 String finalNameDefined = PerformActions.truncateAndNormalize(nameDefined, 250);
-                uiThreadDispatcher.execute(() -> definedNameLabel.setText(finalNameDefined));
+                uiThreadDispatcher.execute(() -> definedNameText = finalNameDefined);
             }
 
             sb.append("TagType: " + targetSelected.getTagType()).append("\n");
