@@ -201,7 +201,6 @@ public class ARScannedElementPane
             new ScannerTestRunResultHandler(new PaneTestRunResultOperations());
     private final ScannerTestRunStopper scannerTestRunStopper =
             new ScannerTestRunStopper(new PaneTestRunStopOperations());
-    public Button launchBotJobButton;
     private static final String DEFINED_NAME_PLACEHOLDER = "PICK AN ELEMENT";
     private String definedNameText = DEFINED_NAME_PLACEHOLDER;
     private String searchAttribValueText = "";
@@ -282,7 +281,6 @@ public class ARScannedElementPane
     private HBox componentBox;
     private Button cloneElementsButton;
     private Button configureButton;
-    private Button stopBotJobButton;
     private Button pageScannerButton;
     private Button ocrConfigButton;
     private Button refreshWebPageButton;
@@ -1636,13 +1634,6 @@ public class ARScannedElementPane
         return column;
     }
 
-    private HBox launchButtonRow(Node... children) {
-        HBox row = new HBox();
-        row.setSpacing(10);
-        row.getChildren().addAll(children);
-        return row;
-    }
-
     private HBox spacedRow(double spacing, Node... children) {
         HBox row = new HBox();
         row.setSpacing(spacing);
@@ -1714,13 +1705,6 @@ public class ARScannedElementPane
 
         configureButton = buildButton(
                 "Config", ARConstants.SPACE_M, ARConstants.ICON_CONFIG, ARConstants.SPACE_M, new Insets(5.0D));
-
-        launchBotJobButton = buildButton(
-                "Pre-Launch", ARConstants.SPACE_ZERO, "/play.png", ARConstants.SPACE_M, new Insets(5.0D));
-        stopBotJobButton =
-                buildButton("STOP", ARConstants.SPACE_ZERO, "/stop.png", ARConstants.SPACE_M, new Insets(5.0D));
-
-        stopBotJobButton.setPrefWidth(100);
 
         //        textFlowResult = new TextFlow();
 
@@ -1837,9 +1821,6 @@ public class ARScannedElementPane
 
             verticalBox = scannerContentColumn();
 
-            // Create an HBox to hold launchBotJobButton and stopBotJobButton
-            HBox hBoxLaunchButon = launchButtonRow(launchBotJobButton, stopBotJobButton);
-
             // Ensure the button has a reasonable width
             cloneElementsButton.setMinWidth(50); // Adjust as needed
 
@@ -1852,20 +1833,12 @@ public class ARScannedElementPane
                     createSpacerVert(),
                     createSpacerVert(),
                     createCustomSeparator(Color.DARKBLUE, 2),
-                    hBoxLaunchButon,
                     configureButton);
 
             // Bind button widths to VBox width
             cloneElementsButton.maxWidthProperty().bind(textFieldVBox.widthProperty());
             // Bind the widths of the buttons to percentages of the HBox width
             configureButton.maxWidthProperty().bind(textFieldVBox.widthProperty());
-
-            // Fix the widths to 70% and 30% of the HBox width
-            hBoxLaunchButon.widthProperty().addListener((obs, oldVal, newVal) -> {
-                double totalWidth = newVal.doubleValue();
-                launchBotJobButton.setMaxWidth(totalWidth * 0.6);
-                stopBotJobButton.setMaxWidth(totalWidth * 0.7);
-            });
 
             HBox boxListViews = listViewsRow();
 

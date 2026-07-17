@@ -239,6 +239,9 @@ class BotJobDetailsJavaFxRetirementTest {
         assertFalse(compiledSource.contains("stopBotJobButton.setOnMouseClicked"));
         assertFalse(compiledSource.contains("launchBotJobButton.setDisable"));
         assertFalse(compiledSource.contains("stopBotJobButton.setDisable"));
+        assertFalse(compiledSource.contains("launchBotJobButton"));
+        assertFalse(compiledSource.contains("stopBotJobButton"));
+        assertFalse(compiledSource.contains("launchButtonRow"));
         assertTrue(compiledSource.contains("preLaunchActionEnabled"));
     }
 }
