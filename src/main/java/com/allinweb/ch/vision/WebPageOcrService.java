@@ -8,7 +8,6 @@ import com.allinweb.ch.ocr.bridge.OcrResult;
 import com.allinweb.ch.ocr.bridge.OcrWord;
 import com.allinweb.ch.vision.ocr.OcrOpenCvUtils;
 import com.allinweb.ch.vision.ocr.OcrPreprocessorOpenCv;
-import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
@@ -109,7 +108,7 @@ public final class WebPageOcrService {
             for (Word w : words) {
                 String text = w.getText() == null ? "" : w.getText().trim();
                 if (text.isEmpty()) continue;
-                out.add(new OcrWord(text, ocrBox(w.getBoundingBox()), w.getConfidence()));
+                out.add(new OcrWord(text, Tess4jOcrBoxAdapter.boundsOf(w), w.getConfidence()));
                 full.append(text).append(' ');
             }
             return new OcrResult(full.toString().trim(), out);
@@ -230,11 +229,6 @@ public final class WebPageOcrService {
         double inter = interW * interH;
         double union = (double) a.width() * a.height() + (double) b.width() * b.height() - inter;
         return union <= 0 ? 0 : inter / union;
-    }
-
-    private static OcrBox ocrBox(Rectangle rectangle) {
-        if (rectangle == null) return null;
-        return new OcrBox(rectangle.x, rectangle.y, rectangle.width, rectangle.height);
     }
 
     /** Filter '+'-joined lang codes to those we actually extracted from classpath. */

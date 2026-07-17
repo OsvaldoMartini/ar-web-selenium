@@ -5,7 +5,6 @@ import com.allinweb.ch.ocr.bridge.OcrBox;
 import com.allinweb.ch.ocr.bridge.OcrWord;
 import com.allinweb.ch.vision.ocr.OcrOpenCvUtils;
 import com.allinweb.ch.vision.ocr.OcrPreprocessorOpenCv;
-import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -90,13 +89,13 @@ public final class ButtonDetectionService {
                 for (Word w : words) {
                     String text = w.getText() == null ? "" : w.getText().trim();
                     if (text.isEmpty()) continue;
-                    Rectangle b = w.getBoundingBox();
+                    OcrBox b = Tess4jOcrBoxAdapter.boundsOf(w);
                     if (b == null) continue;
                     // Map back: ROI is the original rect, OCR ran on ×3 upscale.
-                    int mappedX = rect.x + (int) Math.round(b.x / (double) BUTTON_ROI_UPSCALE);
-                    int mappedY = rect.y + (int) Math.round(b.y / (double) BUTTON_ROI_UPSCALE);
-                    int mappedW = Math.max(1, (int) Math.round(b.width / (double) BUTTON_ROI_UPSCALE));
-                    int mappedH = Math.max(1, (int) Math.round(b.height / (double) BUTTON_ROI_UPSCALE));
+                    int mappedX = rect.x + (int) Math.round(b.x() / (double) BUTTON_ROI_UPSCALE);
+                    int mappedY = rect.y + (int) Math.round(b.y() / (double) BUTTON_ROI_UPSCALE);
+                    int mappedW = Math.max(1, (int) Math.round(b.width() / (double) BUTTON_ROI_UPSCALE));
+                    int mappedH = Math.max(1, (int) Math.round(b.height() / (double) BUTTON_ROI_UPSCALE));
                     OcrBox mapped = new OcrBox(mappedX, mappedY, mappedW, mappedH);
                     out.add(new OcrWord(text, mapped, w.getConfidence()));
                 }
