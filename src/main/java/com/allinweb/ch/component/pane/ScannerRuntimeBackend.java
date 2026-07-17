@@ -21,6 +21,7 @@ import com.allinweb.ch.facade.scanner.prelaunch.ScannerPreLaunchStarter;
 import com.allinweb.ch.facade.scanner.prelaunch.ScannerPreLaunchStopper;
 import com.allinweb.ch.facade.scanner.prelaunch.ScannerPreLaunchWindowBookkeeping;
 import com.allinweb.ch.facade.scanner.prelaunch.ScannerPreLaunchWorkspaceOperations;
+import com.allinweb.ch.facade.scanner.prelaunch.ScannerPreLaunchWorkspaceRequests;
 import com.allinweb.ch.facade.scanner.ScannerRuntimePort;
 import com.allinweb.ch.facade.scanner.support.ScannerSupportAlertAdapter;
 import com.allinweb.ch.facade.scanner.support.ScannerSupportSaveFlowAdapter;

@@ -1,13 +1,13 @@
-package com.allinweb.ch.component.pane;
+package com.allinweb.ch.facade.scanner.prelaunch;
 
-final class ScannerPreLaunchWorkspaceRequests {
+public final class ScannerPreLaunchWorkspaceRequests {
     private final Operations operations;
 
-    ScannerPreLaunchWorkspaceRequests(Operations operations) {
+    public ScannerPreLaunchWorkspaceRequests(Operations operations) {
         this.operations = operations;
     }
 
-    void requestStart(int botJobId) {
+    public void requestStart(int botJobId) {
         ensureCurrentScannerJob(botJobId);
         if (!operations.preLaunchBackendReady()) {
             throw new IllegalStateException("Scanner Pre-Launch backend is not ready");
@@ -15,7 +15,7 @@ final class ScannerPreLaunchWorkspaceRequests {
         operations.runLater(operations::startPreLaunch);
     }
 
-    void requestStop(int botJobId) {
+    public void requestStop(int botJobId) {
         ensureCurrentScannerJob(botJobId);
         if (!operations.stopPreLaunchBackendReady()) {
             throw new IllegalStateException("Scanner Pre-Launch backend is not ready");
@@ -30,7 +30,7 @@ final class ScannerPreLaunchWorkspaceRequests {
         }
     }
 
-    interface Operations {
+    public interface Operations {
         Integer currentBotJobId();
 
         boolean preLaunchBackendReady();
