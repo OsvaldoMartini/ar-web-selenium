@@ -1,11 +1,9 @@
 package com.allinweb.ch.util;
 
 import com.allinweb.ch.driver.ARPlaywrightDriver;
-import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
+import com.allinweb.ch.vision.RasterImage;
+import com.allinweb.ch.vision.RasterImageIO;
 import java.io.IOException;
-import javax.imageio.ImageIO;
 import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.OutputType;
@@ -15,9 +13,9 @@ import org.openqa.selenium.WebDriver;
 /**
  * Two capture modes:
  * <ul>
- *   <li>{@link #viewportBytes(WebDriver)} / {@link #viewport(WebDriver)} — only what's currently
+ *   <li>{@link #viewportBytes(WebDriver)} / {@link #viewport(WebDriver)} - only what's currently
  *       on screen. Cheap, single Selenium round-trip.</li>
- *   <li>{@link #fullPageBytes(WebDriver)} / {@link #fullPage(WebDriver)} — scroll-and-stitch the
+ *   <li>{@link #fullPageBytes(WebDriver)} / {@link #fullPage(WebDriver)} - scroll-and-stitch the
  *       entire document. Lets footer elements (y &gt; viewport_height) reach the OCR pass.
  *       Driven by {@code screenshot.scope=full_page} in OcrConfig.</li>
  * </ul>
@@ -33,17 +31,16 @@ public final class WebScreenshotCapture {
         return ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
     }
 
-    public static BufferedImage viewport(WebDriver driver) throws IOException {
-        byte[] png = viewportBytes(driver);
-        return ImageIO.read(new ByteArrayInputStream(png));
+    public static RasterImage viewport(WebDriver driver) throws IOException {
+        return RasterImageIO.readPng(viewportBytes(driver));
     }
 
     /**
      * Stitch the full document by scrolling viewport-by-viewport and pasting each tile into a
-     * single {@link BufferedImage}. Restores the original scroll position before returning so
-     * the user-visible state is unchanged.
+     * single raster image. Restores the original scroll position before returning so the
+     * user-visible state is unchanged.
      */
-    public static BufferedImage fullPage(WebDriver driver) throws IOException {
+    public static RasterImage fullPage(WebDriver driver) throws IOException {
         JavascriptExecutor js = (JavascriptExecutor) driver;
 
         long initialScrollY =
@@ -60,14 +57,14 @@ public final class WebScreenshotCapture {
         double dpr = ((Number) js.executeScript("return window.devicePixelRatio || 1;")).doubleValue();
 
         if (totalHeight <= viewportHeight) {
-            BufferedImage single = viewport(driver);
+            RasterImage single = viewport(driver);
             js.executeScript("window.scrollTo(0, arguments[0]);", initialScrollY);
             return single;
         }
 
         int pixelW = (int) Math.round(viewportWidth * dpr);
         int pixelH = (int) Math.round(totalHeight * dpr);
-        BufferedImage stitched = new BufferedImage(pixelW, pixelH, BufferedImage.TYPE_INT_RGB);
+        RasterImageCanvas stitched = new RasterImageCanvas(pixelW, pixelH);
 
         try {
             long y = 0;
@@ -79,12 +76,12 @@ public final class WebScreenshotCapture {
                     Thread.currentThread().interrupt();
                 }
 
-                BufferedImage tile = viewport(driver);
+                RasterImage tile = viewport(driver);
 
                 long actualY =
                         ((Number) js.executeScript("return window.pageYOffset || window.scrollY || 0;")).longValue();
                 int tilePixelY = (int) Math.round(actualY * dpr);
-                copyTile(stitched, tile, tilePixelY);
+                stitched.copyTile(tile, tilePixelY);
 
                 y += viewportHeight;
             }
@@ -96,35 +93,13 @@ public final class WebScreenshotCapture {
             }
         }
 
-        return stitched;
-    }
-
-    private static void copyTile(BufferedImage target, BufferedImage tile, int targetY) {
-        if (target == null || tile == null) return;
-        int startY = Math.max(0, targetY);
-        int tileStartY = Math.max(0, -targetY);
-        int copyHeight = Math.min(tile.getHeight() - tileStartY, target.getHeight() - startY);
-        int copyWidth = Math.min(tile.getWidth(), target.getWidth());
-        if (copyWidth <= 0 || copyHeight <= 0) return;
-
-        for (int y = 0; y < copyHeight; y++) {
-            for (int x = 0; x < copyWidth; x++) {
-                target.setRGB(x, startY + y, tile.getRGB(x, tileStartY + y));
-            }
-        }
+        return stitched.toImage();
     }
 
     /** PNG bytes of the stitched full page. Convenience for {@link PageOcrDumper}. */
     public static byte[] fullPageBytes(WebDriver driver) throws IOException {
-        BufferedImage img = fullPage(driver);
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        ImageIO.write(img, "png", out);
-        return out.toByteArray();
+        return RasterImageIO.toPngBytes(fullPage(driver));
     }
-
-    // ── Playwright equivalents ────────────────────────────────────────────────
-    // page.screenshot(fullPage=true) captures the whole scrollable document natively — no manual
-    // scroll-stitch loop needed. Used when running the single Playwright browser (no Selenium driver).
 
     public static byte[] viewportBytes(ARPlaywrightDriver pw) {
         return pw.screenshot(false);
@@ -134,11 +109,43 @@ public final class WebScreenshotCapture {
         return pw.screenshot(true);
     }
 
-    public static BufferedImage viewport(ARPlaywrightDriver pw) throws IOException {
-        return ImageIO.read(new ByteArrayInputStream(pw.screenshot(false)));
+    public static RasterImage viewport(ARPlaywrightDriver pw) throws IOException {
+        return RasterImageIO.readPng(pw.screenshot(false));
     }
 
-    public static BufferedImage fullPage(ARPlaywrightDriver pw) throws IOException {
-        return ImageIO.read(new ByteArrayInputStream(pw.screenshot(true)));
+    public static RasterImage fullPage(ARPlaywrightDriver pw) throws IOException {
+        return RasterImageIO.readPng(pw.screenshot(true));
+    }
+
+    private static final class RasterImageCanvas {
+        private final int width;
+        private final int height;
+        private final int[] rgb;
+
+        private RasterImageCanvas(int width, int height) {
+            this.width = width;
+            this.height = height;
+            this.rgb = new int[width * height];
+        }
+
+        private void copyTile(RasterImage tile, int targetY) {
+            if (tile == null) return;
+            int startY = Math.max(0, targetY);
+            int tileStartY = Math.max(0, -targetY);
+            int copyHeight = Math.min(tile.height() - tileStartY, height - startY);
+            int copyWidth = Math.min(tile.width(), width);
+            if (copyWidth <= 0 || copyHeight <= 0) return;
+
+            for (int y = 0; y < copyHeight; y++) {
+                int targetOffset = (startY + y) * width;
+                for (int x = 0; x < copyWidth; x++) {
+                    rgb[targetOffset + x] = tile.pixel(x, tileStartY + y);
+                }
+            }
+        }
+
+        private RasterImage toImage() {
+            return new RasterImage(width, height, rgb);
+        }
     }
 }

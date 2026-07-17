@@ -2,6 +2,7 @@ package com.allinweb.ch.vision;
 
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.file.Path;
 import javax.imageio.ImageIO;
@@ -22,6 +23,12 @@ public final class RasterImageIO {
 
     public static void writePng(RasterImage image, Path path) throws IOException {
         ImageIO.write(toBufferedImage(image), "png", path.toFile());
+    }
+
+    public static byte[] toPngBytes(RasterImage image) throws IOException {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        ImageIO.write(toBufferedImage(image), "png", out);
+        return out.toByteArray();
     }
 
     public static RasterImage fromBufferedImage(BufferedImage image) {

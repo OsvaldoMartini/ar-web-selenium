@@ -352,6 +352,7 @@ class BotJobDetailsDesktopUiRetirementTest {
         assertFalse(annotatedRenderer.contains("Graphics2D"));
         assertFalse(annotatedRenderer.contains("RenderingHints"));
         assertFalse(webScreenshotCapture.contains("Graphics2D"));
+        assertFalse(webScreenshotCapture.contains("BufferedImage"));
         assertFalse(annotatedRenderer.contains("BufferedImage"));
         assertFalse(ocrTestService.contains("BufferedImage"));
         assertFalse(pageOcrDumper.contains("BufferedImage"));
