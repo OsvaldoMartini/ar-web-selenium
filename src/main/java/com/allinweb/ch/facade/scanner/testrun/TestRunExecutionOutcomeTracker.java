@@ -1,28 +1,28 @@
-package com.allinweb.ch.component.pane;
+package com.allinweb.ch.facade.scanner.testrun;
 
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
 /** Bounded, run-ID-owned terminal outcomes for Scanner TEST RUN execution. */
-final class TestRunExecutionOutcomeTracker {
+public final class TestRunExecutionOutcomeTracker {
 
     private static final int MAX_RETAINED_OUTCOMES = 64;
     private final LinkedHashMap<Long, Outcome> outcomes = new LinkedHashMap<>();
 
-    synchronized void started(long executionId) {
+    public synchronized void started(long executionId) {
         requireExecutionId(executionId);
         outcomes.put(executionId, Outcome.RUNNING);
         prune();
     }
 
-    synchronized boolean requestStop(long executionId) {
+    public synchronized boolean requestStop(long executionId) {
         if (outcomes.get(executionId) != Outcome.RUNNING) return false;
         outcomes.put(executionId, Outcome.INTERRUPTED);
         return true;
     }
 
-    synchronized Outcome completed(long executionId, boolean passed) {
+    public synchronized Outcome completed(long executionId, boolean passed) {
         requireExecutionId(executionId);
         Outcome current = outcomes.get(executionId);
         Outcome terminal = current == Outcome.INTERRUPTED
@@ -33,7 +33,7 @@ final class TestRunExecutionOutcomeTracker {
         return terminal;
     }
 
-    synchronized Outcome terminalOutcome(long executionId) {
+    public synchronized Outcome terminalOutcome(long executionId) {
         requireExecutionId(executionId);
         Outcome outcome = outcomes.get(executionId);
         if (outcome == null) {
@@ -45,7 +45,7 @@ final class TestRunExecutionOutcomeTracker {
         return outcome;
     }
 
-    synchronized int retainedOutcomeCount() {
+    public synchronized int retainedOutcomeCount() {
         return outcomes.size();
     }
 
@@ -61,7 +61,7 @@ final class TestRunExecutionOutcomeTracker {
         if (executionId <= 0) throw new IllegalArgumentException("A positive execution ID is required");
     }
 
-    enum Outcome {
+    public enum Outcome {
         RUNNING,
         PASSED,
         FAILED,

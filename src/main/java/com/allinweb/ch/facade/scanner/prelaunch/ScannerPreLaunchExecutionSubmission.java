@@ -1,14 +1,13 @@
-package com.allinweb.ch.component.pane;
+package com.allinweb.ch.facade.scanner.prelaunch;
 
-import com.allinweb.ch.facade.scanner.prelaunch.ScannerPreLaunchExecutionTask;
 import java.util.concurrent.ExecutorService;
 
-final class ScannerPreLaunchExecutionSubmission {
+public final class ScannerPreLaunchExecutionSubmission {
     private final ExecutorService executorService;
     private final ScannerPreLaunchExecutionTask.Operations operations;
     private final FailureReporter failureReporter;
 
-    ScannerPreLaunchExecutionSubmission(
+    public ScannerPreLaunchExecutionSubmission(
             ExecutorService executorService,
             ScannerPreLaunchExecutionTask.Operations operations,
             FailureReporter failureReporter) {
@@ -17,7 +16,7 @@ final class ScannerPreLaunchExecutionSubmission {
         this.failureReporter = failureReporter;
     }
 
-    boolean submit(long executionId) {
+    public boolean submit(long executionId) {
         try {
             executorService.submit(new ScannerPreLaunchExecutionTask(executionId, operations));
             return true;
@@ -32,7 +31,7 @@ final class ScannerPreLaunchExecutionSubmission {
         }
     }
 
-    interface FailureReporter {
+    public interface FailureReporter {
         void report(Exception error);
     }
 }

@@ -2,8 +2,10 @@ package com.allinweb.ch.component.pane;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import com.allinweb.ch.facade.scanner.prelaunch.ScannerPreLaunchExecutionGate;
 import com.allinweb.ch.facade.scanner.prelaunch.ScannerPreLaunchExecutionTask;
 import com.allinweb.ch.facade.scanner.prelaunch.ScannerPreLaunchWindowBookkeeping;
+import com.allinweb.ch.facade.scanner.testrun.TestRunExecutionOutcomeTracker;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.AbstractExecutorService;

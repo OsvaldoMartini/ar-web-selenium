@@ -1,14 +1,14 @@
-package com.allinweb.ch.component.pane;
+package com.allinweb.ch.facade.scanner.testrun;
 
 import java.util.concurrent.atomic.AtomicLong;
 
-final class ScannerTestRunExecutionState {
+public final class ScannerTestRunExecutionState {
     private final AtomicLong activeExecutionId;
     private final AtomicLong lastSubmittedExecutionId;
     private final AtomicLong completedExecutionId;
     private final TestRunExecutionOutcomeTracker outcomes;
 
-    ScannerTestRunExecutionState(
+    public ScannerTestRunExecutionState(
             AtomicLong activeExecutionId,
             AtomicLong lastSubmittedExecutionId,
             AtomicLong completedExecutionId,
@@ -19,41 +19,41 @@ final class ScannerTestRunExecutionState {
         this.outcomes = outcomes;
     }
 
-    long activeExecutionId() {
+    public long activeExecutionId() {
         return activeExecutionId.get();
     }
 
-    long lastSubmittedExecutionId() {
+    public long lastSubmittedExecutionId() {
         return lastSubmittedExecutionId.get();
     }
 
-    long completedExecutionId() {
+    public long completedExecutionId() {
         return completedExecutionId.get();
     }
 
-    long currentExecutionId() {
+    public long currentExecutionId() {
         long active = activeExecutionId();
         return active > 0 ? active : lastSubmittedExecutionId();
     }
 
-    boolean isExecutionComplete(long executionId) {
+    public boolean isExecutionComplete(long executionId) {
         return executionId <= 0 || completedExecutionId() >= executionId;
     }
 
-    boolean requestStop(long executionId) {
+    public boolean requestStop(long executionId) {
         return outcomes.requestStop(executionId);
     }
 
-    void completeExecution(long executionId, boolean executionPassed) {
+    public void completeExecution(long executionId, boolean executionPassed) {
         outcomes.completed(executionId, executionPassed);
         completedExecutionId.accumulateAndGet(executionId, Math::max);
     }
 
-    void clearActiveExecution(long executionId) {
+    public void clearActiveExecution(long executionId) {
         activeExecutionId.compareAndSet(executionId, 0L);
     }
 
-    String terminalState(long executionId) {
+    public String terminalState(long executionId) {
         return outcomes.terminalOutcome(executionId).name();
     }
 }

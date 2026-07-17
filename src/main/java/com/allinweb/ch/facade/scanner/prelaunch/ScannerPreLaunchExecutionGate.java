@@ -1,17 +1,18 @@
-package com.allinweb.ch.component.pane;
+package com.allinweb.ch.facade.scanner.prelaunch;
 
+import com.allinweb.ch.facade.scanner.testrun.TestRunExecutionOutcomeTracker;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.LongPredicate;
 
-final class ScannerPreLaunchExecutionGate {
+public final class ScannerPreLaunchExecutionGate {
     private final AtomicBoolean running;
     private final AtomicLong executionSequence;
     private final AtomicLong activeExecutionId;
     private final AtomicLong lastSubmittedExecutionId;
     private final TestRunExecutionOutcomeTracker executionOutcomes;
 
-    ScannerPreLaunchExecutionGate(
+    public ScannerPreLaunchExecutionGate(
             AtomicBoolean running,
             AtomicLong executionSequence,
             AtomicLong activeExecutionId,
@@ -24,7 +25,7 @@ final class ScannerPreLaunchExecutionGate {
         this.executionOutcomes = executionOutcomes;
     }
 
-    StartAttempt startIfIdle(LongPredicate executionComplete) {
+    public StartAttempt startIfIdle(LongPredicate executionComplete) {
         long currentExecution = activeExecutionId.get();
         if (currentExecution > 0 && !executionComplete.test(currentExecution)) {
             return StartAttempt.activeExecution();
@@ -39,7 +40,7 @@ final class ScannerPreLaunchExecutionGate {
         return StartAttempt.started(executionId);
     }
 
-    record StartAttempt(Status status, long executionId) {
+    public record StartAttempt(Status status, long executionId) {
         private static StartAttempt started(long executionId) {
             return new StartAttempt(Status.STARTED, executionId);
         }
@@ -52,12 +53,12 @@ final class ScannerPreLaunchExecutionGate {
             return new StartAttempt(Status.ALREADY_RUNNING, 0L);
         }
 
-        boolean started() {
+        public boolean started() {
             return status == Status.STARTED;
         }
     }
 
-    enum Status {
+    public enum Status {
         STARTED,
         ACTIVE_EXECUTION,
         ALREADY_RUNNING

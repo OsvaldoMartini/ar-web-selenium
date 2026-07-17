@@ -1,13 +1,13 @@
-package com.allinweb.ch.component.pane;
+package com.allinweb.ch.facade.scanner.prelaunch;
 
-final class ScannerPreLaunchRunSetup {
+public final class ScannerPreLaunchRunSetup {
     private final Operations operations;
 
-    ScannerPreLaunchRunSetup(Operations operations) {
+    public ScannerPreLaunchRunSetup(Operations operations) {
         this.operations = operations;
     }
 
-    void beginRun() {
+    public void beginRun() {
         operations.disableLaunch();
         operations.setInterceptBotJob(false);
         operations.markNotRunning();
@@ -24,7 +24,7 @@ final class ScannerPreLaunchRunSetup {
         operations.clearFields();
     }
 
-    interface Operations {
+    public interface Operations {
         void disableLaunch();
 
         void setInterceptBotJob(boolean intercept);
