@@ -1,5 +1,6 @@
 package com.allinweb.ch.socket;
 
+import com.allinweb.ch.component.pane.ScannerPluginDownloadCommandService;
 import com.allinweb.ch.facade.*;
 import com.allinweb.ch.model.*;
 import com.allinweb.ch.util.*;
@@ -49,6 +50,8 @@ public class SimpleWebSocketServer {
     private static final SaveComponentService saveComponentService = SaveComponentService.getInstance();
     private static final OcrManagerService ocrManagerService = OcrManagerService.getInstance();
     private static final OcrTestService ocrTestService = OcrTestService.getInstance();
+    private static final ScannerPluginDownloadCommandService scannerPluginDownloadCommandService =
+            ScannerPluginDownloadCommandService.getInstance();
     protected static volatile SimpleWebSocketServer instance;
     private static WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
     private static ActionExecutorClient actionExecutorClient = ActionExecutorClient.getInstance();
@@ -349,6 +352,20 @@ public class SimpleWebSocketServer {
                 case "ocrTest.run":
                     sendCommandEditorResponse(homeBankingId, sessionId, "ocrTest.runResponse",
                             ocrTestService.run(extractBody(jsonObjMSG)));
+                    break;
+                case "scanner.plugin.download":
+                    sendCommandEditorResponse(
+                            homeBankingId,
+                            sessionId,
+                            "scanner.plugin.downloadResponse",
+                            scannerPluginDownloadCommandService.download(extractBody(jsonObjMSG)));
+                    break;
+                case "scanner.plugin.downloadBatch":
+                    sendCommandEditorResponse(
+                            homeBankingId,
+                            sessionId,
+                            "scanner.plugin.downloadBatchResponse",
+                            scannerPluginDownloadCommandService.downloadBatch(extractBody(jsonObjMSG)));
                     break;
                 case "commandEditor.bootstrap":
                     sendCommandEditorResponse(
