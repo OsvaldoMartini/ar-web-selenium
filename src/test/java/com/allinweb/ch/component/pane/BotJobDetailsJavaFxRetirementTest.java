@@ -26,6 +26,6 @@ class BotJobDetailsJavaFxRetirementTest {
         assertFalse(compiledSource.contains("import javafx."));
         assertFalse(compiledSource.contains("extends ARPane"));
         assertFalse(compiledSource.contains("ARViewBotJobScene"));
-        assertTrue(compiledSource.contains("BotJobDetailsPresentationPort"));
+        assertTrue(compiledSource.contains("BotJobDetailsPresentationGateway"));
     }
 }

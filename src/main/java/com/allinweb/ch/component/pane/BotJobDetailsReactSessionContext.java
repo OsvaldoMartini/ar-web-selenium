@@ -1,22 +1,20 @@
 package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.model.BotJobLoadDTO;
-import com.google.gson.Gson;
 import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Holds the current Bot Job identity and per-surface bootstrap payload used by reused JavaFX WebViews.
- * Load listeners resolve this state when a page finishes loading instead of retaining the first opened job.
+ * Holds the current Bot Job identity and per-surface bootstrap payload used by React sessions.
  */
-final class BotJobDetailsWebViewBootstrap {
+final class BotJobDetailsReactSessionContext {
 
     private ActiveJob activeJob;
     private final Map<String, String> payloads = new HashMap<>();
 
     synchronized void activate(BotJobLoadDTO botJob) {
         if (botJob == null || botJob.getId() == null || botJob.getId() <= 0) {
-            throw new IllegalArgumentException("A Bot Job is required for the WebView bootstrap");
+            throw new IllegalArgumentException("A Bot Job is required for the React session context");
         }
         String organizationName = botJob.getHomeBankingLoadDTO() == null
                 ? ""
@@ -44,7 +42,7 @@ final class BotJobDetailsWebViewBootstrap {
 
     synchronized Context resolve(String sessionId) {
         if (activeJob == null) {
-            throw new IllegalStateException("Bot Job WebView bootstrap is not active");
+            throw new IllegalStateException("Bot Job React session context is not active");
         }
         String normalizedSessionId = safe(sessionId);
         return new Context(
@@ -54,16 +52,6 @@ final class BotJobDetailsWebViewBootstrap {
                 activeJob.organizationName(),
                 activeJob.botJobId(),
                 activeJob.botJobName());
-    }
-
-    static String initializationScript(Context context, int port, Gson gson) {
-        if (context == null || gson == null) {
-            throw new IllegalArgumentException("Bot Job WebView context and JSON encoder are required");
-        }
-        return "window.receiveDataFromJava(JSON.stringify(" + context.jsonData() + "), " + port + ", "
-                + gson.toJson(context.sessionId()) + ", " + context.homeBankingId() + ", "
-                + gson.toJson(context.organizationName()) + ", " + context.botJobId() + ", "
-                + gson.toJson(context.botJobName()) + ")";
     }
 
     private static int value(Integer value) {

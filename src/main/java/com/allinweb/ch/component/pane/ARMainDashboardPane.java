@@ -41,7 +41,7 @@ import org.openqa.selenium.WebDriver;
 
 @Slf4j
 public class ARMainDashboardPane extends ARPane
-        implements BotJobDetailsPresentationPort, MainDashboardPresentation, NewBotJobPresentation, ConfigPresentation {
+        implements BotJobDetailsPresentationGateway, MainDashboardPresentation, NewBotJobPresentation, ConfigPresentation {
 
     private static final String SESSION_ID = "mainDashboard";
     private static final int DEFAULT_PORT = 54525;
@@ -245,10 +245,10 @@ public class ARMainDashboardPane extends ARPane
         });
     }
 
-    public void showSurface(String targetSession, BotJobDetailsWebViewBootstrap.Context context) {
+    public void showSurface(String targetSession, BotJobDetailsReactSessionContext.Context context) {
         int port = resolveSocketPort();
         try {
-            webView.getEngine().executeScript(BotJobDetailsWebViewBootstrap.initializationScript(context, port, gson));
+            webView.getEngine().executeScript(botJobDetailsInitializationScript(context, port));
         } catch (RuntimeException error) {
             log.error("Bot Job React session dispatch failed for {}: {}", targetSession, error.getMessage());
             throw error;
@@ -366,6 +366,16 @@ public class ARMainDashboardPane extends ARPane
         return webView.getScene() != null && webView.getScene().getWindow() instanceof Stage
                 ? (Stage) webView.getScene().getWindow()
                 : null;
+    }
+
+    private String botJobDetailsInitializationScript(BotJobDetailsReactSessionContext.Context context, int port) {
+        if (context == null) {
+            throw new IllegalArgumentException("Bot Job React session context is required");
+        }
+        return "window.receiveDataFromJava(JSON.stringify(" + context.jsonData() + "), " + port + ", "
+                + gson.toJson(context.sessionId()) + ", " + context.homeBankingId() + ", "
+                + gson.toJson(context.organizationName()) + ", " + context.botJobId() + ", "
+                + gson.toJson(context.botJobName()) + ")";
     }
 
     private void pushReactDashboardList() {

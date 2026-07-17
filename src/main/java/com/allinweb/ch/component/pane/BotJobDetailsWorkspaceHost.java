@@ -62,7 +62,7 @@ public class BotJobDetailsWorkspaceHost {
             BotJobWorkspaceCapabilityService.getInstance();
     private static final BotJobPreScanPayloadService preScanPayloadService =
             BotJobPreScanPayloadService.getInstance();
-    private static final BotJobDetailsWebViewBootstrap webViewBootstrap = new BotJobDetailsWebViewBootstrap();
+    private static final BotJobDetailsReactSessionContext reactSessionContext = new BotJobDetailsReactSessionContext();
     private static final BotJobTestRunCoordinator botJobTestRunCoordinator = new BotJobTestRunCoordinator(
             botJobDetailsWorkspaceRegistry,
             new BotJobTestRunCoordinator.ScannerPort() {
@@ -124,7 +124,7 @@ public class BotJobDetailsWorkspaceHost {
     private BotJobLoadDTO selectedBotJob;
     private volatile String reactEnvironmentUrl = "";
     private String headlessSurface = "botJob";
-    private volatile BotJobDetailsPresentationPort presentationPort;
+    private volatile BotJobDetailsPresentationGateway presentationPort;
     // Private constructor to prevent instantiation
     private BotJobDetailsWorkspaceHost() {
         scannerCoordinator = BotJobScannerCoordinator.createDefault(
@@ -213,12 +213,12 @@ public class BotJobDetailsWorkspaceHost {
         return instance;
     }
 
-    public void setPresentationPort(BotJobDetailsPresentationPort presentationPort) {
+    public void setPresentationPort(BotJobDetailsPresentationGateway presentationPort) {
         this.presentationPort = java.util.Objects.requireNonNull(presentationPort, "presentationPort");
     }
 
-    private BotJobDetailsPresentationPort presentation() {
-        BotJobDetailsPresentationPort current = presentationPort;
+    private BotJobDetailsPresentationGateway presentation() {
+        BotJobDetailsPresentationGateway current = presentationPort;
         if (current == null) throw new IllegalStateException("Bot Job Details presentation is not initialized");
         return current;
     }
@@ -262,7 +262,7 @@ public class BotJobDetailsWorkspaceHost {
                     }
                 });
         BotJobWorkspaceService.GridSnapshot initialGridSnapshot;
-        webViewBootstrap.activate(selectedBotJob);
+        reactSessionContext.activate(selectedBotJob);
         botJobDetailsWorkspaceRegistry.activate(selectedBotJob, isEnabledLicence);
         try {
             reactEnvironmentUrl = botJobDetailsService
@@ -326,8 +326,8 @@ public class BotJobDetailsWorkspaceHost {
     }
 
     private void applyGridSnapshot(BotJobWorkspaceService.GridSnapshot snapshot, boolean publish) {
-        webViewBootstrap.updatePayload(selectedBotJob.getId(), ScannerWorkspaceSessions.BOT_JOB_TASKS, snapshot.botJobJson());
-        webViewBootstrap.updatePayload(selectedBotJob.getId(), ScannerWorkspaceSessions.COMPONENT_TASKS, snapshot.componentJson());
+        reactSessionContext.updatePayload(selectedBotJob.getId(), ScannerWorkspaceSessions.BOT_JOB_TASKS, snapshot.botJobJson());
+        reactSessionContext.updatePayload(selectedBotJob.getId(), ScannerWorkspaceSessions.COMPONENT_TASKS, snapshot.componentJson());
         if (!publish) return;
         com.allinweb.ch.socket.InstructionRealtimePublisher publisher =
                 com.allinweb.ch.socket.InstructionRealtimePublisher.getInstance();
@@ -871,8 +871,8 @@ public class BotJobDetailsWorkspaceHost {
         return selectedBotJob;
     }
 
-    BotJobDetailsWebViewBootstrap.Context reactContext(String sessionId) {
-        return webViewBootstrap.resolve(sessionId);
+    BotJobDetailsReactSessionContext.Context reactContext(String sessionId) {
+        return reactSessionContext.resolve(sessionId);
     }
 
     /** Executes an operation from the React Bot Job Details toolbar. */
@@ -1328,7 +1328,7 @@ public class BotJobDetailsWorkspaceHost {
     }
 
     private void suspendReactWorkspaceSurfaces(int botJobId) {
-        webViewBootstrap.deactivate(botJobId);
+        reactSessionContext.deactivate(botJobId);
         for (String workspaceSession : List.of(
                 ScannerWorkspaceSessions.BOT_JOB_TASKS,
                 ScannerWorkspaceSessions.COMPONENT_TASKS,

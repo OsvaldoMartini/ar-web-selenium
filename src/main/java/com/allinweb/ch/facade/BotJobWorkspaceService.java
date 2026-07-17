@@ -12,7 +12,7 @@ import java.util.List;
 /**
  * JavaFX-free owner of Bot Job workspace cache activation and grid snapshot loading.
  *
- * <p>The desktop pane applies the returned snapshots to its WebViews, but it no longer owns the
+ * <p>The desktop presentation applies the returned snapshots to React sessions, but it no longer owns the
  * ordering, failure cleanup, or scanner-selection policy for the shared backend caches.
  */
 public final class BotJobWorkspaceService {
