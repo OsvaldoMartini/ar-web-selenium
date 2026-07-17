@@ -9,6 +9,7 @@ import com.allinweb.ch.vision.RasterImageIO;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class BotJobDetailsDesktopUiRetirementTest {
@@ -398,5 +399,23 @@ class BotJobDetailsDesktopUiRetirementTest {
         assertFalse(pom.contains("org.cef"));
         assertFalse(pom.contains("net.sourceforge.tess4j"));
         assertFalse(pom.contains("tess4j"));
+    }
+
+    @Test
+    void launchAndInstallerPackagingDoNotShipRetiredUiRuntime() throws IOException {
+        String launcher = Files.readString(Path.of("exec_launcher-4.7.bat"));
+        assertFalse(launcher.contains(RETIRED_UI_PACKAGE));
+        assertFalse(launcher.contains("java" + "FX"));
+        assertFalse(launcher.contains("--add-modules"));
+
+        List<Path> installers;
+        try (var stream = Files.list(Path.of("Deploy"))) {
+            installers = stream.filter(path -> path.getFileName().toString().endsWith(".iss")).toList();
+        }
+        for (Path installer : installers) {
+            String content = Files.readString(installer);
+            assertFalse(content.contains(RETIRED_UI_PACKAGE), installer.toString());
+            assertFalse(content.contains("java" + "FX"), installer.toString());
+        }
     }
 }

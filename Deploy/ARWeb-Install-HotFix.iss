@@ -52,9 +52,6 @@ Source: "C:\ARWeb\ARWeb-Scanner\AR_Web_Scanner.jar"; DestDir: "{app}\"; Flags: i
 ; Source: "C:\ARWeb\ARWeb-Scanner\java\conf\*"; DestDir: "{app}\java\conf\"; Flags: ignoreversion
 ; Source: "C:\ARWeb\ARWeb-Scanner\java\include\*"; DestDir: "{app}\java\include\"; Flags: ignoreversion
 ; Source: "C:\ARWeb\ARWeb-Scanner\java\jmods\*"; DestDir: "{app}\java\jmods\"; Flags: ignoreversion
-; Source: "C:\ARWeb\ARWeb-Scanner\javaFX\*"; DestDir: "{app}\javaFX\"; Flags: ignoreversion
-; Source: "C:\ARWeb\ARWeb-Scanner\javaFX\bin\*"; DestDir: "{app}\javaFX\bin\"; Flags: ignoreversion
-; Source: "C:\ARWeb\ARWeb-Scanner\javaFX\lib\*"; DestDir: "{app}\javaFX\lib\"; Flags: ignoreversion
 ; Source: "C:\ARWeb\ARWeb-Scanner\lang\*"; DestDir: "{app}\ARWeb-Scanner\lang\"; Flags: ignoreversion
 ; Source: "C:\ARWeb\ARWeb-Scanner\config\*"; DestDir: "{app}\ARWeb-Scanner\config\"; Flags: ignoreversion
 ; Source: "C:\ARWeb\ARWeb\database.mdb"; DestDir: "{app}\ARWeb\"; Flags: ignoreversion

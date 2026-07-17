@@ -28,7 +28,8 @@ executed by the AR Web Engine.
 * Verify configurations in configuration.properties file
 * Build the last version of AR Web Engine _(optional)_
 * Move the AR Web Engine artifact "Engine.jar" in the root folder of the project
-* Run the command _**mvn javafx:run**_
+* Run the command _**mvn clean package**_
+* Run the shaded jar with `java -jar target/AR_Web_Scanner-4.2.jar -c <path-to-ARWeb.config>`
 
 ### Build Project
 
@@ -40,7 +41,7 @@ executed by the AR Web Engine.
 * Java 17
 * Spring Boot _(to be implemented)_
 * Selenium
-* JavaFX
+* React/TypeScript frontend served by the scanner backend
 * Hibernate
 * JPA _(to be implemented)_
 * Apache POI
@@ -113,53 +114,23 @@ numerous problems and is not straightforward for code understanding.
 In the future this class should be deleted and the id field
 transferred to each class with its correct naming convention.
 
-#### UI Structure
+#### Runtime Structure
 
-The application begins in the ARControlPanel class.
-This class is used just as an entrypoint for the entire application
-as it creates an ARMainScene instance and shows it to the user.
+The application begins in the `ARControlPanel` class.
+This class is the backend entrypoint for database startup, configuration,
+license validation, WebSocket servers, browser automation, and the React
+container.
 
-The UI components are divided into Panes and Scenes.
-Scenes work as the outer layer of a window (width, height, etc..)
-Panels on the other hand manage the buttons, inputs, etc... that
-the user sees.
+The former JavaFX Scene/Pane UI has been retired. User-facing scanner,
+bot-job, configuration, activation, and alert workflows are owned by the
+React/TypeScript frontend and communicate with Java through WebSocket and
+backend service contracts.
 
-Scene class example:
-```java
-public class ARMainScene extends ARScene {
+Backend scanner logic remains in Java service/facade classes. UI state,
+dialogs, confirmations, and controls should be implemented in React rather
+than reintroducing JavaFX/Swing components.
 
-    private static final Double SCENE_HEIGHT = 30D;
-    private static final Double SCENE_WIDTH = 300D;
-    private static final String TITLE = "AR Web Scanner";
-
-    public ARMainScene() {
-        super();
-    }
-    ...
-}
-```
-
-Pane class example:
-```java
-public class ARMainPane extends ARPane {
-
-    private static final ARComponentBuilder builder = new ARComponentBuilder();
-
-    //UI components
-    Button newBotJobButton;
-    Button viewBotJobButton;
-    Button configureButton;
-    Button infoButton;
-    HBox buttonPane;
-
-    @Override
-    public void initUIComponents()
-    ...
-```
-
-All the Panes and Scenes should extend the ARPane base class as it helps
-the development by doing some standard work that should be done on
-every Pane/Scene. More explanation can be found on the ARPane base class.
+Legacy pane examples in older documentation are obsolete.
 
 ### Contacts
 

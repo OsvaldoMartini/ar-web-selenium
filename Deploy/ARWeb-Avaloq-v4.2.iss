@@ -73,7 +73,6 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Messages]
 WelcomeLabel1=Welcome to the {#MyAppName} v{#MyAppVersion} Avaloq Install
-WelcomeLabel2=This will install the full ARWeb Avaloq v{#MyAppVersion} environment.%n%n  - 7 encrypted plugin packages%n  - AR Web Scanner + Engine v4.2%n  - ARWeb.config, Edge WebDriver%n  - JavaFX, JavaJCE, Lang%n  - Excel template (Apo Bank)%n%nPlease close ARWeb before continuing.
 SelectDirBrowseLabel=Select the ROOT installation folder (e.g. C:\ARWebAvaloq).%nDo NOT select the ARWeb sub-folder.
 SelectDirLabel3=The installer will create:%n%n   <dir>\ARWeb\plugins%n   <dir>\ARWeb-Scanner
 ReadyLabel1=Ready to Install
@@ -92,7 +91,6 @@ Name: "engine";     Description: "AR_Web_Engine-4.2.jar";                       
 Name: "config";     Description: "ARWeb.config";                                   Types: full custom
 Name: "excel";      Description: "Apo Bank.xlsx (Excel template)";                 Types: full custom
 Name: "edgedriver"; Description: "Edge WebDriver (146.0.3856.62)";                 Types: full custom
-Name: "javafx";     Description: "JavaFX runtime";                                 Types: full custom
 Name: "javajce";    Description: "Java JCE extensions";                            Types: full custom
 Name: "lang";       Description: "Language files";                                 Types: full custom
 Name: "appconfig";  Description: "configuration.properties";                       Types: full custom
@@ -122,8 +120,6 @@ Source: "{#SrcScanner}\lang\labels.en.properties"; DestDir: "{app}\ARWeb-Scanner
 ; ── JavaJCE  ->  {app}\ARWeb-Scanner\javaJCE (recursive) ────────────────────
 Source: "{#SrcScanner}\javaJCE\*"; DestDir: "{app}\ARWeb-Scanner\javaJCE"; Components: javajce; Flags: ignoreversion confirmoverwrite recursesubdirs createallsubdirs
 
-; ── JavaFX  ->  {app}\ARWeb-Scanner\javaFX (recursive) ──────────────────────
-Source: "{#SrcScanner}\javaFX\*"; DestDir: "{app}\ARWeb-Scanner\javaFX"; Components: javafx; Flags: ignoreversion confirmoverwrite recursesubdirs createallsubdirs
 
 ; ── Edge WebDriver  ->  {app}\ARWeb-Scanner\edgedriver-versions ──────────────
 Source: "{#SrcScanner}\edgedriver-versions\*"; DestDir: "{app}\ARWeb-Scanner\edgedriver-versions"; Components: edgedriver; Flags: ignoreversion confirmoverwrite recursesubdirs createallsubdirs
@@ -232,7 +228,6 @@ begin
     Space + 'JARs         ->  ' + ExpandConstant('{app}') + '\ARWeb-Scanner' + NewLine +
     Space + 'Config       ->  ' + ExpandConstant('{app}') + '\Config-4.2' + NewLine +
     Space + 'Excel        ->  ' + ExpandConstant('{app}') + '\ARWeb\Excel' + NewLine +
-    Space + 'JavaFX       ->  ' + ExpandConstant('{app}') + '\ARWeb-Scanner\javaFX' + NewLine +
     Space + 'JavaJCE      ->  ' + ExpandConstant('{app}') + '\ARWeb-Scanner\javaJCE' + NewLine +
     Space + 'Java RT      ->  ' + ExpandConstant('{app}') + '\ARWeb-Scanner\java' + NewLine +
     Space + 'Lang         ->  ' + ExpandConstant('{app}') + '\ARWeb-Scanner\lang' + NewLine +

@@ -4,18 +4,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project identity
 
-**AR Web Scanner** — JavaFX desktop application that records user actions on web pages (via Selenium + an embedded Chromium through JCEF) so a separate runtime called **AR Web Engine** can replay them. The Scanner is the authoring tool; the Engine (lives in a different repo, artifact `Engine.jar` / `AR_Web_Engine.jar`) is the executor. The two share DTO models and database schemas — changes to anything under `com.allinweb.ch.model` must be verified against the Engine, because classes are historically copy-duplicated between the two projects (see README "Premise").
+**AR Web Scanner** — backend plus React/TypeScript scanner container that records user actions on web pages (via Selenium/Playwright and browser plugins) so a separate runtime called **AR Web Engine** can replay them. The Scanner is the authoring tool; the Engine (lives in a different repo, artifact `Engine.jar` / `AR_Web_Engine.jar`) is the executor. The two share DTO models and database schemas — changes to anything under `com.allinweb.ch.model` must be verified against the Engine, because classes are historically copy-duplicated between the two projects (see README "Premise").
 
-There is also a sibling repo `ar-web-mobile` at `D:\Projects\AllinWeb\ar-web-mobile` that carries the Appium side and an `com.allinweb.ch.vision.ocr` package (Tess4J + OpenCV). When OCR/vision capabilities are needed here, prefer reusing that package over reimplementing.
+OCR in this repo now routes through the native OCR bridge. Do not reintroduce Tess4J, JavaFX, Swing, or `BufferedImage` into main-code scanner flows.
 
 ## Build, run, test
 
 ```bash
-# Run the scanner UI
-mvn javafx:run
-
 # Full build (produces the shaded fat jar in target/)
 mvn clean package
+
+# Run the backend/React container
+java -jar target/AR_Web_Scanner-4.2.jar -c "D:\Projects\ARWeb-Martini\Config-4.2\ARWeb.config"
 
 # Run tests (JUnit 5 via Surefire)
 mvn test
@@ -32,11 +32,7 @@ Runtime expects a config file. Pass it with `-c`. The working config for this de
 ```
 (There are multiple config folders at the repo root — `config/`, `Config-4.7/` — but the one actively in use is `Config-4.2` in the sibling workspace above. Don't edit the in-repo ones expecting the running app to pick them up.)
 
-JavaFX VM options (needed when running from IDE):
-```
---module-path "<path>\javaFX\lib" --add-modules javafx.controls,javafx.web,javafx.fxml
-```
-See `README-DEBUG.md` for the canonical IDE launch arguments.
+JavaFX VM options are obsolete. IDE launches should run `com.allinweb.ch.ARControlPanel` as a normal Java main class with the same `-c` config argument used by the jar.
 
 ### Runtime JS plugins (live injection payloads)
 The scanner does **not** inject a single bundle. It loads separate minified plugins from an **external runtime directory** pointed at by `PATH_PLUGINS`. On this dev machine the live files are:
@@ -52,17 +48,17 @@ D:\Projects\ARWeb-Martini\ARWeb\plugins\searchListAsync\build\searchListAsync.mi
 ## Architecture you need in your head before editing
 
 ### Entry point and bootstrap
-`com.allinweb.ch.ARControlPanel` (JavaFX `Application`) wires the database, initializer, property manager, configuration/main scenes, and two WebSocket servers. Ports are chosen at startup and exported via `System.setProperty("ARWebChosenPort*")`. The local WebSocket server starts before license validation so the React `ActivationRequired` session can recover an inactive installation; database and protected services start only after activation succeeds.
+`com.allinweb.ch.ARControlPanel` wires the database, initializer, property manager, native OCR path, browser automation, React container, and WebSocket servers. Ports are chosen at startup and exported via `System.setProperty("ARWebChosenPort*")`. The local WebSocket server starts before license validation so the React `ActivationRequired` session can recover an inactive installation; database and protected services start only after activation succeeds.
 
 ### Package layout (what each one owns)
 - **`facade`** — `Perform*` singletons are the service layer. `PerformActions` drives Selenium, `PerformCloneLoad` runs the element-picking flow, `PerformDataBase` owns persistence, `PerformMessage` is the serialization + user-feedback hub (note: `outputJsonElementDTO` is the canonical DTO-to-disk writer used by pick events).
 - **`socket`** — Jetty-based WebSocket layer. `SimpleWebSocketServer` has a big switch on a verb enum (`SEARCH_TOOL`, `addPickOne`, `mobile-return-server`, `scannerGrid`, `mobileScannerGrid`, etc.) that routes UI ↔ browser-injected-JS ↔ mobile-companion messages. `WebSocketSessionManager` is the singleton session registry.
 - **`driver`** — `ARWebDriver` wraps the Selenium driver lifecycle. Default target is Chrome; `WEBDRIVER.md` documents the Edge/proxy variants.
-- **`component/scene` + `component/pane`** — UI. Scenes = windows, Panes = content. Every UI class extends `ARPane` (see README "UI Structure").
+- **`component/scene` + `component/pane`** - legacy package names. JavaFX Scene/Pane UI has been retired; do not add new JavaFX/Swing classes. UI belongs in React/TypeScript and talks to Java through WebSocket/service contracts.
 - **`model`** — DTOs. The central one is `ElementDTO` (fields include `xPath`, `customXPath`, `someText`, `definedName`, `attribId`, `attribName`, `coordinates`, `cssSelector`, `shadowHost`, `attributeData[]`, plus mobile extension `androidData[]`). `SplitDTO` is the per-instruction payload that flows over the WebSocket. Lombok `@Data` is pervasive.
 - **`db`, `migration`** — schema migrations are numbered Java classes in `db/migrations/M<YYYYMMDD>_*.java` executed by `MigrationRunner`. Add new migrations by dropping a new dated class there; do not edit an applied migration. Three engines are linked in (`postgresql`, `sqlite-jdbc`, `ucanaccess` for MS Access `.accdb`) — which one is active depends on the loaded `configuration.properties`.
 - **`util`** — cross-cutting. `ARPropertyManager` is the singleton config reader; every runtime path (DB data dir, engine jar, webdriver, plugins) comes through it via `ARPropertyEnum` keys (`PATH_DB`, `PATH_ENGINE`, `PATH_WEBDRIVER`, `PATH_PLUGINS`, `PATH_LICENSE`). `ARConstants` / `ARConstantsEngine` hold the baked-in defaults. `ARPriorities` + `Priority.java` + `PriorityTypeEnum` implement the per-site element-matching priority table (see `Priorities Properties README.md` + `xPath Auto.md`).
-- **`vision`** — `VisionElement` + `UiElementType` + `VisionElementMapper`. Stubs for the upcoming OCR integration; real OCR engine sits in the sibling `ar-web-mobile` module under `com.allinweb.ch.vision.ocr`.
+- **`vision`** - raster image model, OCR facade, OpenCV preprocessing helpers, and element classification. Main-code OCR should use `RasterImage` and the native bridge, not `BufferedImage` or Tess4J.
 - **`license`** — `LicenseManager` + fingerprinting (`util/LicenseFingerprint`). Licence enforcement is on by default (`isEnabledLicence = true` in `ARControlPanel`).
 
 ### The element-matching contract
