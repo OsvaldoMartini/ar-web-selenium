@@ -2,7 +2,6 @@ package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.facade.ScannerDialogPublisher;
 import com.allinweb.ch.facade.ScannerSupportCaptureResultService;
-import com.allinweb.ch.facade.ScannerSupportSavedFileMessageService;
 
 final class ScannerSupportAlertAdapter {
 
@@ -19,14 +18,6 @@ final class ScannerSupportAlertAdapter {
     void showCaptureResult(ScannerSupportCaptureResultService.AlertMessage message) {
         show(
                 message.ok() ? ScannerDialogPublisher.Severity.INFO : ScannerDialogPublisher.Severity.ERROR,
-                "Support",
-                message.header(),
-                message.content());
-    }
-
-    void showSavedFile(ScannerSupportSavedFileMessageService.Message message) {
-        show(
-                ScannerDialogPublisher.Severity.INFO,
                 "Support",
                 message.header(),
                 message.content());

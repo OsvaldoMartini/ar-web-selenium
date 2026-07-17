@@ -175,6 +175,27 @@ class ScannerDialogPublisherTest {
         verify(session.getBasicRemote()).sendText(contains("At end"));
     }
 
+    @Test
+    void publishesSupportFileEventsToReactScannerSession() throws Exception {
+        session = openSession();
+        WebSocketSessionManager.addSession(ScannerWorkspaceSessions.SCANNER_ELEMENT_PANE, session);
+
+        ScannerDialogPublisher publisher =
+                new ScannerDialogPublisher(new WebSocketSessionManager(), new Gson());
+
+        assertTrue(publisher.supportFile(
+                "elementsReview",
+                new ScannerSupportFileService.SupportFile("elements.support", "{\"ok\":true}")));
+
+        verify(session.getBasicRemote()).sendText(contains("\"operationId\":\"scanner.dialog.supportFile\""));
+        verify(session.getBasicRemote()).sendText(contains("\\\"kind\\\":\\\"supportFile\\\""));
+        verify(session.getBasicRemote()).sendText(contains("\\\"reviewType\\\":\\\"elementsReview\\\""));
+        verify(session.getBasicRemote()).sendText(contains("\\\"title\\\":\\\"Save Elements Review\\\""));
+        verify(session.getBasicRemote()).sendText(contains("\\\"suggestedFileName\\\":\\\"elements.support\\\""));
+        verify(session.getBasicRemote()).sendText(contains("\\\"contentType\\\":\\\"application/json\\\""));
+        verify(session.getBasicRemote()).sendText(contains("\\\"json\\\":\\\"{\\\\\\\"ok\\\\\\\":true}\\\""));
+    }
+
     private Session openSession() {
         Session openSession = mock(Session.class);
         RemoteEndpoint.Basic remote = mock(RemoteEndpoint.Basic.class);

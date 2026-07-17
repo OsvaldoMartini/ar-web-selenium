@@ -25,6 +25,7 @@ public final class ScannerDialogPublisher {
     private static final String PLUGIN_LIST_OPERATION = "scanner.dialog.pluginList";
     private static final String PLUGIN_PICKER_OPERATION = "scanner.dialog.pluginPicker";
     private static final String CREATE_BLOCK_OPERATION = "scanner.dialog.createBlock";
+    private static final String SUPPORT_FILE_OPERATION = "scanner.dialog.supportFile";
     private static final ScannerDialogPublisher INSTANCE =
             new ScannerDialogPublisher(WebSocketSessionManager.getInstance(), new Gson());
 
@@ -104,6 +105,19 @@ public final class ScannerDialogPublisher {
                         "CREATE_BLOCK"));
     }
 
+    public boolean supportFile(String reviewType, ScannerSupportFileService.SupportFile supportFile) {
+        String title = "elementsReview".equals(reviewType) ? "Save Elements Review" : "Save Support File";
+        return publish(
+                SUPPORT_FILE_OPERATION,
+                new SupportFileEvent(
+                        "supportFile",
+                        reviewType,
+                        title,
+                        supportFile.suggestedFileName(),
+                        "application/json",
+                        supportFile.json()));
+    }
+
     private boolean publish(String operationId, Object event) {
         String body = gson.toJson(event);
         boolean sent =
@@ -163,4 +177,12 @@ public final class ScannerDialogPublisher {
             List<String> positionOptions,
             Map<String, String> previews,
             String submitType) {}
+
+    public record SupportFileEvent(
+            String kind,
+            String reviewType,
+            String title,
+            String suggestedFileName,
+            String contentType,
+            String json) {}
 }

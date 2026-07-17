@@ -148,7 +148,7 @@ public class ARScannedElementPane extends ARPane
     private final ScannerSupportRequestService scannerSupportRequestService = new ScannerSupportRequestService();
     private final ScannerSupportAlertAdapter scannerSupportAlertAdapter = new ScannerSupportAlertAdapter();
     private final ScannerSupportSaveFlowAdapter scannerSupportSaveFlowAdapter =
-            new ScannerSupportSaveFlowAdapter(scannerSupportAlertAdapter);
+            new ScannerSupportSaveFlowAdapter();
     private final ScannerSupportCaptureResultService scannerSupportCaptureResultService =
             new ScannerSupportCaptureResultService();
     private final ScannerSupportCaptureSendService scannerSupportCaptureSendService =
@@ -2012,7 +2012,7 @@ public class ARScannedElementPane extends ARPane
                 } else if (responseAction == ScannerSupportResponseActionService.Action.SAVE) {
                     ScannerSupportFileService.SupportFile supportFile =
                             scannerPageReviewFileService.pageReview(html, new PanePageReviewBrowser(driver));
-                    scannerSupportSaveFlowAdapter.savePageReview(stage, supportFile);
+                    scannerSupportSaveFlowAdapter.savePageReview(supportFile);
                 }
             } catch (Exception ex) {
                 log.error("handleDomReviewResponse failed", ex);
@@ -2131,7 +2131,7 @@ public class ARScannedElementPane extends ARPane
                 } else if (responseAction == ScannerSupportResponseActionService.Action.SAVE) {
                     ScannerSupportFileService.SupportFile supportFile =
                             scannerElementsReviewFileService.elementsReview(driver, elementDetailsJson, message);
-                    scannerSupportSaveFlowAdapter.saveElementsReview(stage, supportFile);
+                    scannerSupportSaveFlowAdapter.saveElementsReview(supportFile);
                 }
             } catch (Exception ex) {
                 log.error("handleSupportRequestElementsResponse failed", ex);
