@@ -43,6 +43,17 @@ class BotJobDetailsJavaFxRetirementTest {
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerRefreshBlocksButtonAdapter.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerSearchHiddenFieldsButtonAdapter.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerSupportButtonAdapter.java")));
+        assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerPluginStatusButtonAdapter.java")));
+        assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerPluginUpdateButtonAdapter.java")));
+        assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerPluginUpdateButtonRefreshAdapter.java")));
+        assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerPluginUpdateDialogPublisherAdapter.java")));
+        assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerPluginPickerManifestFetchAdapter.java")));
+        assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerPluginPickerDialogPublisherAdapter.java")));
+        assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerPluginManifestListFlowAdapter.java")));
+        assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerPluginListDialogPublisherAdapter.java")));
+        assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerPluginManifestResultAdapter.java")));
+        assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerPluginManifestFetchTaskAdapter.java")));
+        assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerPluginManifestClient.java")));
     }
 
     @Test
@@ -182,5 +193,20 @@ class BotJobDetailsJavaFxRetirementTest {
         assertFalse(compiledSource.contains("turnOnOffButton"));
         assertFalse(compiledSource.contains("sendDomButton"));
         assertFalse(compiledSource.contains("requestSupportButton"));
+    }
+
+    @Test
+    void scannerPaneDoesNotUseRetiredPluginButtonAdapters() throws IOException {
+        String source = Files.readString(SOURCE_ROOT.resolve("component/pane/ARScannedElementPane.java"));
+        String compiledSource = source.replaceAll("(?s)/\\*.*?\\*/", "");
+
+        assertFalse(compiledSource.contains("ScannerPluginStatusButtonAdapter"));
+        assertFalse(compiledSource.contains("ScannerPluginUpdateButtonAdapter"));
+        assertFalse(compiledSource.contains("ScannerPluginUpdateButtonRefreshAdapter"));
+        assertFalse(compiledSource.contains("pluginUpdateButton"));
+        assertFalse(compiledSource.contains("updatePluginsButton"));
+        assertFalse(compiledSource.contains("buildPluginUpdateButton"));
+        assertFalse(compiledSource.contains("buildUpdatePluginsButton"));
+        assertFalse(compiledSource.contains("refreshPluginUpdateButton"));
     }
 }

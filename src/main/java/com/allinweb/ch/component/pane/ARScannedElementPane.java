@@ -148,29 +148,8 @@ public class ARScannedElementPane
             new ScannerSupportCaptureSendService();
     private final ScannerSupportResponseActionService scannerSupportResponseActionService =
             new ScannerSupportResponseActionService();
-    private final ScannerPluginAlertAdapter scannerPluginAlertAdapter = new ScannerPluginAlertAdapter();
-    private final ScannerPluginPickerDialogPublisherAdapter scannerPluginPickerDialogPublisherAdapter =
-            new ScannerPluginPickerDialogPublisherAdapter();
-    private final ScannerPluginUpdateButtonAdapter scannerPluginUpdateButtonAdapter =
-            new ScannerPluginUpdateButtonAdapter();
-    private final ScannerPluginUpdateButtonRefreshAdapter scannerPluginUpdateButtonRefreshAdapter =
-            new ScannerPluginUpdateButtonRefreshAdapter();
     private final ScannerPluginHintAdapter scannerPluginHintAdapter = new ScannerPluginHintAdapter();
-    private final ScannerPluginStatusButtonAdapter scannerPluginStatusButtonAdapter =
-            new ScannerPluginStatusButtonAdapter();
     private final ScannerLocalPluginInventory scannerLocalPluginInventory = new ScannerLocalPluginInventory();
-    private final ScannerPluginUpdateDialogPublisherAdapter scannerPluginUpdateDialogPublisherAdapter =
-            new ScannerPluginUpdateDialogPublisherAdapter();
-    private final ScannerPluginListDialogPublisherAdapter scannerPluginListDialogPublisherAdapter =
-            new ScannerPluginListDialogPublisherAdapter();
-    private final ScannerPluginBackgroundThreadAdapter scannerPluginBackgroundThreadAdapter =
-            new ScannerPluginBackgroundThreadAdapter();
-    private final ScannerPluginPickerManifestFetchAdapter scannerPluginPickerManifestFetchAdapter =
-            new ScannerPluginPickerManifestFetchAdapter();
-    private final ScannerPluginDownloadFlowAdapter scannerPluginDownloadFlowAdapter =
-            new ScannerPluginDownloadFlowAdapter();
-    private final ScannerPluginManifestListFlowAdapter scannerPluginManifestListFlowAdapter =
-            new ScannerPluginManifestListFlowAdapter();
     private final ScannerLayoutNodeAdapter scannerLayoutNodeAdapter = new ScannerLayoutNodeAdapter();
     private final ScannerBrowserNotAttachedMessageService scannerBrowserNotAttachedMessageService =
             new ScannerBrowserNotAttachedMessageService();
@@ -308,8 +287,6 @@ public class ARScannedElementPane
     private Button stopBotJobButton;
     private Button pageScannerButton;
     private Button ocrConfigButton;
-    private Button pluginUpdateButton;
-    private Button updatePluginsButton;
     private Label lblPluginHint;
     private Button refreshWebPageButton;
     private Button leftButton;
@@ -1565,10 +1542,6 @@ public class ARScannedElementPane
                 "", ARConstants.SPACE_ZERO, ARConstants.ICON_CONFIG, ARConstants.SPACE_M, new Insets(5.0D));
         ocrConfigButton.setTooltip(new Tooltip("OCR Configuration"));
 
-        pluginUpdateButton = buildPluginUpdateButton();
-        updatePluginsButton = buildUpdatePluginsButton();
-        updatePluginsButton.setVisible(false);
-
         lblPluginHint = scannerPluginHintAdapter.createLabel();
 
         refreshWebPageButton = builder.buildButton(
@@ -1719,8 +1692,6 @@ public class ARScannedElementPane
             // Add buttons and checkbox to the GridPane
             HBox pageScannerRow = scannerLayoutNodeAdapter.pageScannerRow(pageScannerButton, ocrConfigButton);
             gridPaneTop.add(pageScannerRow, 0, 0);
-            gridPaneTop.add(pluginUpdateButton, 1, 0);
-            gridPaneTop.add(updatePluginsButton, 2, 0);
             gridPaneTop.add(elementFocusComboBox, 4, 0);
             gridPaneTop.add(searchButton, 5, 0);
             gridPaneTop.add(leftButton, 7, 0);
@@ -2735,7 +2706,8 @@ public class ARScannedElementPane
                     scan.error.getErrorTitle(),
                     scan.error.getErrorHeader(),
                     scan.error.getErrorMessage());
-            showPluginHint(scan.error.getErrorTitle() + " - " + scan.error.getErrorHeader(), "#f44336", 6);
+            scannerPluginHintAdapter.show(
+                    lblPluginHint, scan.error.getErrorTitle() + " - " + scan.error.getErrorHeader(), "#f44336", 6);
             return;
         }
 
@@ -8008,7 +7980,11 @@ public class ARScannedElementPane
                     errorMessage.getErrorTitle(),
                     errorMessage.getErrorHeader(),
                     errorMessage.getErrorMessage());
-            showPluginHint(errorMessage.getErrorTitle() + " - " + errorMessage.getErrorHeader(), "#f44336", 6);
+            scannerPluginHintAdapter.show(
+                    lblPluginHint,
+                    errorMessage.getErrorTitle() + " - " + errorMessage.getErrorHeader(),
+                    "#f44336",
+                    6);
         }
     }
 
@@ -8115,266 +8091,4 @@ public class ARScannedElementPane
         currentColumnsCSV.addAll(columns);
     }
 
-    // ── Plugin Update Button ────────────────────────────────────────────────────
-
-    /**
-     * Builds the "Plugin Update" button.
-     *
-     * Visual states:
-     *   Green  - all plugins from manifest are present locally.
-     *   Orange - some or all plugins are missing locally.
-     *
-     * Clicking the button opens a dialog that shows all plugins declared in the
-     * local manifest.json (or scanned from disk), their local availability status,
-     * and allows downloading missing ones from the configured server.
-     *
-     * Plugins can arrive in the folder via:
-     *   - Download from server (using this button)
-     *   - Email attachment (user copies ZIP and extracts)
-     *   - USB drive / pendrive (user copies plugin folders)
-     */
-    private Button buildPluginUpdateButton() {
-        String pluginsDir = arPropertyManager.resolvePluginsDir();
-        int[] counts = scannerLocalPluginInventory.countLocalPlugins(pluginsDir);
-        return scannerPluginStatusButtonAdapter.build(counts[0], counts[1], this::showPluginUpdateDialog);
-    }
-
-    /**
-     * Shows the Plugin Update dialog.
-     *
-     * Scans the local plugins folder and (if url_plugins is configured) fetches
-     * the remote manifest to build a unified view of all plugins with their status:
-     *   - LOCAL: present in the plugins folder
-     *   - AVAILABLE: on the server, ready to download
-     *   - MISSING: declared in manifest but not found locally or on server
-     *
-     * The user can then download individual plugins or all missing ones at once.
-     */
-    private void showPluginUpdateDialog() {
-        // Always clear plugin caches so next injection reads fresh .min.js from disk
-        PerformPreLoad.reloadAllPlugins();
-        logOperations.info("Plugin Update - all plugin caches cleared");
-
-        String pluginsDir = arPropertyManager.resolvePluginsDir();
-        String urlBase = arPropertyManager.getProperty(ARPropertyEnum.URL_PLUGINS);
-        boolean serverConfigured = urlBase != null && !urlBase.isBlank();
-
-        List<String[]> pluginRows = scannerLocalPluginInventory.readLocalRows(pluginsDir);
-
-        // Build the dialog UI
-        final List<String[]> rows = pluginRows;
-        buildPluginUpdateUI(rows, pluginsDir, serverConfigured);
-    }
-
-    /**
-     * Builds and shows the Plugin Update UI dialog with a table of plugins and action buttons.
-     */
-    private void buildPluginUpdateUI(List<String[]> rows, String pluginsDir, boolean serverConfigured) {
-        scannerPluginUpdateDialogPublisherAdapter.show(rows, pluginsDir, serverConfigured);
-    }
-
-    // ── Update Plugins Button ──────────────────────────────────────────────────
-
-    /**
-     * Builds the "Update Plugins" button using the standard builder pattern
-     * with the ICON_DOWNLOAD icon.
-     */
-    private Button buildUpdatePluginsButton() {
-        return scannerPluginUpdateButtonAdapter.build(builder, this::runPluginUpdate);
-    }
-
-    /**
-     * Shows a short fade-away hint below the top button bar.
-     * @param message short text
-     * @param color   CSS color (#4caf50 green, #f44336 red, #ff9800 orange)
-     * @param seconds display time before fade
-     */
-    private void showPluginHint(String message, String color, double seconds) {
-        scannerPluginHintAdapter.show(lblPluginHint, message, color, seconds);
-    }
-
-    /**
-     * Main entry point for the plugin update flow.
-     *
-     * Flow:
-     *   1. Fetch manifest.json from url_plugins server
-     *   2. Show a picker dialog with available plugins
-     *   3. User selects a plugin and clicks Download
-     *   4. Download ZIP, validate, extract to path_plugins
-     *   5. Refresh pluginUpdateButton state
-     */
-    private void runPluginUpdate() {
-        String urlBase = arPropertyManager.getProperty(ARPropertyEnum.URL_PLUGINS);
-
-        if (urlBase == null || urlBase.isBlank()) {
-            showPluginWarning(
-                    "URL not configured",
-                    "url_plugins is not set in ARWeb.config.\nGo to Configuration and set the URL Plugins field.");
-            return;
-        }
-
-        String pathPlugins = arPropertyManager.resolvePluginsDir();
-
-        String baseUrl = urlBase.endsWith("/") ? urlBase : urlBase + "/";
-        String manifestUrl = baseUrl + "manifest.json";
-        Path pluginsDir = Paths.get(pathPlugins);
-
-        log.info("UpdatePlugins - fetching manifest from: {}", manifestUrl);
-
-        Thread fetchThread = scannerPluginPickerManifestFetchAdapter.build(
-                manifestUrl,
-                plugins -> showPluginPicker(plugins, baseUrl, pluginsDir),
-                ex -> showPluginError(
-                        "Cannot load plugin list",
-                        "Failed to fetch manifest.json from:\n" + manifestUrl + "\n\n" + ex.getMessage()));
-        scannerPluginBackgroundThreadAdapter.start(fetchThread, "plugin-manifest-fetch");
-    }
-
-    /**
-     * Publishes the plugin picker to the React scanner container.
-     */
-    private void showPluginPicker(List<String[]> plugins, String baseUrl, Path pluginsDir) {
-        scannerPluginPickerDialogPublisherAdapter.show(plugins, baseUrl, pluginsDir);
-    }
-
-    /**
-     * Downloads a single plugin ZIP and extracts it to the plugins folder.
-     * Runs on a background thread and publishes progress to the React scanner container.
-     */
-    private void downloadAndExtractPlugin(String downloadUrl, String fileName, String pluginName, Path pluginsDir) {
-        scannerPluginDownloadFlowAdapter.runSingle(
-                downloadUrl,
-                fileName,
-                pluginName,
-                pluginsDir,
-                this::refreshPluginUpdateButton,
-                new PanePluginNotifier());
-    }
-
-    private void showPluginWarning(String header, String body) {
-        scannerPluginAlertAdapter.warning(header, body);
-    }
-
-    private void showPluginError(String header, String body) {
-        scannerPluginAlertAdapter.error(header, body);
-    }
-
-    private void showPluginInformation(String header, String body) {
-        scannerPluginAlertAdapter.information(header, body);
-    }
-
-    // ════════════════════════════════════════════════════════════════════════════
-    // PLUGIN MANIFEST SYSTEM  - add these methods to ARScannedElementPane.java
-    //
-    // Placement:  paste the entire block just BEFORE the closing brace of the class,
-    //             replacing (or appending after) the existing showPluginTestAlert method.
-    //
-    // Required imports (all already present in ARScannedElementPane.java):
-    //   java.time.Duration, java.io.InputStream, java.nio.charset.StandardCharsets
-    //   javafx.application.Platform,
-    //   javafx.scene.control.*, javafx.scene.layout.*,
-    //   javafx.geometry.Insets, javafx.collections.*
-    //   com.google.gson.Gson  (already on classpath via pom.xml)
-    //   com.allinweb.ch.model.PluginDTO, PluginManifestDTO  (new model classes)
-    // ════════════════════════════════════════════════════════════════════════════
-
-    // ── Plugin Manifest ───────────────────────────────────────────────────────
-
-
-    // ── Plugin List Dialog ────────────────────────────────────────────────────
-
-    /**
-     * Entry point wired to the "Update Plugins" button.
-     *
-     * <ol>
-     *   <li>Validates {@code url_plugins} and {@code path_plugins} config.</li>
-     *   <li>Fetches {@code manifest.json} on a background thread.</li>
-     *   <li>On success: shows a plugin-list dialog; user can download all or
-     *       individual plugins.</li>
-     *   <li>On failure: shows the standard "Cannot load plugin list" error alert
-     *       with the failure reason.</li>
-     * </ol>
-     */
-    private void runShowPluginList() {
-        String urlPlugins = arPropertyManager.getProperty(ARPropertyEnum.URL_PLUGINS);
-
-        // ── Config guards ─────────────────────────────────────────────────────
-        if (urlPlugins == null || urlPlugins.isBlank()) {
-            showPluginWarning(
-                    "URL not configured",
-                    "url_plugins is not set in ARWeb.config.\n"
-                            + "Go to Configuration → URL Plugins and set it to your server base URL,\n"
-                            + "e.g.  http://192.168.1.109:30875");
-            return;
-        }
-
-        String pathPlugins = arPropertyManager.resolvePluginsDir();
-
-        scannerPluginManifestListFlowAdapter.fetch(
-                urlPlugins,
-                request -> showPluginListDialog(request.manifest(), request.serverBase(), pathPlugins),
-                new PanePluginNotifier());
-    }
-
-    /**
-     * Builds and shows a JavaFX dialog listing all plugins from the manifest.
-     *
-     * <p>Layout:
-     * <pre>
-     *  ┌──────────────────────────────────────────────────────────────┐
-     *  │ Plugin List   v1.0.0  ·  updated 2026-03-26                  │
-     *  ├──────────────────────────────────────────────────────────────┤
-     *  │  Icon  │  Name              │  Version  │  Size  │  Desc     │
-     *  │  🔍    │  Page Scanner      │  4.7.1    │  20 KB │  ...      │
-     *  │  ✅    │  Plugin Test       │  1.0.0    │   2 KB │  ...      │
-     *  │  …     │  …                 │  …        │  …     │  …        │
-     *  ├──────────────────────────────────────────────────────────────┤
-     *  │            [Download Selected]   [Download All]   [Close]    │
-     *  └──────────────────────────────────────────────────────────────┘
-     * </pre>
-     *
-     * @param manifest    parsed manifest from server
-     * @param serverBase  base URL, e.g. {@code http://192.168.1.109:30875}
-     * @param pathPlugins local extraction folder
-     */
-    private void showPluginListDialog(PluginManifestDTO manifest, String serverBase, String pathPlugins) {
-        scannerPluginListDialogPublisherAdapter.show(manifest, serverBase, pathPlugins);
-    }
-
-    // ── Individual Plugin Download ────────────────────────────────────────────
-
-    /**
-     * Downloads and extracts a list of plugins (each is a separate ZIP).
-     *
-     * <p>Runs on a single background thread; shows one progress dialog for all.
-     *
-     * @param plugins     plugins to download
-     * @param serverBase  e.g. {@code http://192.168.1.109:30875}
-     * @param pathPlugins local target folder
-     */
-    private void runDownloadPlugins(List<PluginDTO> plugins, String serverBase, String pathPlugins) {
-        scannerPluginDownloadFlowAdapter.runBatch(
-                plugins,
-                serverBase,
-                pathPlugins,
-                this::refreshPluginUpdateButton,
-                new PanePluginNotifier());
-    }
-
-    private void refreshPluginUpdateButton() {
-        pluginUpdateButton =
-                scannerPluginUpdateButtonRefreshAdapter.refresh(pluginUpdateButton, this::buildPluginUpdateButton);
-    }
-
-    private final class PanePluginNotifier implements ScannerPluginDownloadResultAdapter.PluginNotifier {
-        @Override
-        public void information(String header, String body) {
-            showPluginInformation(header, body);
-        }
-
-        @Override
-        public void error(String header, String body) {
-            showPluginError(header, body);
-        }
-    }
 }
