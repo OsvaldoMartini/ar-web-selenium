@@ -1,7 +1,7 @@
 package com.allinweb.ch.facade;
 
-import com.allinweb.ch.component.pane.ARScannedElementPaneProvider;
-import com.allinweb.ch.component.pane.ARScannedElementPanePort;
+import com.allinweb.ch.component.pane.ScannerRuntimePort;
+import com.allinweb.ch.component.pane.ScannerRuntimeProvider;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.model.*;
 import com.allinweb.ch.util.ARPropertyEnum;
@@ -55,7 +55,7 @@ public class ScannerRuntime {
     private List<InstructionLoad> instructionList = new ArrayList<>();
     private final ScannerGridStatusPublisher scannerGridStatusPublisher = new ScannerGridStatusPublisher();
     private final ScannerElementPanePublisher scannerElementPanePublisher = new ScannerElementPanePublisher();
-    private final ARScannedElementPanePort arScannedElementPane;
+    private final ScannerRuntimePort scannerRuntime;
     private final ScannerElementTestActionService scannerElementTestActionService =
             new ScannerElementTestActionService();
     private final ScannerElementTestLookupService scannerElementTestLookupService =
@@ -93,11 +93,11 @@ public class ScannerRuntime {
     // Private constructor to prevent instantiation
     private ScannerRuntime() {
 
-        this.arScannedElementPane = ARScannedElementPaneProvider.getInstance().currentPane();
+        this.scannerRuntime = ScannerRuntimeProvider.getInstance().currentRuntime();
         ScannerShellLifecycle.getInstance().install(new ScannerRuntimeShellHandler(this));
         this.scannerInsertBlockSelectionService =
                 new ScannerInsertBlockSelectionService(
-                        new ScannerRuntimeDataPorts.InsertBlockListsPort(performLists), arScannedElementPane);
+                        new ScannerRuntimeDataPorts.InsertBlockListsPort(performLists), scannerRuntime);
     }
 
     public static ScannerRuntime getInstance() {
@@ -131,7 +131,7 @@ public class ScannerRuntime {
 
         ErrorMessage errorMessage = performDataBase.loadBlocks(currentBotJob.getId(), "", "block");
         if (errorMessage == null) {
-            arScannedElementPane.refreshBlocks(false);
+            scannerRuntime.refreshBlocks(false);
         }
     }
     //    private static final ScheduledExecutorService pingScheduler = Executors.newScheduledThreadPool(1);
@@ -268,21 +268,21 @@ public class ScannerRuntime {
 
                     try {
 
-                        arScannedElementPane.refreshBlocks(false);
+                        scannerRuntime.refreshBlocks(false);
 
                     } catch (Exception error) {
                         log.error("Error: " + error.getMessage());
                     }
                     break;
                 case ScannerWorkspaceOperations.CLOSE_BROWSER:
-                    if (!arScannedElementPane.isJobRunning()) {
+                    if (!scannerRuntime.isJobRunning()) {
                         if (!performActions.isJustCalledRefreshPage()) {
                             log.info(ScannerWorkspaceOperations.CLOSE_BROWSER);
                             UiThreadDispatcher.getInstance().execute(() -> {
-                                arScannedElementPane.closeLaunchWindowIfPresent();
+                                scannerRuntime.closeLaunchWindowIfPresent();
 
-                                // Clean ARScannedElementPane singleton instance
-                                arScannedElementPane.destroy();
+                                // Clean scannerRuntime singleton instance
+                                scannerRuntime.destroy();
                                 destroyPanel();
                             });
                         }
@@ -295,7 +295,7 @@ public class ScannerRuntime {
                     break;
                 case ScannerWorkspaceOperations.NEW_ELEMENT_DTO:
                 case ScannerWorkspaceOperations.SEND_ALL_ELEMENTS_DTO:
-                    arScannedElementPane.checkRunningProcess();
+                    scannerRuntime.checkRunningProcess();
                     // Extract the "body" field from the JsonObject
 
                     previousBlock = scannerBlockUpdateRouteService.transitionPreviousBlockForSession(
@@ -306,7 +306,7 @@ public class ScannerRuntime {
                     //                    stepsInsertOneDTO(targetSelected);
                     break;
                 case ScannerWorkspaceOperations.UPDATE_ALL_ELEMENTS_DTO:
-                    arScannedElementPane.checkRunningProcess();
+                    scannerRuntime.checkRunningProcess();
                     // Extract the "body" field from the JsonObject
 
                     previousBlock = scannerBlockUpdateRouteService.transitionPreviousBlockForSession(
@@ -326,7 +326,7 @@ public class ScannerRuntime {
                     if (scannerMobileTestRoute.isScannerSession(sessionId)) {
                         scannerMobileTestForwarder.forward(splitDTO, type);
                     } else {
-                        arScannedElementPane.checkRunningProcess();
+                        scannerRuntime.checkRunningProcess();
 
                         // Extract the "body" field from the JsonObject
                         //                    splitDTO = gson.fromJson(jsonObjMSG, SplitDTO.class);
@@ -359,7 +359,7 @@ public class ScannerRuntime {
                     scannerElementDetailsSelectionService.select(
                             new ScannerRuntimeDataPorts.ElementDetailsTargetExtractor(
                                     targetElementHelper, performActions),
-                            arScannedElementPane,
+                            scannerRuntime,
                             splitDTO.getElementDetails()[0]);
                     break;
                 default:
@@ -410,7 +410,7 @@ public class ScannerRuntime {
     public void showModal() {
 
         UiThreadDispatcher.getInstance().execute(() -> {
-            arScannedElementPane.initialize(arWebDriver, currentBotJob, portSocketInitial);
+            scannerRuntime.initialize(arWebDriver, currentBotJob, portSocketInitial);
 
             try {
                 log.info(
@@ -438,7 +438,7 @@ public class ScannerRuntime {
         scannerElementTestActionService.run(
                 performActions,
                 targetElementHelper,
-                arScannedElementPane,
+                scannerRuntime,
                 sourceElement,
                 splitDTO.getElementDetails()[0],
                 splitDTO.getType(),
@@ -450,7 +450,7 @@ public class ScannerRuntime {
                 == ScannerInsertBlockSelectionService.Decision.PROMPT_FOR_BLOCK) {
             // Chain the insert after the legacy block picker confirms a block.
             UiThreadDispatcher.getInstance().execute(() ->
-                    arScannedElementPane.ensureBlockSelectedOrPrompt(() -> performInsertManyDTO(processDTO, isMany)));
+                    scannerRuntime.ensureBlockSelectedOrPrompt(() -> performInsertManyDTO(processDTO, isMany)));
             return;
         }
         performInsertManyDTO(processDTO, isMany);
@@ -460,14 +460,14 @@ public class ScannerRuntime {
         String insertMsg = isMany ? "Insert ALL" : "Insert one Element";
         currentBlockId = processDTO.getBlockId() != null && processDTO.getBlockId() > 0
                 ? processDTO.getBlockId()
-                : arScannedElementPane.validateBlockDB("block", this.currentBotJob.getId(), insertMsg);
+                : scannerRuntime.validateBlockDB("block", this.currentBotJob.getId(), insertMsg);
         if (currentBlockId > 0) {
             int nextOrder = scannerInstructionOrderService.nextOrder(currentBotJob.getId(), currentBlockId);
 
             scannerInsertPreparationService.prepare(
                     new ScannerRuntimeDataPorts.InsertActionsPort(performActions),
                     new ScannerRuntimeDataPorts.InsertTargetExtractor(targetElementHelper, performActions),
-                    arScannedElementPane,
+                    scannerRuntime,
                     instructionList,
                     processDTO.getElementDetails(),
                     currentBlockId,
@@ -511,14 +511,14 @@ public class ScannerRuntime {
     }
 
     private void stepsUpdateManyDTO(SplitDTO processDTO) {
-        currentBlockId = arScannedElementPane.validateBlockDB("block", this.currentBotJob.getId(), "Update All");
+        currentBlockId = scannerRuntime.validateBlockDB("block", this.currentBotJob.getId(), "Update All");
         if (currentBlockId > 0) {
             int nextOrder = scannerInstructionOrderService.nextOrder(currentBotJob.getId(), currentBlockId);
 
             scannerUpdatePreparationService.prepare(
                     new ScannerRuntimeDataPorts.InsertActionsPort(performActions),
                     new ScannerRuntimeDataPorts.InsertTargetExtractor(targetElementHelper, performActions),
-                    arScannedElementPane,
+                    scannerRuntime,
                     instructionList,
                     processDTO.getElementDetails(),
                     currentBlockId,
@@ -553,7 +553,7 @@ public class ScannerRuntime {
     }
 
     public void destroyPanel() {
-        arScannedElementPane.destroy();
+        scannerRuntime.destroy();
     }
 
     public void updateBotJobTasks(int currentBotJobId) {

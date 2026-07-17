@@ -1,6 +1,6 @@
 package com.allinweb.ch.facade;
 
-import com.allinweb.ch.component.pane.ARScannedElementPanePort;
+import com.allinweb.ch.component.pane.ScannerRuntimePort;
 import com.allinweb.ch.model.TargetElement;
 import java.util.Objects;
 
@@ -10,19 +10,19 @@ import java.util.Objects;
  */
 public final class ScannerPaneTargetContext implements ScannerTargetContext {
 
-    private final ARScannedElementPanePort pane;
+    private final ScannerRuntimePort scannerRuntime;
 
-    public ScannerPaneTargetContext(ARScannedElementPanePort pane) {
-        this.pane = Objects.requireNonNull(pane, "pane");
+    public ScannerPaneTargetContext(ScannerRuntimePort scannerRuntime) {
+        this.scannerRuntime = Objects.requireNonNull(scannerRuntime, "scannerRuntime");
     }
 
     @Override
     public void rememberPreviousXPath(String xpath) {
-        pane.rememberPreviousXPath(xpath);
+        scannerRuntime.rememberPreviousXPath(xpath);
     }
 
     @Override
     public void applyActionDefaults(TargetElement targetElement) {
-        pane.applyActionDefaults(targetElement);
+        scannerRuntime.applyActionDefaults(targetElement);
     }
 }

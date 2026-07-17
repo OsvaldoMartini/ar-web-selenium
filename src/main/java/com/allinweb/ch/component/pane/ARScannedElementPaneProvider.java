@@ -1,13 +1,10 @@
 package com.allinweb.ch.component.pane;
 
-import java.util.Objects;
 import java.util.function.Supplier;
 
-/** Central provider for the legacy scanner pane while scene ownership is being extracted. */
+/** Compatibility wrapper for callers not yet moved to {@link ScannerRuntimeProvider}. */
 public final class ARScannedElementPaneProvider {
     private static final ARScannedElementPaneProvider INSTANCE = new ARScannedElementPaneProvider();
-
-    private Supplier<ARScannedElementPanePort> paneSupplier = ARScannedElementPane::getInstance;
 
     private ARScannedElementPaneProvider() {}
 
@@ -16,14 +13,14 @@ public final class ARScannedElementPaneProvider {
     }
 
     public synchronized ARScannedElementPanePort currentPane() {
-        return paneSupplier.get();
+        return (ARScannedElementPanePort) ScannerRuntimeProvider.getInstance().currentRuntime();
     }
 
     synchronized void installPaneSupplier(Supplier<ARScannedElementPanePort> paneSupplier) {
-        this.paneSupplier = Objects.requireNonNull(paneSupplier, "paneSupplier");
+        ScannerRuntimeProvider.getInstance().installRuntimeSupplier(paneSupplier::get);
     }
 
     synchronized void reset() {
-        paneSupplier = ARScannedElementPane::getInstance;
+        ScannerRuntimeProvider.getInstance().reset();
     }
 }
