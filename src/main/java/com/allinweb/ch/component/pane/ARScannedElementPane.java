@@ -34,17 +34,6 @@ import java.util.function.BooleanSupplier;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
-import javafx.geometry.Insets;
-import javafx.geometry.Orientation;
-import javafx.geometry.Pos;
-import javafx.geometry.VPos;
-import javafx.scene.Node;
-import javafx.scene.control.*;
-import javafx.scene.layout.*;
-import javafx.scene.layout.Priority;
-import javafx.scene.paint.Color;
 import javax.swing.*;
 import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilder;
@@ -269,14 +258,7 @@ public class ARScannedElementPane
     private ExtractedData extractedData = null;
     private List<BlockLoadDTO> blocksLoaded;
     private List<InstructionLoad> excelDataGoto = new ArrayList<>();
-    private ComboBox<BlockOptions> comboBoxBlocks;
     private volatile BlockOptions selectedBlockOption;
-    // UI COMPONENTS
-    private HBox topPane;
-    private VBox verticalBox;
-    private AnchorPane mainPane;
-    private VBox elements2VBox;
-    private HBox componentBox;
     private boolean cloneSelectionActive = false;
     private volatile boolean preLaunchActionEnabled = true;
     private boolean suppressTestSuccessMessage = true;
@@ -285,11 +267,8 @@ public class ARScannedElementPane
     private boolean testActionOutput = false;
 
     private String currentUrlText = "";
-    private VBox textFieldVBox;
-    //    private TextFlow textFlowResult;
     private String scannerStatusText = "Pre-Launch status: Ready";
     private String scannerStatusStyle = "info";
-    private ComboBox<ElementScanProfile> elementFocusComboBox;
     private volatile ElementScanProfile selectedElementScanProfile = ALL_INTERACTIVE_SCAN_PROFILE;
     private String searchTermsText = ALL_INTERACTIVE_SCAN_PROFILE.searchText();
     private String testActionsText = "0001";
@@ -814,18 +793,7 @@ public class ARScannedElementPane
     public void destroy() {
         ScannerSupportRequestHandlers.getInstance().unregister(this);
         ScannerTestRunHandlers.getInstance().unregister(this);
-        clearMainPane();
         instance = null;
-    }
-
-    private void clearMainPane() {
-        try {
-            if (mainPane != null && mainPane.getChildren() != null) {
-                mainPane.getChildren().clear();
-            }
-        } catch (Exception ignore) {
-
-        }
     }
 
     @Override
@@ -894,7 +862,7 @@ public class ARScannedElementPane
                         "<span style='color: #E65100; font-weight: bold;'>You must select a Block from the dropdown list</span> before adding a new command.",
                         "<span style='font-style: italic;'>Context:</span> Bot Job: <b>" + currentBotJob.getName()
                                 + "</b>",
-                        "<span style='color: #455A64;'>Tip: Use the block selector (ComboBox) above the table to choose the target block.</span>",
+                        "<span style='color: #455A64;'>Tip: Use the React block selector above the table to choose the target block.</span>",
                         0);
 
         }
@@ -1322,31 +1290,8 @@ public class ARScannedElementPane
         //            return;
         //        }
 
-        if (comboBoxBlocks != null) {
-            List<BlockOptions> listOptions = performLists.loadComboOptions("block", "ScannerPane");
-            if (listOptions.isEmpty()) {
-                // If list is empty, populate AllBlocks with a default block
-                ObservableList<BlockOptions> defaultAll = FXCollections.observableArrayList(
-                        new BlockOptions("#1 Default Block", "Default Block", -1, -1, -1));
-
-                comboBoxBlocks.setItems(defaultAll);
-                comboBoxBlocks.getSelectionModel().selectFirst();
-                selectBlockOption(defaultAll.get(0));
-            }
-        }
-
-        if (componentBox != null) {
-            //            uiThreadDispatcher.execute(() -> refreshBlocks(false));
-
-            uiThreadDispatcher.execute(() -> refreshGrids());
-
-            //            contentPane.getChildren().clear();
-            //            contentPane.getChildren().addAll(topPane, verticalBox);
-            componentBox.requestLayout();
-            elements2VBox.requestLayout();
-            verticalBox.requestLayout();
-            mainPane.requestLayout();
-        }
+        selectPreferredBlockOption(false);
+        uiThreadDispatcher.execute(this::refreshGrids);
     }
 
     private void refreshGrids() {
@@ -1485,8 +1430,6 @@ public class ARScannedElementPane
             return;
         }
 
-        addScannerGridContainer();
-
         buildUIComponents();
 
         refreshBlocks(false);
@@ -1508,280 +1451,18 @@ public class ARScannedElementPane
     //        }
     //    }
 
-    private void addScannerGridContainer() {
-        componentBox = new HBox();
-        HBox.setHgrow(componentBox, Priority.ALWAYS);
-        VBox.setVgrow(componentBox, Priority.ALWAYS);
-    }
-
-    private HBox createTopPanel(Double topPanelHeight, Double edgeSpace) {
-        HBox pane = new HBox();
-        pane.setMaxHeight(topPanelHeight);
-        AnchorPane.setTopAnchor(pane, edgeSpace);
-        AnchorPane.setLeftAnchor(pane, edgeSpace);
-        AnchorPane.setRightAnchor(pane, edgeSpace);
-        return pane;
-    }
-
-    private AnchorPane createContentPanel(Double topPanelHeight, Double bottomPanelHeight, Double edgeSpace) {
-        AnchorPane pane = new AnchorPane();
-        AnchorPane.setTopAnchor(pane, edgeSpace + topPanelHeight);
-        AnchorPane.setBottomAnchor(pane, edgeSpace + bottomPanelHeight);
-        AnchorPane.setLeftAnchor(pane, edgeSpace);
-        AnchorPane.setRightAnchor(pane, edgeSpace);
-        return pane;
-    }
-
-    private ComboBox<ElementScanProfile> buildElementFocusComboBox(
-            List<ElementScanProfile> profiles, ElementScanProfile defaultProfile) {
-        ComboBox<ElementScanProfile> comboBox = new ComboBox<>(FXCollections.observableArrayList(profiles));
-        comboBox.setPrefWidth(260);
-        comboBox.setTooltip(new Tooltip("Choose which type of web element the Page Scanner should focus."));
-        comboBox.getSelectionModel().select(defaultProfile);
-        comboBox.setButtonCell(new ElementScanProfileCell());
-        comboBox.setCellFactory(list -> new ElementScanProfileCell());
-        return comboBox;
-    }
-
-    private static final class ElementScanProfileCell extends ListCell<ElementScanProfile> {
-        @Override
-        protected void updateItem(ElementScanProfile item, boolean empty) {
-            super.updateItem(item, empty);
-            if (empty || item == null) {
-                setText(null);
-                setTooltip(null);
-                setStyle("");
-                return;
-            }
-
-            setText(item.label());
-            setTooltip(new Tooltip(item.description()));
-            setStyle(item.label().startsWith("All -") ? "-fx-font-weight: bold;" : "");
-        }
-    }
-
-    private Node verticalSpacer() {
-        Region spacer = new Region();
-        VBox.setVgrow(spacer, Priority.ALWAYS);
-        return spacer;
-    }
-
-    private Node horizontalSpacer() {
-        Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
-        return spacer;
-    }
-
-    private Separator separator(Color color, double width) {
-        Separator separator = new Separator();
-        separator.setOrientation(Orientation.HORIZONTAL);
-        separator.setValignment(VPos.CENTER);
-        separator.setPrefHeight(width);
-        separator.setStyle("-fx-background-color: " + color.toString().replace("0x", "#") + ";");
-        return separator;
-    }
-
-    private GridPane scannerTopGrid() {
-        GridPane gridPane = new GridPane();
-        gridPane.setPadding(new Insets(10));
-        gridPane.setHgap(10);
-        return gridPane;
-    }
-
-    private VBox scannerContentColumn() {
-        VBox column = new VBox();
-        column.setSpacing(10);
-        column.setPadding(new Insets(10));
-        VBox.setVgrow(column, Priority.ALWAYS);
-        return column;
-    }
-
-    private HBox spacedRow(double spacing, Node... children) {
-        HBox row = new HBox();
-        row.setSpacing(spacing);
-        row.getChildren().addAll(children);
-        return row;
-    }
-
-    private VBox textFieldColumn(Node... children) {
-        VBox column = new VBox();
-        column.setSpacing(6);
-        column.getChildren().addAll(children);
-        return column;
-    }
-
-    private StackPane centeredStack(Node child) {
-        StackPane stack = new StackPane();
-        stack.getChildren().add(child);
-        stack.setAlignment(Pos.CENTER);
-        return stack;
-    }
-
-    private HBox listViewsRow() {
-        HBox row = new HBox();
-        row.setSpacing(5);
-        VBox.setVgrow(row, Priority.ALWAYS);
-        HBox.setHgrow(row, Priority.ALWAYS);
-        return row;
-    }
-
-    private VBox elementsColumn(Node header, Node content) {
-        VBox column = new VBox(header, content);
-        HBox.setHgrow(column, Priority.ALWAYS);
-        return column;
-    }
-
-    private HBox blockAndUrlRow(Node blockSelector) {
-        HBox row = new HBox();
-        row.setSpacing(0);
-        HBox.setMargin(blockSelector, new Insets(0, 3, 0, 0));
-        row.getChildren().add(blockSelector);
-        return row;
-    }
-
     private void buildUIComponents() {
-        topPane = createTopPanel(ARConstants.SPACE_L, ARConstants.SPACE_SM);
-        mainPane = createContentPanel(ARConstants.SPACE_L, ARConstants.SPACE_XL, ARConstants.SPACE_SM);
-
-        //        textFlowResult = new TextFlow();
-
-        elementFocusComboBox = buildElementFocusComboBox(ELEMENT_SCAN_PROFILES, ALL_INTERACTIVE_SCAN_PROFILE);
-        elementFocusComboBox.valueProperty().addListener((obs, oldValue, newValue) -> {
-            if (newValue == null) {
-                return;
-            }
-            selectElementScanProfile(newValue);
-            elementFocusComboBox.setStyle("-fx-border-color: #1976D2; -fx-border-width: 1.5;");
-            appendLog("Page Scanner focus: " + newValue.label(), "info");
-        });
-
+        selectElementScanProfile(ALL_INTERACTIVE_SCAN_PROFILE);
+        appendLog("Page Scanner focus: " + selectedElementScanProfile.label(), "info");
 
         HomeUrlDTO homeUrlDTO = performLists.getHomeUrlByBankId(
                 this.currentBotJob.getHomeBankingId(), this.currentBotJob.getHomeUrlId());
         updateSceneTitleWithCurrentURL(homeUrlDTO.getUrl());
-
-        //        loadAllBlockItems(performLists.getListBlock());
-
-        comboBoxBlocks = new ComboBox<>();
-        comboBoxBlocks.setPrefWidth(comboWidth);
-        comboBoxBlocks.getSelectionModel().selectFirst();
-
-        // "+ Create new block…" sentinel handler. When the user picks the sentinel,
-        // roll the selection back to the previous real block (so the dropdown never
-        // stays on the sentinel) and open the create-block modal — no PendingInsert
-        // here, this is the proactive "I want to add a block now" flow.
-        comboBoxBlocks.valueProperty().addListener((obs, oldVal, newVal) -> {
-            if (newVal == null) return;
-            if (!scannerBlockOptionSelectionService.isCreateBlockSentinel(newVal)) return;
-            uiThreadDispatcher.execute(() -> {
-                if (scannerBlockOptionSelectionService.isRealBlock(oldVal)) {
-                    comboBoxBlocks.getSelectionModel().select(oldVal);
-                    selectBlockOption(oldVal);
-                } else {
-                    comboBoxBlocks.getSelectionModel().clearSelection();
-                    selectBlockOption(null);
-                }
-                openCreateBlockModal(null);
-            });
-        });
-        comboBoxBlocks.valueProperty().addListener((obs, oldVal, newVal) -> {
-            if (!scannerBlockOptionSelectionService.isCreateBlockSentinel(newVal)) {
-                selectBlockOption(newVal);
-            }
-        });
-        comboBoxBlocks.setButtonCell(new ListCell<>() {
-            @Override
-            protected void updateItem(BlockOptions item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty || item == null) {
-                    setText(null);
-                    setGraphic(null);
-                } else {
-                    setText(item.getText());
-                    setTextFill(Color.BLACK); // Ensure text is black
-                }
-            }
-        });
-        comboBoxBlocks.setCellFactory(param -> new ListCell<>() {
-            @Override
-            protected void updateItem(BlockOptions item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty || item == null) {
-                    setText(null);
-                    setGraphic(null);
-                } else {
-                    setText(item.getText());
-                    setTextFill(Color.BLACK); // Ensure text is black
-                }
-
-                // Add hover effect
-                setOnMouseEntered(e -> setStyle("-fx-background-color: lightgray;"));
-                setOnMouseExited(e -> setStyle("-fx-background-color: none;"));
-            }
-        });
-
-        try {
-            // Starting the View
-
-            GridPane gridPaneTop = scannerTopGrid();
-
-            gridPaneTop.add(elementFocusComboBox, 4, 0);
-
-            topPane.getChildren().add(gridPaneTop);
-
-            verticalBox = scannerContentColumn();
-
-            textFieldVBox = textFieldColumn(
-                    createCustomSeparator(Color.DARKBLUE, 2),
-                    createSpacerVert(),
-                    createSpacerVert(),
-                    createCustomSeparator(Color.DARKBLUE, 2));
-
-            HBox boxListViews = listViewsRow();
-
-            // Bind the height of ListViews to the height of the HBox
-            componentBox.prefHeightProperty().bind(boxListViews.heightProperty());
-
-            HBox.setHgrow(componentBox, Priority.ALWAYS);
-
-            StackPane stackLabelOthers = centeredStack(spacedRow(0));
-            elements2VBox = elementsColumn(stackLabelOthers, componentBox);
-            boxListViews.getChildren().addAll(elements2VBox, textFieldVBox);
-
-            HBox blockAndUrl = blockAndUrlRow(comboBoxBlocks);
-
-            verticalBox.getChildren().addAll(topPane, blockAndUrl, boxListViews);
-            VBox.setVgrow(verticalBox, Priority.ALWAYS);
-
-            mainPane.getChildren().addAll(verticalBox);
-
-            AnchorPane.setTopAnchor(verticalBox, 0.0);
-            AnchorPane.setBottomAnchor(verticalBox, 0.0);
-            AnchorPane.setLeftAnchor(verticalBox, 0.0);
-            AnchorPane.setRightAnchor(verticalBox, 0.0);
-
-            AnchorPane.setTopAnchor(topPane, 0.0);
-            AnchorPane.setLeftAnchor(topPane, 0.0);
-            AnchorPane.setRightAnchor(topPane, 0.0);
-
-        } catch (Exception ex) {
-            log.info("Error using Separator line: " + ex);
-        }
+        selectPreferredBlockOption(false);
     }
 
     public void refreshBlocks(boolean secondItem) {
-        if (comboBoxBlocks != null) {
-            uiThreadDispatcher.execute(() -> {
-                loadAllBlocks();
-                if (!secondItem) {
-                    comboBoxBlocks.getSelectionModel().selectFirst();
-                    selectBlockOption(comboBoxBlocks.getSelectionModel().getSelectedItem());
-                } else {
-                    comboBoxBlocks.getSelectionModel().select(1);
-                    selectBlockOption(comboBoxBlocks.getSelectionModel().getSelectedItem());
-                }
-            });
-        }
+        selectPreferredBlockOption(secondItem);
     }
 
     private void sendCurrentDomForReview() {
@@ -2035,19 +1716,6 @@ public class ARScannedElementPane
         log.debug("Scanner current URL updated: {}", currentUrlText);
     }
 
-    private Node createSpacerVert() {
-        return verticalSpacer();
-    }
-
-    private Node createSpacerHoriz() {
-        return horizontalSpacer();
-    }
-
-    // Method to create a custom separator with specified color and width
-    private Separator createCustomSeparator(Color color, double width) {
-        return separator(color, width);
-    }
-
     private ScannerWorkspaceResponse runScannerWorkspaceAction(String action) {
         return runScannerWorkspaceAction(action, null);
     }
@@ -2075,6 +1743,24 @@ public class ARScannedElementPane
 
     private void selectBlockOption(BlockOptions selected) {
         selectedBlockOption = scannerBlockOptionSelectionService.isRealBlock(selected) ? selected : null;
+    }
+
+    private void selectPreferredBlockOption(boolean secondItem) {
+        List<BlockOptions> blockOptions = performLists.loadComboOptions("block", "ScannerPane");
+        int preferredIndex = secondItem ? 1 : 0;
+        BlockOptions preferred = blockOptions.size() > preferredIndex ? blockOptions.get(preferredIndex) : null;
+        if (!scannerBlockOptionSelectionService.isRealBlock(preferred)) {
+            preferred = blockOptions.stream()
+                    .filter(scannerBlockOptionSelectionService::isRealBlock)
+                    .findFirst()
+                    .orElse(null);
+        }
+        selectBlockOption(preferred);
+        if (selectedBlockOption == null) {
+            log.debug("Scanner block selection cleared; React workspace must provide or create a block before insert");
+        } else {
+            log.debug("Scanner block selection refreshed: {}", selectedBlockOption.getText());
+        }
     }
 
     private int selectedBlockOrderNumber() {
@@ -3307,13 +2993,8 @@ public class ARScannedElementPane
     }
 
     private void clearFields() {
-        // Guard every field: TEST RUN can invoke the engine before the scanned-element pane's
-        // UI has been built (fields are still null), so touching them blindly would NPE.
         coordsText = "";
         setScannerStatus("Pre-Launch status: Ready", "info");
-        if (mainPane != null) {
-            mainPane.requestLayout();
-        }
     }
 
     public void quit(int status) {
@@ -3572,50 +3253,17 @@ public class ARScannedElementPane
         return scannerCsvContentService.headerOnlyContent(tableCSV);
     }
 
-    /** Sentinel {@code BlockOptions.blockId} that identifies the "+ Create new block…" entry
-     *  appended to the dropdown. Selecting it rolls the selection back and opens the
-     *  create-block modal — see {@link #openCreateBlockModal(Runnable)}. */
-    private void loadAllBlocks() {
-        if (comboBoxBlocks != null) {
-            uiThreadDispatcher.execute(() -> {
-                comboBoxBlocks.getItems().clear();
-                List<BlockOptions> listOptions = performLists.loadComboOptions("block", "ScannerPane");
-                // Append the create-new-block sentinel at the end. It's flagged by
-                // blockId == SENTINEL_CREATE_BLOCK_ID; picking it opens the modal.
-                listOptions.add(scannerBlockOptionSelectionService.createBlockSentinel());
-                comboBoxBlocks.setItems(FXCollections.observableArrayList(listOptions));
-
-                if (!listOptions.isEmpty()) {
-                    // Select the first real block (skipping the sentinel if it was the only item).
-                    BlockOptions first = listOptions.get(0);
-                    if (scannerBlockOptionSelectionService.isCreateBlockSentinel(first)) {
-                        comboBoxBlocks.getSelectionModel().clearSelection();
-                        selectBlockOption(null);
-                    } else {
-                        comboBoxBlocks.getSelectionModel().selectFirst();
-                        selectBlockOption(first);
-                    }
-                }
-            });
-        }
-    }
-
-    /** Returns true when {@code comboBoxBlocks} has a real (non-sentinel) block selected. */
+    /** Returns true when the React/WebSocket scanner state has a real block selected. */
     public boolean isRealBlockSelectedForInsert() {
         return scannerBlockOptionSelectionService.isRealBlock(selectedBlockOption);
     }
 
     /**
      * Entry point used by the save-on-grid flow to ensure a valid block is
-     * selected BEFORE executing {@code afterBlockReady}. If a real block is
-     * already selected the runnable fires synchronously. If the user has no
-     * selection but ≥1 block exists, the create-block modal opens in
-     * "reactive" mode (red banner) and {@code afterBlockReady} fires when
-     * the user clicks Create. If the user cancels, the runnable is dropped.
-     *
-     * <p>Must be called on the JavaFX thread. The websocket-originated call
-     * site in {@code ScannerRuntime.stepsInsertManyDTO} wraps this in
-     * {@code UiThreadDispatcher}.
+     * selected before executing {@code afterBlockReady}. If a real block is
+     * already selected the runnable fires synchronously. If the backend has no
+     * selection, the React create-block request opens in reactive mode and
+     * {@code afterBlockReady} fires when the block is created.
      */
     public void ensureBlockSelectedOrPrompt(Runnable afterBlockReady) {
         if (isRealBlockSelectedForInsert()) {
@@ -3626,21 +3274,9 @@ public class ARScannedElementPane
     }
 
     /**
-     * Create-new-block modal. Called from two places:
-     * <ul>
-     *   <li><b>Proactive</b>: user picks the "+ Create new block…" sentinel in
-     *       {@code comboBoxBlocks}. {@code afterCreate} is {@code null}; the
-     *       block is created and selected, and the user then clicks Save.</li>
-     *   <li><b>Reactive</b>: user pressed Save on GridItemScann with no block
-     *       selected. {@code afterCreate} is the pending insert; the modal
-     *       shows a red banner and chains the insert on the Create click.</li>
-     * </ul>
-     *
-     * <p>Block creation reuses the same plumbing as {@code splitBlocks} in
-     * {@code SimpleWebSocketServer}: shift existing blocks at/after the chosen
-     * order, insert the new row, refresh {@link PerformLists} + complete-jobs
-     * tree, then broadcast {@code UPDATE_BLOCKS} so every other Java pane's
-     * dropdown refreshes.
+     * Publishes the create-block request to React/WebSocket. Block creation
+     * reuses the split-block plumbing, refreshes {@link PerformLists}, and
+     * broadcasts {@code UPDATE_BLOCKS} so React sessions refresh.
      */
     private void openCreateBlockModal(Runnable afterCreate) {
         final boolean reactive = afterCreate != null;

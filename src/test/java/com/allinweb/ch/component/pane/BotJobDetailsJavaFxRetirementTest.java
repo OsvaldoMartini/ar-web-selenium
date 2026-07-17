@@ -210,6 +210,25 @@ class BotJobDetailsJavaFxRetirementTest {
         String source = Files.readString(SOURCE_ROOT.resolve("component/pane/ARScannedElementPane.java"));
         String compiledSource = source.replaceAll("(?s)/\\*.*?\\*/", "");
 
+        assertFalse(compiledSource.contains("import javafx."));
+        assertFalse(compiledSource.contains("javafx.scene.control"));
+        assertFalse(compiledSource.contains("javafx.scene.layout"));
+        assertFalse(compiledSource.contains("ComboBox"));
+        assertFalse(compiledSource.contains("ListCell"));
+        assertFalse(compiledSource.contains("AnchorPane"));
+        assertFalse(compiledSource.contains("GridPane"));
+        assertFalse(compiledSource.contains("StackPane"));
+        assertFalse(compiledSource.contains("Separator"));
+        assertFalse(compiledSource.contains("FXCollections"));
+        assertFalse(compiledSource.contains("ObservableList"));
+        assertFalse(compiledSource.contains("comboBoxBlocks"));
+        assertFalse(compiledSource.contains("elementFocusComboBox"));
+        assertFalse(compiledSource.contains("buildElementFocusComboBox"));
+        assertFalse(compiledSource.contains("ElementScanProfileCell"));
+        assertFalse(compiledSource.contains("createTopPanel"));
+        assertFalse(compiledSource.contains("createContentPanel"));
+        assertFalse(compiledSource.contains("addScannerGridContainer"));
+        assertFalse(compiledSource.contains("loadAllBlocks"));
         assertFalse(compiledSource.contains("ScannerPluginStatusButtonAdapter"));
         assertFalse(compiledSource.contains("ScannerPluginUpdateButtonAdapter"));
         assertFalse(compiledSource.contains("ScannerPluginUpdateButtonRefreshAdapter"));
