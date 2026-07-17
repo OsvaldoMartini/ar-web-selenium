@@ -166,7 +166,12 @@ public class ARMainScene extends ARScene {
 
         // Check if the stage is already showing
         if (!modalStage.isShowing()) {
-            modalStage.showAndWait(); // Show and wait only if not already showing
+            modalStage.show();
+            modalStage.toFront();
+            modalStage.setAlwaysOnTop(false);
+        } else {
+            modalStage.toFront();
+            modalStage.requestFocus();
         }
     }
 
