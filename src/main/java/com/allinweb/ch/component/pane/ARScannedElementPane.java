@@ -35,7 +35,6 @@ import java.util.function.BooleanSupplier;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.FXCollections;
@@ -1292,7 +1291,7 @@ public class ARScannedElementPane extends ARPane
                     // driver may be gone — nothing actionable here
                 }
             }
-            Platform.runLater(() -> {
+            uiThreadDispatcher.execute(() -> {
                 definedNameLabel.setText(DEFINED_NAME_PLACEHOLDER);
                 searchAttribValueField.clear();
             });
@@ -1405,9 +1404,9 @@ public class ARScannedElementPane extends ARPane
         }
 
         if (componentBox != null) {
-            //            Platform.runLater(() -> refreshBlocks(false));
+            //            uiThreadDispatcher.execute(() -> refreshBlocks(false));
 
-            Platform.runLater(() -> refreshGrids());
+            uiThreadDispatcher.execute(() -> refreshGrids());
 
             //            contentPane.getChildren().clear();
             //            contentPane.getChildren().addAll(topPane, verticalBox);
@@ -1730,7 +1729,7 @@ public class ARScannedElementPane extends ARPane
                         this.currentBotJob.getId(),
                         this.currentBotJob.getName());
 
-                Platform.runLater(() -> {
+                uiThreadDispatcher.execute(() -> {
                     countdownTextField.setText("Pre-Launch status: Ready");
                 });
             }
@@ -1761,7 +1760,7 @@ public class ARScannedElementPane extends ARPane
         comboBoxBlocks.valueProperty().addListener((obs, oldVal, newVal) -> {
             if (newVal == null) return;
             if (!scannerBlockOptionSelectionService.isCreateBlockSentinel(newVal)) return;
-            Platform.runLater(() -> {
+            uiThreadDispatcher.execute(() -> {
                 if (scannerBlockOptionSelectionService.isRealBlock(oldVal)) {
                     comboBoxBlocks.getSelectionModel().select(oldVal);
                 } else {
@@ -1944,7 +1943,7 @@ public class ARScannedElementPane extends ARPane
 
     public void refreshBlocks(boolean secondItem) {
         if (comboBoxBlocks != null) {
-            Platform.runLater(() -> {
+            uiThreadDispatcher.execute(() -> {
                 loadAllBlocks();
                 if (!secondItem) {
                     comboBoxBlocks.getSelectionModel().selectFirst();
@@ -2273,7 +2272,7 @@ public class ARScannedElementPane extends ARPane
 
         @Override
         public void runLater(Runnable task) {
-            Platform.runLater(task);
+            uiThreadDispatcher.execute(task);
         }
 
         @Override
@@ -2648,7 +2647,7 @@ public class ARScannedElementPane extends ARPane
         cloneElementsButton.setOnAction(e -> {
             if (targetSelected != null && targetSelected.getElement() != null) {
                 cloneElementDTO(targetSelected);
-                Platform.runLater(() -> {
+                uiThreadDispatcher.execute(() -> {
                     definedNameLabel.setText(DEFINED_NAME_PLACEHOLDER);
                     searchAttribValueField.clear();
                 });
@@ -2806,7 +2805,7 @@ public class ARScannedElementPane extends ARPane
                                         : Strings.nullToEmpty(targetSelected.getTagName());
 
                 String finalNameDefined = PerformActions.truncateAndNormalize(nameDefined, 250);
-                Platform.runLater(() -> definedNameLabel.setText(finalNameDefined));
+                uiThreadDispatcher.execute(() -> definedNameLabel.setText(finalNameDefined));
             }
 
             sb.append("TagType: " + targetSelected.getTagType()).append("\n");
@@ -2845,7 +2844,7 @@ public class ARScannedElementPane extends ARPane
                 }
             }
 
-            Platform.runLater(() -> {
+            uiThreadDispatcher.execute(() -> {
                 countdownTextField.setText(sb.toString());
                 countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
             });
@@ -3721,13 +3720,13 @@ public class ARScannedElementPane extends ARPane
     /**
      * Re-enable the Launch button on the JavaFX thread. Safe to call from the
      * background executor (recallJob's submit) or from the FX event handler —
-     * Platform.runLater is a no-op wrapper when already on FX. Used by every
+     * UiThreadDispatcher is direct by default and can be wired by the host. Used by every
      * executeJob termination path so the user can start another run.
      */
     private void reenableLaunchButton() {
         // Null-guard: TEST RUN can drive executeJob (whose finally calls this) before the pane's
         // UI is built, so launchBotJobButton may not exist yet.
-        Platform.runLater(() -> {
+        uiThreadDispatcher.execute(() -> {
             if (launchBotJobButton != null) {
                 launchBotJobButton.setDisable(false);
             }
@@ -3806,7 +3805,7 @@ public class ARScannedElementPane extends ARPane
      *  create-block modal — see {@link #openCreateBlockModal(Runnable)}. */
     private void loadAllBlocks() {
         if (comboBoxBlocks != null) {
-            Platform.runLater(() -> {
+            uiThreadDispatcher.execute(() -> {
                 comboBoxBlocks.getItems().clear();
                 List<BlockOptions> listOptions = performLists.loadComboOptions("block", "ScannerPane");
                 // Append the create-new-block sentinel at the end. It's flagged by
@@ -3843,7 +3842,7 @@ public class ARScannedElementPane extends ARPane
      *
      * <p>Must be called on the JavaFX thread. The websocket-originated call
      * site in {@code ScannerRuntime.stepsInsertManyDTO} wraps this in
-     * {@code Platform.runLater}.
+     * {@code UiThreadDispatcher}.
      */
     public void ensureBlockSelectedOrPrompt(Runnable afterBlockReady) {
         if (isRealBlockSelectedForInsert()) {
@@ -3943,7 +3942,7 @@ public class ARScannedElementPane extends ARPane
                 request.botJobId(),
                 request.extendedRules());
 
-        //        Platform.runLater(() -> periodicSearchThread(
+        //        uiThreadDispatcher.execute(() -> periodicSearchThread(
         //                performActions.getCurrentDriver(),
         //                performActions.getCurrentDriver().getCurrentUrl(),
         //                dataArray,

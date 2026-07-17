@@ -858,13 +858,6 @@ public class BotJobDetailsWorkspaceHost {
             }
         }
 
-        //        Platform.runLater(() -> {
-        //            JOptionPane.showMessageDialog(
-        //                    null,
-        //                    "An error has occurred Calling SCAN: Cause: " + ex.getMessage(),
-        //                    "Error calling in SCAN",
-        //                    JOptionPane.ERROR_MESSAGE);
-        //        });
     }
 
     public BotJobLoadDTO getBotJobDTO() {

@@ -60,4 +60,13 @@ class BotJobDetailsJavaFxRetirementTest {
         assertFalse(compiledSource.contains("extends Application"));
         assertFalse(compiledSource.contains("start(Stage"));
     }
+
+    @Test
+    void scannerPaneDoesNotUsePlatformRunLater() throws IOException {
+        String source = Files.readString(SOURCE_ROOT.resolve("component/pane/ARScannedElementPane.java"));
+        String compiledSource = source.replaceAll("(?s)/\\*.*?\\*/", "");
+
+        assertFalse(compiledSource.contains("import javafx.application.Platform"));
+        assertFalse(compiledSource.contains("Platform.runLater"));
+    }
 }
