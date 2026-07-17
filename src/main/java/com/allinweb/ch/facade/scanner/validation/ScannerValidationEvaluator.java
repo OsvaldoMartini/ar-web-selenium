@@ -1,29 +1,29 @@
-package com.allinweb.ch.component.pane;
+package com.allinweb.ch.facade.scanner.validation;
 
 import com.google.common.base.Strings;
 
-final class ScannerValidationEvaluator {
+public final class ScannerValidationEvaluator {
     private final Operations operations;
 
-    ScannerValidationEvaluator(Operations operations) {
+    public ScannerValidationEvaluator(Operations operations) {
         this.operations = operations;
     }
 
-    int handleGreaterThan(String value1, String value2) {
+    public int handleGreaterThan(String value1, String value2) {
         double num1 = parseValueGreaterThan(clean(value1), true);
         double num2 = parseValueGreaterThan(clean(value2), false);
 
         return num1 > num2 ? 1 : 0;
     }
 
-    int handleLessThan(String value1, String value2) {
+    public int handleLessThan(String value1, String value2) {
         double num1 = parseValueForLessThan(clean(value1), true);
         double num2 = parseValueForLessThan(clean(value2), false);
 
         return num1 < num2 ? 1 : 0;
     }
 
-    ValidationResult evaluateOperation(String actualRaw, String operator, String expectedRaw) {
+    public ValidationResult evaluateOperation(String actualRaw, String operator, String expectedRaw) {
         if (actualRaw == null || expectedRaw == null || operator == null) {
             return new ValidationResult(false, "Null values");
         }
@@ -57,7 +57,7 @@ final class ScannerValidationEvaluator {
         }
     }
 
-    String finalLogMessage(String failedMessage, String resultActions) {
+    public String finalLogMessage(String failedMessage, String resultActions) {
         if (!Strings.isNullOrEmpty(failedMessage)) {
             return failedMessage + resultActions;
         }
@@ -109,9 +109,9 @@ final class ScannerValidationEvaluator {
         return value.replace(".", "").replace(",", "");
     }
 
-    static final class ValidationResult {
-        final boolean valid;
-        final String invalidReason;
+    public static final class ValidationResult {
+        public final boolean valid;
+        public final String invalidReason;
 
         ValidationResult(boolean valid, String invalidReason) {
             this.valid = valid;
@@ -119,7 +119,7 @@ final class ScannerValidationEvaluator {
         }
     }
 
-    interface Operations {
+    public interface Operations {
         void warnInvalidNumericValue(String fieldName, String value);
     }
 }

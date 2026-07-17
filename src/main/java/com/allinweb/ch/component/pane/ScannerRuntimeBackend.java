@@ -41,6 +41,7 @@ import com.allinweb.ch.facade.scanner.testrun.ScannerTestRunBotJobPreparation;
 import com.allinweb.ch.facade.scanner.testrun.ScannerTestRunDefinitionLoad;
 import com.allinweb.ch.facade.scanner.testrun.ScannerTestRunDefinitionValidation;
 import com.allinweb.ch.facade.scanner.testrun.TestRunExecutionOutcomeTracker;
+import com.allinweb.ch.facade.scanner.validation.ScannerValidationEvaluator;
 import com.allinweb.ch.facade.actions.InstructionGraph;
 import com.allinweb.ch.model.*;
 import com.allinweb.ch.readersAndWriters.ExcelWriter;
