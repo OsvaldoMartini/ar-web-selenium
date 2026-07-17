@@ -171,12 +171,8 @@ public class ARScannedElementPane extends ARPane
     private final ScannerLocalPluginInventory scannerLocalPluginInventory = new ScannerLocalPluginInventory();
     private final ScannerPluginUpdateDialogPublisherAdapter scannerPluginUpdateDialogPublisherAdapter =
             new ScannerPluginUpdateDialogPublisherAdapter();
-    private final ScannerPluginListTableAdapter scannerPluginListTableAdapter =
-            new ScannerPluginListTableAdapter();
-    private final ScannerPluginListContentAdapter scannerPluginListContentAdapter =
-            new ScannerPluginListContentAdapter();
-    private final ScannerPluginListDialogAdapter scannerPluginListDialogAdapter =
-            new ScannerPluginListDialogAdapter();
+    private final ScannerPluginListDialogPublisherAdapter scannerPluginListDialogPublisherAdapter =
+            new ScannerPluginListDialogPublisherAdapter();
     private final ScannerPluginBackgroundThreadAdapter scannerPluginBackgroundThreadAdapter =
             new ScannerPluginBackgroundThreadAdapter();
     private final ScannerPluginPickerManifestFetchAdapter scannerPluginPickerManifestFetchAdapter =
@@ -8611,16 +8607,7 @@ public class ARScannedElementPane extends ARPane
      * @param pathPlugins local extraction folder
      */
     private void showPluginListDialog(PluginManifestDTO manifest, String serverBase, String pathPlugins) {
-
-        ScannerPluginListTableAdapter.Result tableResult = scannerPluginListTableAdapter.build(manifest);
-        ScannerPluginListContentAdapter.Result contentResult =
-                scannerPluginListContentAdapter.build(manifest, tableResult.table());
-        scannerPluginListDialogAdapter.show(
-                contentResult,
-                tableResult.selectedPlugins(),
-                manifest.getPlugins(),
-                () -> showPluginInformation("No selection", "Select at least one plugin to download."),
-                selected -> runDownloadPlugins(selected, serverBase, pathPlugins));
+        scannerPluginListDialogPublisherAdapter.show(manifest, serverBase, pathPlugins);
     }
 
     // ── Individual Plugin Download ────────────────────────────────────────────

@@ -1,6 +1,7 @@
 package com.allinweb.ch.facade;
 
 import com.allinweb.ch.model.ScannerWorkspaceSessions;
+import com.allinweb.ch.model.PluginManifestDTO;
 import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.google.gson.Gson;
 import lombok.extern.slf4j.Slf4j;
@@ -18,6 +19,7 @@ public final class ScannerDialogPublisher {
     private static final String TOAST_OPERATION = "scanner.dialog.toast";
     private static final String PROGRESS_OPERATION = "scanner.dialog.progress";
     private static final String PLUGIN_UPDATE_OPERATION = "scanner.dialog.pluginUpdate";
+    private static final String PLUGIN_LIST_OPERATION = "scanner.dialog.pluginList";
     private static final ScannerDialogPublisher INSTANCE =
             new ScannerDialogPublisher(WebSocketSessionManager.getInstance(), new Gson());
 
@@ -63,6 +65,12 @@ public final class ScannerDialogPublisher {
                 new PluginUpdateEvent("pluginUpdate", pluginsDir, serverConfigured, rows));
     }
 
+    public boolean pluginList(PluginManifestDTO manifest, String serverBase, String pathPlugins) {
+        return publish(
+                PLUGIN_LIST_OPERATION,
+                new PluginListEvent("pluginList", manifest, serverBase, pathPlugins));
+    }
+
     private boolean publish(String operationId, Object event) {
         String body = gson.toJson(event);
         boolean sent =
@@ -99,4 +107,10 @@ public final class ScannerDialogPublisher {
             String pluginsDir,
             boolean serverConfigured,
             java.util.List<String[]> rows) {}
+
+    public record PluginListEvent(
+            String kind,
+            PluginManifestDTO manifest,
+            String serverBase,
+            String pathPlugins) {}
 }

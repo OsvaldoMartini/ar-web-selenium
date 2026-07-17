@@ -6,6 +6,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.allinweb.ch.model.PluginManifestDTO;
 import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.google.gson.Gson;
@@ -98,6 +99,24 @@ class ScannerDialogPublisherTest {
         verify(session.getBasicRemote()).sendText(contains("\\\"pluginsDir\\\":\\\"plugins\\\""));
         verify(session.getBasicRemote()).sendText(contains("\\\"serverConfigured\\\":true"));
         verify(session.getBasicRemote()).sendText(contains("Plugin Name"));
+    }
+
+    @Test
+    void publishesPluginListDialogEventsToReactScannerSession() throws Exception {
+        session = openSession();
+        WebSocketSessionManager.addSession(ScannerWorkspaceSessions.SCANNER_ELEMENT_PANE, session);
+
+        ScannerDialogPublisher publisher =
+                new ScannerDialogPublisher(new WebSocketSessionManager(), new Gson());
+        PluginManifestDTO manifest = new PluginManifestDTO();
+        manifest.setVersion("1.0");
+
+        assertTrue(publisher.pluginList(manifest, "http://plugins", "plugins"));
+
+        verify(session.getBasicRemote()).sendText(contains("\"operationId\":\"scanner.dialog.pluginList\""));
+        verify(session.getBasicRemote()).sendText(contains("\\\"kind\\\":\\\"pluginList\\\""));
+        verify(session.getBasicRemote()).sendText(contains("\\\"serverBase\\\":\\\"http://plugins\\\""));
+        verify(session.getBasicRemote()).sendText(contains("\\\"pathPlugins\\\":\\\"plugins\\\""));
     }
 
     private Session openSession() {
