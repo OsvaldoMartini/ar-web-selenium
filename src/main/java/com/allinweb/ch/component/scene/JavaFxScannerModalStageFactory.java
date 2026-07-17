@@ -85,8 +85,8 @@ final class JavaFxScannerModalStageFactory implements ScannerModalStageService.S
         }
 
         @Override
-        public void showAndWait() {
-            stage.showAndWait();
+        public void show() {
+            stage.show();
         }
 
         @Override

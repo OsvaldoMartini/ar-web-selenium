@@ -14,7 +14,7 @@ public final class ScannerModalStageService {
 
         stage.setTitle(config.title());
         if (!stage.isShowing()) {
-            stage.showAndWait();
+            stage.show();
         }
         return stage;
     }
@@ -37,7 +37,7 @@ public final class ScannerModalStageService {
 
         boolean isShowing();
 
-        void showAndWait();
+        void show();
 
         void close();
     }

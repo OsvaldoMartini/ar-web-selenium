@@ -95,7 +95,7 @@ class ScannerModalStageServiceTest {
         }
 
         @Override
-        public void showAndWait() {
+        public void show() {
             calls.add("show");
             showing = true;
         }
