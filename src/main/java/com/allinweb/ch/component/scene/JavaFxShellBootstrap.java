@@ -9,7 +9,6 @@ public final class JavaFxShellBootstrap {
 
     public static void install() {
         UiThreadDispatcher.getInstance().install(Platform::runLater);
-        ARConfigManagerScene.getInstance();
         ARMainScene.getInstance();
         ARScannedElementScene.getInstance();
     }

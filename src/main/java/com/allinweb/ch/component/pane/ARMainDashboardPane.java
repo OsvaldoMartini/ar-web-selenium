@@ -2,7 +2,8 @@ package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.driver.ARWebDriver;
-import com.allinweb.ch.facade.ConfigManagerLifecycle;
+import com.allinweb.ch.facade.ConfigPresentation;
+import com.allinweb.ch.facade.ConfigPresentationRegistry;
 import com.allinweb.ch.facade.MainDashboardService;
 import com.allinweb.ch.facade.MainDashboardPresentation;
 import com.allinweb.ch.facade.MainDashboardPresentationRegistry;
@@ -40,7 +41,7 @@ import org.openqa.selenium.WebDriver;
 
 @Slf4j
 public class ARMainDashboardPane extends ARPane
-        implements BotJobDetailsPresentationPort, MainDashboardPresentation, NewBotJobPresentation {
+        implements BotJobDetailsPresentationPort, MainDashboardPresentation, NewBotJobPresentation, ConfigPresentation {
 
     private static final String SESSION_ID = "mainDashboard";
     private static final int DEFAULT_PORT = 54525;
@@ -66,6 +67,7 @@ public class ARMainDashboardPane extends ARPane
     private ARMainDashboardPane() {
         super();
         botJobDetailsHost.setPresentationPort(this);
+        ConfigPresentationRegistry.getInstance().install(this);
         MainDashboardPresentationRegistry.getInstance().install(this);
         NewBotJobPresentationRegistry.getInstance().install(this);
     }
@@ -272,6 +274,12 @@ public class ARMainDashboardPane extends ARPane
     }
 
     @Override
+    public String choosePath(String mode) {
+        log.info("Config path chooser request ignored; React must provide the {} path directly", mode);
+        return null;
+    }
+
+    @Override
     public void updateTitle(int homeBankingId, int botJobId) {
         Stage owner = ownerStage();
         if (owner != null) owner.setTitle("Bot Job Details WebSite Id: " + homeBankingId + " Id: " + botJobId);
@@ -283,7 +291,7 @@ public class ARMainDashboardPane extends ARPane
 
     public void openConfig() {
         Platform.runLater(() -> {
-            ConfigManagerLifecycle.getInstance().openConfig(isEnabledLicence);
+            dispatchReactSession("configManager");
             performDataBase.loadQuickBotJobs();
             pushReactDashboardList();
         });

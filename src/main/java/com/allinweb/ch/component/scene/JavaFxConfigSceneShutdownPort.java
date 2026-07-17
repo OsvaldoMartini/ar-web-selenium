@@ -2,7 +2,7 @@ package com.allinweb.ch.component.scene;
 
 import com.allinweb.ch.component.pane.BotJobDetailsWorkspaceHost;
 import com.allinweb.ch.driver.ARWebDriver;
-import com.allinweb.ch.facade.ConfigManagerLifecycle;
+import com.allinweb.ch.facade.ConfigPresentationRegistry;
 import com.allinweb.ch.facade.ConfigSceneShutdownPort;
 import com.allinweb.ch.facade.ConfigSceneShutdownRegistry;
 import com.allinweb.ch.facade.MainDashboardPresentationRegistry;
@@ -25,7 +25,7 @@ public final class JavaFxConfigSceneShutdownPort implements ConfigSceneShutdownP
 
     @Override
     public void closeBotJobWorkspaceIfIdle() {
-        ConfigManagerLifecycle.getInstance().closeModal();
+        ConfigPresentationRegistry.getInstance().current().closeModal();
         BotJobDetailsWorkspaceHost.getInstance().closeWorkspaceIfIdle();
     }
 

@@ -2,7 +2,6 @@ package com.allinweb.ch;
 
 import com.allinweb.ch.component.scene.JavaFxShellBootstrap;
 import com.allinweb.ch.facade.ApplicationStartupLifecycle;
-import com.allinweb.ch.facade.ConfigManagerLifecycle;
 import com.allinweb.ch.facade.MainShellLifecycle;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformInitializer;
@@ -272,7 +271,7 @@ public class ARControlPanel extends Application {
     }
 
     private static void showConfigurationFallback() {
-        ConfigManagerLifecycle.getInstance().openConfig(isEnabledLicence);
+        MainShellLifecycle.getInstance().openMain(isEnabledLicence, "configManager");
     }
 
     private static void showActivationRequired() {
