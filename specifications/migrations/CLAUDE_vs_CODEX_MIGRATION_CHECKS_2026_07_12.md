@@ -858,6 +858,70 @@ action-contract, and WebSocket
 lifecycle suite passed with zero failures, errors, or skips. The React project, deployed React resources,
 and Bot Job Details design were unchanged.
 
+## CODEX - licensed-user menu and complete Auto Test catalog (2026-07-17)
+
+This section is the canonical handoff for the new Main Dashboard Auto Test surface. It preserves the
+existing migration rules: React owns the presentation, Java remains the authoritative packaged-data
+boundary, the dashboard reuses its existing WebSocket session, and no JavaFX UI was reintroduced.
+
+### Delivered behavior
+
+- [x] Added the supplied Lucide User SVG as the 15 x 15 top-right menu trigger. The menu identifies
+      the license owner/current licensed system user and shows license status before the `Auto Test`
+      entry.
+- [x] Added `Auto Test` as a draggable, non-modal React workspace. It uses the OCR/Memory visual
+      language (colors, font sizes, border, shadow, spacing, and header treatment) only. OCR/Memory
+      column names, order, positions, markup, and behavior were not changed; Auto Test owns its own
+      test-specific columns.
+- [x] Added a generated, packaged catalog and `automationTests.list` WebSocket response. The catalog
+      is an inventory only: headed/live/manual/generated suites remain visibly classified, and no
+      unsafe blanket Run All action is exposed.
+- [x] Added the licensed system user to the safe license bootstrap DTO without exposing license file
+      contents or other machine details.
+- [x] Added a React-owned Playwright suite that starts CRA and mocks bootstrap/WebSocket/new-tab
+      behavior before application JavaScript executes. It runs without the Java backend and safely
+      covers every Main Dashboard command, all sort selections, find/clear, row selection,
+      delete cancel/confirm, the exact User SVG, license menu, full Auto Test list/filter/drag/
+      refresh/close workflow, and browser page errors.
+- [x] Added a second Java/Playwright contract for the clean-deployed packaged React bundle. It uses
+      the complete packaged catalog and the same mocked side-effect boundary, so no database,
+      external engine, live URL, or destructive backend operation is invoked.
+
+### Complete inventory snapshot
+
+- Generated at 2026-07-17 from `ar-web-selenium`, `abr-react-ts-grid`, and `ar-web-engine`.
+- 879 displayed catalog rows.
+- 839 code test cases in 232 test files: 698 Java/JUnit cases in 191 files and 141
+  React Jest/Playwright cases in 41 files.
+- 19,452 generated API requests grouped under 21 generated Bash/curl suites rather than rendering
+  19,452 duplicate DOM rows.
+- 20,291 total automated cases when code cases and generated API requests are combined.
+- 15 manual artifacts and 4 support-only artifacts are retained and clearly labeled.
+- `ar-web-engine` was audited and truthfully reports zero committed automated tests. Its local/live
+  Selenium launch profiles are manual, high-side-effect production automation and are excluded from
+  Run All eligibility.
+
+Regenerate the versioned inventory with:
+
+```powershell
+node scripts\generate-automation-test-catalog.mjs
+```
+
+### Verification evidence
+
+- [x] `npm test -- --runInBand --watchAll=false src/components/auto-test/AutoTestWorkspace.test.tsx`
+      - 2 passed, 0 failed.
+- [x] `npm run test:e2e`
+      - 1 React-only Playwright navigation test passed; no backend was started.
+- [x] `npm run build`
+      - optimized React build completed; warnings are pre-existing project lint/dependency warnings.
+- [x] Clean-deployed 45 build files and verified source/destination SHA-256 parity.
+- [x] `mvn -Dtest=AutomationTestCatalogServiceTest,LicenseServiceTest,MainDashboardAutoTestPlaywrightTest test`
+      - 17 passed, 0 failures, 0 errors, 0 skips, including real headless Chrome assertions against
+        the deployed bundle.
+- [ ] Add execution controls only after each framework has an allowlisted runner, persisted result
+      contract, cancellation/timeout ownership, and explicit confirmation for headed/live suites.
+
 ## Decision log
 
 - D-001: One canonical roadmap file; reviewers append evidence here.

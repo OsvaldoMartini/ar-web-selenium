@@ -2,6 +2,7 @@ package com.allinweb.ch.facade;
 
 import com.allinweb.ch.license.LicenceVal;
 import com.allinweb.ch.license.LicenseManager;
+import com.allinweb.ch.license.SystemDetails;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.google.gson.JsonObject;
@@ -44,6 +45,7 @@ public final class LicenseService {
         response.addProperty("path", path);
         response.addProperty("organization", property(ARPropertyEnum.LICENSE_ORG_NAME));
         response.addProperty("owner", property(ARPropertyEnum.LICENSE_OWNER));
+        response.addProperty("licensedUser", status.isActive() ? SystemDetails.getSystemUserName() : "");
         response.add("capabilities", capabilities());
         return response;
     }

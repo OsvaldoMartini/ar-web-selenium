@@ -1,13 +1,19 @@
 package com.allinweb.ch.socket;
 
+import java.awt.Desktop;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.SocketException;
+import java.net.URI;
+import java.net.URL;
 import lombok.extern.slf4j.Slf4j;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
+import org.eclipse.jetty.servlet.DefaultServlet;
 import org.eclipse.jetty.servlet.ServletContextHandler;
+import org.eclipse.jetty.servlet.ServletHolder;
+import org.eclipse.jetty.util.resource.Resource;
 import org.eclipse.jetty.websocket.jsr356.server.ServerContainer;
 import org.eclipse.jetty.websocket.jsr356.server.deploy.WebSocketServerContainerInitializer;
 
@@ -90,6 +96,20 @@ public class ARWebSocketServer {
         context.setContextPath("/");
         jettyServer.setHandler(context);
 
+        // Serve the built React UI (src/main/resources/build) from the same origin/port as the
+        // WebSocket endpoint below, so the page can open its bootstrap WebSocket at
+        // ws://<window.location.host>/websocket without needing to discover the port separately.
+        URL buildResource = getClass().getClassLoader().getResource("build");
+        if (buildResource != null) {
+            context.setBaseResource(Resource.newResource(buildResource));
+            context.setWelcomeFiles(new String[] {"index.html"});
+            ServletHolder staticHolder = new ServletHolder("static", DefaultServlet.class);
+            staticHolder.setInitParameter("dirAllowed", "false");
+            context.addServlet(staticHolder, "/");
+        } else {
+            log.warn("No 'build' resources found on classpath; React UI will not be served over HTTP.");
+        }
+
         wsContainer = WebSocketServerContainerInitializer.configureContext(context);
         wsContainer.setDefaultMaxSessionIdleTimeout(0);
         // Bulk grid operations (select all -> insert all) send every scanned element in one
@@ -100,10 +120,38 @@ public class ARWebSocketServer {
 
         // Start the Jetty Server
         jettyServer.start();
-        //        loggerlog.info("Jetty WebSocket server started on ws://" + BIND_IP_ADDRESS + ":" + this.boundPort +
-        // "/websocket");
-        //        loggerlog.info("Current active WebSocket sessions: " +
-        // webSocketSessionManager.getAllSessions().size());
+        if (buildResource != null) {
+            String url = "http://" + LOOPBACK_ADDRESS + ":" + boundPort;
+            log.info("AR Web Scanner UI available at {}", url);
+            openInBrowser(url);
+        }
+    }
+
+    /**
+     * Opens the UI in the user's default browser -- there is no embedded window anymore (the JCEF
+     * shell was removed), so without this nothing tells the user the app is ready.
+     */
+    private void openInBrowser(String url) {
+        try {
+            if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
+                Desktop.getDesktop().browse(URI.create(url));
+                return;
+            }
+        } catch (Exception e) {
+            log.warn("Desktop.browse failed, falling back to OS command: {}", e.getMessage());
+        }
+        try {
+            String os = System.getProperty("os.name", "").toLowerCase();
+            if (os.contains("win")) {
+                new ProcessBuilder("cmd", "/c", "start", "", url).start();
+            } else if (os.contains("mac")) {
+                new ProcessBuilder("open", url).start();
+            } else {
+                new ProcessBuilder("xdg-open", url).start();
+            }
+        } catch (IOException e) {
+            log.warn("Could not auto-open browser at {}: {}", url, e.getMessage());
+        }
     }
 
     /**

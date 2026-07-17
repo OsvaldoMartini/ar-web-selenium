@@ -31,6 +31,8 @@ public class SimpleWebSocketServer {
     private static final OrganizationManagerService organizationManagerService =
             OrganizationManagerService.getInstance();
     private static final MainDashboardService mainDashboardService = MainDashboardService.getInstance();
+    private static final AutomationTestCatalogService automationTestCatalogService =
+            AutomationTestCatalogService.getInstance();
     private static final NewBotJobService newBotJobService = NewBotJobService.getInstance();
     private static final CloneJobService cloneJobService = CloneJobService.getInstance();
     private static final ConfigService configService = ConfigService.getInstance();
@@ -138,7 +140,12 @@ public class SimpleWebSocketServer {
             return;
         }
 
-        if (!webSocketSessionManager.addSession(sessionId, session)) {
+        if (ScannerWorkspaceSessions.BOT_JOB_TASKS.equals(sessionId)) {
+            // Only one Bot Job workspace is active in the backend at a time -- opening a job in a
+            // new tab takes over from whichever tab had it before, rather than being rejected as a
+            // duplicate session.
+            WebSocketSessionManager.takeOverSession(sessionId, session);
+        } else if (!webSocketSessionManager.addSession(sessionId, session)) {
             log.warn("Rejected duplicate live WebSocket session: {}", sessionId);
             closeRejectedSession(session, "Session is already connected");
             return;
@@ -146,6 +153,46 @@ public class SimpleWebSocketServer {
 
         BotJobTransferPathRegistry.getInstance().clearSession(sessionId);
         log.info("New connection: Session ID = {}", sessionId);
+
+        if ("mainDashboardBootstrap".equals(sessionId)) {
+            // Transient handshake session the React shell opens once on load, before it knows
+            // which real session ("mainDashboard", a bot job tab, etc.) it should become. Reply
+            // directly on this connection rather than via the session registry -- nothing is
+            // registered under "mainDashboard" yet, so a registry-keyed send would find no
+            // target. The shell closes this socket once it has read the reply.
+            sendBootstrapReactSessionOpen(session);
+        }
+    }
+
+    private void sendBootstrapReactSessionOpen(Session session) {
+        try {
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("targetSession", "mainDashboard");
+            payload.put("port", resolveBootstrapSocketPort());
+            payload.put("botJobId", -9999);
+            payload.put("source", "mainDashboard");
+
+            JsonObject envelope = new JsonObject();
+            envelope.addProperty("body", gson.toJson(payload));
+            envelope.addProperty("sessionId", "mainDashboard");
+            envelope.addProperty("homeBankingId", -1);
+            envelope.addProperty("operationId", "react.session.open");
+            session.getBasicRemote().sendText(envelope.toString());
+        } catch (IOException e) {
+            log.warn("Failed to send bootstrap react.session.open: {}", e.getMessage());
+        }
+    }
+
+    private int resolveBootstrapSocketPort() {
+        try {
+            String port = arPropertyManager.getProperty(ARPropertyEnum.PORT_SOCKET);
+            if (!Strings.isNullOrEmpty(port)) {
+                return Integer.parseInt(port);
+            }
+        } catch (Exception e) {
+            log.warn("Invalid PORT_SOCKET during bootstrap: {}", e.getMessage());
+        }
+        return 54525;
     }
 
     private void closeRejectedSession(Session session, String reason) {
@@ -217,6 +264,7 @@ public class SimpleWebSocketServer {
 
             String sessionId =
                     jsonObjMSG.has("sessionId") ? jsonObjMSG.get("sessionId").getAsString() : "unknown";
+            ReactReplyChannel.set(sessionId);
 
             // After Decoding
             if (type == null || type.trim().isEmpty() || type.contains("CONNECT") || type.contains("ping")) {
@@ -562,6 +610,9 @@ public class SimpleWebSocketServer {
                 case "mainDashboard.list":
                     handleMainDashboardList(sessionId);
                     break;
+                case "automationTests.list":
+                    handleAutomationTestsList(sessionId);
+                    break;
                 case "mainDashboard.openOrganizations":
                     handleMainDashboardOpenOrganizations(sessionId);
                     break;
@@ -688,6 +739,8 @@ public class SimpleWebSocketServer {
                 webSocketSessionManager.sendMessageJson(
                         homeBankingId, session, type, "Closed processing message", "No \"type\" definition");
             }
+        } finally {
+            ReactReplyChannel.clear();
         }
     }
 
@@ -750,6 +803,11 @@ public class SimpleWebSocketServer {
 
     private void handleMainDashboardList(String sessionId) {
         sendMainDashboardResponse(sessionId, mainDashboardService.list(), "mainDashboard.listResponse");
+    }
+
+    private void handleAutomationTestsList(String sessionId) {
+        sendMainDashboardResponse(
+                sessionId, automationTestCatalogService.list(), "automationTests.listResponse");
     }
 
     private void handleMainDashboardOpenOrganizations(String sessionId) {

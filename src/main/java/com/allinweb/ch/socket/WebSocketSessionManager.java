@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiConsumer;
+import javax.websocket.CloseReason;
 import javax.websocket.Session;
 import lombok.extern.slf4j.Slf4j;
 
@@ -73,6 +74,34 @@ public class WebSocketSessionManager {
             activeSessions.put(sessionId, session);
             sessionIds.put(session, sessionId);
             return true;
+        }
+    }
+
+    /**
+     * Registers a transport session, closing out whichever transport currently owns the logical
+     * session ID instead of rejecting the new one. Used for sessions where only one live workspace
+     * makes sense at a time (e.g. "botJobTasks" -- the backend has a single active Bot Job
+     * workspace) so that opening it in a new tab takes over rather than being refused.
+     */
+    public static void takeOverSession(String sessionId, Session newSession) {
+        if (Strings.isNullOrEmpty(sessionId) || newSession == null) {
+            return;
+        }
+        synchronized (sessionRegistryLock) {
+            Session existing = activeSessions.get(sessionId);
+            if (existing != null && existing != newSession) {
+                sessionIds.remove(existing, sessionId);
+                if (existing.isOpen()) {
+                    try {
+                        existing.close(new CloseReason(
+                                CloseReason.CloseCodes.NORMAL_CLOSURE, "Superseded by a newer tab"));
+                    } catch (IOException e) {
+                        log.debug("Error closing superseded session {}: {}", sessionId, e.getMessage());
+                    }
+                }
+            }
+            activeSessions.put(sessionId, newSession);
+            sessionIds.put(newSession, sessionId);
         }
     }
 

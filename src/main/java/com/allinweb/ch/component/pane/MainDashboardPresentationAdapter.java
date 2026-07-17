@@ -20,7 +20,7 @@ import com.allinweb.ch.facade.UiThreadDispatcher;
 import com.allinweb.ch.model.BotJobLoadDTO;
 import com.allinweb.ch.model.BlockLoadDTO;
 import com.allinweb.ch.model.HomeBankingLoadDTO;
-import com.allinweb.ch.model.ScannerWorkspaceSessions;
+import com.allinweb.ch.socket.ReactReplyChannel;
 import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
@@ -205,11 +205,12 @@ public class MainDashboardPresentationAdapter
 
     public void openBotJob(BotJobLoadDTO botJob) {
         uiThreadDispatcher.execute(() -> {
+            // Open Job opens a real new browser tab (see MainDashboard's Open Job handler); the
+            // dashboard's own session/tab is not switched anymore. Just do the backend-side
+            // preparation -- the new tab's own "botJobTasks" socket connects independently and
+            // requests its data via botJobDetails.bootstrap.
             reloadBlocks(botJob);
             botJobDetailsHost.initialize(botJob, isEnabledLicence);
-            showSurface(
-                    ScannerWorkspaceSessions.BOT_JOB_TASKS,
-                    botJobDetailsHost.reactContext(ScannerWorkspaceSessions.BOT_JOB_TASKS));
         });
     }
 
@@ -314,9 +315,16 @@ public class MainDashboardPresentationAdapter
         payload.put("port", resolveSocketPort());
         payload.put("botJobId", botJobId);
         payload.put("source", SESSION_ID);
-        webSocketSessionManager.sendMessageJson(-1, targetSession, gson.toJson(payload), "react.session.open");
-        if (!WebSocketSessionManager.isSessionOpen(targetSession)) {
-            log.info("React session {} is not connected; external React container should open or bootstrap it", targetSession);
+        // Deliver on whichever session actually triggered this navigation (it's the only one
+        // guaranteed to be open right now) rather than the target session, which the frontend
+        // hasn't connected yet -- it only connects once it learns to switch there from this reply.
+        String replyTo = ReactReplyChannel.getOrDefault(SESSION_ID);
+        webSocketSessionManager.sendMessageJson(-1, replyTo, gson.toJson(payload), "react.session.open");
+        if (!WebSocketSessionManager.isSessionOpen(replyTo)) {
+            log.info(
+                    "React shell session {} is not connected; navigation to {} will be requested by React when available",
+                    replyTo,
+                    targetSession);
         }
     }
 

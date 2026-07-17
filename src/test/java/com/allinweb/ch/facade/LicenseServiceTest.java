@@ -198,6 +198,7 @@ class LicenseServiceTest {
 
             assertTrue(activation.get("ok").getAsBoolean());
             assertTrue(activation.get("active").getAsBoolean());
+            assertEquals(SystemDetails.getSystemUserName(), activation.get("licensedUser").getAsString());
             assertTrue(Files.isRegularFile(temporaryDirectory.resolve("ARWeb.lic")));
             assertTrue(startup.get("allowed").getAsBoolean());
             assertEquals("mainDashboard", startup.get("targetSessionId").getAsString());
