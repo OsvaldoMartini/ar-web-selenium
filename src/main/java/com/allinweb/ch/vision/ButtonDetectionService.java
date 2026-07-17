@@ -1,6 +1,7 @@
 package com.allinweb.ch.vision;
 
 import com.allinweb.ch.model.OcrConfig;
+import com.allinweb.ch.ocr.bridge.OcrBox;
 import com.allinweb.ch.ocr.bridge.OcrWord;
 import com.allinweb.ch.vision.ocr.OcrOpenCvUtils;
 import com.allinweb.ch.vision.ocr.OcrPreprocessorOpenCv;
@@ -96,7 +97,7 @@ public final class ButtonDetectionService {
                     int mappedY = rect.y + (int) Math.round(b.y / (double) BUTTON_ROI_UPSCALE);
                     int mappedW = Math.max(1, (int) Math.round(b.width / (double) BUTTON_ROI_UPSCALE));
                     int mappedH = Math.max(1, (int) Math.round(b.height / (double) BUTTON_ROI_UPSCALE));
-                    Rectangle mapped = new Rectangle(mappedX, mappedY, mappedW, mappedH);
+                    OcrBox mapped = new OcrBox(mappedX, mappedY, mappedW, mappedH);
                     out.add(new OcrWord(text, mapped, w.getConfidence()));
                 }
             } catch (Exception e) {

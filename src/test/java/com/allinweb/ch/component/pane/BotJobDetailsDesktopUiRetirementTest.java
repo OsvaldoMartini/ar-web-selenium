@@ -322,6 +322,19 @@ class BotJobDetailsDesktopUiRetirementTest {
     }
 
     @Test
+    void ocrDomainUsesNeutralBoundsInsteadOfAwtRectangle() throws IOException {
+        String ocrWord = Files.readString(SOURCE_ROOT.resolve("ocr/bridge/OcrWord.java"));
+        String visionElement = Files.readString(SOURCE_ROOT.resolve("vision/VisionElement.java"));
+        String ocrBox = Files.readString(SOURCE_ROOT.resolve("ocr/bridge/OcrBox.java"));
+
+        assertFalse(ocrWord.contains("java.awt.Rectangle"));
+        assertFalse(visionElement.contains("java.awt.Rectangle"));
+        assertFalse(ocrBox.contains("java.awt.Rectangle"));
+        assertTrue(ocrWord.contains("OcrBox"));
+        assertTrue(visionElement.contains("OcrBox"));
+    }
+
+    @Test
     void mavenBuildDoesNotDeclareRetiredUiDependenciesOrPlugin() throws IOException {
         String pom = Files.readString(Path.of("pom.xml"));
 

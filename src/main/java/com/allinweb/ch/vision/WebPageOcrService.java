@@ -2,6 +2,7 @@ package com.allinweb.ch.vision;
 
 import com.allinweb.ch.model.OcrConfig;
 import com.allinweb.ch.ocr.bridge.OcrBridgeService;
+import com.allinweb.ch.ocr.bridge.OcrBox;
 import com.allinweb.ch.ocr.bridge.OcrEngine;
 import com.allinweb.ch.ocr.bridge.OcrResult;
 import com.allinweb.ch.ocr.bridge.OcrWord;
@@ -108,7 +109,7 @@ public final class WebPageOcrService {
             for (Word w : words) {
                 String text = w.getText() == null ? "" : w.getText().trim();
                 if (text.isEmpty()) continue;
-                out.add(new OcrWord(text, w.getBoundingBox(), w.getConfidence()));
+                out.add(new OcrWord(text, ocrBox(w.getBoundingBox()), w.getConfidence()));
                 full.append(text).append(' ');
             }
             return new OcrResult(full.toString().trim(), out);
@@ -142,10 +143,13 @@ public final class WebPageOcrService {
                 OcrResult prepRes = recognize(prepImg, cfg);
                 int up = Math.max(1, cfg.getInt("preprocessing", "upscale_factor", 2));
                 for (OcrWord w : prepRes.getWords()) {
-                    Rectangle b = w.getBounds();
+                    OcrBox b = w.getBounds();
                     if (b == null) continue;
-                    Rectangle mapped =
-                            new Rectangle(b.x / up, b.y / up, Math.max(1, b.width / up), Math.max(1, b.height / up));
+                    OcrBox mapped = new OcrBox(
+                            b.x() / up,
+                            b.y() / up,
+                            Math.max(1, b.width() / up),
+                            Math.max(1, b.height() / up));
                     all.add(new OcrWord(w.getText(), mapped, w.getConfidence()));
                 }
                 src.release();
@@ -215,17 +219,22 @@ public final class WebPageOcrService {
         return out;
     }
 
-    static double iou(Rectangle a, Rectangle b) {
+    static double iou(OcrBox a, OcrBox b) {
         if (a == null || b == null) return 0;
-        double interX1 = Math.max(a.x, b.x);
-        double interY1 = Math.max(a.y, b.y);
-        double interX2 = Math.min((double) a.x + a.width, (double) b.x + b.width);
-        double interY2 = Math.min((double) a.y + a.height, (double) b.y + b.height);
+        double interX1 = Math.max(a.x(), b.x());
+        double interY1 = Math.max(a.y(), b.y());
+        double interX2 = Math.min((double) a.x() + a.width(), (double) b.x() + b.width());
+        double interY2 = Math.min((double) a.y() + a.height(), (double) b.y() + b.height());
         double interW = Math.max(0, interX2 - interX1);
         double interH = Math.max(0, interY2 - interY1);
         double inter = interW * interH;
-        double union = (double) a.width * a.height + (double) b.width * b.height - inter;
+        double union = (double) a.width() * a.height() + (double) b.width() * b.height() - inter;
         return union <= 0 ? 0 : inter / union;
+    }
+
+    private static OcrBox ocrBox(Rectangle rectangle) {
+        if (rectangle == null) return null;
+        return new OcrBox(rectangle.x, rectangle.y, rectangle.width, rectangle.height);
     }
 
     /** Filter '+'-joined lang codes to those we actually extracted from classpath. */

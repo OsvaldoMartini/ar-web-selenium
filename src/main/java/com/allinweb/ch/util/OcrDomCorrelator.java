@@ -2,9 +2,9 @@ package com.allinweb.ch.util;
 
 import com.allinweb.ch.model.ElementDTO;
 import com.allinweb.ch.model.OcrConfig;
+import com.allinweb.ch.ocr.bridge.OcrBox;
 import com.allinweb.ch.ocr.bridge.OcrResult;
 import com.allinweb.ch.ocr.bridge.OcrWord;
-import java.awt.Rectangle;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -128,13 +128,13 @@ public final class OcrDomCorrelator {
             double nearestDist = Double.MAX_VALUE;
 
             for (OcrWord word : ocr.getWords()) {
-                Rectangle b = word.getBounds();
+                OcrBox b = word.getBounds();
                 if (b == null) continue;
 
-                double ox = b.x / dpr;
-                double oy = b.y / dpr;
-                double ow = b.width / dpr;
-                double oh = b.height / dpr;
+                double ox = b.x() / dpr;
+                double oy = b.y() / dpr;
+                double ow = b.width() / dpr;
+                double oh = b.height() / dpr;
                 double ocx = ox + ow / 2.0;
                 double ocy = oy + oh / 2.0;
 

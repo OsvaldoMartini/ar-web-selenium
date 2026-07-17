@@ -1,6 +1,6 @@
 package com.allinweb.ch.vision;
 
-import java.awt.Rectangle;
+import com.allinweb.ch.ocr.bridge.OcrBox;
 import java.util.Map;
 import lombok.Data;
 
@@ -16,7 +16,7 @@ public class VisionElement {
     private UiElementType type;
 
     /** Bounding box in screenshot coordinates. */
-    private Rectangle bounds;
+    private OcrBox bounds;
 
     /** Device coordinates (center point) mapped to driver coordinates. */
     private double deviceX;

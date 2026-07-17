@@ -6,7 +6,6 @@ import com.allinweb.ch.util.ARPropertyManager;
 import com.sun.jna.Pointer;
 import com.sun.jna.ptr.IntByReference;
 import com.sun.jna.ptr.PointerByReference;
-import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.util.ArrayList;
@@ -228,7 +227,7 @@ public final class OcrBridgeService {
         for (OcrWordC c : arr) {
             String t = (c.text == null) ? "" : c.text.getString(0);
             if (t.isEmpty()) continue;
-            out.add(new OcrWord(t, new Rectangle(c.x, c.y, c.w, c.h), c.conf));
+            out.add(new OcrWord(t, new OcrBox(c.x, c.y, c.w, c.h), c.conf));
         }
         OcrBridge.INSTANCE.aro_free_words(base, count);
     }
@@ -244,7 +243,7 @@ public final class OcrBridgeService {
             for (OcrWordC c : words) {
                 String t = (c.text == null) ? "" : c.text.getString(0);
                 if (t.isEmpty()) continue;
-                out.add(new OcrWord(t, new Rectangle(c.x, c.y, c.w, c.h), c.conf));
+                out.add(new OcrWord(t, new OcrBox(c.x, c.y, c.w, c.h), c.conf));
             }
         }
         OcrBridge.INSTANCE.aro_free_buttons(base, count);
@@ -289,16 +288,16 @@ public final class OcrBridgeService {
         return out;
     }
 
-    private static double iou(Rectangle a, Rectangle b) {
+    private static double iou(OcrBox a, OcrBox b) {
         if (a == null || b == null) return 0;
-        double x1 = Math.max(a.x, b.x);
-        double y1 = Math.max(a.y, b.y);
-        double x2 = Math.min((double) a.x + a.width, (double) b.x + b.width);
-        double y2 = Math.min((double) a.y + a.height, (double) b.y + b.height);
+        double x1 = Math.max(a.x(), b.x());
+        double y1 = Math.max(a.y(), b.y());
+        double x2 = Math.min((double) a.x() + a.width(), (double) b.x() + b.width());
+        double y2 = Math.min((double) a.y() + a.height(), (double) b.y() + b.height());
         double iw = Math.max(0, x2 - x1);
         double ih = Math.max(0, y2 - y1);
         double inter = iw * ih;
-        double union = (double) a.width * a.height + (double) b.width * b.height - inter;
+        double union = (double) a.width() * a.height() + (double) b.width() * b.height() - inter;
         return union <= 0 ? 0 : inter / union;
     }
 }

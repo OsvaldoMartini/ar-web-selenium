@@ -1,11 +1,11 @@
 package com.allinweb.ch.vision;
 
+import com.allinweb.ch.ocr.bridge.OcrBox;
 import com.allinweb.ch.ocr.bridge.OcrWord;
 import com.allinweb.ch.util.OcrCorrelationResult;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Graphics2D;
-import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -53,9 +53,9 @@ public final class AnnotatedImageRenderer {
                 g.setStroke(new BasicStroke(1f));
                 g.setColor(OCR_GREEN);
                 for (OcrWord w : ocrWords) {
-                    Rectangle b = w.getBounds();
+                    OcrBox b = w.getBounds();
                     if (b == null) continue;
-                    g.drawRect(b.x, b.y, b.width, b.height);
+                    g.drawRect(b.x(), b.y(), b.width(), b.height());
                 }
             }
 

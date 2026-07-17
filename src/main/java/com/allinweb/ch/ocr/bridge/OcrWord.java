@@ -1,13 +1,11 @@
 package com.allinweb.ch.ocr.bridge;
 
-import java.awt.Rectangle;
-
 public class OcrWord {
     private final String text;
-    private final Rectangle bounds;
+    private final OcrBox bounds;
     private final float confidence;
 
-    public OcrWord(String text, Rectangle bounds, float confidence) {
+    public OcrWord(String text, OcrBox bounds, float confidence) {
         this.text = text;
         this.bounds = bounds;
         this.confidence = confidence;
@@ -17,7 +15,7 @@ public class OcrWord {
         return text;
     }
 
-    public Rectangle getBounds() {
+    public OcrBox getBounds() {
         return bounds;
     }
 
