@@ -3,6 +3,7 @@ package com.allinweb.ch.ocr.bridge;
 import com.allinweb.ch.model.OcrConfig;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
+import com.allinweb.ch.vision.RasterImage;
 import com.sun.jna.Pointer;
 import com.sun.jna.ptr.IntByReference;
 import com.sun.jna.ptr.PointerByReference;
@@ -89,6 +90,17 @@ public final class OcrBridgeService {
     }
 
     /** Single-pass OCR. */
+    public static OcrResult recognize(RasterImage image) {
+        return recognize(image, null);
+    }
+
+    /** Single-pass OCR honouring config overrides for engine params. */
+    public static OcrResult recognize(RasterImage image, OcrConfig cfg) {
+        if (image == null) return empty();
+        return recognize(image.width(), image.height(), bgraBytes(image), cfg);
+    }
+
+    /** Single-pass OCR. */
     public static OcrResult recognize(BufferedImage image) {
         return recognize(image, null);
     }
@@ -96,14 +108,15 @@ public final class OcrBridgeService {
     /** Single-pass OCR honouring config overrides for engine params. */
     public static OcrResult recognize(BufferedImage image, OcrConfig cfg) {
         if (image == null) return empty();
+        return recognize(image.getWidth(), image.getHeight(), bgraBytes(image), cfg);
+    }
+
+    private static OcrResult recognize(int width, int height, byte[] pixels, OcrConfig cfg) {
         try {
-            byte[] pixels = bgraBytes(image);
-            int w = image.getWidth();
-            int h = image.getHeight();
             OcrConfigC.ByReference cfgC = toCfgC(cfg, /*multipass=*/ false);
             PointerByReference outWords = new PointerByReference();
             IntByReference outCount = new IntByReference();
-            int rc = OcrBridge.INSTANCE.aro_recognize(handle(), pixels, w, h, w * 4, cfgC, outWords, outCount);
+            int rc = OcrBridge.INSTANCE.aro_recognize(handle(), pixels, width, height, width * 4, cfgC, outWords, outCount);
             if (rc != 0) {
                 log.warn("aro_recognize rc={}: {}", rc, OcrBridge.INSTANCE.aro_last_error(handle()));
                 return empty();
@@ -123,20 +136,32 @@ public final class OcrBridgeService {
      * button detection. Cross-pass IoU dedup at the configured threshold
      * (default 0.6).
      */
+    public static OcrResult recognizeMultiPass(RasterImage image, OcrConfig cfg) {
+        if (image == null) return empty();
+        return recognizeMultiPass(image.width(), image.height(), bgraBytes(image), cfg);
+    }
+
+    /**
+     * Multi-pass OCR matching {@link com.allinweb.ch.vision.WebPageOcrService#recognizeMultiPass}:
+     * raw + (optional) CLAHE-preprocessed pass + (optional) red/blue/any
+     * button detection. Cross-pass IoU dedup at the configured threshold
+     * (default 0.6).
+     */
     public static OcrResult recognizeMultiPass(BufferedImage image, OcrConfig cfg) {
         if (image == null) return empty();
+        return recognizeMultiPass(image.getWidth(), image.getHeight(), bgraBytes(image), cfg);
+    }
+
+    private static OcrResult recognizeMultiPass(int width, int height, byte[] pixels, OcrConfig cfg) {
         try {
             Pointer hh = handle();
-            byte[] pixels = bgraBytes(image);
-            int w = image.getWidth();
-            int h = image.getHeight();
             List<OcrWord> all = new ArrayList<>();
 
             // Raw + CLAHE in one DLL call (DLL does its own IoU dedup across both passes).
             OcrConfigC.ByReference cfgC = toCfgC(cfg, /*multipass=*/ true);
             PointerByReference outWords = new PointerByReference();
             IntByReference outCount = new IntByReference();
-            int rc = OcrBridge.INSTANCE.aro_recognize_multipass(hh, pixels, w, h, w * 4, cfgC, outWords, outCount);
+            int rc = OcrBridge.INSTANCE.aro_recognize_multipass(hh, pixels, width, height, width * 4, cfgC, outWords, outCount);
             if (rc == 0) {
                 consumeWords(outWords.getValue(), outCount.getValue(), all);
             } else {
@@ -149,7 +174,7 @@ public final class OcrBridgeService {
                 PointerByReference outBtns = new PointerByReference();
                 IntByReference outBtnCount = new IntByReference();
                 int brc = OcrBridge.INSTANCE.aro_detect_buttons_and_ocr(
-                        hh, pixels, w, h, w * 4, btnCfg, outBtns, outBtnCount);
+                        hh, pixels, width, height, width * 4, btnCfg, outBtns, outBtnCount);
                 if (brc == 0) {
                     consumeButtonWords(outBtns.getValue(), outBtnCount.getValue(), all);
                 } else {
@@ -173,7 +198,15 @@ public final class OcrBridgeService {
         int w = img.getWidth();
         int h = img.getHeight();
         int[] argb = img.getRGB(0, 0, w, h, null, 0, w);
-        byte[] out = new byte[w * h * 4];
+        return bgraBytes(argb);
+    }
+
+    private static byte[] bgraBytes(RasterImage image) {
+        return bgraBytes(image.copyRgb());
+    }
+
+    private static byte[] bgraBytes(int[] argb) {
+        byte[] out = new byte[argb.length * 4];
         for (int i = 0; i < argb.length; i++) {
             int p = argb[i];
             int o = i * 4;

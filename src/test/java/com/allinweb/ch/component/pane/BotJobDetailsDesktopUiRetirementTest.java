@@ -336,6 +336,8 @@ class BotJobDetailsDesktopUiRetirementTest {
         String tess4jAdapter = Files.readString(SOURCE_ROOT.resolve("vision/Tess4jOcrBoxAdapter.java"));
         String annotatedRenderer = Files.readString(SOURCE_ROOT.resolve("vision/AnnotatedImageRenderer.java"));
         String webScreenshotCapture = Files.readString(SOURCE_ROOT.resolve("util/WebScreenshotCapture.java"));
+        String ocrTestService = Files.readString(SOURCE_ROOT.resolve("facade/OcrTestService.java"));
+        String pageOcrDumper = Files.readString(SOURCE_ROOT.resolve("util/PageOcrDumper.java"));
 
         assertFalse(ocrWord.contains("java.awt.Rectangle"));
         assertFalse(visionElement.contains("java.awt.Rectangle"));
@@ -350,6 +352,9 @@ class BotJobDetailsDesktopUiRetirementTest {
         assertFalse(annotatedRenderer.contains("Graphics2D"));
         assertFalse(annotatedRenderer.contains("RenderingHints"));
         assertFalse(webScreenshotCapture.contains("Graphics2D"));
+        assertFalse(annotatedRenderer.contains("BufferedImage"));
+        assertFalse(ocrTestService.contains("BufferedImage"));
+        assertFalse(pageOcrDumper.contains("BufferedImage"));
         assertTrue(ocrWord.contains("OcrBox"));
         assertTrue(visionElement.contains("OcrBox"));
     }

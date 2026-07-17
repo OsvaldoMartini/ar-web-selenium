@@ -11,12 +11,13 @@ import com.allinweb.ch.util.OcrCorrelationResult;
 import com.allinweb.ch.util.OcrDomCorrelator;
 import com.allinweb.ch.util.PageDiagnosticDumper;
 import com.allinweb.ch.vision.AnnotatedImageRenderer;
+import com.allinweb.ch.vision.RasterImage;
+import com.allinweb.ch.vision.RasterImageIO;
 import com.allinweb.ch.vision.WebPageOcrService;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import java.awt.image.BufferedImage;
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -30,7 +31,6 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import javax.imageio.ImageIO;
 
 /** Runs OCR against allowlisted cached scanner artifacts without presentation ownership. */
 public final class OcrTestService {
@@ -44,7 +44,7 @@ public final class OcrTestService {
             Path directory = diagnosticDirectory();
             Path screenshot = latest(directory.resolve("page-BJ.png"), directory.resolve("page-HP.png"));
             if (screenshot == null) return failure("No cached scanner screenshot. Run Page Scanner first.");
-            BufferedImage image = ImageIO.read(screenshot.toFile());
+            RasterImage image = RasterImageIO.read(screenshot);
             if (image == null) return failure("Cached page-HP.png could not be decoded.");
             List<OcrConfigParam> params = parameters(body);
             OcrConfig config;

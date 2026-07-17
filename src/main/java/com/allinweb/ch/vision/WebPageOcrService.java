@@ -93,6 +93,16 @@ public final class WebPageOcrService {
     }
 
     /** Full-image OCR. Returns word-level boxes in image pixel space. */
+    public static OcrResult recognize(RasterImage image) {
+        return recognize(image, null);
+    }
+
+    /** Full-image OCR honouring config overrides for engine params. */
+    public static OcrResult recognize(RasterImage image, OcrConfig cfg) {
+        return recognize(RasterImageIO.toBufferedImage(image), cfg);
+    }
+
+    /** Full-image OCR. Returns word-level boxes in image pixel space. */
     public static OcrResult recognize(BufferedImage image) {
         return recognize(image, null);
     }
@@ -116,6 +126,15 @@ public final class WebPageOcrService {
             log.warn("OCR recognize failed: {}", e.getMessage(), e);
             return new OcrResult("", new ArrayList<>());
         }
+    }
+
+    /**
+     * Multi-pass OCR: raw + optional CLAHE-preprocessed + optional color-button passes.
+     * Results from each pass are merged into a single {@link OcrResult} after IoU
+     * de-duplication (keep the higher-confidence text per overlapping bbox).
+     */
+    public static OcrResult recognizeMultiPass(RasterImage image, OcrConfig cfg) {
+        return recognizeMultiPass(RasterImageIO.toBufferedImage(image), cfg);
     }
 
     /**

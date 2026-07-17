@@ -6,14 +6,14 @@ import com.allinweb.ch.model.ElementDTO;
 import com.allinweb.ch.model.OcrConfig;
 import com.allinweb.ch.ocr.bridge.OcrBridgeService;
 import com.allinweb.ch.ocr.bridge.OcrResult;
+import com.allinweb.ch.vision.RasterImage;
+import com.allinweb.ch.vision.RasterImageIO;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
@@ -23,7 +23,6 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import javax.imageio.ImageIO;
 import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.WebDriver;
 
@@ -123,7 +122,7 @@ public final class PageOcrDumper {
 
             Path pngPath = diagDir.resolve(prefix + ".png");
             Files.write(pngPath, png);
-            BufferedImage image = ImageIO.read(new ByteArrayInputStream(png));
+            RasterImage image = RasterImageIO.readPng(png);
             if (image == null) {
                 log.warn("Screenshot bytes did not decode to an image — aborting OCR pipeline");
                 return;
@@ -137,7 +136,7 @@ public final class PageOcrDumper {
             double dpr = readDprFromMeta(diagDir.resolve(prefix + "-meta.json"));
 
             // 4. Persist raw OCR dump
-            writeOcrDump(diagDir.resolve("ocr-HP.json"), ocr, dpr, image.getWidth(), image.getHeight());
+            writeOcrDump(diagDir.resolve("ocr-HP.json"), ocr, dpr, image.width(), image.height());
 
             // 5. Read DOM rects (written by PageDiagnosticDumper.dumpRects earlier in the scan)
             List<OcrDomCorrelator.RectEntry> rects = readRects(diagDir.resolve(prefix + "-rects.json"));
