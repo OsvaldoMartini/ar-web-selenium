@@ -68,9 +68,11 @@ public class ARScannedElementScene {
     private final ScannerUpdatePreparationService scannerUpdatePreparationService =
             new ScannerUpdatePreparationService();
     private final ScannerInsertPersistenceService scannerInsertPersistenceService =
-            new ScannerInsertPersistenceService(new SceneInsertPersistenceDataPort());
+            new ScannerInsertPersistenceService(
+                    new ScannerInstructionPersistenceDataPorts.InsertDataPort(performDataBase));
     private final ScannerUpdatePersistenceService scannerUpdatePersistenceService =
-            new ScannerUpdatePersistenceService(new SceneUpdatePersistenceDataPort());
+            new ScannerUpdatePersistenceService(
+                    new ScannerInstructionPersistenceDataPorts.UpdateDataPort(performDataBase));
     private final ScannerBotJobTasksPublisher scannerBotJobTasksPublisher =
             ScannerBotJobTasksPublisher.getInstance();
     private final ScannerInstructionOrderService scannerInstructionOrderService =
@@ -713,48 +715,4 @@ public class ARScannedElementScene {
         }
     }
 
-    private static final class SceneInsertPersistenceDataPort implements ScannerInsertPersistenceService.DataPort {
-        @Override
-        public ErrorMessage insertInstructionsBatch(
-                String sessionId,
-                List<InstructionLoad> instructions,
-                int botJobId,
-                int blockId,
-                int homeBankingId) {
-            return performDataBase.insertInstructionsBatch(sessionId, instructions, botJobId, blockId, homeBankingId);
-        }
-
-        @Override
-        public List<Integer> insertedInstructionIds() {
-            return performDataBase.getIdsInstrucAfter();
-        }
-
-        @Override
-        public ErrorMessage insertReferencesBatch(List<InstructionLoad> instructions) {
-            return performDataBase.insertReferencesBatch(instructions);
-        }
-    }
-
-    private static final class SceneUpdatePersistenceDataPort implements ScannerUpdatePersistenceService.DataPort {
-        @Override
-        public ErrorMessage updateInstructionsBatchByNameAndBlockId(
-                String sessionId,
-                List<InstructionLoad> instructions,
-                int botJobId,
-                int blockId,
-                int homeBankingId) {
-            return performDataBase.updateInstructionsBatchByNameAndBlockId(
-                    sessionId, instructions, botJobId, blockId, homeBankingId);
-        }
-
-        @Override
-        public List<Integer> updatedInstructionIds() {
-            return performDataBase.getIdsInstrucAfter();
-        }
-
-        @Override
-        public ErrorMessage upsertReferencesBatch(String sessionId, List<InstructionLoad> instructions) {
-            return performDataBase.upsertReferencesBatch(sessionId, instructions);
-        }
-    }
 }
