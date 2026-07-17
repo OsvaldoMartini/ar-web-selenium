@@ -43,7 +43,6 @@ import javafx.scene.control.*;
 import javafx.scene.layout.*;
 import javafx.scene.layout.Priority;
 import javafx.scene.paint.Color;
-import javafx.scene.text.Text;
 import javax.swing.*;
 import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilder;
@@ -182,8 +181,6 @@ public class ARScannedElementPane
             new ScannerSearchHiddenFieldsButtonAdapter();
     private final ScannerTestMessageSuppressionCheckboxAdapter scannerTestMessageSuppressionCheckboxAdapter =
             new ScannerTestMessageSuppressionCheckboxAdapter();
-    private final ScannerIframeIndicatorAdapter scannerIframeIndicatorAdapter =
-            new ScannerIframeIndicatorAdapter();
     private final ScannerPreLaunchStatusTextAreaAdapter scannerPreLaunchStatusTextAreaAdapter =
             new ScannerPreLaunchStatusTextAreaAdapter();
     private final ScannerTestActionCheckboxesAdapter scannerTestActionCheckboxesAdapter =
@@ -195,8 +192,6 @@ public class ARScannedElementPane
     private final ScannerHiddenCloneCheckboxAdapter scannerHiddenCloneCheckboxAdapter =
             new ScannerHiddenCloneCheckboxAdapter();
     private final ScannerFieldLabelsAdapter scannerFieldLabelsAdapter = new ScannerFieldLabelsAdapter();
-    private final ScannerCurrentUrlTextAdapter scannerCurrentUrlTextAdapter =
-            new ScannerCurrentUrlTextAdapter();
     private final ScannerTextFieldsAdapter scannerTextFieldsAdapter = new ScannerTextFieldsAdapter();
     private final ScannerElementFocusComboBoxAdapter scannerElementFocusComboBoxAdapter =
             new ScannerElementFocusComboBoxAdapter();
@@ -358,8 +353,7 @@ public class ARScannedElementPane
     private Label elementFocusLabel;
     private Label defineNameLabel;
     private Label coordsTextFieldLabel;
-    private Text currentURL;
-    private Text iFrameText;
+    private String currentUrlText = "";
     private VBox textFieldVBox;
     //    private TextFlow textFlowResult;
     private TextArea countdownTextField;
@@ -1634,8 +1628,6 @@ public class ARScannedElementPane
         checkInputText = testActionCheckboxes.input();
         checkOutputText = testActionCheckboxes.output();
 
-        iFrameText = scannerIframeIndicatorAdapter.build();
-
         configureButton = builder.buildButton(
                 "Config", ARConstants.SPACE_M, ARConstants.ICON_CONFIG, ARConstants.SPACE_M, new Insets(5.0D));
 
@@ -1734,8 +1726,6 @@ public class ARScannedElementPane
             }
         });
 
-        currentURL = scannerCurrentUrlTextAdapter.build();
-
         HomeUrlDTO homeUrlDTO = performLists.getHomeUrlByBankId(
                 this.currentBotJob.getHomeBankingId(), this.currentBotJob.getHomeUrlId());
         updateSceneTitleWithCurrentURL(homeUrlDTO.getUrl());
@@ -1820,7 +1810,7 @@ public class ARScannedElementPane
             gridPaneTop.add(requestSupportButton, 9, 0);
 
             VBox vBoxCheckBox = scannerLayoutNodeAdapter.checkboxColumn(
-                    createSpacerVert(), checkClickElement, checkInputText, checkOutputText, iFrameText);
+                    createSpacerVert(), checkClickElement, checkInputText, checkOutputText);
 
             topPane.getChildren().addAll(gridPaneTop, lblPluginHint); // Add gridPaneTop + hint to topPane
 
@@ -1899,8 +1889,6 @@ public class ARScannedElementPane
 
             HBox.setHgrow(componentBox, Priority.ALWAYS);
 
-            HBox currentURLBox = scannerLayoutNodeAdapter.centeredBox(currentURL);
-
             Label labelOthers = scannerFieldLabelsAdapter.webElementsFound();
             HBox othersBox = scannerLayoutNodeAdapter.spacedRow(0);
             createSpacerHoriz();
@@ -1919,7 +1907,7 @@ public class ARScannedElementPane
             boxListViews.getChildren().addAll(elements2VBox, textFieldVBox);
 
             HBox blockAndUrl =
-                    scannerLayoutNodeAdapter.blockAndUrlRow(comboBoxBlocks, refreshBlocksButton, currentURLBox);
+                    scannerLayoutNodeAdapter.blockAndUrlRow(comboBoxBlocks, refreshBlocksButton);
 
             verticalBox.getChildren().addAll(topPane, blockAndUrl, boxListViews);
             VBox.setVgrow(verticalBox, Priority.ALWAYS);
@@ -2222,9 +2210,8 @@ public class ARScannedElementPane
     }
 
     public void updateSceneTitleWithCurrentURL(String currentUrl) {
-        if (currentURL != null) {
-            currentURL.setText("Current URL:      " + currentUrl);
-        }
+        currentUrlText = currentUrl == null ? "" : currentUrl;
+        log.debug("Scanner current URL updated: {}", currentUrlText);
     }
 
     private Node createSpacerVert() {

@@ -30,6 +30,8 @@ class BotJobDetailsJavaFxRetirementTest {
         assertFalse(Files.exists(SOURCE_ROOT.resolve("facade/ScannerModalStageService.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("vision/OcrTestResultRow.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerStageAdapter.java")));
+        assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerCurrentUrlTextAdapter.java")));
+        assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerIframeIndicatorAdapter.java")));
     }
 
     @Test
@@ -88,5 +90,15 @@ class BotJobDetailsJavaFxRetirementTest {
         assertFalse(compiledSource.contains("createPane("));
         assertFalse(compiledSource.contains("getPaneReference("));
         assertFalse(compiledSource.contains("protected Pane pane"));
+    }
+
+    @Test
+    void scannerPaneDoesNotUseJavaFxTextNodes() throws IOException {
+        String source = Files.readString(SOURCE_ROOT.resolve("component/pane/ARScannedElementPane.java"));
+        String compiledSource = source.replaceAll("(?s)/\\*.*?\\*/", "");
+
+        assertFalse(compiledSource.contains("javafx.scene.text.Text"));
+        assertFalse(compiledSource.contains("ScannerCurrentUrlTextAdapter"));
+        assertFalse(compiledSource.contains("ScannerIframeIndicatorAdapter"));
     }
 }

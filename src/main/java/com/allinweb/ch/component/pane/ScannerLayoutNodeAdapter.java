@@ -86,13 +86,6 @@ final class ScannerLayoutNodeAdapter {
         return column;
     }
 
-    HBox centeredBox(Node child) {
-        StackPane stack = new StackPane();
-        stack.getChildren().add(child);
-        stack.setAlignment(Pos.CENTER);
-        return new HBox(stack);
-    }
-
     StackPane centeredStack(Node child) {
         StackPane stack = new StackPane();
         stack.getChildren().add(child);
@@ -114,12 +107,12 @@ final class ScannerLayoutNodeAdapter {
         return column;
     }
 
-    HBox blockAndUrlRow(Node blockSelector, Node refreshButton, Node currentUrlBox) {
+    HBox blockAndUrlRow(Node blockSelector, Node refreshButton) {
         HBox row = new HBox();
         row.setSpacing(0);
         HBox.setMargin(blockSelector, new Insets(0, 3, 0, 0));
         HBox.setMargin(refreshButton, new Insets(0, 3, 0, 0));
-        row.getChildren().addAll(blockSelector, refreshButton, currentUrlBox);
+        row.getChildren().addAll(blockSelector, refreshButton);
         return row;
     }
 }
