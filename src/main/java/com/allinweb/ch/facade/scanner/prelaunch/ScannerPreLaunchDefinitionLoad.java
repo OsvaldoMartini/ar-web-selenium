@@ -1,4 +1,4 @@
-package com.allinweb.ch.component.pane;
+package com.allinweb.ch.facade.scanner.prelaunch;
 
 import com.allinweb.ch.model.BlockLoadDTO;
 import com.allinweb.ch.model.BotJobLoadDTO;
@@ -6,14 +6,14 @@ import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.util.ErrorMessage;
 import java.util.List;
 
-final class ScannerPreLaunchDefinitionLoad {
+public final class ScannerPreLaunchDefinitionLoad {
     private final Operations operations;
 
-    ScannerPreLaunchDefinitionLoad(Operations operations) {
+    public ScannerPreLaunchDefinitionLoad(Operations operations) {
         this.operations = operations;
     }
 
-    ErrorMessage loadDefinitions() {
+    public ErrorMessage loadDefinitions() {
         BotJobLoadDTO currentBotJob = operations.currentBotJob();
         ScannerPreLaunchPreparation.Result result = operations.loadDefinitions(currentBotJob);
         operations.setExcelDataGoto(result.excelDataGoto());
@@ -27,7 +27,7 @@ final class ScannerPreLaunchDefinitionLoad {
         return result.errorMessage();
     }
 
-    void reportLoadError(ErrorMessage errorMessage) {
+    public void reportLoadError(ErrorMessage errorMessage) {
         if (errorMessage == null) {
             return;
         }
@@ -35,7 +35,7 @@ final class ScannerPreLaunchDefinitionLoad {
         operations.showOperationFailed(errorMessage);
     }
 
-    interface Operations {
+    public interface Operations {
         BotJobLoadDTO currentBotJob();
 
         ScannerPreLaunchPreparation.Result loadDefinitions(BotJobLoadDTO currentBotJob);

@@ -1,10 +1,11 @@
-package com.allinweb.ch.component.pane;
+package com.allinweb.ch.facade.scanner.testrun;
 
+import com.allinweb.ch.facade.scanner.prelaunch.ScannerPreLaunchPreparation;
 import com.allinweb.ch.util.ErrorMessage;
 
-final class ScannerTestRunDefinitionValidation {
+public final class ScannerTestRunDefinitionValidation {
 
-    Result validate(ScannerPreLaunchPreparation.Result definitions) {
+    public Result validate(ScannerPreLaunchPreparation.Result definitions) {
         if (definitions.errorMessage() != null) {
             return Result.loadError(definitions.errorMessage());
         }
@@ -17,7 +18,7 @@ final class ScannerTestRunDefinitionValidation {
         return Result.ready();
     }
 
-    record Result(Status status, ErrorMessage errorMessage) {
+    public record Result(Status status, ErrorMessage errorMessage) {
         private static Result ready() {
             return new Result(Status.READY, null);
         }
@@ -35,7 +36,7 @@ final class ScannerTestRunDefinitionValidation {
         }
     }
 
-    enum Status {
+    public enum Status {
         READY,
         LOAD_ERROR,
         MISSING_BOT_JOB,

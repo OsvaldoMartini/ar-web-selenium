@@ -1,15 +1,15 @@
-package com.allinweb.ch.component.pane;
+package com.allinweb.ch.facade.scanner.prelaunch;
 
 import com.allinweb.ch.model.BotJobLoadDTO;
 
-final class ScannerPreLaunchBotJobSelection {
+public final class ScannerPreLaunchBotJobSelection {
     private final Operations operations;
 
-    ScannerPreLaunchBotJobSelection(Operations operations) {
+    public ScannerPreLaunchBotJobSelection(Operations operations) {
         this.operations = operations;
     }
 
-    boolean loadCurrentBotJob() {
+    public boolean loadCurrentBotJob() {
         BotJobLoadDTO currentBotJob = operations.currentBotJob();
         ScannerPreLaunchPreparation.BotJobSelection selection =
                 operations.loadCurrentBotJob(currentBotJob, operations.excelPath());
@@ -28,7 +28,7 @@ final class ScannerPreLaunchBotJobSelection {
         return true;
     }
 
-    interface Operations {
+    public interface Operations {
         BotJobLoadDTO currentBotJob();
 
         String excelPath();

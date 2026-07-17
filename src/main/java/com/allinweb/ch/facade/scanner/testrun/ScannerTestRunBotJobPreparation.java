@@ -1,18 +1,19 @@
-package com.allinweb.ch.component.pane;
+package com.allinweb.ch.facade.scanner.testrun;
 
+import com.allinweb.ch.facade.scanner.prelaunch.ScannerPreLaunchPreparation;
 import com.allinweb.ch.model.BotJobLoadDTO;
 import com.allinweb.ch.model.HomeBankingLoadDTO;
 import com.allinweb.ch.model.HomeUrlDTO;
 import com.google.common.base.Strings;
 
-final class ScannerTestRunBotJobPreparation {
+public final class ScannerTestRunBotJobPreparation {
     private final Operations operations;
 
-    ScannerTestRunBotJobPreparation(Operations operations) {
+    public ScannerTestRunBotJobPreparation(Operations operations) {
         this.operations = operations;
     }
 
-    Result prepare(BotJobLoadDTO currentBotJob, String excelBasePath, String endpointUrl) {
+    public Result prepare(BotJobLoadDTO currentBotJob, String excelBasePath, String endpointUrl) {
         ScannerPreLaunchPreparation.BotJobSelection selection =
                 operations.loadCurrentBotJob(currentBotJob, excelBasePath);
         if (selection.botJobMissing()) {
@@ -38,7 +39,7 @@ final class ScannerTestRunBotJobPreparation {
         return Result.ready(endpointApplied);
     }
 
-    record Result(Status status, boolean endpointApplied) {
+    public record Result(Status status, boolean endpointApplied) {
         private static Result ready(boolean endpointApplied) {
             return new Result(Status.READY, endpointApplied);
         }
@@ -52,13 +53,13 @@ final class ScannerTestRunBotJobPreparation {
         }
     }
 
-    enum Status {
+    public enum Status {
         READY,
         MISSING_BOT_JOB,
         MISSING_HOME_BANKING
     }
 
-    interface Operations {
+    public interface Operations {
         ScannerPreLaunchPreparation.BotJobSelection loadCurrentBotJob(BotJobLoadDTO currentBotJob, String excelBasePath);
 
         void applySelection(ScannerPreLaunchPreparation.BotJobSelection selection);

@@ -1,4 +1,4 @@
-package com.allinweb.ch.component.pane;
+package com.allinweb.ch.facade.scanner.prelaunch;
 
 import com.allinweb.ch.facade.PerformDBEngine;
 import com.allinweb.ch.facade.PerformLists;
@@ -10,23 +10,23 @@ import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.util.ErrorMessage;
 import java.util.List;
 
-final class ScannerPreLaunchPreparation {
+public final class ScannerPreLaunchPreparation {
     private static final String INSTRUCTION_TABLE = "instruction";
     private static final String VARIABLE_TABLE = "variable";
 
     private final EnginePort engine;
     private final ListsPort lists;
 
-    ScannerPreLaunchPreparation(EnginePort engine, ListsPort lists) {
+    public ScannerPreLaunchPreparation(EnginePort engine, ListsPort lists) {
         this.engine = engine;
         this.lists = lists;
     }
 
-    static ScannerPreLaunchPreparation from(PerformDBEngine engine, PerformLists lists) {
+    public static ScannerPreLaunchPreparation from(PerformDBEngine engine, PerformLists lists) {
         return new ScannerPreLaunchPreparation(new PerformDBEnginePort(engine), new PerformListsPort(lists));
     }
 
-    Result loadDefinitions(BotJobLoadDTO currentBotJob) {
+    public Result loadDefinitions(BotJobLoadDTO currentBotJob) {
         ErrorMessage errorMessage = engine.loadHomeBanking(null);
         if (errorMessage == null) {
             errorMessage = engine.loadHomeUrls(currentBotJob.getHomeBankingId());
@@ -51,7 +51,7 @@ final class ScannerPreLaunchPreparation {
         return new Result(errorMessage, excelDataGoto, blocksLoaded, lists.botJobs().isEmpty());
     }
 
-    BotJobSelection loadCurrentBotJob(BotJobLoadDTO currentBotJob, String excelBasePath) {
+    public BotJobSelection loadCurrentBotJob(BotJobLoadDTO currentBotJob, String excelBasePath) {
         if (lists.botJobs().isEmpty()) {
             return BotJobSelection.missingBotJob();
         }
@@ -72,7 +72,7 @@ final class ScannerPreLaunchPreparation {
                 loadedBotJob, loadedBotJob.getName(), excelBasePath + "\\" + loadedBotJob.getName() + ".xlsx");
     }
 
-    boolean resetInstructionExecutionFlags() {
+    public boolean resetInstructionExecutionFlags() {
         if (lists.botJobs().isEmpty()) {
             return false;
         }
@@ -106,33 +106,33 @@ final class ScannerPreLaunchPreparation {
                         || excelDataGoto.get(0).getParentBlockId() <= 0);
     }
 
-    record Result(
+    public record Result(
             ErrorMessage errorMessage,
             List<InstructionLoad> excelDataGoto,
             List<BlockLoadDTO> blocksLoaded,
             boolean botJobMissing) {}
 
-    record BotJobSelection(
+    public record BotJobSelection(
             boolean loaded,
             boolean botJobMissing,
             boolean homeBankingMissing,
             BotJobLoadDTO botJob,
             String botJobName,
             String excelPath) {
-        static BotJobSelection loaded(BotJobLoadDTO botJob, String botJobName, String excelPath) {
+        public static BotJobSelection loaded(BotJobLoadDTO botJob, String botJobName, String excelPath) {
             return new BotJobSelection(true, false, false, botJob, botJobName, excelPath);
         }
 
-        static BotJobSelection missingBotJob() {
+        public static BotJobSelection missingBotJob() {
             return new BotJobSelection(false, true, false, null, null, null);
         }
 
-        static BotJobSelection missingHomeBanking() {
+        public static BotJobSelection missingHomeBanking() {
             return new BotJobSelection(false, false, true, null, null, null);
         }
     }
 
-    interface EnginePort {
+    public interface EnginePort {
         ErrorMessage loadHomeBanking(Integer homeBankingId);
 
         ErrorMessage loadHomeUrls(Integer homeBankingId);
@@ -148,7 +148,7 @@ final class ScannerPreLaunchPreparation {
         ErrorMessage loadAllActionsPerBlock(List<BlockLoadDTO> blockLoadDTOList);
     }
 
-    interface ListsPort {
+    public interface ListsPort {
         List<BotJobLoadDTO> botJobs();
 
         HomeBankingLoadDTO homeBankingById(int homeBankingId);
