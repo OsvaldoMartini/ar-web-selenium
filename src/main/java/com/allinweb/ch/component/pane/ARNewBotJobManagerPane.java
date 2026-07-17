@@ -5,7 +5,6 @@ import com.allinweb.ch.facade.MainDashboardPresentationRegistry;
 import com.allinweb.ch.facade.NewBotJobPresentation;
 import com.allinweb.ch.facade.NewBotJobPresentationRegistry;
 import com.allinweb.ch.driver.ARWebDriver;
-import com.allinweb.ch.facade.OrganizationManagerLifecycle;
 import com.allinweb.ch.facade.PerformDBEngine;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
@@ -103,7 +102,7 @@ public class ARNewBotJobManagerPane extends ARPane implements NewBotJobPresentat
                 performMessage.errorMessageOperationFailed(errorMessage);
                 return;
             }
-            OrganizationManagerLifecycle.getInstance().openOrganizations();
+            log.info("Organization manager request ignored from new-bot-job shell; use the React dashboard container");
         });
     }
 

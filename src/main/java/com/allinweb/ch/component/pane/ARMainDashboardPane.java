@@ -7,7 +7,6 @@ import com.allinweb.ch.facade.MainDashboardService;
 import com.allinweb.ch.facade.MainDashboardPresentation;
 import com.allinweb.ch.facade.MainDashboardPresentationRegistry;
 import com.allinweb.ch.facade.NewBotJobManagerLifecycle;
-import com.allinweb.ch.facade.OrganizationManagerLifecycle;
 import com.allinweb.ch.facade.PerformDBEngine;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformLists;
@@ -132,7 +131,7 @@ public class ARMainDashboardPane extends ARPane implements BotJobDetailsPresenta
                 performMessage.errorMessageOperationFailed(errorMessage);
                 return;
             }
-            OrganizationManagerLifecycle.getInstance().openOrganizations();
+            dispatchReactSession("organizationManager");
         });
     }
 
@@ -218,7 +217,7 @@ public class ARMainDashboardPane extends ARPane implements BotJobDetailsPresenta
 
     @Override
     public void openCloneOrganizations() {
-        Platform.runLater(() -> OrganizationManagerLifecycle.getInstance().openOrganizations());
+        Platform.runLater(() -> dispatchReactSession("organizationManager"));
     }
 
     public void openBotJob(BotJobLoadDTO botJob) {

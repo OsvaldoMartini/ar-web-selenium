@@ -12,7 +12,6 @@ public final class JavaFxShellBootstrap {
         ARConfigManagerScene.getInstance();
         ARMainScene.getInstance();
         ARNewBotJobManagerScene.getInstance();
-        AROrganizationManagerScene.getInstance();
         ARScannedElementScene.getInstance();
     }
 }

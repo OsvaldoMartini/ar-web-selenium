@@ -3,7 +3,6 @@ package com.allinweb.ch.component.pane;
 import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.facade.ConfigPresentation;
 import com.allinweb.ch.facade.ConfigPresentationRegistry;
-import com.allinweb.ch.facade.OrganizationManagerLifecycle;
 import com.allinweb.ch.facade.PerformDBEngine;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformMessage;
@@ -104,7 +103,7 @@ public class ARConfigManagerPane extends ARPane implements ConfigPresentation {
                 performMessage.errorMessageOperationFailed(errorMessage);
                 return;
             }
-            OrganizationManagerLifecycle.getInstance().openOrganizations();
+            log.info("Organization manager request ignored from config shell; use the React dashboard container");
         });
     }
 
