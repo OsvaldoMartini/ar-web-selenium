@@ -27,14 +27,10 @@ class BotJobNativeOperationServiceTest {
         Files.createFile(excel);
         Path report = temporary.resolve("report.xlsx");
         Files.createFile(report);
-        AtomicReference<File> opened = new AtomicReference<>();
-        BotJobNativeOperationService service = new BotJobNativeOperationService(
-                properties, opened::set, specification -> {});
+        BotJobNativeOperationService service = new BotJobNativeOperationService(properties, specification -> {});
 
-        service.openExcel(context("Web App"));
-        assertEquals(excel.toFile(), opened.get());
-        service.openFile(report.toFile());
-        assertEquals(report.toFile(), opened.get());
+        assertEquals(excel.toFile(), service.openExcel(context("Web App")));
+        assertEquals(report.toFile(), service.openFile(report.toFile()));
         assertEquals(temporary.toFile(), service.reportDirectory());
         assertThrows(IllegalArgumentException.class, () -> service.openFile(temporary.resolve("missing").toFile()));
     }
@@ -47,8 +43,7 @@ class BotJobNativeOperationServiceTest {
         properties.values.put(ARPropertyEnum.PATH_ENGINE, engine.toString());
         String previous = System.clearProperty("ARWebConfig");
         try {
-            BotJobNativeOperationService service = new BotJobNativeOperationService(
-                    properties, file -> {}, specification -> {});
+            BotJobNativeOperationService service = new BotJobNativeOperationService(properties, specification -> {});
             File bat = service.createBat(context("Web App"));
             String command = Files.readString(bat.toPath());
 
@@ -72,8 +67,7 @@ class BotJobNativeOperationServiceTest {
         properties.values.put(ARPropertyEnum.PATH_WEBDRIVER, driver.toString());
         properties.values.put(ARPropertyEnum.PATH_LOG, logs.toString());
         AtomicReference<BotJobNativeOperationService.LaunchSpecification> launched = new AtomicReference<>();
-        BotJobNativeOperationService service = new BotJobNativeOperationService(
-                properties, file -> {}, launched::set);
+        BotJobNativeOperationService service = new BotJobNativeOperationService(properties, launched::set);
 
         service.launchExternalEngine(context("Rest Api"));
 
@@ -92,8 +86,7 @@ class BotJobNativeOperationServiceTest {
         FakeProperties properties = properties();
         Files.createFile(temporary.resolve("Payments.xlsx"));
         AtomicReference<BotJobNativeOperationService.LaunchSpecification> launched = new AtomicReference<>();
-        BotJobNativeOperationService service = new BotJobNativeOperationService(
-                properties, file -> {}, launched::set);
+        BotJobNativeOperationService service = new BotJobNativeOperationService(properties, launched::set);
 
         assertThrows(IllegalStateException.class, () -> service.launchExternalEngine(context("Android")));
         assertThrows(IllegalStateException.class, () -> service.launchExternalEngine(context("Web App")));

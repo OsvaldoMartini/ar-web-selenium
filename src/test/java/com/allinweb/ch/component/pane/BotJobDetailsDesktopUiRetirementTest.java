@@ -304,6 +304,19 @@ class BotJobDetailsDesktopUiRetirementTest {
     }
 
     @Test
+    void toolbarFileActionsDoNotUseDesktopAwtOpeners() throws IOException {
+        String nativeOperations = Files.readString(SOURCE_ROOT.resolve("facade/BotJobNativeOperationService.java"));
+        String excelUtils = Files.readString(SOURCE_ROOT.resolve("util/ExcelUtils.java"));
+        String compiledNativeOperations = nativeOperations.replaceAll("(?s)/\\*.*?\\*/", "");
+        String compiledExcelUtils = excelUtils.replaceAll("(?s)/\\*.*?\\*/", "");
+
+        assertFalse(compiledNativeOperations.contains("java.awt.Desktop"));
+        assertFalse(compiledNativeOperations.contains("Desktop.getDesktop"));
+        assertFalse(compiledExcelUtils.contains("import java.awt.*"));
+        assertFalse(compiledExcelUtils.contains("Desktop.getDesktop"));
+    }
+
+    @Test
     void mavenBuildDoesNotDeclareRetiredUiDependenciesOrPlugin() throws IOException {
         String pom = Files.readString(Path.of("pom.xml"));
 

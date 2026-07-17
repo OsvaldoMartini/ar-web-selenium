@@ -9,7 +9,6 @@ import com.allinweb.ch.model.BotJobLoadDTO;
 import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.readersAndWriters.ExcelReader;
 import com.google.common.base.Strings;
-import java.awt.*;
 import java.io.*;
 import java.util.*;
 import java.util.List;
@@ -191,20 +190,7 @@ public class ExcelUtils {
         File file = generateUnfilteredExcelFile(extractedData, newFileName, nameToDuplicate);
 
         if (openExcel) {
-            try {
-                Desktop.getDesktop().open(file);
-            } catch (IOException error) {
-                log.error("Error: Excel File: {} - {}", file.getAbsolutePath(), error.getMessage());
-
-                performMessage.errorMessage(
-                        "Excel File Error",
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Couldn't open the file!</span>",
-                        "<span style='color: #E65100; font-weight: bold;'>File:</span> <span style='font-weight: bold;'>"
-                                + file.getAbsolutePath() + "</span>",
-                        "<span style='font-style: italic;'>The application was unable to access or read the file. It might be in use or you lack permissions.</span>",
-                        "<span style='font-style: italic;'>Details: " + error.getMessage() + "</span>",
-                        0);
-            }
+            log.info("Excel file ready: {}", file.getAbsolutePath());
         }
     }
 
@@ -279,17 +265,7 @@ public class ExcelUtils {
             }
         }
 
-        try {
-            Desktop.getDesktop().open(file);
-        } catch (IOException e) {
-            performMessage.errorMessage(
-                    "Couldn't open the file",
-                    "The file could not be opened. Reason: " + e,
-                    null,
-                    null,
-                    null,
-                    0);
-        }
+        log.info("CSV file ready: {}", file.getAbsolutePath());
     }
 
     private File generateUnfilteredExcelFile(ExtractedData extractedData, String newFileName, String nameToDuplicate) {

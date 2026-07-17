@@ -993,9 +993,10 @@ public class BotJobDetailsWorkspaceHost {
                     botJobToolbarExecutor.execute(() -> {
                         try (lease) {
                             requireNonStopActionAllowed(context);
-                            botJobNativeOperations.openFile(selected);
+                            File report = botJobNativeOperations.openFile(selected);
+                            log.info("Report file ready: {}", report.getAbsolutePath());
                             completion.complete(BotJobToolbarActionResult.success(
-                                    BotJobToolbarAction.OPEN_REPORT, "Report opened"));
+                                    BotJobToolbarAction.OPEN_REPORT, "Report file ready"));
                         } catch (Exception error) {
                             completeToolbarFailure(BotJobToolbarAction.OPEN_REPORT, completion, error);
                         }
@@ -1116,8 +1117,9 @@ public class BotJobDetailsWorkspaceHost {
                 : BotJobToolbarActionResult.failure(action, result.message()));
     }
 
-    private void openExcelFromReact(BotJobToolbarContext context) throws IOException {
-        botJobNativeOperations.openExcel(context);
+    private void openExcelFromReact(BotJobToolbarContext context) {
+        File excel = botJobNativeOperations.openExcel(context);
+        log.info("Excel file ready: {}", excel.getAbsolutePath());
     }
 
     private void generateExcelFromReact(BotJobToolbarContext context, JsonObject body) throws Exception {
@@ -1236,7 +1238,7 @@ public class BotJobDetailsWorkspaceHost {
 
     private static String toolbarActionMessage(BotJobToolbarAction action) {
         return switch (action) {
-            case OPEN_EXCEL -> "Excel file opened";
+            case OPEN_EXCEL -> "Excel file ready";
             case GENERATE_EXCEL -> "Excel generation started";
             case OPEN_REPORT -> "Report action completed";
             case SET_NAVIGATION_TIME -> "Navigation time updated";

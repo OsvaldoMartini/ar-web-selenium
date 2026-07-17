@@ -5,23 +5,20 @@ import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.google.common.base.Strings;
-import java.awt.Desktop;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.List;
 import java.util.Locale;
 
-/** Presentation-neutral native desktop and external Engine operations for Bot Job Details. */
+/** Presentation-neutral file validation and external Engine operations for Bot Job Details. */
 public final class BotJobNativeOperationService {
 
     private final PropertyPort properties;
-    private final DesktopPort desktop;
     private final EnginePort engine;
 
-    BotJobNativeOperationService(PropertyPort properties, DesktopPort desktop, EnginePort engine) {
+    BotJobNativeOperationService(PropertyPort properties, EnginePort engine) {
         this.properties = properties;
-        this.desktop = desktop;
         this.engine = engine;
     }
 
@@ -32,24 +29,18 @@ public final class BotJobNativeOperationService {
                     public String get(ARPropertyEnum key) { return properties.getProperty(key); }
                     public String configurationFileName() { return properties.getConfigurationFileName(); }
                 },
-                file -> {
-                    if (!Desktop.isDesktopSupported()) {
-                        throw new IllegalStateException("Desktop file opening is unavailable");
-                    }
-                    Desktop.getDesktop().open(file);
-                },
                 specification -> launchProcess(specification, guard));
     }
 
-    public void openExcel(BotJobToolbarContext context) throws IOException {
+    public File openExcel(BotJobToolbarContext context) {
         File file = new File(requiredPath(ARPropertyEnum.PATH_EXCEL, "Excel folder"),
                 context.name() + ARConstants.FILE_FORMAT_EXCEL);
-        openFile(file);
+        return openFile(file);
     }
 
-    public void openFile(File file) throws IOException {
+    public File openFile(File file) {
         if (file == null || !file.isFile()) throw new IllegalArgumentException("File does not exist");
-        desktop.open(file);
+        return file;
     }
 
     public File reportDirectory() {
@@ -148,11 +139,6 @@ public final class BotJobNativeOperationService {
     interface PropertyPort {
         String get(ARPropertyEnum key);
         String configurationFileName();
-    }
-
-    @FunctionalInterface
-    interface DesktopPort {
-        void open(File file) throws IOException;
     }
 
     @FunctionalInterface
