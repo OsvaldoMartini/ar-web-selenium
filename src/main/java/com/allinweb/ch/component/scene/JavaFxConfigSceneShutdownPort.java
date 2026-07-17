@@ -6,7 +6,7 @@ import com.allinweb.ch.facade.ConfigManagerLifecycle;
 import com.allinweb.ch.facade.ConfigSceneShutdownPort;
 import com.allinweb.ch.facade.ConfigSceneShutdownRegistry;
 import com.allinweb.ch.facade.MainDashboardPresentationRegistry;
-import com.allinweb.ch.facade.NewBotJobManagerLifecycle;
+import com.allinweb.ch.facade.NewBotJobPresentationRegistry;
 import com.allinweb.ch.facade.OrganizationManagerLifecycle;
 
 public final class JavaFxConfigSceneShutdownPort implements ConfigSceneShutdownPort {
@@ -20,7 +20,7 @@ public final class JavaFxConfigSceneShutdownPort implements ConfigSceneShutdownP
 
     @Override
     public void closeNewBotJob() {
-        NewBotJobManagerLifecycle.getInstance().closeModal();
+        NewBotJobPresentationRegistry.getInstance().current().closeModal();
     }
 
     @Override

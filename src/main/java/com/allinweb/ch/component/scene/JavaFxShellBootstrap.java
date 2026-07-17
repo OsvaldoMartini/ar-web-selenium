@@ -11,7 +11,6 @@ public final class JavaFxShellBootstrap {
         UiThreadDispatcher.getInstance().install(Platform::runLater);
         ARConfigManagerScene.getInstance();
         ARMainScene.getInstance();
-        ARNewBotJobManagerScene.getInstance();
         ARScannedElementScene.getInstance();
     }
 }

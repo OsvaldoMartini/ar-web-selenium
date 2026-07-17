@@ -6,7 +6,8 @@ import com.allinweb.ch.facade.ConfigManagerLifecycle;
 import com.allinweb.ch.facade.MainDashboardService;
 import com.allinweb.ch.facade.MainDashboardPresentation;
 import com.allinweb.ch.facade.MainDashboardPresentationRegistry;
-import com.allinweb.ch.facade.NewBotJobManagerLifecycle;
+import com.allinweb.ch.facade.NewBotJobPresentation;
+import com.allinweb.ch.facade.NewBotJobPresentationRegistry;
 import com.allinweb.ch.facade.PerformDBEngine;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformLists;
@@ -38,7 +39,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.WebDriver;
 
 @Slf4j
-public class ARMainDashboardPane extends ARPane implements BotJobDetailsPresentationPort, MainDashboardPresentation {
+public class ARMainDashboardPane extends ARPane
+        implements BotJobDetailsPresentationPort, MainDashboardPresentation, NewBotJobPresentation {
 
     private static final String SESSION_ID = "mainDashboard";
     private static final int DEFAULT_PORT = 54525;
@@ -65,6 +67,7 @@ public class ARMainDashboardPane extends ARPane implements BotJobDetailsPresenta
         super();
         botJobDetailsHost.setPresentationPort(this);
         MainDashboardPresentationRegistry.getInstance().install(this);
+        NewBotJobPresentationRegistry.getInstance().install(this);
     }
 
     public static ARMainDashboardPane getInstance() {
@@ -150,7 +153,7 @@ public class ARMainDashboardPane extends ARPane implements BotJobDetailsPresenta
                         0);
                 return;
             }
-            NewBotJobManagerLifecycle.getInstance().openNewBotJob(isEnabledLicence);
+            dispatchReactSession("newBotJobManager");
             performDataBase.loadQuickBotJobs();
             pushReactDashboardList();
         });
@@ -212,6 +215,16 @@ public class ARMainDashboardPane extends ARPane implements BotJobDetailsPresenta
     }
 
     public void closeCloneJob() {
+        Platform.runLater(() -> dispatchReactSession(SESSION_ID));
+    }
+
+    @Override
+    public void openBotJobAndClose(BotJobLoadDTO botJob) {
+        openBotJob(botJob);
+    }
+
+    @Override
+    public void closeModal() {
         Platform.runLater(() -> dispatchReactSession(SESSION_ID));
     }
 
