@@ -326,6 +326,7 @@ class BotJobDetailsDesktopUiRetirementTest {
         String ocrWord = Files.readString(SOURCE_ROOT.resolve("ocr/bridge/OcrWord.java"));
         String visionElement = Files.readString(SOURCE_ROOT.resolve("vision/VisionElement.java"));
         String ocrBox = Files.readString(SOURCE_ROOT.resolve("ocr/bridge/OcrBox.java"));
+        String openCvUtils = Files.readString(SOURCE_ROOT.resolve("vision/ocr/OcrOpenCvUtils.java"));
         String webPageOcrService = Files.readString(SOURCE_ROOT.resolve("vision/WebPageOcrService.java"));
         String buttonDetectionService = Files.readString(SOURCE_ROOT.resolve("vision/ButtonDetectionService.java"));
         String tess4jAdapter = Files.readString(SOURCE_ROOT.resolve("vision/Tess4jOcrBoxAdapter.java"));
@@ -337,6 +338,7 @@ class BotJobDetailsDesktopUiRetirementTest {
         assertFalse(buttonDetectionService.contains("java.awt.Rectangle"));
         assertFalse(tess4jAdapter.contains("java.awt.Rectangle"));
         assertFalse(tess4jAdapter.contains("import java.awt"));
+        assertFalse(openCvUtils.contains("DataBufferByte"));
         assertTrue(ocrWord.contains("OcrBox"));
         assertTrue(visionElement.contains("OcrBox"));
     }

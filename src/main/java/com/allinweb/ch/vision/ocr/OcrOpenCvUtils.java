@@ -1,31 +1,53 @@
 package com.allinweb.ch.vision.ocr;
 
 import java.awt.image.BufferedImage;
-import java.awt.image.DataBufferByte;
 import org.opencv.core.*;
 
 public class OcrOpenCvUtils {
 
     public static Mat bufferedImageToMat(BufferedImage bi) {
-        if (bi.getType() != BufferedImage.TYPE_3BYTE_BGR) {
-            BufferedImage converted = new BufferedImage(bi.getWidth(), bi.getHeight(), BufferedImage.TYPE_3BYTE_BGR);
-            converted.getGraphics().drawImage(bi, 0, 0, null);
-            bi = converted;
+        int width = bi.getWidth();
+        int height = bi.getHeight();
+        byte[] data = new byte[width * height * 3];
+        int offset = 0;
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                int rgb = bi.getRGB(x, y);
+                data[offset++] = (byte) (rgb & 0xff);
+                data[offset++] = (byte) ((rgb >> 8) & 0xff);
+                data[offset++] = (byte) ((rgb >> 16) & 0xff);
+            }
         }
 
-        Mat mat = new Mat(bi.getHeight(), bi.getWidth(), CvType.CV_8UC3);
-        byte[] data = ((DataBufferByte) bi.getRaster().getDataBuffer()).getData();
+        Mat mat = new Mat(height, width, CvType.CV_8UC3);
         mat.put(0, 0, data);
         return mat;
     }
 
     public static BufferedImage matToBufferedImage(Mat matrix) {
-        int type = BufferedImage.TYPE_BYTE_GRAY;
-        if (matrix.channels() > 1) {
-            type = BufferedImage.TYPE_3BYTE_BGR;
+        int channels = matrix.channels();
+        int width = matrix.width();
+        int height = matrix.height();
+        byte[] data = new byte[width * height * channels];
+        matrix.get(0, 0, data);
+
+        BufferedImage img = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+        int offset = 0;
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                int rgb;
+                if (channels > 1) {
+                    int blue = data[offset++] & 0xff;
+                    int green = data[offset++] & 0xff;
+                    int red = data[offset++] & 0xff;
+                    rgb = (red << 16) | (green << 8) | blue;
+                } else {
+                    int gray = data[offset++] & 0xff;
+                    rgb = (gray << 16) | (gray << 8) | gray;
+                }
+                img.setRGB(x, y, rgb);
+            }
         }
-        BufferedImage img = new BufferedImage(matrix.width(), matrix.height(), type);
-        matrix.get(0, 0, ((DataBufferByte) img.getRaster().getDataBuffer()).getData());
         return img;
     }
 }
