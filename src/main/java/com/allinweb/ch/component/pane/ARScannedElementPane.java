@@ -2954,17 +2954,6 @@ public class ARScannedElementPane
                 instruction == null ? null : instruction.getName(), action, success, urlBefore, urlAfter);
     }
 
-    //    private void sendScreenshotToListener() {
-    //        if (screenShotListener == null) {
-    //            return;
-    //        }
-    //        BufferedImage screenshot = takeScreenshotFast();
-    //        if (screenshot == null) {
-    //            return;
-    //        }
-    //
-    //    }
-
     private void startScreenshotLoop() {
         scannerScreenshotLoop.start();
     }

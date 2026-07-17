@@ -64,7 +64,7 @@ public final class OcrConfigMeta {
         // engine
         d.put(
                 "engine.languages",
-                "Tess4J language codes joined with '+'. Example: eng+ita+fra+deu. Only codes with traineddata bundled in resources are honoured.");
+                "Native OCR language codes joined with '+'. Example: eng+ita+fra+deu. The native OCR engine decides which installed languages are available.");
         d.put(
                 "engine.psm_mode",
                 "Tesseract Page Segmentation Mode. 3=AUTO, 4=single column, 6=single uniform block, 11=sparse text, 12=sparse text with OSD. Try 11/12 when AUTO misses scattered labels.");

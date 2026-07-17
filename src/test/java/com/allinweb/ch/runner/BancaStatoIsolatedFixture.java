@@ -51,8 +51,7 @@ final class BancaStatoIsolatedFixture implements AutoCloseable {
             ARPropertyEnum.NAVIGATION_TIME.getValue(),
             ARPropertyEnum.WEBDRIVER_PAGE_UPDATE_TIMEOUT_SEC.getValue(),
             ARPropertyEnum.WEBDRIVER_INTERACTION_TIMEOUT_SEC.getValue(),
-            ARPropertyEnum.INSTRUCTION_STOP_SECONDS.getValue(),
-            ARPropertyEnum.OCR_ENGINE.getValue());
+            ARPropertyEnum.INSTRUCTION_STOP_SECONDS.getValue());
 
     private final Path sourceConfig;
     private final Path sourceDatabase;

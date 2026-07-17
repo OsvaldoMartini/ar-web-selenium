@@ -38,6 +38,9 @@ class BotJobDetailsDesktopUiRetirementTest {
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/base/IARPane.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("facade/ScannerModalStageService.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("vision/OcrTestResultRow.java")));
+        assertFalse(Files.exists(SOURCE_ROOT.resolve("vision/Tess4jRasterOcrAdapter.java")));
+        assertFalse(Files.exists(SOURCE_ROOT.resolve("vision/Tess4jOcrBoxAdapter.java")));
+        assertFalse(Files.exists(SOURCE_ROOT.resolve("ocr/bridge/OcrEngine.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerStageAdapter.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerCurrentUrlTextAdapter.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerIframeIndicatorAdapter.java")));
@@ -337,7 +340,6 @@ class BotJobDetailsDesktopUiRetirementTest {
         String openCvUtils = Files.readString(SOURCE_ROOT.resolve("vision/ocr/OcrOpenCvUtils.java"));
         String webPageOcrService = Files.readString(SOURCE_ROOT.resolve("vision/WebPageOcrService.java"));
         String buttonDetectionService = Files.readString(SOURCE_ROOT.resolve("vision/ButtonDetectionService.java"));
-        String tess4jAdapter = Files.readString(SOURCE_ROOT.resolve("vision/Tess4jOcrBoxAdapter.java"));
         String annotatedRenderer = Files.readString(SOURCE_ROOT.resolve("vision/AnnotatedImageRenderer.java"));
         String webScreenshotCapture = Files.readString(SOURCE_ROOT.resolve("util/WebScreenshotCapture.java"));
         String rasterImageIo = Files.readString(SOURCE_ROOT.resolve("vision/RasterImageIO.java"));
@@ -349,8 +351,6 @@ class BotJobDetailsDesktopUiRetirementTest {
         assertFalse(ocrBox.contains("java.awt.Rectangle"));
         assertFalse(webPageOcrService.contains("java.awt.Rectangle"));
         assertFalse(buttonDetectionService.contains("java.awt.Rectangle"));
-        assertFalse(tess4jAdapter.contains("java.awt.Rectangle"));
-        assertFalse(tess4jAdapter.contains("import java.awt"));
         assertFalse(openCvUtils.contains("DataBufferByte"));
         assertFalse(openCvUtils.contains("BufferedImage"));
         assertFalse(openCvUtils.contains("bufferedImageToMat"));
@@ -396,5 +396,7 @@ class BotJobDetailsDesktopUiRetirementTest {
         assertFalse(pom.contains(RETIRED_UI_PACKAGE + "-maven-plugin"));
         assertFalse(pom.contains("jcefmaven"));
         assertFalse(pom.contains("org.cef"));
+        assertFalse(pom.contains("net.sourceforge.tess4j"));
+        assertFalse(pom.contains("tess4j"));
     }
 }

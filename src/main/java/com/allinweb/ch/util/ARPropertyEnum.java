@@ -23,7 +23,6 @@ public enum ARPropertyEnum {
     USE_PLAYWRIGHT("use_playwright"),
     PLAYWRIGHT_SELENIUM_FALLBACK("playwright_selenium_fallback"),
     PATH_OCR("path_ocr"),
-    OCR_ENGINE("ocr_engine"),
     AI_ENDPOINT("ai_endpoint"),
     AI_API_KEY("ai_api_key"),
     AI_MODEL("ai_model"),
