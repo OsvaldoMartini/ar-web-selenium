@@ -54,6 +54,7 @@ class BotJobDetailsJavaFxRetirementTest {
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerPluginManifestResultAdapter.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerPluginManifestFetchTaskAdapter.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerPluginManifestClient.java")));
+        assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerPluginHintAdapter.java")));
     }
 
     @Test
@@ -208,5 +209,7 @@ class BotJobDetailsJavaFxRetirementTest {
         assertFalse(compiledSource.contains("buildPluginUpdateButton"));
         assertFalse(compiledSource.contains("buildUpdatePluginsButton"));
         assertFalse(compiledSource.contains("refreshPluginUpdateButton"));
+        assertFalse(compiledSource.contains("ScannerPluginHintAdapter"));
+        assertFalse(compiledSource.contains("lblPluginHint"));
     }
 }

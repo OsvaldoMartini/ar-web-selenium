@@ -148,7 +148,6 @@ public class ARScannedElementPane
             new ScannerSupportCaptureSendService();
     private final ScannerSupportResponseActionService scannerSupportResponseActionService =
             new ScannerSupportResponseActionService();
-    private final ScannerPluginHintAdapter scannerPluginHintAdapter = new ScannerPluginHintAdapter();
     private final ScannerLocalPluginInventory scannerLocalPluginInventory = new ScannerLocalPluginInventory();
     private final ScannerLayoutNodeAdapter scannerLayoutNodeAdapter = new ScannerLayoutNodeAdapter();
     private final ScannerBrowserNotAttachedMessageService scannerBrowserNotAttachedMessageService =
@@ -287,7 +286,6 @@ public class ARScannedElementPane
     private Button stopBotJobButton;
     private Button pageScannerButton;
     private Button ocrConfigButton;
-    private Label lblPluginHint;
     private Button refreshWebPageButton;
     private Button leftButton;
     private Button rightButton;
@@ -1542,8 +1540,6 @@ public class ARScannedElementPane
                 "", ARConstants.SPACE_ZERO, ARConstants.ICON_CONFIG, ARConstants.SPACE_M, new Insets(5.0D));
         ocrConfigButton.setTooltip(new Tooltip("OCR Configuration"));
 
-        lblPluginHint = scannerPluginHintAdapter.createLabel();
-
         refreshWebPageButton = builder.buildButton(
                 "Refresh Web Page", ARConstants.SPACE_ZERO, "/refresh.png", ARConstants.SPACE_M, new Insets(5.0D));
 
@@ -1697,7 +1693,7 @@ public class ARScannedElementPane
             gridPaneTop.add(leftButton, 7, 0);
             gridPaneTop.add(rightButton, 8, 0);
 
-            topPane.getChildren().addAll(gridPaneTop, lblPluginHint); // Add gridPaneTop + hint to topPane
+            topPane.getChildren().add(gridPaneTop);
 
             verticalBox = scannerLayoutNodeAdapter.scannerContentColumn();
 
@@ -2706,8 +2702,10 @@ public class ARScannedElementPane
                     scan.error.getErrorTitle(),
                     scan.error.getErrorHeader(),
                     scan.error.getErrorMessage());
-            scannerPluginHintAdapter.show(
-                    lblPluginHint, scan.error.getErrorTitle() + " - " + scan.error.getErrorHeader(), "#f44336", 6);
+            scannerDialogPublisher.toast(
+                    ScannerDialogPublisher.Severity.ERROR,
+                    scan.error.getErrorTitle() + " - " + scan.error.getErrorHeader(),
+                    6);
             return;
         }
 
@@ -7980,10 +7978,9 @@ public class ARScannedElementPane
                     errorMessage.getErrorTitle(),
                     errorMessage.getErrorHeader(),
                     errorMessage.getErrorMessage());
-            scannerPluginHintAdapter.show(
-                    lblPluginHint,
+            scannerDialogPublisher.toast(
+                    ScannerDialogPublisher.Severity.ERROR,
                     errorMessage.getErrorTitle() + " - " + errorMessage.getErrorHeader(),
-                    "#f44336",
                     6);
         }
     }
