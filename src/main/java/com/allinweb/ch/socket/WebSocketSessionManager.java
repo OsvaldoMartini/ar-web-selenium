@@ -96,7 +96,7 @@ public class WebSocketSessionManager {
     /**
      * Retires the exact transport that currently owns a logical session ID.
      *
-     * <p>The registry entry is removed before closing the socket so a replacement WebView can
+     * <p>The registry entry is removed before closing the socket so a replacement React transport can
      * connect immediately. A delayed {@code onClose} callback from this transport remains harmless
      * because {@link #removeSession(String, Session)} only removes an exact registered pair.
      */

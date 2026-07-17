@@ -23,18 +23,16 @@ import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.allinweb.ch.util.ErrorMessage;
-import com.allinweb.ch.util.WebBuildExtractor;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import java.io.File;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.function.BooleanSupplier;
 import javafx.application.Platform;
 import javafx.collections.ObservableList;
-import javafx.concurrent.Worker;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Pane;
-import javafx.scene.web.WebEngine;
-import javafx.scene.web.WebView;
 import javafx.stage.Stage;
 import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.WebDriver;
@@ -58,7 +56,6 @@ public class ARMainDashboardPane extends ARPane
 
     protected static volatile ARMainDashboardPane instance;
 
-    private final WebView webView = new WebView();
     private AnchorPane mainPane;
     private ObservableList<WebDriver> webDriverList;
     private boolean isEnabledLicence;
@@ -102,21 +99,8 @@ public class ARMainDashboardPane extends ARPane
 
     @Override
     public void initUIComponents() {
-        mainPane = new AnchorPane(webView);
-        AnchorPane.setTopAnchor(webView, 0D);
-        AnchorPane.setRightAnchor(webView, 0D);
-        AnchorPane.setBottomAnchor(webView, 0D);
-        AnchorPane.setLeftAnchor(webView, 0D);
-
-        webView.setContextMenuEnabled(false);
-        WebEngine webEngine = webView.getEngine();
-        webEngine.javaScriptEnabledProperty().set(true);
-        webEngine.load(WebBuildExtractor.getIndexUrl());
-        webEngine.getLoadWorker().stateProperty().addListener((obs, oldState, newState) -> {
-            if (newState == Worker.State.SUCCEEDED) {
-                dispatchReactBootstrap(webEngine);
-            }
-        });
+        mainPane = new AnchorPane();
+        dispatchReactSession(initialSessionId);
     }
 
     @Override
@@ -246,12 +230,18 @@ public class ARMainDashboardPane extends ARPane
     }
 
     public void showSurface(String targetSession, BotJobDetailsReactSessionContext.Context context) {
-        int port = resolveSocketPort();
-        try {
-            webView.getEngine().executeScript(botJobDetailsInitializationScript(context, port));
-        } catch (RuntimeException error) {
-            log.error("Bot Job React session dispatch failed for {}: {}", targetSession, error.getMessage());
-            throw error;
+        if (context == null) {
+            throw new IllegalArgumentException("Bot Job React session context is required");
+        }
+        webSocketSessionManager.sendMessageJson(
+                context.homeBankingId(),
+                targetSession,
+                context.jsonData(),
+                "botJobDetails.bootstrapResponse");
+        if (!WebSocketSessionManager.isSessionOpen(targetSession)) {
+            log.info(
+                    "Bot Job React session {} is not connected; bootstrap will be requested by React when available",
+                    targetSession);
         }
     }
 
@@ -332,21 +322,19 @@ public class ARMainDashboardPane extends ARPane
         });
     }
 
-    private void dispatchReactBootstrap(WebEngine webEngine) {
-        dispatchReactSession(initialSessionId);
-    }
-
     private void dispatchReactSession(String targetSession) {
         dispatchReactSession(targetSession, -9999);
     }
 
     private void dispatchReactSession(String targetSession, int botJobId) {
-        int port = resolveSocketPort();
-        try {
-            webView.getEngine().executeScript("setTimeout(function() { window.receiveDataFromJava(JSON.stringify([]), "
-                    + port + ", '" + targetSession + "', -1, '', " + botJobId + ", '' ) }, 250)");
-        } catch (Exception e) {
-            log.error("React session dispatch failed for {}: {}", targetSession, e.getMessage());
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("targetSession", targetSession);
+        payload.put("port", resolveSocketPort());
+        payload.put("botJobId", botJobId);
+        payload.put("source", SESSION_ID);
+        webSocketSessionManager.sendMessageJson(-1, targetSession, gson.toJson(payload), "react.session.open");
+        if (!WebSocketSessionManager.isSessionOpen(targetSession)) {
+            log.info("React session {} is not connected; external React container should open or bootstrap it", targetSession);
         }
     }
 
@@ -363,19 +351,9 @@ public class ARMainDashboardPane extends ARPane
     }
 
     Stage ownerStage() {
-        return webView.getScene() != null && webView.getScene().getWindow() instanceof Stage
-                ? (Stage) webView.getScene().getWindow()
+        return mainPane != null && mainPane.getScene() != null && mainPane.getScene().getWindow() instanceof Stage
+                ? (Stage) mainPane.getScene().getWindow()
                 : null;
-    }
-
-    private String botJobDetailsInitializationScript(BotJobDetailsReactSessionContext.Context context, int port) {
-        if (context == null) {
-            throw new IllegalArgumentException("Bot Job React session context is required");
-        }
-        return "window.receiveDataFromJava(JSON.stringify(" + context.jsonData() + "), " + port + ", "
-                + gson.toJson(context.sessionId()) + ", " + context.homeBankingId() + ", "
-                + gson.toJson(context.organizationName()) + ", " + context.botJobId() + ", "
-                + gson.toJson(context.botJobName()) + ")";
     }
 
     private void pushReactDashboardList() {
