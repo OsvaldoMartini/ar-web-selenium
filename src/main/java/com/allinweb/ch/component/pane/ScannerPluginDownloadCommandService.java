@@ -1,5 +1,6 @@
 package com.allinweb.ch.component.pane;
 
+import com.allinweb.ch.facade.scanner.plugin.ScannerPluginAlertAdapter;
 import com.allinweb.ch.facade.ScannerDialogPublisher;
 import com.allinweb.ch.model.PluginDTO;
 import com.google.gson.Gson;

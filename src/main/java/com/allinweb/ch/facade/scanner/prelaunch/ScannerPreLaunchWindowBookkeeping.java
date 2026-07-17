@@ -1,13 +1,13 @@
-package com.allinweb.ch.component.pane;
+package com.allinweb.ch.facade.scanner.prelaunch;
 
-final class ScannerPreLaunchWindowBookkeeping {
+public final class ScannerPreLaunchWindowBookkeeping {
     private final Operations operations;
 
-    ScannerPreLaunchWindowBookkeeping(Operations operations) {
+    public ScannerPreLaunchWindowBookkeeping(Operations operations) {
         this.operations = operations;
     }
 
-    void refreshChangedWindows() {
+    public void refreshChangedWindows() {
         Integer currentWindowHandleCount = operations.currentWindowHandleCount();
         if (currentWindowHandleCount == null) {
             return;
@@ -18,7 +18,7 @@ final class ScannerPreLaunchWindowBookkeeping {
         }
     }
 
-    interface Operations {
+    public interface Operations {
         Integer currentWindowHandleCount();
 
         int knownWindowHandleCount();

@@ -1,9 +1,9 @@
-package com.allinweb.ch.component.pane;
+package com.allinweb.ch.facade.scanner.testrun;
 
 /** Immutable, browser-independent mapping from TEST RUN UI selection to executor arguments. */
-record TestRunExecutionSelection(int blockOrderNumber, boolean runSingleBlock) {
+public record TestRunExecutionSelection(int blockOrderNumber, boolean runSingleBlock) {
 
-    static TestRunExecutionSelection resolve(
+    public static TestRunExecutionSelection resolve(
             Integer selectedBlockOrder, boolean executeAllSelected, boolean oneModeSelected) {
         if (executeAllSelected) {
             if (oneModeSelected) {

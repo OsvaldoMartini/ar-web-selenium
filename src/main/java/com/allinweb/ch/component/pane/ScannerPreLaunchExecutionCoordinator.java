@@ -1,5 +1,6 @@
 package com.allinweb.ch.component.pane;
 
+import com.allinweb.ch.facade.scanner.prelaunch.ScannerPreLaunchWindowBookkeeping;
 import java.util.concurrent.ExecutorService;
 import java.util.function.LongPredicate;
 

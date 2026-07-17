@@ -15,6 +15,7 @@ import com.allinweb.ch.facade.scanner.browser.ScannerScreenshotLoop;
 import com.allinweb.ch.facade.scanner.prelaunch.ScannerPreLaunchControls;
 import com.allinweb.ch.facade.scanner.prelaunch.ScannerPreLaunchRecallAfterReset;
 import com.allinweb.ch.facade.scanner.prelaunch.ScannerPreLaunchStopper;
+import com.allinweb.ch.facade.scanner.prelaunch.ScannerPreLaunchWindowBookkeeping;
 import com.allinweb.ch.facade.scanner.prelaunch.ScannerPreLaunchWorkspaceOperations;
 import com.allinweb.ch.facade.scanner.ScannerRuntimePort;
 import com.allinweb.ch.facade.actions.InstructionGraph;
