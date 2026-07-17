@@ -1,17 +1,17 @@
-package com.allinweb.ch.component.pane;
+package com.allinweb.ch.facade.scanner.browser;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
-final class ScannerBrowserTabSelector {
+public final class ScannerBrowserTabSelector {
     private final Operations operations;
 
-    ScannerBrowserTabSelector(Operations operations) {
+    public ScannerBrowserTabSelector(Operations operations) {
         this.operations = operations;
     }
 
-    boolean switchToLastBrowserTab() {
+    public boolean switchToLastBrowserTab() {
         if (!operations.hasCurrentDriver()) {
             return true;
         }
@@ -26,7 +26,7 @@ final class ScannerBrowserTabSelector {
         }
     }
 
-    interface Operations {
+    public interface Operations {
         boolean hasCurrentDriver();
 
         Set<String> windowHandles();

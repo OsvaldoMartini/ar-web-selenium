@@ -1,13 +1,13 @@
-package com.allinweb.ch.component.pane;
+package com.allinweb.ch.facade.scanner.browser;
 
-final class ScannerBrowserTabNavigator {
+public final class ScannerBrowserTabNavigator {
     private final Operations operations;
 
-    ScannerBrowserTabNavigator(Operations operations) {
+    public ScannerBrowserTabNavigator(Operations operations) {
         this.operations = operations;
     }
 
-    void switchLeft() {
+    public void switchLeft() {
         if (!operations.hasCurrentDriver()) {
             return;
         }
@@ -17,7 +17,7 @@ final class ScannerBrowserTabNavigator {
         }
     }
 
-    void switchRight() {
+    public void switchRight() {
         if (!operations.hasCurrentDriver()) {
             return;
         }
@@ -28,7 +28,7 @@ final class ScannerBrowserTabNavigator {
         }
     }
 
-    void handleWindowHandlesChange() {
+    public void handleWindowHandlesChange() {
         if (!operations.hasCurrentDriver()) {
             return;
         }
@@ -44,7 +44,7 @@ final class ScannerBrowserTabNavigator {
         operations.updateSceneTitleWithCurrentUrl(operations.currentUrl());
     }
 
-    interface Operations {
+    public interface Operations {
         boolean hasCurrentDriver();
 
         int currentWindowHandleCount();

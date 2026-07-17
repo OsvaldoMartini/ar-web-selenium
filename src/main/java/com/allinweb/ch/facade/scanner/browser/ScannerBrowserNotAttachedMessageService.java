@@ -1,8 +1,8 @@
-package com.allinweb.ch.component.pane;
+package com.allinweb.ch.facade.scanner.browser;
 
-final class ScannerBrowserNotAttachedMessageService {
+public final class ScannerBrowserNotAttachedMessageService {
 
-    Message message(String webDriverPath) {
+    public Message message(String webDriverPath) {
         return new Message(
                 "The Browser attached with this Web Scanner is Not Active",
                 "<span style='font-style: italic;'>Session deleted as the browser has closed the connection!</span>",
@@ -13,5 +13,5 @@ final class ScannerBrowserNotAttachedMessageService {
                 0);
     }
 
-    record Message(String title, String header, String detail, String action, String cause, int timeoutSeconds) {}
+    public record Message(String title, String header, String detail, String action, String cause, int timeoutSeconds) {}
 }

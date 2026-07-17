@@ -1,20 +1,20 @@
-package com.allinweb.ch.component.pane;
+package com.allinweb.ch.facade.scanner.browser;
 
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
-final class ScannerScreenshotLoop {
+public final class ScannerScreenshotLoop {
     private final ScheduledExecutorService scheduler;
     private final Operations operations;
     private ScheduledFuture<?> screenshotFuture;
 
-    ScannerScreenshotLoop(ScheduledExecutorService scheduler, Operations operations) {
+    public ScannerScreenshotLoop(ScheduledExecutorService scheduler, Operations operations) {
         this.scheduler = scheduler;
         this.operations = operations;
     }
 
-    void start() {
+    public void start() {
         if (screenshotFuture != null && !screenshotFuture.isCancelled() && !screenshotFuture.isDone()) {
             return;
         }
@@ -22,7 +22,7 @@ final class ScannerScreenshotLoop {
         screenshotFuture = scheduler.scheduleAtFixedRate(this::tick, 0, 500, TimeUnit.MILLISECONDS);
     }
 
-    void stop() {
+    public void stop() {
         if (screenshotFuture != null) {
             screenshotFuture.cancel(true);
             screenshotFuture = null;
@@ -41,7 +41,7 @@ final class ScannerScreenshotLoop {
         }
     }
 
-    interface Operations {
+    public interface Operations {
         boolean isJobRunning();
 
         void sendScreenshotIfAvailable();

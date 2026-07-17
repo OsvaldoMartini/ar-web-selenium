@@ -1,15 +1,15 @@
-package com.allinweb.ch.component.pane;
+package com.allinweb.ch.facade.scanner.browser;
 
 import java.util.Objects;
 
-final class ScannerBrowserRuntime {
+public final class ScannerBrowserRuntime {
     private final Operations operations;
 
-    ScannerBrowserRuntime(Operations operations) {
+    public ScannerBrowserRuntime(Operations operations) {
         this.operations = operations;
     }
 
-    String currentPageUrl() {
+    public String currentPageUrl() {
         try {
             if (operations.hasSeleniumDriver()) {
                 return operations.currentSeleniumUrl();
@@ -23,7 +23,7 @@ final class ScannerBrowserRuntime {
         return "";
     }
 
-    String currentPlaywrightUrl() {
+    public String currentPlaywrightUrl() {
         try {
             if (!operations.hasOpenPlaywrightDriver()) {
                 return "";
@@ -34,7 +34,7 @@ final class ScannerBrowserRuntime {
         }
     }
 
-    void pauseAfterPlaywrightWebAction(
+    public void pauseAfterPlaywrightWebAction(
             String instructionName, String action, boolean success, String urlBefore, String urlAfter) {
         String safeInstructionName = instructionName == null ? "(null instruction)" : instructionName;
         boolean navigationChanged = !Objects.equals(urlBefore, urlAfter);
@@ -50,7 +50,7 @@ final class ScannerBrowserRuntime {
                 success ? "info" : "warn");
     }
 
-    int navigationTimeSeconds() {
+    public int navigationTimeSeconds() {
         String value = operations.navigationTimeProperty();
         try {
             int seconds = Integer.parseInt(value);
@@ -62,7 +62,7 @@ final class ScannerBrowserRuntime {
         }
     }
 
-    interface Operations {
+    public interface Operations {
         boolean hasSeleniumDriver();
 
         String currentSeleniumUrl();

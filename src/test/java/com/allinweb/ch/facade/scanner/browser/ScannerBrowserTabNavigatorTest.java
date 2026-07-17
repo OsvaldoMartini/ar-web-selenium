@@ -1,4 +1,4 @@
-package com.allinweb.ch.component.pane;
+package com.allinweb.ch.facade.scanner.browser;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
