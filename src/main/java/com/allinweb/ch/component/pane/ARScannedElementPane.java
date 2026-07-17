@@ -179,16 +179,12 @@ public class ARScannedElementPane
     private final ScannerSupportButtonAdapter scannerSupportButtonAdapter = new ScannerSupportButtonAdapter();
     private final ScannerSearchHiddenFieldsButtonAdapter scannerSearchHiddenFieldsButtonAdapter =
             new ScannerSearchHiddenFieldsButtonAdapter();
-    private final ScannerTestMessageSuppressionCheckboxAdapter scannerTestMessageSuppressionCheckboxAdapter =
-            new ScannerTestMessageSuppressionCheckboxAdapter();
     private final ScannerPreLaunchStatusTextAreaAdapter scannerPreLaunchStatusTextAreaAdapter =
             new ScannerPreLaunchStatusTextAreaAdapter();
     private final ScannerTestActionCheckboxesAdapter scannerTestActionCheckboxesAdapter =
             new ScannerTestActionCheckboxesAdapter();
     private final ScannerTestActionCheckboxStateAdapter scannerTestActionCheckboxStateAdapter =
             new ScannerTestActionCheckboxStateAdapter();
-    private final ScannerHiddenCloneCheckboxAdapter scannerHiddenCloneCheckboxAdapter =
-            new ScannerHiddenCloneCheckboxAdapter();
     private final ScannerTextFieldsAdapter scannerTextFieldsAdapter = new ScannerTextFieldsAdapter();
     private final ScannerElementFocusComboBoxAdapter scannerElementFocusComboBoxAdapter =
             new ScannerElementFocusComboBoxAdapter();
@@ -339,11 +335,8 @@ public class ARScannedElementPane
     private Button cleanListButton;
     private Button turnOnOffButton;
     private Button searchButton;
-    private CheckBox checkCloneElement;
-    /** Suppresses the green "Test Action Success" modal when checked. Defaults
-     *  to selected so testers can click Test Input / Test Click repeatedly
-     *  without dismissing a popup every time. Failures still surface normally. */
-    private CheckBox checkNotShowTestMsg;
+    private boolean cloneSelectionActive = false;
+    private boolean suppressTestSuccessMessage = true;
 
     private String currentUrlText = "";
     private VBox textFieldVBox;
@@ -926,7 +919,7 @@ public class ARScannedElementPane
 
         FieldData filedData = new FieldData("martini", "Martini");
         try {
-            if (scannerHiddenCloneCheckboxAdapter.isSelected(checkCloneElement)) {
+            if (cloneSelectionActive) {
 
                 performActions.executeActionsAtCoordinates(
                         targetPreTest.getCoordinates(), filedData, ARConstants.CLICK, false);
@@ -1242,7 +1235,7 @@ public class ARScannedElementPane
                 // modal is suppressed so testers can click Test Input / Test Click
                 // repeatedly without dismissing a popup every time. Failures still
                 // show via performMessage.errorMessage below.
-                if (scannerTestMessageSuppressionCheckboxAdapter.shouldShowSuccessMessage(checkNotShowTestMsg)) {
+                if (!suppressTestSuccessMessage) {
                     performMessage.showCustomModalDialogDragWin11(
                             "Test Action Success ✅",
                             "<span style='color:#2E7D32;font-weight:bold;font-size:1.1em;'>" + displayAction
@@ -1610,8 +1603,6 @@ public class ARScannedElementPane
                 new Insets(2.0) // Reduced padding
                 );
 
-        checkNotShowTestMsg = scannerTestMessageSuppressionCheckboxAdapter.build();
-
         ScannerTestActionCheckboxesAdapter.Checkboxes testActionCheckboxes =
                 scannerTestActionCheckboxesAdapter.build();
         checkClickElement = testActionCheckboxes.click();
@@ -1631,13 +1622,6 @@ public class ARScannedElementPane
         //        textFlowResult = new TextFlow();
 
         countdownTextField = scannerPreLaunchStatusTextAreaAdapter.build();
-
-        // HOVER PICK removed: interactive per-element picking relied on Selenium JS-injection over a
-        // page-opened WebSocket that doesn't work under the single Playwright browser. The regular
-        // scanner (search terms -> scan -> select-all -> insert-all) is the supported authoring path.
-        // The control is kept as a hidden field so the ~few references to it stay valid, but it is
-        // never shown, enabled, or wired to an action.
-        checkCloneElement = scannerHiddenCloneCheckboxAdapter.build();
 
         elementFocusComboBox =
                 scannerElementFocusComboBoxAdapter.build(ELEMENT_SCAN_PROFILES, ALL_INTERACTIVE_SCAN_PROFILE);
@@ -1816,18 +1800,13 @@ public class ARScannedElementPane
 
             HBox boxCoordinates = scannerLayoutNodeAdapter.spacedRow(5, coordsTextField);
 
-            HBox hBoxPickClone = scannerLayoutNodeAdapter.spacedRow(
-                    0, createSpacerHoriz(), checkCloneElement, createSpacerHoriz());
-
             // Create the VBox for TextFields
             textFieldVBox = scannerLayoutNodeAdapter.textFieldColumn(
-                    hBoxPickClone,
                     boxName,
                     vBoxCheckBox,
                     createCustomSeparator(Color.DARKBLUE, 2),
                     createSpacerVert(),
                     countdownTextField,
-                    checkNotShowTestMsg,
                     boxActions,
                     boxCoordinates,
                     createSpacerVert(),
@@ -3635,7 +3614,7 @@ public class ARScannedElementPane
             implements ScannerRunningProcessCleanupService.Operations {
         @Override
         public void clearCloneSelection() {
-            scannerHiddenCloneCheckboxAdapter.clear(checkCloneElement);
+            cloneSelectionActive = false;
         }
 
         @Override
