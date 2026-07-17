@@ -35,8 +35,6 @@ import java.util.function.BooleanSupplier;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.SimpleBooleanProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
@@ -260,7 +258,7 @@ public class ARScannedElementPane extends ARPane
     public Label definedNameLabel;
     public TextField searchAttribValueField;
     public String xpathTextPrevious;
-    protected BooleanProperty interceptBotJob = new SimpleBooleanProperty(false);
+    protected AtomicBoolean interceptBotJob = new AtomicBoolean(false);
     double comboWidth = 200;
     Button refreshBlocksButton;
     String excelFieldName;
@@ -1319,16 +1317,15 @@ public class ARScannedElementPane extends ARPane
         return scannerTestActionFormatter.safeTargetLabel(t);
     }
 
-    public BooleanProperty interceptBotJobProperty() {
-        return interceptBotJob;
-    }
-
     public boolean isInterceptBotJob() {
         return interceptBotJob.get();
     }
 
     public void setInterceptBotJob(boolean value) {
-        interceptBotJob.set(value);
+        boolean previous = interceptBotJob.getAndSet(value);
+        if (previous != value) {
+            log.info("interceptBotJob changed from " + previous + " to " + value);
+        }
     }
 
     public void initialize(ARWebDriver currentARWebDriver, BotJobLoadDTO botJobLoad, int portSocketInitial) {
@@ -2632,10 +2629,6 @@ public class ARScannedElementPane extends ARPane
 
     @Override
     public void initUIBehaviour() {
-        interceptBotJobProperty().addListener((obs, oldVal, newVal) -> {
-            log.info("interceptBotJob changed from " + oldVal + " to " + newVal);
-        });
-
         configureButton.setOnMouseClicked(e -> OrganizationManagerLifecycle.getInstance().openOrganizations());
         launchBotJobButton.setOnMouseClicked(e -> startPreLaunchFromWorkspace());
 

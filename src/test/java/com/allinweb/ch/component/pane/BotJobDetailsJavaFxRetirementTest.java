@@ -69,4 +69,13 @@ class BotJobDetailsJavaFxRetirementTest {
         assertFalse(compiledSource.contains("import javafx.application.Platform"));
         assertFalse(compiledSource.contains("Platform.runLater"));
     }
+
+    @Test
+    void scannerPaneDoesNotUseJavaFxBooleanProperties() throws IOException {
+        String source = Files.readString(SOURCE_ROOT.resolve("component/pane/ARScannedElementPane.java"));
+        String compiledSource = source.replaceAll("(?s)/\\*.*?\\*/", "");
+
+        assertFalse(compiledSource.contains("javafx.beans.property.BooleanProperty"));
+        assertFalse(compiledSource.contains("javafx.beans.property.SimpleBooleanProperty"));
+    }
 }
