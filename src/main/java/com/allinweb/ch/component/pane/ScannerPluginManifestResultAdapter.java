@@ -1,8 +1,8 @@
 package com.allinweb.ch.component.pane;
 
+import com.allinweb.ch.facade.UiThreadDispatcher;
 import com.allinweb.ch.model.PluginManifestDTO;
 import java.util.function.Consumer;
-import javafx.application.Platform;
 import javafx.concurrent.Task;
 import lombok.extern.slf4j.Slf4j;
 
@@ -16,7 +16,7 @@ final class ScannerPluginManifestResultAdapter {
             ScannerPluginDownloadResultAdapter.PluginNotifier notifier) {
         task.setOnSucceeded(evt -> {
             PluginManifestDTO manifest = task.getValue();
-            Platform.runLater(() -> onManifest.accept(manifest));
+            UiThreadDispatcher.getInstance().execute(() -> onManifest.accept(manifest));
         });
 
         task.setOnFailed(evt -> {

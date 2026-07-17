@@ -1,8 +1,8 @@
 package com.allinweb.ch.component.pane;
 
-import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.facade.ScannerActionDefaultsService;
-import javafx.application.Platform;
+import com.allinweb.ch.facade.UiThreadDispatcher;
+import com.allinweb.ch.util.ARConstants;
 import javafx.scene.control.CheckBox;
 
 final class ScannerTestActionCheckboxStateAdapter {
@@ -26,7 +26,7 @@ final class ScannerTestActionCheckboxStateAdapter {
     }
 
     void apply(ScannerActionDefaultsService.Decision decision, CheckBox click, CheckBox input, CheckBox output) {
-        Platform.runLater(() -> {
+        UiThreadDispatcher.getInstance().execute(() -> {
             click.setSelected(decision.click());
             input.setSelected(decision.input());
             output.setSelected(decision.output());

@@ -1,8 +1,8 @@
 package com.allinweb.ch.component.pane;
 
+import com.allinweb.ch.facade.UiThreadDispatcher;
 import java.nio.file.Path;
 import java.util.function.IntConsumer;
-import javafx.application.Platform;
 import javafx.concurrent.Task;
 import lombok.extern.slf4j.Slf4j;
 
@@ -17,7 +17,7 @@ final class ScannerPluginDownloadResultAdapter {
             PluginNotifier notifier) {
         task.setOnSucceeded(e -> {
             closeProgress.run();
-            Platform.runLater(refreshButton);
+            UiThreadDispatcher.getInstance().execute(refreshButton);
             notifier.information("Download complete", task.getValue() + "\nDestination: " + pluginsDir);
         });
 
@@ -40,7 +40,7 @@ final class ScannerPluginDownloadResultAdapter {
         task.setOnSucceeded(evt -> {
             closeProgress.run();
             int count = task.getValue();
-            Platform.runLater(refreshButton);
+            UiThreadDispatcher.getInstance().execute(refreshButton);
             notifier.information(
                     "Download complete",
                     count + " of " + pluginCount + " plugin(s) downloaded and extracted to:\n" + pathPlugins);
