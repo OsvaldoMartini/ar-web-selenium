@@ -1,13 +1,13 @@
-package com.allinweb.ch.component.pane;
+package com.allinweb.ch.facade.scanner.testrun;
 
-final class ScannerTestRunResultHandler {
+public final class ScannerTestRunResultHandler {
     private final Operations operations;
 
-    ScannerTestRunResultHandler(Operations operations) {
+    public ScannerTestRunResultHandler(Operations operations) {
         this.operations = operations;
     }
 
-    long finish(ScannerTestRunPreparationFlow.Result result, String endpointUrl) {
+    public long finish(ScannerTestRunPreparationFlow.Result result, String endpointUrl) {
         return switch (result.status()) {
             case STARTED -> finishStarted(result, endpointUrl);
             case CANCELED -> finishCanceled(result, endpointUrl);
@@ -68,7 +68,7 @@ final class ScannerTestRunResultHandler {
         return 0L;
     }
 
-    interface Operations {
+    public interface Operations {
         void error(String message, Object... args);
 
         void warn(String message, Object... args);

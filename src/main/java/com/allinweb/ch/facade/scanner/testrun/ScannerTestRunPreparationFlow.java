@@ -1,19 +1,13 @@
-package com.allinweb.ch.component.pane;
+package com.allinweb.ch.facade.scanner.testrun;
 
 import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.scanner.prelaunch.ScannerPreLaunchPreparation;
-import com.allinweb.ch.facade.scanner.testrun.ScannerTestRunBotJobPreparation;
-import com.allinweb.ch.facade.scanner.testrun.ScannerTestRunDefinitionLoad;
-import com.allinweb.ch.facade.scanner.testrun.ScannerTestRunDefinitionValidation;
-import com.allinweb.ch.facade.scanner.testrun.ScannerTestRunExecutionStart;
-import com.allinweb.ch.facade.scanner.testrun.ScannerTestRunExcelPreparation;
-import com.allinweb.ch.facade.scanner.testrun.ScannerTestRunStartupPreparation;
 import com.allinweb.ch.model.BotJobLoadDTO;
 import com.allinweb.ch.util.ErrorMessage;
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
-final class ScannerTestRunPreparationFlow {
+public final class ScannerTestRunPreparationFlow {
     private final ScannerTestRunStartupPreparation startupPreparation;
     private final ScannerTestRunDefinitionLoad definitionLoad;
     private final ScannerTestRunDefinitionValidation definitionValidation;
@@ -24,7 +18,7 @@ final class ScannerTestRunPreparationFlow {
     private final Supplier<String> excelPath;
     private final PerformLists performLists;
 
-    ScannerTestRunPreparationFlow(
+    public ScannerTestRunPreparationFlow(
             ScannerTestRunStartupPreparation startupPreparation,
             ScannerTestRunDefinitionLoad definitionLoad,
             ScannerTestRunDefinitionValidation definitionValidation,
@@ -45,7 +39,7 @@ final class ScannerTestRunPreparationFlow {
         this.performLists = performLists;
     }
 
-    Result prepare(
+    public Result prepare(
             BotJobLoadDTO botJob,
             int blockOrderNumber,
             String endpointUrl,
@@ -109,7 +103,7 @@ final class ScannerTestRunPreparationFlow {
                 Status.STARTED, execution.executionId(), botJobResult.endpointApplied(), excelResult.loadError());
     }
 
-    record Result(
+    public record Result(
             Status status,
             long executionId,
             boolean endpointApplied,
@@ -140,12 +134,12 @@ final class ScannerTestRunPreparationFlow {
             return new Result(status, executionId, endpointApplied, null, excelLoadError, null, null);
         }
 
-        boolean usedSyntheticExcelFallback() {
+        public boolean usedSyntheticExcelFallback() {
             return excelLoadError != null;
         }
     }
 
-    enum Status {
+    public enum Status {
         STARTED,
         CANCELED,
         STARTUP_MISSING_BOT_JOB,
