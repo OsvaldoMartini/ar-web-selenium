@@ -896,7 +896,6 @@ public class ARScannedElementPane extends ARPane
         ScannerTestRunHandlers.getInstance().unregister(this);
         clearPane(getPaneReference());
         pane = null;
-        scene = null;
         instance = null;
     }
 
@@ -3567,12 +3566,6 @@ public class ARScannedElementPane extends ARPane
         return elementMap;
     }
 
-    @Override
-    public void start(Stage stage) throws Exception {
-        log.error("start from ARScannedElementPane");
-    }
-
-    @Override
     public void stop() throws Exception {
         // Cleanup tasks when the application stops
         executorServicePreLaunch.shutdown();

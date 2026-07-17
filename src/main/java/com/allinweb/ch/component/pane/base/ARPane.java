@@ -1,28 +1,11 @@
 package com.allinweb.ch.component.pane.base;
 
-import javafx.application.Application;
 import javafx.scene.Node;
-import javafx.scene.Scene;
 import javafx.scene.layout.Pane;
-import javafx.stage.Stage;
-import lombok.extern.slf4j.Slf4j;
 
-@Slf4j
-public abstract class ARPane extends Application implements IARPane {
+public abstract class ARPane implements IARPane {
 
     protected Pane pane;
-    protected Scene scene;
-
-    public Scene getScene() {
-        return scene;
-    }
-
-    public void createScene(double width, double height) {
-        pane = getPaneReference();
-        if (pane != null) {
-            this.scene = new Scene(pane, width, height);
-        }
-    }
 
     @Override
     public final Pane createPane() {
@@ -64,7 +47,6 @@ public abstract class ARPane extends Application implements IARPane {
             clearPane(pane);
             pane = null;
         }
-        scene = null;
     }
 
     @Override
@@ -79,8 +61,4 @@ public abstract class ARPane extends Application implements IARPane {
         }
     }
 
-    @Override
-    public void start(Stage stage) throws Exception {
-        log.error("start from ARPane");
-    }
 }
