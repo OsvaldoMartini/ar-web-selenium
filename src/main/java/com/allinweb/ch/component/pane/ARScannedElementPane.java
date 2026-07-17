@@ -48,7 +48,6 @@ import javafx.scene.layout.*;
 import javafx.scene.layout.Priority;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Text;
-import javafx.stage.Stage;
 import javax.swing.*;
 import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilder;
@@ -154,7 +153,6 @@ public class ARScannedElementPane extends ARPane
             new ScannerSupportCaptureSendService();
     private final ScannerSupportResponseActionService scannerSupportResponseActionService =
             new ScannerSupportResponseActionService();
-    private final ScannerStageAdapter scannerStageAdapter = new ScannerStageAdapter();
     private final ScannerPluginAlertAdapter scannerPluginAlertAdapter = new ScannerPluginAlertAdapter();
     private final ScannerPluginPickerDialogPublisherAdapter scannerPluginPickerDialogPublisherAdapter =
             new ScannerPluginPickerDialogPublisherAdapter();
@@ -268,7 +266,6 @@ public class ARScannedElementPane extends ARPane
     Button refreshBlocksButton;
     String excelFieldName;
     String delimiterCSV = null;
-    private Stage stage;
     private Set<String> windowHandles;
     // Shared executors from central manager (DO NOT shutdown them here)
     private final ExecutorService executorServicePreLaunch =
@@ -906,7 +903,7 @@ public class ARScannedElementPane extends ARPane
 
     @Override
     public void closeLaunchWindowIfPresent() {
-        scannerStageAdapter.closeOwnerWindow(launchBotJobButton);
+        log.info("Launch window close requested; React owns scanner window state");
     }
 
     @Override
@@ -2226,7 +2223,6 @@ public class ARScannedElementPane extends ARPane
         }
     }
 
-    // Assuming you have access to the Stage object
     public void updateSceneTitleWithCurrentURL(String currentUrl) {
         if (currentURL != null) {
             currentURL.setText("Current URL:      " + currentUrl);
@@ -3584,7 +3580,6 @@ public class ARScannedElementPane extends ARPane
 
     private void Close() {
         log.info("ARScannedElementPane Close()");
-        scannerStageAdapter.closeOwnerWindow(mainPane);
     }
 
     private Button createPathButton() {
@@ -3901,16 +3896,6 @@ public class ARScannedElementPane extends ARPane
         if (!sent) {
             logOperations.info("Create block request was not shown because no React scanner session is available");
         }
-    }
-
-    // Allow the stage to be set from outside when pane is shown
-    public void setStage(Stage stage) {
-        this.stage = stage;
-    }
-
-    // 🔹 Method to close the window
-    public void closePane() {
-        scannerStageAdapter.close(this.stage, () -> instance = null);
     }
 
     private void searchTermsBtn(String searchTerms, List<String> extendedRules) {

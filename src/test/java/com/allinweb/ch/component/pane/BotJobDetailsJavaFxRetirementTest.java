@@ -27,6 +27,7 @@ class BotJobDetailsJavaFxRetirementTest {
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/scene/base/IconLoader.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("facade/ScannerModalStageService.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("vision/OcrTestResultRow.java")));
+        assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerStageAdapter.java")));
     }
 
     @Test
