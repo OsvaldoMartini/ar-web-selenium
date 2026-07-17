@@ -79,6 +79,27 @@ class ScannerDialogPublisherTest {
         verify(session.getBasicRemote()).sendText(contains("\\\"total\\\":2"));
     }
 
+    @Test
+    void publishesPluginUpdateDialogEventsToReactScannerSession() throws Exception {
+        session = openSession();
+        WebSocketSessionManager.addSession(ScannerWorkspaceSessions.SCANNER_ELEMENT_PANE, session);
+
+        ScannerDialogPublisher publisher =
+                new ScannerDialogPublisher(new WebSocketSessionManager(), new Gson());
+
+        assertTrue(publisher.pluginUpdate(
+                "plugins",
+                true,
+                java.util.Collections.singletonList(
+                        new String[] {"pluginId", "Plugin Name", "1.0", "10 KB", "plugin.zip", "MISSING"})));
+
+        verify(session.getBasicRemote()).sendText(contains("\"operationId\":\"scanner.dialog.pluginUpdate\""));
+        verify(session.getBasicRemote()).sendText(contains("\\\"kind\\\":\\\"pluginUpdate\\\""));
+        verify(session.getBasicRemote()).sendText(contains("\\\"pluginsDir\\\":\\\"plugins\\\""));
+        verify(session.getBasicRemote()).sendText(contains("\\\"serverConfigured\\\":true"));
+        verify(session.getBasicRemote()).sendText(contains("Plugin Name"));
+    }
+
     private Session openSession() {
         Session openSession = mock(Session.class);
         RemoteEndpoint.Basic remote = mock(RemoteEndpoint.Basic.class);

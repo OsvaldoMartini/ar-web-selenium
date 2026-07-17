@@ -161,9 +161,6 @@ public class ARScannedElementPane extends ARPane
     private final ScannerPluginAlertAdapter scannerPluginAlertAdapter = new ScannerPluginAlertAdapter();
     private final ScannerPluginPickerDialogAdapter scannerPluginPickerDialogAdapter =
             new ScannerPluginPickerDialogAdapter();
-    private final ScannerPluginPortalBannerAdapter scannerPluginPortalBannerAdapter =
-            new ScannerPluginPortalBannerAdapter();
-    private final ScannerExternalBrowserAdapter scannerExternalBrowserAdapter = new ScannerExternalBrowserAdapter();
     private final ScannerPluginUpdateButtonAdapter scannerPluginUpdateButtonAdapter =
             new ScannerPluginUpdateButtonAdapter();
     private final ScannerPluginUpdateButtonRefreshAdapter scannerPluginUpdateButtonRefreshAdapter =
@@ -172,12 +169,8 @@ public class ARScannedElementPane extends ARPane
     private final ScannerPluginStatusButtonAdapter scannerPluginStatusButtonAdapter =
             new ScannerPluginStatusButtonAdapter();
     private final ScannerLocalPluginInventory scannerLocalPluginInventory = new ScannerLocalPluginInventory();
-    private final ScannerPluginUpdateTableAdapter scannerPluginUpdateTableAdapter =
-            new ScannerPluginUpdateTableAdapter();
-    private final ScannerPluginUpdateContentAdapter scannerPluginUpdateContentAdapter =
-            new ScannerPluginUpdateContentAdapter();
-    private final ScannerPluginUpdateDialogAdapter scannerPluginUpdateDialogAdapter =
-            new ScannerPluginUpdateDialogAdapter();
+    private final ScannerPluginUpdateDialogPublisherAdapter scannerPluginUpdateDialogPublisherAdapter =
+            new ScannerPluginUpdateDialogPublisherAdapter();
     private final ScannerPluginListTableAdapter scannerPluginListTableAdapter =
             new ScannerPluginListTableAdapter();
     private final ScannerPluginListContentAdapter scannerPluginListContentAdapter =
@@ -8425,48 +8418,14 @@ public class ARScannedElementPane extends ARPane
 
         // Build the dialog UI
         final List<String[]> rows = pluginRows;
-        buildPluginUpdateUI(rows, pluginsDir, urlBase, serverConfigured);
-    }
-
-    /**
-     * Banner shown at the top of the Plugin Update dialog when plugins are
-     * missing (or none are installed at all). Includes a clickable link to
-     * the MultiPlugins portal that opens in the system default browser.
-     */
-    private VBox buildPortalBanner(boolean noPlugins, boolean anyMissing) {
-        return scannerPluginPortalBannerAdapter.build(noPlugins, scannerExternalBrowserAdapter::open);
+        buildPluginUpdateUI(rows, pluginsDir, serverConfigured);
     }
 
     /**
      * Builds and shows the Plugin Update UI dialog with a table of plugins and action buttons.
      */
-    private void buildPluginUpdateUI(List<String[]> rows, String pluginsDir, String urlBase, boolean serverConfigured) {
-        ScannerPluginUpdateTableAdapter.Result tableResult =
-                scannerPluginUpdateTableAdapter.build(rows, serverConfigured);
-        VBox tableBox = tableResult.tableBox();
-
-        boolean noPlugins = rows.isEmpty();
-        boolean anyMissing = rows.stream().anyMatch(r -> "MISSING".equals(r[5]));
-        if (noPlugins || anyMissing) {
-            tableBox.getChildren().add(0, buildPortalBanner(noPlugins, anyMissing));
-        }
-
-        List<ScannerPluginUpdateTableAdapter.DownloadSelection> downloadSelections =
-                tableResult.downloadSelections();
-
-        VBox content = scannerPluginUpdateContentAdapter.build(tableBox, pluginsDir);
-
-        if (scannerPluginUpdateDialogAdapter.show(content, !downloadSelections.isEmpty())) {
-            String baseUrl = urlBase.endsWith("/") ? urlBase : urlBase + "/";
-            Path pluginsDirPath = Paths.get(pluginsDir);
-            for (ScannerPluginUpdateTableAdapter.DownloadSelection selection : downloadSelections) {
-                if (selection.isSelected()) {
-                    String[] row = selection.row();
-                    String downloadUrl = baseUrl + row[4]; // fileName
-                    downloadAndExtractPlugin(downloadUrl, row[4], row[1], pluginsDirPath);
-                }
-            }
-        }
+    private void buildPluginUpdateUI(List<String[]> rows, String pluginsDir, boolean serverConfigured) {
+        scannerPluginUpdateDialogPublisherAdapter.show(rows, pluginsDir, serverConfigured);
     }
 
     // ── Update Plugins Button ──────────────────────────────────────────────────

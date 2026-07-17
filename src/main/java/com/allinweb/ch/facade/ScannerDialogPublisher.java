@@ -17,6 +17,7 @@ public final class ScannerDialogPublisher {
     private static final String ALERT_OPERATION = "scanner.dialog.alert";
     private static final String TOAST_OPERATION = "scanner.dialog.toast";
     private static final String PROGRESS_OPERATION = "scanner.dialog.progress";
+    private static final String PLUGIN_UPDATE_OPERATION = "scanner.dialog.pluginUpdate";
     private static final ScannerDialogPublisher INSTANCE =
             new ScannerDialogPublisher(WebSocketSessionManager.getInstance(), new Gson());
 
@@ -56,6 +57,12 @@ public final class ScannerDialogPublisher {
                 new ProgressEvent("progress", id, "", "", 1.0, 0, 0, true));
     }
 
+    public boolean pluginUpdate(String pluginsDir, boolean serverConfigured, java.util.List<String[]> rows) {
+        return publish(
+                PLUGIN_UPDATE_OPERATION,
+                new PluginUpdateEvent("pluginUpdate", pluginsDir, serverConfigured, rows));
+    }
+
     private boolean publish(String operationId, Object event) {
         String body = gson.toJson(event);
         boolean sent =
@@ -86,4 +93,10 @@ public final class ScannerDialogPublisher {
             int current,
             int total,
             boolean close) {}
+
+    public record PluginUpdateEvent(
+            String kind,
+            String pluginsDir,
+            boolean serverConfigured,
+            java.util.List<String[]> rows) {}
 }
