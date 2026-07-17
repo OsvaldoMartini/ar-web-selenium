@@ -40,6 +40,9 @@ class BotJobDetailsJavaFxRetirementTest {
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerTestActionCheckboxStateAdapter.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerTextFieldsAdapter.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerPreLaunchStatusTextAreaAdapter.java")));
+        assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerRefreshBlocksButtonAdapter.java")));
+        assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerSearchHiddenFieldsButtonAdapter.java")));
+        assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerSupportButtonAdapter.java")));
     }
 
     @Test
@@ -165,5 +168,19 @@ class BotJobDetailsJavaFxRetirementTest {
         assertFalse(compiledSource.contains("ScannerPreLaunchStatusTextAreaAdapter"));
         assertFalse(compiledSource.contains("countdownTextField"));
         assertFalse(compiledSource.contains("javafx.scene.control.TextArea"));
+    }
+
+    @Test
+    void scannerPaneDoesNotUseRetiredButtonAdapters() throws IOException {
+        String source = Files.readString(SOURCE_ROOT.resolve("component/pane/ARScannedElementPane.java"));
+        String compiledSource = source.replaceAll("(?s)/\\*.*?\\*/", "");
+
+        assertFalse(compiledSource.contains("ScannerRefreshBlocksButtonAdapter"));
+        assertFalse(compiledSource.contains("ScannerSearchHiddenFieldsButtonAdapter"));
+        assertFalse(compiledSource.contains("ScannerSupportButtonAdapter"));
+        assertFalse(compiledSource.contains("refreshBlocksButton"));
+        assertFalse(compiledSource.contains("turnOnOffButton"));
+        assertFalse(compiledSource.contains("sendDomButton"));
+        assertFalse(compiledSource.contains("requestSupportButton"));
     }
 }

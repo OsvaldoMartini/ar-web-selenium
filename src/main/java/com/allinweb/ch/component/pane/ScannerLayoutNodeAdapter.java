@@ -107,12 +107,11 @@ final class ScannerLayoutNodeAdapter {
         return column;
     }
 
-    HBox blockAndUrlRow(Node blockSelector, Node refreshButton) {
+    HBox blockAndUrlRow(Node blockSelector) {
         HBox row = new HBox();
         row.setSpacing(0);
         HBox.setMargin(blockSelector, new Insets(0, 3, 0, 0));
-        HBox.setMargin(refreshButton, new Insets(0, 3, 0, 0));
-        row.getChildren().addAll(blockSelector, refreshButton);
+        row.getChildren().addAll(blockSelector);
         return row;
     }
 }

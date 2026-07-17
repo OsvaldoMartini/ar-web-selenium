@@ -172,13 +172,8 @@ public class ARScannedElementPane
     private final ScannerPluginManifestListFlowAdapter scannerPluginManifestListFlowAdapter =
             new ScannerPluginManifestListFlowAdapter();
     private final ScannerLayoutNodeAdapter scannerLayoutNodeAdapter = new ScannerLayoutNodeAdapter();
-    private final ScannerRefreshBlocksButtonAdapter scannerRefreshBlocksButtonAdapter =
-            new ScannerRefreshBlocksButtonAdapter();
     private final ScannerBrowserNotAttachedMessageService scannerBrowserNotAttachedMessageService =
             new ScannerBrowserNotAttachedMessageService();
-    private final ScannerSupportButtonAdapter scannerSupportButtonAdapter = new ScannerSupportButtonAdapter();
-    private final ScannerSearchHiddenFieldsButtonAdapter scannerSearchHiddenFieldsButtonAdapter =
-            new ScannerSearchHiddenFieldsButtonAdapter();
     private final ScannerElementFocusComboBoxAdapter scannerElementFocusComboBoxAdapter =
             new ScannerElementFocusComboBoxAdapter();
     private final UiThreadDispatcher uiThreadDispatcher = UiThreadDispatcher.getInstance();
@@ -237,7 +232,6 @@ public class ARScannedElementPane
     public String xpathTextPrevious;
     protected AtomicBoolean interceptBotJob = new AtomicBoolean(false);
     double comboWidth = 200;
-    Button refreshBlocksButton;
     String excelFieldName;
     String delimiterCSV = null;
     private Set<String> windowHandles;
@@ -318,12 +312,9 @@ public class ARScannedElementPane
     private Button updatePluginsButton;
     private Label lblPluginHint;
     private Button refreshWebPageButton;
-    private Button sendDomButton;
-    private Button requestSupportButton;
     private Button leftButton;
     private Button rightButton;
     private Button cleanListButton;
-    private Button turnOnOffButton;
     private Button searchButton;
     private boolean cloneSelectionActive = false;
     private boolean suppressTestSuccessMessage = true;
@@ -1580,13 +1571,8 @@ public class ARScannedElementPane
 
         lblPluginHint = scannerPluginHintAdapter.createLabel();
 
-        turnOnOffButton = scannerSearchHiddenFieldsButtonAdapter.build();
-
         refreshWebPageButton = builder.buildButton(
                 "Refresh Web Page", ARConstants.SPACE_ZERO, "/refresh.png", ARConstants.SPACE_M, new Insets(5.0D));
-
-        sendDomButton = scannerSupportButtonAdapter.buildSendDomReview(builder);
-        requestSupportButton = scannerSupportButtonAdapter.buildRequestSupport(builder);
 
         cleanListButton = builder.buildButton(
                 "Clear Grid", // No text
@@ -1637,9 +1623,6 @@ public class ARScannedElementPane
         leftButton.setOnAction(e -> switchToLeftTab());
         rightButton.setOnAction(e -> switchToRightTab());
 
-        sendDomButton.setOnAction(e -> sendCurrentDomForReview());
-        requestSupportButton.setOnAction(e -> requestSupport());
-
         refreshWebPageButton.setOnAction(e -> {
             if (!lastBrowserTab()) {
                 return;
@@ -1676,12 +1659,6 @@ public class ARScannedElementPane
         updateSceneTitleWithCurrentURL(homeUrlDTO.getUrl());
 
         //        loadAllBlockItems(performLists.getListBlock());
-
-        refreshBlocksButton = createPathButton();
-
-        refreshBlocksButton.setOnMouseClicked(e -> {
-            refreshBlocks(false);
-        });
 
         comboBoxBlocks = new ComboBox<>();
         comboBoxBlocks.setPrefWidth(comboWidth);
@@ -1746,10 +1723,8 @@ public class ARScannedElementPane
             gridPaneTop.add(updatePluginsButton, 2, 0);
             gridPaneTop.add(elementFocusComboBox, 4, 0);
             gridPaneTop.add(searchButton, 5, 0);
-            gridPaneTop.add(turnOnOffButton, 6, 0);
             gridPaneTop.add(leftButton, 7, 0);
             gridPaneTop.add(rightButton, 8, 0);
-            gridPaneTop.add(requestSupportButton, 9, 0);
 
             topPane.getChildren().addAll(gridPaneTop, lblPluginHint); // Add gridPaneTop + hint to topPane
 
@@ -1799,15 +1774,12 @@ public class ARScannedElementPane
                     .addAll(
                             refreshWebPageButton,
                             createSpacerHoriz(),
-                            sendDomButton,
-                            createSpacerHoriz(),
                             cleanListButton);
             StackPane stackLabelOthers = scannerLayoutNodeAdapter.centeredStack(othersBox);
             elements2VBox = scannerLayoutNodeAdapter.elementsColumn(stackLabelOthers, componentBox);
             boxListViews.getChildren().addAll(elements2VBox, textFieldVBox);
 
-            HBox blockAndUrl =
-                    scannerLayoutNodeAdapter.blockAndUrlRow(comboBoxBlocks, refreshBlocksButton);
+            HBox blockAndUrl = scannerLayoutNodeAdapter.blockAndUrlRow(comboBoxBlocks);
 
             verticalBox.getChildren().addAll(topPane, blockAndUrl, boxListViews);
             VBox.setVgrow(verticalBox, Priority.ALWAYS);
@@ -2560,7 +2532,6 @@ public class ARScannedElementPane
 
         searchButton.setOnAction(e -> searchTermsBtn(searchTermsText.trim(), Collections.emptyList()));
 
-        turnOnOffButton.setVisible(false);
     }
 
     public boolean lastBrowserTab() {
@@ -3441,10 +3412,6 @@ public class ARScannedElementPane
 
     private void Close() {
         log.info("ARScannedElementPane Close()");
-    }
-
-    private Button createPathButton() {
-        return scannerRefreshBlocksButtonAdapter.build(builder);
     }
 
     private void browserNotAttached() {
