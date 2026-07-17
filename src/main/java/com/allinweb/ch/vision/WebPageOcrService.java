@@ -1,14 +1,13 @@
 package com.allinweb.ch.vision;
 
 import com.allinweb.ch.model.OcrConfig;
-import com.allinweb.ch.ocr.bridge.OcrBridgeService;
 import com.allinweb.ch.ocr.bridge.OcrBox;
+import com.allinweb.ch.ocr.bridge.OcrBridgeService;
 import com.allinweb.ch.ocr.bridge.OcrEngine;
 import com.allinweb.ch.ocr.bridge.OcrResult;
 import com.allinweb.ch.ocr.bridge.OcrWord;
 import com.allinweb.ch.vision.ocr.OcrOpenCvUtils;
 import com.allinweb.ch.vision.ocr.OcrPreprocessorOpenCv;
-import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -20,10 +19,9 @@ import lombok.extern.slf4j.Slf4j;
 import net.sourceforge.tess4j.ITessAPI;
 import net.sourceforge.tess4j.ITesseract;
 import net.sourceforge.tess4j.Tesseract;
-import net.sourceforge.tess4j.Word;
 import org.opencv.core.Mat;
 
-/** Thin stateless Tess4J wrapper. Extracts classpath tessdata to a temp dir once per JVM. */
+/** Thin stateless OCR wrapper. Extracts classpath tessdata to a temp dir once per JVM. */
 @Slf4j
 public final class WebPageOcrService {
 
@@ -78,9 +76,7 @@ public final class WebPageOcrService {
         tess.setDatapath(dir.getAbsolutePath());
 
         String lang = cfg == null ? combinedLang : cfg.getString("engine", "languages", combinedLang);
-        // Filter requested langs to the ones actually extracted.
-        String safeLang = filterToAvailable(lang);
-        tess.setLanguage(safeLang);
+        tess.setLanguage(filterToAvailable(lang));
 
         int psm = cfg == null
                 ? ITessAPI.TessPageSegMode.PSM_AUTO
@@ -97,110 +93,47 @@ public final class WebPageOcrService {
         return recognize(image, null);
     }
 
-    /** Full-image OCR honouring config overrides for engine params. */
+    /** Full-image OCR honoring config overrides for engine params. */
     public static OcrResult recognize(RasterImage image, OcrConfig cfg) {
-        return recognize(RasterImageIO.toBufferedImage(image), cfg);
-    }
-
-    /** Full-image OCR. Returns word-level boxes in image pixel space. */
-    public static OcrResult recognize(BufferedImage image) {
-        return recognize(image, null);
-    }
-
-    /** Full-image OCR honouring config overrides for engine params. */
-    public static OcrResult recognize(BufferedImage image, OcrConfig cfg) {
+        if (image == null) return emptyResult();
         if (OcrEngine.isNative()) return OcrBridgeService.recognize(image, cfg);
-        try {
-            ITesseract tess = createEngine(cfg);
-            List<Word> words = tess.getWords(image, ITessAPI.TessPageIteratorLevel.RIL_WORD);
-            List<OcrWord> out = new ArrayList<>();
-            StringBuilder full = new StringBuilder();
-            for (Word w : words) {
-                String text = w.getText() == null ? "" : w.getText().trim();
-                if (text.isEmpty()) continue;
-                out.add(new OcrWord(text, Tess4jOcrBoxAdapter.boundsOf(w), w.getConfidence()));
-                full.append(text).append(' ');
-            }
-            return new OcrResult(full.toString().trim(), out);
-        } catch (Exception e) {
-            log.warn("OCR recognize failed: {}", e.getMessage(), e);
-            return new OcrResult("", new ArrayList<>());
-        }
+        return Tess4jRasterOcrAdapter.recognize(image, cfg);
     }
 
     /**
      * Multi-pass OCR: raw + optional CLAHE-preprocessed + optional color-button passes.
      * Results from each pass are merged into a single {@link OcrResult} after IoU
-     * de-duplication (keep the higher-confidence text per overlapping bbox).
+     * de-duplication.
      */
     public static OcrResult recognizeMultiPass(RasterImage image, OcrConfig cfg) {
-        return recognizeMultiPass(RasterImageIO.toBufferedImage(image), cfg);
-    }
-
-    /**
-     * Multi-pass OCR: raw + optional CLAHE-preprocessed + optional color-button passes.
-     * Results from each pass are merged into a single {@link OcrResult} after IoU
-     * de-duplication (keep the higher-confidence text per overlapping bbox).
-     */
-    public static OcrResult recognizeMultiPass(BufferedImage image, OcrConfig cfg) {
+        if (image == null) return emptyResult();
         if (OcrEngine.isNative()) return OcrBridgeService.recognizeMultiPass(image, cfg);
+
         List<OcrWord> all = new ArrayList<>();
 
-        // Pass 1 — raw
         OcrResult raw = recognize(image, cfg);
         all.addAll(raw.getWords());
 
-        // Pass 2 — CLAHE preprocessed (×2 upscale inside OcrPreprocessorOpenCv.preprocess)
         boolean enableClahe = cfg != null && cfg.getBool("preprocessing", "enable_clahe_pass", false);
         if (enableClahe) {
-            try {
-                Class.forName("com.allinweb.ch.vision.ocr.OpenCvNativeLoader");
-                Mat src = OcrOpenCvUtils.bufferedImageToMat(image);
-                Mat prep = OcrPreprocessorOpenCv.preprocess(src);
-                BufferedImage prepImg = OcrOpenCvUtils.matToBufferedImage(prep);
-                OcrResult prepRes = recognize(prepImg, cfg);
-                int up = Math.max(1, cfg.getInt("preprocessing", "upscale_factor", 2));
-                for (OcrWord w : prepRes.getWords()) {
-                    OcrBox b = w.getBounds();
-                    if (b == null) continue;
-                    OcrBox mapped = new OcrBox(
-                            b.x() / up,
-                            b.y() / up,
-                            Math.max(1, b.width() / up),
-                            Math.max(1, b.height() / up));
-                    all.add(new OcrWord(w.getText(), mapped, w.getConfidence()));
-                }
-                src.release();
-                prep.release();
-            } catch (Throwable t) {
-                log.warn("CLAHE preprocessing pass failed: {}", t.getMessage());
-            }
+            addClahePass(image, cfg, all);
         }
 
-        // Pass 3 — color-button detection
         boolean anyButton = cfg != null
                 && (cfg.getBool("button_detection", "enable_red", false)
                         || cfg.getBool("button_detection", "enable_blue", false)
                         || cfg.getBool("button_detection", "enable_any", false));
         if (anyButton) {
-            try {
-                Class.forName("com.allinweb.ch.vision.ocr.OpenCvNativeLoader");
-                Mat src = OcrOpenCvUtils.bufferedImageToMat(image);
-                all.addAll(ButtonDetectionService.detectAndOcr(src, cfg));
-                src.release();
-            } catch (Throwable t) {
-                log.warn("Button detection pass failed: {}", t.getMessage());
-            }
+            addButtonPass(image, cfg, all);
         }
 
-        // Dedupe by IoU
         double iouThreshold = cfg == null ? 0.6 : cfg.getDouble("correlation", "dedupe_iou", 0.6);
         List<OcrWord> deduped = dedupeByIoU(all, iouThreshold);
 
         StringBuilder fullText = new StringBuilder();
         for (OcrWord w : deduped) fullText.append(w.getText()).append(' ');
         log.info(
-                "Multi-pass OCR — raw={} clahe={} buttons={} merged={} (iou>={})",
+                "Multi-pass OCR - raw={} clahe={} buttons={} merged={} (iou>={})",
                 raw.getWords().size(),
                 enableClahe,
                 anyButton,
@@ -209,14 +142,51 @@ public final class WebPageOcrService {
         return new OcrResult(fullText.toString().trim(), deduped);
     }
 
+    private static void addClahePass(RasterImage image, OcrConfig cfg, List<OcrWord> all) {
+        Mat src = null;
+        Mat prep = null;
+        try {
+            Class.forName("com.allinweb.ch.vision.ocr.OpenCvNativeLoader");
+            src = OcrOpenCvUtils.rasterImageToMat(image);
+            prep = OcrPreprocessorOpenCv.preprocess(src);
+            OcrResult prepRes = recognize(OcrOpenCvUtils.matToRasterImage(prep), cfg);
+            int up = Math.max(1, cfg.getInt("preprocessing", "upscale_factor", 2));
+            for (OcrWord w : prepRes.getWords()) {
+                OcrBox b = w.getBounds();
+                if (b == null) continue;
+                OcrBox mapped = new OcrBox(
+                        b.x() / up,
+                        b.y() / up,
+                        Math.max(1, b.width() / up),
+                        Math.max(1, b.height() / up));
+                all.add(new OcrWord(w.getText(), mapped, w.getConfidence()));
+            }
+        } catch (Throwable t) {
+            log.warn("CLAHE preprocessing pass failed: {}", t.getMessage());
+        } finally {
+            if (prep != null) prep.release();
+            if (src != null) src.release();
+        }
+    }
+
+    private static void addButtonPass(RasterImage image, OcrConfig cfg, List<OcrWord> all) {
+        Mat src = null;
+        try {
+            Class.forName("com.allinweb.ch.vision.ocr.OpenCvNativeLoader");
+            src = OcrOpenCvUtils.rasterImageToMat(image);
+            all.addAll(ButtonDetectionService.detectAndOcr(src, cfg));
+        } catch (Throwable t) {
+            log.warn("Button detection pass failed: {}", t.getMessage());
+        } finally {
+            if (src != null) src.release();
+        }
+    }
+
     /** Replace duplicates (IoU &gt; threshold) with the higher-confidence entry. */
     static List<OcrWord> dedupeByIoU(List<OcrWord> words, double iouThreshold) {
         List<OcrWord> out = new ArrayList<>();
         for (OcrWord w : words) {
-            if (w == null
-                    || w.getBounds() == null
-                    || w.getText() == null
-                    || w.getText().isBlank()) continue;
+            if (w == null || w.getBounds() == null || w.getText() == null || w.getText().isBlank()) continue;
             int dup = -1;
             for (int i = 0; i < out.size(); i++) {
                 if (iou(w.getBounds(), out.get(i).getBounds()) > iouThreshold) {
@@ -255,9 +225,6 @@ public final class WebPageOcrService {
         if (requested == null || requested.isBlank()) return combinedLang;
         String[] parts = requested.split("\\+");
         List<String> keep = new ArrayList<>();
-        List<String> available =
-                List.of(combinedLang == null ? "" : combinedLang.split("\\+")[0]);
-        // Re-derive available list from combinedLang (authoritative — set during ensureTessdata()).
         String[] availArr = combinedLang == null ? new String[0] : combinedLang.split("\\+");
         for (String req : parts) {
             for (String a : availArr) {
@@ -268,5 +235,9 @@ public final class WebPageOcrService {
             }
         }
         return keep.isEmpty() ? combinedLang : String.join("+", keep);
+    }
+
+    private static OcrResult emptyResult() {
+        return new OcrResult("", new ArrayList<>());
     }
 }

@@ -354,6 +354,7 @@ class BotJobDetailsDesktopUiRetirementTest {
         assertFalse(webScreenshotCapture.contains("Graphics2D"));
         assertFalse(webScreenshotCapture.contains("BufferedImage"));
         assertFalse(annotatedRenderer.contains("BufferedImage"));
+        assertFalse(webPageOcrService.contains("BufferedImage"));
         assertFalse(buttonDetectionService.contains("BufferedImage"));
         assertFalse(ocrTestService.contains("BufferedImage"));
         assertFalse(pageOcrDumper.contains("BufferedImage"));

@@ -6,6 +6,25 @@ import org.opencv.core.*;
 
 public class OcrOpenCvUtils {
 
+    public static Mat rasterImageToMat(RasterImage image) {
+        int width = image.width();
+        int height = image.height();
+        byte[] data = new byte[width * height * 3];
+        int offset = 0;
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                int rgb = image.pixel(x, y);
+                data[offset++] = (byte) (rgb & 0xff);
+                data[offset++] = (byte) ((rgb >> 8) & 0xff);
+                data[offset++] = (byte) ((rgb >> 16) & 0xff);
+            }
+        }
+
+        Mat mat = new Mat(height, width, CvType.CV_8UC3);
+        mat.put(0, 0, data);
+        return mat;
+    }
+
     public static Mat bufferedImageToMat(BufferedImage bi) {
         int width = bi.getWidth();
         int height = bi.getHeight();
