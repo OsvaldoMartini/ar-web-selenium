@@ -125,7 +125,6 @@ public class ARScannedElementPane extends ARPane
                     jobExecutionOutcomes);
     private final AtomicBoolean testRunStartupActive = new AtomicBoolean(false);
     private final Gson gson = new Gson();
-    private final ScannerGridContainerAdapter scannerGridContainerAdapter = new ScannerGridContainerAdapter(gson);
     private final ScannerGridPublisher scannerGridPublisher = new ScannerGridPublisher();
     private final ScannerGridSearchResultsService scannerGridSearchResultsService =
             new ScannerGridSearchResultsService(scannerGridPublisher, new PaneScannerGridBlocksPort());
@@ -316,6 +315,7 @@ public class ARScannedElementPane extends ARPane
 
     private int portSocketInitial = 54525;
     private volatile String pendingDomReviewHtml;
+    private boolean scannerGridContainerInitialized;
     private BotJobLoadDTO currentBotJob;
     private static String currentBotJobName = null;
     private int currentBlockId;
@@ -1413,7 +1413,6 @@ public class ARScannedElementPane extends ARPane
 
             Platform.runLater(() -> refreshGrids());
 
-            scannerGridContainerAdapter.attachTo(componentBox);
             //            contentPane.getChildren().clear();
             //            contentPane.getChildren().addAll(topPane, verticalBox);
             componentBox.requestLayout();
@@ -1435,16 +1434,15 @@ public class ARScannedElementPane extends ARPane
     private boolean initializeScannerGridContainer() {
         setPayloadEmpty();
 
-        String jsonData = gson.toJson(payloadEmpty);
-
         sessionIdFromJava = scannerGridPublisher.destinationSessionId(); // + this.currentBotJob.getHomeBankingId();
-        scannerGridContainerAdapter.load(new ScannerGridBootstrapService.Request(
-                jsonData,
-                portSocketInitial,
+        scannerGridContainerInitialized = true;
+        log.info(
+                "Scanner grid WebView shell removed; React session {} must request scanner.bootstrap over WebSocket (port {}, homeBankingId {}, botJobId {}, job {})",
                 sessionIdFromJava,
+                portSocketInitial,
                 this.currentBotJob.getHomeBankingId(),
                 this.currentBotJob.getId(),
-                this.currentBotJob.getName()));
+                this.currentBotJob.getName());
 
         if (isBrowserClosed(performActions.getCurrentDriver()) && performActions.getCurrentDriver() != null) {
             performActions.getCurrentDriver().quit();
@@ -1590,7 +1588,9 @@ public class ARScannedElementPane extends ARPane
     //    }
 
     private void addScannerGridContainer() {
-        componentBox = scannerGridContainerAdapter.componentBox();
+        componentBox = new HBox();
+        HBox.setHgrow(componentBox, Priority.ALWAYS);
+        VBox.setVgrow(componentBox, Priority.ALWAYS);
     }
 
     private void buildUIComponents() {
@@ -1728,7 +1728,7 @@ public class ARScannedElementPane extends ARPane
         });
 
         cleanListButton.setOnAction(e -> {
-            if (scannerGridContainerAdapter.isInitialized()) {
+            if (scannerGridContainerInitialized) {
                 scannerGridSearchResultsService.publishEmpty(
                         this.currentBotJob.getHomeBankingId(),
                         this.currentBotJob.getId(),
