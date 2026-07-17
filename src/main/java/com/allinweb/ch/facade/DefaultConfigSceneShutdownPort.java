@@ -1,18 +1,12 @@
-package com.allinweb.ch.component.scene;
+package com.allinweb.ch.facade;
 
 import com.allinweb.ch.component.pane.BotJobDetailsWorkspaceHost;
 import com.allinweb.ch.driver.ARWebDriver;
-import com.allinweb.ch.facade.ConfigPresentationRegistry;
-import com.allinweb.ch.facade.ConfigSceneShutdownPort;
-import com.allinweb.ch.facade.ConfigSceneShutdownRegistry;
-import com.allinweb.ch.facade.MainDashboardPresentationRegistry;
-import com.allinweb.ch.facade.NewBotJobPresentationRegistry;
-import com.allinweb.ch.facade.OrganizationManagerLifecycle;
 
-public final class JavaFxConfigSceneShutdownPort implements ConfigSceneShutdownPort {
-    private static final JavaFxConfigSceneShutdownPort INSTANCE = new JavaFxConfigSceneShutdownPort();
+public final class DefaultConfigSceneShutdownPort implements ConfigSceneShutdownPort {
+    private static final DefaultConfigSceneShutdownPort INSTANCE = new DefaultConfigSceneShutdownPort();
 
-    private JavaFxConfigSceneShutdownPort() {}
+    private DefaultConfigSceneShutdownPort() {}
 
     public static void install() {
         ConfigSceneShutdownRegistry.getInstance().install(INSTANCE);

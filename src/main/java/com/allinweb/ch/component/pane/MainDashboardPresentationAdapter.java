@@ -14,6 +14,7 @@ import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.facade.ScannerShellLifecycle;
 import com.allinweb.ch.facade.ScannerTestRunHandlers;
+import com.allinweb.ch.facade.UiThreadDispatcher;
 import com.allinweb.ch.model.BotJobLoadDTO;
 import com.allinweb.ch.model.BlockLoadDTO;
 import com.allinweb.ch.model.HomeBankingLoadDTO;
@@ -26,10 +27,9 @@ import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import java.io.File;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.BooleanSupplier;
-import javafx.application.Platform;
-import javafx.collections.ObservableList;
 import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.WebDriver;
 
@@ -52,7 +52,8 @@ public class MainDashboardPresentationAdapter
 
     protected static volatile MainDashboardPresentationAdapter instance;
 
-    private ObservableList<WebDriver> webDriverList;
+    private final UiThreadDispatcher uiThreadDispatcher = UiThreadDispatcher.getInstance();
+    private List<WebDriver> webDriverList;
     private boolean isEnabledLicence;
     private String initialSessionId = SESSION_ID;
 
@@ -74,12 +75,12 @@ public class MainDashboardPresentationAdapter
         return instance;
     }
 
-    public void initialize(ObservableList<WebDriver> webDriverList, boolean isEnabledLicence) {
+    public void initialize(List<WebDriver> webDriverList, boolean isEnabledLicence) {
         initialize(webDriverList, isEnabledLicence, SESSION_ID);
     }
 
     public void initialize(
-            ObservableList<WebDriver> webDriverList, boolean isEnabledLicence, String initialSessionId) {
+            List<WebDriver> webDriverList, boolean isEnabledLicence, String initialSessionId) {
         this.webDriverList = webDriverList;
         this.isEnabledLicence = isEnabledLicence;
         this.initialSessionId = initialSessionId == null ? SESSION_ID : initialSessionId;
@@ -89,7 +90,7 @@ public class MainDashboardPresentationAdapter
 
     @Override
     public void openOrganizations() {
-        Platform.runLater(() -> {
+        uiThreadDispatcher.execute(() -> {
             ErrorMessage errorMessage = performDataBase.loadAllDataUsers();
             if (errorMessage == null) {
                 errorMessage = performDBEngine.loadHomeBanking(null);
@@ -106,7 +107,7 @@ public class MainDashboardPresentationAdapter
     }
 
     public void openNewBotJob() {
-        Platform.runLater(() -> {
+        uiThreadDispatcher.execute(() -> {
             if (performLists.getListHomeUrl().isEmpty()) {
                 performDBEngine.loadHomeUrls(null);
             }
@@ -127,7 +128,7 @@ public class MainDashboardPresentationAdapter
     }
 
     public void openCloneBotJob(BotJobLoadDTO botJob) {
-        Platform.runLater(() -> dispatchReactSession("cloneJobManager", botJob.getId()));
+        uiThreadDispatcher.execute(() -> dispatchReactSession("cloneJobManager", botJob.getId()));
     }
 
     @Override
@@ -182,7 +183,7 @@ public class MainDashboardPresentationAdapter
     }
 
     public void closeCloneJob() {
-        Platform.runLater(() -> dispatchReactSession(SESSION_ID));
+        uiThreadDispatcher.execute(() -> dispatchReactSession(SESSION_ID));
     }
 
     @Override
@@ -192,16 +193,16 @@ public class MainDashboardPresentationAdapter
 
     @Override
     public void closeModal() {
-        Platform.runLater(() -> dispatchReactSession(SESSION_ID));
+        uiThreadDispatcher.execute(() -> dispatchReactSession(SESSION_ID));
     }
 
     @Override
     public void openCloneOrganizations() {
-        Platform.runLater(() -> dispatchReactSession("organizationManager"));
+        uiThreadDispatcher.execute(() -> dispatchReactSession("organizationManager"));
     }
 
     public void openBotJob(BotJobLoadDTO botJob) {
-        Platform.runLater(() -> {
+        uiThreadDispatcher.execute(() -> {
             reloadBlocks(botJob);
             botJobDetailsHost.initialize(botJob, isEnabledLicence);
             showSurface(
@@ -228,8 +229,7 @@ public class MainDashboardPresentationAdapter
 
     @Override
     public void execute(Runnable operation) {
-        if (Platform.isFxApplicationThread()) operation.run();
-        else Platform.runLater(operation);
+        uiThreadDispatcher.execute(operation);
     }
 
     @Override
@@ -260,7 +260,7 @@ public class MainDashboardPresentationAdapter
     }
 
     public void openConfig() {
-        Platform.runLater(() -> {
+        uiThreadDispatcher.execute(() -> {
             dispatchReactSession("configManager");
             performDataBase.loadQuickBotJobs();
             pushReactDashboardList();
@@ -268,15 +268,15 @@ public class MainDashboardPresentationAdapter
     }
 
     public void openInfo() {
-        Platform.runLater(() -> dispatchReactSession("aboutPanel"));
+        uiThreadDispatcher.execute(() -> dispatchReactSession("aboutPanel"));
     }
 
     public void openLicense() {
-        Platform.runLater(() -> dispatchReactSession("licenseManager"));
+        uiThreadDispatcher.execute(() -> dispatchReactSession("licenseManager"));
     }
 
     public void launchBotJob(BotJobLoadDTO botJob) {
-        Platform.runLater(() -> performMessage.showCustomModalDialogDragWin11(
+        uiThreadDispatcher.execute(() -> performMessage.showCustomModalDialogDragWin11(
                 "Launch Requested",
                 "<span style='color: #2E7D32; font-weight: bold;'>Launch requested from React dashboard.</span>",
                 "<span style='font-weight: bold;'>Bot Job: (" + botJob.getId() + ") " + botJob.getName() + "</span>",
@@ -289,7 +289,7 @@ public class MainDashboardPresentationAdapter
     }
 
     public void exitApplication() {
-        Platform.runLater(() -> {
+        uiThreadDispatcher.execute(() -> {
             for (WebDriver driver : arWebDriver.getWebDriverList()) {
                 try {
                     driver.quit();

@@ -1,12 +1,15 @@
 package com.allinweb.ch;
 
-import com.allinweb.ch.component.scene.JavaFxShellBootstrap;
+import com.allinweb.ch.component.pane.MainDashboardLifecycleInstaller;
 import com.allinweb.ch.facade.ApplicationStartupLifecycle;
+import com.allinweb.ch.facade.DefaultConfigSceneShutdownPort;
 import com.allinweb.ch.facade.MainShellLifecycle;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformInitializer;
 import com.allinweb.ch.facade.PerformMessage;
 import com.allinweb.ch.facade.PluginFileWatcher;
+import com.allinweb.ch.facade.ScannerRuntime;
+import com.allinweb.ch.facade.UiThreadDispatcher;
 import com.allinweb.ch.license.LicenceVal;
 import com.allinweb.ch.license.LicenseManager;
 import com.allinweb.ch.model.ScannerWorkspaceSessions;
@@ -27,13 +30,10 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
-import javafx.application.Application;
-import javafx.application.Platform;
-import javafx.stage.Stage;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class ARControlPanel extends Application {
+public class ARControlPanel {
 
     private static final SuppressHsqldbLogs suppressHsqldbLogs = SuppressHsqldbLogs.getInstance();
     private static final LogControl logControl = LogControl.getInstance();
@@ -54,7 +54,9 @@ public class ARControlPanel extends Application {
         performInitializer = PerformInitializer.getInstance();
         performMessage = PerformMessage.getInstance();
         arPropertyManager = ARPropertyManager.getInstance();
-        JavaFxShellBootstrap.install();
+        MainDashboardLifecycleInstaller.install();
+        DefaultConfigSceneShutdownPort.install();
+        ScannerRuntime.getInstance();
     }
 
     public static void main(String[] args) {
@@ -93,7 +95,7 @@ public class ARControlPanel extends Application {
                 if (!configurationFile.exists()) {
                     arPropertyManager.createDefaultProperties(configurationFile);
                 }
-                Platform.runLater(() -> {
+                UiThreadDispatcher.getInstance().execute(() -> {
                     initializeLicenseServer();
                     showConfigurationFallback();
                     licenseControl();
@@ -127,7 +129,7 @@ public class ARControlPanel extends Application {
                 if (!configurationFile.exists()) {
                     arPropertyManager.createDefaultProperties(configurationFile);
                 }
-                Platform.runLater(() -> {
+                UiThreadDispatcher.getInstance().execute(() -> {
                     initializeLicenseServer();
                     showConfigurationFallback();
                     licenseControl();
@@ -228,7 +230,7 @@ public class ARControlPanel extends Application {
                         databaseControl();
                         // webSocketControl();
 
-                        Platform.runLater(() -> {
+                        UiThreadDispatcher.getInstance().execute(() -> {
                             MainShellLifecycle.getInstance().openMain(isEnabledLicence);
                         });
 
@@ -259,11 +261,11 @@ public class ARControlPanel extends Application {
             // Ensure launch(args) is only called once: JavaFX does not allow calling Application.launch() twice.
             //            launch();
             // webSocketControl();
-            Platform.runLater(() -> {
+            UiThreadDispatcher.getInstance().execute(() -> {
                 MainShellLifecycle.getInstance().openMain(isEnabledLicence);
             });
             if (!performDataBase.isConnDBWorks()) {
-                Platform.runLater(() -> {
+                UiThreadDispatcher.getInstance().execute(() -> {
                     showConfigurationFallback();
                 });
             }
@@ -279,7 +281,7 @@ public class ARControlPanel extends Application {
             databaseControl();
             initializeServers();
         });
-        Platform.runLater(() -> {
+        UiThreadDispatcher.getInstance().execute(() -> {
             MainShellLifecycle.getInstance().openMain(isEnabledLicence, "activationRequired");
         });
     }
@@ -450,11 +452,6 @@ public class ARControlPanel extends Application {
                             + performDataBase.getErrorMessage().getErrorMessage() + "</span>",
                     0);
         }
-    }
-
-    @Override
-    public void start(Stage stage) throws Exception {
-        //        primaryStage.show();
     }
 
     private static int getInitialPort() {

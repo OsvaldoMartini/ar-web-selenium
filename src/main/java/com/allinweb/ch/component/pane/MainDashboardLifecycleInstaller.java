@@ -1,13 +1,13 @@
 package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.facade.MainShellLifecycle;
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
+import java.util.ArrayList;
+import java.util.List;
 import org.openqa.selenium.WebDriver;
 
 public final class MainDashboardLifecycleInstaller {
     private static final MainDashboardPresentationAdapter presentation = MainDashboardPresentationAdapter.getInstance();
-    private static final ObservableList<WebDriver> webDriverList = FXCollections.observableArrayList();
+    private static final List<WebDriver> webDriverList = new ArrayList<>();
 
     private MainDashboardLifecycleInstaller() {}
 

@@ -20,6 +20,11 @@ class BotJobDetailsJavaFxRetirementTest {
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/scene/ARMainScene.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/scene/ARScannedElementScene.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/scene/JavaFxScannerModalStageFactory.java")));
+        assertFalse(Files.exists(SOURCE_ROOT.resolve("component/scene/JavaFxShellBootstrap.java")));
+        assertFalse(Files.exists(SOURCE_ROOT.resolve("component/scene/JavaFxConfigSceneShutdownPort.java")));
+        assertFalse(Files.exists(SOURCE_ROOT.resolve("component/scene/base/ARScene.java")));
+        assertFalse(Files.exists(SOURCE_ROOT.resolve("component/scene/base/IARScene.java")));
+        assertFalse(Files.exists(SOURCE_ROOT.resolve("component/scene/base/IconLoader.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("facade/ScannerModalStageService.java")));
     }
 
@@ -32,5 +37,15 @@ class BotJobDetailsJavaFxRetirementTest {
         assertFalse(compiledSource.contains("extends ARPane"));
         assertFalse(compiledSource.contains("ARViewBotJobScene"));
         assertTrue(compiledSource.contains("BotJobDetailsPresentationGateway"));
+    }
+
+    @Test
+    void controlPanelHasNoCompiledJavaFxDependency() throws IOException {
+        String source = Files.readString(SOURCE_ROOT.resolve("ARControlPanel.java"));
+        String compiledSource = source.replaceAll("(?s)/\\*.*?\\*/", "");
+
+        assertFalse(compiledSource.contains("import javafx."));
+        assertFalse(compiledSource.contains("extends Application"));
+        assertFalse(compiledSource.contains("Platform.runLater"));
     }
 }
