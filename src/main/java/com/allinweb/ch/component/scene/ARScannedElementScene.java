@@ -22,7 +22,6 @@ import javax.websocket.*;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.WebElement;
 
 @ClientEndpoint
 @Slf4j
@@ -61,7 +60,9 @@ public class ARScannedElementScene {
     private final ScannerElementTestActionService scannerElementTestActionService =
             new ScannerElementTestActionService();
     private final ScannerElementTestLookupService scannerElementTestLookupService =
-            new ScannerElementTestLookupService(new SceneElementTestListsPort(), new SceneElementTestDataPort());
+            new ScannerElementTestLookupService(
+                    new ScannerRuntimeDataPorts.ElementTestListsPort(performLists),
+                    new ScannerRuntimeDataPorts.ElementTestDataPort(performDataBase));
     private final ScannerInsertBlockSelectionService scannerInsertBlockSelectionService;
     private final ScannerInsertPreparationService scannerInsertPreparationService =
             new ScannerInsertPreparationService();
@@ -76,7 +77,8 @@ public class ARScannedElementScene {
     private final ScannerBotJobTasksPublisher scannerBotJobTasksPublisher =
             ScannerBotJobTasksPublisher.getInstance();
     private final ScannerInstructionOrderService scannerInstructionOrderService =
-            new ScannerInstructionOrderService(new SceneInstructionOrderDataPort());
+            new ScannerInstructionOrderService(
+                    new ScannerRuntimeDataPorts.InstructionOrderDataPort(performDataBase, performLists));
     private final ScannerBlockUpdateRouteService scannerBlockUpdateRouteService =
             new ScannerBlockUpdateRouteService();
     private final BotJobWorkspaceCapabilityService botJobWorkspaceCapabilityService =
@@ -95,7 +97,8 @@ public class ARScannedElementScene {
         this.arScannedElementPane = ARScannedElementPaneProvider.getInstance().currentPane();
         ScannerShellLifecycle.getInstance().install(new ScannerRuntimeShellHandler(this));
         this.scannerInsertBlockSelectionService =
-                new ScannerInsertBlockSelectionService(new SceneInsertBlockListsPort(), arScannedElementPane);
+                new ScannerInsertBlockSelectionService(
+                        new ScannerRuntimeDataPorts.InsertBlockListsPort(performLists), arScannedElementPane);
     }
 
     public static ARScannedElementScene getInstance() {
@@ -355,7 +358,8 @@ public class ARScannedElementScene {
                                 splitDTO.getSessionId(), previousBlock);
                     }
                     scannerElementDetailsSelectionService.select(
-                            new SceneElementDetailsTargetExtractor(),
+                            new ScannerRuntimeDataPorts.ElementDetailsTargetExtractor(
+                                    targetElementHelper, performActions),
                             arScannedElementPane,
                             splitDTO.getElementDetails()[0]);
                     break;
@@ -516,8 +520,8 @@ public class ARScannedElementScene {
             int nextOrder = scannerInstructionOrderService.nextOrder(currentBotJob.getId(), currentBlockId);
 
             scannerInsertPreparationService.prepare(
-                    new SceneInsertActionsPort(),
-                    new SceneInsertTargetExtractor(),
+                    new ScannerRuntimeDataPorts.InsertActionsPort(performActions),
+                    new ScannerRuntimeDataPorts.InsertTargetExtractor(targetElementHelper, performActions),
                     arScannedElementPane,
                     instructionList,
                     processDTO.getElementDetails(),
@@ -567,8 +571,8 @@ public class ARScannedElementScene {
             int nextOrder = scannerInstructionOrderService.nextOrder(currentBotJob.getId(), currentBlockId);
 
             scannerUpdatePreparationService.prepare(
-                    new SceneInsertActionsPort(),
-                    new SceneInsertTargetExtractor(),
+                    new ScannerRuntimeDataPorts.InsertActionsPort(performActions),
+                    new ScannerRuntimeDataPorts.InsertTargetExtractor(targetElementHelper, performActions),
                     arScannedElementPane,
                     instructionList,
                     processDTO.getElementDetails(),
@@ -635,83 +639,6 @@ public class ARScannedElementScene {
         } catch (Exception error) {
             log.error("Cannot parse SplitDTO: " + error.getMessage() + " | JSON: " + jsonEntry);
             return null;
-        }
-    }
-
-    private static final class SceneElementTestListsPort implements ScannerElementTestLookupService.ListsPort {
-        @Override
-        public boolean isInstructionListEmpty(String tableName) {
-            return ScannerElementTestLookupService.BOT_JOB_INSTRUCTION_TABLE.equals(tableName)
-                    ? performLists.getListInstruction().isEmpty()
-                    : performLists.getListInstructionComp().isEmpty();
-        }
-
-        @Override
-        public InstructionLoad getInstructionById(String tableName, int whereId, int instructionId) {
-            return performLists.getInstructionById(tableName, whereId, instructionId);
-        }
-    }
-
-    private static final class SceneElementTestDataPort implements ScannerElementTestLookupService.DataPort {
-        @Override
-        public ErrorMessage loadInstructions(int whereId, String tableName) {
-            return performDataBase.loadInstructions(whereId, -1, -1, tableName);
-        }
-    }
-
-    private static final class SceneInsertBlockListsPort implements ScannerInsertBlockSelectionService.ListsPort {
-        @Override
-        public boolean hasBlocks() {
-            return !performLists.getListBlock().isEmpty();
-        }
-    }
-
-    private static final class SceneInstructionOrderDataPort implements ScannerInstructionOrderService.DataPort {
-        @Override
-        public void loadInstructions(int botJobId, int blockId, int instructionId, String tableName) {
-            performDataBase.loadInstructions(botJobId, blockId, instructionId, tableName);
-        }
-
-        @Override
-        public List<InstructionLoad> instructions() {
-            return performLists.getListInstruction();
-        }
-    }
-
-    private static final class SceneInsertActionsPort implements ScannerInsertPreparationService.ActionsPort {
-        @Override
-        public WebElement findWebElement(TargetElement target) {
-            return performActions.findWebElement(target);
-        }
-
-        @Override
-        public void defineSavedReferenced(TargetElement target) {
-            performActions.defineSavedReferenced(target);
-        }
-    }
-
-    private static final class SceneInsertTargetExtractor implements ScannerInsertPreparationService.TargetExtractor {
-        @Override
-        public void initialize(ScannerTargetContext scannerTargetContext) {
-            targetElementHelper.initialize(performActions, scannerTargetContext);
-        }
-
-        @Override
-        public TargetElement extractPickClone(ElementDTO elementDTO) {
-            return targetElementHelper.extractPickClone(elementDTO);
-        }
-    }
-
-    private static final class SceneElementDetailsTargetExtractor
-            implements ScannerElementDetailsSelectionService.TargetExtractor {
-        @Override
-        public void initialize(ScannerTargetContext scannerTargetContext) {
-            targetElementHelper.initialize(performActions, scannerTargetContext);
-        }
-
-        @Override
-        public TargetElement extractPickClone(ElementDTO elementDTO) {
-            return targetElementHelper.extractPickClone(elementDTO);
         }
     }
 
