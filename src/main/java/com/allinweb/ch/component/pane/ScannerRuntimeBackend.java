@@ -11,6 +11,7 @@ import com.allinweb.ch.facade.scanner.browser.ScannerBrowserNotAttachedMessageSe
 import com.allinweb.ch.facade.scanner.browser.ScannerBrowserRuntime;
 import com.allinweb.ch.facade.scanner.browser.ScannerBrowserTabNavigator;
 import com.allinweb.ch.facade.scanner.browser.ScannerBrowserTabSelector;
+import com.allinweb.ch.facade.scanner.browser.ScannerSeleniumBrowserAdapter;
 import com.allinweb.ch.facade.scanner.browser.ScannerScreenshotLoop;
 import com.allinweb.ch.facade.scanner.prelaunch.ScannerPreLaunchControls;
 import com.allinweb.ch.facade.scanner.prelaunch.ScannerPreLaunchExcelLoader;
@@ -1510,7 +1511,7 @@ public class ScannerRuntimeBackend
             }
 
             Optional<ScannerDomReviewSnapshotService.Snapshot> snapshot =
-                    scannerDomReviewSnapshotService.snapshot(new PaneDomReviewBrowser(driver));
+                    scannerDomReviewSnapshotService.snapshot(new ScannerSeleniumBrowserAdapter(driver));
             if (snapshot.isEmpty()) {
                 log.warn("sendCurrentDomForReview — empty page source");
                 return;
@@ -1553,7 +1554,7 @@ public class ScannerRuntimeBackend
 
                 } else if (responseAction == ScannerSupportResponseActionService.Action.SAVE) {
                     ScannerSupportFileService.SupportFile supportFile =
-                            scannerPageReviewFileService.pageReview(html, new PanePageReviewBrowser(driver));
+                            scannerPageReviewFileService.pageReview(html, new ScannerSeleniumBrowserAdapter(driver));
                     scannerSupportSaveFlowAdapter.savePageReview(supportFile);
                 }
             } catch (Exception ex) {
@@ -1565,7 +1566,8 @@ public class ScannerRuntimeBackend
     private void requestSupport() {
         try {
             int hbId = this.currentBotJob != null ? this.currentBotJob.getHomeBankingId() : 0;
-            String destination = scannerSupportRequestService.requestSupport(hbId, new PaneBrowserUrl());
+            String destination = scannerSupportRequestService.requestSupport(
+                    hbId, new ScannerSeleniumBrowserAdapter(performActions::getCurrentDriver));
             log.info("requestSupport — WS message sent to {}", destination);
 
         } catch (Exception ex) {
@@ -1582,64 +1584,12 @@ public class ScannerRuntimeBackend
     public void requestSupportElements() {
         try {
             int hbId = this.currentBotJob != null ? this.currentBotJob.getHomeBankingId() : 0;
-            String destination = scannerSupportRequestService.requestElementsSupport(hbId, new PaneBrowserUrl());
+            String destination = scannerSupportRequestService.requestElementsSupport(
+                    hbId, new ScannerSeleniumBrowserAdapter(performActions::getCurrentDriver));
             log.info("requestSupportElements — WS message sent to {}", destination);
 
         } catch (Exception ex) {
             log.error("requestSupportElements failed", ex);
-        }
-    }
-
-    private static final class PaneBrowserUrl implements ScannerBrowserUrlService.Browser {
-        @Override
-        public boolean hasCurrentDriver() {
-            return performActions.getCurrentDriver() != null;
-        }
-
-        @Override
-        public String currentUrl() {
-            return performActions.getCurrentDriver().getCurrentUrl();
-        }
-    }
-
-    private static final class PaneDomReviewBrowser implements ScannerDomReviewSnapshotService.Browser {
-        private final org.openqa.selenium.WebDriver driver;
-
-        private PaneDomReviewBrowser(org.openqa.selenium.WebDriver driver) {
-            this.driver = driver;
-        }
-
-        @Override
-        public String pageSource() {
-            return driver.getPageSource();
-        }
-
-        @Override
-        public String currentUrl() {
-            return driver.getCurrentUrl();
-        }
-
-        @Override
-        public String title() {
-            return driver.getTitle();
-        }
-    }
-
-    private static final class PanePageReviewBrowser implements ScannerPageReviewFileService.Browser {
-        private final org.openqa.selenium.WebDriver driver;
-
-        private PanePageReviewBrowser(org.openqa.selenium.WebDriver driver) {
-            this.driver = driver;
-        }
-
-        @Override
-        public String currentUrl() {
-            return driver != null ? driver.getCurrentUrl() : "(unknown)";
-        }
-
-        @Override
-        public String title() {
-            return driver != null ? driver.getTitle() : "";
         }
     }
 

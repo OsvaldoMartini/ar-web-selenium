@@ -177,6 +177,16 @@ class BotJobDetailsDesktopUiRetirementTest {
     }
 
     @Test
+    void scannerPaneDoesNotOwnSeleniumBrowserAdapters() throws IOException {
+        String source = Files.readString(SOURCE_ROOT.resolve("component/pane/ScannerRuntimeBackend.java"));
+        String compiledSource = source.replaceAll("(?s)/\\*.*?\\*/", "");
+
+        assertFalse(compiledSource.contains("PaneBrowserUrl"));
+        assertFalse(compiledSource.contains("PaneDomReviewBrowser"));
+        assertFalse(compiledSource.contains("PanePageReviewBrowser"));
+    }
+
+    @Test
     void scannerPaneDoesNotExposeLegacyPaneShellApi() throws IOException {
         String source = Files.readString(SOURCE_ROOT.resolve("component/pane/ScannerRuntimeBackend.java"));
         String compiledSource = source.replaceAll("(?s)/\\*.*?\\*/", "");
