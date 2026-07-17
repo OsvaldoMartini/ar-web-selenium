@@ -384,7 +384,8 @@ public class ARScannedElementScene {
 
     public void handleCloseRequest() {
         log.info("Handle Close: Exiting Threads and Quitting WebDriver");
-        scannerCloseRequestService.close(new SceneCloseRequest());
+        scannerCloseRequestService.close(new ScannerRuntimeCloseRequest(
+                arWebDriver, this::closeWebDrivers, executorWebSocket, executorServicePreLaunch));
     }
 
     // Method to close all WebDriver instances
@@ -405,61 +406,6 @@ public class ARScannedElementScene {
         });
 
         UiThreadDispatcher.getInstance().execute(() -> arWebDriver.getWebDriverList().clear());
-    }
-
-    private void shutDownExecutorService(ExecutorService executorService) {
-        executorService.shutdown();
-        try {
-            if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
-                executorService.shutdownNow();
-                if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
-                    log.warn("ExecutorService did not terminate");
-                }
-            }
-        } catch (InterruptedException e) {
-            executorService.shutdownNow();
-            Thread.currentThread().interrupt();
-            log.warn("ExecutorService did not terminate" + e.getMessage());
-        }
-    }
-
-    private final class SceneCloseRequest implements ScannerCloseRequestService.CloseRequest {
-        @Override
-        public void interruptThreads() {
-            // ARScannedElementScene no longer owns UI threads directly; executor shutdown is handled below.
-        }
-
-        @Override
-        public boolean hasWebDriver() {
-            return arWebDriver != null;
-        }
-
-        @Override
-        public void closeWebDrivers() {
-            ARScannedElementScene.this.closeWebDrivers();
-        }
-
-        @Override
-        public void quitCurrentDriver() {
-            arWebDriver.getCurrentDriver().quit();
-        }
-
-        @Override
-        public void clearCurrentDriver() {
-            arWebDriver.setCurrentDriver(null);
-        }
-
-        @Override
-        public void shutdownExecutors() {
-            shutDownExecutorService(executorWebSocket);
-            shutDownExecutorService(executorServicePreLaunch);
-            log.info("WebDriver quit successfully.");
-        }
-
-        @Override
-        public void closeFailed(Exception error) {
-            log.error("Error closing WebDriver: " + error.getMessage());
-        }
     }
 
     public void showModal() {
