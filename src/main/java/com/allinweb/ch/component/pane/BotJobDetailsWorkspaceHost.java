@@ -601,7 +601,7 @@ public class BotJobDetailsWorkspaceHost {
 
     /**
      * Pane-free row test (Test Click / Test Input) against the ISOLATED pre-scan browser.
-     * The legacy path runs {@code ARScannedElementPane.testingActions} on the shared
+     * The legacy path runs {@code ScannerRuntimeBackend.testingActions} on the shared
      * driver; here the scanned page lives in the isolated Pre Scan browser session, so the test must too.
      * Results stream to the dashboard status bar (done/failed) instead of a modal.
      */

@@ -139,7 +139,7 @@ class BancaStatoAperturaContoAllBlocksPlaywrightIT {
     @EnabledIfSystemProperty(named = "bancastatoAperturaContoIT", matches = "true")
     void testRunOneModeStopsBeforeSecondBlock() throws Exception {
         // ONE mode (runSingleBlock=true) means the block loop's stop checkpoint fires right after the
-        // selected block completes (ARScannedElementPane.java:6555-6562) — block 231 is never reached.
+        // selected block completes (ScannerRuntimeBackend.java:6555-6562) — block 231 is never reached.
         // Simulated here by simply never calling runInsertInstruction for block 231.
         List<InstructionLoad> apreAcontoInstructions = loadActiveInstructions(BLOCK_APRE_ACONTO);
         List<InstructionLoad> startRegistrationInstructions = loadActiveInstructions(BLOCK_START_REGISTRATION);

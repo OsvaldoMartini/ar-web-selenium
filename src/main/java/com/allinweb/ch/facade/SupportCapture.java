@@ -29,7 +29,7 @@ import org.openqa.selenium.WebElement;
 /**
  * Captures the current page DOM via Selenium and uploads it to the MultiPlugins
  * portal support queue. Only invoked on explicit user action (the "Send DOM for
- * Review" button in ARScannedElementPane).
+ * Review" button in ScannerRuntimeBackend).
  *
  * Envelope schema v1:
  *   schemaVersion     "1"
@@ -71,7 +71,7 @@ public class SupportCapture {
     /**
      * Build the elements-review envelope as a {@link JsonObject}. Shared by
      * {@link #captureElementsAndSend} and the local-save path in
-     * {@code ARScannedElementPane} so both the portal upload and the
+     * {@code ScannerRuntimeBackend} so both the portal upload and the
      * {@code .support} file carry identical structure.
      */
     public JsonObject buildElementsReviewEnvelope(

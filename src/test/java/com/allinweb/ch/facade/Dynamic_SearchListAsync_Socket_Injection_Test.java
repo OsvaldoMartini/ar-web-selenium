@@ -181,7 +181,7 @@ public class Dynamic_SearchListAsync_Socket_Injection_Test {
             }
 
             // ── Visual flash pass ──────────────────────────────────────────────
-            // Same pincer sweep used in ARScannedElementPane: one cursor walks
+            // Same pincer sweep used in ScannerRuntimeBackend: one cursor walks
             // from the start of the list, the other from the end, meeting in
             // the middle. Lets you see every element the scanner picked up.
             if (!foundXPaths.isEmpty()) {

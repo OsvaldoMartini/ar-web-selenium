@@ -77,6 +77,7 @@ class BotJobDetailsDesktopUiRetirementTest {
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerPluginBackgroundThreadAdapter.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerLayoutNodeAdapter.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerElementFocusComboBoxAdapter.java")));
+        assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ARScannedElementPane.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ARScannedElementPaneProvider.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ARScannedElementPanePort.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("socket/MainFrame.java")));
@@ -106,7 +107,7 @@ class BotJobDetailsDesktopUiRetirementTest {
 
     @Test
     void scannerPaneDoesNotUsePlatformRunLater() throws IOException {
-        String source = Files.readString(SOURCE_ROOT.resolve("component/pane/ARScannedElementPane.java"));
+        String source = Files.readString(SOURCE_ROOT.resolve("component/pane/ScannerRuntimeBackend.java"));
         String compiledSource = source.replaceAll("(?s)/\\*.*?\\*/", "");
 
         assertFalse(compiledSource.contains("import " + RETIRED_UI_PACKAGE + ".application.Platform"));
@@ -115,7 +116,7 @@ class BotJobDetailsDesktopUiRetirementTest {
 
     @Test
     void scannerPaneDoesNotUseRetiredUiBooleanProperties() throws IOException {
-        String source = Files.readString(SOURCE_ROOT.resolve("component/pane/ARScannedElementPane.java"));
+        String source = Files.readString(SOURCE_ROOT.resolve("component/pane/ScannerRuntimeBackend.java"));
         String compiledSource = source.replaceAll("(?s)/\\*.*?\\*/", "");
 
         assertFalse(compiledSource.contains(RETIRED_UI_PACKAGE + ".beans.property.BooleanProperty"));
@@ -124,7 +125,7 @@ class BotJobDetailsDesktopUiRetirementTest {
 
     @Test
     void scannerPaneDoesNotUsePaneBaseInheritance() throws IOException {
-        String source = Files.readString(SOURCE_ROOT.resolve("component/pane/ARScannedElementPane.java"));
+        String source = Files.readString(SOURCE_ROOT.resolve("component/pane/ScannerRuntimeBackend.java"));
         String compiledSource = source.replaceAll("(?s)/\\*.*?\\*/", "");
 
         assertFalse(compiledSource.contains("extends ARPane"));
@@ -133,7 +134,7 @@ class BotJobDetailsDesktopUiRetirementTest {
 
     @Test
     void scannerPaneDoesNotExposeLegacyPaneShellApi() throws IOException {
-        String source = Files.readString(SOURCE_ROOT.resolve("component/pane/ARScannedElementPane.java"));
+        String source = Files.readString(SOURCE_ROOT.resolve("component/pane/ScannerRuntimeBackend.java"));
         String compiledSource = source.replaceAll("(?s)/\\*.*?\\*/", "");
 
         assertFalse(compiledSource.contains("createPane("));
@@ -143,7 +144,7 @@ class BotJobDetailsDesktopUiRetirementTest {
 
     @Test
     void scannerPaneDoesNotUseRetiredUiTextNodes() throws IOException {
-        String source = Files.readString(SOURCE_ROOT.resolve("component/pane/ARScannedElementPane.java"));
+        String source = Files.readString(SOURCE_ROOT.resolve("component/pane/ScannerRuntimeBackend.java"));
         String compiledSource = source.replaceAll("(?s)/\\*.*?\\*/", "");
 
         assertFalse(compiledSource.contains(RETIRED_UI_PACKAGE + ".scene.text.Text"));
@@ -153,7 +154,7 @@ class BotJobDetailsDesktopUiRetirementTest {
 
     @Test
     void scannerPaneDoesNotUseStaticLabelAdapters() throws IOException {
-        String source = Files.readString(SOURCE_ROOT.resolve("component/pane/ARScannedElementPane.java"));
+        String source = Files.readString(SOURCE_ROOT.resolve("component/pane/ScannerRuntimeBackend.java"));
         String compiledSource = source.replaceAll("(?s)/\\*.*?\\*/", "");
 
         assertFalse(compiledSource.contains("ScannerFieldLabelsAdapter"));
@@ -163,7 +164,7 @@ class BotJobDetailsDesktopUiRetirementTest {
 
     @Test
     void scannerPaneDoesNotUseRetiredHiddenCheckboxAdapters() throws IOException {
-        String source = Files.readString(SOURCE_ROOT.resolve("component/pane/ARScannedElementPane.java"));
+        String source = Files.readString(SOURCE_ROOT.resolve("component/pane/ScannerRuntimeBackend.java"));
         String compiledSource = source.replaceAll("(?s)/\\*.*?\\*/", "");
 
         assertFalse(compiledSource.contains("ScannerHiddenCloneCheckboxAdapter"));
@@ -174,7 +175,7 @@ class BotJobDetailsDesktopUiRetirementTest {
 
     @Test
     void scannerPaneDoesNotUseRetiredUiTestActionCheckboxes() throws IOException {
-        String source = Files.readString(SOURCE_ROOT.resolve("component/pane/ARScannedElementPane.java"));
+        String source = Files.readString(SOURCE_ROOT.resolve("component/pane/ScannerRuntimeBackend.java"));
         String compiledSource = source.replaceAll("(?s)/\\*.*?\\*/", "");
 
         assertFalse(compiledSource.contains("ScannerTestActionCheckboxesAdapter"));
@@ -187,7 +188,7 @@ class BotJobDetailsDesktopUiRetirementTest {
 
     @Test
     void scannerPaneDoesNotUseRetiredUiTextFields() throws IOException {
-        String source = Files.readString(SOURCE_ROOT.resolve("component/pane/ARScannedElementPane.java"));
+        String source = Files.readString(SOURCE_ROOT.resolve("component/pane/ScannerRuntimeBackend.java"));
         String compiledSource = source.replaceAll("(?s)/\\*.*?\\*/", "");
 
         assertFalse(compiledSource.contains("ScannerTextFieldsAdapter"));
@@ -200,7 +201,7 @@ class BotJobDetailsDesktopUiRetirementTest {
 
     @Test
     void scannerPaneDoesNotUseRetiredUiStatusTextArea() throws IOException {
-        String source = Files.readString(SOURCE_ROOT.resolve("component/pane/ARScannedElementPane.java"));
+        String source = Files.readString(SOURCE_ROOT.resolve("component/pane/ScannerRuntimeBackend.java"));
         String compiledSource = source.replaceAll("(?s)/\\*.*?\\*/", "");
 
         assertFalse(compiledSource.contains("ScannerPreLaunchStatusTextAreaAdapter"));
@@ -210,7 +211,7 @@ class BotJobDetailsDesktopUiRetirementTest {
 
     @Test
     void scannerPaneDoesNotUseRetiredButtonAdapters() throws IOException {
-        String source = Files.readString(SOURCE_ROOT.resolve("component/pane/ARScannedElementPane.java"));
+        String source = Files.readString(SOURCE_ROOT.resolve("component/pane/ScannerRuntimeBackend.java"));
         String compiledSource = source.replaceAll("(?s)/\\*.*?\\*/", "");
 
         assertFalse(compiledSource.contains("ScannerRefreshBlocksButtonAdapter"));
@@ -224,7 +225,7 @@ class BotJobDetailsDesktopUiRetirementTest {
 
     @Test
     void scannerPaneDoesNotUseRetiredPluginButtonAdapters() throws IOException {
-        String source = Files.readString(SOURCE_ROOT.resolve("component/pane/ARScannedElementPane.java"));
+        String source = Files.readString(SOURCE_ROOT.resolve("component/pane/ScannerRuntimeBackend.java"));
         String compiledSource = source.replaceAll("(?s)/\\*.*?\\*/", "");
 
         assertFalse(compiledSource.contains("import " + RETIRED_UI_PACKAGE + "."));

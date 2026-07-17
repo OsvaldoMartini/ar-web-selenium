@@ -22,7 +22,7 @@ import org.junit.jupiter.api.Test;
  * fills that gap with fabricated {@link InstructionLoad}/{@link BlockLoadDTO} fixtures, mirroring the
  * existing {@link GotoExecutionRoutingTest} pattern.
  *
- * <p><b>Why this does not test {@code ARScannedElementPane.executeJob()} directly:</b> that method (and
+ * <p><b>Why this does not test {@code ScannerRuntimeBackend.executeJob()} directly:</b> that method (and
  * its {@code mapLoops}/{@code jumpGoto} dispatch, where the forward-GOTO NPE tracked as finding C-1
  * lives) still runs through the legacy scanner runtime host and eagerly loads browser/job singletons.
  * Touching that host from a small unit fixture would pull in a full scanner lifecycle instead of only

@@ -502,7 +502,7 @@ public class PerformActions implements ActionContext {
 
     /**
      * Check if the actionExecutor JS plugin is alive in the browser.
-     * If not, re-inject it via the callback set by ARScannedElementPane.
+     * If not, re-inject it via the callback set by ScannerRuntimeBackend.
      * Called before every action step to ensure the plugin is always available.
      */
     public void ensureActionExecutor() {

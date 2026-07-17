@@ -127,7 +127,7 @@ public class PerformListElements {
      *   arguments[8]  extendedRules      - List&lt;String&gt; optional Match rules
      *                                       (tagPrefix:, tagSuffix:, attr:, attrPrefix:)
      *                                       from the new "Match rules:" field in
-     *                                       ARScannedElementPane. Empty list = no extra
+     *                                       ScannerRuntimeBackend. Empty list = no extra
      *                                       rules (identical to legacy behaviour).
      *
      * @return null on success, or an ErrorMessage on failure.

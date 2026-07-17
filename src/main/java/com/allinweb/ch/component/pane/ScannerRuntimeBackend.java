@@ -50,7 +50,7 @@ import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
 
 @Slf4j
-public class ARScannedElementPane
+public class ScannerRuntimeBackend
         implements ScannerPreLaunchControls,
                 ScannerSupportRequestHandler,
                 ScannerTestRunHandler,
@@ -78,7 +78,7 @@ public class ARScannedElementPane
     private static final ActionExecutorClient actionExecutorClient = ActionExecutorClient.getInstance();
     private static final ScannerJavaVersionService scannerJavaVersionService = new ScannerJavaVersionService();
     public static TargetElement targetSelected = new TargetElement();
-    protected static volatile ARScannedElementPane instance;
+    protected static volatile ScannerRuntimeBackend instance;
     private static SimpleDateFormat dateFormatter;
     private static String excelPath = null;
     private static JavascriptExecutor jsExecutor;
@@ -331,7 +331,7 @@ public class ARScannedElementPane
     private static final List<ElementScanProfile> ELEMENT_SCAN_PROFILES = buildElementScanProfiles();
 
     // Private constructor to prevent instantiation
-    private ARScannedElementPane() {
+    private ScannerRuntimeBackend() {
         ScannerWorkspaceService.getInstance().installExecutionOperations(new ScannerPaneExecutionOperations(this));
         ScannerSupportRequestHandlers.getInstance().register(this);
         ScannerTestRunHandlers.getInstance().register(this);
@@ -534,11 +534,11 @@ public class ARScannedElementPane
         }
     }
 
-    public static ARScannedElementPane getInstance() {
+    public static ScannerRuntimeBackend getInstance() {
         if (instance == null) {
-            synchronized (ARScannedElementPane.class) {
+            synchronized (ScannerRuntimeBackend.class) {
                 if (instance == null) {
-                    instance = new ARScannedElementPane();
+                    instance = new ScannerRuntimeBackend();
                 }
             }
         }
@@ -770,7 +770,7 @@ public class ARScannedElementPane
     private static String loadScriptFromResource(String resourcePath) throws IOException {
         // Use ClassLoader to get the resource as an InputStream
         try (InputStream inputStream =
-                ARScannedElementPane.class.getClassLoader().getResourceAsStream(resourcePath)) {
+                ScannerRuntimeBackend.class.getClassLoader().getResourceAsStream(resourcePath)) {
             if (inputStream == null) {
                 throw new IOException("Resource not found: " + resourcePath);
             }
@@ -871,7 +871,7 @@ public class ARScannedElementPane
     private final class PaneBlockValidationOperations implements ScannerBlockValidationService.Operations {
         @Override
         public int createBlockIfNone(String blockTable, int ownerId) {
-            return ARScannedElementPane.this.createBlockIfNone(blockTable, ownerId);
+            return ScannerRuntimeBackend.this.createBlockIfNone(blockTable, ownerId);
         }
 
         @Override
@@ -882,7 +882,7 @@ public class ARScannedElementPane
 
         @Override
         public void refreshBlocks() {
-            ARScannedElementPane.this.refreshBlocks(true);
+            ScannerRuntimeBackend.this.refreshBlocks(true);
         }
 
         @Override
@@ -1237,7 +1237,7 @@ public class ARScannedElementPane
 
         defaultSearch = new String[] {"input", "textarea", "button", "a", "select", "label"};
 
-        log.info("Calling ARScannedElementPane");
+        log.info("Calling ScannerRuntimeBackend");
 
         // Ensure botJob and arPriorities are not null before accessing their methods
         if (this.currentBotJob != null && arPriorities != null) {
@@ -1820,7 +1820,7 @@ public class ARScannedElementPane
     private final class PanePreLaunchStartOperations implements ScannerPreLaunchStarter.Operations {
         @Override
         public boolean lastBrowserTab() {
-            return ARScannedElementPane.this.lastBrowserTab();
+            return ScannerRuntimeBackend.this.lastBrowserTab();
         }
 
         @Override
@@ -1874,7 +1874,7 @@ public class ARScannedElementPane
         @Override
         public void setInterceptBotJob(boolean intercept) {
             performActions.setInterceptBotJob(intercept);
-            ARScannedElementPane.this.setInterceptBotJob(intercept);
+            ScannerRuntimeBackend.this.setInterceptBotJob(intercept);
         }
 
         @Override
@@ -1899,7 +1899,7 @@ public class ARScannedElementPane
 
         @Override
         public int selectedBlockOrderNumber() {
-            return ARScannedElementPane.this.selectedBlockOrderNumber();
+            return ScannerRuntimeBackend.this.selectedBlockOrderNumber();
         }
 
         @Override
@@ -1909,12 +1909,12 @@ public class ARScannedElementPane
 
         @Override
         public void setRunSingleBlock(boolean runSingleBlock) {
-            ARScannedElementPane.this.runSingleBlock = runSingleBlock;
+            ScannerRuntimeBackend.this.runSingleBlock = runSingleBlock;
         }
 
         @Override
         public void clearFields() {
-            ARScannedElementPane.this.clearFields();
+            ScannerRuntimeBackend.this.clearFields();
         }
     }
 
@@ -1995,7 +1995,7 @@ public class ARScannedElementPane
 
         @Override
         public void reenableLaunchButton() {
-            ARScannedElementPane.this.reenableLaunchButton();
+            ScannerRuntimeBackend.this.reenableLaunchButton();
         }
 
         @Override
@@ -2052,7 +2052,7 @@ public class ARScannedElementPane
 
         @Override
         public void reenableLaunchButton() {
-            ARScannedElementPane.this.reenableLaunchButton();
+            ScannerRuntimeBackend.this.reenableLaunchButton();
         }
 
         @Override
@@ -2104,12 +2104,12 @@ public class ARScannedElementPane
 
         @Override
         public void reenableLaunchButton() {
-            ARScannedElementPane.this.reenableLaunchButton();
+            ScannerRuntimeBackend.this.reenableLaunchButton();
         }
 
         @Override
         public boolean lastBrowserTab() {
-            return ARScannedElementPane.this.lastBrowserTab();
+            return ScannerRuntimeBackend.this.lastBrowserTab();
         }
 
         @Override
@@ -2131,7 +2131,7 @@ public class ARScannedElementPane
 
         @Override
         public boolean recallJob() {
-            return ARScannedElementPane.this.recallJob();
+            return ScannerRuntimeBackend.this.recallJob();
         }
     }
 
@@ -2158,7 +2158,7 @@ public class ARScannedElementPane
 
         @Override
         public boolean lastBrowserTab() {
-            return ARScannedElementPane.this.lastBrowserTab();
+            return ScannerRuntimeBackend.this.lastBrowserTab();
         }
     }
 
@@ -2189,7 +2189,7 @@ public class ARScannedElementPane
 
         @Override
         public void browserNotAttached() {
-            ARScannedElementPane.this.browserNotAttached();
+            ScannerRuntimeBackend.this.browserNotAttached();
         }
     }
 
@@ -2514,7 +2514,7 @@ public class ARScannedElementPane
     private final class PanePreLaunchExecutionOperations implements ScannerPreLaunchExecutionTask.Operations {
         @Override
         public boolean executeJob() {
-            return ARScannedElementPane.this.executeJob();
+            return ScannerRuntimeBackend.this.executeJob();
         }
 
         @Override
@@ -2539,12 +2539,12 @@ public class ARScannedElementPane
 
         @Override
         public void stopScreenshotLoop() {
-            ARScannedElementPane.this.stopScreenshotLoop();
+            ScannerRuntimeBackend.this.stopScreenshotLoop();
         }
 
         @Override
         public void reenableLaunchButton() {
-            ARScannedElementPane.this.reenableLaunchButton();
+            ScannerRuntimeBackend.this.reenableLaunchButton();
         }
     }
 
@@ -2568,7 +2568,7 @@ public class ARScannedElementPane
 
         @Override
         public void updateButtonState() {
-            ARScannedElementPane.this.updateButtonState();
+            ScannerRuntimeBackend.this.updateButtonState();
         }
     }
 
@@ -2593,12 +2593,12 @@ public class ARScannedElementPane
 
         @Override
         public boolean isExecutionComplete(long executionId) {
-            return ARScannedElementPane.this.isTestRunExecutionComplete(executionId);
+            return ScannerRuntimeBackend.this.isTestRunExecutionComplete(executionId);
         }
 
         @Override
         public boolean isJobRunning() {
-            return ARScannedElementPane.this.isJobRunning.get();
+            return ScannerRuntimeBackend.this.isJobRunning.get();
         }
 
         @Override
@@ -2616,7 +2616,7 @@ public class ARScannedElementPane
         @Override
         public void setInterceptBotJob(boolean intercept) {
             performActions.setInterceptBotJob(intercept);
-            ARScannedElementPane.this.setInterceptBotJob(intercept);
+            ScannerRuntimeBackend.this.setInterceptBotJob(intercept);
         }
 
         @Override
@@ -2646,12 +2646,12 @@ public class ARScannedElementPane
 
         @Override
         public void setRunSingleBlock(boolean runSingleBlock) {
-            ARScannedElementPane.this.runSingleBlock = runSingleBlock;
+            ScannerRuntimeBackend.this.runSingleBlock = runSingleBlock;
         }
 
         @Override
         public void clearFields() {
-            ARScannedElementPane.this.clearFields();
+            ScannerRuntimeBackend.this.clearFields();
         }
     }
 
@@ -2688,17 +2688,17 @@ public class ARScannedElementPane
 
         @Override
         public long recallJobExecutionId() {
-            return ARScannedElementPane.this.recallJobExecutionId();
+            return ScannerRuntimeBackend.this.recallJobExecutionId();
         }
 
         @Override
         public boolean isJobRunning() {
-            return ARScannedElementPane.this.isJobRunning.get();
+            return ScannerRuntimeBackend.this.isJobRunning.get();
         }
 
         @Override
         public void setRunSingleBlock(boolean runSingleBlock) {
-            ARScannedElementPane.this.runSingleBlock = runSingleBlock;
+            ScannerRuntimeBackend.this.runSingleBlock = runSingleBlock;
         }
     }
 
@@ -2965,7 +2965,7 @@ public class ARScannedElementPane
     private final class PaneScreenshotLoopOperations implements ScannerScreenshotLoop.Operations {
         @Override
         public boolean isJobRunning() {
-            return ARScannedElementPane.this.isJobRunning.get();
+            return ScannerRuntimeBackend.this.isJobRunning.get();
         }
 
         @Override
@@ -3029,7 +3029,7 @@ public class ARScannedElementPane
     }
 
     private void Close() {
-        log.info("ARScannedElementPane Close()");
+        log.info("ScannerRuntimeBackend Close()");
     }
 
     private void browserNotAttached() {
@@ -3123,7 +3123,7 @@ public class ARScannedElementPane
 
         @Override
         public void appendLog(String message, String style) {
-            ARScannedElementPane.this.appendLog(message, style);
+            ScannerRuntimeBackend.this.appendLog(message, style);
         }
     }
 
@@ -3145,12 +3145,12 @@ public class ARScannedElementPane
 
         @Override
         public void revertCloneInjections() {
-            ARScannedElementPane.this.revertCloneInjections(performActions.getCurrentDriver());
+            ScannerRuntimeBackend.this.revertCloneInjections(performActions.getCurrentDriver());
         }
 
         @Override
         public void revertHoverPickInjections() {
-            ARScannedElementPane.this.revertHoverPickInjections(performActions.getCurrentDriver());
+            ScannerRuntimeBackend.this.revertHoverPickInjections(performActions.getCurrentDriver());
         }
 
         @Override
@@ -3160,7 +3160,7 @@ public class ARScannedElementPane
 
         @Override
         public void interceptBotJob() {
-            ARScannedElementPane.this.setInterceptBotJob(true);
+            ScannerRuntimeBackend.this.setInterceptBotJob(true);
         }
     }
 

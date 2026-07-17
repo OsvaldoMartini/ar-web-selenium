@@ -7,7 +7,7 @@ import java.util.function.Supplier;
 public final class ScannerRuntimeProvider {
     private static final ScannerRuntimeProvider INSTANCE = new ScannerRuntimeProvider();
 
-    private Supplier<ScannerRuntimePort> runtimeSupplier = ARScannedElementPane::getInstance;
+    private Supplier<ScannerRuntimePort> runtimeSupplier = ScannerRuntimeBackend::getInstance;
 
     private ScannerRuntimeProvider() {}
 
@@ -24,6 +24,6 @@ public final class ScannerRuntimeProvider {
     }
 
     synchronized void reset() {
-        runtimeSupplier = ARScannedElementPane::getInstance;
+        runtimeSupplier = ScannerRuntimeBackend::getInstance;
     }
 }

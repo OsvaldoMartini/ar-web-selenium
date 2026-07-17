@@ -26,7 +26,7 @@ import lombok.extern.slf4j.Slf4j;
  * scanner element WebSocket session, consumed by {@code ScannerRuntime} ->
  * {@code performInsertManyDTO} — which silently no-ops when AR Web Factory isn't open. This
  * service is the pane-free equivalent used as the fallback: it mirrors
- * {@code ARScannedElementPane.prepareToInsertElementDTO} (manyElements=true) field-for-field but
+ * {@code ScannerRuntimeBackend.prepareToInsertElementDTO} (manyElements=true) field-for-field but
  * builds each {@link TargetElement} purely from the scanned {@link ElementDTO} metadata
  * ({@code TargetElementHelper.extractPickClone(dto, true)}) — no live-browser lookup, which is
  * correct here because the pre-scan page lives in its own isolated browser.
