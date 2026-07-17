@@ -19,7 +19,7 @@ import java.util.function.BooleanSupplier;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * JavaFX-free owner of the Bot Job Details TEST RUN lifecycle.
+ * Presentation-neutral owner of the Bot Job Details TEST RUN lifecycle.
  *
  * <p>The coordinator binds START, prompt STOP, scanner execution IDs, terminal outcomes, workspace
  * epochs, and runtime-state publication. A stale completion can therefore never finish a newer

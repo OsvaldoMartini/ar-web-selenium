@@ -6,7 +6,7 @@ import com.allinweb.ch.model.HomeBankingLoadDTO;
 import java.io.File;
 import java.util.function.BooleanSupplier;
 
-/** Desktop presentation boundary for the JavaFX-free Bot Job Details workspace. */
+/** Desktop presentation boundary for the React-backed Bot Job Details workspace. */
 interface BotJobDetailsPresentationGateway {
     void execute(Runnable operation);
 

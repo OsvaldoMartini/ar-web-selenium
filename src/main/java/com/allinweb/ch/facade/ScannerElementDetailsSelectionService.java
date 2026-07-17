@@ -3,7 +3,7 @@ package com.allinweb.ch.facade;
 import com.allinweb.ch.model.ElementDTO;
 import com.allinweb.ch.model.TargetElement;
 
-/** Selects a scanner element for details/delete display outside the JavaFX scene. */
+/** Selects a scanner element for details/delete display outside the scene shell. */
 public final class ScannerElementDetailsSelectionService {
 
     public void select(TargetExtractor targetExtractor, ScannerElementTestActionService.PanePort pane, ElementDTO elementDTO) {

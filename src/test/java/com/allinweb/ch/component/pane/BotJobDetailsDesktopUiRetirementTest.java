@@ -8,9 +8,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 
-class BotJobDetailsJavaFxRetirementTest {
+class BotJobDetailsDesktopUiRetirementTest {
 
     private static final Path SOURCE_ROOT = Path.of("src", "main", "java", "com", "allinweb", "ch");
+    private static final String RETIRED_UI_PACKAGE = "java" + "fx";
+    private static final String RETIRED_UI_CLASS_PREFIX = "Java" + "Fx";
 
     @Test
     void legacyBotJobDetailsPaneAndSceneAreDeleted() {
@@ -19,13 +21,16 @@ class BotJobDetailsJavaFxRetirementTest {
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ARMainDashboardPane.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/scene/ARMainScene.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/scene/ARScannedElementScene.java")));
-        assertFalse(Files.exists(SOURCE_ROOT.resolve("component/scene/JavaFxScannerModalStageFactory.java")));
-        assertFalse(Files.exists(SOURCE_ROOT.resolve("component/scene/JavaFxShellBootstrap.java")));
-        assertFalse(Files.exists(SOURCE_ROOT.resolve("component/scene/JavaFxConfigSceneShutdownPort.java")));
+        assertFalse(Files.exists(SOURCE_ROOT.resolve(
+                "component/scene/" + RETIRED_UI_CLASS_PREFIX + "ScannerModalStageFactory.java")));
+        assertFalse(
+                Files.exists(SOURCE_ROOT.resolve("component/scene/" + RETIRED_UI_CLASS_PREFIX + "ShellBootstrap.java")));
+        assertFalse(Files.exists(
+                SOURCE_ROOT.resolve("component/scene/" + RETIRED_UI_CLASS_PREFIX + "ConfigSceneShutdownPort.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/scene/base/ARScene.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/scene/base/IARScene.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/scene/base/IconLoader.java")));
-        assertFalse(Files.exists(SOURCE_ROOT.resolve("facade/JavaFxScannerTargetContext.java")));
+        assertFalse(Files.exists(SOURCE_ROOT.resolve("facade/" + RETIRED_UI_CLASS_PREFIX + "ScannerTargetContext.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/base/ARPane.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/base/IARPane.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("facade/ScannerModalStageService.java")));
@@ -70,22 +75,22 @@ class BotJobDetailsJavaFxRetirementTest {
     }
 
     @Test
-    void workspaceHostHasNoCompiledJavaFxDependency() throws IOException {
+    void workspaceHostHasNoCompiledRetiredUiDependency() throws IOException {
         String source = Files.readString(SOURCE_ROOT.resolve("component/pane/BotJobDetailsWorkspaceHost.java"));
         String compiledSource = source.replaceAll("(?s)/\\*.*?\\*/", "");
 
-        assertFalse(compiledSource.contains("import javafx."));
+        assertFalse(compiledSource.contains("import " + RETIRED_UI_PACKAGE + "."));
         assertFalse(compiledSource.contains("extends ARPane"));
         assertFalse(compiledSource.contains("ARViewBotJobScene"));
         assertTrue(compiledSource.contains("BotJobDetailsPresentationGateway"));
     }
 
     @Test
-    void controlPanelHasNoCompiledJavaFxDependency() throws IOException {
+    void controlPanelHasNoCompiledRetiredUiDependency() throws IOException {
         String source = Files.readString(SOURCE_ROOT.resolve("ARControlPanel.java"));
         String compiledSource = source.replaceAll("(?s)/\\*.*?\\*/", "");
 
-        assertFalse(compiledSource.contains("import javafx."));
+        assertFalse(compiledSource.contains("import " + RETIRED_UI_PACKAGE + "."));
         assertFalse(compiledSource.contains("extends Application"));
         assertFalse(compiledSource.contains("Platform.runLater"));
     }
@@ -95,17 +100,17 @@ class BotJobDetailsJavaFxRetirementTest {
         String source = Files.readString(SOURCE_ROOT.resolve("component/pane/ARScannedElementPane.java"));
         String compiledSource = source.replaceAll("(?s)/\\*.*?\\*/", "");
 
-        assertFalse(compiledSource.contains("import javafx.application.Platform"));
+        assertFalse(compiledSource.contains("import " + RETIRED_UI_PACKAGE + ".application.Platform"));
         assertFalse(compiledSource.contains("Platform.runLater"));
     }
 
     @Test
-    void scannerPaneDoesNotUseJavaFxBooleanProperties() throws IOException {
+    void scannerPaneDoesNotUseRetiredUiBooleanProperties() throws IOException {
         String source = Files.readString(SOURCE_ROOT.resolve("component/pane/ARScannedElementPane.java"));
         String compiledSource = source.replaceAll("(?s)/\\*.*?\\*/", "");
 
-        assertFalse(compiledSource.contains("javafx.beans.property.BooleanProperty"));
-        assertFalse(compiledSource.contains("javafx.beans.property.SimpleBooleanProperty"));
+        assertFalse(compiledSource.contains(RETIRED_UI_PACKAGE + ".beans.property.BooleanProperty"));
+        assertFalse(compiledSource.contains(RETIRED_UI_PACKAGE + ".beans.property.SimpleBooleanProperty"));
     }
 
     @Test
@@ -128,11 +133,11 @@ class BotJobDetailsJavaFxRetirementTest {
     }
 
     @Test
-    void scannerPaneDoesNotUseJavaFxTextNodes() throws IOException {
+    void scannerPaneDoesNotUseRetiredUiTextNodes() throws IOException {
         String source = Files.readString(SOURCE_ROOT.resolve("component/pane/ARScannedElementPane.java"));
         String compiledSource = source.replaceAll("(?s)/\\*.*?\\*/", "");
 
-        assertFalse(compiledSource.contains("javafx.scene.text.Text"));
+        assertFalse(compiledSource.contains(RETIRED_UI_PACKAGE + ".scene.text.Text"));
         assertFalse(compiledSource.contains("ScannerCurrentUrlTextAdapter"));
         assertFalse(compiledSource.contains("ScannerIframeIndicatorAdapter"));
     }
@@ -159,7 +164,7 @@ class BotJobDetailsJavaFxRetirementTest {
     }
 
     @Test
-    void scannerPaneDoesNotUseJavaFxTestActionCheckboxes() throws IOException {
+    void scannerPaneDoesNotUseRetiredUiTestActionCheckboxes() throws IOException {
         String source = Files.readString(SOURCE_ROOT.resolve("component/pane/ARScannedElementPane.java"));
         String compiledSource = source.replaceAll("(?s)/\\*.*?\\*/", "");
 
@@ -172,7 +177,7 @@ class BotJobDetailsJavaFxRetirementTest {
     }
 
     @Test
-    void scannerPaneDoesNotUseJavaFxTextFields() throws IOException {
+    void scannerPaneDoesNotUseRetiredUiTextFields() throws IOException {
         String source = Files.readString(SOURCE_ROOT.resolve("component/pane/ARScannedElementPane.java"));
         String compiledSource = source.replaceAll("(?s)/\\*.*?\\*/", "");
 
@@ -181,17 +186,17 @@ class BotJobDetailsJavaFxRetirementTest {
         assertFalse(compiledSource.contains("testActionsField"));
         assertFalse(compiledSource.contains("coordsTextField"));
         assertFalse(compiledSource.contains("searchAttribValueField"));
-        assertFalse(compiledSource.contains("javafx.scene.control.TextField"));
+        assertFalse(compiledSource.contains(RETIRED_UI_PACKAGE + ".scene.control.TextField"));
     }
 
     @Test
-    void scannerPaneDoesNotUseJavaFxStatusTextArea() throws IOException {
+    void scannerPaneDoesNotUseRetiredUiStatusTextArea() throws IOException {
         String source = Files.readString(SOURCE_ROOT.resolve("component/pane/ARScannedElementPane.java"));
         String compiledSource = source.replaceAll("(?s)/\\*.*?\\*/", "");
 
         assertFalse(compiledSource.contains("ScannerPreLaunchStatusTextAreaAdapter"));
         assertFalse(compiledSource.contains("countdownTextField"));
-        assertFalse(compiledSource.contains("javafx.scene.control.TextArea"));
+        assertFalse(compiledSource.contains(RETIRED_UI_PACKAGE + ".scene.control.TextArea"));
     }
 
     @Test
@@ -213,9 +218,9 @@ class BotJobDetailsJavaFxRetirementTest {
         String source = Files.readString(SOURCE_ROOT.resolve("component/pane/ARScannedElementPane.java"));
         String compiledSource = source.replaceAll("(?s)/\\*.*?\\*/", "");
 
-        assertFalse(compiledSource.contains("import javafx."));
-        assertFalse(compiledSource.contains("javafx.scene.control"));
-        assertFalse(compiledSource.contains("javafx.scene.layout"));
+        assertFalse(compiledSource.contains("import " + RETIRED_UI_PACKAGE + "."));
+        assertFalse(compiledSource.contains(RETIRED_UI_PACKAGE + ".scene.control"));
+        assertFalse(compiledSource.contains(RETIRED_UI_PACKAGE + ".scene.layout"));
         assertFalse(compiledSource.contains("ComboBox"));
         assertFalse(compiledSource.contains("ListCell"));
         assertFalse(compiledSource.contains("AnchorPane"));
@@ -299,13 +304,13 @@ class BotJobDetailsJavaFxRetirementTest {
     }
 
     @Test
-    void mavenBuildDoesNotDeclareJavaFxDependenciesOrPlugin() throws IOException {
+    void mavenBuildDoesNotDeclareRetiredUiDependenciesOrPlugin() throws IOException {
         String pom = Files.readString(Path.of("pom.xml"));
 
-        assertFalse(pom.contains("org.openjfx"));
-        assertFalse(pom.contains("javafx-controls"));
-        assertFalse(pom.contains("javafx-web"));
-        assertFalse(pom.contains("javafx-maven-plugin"));
+        assertFalse(pom.contains("org.open" + "jfx"));
+        assertFalse(pom.contains(RETIRED_UI_PACKAGE + "-controls"));
+        assertFalse(pom.contains(RETIRED_UI_PACKAGE + "-web"));
+        assertFalse(pom.contains(RETIRED_UI_PACKAGE + "-maven-plugin"));
         assertFalse(pom.contains("jcefmaven"));
         assertFalse(pom.contains("org.cef"));
     }

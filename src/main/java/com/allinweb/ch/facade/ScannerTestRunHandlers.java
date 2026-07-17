@@ -5,7 +5,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 import lombok.extern.slf4j.Slf4j;
 
-/** Process-wide scanner TEST RUN handler registry, kept free of JavaFX dependencies. */
+/** Process-wide scanner TEST RUN handler registry, kept free of presentation dependencies. */
 @Slf4j
 public final class ScannerTestRunHandlers {
     private static final ScannerTestRunHandlers INSTANCE = new ScannerTestRunHandlers();

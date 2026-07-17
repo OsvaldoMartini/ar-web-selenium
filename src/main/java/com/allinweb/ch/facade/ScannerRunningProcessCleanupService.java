@@ -1,6 +1,6 @@
 package com.allinweb.ch.facade;
 
-/** Resets scanner runtime state after a browser/job run without depending on JavaFX controls. */
+/** Resets scanner runtime state after a browser/job run without depending on UI controls. */
 public final class ScannerRunningProcessCleanupService {
     public void cleanup(Operations operations) {
         operations.clearCloneSelection();

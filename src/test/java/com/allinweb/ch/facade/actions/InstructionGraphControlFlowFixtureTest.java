@@ -24,17 +24,11 @@ import org.junit.jupiter.api.Test;
  *
  * <p><b>Why this does not test {@code ARScannedElementPane.executeJob()} directly:</b> that method (and
  * its {@code mapLoops}/{@code jumpGoto} dispatch, where the forward-GOTO NPE tracked as finding C-1
- * lives) can only run on an instance of {@code ARScannedElementPane}. That class initializes a
- * {@code WebView} as an instance-field initializer, which JavaFX requires to happen on the FX
- * Application Thread, and it eagerly loads the {@code ScannerRuntime} singleton as a static
- * field — so touching the class at all cascades into constructing another full JavaFX scene. There is
- * no existing JavaFX test bootstrap in this suite (no {@code Platform.startup}/TestFX anywhere under
- * {@code src/test}), and building one just for this would be exactly the kind of coupling Phase 3 of the
- * migration roadmap ("create one canonical execution core", independent of Selenium/Playwright/JavaFX
- * objects) is meant to eliminate. Until that extraction happens, the block/row control-flow behavior is
- * only exercisable through these pure {@link InstructionGraph} helpers plus the real end-to-end
- * Playwright integration tests.
- */
+ * lives) still runs through the legacy scanner runtime host and eagerly loads browser/job singletons.
+ * Touching that host from a small unit fixture would pull in a full scanner lifecycle instead of only
+ * the control-flow graph logic. Until that extraction is finished, the block/row control-flow behavior
+ * is only exercisable through these pure {@link InstructionGraph} helpers plus the real end-to-end
+ * Playwright integration tests. */
 class InstructionGraphControlFlowFixtureTest {
 
     @Test
@@ -84,9 +78,8 @@ class InstructionGraphControlFlowFixtureTest {
     void searchMapConditionalReturnsMinusOneWhenNoConditionMatchesAndSuppressesTheDialog() {
         Map<String, List<Integer>> conditionalMap = InstructionGraph.getConditionIndexMapByParentId(ifElseEndifBlock());
 
-        // parentBlockCondition 999 does not exist in the fixture; showMessage=false so this does not
-        // attempt to open a JavaFX modal dialog (PerformMessage requires a running FX Application
-        // Thread this test suite does not bootstrap).
+        // parentBlockCondition 999 does not exist in the fixture; showMessage=false keeps this
+        // as a pure graph test and avoids presentation alerts.
         int result = InstructionGraph.searchMapConditional(
                 conditionalMap, 999, ARExecution.ConditionStatus.ENDIF, 0, false);
 

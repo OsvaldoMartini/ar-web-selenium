@@ -1,6 +1,6 @@
 package com.allinweb.ch.facade;
 
-/** Coordinates scanner block validation without depending on JavaFX controls. */
+/** Coordinates scanner block validation without depending on UI controls. */
 public final class ScannerBlockValidationService {
     public Result validate(String blockTable, int ownerId, Operations operations) {
         int newBlockId = operations.createBlockIfNone(blockTable, ownerId);

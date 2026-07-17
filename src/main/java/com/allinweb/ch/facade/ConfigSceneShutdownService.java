@@ -2,7 +2,7 @@ package com.allinweb.ch.facade;
 
 import java.util.function.Supplier;
 
-/** JavaFX-free shutdown ordering for configuration changes that require closing open workspaces. */
+/** Presentation-neutral shutdown ordering for configuration changes that require closing open workspaces. */
 final class ConfigSceneShutdownService {
     private final Supplier<ConfigSceneShutdownPort> scenes;
 

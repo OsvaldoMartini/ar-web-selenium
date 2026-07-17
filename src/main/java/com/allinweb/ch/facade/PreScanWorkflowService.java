@@ -17,7 +17,7 @@ import java.util.Locale;
 import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
 
-/** JavaFX-free orchestration for the Bot Job Details Pre Scan workflow. */
+/** Presentation-neutral orchestration for the Bot Job Details Pre Scan workflow. */
 @Slf4j
 public final class PreScanWorkflowService {
 

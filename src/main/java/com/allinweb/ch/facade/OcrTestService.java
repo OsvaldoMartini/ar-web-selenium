@@ -32,7 +32,7 @@ import java.util.List;
 import java.util.Map;
 import javax.imageio.ImageIO;
 
-/** Runs OCR against allowlisted cached scanner artifacts without JavaFX ownership. */
+/** Runs OCR against allowlisted cached scanner artifacts without presentation ownership. */
 public final class OcrTestService {
     private static final OcrTestService INSTANCE = new OcrTestService();
     private static final Gson GSON = new Gson();

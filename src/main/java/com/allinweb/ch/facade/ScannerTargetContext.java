@@ -4,7 +4,7 @@ import com.allinweb.ch.model.TargetElement;
 
 /**
  * Minimal scanner selection bridge used while AR Web Factory is migrated away
- * from JavaFX. Implementations may update a legacy pane today or a React-backed
+ * from a concrete UI shell. Implementations may update a legacy runtime today or a React-backed
  * session later.
  */
 public interface ScannerTargetContext {

@@ -1303,7 +1303,7 @@ public class ARScannedElementPane
         sessionIdFromJava = scannerGridPublisher.destinationSessionId(); // + this.currentBotJob.getHomeBankingId();
         scannerGridContainerInitialized = true;
         log.info(
-                "Scanner grid WebView shell removed; React session {} must request scanner.bootstrap over WebSocket (port {}, homeBankingId {}, botJobId {}, job {})",
+                "Scanner grid shell removed; React session {} must request scanner.bootstrap over WebSocket (port {}, homeBankingId {}, botJobId {}, job {})",
                 sessionIdFromJava,
                 portSocketInitial,
                 this.currentBotJob.getHomeBankingId(),

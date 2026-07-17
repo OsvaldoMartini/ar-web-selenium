@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
-/** Builds and forwards native-mobile scanner test payloads outside the JavaFX scene. */
+/** Builds and forwards native-mobile scanner test payloads outside the scene shell. */
 public final class ScannerMobileTestForwarder {
     private final ScannerMobileTestRoute route;
     private final DataPort data;

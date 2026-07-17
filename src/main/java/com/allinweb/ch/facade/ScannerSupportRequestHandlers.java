@@ -3,7 +3,7 @@ package com.allinweb.ch.facade;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.slf4j.Slf4j;
 
-/** Process-wide scanner support handler registry, kept free of JavaFX dependencies. */
+/** Process-wide scanner support handler registry, kept free of presentation dependencies. */
 @Slf4j
 public final class ScannerSupportRequestHandlers {
     private static final ScannerSupportRequestHandlers INSTANCE = new ScannerSupportRequestHandlers();

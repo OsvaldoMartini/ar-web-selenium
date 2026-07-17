@@ -10,7 +10,7 @@ import com.google.gson.Gson;
 import java.util.List;
 
 /**
- * JavaFX-free owner of Bot Job workspace cache activation and grid snapshot loading.
+ * Presentation-neutral owner of Bot Job workspace cache activation and grid snapshot loading.
  *
  * <p>The desktop presentation applies the returned snapshots to React sessions, but it no longer owns the
  * ordering, failure cleanup, or scanner-selection policy for the shared backend caches.
@@ -64,7 +64,7 @@ public final class BotJobWorkspaceService {
         data.clearAllCaches();
     }
 
-    /** Preserves the existing desktop scanner transition without coupling it to a JavaFX scene. */
+    /** Preserves the existing desktop scanner transition without coupling it to a scene shell. */
     public ScannerDisposition scannerDisposition(BotJobLoadDTO botJob, Integer currentScannerBotJobId) {
         requireJob(botJob);
         if (isMobile(botJob.getPriority())) return ScannerDisposition.CLOSE;

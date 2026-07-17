@@ -1,6 +1,6 @@
 package com.allinweb.ch.facade;
 
-/** Coordinates scanner shell shutdown without depending on JavaFX event types. */
+/** Coordinates scanner shell shutdown without depending on UI event types. */
 public final class ScannerCloseRequestService {
     public void close(CloseRequest request) {
         request.interruptThreads();

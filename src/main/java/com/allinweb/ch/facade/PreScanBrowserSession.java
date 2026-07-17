@@ -7,7 +7,7 @@ import com.allinweb.ch.model.InstructionLoad;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-/** JavaFX-free owner of the isolated Pre Scan browser and its single-scan lease. */
+/** Presentation-neutral owner of the isolated Pre Scan browser and its single-scan lease. */
 public final class PreScanBrowserSession {
 
     private final DriverFactory driverFactory;

@@ -6,7 +6,7 @@ import com.allinweb.ch.model.BlockMoveDTO;
 import com.allinweb.ch.util.ErrorMessage;
 import java.util.List;
 
-/** Persists a block created from the scanner modal without depending on JavaFX controls. */
+/** Persists a block created from the scanner modal without depending on UI controls. */
 public final class ScannerModalBlockCreationService {
     public ErrorMessage create(String name, int targetOrder, Context context, Operations operations) {
         List<BlockLoadDTO> toRenumber =

@@ -3,7 +3,7 @@ package com.allinweb.ch.facade;
 import com.allinweb.ch.model.BotJobLoadDTO;
 import java.util.concurrent.atomic.AtomicReference;
 
-/** Holds the active scanner job identity without requiring backend code to touch JavaFX scene classes. */
+/** Holds the active scanner job identity without requiring backend code to touch scene classes. */
 public final class ScannerCurrentJobContext {
     private static final ScannerCurrentJobContext INSTANCE = new ScannerCurrentJobContext();
 

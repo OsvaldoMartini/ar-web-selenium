@@ -4,7 +4,7 @@ import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
-/** Coordinates startup continuation without coupling backend handlers to the JavaFX application class. */
+/** Coordinates startup continuation without coupling backend handlers to the application shell. */
 public final class ApplicationStartupLifecycle {
     private static final ApplicationStartupLifecycle INSTANCE = new ApplicationStartupLifecycle();
 

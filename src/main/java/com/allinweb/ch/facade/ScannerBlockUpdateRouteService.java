@@ -5,7 +5,7 @@ import com.allinweb.ch.model.BotJobLoadDTO;
 import com.allinweb.ch.model.ScannerWorkspaceOperations;
 import com.allinweb.ch.model.ScannerWorkspaceSessions;
 
-/** Resolves scanner block-update routing details outside the JavaFX scene. */
+/** Resolves scanner block-update routing details outside the scene shell. */
 public final class ScannerBlockUpdateRouteService {
 
     public Result resolve(String incomingOperation, BlockMoveDTO move, BotJobLoadDTO currentBotJob, String previousBlock) {

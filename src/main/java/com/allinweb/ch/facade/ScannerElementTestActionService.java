@@ -6,7 +6,7 @@ import com.allinweb.ch.util.TargetElementHelper;
 import com.google.common.base.Strings;
 import lombok.extern.slf4j.Slf4j;
 
-/** JavaFX-free orchestration for running a scanner element test action. */
+/** Presentation-neutral orchestration for running a scanner element test action. */
 @Slf4j
 public final class ScannerElementTestActionService {
 

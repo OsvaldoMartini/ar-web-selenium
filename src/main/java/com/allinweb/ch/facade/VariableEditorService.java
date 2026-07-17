@@ -12,7 +12,7 @@ import java.sql.SQLException;
 import java.util.Objects;
 import java.util.List;
 
-/** JavaFX-free variable CRUD used by the React instruction command panel. */
+/** Presentation-neutral variable CRUD used by the React instruction command panel. */
 public final class VariableEditorService {
     private static final VariableEditorService INSTANCE = new VariableEditorService();
     private final PerformDataBase database = PerformDataBase.getInstance();

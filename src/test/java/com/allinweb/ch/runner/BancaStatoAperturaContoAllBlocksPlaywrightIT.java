@@ -39,7 +39,7 @@ import org.junit.jupiter.api.parallel.Isolated;
  * application code sees them. The live public page is opened only for recorded-locator diagnostics:
  * CLICK and INSERT steps are never executed there, and non-GET requests are blocked as an additional
  * guard. Real browser-action coverage runs against {@link BancaStatoLocalhostPlaywrightIT}; the pure
- * ALL/ONE request mapping is covered separately without JavaFX or a production endpoint.
+ * ALL/ONE request mapping is covered separately without a desktop shell or a production endpoint.
  *
  * <p>Disabled by default. Enable explicitly with:
  *

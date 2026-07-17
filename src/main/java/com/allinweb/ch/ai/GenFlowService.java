@@ -40,7 +40,7 @@ import lombok.extern.slf4j.Slf4j;
  * block. The composed prompt and the raw AI response are always written under
  * {@code <PATH_DB>/ai/} so the prompt can also be used manually in Claude Code.
  *
- * <p>Runs on a background thread — must never touch JavaFX or mutate the shared
+ * <p>Runs on a background thread — must never touch presentation state or mutate the shared
  * {@code performLists.getListInstruction()} (uses the read-only instruction loader).
  */
 @Slf4j

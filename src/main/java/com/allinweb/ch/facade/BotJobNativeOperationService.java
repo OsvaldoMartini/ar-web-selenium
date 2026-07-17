@@ -12,7 +12,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Locale;
 
-/** JavaFX-free native desktop and external Engine operations for Bot Job Details. */
+/** Presentation-neutral native desktop and external Engine operations for Bot Job Details. */
 public final class BotJobNativeOperationService {
 
     private final PropertyPort properties;
