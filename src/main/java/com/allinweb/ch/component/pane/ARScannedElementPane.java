@@ -181,10 +181,6 @@ public class ARScannedElementPane
             new ScannerSearchHiddenFieldsButtonAdapter();
     private final ScannerPreLaunchStatusTextAreaAdapter scannerPreLaunchStatusTextAreaAdapter =
             new ScannerPreLaunchStatusTextAreaAdapter();
-    private final ScannerTestActionCheckboxesAdapter scannerTestActionCheckboxesAdapter =
-            new ScannerTestActionCheckboxesAdapter();
-    private final ScannerTestActionCheckboxStateAdapter scannerTestActionCheckboxStateAdapter =
-            new ScannerTestActionCheckboxStateAdapter();
     private final ScannerTextFieldsAdapter scannerTextFieldsAdapter = new ScannerTextFieldsAdapter();
     private final ScannerElementFocusComboBoxAdapter scannerElementFocusComboBoxAdapter =
             new ScannerElementFocusComboBoxAdapter();
@@ -238,9 +234,6 @@ public class ARScannedElementPane
     private final ScannerTestRunStopper scannerTestRunStopper =
             new ScannerTestRunStopper(new PaneTestRunStopOperations());
     public Button launchBotJobButton;
-    public CheckBox checkClickElement;
-    public CheckBox checkInputText;
-    public CheckBox checkOutputText;
     private static final String DEFINED_NAME_PLACEHOLDER = "PICK AN ELEMENT";
     public TextField searchAttribValueField;
     private String definedNameText = DEFINED_NAME_PLACEHOLDER;
@@ -337,6 +330,9 @@ public class ARScannedElementPane
     private Button searchButton;
     private boolean cloneSelectionActive = false;
     private boolean suppressTestSuccessMessage = true;
+    private boolean testActionClick = false;
+    private boolean testActionInput = false;
+    private boolean testActionOutput = false;
 
     private String currentUrlText = "";
     private VBox textFieldVBox;
@@ -912,7 +908,7 @@ public class ARScannedElementPane
 
     @Override
     public void applyActionDefaults(TargetElement targetElement) {
-        defineCheckBoxesClickable(targetElement);
+        applyTestActionDefaults(targetElement);
     }
 
     private void preTestCoordinates(TargetElement targetPreTest) {
@@ -1000,11 +996,10 @@ public class ARScannedElementPane
 
         String actionReq = targetInsert.getTagName();
         if (!manyElements) {
-            actionReq = scannerTestActionCheckboxStateAdapter.selectedAction(
-                    checkClickElement, checkInputText, checkOutputText);
+            actionReq = selectedTestAction();
         }
 
-        targetInsert.setClickElement(scannerTestActionCheckboxStateAdapter.clickSelected(checkClickElement));
+        targetInsert.setClickElement(testActionClick);
         WebElementTagNameEnum tagType = targetInsert.getTagType();
 
         Integer currentBotJobId = currentBotJob.getId();
@@ -1603,12 +1598,6 @@ public class ARScannedElementPane
                 new Insets(2.0) // Reduced padding
                 );
 
-        ScannerTestActionCheckboxesAdapter.Checkboxes testActionCheckboxes =
-                scannerTestActionCheckboxesAdapter.build();
-        checkClickElement = testActionCheckboxes.click();
-        checkInputText = testActionCheckboxes.input();
-        checkOutputText = testActionCheckboxes.output();
-
         configureButton = builder.buildButton(
                 "Config", ARConstants.SPACE_M, ARConstants.ICON_CONFIG, ARConstants.SPACE_M, new Insets(5.0D));
 
@@ -1772,9 +1761,6 @@ public class ARScannedElementPane
             gridPaneTop.add(rightButton, 8, 0);
             gridPaneTop.add(requestSupportButton, 9, 0);
 
-            VBox vBoxCheckBox = scannerLayoutNodeAdapter.checkboxColumn(
-                    createSpacerVert(), checkClickElement, checkInputText, checkOutputText);
-
             topPane.getChildren().addAll(gridPaneTop, lblPluginHint); // Add gridPaneTop + hint to topPane
 
             verticalBox = scannerLayoutNodeAdapter.scannerContentColumn();
@@ -1803,7 +1789,6 @@ public class ARScannedElementPane
             // Create the VBox for TextFields
             textFieldVBox = scannerLayoutNodeAdapter.textFieldColumn(
                     boxName,
-                    vBoxCheckBox,
                     createCustomSeparator(Color.DARKBLUE, 2),
                     createSpacerVert(),
                     countdownTextField,
@@ -2663,7 +2648,7 @@ public class ARScannedElementPane
 
             List<ElementDTO> detailsList = new ArrayList<>();
 
-            if (scannerTestActionCheckboxStateAdapter.inputSelected(checkInputText)) {
+            if (testActionInput) {
                 ElementDTO inputElementDTO = elementDTO.deepCopy(); // Create a copy
                 inputElementDTO.setTypeElement(
                         WebElementTagNameEnum.INPUT.getValue().toLowerCase());
@@ -2671,7 +2656,7 @@ public class ARScannedElementPane
                         WebElementTagNameEnum.INPUT.getValue().toLowerCase());
                 detailsList.add(inputElementDTO);
             }
-            if (scannerTestActionCheckboxStateAdapter.clickSelected(checkClickElement)) {
+            if (testActionClick) {
                 ElementDTO buttonElementDTO = elementDTO.deepCopy(); // Create a copy
                 buttonElementDTO.setTypeElement(
                         WebElementTagNameEnum.BUTTON.getValue().toLowerCase());
@@ -2679,7 +2664,7 @@ public class ARScannedElementPane
                         WebElementTagNameEnum.BUTTON.getValue().toLowerCase());
                 detailsList.add(buttonElementDTO);
             }
-            if (scannerTestActionCheckboxStateAdapter.outputSelected(checkOutputText)) {
+            if (testActionOutput) {
                 ElementDTO outputElementDTO = elementDTO.deepCopy(); // Create a copy
                 outputElementDTO.setTypeElement(
                         WebElementTagNameEnum.OUTPUT.getValue().toLowerCase());
@@ -2780,7 +2765,7 @@ public class ARScannedElementPane
             //                textFlowResult.requestLayout();
             //                contentPane.requestLayout();
 
-            defineCheckBoxesClickable(targetSelected);
+            applyTestActionDefaults(targetSelected);
         }
         if (performActions.getCurrentDriver() != null) {
             performActions.getCurrentDriver().switchTo().defaultContent();
@@ -3920,10 +3905,18 @@ public class ARScannedElementPane
         }
     }
 
-    public void defineCheckBoxesClickable(TargetElement targetCheck) {
+    public void applyTestActionDefaults(TargetElement targetCheck) {
         ScannerActionDefaultsService.Decision decision =
                 scannerActionDefaultsService.decide(targetCheck, isClickable(targetCheck.getElement()));
-        scannerTestActionCheckboxStateAdapter.apply(decision, checkClickElement, checkInputText, checkOutputText);
+        testActionClick = decision.click();
+        testActionInput = decision.input();
+        testActionOutput = decision.output();
+    }
+
+    private String selectedTestAction() {
+        return testActionClick
+                ? ARConstants.CLICK
+                : testActionInput ? ARConstants.INSERT : testActionOutput ? ARConstants.OUTPUT : ARConstants.OTHER;
     }
 
     private boolean isClickable(WebElement element) {

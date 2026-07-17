@@ -36,6 +36,8 @@ class BotJobDetailsJavaFxRetirementTest {
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerTestActionLabelAdapter.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerHiddenCloneCheckboxAdapter.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerTestMessageSuppressionCheckboxAdapter.java")));
+        assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerTestActionCheckboxesAdapter.java")));
+        assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerTestActionCheckboxStateAdapter.java")));
     }
 
     @Test
@@ -125,5 +127,18 @@ class BotJobDetailsJavaFxRetirementTest {
         assertFalse(compiledSource.contains("ScannerTestMessageSuppressionCheckboxAdapter"));
         assertFalse(compiledSource.contains("checkCloneElement"));
         assertFalse(compiledSource.contains("checkNotShowTestMsg"));
+    }
+
+    @Test
+    void scannerPaneDoesNotUseJavaFxTestActionCheckboxes() throws IOException {
+        String source = Files.readString(SOURCE_ROOT.resolve("component/pane/ARScannedElementPane.java"));
+        String compiledSource = source.replaceAll("(?s)/\\*.*?\\*/", "");
+
+        assertFalse(compiledSource.contains("ScannerTestActionCheckboxesAdapter"));
+        assertFalse(compiledSource.contains("ScannerTestActionCheckboxStateAdapter"));
+        assertFalse(compiledSource.contains("checkClickElement"));
+        assertFalse(compiledSource.contains("checkInputText"));
+        assertFalse(compiledSource.contains("checkOutputText"));
+        assertFalse(compiledSource.contains("CheckBox"));
     }
 }
