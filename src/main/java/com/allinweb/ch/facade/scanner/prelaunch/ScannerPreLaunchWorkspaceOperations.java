@@ -1,11 +1,11 @@
-package com.allinweb.ch.component.pane;
+package com.allinweb.ch.facade.scanner.prelaunch;
 
 import com.allinweb.ch.facade.ScannerWorkspaceService;
 
-final class ScannerPaneExecutionOperations implements ScannerWorkspaceService.ExecutionOperations {
+public final class ScannerPreLaunchWorkspaceOperations implements ScannerWorkspaceService.ExecutionOperations {
     private final ScannerPreLaunchControls preLaunchControls;
 
-    ScannerPaneExecutionOperations(ScannerPreLaunchControls preLaunchControls) {
+    public ScannerPreLaunchWorkspaceOperations(ScannerPreLaunchControls preLaunchControls) {
         this.preLaunchControls = preLaunchControls;
     }
 

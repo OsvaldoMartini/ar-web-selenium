@@ -1,19 +1,19 @@
-package com.allinweb.ch.component.pane;
+package com.allinweb.ch.facade.scanner.prelaunch;
 
-final class ScannerPreLaunchRecallAfterReset {
+public final class ScannerPreLaunchRecallAfterReset {
     private final Operations operations;
 
-    ScannerPreLaunchRecallAfterReset(Operations operations) {
+    public ScannerPreLaunchRecallAfterReset(Operations operations) {
         this.operations = operations;
     }
 
-    void resetInstructionsAndRecall() {
+    public void resetInstructionsAndRecall() {
         if (operations.resetInstructionExecutionFlags()) {
             operations.recallJob();
         }
     }
 
-    interface Operations {
+    public interface Operations {
         boolean resetInstructionExecutionFlags();
 
         boolean recallJob();

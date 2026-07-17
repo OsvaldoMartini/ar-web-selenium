@@ -12,6 +12,10 @@ import com.allinweb.ch.facade.scanner.browser.ScannerBrowserRuntime;
 import com.allinweb.ch.facade.scanner.browser.ScannerBrowserTabNavigator;
 import com.allinweb.ch.facade.scanner.browser.ScannerBrowserTabSelector;
 import com.allinweb.ch.facade.scanner.browser.ScannerScreenshotLoop;
+import com.allinweb.ch.facade.scanner.prelaunch.ScannerPreLaunchControls;
+import com.allinweb.ch.facade.scanner.prelaunch.ScannerPreLaunchRecallAfterReset;
+import com.allinweb.ch.facade.scanner.prelaunch.ScannerPreLaunchStopper;
+import com.allinweb.ch.facade.scanner.prelaunch.ScannerPreLaunchWorkspaceOperations;
 import com.allinweb.ch.facade.scanner.ScannerRuntimePort;
 import com.allinweb.ch.facade.actions.InstructionGraph;
 import com.allinweb.ch.model.*;
@@ -338,7 +342,7 @@ public class ScannerRuntimeBackend
 
     // Private constructor to prevent instantiation
     private ScannerRuntimeBackend() {
-        ScannerWorkspaceService.getInstance().installExecutionOperations(new ScannerPaneExecutionOperations(this));
+        ScannerWorkspaceService.getInstance().installExecutionOperations(new ScannerPreLaunchWorkspaceOperations(this));
         ScannerSupportRequestHandlers.getInstance().register(this);
         ScannerTestRunHandlers.getInstance().register(this);
     }

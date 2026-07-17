@@ -1,6 +1,6 @@
-package com.allinweb.ch.component.pane;
+package com.allinweb.ch.facade.scanner.prelaunch;
 
-interface ScannerPreLaunchControls {
+public interface ScannerPreLaunchControls {
     void requestPreLaunchFromWorkspace(int botJobId);
 
     void requestStopPreLaunchFromWorkspace(int botJobId);

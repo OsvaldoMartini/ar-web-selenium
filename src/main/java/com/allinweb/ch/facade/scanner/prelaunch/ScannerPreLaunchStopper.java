@@ -1,20 +1,20 @@
-package com.allinweb.ch.component.pane;
+package com.allinweb.ch.facade.scanner.prelaunch;
 
-final class ScannerPreLaunchStopper {
+public final class ScannerPreLaunchStopper {
     private final Operations operations;
 
-    ScannerPreLaunchStopper(Operations operations) {
+    public ScannerPreLaunchStopper(Operations operations) {
         this.operations = operations;
     }
 
-    void stop() {
+    public void stop() {
         operations.enableLaunch();
         operations.requestIntercept();
         operations.markNotRunning();
         operations.lastBrowserTab();
     }
 
-    interface Operations {
+    public interface Operations {
         void enableLaunch();
 
         void requestIntercept();
