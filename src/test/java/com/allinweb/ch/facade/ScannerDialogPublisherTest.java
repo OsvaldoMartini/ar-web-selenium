@@ -119,6 +119,26 @@ class ScannerDialogPublisherTest {
         verify(session.getBasicRemote()).sendText(contains("\\\"pathPlugins\\\":\\\"plugins\\\""));
     }
 
+    @Test
+    void publishesPluginPickerDialogEventsToReactScannerSession() throws Exception {
+        session = openSession();
+        WebSocketSessionManager.addSession(ScannerWorkspaceSessions.SCANNER_ELEMENT_PANE, session);
+
+        ScannerDialogPublisher publisher =
+                new ScannerDialogPublisher(new WebSocketSessionManager(), new Gson());
+
+        assertTrue(publisher.pluginPicker(
+                java.util.Collections.singletonList(
+                        new String[] {"Plugin Name", "Description", "1.0", "10 KB", "plugin.zip"}),
+                "http://plugins/",
+                "plugins"));
+
+        verify(session.getBasicRemote()).sendText(contains("\"operationId\":\"scanner.dialog.pluginPicker\""));
+        verify(session.getBasicRemote()).sendText(contains("\\\"kind\\\":\\\"pluginPicker\\\""));
+        verify(session.getBasicRemote()).sendText(contains("\\\"serverBase\\\":\\\"http://plugins/\\\""));
+        verify(session.getBasicRemote()).sendText(contains("plugin.zip"));
+    }
+
     private Session openSession() {
         Session openSession = mock(Session.class);
         RemoteEndpoint.Basic remote = mock(RemoteEndpoint.Basic.class);

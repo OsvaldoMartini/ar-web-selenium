@@ -159,8 +159,8 @@ public class ARScannedElementPane extends ARPane
             new ScannerSupportResponseActionService();
     private final ScannerStageAdapter scannerStageAdapter = new ScannerStageAdapter();
     private final ScannerPluginAlertAdapter scannerPluginAlertAdapter = new ScannerPluginAlertAdapter();
-    private final ScannerPluginPickerDialogAdapter scannerPluginPickerDialogAdapter =
-            new ScannerPluginPickerDialogAdapter();
+    private final ScannerPluginPickerDialogPublisherAdapter scannerPluginPickerDialogPublisherAdapter =
+            new ScannerPluginPickerDialogPublisherAdapter();
     private final ScannerPluginUpdateButtonAdapter scannerPluginUpdateButtonAdapter =
             new ScannerPluginUpdateButtonAdapter();
     private final ScannerPluginUpdateButtonRefreshAdapter scannerPluginUpdateButtonRefreshAdapter =
@@ -8482,33 +8482,15 @@ public class ARScannedElementPane extends ARPane
     }
 
     /**
-     * Shows a dialog with a ComboBox listing available plugins.
-     * User picks one, clicks Download, and the ZIP is downloaded + extracted.
+     * Publishes the plugin picker to the React scanner container.
      */
     private void showPluginPicker(List<String[]> plugins, String baseUrl, Path pluginsDir) {
-        Optional<ScannerPluginPickerDialogAdapter.Selection> selection =
-                scannerPluginPickerDialogAdapter.show(plugins);
-        if (selection.isEmpty()) {
-            return;
-        }
-
-        String fileName = selection.get().fileName();
-        String pluginName = selection.get().pluginName();
-        if (fileName.isEmpty()) {
-            showPluginError(
-                    "Invalid plugin",
-                    "The selected plugin has no fileName in the manifest.");
-            return;
-        }
-
-        String downloadUrl = baseUrl + fileName;
-        log.info("UpdatePlugins - user selected: {} -> {}", pluginName, downloadUrl);
-        downloadAndExtractPlugin(downloadUrl, fileName, pluginName, pluginsDir);
+        scannerPluginPickerDialogPublisherAdapter.show(plugins, baseUrl, pluginsDir);
     }
 
     /**
      * Downloads a single plugin ZIP and extracts it to the plugins folder.
-     * Runs on a background thread with a progress dialog.
+     * Runs on a background thread and publishes progress to the React scanner container.
      */
     private void downloadAndExtractPlugin(String downloadUrl, String fileName, String pluginName, Path pluginsDir) {
         scannerPluginDownloadFlowAdapter.runSingle(

@@ -20,6 +20,7 @@ public final class ScannerDialogPublisher {
     private static final String PROGRESS_OPERATION = "scanner.dialog.progress";
     private static final String PLUGIN_UPDATE_OPERATION = "scanner.dialog.pluginUpdate";
     private static final String PLUGIN_LIST_OPERATION = "scanner.dialog.pluginList";
+    private static final String PLUGIN_PICKER_OPERATION = "scanner.dialog.pluginPicker";
     private static final ScannerDialogPublisher INSTANCE =
             new ScannerDialogPublisher(WebSocketSessionManager.getInstance(), new Gson());
 
@@ -71,6 +72,12 @@ public final class ScannerDialogPublisher {
                 new PluginListEvent("pluginList", manifest, serverBase, pathPlugins));
     }
 
+    public boolean pluginPicker(java.util.List<String[]> plugins, String serverBase, String pathPlugins) {
+        return publish(
+                PLUGIN_PICKER_OPERATION,
+                new PluginPickerEvent("pluginPicker", plugins, serverBase, pathPlugins));
+    }
+
     private boolean publish(String operationId, Object event) {
         String body = gson.toJson(event);
         boolean sent =
@@ -111,6 +118,12 @@ public final class ScannerDialogPublisher {
     public record PluginListEvent(
             String kind,
             PluginManifestDTO manifest,
+            String serverBase,
+            String pathPlugins) {}
+
+    public record PluginPickerEvent(
+            String kind,
+            java.util.List<String[]> plugins,
             String serverBase,
             String pathPlugins) {}
 }
