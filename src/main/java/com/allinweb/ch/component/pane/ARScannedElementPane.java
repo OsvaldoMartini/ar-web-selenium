@@ -15,6 +15,7 @@ import com.allinweb.ch.socket.InstructionRealtimePublisher;
 import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 import java.io.*;
 import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
@@ -171,8 +172,6 @@ public class ARScannedElementPane
             new ScannerTestRunStartupPreparation(new PaneTestRunStartupOperations());
     private final ScannerInstructionMessageService scannerInstructionMessageService =
             new ScannerInstructionMessageService();
-    private final ScannerSearchCleanupService scannerSearchCleanupService =
-            new ScannerSearchCleanupService();
     private final ScannerSyntheticReferenceService scannerSyntheticReferenceService =
             new ScannerSyntheticReferenceService();
     private final ScannerCsvContentService scannerCsvContentService =
@@ -1746,39 +1745,12 @@ public class ARScannedElementPane
         leftButton.setDisable(true);
         rightButton.setDisable(true);
 
-        leftButton.setOnAction(e -> switchToLeftTab());
-        rightButton.setOnAction(e -> switchToRightTab());
+        leftButton.setOnAction(e -> runScannerWorkspaceAction("PREVIOUS_TAB"));
+        rightButton.setOnAction(e -> runScannerWorkspaceAction("NEXT_TAB"));
 
-        refreshWebPageButton.setOnAction(e -> {
-            if (!lastBrowserTab()) {
-                return;
-            }
+        refreshWebPageButton.setOnAction(e -> runScannerWorkspaceAction("REFRESH_PAGE"));
 
-            // Clear plugin caches so scripts reload from disk on next injection
-            PerformPreLoad.reloadAllPlugins();
-
-            performActions.refreshPage();
-
-            try {
-                performActions.onHoldInSeconds(2);
-            } catch (Exception ignore) {
-
-            }
-
-        });
-
-        cleanListButton.setOnAction(e -> {
-            if (scannerGridContainerInitialized) {
-                scannerGridSearchResultsService.publishEmpty(
-                        this.currentBotJob.getHomeBankingId(),
-                        this.currentBotJob.getId(),
-                        this.currentBotJob.getName());
-
-                uiThreadDispatcher.execute(() -> {
-                    setScannerStatus("Pre-Launch status: Ready", "info");
-                });
-            }
-        });
+        cleanListButton.setOnAction(e -> runScannerWorkspaceAction("CLEAR_GRID"));
 
         HomeUrlDTO homeUrlDTO = performLists.getHomeUrlByBankId(
                 this.currentBotJob.getHomeBankingId(), this.currentBotJob.getHomeUrlId());
@@ -2138,16 +2110,6 @@ public class ARScannedElementPane
         }
     }
 
-    // Switch to the previous tab (left)
-    private void switchToLeftTab() {
-        scannerBrowserTabNavigator.switchLeft();
-    }
-
-    // Switch to the next tab (right)
-    private void switchToRightTab() {
-        scannerBrowserTabNavigator.switchRight();
-    }
-
     // Method to handle the scenario where the window handles size changes
     private void handleWindowHandlesChange() {
         scannerBrowserTabNavigator.handleWindowHandlesChange();
@@ -2221,6 +2183,31 @@ public class ARScannedElementPane
     // Method to create a custom separator with specified color and width
     private Separator createCustomSeparator(Color color, double width) {
         return separator(color, width);
+    }
+
+    private ScannerWorkspaceResponse runScannerWorkspaceAction(String action) {
+        return runScannerWorkspaceAction(action, null);
+    }
+
+    private ScannerWorkspaceResponse runScannerWorkspaceAction(String action, String searchTerms) {
+        JsonObject body = new JsonObject();
+        body.addProperty("requestId", "javafx-retired-pane-" + System.nanoTime());
+        body.addProperty("botJobId", currentBotJob == null ? -1 : currentBotJob.getId());
+        body.addProperty("action", action);
+        if (searchTerms != null) {
+            body.addProperty(ScannerWorkspaceOperations.SEARCH_TERMS, searchTerms);
+        }
+
+        ScannerWorkspaceRequest request = new ScannerWorkspaceRequest(
+                ScannerSearchRoute.standardPageScanner().destinationSessionId(),
+                body.get("requestId").getAsString(),
+                currentBotJob == null ? -1 : currentBotJob.getId(),
+                body);
+        ScannerWorkspaceResponse response = ScannerWorkspaceService.getInstance().action(request);
+        if (!response.ok()) {
+            logOperations.warn("Scanner workspace action {} failed: {}", action, response.message());
+        }
+        return response;
     }
 
     public void requestPreLaunchFromWorkspace(int botJobId) {
@@ -2614,9 +2601,9 @@ public class ARScannedElementPane
 
     public void initUIBehaviour() {
         configureButton.setOnMouseClicked(e -> OrganizationManagerLifecycle.getInstance().openOrganizations());
-        launchBotJobButton.setOnMouseClicked(e -> startPreLaunchFromWorkspace());
+        launchBotJobButton.setOnMouseClicked(e -> runScannerWorkspaceAction("PRE_LAUNCH"));
 
-        stopBotJobButton.setOnMouseClicked(e -> stopPreLaunchFromWorkspace());
+        stopBotJobButton.setOnMouseClicked(e -> runScannerWorkspaceAction("STOP_PRE_LAUNCH"));
 
         // HOVER PICK handler removed — the interactive per-element pick (hoverPick JS injection over a
         // page WebSocket) is not supported in the single Playwright browser. Use the regular scanner.
@@ -2643,7 +2630,7 @@ public class ARScannedElementPane
             }
         });
 
-        pageScannerButton.setOnAction(e -> searchTermsBtn(selectedProfileSearchText(), Collections.emptyList()));
+        pageScannerButton.setOnAction(e -> runScannerWorkspaceAction("PAGE_SCANNER", selectedProfileSearchText()));
 
         ocrConfigButton.setOnAction(e -> {
             Integer hbId = currentBotJob == null ? null : currentBotJob.getHomeBankingId();
@@ -2654,7 +2641,7 @@ public class ARScannedElementPane
             scannerElementPanePublisher.publishOpenOcrConfig(hbId == null ? 0 : hbId, payload);
         });
 
-        searchButton.setOnAction(e -> searchTermsBtn(searchTermsText.trim(), Collections.emptyList()));
+        searchButton.setOnAction(e -> runScannerWorkspaceAction("PAGE_SCANNER", searchTermsText.trim()));
 
     }
 
@@ -3853,56 +3840,9 @@ public class ARScannedElementPane
         }
     }
 
-    private void searchTermsBtn(String searchTerms, List<String> extendedRules) {
-        //        readAllElementsWithWebDriver();
-
-        if (!lastBrowserTab()) {
-            return;
-        }
-
-        ElementScanProfile selectedProfile = elementFocusComboBox == null ? null : elementFocusComboBox.getValue();
-        ScannerPageScanService.Request request = scannerPageScanService.standardRequest(
-                searchTerms,
-                selectedProfile == null ? null : selectedProfile.termsArray(),
-                ALL_INTERACTIVE_SCAN_PROFILE.termsArray(),
-                portSocketInitial,
-                this.currentBotJob.getHomeBankingId(),
-                this.currentBotJob.getId(),
-                extendedRules);
-
-        handleSearchTermClick(request);
-
-        scannerSearchCleanupService.afterSearchDelay(new PaneSearchCleanupOperations(), 2000);
-    }
-
     private String selectedProfileSearchText() {
         ElementScanProfile selected = elementFocusComboBox == null ? null : elementFocusComboBox.getValue();
         return selected == null ? ALL_INTERACTIVE_SCAN_PROFILE.searchText() : selected.searchText();
-    }
-
-    private void handleSearchTermClick(ScannerPageScanService.Request request) {
-        //        webElementObservableList1.clear();
-
-        // Selenium frame reset — skip in Playwright-only mode (no Selenium driver). The scan below
-        // routes through the Playwright scanner (PerformListElements.scanElements -> currentARWebDriver).
-        scannerSearchCleanupService.beforeSearch(new PaneSearchCleanupOperations());
-
-        periodicSearchThread(
-                performActions.getCurrentDriver(),
-                request.terms(),
-                request.port(),
-                request.route().sourceSessionId(),
-                request.route().destinationSessionId(),
-                request.route().operationId(),
-                request.homeBankingId(),
-                request.botJobId(),
-                request.extendedRules());
-
-        //        uiThreadDispatcher.execute(() -> periodicSearchThread(
-        //                performActions.getCurrentDriver(),
-        //                performActions.getCurrentDriver().getCurrentUrl(),
-        //                dataArray,
-        //                finalPort));
     }
 
     private void revertSearchTermsInjections(WebDriver driver) {
@@ -3910,43 +3850,6 @@ public class ARScannedElementPane
             jsExecutor = (JavascriptExecutor) driver;
             jsExecutor.executeScript("window.revertSearchInjections();");
         } catch (Exception ignore) {
-        }
-    }
-
-    private final class PaneSearchCleanupOperations implements ScannerSearchCleanupService.Operations {
-        @Override
-        public boolean hasCurrentDriver() {
-            return performActions.getCurrentDriver() != null;
-        }
-
-        @Override
-        public void switchToDefaultContent() {
-            performActions.getCurrentDriver().switchTo().defaultContent();
-        }
-
-        @Override
-        public void clearPreviousXPath() {
-            xpathTextPrevious = "";
-        }
-
-        @Override
-        public void revertCloneInjections() {
-            ARScannedElementPane.this.revertCloneInjections(performActions.getCurrentDriver());
-        }
-
-        @Override
-        public void revertPickInjections() {
-            ARScannedElementPane.this.revertPickInjections(performActions.getCurrentDriver());
-        }
-
-        @Override
-        public void sleep(long millis) throws InterruptedException {
-            Thread.sleep(millis);
-        }
-
-        @Override
-        public void revertSearchTermsInjections() {
-            ARScannedElementPane.this.revertSearchTermsInjections(performActions.getCurrentDriver());
         }
     }
 

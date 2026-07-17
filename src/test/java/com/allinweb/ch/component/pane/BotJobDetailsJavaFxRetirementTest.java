@@ -224,5 +224,14 @@ class BotJobDetailsJavaFxRetirementTest {
         assertFalse(compiledSource.contains("ScannerPluginDownloadFlowAdapter"));
         assertFalse(compiledSource.contains("ScannerLayoutNodeAdapter"));
         assertFalse(compiledSource.contains("ScannerElementFocusComboBoxAdapter"));
+        assertFalse(compiledSource.contains("ScannerSearchCleanupService"));
+        assertFalse(compiledSource.contains("PaneSearchCleanupOperations"));
+        assertFalse(compiledSource.contains("searchTermsBtn("));
+        assertFalse(compiledSource.contains("handleSearchTermClick("));
+        assertTrue(compiledSource.contains("runScannerWorkspaceAction(\"PAGE_SCANNER\""));
+        assertTrue(compiledSource.contains("runScannerWorkspaceAction(\"PRE_LAUNCH\""));
+        assertTrue(compiledSource.contains("runScannerWorkspaceAction(\"STOP_PRE_LAUNCH\""));
+        assertTrue(compiledSource.contains("runScannerWorkspaceAction(\"REFRESH_PAGE\""));
+        assertTrue(compiledSource.contains("runScannerWorkspaceAction(\"CLEAR_GRID\""));
     }
 }
