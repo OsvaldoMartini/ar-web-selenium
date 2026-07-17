@@ -91,7 +91,7 @@ public class ARScannedElementScene {
     private ARScannedElementScene() {
 
         this.arScannedElementPane = ARScannedElementPaneProvider.getInstance().currentPane();
-        ScannerShellLifecycle.getInstance().install(new SceneScannerShellHandler());
+        ScannerShellLifecycle.getInstance().install(new ScannerRuntimeShellHandler(this));
         this.scannerInsertBlockSelectionService =
                 new ScannerInsertBlockSelectionService(new SceneInsertBlockListsPort(), arScannedElementPane);
     }
@@ -710,30 +710,6 @@ public class ARScannedElementScene {
         @Override
         public TargetElement extractPickClone(ElementDTO elementDTO) {
             return targetElementHelper.extractPickClone(elementDTO);
-        }
-    }
-
-    private final class SceneScannerShellHandler implements ScannerShellLifecycle.Handler {
-        @Override
-        public void openShell(HomeBankingLoadDTO homeBanking, BotJobLoadDTO botJob, BlockLoadDTO block) {
-            ARScannedElementScene.this.initialize(homeBanking, botJob, block);
-            ARScannedElementScene.this.showModal();
-        }
-
-        @Override
-        public void closeWebDrivers() {
-            ARScannedElementScene.this.closeWebDrivers();
-        }
-
-        @Override
-        public void closeModal() {
-            ARScannedElementScene.this.closeModal();
-        }
-
-        @Override
-        public Integer currentBotJobId() {
-            BotJobLoadDTO current = ARScannedElementScene.this.getCurrentBotJob();
-            return current == null ? null : current.getId();
         }
     }
 
