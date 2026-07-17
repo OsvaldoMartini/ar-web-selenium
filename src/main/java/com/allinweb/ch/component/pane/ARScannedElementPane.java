@@ -3,7 +3,6 @@ package com.allinweb.ch.component.pane;
 import com.allinweb.ch.builder.WebElementAttributeEnum;
 import com.allinweb.ch.builder.WebElementAttributeTypeValueEnum;
 import com.allinweb.ch.builder.WebElementTagNameEnum;
-import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.executors.AppExecutors;
 import com.allinweb.ch.executors.ExecutorsManager;
@@ -40,6 +39,8 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.*;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 import javafx.scene.layout.Priority;
 import javafx.scene.paint.Color;
@@ -69,7 +70,6 @@ public class ARScannedElementPane
     private static final Logger logLaunch = LoggerFactory.getLogger("com.allinweb.launch");
     private static final Logger logOperations = LoggerFactory.getLogger("com.allinweb.operations");
 
-    private static final ARComponentBuilder builder = ARComponentBuilder.getInstance();
     private static final String END_OF_FILE_MARKER = "END OF FILE";
     // Very important sequence on initiation
     private static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
@@ -1525,25 +1525,64 @@ public class ARScannedElementPane
         VBox.setVgrow(componentBox, Priority.ALWAYS);
     }
 
-    private void buildUIComponents() {
-        topPane = builder.createTopPanel(ARConstants.SPACE_L, ARConstants.SPACE_SM);
-        mainPane = builder.createContentPanel(ARConstants.SPACE_L, ARConstants.SPACE_XL, ARConstants.SPACE_SM);
+    private HBox createTopPanel(Double topPanelHeight, Double edgeSpace) {
+        HBox pane = new HBox();
+        pane.setMaxHeight(topPanelHeight);
+        AnchorPane.setTopAnchor(pane, edgeSpace);
+        AnchorPane.setLeftAnchor(pane, edgeSpace);
+        AnchorPane.setRightAnchor(pane, edgeSpace);
+        return pane;
+    }
 
-        cloneElementsButton = builder.buildButton(
+    private AnchorPane createContentPanel(Double topPanelHeight, Double bottomPanelHeight, Double edgeSpace) {
+        AnchorPane pane = new AnchorPane();
+        AnchorPane.setTopAnchor(pane, edgeSpace + topPanelHeight);
+        AnchorPane.setBottomAnchor(pane, edgeSpace + bottomPanelHeight);
+        AnchorPane.setLeftAnchor(pane, edgeSpace);
+        AnchorPane.setRightAnchor(pane, edgeSpace);
+        return pane;
+    }
+
+    private Button buildButton(String text, Double height, String iconSource, Double iconSize, Insets padding) {
+        Button button = new Button(text);
+        button.setGraphic(buildImageView(iconSource, iconSize));
+        button.setMaxHeight(height);
+        button.setPadding(padding);
+        return button;
+    }
+
+    private ImageView buildImageView(String source, Double size) {
+        try {
+            ImageView image = new ImageView(new Image(Objects.requireNonNull(getClass().getResourceAsStream(source))));
+            image.setFitHeight(size);
+            image.setFitWidth(size);
+            image.setPreserveRatio(true);
+            return image;
+        } catch (Exception e) {
+            logOperations.error("BuildImageView source: {} size {} failed: {}", source, size, e.getMessage());
+            return null;
+        }
+    }
+
+    private void buildUIComponents() {
+        topPane = createTopPanel(ARConstants.SPACE_L, ARConstants.SPACE_SM);
+        mainPane = createContentPanel(ARConstants.SPACE_L, ARConstants.SPACE_XL, ARConstants.SPACE_SM);
+
+        cloneElementsButton = buildButton(
                 "Clone", ARConstants.SPACE_L, ARConstants.ICON_TICK, ARConstants.SPACE_SM, new Insets(5));
         // Clone only acts on a hover-picked target; with HOVER PICK removed it is inert, so hide it.
         cloneElementsButton.setVisible(false);
         cloneElementsButton.setManaged(false);
-        pageScannerButton = builder.buildButton(
+        pageScannerButton = buildButton(
                 "Page Scanner", ARConstants.SPACE_ZERO, "/refresh.png", ARConstants.SPACE_M, new Insets(5.0D));
-        ocrConfigButton = builder.buildButton(
+        ocrConfigButton = buildButton(
                 "", ARConstants.SPACE_ZERO, ARConstants.ICON_CONFIG, ARConstants.SPACE_M, new Insets(5.0D));
         ocrConfigButton.setTooltip(new Tooltip("OCR Configuration"));
 
-        refreshWebPageButton = builder.buildButton(
+        refreshWebPageButton = buildButton(
                 "Refresh Web Page", ARConstants.SPACE_ZERO, "/refresh.png", ARConstants.SPACE_M, new Insets(5.0D));
 
-        cleanListButton = builder.buildButton(
+        cleanListButton = buildButton(
                 "Clear Grid", // No text
                 25.0, // Smaller height
                 "/cross.png", // Icon source
@@ -1551,13 +1590,13 @@ public class ARScannedElementPane
                 new Insets(2.0) // Reduced padding
                 );
 
-        configureButton = builder.buildButton(
+        configureButton = buildButton(
                 "Config", ARConstants.SPACE_M, ARConstants.ICON_CONFIG, ARConstants.SPACE_M, new Insets(5.0D));
 
-        launchBotJobButton = builder.buildButton(
+        launchBotJobButton = buildButton(
                 "Pre-Launch", ARConstants.SPACE_ZERO, "/play.png", ARConstants.SPACE_M, new Insets(5.0D));
         stopBotJobButton =
-                builder.buildButton("STOP", ARConstants.SPACE_ZERO, "/stop.png", ARConstants.SPACE_M, new Insets(5.0D));
+                buildButton("STOP", ARConstants.SPACE_ZERO, "/stop.png", ARConstants.SPACE_M, new Insets(5.0D));
 
         stopBotJobButton.setPrefWidth(100);
 
@@ -1579,11 +1618,11 @@ public class ARScannedElementPane
         // someText → tagName). Renames live in the React grid via instruction.client_named.
 
 
-        leftButton = builder.buildButton(
+        leftButton = buildButton(
                 "Previous", ARConstants.SPACE_M, ARConstants.ICON_LEFT, ARConstants.SPACE_M, new Insets(5.0D));
-        rightButton = builder.buildButton(
+        rightButton = buildButton(
                 "Next", ARConstants.SPACE_M, ARConstants.ICON_RIGHT, ARConstants.SPACE_M, new Insets(5.0D));
-        searchButton = builder.buildButton(
+        searchButton = buildButton(
                 "", ARConstants.SPACE_M, ARConstants.ICON_SEARCH, ARConstants.SPACE_M, new Insets(5.0D));
 
         leftButton.setDisable(true);
