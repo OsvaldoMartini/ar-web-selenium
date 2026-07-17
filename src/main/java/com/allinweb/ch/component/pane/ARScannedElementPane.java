@@ -273,6 +273,7 @@ public class ARScannedElementPane
     private List<BlockLoadDTO> blocksLoaded;
     private List<InstructionLoad> excelDataGoto = new ArrayList<>();
     private ComboBox<BlockOptions> comboBoxBlocks;
+    private volatile BlockOptions selectedBlockOption;
     // UI COMPONENTS
     private HBox topPane;
     private VBox verticalBox;
@@ -301,6 +302,7 @@ public class ARScannedElementPane
     private String scannerStatusText = "Pre-Launch status: Ready";
     private String scannerStatusStyle = "info";
     private ComboBox<ElementScanProfile> elementFocusComboBox;
+    private volatile ElementScanProfile selectedElementScanProfile = ALL_INTERACTIVE_SCAN_PROFILE;
     private String searchTermsText = ALL_INTERACTIVE_SCAN_PROFILE.searchText();
     private String testActionsText = "0001";
     private String coordsText = "";
@@ -931,7 +933,7 @@ public class ARScannedElementPane
         @Override
         public ScannerBlockValidationService.SelectedBlock selectedBlock() {
             try {
-                BlockOptions selected = comboBoxBlocks.getValue();
+                BlockOptions selected = selectedBlockOption;
                 return new ScannerBlockValidationService.SelectedBlock(
                         selected.getBlockId(),
                         selected.getBlockOrderNumber());
@@ -1341,6 +1343,7 @@ public class ARScannedElementPane
 
                 comboBoxBlocks.setItems(defaultAll);
                 comboBoxBlocks.getSelectionModel().selectFirst();
+                selectBlockOption(defaultAll.get(0));
             }
         }
 
@@ -1725,7 +1728,7 @@ public class ARScannedElementPane
             if (newValue == null) {
                 return;
             }
-            searchTermsText = newValue.searchText();
+            selectElementScanProfile(newValue);
             elementFocusComboBox.setStyle("-fx-border-color: #1976D2; -fx-border-width: 1.5;");
             appendLog("Page Scanner focus: " + newValue.label(), "info");
         });
@@ -1772,11 +1775,18 @@ public class ARScannedElementPane
             uiThreadDispatcher.execute(() -> {
                 if (scannerBlockOptionSelectionService.isRealBlock(oldVal)) {
                     comboBoxBlocks.getSelectionModel().select(oldVal);
+                    selectBlockOption(oldVal);
                 } else {
                     comboBoxBlocks.getSelectionModel().clearSelection();
+                    selectBlockOption(null);
                 }
                 openCreateBlockModal(null);
             });
+        });
+        comboBoxBlocks.valueProperty().addListener((obs, oldVal, newVal) -> {
+            if (!scannerBlockOptionSelectionService.isCreateBlockSentinel(newVal)) {
+                selectBlockOption(newVal);
+            }
         });
         comboBoxBlocks.setButtonCell(new ListCell<>() {
             @Override
@@ -1902,8 +1912,10 @@ public class ARScannedElementPane
                 loadAllBlocks();
                 if (!secondItem) {
                     comboBoxBlocks.getSelectionModel().selectFirst();
+                    selectBlockOption(comboBoxBlocks.getSelectionModel().getSelectedItem());
                 } else {
                     comboBoxBlocks.getSelectionModel().select(1);
+                    selectBlockOption(comboBoxBlocks.getSelectionModel().getSelectedItem());
                 }
             });
         }
@@ -2210,6 +2222,20 @@ public class ARScannedElementPane
         return response;
     }
 
+    private void selectBlockOption(BlockOptions selected) {
+        selectedBlockOption = scannerBlockOptionSelectionService.isRealBlock(selected) ? selected : null;
+    }
+
+    private int selectedBlockOrderNumber() {
+        BlockOptions selected = selectedBlockOption;
+        return selected == null || selected.getBlockOrderNumber() == null ? 0 : selected.getBlockOrderNumber();
+    }
+
+    private void selectElementScanProfile(ElementScanProfile selected) {
+        selectedElementScanProfile = selected == null ? ALL_INTERACTIVE_SCAN_PROFILE : selected;
+        searchTermsText = selectedElementScanProfile.searchText();
+    }
+
     public void requestPreLaunchFromWorkspace(int botJobId) {
         scannerPreLaunchWorkspaceRequests.requestStart(botJobId);
     }
@@ -2336,7 +2362,7 @@ public class ARScannedElementPane
 
         @Override
         public int selectedBlockOrderNumber() {
-            return comboBoxBlocks.getValue().getBlockOrderNumber();
+            return ARScannedElementPane.this.selectedBlockOrderNumber();
         }
 
         @Override
@@ -3761,8 +3787,10 @@ public class ARScannedElementPane
                     BlockOptions first = listOptions.get(0);
                     if (scannerBlockOptionSelectionService.isCreateBlockSentinel(first)) {
                         comboBoxBlocks.getSelectionModel().clearSelection();
+                        selectBlockOption(null);
                     } else {
                         comboBoxBlocks.getSelectionModel().selectFirst();
+                        selectBlockOption(first);
                     }
                 }
             });
@@ -3771,8 +3799,7 @@ public class ARScannedElementPane
 
     /** Returns true when {@code comboBoxBlocks} has a real (non-sentinel) block selected. */
     public boolean isRealBlockSelectedForInsert() {
-        BlockOptions v = comboBoxBlocks == null ? null : comboBoxBlocks.getValue();
-        return scannerBlockOptionSelectionService.isRealBlock(v);
+        return scannerBlockOptionSelectionService.isRealBlock(selectedBlockOption);
     }
 
     /**
@@ -3841,8 +3868,7 @@ public class ARScannedElementPane
     }
 
     private String selectedProfileSearchText() {
-        ElementScanProfile selected = elementFocusComboBox == null ? null : elementFocusComboBox.getValue();
-        return selected == null ? ALL_INTERACTIVE_SCAN_PROFILE.searchText() : selected.searchText();
+        return selectedElementScanProfile.searchText();
     }
 
     private void revertSearchTermsInjections(WebDriver driver) {

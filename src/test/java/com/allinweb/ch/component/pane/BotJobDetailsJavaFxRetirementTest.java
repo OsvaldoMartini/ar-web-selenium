@@ -233,5 +233,9 @@ class BotJobDetailsJavaFxRetirementTest {
         assertTrue(compiledSource.contains("runScannerWorkspaceAction(\"STOP_PRE_LAUNCH\""));
         assertTrue(compiledSource.contains("runScannerWorkspaceAction(\"REFRESH_PAGE\""));
         assertTrue(compiledSource.contains("runScannerWorkspaceAction(\"CLEAR_GRID\""));
+        assertFalse(compiledSource.contains("comboBoxBlocks.getValue()"));
+        assertFalse(compiledSource.contains("elementFocusComboBox.getValue()"));
+        assertTrue(compiledSource.contains("selectedBlockOption"));
+        assertTrue(compiledSource.contains("selectedElementScanProfile"));
     }
 }
