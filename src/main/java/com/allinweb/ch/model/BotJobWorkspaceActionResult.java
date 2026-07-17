@@ -1,6 +1,6 @@
 package com.allinweb.ch.model;
 
-/** Structured completion emitted after a React workspace action has run on the JavaFX thread. */
+/** Structured completion emitted after a React workspace action has run on the presentation executor. */
 public record BotJobWorkspaceActionResult(
         boolean ok,
         String action,

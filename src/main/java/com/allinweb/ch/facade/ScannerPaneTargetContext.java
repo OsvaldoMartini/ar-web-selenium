@@ -5,14 +5,14 @@ import com.allinweb.ch.model.TargetElement;
 import java.util.Objects;
 
 /**
- * Legacy adapter that keeps {@link ScannerTargetContext} behavior routed to
- * AR Web Factory while scanner ownership is moved to backend services/React.
+ * Adapter that keeps {@link ScannerTargetContext} behavior routed to the
+ * scanner runtime while ownership moves to backend services/React.
  */
-public final class JavaFxScannerTargetContext implements ScannerTargetContext {
+public final class ScannerPaneTargetContext implements ScannerTargetContext {
 
     private final ARScannedElementPanePort pane;
 
-    public JavaFxScannerTargetContext(ARScannedElementPanePort pane) {
+    public ScannerPaneTargetContext(ARScannedElementPanePort pane) {
         this.pane = Objects.requireNonNull(pane, "pane");
     }
 

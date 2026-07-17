@@ -257,8 +257,7 @@ public class ARControlPanel {
             }
         } else {
             databaseControl();
-            // If the license is disabled, directly proceed with the main application
-            // Ensure launch(args) is only called once: JavaFX does not allow calling Application.launch() twice.
+            // If the license is disabled, directly proceed with the main application.
             //            launch();
             // webSocketControl();
             UiThreadDispatcher.getInstance().execute(() -> {

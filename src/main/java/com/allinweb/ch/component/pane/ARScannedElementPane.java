@@ -34,7 +34,6 @@ import java.util.function.BooleanSupplier;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import javax.swing.*;
 import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -818,7 +817,7 @@ public class ARScannedElementPane
 
     @Override
     public ScannerTargetContext scannerTargetContext() {
-        return new JavaFxScannerTargetContext(this);
+        return new ScannerPaneTargetContext(this);
     }
 
     @Override
@@ -1722,7 +1721,7 @@ public class ARScannedElementPane
 
     private ScannerWorkspaceResponse runScannerWorkspaceAction(String action, String searchTerms) {
         JsonObject body = new JsonObject();
-        body.addProperty("requestId", "javafx-retired-pane-" + System.nanoTime());
+        body.addProperty("requestId", "scanner-runtime-" + System.nanoTime());
         body.addProperty("botJobId", currentBotJob == null ? -1 : currentBotJob.getId());
         body.addProperty("action", action);
         if (searchTerms != null) {
@@ -2164,7 +2163,7 @@ public class ARScannedElementPane
     }
 
     public void initUIBehaviour() {
-        logOperations.debug("Scanner JavaFX action wiring skipped; React workspace owns scanner actions");
+        logOperations.debug("Scanner action wiring skipped; React workspace owns scanner actions");
     }
 
     public boolean lastBrowserTab() {
@@ -2964,7 +2963,6 @@ public class ARScannedElementPane
     //            return;
     //        }
     //
-    //        SwingUtilities.invokeLater(() -> screenShotListener.onScreenShot(screenshot));
     //    }
 
     private void startScreenshotLoop() {

@@ -1251,7 +1251,7 @@ public class BotJobDetailsWorkspaceHost {
         };
     }
 
-    /** Executes a React workspace command and completes only after the JavaFX action ran. */
+    /** Executes a React workspace command and completes only after the presentation action ran. */
     public CompletableFuture<BotJobWorkspaceActionResult> handleReactWorkspaceAction(
             BotJobWorkspaceAction action, int requestedBotJobId) {
         CompletableFuture<BotJobWorkspaceActionResult> completion = new CompletableFuture<>();

@@ -25,6 +25,7 @@ class BotJobDetailsJavaFxRetirementTest {
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/scene/base/ARScene.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/scene/base/IARScene.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/scene/base/IconLoader.java")));
+        assertFalse(Files.exists(SOURCE_ROOT.resolve("facade/JavaFxScannerTargetContext.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/base/ARPane.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/base/IARPane.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("facade/ScannerModalStageService.java")));
@@ -64,6 +65,8 @@ class BotJobDetailsJavaFxRetirementTest {
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerPluginBackgroundThreadAdapter.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerLayoutNodeAdapter.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerElementFocusComboBoxAdapter.java")));
+        assertFalse(Files.exists(SOURCE_ROOT.resolve("socket/MainFrame.java")));
+        assertFalse(Files.exists(SOURCE_ROOT.resolve("socket/JavaCEFExample.java")));
     }
 
     @Test
@@ -303,5 +306,7 @@ class BotJobDetailsJavaFxRetirementTest {
         assertFalse(pom.contains("javafx-controls"));
         assertFalse(pom.contains("javafx-web"));
         assertFalse(pom.contains("javafx-maven-plugin"));
+        assertFalse(pom.contains("jcefmaven"));
+        assertFalse(pom.contains("org.cef"));
     }
 }

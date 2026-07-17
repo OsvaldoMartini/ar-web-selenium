@@ -3308,7 +3308,7 @@ public class SimpleWebSocketServer {
     }
 
     private void injectBlockComponent(SplitDTO blockSplitDTO) {
-        // Ensure JavaFX UI updates are done on the JavaFX Application Thread
+        // Ensure workspace updates are routed through the active presentation boundary.
 
         BlockDetailsDTO blockDetailsDTO = blockSplitDTO.getDetails().getNewBlock();
         blockDetailsDTO.setHomeBankingId(blockSplitDTO.getHomeBankingId());

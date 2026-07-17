@@ -164,7 +164,7 @@ public class ScannerRuntime {
         latch.countDown(); // Release the latch after connection is established
         log.info("Connected to WebSocket server at: " + session.getRequestURI());
         // Sending an initial message
-        sendMessage("Hello from JavaFX WebSocket client!");
+        sendMessage("Hello from scanner WebSocket client!");
     }
 
     @OnClose

@@ -158,7 +158,7 @@ public class PerformLists {
         startKeepAlivePings();
 
         // Sending an initial message
-        sendMessage("Hello from JavaFX WebSocket client!");
+        sendMessage("Hello from scanner WebSocket client!");
 
         String sessionId = null;
         try {
