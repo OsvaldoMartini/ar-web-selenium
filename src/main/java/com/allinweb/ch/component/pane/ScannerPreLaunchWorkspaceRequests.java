@@ -9,16 +9,16 @@ final class ScannerPreLaunchWorkspaceRequests {
 
     void requestStart(int botJobId) {
         ensureCurrentScannerJob(botJobId);
-        if (!operations.preLaunchControlsReady()) {
-            throw new IllegalStateException("Scanner Pre-Launch controls are not ready");
+        if (!operations.preLaunchBackendReady()) {
+            throw new IllegalStateException("Scanner Pre-Launch backend is not ready");
         }
         operations.runLater(operations::startPreLaunch);
     }
 
     void requestStop(int botJobId) {
         ensureCurrentScannerJob(botJobId);
-        if (!operations.stopPreLaunchControlsReady()) {
-            throw new IllegalStateException("Scanner Pre-Launch controls are not ready");
+        if (!operations.stopPreLaunchBackendReady()) {
+            throw new IllegalStateException("Scanner Pre-Launch backend is not ready");
         }
         operations.runLater(operations::stopPreLaunch);
     }
@@ -33,9 +33,9 @@ final class ScannerPreLaunchWorkspaceRequests {
     interface Operations {
         Integer currentBotJobId();
 
-        boolean preLaunchControlsReady();
+        boolean preLaunchBackendReady();
 
-        boolean stopPreLaunchControlsReady();
+        boolean stopPreLaunchBackendReady();
 
         void runLater(Runnable task);
 

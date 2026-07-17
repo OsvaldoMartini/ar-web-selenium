@@ -16,7 +16,7 @@ class ScannerPreLaunchWorkspaceRequestsTest {
 
         requests.requestStart(42);
 
-        assertEquals(List.of("currentBotJobId", "preLaunchControlsReady", "runLater", "startPreLaunch"),
+        assertEquals(List.of("currentBotJobId", "preLaunchBackendReady", "runLater", "startPreLaunch"),
                 operations.calls);
     }
 
@@ -27,7 +27,7 @@ class ScannerPreLaunchWorkspaceRequestsTest {
 
         requests.requestStop(42);
 
-        assertEquals(List.of("currentBotJobId", "stopPreLaunchControlsReady", "runLater", "stopPreLaunch"),
+        assertEquals(List.of("currentBotJobId", "stopPreLaunchBackendReady", "runLater", "stopPreLaunch"),
                 operations.calls);
     }
 
@@ -44,34 +44,34 @@ class ScannerPreLaunchWorkspaceRequestsTest {
     }
 
     @Test
-    void requestStartRejectsMissingControls() {
+    void requestStartRejectsBackendNotReady() {
         RecordingOperations operations = new RecordingOperations();
-        operations.preLaunchControlsReady = false;
+        operations.preLaunchBackendReady = false;
         ScannerPreLaunchWorkspaceRequests requests = new ScannerPreLaunchWorkspaceRequests(operations);
 
         IllegalStateException error = assertThrows(IllegalStateException.class, () -> requests.requestStart(42));
 
-        assertEquals("Scanner Pre-Launch controls are not ready", error.getMessage());
-        assertEquals(List.of("currentBotJobId", "preLaunchControlsReady"), operations.calls);
+        assertEquals("Scanner Pre-Launch backend is not ready", error.getMessage());
+        assertEquals(List.of("currentBotJobId", "preLaunchBackendReady"), operations.calls);
     }
 
     @Test
-    void requestStopRejectsMissingStopControls() {
+    void requestStopRejectsBackendNotReady() {
         RecordingOperations operations = new RecordingOperations();
-        operations.stopPreLaunchControlsReady = false;
+        operations.stopPreLaunchBackendReady = false;
         ScannerPreLaunchWorkspaceRequests requests = new ScannerPreLaunchWorkspaceRequests(operations);
 
         IllegalStateException error = assertThrows(IllegalStateException.class, () -> requests.requestStop(42));
 
-        assertEquals("Scanner Pre-Launch controls are not ready", error.getMessage());
-        assertEquals(List.of("currentBotJobId", "stopPreLaunchControlsReady"), operations.calls);
+        assertEquals("Scanner Pre-Launch backend is not ready", error.getMessage());
+        assertEquals(List.of("currentBotJobId", "stopPreLaunchBackendReady"), operations.calls);
     }
 
     private static final class RecordingOperations implements ScannerPreLaunchWorkspaceRequests.Operations {
         private final List<String> calls = new ArrayList<>();
         private Integer currentBotJobId = 42;
-        private boolean preLaunchControlsReady = true;
-        private boolean stopPreLaunchControlsReady = true;
+        private boolean preLaunchBackendReady = true;
+        private boolean stopPreLaunchBackendReady = true;
 
         @Override
         public Integer currentBotJobId() {
@@ -80,15 +80,15 @@ class ScannerPreLaunchWorkspaceRequestsTest {
         }
 
         @Override
-        public boolean preLaunchControlsReady() {
-            calls.add("preLaunchControlsReady");
-            return preLaunchControlsReady;
+        public boolean preLaunchBackendReady() {
+            calls.add("preLaunchBackendReady");
+            return preLaunchBackendReady;
         }
 
         @Override
-        public boolean stopPreLaunchControlsReady() {
-            calls.add("stopPreLaunchControlsReady");
-            return stopPreLaunchControlsReady;
+        public boolean stopPreLaunchBackendReady() {
+            calls.add("stopPreLaunchBackendReady");
+            return stopPreLaunchBackendReady;
         }
 
         @Override

@@ -291,6 +291,7 @@ public class ARScannedElementPane
     private Button cleanListButton;
     private Button searchButton;
     private boolean cloneSelectionActive = false;
+    private volatile boolean preLaunchActionEnabled = true;
     private boolean suppressTestSuccessMessage = true;
     private boolean testActionClick = false;
     private boolean testActionInput = false;
@@ -2256,13 +2257,13 @@ public class ARScannedElementPane
         }
 
         @Override
-        public boolean preLaunchControlsReady() {
-            return launchBotJobButton != null;
+        public boolean preLaunchBackendReady() {
+            return currentBotJob != null && preLaunchActionEnabled;
         }
 
         @Override
-        public boolean stopPreLaunchControlsReady() {
-            return launchBotJobButton != null && stopBotJobButton != null;
+        public boolean stopPreLaunchBackendReady() {
+            return currentBotJob != null;
         }
 
         @Override
@@ -2331,7 +2332,8 @@ public class ARScannedElementPane
     private final class PanePreLaunchRunSetupOperations implements ScannerPreLaunchRunSetup.Operations {
         @Override
         public void disableLaunch() {
-            launchBotJobButton.setDisable(true);
+            preLaunchActionEnabled = false;
+            logOperations.debug("Scanner Pre-Launch action disabled");
         }
 
         @Override
@@ -2605,7 +2607,7 @@ public class ARScannedElementPane
     private final class PanePreLaunchStopOperations implements ScannerPreLaunchStopper.Operations {
         @Override
         public void enableLaunch() {
-            launchBotJobButton.setDisable(false);
+            enablePreLaunchAction();
         }
 
         @Override
@@ -2627,10 +2629,6 @@ public class ARScannedElementPane
 
     public void initUIBehaviour() {
         configureButton.setOnMouseClicked(e -> OrganizationManagerLifecycle.getInstance().openOrganizations());
-        launchBotJobButton.setOnMouseClicked(e -> runScannerWorkspaceAction("PRE_LAUNCH"));
-
-        stopBotJobButton.setOnMouseClicked(e -> runScannerWorkspaceAction("STOP_PRE_LAUNCH"));
-
         // HOVER PICK handler removed — the interactive per-element pick (hoverPick JS injection over a
         // page WebSocket) is not supported in the single Playwright browser. Use the regular scanner.
 
@@ -3662,7 +3660,7 @@ public class ARScannedElementPane
 
         @Override
         public void enableLaunchAction() {
-            launchBotJobButton.setDisable(false);
+            enablePreLaunchAction();
         }
 
         @Override
@@ -3686,20 +3684,13 @@ public class ARScannedElementPane
         }
     }
 
-    /**
-     * Re-enable the Launch button on the JavaFX thread. Safe to call from the
-     * background executor (recallJob's submit) or from the FX event handler —
-     * UiThreadDispatcher is direct by default and can be wired by the host. Used by every
-     * executeJob termination path so the user can start another run.
-     */
     private void reenableLaunchButton() {
-        // Null-guard: TEST RUN can drive executeJob (whose finally calls this) before the pane's
-        // UI is built, so launchBotJobButton may not exist yet.
-        uiThreadDispatcher.execute(() -> {
-            if (launchBotJobButton != null) {
-                launchBotJobButton.setDisable(false);
-            }
-        });
+        enablePreLaunchAction();
+    }
+
+    private void enablePreLaunchAction() {
+        preLaunchActionEnabled = true;
+        logOperations.debug("Scanner Pre-Launch action enabled");
     }
 
     private FieldData updateMSGInstruction(FieldData msgInstruction, String failedMessage) {
