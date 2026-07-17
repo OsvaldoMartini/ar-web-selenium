@@ -1,6 +1,6 @@
 package com.allinweb.ch.facade;
 
-import com.allinweb.ch.component.pane.ScannerRuntimePort;
+import com.allinweb.ch.facade.scanner.ScannerRuntimePort;
 import com.allinweb.ch.model.TargetElement;
 import java.util.Objects;
 

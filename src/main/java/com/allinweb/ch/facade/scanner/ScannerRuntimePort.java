@@ -1,4 +1,4 @@
-package com.allinweb.ch.component.pane;
+package com.allinweb.ch.facade.scanner;
 
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.ScannerElementTestActionService;

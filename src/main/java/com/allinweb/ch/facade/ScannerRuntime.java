@@ -1,7 +1,7 @@
 package com.allinweb.ch.facade;
 
-import com.allinweb.ch.component.pane.ScannerRuntimePort;
-import com.allinweb.ch.component.pane.ScannerRuntimeProvider;
+import com.allinweb.ch.facade.scanner.ScannerRuntimePort;
+import com.allinweb.ch.facade.scanner.ScannerRuntimeProvider;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.model.*;
 import com.allinweb.ch.util.ARPropertyEnum;
