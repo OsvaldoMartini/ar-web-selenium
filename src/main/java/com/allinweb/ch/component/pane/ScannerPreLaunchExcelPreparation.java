@@ -1,6 +1,7 @@
 package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.facade.PerformLists;
+import com.allinweb.ch.facade.scanner.prelaunch.ScannerPreLaunchExcelLoader;
 import com.allinweb.ch.util.ExtractedData;
 
 final class ScannerPreLaunchExcelPreparation {

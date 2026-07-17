@@ -1,22 +1,23 @@
-package com.allinweb.ch.component.pane;
+package com.allinweb.ch.facade.scanner.testrun;
 
 import com.allinweb.ch.facade.PerformLists;
+import com.allinweb.ch.facade.scanner.prelaunch.ScannerPreLaunchExcelLoader;
 import com.allinweb.ch.util.ExtractedData;
 
-final class ScannerTestRunExcelPreparation {
+public final class ScannerTestRunExcelPreparation {
     private final ExcelLoader excelLoader;
     private final Operations operations;
 
-    ScannerTestRunExcelPreparation(ScannerPreLaunchExcelLoader excelLoader, Operations operations) {
+    public ScannerTestRunExcelPreparation(ScannerPreLaunchExcelLoader excelLoader, Operations operations) {
         this(new ScannerPreLaunchExcelLoaderAdapter(excelLoader), operations);
     }
 
-    ScannerTestRunExcelPreparation(ExcelLoader excelLoader, Operations operations) {
+    public ScannerTestRunExcelPreparation(ExcelLoader excelLoader, Operations operations) {
         this.excelLoader = excelLoader;
         this.operations = operations;
     }
 
-    Result prepare(String excelPath, PerformLists performLists) {
+    public Result prepare(String excelPath, PerformLists performLists) {
         ExtractedData extractedData = null;
         Exception loadError = null;
         try {
@@ -30,17 +31,17 @@ final class ScannerTestRunExcelPreparation {
         return new Result(loadError);
     }
 
-    record Result(Exception loadError) {
-        boolean usedSyntheticFallback() {
+    public record Result(Exception loadError) {
+        public boolean usedSyntheticFallback() {
             return loadError != null;
         }
     }
 
-    interface Operations {
+    public interface Operations {
         void setExtractedData(ExtractedData extractedData);
     }
 
-    interface ExcelLoader {
+    public interface ExcelLoader {
         ExtractedData load(String excelPath, PerformLists performLists) throws Exception;
 
         ExtractedData ensureEmptyDataRow(ExtractedData extractedData);

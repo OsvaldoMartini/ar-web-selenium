@@ -1,4 +1,4 @@
-package com.allinweb.ch.component.pane;
+package com.allinweb.ch.facade.scanner.prelaunch;
 
 import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.model.InstructionLoad;
@@ -7,9 +7,9 @@ import com.allinweb.ch.util.ExcelUtils;
 import com.allinweb.ch.util.ExtractedData;
 import java.util.List;
 
-final class ScannerPreLaunchExcelLoader {
+public final class ScannerPreLaunchExcelLoader {
 
-    ExtractedData load(String excelPath, PerformLists performLists) throws Exception {
+    public ExtractedData load(String excelPath, PerformLists performLists) throws Exception {
         return new ExcelReader()
                 .extractData(
                         excelPath,
@@ -17,7 +17,7 @@ final class ScannerPreLaunchExcelLoader {
                         ExcelUtils.buildAliasMap(performLists.getListBlock()));
     }
 
-    ExtractedData ensureEmptyDataRow(ExtractedData extractedData) {
+    public ExtractedData ensureEmptyDataRow(ExtractedData extractedData) {
         ExtractedData data = extractedData == null ? new ExtractedData() : extractedData;
         if (data.getNumberOfDataRows() == null || data.getNumberOfDataRows() == 0) {
             data.addField("$EMPTY");
@@ -26,11 +26,11 @@ final class ScannerPreLaunchExcelLoader {
         return data;
     }
 
-    boolean hasExcelError(ExtractedData extractedData) {
+    public boolean hasExcelError(ExtractedData extractedData) {
         return extractedData != null && extractedData.getErrorMessage() != null;
     }
 
-    boolean requiresMultipleRowsConfirmation(ExtractedData extractedData, List<InstructionLoad> excelDataGoto) {
+    public boolean requiresMultipleRowsConfirmation(ExtractedData extractedData, List<InstructionLoad> excelDataGoto) {
         return extractedData.getNumberOfDataRows() != null
                 && extractedData.getNumberOfDataRows() > 1
                 && excelDataGoto.isEmpty();
