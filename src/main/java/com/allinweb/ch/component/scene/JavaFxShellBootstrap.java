@@ -1,5 +1,6 @@
 package com.allinweb.ch.component.scene;
 
+import com.allinweb.ch.component.pane.MainDashboardLifecycleInstaller;
 import com.allinweb.ch.facade.UiThreadDispatcher;
 import javafx.application.Platform;
 
@@ -9,7 +10,7 @@ public final class JavaFxShellBootstrap {
 
     public static void install() {
         UiThreadDispatcher.getInstance().install(Platform::runLater);
-        ARMainScene.getInstance();
+        MainDashboardLifecycleInstaller.install();
         ARScannedElementScene.getInstance();
     }
 }
