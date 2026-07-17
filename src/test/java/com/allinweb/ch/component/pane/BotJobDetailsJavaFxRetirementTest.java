@@ -25,6 +25,8 @@ class BotJobDetailsJavaFxRetirementTest {
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/scene/base/ARScene.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/scene/base/IARScene.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/scene/base/IconLoader.java")));
+        assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/base/ARPane.java")));
+        assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/base/IARPane.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("facade/ScannerModalStageService.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("vision/OcrTestResultRow.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerStageAdapter.java")));
@@ -52,16 +54,6 @@ class BotJobDetailsJavaFxRetirementTest {
     }
 
     @Test
-    void paneBaseDoesNotExtendJavaFxApplication() throws IOException {
-        String source = Files.readString(SOURCE_ROOT.resolve("component/pane/base/ARPane.java"));
-        String compiledSource = source.replaceAll("(?s)/\\*.*?\\*/", "");
-
-        assertFalse(compiledSource.contains("import javafx.application.Application"));
-        assertFalse(compiledSource.contains("extends Application"));
-        assertFalse(compiledSource.contains("start(Stage"));
-    }
-
-    @Test
     void scannerPaneDoesNotUsePlatformRunLater() throws IOException {
         String source = Files.readString(SOURCE_ROOT.resolve("component/pane/ARScannedElementPane.java"));
         String compiledSource = source.replaceAll("(?s)/\\*.*?\\*/", "");
@@ -77,5 +69,14 @@ class BotJobDetailsJavaFxRetirementTest {
 
         assertFalse(compiledSource.contains("javafx.beans.property.BooleanProperty"));
         assertFalse(compiledSource.contains("javafx.beans.property.SimpleBooleanProperty"));
+    }
+
+    @Test
+    void scannerPaneDoesNotUsePaneBaseInheritance() throws IOException {
+        String source = Files.readString(SOURCE_ROOT.resolve("component/pane/ARScannedElementPane.java"));
+        String compiledSource = source.replaceAll("(?s)/\\*.*?\\*/", "");
+
+        assertFalse(compiledSource.contains("extends ARPane"));
+        assertFalse(compiledSource.contains("component.pane.base.ARPane"));
     }
 }

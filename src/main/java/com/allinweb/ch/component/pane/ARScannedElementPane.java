@@ -3,7 +3,6 @@ package com.allinweb.ch.component.pane;
 import com.allinweb.ch.builder.WebElementAttributeEnum;
 import com.allinweb.ch.builder.WebElementAttributeTypeValueEnum;
 import com.allinweb.ch.builder.WebElementTagNameEnum;
-import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.control.ARComponentBuilder;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.executors.AppExecutors;
@@ -62,7 +61,7 @@ import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
 
 @Slf4j
-public class ARScannedElementPane extends ARPane
+public class ARScannedElementPane
         implements ScannerPreLaunchControls,
                 ScannerSupportRequestHandler,
                 ScannerTestRunHandler,
@@ -92,6 +91,7 @@ public class ARScannedElementPane extends ARPane
     private static final ScannerJavaVersionService scannerJavaVersionService = new ScannerJavaVersionService();
     public static TargetElement targetSelected = new TargetElement();
     protected static volatile ARScannedElementPane instance;
+    protected Pane pane;
     private static SimpleDateFormat dateFormatter;
     private static String excelPath = null;
     private static JavascriptExecutor jsExecutor;
@@ -893,6 +893,27 @@ public class ARScannedElementPane extends ARPane
         instance = null;
     }
 
+    public final Pane createPane() {
+        initUI();
+        return pane;
+    }
+
+    private void initUI() {
+        initUIComponents();
+        initUIBehaviour();
+        pane = getPaneReference();
+    }
+
+    private void clearPane(Pane panel) {
+        try {
+            if (panel.getChildren() != null) {
+                panel.getChildren().clear();
+            }
+        } catch (Exception ignore) {
+
+        }
+    }
+
     @Override
     public boolean isJobRunning() {
         return isJobRunning.get();
@@ -1414,7 +1435,6 @@ public class ARScannedElementPane extends ARPane
         }
     }
 
-    @Override
     public Pane getPaneReference() {
         return mainPane;
     }
@@ -1549,7 +1569,6 @@ public class ARScannedElementPane extends ARPane
         return true;
     }
 
-    @Override
     public void initUIComponents() {
 
         if (!initializeScannerGridContainer()) {
@@ -2627,7 +2646,6 @@ public class ARScannedElementPane extends ARPane
         }
     }
 
-    @Override
     public void initUIBehaviour() {
         configureButton.setOnMouseClicked(e -> OrganizationManagerLifecycle.getInstance().openOrganizations());
         launchBotJobButton.setOnMouseClicked(e -> startPreLaunchFromWorkspace());
