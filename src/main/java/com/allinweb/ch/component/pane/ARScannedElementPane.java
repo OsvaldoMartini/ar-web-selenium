@@ -44,7 +44,6 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.*;
-import javafx.scene.control.Alert;
 import javafx.scene.layout.*;
 import javafx.scene.layout.Priority;
 import javafx.scene.paint.Color;
@@ -140,10 +139,9 @@ public class ARScannedElementPane extends ARPane
             new ScannerBlockOptionSelectionService();
     private final ScannerCreatedBlockSelectionService scannerCreatedBlockSelectionService =
             new ScannerCreatedBlockSelectionService();
-    private final ScannerModalBlockCreationService scannerModalBlockCreationService =
-            new ScannerModalBlockCreationService();
     private final ScannerCreateBlockModalPresentationService scannerCreateBlockModalPresentationService =
             new ScannerCreateBlockModalPresentationService();
+    private final ScannerDialogPublisher scannerDialogPublisher = ScannerDialogPublisher.getInstance();
     private final ScannerPageScanService scannerPageScanService = new ScannerPageScanService(performListElements);
     private final ScannerElementPanePublisher scannerElementPanePublisher = new ScannerElementPanePublisher();
     private final ScannerSupportRequestPublisher scannerSupportRequestPublisher = new ScannerSupportRequestPublisher();
@@ -314,8 +312,6 @@ public class ARScannedElementPane extends ARPane
             new ScannerBrowserRuntime(new PaneBrowserRuntimeOperations());
     private final ScannerTestActionFormatter scannerTestActionFormatter = new ScannerTestActionFormatter();
     private final ScannerCreateBlockPlanner scannerCreateBlockPlanner = new ScannerCreateBlockPlanner();
-    private final ScannerCreateBlockDialogAdapter scannerCreateBlockDialogAdapter =
-            new ScannerCreateBlockDialogAdapter(scannerCreateBlockPlanner);
     private final ScannerEmptyPayloadService scannerEmptyPayloadService = new ScannerEmptyPayloadService();
 
     private int portSocketInitial = 54525;
@@ -3894,93 +3890,25 @@ public class ARScannedElementPane extends ARPane
         List<BlockLoadDTO> existingSorted =
                 scannerCreateBlockPlanner.sortedBlocksForBotJob(currentBotJob.getId(), performLists.getListBlock());
 
-        Optional<ScannerCreateBlockDialogAdapter.Result> result =
-                scannerCreateBlockDialogAdapter.show(presentation, reactive, existingSorted);
-        if (result.isEmpty()) {
-            return;
+        List<String> positionOptions = scannerCreateBlockPlanner.positionOptions(existingSorted);
+        Map<String, String> previews = new LinkedHashMap<>();
+        for (String option : positionOptions) {
+            int targetOrder = scannerCreateBlockPlanner.computeInsertOrderNumber(option, existingSorted);
+            previews.put(option, scannerCreateBlockPlanner.buildCreateBlockPreview(targetOrder, existingSorted));
         }
 
-        String name = result.get().name();
-        int orderNumber = result.get().orderNumber();
-        ErrorMessage err = createAndBroadcastNewBlock(name, orderNumber);
-        if (err != null) {
-            performMessage.errorMessageOperationFailed(err);
-            return;
-        }
-
-        // Refresh the combo and auto-select the just-created block so the
-        // downstream insert code sees the right currentBlockId.
-        loadAllBlocks();
-        Platform.runLater(() -> {
-            scannerCreatedBlockSelectionService
-                    .findCreatedBlock(comboBoxBlocks.getItems(), name)
-                    .ifPresent(opt -> comboBoxBlocks.getSelectionModel().select(opt));
-            if (afterCreate != null) afterCreate.run();
-        });
-    }
-
-    /**
-     * Persist a new block at {@code targetOrder}, shifting every existing block
-     * at or after that position by +1. Mirrors {@code splitBlocks} in
-     * {@code SimpleWebSocketServer} — same DB calls, same memory refresh, same
-     * {@code UPDATE_BLOCKS} broadcast so sibling panes re-populate their combos.
-     */
-    private ErrorMessage createAndBroadcastNewBlock(String name, int targetOrder) {
-        int botJobId = currentBotJob.getId();
-        return scannerModalBlockCreationService.create(
-                name,
-                targetOrder,
-                new ScannerModalBlockCreationService.Context(
-                        botJobId,
-                        currentBotJob.getHomeBankingId(),
-                        scannerCreateBlockPlanner),
-                new PaneModalBlockCreationOperations());
-    }
-
-    private final class PaneModalBlockCreationOperations implements ScannerModalBlockCreationService.Operations {
-        @Override
-        public List<BlockLoadDTO> blocks() {
-            return performLists.getListBlock();
-        }
-
-        @Override
-        public ErrorMessage updateBlockOrder(int botJobId, List<BlockLoadDTO> toRenumber) {
-            return performDataBase.updateSwiftBlockOrderNumber("block", botJobId, toRenumber);
-        }
-
-        @Override
-        public void updateMemoryBlockOrder(int botJobId, List<BlockLoadDTO> toRenumber) {
-            performLists.updateMemorySwiftBlockOrder("block", botJobId, toRenumber);
-        }
-
-        @Override
-        public ErrorMessage insertBlock(int botJobId, BlockDetailsDTO block) {
-            return performDataBase.insertNewBlock("block", botJobId, block);
-        }
-
-        @Override
-        public void reloadBlocks(int botJobId) {
-            performDataBase.loadBlocks(botJobId, "", "block");
-        }
-
-        @Override
-        public void reloadCompleteJobs(int botJobId) {
-            performDBEngine.loadCompleteJobs(botJobId);
-        }
-
-        @Override
-        public void publishUpdateBlocks(int homeBankingId, BlockMoveDTO signal) {
-            scannerElementPanePublisher.publishUpdateBlocks(homeBankingId, signal);
-        }
-
-        @Override
-        public void publishUpdateBlocksFailed(Exception error) {
-            logOperations.warn(
-                    "createAndBroadcastNewBlock - UPDATE_BLOCKS broadcast failed (non-fatal): {}",
-                    error.getMessage());
+        boolean sent = scannerDialogPublisher.createBlock(
+                reactive,
+                currentBotJob.getId(),
+                currentBotJob.getHomeBankingId(),
+                presentation,
+                existingSorted,
+                positionOptions,
+                previews);
+        if (!sent) {
+            logOperations.info("Create block request was not shown because no React scanner session is available");
         }
     }
-
 
     // Allow the stage to be set from outside when pane is shown
     public void setStage(Stage stage) {

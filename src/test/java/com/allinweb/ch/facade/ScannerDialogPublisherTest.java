@@ -6,10 +6,14 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.allinweb.ch.model.BlockLoadDTO;
 import com.allinweb.ch.model.PluginManifestDTO;
 import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.google.gson.Gson;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import javax.websocket.RemoteEndpoint;
 import javax.websocket.Session;
 import org.junit.jupiter.api.AfterEach;
@@ -137,6 +141,38 @@ class ScannerDialogPublisherTest {
         verify(session.getBasicRemote()).sendText(contains("\\\"kind\\\":\\\"pluginPicker\\\""));
         verify(session.getBasicRemote()).sendText(contains("\\\"serverBase\\\":\\\"http://plugins/\\\""));
         verify(session.getBasicRemote()).sendText(contains("plugin.zip"));
+    }
+
+    @Test
+    void publishesCreateBlockDialogEventsToReactScannerSession() throws Exception {
+        session = openSession();
+        WebSocketSessionManager.addSession(ScannerWorkspaceSessions.SCANNER_ELEMENT_PANE, session);
+
+        ScannerDialogPublisher publisher =
+                new ScannerDialogPublisher(new WebSocketSessionManager(), new Gson());
+        BlockLoadDTO block = new BlockLoadDTO();
+        block.setId(10);
+        block.setName("Login");
+        block.setBlockOrderNumber(1);
+        Map<String, String> previews = new LinkedHashMap<>();
+        previews.put("At end", "New block will be #2.");
+
+        assertTrue(publisher.createBlock(
+                true,
+                7,
+                11,
+                new ScannerCreateBlockModalPresentationService().presentation(true),
+                List.of(block),
+                List.of("At end"),
+                previews));
+
+        verify(session.getBasicRemote()).sendText(contains("\"operationId\":\"scanner.dialog.createBlock\""));
+        verify(session.getBasicRemote()).sendText(contains("\\\"kind\\\":\\\"createBlock\\\""));
+        verify(session.getBasicRemote()).sendText(contains("\\\"reactive\\\":true"));
+        verify(session.getBasicRemote()).sendText(contains("\\\"botJobId\\\":7"));
+        verify(session.getBasicRemote()).sendText(contains("\\\"homeBankingId\\\":11"));
+        verify(session.getBasicRemote()).sendText(contains("\\\"submitType\\\":\\\"CREATE_BLOCK\\\""));
+        verify(session.getBasicRemote()).sendText(contains("At end"));
     }
 
     private Session openSession() {

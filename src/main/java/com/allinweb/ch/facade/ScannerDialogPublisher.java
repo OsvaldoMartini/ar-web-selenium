@@ -1,9 +1,12 @@
 package com.allinweb.ch.facade;
 
 import com.allinweb.ch.model.ScannerWorkspaceSessions;
+import com.allinweb.ch.model.BlockLoadDTO;
 import com.allinweb.ch.model.PluginManifestDTO;
 import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.google.gson.Gson;
+import java.util.List;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -21,6 +24,7 @@ public final class ScannerDialogPublisher {
     private static final String PLUGIN_UPDATE_OPERATION = "scanner.dialog.pluginUpdate";
     private static final String PLUGIN_LIST_OPERATION = "scanner.dialog.pluginList";
     private static final String PLUGIN_PICKER_OPERATION = "scanner.dialog.pluginPicker";
+    private static final String CREATE_BLOCK_OPERATION = "scanner.dialog.createBlock";
     private static final ScannerDialogPublisher INSTANCE =
             new ScannerDialogPublisher(WebSocketSessionManager.getInstance(), new Gson());
 
@@ -78,6 +82,28 @@ public final class ScannerDialogPublisher {
                 new PluginPickerEvent("pluginPicker", plugins, serverBase, pathPlugins));
     }
 
+    public boolean createBlock(
+            boolean reactive,
+            int botJobId,
+            int homeBankingId,
+            ScannerCreateBlockModalPresentationService.Presentation presentation,
+            List<BlockLoadDTO> existingBlocks,
+            List<String> positionOptions,
+            Map<String, String> previews) {
+        return publish(
+                CREATE_BLOCK_OPERATION,
+                new CreateBlockEvent(
+                        "createBlock",
+                        reactive,
+                        botJobId,
+                        homeBankingId,
+                        presentation,
+                        existingBlocks,
+                        positionOptions,
+                        previews,
+                        "CREATE_BLOCK"));
+    }
+
     private boolean publish(String operationId, Object event) {
         String body = gson.toJson(event);
         boolean sent =
@@ -126,4 +152,15 @@ public final class ScannerDialogPublisher {
             java.util.List<String[]> plugins,
             String serverBase,
             String pathPlugins) {}
+
+    public record CreateBlockEvent(
+            String kind,
+            boolean reactive,
+            int botJobId,
+            int homeBankingId,
+            ScannerCreateBlockModalPresentationService.Presentation presentation,
+            List<BlockLoadDTO> existingBlocks,
+            List<String> positionOptions,
+            Map<String, String> previews,
+            String submitType) {}
 }
