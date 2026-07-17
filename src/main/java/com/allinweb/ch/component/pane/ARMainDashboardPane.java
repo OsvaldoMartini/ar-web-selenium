@@ -35,8 +35,6 @@ import javafx.scene.layout.Pane;
 import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
 import javafx.stage.Stage;
-import javafx.stage.DirectoryChooser;
-import javafx.stage.FileChooser;
 import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.WebDriver;
 
@@ -251,24 +249,14 @@ public class ARMainDashboardPane extends ARPane implements BotJobDetailsPresenta
 
     @Override
     public File chooseTransferFolder(String configuredPath) {
-        DirectoryChooser chooser = new DirectoryChooser();
-        chooser.setTitle("Select Bot Job transfer folder");
-        if (!Strings.isNullOrEmpty(configuredPath)) {
-            File initial = new File(configuredPath);
-            if (initial.isDirectory()) chooser.setInitialDirectory(initial);
-        }
-        return chooser.showDialog(currentStage());
+        log.info("Bot Job transfer folder chooser ignored; React must provide the transfer path directly");
+        return null;
     }
 
     @Override
     public File chooseReport(File reportFolder) {
-        FileChooser chooser = new FileChooser();
-        chooser.setTitle("Select Bot Job report");
-        if (reportFolder != null && reportFolder.isDirectory()) chooser.setInitialDirectory(reportFolder);
-        chooser.getExtensionFilters().addAll(
-                new FileChooser.ExtensionFilter("Excel Files", "*.xlsx", "*.xls"),
-                new FileChooser.ExtensionFilter("All Files", "*.*"));
-        return chooser.showOpenDialog(currentStage());
+        log.info("Bot Job report chooser ignored; React must provide or open the report path directly");
+        return null;
     }
 
     @Override
@@ -352,13 +340,6 @@ public class ARMainDashboardPane extends ARPane implements BotJobDetailsPresenta
             log.warn("Invalid PORT_SOCKET, falling back to {}: {}", DEFAULT_PORT, e.getMessage());
         }
         return DEFAULT_PORT;
-    }
-
-    private Stage currentStage() {
-        if (webView.getScene() != null && webView.getScene().getWindow() instanceof Stage) {
-            return (Stage) webView.getScene().getWindow();
-        }
-        return new Stage();
     }
 
     Stage ownerStage() {
