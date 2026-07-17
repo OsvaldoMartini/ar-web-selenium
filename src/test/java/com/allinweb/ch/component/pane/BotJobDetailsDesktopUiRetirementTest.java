@@ -96,6 +96,8 @@ class BotJobDetailsDesktopUiRetirementTest {
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/TestRunExecutionSelection.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerSupportAlertAdapter.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerSupportSaveFlowAdapter.java")));
+        assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerPreLaunchStarter.java")));
+        assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerPreLaunchExecutionTask.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("socket/MainFrame.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("socket/JavaCEFExample.java")));
     }

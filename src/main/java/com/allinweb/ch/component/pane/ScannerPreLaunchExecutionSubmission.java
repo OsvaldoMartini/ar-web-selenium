@@ -1,5 +1,6 @@
 package com.allinweb.ch.component.pane;
 
+import com.allinweb.ch.facade.scanner.prelaunch.ScannerPreLaunchExecutionTask;
 import java.util.concurrent.ExecutorService;
 
 final class ScannerPreLaunchExecutionSubmission {

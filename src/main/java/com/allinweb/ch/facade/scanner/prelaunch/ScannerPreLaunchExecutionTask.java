@@ -1,10 +1,10 @@
-package com.allinweb.ch.component.pane;
+package com.allinweb.ch.facade.scanner.prelaunch;
 
-final class ScannerPreLaunchExecutionTask implements Runnable {
+public final class ScannerPreLaunchExecutionTask implements Runnable {
     private final long executionId;
     private final Operations operations;
 
-    ScannerPreLaunchExecutionTask(long executionId, Operations operations) {
+    public ScannerPreLaunchExecutionTask(long executionId, Operations operations) {
         this.executionId = executionId;
         this.operations = operations;
     }
@@ -25,7 +25,7 @@ final class ScannerPreLaunchExecutionTask implements Runnable {
         }
     }
 
-    interface Operations {
+    public interface Operations {
         boolean executeJob();
 
         void reportExecutionError(Throwable error);

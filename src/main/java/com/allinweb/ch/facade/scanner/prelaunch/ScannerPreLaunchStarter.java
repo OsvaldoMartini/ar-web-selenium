@@ -1,15 +1,15 @@
-package com.allinweb.ch.component.pane;
+package com.allinweb.ch.facade.scanner.prelaunch;
 
 import com.allinweb.ch.util.ErrorMessage;
 
-final class ScannerPreLaunchStarter {
+public final class ScannerPreLaunchStarter {
     private final Operations operations;
 
-    ScannerPreLaunchStarter(Operations operations) {
+    public ScannerPreLaunchStarter(Operations operations) {
         this.operations = operations;
     }
 
-    void start() {
+    public void start() {
         if (!operations.lastBrowserTab()) {
             return;
         }
@@ -30,7 +30,7 @@ final class ScannerPreLaunchStarter {
         operations.resetInstructionsAndRecall();
     }
 
-    interface Operations {
+    public interface Operations {
         boolean lastBrowserTab();
 
         void beginRun();
