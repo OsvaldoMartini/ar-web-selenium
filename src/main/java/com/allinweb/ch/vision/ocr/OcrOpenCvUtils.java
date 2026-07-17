@@ -1,5 +1,6 @@
 package com.allinweb.ch.vision.ocr;
 
+import com.allinweb.ch.vision.RasterImage;
 import java.awt.image.BufferedImage;
 import org.opencv.core.*;
 
@@ -25,29 +26,36 @@ public class OcrOpenCvUtils {
     }
 
     public static BufferedImage matToBufferedImage(Mat matrix) {
+        RasterImage raster = matToRasterImage(matrix);
+        BufferedImage img = new BufferedImage(raster.width(), raster.height(), BufferedImage.TYPE_INT_RGB);
+        img.setRGB(0, 0, raster.width(), raster.height(), raster.copyRgb(), 0, raster.width());
+        return img;
+    }
+
+    public static RasterImage matToRasterImage(Mat matrix) {
         int channels = matrix.channels();
         int width = matrix.width();
         int height = matrix.height();
         byte[] data = new byte[width * height * channels];
         matrix.get(0, 0, data);
 
-        BufferedImage img = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+        int[] pixels = new int[width * height];
         int offset = 0;
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
-                int rgb;
+                int pixel;
                 if (channels > 1) {
                     int blue = data[offset++] & 0xff;
                     int green = data[offset++] & 0xff;
                     int red = data[offset++] & 0xff;
-                    rgb = (red << 16) | (green << 8) | blue;
+                    pixel = (red << 16) | (green << 8) | blue;
                 } else {
                     int gray = data[offset++] & 0xff;
-                    rgb = (gray << 16) | (gray << 8) | gray;
+                    pixel = (gray << 16) | (gray << 8) | gray;
                 }
-                img.setRGB(x, y, rgb);
+                pixels[(y * width) + x] = pixel;
             }
         }
-        return img;
+        return new RasterImage(width, height, pixels);
     }
 }
