@@ -70,6 +70,8 @@ class BotJobDetailsDesktopUiRetirementTest {
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerPluginBackgroundThreadAdapter.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerLayoutNodeAdapter.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerElementFocusComboBoxAdapter.java")));
+        assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ARScannedElementPaneProvider.java")));
+        assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ARScannedElementPanePort.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("socket/MainFrame.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("socket/JavaCEFExample.java")));
     }
@@ -259,6 +261,8 @@ class BotJobDetailsDesktopUiRetirementTest {
         assertFalse(compiledSource.contains("elementFocusComboBox.getValue()"));
         assertTrue(compiledSource.contains("selectedBlockOption"));
         assertTrue(compiledSource.contains("selectedElementScanProfile"));
+        assertTrue(compiledSource.contains("ScannerRuntimePort"));
+        assertFalse(compiledSource.contains("ARScannedElementPanePort"));
         assertFalse(compiledSource.contains("launchBotJobButton.setOnMouseClicked"));
         assertFalse(compiledSource.contains("stopBotJobButton.setOnMouseClicked"));
         assertFalse(compiledSource.contains("launchBotJobButton.setDisable"));

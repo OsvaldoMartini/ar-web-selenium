@@ -54,7 +54,7 @@ public class ARScannedElementPane
         implements ScannerPreLaunchControls,
                 ScannerSupportRequestHandler,
                 ScannerTestRunHandler,
-                ARScannedElementPanePort {
+                ScannerRuntimePort {
 
     private static final Logger logLaunch = LoggerFactory.getLogger("com.allinweb.launch");
     private static final Logger logOperations = LoggerFactory.getLogger("com.allinweb.operations");
