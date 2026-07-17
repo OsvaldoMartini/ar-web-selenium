@@ -42,8 +42,6 @@ import javafx.geometry.Pos;
 import javafx.geometry.VPos;
 import javafx.scene.Node;
 import javafx.scene.control.*;
-import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 import javafx.scene.layout.Priority;
 import javafx.scene.paint.Color;
@@ -279,15 +277,6 @@ public class ARScannedElementPane
     private AnchorPane mainPane;
     private VBox elements2VBox;
     private HBox componentBox;
-    private Button cloneElementsButton;
-    private Button configureButton;
-    private Button pageScannerButton;
-    private Button ocrConfigButton;
-    private Button refreshWebPageButton;
-    private Button leftButton;
-    private Button rightButton;
-    private Button cleanListButton;
-    private Button searchButton;
     private boolean cloneSelectionActive = false;
     private volatile boolean preLaunchActionEnabled = true;
     private boolean suppressTestSuccessMessage = true;
@@ -1543,27 +1532,6 @@ public class ARScannedElementPane
         return pane;
     }
 
-    private Button buildButton(String text, Double height, String iconSource, Double iconSize, Insets padding) {
-        Button button = new Button(text);
-        button.setGraphic(buildImageView(iconSource, iconSize));
-        button.setMaxHeight(height);
-        button.setPadding(padding);
-        return button;
-    }
-
-    private ImageView buildImageView(String source, Double size) {
-        try {
-            ImageView image = new ImageView(new Image(Objects.requireNonNull(getClass().getResourceAsStream(source))));
-            image.setFitHeight(size);
-            image.setFitWidth(size);
-            image.setPreserveRatio(true);
-            return image;
-        } catch (Exception e) {
-            logOperations.error("BuildImageView source: {} size {} failed: {}", source, size, e.getMessage());
-            return null;
-        }
-    }
-
     private ComboBox<ElementScanProfile> buildElementFocusComboBox(
             List<ElementScanProfile> profiles, ElementScanProfile defaultProfile) {
         ComboBox<ElementScanProfile> comboBox = new ComboBox<>(FXCollections.observableArrayList(profiles));
@@ -1618,12 +1586,6 @@ public class ARScannedElementPane
         gridPane.setPadding(new Insets(10));
         gridPane.setHgap(10);
         return gridPane;
-    }
-
-    private HBox pageScannerRow(Node... children) {
-        HBox row = new HBox(6, children);
-        row.setAlignment(Pos.CENTER_LEFT);
-        return row;
     }
 
     private VBox scannerContentColumn() {
@@ -1681,31 +1643,6 @@ public class ARScannedElementPane
         topPane = createTopPanel(ARConstants.SPACE_L, ARConstants.SPACE_SM);
         mainPane = createContentPanel(ARConstants.SPACE_L, ARConstants.SPACE_XL, ARConstants.SPACE_SM);
 
-        cloneElementsButton = buildButton(
-                "Clone", ARConstants.SPACE_L, ARConstants.ICON_TICK, ARConstants.SPACE_SM, new Insets(5));
-        // Clone only acts on a hover-picked target; with HOVER PICK removed it is inert, so hide it.
-        cloneElementsButton.setVisible(false);
-        cloneElementsButton.setManaged(false);
-        pageScannerButton = buildButton(
-                "Page Scanner", ARConstants.SPACE_ZERO, "/refresh.png", ARConstants.SPACE_M, new Insets(5.0D));
-        ocrConfigButton = buildButton(
-                "", ARConstants.SPACE_ZERO, ARConstants.ICON_CONFIG, ARConstants.SPACE_M, new Insets(5.0D));
-        ocrConfigButton.setTooltip(new Tooltip("OCR Configuration"));
-
-        refreshWebPageButton = buildButton(
-                "Refresh Web Page", ARConstants.SPACE_ZERO, "/refresh.png", ARConstants.SPACE_M, new Insets(5.0D));
-
-        cleanListButton = buildButton(
-                "Clear Grid", // No text
-                25.0, // Smaller height
-                "/cross.png", // Icon source
-                16.0, // Smaller icon size
-                new Insets(2.0) // Reduced padding
-                );
-
-        configureButton = buildButton(
-                "Config", ARConstants.SPACE_M, ARConstants.ICON_CONFIG, ARConstants.SPACE_M, new Insets(5.0D));
-
         //        textFlowResult = new TextFlow();
 
         elementFocusComboBox = buildElementFocusComboBox(ELEMENT_SCAN_PROFILES, ALL_INTERACTIVE_SCAN_PROFILE);
@@ -1718,27 +1655,6 @@ public class ARScannedElementPane
             appendLog("Page Scanner focus: " + newValue.label(), "info");
         });
 
-
-        // Read-only mirror of the picked element's display name (clientNamed → definedName →
-        // someText → tagName). Renames live in the React grid via instruction.client_named.
-
-
-        leftButton = buildButton(
-                "Previous", ARConstants.SPACE_M, ARConstants.ICON_LEFT, ARConstants.SPACE_M, new Insets(5.0D));
-        rightButton = buildButton(
-                "Next", ARConstants.SPACE_M, ARConstants.ICON_RIGHT, ARConstants.SPACE_M, new Insets(5.0D));
-        searchButton = buildButton(
-                "", ARConstants.SPACE_M, ARConstants.ICON_SEARCH, ARConstants.SPACE_M, new Insets(5.0D));
-
-        leftButton.setDisable(true);
-        rightButton.setDisable(true);
-
-        leftButton.setOnAction(e -> runScannerWorkspaceAction("PREVIOUS_TAB"));
-        rightButton.setOnAction(e -> runScannerWorkspaceAction("NEXT_TAB"));
-
-        refreshWebPageButton.setOnAction(e -> runScannerWorkspaceAction("REFRESH_PAGE"));
-
-        cleanListButton.setOnAction(e -> runScannerWorkspaceAction("CLEAR_GRID"));
 
         HomeUrlDTO homeUrlDTO = performLists.getHomeUrlByBankId(
                 this.currentBotJob.getHomeBankingId(), this.currentBotJob.getHomeUrlId());
@@ -1809,36 +1725,17 @@ public class ARScannedElementPane
 
             GridPane gridPaneTop = scannerTopGrid();
 
-            // Add buttons and checkbox to the GridPane
-            HBox pageScannerRow = pageScannerRow(pageScannerButton, ocrConfigButton);
-            gridPaneTop.add(pageScannerRow, 0, 0);
             gridPaneTop.add(elementFocusComboBox, 4, 0);
-            gridPaneTop.add(searchButton, 5, 0);
-            gridPaneTop.add(leftButton, 7, 0);
-            gridPaneTop.add(rightButton, 8, 0);
 
             topPane.getChildren().add(gridPaneTop);
 
             verticalBox = scannerContentColumn();
 
-            // Ensure the button has a reasonable width
-            cloneElementsButton.setMinWidth(50); // Adjust as needed
-
-            HBox boxName = spacedRow(5, cloneElementsButton);
-
-            // Create the VBox for TextFields
             textFieldVBox = textFieldColumn(
-                    boxName,
                     createCustomSeparator(Color.DARKBLUE, 2),
                     createSpacerVert(),
                     createSpacerVert(),
-                    createCustomSeparator(Color.DARKBLUE, 2),
-                    configureButton);
-
-            // Bind button widths to VBox width
-            cloneElementsButton.maxWidthProperty().bind(textFieldVBox.widthProperty());
-            // Bind the widths of the buttons to percentages of the HBox width
-            configureButton.maxWidthProperty().bind(textFieldVBox.widthProperty());
+                    createCustomSeparator(Color.DARKBLUE, 2));
 
             HBox boxListViews = listViewsRow();
 
@@ -1847,15 +1744,7 @@ public class ARScannedElementPane
 
             HBox.setHgrow(componentBox, Priority.ALWAYS);
 
-            HBox othersBox = spacedRow(0);
-            createSpacerHoriz();
-            othersBox
-                    .getChildren()
-                    .addAll(
-                            refreshWebPageButton,
-                            createSpacerHoriz(),
-                            cleanListButton);
-            StackPane stackLabelOthers = centeredStack(othersBox);
+            StackPane stackLabelOthers = centeredStack(spacedRow(0));
             elements2VBox = elementsColumn(stackLabelOthers, componentBox);
             boxListViews.getChildren().addAll(elements2VBox, textFieldVBox);
 
@@ -2080,20 +1969,8 @@ public class ARScannedElementPane
         log.info("handleSupportRequestResponse disabled; no MultiPlugins call performed (action={})", action);
     }
 
-    // Enable or disable the tab switching buttons based on the number of tabs
     private void updateButtonState() {
-        // If more than one tab is open
-        if (performActions.windowHandlesList.size() > 1) {
-            // Disable the left button if we are on the first tab
-            //            leftButton.setDisable(currentTabIndex == 0);
-            //
-            //            // Disable the right button if we are on the last tab
-            //            rightButton.setDisable(currentTabIndex == performActions.windowHandlesList.size() - 1);
-        } else {
-            // Disable both buttons if there's only one tab or no tabs
-            leftButton.setDisable(true);
-            rightButton.setDisable(true);
-        }
+        logOperations.debug("Scanner tab button state update ignored; React workspace owns tab controls");
     }
 
     // Method to handle the scenario where the window handles size changes
@@ -2601,45 +2478,7 @@ public class ARScannedElementPane
     }
 
     public void initUIBehaviour() {
-        configureButton.setOnMouseClicked(e -> OrganizationManagerLifecycle.getInstance().openOrganizations());
-        // HOVER PICK handler removed — the interactive per-element pick (hoverPick JS injection over a
-        // page WebSocket) is not supported in the single Playwright browser. Use the regular scanner.
-
-        cloneElementsButton.setOnAction(e -> {
-            if (targetSelected != null && targetSelected.getElement() != null) {
-                cloneElementDTO(targetSelected);
-                uiThreadDispatcher.execute(() -> {
-                    definedNameText = DEFINED_NAME_PLACEHOLDER;
-                    searchAttribValueText = "";
-                });
-            } else {
-
-                performMessage.showCustomModalDialogDragWin11(
-                        "Select a Web Element to Clone",
-                        "Click on the row of the Web Element to clone it.",
-                        null,
-                        null,
-                        null,
-                        false,
-                        "OK",
-                        null,
-                        0);
-            }
-        });
-
-        pageScannerButton.setOnAction(e -> runScannerWorkspaceAction("PAGE_SCANNER", selectedProfileSearchText()));
-
-        ocrConfigButton.setOnAction(e -> {
-            Integer hbId = currentBotJob == null ? null : currentBotJob.getHomeBankingId();
-            Integer urlId = currentBotJob == null ? null : currentBotJob.getHomeUrlId();
-            Map<String, Object> payload = new LinkedHashMap<>();
-            payload.put("homeBankingId", hbId);
-            payload.put("homeUrlId", urlId);
-            scannerElementPanePublisher.publishOpenOcrConfig(hbId == null ? 0 : hbId, payload);
-        });
-
-        searchButton.setOnAction(e -> runScannerWorkspaceAction("PAGE_SCANNER", searchTermsText.trim()));
-
+        logOperations.debug("Scanner JavaFX action wiring skipped; React workspace owns scanner actions");
     }
 
     public boolean lastBrowserTab() {

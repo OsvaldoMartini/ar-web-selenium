@@ -228,9 +228,6 @@ class BotJobDetailsJavaFxRetirementTest {
         assertFalse(compiledSource.contains("PaneSearchCleanupOperations"));
         assertFalse(compiledSource.contains("searchTermsBtn("));
         assertFalse(compiledSource.contains("handleSearchTermClick("));
-        assertTrue(compiledSource.contains("runScannerWorkspaceAction(\"PAGE_SCANNER\""));
-        assertTrue(compiledSource.contains("runScannerWorkspaceAction(\"REFRESH_PAGE\""));
-        assertTrue(compiledSource.contains("runScannerWorkspaceAction(\"CLEAR_GRID\""));
         assertFalse(compiledSource.contains("comboBoxBlocks.getValue()"));
         assertFalse(compiledSource.contains("elementFocusComboBox.getValue()"));
         assertTrue(compiledSource.contains("selectedBlockOption"));
@@ -242,6 +239,16 @@ class BotJobDetailsJavaFxRetirementTest {
         assertFalse(compiledSource.contains("launchBotJobButton"));
         assertFalse(compiledSource.contains("stopBotJobButton"));
         assertFalse(compiledSource.contains("launchButtonRow"));
+        assertFalse(compiledSource.contains("cloneElementsButton"));
+        assertFalse(compiledSource.contains("configureButton"));
+        assertFalse(compiledSource.contains("pageScannerButton"));
+        assertFalse(compiledSource.contains("ocrConfigButton"));
+        assertFalse(compiledSource.contains("refreshWebPageButton"));
+        assertFalse(compiledSource.contains("cleanListButton"));
+        assertFalse(compiledSource.contains("searchButton"));
+        assertFalse(compiledSource.contains("buildButton("));
+        assertFalse(compiledSource.contains("buildImageView("));
+        assertFalse(compiledSource.contains("pageScannerRow("));
         assertTrue(compiledSource.contains("preLaunchActionEnabled"));
     }
 }
