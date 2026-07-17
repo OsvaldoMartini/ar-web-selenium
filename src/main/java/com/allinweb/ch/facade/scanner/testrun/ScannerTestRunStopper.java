@@ -1,19 +1,19 @@
-package com.allinweb.ch.component.pane;
+package com.allinweb.ch.facade.scanner.testrun;
 
-final class ScannerTestRunStopper {
+public final class ScannerTestRunStopper {
     private final Operations operations;
 
-    ScannerTestRunStopper(Operations operations) {
+    public ScannerTestRunStopper(Operations operations) {
         this.operations = operations;
     }
 
-    boolean cancelStartup() {
+    public boolean cancelStartup() {
         if (!operations.startupActive()) return false;
         interruptBrowser("TEST RUN \u2014 error closing browser during startup cancellation: {}");
         return true;
     }
 
-    boolean stop(long expectedExecutionId) {
+    public boolean stop(long expectedExecutionId) {
         if (expectedExecutionId <= 0
                 || operations.activeExecutionId() != expectedExecutionId
                 || isExecutionComplete(expectedExecutionId)) {
@@ -29,16 +29,16 @@ final class ScannerTestRunStopper {
         return true;
     }
 
-    long currentExecutionId() {
+    public long currentExecutionId() {
         long active = operations.activeExecutionId();
         return active > 0 ? active : operations.lastSubmittedExecutionId();
     }
 
-    boolean isExecutionComplete(long executionId) {
+    public boolean isExecutionComplete(long executionId) {
         return executionId <= 0 || operations.completedExecutionId() >= executionId;
     }
 
-    String terminalState(long executionId) {
+    public String terminalState(long executionId) {
         return operations.terminalOutcome(executionId);
     }
 
@@ -53,7 +53,7 @@ final class ScannerTestRunStopper {
         operations.clearCurrentDriver();
     }
 
-    interface Operations {
+    public interface Operations {
         boolean startupActive();
 
         long activeExecutionId();

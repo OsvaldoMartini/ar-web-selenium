@@ -1,25 +1,24 @@
-package com.allinweb.ch.component.pane;
+package com.allinweb.ch.facade.scanner.prelaunch;
 
-import com.allinweb.ch.facade.scanner.prelaunch.ScannerPreLaunchExcelLoader;
 import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.util.ARExecution;
 import com.allinweb.ch.util.ExtractedData;
 import java.util.List;
 
-final class ScannerPreLaunchMultipleRowsConfirmation {
+public final class ScannerPreLaunchMultipleRowsConfirmation {
     private final ExcelLoader excelLoader;
     private final Operations operations;
 
-    ScannerPreLaunchMultipleRowsConfirmation(ScannerPreLaunchExcelLoader excelLoader, Operations operations) {
+    public ScannerPreLaunchMultipleRowsConfirmation(ScannerPreLaunchExcelLoader excelLoader, Operations operations) {
         this(new ScannerPreLaunchExcelLoaderAdapter(excelLoader), operations);
     }
 
-    ScannerPreLaunchMultipleRowsConfirmation(ExcelLoader excelLoader, Operations operations) {
+    public ScannerPreLaunchMultipleRowsConfirmation(ExcelLoader excelLoader, Operations operations) {
         this.excelLoader = excelLoader;
         this.operations = operations;
     }
 
-    boolean confirm() {
+    public boolean confirm() {
         if (!excelLoader.requiresMultipleRowsConfirmation(
                 operations.extractedData(), operations.excelDataGoto())) {
             return true;
@@ -37,7 +36,7 @@ final class ScannerPreLaunchMultipleRowsConfirmation {
         return true;
     }
 
-    interface Operations {
+    public interface Operations {
         ExtractedData extractedData();
 
         List<InstructionLoad> excelDataGoto();
@@ -55,7 +54,7 @@ final class ScannerPreLaunchMultipleRowsConfirmation {
         void warn(String message);
     }
 
-    interface ExcelLoader {
+    public interface ExcelLoader {
         boolean requiresMultipleRowsConfirmation(ExtractedData extractedData, List<InstructionLoad> excelDataGoto);
     }
 

@@ -12,6 +12,7 @@ import com.allinweb.ch.facade.scanner.testrun.ScannerTestRunDefinitionLoad;
 import com.allinweb.ch.facade.scanner.testrun.ScannerTestRunDefinitionValidation;
 import com.allinweb.ch.facade.scanner.testrun.ScannerTestRunExecutionStart;
 import com.allinweb.ch.facade.scanner.testrun.ScannerTestRunExcelPreparation;
+import com.allinweb.ch.facade.scanner.testrun.ScannerTestRunStartupPreparation;
 import com.allinweb.ch.model.BlockLoadDTO;
 import com.allinweb.ch.model.BotJobLoadDTO;
 import com.allinweb.ch.model.InstructionLoad;

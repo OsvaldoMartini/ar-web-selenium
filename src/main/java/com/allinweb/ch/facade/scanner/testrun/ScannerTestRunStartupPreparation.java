@@ -1,15 +1,15 @@
-package com.allinweb.ch.component.pane;
+package com.allinweb.ch.facade.scanner.testrun;
 
 import com.allinweb.ch.model.BotJobLoadDTO;
 
-final class ScannerTestRunStartupPreparation {
+public final class ScannerTestRunStartupPreparation {
     private final Operations operations;
 
-    ScannerTestRunStartupPreparation(Operations operations) {
+    public ScannerTestRunStartupPreparation(Operations operations) {
         this.operations = operations;
     }
 
-    Result prepare(BotJobLoadDTO botJob, int blockOrderNumber, boolean runSingleBlock) {
+    public Result prepare(BotJobLoadDTO botJob, int blockOrderNumber, boolean runSingleBlock) {
         if (botJob == null) {
             return Result.missingBotJob();
         }
@@ -36,7 +36,7 @@ final class ScannerTestRunStartupPreparation {
         return Result.ready();
     }
 
-    record Result(Status status) {
+    public record Result(Status status) {
         private static Result ready() {
             return new Result(Status.READY);
         }
@@ -50,13 +50,13 @@ final class ScannerTestRunStartupPreparation {
         }
     }
 
-    enum Status {
+    public enum Status {
         READY,
         MISSING_BOT_JOB,
         ALREADY_RUNNING
     }
 
-    interface Operations {
+    public interface Operations {
         long activeExecutionId();
 
         boolean isExecutionComplete(long executionId);

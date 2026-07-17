@@ -1,23 +1,22 @@
-package com.allinweb.ch.component.pane;
+package com.allinweb.ch.facade.scanner.prelaunch;
 
 import com.allinweb.ch.facade.PerformLists;
-import com.allinweb.ch.facade.scanner.prelaunch.ScannerPreLaunchExcelLoader;
 import com.allinweb.ch.util.ExtractedData;
 
-final class ScannerPreLaunchExcelPreparation {
+public final class ScannerPreLaunchExcelPreparation {
     private final ExcelLoader excelLoader;
     private final Operations operations;
 
-    ScannerPreLaunchExcelPreparation(ScannerPreLaunchExcelLoader excelLoader, Operations operations) {
+    public ScannerPreLaunchExcelPreparation(ScannerPreLaunchExcelLoader excelLoader, Operations operations) {
         this(new ScannerPreLaunchExcelLoaderAdapter(excelLoader), operations);
     }
 
-    ScannerPreLaunchExcelPreparation(ExcelLoader excelLoader, Operations operations) {
+    public ScannerPreLaunchExcelPreparation(ExcelLoader excelLoader, Operations operations) {
         this.excelLoader = excelLoader;
         this.operations = operations;
     }
 
-    void prepareExcel() {
+    public void prepareExcel() {
         try {
             operations.setExtractedData(excelLoader.load(operations.excelPath(), operations.performLists()));
         } catch (Exception error) {
@@ -26,7 +25,7 @@ final class ScannerPreLaunchExcelPreparation {
         }
     }
 
-    boolean validateExcel() {
+    public boolean validateExcel() {
         ExtractedData extractedData = excelLoader.ensureEmptyDataRow(operations.extractedData());
         operations.setExtractedData(extractedData);
 
@@ -38,7 +37,7 @@ final class ScannerPreLaunchExcelPreparation {
         return true;
     }
 
-    interface Operations {
+    public interface Operations {
         String excelPath();
 
         PerformLists performLists();
@@ -56,7 +55,7 @@ final class ScannerPreLaunchExcelPreparation {
         void error(String message);
     }
 
-    interface ExcelLoader {
+    public interface ExcelLoader {
         ExtractedData load(String excelPath, PerformLists performLists) throws Exception;
 
         ExtractedData ensureEmptyDataRow(ExtractedData extractedData);

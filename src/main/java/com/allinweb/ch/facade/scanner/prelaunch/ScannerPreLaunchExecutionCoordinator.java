@@ -1,13 +1,9 @@
-package com.allinweb.ch.component.pane;
+package com.allinweb.ch.facade.scanner.prelaunch;
 
-import com.allinweb.ch.facade.scanner.prelaunch.ScannerPreLaunchExecutionGate;
-import com.allinweb.ch.facade.scanner.prelaunch.ScannerPreLaunchExecutionSubmission;
-import com.allinweb.ch.facade.scanner.prelaunch.ScannerPreLaunchExecutionTask;
-import com.allinweb.ch.facade.scanner.prelaunch.ScannerPreLaunchWindowBookkeeping;
 import java.util.concurrent.ExecutorService;
 import java.util.function.LongPredicate;
 
-final class ScannerPreLaunchExecutionCoordinator {
+public final class ScannerPreLaunchExecutionCoordinator {
     private final ScannerPreLaunchExecutionGate executionGate;
     private final ExecutorService executorService;
     private final ScannerPreLaunchExecutionTask.Operations executionOperations;
@@ -15,7 +11,7 @@ final class ScannerPreLaunchExecutionCoordinator {
     private final LongPredicate executionComplete;
     private final Operations operations;
 
-    ScannerPreLaunchExecutionCoordinator(
+    public ScannerPreLaunchExecutionCoordinator(
             ScannerPreLaunchExecutionGate executionGate,
             ExecutorService executorService,
             ScannerPreLaunchExecutionTask.Operations executionOperations,
@@ -30,7 +26,7 @@ final class ScannerPreLaunchExecutionCoordinator {
         this.operations = operations;
     }
 
-    long recallJobExecutionId() {
+    public long recallJobExecutionId() {
         long submittedExecutionId = 0L;
         ScannerPreLaunchExecutionGate.StartAttempt startAttempt =
                 executionGate.startIfIdle(executionComplete);
@@ -58,7 +54,7 @@ final class ScannerPreLaunchExecutionCoordinator {
         return submittedExecutionId;
     }
 
-    interface Operations {
+    public interface Operations {
         void info(String message, Object... args);
 
         void error(String message, Object... args);
