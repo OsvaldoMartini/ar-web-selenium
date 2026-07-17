@@ -38,6 +38,7 @@ class BotJobDetailsJavaFxRetirementTest {
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerTestMessageSuppressionCheckboxAdapter.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerTestActionCheckboxesAdapter.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerTestActionCheckboxStateAdapter.java")));
+        assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerTextFieldsAdapter.java")));
     }
 
     @Test
@@ -140,5 +141,18 @@ class BotJobDetailsJavaFxRetirementTest {
         assertFalse(compiledSource.contains("checkInputText"));
         assertFalse(compiledSource.contains("checkOutputText"));
         assertFalse(compiledSource.contains("CheckBox"));
+    }
+
+    @Test
+    void scannerPaneDoesNotUseJavaFxTextFields() throws IOException {
+        String source = Files.readString(SOURCE_ROOT.resolve("component/pane/ARScannedElementPane.java"));
+        String compiledSource = source.replaceAll("(?s)/\\*.*?\\*/", "");
+
+        assertFalse(compiledSource.contains("ScannerTextFieldsAdapter"));
+        assertFalse(compiledSource.contains("searchTermsField"));
+        assertFalse(compiledSource.contains("testActionsField"));
+        assertFalse(compiledSource.contains("coordsTextField"));
+        assertFalse(compiledSource.contains("searchAttribValueField"));
+        assertFalse(compiledSource.contains("javafx.scene.control.TextField"));
     }
 }

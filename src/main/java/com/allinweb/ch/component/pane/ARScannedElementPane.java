@@ -181,7 +181,6 @@ public class ARScannedElementPane
             new ScannerSearchHiddenFieldsButtonAdapter();
     private final ScannerPreLaunchStatusTextAreaAdapter scannerPreLaunchStatusTextAreaAdapter =
             new ScannerPreLaunchStatusTextAreaAdapter();
-    private final ScannerTextFieldsAdapter scannerTextFieldsAdapter = new ScannerTextFieldsAdapter();
     private final ScannerElementFocusComboBoxAdapter scannerElementFocusComboBoxAdapter =
             new ScannerElementFocusComboBoxAdapter();
     private final UiThreadDispatcher uiThreadDispatcher = UiThreadDispatcher.getInstance();
@@ -235,8 +234,8 @@ public class ARScannedElementPane
             new ScannerTestRunStopper(new PaneTestRunStopOperations());
     public Button launchBotJobButton;
     private static final String DEFINED_NAME_PLACEHOLDER = "PICK AN ELEMENT";
-    public TextField searchAttribValueField;
     private String definedNameText = DEFINED_NAME_PLACEHOLDER;
+    private String searchAttribValueText = "";
     public String xpathTextPrevious;
     protected AtomicBoolean interceptBotJob = new AtomicBoolean(false);
     double comboWidth = 200;
@@ -339,9 +338,9 @@ public class ARScannedElementPane
     //    private TextFlow textFlowResult;
     private TextArea countdownTextField;
     private ComboBox<ElementScanProfile> elementFocusComboBox;
-    private TextField searchTermsField;
-    private TextField testActionsField;
-    private TextField coordsTextField;
+    private String searchTermsText = ALL_INTERACTIVE_SCAN_PROFILE.searchText();
+    private String testActionsText = "0001";
+    private String coordsText = "";
     private Map<String, String> mapOperators = new HashMap<>();
     private Set<String> headersExport = new LinkedHashSet<>();
     private List<String> currentColumnsCSV = new ArrayList<>(); // set once
@@ -1098,7 +1097,7 @@ public class ARScannedElementPane
         String displayAction = ScannerWorkspaceOperations.TEST_CLICK_DTO.equals(testType) ? "CLICK" : "INSERT";
         String inputValue = !Strings.isNullOrEmpty(inputValueOverride)
                 ? inputValueOverride
-                : testActionsField.getText() == null ? "" : testActionsField.getText();
+                : Strings.nullToEmpty(testActionsText);
 
         // In Playwright mode there is no Selenium WebElement handle — the test runs via
         // performWebActions -> tryPlaywrightWebAction using the instruction's xpath/css/coords.
@@ -1273,7 +1272,7 @@ public class ARScannedElementPane
             }
             uiThreadDispatcher.execute(() -> {
                 definedNameText = DEFINED_NAME_PLACEHOLDER;
-                searchAttribValueField.clear();
+                searchAttribValueText = "";
             });
         }
     }
@@ -1615,23 +1614,18 @@ public class ARScannedElementPane
         elementFocusComboBox =
                 scannerElementFocusComboBoxAdapter.build(ELEMENT_SCAN_PROFILES, ALL_INTERACTIVE_SCAN_PROFILE);
         elementFocusComboBox.valueProperty().addListener((obs, oldValue, newValue) -> {
-            if (newValue == null || searchTermsField == null) {
+            if (newValue == null) {
                 return;
             }
-            searchTermsField.setText(newValue.searchText());
-            searchTermsField.setStyle(
-                    "-fx-border-color: #1976D2; -fx-border-width: 1.5; -fx-background-color: #E3F2FD;");
+            searchTermsText = newValue.searchText();
             elementFocusComboBox.setStyle("-fx-border-color: #1976D2; -fx-border-width: 1.5;");
             appendLog("Page Scanner focus: " + newValue.label(), "info");
         });
 
-        searchTermsField = scannerTextFieldsAdapter.searchTerms(ALL_INTERACTIVE_SCAN_PROFILE.searchText());
 
         // Read-only mirror of the picked element's display name (clientNamed → definedName →
         // someText → tagName). Renames live in the React grid via instruction.client_named.
-        searchAttribValueField = scannerTextFieldsAdapter.searchAttribute();
 
-        coordsTextField = scannerTextFieldsAdapter.coordinates();
 
         leftButton = builder.buildButton(
                 "Previous", ARConstants.SPACE_M, ARConstants.ICON_LEFT, ARConstants.SPACE_M, new Insets(5.0D));
@@ -1754,7 +1748,6 @@ public class ARScannedElementPane
             gridPaneTop.add(pluginUpdateButton, 1, 0);
             gridPaneTop.add(updatePluginsButton, 2, 0);
             gridPaneTop.add(elementFocusComboBox, 4, 0);
-            gridPaneTop.add(searchTermsField, 4, 1);
             gridPaneTop.add(searchButton, 5, 0);
             gridPaneTop.add(turnOnOffButton, 6, 0);
             gridPaneTop.add(leftButton, 7, 0);
@@ -1773,34 +1766,16 @@ public class ARScannedElementPane
 
             HBox boxName = scannerLayoutNodeAdapter.spacedRow(5, cloneElementsButton);
 
-            testActionsField = scannerTextFieldsAdapter.testActions();
-
-            HBox.setHgrow(testActionsField, Priority.ALWAYS);
-            testActionsField.setMaxWidth(Double.MAX_VALUE); // Ensures full width usage
-
-            HBox boxActions = scannerLayoutNodeAdapter.spacedRow(5, testActionsField);
-
-            // Allow the TextField to take up the remaining space
-            HBox.setHgrow(coordsTextField, Priority.ALWAYS);
-            coordsTextField.setMaxWidth(Double.MAX_VALUE); // Ensures full width usage
-
-            HBox boxCoordinates = scannerLayoutNodeAdapter.spacedRow(5, coordsTextField);
-
             // Create the VBox for TextFields
             textFieldVBox = scannerLayoutNodeAdapter.textFieldColumn(
                     boxName,
                     createCustomSeparator(Color.DARKBLUE, 2),
                     createSpacerVert(),
                     countdownTextField,
-                    boxActions,
-                    boxCoordinates,
                     createSpacerVert(),
                     createCustomSeparator(Color.DARKBLUE, 2),
                     hBoxLaunchButon,
                     configureButton);
-
-            // Bind button widths to VBox width
-            boxActions.maxWidthProperty().bind(textFieldVBox.widthProperty());
 
             // Bind button widths to VBox width
             cloneElementsButton.maxWidthProperty().bind(textFieldVBox.widthProperty());
@@ -2560,7 +2535,7 @@ public class ARScannedElementPane
                 cloneElementDTO(targetSelected);
                 uiThreadDispatcher.execute(() -> {
                     definedNameText = DEFINED_NAME_PLACEHOLDER;
-                    searchAttribValueField.clear();
+                    searchAttribValueText = "";
                 });
             } else {
 
@@ -2588,7 +2563,7 @@ public class ARScannedElementPane
             scannerElementPanePublisher.publishOpenOcrConfig(hbId == null ? 0 : hbId, payload);
         });
 
-        searchButton.setOnAction(e -> searchTermsBtn(searchTermsField.getText().trim(), Collections.emptyList()));
+        searchButton.setOnAction(e -> searchTermsBtn(searchTermsText.trim(), Collections.emptyList()));
 
         turnOnOffButton.setVisible(false);
     }
@@ -2730,7 +2705,7 @@ public class ARScannedElementPane
 
             if (!Strings.isNullOrEmpty(targetSelected.getCoordinates())) {
                 sb.append("Coordinates: " + targetSelected.getCoordinates()).append("\n");
-                coordsTextField.setText(targetSelected.getCoordinates());
+                coordsText = targetSelected.getCoordinates();
             } else {
                 sb.append("Coordinates: EMPTY").append("\n");
             }
@@ -2738,8 +2713,7 @@ public class ARScannedElementPane
             if (!Strings.isNullOrEmpty(targetSelected.getSearchAttributeValue())) {
                 sb.append("Search Attrib: " + targetSelected.getSearchAttributeValue())
                         .append("\n");
-                searchAttribValueField.setText(targetSelected.getSearchAttributeValue());
-                searchAttribValueField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
+                searchAttribValueText = targetSelected.getSearchAttributeValue();
             } else {
                 sb.append("Search Attrib: No Defined").append("\n");
             }
@@ -3432,9 +3406,7 @@ public class ARScannedElementPane
     private void clearFields() {
         // Guard every field: TEST RUN can invoke the engine before the scanned-element pane's
         // UI has been built (fields are still null), so touching them blindly would NPE.
-        if (coordsTextField != null) {
-            coordsTextField.setText("");
-        }
+        coordsText = "";
         if (countdownTextField != null) {
             countdownTextField.setText("Pre-Launch status: Ready");
             countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
