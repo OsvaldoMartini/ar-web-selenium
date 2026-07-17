@@ -79,4 +79,14 @@ class BotJobDetailsJavaFxRetirementTest {
         assertFalse(compiledSource.contains("extends ARPane"));
         assertFalse(compiledSource.contains("component.pane.base.ARPane"));
     }
+
+    @Test
+    void scannerPaneDoesNotExposeLegacyPaneShellApi() throws IOException {
+        String source = Files.readString(SOURCE_ROOT.resolve("component/pane/ARScannedElementPane.java"));
+        String compiledSource = source.replaceAll("(?s)/\\*.*?\\*/", "");
+
+        assertFalse(compiledSource.contains("createPane("));
+        assertFalse(compiledSource.contains("getPaneReference("));
+        assertFalse(compiledSource.contains("protected Pane pane"));
+    }
 }

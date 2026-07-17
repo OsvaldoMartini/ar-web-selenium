@@ -91,7 +91,6 @@ public class ARScannedElementPane
     private static final ScannerJavaVersionService scannerJavaVersionService = new ScannerJavaVersionService();
     public static TargetElement targetSelected = new TargetElement();
     protected static volatile ARScannedElementPane instance;
-    protected Pane pane;
     private static SimpleDateFormat dateFormatter;
     private static String excelPath = null;
     private static JavascriptExecutor jsExecutor;
@@ -888,26 +887,14 @@ public class ARScannedElementPane
     public void destroy() {
         ScannerSupportRequestHandlers.getInstance().unregister(this);
         ScannerTestRunHandlers.getInstance().unregister(this);
-        clearPane(getPaneReference());
-        pane = null;
+        clearMainPane();
         instance = null;
     }
 
-    public final Pane createPane() {
-        initUI();
-        return pane;
-    }
-
-    private void initUI() {
-        initUIComponents();
-        initUIBehaviour();
-        pane = getPaneReference();
-    }
-
-    private void clearPane(Pane panel) {
+    private void clearMainPane() {
         try {
-            if (panel.getChildren() != null) {
-                panel.getChildren().clear();
+            if (mainPane != null && mainPane.getChildren() != null) {
+                mainPane.getChildren().clear();
             }
         } catch (Exception ignore) {
 
@@ -1433,10 +1420,6 @@ public class ARScannedElementPane
             verticalBox.requestLayout();
             mainPane.requestLayout();
         }
-    }
-
-    public Pane getPaneReference() {
-        return mainPane;
     }
 
     private void refreshGrids() {
