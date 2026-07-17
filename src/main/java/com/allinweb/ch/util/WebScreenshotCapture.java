@@ -1,7 +1,6 @@
 package com.allinweb.ch.util;
 
 import com.allinweb.ch.driver.ARPlaywrightDriver;
-import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -69,7 +68,6 @@ public final class WebScreenshotCapture {
         int pixelW = (int) Math.round(viewportWidth * dpr);
         int pixelH = (int) Math.round(totalHeight * dpr);
         BufferedImage stitched = new BufferedImage(pixelW, pixelH, BufferedImage.TYPE_INT_RGB);
-        Graphics2D g = stitched.createGraphics();
 
         try {
             long y = 0;
@@ -86,12 +84,11 @@ public final class WebScreenshotCapture {
                 long actualY =
                         ((Number) js.executeScript("return window.pageYOffset || window.scrollY || 0;")).longValue();
                 int tilePixelY = (int) Math.round(actualY * dpr);
-                g.drawImage(tile, 0, tilePixelY, null);
+                copyTile(stitched, tile, tilePixelY);
 
                 y += viewportHeight;
             }
         } finally {
-            g.dispose();
             try {
                 js.executeScript("window.scrollTo(0, arguments[0]);", initialScrollY);
             } catch (RuntimeException restoreEx) {
@@ -100,6 +97,21 @@ public final class WebScreenshotCapture {
         }
 
         return stitched;
+    }
+
+    private static void copyTile(BufferedImage target, BufferedImage tile, int targetY) {
+        if (target == null || tile == null) return;
+        int startY = Math.max(0, targetY);
+        int tileStartY = Math.max(0, -targetY);
+        int copyHeight = Math.min(tile.getHeight() - tileStartY, target.getHeight() - startY);
+        int copyWidth = Math.min(tile.getWidth(), target.getWidth());
+        if (copyWidth <= 0 || copyHeight <= 0) return;
+
+        for (int y = 0; y < copyHeight; y++) {
+            for (int x = 0; x < copyWidth; x++) {
+                target.setRGB(x, startY + y, tile.getRGB(x, tileStartY + y));
+            }
+        }
     }
 
     /** PNG bytes of the stitched full page. Convenience for {@link PageOcrDumper}. */

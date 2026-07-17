@@ -331,6 +331,7 @@ class BotJobDetailsDesktopUiRetirementTest {
         String buttonDetectionService = Files.readString(SOURCE_ROOT.resolve("vision/ButtonDetectionService.java"));
         String tess4jAdapter = Files.readString(SOURCE_ROOT.resolve("vision/Tess4jOcrBoxAdapter.java"));
         String annotatedRenderer = Files.readString(SOURCE_ROOT.resolve("vision/AnnotatedImageRenderer.java"));
+        String webScreenshotCapture = Files.readString(SOURCE_ROOT.resolve("util/WebScreenshotCapture.java"));
 
         assertFalse(ocrWord.contains("java.awt.Rectangle"));
         assertFalse(visionElement.contains("java.awt.Rectangle"));
@@ -344,6 +345,7 @@ class BotJobDetailsDesktopUiRetirementTest {
         assertFalse(annotatedRenderer.contains("java.awt.Color"));
         assertFalse(annotatedRenderer.contains("Graphics2D"));
         assertFalse(annotatedRenderer.contains("RenderingHints"));
+        assertFalse(webScreenshotCapture.contains("Graphics2D"));
         assertTrue(ocrWord.contains("OcrBox"));
         assertTrue(visionElement.contains("OcrBox"));
     }
