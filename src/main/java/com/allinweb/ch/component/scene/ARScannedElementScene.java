@@ -28,9 +28,6 @@ import org.openqa.selenium.WebElement;
 @Slf4j
 public class ARScannedElementScene {
 
-    private static final Double SCENE_HEIGHT = 650D;
-    private static final Double SCENE_WIDTH = 1100D;
-    private static final String TITLE = "AR Web Factory";
     private static final DateTimeFormatter FORMAT_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
     private static final CountDownLatch latch = new CountDownLatch(1);
     private static final PerformLists performLists = PerformLists.getInstance();
@@ -55,7 +52,6 @@ public class ARScannedElementScene {
     private boolean isConnectWebSocket = false;
     private ExecutorService executorWebSocket;
     private ExecutorService executorServicePreLaunch;
-    private ScannerModalStageService.ModalStage modalStage;
     private String previousBlock = null;
     private PayloadJson payloadEmpty;
     private List<InstructionLoad> instructionList = new ArrayList<>();
@@ -90,7 +86,6 @@ public class ARScannedElementScene {
             new ScannerTestMessageMetadataService(new ScannerTestMessageMetadataService.DefaultDataPort());
     private final ScannerElementDetailsSelectionService scannerElementDetailsSelectionService =
             new ScannerElementDetailsSelectionService();
-    private final ScannerModalStageService scannerModalStageService = new ScannerModalStageService();
     private final ScannerCloseRequestService scannerCloseRequestService = new ScannerCloseRequestService();
     // Private constructor to prevent instantiation
     private ARScannedElementScene() {
@@ -406,18 +401,6 @@ public class ARScannedElementScene {
         UiThreadDispatcher.getInstance().execute(() -> arWebDriver.getWebDriverList().clear());
     }
 
-    public String getTitle() {
-        return TITLE;
-    }
-
-    public Double getSceneHeight() {
-        return SCENE_HEIGHT;
-    }
-
-    public Double getSceneWidth() {
-        return SCENE_WIDTH;
-    }
-
     private void shutDownExecutorService(ExecutorService executorService) {
         executorService.shutdown();
         try {
@@ -479,77 +462,21 @@ public class ARScannedElementScene {
             arScannedElementPane.initialize(arWebDriver, currentBotJob, portSocketInitial);
 
             try {
-
-                modalStage = scannerModalStageService.show(
-                        modalStage,
-                        new JavaFxScannerModalStageFactory(
-                                ARScannedElementPaneProvider.getInstance(),
-                                this::handleCloseRequest),
-                        new ScannerModalStageService.Config(getTitle(), getSceneWidth(), getSceneHeight()));
-                if (modalStage == null) {
-                    log.error("Failed to build pane for modal.");
-                }
+                log.info(
+                        "Scanner presentation is owned by React; Java scanner runtime initialized for botJobId={} session={}",
+                        currentBotJob == null ? null : currentBotJob.getId(),
+                        scannerElementPanePublisher.destinationSessionId());
             } catch (Exception error) {
-                closeWebDrivers();
-                closeModal();
-
                 // Always log the REAL cause with a stack trace — previously it was discarded and
                 // every failure was blamed on the WebDriver, which is meaningless in Playwright mode.
                 log.error("Scanner Pane showModal failed", error);
 
-                String message = error.getMessage() == null ? "" : error.getMessage();
-
-                // In Playwright-only mode there is no Selenium WebDriver, so the "check your
-                // WebDriver / browser version" dialog is misleading. Only show it when Selenium is
-                // actually in play; otherwise surface the true error.
-                boolean playwrightOnly = arWebDriver != null && arWebDriver.isPlaywrightOnly();
-
-                if (message.contains("Not on FX application thread")) {
-                    log.error("Scanner Pane showModal error:" + message);
-                } else if (playwrightOnly) {
-                    performMessage.errorMessage(
-                            "Scanner Error",
-                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>The Scanner could not open.</span>",
-                            "<span style='font-weight: bold;'>The Playwright browser opened, but building the scanner failed.</span>",
-                            message.isBlank()
-                                    ? null
-                                    : "<span style='font-style: italic;'>Details: " + message + "</span>",
-                            null,
-                            0);
-                } else {
-
-                    String browser = arPropertyManager.getProperty(ARPropertyEnum.BROWSER);
-                    String webDriverPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_WEBDRIVER);
-                    int lastSlashIndex = webDriverPath.lastIndexOf('\\');
-                    String directoryPath =
-                            webDriverPath.substring(0, lastSlashIndex + 1); // includes the last backslash
-                    String fileName = webDriverPath.substring(lastSlashIndex + 1);
-
-                    log.error("Invalid URL or Navigation Error: {} - {} - {}", browser, directoryPath, fileName);
-                    performMessage.errorMessage(
-                            "Invalid URL or Navigation Error",
-                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>The provided URL is invalid or cannot be reached.</span>",
-                            "<span style='font-weight: bold;'>Please verify the following:</span>",
-                            "<ul>"
-                                    + "   <li>The entered URL is valid and accessible.</li>"
-                                    + "   <li>The installed browser version: <span style='color: #008b8b; font-weight: bold;'>"
-                                    + browser + "</span></li>"
-                                    + "   <li>The WebDriver path:<br><span style='color: #008b8b; font-weight: bold;'>"
-                                    + directoryPath + "</span></li>"
-                                    + "   <li>The WebDriver file:<br><span style='color: #008b8b; font-weight: bold;'>"
-                                    + fileName + "</span></li>"
-                                    + "   <li>Ensure the WebDriver and browser are compatible and correctly configured.</li>"
-                                    + "</ul>",
-                            "<span style='font-style: italic;'>Check the URL format (e.g., including https://) and review browser/WebDriver logs for more details.</span>",
-                            0);
-                }
             }
         });
     }
 
     public void closeModal() {
         try {
-            modalStage = scannerModalStageService.close(modalStage);
             ScannerCurrentJobContext.getInstance().clear();
         } catch (Exception error) {
             log.error("Browser Closed Before Web Scanner. Error: " + error.getMessage());
