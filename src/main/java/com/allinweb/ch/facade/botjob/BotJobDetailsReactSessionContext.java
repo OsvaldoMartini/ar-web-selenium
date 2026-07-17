@@ -1,4 +1,4 @@
-package com.allinweb.ch.component.pane;
+package com.allinweb.ch.facade.botjob;
 
 import com.allinweb.ch.model.BotJobLoadDTO;
 import java.util.HashMap;
@@ -7,12 +7,12 @@ import java.util.Map;
 /**
  * Holds the current Bot Job identity and per-surface bootstrap payload used by React sessions.
  */
-final class BotJobDetailsReactSessionContext {
+public final class BotJobDetailsReactSessionContext {
 
     private ActiveJob activeJob;
     private final Map<String, String> payloads = new HashMap<>();
 
-    synchronized void activate(BotJobLoadDTO botJob) {
+    public synchronized void activate(BotJobLoadDTO botJob) {
         if (botJob == null || botJob.getId() == null || botJob.getId() <= 0) {
             throw new IllegalArgumentException("A Bot Job is required for the React session context");
         }
@@ -27,20 +27,20 @@ final class BotJobDetailsReactSessionContext {
         payloads.clear();
     }
 
-    synchronized boolean updatePayload(int botJobId, String sessionId, String jsonData) {
+    public synchronized boolean updatePayload(int botJobId, String sessionId, String jsonData) {
         if (activeJob == null || activeJob.botJobId() != botJobId) return false;
         payloads.put(safe(sessionId), safeJson(jsonData));
         return true;
     }
 
-    synchronized boolean deactivate(int botJobId) {
+    public synchronized boolean deactivate(int botJobId) {
         if (activeJob == null || activeJob.botJobId() != botJobId) return false;
         activeJob = null;
         payloads.clear();
         return true;
     }
 
-    synchronized Context resolve(String sessionId) {
+    public synchronized Context resolve(String sessionId) {
         if (activeJob == null) {
             throw new IllegalStateException("Bot Job React session context is not active");
         }
@@ -68,7 +68,7 @@ final class BotJobDetailsReactSessionContext {
 
     private record ActiveJob(int botJobId, int homeBankingId, String organizationName, String botJobName) {}
 
-    record Context(
+    public record Context(
             String sessionId,
             String jsonData,
             int homeBankingId,

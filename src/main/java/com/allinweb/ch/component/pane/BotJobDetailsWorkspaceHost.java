@@ -23,6 +23,8 @@ import com.allinweb.ch.facade.BotJobDetailsWorkspaceRegistry;
 import com.allinweb.ch.facade.BotJobTransferPathRegistry;
 import com.allinweb.ch.facade.BotJobTransferService;
 import com.allinweb.ch.facade.BotJobToolbarConcurrencyGuard;
+import com.allinweb.ch.facade.botjob.BotJobDetailsPresentationGateway;
+import com.allinweb.ch.facade.botjob.BotJobDetailsReactSessionContext;
 import com.allinweb.ch.license.LicenceVal;
 import com.allinweb.ch.license.LicenseManager;
 import com.allinweb.ch.model.*;

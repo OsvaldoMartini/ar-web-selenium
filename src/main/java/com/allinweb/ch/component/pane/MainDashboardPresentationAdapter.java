@@ -1,6 +1,8 @@
 package com.allinweb.ch.component.pane;
 
 import com.allinweb.ch.driver.ARWebDriver;
+import com.allinweb.ch.facade.botjob.BotJobDetailsPresentationGateway;
+import com.allinweb.ch.facade.botjob.BotJobDetailsReactSessionContext;
 import com.allinweb.ch.facade.ConfigPresentation;
 import com.allinweb.ch.facade.ConfigPresentationRegistry;
 import com.allinweb.ch.facade.MainDashboardService;

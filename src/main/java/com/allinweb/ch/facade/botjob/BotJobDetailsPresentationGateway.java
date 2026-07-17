@@ -1,4 +1,4 @@
-package com.allinweb.ch.component.pane;
+package com.allinweb.ch.facade.botjob;
 
 import com.allinweb.ch.model.BlockLoadDTO;
 import com.allinweb.ch.model.BotJobLoadDTO;
@@ -7,7 +7,7 @@ import java.io.File;
 import java.util.function.BooleanSupplier;
 
 /** Desktop presentation boundary for the React-backed Bot Job Details workspace. */
-interface BotJobDetailsPresentationGateway {
+public interface BotJobDetailsPresentationGateway {
     void execute(Runnable operation);
 
     void showSurface(String sessionId, BotJobDetailsReactSessionContext.Context context);

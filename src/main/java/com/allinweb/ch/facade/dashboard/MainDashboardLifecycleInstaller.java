@@ -1,5 +1,6 @@
-package com.allinweb.ch.component.pane;
+package com.allinweb.ch.facade.dashboard;
 
+import com.allinweb.ch.component.pane.MainDashboardPresentationAdapter;
 import com.allinweb.ch.facade.MainShellLifecycle;
 import java.util.ArrayList;
 import java.util.List;

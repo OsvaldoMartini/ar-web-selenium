@@ -1,6 +1,6 @@
 package com.allinweb.ch;
 
-import com.allinweb.ch.component.pane.MainDashboardLifecycleInstaller;
+import com.allinweb.ch.facade.dashboard.MainDashboardLifecycleInstaller;
 import com.allinweb.ch.facade.ApplicationStartupLifecycle;
 import com.allinweb.ch.facade.DefaultConfigSceneShutdownPort;
 import com.allinweb.ch.facade.MainShellLifecycle;
