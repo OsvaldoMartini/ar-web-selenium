@@ -1,7 +1,7 @@
 package com.allinweb.ch.vision;
 
 import com.allinweb.ch.ocr.bridge.OcrBox;
-import java.awt.Rectangle;
+import java.lang.reflect.Field;
 import net.sourceforge.tess4j.Word;
 
 final class Tess4jOcrBoxAdapter {
@@ -13,8 +13,22 @@ final class Tess4jOcrBoxAdapter {
         return from(word.getBoundingBox());
     }
 
-    private static OcrBox from(Rectangle rectangle) {
-        if (rectangle == null) return null;
-        return new OcrBox(rectangle.x, rectangle.y, rectangle.width, rectangle.height);
+    private static OcrBox from(Object bounds) {
+        if (bounds == null) return null;
+        try {
+            Class<?> boundsType = bounds.getClass();
+            return new OcrBox(
+                    intField(boundsType, bounds, "x"),
+                    intField(boundsType, bounds, "y"),
+                    intField(boundsType, bounds, "width"),
+                    intField(boundsType, bounds, "height"));
+        } catch (ReflectiveOperationException invalidBounds) {
+            return null;
+        }
+    }
+
+    private static int intField(Class<?> type, Object instance, String name) throws ReflectiveOperationException {
+        Field field = type.getField(name);
+        return field.getInt(instance);
     }
 }

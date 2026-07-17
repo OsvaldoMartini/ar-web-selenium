@@ -322,7 +322,7 @@ class BotJobDetailsDesktopUiRetirementTest {
     }
 
     @Test
-    void ocrDomainUsesNeutralBoundsInsteadOfAwtRectangle() throws IOException {
+    void ocrDomainUsesNeutralBoundsInsteadOfAwtTypes() throws IOException {
         String ocrWord = Files.readString(SOURCE_ROOT.resolve("ocr/bridge/OcrWord.java"));
         String visionElement = Files.readString(SOURCE_ROOT.resolve("vision/VisionElement.java"));
         String ocrBox = Files.readString(SOURCE_ROOT.resolve("ocr/bridge/OcrBox.java"));
@@ -335,9 +335,10 @@ class BotJobDetailsDesktopUiRetirementTest {
         assertFalse(ocrBox.contains("java.awt.Rectangle"));
         assertFalse(webPageOcrService.contains("java.awt.Rectangle"));
         assertFalse(buttonDetectionService.contains("java.awt.Rectangle"));
+        assertFalse(tess4jAdapter.contains("java.awt.Rectangle"));
+        assertFalse(tess4jAdapter.contains("import java.awt"));
         assertTrue(ocrWord.contains("OcrBox"));
         assertTrue(visionElement.contains("OcrBox"));
-        assertTrue(tess4jAdapter.contains("java.awt.Rectangle"));
     }
 
     @Test
