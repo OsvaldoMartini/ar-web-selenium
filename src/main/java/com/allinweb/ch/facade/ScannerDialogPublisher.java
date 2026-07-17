@@ -16,6 +16,7 @@ public final class ScannerDialogPublisher {
 
     private static final String ALERT_OPERATION = "scanner.dialog.alert";
     private static final String TOAST_OPERATION = "scanner.dialog.toast";
+    private static final String PROGRESS_OPERATION = "scanner.dialog.progress";
     private static final ScannerDialogPublisher INSTANCE =
             new ScannerDialogPublisher(WebSocketSessionManager.getInstance(), new Gson());
 
@@ -43,7 +44,19 @@ public final class ScannerDialogPublisher {
                 new DialogEvent("toast", severity.name().toLowerCase(), "Scanner", message, message, seconds));
     }
 
-    private boolean publish(String operationId, DialogEvent event) {
+    public boolean progress(String id, String title, String message, double progress, int current, int total) {
+        return publish(
+                PROGRESS_OPERATION,
+                new ProgressEvent("progress", id, title, message, progress, current, total, false));
+    }
+
+    public boolean closeProgress(String id) {
+        return publish(
+                PROGRESS_OPERATION,
+                new ProgressEvent("progress", id, "", "", 1.0, 0, 0, true));
+    }
+
+    private boolean publish(String operationId, Object event) {
         String body = gson.toJson(event);
         boolean sent =
                 sessions.sendMessageJson(-1, ScannerWorkspaceSessions.SCANNER_ELEMENT_PANE, body, operationId) != null;
@@ -63,4 +76,14 @@ public final class ScannerDialogPublisher {
             String header,
             String body,
             double seconds) {}
+
+    public record ProgressEvent(
+            String kind,
+            String id,
+            String title,
+            String message,
+            double progress,
+            int current,
+            int total,
+            boolean close) {}
 }

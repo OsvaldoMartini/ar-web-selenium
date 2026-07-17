@@ -61,6 +61,24 @@ class ScannerDialogPublisherTest {
         verify(session.getBasicRemote()).sendText(contains("\\\"header\\\":\\\"Plugin cache refreshed\\\""));
     }
 
+    @Test
+    void publishesProgressEventsToReactScannerSession() throws Exception {
+        session = openSession();
+        WebSocketSessionManager.addSession(ScannerWorkspaceSessions.SCANNER_ELEMENT_PANE, session);
+
+        ScannerDialogPublisher publisher =
+                new ScannerDialogPublisher(new WebSocketSessionManager(), new Gson());
+
+        assertTrue(publisher.progress("plugin-download", "Downloading Plugin", "Downloading...", 0.5, 1, 2));
+
+        verify(session.getBasicRemote()).sendText(contains("\"operationId\":\"scanner.dialog.progress\""));
+        verify(session.getBasicRemote()).sendText(contains("\\\"kind\\\":\\\"progress\\\""));
+        verify(session.getBasicRemote()).sendText(contains("\\\"id\\\":\\\"plugin-download\\\""));
+        verify(session.getBasicRemote()).sendText(contains("\\\"progress\\\":0.5"));
+        verify(session.getBasicRemote()).sendText(contains("\\\"current\\\":1"));
+        verify(session.getBasicRemote()).sendText(contains("\\\"total\\\":2"));
+    }
+
     private Session openSession() {
         Session openSession = mock(Session.class);
         RemoteEndpoint.Basic remote = mock(RemoteEndpoint.Basic.class);

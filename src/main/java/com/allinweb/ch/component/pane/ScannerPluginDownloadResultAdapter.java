@@ -12,17 +12,17 @@ final class ScannerPluginDownloadResultAdapter {
     void wireSingle(
             Task<String> task,
             Path pluginsDir,
-            ScannerPluginDownloadProgressDialogAdapter progress,
+            Runnable closeProgress,
             Runnable refreshButton,
             PluginNotifier notifier) {
         task.setOnSucceeded(e -> {
-            progress.close();
+            closeProgress.run();
             Platform.runLater(refreshButton);
             notifier.information("Download complete", task.getValue() + "\nDestination: " + pluginsDir);
         });
 
         task.setOnFailed(e -> {
-            progress.close();
+            closeProgress.run();
             Throwable ex = task.getException();
             log.error("UpdatePlugins - failed", ex);
             notifier.error("Download failed", ex.getMessage());
@@ -33,12 +33,12 @@ final class ScannerPluginDownloadResultAdapter {
             Task<Integer> task,
             int pluginCount,
             String pathPlugins,
-            ScannerPluginBatchDownloadProgressDialogAdapter progress,
+            Runnable closeProgress,
             Runnable refreshButton,
             PluginNotifier notifier,
             IntConsumer onFinished) {
         task.setOnSucceeded(evt -> {
-            progress.close();
+            closeProgress.run();
             int count = task.getValue();
             Platform.runLater(refreshButton);
             notifier.information(
@@ -49,7 +49,7 @@ final class ScannerPluginDownloadResultAdapter {
         });
 
         task.setOnFailed(evt -> {
-            progress.close();
+            closeProgress.run();
             Throwable ex = task.getException();
             log.error("PluginDownload - failed", ex);
             notifier.error("Download failed", ex.getMessage());

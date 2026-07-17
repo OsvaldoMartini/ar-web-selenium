@@ -8,10 +8,8 @@ import javafx.concurrent.Task;
 
 final class ScannerPluginDownloadFlowAdapter {
 
-    private final ScannerPluginDownloadProgressDialogAdapter singleProgress =
-            new ScannerPluginDownloadProgressDialogAdapter();
-    private final ScannerPluginBatchDownloadProgressDialogAdapter batchProgress =
-            new ScannerPluginBatchDownloadProgressDialogAdapter();
+    private final ScannerPluginDownloadProgressPublisherAdapter progressPublisher =
+            new ScannerPluginDownloadProgressPublisherAdapter();
     private final ScannerPluginSingleDownloadTaskAdapter singleDownloadTask =
             new ScannerPluginSingleDownloadTaskAdapter();
     private final ScannerPluginBatchDownloadTaskAdapter batchDownloadTask =
@@ -30,10 +28,9 @@ final class ScannerPluginDownloadFlowAdapter {
             ScannerPluginDownloadResultAdapter.PluginNotifier notifier) {
         Task<String> task = singleDownloadTask.build(downloadUrl, fileName, pluginName, pluginsDir);
 
-        singleProgress.bind(pluginName, task);
-        downloadResult.wireSingle(task, pluginsDir, singleProgress, refreshButton, notifier);
+        progressPublisher.bindSingle(pluginName, task);
+        downloadResult.wireSingle(task, pluginsDir, progressPublisher::closeSingle, refreshButton, notifier);
         backgroundThread.start(task, "plugin-download-thread");
-        singleProgress.show();
     }
 
     void runBatch(
@@ -44,18 +41,17 @@ final class ScannerPluginDownloadFlowAdapter {
             ScannerPluginDownloadResultAdapter.PluginNotifier notifier) {
         Path pluginsDir = Paths.get(pathPlugins);
         Task<Integer> task =
-                batchDownloadTask.build(plugins, serverBase, pluginsDir, batchProgress::updateCounter);
+                batchDownloadTask.build(plugins, serverBase, pluginsDir, progressPublisher::updateBatchCounter);
 
-        batchProgress.bind(plugins.size(), task);
+        progressPublisher.bindBatch(plugins.size(), task);
         downloadResult.wireBatch(
                 task,
                 plugins.size(),
                 pathPlugins,
-                batchProgress,
+                progressPublisher::closeBatch,
                 refreshButton,
                 notifier,
                 count -> {});
         backgroundThread.start(task, "plugin-download-thread");
-        batchProgress.show();
     }
 }
