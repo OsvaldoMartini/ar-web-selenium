@@ -36,7 +36,9 @@ import java.util.stream.IntStream;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
+import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
+import javafx.geometry.VPos;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
@@ -149,11 +151,8 @@ public class ARScannedElementPane
     private final ScannerSupportResponseActionService scannerSupportResponseActionService =
             new ScannerSupportResponseActionService();
     private final ScannerLocalPluginInventory scannerLocalPluginInventory = new ScannerLocalPluginInventory();
-    private final ScannerLayoutNodeAdapter scannerLayoutNodeAdapter = new ScannerLayoutNodeAdapter();
     private final ScannerBrowserNotAttachedMessageService scannerBrowserNotAttachedMessageService =
             new ScannerBrowserNotAttachedMessageService();
-    private final ScannerElementFocusComboBoxAdapter scannerElementFocusComboBoxAdapter =
-            new ScannerElementFocusComboBoxAdapter();
     private final UiThreadDispatcher uiThreadDispatcher = UiThreadDispatcher.getInstance();
     private final ScannerDomReviewSnapshotService scannerDomReviewSnapshotService =
             new ScannerDomReviewSnapshotService();
@@ -1564,6 +1563,126 @@ public class ARScannedElementPane
         }
     }
 
+    private ComboBox<ElementScanProfile> buildElementFocusComboBox(
+            List<ElementScanProfile> profiles, ElementScanProfile defaultProfile) {
+        ComboBox<ElementScanProfile> comboBox = new ComboBox<>(FXCollections.observableArrayList(profiles));
+        comboBox.setPrefWidth(260);
+        comboBox.setTooltip(new Tooltip("Choose which type of web element the Page Scanner should focus."));
+        comboBox.getSelectionModel().select(defaultProfile);
+        comboBox.setButtonCell(new ElementScanProfileCell());
+        comboBox.setCellFactory(list -> new ElementScanProfileCell());
+        return comboBox;
+    }
+
+    private static final class ElementScanProfileCell extends ListCell<ElementScanProfile> {
+        @Override
+        protected void updateItem(ElementScanProfile item, boolean empty) {
+            super.updateItem(item, empty);
+            if (empty || item == null) {
+                setText(null);
+                setTooltip(null);
+                setStyle("");
+                return;
+            }
+
+            setText(item.label());
+            setTooltip(new Tooltip(item.description()));
+            setStyle(item.label().startsWith("All -") ? "-fx-font-weight: bold;" : "");
+        }
+    }
+
+    private Node verticalSpacer() {
+        Region spacer = new Region();
+        VBox.setVgrow(spacer, Priority.ALWAYS);
+        return spacer;
+    }
+
+    private Node horizontalSpacer() {
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        return spacer;
+    }
+
+    private Separator separator(Color color, double width) {
+        Separator separator = new Separator();
+        separator.setOrientation(Orientation.HORIZONTAL);
+        separator.setValignment(VPos.CENTER);
+        separator.setPrefHeight(width);
+        separator.setStyle("-fx-background-color: " + color.toString().replace("0x", "#") + ";");
+        return separator;
+    }
+
+    private GridPane scannerTopGrid() {
+        GridPane gridPane = new GridPane();
+        gridPane.setPadding(new Insets(10));
+        gridPane.setHgap(10);
+        return gridPane;
+    }
+
+    private HBox pageScannerRow(Node... children) {
+        HBox row = new HBox(6, children);
+        row.setAlignment(Pos.CENTER_LEFT);
+        return row;
+    }
+
+    private VBox scannerContentColumn() {
+        VBox column = new VBox();
+        column.setSpacing(10);
+        column.setPadding(new Insets(10));
+        VBox.setVgrow(column, Priority.ALWAYS);
+        return column;
+    }
+
+    private HBox launchButtonRow(Node... children) {
+        HBox row = new HBox();
+        row.setSpacing(10);
+        row.getChildren().addAll(children);
+        return row;
+    }
+
+    private HBox spacedRow(double spacing, Node... children) {
+        HBox row = new HBox();
+        row.setSpacing(spacing);
+        row.getChildren().addAll(children);
+        return row;
+    }
+
+    private VBox textFieldColumn(Node... children) {
+        VBox column = new VBox();
+        column.setSpacing(6);
+        column.getChildren().addAll(children);
+        return column;
+    }
+
+    private StackPane centeredStack(Node child) {
+        StackPane stack = new StackPane();
+        stack.getChildren().add(child);
+        stack.setAlignment(Pos.CENTER);
+        return stack;
+    }
+
+    private HBox listViewsRow() {
+        HBox row = new HBox();
+        row.setSpacing(5);
+        VBox.setVgrow(row, Priority.ALWAYS);
+        HBox.setHgrow(row, Priority.ALWAYS);
+        return row;
+    }
+
+    private VBox elementsColumn(Node header, Node content) {
+        VBox column = new VBox(header, content);
+        HBox.setHgrow(column, Priority.ALWAYS);
+        return column;
+    }
+
+    private HBox blockAndUrlRow(Node blockSelector) {
+        HBox row = new HBox();
+        row.setSpacing(0);
+        HBox.setMargin(blockSelector, new Insets(0, 3, 0, 0));
+        row.getChildren().add(blockSelector);
+        return row;
+    }
+
     private void buildUIComponents() {
         topPane = createTopPanel(ARConstants.SPACE_L, ARConstants.SPACE_SM);
         mainPane = createContentPanel(ARConstants.SPACE_L, ARConstants.SPACE_XL, ARConstants.SPACE_SM);
@@ -1602,8 +1721,7 @@ public class ARScannedElementPane
 
         //        textFlowResult = new TextFlow();
 
-        elementFocusComboBox =
-                scannerElementFocusComboBoxAdapter.build(ELEMENT_SCAN_PROFILES, ALL_INTERACTIVE_SCAN_PROFILE);
+        elementFocusComboBox = buildElementFocusComboBox(ELEMENT_SCAN_PROFILES, ALL_INTERACTIVE_SCAN_PROFILE);
         elementFocusComboBox.valueProperty().addListener((obs, oldValue, newValue) -> {
             if (newValue == null) {
                 return;
@@ -1722,10 +1840,10 @@ public class ARScannedElementPane
         try {
             // Starting the View
 
-            GridPane gridPaneTop = scannerLayoutNodeAdapter.scannerTopGrid();
+            GridPane gridPaneTop = scannerTopGrid();
 
             // Add buttons and checkbox to the GridPane
-            HBox pageScannerRow = scannerLayoutNodeAdapter.pageScannerRow(pageScannerButton, ocrConfigButton);
+            HBox pageScannerRow = pageScannerRow(pageScannerButton, ocrConfigButton);
             gridPaneTop.add(pageScannerRow, 0, 0);
             gridPaneTop.add(elementFocusComboBox, 4, 0);
             gridPaneTop.add(searchButton, 5, 0);
@@ -1734,18 +1852,18 @@ public class ARScannedElementPane
 
             topPane.getChildren().add(gridPaneTop);
 
-            verticalBox = scannerLayoutNodeAdapter.scannerContentColumn();
+            verticalBox = scannerContentColumn();
 
             // Create an HBox to hold launchBotJobButton and stopBotJobButton
-            HBox hBoxLaunchButon = scannerLayoutNodeAdapter.launchButtonRow(launchBotJobButton, stopBotJobButton);
+            HBox hBoxLaunchButon = launchButtonRow(launchBotJobButton, stopBotJobButton);
 
             // Ensure the button has a reasonable width
             cloneElementsButton.setMinWidth(50); // Adjust as needed
 
-            HBox boxName = scannerLayoutNodeAdapter.spacedRow(5, cloneElementsButton);
+            HBox boxName = spacedRow(5, cloneElementsButton);
 
             // Create the VBox for TextFields
-            textFieldVBox = scannerLayoutNodeAdapter.textFieldColumn(
+            textFieldVBox = textFieldColumn(
                     boxName,
                     createCustomSeparator(Color.DARKBLUE, 2),
                     createSpacerVert(),
@@ -1766,14 +1884,14 @@ public class ARScannedElementPane
                 stopBotJobButton.setMaxWidth(totalWidth * 0.7);
             });
 
-            HBox boxListViews = scannerLayoutNodeAdapter.listViewsRow();
+            HBox boxListViews = listViewsRow();
 
             // Bind the height of ListViews to the height of the HBox
             componentBox.prefHeightProperty().bind(boxListViews.heightProperty());
 
             HBox.setHgrow(componentBox, Priority.ALWAYS);
 
-            HBox othersBox = scannerLayoutNodeAdapter.spacedRow(0);
+            HBox othersBox = spacedRow(0);
             createSpacerHoriz();
             othersBox
                     .getChildren()
@@ -1781,11 +1899,11 @@ public class ARScannedElementPane
                             refreshWebPageButton,
                             createSpacerHoriz(),
                             cleanListButton);
-            StackPane stackLabelOthers = scannerLayoutNodeAdapter.centeredStack(othersBox);
-            elements2VBox = scannerLayoutNodeAdapter.elementsColumn(stackLabelOthers, componentBox);
+            StackPane stackLabelOthers = centeredStack(othersBox);
+            elements2VBox = elementsColumn(stackLabelOthers, componentBox);
             boxListViews.getChildren().addAll(elements2VBox, textFieldVBox);
 
-            HBox blockAndUrl = scannerLayoutNodeAdapter.blockAndUrlRow(comboBoxBlocks);
+            HBox blockAndUrl = blockAndUrlRow(comboBoxBlocks);
 
             verticalBox.getChildren().addAll(topPane, blockAndUrl, boxListViews);
             VBox.setVgrow(verticalBox, Priority.ALWAYS);
@@ -2093,16 +2211,16 @@ public class ARScannedElementPane
     }
 
     private Node createSpacerVert() {
-        return scannerLayoutNodeAdapter.verticalSpacer();
+        return verticalSpacer();
     }
 
     private Node createSpacerHoriz() {
-        return scannerLayoutNodeAdapter.horizontalSpacer();
+        return horizontalSpacer();
     }
 
     // Method to create a custom separator with specified color and width
     private Separator createCustomSeparator(Color color, double width) {
-        return scannerLayoutNodeAdapter.separator(color, width);
+        return separator(color, width);
     }
 
     public void requestPreLaunchFromWorkspace(int botJobId) {

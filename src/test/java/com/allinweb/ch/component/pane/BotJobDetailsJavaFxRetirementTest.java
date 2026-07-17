@@ -62,6 +62,8 @@ class BotJobDetailsJavaFxRetirementTest {
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerPluginSingleDownloadTaskAdapter.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerPluginBatchDownloadTaskAdapter.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerPluginBackgroundThreadAdapter.java")));
+        assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerLayoutNodeAdapter.java")));
+        assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerElementFocusComboBoxAdapter.java")));
     }
 
     @Test
@@ -220,5 +222,7 @@ class BotJobDetailsJavaFxRetirementTest {
         assertFalse(compiledSource.contains("lblPluginHint"));
         assertFalse(compiledSource.contains("ARComponentBuilder"));
         assertFalse(compiledSource.contains("ScannerPluginDownloadFlowAdapter"));
+        assertFalse(compiledSource.contains("ScannerLayoutNodeAdapter"));
+        assertFalse(compiledSource.contains("ScannerElementFocusComboBoxAdapter"));
     }
 }
