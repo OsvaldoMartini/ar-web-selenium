@@ -179,8 +179,6 @@ public class ARScannedElementPane
     private final ScannerSupportButtonAdapter scannerSupportButtonAdapter = new ScannerSupportButtonAdapter();
     private final ScannerSearchHiddenFieldsButtonAdapter scannerSearchHiddenFieldsButtonAdapter =
             new ScannerSearchHiddenFieldsButtonAdapter();
-    private final ScannerPreLaunchStatusTextAreaAdapter scannerPreLaunchStatusTextAreaAdapter =
-            new ScannerPreLaunchStatusTextAreaAdapter();
     private final ScannerElementFocusComboBoxAdapter scannerElementFocusComboBoxAdapter =
             new ScannerElementFocusComboBoxAdapter();
     private final UiThreadDispatcher uiThreadDispatcher = UiThreadDispatcher.getInstance();
@@ -336,7 +334,8 @@ public class ARScannedElementPane
     private String currentUrlText = "";
     private VBox textFieldVBox;
     //    private TextFlow textFlowResult;
-    private TextArea countdownTextField;
+    private String scannerStatusText = "Pre-Launch status: Ready";
+    private String scannerStatusStyle = "info";
     private ComboBox<ElementScanProfile> elementFocusComboBox;
     private String searchTermsText = ALL_INTERACTIVE_SCAN_PROFILE.searchText();
     private String testActionsText = "0001";
@@ -1609,8 +1608,6 @@ public class ARScannedElementPane
 
         //        textFlowResult = new TextFlow();
 
-        countdownTextField = scannerPreLaunchStatusTextAreaAdapter.build();
-
         elementFocusComboBox =
                 scannerElementFocusComboBoxAdapter.build(ELEMENT_SCAN_PROFILES, ALL_INTERACTIVE_SCAN_PROFILE);
         elementFocusComboBox.valueProperty().addListener((obs, oldValue, newValue) -> {
@@ -1669,7 +1666,7 @@ public class ARScannedElementPane
                         this.currentBotJob.getName());
 
                 uiThreadDispatcher.execute(() -> {
-                    countdownTextField.setText("Pre-Launch status: Ready");
+                    setScannerStatus("Pre-Launch status: Ready", "info");
                 });
             }
         });
@@ -1771,7 +1768,6 @@ public class ARScannedElementPane
                     boxName,
                     createCustomSeparator(Color.DARKBLUE, 2),
                     createSpacerVert(),
-                    countdownTextField,
                     createSpacerVert(),
                     createCustomSeparator(Color.DARKBLUE, 2),
                     hBoxLaunchButon,
@@ -1780,7 +1776,6 @@ public class ARScannedElementPane
             // Bind button widths to VBox width
             cloneElementsButton.maxWidthProperty().bind(textFieldVBox.widthProperty());
             // Bind the widths of the buttons to percentages of the HBox width
-            countdownTextField.maxWidthProperty().bind(textFieldVBox.widthProperty());
             configureButton.maxWidthProperty().bind(textFieldVBox.widthProperty());
 
             // Fix the widths to 70% and 30% of the HBox width
@@ -2662,15 +2657,6 @@ public class ARScannedElementPane
 
     public void itPrintsElementDTO() {
 
-        //                textFlowResult.getChildren().clear();
-        //                textFlowResult.getChildren().addAll(countdownTextField);
-        //                textFlowResult.requestLayout();
-        //                contentPane.requestLayout();
-
-        //                                boxListViews.requestLayout();
-        //                                verticalBox.requestLayout();
-        //                                getChildren().addAll(blockAndUrl, boxListViews);
-
         //        for (ARWebElement arWebElement : scannedElements2.getItems()) {
         //            performActions.highlightElement(jsExecutor, arWebElement.getElement(), null);
         //        }
@@ -2730,13 +2716,9 @@ public class ARScannedElementPane
             }
 
             uiThreadDispatcher.execute(() -> {
-                countdownTextField.setText(sb.toString());
-                countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
+                setScannerStatus(sb.toString(), "info");
             });
 
-            //                textFlowResult.getChildren().clear();
-            //                textFlowResult.getChildren().addAll(countdownTextField);
-            //                textFlowResult.requestLayout();
             //                contentPane.requestLayout();
 
             applyTestActionDefaults(targetSelected);
@@ -3407,10 +3389,7 @@ public class ARScannedElementPane
         // Guard every field: TEST RUN can invoke the engine before the scanned-element pane's
         // UI has been built (fields are still null), so touching them blindly would NPE.
         coordsText = "";
-        if (countdownTextField != null) {
-            countdownTextField.setText("Pre-Launch status: Ready");
-            countdownTextField.setStyle("-fx-font-size: 12px; -fx-text-fill: blue;");
-        }
+        setScannerStatus("Pre-Launch status: Ready", "info");
         if (mainPane != null) {
             mainPane.requestLayout();
         }
@@ -6381,7 +6360,14 @@ public class ARScannedElementPane
         return scannerValidationEvaluator.evaluateOperation(actualRaw, operator, expectedRaw);
     }
 
-    private void appendLog(String message, String style) {}
+    private void appendLog(String message, String style) {
+        setScannerStatus(message, style);
+    }
+
+    private void setScannerStatus(String message, String style) {
+        scannerStatusText = Strings.nullToEmpty(message);
+        scannerStatusStyle = Strings.nullToEmpty(style);
+    }
 
     public void readAllElementsWithWebDriver() {
         WebDriver driver = performActions.getCurrentDriver();

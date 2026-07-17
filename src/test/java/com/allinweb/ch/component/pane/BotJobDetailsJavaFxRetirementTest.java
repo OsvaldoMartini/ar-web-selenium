@@ -39,6 +39,7 @@ class BotJobDetailsJavaFxRetirementTest {
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerTestActionCheckboxesAdapter.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerTestActionCheckboxStateAdapter.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerTextFieldsAdapter.java")));
+        assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ScannerPreLaunchStatusTextAreaAdapter.java")));
     }
 
     @Test
@@ -154,5 +155,15 @@ class BotJobDetailsJavaFxRetirementTest {
         assertFalse(compiledSource.contains("coordsTextField"));
         assertFalse(compiledSource.contains("searchAttribValueField"));
         assertFalse(compiledSource.contains("javafx.scene.control.TextField"));
+    }
+
+    @Test
+    void scannerPaneDoesNotUseJavaFxStatusTextArea() throws IOException {
+        String source = Files.readString(SOURCE_ROOT.resolve("component/pane/ARScannedElementPane.java"));
+        String compiledSource = source.replaceAll("(?s)/\\*.*?\\*/", "");
+
+        assertFalse(compiledSource.contains("ScannerPreLaunchStatusTextAreaAdapter"));
+        assertFalse(compiledSource.contains("countdownTextField"));
+        assertFalse(compiledSource.contains("javafx.scene.control.TextArea"));
     }
 }
