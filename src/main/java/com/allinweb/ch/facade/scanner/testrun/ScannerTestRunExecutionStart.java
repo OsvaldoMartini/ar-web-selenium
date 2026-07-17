@@ -1,13 +1,13 @@
-package com.allinweb.ch.component.pane;
+package com.allinweb.ch.facade.scanner.testrun;
 
-final class ScannerTestRunExecutionStart {
+public final class ScannerTestRunExecutionStart {
     private final Operations operations;
 
-    ScannerTestRunExecutionStart(Operations operations) {
+    public ScannerTestRunExecutionStart(Operations operations) {
         this.operations = operations;
     }
 
-    Result start() {
+    public Result start() {
         if (!operations.openBrowser()) {
             operations.setRunSingleBlock(false);
             return Result.browserOpenFailed();
@@ -21,7 +21,7 @@ final class ScannerTestRunExecutionStart {
         return Result.started(executionId);
     }
 
-    record Result(Status status, long executionId) {
+    public record Result(Status status, long executionId) {
         private static Result browserOpenFailed() {
             return new Result(Status.BROWSER_OPEN_FAILED, 0L);
         }
@@ -31,12 +31,12 @@ final class ScannerTestRunExecutionStart {
         }
     }
 
-    enum Status {
+    public enum Status {
         STARTED,
         BROWSER_OPEN_FAILED
     }
 
-    interface Operations {
+    public interface Operations {
         boolean openBrowser();
 
         void resetInstructionExecutionFlags();

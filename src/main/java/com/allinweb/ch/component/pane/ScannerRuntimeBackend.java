@@ -25,6 +25,7 @@ import com.allinweb.ch.facade.scanner.ScannerRuntimePort;
 import com.allinweb.ch.facade.scanner.support.ScannerSupportAlertAdapter;
 import com.allinweb.ch.facade.scanner.support.ScannerSupportSaveFlowAdapter;
 import com.allinweb.ch.facade.scanner.testrun.ScannerTestRunExecutionState;
+import com.allinweb.ch.facade.scanner.testrun.ScannerTestRunExecutionStart;
 import com.allinweb.ch.facade.scanner.testrun.TestRunExecutionOutcomeTracker;
 import com.allinweb.ch.facade.actions.InstructionGraph;
 import com.allinweb.ch.model.*;
