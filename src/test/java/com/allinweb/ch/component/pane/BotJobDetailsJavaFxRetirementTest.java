@@ -270,4 +270,38 @@ class BotJobDetailsJavaFxRetirementTest {
         assertFalse(compiledSource.contains("pageScannerRow("));
         assertTrue(compiledSource.contains("preLaunchActionEnabled"));
     }
+
+    @Test
+    void legacyMessageDialogsPublishToReactInsteadOfSwing() throws IOException {
+        String source = Files.readString(SOURCE_ROOT.resolve("facade/PerformMessage.java"));
+        String compiledSource = source.replaceAll("(?s)/\\*.*?\\*/", "");
+
+        assertFalse(compiledSource.contains("javax.swing"));
+        assertFalse(compiledSource.contains("java.awt"));
+        assertFalse(compiledSource.contains("JDialog"));
+        assertFalse(compiledSource.contains("JButton"));
+        assertFalse(compiledSource.contains("JLabel"));
+        assertFalse(compiledSource.contains("JPanel"));
+        assertTrue(compiledSource.contains("ScannerDialogPublisher"));
+    }
+
+    @Test
+    void priorityWarningsPublishToReactInsteadOfOptionPane() throws IOException {
+        String source = Files.readString(SOURCE_ROOT.resolve("util/ARPriorities.java"));
+        String compiledSource = source.replaceAll("(?s)/\\*.*?\\*/", "");
+
+        assertFalse(compiledSource.contains("javax.swing"));
+        assertFalse(compiledSource.contains("JOptionPane"));
+        assertTrue(compiledSource.contains("ScannerDialogPublisher"));
+    }
+
+    @Test
+    void mavenBuildDoesNotDeclareJavaFxDependenciesOrPlugin() throws IOException {
+        String pom = Files.readString(Path.of("pom.xml"));
+
+        assertFalse(pom.contains("org.openjfx"));
+        assertFalse(pom.contains("javafx-controls"));
+        assertFalse(pom.contains("javafx-web"));
+        assertFalse(pom.contains("javafx-maven-plugin"));
+    }
 }

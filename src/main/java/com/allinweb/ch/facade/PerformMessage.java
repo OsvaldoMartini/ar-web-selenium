@@ -5,13 +5,10 @@ import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.util.ARExecution;
 import com.allinweb.ch.util.ErrorMessage;
 import com.allinweb.ch.util.PageDiagnosticDumper;
-import com.google.common.base.Strings;
 import com.google.gson.ExclusionStrategy;
 import com.google.gson.FieldAttributes;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import java.awt.*;
-import java.awt.event.*;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -20,7 +17,6 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import javax.swing.*;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -50,130 +46,32 @@ public class PerformMessage {
         return instance;
     }
 
-    // Helper method to create styled buttons
-    private static JButton createStyledButton(String text) {
-        return new JButton(text) {
-            @Override
-            protected void paintComponent(Graphics g) {
-                if (isOpaque()) {
-                    Graphics2D g2 = (Graphics2D) g;
-                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                    GradientPaint gradient =
-                            new GradientPaint(0, 0, Color.LIGHT_GRAY, getWidth(), getHeight(), Color.WHITE);
-                    g2.setPaint(gradient);
-                    g2.fillRect(0, 0, getWidth(), getHeight());
-                }
-                super.paintComponent(g);
-            }
-        };
-    }
-
-    /**
-     * Creates a styled button with Windows 11 theme
-     */
-    private static JButton createStyledButtonWin11(String text) {
-        JButton button = new JButton(text);
-
-        // Windows 11 Theme Styling
-        button.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        button.setForeground(Color.WHITE);
-        button.setBackground(new Color(0, 120, 212)); // Windows 11 blue
-        button.setFocusPainted(false);
-        button.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12)); // Adjust padding
-        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
-
-        // Ensure UI updates properly
-        button.setOpaque(true);
-        button.setContentAreaFilled(true);
-        button.setBorderPainted(false);
-        button.putClientProperty("JComponent.outline", null); // Prevents UI interference
-
-        // Hover Effect
-        button.addMouseListener(new java.awt.event.MouseAdapter() {
-            @Override
-            public void mouseEntered(java.awt.event.MouseEvent evt) {
-                button.setBackground(new Color(0, 102, 180)); // Darker blue on hover
-            }
-
-            @Override
-            public void mouseExited(java.awt.event.MouseEvent evt) {
-                button.setBackground(new Color(0, 120, 212)); // Reset color
-            }
-        });
-
-        // Ensure color is reset each time it's used
-        button.addHierarchyListener(e -> {
-            if ((e.getChangeFlags() & HierarchyEvent.SHOWING_CHANGED) != 0 && button.isShowing()) {
-                button.setBackground(new Color(0, 120, 212)); // Restore original color
-            }
-        });
-
-        // Force UI update
-        button.revalidate();
-        button.repaint();
-
-        return button;
-    }
-
-    // Method to add drag-and-drop support
-    private static void addDragSupport(JDialog dialog, JPanel panel) {
-        final Point mouseDownCompCoords = new Point();
-
-        panel.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mousePressed(MouseEvent e) {
-                mouseDownCompCoords.setLocation(e.getPoint());
-            }
-        });
-
-        panel.addMouseMotionListener(new MouseMotionAdapter() {
-            @Override
-            public void mouseDragged(MouseEvent e) {
-                Point currCoords = e.getLocationOnScreen();
-                dialog.setLocation(currCoords.x - mouseDownCompCoords.x, currCoords.y - mouseDownCompCoords.y);
-            }
-        });
-    }
+    private final ScannerDialogPublisher dialogPublisher = ScannerDialogPublisher.getInstance();
 
     public void initializePerformMessages() {}
 
     public void couldNotFindElement(String criteria) {
-        //        showCustomModalDialogDragWin11(
-        //                criteria,
-        //                "1. Verify if you are on the correct web page.",
-        //                "2. Check if the page layout or content has been updated. (Page Refreshed)",
-        //                "3. Consider increasing the wait time to ensure the page loads completely.",
-        //                "4. Consider to Re Scanner or Re Select the Element!",
-        //                true,
-        //                "OK",
-        //                null,
-        //                0);
+        publishWarning(
+                criteria,
+                "1. Verify if you are on the correct web page.",
+                "2. Check if the page layout or content has been updated.",
+                "3. Consider increasing the wait time or rescanning the element.");
     }
 
     public void couldNotInputBotJobVeryFast(String criteria) {
-        showCustomModalDialogDragWin11(
+        publishWarning(
                 criteria,
-                "If fields are written to previous fields, it means they depend on parent data.",
+                "If fields are written to previous fields, they may depend on parent data.",
                 "Data loading delays may require waiting time.",
-                "Our AI report analysis can precisely determine the necessary wait times.",
-                "Schedule a consultation with our Commercial Advisor to get your free AI report",
-                true,
-                "OK",
-                null,
-                0);
+                "Our AI report analysis can determine the necessary wait times.");
     }
 
     public void multipleActionsElement(String criteria) {
-        showCustomModalDialogDragWin11(
+        publishWarning(
                 criteria,
                 "Attention Required!",
                 "This element may require multiple actions.",
-                "It likely needs a click action first - then open the options to type in it.",
-                "For testing, always consider using \"TEST ACTIONS\" first to verify the element.",
-                true,
-                "OK",
-                null,
-                0);
+                "Use TEST ACTIONS first to verify the element.");
     }
 
     public void errorMessageOperationFailed(ErrorMessage errorMessage) {
@@ -182,15 +80,11 @@ public class PerformMessage {
                 errorMessage.getErrorHeader(),
                 errorMessage.getErrorTitle(),
                 errorMessage.getErrorMessage());
-        //        errorMessage(
-        //                errorMessage.getErrorHeader(),
-        //                "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Operation Failed!</span>
-        // ❌",
-        //                "<span style='color: #E65100; font-weight: bold;'>Error Type:</span>",
-        //                "<span style='color: #2E7D32; font-weight: bold;'>" + errorMessage.getErrorTitle() +
-        // "</span>",
-        //                "<span style='font-style: italic;'>Detail:</span> " + errorMessage.getErrorMessage(),
-        //                0);
+        publish(
+                ScannerDialogPublisher.Severity.ERROR,
+                errorMessage.getErrorHeader(),
+                errorMessage.getErrorTitle(),
+                errorMessage.getErrorMessage());
     }
 
     public void errorMessage(String criteria, String msg1, String msg2, String msg3, String msg4, int height) {
@@ -198,103 +92,15 @@ public class PerformMessage {
     }
 
     public void showCustomDialog(String title, String message) {
-        // Create a JDialog as a custom message dialog
-        JDialog dialog = new JDialog();
-        dialog.setTitle(title);
-        dialog.setSize(400, 150);
-        dialog.setLocationRelativeTo(null); // Center on screen
-        dialog.setUndecorated(true); // Remove the default border
-
-        // Style the dialog's main panel
-        JPanel panel = new JPanel();
-        panel.setBackground(new Color(255, 218, 51)); // Light orange background
-        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
-        panel.setLayout(new BorderLayout());
-
-        // Style the message
-        JLabel messageLabel =
-                new JLabel("<html><span style='color: blue;'>" + message + "</span></html>", SwingConstants.CENTER);
-        messageLabel.setFont(new Font("Arial", Font.PLAIN, 14));
-        panel.add(messageLabel, BorderLayout.CENTER);
-
-        // OK button to close the dialog
-        JButton okButton = new JButton("OK");
-        okButton.addActionListener(e -> dialog.dispose());
-        panel.add(okButton, BorderLayout.SOUTH);
-
-        // Add panel to dialog and set properties
-        dialog.getContentPane().add(panel);
-        dialog.setAlwaysOnTop(true);
-        dialog.setVisible(true);
+        publish(ScannerDialogPublisher.Severity.INFO, title, message, null);
     }
 
     public void showCustomModalDialog(String title, String message, String message2) {
-        // Create a JDialog as a custom modal message dialog
-        JDialog dialog = new JDialog((Frame) null, title, true); // true makes it modal
-        dialog.setSize(300, 200);
-        dialog.setLocationRelativeTo(null); // Center on screen
-        dialog.setUndecorated(true); // Remove the default border
-
-        // Style the dialog's main panel
-        JPanel panel = new JPanel();
-        panel.setBackground(new Color(255, 218, 51)); // Light orange background
-        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
-        panel.setLayout(new BorderLayout());
-
-        // Style the message
-        JLabel messageLabel = new JLabel(
-                "<html><br><span style='color: blue;'>" + message
-                        + "</span><<br>------------------------------<br><span style='color: blue;'>" + message2
-                        + "</span></html>",
-                SwingConstants.CENTER);
-        messageLabel.setFont(new Font("Arial", Font.PLAIN, 14));
-        panel.add(messageLabel, BorderLayout.CENTER);
-
-        // OK button to close the dialog
-        JButton okButton = new JButton("OK");
-        okButton.addActionListener(e -> dialog.dispose());
-        panel.add(okButton, BorderLayout.SOUTH);
-
-        // Add panel to dialog and set properties
-        dialog.getContentPane().add(panel);
-        dialog.setAlwaysOnTop(true);
-        dialog.setVisible(true); // This will block other input until the dialog is closed
+        publish(ScannerDialogPublisher.Severity.INFO, title, message, message2);
     }
 
     public void showCustomModalDialogDrag(String title, String message, String message2) {
-        // Create a JDialog as a custom modal message dialog
-        JDialog dialog = new JDialog((Frame) null, title, true); // true makes it modal
-        dialog.setSize(300, 200);
-        dialog.setLocationRelativeTo(null); // Center on screen
-        dialog.setUndecorated(true); // Remove the default border
-
-        // Style the dialog's main panel
-        JPanel panel = new JPanel();
-        panel.setBackground(new Color(255, 218, 51)); // Light orange background
-        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
-        panel.setLayout(new BorderLayout());
-
-        // Style the message
-        JLabel messageLabel = new JLabel(
-                "<html><br><span style='color: blue;'>" + message
-                        + "</span><br>------------------------------<br><span style='color: blue;'>" + message2
-                        + "</span></html>",
-                SwingConstants.CENTER);
-        messageLabel.setFont(new Font("Arial", Font.PLAIN, 14));
-        panel.add(messageLabel, BorderLayout.CENTER);
-
-        // OK button to close the dialog
-        JButton okButton = new JButton("OK");
-        okButton.addActionListener(e -> dialog.dispose());
-        panel.add(okButton, BorderLayout.SOUTH);
-
-        // Add drag support
-        addDragSupport(dialog, panel);
-
-        // Add panel to dialog and set properties
-        dialog.getContentPane().add(panel);
-        dialog.setAlwaysOnTop(true);
-        dialog.setVisible(true); // This will block other input until the dialog is closed
+        publish(ScannerDialogPublisher.Severity.INFO, title, message, message2);
     }
 
     public ARExecution.DialogModal showCustomModalDialog(
@@ -307,175 +113,7 @@ public class PerformMessage {
             String firstButton,
             String secondButton,
             int height) {
-        // Create a JDialog as a custom modal message dialog
-        JDialog dialog = new JDialog((Frame) null, title, true); // true makes it modal
-        if (height > 0) {
-            dialog.setSize(600, height);
-        } else if (message2 != null && message3 == null && message4 == null) {
-            dialog.setSize(600, 210);
-        } else if (message2 != null && message3 != null && message4 == null) {
-            dialog.setSize(600, 250);
-        } else if (message2 != null && message3 != null && message4 != null) {
-            dialog.setSize(600, 280);
-        } else {
-            dialog.setSize(600, 150);
-        }
-
-        dialog.setLocationRelativeTo(null); // Center on screen
-        dialog.setUndecorated(true); // Remove the default border
-
-        // Style the dialog's main panel
-        JPanel panel = new JPanel();
-        panel.setBackground(new Color(255, 218, 51)); // Light orange background
-        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
-        panel.setLayout(new BorderLayout());
-
-        // Build the message
-        String titleMessage = "<html><br><span style='color: blue;'>";
-        titleMessage += "<span style='font-size: 14px; font-weight: bold;'>" + title
-                + "</span><br>------------------------------<br>";
-
-        String concatenateMsg = "<span style='color: blue;'>" + message;
-        if (message2 != null) {
-            concatenateMsg +=
-                    "</span><br>------------------------------<br><span style='color: blue;'>" + message2 + "</span>";
-        } else {
-            concatenateMsg += "</span><br>------------------------------<br><br>                            <br>";
-        }
-
-        if (message3 != null && message4 == null) {
-            concatenateMsg +=
-                    "<br>------------------------------<br><span style='color: blue;'>" + message3 + "</span></html>";
-        } else if (message3 != null && message4 != null) {
-            concatenateMsg += "<br>------------------------------<br><span style='color: blue;'>"
-                    + message3 + "</span><br>------------------------------<br><span style='color: blue;'>"
-                    + message4 + "</span><br><br></html>";
-        } else {
-            concatenateMsg += "</html>";
-        }
-
-        // Apply red color to message if redMsg is true
-        if (redMsg) {
-            concatenateMsg = concatenateMsg.replaceAll("blue", "red");
-        }
-        concatenateMsg = titleMessage + concatenateMsg;
-
-        // Create a JLabel to display the formatted message
-        JLabel messageLabel = new JLabel(concatenateMsg, SwingConstants.CENTER);
-        messageLabel.setFont(new Font("Arial", Font.PLAIN, 14));
-        panel.add(messageLabel, BorderLayout.CENTER);
-
-        final ARExecution.DialogModal[] status = {ARExecution.DialogModal.NONE};
-
-        if (!Strings.isNullOrEmpty(secondButton)) {
-
-            // Create a JPanel for the buttons with horizontal layout
-            JPanel buttonPanel = new JPanel();
-            buttonPanel.setLayout(new FlowLayout(FlowLayout.CENTER, 5, 0)); // Reduced horizontal gap to 5
-            buttonPanel.setBackground(new Color(255, 218, 51)); // Light orange background
-            buttonPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10)); // Reduced padding to 10
-
-            Dimension buttonSize = new Dimension(150, 20); // Set button width to 120 and height to 20
-
-            // OK button with custom gradient background
-
-            JButton okButton = new JButton(firstButton) {
-                @Override
-                protected void paintComponent(Graphics g) {
-                    if (isOpaque()) {
-                        Graphics2D g2 = (Graphics2D) g;
-                        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                        GradientPaint gradient =
-                                new GradientPaint(0, 0, Color.LIGHT_GRAY, getWidth(), getHeight(), Color.WHITE);
-                        g2.setPaint(gradient);
-                        g2.fillRect(0, 0, getWidth(), getHeight());
-                    }
-                    super.paintComponent(g);
-                }
-            };
-            okButton.setPreferredSize(buttonSize);
-            okButton.setFocusPainted(false);
-            buttonPanel.add(okButton);
-
-            // Stop button with custom gradient background
-            JButton stopButton = new JButton(secondButton) {
-                @Override
-                protected void paintComponent(Graphics g) {
-                    if (isOpaque()) {
-                        Graphics2D g2 = (Graphics2D) g;
-                        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                        GradientPaint gradient =
-                                new GradientPaint(0, 0, Color.LIGHT_GRAY, getWidth(), getHeight(), Color.WHITE);
-                        g2.setPaint(gradient);
-                        g2.fillRect(0, 0, getWidth(), getHeight());
-                    }
-                    super.paintComponent(g);
-                }
-            };
-            stopButton.setPreferredSize(buttonSize);
-            stopButton.setFocusPainted(false);
-            buttonPanel.add(stopButton);
-
-            // OK button action listener
-            okButton.addActionListener(new ActionListener() {
-                @Override
-                public void actionPerformed(ActionEvent e) {
-                    dialog.dispose();
-                    status[0] = ARExecution.DialogModal.OK;
-                }
-            });
-
-            // Stop button action listener
-            stopButton.addActionListener(new ActionListener() {
-                @Override
-                public void actionPerformed(ActionEvent e) {
-                    log.info("Stop button clicked!");
-                    dialog.dispose();
-                    status[0] = ARExecution.DialogModal.STOP;
-                }
-            });
-
-            panel.add(buttonPanel, BorderLayout.SOUTH);
-        } else {
-
-            Dimension buttonSize = new Dimension(150, 20); // Set button width to 120 and height to 20
-
-            // OK button with custom gradient background
-            JButton okButton = new JButton(firstButton) {
-                @Override
-                protected void paintComponent(Graphics g) {
-                    if (isOpaque()) {
-                        Graphics2D g2 = (Graphics2D) g;
-                        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                        GradientPaint gradient =
-                                new GradientPaint(0, 0, Color.LIGHT_GRAY, getWidth(), getHeight(), Color.WHITE);
-                        g2.setPaint(gradient);
-                        g2.fillRect(0, 0, getWidth(), getHeight());
-                    }
-                    super.paintComponent(g);
-                }
-            };
-            okButton.setPreferredSize(buttonSize);
-            okButton.setFocusPainted(false);
-
-            // OK button action listener
-            okButton.addActionListener(new ActionListener() {
-                @Override
-                public void actionPerformed(ActionEvent e) {
-                    dialog.dispose();
-                    status[0] = ARExecution.DialogModal.OK;
-                }
-            });
-
-            panel.add(okButton, BorderLayout.SOUTH);
-        }
-
-        // Add panel to dialog and set properties
-        dialog.getContentPane().add(panel);
-        dialog.setAlwaysOnTop(true);
-        dialog.setVisible(true); // This will block other input until the dialog is closed
-
-        return status[0];
+        return publishModal(title, message, message2, message3, message4, redMsg, firstButton, secondButton, 0, false);
     }
 
     public ARExecution.DialogModal showCustomModalDialogDrag(
@@ -488,112 +126,11 @@ public class PerformMessage {
             String firstButton,
             String secondButton,
             int height) {
-
-        // Create a JDialog as a custom modal message dialog
-        JDialog dialog = new JDialog((Frame) null, title, true); // Modal dialog
-        dialog.setUndecorated(true); // Remove the default border
-
-        // Set dialog size dynamically
-        if (height > 0) {
-            dialog.setSize(600, height);
-        } else if (message2 != null && message3 == null && message4 == null) {
-            dialog.setSize(600, 240);
-        } else if (message2 != null && message3 != null && message4 == null) {
-            dialog.setSize(600, 280);
-        } else if (message2 != null && message3 != null && message4 != null) {
-            dialog.setSize(600, 320);
-        } else {
-            dialog.setSize(600, 200);
-        }
-
-        dialog.setLocationRelativeTo(null); // Center on screen
-
-        // Main panel
-        JPanel panel = new JPanel();
-        panel.setBackground(new Color(255, 218, 51)); // Light orange background
-        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
-        panel.setLayout(new BorderLayout());
-
-        // Build the message
-        String titleMessage = "<html><br><span style='color: blue;'>"
-                + "<span style='font-size: 14px; font-weight: bold;'>" + title
-                + "</span><br>------------------------------<br>";
-
-        String concatenateMsg = "<span style='color: blue;'>" + message;
-        if (message2 != null) {
-            concatenateMsg +=
-                    "</span><br>------------------------------<br><span style='color: blue;'>" + message2 + "</span>";
-        } else {
-            concatenateMsg += "</span><br>------------------------------<br><br>                            <br>";
-        }
-
-        if (message3 != null && message4 == null) {
-            concatenateMsg +=
-                    "<br>------------------------------<br><span style='color: blue;'>" + message3 + "</span></html>";
-        } else if (message3 != null && message4 != null) {
-            concatenateMsg += "<br>------------------------------<br><span style='color: blue;'>"
-                    + message3 + "</span><br>------------------------------<br><span style='color: blue;'>"
-                    + message4 + "</span><br><br></html>";
-        } else {
-            concatenateMsg += "</html>";
-        }
-
-        // Apply red color if redMsg is true
-        if (redMsg) {
-            concatenateMsg = concatenateMsg.replaceAll("blue", "red");
-        }
-        concatenateMsg = titleMessage + concatenateMsg;
-
-        // Create a JLabel to display the formatted message
-        JLabel messageLabel = new JLabel(concatenateMsg, SwingConstants.CENTER);
-        messageLabel.setFont(new Font("Arial", Font.PLAIN, 14));
-        panel.add(messageLabel, BorderLayout.CENTER);
-
-        final ARExecution.DialogModal[] status = {ARExecution.DialogModal.NONE};
-
-        // Create button panel if second button exists
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 5, 0));
-        buttonPanel.setBackground(new Color(255, 218, 51));
-        buttonPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-
-        Dimension buttonSize = new Dimension(150, 20);
-
-        // OK button
-        JButton okButton = createStyledButton(firstButton);
-        okButton.setPreferredSize(buttonSize);
-        okButton.addActionListener(e -> {
-            dialog.dispose();
-            status[0] = ARExecution.DialogModal.OK;
-        });
-        buttonPanel.add(okButton);
-
-        // Stop button if provided
-        if (!Strings.isNullOrEmpty(secondButton)) {
-            JButton stopButton = createStyledButton(secondButton);
-            stopButton.setPreferredSize(buttonSize);
-            stopButton.addActionListener(e -> {
-                log.info("Stop button clicked!");
-                dialog.dispose();
-                status[0] = ARExecution.DialogModal.STOP;
-            });
-            buttonPanel.add(stopButton);
-        }
-
-        panel.add(buttonPanel, BorderLayout.SOUTH);
-
-        // Add drag support
-        addDragSupport(dialog, panel);
-
-        // Add panel to dialog
-        dialog.getContentPane().add(panel);
-        dialog.setAlwaysOnTop(true);
-        dialog.setVisible(true); // This blocks other input until the dialog is closed
-
-        return status[0];
+        return publishModal(title, message, message2, message3, message4, redMsg, firstButton, secondButton, 0, false);
     }
 
     public List<String> distributeMsg(List<String> lstOrigin) {
-        List<String> result = new ArrayList<>(3); // Initialize with capacity 3
+        List<String> result = new ArrayList<>(3);
 
         if (lstOrigin == null || lstOrigin.isEmpty()) {
             result.add(null);
@@ -605,7 +142,6 @@ public class PerformMessage {
         int listSize = lstOrigin.size();
 
         if (listSize <= 3) {
-            // Distribute evenly among 1-3 messages
             for (int i = 0; i < listSize; i++) {
                 result.add(lstOrigin.get(i));
             }
@@ -613,7 +149,6 @@ public class PerformMessage {
                 result.add(null);
             }
         } else if (listSize <= 6) {
-            // Distribute evenly among 2-3 messages
             String msg1 = "";
             String msg2 = "";
             String msg3 = "";
@@ -630,9 +165,7 @@ public class PerformMessage {
             result.add(msg1);
             result.add(msg2);
             result.add(msg3);
-
         } else {
-            // Distribute evenly among 3 messages
             String msg1 = "";
             String msg2 = "";
             String msg3 = "";
@@ -656,9 +189,6 @@ public class PerformMessage {
         return result;
     }
 
-    /**
-     * Creates a styled button with Windows 11 theme
-     */
     public ARExecution.DialogModal showCustomModalDialogDragWin11(
             String title,
             String message1,
@@ -669,14 +199,9 @@ public class PerformMessage {
             String firstButton,
             String secondButton,
             int height) {
-
-        return showCustomModalDialogDragWin11Timer(
-                title, message1, message2, message3, message4, redMsg, firstButton, secondButton, height, 0);
+        return publishModal(title, message1, message2, message3, message4, redMsg, firstButton, secondButton, 0, false);
     }
 
-    /**
-     * Creates a styled button with Windows 11 theme
-     */
     public ARExecution.DialogModal showCustomModalDialogDragWin11Timer(
             String title,
             String message1,
@@ -688,151 +213,10 @@ public class PerformMessage {
             String secondButton,
             int height,
             int seconds) {
-
-        // Create a JDialog as a custom modal message dialog
-        JDialog dialog = new JDialog((Frame) null, title, true); // Modal dialog
-        dialog.setUndecorated(true); // Remove the default border
-
-        // Set dialog size dynamically
-        if (height > 0) {
-            dialog.setSize(600, height);
-        } else if (message2 != null && message3 == null && message4 == null) {
-            dialog.setSize(600, 270);
-        } else if (message2 != null && message3 != null && message4 == null) {
-            dialog.setSize(600, 310);
-        } else if (message2 != null && message3 != null && message4 != null) {
-            dialog.setSize(600, 380);
-        } else {
-            dialog.setSize(600, 210);
-        }
-
-        dialog.setLocationRelativeTo(null); // Center on screen
-
-        // Main panel
-        JPanel panel = new JPanel();
-        panel.setBackground(new Color(243, 243, 243)); // Windows 11 Light Gray
-        panel.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(200, 200, 200)), // Border color
-                BorderFactory.createEmptyBorder(20, 20, 20, 20))); // Padding
-        panel.setLayout(new BorderLayout());
-
-        //                    Type	Emoji/Icon	Example Code
-        //                    Success	✅	log.info("✅ Java version is valid.");
-        //                    Info	ℹ️	log.info("ℹ️ Running version check...");
-        //                    Warning	⚠️	log.info("⚠️ Java version might be outdated.");
-        //                    Error	❌	log.info("❌ Java version is too old.");
-        //                    Stop	🛑	log.info("🛑 Application cannot continue.");
-        //                    Bug/Debug	🐛	log.info("🐛 Debug mode enabled.");
-        //                    Time	⏱️	log.info("⏱️ Checking environment...");
-        //                    Rocket/Start	🚀	log.info("🚀 Starting process...");
-        //                    Lock	🔒	log.info("🔒 Secure mode enabled.");
-        //                    Folder	📂	log.info("📂 Loading files...");
-        //                    Checkmark	✔️	log.info("✔️ All checks passed.");
-
-        // Build the message
-        String titleMessage = "<html><br><span style='color: blue;'>"
-                + "<span  style='font-size: 14px; font-weight: bold;'>" + title
-                + "</span><br>------------------------------<br>";
-
-        String concatenateMsg = "<span style='color: blue;'>" + message1;
-        if (message2 != null) {
-            concatenateMsg +=
-                    "</span><br>------------------------------<br><span style='color: blue;'>" + message2 + "</span>";
-        } else {
-            concatenateMsg += "</span><br>------------------------------<br><br>                            <br>";
-        }
-
-        if (message3 != null && message4 == null) {
-            concatenateMsg +=
-                    "<br>------------------------------<br><span style='color: blue;'>" + message3 + "</span></html>";
-        } else if (message3 != null && !message4.contains("to close")) {
-            concatenateMsg += "<br>------------------------------<br><span style='color: blue;'>"
-                    + message3 + "</span><br>------------------------------<br><span style='color: blue;'>"
-                    + message4 + "</span><br><br></html>";
-        } else {
-            concatenateMsg += "</html>";
-        }
-
-        // Apply red color if redMsg is true
-        if (redMsg) {
-            concatenateMsg = concatenateMsg.replaceAll("blue", "#D32F2F");
-        }
-
-        // Add timer message if seconds is greater than 0
-        if (seconds > 0) {
-            concatenateMsg = concatenateMsg.replace(
-                    "</html>",
-                    "<br>------------------------------<br><span style='color: green; font-weight:bold;'>"
-                            + (message4 != null ? message4 : "") + " " + seconds + " seconds!</span></html>");
-        }
-
-        concatenateMsg = titleMessage + concatenateMsg;
-
-        // Create a JLabel to display the formatted message
-        JLabel messageLabel = new JLabel(concatenateMsg, SwingConstants.CENTER);
-        messageLabel.setFont(new Font("Arial", Font.PLAIN, 14));
-        panel.add(messageLabel, BorderLayout.CENTER);
-
-        final ARExecution.DialogModal[] status = {ARExecution.DialogModal.NONE};
-
-        // Create button panel if second button exists
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 5, 0));
-        buttonPanel.setBackground(new Color(243, 243, 243)); // Windows 11 Light Gray
-        buttonPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-
-        Dimension buttonSize = new Dimension(150, 20);
-
-        // OK button
-        JButton okButton = createStyledButtonWin11(firstButton);
-        okButton.setPreferredSize(buttonSize);
-        okButton.addActionListener(e -> {
-            dialog.dispose();
-            status[0] = ARExecution.DialogModal.OK;
-        });
-        buttonPanel.add(okButton);
-
-        // Stop button if provided
-        if (!Strings.isNullOrEmpty(secondButton)) {
-            JButton stopButton = createStyledButtonWin11(secondButton);
-            stopButton.setPreferredSize(buttonSize);
-            stopButton.addActionListener(e -> {
-                log.info("Stop button clicked!");
-                dialog.dispose();
-                status[0] = ARExecution.DialogModal.STOP;
-            });
-            buttonPanel.add(stopButton);
-
-            if (seconds > 0) {
-                // Use a Timer to default to "Continue scan" (OK) after the specified delay
-                Timer timer = new Timer(seconds * 1000, e -> {
-                    // Simulate a click on the OK button (Continue scan)
-                    okButton.getActionListeners()[0].actionPerformed(
-                            new ActionEvent(okButton, ActionEvent.ACTION_PERFORMED, null));
-                });
-                timer.setRepeats(false); // Make sure the timer only runs once
-                timer.start();
-            }
-        }
-
-        panel.add(buttonPanel, BorderLayout.SOUTH);
-
-        // Add drag support
-        addDragSupport(dialog, panel);
-
-        // Add panel to dialog
-        dialog.getContentPane().add(panel);
-        dialog.setAlwaysOnTop(true);
-        dialog.setVisible(true); // This blocks other input until the dialog is closed
-
-        return status[0];
+        return publishModal(
+                title, message1, message2, message3, message4, redMsg, firstButton, secondButton, seconds, false);
     }
 
-    /**
-     * Windows 11 style modal dialog with optional live countdown & auto-close.
-     *
-     * message1..message3: optional blue lines
-     * message4: timer prefix shown in green (e.g. "Browser will close in")
-     */
     public ARExecution.DialogModal showCustomModalDialogDragWin11TimerAuto(
             String title,
             String message1,
@@ -844,163 +228,72 @@ public class PerformMessage {
             String secondButton,
             int height,
             int seconds) {
-
-        JDialog dialog = new JDialog((Frame) null, title, true);
-        dialog.setUndecorated(true);
-
-        if (height > 0) {
-            dialog.setSize(600, height);
-        } else if (message2 != null && message3 == null && message4 == null) {
-            dialog.setSize(600, 270);
-        } else if (message2 != null && message3 != null && message4 == null) {
-            dialog.setSize(600, 310);
-        } else if (message2 != null && message3 != null && message4 != null) {
-            dialog.setSize(600, 380);
-        } else {
-            dialog.setSize(600, 210);
-        }
-
-        dialog.setLocationRelativeTo(null);
-
-        JPanel panel = new JPanel(new BorderLayout());
-        panel.setBackground(new Color(243, 243, 243));
-        panel.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(200, 200, 200)),
-                BorderFactory.createEmptyBorder(20, 20, 20, 20)));
-
-        final String baseColor = redMsg ? "#D32F2F" : "blue";
-
-        // --- Build base HTML deterministically (NO timer line here) ---
-        java.util.function.Supplier<String> baseHtmlBuilder = () -> {
-            StringBuilder sb = new StringBuilder(512);
-
-            sb.append("<html><br>")
-                    .append("<span style='color:")
-                    .append(baseColor)
-                    .append(";'>")
-                    .append("<span style='font-size:14px; font-weight:bold;'>")
-                    .append(title)
-                    .append("</span>")
-                    .append("<br>------------------------------<br>");
-
-            // message1 (assume required)
-            sb.append("<span style='color:")
-                    .append(baseColor)
-                    .append(";'>")
-                    .append(message1 != null ? message1 : "")
-                    .append("</span>");
-
-            // message2
-            sb.append("<br>------------------------------<br>");
-            if (message2 != null) {
-                sb.append("<span style='color:")
-                        .append(baseColor)
-                        .append(";'>")
-                        .append(message2)
-                        .append("</span>");
-            } else {
-                sb.append("<br>&nbsp;<br>");
-            }
-
-            // message3
-            if (message3 != null) {
-                sb.append("<br>------------------------------<br>")
-                        .append("<span style='color:")
-                        .append(baseColor)
-                        .append(";'>")
-                        .append(message3)
-                        .append("</span>");
-            }
-
-            sb.append("</html>");
-            return sb.toString();
-        };
-
-        final String baseHtml = baseHtmlBuilder.get();
-
-        JLabel messageLabel = new JLabel(baseHtml, SwingConstants.CENTER);
-        messageLabel.setFont(new Font("Arial", Font.PLAIN, 14));
-        panel.add(messageLabel, BorderLayout.CENTER);
-
-        final ARExecution.DialogModal[] status = {ARExecution.DialogModal.NONE};
-
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 5, 0));
-        buttonPanel.setBackground(new Color(243, 243, 243));
-        buttonPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-
-        Dimension buttonSize = new Dimension(150, 20);
-
-        JButton okButton = createStyledButtonWin11(firstButton);
-        okButton.setPreferredSize(buttonSize);
-        okButton.addActionListener(e -> {
-            dialog.dispose();
-            status[0] = ARExecution.DialogModal.OK;
-        });
-        buttonPanel.add(okButton);
-
-        JButton stopButton = null;
-        if (!Strings.isNullOrEmpty(secondButton)) {
-            stopButton = createStyledButtonWin11(secondButton);
-            stopButton.setPreferredSize(buttonSize);
-            stopButton.addActionListener(e -> {
-                log.info("Stop button clicked!");
-                dialog.dispose();
-                status[0] = ARExecution.DialogModal.STOP;
-            });
-            buttonPanel.add(stopButton);
-        }
-
-        panel.add(buttonPanel, BorderLayout.SOUTH);
-
-        // --- Countdown line builder (uses message4 as prefix) ---
-        final JButton finalStopButton = stopButton;
-        java.util.function.IntFunction<String> htmlWithTimer = (sec) -> {
-            String prefix =
-                    (message4 != null && !message4.trim().isEmpty()) ? message4.trim() : "This window will close in";
-
-            String timerLine =
-                    "<br>------------------------------<br>" + "<span style='color: green; font-weight:bold;'>"
-                            + prefix
-                            + " " + sec + " second" + (sec == 1 ? "" : "s") + "!" + "</span>";
-
-            // Append the timer line right before </html> reliably
-            int idx = baseHtml.lastIndexOf("</html>");
-            if (idx < 0) {
-                // extremely defensive fallback
-                return baseHtml + timerLine + "</html>";
-            }
-            return baseHtml.substring(0, idx) + timerLine + "</html>";
-        };
-
-        // ---- Timer with live countdown & auto-close ----
-        if (seconds > 0) {
-            final int[] remaining = {seconds};
-
-            messageLabel.setText(htmlWithTimer.apply(remaining[0]));
-
-            Timer timer = new Timer(1000, e -> {
-                remaining[0]--;
-                if (remaining[0] <= 0) {
-                    ((Timer) e.getSource()).stop();
-                    if (finalStopButton != null) finalStopButton.doClick();
-                    else okButton.doClick();
-                } else {
-                    messageLabel.setText(htmlWithTimer.apply(remaining[0]));
-                }
-            });
-            timer.setRepeats(true);
-            timer.start();
-        }
-
-        addDragSupport(dialog, panel);
-
-        dialog.getContentPane().add(panel);
-        dialog.setAlwaysOnTop(true);
-        dialog.setVisible(true);
-
-        return status[0];
+        return publishModal(
+                title, message1, message2, message3, message4, redMsg, firstButton, secondButton, seconds, true);
     }
 
+    private void publishWarning(String title, String message1, String message2, String message3) {
+        publish(ScannerDialogPublisher.Severity.WARNING, title, message1, combine(message2, message3, null));
+    }
+
+    private ARExecution.DialogModal publishModal(
+            String title,
+            String message1,
+            String message2,
+            String message3,
+            String message4,
+            boolean redMsg,
+            String firstButton,
+            String secondButton,
+            int seconds,
+            boolean autoStop) {
+        ScannerDialogPublisher.Severity severity = redMsg
+                ? ScannerDialogPublisher.Severity.ERROR
+                : ScannerDialogPublisher.Severity.INFO;
+        String body = combine(message2, message3, message4);
+        if (seconds > 0) {
+            String timerText =
+                    autoStop ? "Auto action in " + seconds + " seconds." : "Continues in " + seconds + " seconds.";
+            body = combine(body, timerText, null);
+        }
+        boolean sent = publish(severity, title, message1, body);
+        if (!sent) {
+            log.warn("React dialog unavailable; {}: {} {}", title, message1, body == null ? "" : body);
+        }
+        if (autoStop && seconds > 0 && secondButton != null && !secondButton.isBlank()) {
+            return ARExecution.DialogModal.STOP;
+        }
+        return ARExecution.DialogModal.OK;
+    }
+
+    private boolean publish(ScannerDialogPublisher.Severity severity, String title, String header, String body) {
+        String safeTitle = title == null || title.isBlank() ? "Application Message" : title;
+        String safeHeader = header == null ? "" : header;
+        String safeBody = body == null ? "" : body;
+        boolean sent = dialogPublisher.alert(severity, safeTitle, safeHeader, safeBody);
+        if (!sent) {
+            log.warn("React alert unavailable [{}] {} - {} {}", severity, safeTitle, safeHeader, safeBody);
+        }
+        return sent;
+    }
+
+    private String combine(String first, String second, String third) {
+        StringBuilder body = new StringBuilder();
+        appendLine(body, first);
+        appendLine(body, second);
+        appendLine(body, third);
+        return body.isEmpty() ? null : body.toString();
+    }
+
+    private void appendLine(StringBuilder body, String value) {
+        if (value == null || value.isBlank()) {
+            return;
+        }
+        if (!body.isEmpty()) {
+            body.append("\n");
+        }
+        body.append(value);
+    }
     public String renderInstructionActions(InstructionLoad instruction) {
         // List of valid actions
         List<String> validActions = Arrays.asList("SET", "GET", "CK", "E");

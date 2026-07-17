@@ -1,11 +1,11 @@
 package com.allinweb.ch.util;
 
 import com.google.common.base.Strings;
+import com.allinweb.ch.facade.ScannerDialogPublisher;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.*;
-import javax.swing.*;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -129,12 +129,10 @@ public class ARPriorities {
     public void loadPriorities() {
         String priorityPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_PRIORITY);
         if (priorityPath == null || priorityPath.isBlank()) {
-            JOptionPane.showMessageDialog(
-                    null,
-                    "Priority configuration folder is not set. Please set the folder of priority configuration file "
-                            + ARConstantsEngine.FILE_NAME_PRIORITIES,
+            publishPriorityWarning(
                     "Priority configuration folder not set",
-                    JOptionPane.WARNING_MESSAGE);
+                    "Priority configuration folder is not set. Please set the folder of priority configuration file "
+                            + ARConstantsEngine.FILE_NAME_PRIORITIES);
             log.warn("Priority configuration folder not set");
             throw new RuntimeException("Priority configuration not set");
         }
@@ -142,12 +140,10 @@ public class ARPriorities {
         priorityList = new ArrayList<>();
         File prioritiesFile = new File(prioritiesFileName);
         if (!prioritiesFile.exists()) {
-            JOptionPane.showMessageDialog(
-                    null,
-                    "Priority configuration file is missing. Please check that the priority configuration is "
-                            + "set correctly or create the file: " + prioritiesFileName,
+            publishPriorityWarning(
                     "Priority configuration file missing",
-                    JOptionPane.WARNING_MESSAGE);
+                    "Priority configuration file is missing. Please check that the priority configuration is "
+                            + "set correctly or create the file: " + prioritiesFileName);
 
             log.warn("Priority configuration file missing" + prioritiesFileName);
             throw new RuntimeException("Priority configuration file missing");
@@ -170,6 +166,14 @@ public class ARPriorities {
             priorityList.sort(Comparator.comparingInt(Priority::getPriorityNumber));
         } catch (IOException e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    private void publishPriorityWarning(String title, String message) {
+        boolean sent = ScannerDialogPublisher.getInstance()
+                .alert(ScannerDialogPublisher.Severity.WARNING, title, title, message);
+        if (!sent) {
+            log.warn("{}: {}", title, message);
         }
     }
 
