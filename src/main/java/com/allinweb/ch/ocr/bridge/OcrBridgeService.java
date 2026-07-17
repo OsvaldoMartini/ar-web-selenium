@@ -7,7 +7,6 @@ import com.allinweb.ch.vision.RasterImage;
 import com.sun.jna.Pointer;
 import com.sun.jna.ptr.IntByReference;
 import com.sun.jna.ptr.PointerByReference;
-import java.awt.image.BufferedImage;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
@@ -16,8 +15,8 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * Native OCR engine — drop-in replacement for {@link com.allinweb.ch.vision.WebPageOcrService}
  * routed through {@code ar_ocr.dll} via JNA. API parity is intentional:
- * {@link #recognize(BufferedImage)}, {@link #recognize(BufferedImage, OcrConfig)},
- * and {@link #recognizeMultiPass(BufferedImage, OcrConfig)} return the same
+ * {@link #recognize(RasterImage)}, {@link #recognize(RasterImage, OcrConfig)},
+ * and {@link #recognizeMultiPass(RasterImage, OcrConfig)} return the same
  * {@link OcrResult} shape as the Java side.
  *
  * <p>The DLL is located via {@code jna.library.path}, which this class sets at
@@ -100,17 +99,6 @@ public final class OcrBridgeService {
         return recognize(image.width(), image.height(), bgraBytes(image), cfg);
     }
 
-    /** Single-pass OCR. */
-    public static OcrResult recognize(BufferedImage image) {
-        return recognize(image, null);
-    }
-
-    /** Single-pass OCR honouring config overrides for engine params. */
-    public static OcrResult recognize(BufferedImage image, OcrConfig cfg) {
-        if (image == null) return empty();
-        return recognize(image.getWidth(), image.getHeight(), bgraBytes(image), cfg);
-    }
-
     private static OcrResult recognize(int width, int height, byte[] pixels, OcrConfig cfg) {
         try {
             OcrConfigC.ByReference cfgC = toCfgC(cfg, /*multipass=*/ false);
@@ -139,17 +127,6 @@ public final class OcrBridgeService {
     public static OcrResult recognizeMultiPass(RasterImage image, OcrConfig cfg) {
         if (image == null) return empty();
         return recognizeMultiPass(image.width(), image.height(), bgraBytes(image), cfg);
-    }
-
-    /**
-     * Multi-pass OCR matching {@link com.allinweb.ch.vision.WebPageOcrService#recognizeMultiPass}:
-     * raw + (optional) CLAHE-preprocessed pass + (optional) red/blue/any
-     * button detection. Cross-pass IoU dedup at the configured threshold
-     * (default 0.6).
-     */
-    public static OcrResult recognizeMultiPass(BufferedImage image, OcrConfig cfg) {
-        if (image == null) return empty();
-        return recognizeMultiPass(image.getWidth(), image.getHeight(), bgraBytes(image), cfg);
     }
 
     private static OcrResult recognizeMultiPass(int width, int height, byte[] pixels, OcrConfig cfg) {
@@ -193,13 +170,6 @@ public final class OcrBridgeService {
     }
 
     // -- Helpers ---------------------------------------------------------
-
-    private static byte[] bgraBytes(BufferedImage img) {
-        int w = img.getWidth();
-        int h = img.getHeight();
-        int[] argb = img.getRGB(0, 0, w, h, null, 0, w);
-        return bgraBytes(argb);
-    }
 
     private static byte[] bgraBytes(RasterImage image) {
         return bgraBytes(image.copyRgb());

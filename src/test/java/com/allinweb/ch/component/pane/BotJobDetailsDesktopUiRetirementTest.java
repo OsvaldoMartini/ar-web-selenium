@@ -328,6 +328,7 @@ class BotJobDetailsDesktopUiRetirementTest {
     @Test
     void ocrDomainUsesNeutralBoundsInsteadOfAwtTypes() throws IOException {
         String ocrWord = Files.readString(SOURCE_ROOT.resolve("ocr/bridge/OcrWord.java"));
+        String ocrBridgeService = Files.readString(SOURCE_ROOT.resolve("ocr/bridge/OcrBridgeService.java"));
         String visionElement = Files.readString(SOURCE_ROOT.resolve("vision/VisionElement.java"));
         String ocrBox = Files.readString(SOURCE_ROOT.resolve("ocr/bridge/OcrBox.java"));
         String openCvUtils = Files.readString(SOURCE_ROOT.resolve("vision/ocr/OcrOpenCvUtils.java"));
@@ -358,6 +359,7 @@ class BotJobDetailsDesktopUiRetirementTest {
         assertFalse(buttonDetectionService.contains("BufferedImage"));
         assertFalse(ocrTestService.contains("BufferedImage"));
         assertFalse(pageOcrDumper.contains("BufferedImage"));
+        assertFalse(ocrBridgeService.contains("BufferedImage"));
         assertTrue(ocrWord.contains("OcrBox"));
         assertTrue(visionElement.contains("OcrBox"));
     }
