@@ -1,7 +1,6 @@
 package com.allinweb.ch.vision.ocr;
 
 import com.allinweb.ch.vision.RasterImage;
-import java.awt.image.BufferedImage;
 import org.opencv.core.*;
 
 public class OcrOpenCvUtils {
@@ -23,32 +22,6 @@ public class OcrOpenCvUtils {
         Mat mat = new Mat(height, width, CvType.CV_8UC3);
         mat.put(0, 0, data);
         return mat;
-    }
-
-    public static Mat bufferedImageToMat(BufferedImage bi) {
-        int width = bi.getWidth();
-        int height = bi.getHeight();
-        byte[] data = new byte[width * height * 3];
-        int offset = 0;
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                int rgb = bi.getRGB(x, y);
-                data[offset++] = (byte) (rgb & 0xff);
-                data[offset++] = (byte) ((rgb >> 8) & 0xff);
-                data[offset++] = (byte) ((rgb >> 16) & 0xff);
-            }
-        }
-
-        Mat mat = new Mat(height, width, CvType.CV_8UC3);
-        mat.put(0, 0, data);
-        return mat;
-    }
-
-    public static BufferedImage matToBufferedImage(Mat matrix) {
-        RasterImage raster = matToRasterImage(matrix);
-        BufferedImage img = new BufferedImage(raster.width(), raster.height(), BufferedImage.TYPE_INT_RGB);
-        img.setRGB(0, 0, raster.width(), raster.height(), raster.copyRgb(), 0, raster.width());
-        return img;
     }
 
     public static RasterImage matToRasterImage(Mat matrix) {

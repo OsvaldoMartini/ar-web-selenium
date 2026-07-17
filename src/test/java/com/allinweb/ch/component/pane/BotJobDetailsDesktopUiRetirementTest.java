@@ -348,6 +348,9 @@ class BotJobDetailsDesktopUiRetirementTest {
         assertFalse(tess4jAdapter.contains("java.awt.Rectangle"));
         assertFalse(tess4jAdapter.contains("import java.awt"));
         assertFalse(openCvUtils.contains("DataBufferByte"));
+        assertFalse(openCvUtils.contains("BufferedImage"));
+        assertFalse(openCvUtils.contains("bufferedImageToMat"));
+        assertFalse(openCvUtils.contains("matToBufferedImage"));
         assertFalse(annotatedRenderer.contains("BasicStroke"));
         assertFalse(annotatedRenderer.contains("java.awt.Color"));
         assertFalse(annotatedRenderer.contains("Graphics2D"));
