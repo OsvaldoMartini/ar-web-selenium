@@ -1,8 +1,11 @@
 package com.allinweb.ch.component.pane;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.allinweb.ch.vision.RasterImage;
+import com.allinweb.ch.vision.RasterImageIO;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -337,6 +340,7 @@ class BotJobDetailsDesktopUiRetirementTest {
         String tess4jAdapter = Files.readString(SOURCE_ROOT.resolve("vision/Tess4jOcrBoxAdapter.java"));
         String annotatedRenderer = Files.readString(SOURCE_ROOT.resolve("vision/AnnotatedImageRenderer.java"));
         String webScreenshotCapture = Files.readString(SOURCE_ROOT.resolve("util/WebScreenshotCapture.java"));
+        String rasterImageIo = Files.readString(SOURCE_ROOT.resolve("vision/RasterImageIO.java"));
         String ocrTestService = Files.readString(SOURCE_ROOT.resolve("facade/OcrTestService.java"));
         String pageOcrDumper = Files.readString(SOURCE_ROOT.resolve("util/PageOcrDumper.java"));
 
@@ -363,8 +367,23 @@ class BotJobDetailsDesktopUiRetirementTest {
         assertFalse(ocrTestService.contains("BufferedImage"));
         assertFalse(pageOcrDumper.contains("BufferedImage"));
         assertFalse(ocrBridgeService.contains("BufferedImage"));
+        assertFalse(rasterImageIo.contains("BufferedImage"));
         assertTrue(ocrWord.contains("OcrBox"));
         assertTrue(visionElement.contains("OcrBox"));
+    }
+
+    @Test
+    void rasterImageIoRoundTripsPngWithoutBufferedImageBoundary() throws IOException {
+        RasterImage source = new RasterImage(2, 2, new int[] {0xff0000, 0x00ff00, 0x0000ff, 0xffffff});
+
+        RasterImage decoded = RasterImageIO.readPng(RasterImageIO.toPngBytes(source));
+
+        assertEquals(2, decoded.width());
+        assertEquals(2, decoded.height());
+        assertEquals(0xff0000, decoded.pixel(0, 0));
+        assertEquals(0x00ff00, decoded.pixel(1, 0));
+        assertEquals(0x0000ff, decoded.pixel(0, 1));
+        assertEquals(0xffffff, decoded.pixel(1, 1));
     }
 
     @Test

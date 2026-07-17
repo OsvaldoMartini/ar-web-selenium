@@ -3,6 +3,7 @@ package com.allinweb.ch.vision;
 import com.allinweb.ch.model.OcrConfig;
 import com.allinweb.ch.ocr.bridge.OcrResult;
 import com.allinweb.ch.ocr.bridge.OcrWord;
+import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
@@ -19,7 +20,7 @@ final class Tess4jRasterOcrAdapter {
         if (image == null) return new OcrResult("", new ArrayList<>());
         try {
             ITesseract tess = WebPageOcrService.createEngine(cfg);
-            List<Word> words = tess.getWords(RasterImageIO.toBufferedImage(image), ITessAPI.TessPageIteratorLevel.RIL_WORD);
+            List<Word> words = tess.getWords(toBufferedImage(image), ITessAPI.TessPageIteratorLevel.RIL_WORD);
             List<OcrWord> out = new ArrayList<>();
             StringBuilder full = new StringBuilder();
             for (Word word : words) {
@@ -33,5 +34,11 @@ final class Tess4jRasterOcrAdapter {
             log.warn("OCR recognize failed: {}", e.getMessage(), e);
             return new OcrResult("", new ArrayList<>());
         }
+    }
+
+    private static BufferedImage toBufferedImage(RasterImage image) {
+        BufferedImage buffered = new BufferedImage(image.width(), image.height(), BufferedImage.TYPE_INT_RGB);
+        buffered.setRGB(0, 0, image.width(), image.height(), image.copyRgb(), 0, image.width());
+        return buffered;
     }
 }
