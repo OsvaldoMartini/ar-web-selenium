@@ -9,8 +9,6 @@ import com.allinweb.ch.util.ARExecution;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.google.common.base.Strings;
-import java.awt.*;
-import java.awt.image.BufferedImage;
 import java.io.*;
 import java.nio.file.Files;
 import java.time.LocalDateTime;
@@ -19,12 +17,10 @@ import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import javax.imageio.ImageIO;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.usermodel.Font;
-import org.apache.poi.util.IOUtils;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.openqa.selenium.OutputType;
 import org.openqa.selenium.TakesScreenshot;
@@ -616,34 +612,6 @@ public class ExcelWriter {
         public ManagedExcelAction insertScreenshotAfterLastRowOfColumn(int columnIndex, WebDriver webDriver) {
             int afterLastRowIndex = sheet.getLastRowNum() + 1;
             return insertScreenshotAtCoordinates(afterLastRowIndex, columnIndex, webDriver);
-        }
-
-        public ManagedExcelAction insertScreenshotAtCoordinates(int rowIndex, int columnIndex) {
-            Rectangle screenRect = new Rectangle(Toolkit.getDefaultToolkit().getScreenSize());
-            try {
-                BufferedImage capture = new Robot().createScreenCapture(screenRect);
-                File tempFile = File.createTempFile("screenshot", ".png");
-                ImageIO.write(capture, "png", tempFile);
-                FileInputStream fis = new FileInputStream(tempFile);
-                byte[] bytes = IOUtils.toByteArray(fis);
-                int pictureIdx = workbook.addPicture(bytes, Workbook.PICTURE_TYPE_PNG);
-                fis.close();
-                CreationHelper helper = workbook.getCreationHelper();
-                ClientAnchor imageAnchor = helper.createClientAnchor();
-                imageAnchor.setCol1(columnIndex);
-                imageAnchor.setRow1(rowIndex);
-                imageAnchor.setCol2(columnIndex + 8);
-                imageAnchor.setRow2(rowIndex + 1);
-                Drawing drawing = sheet.createDrawingPatriarch();
-                Picture pict = drawing.createPicture(imageAnchor, pictureIdx);
-                // pict.resize();
-                Row row = getOrCreateRow(rowIndex);
-                getOrCreateColumnCell(row, columnIndex);
-                row.setHeightInPoints(300);
-            } catch (IOException | AWTException e) {
-                log.info(e.getMessage());
-            }
-            return this;
         }
 
         public ManagedExcelAction insertScreenshotAtCoordinates(int rowIndex, int columnIndex, WebDriver driver) {

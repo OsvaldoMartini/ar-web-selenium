@@ -1,6 +1,7 @@
 package com.allinweb.ch.vision.ocr;
 
-import java.awt.image.*;
+import java.awt.image.BufferedImage;
+import java.awt.image.DataBufferByte;
 import org.opencv.core.*;
 
 public class OcrOpenCvUtils {

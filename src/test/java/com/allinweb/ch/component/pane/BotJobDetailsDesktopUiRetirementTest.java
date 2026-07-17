@@ -307,13 +307,18 @@ class BotJobDetailsDesktopUiRetirementTest {
     void toolbarFileActionsDoNotUseDesktopAwtOpeners() throws IOException {
         String nativeOperations = Files.readString(SOURCE_ROOT.resolve("facade/BotJobNativeOperationService.java"));
         String excelUtils = Files.readString(SOURCE_ROOT.resolve("util/ExcelUtils.java"));
+        String excelWriter = Files.readString(SOURCE_ROOT.resolve("readersAndWriters/ExcelWriter.java"));
         String compiledNativeOperations = nativeOperations.replaceAll("(?s)/\\*.*?\\*/", "");
         String compiledExcelUtils = excelUtils.replaceAll("(?s)/\\*.*?\\*/", "");
+        String compiledExcelWriter = excelWriter.replaceAll("(?s)/\\*.*?\\*/", "");
 
         assertFalse(compiledNativeOperations.contains("java.awt.Desktop"));
         assertFalse(compiledNativeOperations.contains("Desktop.getDesktop"));
         assertFalse(compiledExcelUtils.contains("import java.awt.*"));
         assertFalse(compiledExcelUtils.contains("Desktop.getDesktop"));
+        assertFalse(compiledExcelWriter.contains("import java.awt.*"));
+        assertFalse(compiledExcelWriter.contains("new Robot()"));
+        assertFalse(compiledExcelWriter.contains("Toolkit.getDefaultToolkit"));
     }
 
     @Test

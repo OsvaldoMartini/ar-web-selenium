@@ -1,6 +1,6 @@
 package com.allinweb.ch.vision;
 
-import java.awt.*;
+import java.awt.Rectangle;
 import java.util.Map;
 import lombok.Data;
 
