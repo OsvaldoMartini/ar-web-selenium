@@ -1,9 +1,8 @@
-package com.allinweb.ch.component.scene;
+package com.allinweb.ch.facade;
 
 import com.allinweb.ch.component.pane.ARScannedElementPaneProvider;
 import com.allinweb.ch.component.pane.ARScannedElementPanePort;
 import com.allinweb.ch.driver.ARWebDriver;
-import com.allinweb.ch.facade.*;
 import com.allinweb.ch.model.*;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
@@ -25,7 +24,7 @@ import org.openqa.selenium.WebDriver;
 
 @ClientEndpoint
 @Slf4j
-public class ARScannedElementScene {
+public class ScannerRuntime {
 
     private static final DateTimeFormatter FORMAT_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
     private static final CountDownLatch latch = new CountDownLatch(1);
@@ -37,7 +36,7 @@ public class ARScannedElementScene {
     private static final PerformMessage performMessage = PerformMessage.getInstance();
     private static final PerformActions performActions = PerformActions.getInstance();
     private static final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
-    protected static volatile ARScannedElementScene instance;
+    protected static volatile ScannerRuntime instance;
     private final Gson gson = new Gson();
     private HomeBankingLoadDTO homeBankingLoadDTO;
 
@@ -92,7 +91,7 @@ public class ARScannedElementScene {
             new ScannerElementDetailsSelectionService();
     private final ScannerCloseRequestService scannerCloseRequestService = new ScannerCloseRequestService();
     // Private constructor to prevent instantiation
-    private ARScannedElementScene() {
+    private ScannerRuntime() {
 
         this.arScannedElementPane = ARScannedElementPaneProvider.getInstance().currentPane();
         ScannerShellLifecycle.getInstance().install(new ScannerRuntimeShellHandler(this));
@@ -101,11 +100,11 @@ public class ARScannedElementScene {
                         new ScannerRuntimeDataPorts.InsertBlockListsPort(performLists), arScannedElementPane);
     }
 
-    public static ARScannedElementScene getInstance() {
+    public static ScannerRuntime getInstance() {
         if (instance == null) {
-            synchronized (ARScannedElementScene.class) {
+            synchronized (ScannerRuntime.class) {
                 if (instance == null) {
-                    instance = new ARScannedElementScene();
+                    instance = new ScannerRuntime();
                 }
             }
         }

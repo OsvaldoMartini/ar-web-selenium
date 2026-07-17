@@ -26,7 +26,7 @@ import org.junit.jupiter.api.Test;
  * its {@code mapLoops}/{@code jumpGoto} dispatch, where the forward-GOTO NPE tracked as finding C-1
  * lives) can only run on an instance of {@code ARScannedElementPane}. That class initializes a
  * {@code WebView} as an instance-field initializer, which JavaFX requires to happen on the FX
- * Application Thread, and it eagerly loads the {@code ARScannedElementScene} singleton as a static
+ * Application Thread, and it eagerly loads the {@code ScannerRuntime} singleton as a static
  * field — so touching the class at all cascades into constructing another full JavaFX scene. There is
  * no existing JavaFX test bootstrap in this suite (no {@code Platform.startup}/TestFX anywhere under
  * {@code src/test}), and building one just for this would be exactly the kind of coupling Phase 3 of the

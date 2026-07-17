@@ -25,7 +25,7 @@ public final class ScannerRuntimeCloseRequest implements ScannerCloseRequestServ
 
     @Override
     public void interruptThreads() {
-        // ARScannedElementScene no longer owns UI threads directly; executor shutdown is handled below.
+        // ScannerRuntime no longer owns UI threads directly; executor shutdown is handled below.
     }
 
     @Override

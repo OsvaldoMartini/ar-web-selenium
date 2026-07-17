@@ -3854,7 +3854,7 @@ public class ARScannedElementPane extends ARPane
      * the user clicks Create. If the user cancels, the runnable is dropped.
      *
      * <p>Must be called on the JavaFX thread. The websocket-originated call
-     * site in {@code ARScannedElementScene.stepsInsertManyDTO} wraps this in
+     * site in {@code ScannerRuntime.stepsInsertManyDTO} wraps this in
      * {@code Platform.runLater}.
      */
     public void ensureBlockSelectedOrPrompt(Runnable afterBlockReady) {

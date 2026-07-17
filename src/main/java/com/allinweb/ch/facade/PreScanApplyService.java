@@ -23,7 +23,7 @@ import lombok.extern.slf4j.Slf4j;
  * pane is closed.
  *
  * <p>The legacy Apply path forwards {@code NEW_ELEMENT_DTO} / {@code SEND_ALL_ELEMENTS_DTO} to the
- * scanner element WebSocket session, consumed by {@code ARScannedElementScene} ->
+ * scanner element WebSocket session, consumed by {@code ScannerRuntime} ->
  * {@code performInsertManyDTO} — which silently no-ops when AR Web Factory isn't open. This
  * service is the pane-free equivalent used as the fallback: it mirrors
  * {@code ARScannedElementPane.prepareToInsertElementDTO} (manyElements=true) field-for-field but
@@ -210,7 +210,7 @@ public final class PreScanApplyService {
         return instruction;
     }
 
-    /** Same refresh {@code ARScannedElementScene.updateBotJobTasks} performs after a pane insert. */
+    /** Same refresh {@code ScannerRuntime.updateBotJobTasks} performs after a pane insert. */
     private void refreshBotJobTasks(int botJobId, int homeBankingId) {
         ErrorMessage errorMessage = performDBEngine.loadCompleteJobs(botJobId);
         if (errorMessage != null) {

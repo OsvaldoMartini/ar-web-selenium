@@ -18,6 +18,7 @@ class BotJobDetailsJavaFxRetirementTest {
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/scene/ARViewBotJobScene.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ARMainDashboardPane.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/scene/ARMainScene.java")));
+        assertFalse(Files.exists(SOURCE_ROOT.resolve("component/scene/ARScannedElementScene.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/scene/JavaFxScannerModalStageFactory.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("facade/ScannerModalStageService.java")));
     }

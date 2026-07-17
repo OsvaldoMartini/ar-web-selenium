@@ -1,15 +1,14 @@
-package com.allinweb.ch.component.scene;
+package com.allinweb.ch.facade;
 
-import com.allinweb.ch.facade.ScannerShellLifecycle;
 import com.allinweb.ch.model.BlockLoadDTO;
 import com.allinweb.ch.model.BotJobLoadDTO;
 import com.allinweb.ch.model.HomeBankingLoadDTO;
 import java.util.Objects;
 
 final class ScannerRuntimeShellHandler implements ScannerShellLifecycle.Handler {
-    private final ARScannedElementScene runtime;
+    private final ScannerRuntime runtime;
 
-    ScannerRuntimeShellHandler(ARScannedElementScene runtime) {
+    ScannerRuntimeShellHandler(ScannerRuntime runtime) {
         this.runtime = Objects.requireNonNull(runtime, "runtime");
     }
 
