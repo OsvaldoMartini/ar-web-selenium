@@ -16,6 +16,7 @@ class BotJobDetailsJavaFxRetirementTest {
     void legacyBotJobDetailsPaneAndSceneAreDeleted() {
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ARViewBotJobPane.java")));
         assertFalse(Files.exists(SOURCE_ROOT.resolve("component/scene/ARViewBotJobScene.java")));
+        assertFalse(Files.exists(SOURCE_ROOT.resolve("component/pane/ARMainDashboardPane.java")));
     }
 
     @Test

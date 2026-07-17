@@ -1,6 +1,6 @@
 package com.allinweb.ch.component.scene;
 
-import com.allinweb.ch.component.pane.ARMainDashboardPane;
+import com.allinweb.ch.component.pane.MainDashboardPresentationAdapter;
 import com.allinweb.ch.component.pane.base.IARPane;
 import com.allinweb.ch.component.scene.base.ARScene;
 import com.allinweb.ch.facade.MainShellLifecycle;
@@ -9,6 +9,9 @@ import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.scene.Scene;
+import javafx.scene.Node;
+import javafx.scene.layout.AnchorPane;
+import javafx.scene.layout.Pane;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
@@ -23,14 +26,14 @@ public class ARMainScene extends ARScene {
     private static final Double SCENE_HEIGHT = 600D;
     private static final Double SCENE_WIDTH = 1100D;
     private static final String TITLE = "AR Web Main Dashboard";
-    private static final ARMainDashboardPane arMainDashboardPane;
+    private static final MainDashboardPresentationAdapter mainDashboardPresentation;
     private static final ARPropertyManager arPropertyManager;
     protected static volatile ARMainScene instance;
     private static Server jettyServer;
     private static ServerContainer wsContainer;
 
     static {
-        arMainDashboardPane = ARMainDashboardPane.getInstance();
+        mainDashboardPresentation = MainDashboardPresentationAdapter.getInstance();
         arPropertyManager = ARPropertyManager.getInstance();
         //        webSocketSessionManager = WebSocketSessionManager.getInstance();
         //        try {
@@ -89,8 +92,7 @@ public class ARMainScene extends ARScene {
     @Override
     public IARPane buildPane() {
         //        initiateJetty();
-        //        arMainPane.initialize(webDriverList);
-        return arMainDashboardPane;
+        return new EmptyMainPane();
     }
 
     @Override
@@ -121,7 +123,7 @@ public class ARMainScene extends ARScene {
 
     public void showModal() {
 
-        arMainDashboardPane.initialize(webDriverList, isEnabledLicence, initialSessionId);
+        mainDashboardPresentation.initialize(webDriverList, isEnabledLicence, initialSessionId);
 
         if (modalStage == null) {
             modalStage = new Stage();
@@ -309,6 +311,36 @@ public class ARMainScene extends ARScene {
         public void openMain(boolean enabledLicence, String initialSessionId) {
             ARMainScene.this.initialize(enabledLicence, initialSessionId);
             ARMainScene.this.showModal();
+        }
+    }
+
+    private static final class EmptyMainPane implements IARPane {
+        private final AnchorPane pane = new AnchorPane();
+
+        @Override
+        public Pane createPane() {
+            return pane;
+        }
+
+        @Override
+        public Pane getPaneReference() {
+            return pane;
+        }
+
+        @Override
+        public void initUIComponents() {}
+
+        @Override
+        public void initUIBehaviour() {}
+
+        @Override
+        public void clear() {
+            pane.getChildren().clear();
+        }
+
+        @Override
+        public void addNodesToPane(Pane panel, Node... toAdd) {
+            panel.getChildren().addAll(toAdd);
         }
     }
 }

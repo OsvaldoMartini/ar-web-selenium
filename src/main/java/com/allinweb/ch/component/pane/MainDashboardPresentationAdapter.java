@@ -1,6 +1,5 @@
 package com.allinweb.ch.component.pane;
 
-import com.allinweb.ch.component.pane.base.ARPane;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.ConfigPresentation;
 import com.allinweb.ch.facade.ConfigPresentationRegistry;
@@ -31,14 +30,11 @@ import java.util.Map;
 import java.util.function.BooleanSupplier;
 import javafx.application.Platform;
 import javafx.collections.ObservableList;
-import javafx.scene.layout.AnchorPane;
-import javafx.scene.layout.Pane;
-import javafx.stage.Stage;
 import lombok.extern.slf4j.Slf4j;
 import org.openqa.selenium.WebDriver;
 
 @Slf4j
-public class ARMainDashboardPane extends ARPane
+public class MainDashboardPresentationAdapter
         implements BotJobDetailsPresentationGateway, MainDashboardPresentation, NewBotJobPresentation, ConfigPresentation {
 
     private static final String SESSION_ID = "mainDashboard";
@@ -54,26 +50,24 @@ public class ARMainDashboardPane extends ARPane
     private static final BotJobDetailsWorkspaceHost botJobDetailsHost = BotJobDetailsWorkspaceHost.getInstance();
     private static final ARWebDriver arWebDriver = ARWebDriver.getInstance();
 
-    protected static volatile ARMainDashboardPane instance;
+    protected static volatile MainDashboardPresentationAdapter instance;
 
-    private AnchorPane mainPane;
     private ObservableList<WebDriver> webDriverList;
     private boolean isEnabledLicence;
     private String initialSessionId = SESSION_ID;
 
-    private ARMainDashboardPane() {
-        super();
+    private MainDashboardPresentationAdapter() {
         botJobDetailsHost.setPresentationPort(this);
         ConfigPresentationRegistry.getInstance().install(this);
         MainDashboardPresentationRegistry.getInstance().install(this);
         NewBotJobPresentationRegistry.getInstance().install(this);
     }
 
-    public static ARMainDashboardPane getInstance() {
+    public static MainDashboardPresentationAdapter getInstance() {
         if (instance == null) {
-            synchronized (ARMainDashboardPane.class) {
+            synchronized (MainDashboardPresentationAdapter.class) {
                 if (instance == null) {
-                    instance = new ARMainDashboardPane();
+                    instance = new MainDashboardPresentationAdapter();
                 }
             }
         }
@@ -90,21 +84,8 @@ public class ARMainDashboardPane extends ARPane
         this.isEnabledLicence = isEnabledLicence;
         this.initialSessionId = initialSessionId == null ? SESSION_ID : initialSessionId;
         arWebDriver.initialize(webDriverList);
+        dispatchReactSession(this.initialSessionId);
     }
-
-    @Override
-    public Pane getPaneReference() {
-        return mainPane;
-    }
-
-    @Override
-    public void initUIComponents() {
-        mainPane = new AnchorPane();
-        dispatchReactSession(initialSessionId);
-    }
-
-    @Override
-    public void initUIBehaviour() {}
 
     @Override
     public void openOrganizations() {
@@ -271,8 +252,7 @@ public class ARMainDashboardPane extends ARPane
 
     @Override
     public void updateTitle(int homeBankingId, int botJobId) {
-        Stage owner = ownerStage();
-        if (owner != null) owner.setTitle("Bot Job Details WebSite Id: " + homeBankingId + " Id: " + botJobId);
+        log.info("Bot Job Details title update requested: homeBankingId={} botJobId={}", homeBankingId, botJobId);
     }
 
     public void showMainDashboard() {
@@ -348,12 +328,6 @@ public class ARMainDashboardPane extends ARPane
             log.warn("Invalid PORT_SOCKET, falling back to {}: {}", DEFAULT_PORT, e.getMessage());
         }
         return DEFAULT_PORT;
-    }
-
-    Stage ownerStage() {
-        return mainPane != null && mainPane.getScene() != null && mainPane.getScene().getWindow() instanceof Stage
-                ? (Stage) mainPane.getScene().getWindow()
-                : null;
     }
 
     private void pushReactDashboardList() {
