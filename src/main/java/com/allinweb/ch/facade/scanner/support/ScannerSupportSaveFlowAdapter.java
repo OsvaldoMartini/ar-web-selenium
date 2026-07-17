@@ -1,16 +1,16 @@
-package com.allinweb.ch.component.pane;
+package com.allinweb.ch.facade.scanner.support;
 
 import com.allinweb.ch.facade.ScannerDialogPublisher;
 import com.allinweb.ch.facade.ScannerSupportFileService;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-final class ScannerSupportSaveFlowAdapter {
+public final class ScannerSupportSaveFlowAdapter {
     private final ScannerDialogPublisher dialogPublisher = ScannerDialogPublisher.getInstance();
 
-    ScannerSupportSaveFlowAdapter() {}
+    public ScannerSupportSaveFlowAdapter() {}
 
-    void savePageReview(ScannerSupportFileService.SupportFile supportFile) {
+    public void savePageReview(ScannerSupportFileService.SupportFile supportFile) {
         boolean sent = dialogPublisher.supportFile("pageReview", supportFile);
         if (!sent) {
             log.info(
@@ -19,7 +19,7 @@ final class ScannerSupportSaveFlowAdapter {
         }
     }
 
-    void saveElementsReview(ScannerSupportFileService.SupportFile supportFile) {
+    public void saveElementsReview(ScannerSupportFileService.SupportFile supportFile) {
         boolean sent = dialogPublisher.supportFile("elementsReview", supportFile);
         if (!sent) {
             log.info(

@@ -18,6 +18,8 @@ import com.allinweb.ch.facade.scanner.prelaunch.ScannerPreLaunchStopper;
 import com.allinweb.ch.facade.scanner.prelaunch.ScannerPreLaunchWindowBookkeeping;
 import com.allinweb.ch.facade.scanner.prelaunch.ScannerPreLaunchWorkspaceOperations;
 import com.allinweb.ch.facade.scanner.ScannerRuntimePort;
+import com.allinweb.ch.facade.scanner.support.ScannerSupportAlertAdapter;
+import com.allinweb.ch.facade.scanner.support.ScannerSupportSaveFlowAdapter;
 import com.allinweb.ch.facade.actions.InstructionGraph;
 import com.allinweb.ch.model.*;
 import com.allinweb.ch.readersAndWriters.ExcelWriter;

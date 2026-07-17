@@ -1,13 +1,13 @@
-package com.allinweb.ch.component.pane;
+package com.allinweb.ch.facade.scanner.support;
 
 import com.allinweb.ch.facade.ScannerDialogPublisher;
 import com.allinweb.ch.facade.ScannerSupportCaptureResultService;
 
-final class ScannerSupportAlertAdapter {
+public final class ScannerSupportAlertAdapter {
 
     private final ScannerDialogPublisher dialogPublisher = ScannerDialogPublisher.getInstance();
 
-    void showNoActiveBrowser() {
+    public void showNoActiveBrowser() {
         show(
                 ScannerDialogPublisher.Severity.INFO,
                 "Support",
@@ -15,7 +15,7 @@ final class ScannerSupportAlertAdapter {
                 "There is no open browser to capture.");
     }
 
-    void showCaptureResult(ScannerSupportCaptureResultService.AlertMessage message) {
+    public void showCaptureResult(ScannerSupportCaptureResultService.AlertMessage message) {
         show(
                 message.ok() ? ScannerDialogPublisher.Severity.INFO : ScannerDialogPublisher.Severity.ERROR,
                 "Support",
