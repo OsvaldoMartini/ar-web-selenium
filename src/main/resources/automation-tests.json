@@ -1,24 +1,24 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-18T01:56:20.489Z",
+  "generatedAt": "2026-07-18T02:50:21.996Z",
   "summary": {
-    "catalogEntries": 887,
-    "automatedCodeCases": 847,
+    "catalogEntries": 890,
+    "automatedCodeCases": 850,
     "generatedApiCases": 19452,
-    "totalAutomatedCases": 20299,
+    "totalAutomatedCases": 20302,
     "automatedSuites": 234,
     "generatedSuites": 21,
     "manualArtifacts": 15,
     "supportArtifacts": 4,
-    "defaultRunnable": 827,
-    "safeRunAllEligible": 827
+    "defaultRunnable": 830,
+    "safeRunAllEligible": 830
   },
   "sources": [
     {
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "branch": "refactor/perform-actions-decomposition",
-      "commit": "a6ace9e0a0b3dd6e00d827b23eb7f0a58a90f74f",
+      "commit": "07ebaf7ed217679a77baebe456d478ae1db33433",
       "sourceFiles": 207,
       "automatedSuites": 192,
       "automatedTestCases": 703,
@@ -29,10 +29,10 @@
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "branch": "VERSION-4.6",
-      "commit": "b0520e75f03b778e2da9ebc7417f5a9a797297ea",
+      "commit": "c5e5922849df5cbaca8195cbc510a14cf71d9be1",
       "sourceFiles": 42,
       "automatedSuites": 42,
-      "automatedTestCases": 144,
+      "automatedTestCases": 147,
       "generatedSuites": 21,
       "generatedCases": 19452
     },
@@ -16770,7 +16770,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.runner.BotJobDetailsToolbarPlaywrightTest#rendersAndOperatesTheCompleteBotJobDetailsToolbarContract@299",
+      "id": "junit:com.allinweb.ch.runner.BotJobDetailsToolbarPlaywrightTest#rendersAndOperatesTheCompleteBotJobDetailsToolbarContract@339",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -16784,7 +16784,7 @@
       "execution": "CONDITIONAL",
       "safety": "LOCAL_REQUIREMENT",
       "sourcePath": "src/test/java/com/allinweb/ch/runner/BotJobDetailsToolbarPlaywrightTest.java",
-      "line": 299,
+      "line": 339,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": false,
@@ -17868,7 +17868,7 @@
       ]
     },
     {
-      "id": "playwright:e2e/bot-job-pre-scan-navigation.spec.ts::::uses the shared draggable non-modal Bot Job frame outside desktop-shell mode@203",
+      "id": "playwright:e2e/bot-job-pre-scan-navigation.spec.ts::::uses the shared draggable non-modal Bot Job frame outside desktop-shell mode@243",
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "recordType": "AUTOMATED_CASE",
@@ -17882,7 +17882,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "e2e/bot-job-pre-scan-navigation.spec.ts",
-      "line": 203,
+      "line": 243,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -17893,7 +17893,7 @@
       ]
     },
     {
-      "id": "playwright:e2e/bot-job-pre-scan-navigation.spec.ts::::keeps Bot Job and Page Scanner Grid in the full-client desktop shell@228",
+      "id": "playwright:e2e/bot-job-pre-scan-navigation.spec.ts::::keeps Bot Job and Page Scanner Grid in the full-client desktop shell@268",
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "recordType": "AUTOMATED_CASE",
@@ -17907,11 +17907,36 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "e2e/bot-job-pre-scan-navigation.spec.ts",
-      "line": 228,
+      "line": 268,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
       "command": "npm run test:e2e -- --grep \"keeps Bot Job and Page Scanner Grid in the full-client desktop shell\"",
+      "tags": [
+        "frontend",
+        "playwright"
+      ]
+    },
+    {
+      "id": "playwright:e2e/bot-job-pre-scan-navigation.spec.ts::::opens OCR Config and OCR Results as independent draggable floating pages@322",
+      "project": "AR React UI",
+      "repository": "abr-react-ts-grid",
+      "recordType": "AUTOMATED_CASE",
+      "suite": "bot-job-pre-scan-navigation",
+      "name": "opens OCR Config and OCR Results as independent draggable floating pages",
+      "displayName": "opens OCR Config and OCR Results as independent draggable floating pages",
+      "framework": "Playwright Test",
+      "language": "TypeScript",
+      "kind": "PLAYWRIGHT",
+      "runtime": "HEADLESS_BROWSER",
+      "execution": "DEFAULT",
+      "safety": "SAFE",
+      "sourcePath": "e2e/bot-job-pre-scan-navigation.spec.ts",
+      "line": 322,
+      "caseCount": 1,
+      "runnable": true,
+      "runAllEligible": true,
+      "command": "npm run test:e2e -- --grep \"opens OCR Config and OCR Results as independent draggable floating pages\"",
       "tags": [
         "frontend",
         "playwright"
@@ -19518,6 +19543,31 @@
       ]
     },
     {
+      "id": "jest:src/components/OCRConfigPanel.test.tsx::::renders outside its owner as an independent non-modal floating workspace@32",
+      "project": "AR React UI",
+      "repository": "abr-react-ts-grid",
+      "recordType": "AUTOMATED_CASE",
+      "suite": "OCRConfigPanel",
+      "name": "renders outside its owner as an independent non-modal floating workspace",
+      "displayName": "renders outside its owner as an independent non-modal floating workspace",
+      "framework": "Jest / Testing Library",
+      "language": "TypeScript",
+      "kind": "FRONTEND",
+      "runtime": "JSDOM",
+      "execution": "DEFAULT",
+      "safety": "SAFE",
+      "sourcePath": "src/components/OCRConfigPanel.test.tsx",
+      "line": 32,
+      "caseCount": 1,
+      "runnable": true,
+      "runAllEligible": true,
+      "command": "npm test -- --runInBand --runTestsByPath src/components/OCRConfigPanel.test.tsx -t \"renders outside its owner as an independent non-modal floating workspace\"",
+      "tags": [
+        "frontend",
+        "test"
+      ]
+    },
+    {
       "id": "jest:src/components/OCRTestResultsPanel.test.tsx::::approves rows and emits meaningful OCR suggestions@5",
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
@@ -19562,6 +19612,31 @@
       "runnable": true,
       "runAllEligible": true,
       "command": "npm test -- --runInBand --runTestsByPath src/components/OCRTestResultsPanel.test.tsx -t \"shows full xpath for selected rows\"",
+      "tags": [
+        "frontend",
+        "test"
+      ]
+    },
+    {
+      "id": "jest:src/components/OCRTestResultsPanel.test.tsx::::renders outside its owner as an independent non-modal floating workspace@7",
+      "project": "AR React UI",
+      "repository": "abr-react-ts-grid",
+      "recordType": "AUTOMATED_CASE",
+      "suite": "OCRTestResultsPanel",
+      "name": "renders outside its owner as an independent non-modal floating workspace",
+      "displayName": "renders outside its owner as an independent non-modal floating workspace",
+      "framework": "Jest / Testing Library",
+      "language": "TypeScript",
+      "kind": "FRONTEND",
+      "runtime": "JSDOM",
+      "execution": "DEFAULT",
+      "safety": "SAFE",
+      "sourcePath": "src/components/OCRTestResultsPanel.test.tsx",
+      "line": 7,
+      "caseCount": 1,
+      "runnable": true,
+      "runAllEligible": true,
+      "command": "npm test -- --runInBand --runTestsByPath src/components/OCRTestResultsPanel.test.tsx -t \"renders outside its owner as an independent non-modal floating workspace\"",
       "tags": [
         "frontend",
         "test"

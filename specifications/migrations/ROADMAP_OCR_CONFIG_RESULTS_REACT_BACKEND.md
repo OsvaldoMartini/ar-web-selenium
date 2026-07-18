@@ -29,6 +29,8 @@ Complete React parity for `AROcrConfigPane`, `AROcrTestResultsPane`, and their s
 - [x] Add Save, Save As New, Delete confirmation, Clean Orphans, and Test Current Page.
 - [x] Show result table, approval controls, XPath, summary counts, and annotated image securely.
 - [x] Integrate accepted suggestions with existing `OCRPanel`/`GridItemScann` state.
+- [x] Render OCR Config and OCR Results exactly once as separate body-level, non-modal floating
+      workspaces with the shared AR Web blue template, independent drag, stacking, and close state.
 - [ ] Add profile CRUD, validation, scope, test-result, approval, and image-path security tests.
 - [x] Route Bot Job, scanned-element, and Pre-Scan OCR Config actions to React.
 - [x] Remove OCR JavaFX panes/scenes and obsolete command routing after static parity verification.
@@ -39,3 +41,4 @@ Complete React parity for `AROcrConfigPane`, `AROcrTestResultsPane`, and their s
 - Existing profiles round-trip without parameter loss.
 - Test execution never blocks the React UI and reports structured progress/errors.
 - Accepted OCR names reach the scanner grid by XPath.
+- Neither floating page is clipped by or mounted inside a Page Scanner block/container.

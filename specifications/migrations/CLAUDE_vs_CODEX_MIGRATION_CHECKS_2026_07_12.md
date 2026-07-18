@@ -943,15 +943,38 @@ boundary, the dashboard reuses its existing WebSocket session, and no JavaFX UI 
       regressions for no ordinary tab, full-client/normal draggable geometry, Bot Job -> Pre Scan
       navigation, the canonical Page Scanner payload, and rendered scan completion status.
 
+### OCR Config and OCR Results floating-workspace continuation (2026-07-17)
+
+- [x] Corrected the OCR mount boundary in `GridItemScann`. OCR Config and OCR Results had been
+      mounted inside every rendered scanner block header, which produced one copy per block and no
+      page at all when the scanner grid had no groups. Each page is now mounted exactly once.
+- [x] Replaced the modal-derived full-screen backdrops and global `:has(...)` positioning override
+      with a reusable `FloatingWorkspacePortal` built on `FloatingWorkspaceFrame`. Each OCR page is
+      portaled directly under `document.body`, so the Page Scanner/Desktop shell cannot contain,
+      clip, or move it.
+- [x] Standardized both pages on the established AR Web template: blue `#0b5394` draggable header,
+      Arial typography, blue rounded frame, white content, responsive viewport clamping, unique
+      semantic labels, and dedicated close controls. Pointer interaction brings either page above
+      its floating peer.
+- [x] Preserved the complete OCR WebSocket contract and all existing profile, parameter, cleanup,
+      test, result, approval, XPath, and accepted-name behavior. No backend production protocol
+      change was needed.
+- [x] Proved OCR Config and OCR Results are independent non-modal pages: either opens directly,
+      each moves without moving Page Scanner, both coexist after `Test current page`, closing one
+      leaves the other open, the URL does not change, and no additional browser page is created.
+- [x] Removed the obsolete `OCRFloatingPanel.scss` backdrop/absolute-positioning workaround.
+- [x] Versioned the React implementation as frontend commit `c5e5922` on `VERSION-4.6` and
+      regenerated the backend automation inventory from that committed source head.
+
 ### Complete inventory snapshot
 
 - Generated at 2026-07-17 from `ar-web-selenium`, `abr-react-ts-grid`, and `ar-web-engine`.
-- 887 displayed catalog rows.
-- 847 code test cases in 234 test files: 703 Java/JUnit cases in 192 files and 144
+- 890 displayed catalog rows.
+- 850 code test cases in 234 test files: 703 Java/JUnit cases in 192 files and 147
   React Jest/Playwright cases in 42 files.
 - 19,452 generated API requests grouped under 21 generated Bash/curl suites rather than rendering
   19,452 duplicate DOM rows.
-- 20,299 total automated cases when code cases and generated API requests are combined.
+- 20,302 total automated cases when code cases and generated API requests are combined.
 - 15 manual artifacts and 4 support-only artifacts are retained and clearly labeled.
 - `ar-web-engine` was audited and truthfully reports zero committed automated tests. Its local/live
   Selenium launch profiles are manual, high-side-effect production automation and are excluded from
@@ -968,14 +991,30 @@ node scripts\generate-automation-test-catalog.mjs
 - [x] `npm test -- --runInBand --watchAll=false src/components/auto-test/AutoTestWorkspace.test.tsx`
       - 2 passed, 0 failed.
 - [x] `npm run test:e2e`
-      - 3 React-only Playwright navigation tests passed; no backend was started. They exercise the
+      - 4 React-only Playwright navigation tests passed; no backend was started. They exercise the
         floating Main Dashboard and Auto Test, the normal draggable Bot Job frame, the exact full-
         client desktop shells, correlated Pre Scan navigation, and the Page Scanner command/status.
+- [x] `npm test -- --watchAll=false --runInBand OCRConfigPanel.test.tsx OCRTestResultsPanel.test.tsx`
+      - 7 passed, 0 failed, including portal placement, non-modal semantics, drag-handle markers,
+        independent close callbacks, typed parameter save, profile protection, approvals, and XPath.
+- [ ] `npm test -- --watchAll=false --runInBand` (complete legacy Jest sweep)
+      - 37 suites / 139 tests passed. The sweep remains red in three unrelated pre-existing suites:
+        the untouched CRA `App.test.tsx` still expects `Learn React`, `AboutPanel.test.tsx` expects
+        the removed `receiveDataFromJava` bridge, and `CloneJobManager.test.tsx` has an invalid
+        out-of-scope `WebSocket` Jest mock reference. All OCR-focused suites passed in this run.
 - [x] `npm test -- --runInBand --watchAll=false src/components/bot-job-details/useBotJobDetailsController.test.tsx src/components/workspace/WorkspaceHeader.test.tsx src/components/bot-job-details/BotJobDetailsHeader.test.tsx src/components/scanner/ScannerWorkspaceHeader.test.tsx`
       - 31 passed, 0 failed, including the correlated Bot Job surface-navigation contract.
 - [x] `npm run build`
       - optimized React build completed; warnings are pre-existing project lint/dependency warnings.
 - [x] Clean-deployed 45 build files and verified source/destination SHA-256 parity.
+- [x] `mvn -Dtest=BotJobDetailsToolbarPlaywrightTest test`
+      - 1 passed, 0 failures, 0 errors, 0 skips against the deployed production bundle, including
+        independent OCR Config/Results portals, drag isolation, coexistence, close behavior, and
+        same-page navigation.
+- [x] `mvn '-Dtest=AutomationTestCatalogServiceTest,MainDashboardAutoTestPlaywrightTest' test`
+      - 2 catalog tests passed; the unrelated Main Dashboard browser case was safely skipped after
+        the environment denied a second Chrome process (`spawn EPERM`). Its equivalent React-only
+        Playwright contract passed in the four-test frontend run above.
 - [x] `mvn -Dtest=AutomationTestCatalogServiceTest,LicenseServiceTest,DesktopAppBrowserLauncherTest,ARWebSocketServerBindingTest test`
       - 22 passed, 0 failures, 0 errors, 0 skips, including five direct Chromium app-mode launcher
         contracts that never start a real browser or command shell.

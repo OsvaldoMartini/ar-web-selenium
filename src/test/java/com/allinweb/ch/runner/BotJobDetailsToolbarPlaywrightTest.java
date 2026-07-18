@@ -218,6 +218,46 @@ class BotJobDetailsToolbarPlaywrightTest {
                     return;
                   }
 
+                  if (envelope.type === 'ocrConfig.bootstrap') {
+                    emit(this, 'ocrConfig.bootstrapResponse', {
+                      ok: true,
+                      profiles: [{
+                        id: 7,
+                        name: 'Client OCR',
+                        description: 'Client page recognition',
+                        default: false
+                      }],
+                      profile: { id: 7 },
+                      categories: ['engine'],
+                      parameters: [{
+                        category: 'engine',
+                        name: 'psm_mode',
+                        valueType: 'integer',
+                        value: '6',
+                        options: ['3', '6']
+                      }]
+                    });
+                    return;
+                  }
+
+                  if (envelope.type === 'ocrTest.run') {
+                    emit(this, 'ocrTest.runResponse', {
+                      ok: true,
+                      source: 'elementDTO-PS.json',
+                      wordCount: 4,
+                      counts: { EXACT_CONTAIN: 1, OVERLAP: 0, PROXIMITY: 0, NONE: 1 },
+                      rows: [{
+                        definedName: 'login',
+                        quality: 'EXACT_CONTAIN',
+                        tag: 'button',
+                        domText: 'Log in',
+                        ocrText: 'Login now',
+                        xPath: '/html/body/button'
+                      }]
+                    });
+                    return;
+                  }
+
                   if (envelope.type !== 'botJobDetails.toolbar.action') return;
                   const action = body.action;
                   const response = {
@@ -595,6 +635,92 @@ class BotJobDetailsToolbarPlaywrightTest {
         workspace.getByText("done", new Locator.GetByTextOptions().setExact(true)).waitFor();
         assertTrue(workspace.getByText(
                 "Found 3 web elements.", new Locator.GetByTextOptions().setExact(true)).isVisible());
+
+        coverOcrFloatingWorkspaces(page, workspace);
+    }
+
+    private void coverOcrFloatingWorkspaces(Page page, Locator scannerWorkspace) {
+        String initialUrl = page.url();
+        int initialPageCount = page.context().pages().size();
+        BoundingBox scannerBefore = scannerWorkspace.boundingBox();
+        assertNotNull(scannerBefore);
+
+        button(scannerWorkspace, "OCR Results").click();
+        Locator results = page.locator("[data-testid='ocr-results-workspace']");
+        results.waitFor();
+        assertEquals(1, results.count());
+        assertEquals("fixed", results.evaluate("element => getComputedStyle(element).position"));
+        assertTrue((Boolean) results.evaluate(
+                "element => element.closest('[data-testid=\"pre-scan-workspace\"]') === null"));
+        assertEquals(null, results.getAttribute("aria-modal"));
+        assertEquals("rgb(11, 83, 148)", page.locator(
+                "[data-testid='ocr-results-drag-handle']").evaluate(
+                "element => getComputedStyle(element).backgroundColor"));
+
+        BoundingBox resultsBefore = results.boundingBox();
+        assertNotNull(resultsBefore);
+        dragBy(page, page.locator("[data-testid='ocr-results-drag-handle']"), 60, 34);
+        BoundingBox resultsAfter = results.boundingBox();
+        assertNotNull(resultsAfter);
+        assertTrue(resultsAfter.x > resultsBefore.x + 20);
+        assertTrue(resultsAfter.y > resultsBefore.y + 15);
+        assertBoundsEqual(scannerBefore, scannerWorkspace.boundingBox());
+
+        page.locator("button[aria-label='Close OCR test results']").click();
+        page.waitForFunction(
+                "() => document.querySelector('[data-testid=\"ocr-results-workspace\"]') === null");
+
+        button(scannerWorkspace, "OCR Config").click();
+        Locator config = page.locator("[data-testid='ocr-config-workspace']");
+        config.waitFor();
+        assertEquals(1, config.count());
+        assertEquals("fixed", config.evaluate("element => getComputedStyle(element).position"));
+        assertTrue((Boolean) config.evaluate(
+                "element => element.closest('[data-testid=\"pre-scan-workspace\"]') === null"));
+        assertEquals(null, config.getAttribute("aria-modal"));
+
+        BoundingBox configBefore = config.boundingBox();
+        assertNotNull(configBefore);
+        dragBy(page, page.locator("[data-testid='ocr-config-drag-handle']"), -52, 30);
+        BoundingBox configAfter = config.boundingBox();
+        assertNotNull(configAfter);
+        assertTrue(configAfter.x < configBefore.x - 15);
+        assertTrue(configAfter.y > configBefore.y + 15);
+        assertBoundsEqual(scannerBefore, scannerWorkspace.boundingBox());
+
+        button(config, "Test current page").click();
+        results.waitFor();
+        assertEquals(1, config.count());
+        assertEquals(1, results.count());
+        page.locator("button[aria-label='Close OCR test results']").click();
+        page.waitForFunction(
+                "() => document.querySelector('[data-testid=\"ocr-results-workspace\"]') === null");
+        assertTrue(config.isVisible());
+        page.locator("button[aria-label='Close OCR configuration']").click();
+        page.waitForFunction(
+                "() => document.querySelector('[data-testid=\"ocr-config-workspace\"]') === null");
+
+        assertEquals(initialUrl, page.url());
+        assertEquals(initialPageCount, page.context().pages().size());
+    }
+
+    private static void dragBy(Page page, Locator handle, double deltaX, double deltaY) {
+        BoundingBox bounds = handle.boundingBox();
+        assertNotNull(bounds);
+        double startX = bounds.x + Math.min(24, bounds.width / 2);
+        double startY = bounds.y + bounds.height / 2;
+        page.mouse().move(startX, startY);
+        page.mouse().down();
+        page.mouse().move(startX + deltaX, startY + deltaY);
+        page.mouse().up();
+    }
+
+    private static void assertBoundsEqual(BoundingBox expected, BoundingBox actual) {
+        assertNotNull(actual);
+        assertEquals(expected.x, actual.x, 1.0);
+        assertEquals(expected.y, actual.y, 1.0);
+        assertEquals(expected.width, actual.width, 1.0);
+        assertEquals(expected.height, actual.height, 1.0);
     }
 
     private static JsonObject toolbarBodyAfterClick(Page page, Locator control, String action) {
@@ -712,7 +838,9 @@ class BotJobDetailsToolbarPlaywrightTest {
         String bundle = Files.readString(bundlePath, StandardCharsets.UTF_8);
         for (String marker : List.of(
                 "botJobDetails.toolbar.action", "Execute All", "Job files",
-                "bot-job-details-workspace", "pre-scan-workspace", "PRE_SCAN_PAGE")) {
+                "bot-job-details-workspace", "pre-scan-workspace", "PRE_SCAN_PAGE",
+                "ocr-config-workspace", "ocr-config-drag-handle",
+                "ocr-results-workspace", "ocr-results-drag-handle")) {
             assertTrue(
                     bundle.contains(marker),
                     "The deployed React build is stale (missing '" + marker
