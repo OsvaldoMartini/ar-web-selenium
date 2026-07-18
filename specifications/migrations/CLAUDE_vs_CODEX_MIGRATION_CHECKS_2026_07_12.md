@@ -887,6 +887,21 @@ boundary, the dashboard reuses its existing WebSocket session, and no JavaFX UI 
       the complete packaged catalog and the same mocked side-effect boundary, so no database,
       external engine, live URL, or destructive backend operation is invoked.
 
+### Floating Main Dashboard template continuation (2026-07-17)
+
+- [x] Extracted `FloatingWorkspaceFrame` as the shared React foundation for fixed, non-modal,
+      pointer-draggable pages. It owns viewport clamping, responsive repositioning, interactive-
+      control drag exclusions, pointer cleanup, and the existing OCR/Memory visual frame language.
+- [x] Converted the principal `Main Dashboard` into that floating workspace with a drag grip in its
+      existing blue title bar. Dashboard commands, table columns, column names/order, row behavior,
+      and user/license content were not changed.
+- [x] Migrated `Auto Test` to the same shared frame and stopped nested drag events at the owning
+      workspace, so moving Auto Test never moves Main Dashboard. Both workspaces remain visible and
+      non-modal while Auto Test is open.
+- [x] Extended both Playwright contracts to verify fixed/non-modal semantics, Main Dashboard drag,
+      user-menu click isolation, independent nested-window drag, responsive viewport clamping,
+      post-drag command use, and Main Dashboard survival after Auto Test closes.
+
 ### Complete inventory snapshot
 
 - Generated at 2026-07-17 from `ar-web-selenium`, `abr-react-ts-grid`, and `ar-web-engine`.
@@ -912,13 +927,14 @@ node scripts\generate-automation-test-catalog.mjs
 - [x] `npm test -- --runInBand --watchAll=false src/components/auto-test/AutoTestWorkspace.test.tsx`
       - 2 passed, 0 failed.
 - [x] `npm run test:e2e`
-      - 1 React-only Playwright navigation test passed; no backend was started.
+      - 1 React-only Playwright navigation test passed; no backend was started. The test exercises
+        the floating Main Dashboard and Auto Test independently at desktop and narrow viewports.
 - [x] `npm run build`
       - optimized React build completed; warnings are pre-existing project lint/dependency warnings.
 - [x] Clean-deployed 45 build files and verified source/destination SHA-256 parity.
 - [x] `mvn -Dtest=AutomationTestCatalogServiceTest,LicenseServiceTest,MainDashboardAutoTestPlaywrightTest test`
       - 17 passed, 0 failures, 0 errors, 0 skips, including real headless Chrome assertions against
-        the deployed bundle.
+        the deployed bundle and both floating workspace drag contracts.
 - [ ] Add execution controls only after each framework has an allowlisted runner, persisted result
       contract, cancellation/timeout ownership, and explicit confirmation for headed/live suites.
 

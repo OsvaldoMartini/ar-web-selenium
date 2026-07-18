@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-17T22:23:59.616Z",
+  "generatedAt": "2026-07-18T00:49:30.302Z",
   "summary": {
     "catalogEntries": 879,
     "automatedCodeCases": 839,
@@ -18,7 +18,7 @@
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "branch": "refactor/perform-actions-decomposition",
-      "commit": "e6c2b821d3e1b821fc4714638463682e5e0535c3",
+      "commit": "f0bc942d0a627342df5acfdb1760fe8296b2ba58",
       "sourceFiles": 206,
       "automatedSuites": 191,
       "automatedTestCases": 698,
@@ -29,7 +29,7 @@
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "branch": "VERSION-4.6",
-      "commit": "b357073919cad6081af29f44246785a0c0cf70f1",
+      "commit": "b0520e75f03b778e2da9ebc7417f5a9a797297ea",
       "sourceFiles": 41,
       "automatedSuites": 41,
       "automatedTestCases": 141,
@@ -17748,7 +17748,7 @@
       ]
     },
     {
-      "id": "playwright:e2e/main-dashboard-navigation.spec.ts::::navigates every safe dashboard control and the Auto Test workspace without a backend@165",
+      "id": "playwright:e2e/main-dashboard-navigation.spec.ts::::navigates every safe dashboard control and the Auto Test workspace without a backend@176",
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "recordType": "AUTOMATED_CASE",
@@ -17762,7 +17762,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "e2e/main-dashboard-navigation.spec.ts",
-      "line": 165,
+      "line": 176,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,

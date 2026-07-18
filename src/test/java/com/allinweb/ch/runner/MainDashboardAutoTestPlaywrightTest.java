@@ -257,6 +257,7 @@ class MainDashboardAutoTestPlaywrightTest {
                 page.getByText("Ada Lovelace", new Page.GetByTextOptions().setExact(true)).first().waitFor();
                 awaitCatalogRequestPrerequisites(page);
 
+                coverMainDashboardFloatingWorkspace(page);
                 coverFindSortAndSelectionControls(page);
                 coverDashboardCommandButtons(page);
                 coverDeleteControls(page);
@@ -278,6 +279,47 @@ class MainDashboardAutoTestPlaywrightTest {
                 """);
         page.locator("table tbody tr").first().waitFor();
         assertEquals(2, page.locator("table tbody tr").count());
+    }
+
+    private static void coverMainDashboardFloatingWorkspace(Page page) {
+        Locator dashboard = page.locator("[data-testid='main-dashboard-workspace']");
+        dashboard.waitFor();
+        assertEquals("SECTION", dashboard.evaluate("element => element.tagName"));
+        assertEquals("fixed", dashboard.evaluate(
+                "element => window.getComputedStyle(element).position"));
+        assertEquals(null, dashboard.getAttribute("aria-modal"));
+        assertEquals(0, page.locator("[role='dialog']").count());
+
+        BoundingBox before = dashboard.boundingBox();
+        BoundingBox handle = page.locator("[data-testid='main-dashboard-drag-handle']")
+                .boundingBox();
+        assertNotNull(before);
+        assertNotNull(handle);
+        page.mouse().move(handle.x + Math.min(48, handle.width / 2), handle.y + handle.height / 2);
+        page.mouse().down();
+        page.mouse().move(
+                handle.x + Math.min(48, handle.width / 2) + 72,
+                handle.y + handle.height / 2 + 44);
+        page.mouse().up();
+        page.waitForFunction(
+                """
+                before => {
+                  const bounds = document.querySelector('[data-testid="main-dashboard-workspace"]')
+                    .getBoundingClientRect();
+                  return bounds.left > before.left + 20 && bounds.top > before.top + 20;
+                }
+                """,
+                Map.of("left", before.x, "top", before.y));
+
+        BoundingBox afterDrag = dashboard.boundingBox();
+        assertNotNull(afterDrag);
+        page.getByLabel("Open user menu").click();
+        BoundingBox afterMenuClick = dashboard.boundingBox();
+        assertNotNull(afterMenuClick);
+        assertEquals(afterDrag.x, afterMenuClick.x, 1.0);
+        assertEquals(afterDrag.y, afterMenuClick.y, 1.0);
+        page.keyboard().press("Escape");
+        assertEquals(0, page.locator("[role='menu'][aria-label='User menu']").count());
     }
 
     private static void coverFindSortAndSelectionControls(Page page) {
@@ -403,6 +445,9 @@ class MainDashboardAutoTestPlaywrightTest {
         assertEquals(null, panel.getAttribute("aria-modal"));
         assertEquals(0, page.locator("[role='dialog']").count());
         awaitCatalogRows(page, catalogEntryCount);
+        Locator mainDashboard = page.locator("[data-testid='main-dashboard-workspace']");
+        assertTrue(mainDashboard.isVisible());
+        assertEquals(null, mainDashboard.getAttribute("aria-modal"));
         assertTrue(panel.getByText(
                         "Code test cases", new Locator.GetByTextOptions().setExact(true))
                 .isVisible());
@@ -417,7 +462,7 @@ class MainDashboardAutoTestPlaywrightTest {
                         .intValue());
 
         coverCatalogFilters(page, catalogEntryCount);
-        coverCatalogDraggingAndResponsiveLayout(page, panel);
+        coverCatalogDraggingAndResponsiveLayout(page, panel, mainDashboard);
 
         int refreshCount = requestCount(page, "automationTests.list");
         page.getByLabel("Refresh test catalog").click();
@@ -426,6 +471,7 @@ class MainDashboardAutoTestPlaywrightTest {
 
         page.getByLabel("Close Auto Test").click();
         assertEquals(0, page.locator("section[aria-label='Auto Test automation catalog']").count());
+        assertTrue(mainDashboard.isVisible());
     }
 
     private static void coverCatalogFilters(Page page, int catalogEntryCount) {
@@ -452,7 +498,10 @@ class MainDashboardAutoTestPlaywrightTest {
         assertEquals("", find.inputValue());
     }
 
-    private static void coverCatalogDraggingAndResponsiveLayout(Page page, Locator panel) {
+    private static void coverCatalogDraggingAndResponsiveLayout(
+            Page page, Locator panel, Locator mainDashboard) {
+        BoundingBox mainBefore = mainDashboard.boundingBox();
+        assertNotNull(mainBefore);
         double leftBefore = ((Number) panel.evaluate(
                         "element => element.getBoundingClientRect().left"))
                 .doubleValue();
@@ -477,6 +526,11 @@ class MainDashboardAutoTestPlaywrightTest {
                 """,
                 Map.of("left", leftBefore, "top", topBefore));
 
+        BoundingBox mainAfterCatalogDrag = mainDashboard.boundingBox();
+        assertNotNull(mainAfterCatalogDrag);
+        assertEquals(mainBefore.x, mainAfterCatalogDrag.x, 1.0);
+        assertEquals(mainBefore.y, mainAfterCatalogDrag.y, 1.0);
+
         page.setViewportSize(700, 900);
         page.waitForFunction(
                 """
@@ -488,6 +542,18 @@ class MainDashboardAutoTestPlaywrightTest {
                 }
                 """);
         assertTrue(panel.isVisible());
+        page.waitForFunction(
+                """
+                () => {
+                  const bounds = document.querySelector('[data-testid="main-dashboard-workspace"]')
+                    .getBoundingClientRect();
+                  return bounds.left >= 0 && bounds.right <= window.innerWidth + 1
+                    && bounds.top >= 0 && bounds.top < window.innerHeight;
+                }
+                """);
+        assertTrue(mainDashboard.isVisible());
+        assertTrue(page.locator("[data-testid='main-dashboard-drag-handle']").isVisible());
+        assertTrue(page.getByLabel("Open user menu").isVisible());
     }
 
     private static void awaitRowsMatchingCatalogFilter(Page page) {
@@ -592,7 +658,8 @@ class MainDashboardAutoTestPlaywrightTest {
         assertTrue(bundlePath.startsWith(BUILD_ROOT) && Files.isRegularFile(bundlePath));
         String bundle = Files.readString(bundlePath, StandardCharsets.UTF_8);
         for (String marker : List.of(
-                "Open user menu", "automationTests.list", "Auto Test automation catalog")) {
+                "Open user menu", "main-dashboard-drag-handle",
+                "automationTests.list", "Auto Test automation catalog")) {
             assertTrue(
                     bundle.contains(marker),
                     "The deployed React build is stale (missing '" + marker
