@@ -6,7 +6,9 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.SocketException;
 import java.net.URI;
+import java.net.URLEncoder;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import lombok.extern.slf4j.Slf4j;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
@@ -162,6 +164,34 @@ public class ARWebSocketServer {
         openInBrowser(
                 "http://" + LOOPBACK_ADDRESS + ":" + boundPort
                         + "/?desktopShell=1&openBotJob=" + botJobId);
+    }
+
+    /** Opens one detached OCR workspace without falling back to a browser window with an address bar. */
+    boolean openOcrWorkspaceDesktopShell(OcrWorkspaceCoordinator.Kind kind, String sessionId) {
+        return desktopAppBrowserLauncher.launch(ocrWorkspaceDesktopUrl(boundPort, kind, sessionId));
+    }
+
+    static String ocrWorkspaceDesktopUrl(
+            int port, OcrWorkspaceCoordinator.Kind kind, String sessionId) {
+        if (port < 1 || port > 65535) {
+            throw new IllegalArgumentException("A valid AR Web port is required");
+        }
+        if (kind == null) {
+            throw new IllegalArgumentException("An OCR workspace kind is required");
+        }
+        if (sessionId == null
+                || OcrWorkspaceCoordinator.Kind.fromSessionId(sessionId) != kind) {
+            throw new IllegalArgumentException("The OCR workspace session does not match its kind");
+        }
+        return "http://" + LOOPBACK_ADDRESS + ":" + port
+                + "/?desktopShell=1&openOcr="
+                + encodeQueryParameter(kind.routeValue())
+                + "&ocrSession="
+                + encodeQueryParameter(sessionId);
+    }
+
+    private static String encodeQueryParameter(String value) {
+        return URLEncoder.encode(value, StandardCharsets.UTF_8);
     }
 
     /**

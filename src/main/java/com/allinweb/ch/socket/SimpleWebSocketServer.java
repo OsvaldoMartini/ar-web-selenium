@@ -6,6 +6,7 @@ import com.allinweb.ch.model.*;
 import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import java.io.IOException;
@@ -52,6 +53,8 @@ public class SimpleWebSocketServer {
     private static final SaveComponentService saveComponentService = SaveComponentService.getInstance();
     private static final OcrManagerService ocrManagerService = OcrManagerService.getInstance();
     private static final OcrTestService ocrTestService = OcrTestService.getInstance();
+    private static final OcrWorkspaceCoordinator ocrWorkspaceCoordinator =
+            OcrWorkspaceCoordinator.getInstance();
     private static final ScannerPluginDownloadCommandService scannerPluginDownloadCommandService =
             ScannerPluginDownloadCommandService.getInstance();
     protected static volatile SimpleWebSocketServer instance;
@@ -140,10 +143,12 @@ public class SimpleWebSocketServer {
             return;
         }
 
-        if (ScannerWorkspaceSessions.BOT_JOB_TASKS.equals(sessionId)) {
+        if (ScannerWorkspaceSessions.BOT_JOB_TASKS.equals(sessionId)
+                || OcrWorkspaceCoordinator.isWorkspaceSessionId(sessionId)) {
             // Only one Bot Job workspace is active in the backend at a time -- opening a job in a
             // new tab takes over from whichever tab had it before, rather than being rejected as a
-            // duplicate session.
+            // duplicate session. Detached OCR pages use the same exact-session takeover so a page
+            // reload can reconnect without losing its backend-owned workspace context.
             WebSocketSessionManager.takeOverSession(sessionId, session);
         } else if (!webSocketSessionManager.addSession(sessionId, session)) {
             log.warn("Rejected duplicate live WebSocket session: {}", sessionId);
@@ -262,8 +267,14 @@ public class SimpleWebSocketServer {
                 }
             }
 
-            String sessionId =
+            String claimedSessionId =
                     jsonObjMSG.has("sessionId") ? jsonObjMSG.get("sessionId").getAsString() : "unknown";
+            String transportSessionId = webSocketSessionManager.getSessionIdBySession(session);
+            boolean ocrWorkspaceOperation = type.startsWith("ocrWorkspace.");
+            boolean detachedOcrTransport = OcrWorkspaceCoordinator.isWorkspaceSessionId(transportSessionId);
+            String sessionId = ocrWorkspaceOperation || detachedOcrTransport
+                    ? transportSessionId
+                    : claimedSessionId;
             ReactReplyChannel.set(sessionId);
 
             // After Decoding
@@ -372,6 +383,30 @@ public class SimpleWebSocketServer {
                                 gson.toJson(componentResponse.get("instructions")),
                                 ScannerWorkspaceOperations.COMPONENTS_UPDATE);
                     }
+                    break;
+                case "ocrWorkspace.open":
+                    handleOcrWorkspaceOpen(
+                            jsonObjMSG,
+                            homeBankingId,
+                            claimedSessionId,
+                            transportSessionId,
+                            session);
+                    break;
+                case "ocrWorkspace.bootstrap":
+                    handleOcrWorkspaceBootstrap(
+                            jsonObjMSG,
+                            homeBankingId,
+                            claimedSessionId,
+                            transportSessionId,
+                            session);
+                    break;
+                case "ocrWorkspace.applySuggestions":
+                    handleOcrWorkspaceApplySuggestions(
+                            jsonObjMSG,
+                            homeBankingId,
+                            claimedSessionId,
+                            transportSessionId,
+                            session);
                     break;
                 case "ocrConfig.bootstrap":
                     sendCommandEditorResponse(homeBankingId, sessionId, "ocrConfig.bootstrapResponse",
@@ -1685,6 +1720,280 @@ public class SimpleWebSocketServer {
             webSocketSessionManager.sendMessageJson(
                     homeBankingId, sessionId, gson.toJson(resp), "useCase.deleteResponse");
         }
+    }
+
+    private void handleOcrWorkspaceOpen(
+            JsonObject envelope,
+            int envelopeHomeBankingId,
+            String claimedSessionId,
+            String transportSessionId,
+            Session transport) {
+        JsonObject body = bodyOrEmpty(envelope);
+        if (!validateOcrWorkspaceTransport(
+                body,
+                envelopeHomeBankingId,
+                claimedSessionId,
+                transportSessionId,
+                transport,
+                "ocrWorkspace.openResponse")) {
+            return;
+        }
+
+        try {
+            OcrWorkspaceCoordinator.Kind kind = OcrWorkspaceCoordinator.Kind.parse(stringValue(body, "kind"));
+            int homeBankingId = intValue(body, "homeBankingId", envelopeHomeBankingId);
+            int botJobId = intValue(body, "botJobId", extractBotJobId(envelope));
+            Integer homeUrlId = optionalPositiveInt(body, "homeUrlId");
+            JsonArray parameters = body.has("parameters") && body.get("parameters").isJsonArray()
+                    ? body.getAsJsonArray("parameters")
+                    : new JsonArray();
+            OcrWorkspaceCoordinator.OpenResult result = ocrWorkspaceCoordinator.open(
+                    new OcrWorkspaceCoordinator.OpenRequest(
+                            kind,
+                            transportSessionId,
+                            homeBankingId,
+                            botJobId,
+                            homeUrlId,
+                            parameters));
+
+            JsonObject response = responseWithRequestId(body);
+            response.addProperty("ok", result.ok());
+            response.addProperty("kind", result.kind().routeValue());
+            response.addProperty("sessionId", result.sessionId());
+            response.addProperty("message", result.message());
+            response.addProperty("expiresAt", result.expiresAt().toString());
+            sendOcrWorkspaceResponse(
+                    homeBankingId,
+                    transportSessionId,
+                    transport,
+                    "ocrWorkspace.openResponse",
+                    response);
+        } catch (IllegalArgumentException | IllegalStateException invalidRequest) {
+            sendOcrWorkspaceFailure(
+                    body,
+                    envelopeHomeBankingId,
+                    transportSessionId,
+                    transport,
+                    "ocrWorkspace.openResponse",
+                    invalidRequest.getMessage());
+        } catch (RuntimeException failure) {
+            log.error("Unable to open detached OCR workspace", failure);
+            sendOcrWorkspaceFailure(
+                    body,
+                    envelopeHomeBankingId,
+                    transportSessionId,
+                    transport,
+                    "ocrWorkspace.openResponse",
+                    "Unable to open the OCR workspace.");
+        }
+    }
+
+    private void handleOcrWorkspaceBootstrap(
+            JsonObject envelope,
+            int envelopeHomeBankingId,
+            String claimedSessionId,
+            String transportSessionId,
+            Session transport) {
+        JsonObject body = bodyOrEmpty(envelope);
+        if (!validateOcrWorkspaceTransport(
+                body,
+                envelopeHomeBankingId,
+                claimedSessionId,
+                transportSessionId,
+                transport,
+                "ocrWorkspace.bootstrapResponse")) {
+            return;
+        }
+
+        try {
+            OcrWorkspaceCoordinator.BootstrapContext context =
+                    ocrWorkspaceCoordinator.bootstrap(transportSessionId);
+            JsonObject response = responseWithRequestId(body);
+            response.addProperty("ok", true);
+            response.addProperty("kind", context.kind().routeValue());
+            response.addProperty("sessionId", context.sessionId());
+            response.addProperty("homeBankingId", context.homeBankingId());
+            response.addProperty("botJobId", context.botJobId());
+            if (context.homeUrlId() != null) response.addProperty("homeUrlId", context.homeUrlId());
+            response.add("parameters", context.parameters());
+            response.addProperty("createdAt", context.createdAt().toString());
+            response.addProperty("expiresAt", context.expiresAt().toString());
+            sendOcrWorkspaceResponse(
+                    context.homeBankingId(),
+                    transportSessionId,
+                    transport,
+                    "ocrWorkspace.bootstrapResponse",
+                    response);
+        } catch (IllegalArgumentException | IllegalStateException invalidRequest) {
+            sendOcrWorkspaceFailure(
+                    body,
+                    envelopeHomeBankingId,
+                    transportSessionId,
+                    transport,
+                    "ocrWorkspace.bootstrapResponse",
+                    invalidRequest.getMessage());
+        } catch (RuntimeException failure) {
+            log.error("Unable to bootstrap detached OCR workspace", failure);
+            sendOcrWorkspaceFailure(
+                    body,
+                    envelopeHomeBankingId,
+                    transportSessionId,
+                    transport,
+                    "ocrWorkspace.bootstrapResponse",
+                    "Unable to load the OCR workspace.");
+        }
+    }
+
+    private void handleOcrWorkspaceApplySuggestions(
+            JsonObject envelope,
+            int envelopeHomeBankingId,
+            String claimedSessionId,
+            String transportSessionId,
+            Session transport) {
+        JsonObject body = bodyOrEmpty(envelope);
+        if (!validateOcrWorkspaceTransport(
+                body,
+                envelopeHomeBankingId,
+                claimedSessionId,
+                transportSessionId,
+                transport,
+                "ocrWorkspace.applySuggestionsResponse")) {
+            return;
+        }
+
+        try {
+            List<OcrWorkspaceCoordinator.Suggestion> suggestions = new ArrayList<>();
+            if (body.has("suggestions") && body.get("suggestions").isJsonArray()) {
+                for (var value : body.getAsJsonArray("suggestions")) {
+                    if (!value.isJsonObject()) {
+                        throw new IllegalArgumentException("OCR suggestions must be JSON objects");
+                    }
+                    JsonObject suggestion = value.getAsJsonObject();
+                    suggestions.add(new OcrWorkspaceCoordinator.Suggestion(
+                            stringValue(suggestion, "xPath"),
+                            stringValue(suggestion, "clientNamed")));
+                }
+            }
+
+            OcrWorkspaceCoordinator.ApplyResult result =
+                    ocrWorkspaceCoordinator.applySuggestions(transportSessionId, suggestions);
+            JsonObject response = responseWithRequestId(body);
+            response.addProperty("ok", result.published());
+            response.addProperty("published", result.published());
+            response.addProperty("suggestionCount", result.suggestionCount());
+            response.addProperty("message", result.message());
+            sendOcrWorkspaceResponse(
+                    envelopeHomeBankingId,
+                    transportSessionId,
+                    transport,
+                    "ocrWorkspace.applySuggestionsResponse",
+                    response);
+        } catch (IllegalArgumentException | IllegalStateException invalidRequest) {
+            sendOcrWorkspaceFailure(
+                    body,
+                    envelopeHomeBankingId,
+                    transportSessionId,
+                    transport,
+                    "ocrWorkspace.applySuggestionsResponse",
+                    invalidRequest.getMessage());
+        } catch (RuntimeException failure) {
+            log.error("Unable to apply detached OCR suggestions", failure);
+            sendOcrWorkspaceFailure(
+                    body,
+                    envelopeHomeBankingId,
+                    transportSessionId,
+                    transport,
+                    "ocrWorkspace.applySuggestionsResponse",
+                    "Unable to apply the OCR suggestions.");
+        }
+    }
+
+    private boolean validateOcrWorkspaceTransport(
+            JsonObject body,
+            int homeBankingId,
+            String claimedSessionId,
+            String transportSessionId,
+            Session transport,
+            String responseOperation) {
+        if (transportSessionId != null && transportSessionId.equals(claimedSessionId)) return true;
+        log.warn(
+                "Rejected OCR workspace request with mismatched transport identity: claimed={}, actual={}",
+                claimedSessionId,
+                transportSessionId);
+        sendOcrWorkspaceFailure(
+                body,
+                homeBankingId,
+                transportSessionId,
+                transport,
+                responseOperation,
+                "WebSocket session identity mismatch.");
+        return false;
+    }
+
+    private void sendOcrWorkspaceFailure(
+            JsonObject body,
+            int homeBankingId,
+            String transportSessionId,
+            Session transport,
+            String operationId,
+            String message) {
+        JsonObject response = responseWithRequestId(body);
+        response.addProperty("ok", false);
+        response.addProperty("message", message == null || message.isBlank()
+                ? "Invalid OCR workspace request."
+                : message);
+        sendOcrWorkspaceResponse(homeBankingId, transportSessionId, transport, operationId, response);
+    }
+
+    private void sendOcrWorkspaceResponse(
+            int homeBankingId,
+            String transportSessionId,
+            Session transport,
+            String operationId,
+            JsonObject response) {
+        if (transportSessionId == null || transport == null) return;
+        WebSocketSessionManager.sendMessageJson(
+                homeBankingId,
+                transport,
+                transportSessionId,
+                gson.toJson(response),
+                operationId);
+    }
+
+    private JsonObject bodyOrEmpty(JsonObject envelope) {
+        JsonObject body = extractBody(envelope);
+        return body == null ? new JsonObject() : body;
+    }
+
+    private static JsonObject responseWithRequestId(JsonObject body) {
+        JsonObject response = new JsonObject();
+        if (body != null && body.has("requestId") && !body.get("requestId").isJsonNull()) {
+            response.add("requestId", body.get("requestId").deepCopy());
+        }
+        return response;
+    }
+
+    private static String stringValue(JsonObject object, String field) {
+        if (object == null || !object.has(field) || object.get(field).isJsonNull()) return null;
+        try {
+            return object.get(field).getAsString();
+        } catch (RuntimeException invalidValue) {
+            return null;
+        }
+    }
+
+    private static int intValue(JsonObject object, String field, int fallback) {
+        if (object == null || !object.has(field) || object.get(field).isJsonNull()) return fallback;
+        try {
+            return object.get(field).getAsInt();
+        } catch (RuntimeException invalidValue) {
+            return fallback;
+        }
+    }
+
+    private static Integer optionalPositiveInt(JsonObject object, String field) {
+        int value = intValue(object, field, -1);
+        return value > 0 ? value : null;
     }
 
     /** Pull botJobId from the message body (string-encoded JSON) or top-level field. */

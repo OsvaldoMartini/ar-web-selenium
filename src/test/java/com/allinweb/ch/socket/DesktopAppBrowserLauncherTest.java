@@ -2,6 +2,7 @@ package com.allinweb.ch.socket;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -103,5 +104,39 @@ class DesktopAppBrowserLauncherTest {
                 "http://127.0.0.1:54525/?openBotJob=42&desktopShell=1",
                 DesktopAppBrowserLauncher.withDesktopShellFlag(
                         "http://127.0.0.1:54525/?openBotJob=42"));
+    }
+
+    @Test
+    void launchesStrictOcrResultsRouteAsASeparateChromiumAppWindow() {
+        String chrome = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
+        AtomicReference<List<String>> launchedCommand = new AtomicReference<>();
+        DesktopAppBrowserLauncher launcher = new DesktopAppBrowserLauncher(
+                "Windows 11",
+                Map.of("ProgramFiles", "C:\\Program Files"),
+                candidate -> candidate.equals(Path.of(chrome)),
+                command -> launchedCommand.set(List.copyOf(command)));
+        String url = ARWebSocketServer.ocrWorkspaceDesktopUrl(
+                53972,
+                OcrWorkspaceCoordinator.Kind.RESULTS,
+                "ocr-results-window-42");
+
+        assertTrue(launcher.launch(url));
+        assertEquals(
+                "--app=http://127.0.0.1:53972/"
+                        + "?desktopShell=1&openOcr=results&ocrSession=ocr-results-window-42",
+                launchedCommand.get().get(1));
+        assertEquals("--window-size=1240,820", launchedCommand.get().get(2));
+        assertEquals("--new-window", launchedCommand.get().get(3));
+        assertFalse(launchedCommand.get().contains("cmd"));
+    }
+
+    @Test
+    void rejectsOcrRouteWhenSessionPrefixDoesNotMatchWindowKind() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> ARWebSocketServer.ocrWorkspaceDesktopUrl(
+                        53972,
+                        OcrWorkspaceCoordinator.Kind.CONFIG,
+                        "ocr-results-window-42"));
     }
 }

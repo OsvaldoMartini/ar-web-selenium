@@ -106,7 +106,28 @@
       "Bash(npm run *)",
       "Bash(npx jest *)",
       "Bash(npx react-scripts *)",
-      "Bash(xargs -I{} echo {})"
+      "Bash(xargs -I{} echo {})",
+      "Read(//d/Projects/ARWebBancaStato/Config-4.2//**)",
+      "Read(//d/Projects/ARWebBancaStato/Config-4.2/**)",
+      "Bash(tasklist //FI \"IMAGENAME eq java.exe\" //V)",
+      "Read(//d/Projects/ARWebBancaStato/**)",
+      "Bash(sort -k6,7)",
+      "PowerShell(Get-Process *)",
+      "PowerShell(Stop-Process *)",
+      "Bash(python3 -c ' *)",
+      "Bash(dd *)",
+      "Read(//c/Users/osval/.m2/repository/org/eclipse/jetty/**)",
+      "Read(//d//**)",
+      "Bash(mvn package *)",
+      "PowerShell(Start-Process \"http://127.0.0.1:51141/\")",
+      "PowerShell(try { Get-Process java -ErrorAction Stop | ForEach-Object { Stop-Process -Id $_.Id -Force; \"Stopped PID $\\($_.Id\\)\" } } catch { \"no java process running\" })",
+      "PowerShell(Start-Process \"http://127.0.0.1:52035/\")",
+      "Bash(xxd)",
+      "Bash(python3 -c \"print\\('no python'\\)\")",
+      "Bash(powershell -NoProfile -Command \"Get-Content -Path 'D:\\\\Projects\\\\ARWebBancaStato\\\\ARWeb\\\\Logs\\\\ar_web_scanner_base-2026-07-17.9.log' -Wait -Tail 0\")",
+      "PowerShell(Start-Process \"http://127.0.0.1:51352/\")",
+      "Bash(powershell -NoProfile -Command \"Get-Content -Path 'D:\\\\Projects\\\\ARWebBancaStato\\\\ARWeb\\\\Logs\\\\ar_web_scanner_base-2026-07-17.10.log' -Wait -Tail 0\")",
+      "Bash(powershell -NoProfile -Command \"Get-Content -Path 'D:\\\\Projects\\\\ARWebBancaStato\\\\ARWeb\\\\Logs\\\\ar_web_scanner_base-2026-07-17.11.log' -Wait -Tail 0\")"
     ]
   }
 }

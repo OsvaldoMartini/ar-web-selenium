@@ -50,17 +50,17 @@ class SimpleWebSocketServerSessionLifecycleTest {
     }
 
     @Test
-    void rejectsDuplicateLiveConnectionAndKeepsOriginal() throws Exception {
+    void botJobWorkspaceReloadTakesOverThePreviousLiveConnection() throws Exception {
         Session original = sessionWithId(ScannerWorkspaceSessions.BOT_JOB_TASKS, true);
-        Session duplicate = sessionWithId(ScannerWorkspaceSessions.BOT_JOB_TASKS, true);
+        Session replacement = sessionWithId(ScannerWorkspaceSessions.BOT_JOB_TASKS, true);
 
         endpoint.onOpen(original);
-        endpoint.onOpen(duplicate);
+        endpoint.onOpen(replacement);
 
-        assertSame(original, WebSocketSessionManager.getSession(ScannerWorkspaceSessions.BOT_JOB_TASKS));
-        verify(original, never()).close(org.mockito.ArgumentMatchers.any(CloseReason.class));
-        verify(duplicate)
-                .close(argThat(reason -> CloseReason.CloseCodes.VIOLATED_POLICY.equals(reason.getCloseCode())));
+        assertSame(replacement, WebSocketSessionManager.getSession(ScannerWorkspaceSessions.BOT_JOB_TASKS));
+        verify(original)
+                .close(argThat(reason -> CloseReason.CloseCodes.NORMAL_CLOSURE.equals(reason.getCloseCode())));
+        verify(replacement, never()).close(any(CloseReason.class));
     }
 
     @Test
@@ -92,6 +92,21 @@ class SimpleWebSocketServerSessionLifecycleTest {
                 original, new CloseReason(CloseReason.CloseCodes.NORMAL_CLOSURE, "old transport closed"));
 
         assertSame(replacement, WebSocketSessionManager.getSession(ScannerWorkspaceSessions.SCANNER_GRID));
+    }
+
+    @Test
+    void detachedOcrWorkspaceReloadTakesOverTheExactLogicalSession() throws Exception {
+        String logicalSession = "ocr-config-reload-safe-session";
+        Session original = sessionWithId(logicalSession, true);
+        Session replacement = sessionWithId(logicalSession, true);
+
+        endpoint.onOpen(original);
+        endpoint.onOpen(replacement);
+
+        assertSame(replacement, WebSocketSessionManager.getSession(logicalSession));
+        verify(original)
+                .close(argThat(reason -> CloseReason.CloseCodes.NORMAL_CLOSURE.equals(reason.getCloseCode())));
+        verify(replacement, never()).close(any(CloseReason.class));
     }
 
     @Test
