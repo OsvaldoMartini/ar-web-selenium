@@ -15,9 +15,9 @@ This is the canonical investigation and roadmap for aligning local Scanner TEST 
 
 | Project | Branch | Commit inspected | Role |
 |---|---|---|---|
-| `D:\Projects\AllinWeb\ar-web-selenium` | `refactor/perform-actions-decomposition` | `3cd86f87c734d0507725dcfc3be3edef1b3a1689` implementation commit | Scanner, JavaFX host, embedded Playwright execution, and React toolbar backend |
+| `D:\Projects\AllinWeb\ar-web-selenium` | `refactor/perform-actions-decomposition` | `4360f037a9591365d857ae814bec89bfe40fb2ad` implementation commit | Scanner, JavaFX host, embedded Playwright execution, and React toolbar backend |
 | `D:\Projects\AllinWeb\ar-web-engine` | `VERSION-4-2-NEW` | `f890e833d9aad9a8abbfb455e789e3d74c7817a5` | External Selenium engine |
-| `D:\Projects\AllinWeb\abr-react-ts-grid` | `VERSION-4.6` | `30d6f331e6519c8bec9211470d1a76e6d8d74363` | React migration UI |
+| `D:\Projects\AllinWeb\abr-react-ts-grid` | `VERSION-4.6` | `86256ab80bbf170d23d4283d589d9d2827128b0a` | React migration UI |
 
 The Engine snapshot is older than the Scanner snapshot. Do not replace Scanner `executeJob` with the Engine method wholesale. Scanner contains newer Playwright, realtime-status, failure aggregation, `BACK`, and forward-GOTO work, while the Engine still contains behavior and reporting defects documented below.
 
@@ -966,15 +966,52 @@ boundary, the dashboard reuses its existing WebSocket session, and no JavaFX UI 
 - [x] Versioned the React implementation as frontend commit `c5e5922` on `VERSION-4.6` and
       regenerated the backend automation inventory from that committed source head.
 
+### OCR Config and OCR Results detached multi-display continuation (2026-07-18)
+
+This section supersedes the 2026-07-17 body-portal implementation and its "no additional browser
+page" conclusion. A DOM portal can escape a React parent but cannot leave its browser viewport, so
+it cannot satisfy the required three-monitor placement.
+
+- [x] Removed `FloatingWorkspacePortal` from OCR Config and OCR Results. Bot Job Details/Page
+      Scanner now contains zero Config/Results page DOM and only sends `ocrWorkspace.open`.
+- [x] Added standalone `openOcr=config|results` React entry routes. Each route validates its unique
+      `ocr-config-*` or `ocr-results-*` session, skips `mainDashboardBootstrap`, owns one WebSocket,
+      fills the exact desktop client, and retains the established Arial/blue/white OCR design.
+- [x] Added strict Java Chromium application-window launch for both OCR pages. It uses `--app` and
+      `--new-window`, deliberately has no default-browser fallback, address bar, or tabs, and leaves
+      the operating-system title bar available for moving each window to another display.
+- [x] Added the backend-owned `OcrWorkspaceCoordinator`. It binds an unguessable workspace session
+      to the actual originating `scannerGrid`/`preScannerGrid` transport, organization, job, optional
+      URL scope, and draft parameters. Context survives a page reload and expires after four hours;
+      active entries are bounded and failed launches roll back their provisional context.
+- [x] Added transport-bound `ocrWorkspace.open`, `ocrWorkspace.bootstrap`, and
+      `ocrWorkspace.applySuggestions` contracts. Envelope session spoofing cannot select the reply
+      or scanner destination. Config may launch an independent Results window; only a Results
+      session may publish validated/deduplicated XPath/name suggestions, and only to its bound source
+      scanner.
+- [x] Reworked Config and Results into full-client page controllers. Config owns profile CRUD,
+      cleanup, and Test Current Page. Results bootstraps its immutable scope, runs OCR, owns approvals,
+      sends accepted names through Java, and closes only after Java confirms delivery.
+- [x] Added deterministic multi-window coverage: a scanner page plus separate Config and Results
+      Playwright pages use three distinct sessions concurrently; neither OCR page is mounted in the
+      scanner; both fill `1240 x 820`; Config can request another Results window; closing one page
+      leaves the other two alive. Headless tests cannot prove a physical compositor move across
+      monitors, so actual placement on displays 1/2/3 remains a manual desktop smoke check.
+- [x] Clean-built and deployed all 45 React build files into the Java resource tree with zero
+      relative-path/SHA-256 differences.
+- [x] Versioned the detached multi-display implementation as frontend commit `86256ab` on
+      `VERSION-4.6` and backend implementation commit `4360f037` on
+      `refactor/perform-actions-decomposition`.
+
 ### Complete inventory snapshot
 
-- Generated at 2026-07-17 from `ar-web-selenium`, `abr-react-ts-grid`, and `ar-web-engine`.
-- 890 displayed catalog rows.
-- 850 code test cases in 234 test files: 703 Java/JUnit cases in 192 files and 147
+- Generated at 2026-07-18 from `ar-web-selenium`, `abr-react-ts-grid`, and `ar-web-engine`.
+- 899 displayed catalog rows.
+- 859 code test cases in 235 test files: 712 Java/JUnit cases in 193 files and 147
   React Jest/Playwright cases in 42 files.
 - 19,452 generated API requests grouped under 21 generated Bash/curl suites rather than rendering
   19,452 duplicate DOM rows.
-- 20,302 total automated cases when code cases and generated API requests are combined.
+- 20,311 total automated cases when code cases and generated API requests are combined.
 - 15 manual artifacts and 4 support-only artifacts are retained and clearly labeled.
 - `ar-web-engine` was audited and truthfully reports zero committed automated tests. Its local/live
   Selenium launch profiles are manual, high-side-effect production automation and are excluded from
@@ -1027,6 +1064,24 @@ node scripts\generate-automation-test-catalog.mjs
 - [x] `mvn -Dtest=BotJobDetailsToolbarPlaywrightTest,MainDashboardAutoTestPlaywrightTest test`
       - 2 passed, 0 failures, 0 errors, 0 skips in real headless Chrome against the clean-deployed
         production bundle, including Bot Job -> Pre Scan -> Page Scanner.
+- [x] `npm test -- --watchAll=false --runInBand OCRConfigPanel.test.tsx OCRTestResultsPanel.test.tsx ScannerToolbar.test.tsx ScannerWorkspaceHeader.test.tsx`
+      - 4 suites / 21 tests passed for the full-window OCR panels and their scanner entry controls.
+- [x] `npm run test:e2e`
+      - 4/4 React Playwright tests passed, including concurrent scanner, detached Config, and
+        detached Results pages with unique sockets, full-client geometry, Config -> Results launch,
+        apply acknowledgement, no parent OCR DOM, no bootstrap collision, and independent close.
+- [x] `npm run build`
+      - Optimized React production build completed. Reported lint/dependency warnings are the
+        existing project-wide warnings; no TypeScript/build error was introduced.
+- [x] `mvn '-Dtest=OcrWorkspaceCoordinatorTest,DesktopAppBrowserLauncherTest,SimpleWebSocketServerSessionLifecycleTest' test`
+      - 23 passed, 0 failures/errors/skips for strict app-window launch, unique/expiring contexts,
+        defensive parameter copies, source-only suggestion delivery, and reload takeover.
+- [x] `mvn -Dtest=BotJobDetailsToolbarPlaywrightTest test`
+      - 1 passed, 0 failures/errors/skips in real headless Chrome against the clean-deployed bundle;
+        Bot Job/Pre Scan sends detached OCR launch requests and mounts no Config/Results page.
+- [x] Regenerated `automation-tests.json`: 899 catalog rows, 859 code cases, 19,452 generated API
+      cases, and 20,311 total automated cases. Clean-deployed 45 React files with zero hash/path
+      differences.
 - [ ] Add execution controls only after each framework has an allowlisted runner, persisted result
       contract, cancellation/timeout ownership, and explicit confirmation for headed/live suites.
 

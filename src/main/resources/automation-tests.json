@@ -1,27 +1,27 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-18T02:50:21.996Z",
+  "generatedAt": "2026-07-18T04:03:45.059Z",
   "summary": {
-    "catalogEntries": 890,
-    "automatedCodeCases": 850,
+    "catalogEntries": 899,
+    "automatedCodeCases": 859,
     "generatedApiCases": 19452,
-    "totalAutomatedCases": 20302,
-    "automatedSuites": 234,
+    "totalAutomatedCases": 20311,
+    "automatedSuites": 235,
     "generatedSuites": 21,
     "manualArtifacts": 15,
     "supportArtifacts": 4,
-    "defaultRunnable": 830,
-    "safeRunAllEligible": 830
+    "defaultRunnable": 839,
+    "safeRunAllEligible": 839
   },
   "sources": [
     {
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "branch": "refactor/perform-actions-decomposition",
-      "commit": "07ebaf7ed217679a77baebe456d478ae1db33433",
-      "sourceFiles": 207,
-      "automatedSuites": 192,
-      "automatedTestCases": 703,
+      "commit": "4360f037a9591365d857ae814bec89bfe40fb2ad",
+      "sourceFiles": 208,
+      "automatedSuites": 193,
+      "automatedTestCases": 712,
       "generatedSuites": 0,
       "generatedCases": 0
     },
@@ -29,7 +29,7 @@
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "branch": "VERSION-4.6",
-      "commit": "c5e5922849df5cbaca8195cbc510a14cf71d9be1",
+      "commit": "86256ab80bbf170d23d4283d589d9d2827128b0a",
       "sourceFiles": 42,
       "automatedSuites": 42,
       "automatedTestCases": 147,
@@ -16770,7 +16770,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.runner.BotJobDetailsToolbarPlaywrightTest#rendersAndOperatesTheCompleteBotJobDetailsToolbarContract@339",
+      "id": "junit:com.allinweb.ch.runner.BotJobDetailsToolbarPlaywrightTest#rendersAndOperatesTheCompleteBotJobDetailsToolbarContract@310",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -16784,7 +16784,7 @@
       "execution": "CONDITIONAL",
       "safety": "LOCAL_REQUIREMENT",
       "sourcePath": "src/test/java/com/allinweb/ch/runner/BotJobDetailsToolbarPlaywrightTest.java",
-      "line": 339,
+      "line": 310,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": false,
@@ -16842,7 +16842,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.socket.DesktopAppBrowserLauncherTest#launchesDetectedChromeDirectlyWithDesktopAppArguments@19",
+      "id": "junit:com.allinweb.ch.socket.DesktopAppBrowserLauncherTest#launchesDetectedChromeDirectlyWithDesktopAppArguments@20",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -16856,7 +16856,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/socket/DesktopAppBrowserLauncherTest.java",
-      "line": 19,
+      "line": 20,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -16866,7 +16866,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.socket.DesktopAppBrowserLauncherTest#triesTheNextDetectedChromiumBrowserWhenTheFirstLaunchFails@42",
+      "id": "junit:com.allinweb.ch.socket.DesktopAppBrowserLauncherTest#triesTheNextDetectedChromiumBrowserWhenTheFirstLaunchFails@43",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -16880,7 +16880,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/socket/DesktopAppBrowserLauncherTest.java",
-      "line": 42,
+      "line": 43,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -16890,7 +16890,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.socket.DesktopAppBrowserLauncherTest#reportsUnavailableSoTheCallerCanUseItsDefaultBrowserFallback@64",
+      "id": "junit:com.allinweb.ch.socket.DesktopAppBrowserLauncherTest#reportsUnavailableSoTheCallerCanUseItsDefaultBrowserFallback@65",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -16904,7 +16904,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/socket/DesktopAppBrowserLauncherTest.java",
-      "line": 64,
+      "line": 65,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -16914,7 +16914,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.socket.DesktopAppBrowserLauncherTest#detectsChromiumOnLinuxAndStillStartsItWithoutAShell@77",
+      "id": "junit:com.allinweb.ch.socket.DesktopAppBrowserLauncherTest#detectsChromiumOnLinuxAndStillStartsItWithoutAShell@78",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -16928,7 +16928,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/socket/DesktopAppBrowserLauncherTest.java",
-      "line": 77,
+      "line": 78,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -16938,7 +16938,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.socket.DesktopAppBrowserLauncherTest#preservesExistingQueryAndFragmentWhenAddingDesktopShellFlag@93",
+      "id": "junit:com.allinweb.ch.socket.DesktopAppBrowserLauncherTest#preservesExistingQueryAndFragmentWhenAddingDesktopShellFlag@94",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -16952,7 +16952,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/socket/DesktopAppBrowserLauncherTest.java",
-      "line": 93,
+      "line": 94,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -16962,13 +16962,205 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.socket.SimpleWebSocketServerSessionLifecycleTest#rejectsDuplicateLiveConnectionAndKeepsOriginal@53",
+      "id": "junit:com.allinweb.ch.socket.DesktopAppBrowserLauncherTest#launchesStrictOcrResultsRouteAsASeparateChromiumAppWindow@110",
+      "project": "AR Web Scanner",
+      "repository": "ar-web-selenium",
+      "recordType": "AUTOMATED_CASE",
+      "suite": "com.allinweb.ch.socket.DesktopAppBrowserLauncherTest",
+      "name": "launchesStrictOcrResultsRouteAsASeparateChromiumAppWindow",
+      "displayName": "launchesStrictOcrResultsRouteAsASeparateChromiumAppWindow",
+      "framework": "JUnit 5",
+      "language": "Java",
+      "kind": "UNIT",
+      "runtime": "JVM",
+      "execution": "DEFAULT",
+      "safety": "SAFE",
+      "sourcePath": "src/test/java/com/allinweb/ch/socket/DesktopAppBrowserLauncherTest.java",
+      "line": 110,
+      "caseCount": 1,
+      "runnable": true,
+      "runAllEligible": true,
+      "command": "mvn -Dtest=com.allinweb.ch.socket.DesktopAppBrowserLauncherTest#launchesStrictOcrResultsRouteAsASeparateChromiumAppWindow test",
+      "tags": [
+        "Test"
+      ]
+    },
+    {
+      "id": "junit:com.allinweb.ch.socket.DesktopAppBrowserLauncherTest#rejectsOcrRouteWhenSessionPrefixDoesNotMatchWindowKind@134",
+      "project": "AR Web Scanner",
+      "repository": "ar-web-selenium",
+      "recordType": "AUTOMATED_CASE",
+      "suite": "com.allinweb.ch.socket.DesktopAppBrowserLauncherTest",
+      "name": "rejectsOcrRouteWhenSessionPrefixDoesNotMatchWindowKind",
+      "displayName": "rejectsOcrRouteWhenSessionPrefixDoesNotMatchWindowKind",
+      "framework": "JUnit 5",
+      "language": "Java",
+      "kind": "UNIT",
+      "runtime": "JVM",
+      "execution": "DEFAULT",
+      "safety": "SAFE",
+      "sourcePath": "src/test/java/com/allinweb/ch/socket/DesktopAppBrowserLauncherTest.java",
+      "line": 134,
+      "caseCount": 1,
+      "runnable": true,
+      "runAllEligible": true,
+      "command": "mvn -Dtest=com.allinweb.ch.socket.DesktopAppBrowserLauncherTest#rejectsOcrRouteWhenSessionPrefixDoesNotMatchWindowKind test",
+      "tags": [
+        "Test"
+      ]
+    },
+    {
+      "id": "junit:com.allinweb.ch.socket.OcrWorkspaceCoordinatorTest#opensConfigWithUniqueSessionAndFourHourReloadSafeContext@26",
+      "project": "AR Web Scanner",
+      "repository": "ar-web-selenium",
+      "recordType": "AUTOMATED_CASE",
+      "suite": "com.allinweb.ch.socket.OcrWorkspaceCoordinatorTest",
+      "name": "opensConfigWithUniqueSessionAndFourHourReloadSafeContext",
+      "displayName": "opensConfigWithUniqueSessionAndFourHourReloadSafeContext",
+      "framework": "JUnit 5",
+      "language": "Java",
+      "kind": "UNIT",
+      "runtime": "JVM",
+      "execution": "DEFAULT",
+      "safety": "SAFE",
+      "sourcePath": "src/test/java/com/allinweb/ch/socket/OcrWorkspaceCoordinatorTest.java",
+      "line": 26,
+      "caseCount": 1,
+      "runnable": true,
+      "runAllEligible": true,
+      "command": "mvn -Dtest=com.allinweb.ch.socket.OcrWorkspaceCoordinatorTest#opensConfigWithUniqueSessionAndFourHourReloadSafeContext test",
+      "tags": [
+        "Test"
+      ]
+    },
+    {
+      "id": "junit:com.allinweb.ch.socket.OcrWorkspaceCoordinatorTest#configCanOpenResultsWithInheritedScannerScopeAndDefensiveParameterCopies@65",
+      "project": "AR Web Scanner",
+      "repository": "ar-web-selenium",
+      "recordType": "AUTOMATED_CASE",
+      "suite": "com.allinweb.ch.socket.OcrWorkspaceCoordinatorTest",
+      "name": "configCanOpenResultsWithInheritedScannerScopeAndDefensiveParameterCopies",
+      "displayName": "configCanOpenResultsWithInheritedScannerScopeAndDefensiveParameterCopies",
+      "framework": "JUnit 5",
+      "language": "Java",
+      "kind": "UNIT",
+      "runtime": "JVM",
+      "execution": "DEFAULT",
+      "safety": "SAFE",
+      "sourcePath": "src/test/java/com/allinweb/ch/socket/OcrWorkspaceCoordinatorTest.java",
+      "line": 65,
+      "caseCount": 1,
+      "runnable": true,
+      "runAllEligible": true,
+      "command": "mvn -Dtest=com.allinweb.ch.socket.OcrWorkspaceCoordinatorTest#configCanOpenResultsWithInheritedScannerScopeAndDefensiveParameterCopies test",
+      "tags": [
+        "Test"
+      ]
+    },
+    {
+      "id": "junit:com.allinweb.ch.socket.OcrWorkspaceCoordinatorTest#applySuggestionsPublishesValidatedRowsOnlyToTheBoundScanner@107",
+      "project": "AR Web Scanner",
+      "repository": "ar-web-selenium",
+      "recordType": "AUTOMATED_CASE",
+      "suite": "com.allinweb.ch.socket.OcrWorkspaceCoordinatorTest",
+      "name": "applySuggestionsPublishesValidatedRowsOnlyToTheBoundScanner",
+      "displayName": "applySuggestionsPublishesValidatedRowsOnlyToTheBoundScanner",
+      "framework": "JUnit 5",
+      "language": "Java",
+      "kind": "UNIT",
+      "runtime": "JVM",
+      "execution": "DEFAULT",
+      "safety": "SAFE",
+      "sourcePath": "src/test/java/com/allinweb/ch/socket/OcrWorkspaceCoordinatorTest.java",
+      "line": 107,
+      "caseCount": 1,
+      "runnable": true,
+      "runAllEligible": true,
+      "command": "mvn -Dtest=com.allinweb.ch.socket.OcrWorkspaceCoordinatorTest#applySuggestionsPublishesValidatedRowsOnlyToTheBoundScanner test",
+      "tags": [
+        "Test"
+      ]
+    },
+    {
+      "id": "junit:com.allinweb.ch.socket.OcrWorkspaceCoordinatorTest#rejectsWrongWorkspaceKindsUnknownSessionsAndUntrustedSources@149",
+      "project": "AR Web Scanner",
+      "repository": "ar-web-selenium",
+      "recordType": "AUTOMATED_CASE",
+      "suite": "com.allinweb.ch.socket.OcrWorkspaceCoordinatorTest",
+      "name": "rejectsWrongWorkspaceKindsUnknownSessionsAndUntrustedSources",
+      "displayName": "rejectsWrongWorkspaceKindsUnknownSessionsAndUntrustedSources",
+      "framework": "JUnit 5",
+      "language": "Java",
+      "kind": "UNIT",
+      "runtime": "JVM",
+      "execution": "DEFAULT",
+      "safety": "SAFE",
+      "sourcePath": "src/test/java/com/allinweb/ch/socket/OcrWorkspaceCoordinatorTest.java",
+      "line": 149,
+      "caseCount": 1,
+      "runnable": true,
+      "runAllEligible": true,
+      "command": "mvn -Dtest=com.allinweb.ch.socket.OcrWorkspaceCoordinatorTest#rejectsWrongWorkspaceKindsUnknownSessionsAndUntrustedSources test",
+      "tags": [
+        "Test"
+      ]
+    },
+    {
+      "id": "junit:com.allinweb.ch.socket.OcrWorkspaceCoordinatorTest#retriesIdCollisionsWithoutReplacingAnExistingWorkspace@179",
+      "project": "AR Web Scanner",
+      "repository": "ar-web-selenium",
+      "recordType": "AUTOMATED_CASE",
+      "suite": "com.allinweb.ch.socket.OcrWorkspaceCoordinatorTest",
+      "name": "retriesIdCollisionsWithoutReplacingAnExistingWorkspace",
+      "displayName": "retriesIdCollisionsWithoutReplacingAnExistingWorkspace",
+      "framework": "JUnit 5",
+      "language": "Java",
+      "kind": "UNIT",
+      "runtime": "JVM",
+      "execution": "DEFAULT",
+      "safety": "SAFE",
+      "sourcePath": "src/test/java/com/allinweb/ch/socket/OcrWorkspaceCoordinatorTest.java",
+      "line": 179,
+      "caseCount": 1,
+      "runnable": true,
+      "runAllEligible": true,
+      "command": "mvn -Dtest=com.allinweb.ch.socket.OcrWorkspaceCoordinatorTest#retriesIdCollisionsWithoutReplacingAnExistingWorkspace test",
+      "tags": [
+        "Test"
+      ]
+    },
+    {
+      "id": "junit:com.allinweb.ch.socket.OcrWorkspaceCoordinatorTest#expiryIsExactAndFailedLaunchRollsBackTheProvisionalContext@206",
+      "project": "AR Web Scanner",
+      "repository": "ar-web-selenium",
+      "recordType": "AUTOMATED_CASE",
+      "suite": "com.allinweb.ch.socket.OcrWorkspaceCoordinatorTest",
+      "name": "expiryIsExactAndFailedLaunchRollsBackTheProvisionalContext",
+      "displayName": "expiryIsExactAndFailedLaunchRollsBackTheProvisionalContext",
+      "framework": "JUnit 5",
+      "language": "Java",
+      "kind": "UNIT",
+      "runtime": "JVM",
+      "execution": "DEFAULT",
+      "safety": "SAFE",
+      "sourcePath": "src/test/java/com/allinweb/ch/socket/OcrWorkspaceCoordinatorTest.java",
+      "line": 206,
+      "caseCount": 1,
+      "runnable": true,
+      "runAllEligible": true,
+      "command": "mvn -Dtest=com.allinweb.ch.socket.OcrWorkspaceCoordinatorTest#expiryIsExactAndFailedLaunchRollsBackTheProvisionalContext test",
+      "tags": [
+        "Test"
+      ]
+    },
+    {
+      "id": "junit:com.allinweb.ch.socket.SimpleWebSocketServerSessionLifecycleTest#botJobWorkspaceReloadTakesOverThePreviousLiveConnection@53",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
       "suite": "com.allinweb.ch.socket.SimpleWebSocketServerSessionLifecycleTest",
-      "name": "rejectsDuplicateLiveConnectionAndKeepsOriginal",
-      "displayName": "rejectsDuplicateLiveConnectionAndKeepsOriginal",
+      "name": "botJobWorkspaceReloadTakesOverThePreviousLiveConnection",
+      "displayName": "botJobWorkspaceReloadTakesOverThePreviousLiveConnection",
       "framework": "JUnit 5",
       "language": "Java",
       "kind": "UNIT",
@@ -16980,7 +17172,7 @@
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
-      "command": "mvn -Dtest=com.allinweb.ch.socket.SimpleWebSocketServerSessionLifecycleTest#rejectsDuplicateLiveConnectionAndKeepsOriginal test",
+      "command": "mvn -Dtest=com.allinweb.ch.socket.SimpleWebSocketServerSessionLifecycleTest#botJobWorkspaceReloadTakesOverThePreviousLiveConnection test",
       "tags": [
         "Test"
       ]
@@ -17034,7 +17226,31 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.socket.SimpleWebSocketServerSessionLifecycleTest#errorClosesAndRemovesExactRegisteredTransport@98",
+      "id": "junit:com.allinweb.ch.socket.SimpleWebSocketServerSessionLifecycleTest#detachedOcrWorkspaceReloadTakesOverTheExactLogicalSession@98",
+      "project": "AR Web Scanner",
+      "repository": "ar-web-selenium",
+      "recordType": "AUTOMATED_CASE",
+      "suite": "com.allinweb.ch.socket.SimpleWebSocketServerSessionLifecycleTest",
+      "name": "detachedOcrWorkspaceReloadTakesOverTheExactLogicalSession",
+      "displayName": "detachedOcrWorkspaceReloadTakesOverTheExactLogicalSession",
+      "framework": "JUnit 5",
+      "language": "Java",
+      "kind": "UNIT",
+      "runtime": "JVM",
+      "execution": "DEFAULT",
+      "safety": "SAFE",
+      "sourcePath": "src/test/java/com/allinweb/ch/socket/SimpleWebSocketServerSessionLifecycleTest.java",
+      "line": 98,
+      "caseCount": 1,
+      "runnable": true,
+      "runAllEligible": true,
+      "command": "mvn -Dtest=com.allinweb.ch.socket.SimpleWebSocketServerSessionLifecycleTest#detachedOcrWorkspaceReloadTakesOverTheExactLogicalSession test",
+      "tags": [
+        "Test"
+      ]
+    },
+    {
+      "id": "junit:com.allinweb.ch.socket.SimpleWebSocketServerSessionLifecycleTest#errorClosesAndRemovesExactRegisteredTransport@113",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -17048,7 +17264,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/socket/SimpleWebSocketServerSessionLifecycleTest.java",
-      "line": 98,
+      "line": 113,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -17058,7 +17274,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.socket.SimpleWebSocketServerSessionLifecycleTest#exactSocketCloseRevokesEveryTransferFolderGrantForTheLogicalSession@110",
+      "id": "junit:com.allinweb.ch.socket.SimpleWebSocketServerSessionLifecycleTest#exactSocketCloseRevokesEveryTransferFolderGrantForTheLogicalSession@125",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -17072,7 +17288,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/socket/SimpleWebSocketServerSessionLifecycleTest.java",
-      "line": 110,
+      "line": 125,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -17082,7 +17298,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.socket.SimpleWebSocketServerSessionLifecycleTest#acknowledgedBotJobStateSendPropagatesAsynchronousTransportFailure@127",
+      "id": "junit:com.allinweb.ch.socket.SimpleWebSocketServerSessionLifecycleTest#acknowledgedBotJobStateSendPropagatesAsynchronousTransportFailure@142",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -17096,7 +17312,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/socket/SimpleWebSocketServerSessionLifecycleTest.java",
-      "line": 127,
+      "line": 142,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -17106,7 +17322,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.socket.SimpleWebSocketServerSessionLifecycleTest#acknowledgedBotJobStateSendCompletesOnlyAfterTransportAcknowledgement@153",
+      "id": "junit:com.allinweb.ch.socket.SimpleWebSocketServerSessionLifecycleTest#acknowledgedBotJobStateSendCompletesOnlyAfterTransportAcknowledgement@168",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -17120,7 +17336,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/socket/SimpleWebSocketServerSessionLifecycleTest.java",
-      "line": 153,
+      "line": 168,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -17130,7 +17346,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.socket.SimpleWebSocketServerSessionLifecycleTest#scannerParseFailureResponseIncludesContractErrorAndCorrelation@177",
+      "id": "junit:com.allinweb.ch.socket.SimpleWebSocketServerSessionLifecycleTest#scannerParseFailureResponseIncludesContractErrorAndCorrelation@192",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -17144,7 +17360,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/socket/SimpleWebSocketServerSessionLifecycleTest.java",
-      "line": 177,
+      "line": 192,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -17154,7 +17370,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.socket.SimpleWebSocketServerSessionLifecycleTest#scannerParseFailureResponseUsesStableFallbacksForMalformedBody@196",
+      "id": "junit:com.allinweb.ch.socket.SimpleWebSocketServerSessionLifecycleTest#scannerParseFailureResponseUsesStableFallbacksForMalformedBody@211",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -17168,7 +17384,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/socket/SimpleWebSocketServerSessionLifecycleTest.java",
-      "line": 196,
+      "line": 211,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -17868,7 +18084,7 @@
       ]
     },
     {
-      "id": "playwright:e2e/bot-job-pre-scan-navigation.spec.ts::::uses the shared draggable non-modal Bot Job frame outside desktop-shell mode@243",
+      "id": "playwright:e2e/bot-job-pre-scan-navigation.spec.ts::::uses the shared draggable non-modal Bot Job frame outside desktop-shell mode@294",
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "recordType": "AUTOMATED_CASE",
@@ -17882,7 +18098,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "e2e/bot-job-pre-scan-navigation.spec.ts",
-      "line": 243,
+      "line": 294,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -17893,7 +18109,7 @@
       ]
     },
     {
-      "id": "playwright:e2e/bot-job-pre-scan-navigation.spec.ts::::keeps Bot Job and Page Scanner Grid in the full-client desktop shell@268",
+      "id": "playwright:e2e/bot-job-pre-scan-navigation.spec.ts::::keeps Bot Job and Page Scanner Grid in the full-client desktop shell@319",
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "recordType": "AUTOMATED_CASE",
@@ -17907,7 +18123,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "e2e/bot-job-pre-scan-navigation.spec.ts",
-      "line": 268,
+      "line": 319,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -17918,13 +18134,13 @@
       ]
     },
     {
-      "id": "playwright:e2e/bot-job-pre-scan-navigation.spec.ts::::opens OCR Config and OCR Results as independent draggable floating pages@322",
+      "id": "playwright:e2e/bot-job-pre-scan-navigation.spec.ts::::keeps Bot Job, OCR Config, and OCR Results in three independent full-client windows@373",
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "recordType": "AUTOMATED_CASE",
       "suite": "bot-job-pre-scan-navigation",
-      "name": "opens OCR Config and OCR Results as independent draggable floating pages",
-      "displayName": "opens OCR Config and OCR Results as independent draggable floating pages",
+      "name": "keeps Bot Job, OCR Config, and OCR Results in three independent full-client windows",
+      "displayName": "keeps Bot Job, OCR Config, and OCR Results in three independent full-client windows",
       "framework": "Playwright Test",
       "language": "TypeScript",
       "kind": "PLAYWRIGHT",
@@ -17932,11 +18148,11 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "e2e/bot-job-pre-scan-navigation.spec.ts",
-      "line": 322,
+      "line": 373,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
-      "command": "npm run test:e2e -- --grep \"opens OCR Config and OCR Results as independent draggable floating pages\"",
+      "command": "npm run test:e2e -- --grep \"keeps Bot Job, OCR Config, and OCR Results in three independent full-client windows\"",
       "tags": [
         "frontend",
         "playwright"
@@ -19543,13 +19759,13 @@
       ]
     },
     {
-      "id": "jest:src/components/OCRConfigPanel.test.tsx::::renders outside its owner as an independent non-modal floating workspace@32",
+      "id": "jest:src/components/OCRConfigPanel.test.tsx::::renders as a non-modal full-window page without a DOM drag surface@32",
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "recordType": "AUTOMATED_CASE",
       "suite": "OCRConfigPanel",
-      "name": "renders outside its owner as an independent non-modal floating workspace",
-      "displayName": "renders outside its owner as an independent non-modal floating workspace",
+      "name": "renders as a non-modal full-window page without a DOM drag surface",
+      "displayName": "renders as a non-modal full-window page without a DOM drag surface",
       "framework": "Jest / Testing Library",
       "language": "TypeScript",
       "kind": "FRONTEND",
@@ -19561,7 +19777,7 @@
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
-      "command": "npm test -- --runInBand --runTestsByPath src/components/OCRConfigPanel.test.tsx -t \"renders outside its owner as an independent non-modal floating workspace\"",
+      "command": "npm test -- --runInBand --runTestsByPath src/components/OCRConfigPanel.test.tsx -t \"renders as a non-modal full-window page without a DOM drag surface\"",
       "tags": [
         "frontend",
         "test"
@@ -19618,13 +19834,13 @@
       ]
     },
     {
-      "id": "jest:src/components/OCRTestResultsPanel.test.tsx::::renders outside its owner as an independent non-modal floating workspace@7",
+      "id": "jest:src/components/OCRTestResultsPanel.test.tsx::::renders as a non-modal full-window page without a DOM drag surface@7",
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "recordType": "AUTOMATED_CASE",
       "suite": "OCRTestResultsPanel",
-      "name": "renders outside its owner as an independent non-modal floating workspace",
-      "displayName": "renders outside its owner as an independent non-modal floating workspace",
+      "name": "renders as a non-modal full-window page without a DOM drag surface",
+      "displayName": "renders as a non-modal full-window page without a DOM drag surface",
       "framework": "Jest / Testing Library",
       "language": "TypeScript",
       "kind": "FRONTEND",
@@ -19636,7 +19852,7 @@
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
-      "command": "npm test -- --runInBand --runTestsByPath src/components/OCRTestResultsPanel.test.tsx -t \"renders outside its owner as an independent non-modal floating workspace\"",
+      "command": "npm test -- --runInBand --runTestsByPath src/components/OCRTestResultsPanel.test.tsx -t \"renders as a non-modal full-window page without a DOM drag surface\"",
       "tags": [
         "frontend",
         "test"
