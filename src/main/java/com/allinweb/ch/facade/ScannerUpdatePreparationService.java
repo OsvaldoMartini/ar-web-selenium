@@ -4,7 +4,6 @@ import com.allinweb.ch.model.ElementDTO;
 import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.model.TargetElement;
 import java.util.List;
-import org.openqa.selenium.WebElement;
 
 /** Builds instruction rows for scanner update-all requests before the database write. */
 public final class ScannerUpdatePreparationService {
@@ -26,10 +25,6 @@ public final class ScannerUpdatePreparationService {
         }
         for (ElementDTO elementDTO : elements) {
             TargetElement target = targetExtractor.extractPickClone(elementDTO);
-            WebElement elementFound = actions.findWebElement(target);
-            if (target.getElement() == null && elementFound != null) {
-                target.setElement(elementFound);
-            }
             pane.prepareToInsertElementDTO(instructionList, blockId, nextOrder, target, true);
             nextOrder++;
         }

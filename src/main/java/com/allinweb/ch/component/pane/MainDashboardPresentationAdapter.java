@@ -34,7 +34,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.BooleanSupplier;
 import lombok.extern.slf4j.Slf4j;
-import org.openqa.selenium.WebDriver;
 
 @Slf4j
 public class MainDashboardPresentationAdapter
@@ -56,7 +55,6 @@ public class MainDashboardPresentationAdapter
     protected static volatile MainDashboardPresentationAdapter instance;
 
     private final UiThreadDispatcher uiThreadDispatcher = UiThreadDispatcher.getInstance();
-    private List<WebDriver> webDriverList;
     private boolean isEnabledLicence;
     private String initialSessionId = SESSION_ID;
 
@@ -78,16 +76,13 @@ public class MainDashboardPresentationAdapter
         return instance;
     }
 
-    public void initialize(List<WebDriver> webDriverList, boolean isEnabledLicence) {
-        initialize(webDriverList, isEnabledLicence, SESSION_ID);
+    public void initialize(boolean isEnabledLicence) {
+        initialize(isEnabledLicence, SESSION_ID);
     }
 
-    public void initialize(
-            List<WebDriver> webDriverList, boolean isEnabledLicence, String initialSessionId) {
-        this.webDriverList = webDriverList;
+    public void initialize(boolean isEnabledLicence, String initialSessionId) {
         this.isEnabledLicence = isEnabledLicence;
         this.initialSessionId = initialSessionId == null ? SESSION_ID : initialSessionId;
-        arWebDriver.initialize(webDriverList);
         dispatchReactSession(this.initialSessionId);
     }
 
@@ -294,14 +289,7 @@ public class MainDashboardPresentationAdapter
 
     public void exitApplication() {
         uiThreadDispatcher.execute(() -> {
-            for (WebDriver driver : arWebDriver.getWebDriverList()) {
-                try {
-                    driver.quit();
-                } catch (Exception e) {
-                    log.warn("Error closing WebDriver: {}", e.getMessage());
-                }
-            }
-            arWebDriver.getWebDriverList().clear();
+            arWebDriver.shutdown();
             System.exit(0);
         });
     }

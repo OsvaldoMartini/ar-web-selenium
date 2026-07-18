@@ -1,21 +1,15 @@
 package com.allinweb.ch.facade.actions;
 
-import com.allinweb.ch.facade.ActionExecutorClient;
 import com.allinweb.ch.model.FieldData;
 import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.util.ARConstantsEngine;
-import com.allinweb.ch.util.ARPropertyEnum;
-import com.allinweb.ch.util.ARPropertyManager;
 import com.google.common.base.Strings;
-import org.openqa.selenium.JavascriptExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Routing between the Selenium path and the Playwright / actionExecutor-JS paths (cluster C).
- * All USE_PLAYWRIGHT / PLAYWRIGHT_SELENIUM_FALLBACK flag handling lives here — the Playwright
- * migration (Phases 4-6) extends this class instead of editing the facade. Bodies moved
- * verbatim from PerformActions.
+ * Playwright and actionExecutor-JS routing (cluster C). Remaining Selenium fallback bodies live
+ * downstream temporarily and are unreachable while they are migrated to Playwright operations.
  */
 public class PlaywrightBridge {
 
@@ -25,31 +19,6 @@ public class PlaywrightBridge {
 
     public PlaywrightBridge(ActionContext ctx) {
         this.ctx = ctx;
-    }
-
-    /**
-     * Check if the actionExecutor JS plugin is alive in the browser.
-     * If not, re-inject it via the callback set by ScannerRuntimeBackend.
-     * Called before every action step to ensure the plugin is always available.
-     */
-    public void ensureActionExecutor() {
-        if (ctx.driver() == null || ctx.actionExecutorInjector() == null) return;
-
-        try {
-            JavascriptExecutor js = (JavascriptExecutor) ctx.driver();
-            Object alive = js.executeScript("return window.__actionExecutorActive === true;");
-            if (Boolean.TRUE.equals(alive)) return;
-
-            logOperations.info("actionExecutor not alive in browser - re-injecting");
-            ctx.actionExecutorInjector().run();
-        } catch (Exception e) {
-            logOperations.warn("ensureActionExecutor check failed: {} - re-injecting", e.getMessage());
-            try {
-                ctx.actionExecutorInjector().run();
-            } catch (Exception re) {
-                logOperations.warn("actionExecutor re-injection failed: {}", re.getMessage());
-            }
-        }
     }
 
     public boolean tryPlaywrightWebAction(InstructionLoad instruction, FieldData data, String action) {
@@ -121,56 +90,7 @@ public class PlaywrightBridge {
     }
 
     public boolean isPlaywrightOnlyMode() {
-        if (ctx.arWebDriver() == null || !ctx.arWebDriver().isPlaywrightEnabled()) {
-            return false;
-        }
-
-        String configured = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.PLAYWRIGHT_SELENIUM_FALLBACK);
-        return configured != null && !Boolean.parseBoolean(configured.trim());
+        return ctx.arWebDriver() != null;
     }
 
-    /**
-     * Fallback: send an action command to the injected actionExecutor JS plugin
-     * via WebSocket.  The browser executes it directly in DOM context -
-     * no Selenium visibility / pointer-events checks.
-     *
-     * @param action      "click", "type", "select", "clear", etc.
-     * @param instruction the current instruction (provides xPath, cssSelector, coordinates, attribId)
-     * @param value       the value to type or select (nullable)
-     * @return true if the JS-side action succeeded
-     */
-    public boolean tryActionExecutor(String action, InstructionLoad instruction, String value) {
-        // Make sure the plugin is alive before sending a command
-        ensureActionExecutor();
-
-        try {
-            ActionExecutorClient client = ActionExecutorClient.getInstance();
-            ActionExecutorClient.ActionResult result = client.sendAction(
-                    action,
-                    instruction.getXpath(),
-                    instruction.getCssSelector(),
-                    instruction.getCoordinates(),
-                    null, // attribId not on InstructionLoad; JS will fallback to xPath/css/coords
-                    value);
-
-            if (result.isSuccess()) {
-                logOperations.info(
-                        "actionExecutor fallback succeeded: {} - {} (verified={})",
-                        action,
-                        result.getMessage(),
-                        result.isVerified());
-                return true;
-            } else {
-                logOperations.warn(
-                        "actionExecutor fallback failed: {} - {} (verified={})",
-                        action,
-                        result.getMessage(),
-                        result.isVerified());
-                return false;
-            }
-        } catch (Exception e) {
-            logOperations.warn("actionExecutor fallback error: {} - {}", action, e.getMessage());
-            return false;
-        }
-    }
 }

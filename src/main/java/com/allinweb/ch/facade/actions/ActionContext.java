@@ -49,8 +49,6 @@ public interface ActionContext {
     void notifyPageRefresh();
 
     /** The actionExecutor plugin re-injection callback; may be null when not registered. */
-    Runnable actionExecutorInjector();
-
     /** True when the user requested the running bot job to stop; locate loops must break. */
     boolean isInterceptBotJob();
 

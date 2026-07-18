@@ -18,7 +18,6 @@ class ScannerTestRunStopperTest {
         assertFalse(operations.resetSingleBlock);
         assertFalse(operations.interceptRequested);
         assertEquals(0, operations.closeCalls);
-        assertEquals(0, operations.clearCalls);
     }
 
     @Test
@@ -32,7 +31,6 @@ class ScannerTestRunStopperTest {
         assertTrue(operations.resetSingleBlock);
         assertTrue(operations.interceptRequested);
         assertEquals(1, operations.closeCalls);
-        assertEquals(1, operations.clearCalls);
     }
 
     @Test
@@ -88,7 +86,6 @@ class ScannerTestRunStopperTest {
         assertTrue(operations.resetSingleBlock);
         assertTrue(operations.interceptRequested);
         assertEquals(1, operations.closeCalls);
-        assertEquals(1, operations.clearCalls);
     }
 
     @Test
@@ -119,7 +116,6 @@ class ScannerTestRunStopperTest {
         private boolean interceptRequested;
         private int requestStopCalls;
         private int closeCalls;
-        private int clearCalls;
         private int infoCalls;
 
         @Override
@@ -164,13 +160,8 @@ class ScannerTestRunStopperTest {
         }
 
         @Override
-        public void closeCurrentDriver() {
+        public void closeBrowser() {
             closeCalls++;
-        }
-
-        @Override
-        public void clearCurrentDriver() {
-            clearCalls++;
         }
 
         @Override

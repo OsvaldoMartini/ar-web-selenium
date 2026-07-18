@@ -10,43 +10,28 @@ class ScannerCloseRequestServiceTest {
     private final ScannerCloseRequestService service = new ScannerCloseRequestService();
 
     @Test
-    void interruptsThreadsAndClosesWebDriverResourcesInOrder() {
-        RecordingCloseRequest request = new RecordingCloseRequest(true);
+    void interruptsThreadsAndClosesBrowserRuntimeBeforeExecutors() {
+        RecordingCloseRequest request = new RecordingCloseRequest();
+
+        service.close(request);
+
+        assertEquals(List.of("interrupt", "closeBrowserRuntime", "shutdown"), request.calls);
+    }
+
+    @Test
+    void reportsCloseFailureAndStillShutsDownExecutors() {
+        RecordingCloseRequest request = new RecordingCloseRequest();
+        request.failClose = true;
 
         service.close(request);
 
         assertEquals(
-                List.of("interrupt", "closeWebDrivers", "quitCurrentDriver", "clearCurrentDriver", "shutdown"),
-                request.calls);
-    }
-
-    @Test
-    void onlyInterruptsThreadsWhenNoWebDriverExists() {
-        RecordingCloseRequest request = new RecordingCloseRequest(false);
-
-        service.close(request);
-
-        assertEquals(List.of("interrupt"), request.calls);
-    }
-
-    @Test
-    void reportsCloseFailure() {
-        RecordingCloseRequest request = new RecordingCloseRequest(true);
-        request.failQuit = true;
-
-        service.close(request);
-
-        assertEquals(List.of("interrupt", "closeWebDrivers", "quitCurrentDriver", "failed:boom"), request.calls);
+                List.of("interrupt", "closeBrowserRuntime", "failed:boom", "shutdown"), request.calls);
     }
 
     private static final class RecordingCloseRequest implements ScannerCloseRequestService.CloseRequest {
         private final List<String> calls = new ArrayList<>();
-        private final boolean hasWebDriver;
-        private boolean failQuit;
-
-        private RecordingCloseRequest(boolean hasWebDriver) {
-            this.hasWebDriver = hasWebDriver;
-        }
+        private boolean failClose;
 
         @Override
         public void interruptThreads() {
@@ -54,26 +39,11 @@ class ScannerCloseRequestServiceTest {
         }
 
         @Override
-        public boolean hasWebDriver() {
-            return hasWebDriver;
-        }
-
-        @Override
-        public void closeWebDrivers() {
-            calls.add("closeWebDrivers");
-        }
-
-        @Override
-        public void quitCurrentDriver() {
-            calls.add("quitCurrentDriver");
-            if (failQuit) {
+        public void closeBrowserRuntime() {
+            calls.add("closeBrowserRuntime");
+            if (failClose) {
                 throw new IllegalStateException("boom");
             }
-        }
-
-        @Override
-        public void clearCurrentDriver() {
-            calls.add("clearCurrentDriver");
         }
 
         @Override

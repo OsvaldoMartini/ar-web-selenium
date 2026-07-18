@@ -40,11 +40,11 @@ public final class DefaultConfigSceneShutdownPort implements ConfigSceneShutdown
 
     @Override
     public void closeAllWebDrivers() {
-        ARWebDriver.getInstance().closeAllDrivers();
+        ARWebDriver.getInstance().closeBrowser();
     }
 
     @Override
     public void closeCurrentWebDriver() {
-        ARWebDriver.getInstance().closeCurrentDriver();
+        ARWebDriver.getInstance().closeBrowser();
     }
 }

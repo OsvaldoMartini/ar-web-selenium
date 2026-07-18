@@ -1,7 +1,5 @@
 package com.allinweb.ch.facade;
 
-import org.openqa.selenium.WebDriver;
-
 public final class ScannerSupportCaptureSendService {
     private final SupportCapture supportCapture;
 
@@ -13,12 +11,11 @@ public final class ScannerSupportCaptureSendService {
         this.supportCapture = supportCapture;
     }
 
-    public SupportCapture.CaptureResult sendDomCapture(WebDriver driver) {
-        return supportCapture.captureAndSend(driver, null, null, null, null);
+    public SupportCapture.CaptureResult sendDomCapture() {
+        return supportCapture.captureAndSend(null, null, null, null);
     }
 
-    public SupportCapture.CaptureResult sendElementsReview(
-            WebDriver driver, String elementDetailsJson, String message) {
-        return supportCapture.captureElementsAndSend(driver, elementDetailsJson, message, null);
+    public SupportCapture.CaptureResult sendElementsReview(String elementDetailsJson, String message) {
+        return supportCapture.captureElementsAndSend(elementDetailsJson, message, null);
     }
 }

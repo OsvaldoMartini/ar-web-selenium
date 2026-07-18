@@ -90,7 +90,7 @@ class BancaStatoLocalhostPlaywrightIT {
             holdLocalhostOpenWhenRequested();
         } finally {
             try {
-                ARWebDriver.getInstance().closeCurrentDriver();
+                ARWebDriver.getInstance().closeBrowser();
             } catch (Exception ignored) {
                 // Best-effort Playwright cleanup.
             }
@@ -126,8 +126,6 @@ class BancaStatoLocalhostPlaywrightIT {
             isolated.load(input);
         }
         assertEquals("TEXT", isolated.getProperty(ARPropertyEnum.DATABASE_TYPE.getValue()));
-        assertEquals("true", isolated.getProperty(ARPropertyEnum.USE_PLAYWRIGHT.getValue()));
-        assertEquals("false", isolated.getProperty(ARPropertyEnum.PLAYWRIGHT_SELENIUM_FALLBACK.getValue()));
         assertEquals("", isolated.getProperty(ARPropertyEnum.DB_PWD.getValue()));
         assertEquals("", isolated.getProperty(ARPropertyEnum.AI_API_KEY.getValue()));
         assertTrue(Path.of(isolated.getProperty(ARPropertyEnum.PATH_DB.getValue())).startsWith(fixture.fixtureRoot()));

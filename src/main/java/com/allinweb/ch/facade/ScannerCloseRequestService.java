@@ -4,30 +4,23 @@ package com.allinweb.ch.facade;
 public final class ScannerCloseRequestService {
     public void close(CloseRequest request) {
         request.interruptThreads();
-        if (!request.hasWebDriver()) {
-            return;
-        }
-
         try {
-            request.closeWebDrivers();
-            request.quitCurrentDriver();
-            request.clearCurrentDriver();
-            request.shutdownExecutors();
+            request.closeBrowserRuntime();
         } catch (Exception error) {
             request.closeFailed(error);
+        } finally {
+            try {
+                request.shutdownExecutors();
+            } catch (Exception error) {
+                request.closeFailed(error);
+            }
         }
     }
 
     public interface CloseRequest {
         void interruptThreads();
 
-        boolean hasWebDriver();
-
-        void closeWebDrivers();
-
-        void quitCurrentDriver();
-
-        void clearCurrentDriver();
+        void closeBrowserRuntime();
 
         void shutdownExecutors();
 

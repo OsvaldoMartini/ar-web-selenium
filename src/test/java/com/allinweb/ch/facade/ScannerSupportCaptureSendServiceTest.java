@@ -11,7 +11,7 @@ class ScannerSupportCaptureSendServiceTest {
 
     @Test
     void sendsDomCaptureThroughSupportCapture() {
-        SupportCapture.CaptureResult result = service.sendDomCapture(null);
+        SupportCapture.CaptureResult result = service.sendDomCapture();
 
         assertFalse(result.isOk());
         assertEquals("Support upload disabled", result.error());
@@ -19,7 +19,7 @@ class ScannerSupportCaptureSendServiceTest {
 
     @Test
     void sendsElementsReviewThroughSupportCapture() {
-        SupportCapture.CaptureResult result = service.sendElementsReview(null, "[]", "Check it");
+        SupportCapture.CaptureResult result = service.sendElementsReview("[]", "Check it");
 
         assertFalse(result.isOk());
         assertEquals("Support upload disabled", result.error());

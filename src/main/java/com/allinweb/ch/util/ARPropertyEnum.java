@@ -20,8 +20,6 @@ public enum ARPropertyEnum {
     PATH_PRIORITY("path_priority"),
     PATH_ENGINE("path_engine"),
     PATH_WEBDRIVER("path_web_driver"),
-    USE_PLAYWRIGHT("use_playwright"),
-    PLAYWRIGHT_SELENIUM_FALLBACK("playwright_selenium_fallback"),
     PATH_OCR("path_ocr"),
     AI_ENDPOINT("ai_endpoint"),
     AI_API_KEY("ai_api_key"),

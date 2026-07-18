@@ -20,7 +20,6 @@ import java.util.concurrent.*;
 import javax.websocket.*;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.openqa.selenium.WebDriver;
 
 @ClientEndpoint
 @Slf4j
@@ -382,29 +381,14 @@ public class ScannerRuntime {
     }
 
     public void handleCloseRequest() {
-        log.info("Handle Close: Exiting Threads and Quitting WebDriver");
+        log.info("Handle Close: exiting scanner threads and closing the browser runtime");
         scannerCloseRequestService.close(new ScannerRuntimeCloseRequest(
-                arWebDriver, this::closeWebDrivers, executorWebSocket, executorServicePreLaunch));
+                this::closeWebDrivers, executorWebSocket, executorServicePreLaunch));
     }
 
-    // Method to close all WebDriver instances
+    // Close the single browser runtime owned by ARWebDriver.
     public void closeWebDrivers() {
-        for (WebDriver driver : arWebDriver.getWebDriverList()) {
-            try {
-                driver.quit();
-                log.info("WebDriver closed.");
-            } catch (Exception e) {
-                log.warn("Closing WebDriver: " + e.getMessage());
-            }
-        }
-        UiThreadDispatcher.getInstance().execute(() -> {
-            arWebDriver.getWebDriverList().clear();
-            arWebDriver.setCurrentDriver(null); // reset current driver
-
-            arWebDriver.closeAllDrivers();
-        });
-
-        UiThreadDispatcher.getInstance().execute(() -> arWebDriver.getWebDriverList().clear());
+        arWebDriver.closeBrowser();
     }
 
     public void showModal() {

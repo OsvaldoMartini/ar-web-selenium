@@ -46,11 +46,10 @@ public final class ScannerTestRunStopper {
         operations.resetSingleBlock();
         operations.requestIntercept();
         try {
-            operations.closeCurrentDriver();
+            operations.closeBrowser();
         } catch (Exception error) {
             operations.warn(closeWarningMessage, error.getMessage());
         }
-        operations.clearCurrentDriver();
     }
 
     public interface Operations {
@@ -70,9 +69,7 @@ public final class ScannerTestRunStopper {
 
         void requestIntercept();
 
-        void closeCurrentDriver();
-
-        void clearCurrentDriver();
+        void closeBrowser();
 
         void info(String message, Object... args);
 

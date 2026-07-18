@@ -75,7 +75,7 @@ class BancaStatoBotJobPlaywrightIT {
     void closeBrowser() {
         try {
             holdBrowserOpenWhenRequested();
-            ARWebDriver.getInstance().closeCurrentDriver();
+            ARWebDriver.getInstance().closeBrowser();
         } finally {
             performLists.clearAllLists();
             if (fixture != null) {
@@ -323,8 +323,6 @@ class BancaStatoBotJobPlaywrightIT {
     }
 
     private void forcePlaywrightOnly() {
-        properties.setProperty(ARPropertyEnum.USE_PLAYWRIGHT.getValue(), "true");
-        properties.setProperty(ARPropertyEnum.PLAYWRIGHT_SELENIUM_FALLBACK.getValue(), "false");
         if (properties.getProperty(ARPropertyEnum.BROWSER) == null
                 || properties.getProperty(ARPropertyEnum.BROWSER).isBlank()) {
             properties.setProperty(ARPropertyEnum.BROWSER.getValue(), ARConstantsEngine.EDGE);

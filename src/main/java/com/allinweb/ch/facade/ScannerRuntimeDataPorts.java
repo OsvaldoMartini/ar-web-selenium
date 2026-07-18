@@ -7,7 +7,6 @@ import com.allinweb.ch.util.ErrorMessage;
 import com.allinweb.ch.util.TargetElementHelper;
 import java.util.List;
 import java.util.Objects;
-import org.openqa.selenium.WebElement;
 
 public final class ScannerRuntimeDataPorts {
     private ScannerRuntimeDataPorts() {}
@@ -83,11 +82,6 @@ public final class ScannerRuntimeDataPorts {
 
         public InsertActionsPort(PerformActions performActions) {
             this.performActions = Objects.requireNonNull(performActions, "performActions");
-        }
-
-        @Override
-        public WebElement findWebElement(TargetElement target) {
-            return performActions.findWebElement(target);
         }
 
         @Override

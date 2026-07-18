@@ -772,95 +772,34 @@ public class BotJobDetailsWorkspaceHost {
 
 
     private void handleExceptionScan(Exception error) {
-        // Log the exception
+        String details = error == null || error.getMessage() == null ? "Unknown browser error" : error.getMessage();
+        String browser = arPropertyManager.getProperty(ARPropertyEnum.BROWSER);
+        String normalized = details.toLowerCase(java.util.Locale.ROOT);
+        boolean browserClosed = normalized.contains("target window already closed")
+                || normalized.contains("web view not found")
+                || normalized.contains("browser has closed")
+                || normalized.contains("page has been closed")
+                || normalized.contains("context has been closed");
 
-        if (error.getMessage().contains("null")) {
-            log.error("Error: " + error.getMessage());
+        log.error("Error opening Page Scanner with Playwright browser {}: {}", browser, details, error);
+        if (browserClosed) {
+            performMessage.errorMessage(
+                    "Page Scanner Browser Closed",
+                    "<span style='font-style: italic;'>The browser was closed before the Page Scanner finished.</span>",
+                    "<span style='color: #E65100; font-weight: bold;'>The Playwright browser session is no longer active.</span>",
+                    "<span style='font-style: italic;'>Close and reopen the Page Scanner to start a new session.</span>",
+                    "<span style='font-style: italic;'>Details: " + details + "</span>",
+                    0);
             return;
         }
 
-        log.error("ERROR Calling openScannerButton -> Cause: " + error.getMessage());
-
-        // Display the error message to the user
-        String browser = arPropertyManager.getProperty(ARPropertyEnum.BROWSER);
-        String webDriverPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_WEBDRIVER);
-
-        if (error.getMessage().contains("no such window: target window already closed")
-                || error.getMessage().contains("web view not found")) {
-            log.error("Error Calling SCANNER: {}", webDriverPath);
-            performMessage.errorMessage(
-                    "Error Calling SCANNER",
-                    "<span style='font-style: italic;'>Web Browser was closed before the Scanner Tool!</span>",
-                    "<span style='color: #E65100; font-weight: bold;'>WebDriver path:</span> <span style='font-weight: bold;'>"
-                            + webDriverPath + "</span>",
-                    "<span style='font-style: italic;'>Please close and Re-Open the Scanner Tool.</span>",
-                    "<span style='font-style: italic;'>Details: " + "Web Browser was closed before the Scanner Tool"
-                            + "</span>",
-                    0);
-        } else {
-
-            //            "invalid session id"
-
-            if (!error.getMessage().contains("Current browser version")) {
-                log.error("Error Open URL: " + error.getMessage());
-
-                //                performMessage.errorMessage("Error Open URL", msg1, msg2, msg3, msg4, 0);
-
-                if (error.getMessage().contains("session deleted as the browser has closed the connection")
-                        || error.getMessage().contains("Expected condition failed: waiting for com")) {
-                    log.error("Interruption Calling SCANNER: {}", webDriverPath);
-                    performMessage.errorMessage(
-                            "Interruption Calling SCANNER",
-                            "<span style='font-style: italic;'>Session deleted as the browser has closed the connection!</span>",
-                            "<span style='color: #E65100; font-weight: bold;'>WebDriver path:</span> <span style='font-weight: bold;'>"
-                                    + webDriverPath + "</span>",
-                            "<span style='font-style: italic;'>Please close and Re-Open the Scanner Tool.</span>",
-                            "<span style='font-style: italic;'>Details: "
-                                    + "Web Browser was closed before the Scanner Tool" + "</span>",
-                            0);
-                } else {
-                    log.error("WebDriver Access Issue: Browser: {} - {}", browser, webDriverPath);
-                    performMessage.errorMessage(
-                            "WebDriver Access Issue",
-                            "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to access WebDriver.</span>",
-                            //                        "<span style='font-style: italic;'>It appears the WebDriver data
-                            // directory might be locked by another process.</span>",
-                            "<span style='font-weight: bold;'>Please ensure the following:</span>",
-                            "<ul>" + "   <li>No other instances of the browser or WebDriver are currently running.</li>"
-                                    + "   <li>The specified WebDriver path is correct and accessible: <span style='font-weight: bold;'>"
-                                    + webDriverPath + "</span></li>"
-                                    + "   <li>The configured browser is: <span style='font-weight: bold;'>"
-                                    + browser + "</span></li>" + "</ul>",
-                            "<span style='font-style: italic;'>If the issue persists, try closing all related browser processes and restarting the application.</span>",
-                            0);
-                }
-            } else {
-                log.error("Error Open URL: " + error.getMessage());
-
-                int lastSlashIndex = webDriverPath.lastIndexOf('\\');
-                String directoryPath = webDriverPath.substring(0, lastSlashIndex + 1); // includes the last backslash
-                String fileName = webDriverPath.substring(lastSlashIndex + 1);
-
-                log.error("Invalid URL or Navigation Error: {} - {} - {}", browser, directoryPath, fileName);
-                performMessage.errorMessage(
-                        "Invalid URL or Navigation Error",
-                        "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>The provided URL is invalid or cannot be reached.</span>",
-                        "<span style='font-weight: bold;'>Please verify the following:</span>",
-                        "<ul>"
-                                + "   <li>The entered URL is valid and accessible.</li>"
-                                + "   <li>The installed browser version: <span style='color: #008b8b; font-weight: bold;'>"
-                                + browser + "</span></li>"
-                                + "   <li>The WebDriver path:<br><span style='color: #008b8b; font-weight: bold;'>"
-                                + directoryPath + "</span></li>"
-                                + "   <li>The WebDriver file:<br><span style='color: #008b8b; font-weight: bold;'>"
-                                + fileName + "</span></li>"
-                                + "   <li>Ensure the WebDriver and browser are compatible and correctly configured.</li>"
-                                + "</ul>",
-                        "<span style='font-style: italic;'>Check the URL format (e.g., including https://) and review browser/WebDriver logs for more details.</span>",
-                        0);
-            }
-        }
-
+        performMessage.errorMessage(
+                "Page Scanner Browser Error",
+                "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Playwright could not open or navigate the browser.</span>",
+                "<span style='font-weight: bold;'>Configured browser: " + browser + "</span>",
+                "<span style='font-style: italic;'>Verify the target URL and close conflicting browser processes before retrying.</span>",
+                "<span style='font-style: italic;'>Details: " + details + "</span>",
+                0);
     }
 
     public BotJobLoadDTO getBotJobDTO() {

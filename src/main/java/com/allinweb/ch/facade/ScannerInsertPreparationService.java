@@ -5,7 +5,6 @@ import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.model.TargetElement;
 import com.google.common.base.Strings;
 import java.util.List;
-import org.openqa.selenium.WebElement;
 
 /** Builds instruction rows for scanner insert requests before the database write. */
 public final class ScannerInsertPreparationService {
@@ -28,10 +27,6 @@ public final class ScannerInsertPreparationService {
         }
         for (ElementDTO elementDTO : elements) {
             TargetElement target = targetExtractor.extractPickClone(elementDTO);
-            WebElement elementFound = actions.findWebElement(target);
-            if (target.getElement() == null && elementFound != null) {
-                target.setElement(elementFound);
-            }
             actions.defineSavedReferenced(target);
 
             if (!Strings.isNullOrEmpty(elementDTO.getForceCoordinates())) {
@@ -61,8 +56,6 @@ public final class ScannerInsertPreparationService {
     }
 
     public interface ActionsPort {
-        WebElement findWebElement(TargetElement target);
-
         void defineSavedReferenced(TargetElement target);
     }
 

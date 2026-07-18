@@ -2584,14 +2584,16 @@ public class SimpleWebSocketServer {
                                 homeBankingId, sessionIdToSend, jsonData, scannerMobilePickRoute.payloadOperationId());
 
                         String jsonPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+                        var arWebDriver = performActions.getCurrentARWebDriver();
+                        var playwrightDriver = arWebDriver == null ? null : arWebDriver.currentPlaywrightDriver();
 
                         // 2. DOM rects (needed by OCR correlator).
                         PageDiagnosticDumper.dumpRectsFromElements(
-                                performActions.getCurrentDriver(), splitDTO.getElementDetails(), jsonPath, "page-HP");
+                                playwrightDriver, splitDTO.getElementDetails(), jsonPath, "page-HP");
 
                         // 3. OCR pipeline writes ocr-correlation-HP.json that the resolver consumes.
                         PageOcrDumper.runAndDump(
-                                performActions.getCurrentDriver(), splitDTO.getElementDetails(), jsonPath, "page-HP");
+                                playwrightDriver, splitDTO.getElementDetails(), jsonPath, "page-HP", null, null);
 
                         // 4. Resolve someText + definedName from DOM + OCR (mutates DTOs in place).
                         //    Pass the active OcrConfig so the resolver picks up the OCR weight knobs
@@ -2647,12 +2649,14 @@ public class SimpleWebSocketServer {
                                 homeBankingId, scannerMobilePickRoute.payloadOperationId(), splitDTO);
 
                         String jsonPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+                        var arWebDriver = performActions.getCurrentARWebDriver();
+                        var playwrightDriver = arWebDriver == null ? null : arWebDriver.currentPlaywrightDriver();
 
                         PageDiagnosticDumper.dumpRectsFromElements(
-                                performActions.getCurrentDriver(), splitDTO.getElementDetails(), jsonPath, "page-HP");
+                                playwrightDriver, splitDTO.getElementDetails(), jsonPath, "page-HP");
 
                         PageOcrDumper.runAndDump(
-                                performActions.getCurrentDriver(), splitDTO.getElementDetails(), jsonPath, "page-HP");
+                                playwrightDriver, splitDTO.getElementDetails(), jsonPath, "page-HP", null, null);
 
                         ElementTextResolver.resolveAll(
                                 splitDTO.getElementDetails(),

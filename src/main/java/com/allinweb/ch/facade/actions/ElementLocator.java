@@ -16,7 +16,6 @@ import java.util.Set;
 import org.apache.commons.lang3.StringUtils;
 import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
-import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.SearchContext;
 import org.openqa.selenium.TimeoutException;
 import org.openqa.selenium.WebDriver;
@@ -60,35 +59,6 @@ public class ElementLocator {
         this.ctx = ctx;
     }
 
-    public static WebElement findElementByID(WebDriver driver, String elementID) {
-        JavascriptExecutor jsExecutor = (JavascriptExecutor) driver;
-        return (WebElement) jsExecutor.executeScript("return document.getElementById(arguments[0]);", elementID);
-    }
-
-    public static WebElement findElementsByName(WebDriver driver, String elementName) {
-        JavascriptExecutor jsExecutor = (JavascriptExecutor) driver;
-        return (WebElement)
-                jsExecutor.executeScript("return document.getElementsByName(arguments[0])[0];", elementName);
-    }
-
-    public static WebElement findElementByAttributeParams(
-            WebDriver driver, String attributeName, String attributeValue) {
-
-        attributeName = attributeName.trim().replaceAll("^\"|\"$", "");
-        attributeValue = attributeValue.trim().replaceAll("^\"|\"$", "");
-
-        JavascriptExecutor jsExecutor = (JavascriptExecutor) driver;
-        try {
-            // Remove extra quotes around the attribute name and value before passing them to JavaScript
-            return (WebElement) jsExecutor.executeScript(
-                    "return document.querySelector('[\"' + arguments[0] + '\"]' + '=\"' + arguments[1] + '\"]');",
-                    attributeName.trim(),
-                    attributeValue.trim());
-        } catch (Exception ignore) {
-        }
-        return null;
-    }
-
     public WebElement searchElement(
             InstructionLoad instruction, int botJobId, boolean forceCoordinates, boolean byPassFlagLoop) {
         WebElement instructionElement = null;
@@ -97,20 +67,6 @@ public class ElementLocator {
             instructionElement = locateElement(instruction, botJobId, forceCoordinates, byPassFlagLoop);
         }
         return instructionElement;
-    }
-
-    public static WebElement getElementAtCoordinates(int x, int y, WebDriver driver) {
-        String script = "return document.elementFromPoint(arguments[0], arguments[1]);";
-
-        // Execute the script and retrieve the element
-        Object element = ((JavascriptExecutor) driver).executeScript(script, x, y);
-
-        // Check if the returned element is not null and cast it to WebElement
-        if (element instanceof WebElement) {
-            return (WebElement) element;
-        } else {
-            throw new NoSuchElementException("No element found at the given coordinates: (" + x + ", " + y + ")");
-        }
     }
 
     public WebElement locateTargetElement(boolean byPassNotFound, String targetXPath, Integer actionCustomMaxWaitSec) {
@@ -375,24 +331,6 @@ public class ElementLocator {
         }
 
         return new ArrayList<>(uniqueElements);
-    }
-
-    public WebElement findElementByXPaths(List<String> xpaths, WebDriver driver) {
-        JavascriptExecutor jsExecutor = (JavascriptExecutor) driver;
-
-        for (String xpath : xpaths) {
-            try {
-                Object result = jsExecutor.executeScript("return document.evaluate(\"" + xpath
-                        + "\", document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;");
-                if (result instanceof WebElement) {
-                    return (WebElement) result;
-                }
-            } catch (Exception e) {
-                // Log or handle the exception if needed
-                logOperations.error("Error locating element with XPath: " + xpath + ". Exception: " + e.getMessage());
-            }
-        }
-        return null;
     }
 
     public WebElement findShadowElementByCssSelector(String shadowLocator, String cssSelector) {

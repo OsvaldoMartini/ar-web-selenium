@@ -8,7 +8,6 @@ import com.allinweb.ch.model.TargetElement;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
-import org.openqa.selenium.WebElement;
 
 class ScannerUpdatePreparationServiceTest {
 
@@ -42,11 +41,6 @@ class ScannerUpdatePreparationServiceTest {
 
     private static final class RecordingActions implements ScannerInsertPreparationService.ActionsPort {
         private int savedReferenceCount;
-
-        @Override
-        public WebElement findWebElement(TargetElement target) {
-            return null;
-        }
 
         @Override
         public void defineSavedReferenced(TargetElement target) {

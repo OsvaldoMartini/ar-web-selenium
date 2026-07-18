@@ -1,24 +1,20 @@
 package com.allinweb.ch.facade;
 
-import com.allinweb.ch.driver.ARWebDriver;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public final class ScannerRuntimeCloseRequest implements ScannerCloseRequestService.CloseRequest {
-    private final ARWebDriver arWebDriver;
-    private final Runnable closeWebDrivers;
+    private final Runnable closeBrowserRuntime;
     private final ExecutorService executorWebSocket;
     private final ExecutorService executorServicePreLaunch;
 
     public ScannerRuntimeCloseRequest(
-            ARWebDriver arWebDriver,
-            Runnable closeWebDrivers,
+            Runnable closeBrowserRuntime,
             ExecutorService executorWebSocket,
             ExecutorService executorServicePreLaunch) {
-        this.arWebDriver = arWebDriver;
-        this.closeWebDrivers = closeWebDrivers;
+        this.closeBrowserRuntime = closeBrowserRuntime;
         this.executorWebSocket = executorWebSocket;
         this.executorServicePreLaunch = executorServicePreLaunch;
     }
@@ -29,35 +25,20 @@ public final class ScannerRuntimeCloseRequest implements ScannerCloseRequestServ
     }
 
     @Override
-    public boolean hasWebDriver() {
-        return arWebDriver != null;
-    }
-
-    @Override
-    public void closeWebDrivers() {
-        closeWebDrivers.run();
-    }
-
-    @Override
-    public void quitCurrentDriver() {
-        arWebDriver.getCurrentDriver().quit();
-    }
-
-    @Override
-    public void clearCurrentDriver() {
-        arWebDriver.setCurrentDriver(null);
+    public void closeBrowserRuntime() {
+        closeBrowserRuntime.run();
     }
 
     @Override
     public void shutdownExecutors() {
         shutDownExecutorService(executorWebSocket);
         shutDownExecutorService(executorServicePreLaunch);
-        log.info("WebDriver quit successfully.");
+        log.info("Browser runtime closed successfully.");
     }
 
     @Override
     public void closeFailed(Exception error) {
-        log.error("Error closing WebDriver: " + error.getMessage());
+        log.error("Error closing browser runtime: " + error.getMessage());
     }
 
     private void shutDownExecutorService(ExecutorService executorService) {

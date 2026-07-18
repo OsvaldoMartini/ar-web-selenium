@@ -238,6 +238,72 @@ public class ARPlaywrightDriver {
         return call(() -> requirePage().title());
     }
 
+    public BrowserElementSnapshot inspectElement(String xPath) {
+        if (xPath == null || xPath.isBlank()) {
+            return BrowserElementSnapshot.notFound("empty-xpath");
+        }
+        return call(() -> {
+            Object raw = requirePage().evaluate(
+                    """
+                    xPath => {
+                      try {
+                        const result = document.evaluate(
+                          xPath,
+                          document,
+                          null,
+                          XPathResult.ORDERED_NODE_SNAPSHOT_TYPE,
+                          null
+                        );
+                        const element = result.snapshotItem(0);
+                        if (!(element instanceof Element)) {
+                          return { found: false, matchCount: result.snapshotLength, reason: 'no-match' };
+                        }
+                        const rect = element.getBoundingClientRect();
+                        const style = getComputedStyle(element);
+                        return {
+                          found: true,
+                          matchCount: result.snapshotLength,
+                          displayed: rect.width > 0 && rect.height > 0
+                            && style.display !== 'none' && style.visibility !== 'hidden',
+                          enabled: !('disabled' in element) || !element.disabled,
+                          selected: Boolean(element.selected) || Boolean(element.checked)
+                            || element.getAttribute('aria-selected') === 'true',
+                          x: Math.round(rect.left + window.scrollX),
+                          y: Math.round(rect.top + window.scrollY),
+                          width: Math.round(rect.width),
+                          height: Math.round(rect.height),
+                          text: element.innerText || element.textContent || '',
+                          outerHtml: element.outerHTML || '',
+                          innerHtml: element.innerHTML || '',
+                          parentHtml: element.parentElement ? element.parentElement.outerHTML || '' : ''
+                        };
+                      } catch (error) {
+                        return { found: false, matchCount: 0, reason: String(error) };
+                      }
+                    }
+                    """,
+                    xPath);
+            if (!(raw instanceof Map<?, ?> values)) {
+                return BrowserElementSnapshot.notFound("invalid-result");
+            }
+            return new BrowserElementSnapshot(
+                    asBoolean(values.get("found")),
+                    asInt(values.get("matchCount")),
+                    asBoolean(values.get("displayed")),
+                    asBoolean(values.get("enabled")),
+                    asBoolean(values.get("selected")),
+                    asInt(values.get("x")),
+                    asInt(values.get("y")),
+                    asInt(values.get("width")),
+                    asInt(values.get("height")),
+                    asString(values.get("text")),
+                    asString(values.get("outerHtml")),
+                    asString(values.get("innerHtml")),
+                    asString(values.get("parentHtml")),
+                    asString(values.get("reason")));
+        });
+    }
+
     public List<ElementDTO> scanElements(String[] searchTerms, boolean includeHidden) {
         return call(() -> elementScanner.scan(requirePage(), searchTerms, includeHidden));
     }
@@ -331,6 +397,21 @@ public class ARPlaywrightDriver {
             List<Page> pages = openPages();
             if (index < 0 || index >= pages.size()) return false;
             page = pages.get(index);
+            page.bringToFront();
+            return true;
+        });
+    }
+
+    /** Selects an adjacent tab, clamped at the first and last open page. */
+    public boolean selectPageRelative(int direction) {
+        return call(() -> {
+            List<Page> pages = openPages();
+            if (pages.isEmpty() || direction == 0) return false;
+            int currentIndex = pages.indexOf(page);
+            if (currentIndex < 0) currentIndex = pages.size() - 1;
+            int nextIndex = Math.max(0, Math.min(pages.size() - 1, currentIndex + direction));
+            if (nextIndex == currentIndex) return false;
+            page = pages.get(nextIndex);
             page.bringToFront();
             return true;
         });
@@ -597,6 +678,39 @@ public class ARPlaywrightDriver {
             closeable.close();
         } catch (Exception error) {
             log.warn("Error closing Playwright resource: {}", error.getMessage());
+        }
+    }
+
+    private static boolean asBoolean(Object value) {
+        return value instanceof Boolean bool && bool;
+    }
+
+    private static int asInt(Object value) {
+        return value instanceof Number number ? number.intValue() : 0;
+    }
+
+    private static String asString(Object value) {
+        return value == null ? "" : String.valueOf(value);
+    }
+
+    public record BrowserElementSnapshot(
+            boolean found,
+            int matchCount,
+            boolean displayed,
+            boolean enabled,
+            boolean selected,
+            int x,
+            int y,
+            int width,
+            int height,
+            String text,
+            String outerHtml,
+            String innerHtml,
+            String parentHtml,
+            String reason) {
+        public static BrowserElementSnapshot notFound(String reason) {
+            return new BrowserElementSnapshot(
+                    false, 0, false, false, false, 0, 0, 0, 0, "", "", "", "", reason);
         }
     }
 

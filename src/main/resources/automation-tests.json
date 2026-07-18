@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-18T04:03:45.059Z",
+  "generatedAt": "2026-07-18T16:25:04.104Z",
   "summary": {
-    "catalogEntries": 899,
-    "automatedCodeCases": 859,
+    "catalogEntries": 894,
+    "automatedCodeCases": 860,
     "generatedApiCases": 19452,
-    "totalAutomatedCases": 20311,
-    "automatedSuites": 235,
+    "totalAutomatedCases": 20312,
+    "automatedSuites": 236,
     "generatedSuites": 21,
-    "manualArtifacts": 15,
+    "manualArtifacts": 9,
     "supportArtifacts": 4,
     "defaultRunnable": 839,
     "safeRunAllEligible": 839
@@ -18,10 +18,10 @@
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "branch": "refactor/perform-actions-decomposition",
-      "commit": "4360f037a9591365d857ae814bec89bfe40fb2ad",
-      "sourceFiles": 208,
-      "automatedSuites": 193,
-      "automatedTestCases": 712,
+      "commit": "c74a8563cf1846dcde9a5bf171d3375a0623cd41",
+      "sourceFiles": 203,
+      "automatedSuites": 194,
+      "automatedTestCases": 713,
       "generatedSuites": 0,
       "generatedCases": 0
     },
@@ -989,6 +989,78 @@
       ]
     },
     {
+      "id": "junit:com.allinweb.ch.driver.ARWebDriverPlaywrightLifecycleTest#opensTheConfiguredBrowserOnlyThroughPlaywright@23",
+      "project": "AR Web Scanner",
+      "repository": "ar-web-selenium",
+      "recordType": "AUTOMATED_CASE",
+      "suite": "com.allinweb.ch.driver.ARWebDriverPlaywrightLifecycleTest",
+      "name": "opensTheConfiguredBrowserOnlyThroughPlaywright",
+      "displayName": "opensTheConfiguredBrowserOnlyThroughPlaywright",
+      "framework": "JUnit 5",
+      "language": "Java",
+      "kind": "UNIT",
+      "runtime": "JVM",
+      "execution": "DEFAULT",
+      "safety": "SAFE",
+      "sourcePath": "src/test/java/com/allinweb/ch/driver/ARWebDriverPlaywrightLifecycleTest.java",
+      "line": 23,
+      "caseCount": 1,
+      "runnable": true,
+      "runAllEligible": true,
+      "command": "mvn -Dtest=com.allinweb.ch.driver.ARWebDriverPlaywrightLifecycleTest#opensTheConfiguredBrowserOnlyThroughPlaywright test",
+      "tags": [
+        "Test"
+      ]
+    },
+    {
+      "id": "junit:com.allinweb.ch.driver.ARWebDriverPlaywrightLifecycleTest#browserCloseKeepsThePlaywrightWrapperAndSingletonReusable@34",
+      "project": "AR Web Scanner",
+      "repository": "ar-web-selenium",
+      "recordType": "AUTOMATED_CASE",
+      "suite": "com.allinweb.ch.driver.ARWebDriverPlaywrightLifecycleTest",
+      "name": "browserCloseKeepsThePlaywrightWrapperAndSingletonReusable",
+      "displayName": "browserCloseKeepsThePlaywrightWrapperAndSingletonReusable",
+      "framework": "JUnit 5",
+      "language": "Java",
+      "kind": "UNIT",
+      "runtime": "JVM",
+      "execution": "DEFAULT",
+      "safety": "SAFE",
+      "sourcePath": "src/test/java/com/allinweb/ch/driver/ARWebDriverPlaywrightLifecycleTest.java",
+      "line": 34,
+      "caseCount": 1,
+      "runnable": true,
+      "runAllEligible": true,
+      "command": "mvn -Dtest=com.allinweb.ch.driver.ARWebDriverPlaywrightLifecycleTest#browserCloseKeepsThePlaywrightWrapperAndSingletonReusable test",
+      "tags": [
+        "Test"
+      ]
+    },
+    {
+      "id": "junit:com.allinweb.ch.driver.ARWebDriverPlaywrightLifecycleTest#applicationShutdownTerminatesThePlaywrightExecutor@48",
+      "project": "AR Web Scanner",
+      "repository": "ar-web-selenium",
+      "recordType": "AUTOMATED_CASE",
+      "suite": "com.allinweb.ch.driver.ARWebDriverPlaywrightLifecycleTest",
+      "name": "applicationShutdownTerminatesThePlaywrightExecutor",
+      "displayName": "applicationShutdownTerminatesThePlaywrightExecutor",
+      "framework": "JUnit 5",
+      "language": "Java",
+      "kind": "UNIT",
+      "runtime": "JVM",
+      "execution": "DEFAULT",
+      "safety": "SAFE",
+      "sourcePath": "src/test/java/com/allinweb/ch/driver/ARWebDriverPlaywrightLifecycleTest.java",
+      "line": 48,
+      "caseCount": 1,
+      "runnable": true,
+      "runAllEligible": true,
+      "command": "mvn -Dtest=com.allinweb.ch.driver.ARWebDriverPlaywrightLifecycleTest#applicationShutdownTerminatesThePlaywrightExecutor test",
+      "tags": [
+        "Test"
+      ]
+    },
+    {
       "id": "junit:com.allinweb.ch.driver.GotoCommandEditorPlaywrightTest#selectsGotoDestinationAndEmitsApplyPayload@30",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
@@ -1109,7 +1181,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.driver.PlaywrightMigrationTest#newWrapperMethodsWork@31",
+      "id": "junit:com.allinweb.ch.driver.PlaywrightMigrationTest#newWrapperMethodsWork@32",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -1123,7 +1195,7 @@
       "execution": "CONDITIONAL",
       "safety": "HEADED",
       "sourcePath": "src/test/java/com/allinweb/ch/driver/PlaywrightMigrationTest.java",
-      "line": 31,
+      "line": 32,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": false,
@@ -1133,7 +1205,31 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.driver.PlaywrightMigrationTest#scannerCatchesOneTrustCookieButtonsWithRealText@66",
+      "id": "junit:com.allinweb.ch.driver.PlaywrightMigrationTest#inspectsElementsWithoutSeleniumWebElementObjects@67",
+      "project": "AR Web Scanner",
+      "repository": "ar-web-selenium",
+      "recordType": "AUTOMATED_CASE",
+      "suite": "com.allinweb.ch.driver.PlaywrightMigrationTest",
+      "name": "inspectsElementsWithoutSeleniumWebElementObjects",
+      "displayName": "inspectsElementsWithoutSeleniumWebElementObjects",
+      "framework": "JUnit 5",
+      "language": "Java",
+      "kind": "PLAYWRIGHT",
+      "runtime": "HEADED_BROWSER",
+      "execution": "CONDITIONAL",
+      "safety": "HEADED",
+      "sourcePath": "src/test/java/com/allinweb/ch/driver/PlaywrightMigrationTest.java",
+      "line": 67,
+      "caseCount": 1,
+      "runnable": true,
+      "runAllEligible": false,
+      "command": "mvn -Dtest=com.allinweb.ch.driver.PlaywrightMigrationTest#inspectsElementsWithoutSeleniumWebElementObjects test",
+      "tags": [
+        "Test"
+      ]
+    },
+    {
+      "id": "junit:com.allinweb.ch.driver.PlaywrightMigrationTest#scannerCatchesOneTrustCookieButtonsWithRealText@105",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -1147,7 +1243,7 @@
       "execution": "CONDITIONAL",
       "safety": "HEADED",
       "sourcePath": "src/test/java/com/allinweb/ch/driver/PlaywrightMigrationTest.java",
-      "line": 66,
+      "line": 105,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": false,
@@ -4398,131 +4494,6 @@
       ]
     },
     {
-      "id": "manual:ar-web-selenium:src/test/java/com/allinweb/ch/facade/Dynamic_ActionExecutor_Socket_Injection_Test.java",
-      "project": "AR Web Scanner",
-      "repository": "ar-web-selenium",
-      "recordType": "MANUAL_TOOL",
-      "suite": "com.allinweb.ch.facade.Dynamic_ActionExecutor_Socket_Injection_Test",
-      "name": "Dynamic_ActionExecutor_Socket_Injection_Test",
-      "displayName": "Dynamic_ActionExecutor_Socket_Injection_Test",
-      "framework": "Manual Java",
-      "language": "Java",
-      "kind": "MANUAL",
-      "runtime": "HEADED_BROWSER",
-      "execution": "MANUAL_ONLY",
-      "safety": "DANGEROUS",
-      "sourcePath": "src/test/java/com/allinweb/ch/facade/Dynamic_ActionExecutor_Socket_Injection_Test.java",
-      "line": 56,
-      "caseCount": 0,
-      "runnable": false,
-      "runAllEligible": false,
-      "command": "",
-      "tags": [
-        "manual",
-        "main"
-      ]
-    },
-    {
-      "id": "manual:ar-web-selenium:src/test/java/com/allinweb/ch/facade/Dynamic_HovePick_Socket_Injection_Test.java",
-      "project": "AR Web Scanner",
-      "repository": "ar-web-selenium",
-      "recordType": "MANUAL_TOOL",
-      "suite": "com.allinweb.ch.facade.Dynamic_HovePick_Socket_Injection_Test",
-      "name": "Dynamic_HovePick_Socket_Injection_Test",
-      "displayName": "Dynamic_HovePick_Socket_Injection_Test",
-      "framework": "Manual Java",
-      "language": "Java",
-      "kind": "MANUAL",
-      "runtime": "HEADED_BROWSER",
-      "execution": "MANUAL_ONLY",
-      "safety": "DANGEROUS",
-      "sourcePath": "src/test/java/com/allinweb/ch/facade/Dynamic_HovePick_Socket_Injection_Test.java",
-      "line": 55,
-      "caseCount": 0,
-      "runnable": false,
-      "runAllEligible": false,
-      "command": "",
-      "tags": [
-        "manual",
-        "main"
-      ]
-    },
-    {
-      "id": "manual:ar-web-selenium:src/test/java/com/allinweb/ch/facade/Dynamic_PageScanner_Async_Socket_Injection_Test.java",
-      "project": "AR Web Scanner",
-      "repository": "ar-web-selenium",
-      "recordType": "MANUAL_TOOL",
-      "suite": "com.allinweb.ch.facade.Dynamic_PageScanner_Async_Socket_Injection_Test",
-      "name": "Dynamic_PageScanner_Async_Socket_Injection_Test",
-      "displayName": "Dynamic_PageScanner_Async_Socket_Injection_Test",
-      "framework": "Manual Java",
-      "language": "Java",
-      "kind": "MANUAL",
-      "runtime": "HEADED_BROWSER",
-      "execution": "MANUAL_ONLY",
-      "safety": "DANGEROUS",
-      "sourcePath": "src/test/java/com/allinweb/ch/facade/Dynamic_PageScanner_Async_Socket_Injection_Test.java",
-      "line": 44,
-      "caseCount": 0,
-      "runnable": false,
-      "runAllEligible": false,
-      "command": "",
-      "tags": [
-        "manual",
-        "main"
-      ]
-    },
-    {
-      "id": "manual:ar-web-selenium:src/test/java/com/allinweb/ch/facade/Dynamic_PageScanner_Socket_Injection_Test.java",
-      "project": "AR Web Scanner",
-      "repository": "ar-web-selenium",
-      "recordType": "MANUAL_TOOL",
-      "suite": "com.allinweb.ch.facade.Dynamic_PageScanner_Socket_Injection_Test",
-      "name": "Dynamic_PageScanner_Socket_Injection_Test",
-      "displayName": "Dynamic_PageScanner_Socket_Injection_Test",
-      "framework": "Manual Java",
-      "language": "Java",
-      "kind": "MANUAL",
-      "runtime": "HEADED_BROWSER",
-      "execution": "MANUAL_ONLY",
-      "safety": "DANGEROUS",
-      "sourcePath": "src/test/java/com/allinweb/ch/facade/Dynamic_PageScanner_Socket_Injection_Test.java",
-      "line": 49,
-      "caseCount": 0,
-      "runnable": false,
-      "runAllEligible": false,
-      "command": "",
-      "tags": [
-        "manual",
-        "main"
-      ]
-    },
-    {
-      "id": "manual:ar-web-selenium:src/test/java/com/allinweb/ch/facade/Dynamic_SearchListAsync_Socket_Injection_Test.java",
-      "project": "AR Web Scanner",
-      "repository": "ar-web-selenium",
-      "recordType": "MANUAL_TOOL",
-      "suite": "com.allinweb.ch.facade.Dynamic_SearchListAsync_Socket_Injection_Test",
-      "name": "Dynamic_SearchListAsync_Socket_Injection_Test",
-      "displayName": "Dynamic_SearchListAsync_Socket_Injection_Test",
-      "framework": "Manual Java",
-      "language": "Java",
-      "kind": "MANUAL",
-      "runtime": "HEADED_BROWSER",
-      "execution": "MANUAL_ONLY",
-      "safety": "DANGEROUS",
-      "sourcePath": "src/test/java/com/allinweb/ch/facade/Dynamic_SearchListAsync_Socket_Injection_Test.java",
-      "line": 71,
-      "caseCount": 0,
-      "runnable": false,
-      "runAllEligible": false,
-      "command": "",
-      "tags": [
-        "manual",
-        "main"
-      ]
-    },
-    {
       "id": "junit:com.allinweb.ch.facade.ElementTextResolverTest#singleGlyphOcrDoesNotOverrideRealDomText@41",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
@@ -5724,31 +5695,6 @@
       ]
     },
     {
-      "id": "manual:ar-web-selenium:src/test/java/com/allinweb/ch/facade/ManualSocketInjectionTest.java",
-      "project": "AR Web Scanner",
-      "repository": "ar-web-selenium",
-      "recordType": "MANUAL_TOOL",
-      "suite": "com.allinweb.ch.facade.ManualSocketInjectionTest",
-      "name": "ManualSocketInjectionTest",
-      "displayName": "ManualSocketInjectionTest",
-      "framework": "Manual Java",
-      "language": "Java",
-      "kind": "MANUAL",
-      "runtime": "HEADED_BROWSER",
-      "execution": "MANUAL_ONLY",
-      "safety": "DANGEROUS",
-      "sourcePath": "src/test/java/com/allinweb/ch/facade/ManualSocketInjectionTest.java",
-      "line": 34,
-      "caseCount": 0,
-      "runnable": false,
-      "runAllEligible": false,
-      "command": "",
-      "tags": [
-        "manual",
-        "main"
-      ]
-    },
-    {
       "id": "junit:com.allinweb.ch.facade.NewBotJobPresentationRegistryTest#installsCurrentPresentation@18",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
@@ -6296,6 +6242,54 @@
       "runnable": true,
       "runAllEligible": false,
       "command": "mvn -Dtest=com.allinweb.ch.facade.PerformDBEngineAccessTest#testAccessConnection test",
+      "tags": [
+        "Test"
+      ]
+    },
+    {
+      "id": "junit:com.allinweb.ch.facade.PerformListElementsPlaywrightTest#scansThroughTheActivePlaywrightDriver@18",
+      "project": "AR Web Scanner",
+      "repository": "ar-web-selenium",
+      "recordType": "AUTOMATED_CASE",
+      "suite": "com.allinweb.ch.facade.PerformListElementsPlaywrightTest",
+      "name": "scansThroughTheActivePlaywrightDriver",
+      "displayName": "scansThroughTheActivePlaywrightDriver",
+      "framework": "JUnit 5",
+      "language": "Java",
+      "kind": "UNIT",
+      "runtime": "JVM",
+      "execution": "DEFAULT",
+      "safety": "SAFE",
+      "sourcePath": "src/test/java/com/allinweb/ch/facade/PerformListElementsPlaywrightTest.java",
+      "line": 18,
+      "caseCount": 1,
+      "runnable": true,
+      "runAllEligible": true,
+      "command": "mvn -Dtest=com.allinweb.ch.facade.PerformListElementsPlaywrightTest#scansThroughTheActivePlaywrightDriver test",
+      "tags": [
+        "Test"
+      ]
+    },
+    {
+      "id": "junit:com.allinweb.ch.facade.PerformListElementsPlaywrightTest#reportsAUsefulErrorWhenNoPlaywrightBrowserExists@34",
+      "project": "AR Web Scanner",
+      "repository": "ar-web-selenium",
+      "recordType": "AUTOMATED_CASE",
+      "suite": "com.allinweb.ch.facade.PerformListElementsPlaywrightTest",
+      "name": "reportsAUsefulErrorWhenNoPlaywrightBrowserExists",
+      "displayName": "reportsAUsefulErrorWhenNoPlaywrightBrowserExists",
+      "framework": "JUnit 5",
+      "language": "Java",
+      "kind": "UNIT",
+      "runtime": "JVM",
+      "execution": "DEFAULT",
+      "safety": "SAFE",
+      "sourcePath": "src/test/java/com/allinweb/ch/facade/PerformListElementsPlaywrightTest.java",
+      "line": 34,
+      "caseCount": 1,
+      "runnable": true,
+      "runAllEligible": true,
+      "command": "mvn -Dtest=com.allinweb.ch.facade.PerformListElementsPlaywrightTest#reportsAUsefulErrorWhenNoPlaywrightBrowserExists test",
       "tags": [
         "Test"
       ]
@@ -6926,13 +6920,13 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.scanner.browser.ScannerBrowserNotAttachedMessageServiceTest#messageIncludesBrowserClosedGuidanceAndWebDriverPath@11",
+      "id": "junit:com.allinweb.ch.facade.scanner.browser.ScannerBrowserNotAttachedMessageServiceTest#messageIncludesPlaywrightBrowserClosedGuidance@11",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
       "suite": "com.allinweb.ch.facade.scanner.browser.ScannerBrowserNotAttachedMessageServiceTest",
-      "name": "messageIncludesBrowserClosedGuidanceAndWebDriverPath",
-      "displayName": "messageIncludesBrowserClosedGuidanceAndWebDriverPath",
+      "name": "messageIncludesPlaywrightBrowserClosedGuidance",
+      "displayName": "messageIncludesPlaywrightBrowserClosedGuidance",
       "framework": "JUnit 5",
       "language": "Java",
       "kind": "UNIT",
@@ -6944,7 +6938,7 @@
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
-      "command": "mvn -Dtest=com.allinweb.ch.facade.scanner.browser.ScannerBrowserNotAttachedMessageServiceTest#messageIncludesBrowserClosedGuidanceAndWebDriverPath test",
+      "command": "mvn -Dtest=com.allinweb.ch.facade.scanner.browser.ScannerBrowserNotAttachedMessageServiceTest#messageIncludesPlaywrightBrowserClosedGuidance test",
       "tags": [
         "Test"
       ]
@@ -7334,6 +7328,54 @@
       ]
     },
     {
+      "id": "junit:com.allinweb.ch.facade.scanner.browser.ScannerPlaywrightBrowserAdapterTest#reportsNoCurrentBrowserWhenSupplierReturnsNull@18",
+      "project": "AR Web Scanner",
+      "repository": "ar-web-selenium",
+      "recordType": "AUTOMATED_CASE",
+      "suite": "com.allinweb.ch.facade.scanner.browser.ScannerPlaywrightBrowserAdapterTest",
+      "name": "reportsNoCurrentBrowserWhenSupplierReturnsNull",
+      "displayName": "reportsNoCurrentBrowserWhenSupplierReturnsNull",
+      "framework": "JUnit 5",
+      "language": "Java",
+      "kind": "UNIT",
+      "runtime": "JVM",
+      "execution": "DEFAULT",
+      "safety": "SAFE",
+      "sourcePath": "src/test/java/com/allinweb/ch/facade/scanner/browser/ScannerPlaywrightBrowserAdapterTest.java",
+      "line": 18,
+      "caseCount": 1,
+      "runnable": true,
+      "runAllEligible": true,
+      "command": "mvn -Dtest=com.allinweb.ch.facade.scanner.browser.ScannerPlaywrightBrowserAdapterTest#reportsNoCurrentBrowserWhenSupplierReturnsNull test",
+      "tags": [
+        "Test"
+      ]
+    },
+    {
+      "id": "junit:com.allinweb.ch.facade.scanner.browser.ScannerPlaywrightBrowserAdapterTest#delegatesBrowserSnapshotCallsToTheOpenPlaywrightPage@30",
+      "project": "AR Web Scanner",
+      "repository": "ar-web-selenium",
+      "recordType": "AUTOMATED_CASE",
+      "suite": "com.allinweb.ch.facade.scanner.browser.ScannerPlaywrightBrowserAdapterTest",
+      "name": "delegatesBrowserSnapshotCallsToTheOpenPlaywrightPage",
+      "displayName": "delegatesBrowserSnapshotCallsToTheOpenPlaywrightPage",
+      "framework": "JUnit 5",
+      "language": "Java",
+      "kind": "UNIT",
+      "runtime": "JVM",
+      "execution": "DEFAULT",
+      "safety": "SAFE",
+      "sourcePath": "src/test/java/com/allinweb/ch/facade/scanner/browser/ScannerPlaywrightBrowserAdapterTest.java",
+      "line": 30,
+      "caseCount": 1,
+      "runnable": true,
+      "runAllEligible": true,
+      "command": "mvn -Dtest=com.allinweb.ch.facade.scanner.browser.ScannerPlaywrightBrowserAdapterTest#delegatesBrowserSnapshotCallsToTheOpenPlaywrightPage test",
+      "tags": [
+        "Test"
+      ]
+    },
+    {
       "id": "junit:com.allinweb.ch.facade.scanner.browser.ScannerScreenshotLoopTest#startSchedulesLoopAtFixedRate@21",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
@@ -7449,54 +7491,6 @@
       "runnable": true,
       "runAllEligible": true,
       "command": "mvn -Dtest=com.allinweb.ch.facade.scanner.browser.ScannerScreenshotLoopTest#tickReportsScreenshotSendError test",
-      "tags": [
-        "Test"
-      ]
-    },
-    {
-      "id": "junit:com.allinweb.ch.facade.scanner.browser.ScannerSeleniumBrowserAdapterTest#reportsNoCurrentDriverWhenSupplierReturnsNull@15",
-      "project": "AR Web Scanner",
-      "repository": "ar-web-selenium",
-      "recordType": "AUTOMATED_CASE",
-      "suite": "com.allinweb.ch.facade.scanner.browser.ScannerSeleniumBrowserAdapterTest",
-      "name": "reportsNoCurrentDriverWhenSupplierReturnsNull",
-      "displayName": "reportsNoCurrentDriverWhenSupplierReturnsNull",
-      "framework": "JUnit 5",
-      "language": "Java",
-      "kind": "UNIT",
-      "runtime": "JVM",
-      "execution": "DEFAULT",
-      "safety": "SAFE",
-      "sourcePath": "src/test/java/com/allinweb/ch/facade/scanner/browser/ScannerSeleniumBrowserAdapterTest.java",
-      "line": 15,
-      "caseCount": 1,
-      "runnable": true,
-      "runAllEligible": true,
-      "command": "mvn -Dtest=com.allinweb.ch.facade.scanner.browser.ScannerSeleniumBrowserAdapterTest#reportsNoCurrentDriverWhenSupplierReturnsNull test",
-      "tags": [
-        "Test"
-      ]
-    },
-    {
-      "id": "junit:com.allinweb.ch.facade.scanner.browser.ScannerSeleniumBrowserAdapterTest#delegatesBrowserSnapshotCallsToCurrentDriver@25",
-      "project": "AR Web Scanner",
-      "repository": "ar-web-selenium",
-      "recordType": "AUTOMATED_CASE",
-      "suite": "com.allinweb.ch.facade.scanner.browser.ScannerSeleniumBrowserAdapterTest",
-      "name": "delegatesBrowserSnapshotCallsToCurrentDriver",
-      "displayName": "delegatesBrowserSnapshotCallsToCurrentDriver",
-      "framework": "JUnit 5",
-      "language": "Java",
-      "kind": "UNIT",
-      "runtime": "JVM",
-      "execution": "DEFAULT",
-      "safety": "SAFE",
-      "sourcePath": "src/test/java/com/allinweb/ch/facade/scanner/browser/ScannerSeleniumBrowserAdapterTest.java",
-      "line": 25,
-      "caseCount": 1,
-      "runnable": true,
-      "runAllEligible": true,
-      "command": "mvn -Dtest=com.allinweb.ch.facade.scanner.browser.ScannerSeleniumBrowserAdapterTest#delegatesBrowserSnapshotCallsToCurrentDriver test",
       "tags": [
         "Test"
       ]
@@ -9710,7 +9704,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.scanner.testrun.ScannerTestRunStopperTest#cancelStartupInterruptsBrowserWhenActive@25",
+      "id": "junit:com.allinweb.ch.facade.scanner.testrun.ScannerTestRunStopperTest#cancelStartupInterruptsBrowserWhenActive@24",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -9724,7 +9718,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/scanner/testrun/ScannerTestRunStopperTest.java",
-      "line": 25,
+      "line": 24,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -9734,7 +9728,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.scanner.testrun.ScannerTestRunStopperTest#stopRejectsStaleExecution@39",
+      "id": "junit:com.allinweb.ch.facade.scanner.testrun.ScannerTestRunStopperTest#stopRejectsStaleExecution@37",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -9748,7 +9742,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/scanner/testrun/ScannerTestRunStopperTest.java",
-      "line": 39,
+      "line": 37,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -9758,7 +9752,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.scanner.testrun.ScannerTestRunStopperTest#stopRejectsCompletedExecution@52",
+      "id": "junit:com.allinweb.ch.facade.scanner.testrun.ScannerTestRunStopperTest#stopRejectsCompletedExecution@50",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -9772,7 +9766,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/scanner/testrun/ScannerTestRunStopperTest.java",
-      "line": 52,
+      "line": 50,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -9782,7 +9776,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.scanner.testrun.ScannerTestRunStopperTest#stopRejectsWhenOutcomeTrackerAlreadyCompleted@65",
+      "id": "junit:com.allinweb.ch.facade.scanner.testrun.ScannerTestRunStopperTest#stopRejectsWhenOutcomeTrackerAlreadyCompleted@63",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -9796,7 +9790,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/scanner/testrun/ScannerTestRunStopperTest.java",
-      "line": 65,
+      "line": 63,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -9806,7 +9800,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.scanner.testrun.ScannerTestRunStopperTest#stopInterruptsBrowserForActiveRunningExecution@79",
+      "id": "junit:com.allinweb.ch.facade.scanner.testrun.ScannerTestRunStopperTest#stopInterruptsBrowserForActiveRunningExecution@77",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -9820,7 +9814,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/scanner/testrun/ScannerTestRunStopperTest.java",
-      "line": 79,
+      "line": 77,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -9830,7 +9824,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.scanner.testrun.ScannerTestRunStopperTest#reportsCurrentCompletionAndTerminalState@95",
+      "id": "junit:com.allinweb.ch.facade.scanner.testrun.ScannerTestRunStopperTest#reportsCurrentCompletionAndTerminalState@92",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -9844,7 +9838,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/scanner/testrun/ScannerTestRunStopperTest.java",
-      "line": 95,
+      "line": 92,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -10838,13 +10832,13 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.ScannerBrowserOperationsTest#browserStateUsesSeleniumWhenDriverIsAvailable@17",
+      "id": "junit:com.allinweb.ch.facade.ScannerBrowserOperationsTest#browserStateUsesPlaywright@13",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
       "suite": "com.allinweb.ch.facade.ScannerBrowserOperationsTest",
-      "name": "browserStateUsesSeleniumWhenDriverIsAvailable",
-      "displayName": "browserStateUsesSeleniumWhenDriverIsAvailable",
+      "name": "browserStateUsesPlaywright",
+      "displayName": "browserStateUsesPlaywright",
       "framework": "JUnit 5",
       "language": "Java",
       "kind": "UNIT",
@@ -10852,41 +10846,17 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/ScannerBrowserOperationsTest.java",
-      "line": 17,
+      "line": 13,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
-      "command": "mvn -Dtest=com.allinweb.ch.facade.ScannerBrowserOperationsTest#browserStateUsesSeleniumWhenDriverIsAvailable test",
+      "command": "mvn -Dtest=com.allinweb.ch.facade.ScannerBrowserOperationsTest#browserStateUsesPlaywright test",
       "tags": [
         "Test"
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.ScannerBrowserOperationsTest#browserStateUsesPlaywrightWhenSeleniumIsNotAvailable@36",
-      "project": "AR Web Scanner",
-      "repository": "ar-web-selenium",
-      "recordType": "AUTOMATED_CASE",
-      "suite": "com.allinweb.ch.facade.ScannerBrowserOperationsTest",
-      "name": "browserStateUsesPlaywrightWhenSeleniumIsNotAvailable",
-      "displayName": "browserStateUsesPlaywrightWhenSeleniumIsNotAvailable",
-      "framework": "JUnit 5",
-      "language": "Java",
-      "kind": "UNIT",
-      "runtime": "JVM",
-      "execution": "DEFAULT",
-      "safety": "SAFE",
-      "sourcePath": "src/test/java/com/allinweb/ch/facade/ScannerBrowserOperationsTest.java",
-      "line": 36,
-      "caseCount": 1,
-      "runnable": true,
-      "runAllEligible": true,
-      "command": "mvn -Dtest=com.allinweb.ch.facade.ScannerBrowserOperationsTest#browserStateUsesPlaywrightWhenSeleniumIsNotAvailable test",
-      "tags": [
-        "Test"
-      ]
-    },
-    {
-      "id": "junit:com.allinweb.ch.facade.ScannerBrowserOperationsTest#browserStateIsClosedWhenNoBrowserIsAvailable@53",
+      "id": "junit:com.allinweb.ch.facade.ScannerBrowserOperationsTest#browserStateIsClosedWhenNoBrowserIsAvailable@30",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -10900,7 +10870,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/ScannerBrowserOperationsTest.java",
-      "line": 53,
+      "line": 30,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -10910,31 +10880,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.ScannerBrowserOperationsTest#browserStateIsClosedWhenSeleniumStateThrows@64",
-      "project": "AR Web Scanner",
-      "repository": "ar-web-selenium",
-      "recordType": "AUTOMATED_CASE",
-      "suite": "com.allinweb.ch.facade.ScannerBrowserOperationsTest",
-      "name": "browserStateIsClosedWhenSeleniumStateThrows",
-      "displayName": "browserStateIsClosedWhenSeleniumStateThrows",
-      "framework": "JUnit 5",
-      "language": "Java",
-      "kind": "UNIT",
-      "runtime": "JVM",
-      "execution": "DEFAULT",
-      "safety": "SAFE",
-      "sourcePath": "src/test/java/com/allinweb/ch/facade/ScannerBrowserOperationsTest.java",
-      "line": 64,
-      "caseCount": 1,
-      "runnable": true,
-      "runAllEligible": true,
-      "command": "mvn -Dtest=com.allinweb.ch.facade.ScannerBrowserOperationsTest#browserStateIsClosedWhenSeleniumStateThrows test",
-      "tags": [
-        "Test"
-      ]
-    },
-    {
-      "id": "junit:com.allinweb.ch.facade.ScannerBrowserOperationsTest#browserStateKeepsPlaywrightOpenWhenOptionalDetailsFail@77",
+      "id": "junit:com.allinweb.ch.facade.ScannerBrowserOperationsTest#browserStateKeepsPlaywrightOpenWhenOptionalDetailsFail@41",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -10948,11 +10894,59 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/ScannerBrowserOperationsTest.java",
-      "line": 77,
+      "line": 41,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
       "command": "mvn -Dtest=com.allinweb.ch.facade.ScannerBrowserOperationsTest#browserStateKeepsPlaywrightOpenWhenOptionalDetailsFail test",
+      "tags": [
+        "Test"
+      ]
+    },
+    {
+      "id": "junit:com.allinweb.ch.facade.ScannerBrowserOperationsTest#switchTabSelectsAnAdjacentPlaywrightPage@56",
+      "project": "AR Web Scanner",
+      "repository": "ar-web-selenium",
+      "recordType": "AUTOMATED_CASE",
+      "suite": "com.allinweb.ch.facade.ScannerBrowserOperationsTest",
+      "name": "switchTabSelectsAnAdjacentPlaywrightPage",
+      "displayName": "switchTabSelectsAnAdjacentPlaywrightPage",
+      "framework": "JUnit 5",
+      "language": "Java",
+      "kind": "UNIT",
+      "runtime": "JVM",
+      "execution": "DEFAULT",
+      "safety": "SAFE",
+      "sourcePath": "src/test/java/com/allinweb/ch/facade/ScannerBrowserOperationsTest.java",
+      "line": 56,
+      "caseCount": 1,
+      "runnable": true,
+      "runAllEligible": true,
+      "command": "mvn -Dtest=com.allinweb.ch.facade.ScannerBrowserOperationsTest#switchTabSelectsAnAdjacentPlaywrightPage test",
+      "tags": [
+        "Test"
+      ]
+    },
+    {
+      "id": "junit:com.allinweb.ch.facade.ScannerBrowserOperationsTest#switchTabIgnoresZeroDirection@66",
+      "project": "AR Web Scanner",
+      "repository": "ar-web-selenium",
+      "recordType": "AUTOMATED_CASE",
+      "suite": "com.allinweb.ch.facade.ScannerBrowserOperationsTest",
+      "name": "switchTabIgnoresZeroDirection",
+      "displayName": "switchTabIgnoresZeroDirection",
+      "framework": "JUnit 5",
+      "language": "Java",
+      "kind": "UNIT",
+      "runtime": "JVM",
+      "execution": "DEFAULT",
+      "safety": "SAFE",
+      "sourcePath": "src/test/java/com/allinweb/ch/facade/ScannerBrowserOperationsTest.java",
+      "line": 66,
+      "caseCount": 1,
+      "runnable": true,
+      "runAllEligible": true,
+      "command": "mvn -Dtest=com.allinweb.ch.facade.ScannerBrowserOperationsTest#switchTabIgnoresZeroDirection test",
       "tags": [
         "Test"
       ]
@@ -11030,13 +11024,13 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.ScannerCloseRequestServiceTest#interruptsThreadsAndClosesWebDriverResourcesInOrder@13",
+      "id": "junit:com.allinweb.ch.facade.ScannerCloseRequestServiceTest#interruptsThreadsAndClosesBrowserRuntimeBeforeExecutors@13",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
       "suite": "com.allinweb.ch.facade.ScannerCloseRequestServiceTest",
-      "name": "interruptsThreadsAndClosesWebDriverResourcesInOrder",
-      "displayName": "interruptsThreadsAndClosesWebDriverResourcesInOrder",
+      "name": "interruptsThreadsAndClosesBrowserRuntimeBeforeExecutors",
+      "displayName": "interruptsThreadsAndClosesBrowserRuntimeBeforeExecutors",
       "framework": "JUnit 5",
       "language": "Java",
       "kind": "UNIT",
@@ -11048,19 +11042,19 @@
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
-      "command": "mvn -Dtest=com.allinweb.ch.facade.ScannerCloseRequestServiceTest#interruptsThreadsAndClosesWebDriverResourcesInOrder test",
+      "command": "mvn -Dtest=com.allinweb.ch.facade.ScannerCloseRequestServiceTest#interruptsThreadsAndClosesBrowserRuntimeBeforeExecutors test",
       "tags": [
         "Test"
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.ScannerCloseRequestServiceTest#onlyInterruptsThreadsWhenNoWebDriverExists@24",
+      "id": "junit:com.allinweb.ch.facade.ScannerCloseRequestServiceTest#reportsCloseFailureAndStillShutsDownExecutors@22",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
       "suite": "com.allinweb.ch.facade.ScannerCloseRequestServiceTest",
-      "name": "onlyInterruptsThreadsWhenNoWebDriverExists",
-      "displayName": "onlyInterruptsThreadsWhenNoWebDriverExists",
+      "name": "reportsCloseFailureAndStillShutsDownExecutors",
+      "displayName": "reportsCloseFailureAndStillShutsDownExecutors",
       "framework": "JUnit 5",
       "language": "Java",
       "kind": "UNIT",
@@ -11068,35 +11062,11 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/ScannerCloseRequestServiceTest.java",
-      "line": 24,
+      "line": 22,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
-      "command": "mvn -Dtest=com.allinweb.ch.facade.ScannerCloseRequestServiceTest#onlyInterruptsThreadsWhenNoWebDriverExists test",
-      "tags": [
-        "Test"
-      ]
-    },
-    {
-      "id": "junit:com.allinweb.ch.facade.ScannerCloseRequestServiceTest#reportsCloseFailure@33",
-      "project": "AR Web Scanner",
-      "repository": "ar-web-selenium",
-      "recordType": "AUTOMATED_CASE",
-      "suite": "com.allinweb.ch.facade.ScannerCloseRequestServiceTest",
-      "name": "reportsCloseFailure",
-      "displayName": "reportsCloseFailure",
-      "framework": "JUnit 5",
-      "language": "Java",
-      "kind": "UNIT",
-      "runtime": "JVM",
-      "execution": "DEFAULT",
-      "safety": "SAFE",
-      "sourcePath": "src/test/java/com/allinweb/ch/facade/ScannerCloseRequestServiceTest.java",
-      "line": 33,
-      "caseCount": 1,
-      "runnable": true,
-      "runAllEligible": true,
-      "command": "mvn -Dtest=com.allinweb.ch.facade.ScannerCloseRequestServiceTest#reportsCloseFailure test",
+      "command": "mvn -Dtest=com.allinweb.ch.facade.ScannerCloseRequestServiceTest#reportsCloseFailureAndStillShutsDownExecutors test",
       "tags": [
         "Test"
       ]
@@ -12878,7 +12848,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.ScannerInsertPreparationServiceTest#preparesRowsInOrderAndKeepsManySelectionUnchanged@18",
+      "id": "junit:com.allinweb.ch.facade.ScannerInsertPreparationServiceTest#preparesRowsInOrderAndKeepsManySelectionUnchanged@17",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -12892,7 +12862,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/ScannerInsertPreparationServiceTest.java",
-      "line": 18,
+      "line": 17,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -12902,7 +12872,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.ScannerInsertPreparationServiceTest#selectsTargetForSingleInsert@38",
+      "id": "junit:com.allinweb.ch.facade.ScannerInsertPreparationServiceTest#selectsTargetForSingleInsert@37",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -12916,7 +12886,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/ScannerInsertPreparationServiceTest.java",
-      "line": 38,
+      "line": 37,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -13329,126 +13299,6 @@
       "runnable": true,
       "runAllEligible": true,
       "command": "mvn -Dtest=com.allinweb.ch.facade.ScannerPageReviewFileServiceTest#fallsBackWhenBrowserMetadataFails test",
-      "tags": [
-        "Test"
-      ]
-    },
-    {
-      "id": "junit:com.allinweb.ch.facade.ScannerPageScanServiceTest#splitsExplicitSearchTerms@16",
-      "project": "AR Web Scanner",
-      "repository": "ar-web-selenium",
-      "recordType": "AUTOMATED_CASE",
-      "suite": "com.allinweb.ch.facade.ScannerPageScanServiceTest",
-      "name": "splitsExplicitSearchTerms",
-      "displayName": "splitsExplicitSearchTerms",
-      "framework": "JUnit 5",
-      "language": "Java",
-      "kind": "UNIT",
-      "runtime": "JVM",
-      "execution": "DEFAULT",
-      "safety": "SAFE",
-      "sourcePath": "src/test/java/com/allinweb/ch/facade/ScannerPageScanServiceTest.java",
-      "line": 16,
-      "caseCount": 1,
-      "runnable": true,
-      "runAllEligible": true,
-      "command": "mvn -Dtest=com.allinweb.ch.facade.ScannerPageScanServiceTest#splitsExplicitSearchTerms test",
-      "tags": [
-        "Test"
-      ]
-    },
-    {
-      "id": "junit:com.allinweb.ch.facade.ScannerPageScanServiceTest#usesSelectedProfileTermsWhenSearchTextIsBlank@25",
-      "project": "AR Web Scanner",
-      "repository": "ar-web-selenium",
-      "recordType": "AUTOMATED_CASE",
-      "suite": "com.allinweb.ch.facade.ScannerPageScanServiceTest",
-      "name": "usesSelectedProfileTermsWhenSearchTextIsBlank",
-      "displayName": "usesSelectedProfileTermsWhenSearchTextIsBlank",
-      "framework": "JUnit 5",
-      "language": "Java",
-      "kind": "UNIT",
-      "runtime": "JVM",
-      "execution": "DEFAULT",
-      "safety": "SAFE",
-      "sourcePath": "src/test/java/com/allinweb/ch/facade/ScannerPageScanServiceTest.java",
-      "line": 25,
-      "caseCount": 1,
-      "runnable": true,
-      "runAllEligible": true,
-      "command": "mvn -Dtest=com.allinweb.ch.facade.ScannerPageScanServiceTest#usesSelectedProfileTermsWhenSearchTextIsBlank test",
-      "tags": [
-        "Test"
-      ]
-    },
-    {
-      "id": "junit:com.allinweb.ch.facade.ScannerPageScanServiceTest#usesFallbackTermsWhenNoSearchTextOrProfileExists@34",
-      "project": "AR Web Scanner",
-      "repository": "ar-web-selenium",
-      "recordType": "AUTOMATED_CASE",
-      "suite": "com.allinweb.ch.facade.ScannerPageScanServiceTest",
-      "name": "usesFallbackTermsWhenNoSearchTextOrProfileExists",
-      "displayName": "usesFallbackTermsWhenNoSearchTextOrProfileExists",
-      "framework": "JUnit 5",
-      "language": "Java",
-      "kind": "UNIT",
-      "runtime": "JVM",
-      "execution": "DEFAULT",
-      "safety": "SAFE",
-      "sourcePath": "src/test/java/com/allinweb/ch/facade/ScannerPageScanServiceTest.java",
-      "line": 34,
-      "caseCount": 1,
-      "runnable": true,
-      "runAllEligible": true,
-      "command": "mvn -Dtest=com.allinweb.ch.facade.ScannerPageScanServiceTest#usesFallbackTermsWhenNoSearchTextOrProfileExists test",
-      "tags": [
-        "Test"
-      ]
-    },
-    {
-      "id": "junit:com.allinweb.ch.facade.ScannerPageScanServiceTest#forwardsScanRequestToPerformListElements@43",
-      "project": "AR Web Scanner",
-      "repository": "ar-web-selenium",
-      "recordType": "AUTOMATED_CASE",
-      "suite": "com.allinweb.ch.facade.ScannerPageScanServiceTest",
-      "name": "forwardsScanRequestToPerformListElements",
-      "displayName": "forwardsScanRequestToPerformListElements",
-      "framework": "JUnit 5",
-      "language": "Java",
-      "kind": "UNIT",
-      "runtime": "JVM",
-      "execution": "DEFAULT",
-      "safety": "SAFE",
-      "sourcePath": "src/test/java/com/allinweb/ch/facade/ScannerPageScanServiceTest.java",
-      "line": 43,
-      "caseCount": 1,
-      "runnable": true,
-      "runAllEligible": true,
-      "command": "mvn -Dtest=com.allinweb.ch.facade.ScannerPageScanServiceTest#forwardsScanRequestToPerformListElements test",
-      "tags": [
-        "Test"
-      ]
-    },
-    {
-      "id": "junit:com.allinweb.ch.facade.ScannerPageScanServiceTest#standardRequestBuildsTermsRouteAndEmptyRules@71",
-      "project": "AR Web Scanner",
-      "repository": "ar-web-selenium",
-      "recordType": "AUTOMATED_CASE",
-      "suite": "com.allinweb.ch.facade.ScannerPageScanServiceTest",
-      "name": "standardRequestBuildsTermsRouteAndEmptyRules",
-      "displayName": "standardRequestBuildsTermsRouteAndEmptyRules",
-      "framework": "JUnit 5",
-      "language": "Java",
-      "kind": "UNIT",
-      "runtime": "JVM",
-      "execution": "DEFAULT",
-      "safety": "SAFE",
-      "sourcePath": "src/test/java/com/allinweb/ch/facade/ScannerPageScanServiceTest.java",
-      "line": 71,
-      "caseCount": 1,
-      "runnable": true,
-      "runAllEligible": true,
-      "command": "mvn -Dtest=com.allinweb.ch.facade.ScannerPageScanServiceTest#standardRequestBuildsTermsRouteAndEmptyRules test",
       "tags": [
         "Test"
       ]
@@ -13905,6 +13755,30 @@
       "runnable": true,
       "runAllEligible": true,
       "command": "mvn -Dtest=com.allinweb.ch.facade.ScannerSupportFileServiceTest#elementsReviewBuildsSupportFileEnvelope test",
+      "tags": [
+        "Test"
+      ]
+    },
+    {
+      "id": "junit:com.allinweb.ch.facade.ScannerSupportFileServiceTest#elementsReviewUsesBrowserNeutralLiveSnapshot@88",
+      "project": "AR Web Scanner",
+      "repository": "ar-web-selenium",
+      "recordType": "AUTOMATED_CASE",
+      "suite": "com.allinweb.ch.facade.ScannerSupportFileServiceTest",
+      "name": "elementsReviewUsesBrowserNeutralLiveSnapshot",
+      "displayName": "elementsReviewUsesBrowserNeutralLiveSnapshot",
+      "framework": "JUnit 5",
+      "language": "Java",
+      "kind": "UNIT",
+      "runtime": "JVM",
+      "execution": "DEFAULT",
+      "safety": "SAFE",
+      "sourcePath": "src/test/java/com/allinweb/ch/facade/ScannerSupportFileServiceTest.java",
+      "line": 88,
+      "caseCount": 1,
+      "runnable": true,
+      "runAllEligible": true,
+      "command": "mvn -Dtest=com.allinweb.ch.facade.ScannerSupportFileServiceTest#elementsReviewUsesBrowserNeutralLiveSnapshot test",
       "tags": [
         "Test"
       ]
@@ -14726,7 +14600,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.ScannerUpdatePreparationServiceTest#preparesRowsInOrderWithoutInsertOnlySideEffects@16",
+      "id": "junit:com.allinweb.ch.facade.ScannerUpdatePreparationServiceTest#preparesRowsInOrderWithoutInsertOnlySideEffects@15",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -14740,7 +14614,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/ScannerUpdatePreparationServiceTest.java",
-      "line": 16,
+      "line": 15,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -16722,7 +16596,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.runner.BancaStatoLocalhostPlaywrightIT#localhostCoversPlaywrightActionsFramesShadowDomPopupNavigationAndNetworkGuard@137",
+      "id": "junit:com.allinweb.ch.runner.BancaStatoLocalhostPlaywrightIT#localhostCoversPlaywrightActionsFramesShadowDomPopupNavigationAndNetworkGuard@135",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -16736,7 +16610,7 @@
       "execution": "OPT_IN",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/runner/BancaStatoLocalhostPlaywrightIT.java",
-      "line": 137,
+      "line": 135,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": false,

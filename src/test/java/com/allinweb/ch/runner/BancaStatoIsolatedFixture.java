@@ -298,8 +298,6 @@ final class BancaStatoIsolatedFixture implements AutoCloseable {
                 ARPropertyEnum.PATH_WEBDRIVER.getValue(), createDirectory(fixtureRoot.resolve("webdriver")));
         isolated.setProperty(ARPropertyEnum.PATH_OCR.getValue(), createDirectory(fixtureRoot.resolve("ocr")));
         isolated.setProperty(ARPropertyEnum.PORT_SOCKET.getValue(), Integer.toString(findFreePort()));
-        isolated.setProperty(ARPropertyEnum.USE_PLAYWRIGHT.getValue(), "true");
-        isolated.setProperty(ARPropertyEnum.PLAYWRIGHT_SELENIUM_FALLBACK.getValue(), "false");
         isolated.setProperty(ARPropertyEnum.DB_URL.getValue(), "");
         isolated.setProperty(ARPropertyEnum.DB_USER.getValue(), "");
         isolated.setProperty(ARPropertyEnum.DB_PWD.getValue(), "");

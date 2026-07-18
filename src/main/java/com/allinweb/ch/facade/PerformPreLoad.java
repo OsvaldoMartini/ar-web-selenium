@@ -2,93 +2,23 @@ package com.allinweb.ch.facade;
 
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
-import com.allinweb.ch.util.ErrorMessage;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Arrays;
-import java.util.List;
 import lombok.extern.slf4j.Slf4j;
-import org.openqa.selenium.JavascriptExecutor;
-import org.openqa.selenium.WebDriver;
 
 @Slf4j
 public class PerformPreLoad {
 
-    protected static volatile PerformPreLoad instance;
-
     private static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
 
     /**
-     * Cached scanner bundle. Null until the first call to dynamicLoadElementsDTO().
-     * Loaded lazily so a missing file does NOT crash the JVM at startup -
-     * the error surfaces only when a scan is actually triggered.
-     *
-     * Loaded from the filesystem path defined by PATH_PLUGINS in ARWeb.config:
-     *   {path_plugins}/pageScanner/build/scanner.min.js
-     *
-     * To rebuild the bundle:
-     *   cd {path_plugins}/pageScanner
-     *   npx esbuild index.js --bundle --minify --outfile=build/scanner.min.js
-     */
-    private static volatile String jsScanner = null;
-
-    /** Relative path within the plugins folder */
-    private static final boolean useNoEncrypted = false;
-
-    public static final String SCANNER_RELATIVE_PATH = "pageScanner/scanner.min.enc";
-    public static final String SCANNER_RELATIVE_PATH_MIN = "pageScanner/build/scanner.min.js";
-    public static final String SCANNER_RELATIVE_PATH_MIN_ASYNC = "pageScanner/build/script-search-in-use-async.min.js";
-    public static final String SCANNER_RELATIVE_PATH_ASYNC = "pageScanner/build/script-search-in-use-async.js";
-    public static final String SCANNER_RELATIVE_PATH_ORIG_MIN = "pageScanner/build/script-search-in-use.min.js";
-    public static final String SCANNER_RELATIVE_PATH_NOT_MIN = "pageScanner/build/script-search-in-use.js";
-    public static final String SCANNER_RELATIVE_PATH_MANUAL = "pageScanner/build/script-search-in-use-manual.js";
-
-    /**
-     * Loads (and caches) the minified scanner bundle from the PATH_PLUGINS folder.
-     * Thread-safe via double-checked locking on jsScanner.
-     *
-     * @throws IllegalStateException if the config property or file is missing.
-     * @throws RuntimeException      if the file cannot be read.
-     */
-    private static String getJsScanner() {
-        if (jsScanner == null) {
-            synchronized (PerformPreLoad.class) {
-                if (jsScanner == null) {
-                    jsScanner = EncryptedPluginLoader.getInstance()
-                            .loadPlugin(useNoEncrypted ? SCANNER_RELATIVE_PATH_MIN : SCANNER_RELATIVE_PATH);
-                    log.info(
-                            "PerformPreLoad - scanner script loaded from plugins folder ({} chars)",
-                            jsScanner.length());
-                }
-            }
-        }
-        return jsScanner;
-    }
-
-    /**
-     * Clears the cached pageScanner bundle so the next injection
-     * re-reads the file from disk. Call this from a "Refresh Plugins"
-     * button to pick up script changes without restarting the JVM.
-     */
-    public static void reloadScript() {
-        synchronized (PerformPreLoad.class) {
-            jsScanner = null;
-            log.info("PerformPreLoad - pageScanner cache cleared, will reload on next injection");
-        }
-    }
-
-    /**
-     * Clears ALL plugin caches (pageScanner + hoverPick + actionExecutor).
+     * Clears all active plugin caches.
      * Convenience method for a single "Refresh Plugins" button.
      */
     public static void reloadAllPlugins() {
-        reloadScript();
-        // hoverPick (PerformCloneLoad) removed — interactive pick is no longer supported.
-        PerformActionExecutorLoad.reloadScript();
-        PerformListElements.reloadScript();
         EncryptedPluginLoader.getInstance().reloadAll();
         log.info("All plugin caches cleared - scripts will reload on next injection");
     }
@@ -242,78 +172,6 @@ public class PerformPreLoad {
                 sep);
     }
 
-    // Private constructor - use getInstance()
+    // Static utility class.
     private PerformPreLoad() {}
-
-    public static PerformPreLoad getInstance() {
-        if (instance == null) {
-            synchronized (PerformPreLoad.class) {
-                if (instance == null) {
-                    instance = new PerformPreLoad();
-                }
-            }
-        }
-        return instance;
-    }
-
-    /**
-     * Injects the page-scanner bundle into the current browser page via
-     * Selenium's JavascriptExecutor.
-     *
-     * Argument mapping (matches index.js IIFE parameter order):
-     *   arguments[0]  searchTerms        - String[] filter tags
-     *   arguments[1]  searchHiddenFields - boolean
-     *   arguments[2]  port               - WebSocket server port
-     *   arguments[3]  sessionId          - UUID string
-     *   arguments[4]  destination        - target session ID for WS routing
-     *   arguments[5]  operationId        - operation label string
-     *   arguments[6]  homeBankingId      - int
-     *   arguments[7]  botJobId           - int
-     *
-     * @return null on success, or an ErrorMessage on failure.
-     */
-    public ErrorMessage dynamicLoadElementsDTO(
-            WebDriver driver,
-            String[] dataArray,
-            boolean searchHiddenFields,
-            int port,
-            String sessionId,
-            String destination,
-            String operationId,
-            int homeBankingId,
-            int botJobId) {
-
-        List<String> dataList = Arrays.asList(dataArray);
-        try {
-            log.info(">> Injecting plugin [pageScanner] - session={}, botJob={}", sessionId, botJobId);
-            JavascriptExecutor executor = (JavascriptExecutor) driver;
-            // scanner.min.js (and script-search-in-use.js) is an IIFE that ends with
-            //   })( arguments[0], arguments[1], ..., arguments[7] );
-            // so it expects 8 positional executeScript args, not a single ctx object.
-            executor.executeScript(
-                    getJsScanner(),
-                    dataList, // searchTerms
-                    searchHiddenFields, // hiddenFields
-                    port, // socketPort
-                    sessionId, // sessionId
-                    destination, // destination
-                    operationId, // operationId
-                    homeBankingId, // homeBankingId
-                    botJobId); // botJobId
-            return null;
-        } catch (PluginLoadException ple) {
-            log.error("PerformPreLoad — plugin [pageScanner] load failed: {}", ple.getUserTitle());
-            return new ErrorMessage(
-                    ple.getUserTitle(),
-                    "Page Scanner Plugin",
-                    ple.getMsg1() + "\n" + (ple.getMsg2() != null ? ple.getMsg2() : "") + "\n"
-                            + (ple.getMsg3() != null ? ple.getMsg3() : ""));
-        } catch (Exception error) {
-            log.error("PerformPreLoad — plugin [pageScanner] injection failed: {}", error.getMessage(), error);
-            return new ErrorMessage(
-                    "Plugin injection failed",
-                    "Page Scanner Plugin",
-                    "The pageScanner plugin could not be injected into the page. " + error.getMessage());
-        }
-    }
 }

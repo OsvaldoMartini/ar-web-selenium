@@ -16,7 +16,6 @@ import java.util.Base64;
 import java.util.Objects;
 import java.util.function.Supplier;
 import java.util.zip.GZIPOutputStream;
-import org.openqa.selenium.WebDriver;
 
 public final class ScannerSupportFileService {
 
@@ -75,8 +74,8 @@ public final class ScannerSupportFileService {
         return new SupportFile(suggestedName, gson.toJson(support));
     }
 
-    public SupportFile elementsReview(WebDriver driver, String elementDetailsJson, String message) {
-        JsonObject support = supportCapture.buildElementsReviewEnvelope(driver, elementDetailsJson, message, null);
+    public SupportFile elementsReview(SupportCapture.Browser browser, String elementDetailsJson, String message) {
+        JsonObject support = supportCapture.buildElementsReviewEnvelope(browser, elementDetailsJson, message, null);
         support.addProperty("email", safe(context.licenseEmail()));
         support.addProperty("requesterName", safe(context.licenseOwner()));
         support.addProperty("userName", safe(context.systemUserName()));

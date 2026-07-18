@@ -12,10 +12,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
-import org.openqa.selenium.By;
-import org.openqa.selenium.JavascriptExecutor;
-import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.WebElement;
 
 @Slf4j
 public final class PageDiagnosticDumper {
@@ -305,128 +301,12 @@ public final class PageDiagnosticDumper {
 
     private PageDiagnosticDumper() {}
 
-    /** Page-level one-shot: HTML + meta + shadow + iframes + overlays. Use at clone-mode activation. */
-    public static void dumpAll(WebDriver driver, String pathDb, String prefix) {
-        dumpPage(driver, pathDb, prefix);
-        dumpIframes(driver, pathDb, prefix);
-        dumpOverlays(driver, pathDb, prefix);
-    }
-
-    /** HTML + live outerHTML + meta + shadow. Subset of dumpAll. */
-    public static void dumpPage(WebDriver driver, String pathDb, String prefix) {
-        if (driver == null || pathDb == null || prefix == null) {
-            log.warn("dumpPage skipped — driver/pathDb/prefix is null");
-            return;
-        }
-        try {
-            Path diagDir = ensureSubfolder(pathDb);
-            JavascriptExecutor js = (JavascriptExecutor) driver;
-
-            write(diagDir, prefix + ".html", safe(driver.getPageSource()));
-            write(diagDir, prefix + "-live.html", safe((String) js.executeScript(JS_OUTER_HTML)));
-            write(diagDir, prefix + "-meta.json", safe((String) js.executeScript(JS_META)));
-            write(diagDir, prefix + "-shadow.json", safe((String) js.executeScript(JS_SHADOW_SURVEY)));
-
-            log.info("Page diagnostic dumped to {}", diagDir);
-        } catch (Exception ex) {
-            log.warn("PageDiagnosticDumper.dumpPage failed: {}", ex.getMessage(), ex);
-        }
-    }
-
-    /**
-     * Iframe survey + per-iframe HTML (same-origin only).
-     * Writes {prefix}-iframes.json and {prefix}-iframe-N.html per accessible iframe.
-     */
-    public static void dumpIframes(WebDriver driver, String pathDb, String prefix) {
-        if (driver == null || pathDb == null || prefix == null) return;
-        try {
-            Path diagDir = ensureSubfolder(pathDb);
-            JavascriptExecutor js = (JavascriptExecutor) driver;
-
-            String surveyJson = (String) js.executeScript(JS_IFRAMES_SURVEY);
-            write(diagDir, prefix + "-iframes.json", safe(surveyJson));
-
-            List<WebElement> frames = driver.findElements(By.tagName("iframe"));
-            int i = 0;
-            for (WebElement f : frames) {
-                try {
-                    driver.switchTo().frame(f);
-                    String html = safe(driver.getPageSource());
-                    write(diagDir, prefix + "-iframe-" + i + ".html", html);
-                } catch (Exception frameEx) {
-                    log.debug("iframe[{}] not dumpable ({}): {}", i, prefix, frameEx.getMessage());
-                } finally {
-                    try {
-                        driver.switchTo().defaultContent();
-                    } catch (Exception ignored) {
-                        // caller context lost — not our problem to recover
-                    }
-                }
-                i++;
-            }
-        } catch (Exception ex) {
-            log.warn("PageDiagnosticDumper.dumpIframes failed: {}", ex.getMessage(), ex);
-        }
-    }
-
-    /** Cookie / consent / modal fingerprint across top doc, open shadow roots, and same-origin iframes. */
-    public static void dumpOverlays(WebDriver driver, String pathDb, String prefix) {
-        if (driver == null || pathDb == null || prefix == null) return;
-        try {
-            Path diagDir = ensureSubfolder(pathDb);
-            JavascriptExecutor js = (JavascriptExecutor) driver;
-            String json = (String) js.executeScript(JS_OVERLAYS_SURVEY);
-            write(diagDir, prefix + "-overlays.json", safe(json));
-        } catch (Exception ex) {
-            log.warn("PageDiagnosticDumper.dumpOverlays failed: {}", ex.getMessage(), ex);
-        }
-    }
-
-    /**
-     * Per-pick rects enriched with computed style, elementFromPoint occlusion check,
-     * top-layer / popover membership, pointer-events ancestor walk, and stacking-context chain.
-     * Supports iframe resolution via RectTarget.iframeXPath (same-origin only).
-     */
-    public static void dumpRects(WebDriver driver, List<RectTarget> targets, String pathDb, String prefix) {
-        if (driver == null || pathDb == null || prefix == null) return;
-        if (targets == null || targets.isEmpty()) {
-            log.debug("dumpRects skipped — no targets");
-            return;
-        }
-        try {
-            Path diagDir = ensureSubfolder(pathDb);
-            JavascriptExecutor js = (JavascriptExecutor) driver;
-
-            List<Object> payload = new ArrayList<>(targets.size());
-            for (RectTarget t : targets) {
-                payload.add(java.util.Map.of(
-                        "xpath", t.xpath() == null ? "" : t.xpath(),
-                        "iframeXPath", t.iframeXPath() == null ? "" : t.iframeXPath()));
-            }
-            String json = (String) js.executeScript(JS_RECTS, payload);
-            write(diagDir, prefix + "-rects.json", safe(json));
-            log.info("Page rects dumped for {} targets to {}", targets.size(), diagDir);
-        } catch (Exception ex) {
-            log.warn("PageDiagnosticDumper.dumpRects failed: {}", ex.getMessage(), ex);
-        }
-    }
-
-    /** Convenience: build RectTargets from ElementDTO[] and delegate. */
-    public static void dumpRectsFromElements(WebDriver driver, ElementDTO[] elements, String pathDb, String prefix) {
-        if (elements == null) return;
-        List<RectTarget> targets = Arrays.stream(elements)
-                .filter(e -> e != null && e.getXPath() != null)
-                .map(e -> new RectTarget(e.getXPath(), e.getIFrameXPath() == null ? "" : e.getIFrameXPath()))
-                .collect(Collectors.toList());
-        dumpRects(driver, targets, pathDb, prefix);
-    }
-
     // ── Playwright equivalents ────────────────────────────────────────────────
-    // Same JS survey, run via page.evaluate. The Selenium script reads `arguments[0]`; Playwright
+    // Run the shared JS survey via page.evaluate. The script reads `arguments[0]`; Playwright
     // passes a single arg to an arrow function, so we wrap it and rename that one reference.
     private static final String PW_JS_RECTS = "(pwArg) => {\n" + JS_RECTS.replace("arguments[0]", "pwArg") + "\n}";
 
-    /** Playwright equivalent of {@link #dumpRects(WebDriver, List, String, String)}. */
+    /** Writes live DOM rectangles for the supplied targets. */
     public static void dumpRects(ARPlaywrightDriver pw, List<RectTarget> targets, String pathDb, String prefix) {
         if (pw == null || pathDb == null || prefix == null) return;
         if (targets == null || targets.isEmpty()) {
@@ -449,7 +329,7 @@ public final class PageDiagnosticDumper {
         }
     }
 
-    /** Playwright equivalent of {@link #dumpRectsFromElements(WebDriver, ElementDTO[], String, String)}. */
+    /** Convenience wrapper that builds rectangle targets from scanned elements. */
     public static void dumpRectsFromElements(
             ARPlaywrightDriver pw, ElementDTO[] elements, String pathDb, String prefix) {
         if (elements == null) return;

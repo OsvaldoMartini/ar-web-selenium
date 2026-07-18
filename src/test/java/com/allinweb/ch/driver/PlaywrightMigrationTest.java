@@ -1,6 +1,7 @@
 package com.allinweb.ch.driver;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -57,6 +58,44 @@ class PlaywrightMigrationTest {
             // reload() — must not throw and the session stays open
             driver.reload();
             assertTrue(driver.isOpen(), "driver should still be open after reload");
+        } finally {
+            driver.close();
+        }
+    }
+
+    @Test
+    void inspectsElementsWithoutSeleniumWebElementObjects() {
+        ARPlaywrightDriver driver = new ARPlaywrightDriver();
+        try {
+            driver.open(ARConstantsEngine.EDGE, "about:blank", "");
+            driver.setContent("<!doctype html><html><body><main id='parent'>"
+                    + "<input class='choice' type='checkbox' checked>"
+                    + "<input class='choice' type='checkbox'>"
+                    + "</main></body></html>");
+
+            ARPlaywrightDriver.BrowserElementSnapshot snapshot = driver.inspectElement("//input[@class='choice']");
+
+            assertTrue(snapshot.found());
+            assertEquals(2, snapshot.matchCount());
+            assertTrue(snapshot.displayed());
+            assertTrue(snapshot.enabled());
+            assertTrue(snapshot.selected());
+            assertTrue(snapshot.width() > 0);
+            assertTrue(snapshot.height() > 0);
+            assertTrue(snapshot.outerHtml().contains("checked"));
+            assertTrue(snapshot.parentHtml().contains("id=\"parent\""));
+
+            ARPlaywrightDriver.BrowserElementSnapshot missing = driver.inspectElement("//missing");
+            assertFalse(missing.found());
+            assertEquals("no-match", missing.reason());
+
+            ARPlaywrightDriver.BrowserElementSnapshot invalid = driver.inspectElement("//*[");
+            assertFalse(invalid.found());
+            assertFalse(invalid.reason().isBlank());
+
+            ARPlaywrightDriver.BrowserElementSnapshot empty = driver.inspectElement(" ");
+            assertFalse(empty.found());
+            assertEquals("empty-xpath", empty.reason());
         } finally {
             driver.close();
         }

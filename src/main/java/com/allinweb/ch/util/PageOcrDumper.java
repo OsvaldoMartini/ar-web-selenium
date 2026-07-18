@@ -24,7 +24,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
-import org.openqa.selenium.WebDriver;
 
 /**
  * Orchestrator for the OCR pipeline. Consumes the artifacts that already
@@ -51,39 +50,7 @@ public final class PageOcrDumper {
 
     private PageOcrDumper() {}
 
-    /** Full pipeline: screenshot → OCR → correlate → write files. */
-    public static void runAndDump(WebDriver driver, ElementDTO[] elements, String pathDb, String prefix) {
-        runAndDump(driver, elements, pathDb, prefix, null, null);
-    }
-
-    /**
-     * Full pipeline honouring an {@link OcrConfig} when provided.
-     * If cfg is null and (homebankingId, homeUrlId) are both null, falls back to the global default profile.
-     */
-    public static void runAndDump(
-            WebDriver driver,
-            ElementDTO[] elements,
-            String pathDb,
-            String prefix,
-            Integer homebankingId,
-            Integer homeUrlId) {
-        if (driver == null || pathDb == null || prefix == null) {
-            log.warn("PageOcrDumper skipped — driver/pathDb/prefix is null");
-            return;
-        }
-        try {
-            OcrConfig cfg = OcrConfigService.getInstance().resolveFor(homebankingId, homeUrlId);
-            String scope = cfg == null ? "viewport" : cfg.getString("screenshot", "scope", "viewport");
-            byte[] png = "full_page".equalsIgnoreCase(scope)
-                    ? WebScreenshotCapture.fullPageBytes(driver)
-                    : WebScreenshotCapture.viewportBytes(driver);
-            runPipeline(png, elements, pathDb, prefix, cfg, homebankingId, homeUrlId);
-        } catch (Exception ex) {
-            log.warn("PageOcrDumper.runAndDump failed: {}", ex.getMessage(), ex);
-        }
-    }
-
-    /** Playwright equivalent — captures via the single Playwright browser (no Selenium driver). */
+    /** Captures through the active Playwright page and runs the OCR pipeline. */
     public static void runAndDump(
             ARPlaywrightDriver pw,
             ElementDTO[] elements,

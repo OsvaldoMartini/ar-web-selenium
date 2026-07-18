@@ -45,7 +45,7 @@ class BancaStatoPageScannerPlaywrightIT {
     @AfterEach
     void closePlaywright() {
         try {
-            ARWebDriver.getInstance().closeCurrentDriver();
+            ARWebDriver.getInstance().closeBrowser();
         } catch (Exception ignored) {
             // Best-effort diagnostic cleanup.
         } finally {

@@ -72,6 +72,11 @@ class PlaywrightNewTabScannerTest {
             assertTrue(scanned.stream().anyMatch(element -> "account".equals(element.getAttribId())));
             assertTrue(scanned.stream().anyMatch(element -> "confirm".equals(element.getAttribId())));
             assertTrue(driver.content().contains("CH93"));
+
+            assertTrue(driver.selectPageRelative(-1));
+            assertTrue(driver.content().contains("openDetails"));
+            assertTrue(driver.selectPageRelative(1));
+            assertEquals("Details", driver.title());
         } finally {
             driver.close();
         }

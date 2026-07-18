@@ -4,10 +4,8 @@ import com.allinweb.ch.model.ElementDTO;
 import com.allinweb.ch.model.ScannerWorkspaceOperations;
 import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import com.allinweb.ch.model.ScannerWorkspaceState;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
-import org.openqa.selenium.WebDriver;
 
 final class ScannerBrowserOperations implements ScannerWorkspaceService.BrowserOperations {
     private final Runtime runtime;
@@ -23,14 +21,7 @@ final class ScannerBrowserOperations implements ScannerWorkspaceService.BrowserO
     @Override
     public ScannerWorkspaceState.Browser browserState() {
         try {
-            WebDriver driver = runtime.seleniumDriver();
-            if (driver == null) {
-                return playwrightBrowserState();
-            }
-            List<String> handles = new ArrayList<>(driver.getWindowHandles());
-            String activeUrl = safeDriverValue(driver::getCurrentUrl);
-            String activeTitle = safeDriverValue(driver::getTitle);
-            return new ScannerWorkspaceState.Browser("OPEN", activeUrl, activeTitle, handles.size(), true);
+            return playwrightBrowserState();
         } catch (RuntimeException error) {
             return new ScannerWorkspaceState.Browser("CLOSED", "", "", 0, false);
         }
@@ -60,41 +51,20 @@ final class ScannerBrowserOperations implements ScannerWorkspaceService.BrowserO
 
     @Override
     public void switchTab(int direction) {
-        PerformActions actions = PerformActions.getInstance();
-        WebDriver driver = actions.getCurrentDriver();
-        if (driver == null || direction == 0) {
-            return;
-        }
-        List<String> handles = new ArrayList<>(driver.getWindowHandles());
-        if (handles.size() < 2) {
-            return;
-        }
-        actions.windowHandlesList = handles;
-        int nextIndex = Math.max(0, Math.min(handles.size() - 1, actions.currentTabIndex + direction));
-        if (nextIndex == actions.currentTabIndex) {
-            return;
-        }
-        actions.currentTabIndex = nextIndex;
-        driver.switchTo().window(handles.get(nextIndex));
+        if (direction != 0) runtime.selectPlaywrightPageRelative(direction);
     }
 
     @Override
     public List<ElementDTO> scanPage(String[] searchTerms, int homeBankingId, int botJobId) {
         PerformActions actions = PerformActions.getInstance();
-        WebDriver driver = actions.getCurrentDriver();
         ScannerSearchRoute route = ScannerSearchRoute.standardPageScanner();
         PerformListElements.ScanResult scan = PerformListElements.getInstance().scanElements(
                 actions.getCurrentARWebDriver(),
-                driver,
                 searchTerms,
                 false,
-                54525,
-                route.sourceSessionId(),
-                route.destinationSessionId(),
-                route.operationId(),
                 homeBankingId,
                 botJobId,
-                List.of());
+                route.sourceSessionId());
         if (scan.error != null) {
             throw new IllegalStateException(scan.error.getErrorTitle() + " - " + scan.error.getErrorHeader());
         }
@@ -120,8 +90,6 @@ final class ScannerBrowserOperations implements ScannerWorkspaceService.BrowserO
     }
 
     interface Runtime {
-        WebDriver seleniumDriver();
-
         boolean playwrightOpen();
 
         String playwrightCurrentUrl();
@@ -129,14 +97,11 @@ final class ScannerBrowserOperations implements ScannerWorkspaceService.BrowserO
         String playwrightTitle();
 
         int playwrightPageCount();
+
+        boolean selectPlaywrightPageRelative(int direction);
     }
 
     private static final class SingletonRuntime implements Runtime {
-        @Override
-        public WebDriver seleniumDriver() {
-            return PerformActions.getInstance().getCurrentDriver();
-        }
-
         @Override
         public boolean playwrightOpen() {
             try {
@@ -159,6 +124,14 @@ final class ScannerBrowserOperations implements ScannerWorkspaceService.BrowserO
         @Override
         public int playwrightPageCount() {
             return PerformActions.getInstance().getCurrentARWebDriver().getPlaywrightDriver().pageCount();
+        }
+
+        @Override
+        public boolean selectPlaywrightPageRelative(int direction) {
+            return PerformActions.getInstance()
+                    .getCurrentARWebDriver()
+                    .getPlaywrightDriver()
+                    .selectPageRelative(direction);
         }
     }
 }

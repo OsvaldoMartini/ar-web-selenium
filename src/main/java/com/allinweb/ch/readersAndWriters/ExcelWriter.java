@@ -10,7 +10,6 @@ import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.google.common.base.Strings;
 import java.io.*;
-import java.nio.file.Files;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
@@ -22,9 +21,6 @@ import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.usermodel.Font;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.openqa.selenium.OutputType;
-import org.openqa.selenium.TakesScreenshot;
-import org.openqa.selenium.WebDriver;
 
 @Slf4j
 public class ExcelWriter {
@@ -33,7 +29,6 @@ public class ExcelWriter {
     private static final int EXECUTION_TIMES_COLUMN_INDEX = 11;
     private static final DateTimeFormatter FORMAT_DATE_AND_TIME = DateTimeFormatter.ofPattern("dd-MM-yyyy HH.mm.ss");
     private static final DateTimeFormatter FORMAT_TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
-    private static WebDriver webDriver;
     private static int CURRENT_ROW_INDEX = 0;
 
     static {
@@ -43,9 +38,8 @@ public class ExcelWriter {
     private final Map<String, ManagedExcel> managedExcelMap = new HashMap<>();
     private String botJobName;
 
-    public ExcelWriter(String botJobName, WebDriver webDriver, boolean isFullPath) {
+    public ExcelWriter(String botJobName, boolean isFullPath) {
         this.botJobName = botJobName;
-        this.webDriver = webDriver;
         boolean exist = ManagedExcel.checkIfExcelExist(botJobName, "excel", isFullPath);
         String now = LocalDateTime.now().format(FORMAT_DATE_AND_TIME);
         try {
@@ -350,7 +344,7 @@ public class ExcelWriter {
                                 .setCellFontStyleOfColumnsOfLastRow(
                                         0, 4, // Apply styles to the first 5 columns (0 to 4)
                                         false, false, false, backColor, fontColor);
-                        act.insertScreenshotAfterLastRowOfColumn(0, webDriver);
+                        act.insertScreenshotAfterLastRowOfColumn(0);
                     }
                 } else { // add screenshot
                     ManagedExcelAction act = managedExcel
@@ -363,7 +357,7 @@ public class ExcelWriter {
                             .insertValueOnLastRowAfterLastColumn(success ? "success" : "error")
                             .setCellFontStyleOfColumnOfLastRow(
                                     4, true, false, false, null, success ? null : IndexedColors.RED)
-                            .insertScreenshotAfterLastRowOfColumn(0, webDriver);
+                            .insertScreenshotAfterLastRowOfColumn(0);
                 }
                 managedExcel.save();
                 return true;
@@ -609,25 +603,19 @@ public class ExcelWriter {
             return this;
         }
 
-        public ManagedExcelAction insertScreenshotAfterLastRowOfColumn(int columnIndex, WebDriver webDriver) {
+        public ManagedExcelAction insertScreenshotAfterLastRowOfColumn(int columnIndex) {
             int afterLastRowIndex = sheet.getLastRowNum() + 1;
-            return insertScreenshotAtCoordinates(afterLastRowIndex, columnIndex, webDriver);
+            return insertScreenshotAtCoordinates(afterLastRowIndex, columnIndex);
         }
 
-        public ManagedExcelAction insertScreenshotAtCoordinates(int rowIndex, int columnIndex, WebDriver driver) {
+        public ManagedExcelAction insertScreenshotAtCoordinates(int rowIndex, int columnIndex) {
             try {
-                byte[] bytes;
-                if (driver instanceof TakesScreenshot takesScreenshot) {
-                    File screenshot = takesScreenshot.getScreenshotAs(OutputType.FILE);
-                    bytes = Files.readAllBytes(screenshot.toPath());
-                } else {
-                    ARPlaywrightDriver playwrightDriver = ARWebDriver.getInstance().getPlaywrightDriver();
-                    if (playwrightDriver == null || !playwrightDriver.isOpen()) {
-                        log.warn("Skipping report screenshot: neither Selenium nor Playwright is available");
-                        return this;
-                    }
-                    bytes = playwrightDriver.screenshot(false);
+                ARPlaywrightDriver playwrightDriver = ARWebDriver.getInstance().currentPlaywrightDriver();
+                if (playwrightDriver == null || !playwrightDriver.isOpen()) {
+                    log.warn("Skipping report screenshot: no Playwright page is available");
+                    return this;
                 }
+                byte[] bytes = playwrightDriver.screenshot(false);
 
                 // Add picture to workbook
                 int pictureIdx = workbook.addPicture(bytes, Workbook.PICTURE_TYPE_PNG);

@@ -4,30 +4,21 @@ import com.allinweb.ch.license.SystemDetails;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.allinweb.ch.util.ConsoleRingBuffer;
-import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import java.io.ByteArrayOutputStream;
-import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
-import java.util.List;
 import java.util.zip.GZIPOutputStream;
 import lombok.extern.slf4j.Slf4j;
-import org.openqa.selenium.By;
-import org.openqa.selenium.Dimension;
-import org.openqa.selenium.Point;
-import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.WebElement;
 
 /**
- * Captures the current page DOM via Selenium and uploads it to the MultiPlugins
+ * Builds support captures from a browser-neutral snapshot of the current page and uploads them to the MultiPlugins
  * portal support queue. Only invoked on explicit user action (the "Send DOM for
  * Review" button in ScannerRuntimeBackend).
  *
@@ -48,15 +39,8 @@ import org.openqa.selenium.WebElement;
 @Slf4j
 public class SupportCapture {
 
-    private static final String DEFAULT_API = "https://multiplugins.ch/api";
-
-    private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
-
-    private final HttpClient http =
-            HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
-
     public CaptureResult captureAndSend(
-            WebDriver driver, String failedPlugin, String failureReason, Long botJobId, String operationId) {
+            String failedPlugin, String failureReason, Long botJobId, String operationId) {
         // MultiPlugins network traffic disabled — UI is gated; this is a hard stop.
         log.info("captureAndSend disabled — no MultiPlugins call performed");
         return CaptureResult.error("Support upload disabled");
@@ -64,7 +48,7 @@ public class SupportCapture {
 
     /**
      * Same Page-Review envelope as {@link #captureAndSend} but carries the scanned
-     * {@code elementDetails} array (plus best-effort live WebDriver enrichment)
+     * {@code elementDetails} array (plus best-effort live browser enrichment)
      * instead of the raw HTML. Posts to the same {@code /support/dom-capture}
      * endpoint so it lands in the Page-Review queue, classified as elements.
      */
@@ -75,24 +59,24 @@ public class SupportCapture {
      * {@code .support} file carry identical structure.
      */
     public JsonObject buildElementsReviewEnvelope(
-            WebDriver driver, String elementDetailsJson, String message, String failureReason) {
+            Browser liveBrowser, String elementDetailsJson, String message, String failureReason) {
 
         String appVersion = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.VERSION);
 
         String url = "";
         String title = "";
-        Dimension vp = null;
-        if (driver != null) {
+        int[] vp = null;
+        if (liveBrowser != null) {
             try {
-                url = safeString(driver.getCurrentUrl());
+                url = safeString(liveBrowser.currentUrl());
             } catch (Exception ignored) {
             }
             try {
-                title = safeString(driver.getTitle());
+                title = safeString(liveBrowser.title());
             } catch (Exception ignored) {
             }
             try {
-                vp = driver.manage().window().getSize();
+                vp = liveBrowser.viewportSize();
             } catch (Exception ignored) {
             }
         }
@@ -113,9 +97,9 @@ public class SupportCapture {
         JsonObject clicked = elements.size() > 0 && elements.get(0).isJsonObject()
                 ? elements.get(0).getAsJsonObject()
                 : null;
-        String clickedHtmlPage = buildClickedElementHtml(driver, clicked, url, title);
+        String clickedHtmlPage = buildClickedElementHtml(liveBrowser, clicked, url, title);
 
-        JsonArray elementsLive = enrichElementsWithLiveData(driver, elements);
+        JsonArray elementsLive = enrichElementsWithLiveData(liveBrowser, elements);
 
         JsonObject env = new JsonObject();
         env.addProperty("schemaVersion", "1");
@@ -130,10 +114,10 @@ public class SupportCapture {
         JsonObject browser = new JsonObject();
         browser.addProperty("url", url);
         browser.addProperty("title", title);
-        if (vp != null) {
+        if (vp != null && vp.length >= 2) {
             JsonObject v = new JsonObject();
-            v.addProperty("w", vp.getWidth());
-            v.addProperty("h", vp.getHeight());
+            v.addProperty("w", vp[0]);
+            v.addProperty("h", vp[1]);
             browser.add("viewport", v);
         }
         env.add("browser", browser);
@@ -158,7 +142,7 @@ public class SupportCapture {
     }
 
     public CaptureResult captureElementsAndSend(
-            WebDriver driver, String elementDetailsJson, String message, String failureReason) {
+            String elementDetailsJson, String message, String failureReason) {
         // MultiPlugins network traffic disabled — UI is gated; this is a hard stop.
         log.info("captureElementsAndSend disabled — no MultiPlugins call performed");
         return CaptureResult.error("Support upload disabled");
@@ -173,7 +157,8 @@ public class SupportCapture {
      * Safe to call with {@code clicked == null} or when the XPath doesn't resolve —
      * in those cases the page still includes the DTO metadata with an error note.
      */
-    private String buildClickedElementHtml(WebDriver driver, JsonObject clicked, String pageUrl, String pageTitle) {
+    private String buildClickedElementHtml(
+            Browser liveBrowser, JsonObject clicked, String pageUrl, String pageTitle) {
         String xPath =
                 clicked != null && clicked.has("xPath") && !clicked.get("xPath").isJsonNull()
                         ? clicked.get("xPath").getAsString()
@@ -196,34 +181,20 @@ public class SupportCapture {
         boolean displayed = false;
         boolean enabled = false;
 
-        if (driver != null && !xPath.isBlank()) {
+        if (liveBrowser != null && !xPath.isBlank()) {
             try {
-                List<WebElement> matches = driver.findElements(By.xpath(xPath));
-                if (matches.isEmpty()) {
-                    locateError = "No element matched xPath";
+                ElementSnapshot snapshot = liveBrowser.inspectElement(xPath);
+                if (snapshot == null || !snapshot.found()) {
+                    String reason = snapshot == null ? "invalid-result" : snapshot.reason();
+                    locateError = reason == null || reason.isBlank()
+                            ? "No element matched xPath"
+                            : reason;
                 } else {
-                    WebElement we = matches.get(0);
-                    try {
-                        displayed = we.isDisplayed();
-                    } catch (Exception ignored) {
-                    }
-                    try {
-                        enabled = we.isEnabled();
-                    } catch (Exception ignored) {
-                    }
-                    try {
-                        outerHtml = we.getAttribute("outerHTML");
-                    } catch (Exception ignored) {
-                    }
-                    try {
-                        innerHtml = we.getAttribute("innerHTML");
-                    } catch (Exception ignored) {
-                    }
-                    try {
-                        WebElement parent = we.findElement(By.xpath(".."));
-                        if (parent != null) parentHtml = parent.getAttribute("outerHTML");
-                    } catch (Exception ignored) {
-                    }
+                    displayed = snapshot.displayed();
+                    enabled = snapshot.enabled();
+                    outerHtml = snapshot.outerHtml();
+                    innerHtml = snapshot.innerHtml();
+                    parentHtml = snapshot.parentHtml();
                 }
             } catch (Exception ex) {
                 locateError = ex.getClass().getSimpleName() + ": " + ex.getMessage();
@@ -231,7 +202,7 @@ public class SupportCapture {
         } else if (xPath.isBlank()) {
             locateError = "No xPath available on the clicked element";
         } else {
-            locateError = "No active WebDriver";
+            locateError = "No active browser";
         }
 
         StringBuilder sb = new StringBuilder(8192);
@@ -324,9 +295,9 @@ public class SupportCapture {
      * (displayed/enabled/location/size). Capped at 200 elements so a huge
      * scan can't stall the upload; failures are recorded per element.
      */
-    private JsonArray enrichElementsWithLiveData(WebDriver driver, JsonArray elements) {
+    private JsonArray enrichElementsWithLiveData(Browser liveBrowser, JsonArray elements) {
         JsonArray result = new JsonArray();
-        if (driver == null || elements == null || elements.size() == 0) return result;
+        if (liveBrowser == null || elements == null || elements.size() == 0) return result;
 
         int limit = Math.min(elements.size(), 200);
         for (int i = 0; i < limit; i++) {
@@ -355,57 +326,31 @@ public class SupportCapture {
             }
 
             try {
-                List<WebElement> matches = driver.findElements(By.xpath(xPath));
-                if (matches.isEmpty()) {
+                ElementSnapshot snapshot = liveBrowser.inspectElement(xPath);
+                if (snapshot == null || !snapshot.found()) {
                     live.addProperty("found", false);
-                    live.addProperty("reason", "no-match");
+                    String reason = snapshot == null ? "invalid-result" : snapshot.reason();
+                    live.addProperty("reason", reason == null || reason.isBlank() ? "no-match" : reason);
                 } else {
-                    WebElement we = matches.get(0);
                     live.addProperty("found", true);
-                    live.addProperty("matchCount", matches.size());
-                    try {
-                        live.addProperty("displayed", we.isDisplayed());
-                    } catch (Exception ignored) {
-                    }
-                    try {
-                        live.addProperty("enabled", we.isEnabled());
-                    } catch (Exception ignored) {
-                    }
-                    try {
-                        live.addProperty("selected", we.isSelected());
-                    } catch (Exception ignored) {
-                    }
-                    try {
-                        Point p = we.getLocation();
-                        JsonObject loc = new JsonObject();
-                        loc.addProperty("x", p.getX());
-                        loc.addProperty("y", p.getY());
-                        live.add("location", loc);
-                    } catch (Exception ignored) {
-                    }
-                    try {
-                        Dimension d = we.getSize();
-                        JsonObject sz = new JsonObject();
-                        sz.addProperty("w", d.getWidth());
-                        sz.addProperty("h", d.getHeight());
-                        live.add("size", sz);
-                    } catch (Exception ignored) {
-                    }
-                    try {
-                        String text = we.getText();
-                        if (text != null) live.addProperty("text", sanitize(text));
-                    } catch (Exception ignored) {
-                    }
-                    try {
-                        String outer = we.getAttribute("outerHTML");
-                        if (outer != null) live.addProperty("outerHTML", outer);
-                    } catch (Exception ignored) {
-                    }
-                    try {
-                        String inner = we.getAttribute("innerHTML");
-                        if (inner != null) live.addProperty("innerHTML", inner);
-                    } catch (Exception ignored) {
-                    }
+                    live.addProperty("matchCount", snapshot.matchCount());
+                    live.addProperty("displayed", snapshot.displayed());
+                    live.addProperty("enabled", snapshot.enabled());
+                    live.addProperty("selected", snapshot.selected());
+
+                    JsonObject loc = new JsonObject();
+                    loc.addProperty("x", snapshot.x());
+                    loc.addProperty("y", snapshot.y());
+                    live.add("location", loc);
+
+                    JsonObject sz = new JsonObject();
+                    sz.addProperty("w", snapshot.width());
+                    sz.addProperty("h", snapshot.height());
+                    live.add("size", sz);
+
+                    if (snapshot.text() != null) live.addProperty("text", sanitize(snapshot.text()));
+                    if (snapshot.outerHtml() != null) live.addProperty("outerHTML", snapshot.outerHtml());
+                    if (snapshot.innerHtml() != null) live.addProperty("innerHTML", snapshot.innerHtml());
                 }
             } catch (Exception ex) {
                 live.addProperty("found", false);
@@ -452,20 +397,37 @@ public class SupportCapture {
         return hex.toString();
     }
 
-    private static String extractJsonString(String json, String key) {
-        if (json == null) return null;
-        int i = json.indexOf("\"" + key + "\"");
-        if (i < 0) return null;
-        int colon = json.indexOf(':', i);
-        if (colon < 0) return null;
-        int start = json.indexOf('"', colon + 1);
-        if (start < 0) return null;
-        int end = json.indexOf('"', start + 1);
-        if (end < 0) return null;
-        return json.substring(start + 1, end);
+    // ── Result holder ────────────────────────────────────────────────────────
+
+    public interface Browser {
+        String currentUrl();
+
+        String title();
+
+        int[] viewportSize();
+
+        ElementSnapshot inspectElement(String xPath);
     }
 
-    // ── Result holder ────────────────────────────────────────────────────────
+    public record ElementSnapshot(
+            boolean found,
+            int matchCount,
+            boolean displayed,
+            boolean enabled,
+            boolean selected,
+            int x,
+            int y,
+            int width,
+            int height,
+            String text,
+            String outerHtml,
+            String innerHtml,
+            String parentHtml,
+            String reason) {
+        public static ElementSnapshot notFound(String reason) {
+            return new ElementSnapshot(false, 0, false, false, false, 0, 0, 0, 0, "", "", "", "", reason);
+        }
+    }
 
     public static final class CaptureResult {
         private final boolean ok;

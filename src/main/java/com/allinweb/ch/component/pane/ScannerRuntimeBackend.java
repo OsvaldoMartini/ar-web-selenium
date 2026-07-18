@@ -11,7 +11,7 @@ import com.allinweb.ch.facade.scanner.browser.ScannerBrowserNotAttachedMessageSe
 import com.allinweb.ch.facade.scanner.browser.ScannerBrowserRuntime;
 import com.allinweb.ch.facade.scanner.browser.ScannerBrowserTabNavigator;
 import com.allinweb.ch.facade.scanner.browser.ScannerBrowserTabSelector;
-import com.allinweb.ch.facade.scanner.browser.ScannerSeleniumBrowserAdapter;
+import com.allinweb.ch.facade.scanner.browser.ScannerPlaywrightBrowserAdapter;
 import com.allinweb.ch.facade.scanner.browser.ScannerScreenshotLoop;
 import com.allinweb.ch.facade.scanner.prelaunch.ScannerPreLaunchControls;
 import com.allinweb.ch.facade.scanner.prelaunch.ScannerPreLaunchExcelLoader;
@@ -110,11 +110,7 @@ public class ScannerRuntimeBackend
     private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
     private static final PerformActions performActions = PerformActions.getInstance();
     private static final PerformMessage performMessage = PerformMessage.getInstance();
-    private static final PerformPreLoad performPreLoad = PerformPreLoad.getInstance();
     private static final PerformListElements performListElements = PerformListElements.getInstance();
-    private static final PerformActionExecutorLoad performActionExecutorLoad = PerformActionExecutorLoad.getInstance();
-    private static final ActionExecutorClient actionExecutorClient = ActionExecutorClient.getInstance();
-    private static final ScannerJavaVersionService scannerJavaVersionService = new ScannerJavaVersionService();
     public static TargetElement targetSelected = new TargetElement();
     protected static volatile ScannerRuntimeBackend instance;
     private static SimpleDateFormat dateFormatter;
@@ -162,7 +158,6 @@ public class ScannerRuntimeBackend
     private final ScannerCreateBlockModalPresentationService scannerCreateBlockModalPresentationService =
             new ScannerCreateBlockModalPresentationService();
     private final ScannerDialogPublisher scannerDialogPublisher = ScannerDialogPublisher.getInstance();
-    private final ScannerPageScanService scannerPageScanService = new ScannerPageScanService(performListElements);
     private final ScannerElementPanePublisher scannerElementPanePublisher = new ScannerElementPanePublisher();
     private final ScannerSupportRequestPublisher scannerSupportRequestPublisher = new ScannerSupportRequestPublisher();
     private final ScannerSupportRequestService scannerSupportRequestService = new ScannerSupportRequestService();
@@ -279,7 +274,6 @@ public class ScannerRuntimeBackend
 
     private int portSocketInitial = 54525;
     private volatile String pendingDomReviewHtml;
-    private boolean scannerGridContainerInitialized;
     private BotJobLoadDTO currentBotJob;
     private static String currentBotJobName = null;
     private int currentBlockId;
@@ -317,7 +311,6 @@ public class ScannerRuntimeBackend
     private List<VariableLoadDTO> variablesLoaded;
     private String[] defaultSearch;
     private boolean searchHiddenFields;
-    private String sessionIdFromJava;
     private String sessionRowStatus;
     private String jsonStatus;
     private RowStatus rowStatus = new RowStatus();
@@ -603,97 +596,6 @@ public class ScannerRuntimeBackend
         return (double) intersection.size() / union.size();
     }
 
-    // Method to get XPath of a WebElement
-    public static String getXPath(WebDriver driver, WebElement element) {
-        return (String) ((JavascriptExecutor) driver)
-                .executeScript(
-                        "function getElementXPath(elt) {" + "    var path = '';"
-                                + "    for (; elt && elt.nodeType == 1; elt = elt.parentNode) {"
-                                + "        var idx = getElementIdx(elt);"
-                                + "        var xname = elt.tagName;"
-                                + "        if (idx > 1) xname += '[' + idx + ']';"
-                                + "        path = '/' + xname + path;"
-                                + "    }"
-                                + "    return path;"
-                                + "}"
-                                + "function getElementIdx(elt) {"
-                                + "    var count = 1;"
-                                + "    for (var sib = elt.previousSibling; sib; sib = sib.previousSibling) {"
-                                + "        if (sib.nodeType == 1 && sib.tagName == elt.tagName) count++;"
-                                + "    }"
-                                + "    return count;"
-                                + "}"
-                                + "return getElementXPath(arguments[0]);",
-                        element);
-    }
-
-    // Helper method to get the text of an associated element
-    private static String getElementText(WebElement element) {
-        String tagName = element.getTagName();
-
-        switch (tagName.toLowerCase()) {
-            case "input":
-                return element.getAttribute("value");
-            case "textarea":
-                return element.getText();
-            case "select":
-                List<WebElement> selectedOptions = element.findElements(By.cssSelector("option[selected]"));
-                return selectedOptions.stream()
-                        .map(WebElement::getText)
-                        .reduce((a, b) -> a + ", " + b)
-                        .orElse("");
-            default:
-                return element.getText();
-        }
-    }
-
-    private static By[] parseLocators(String input) {
-        // Split the input string by commas to get individual locator strings
-        // DB Access Cannot have "'"
-        input = input.replace("\"", "'");
-
-        String[] locatorStrings = input.split(",");
-
-        // List to hold the By objects
-        List<By> byList = new ArrayList<>();
-
-        // Loop through each locator string
-        for (String locatorString : locatorStrings) {
-            // Split each locator string by colon to separate the type and value
-            String[] parts = locatorString.split(":");
-
-            // Get the type and value
-            String type = parts[0].replace("By.", "").toUpperCase();
-            String value = String.join(",", Arrays.copyOfRange(parts, 1, parts.length));
-
-            value = value.replace("COMMA", ",");
-
-            // Create the By object based on the type
-            switch (LocatorType.valueOf(type)) {
-                case TAGNAME:
-                    byList.add(By.tagName(value));
-                    break;
-                case ID:
-                    byList.add(By.id(value));
-                    break;
-                case CLASSNAME:
-                    byList.add(By.className(value));
-                    break;
-                case CSSSELECTOR:
-                    byList.add(By.cssSelector(value));
-                    break;
-                case XPATH:
-                    byList.add(By.xpath(value));
-                    break;
-                default:
-                    throw new IllegalArgumentException("Unsupported locator type: " + type);
-            }
-        }
-
-        // Convert the list to an array and return
-        return byList.toArray(new By[0]);
-    }
-
     public static List<InstructionLoad> getUnexecutedInstructions(
             List<InstructionLoad> instructionsExecuted, List<InstructionLoad> otherList) {
         // Create a set of instructionOrderNumbers from instructionsExecuted
@@ -723,88 +625,6 @@ public class ScannerRuntimeBackend
         logLaunch.info(log);
     }
 
-    /**
-     * Finds all elements of the specified tag name without "id" or "name" attributes and returns a map with their XPaths as keys.
-     *
-     * @param driver  the WebDriver instance
-     * @param tagName the tag name of the elements to find (e.g., "input", "button")
-     * @return a map where keys are XPaths of elements and values are WebElements
-     */
-    private static Map<String, WebElement> findElementsWithoutIdOrName(WebDriver driver, String tagName) {
-        jsExecutor = (JavascriptExecutor) driver;
-        List<WebElement> elements = (List<WebElement>) jsExecutor.executeScript(
-                "return Array.from(document.querySelectorAll('" + tagName + ":not([id]):not([name])'));");
-        Set<WebElement> uniqueElements = new HashSet<>(elements);
-        Map<String, WebElement> elementMap = new HashMap<>();
-        for (WebElement element : uniqueElements) {
-            String xpath = getElementXPath(driver, element);
-            elementMap.put(xpath, element);
-        }
-        return elementMap;
-    }
-
-    /**
-     * Constructs the XPath of a given WebElement.
-     *
-     * @param driver  the WebDriver instance
-     * @param element the WebElement to construct the XPath for
-     * @return the XPath of the element
-     */
-    private static String getElementXPath(WebDriver driver, WebElement element) {
-        return (String) ((JavascriptExecutor) driver)
-                .executeScript(
-                        "function absoluteXPath(element) {" + "    var comp, comps = [];"
-                                + "    var parent = null;"
-                                + "    var xpath = '';"
-                                + "    var getPos = function(element) {"
-                                + "        var position = 1, curNode;"
-                                + "        if (element.nodeType == Node.ATTRIBUTE_NODE) {"
-                                + "            return null;"
-                                + "        }"
-                                + "        for (curNode = element.previousSibling; curNode; curNode = curNode.previousSibling) {"
-                                + "            if (curNode.nodeName == element.nodeName) {"
-                                + "                ++position;"
-                                + "            }"
-                                + "        }"
-                                + "        return position;"
-                                + "    };"
-                                + "    if (element instanceof Document) {"
-                                + "        return '/';"
-                                + "    }"
-                                + "    for (; element && !(element instanceof Document); element = element.nodeType == Node.ATTRIBUTE_NODE ? element.ownerElement : element.parentNode) {"
-                                + "        comp = comps[comps.length] = {};"
-                                + "        switch (element.nodeType) {"
-                                + "            case Node.TEXT_NODE:"
-                                + "                comp.name = 'text()';"
-                                + "                break;"
-                                + "            case Node.ATTRIBUTE_NODE:"
-                                + "                comp.name = '@' + element.nodeName;"
-                                + "                break;"
-                                + "            case Node.PROCESSING_INSTRUCTION_NODE:"
-                                + "                comp.name = 'processing-instruction()';"
-                                + "                break;"
-                                + "            case Node.COMMENT_NODE:"
-                                + "                comp.name = 'comment()';"
-                                + "                break;"
-                                + "            case Node.ELEMENT_NODE:"
-                                + "                comp.name = element.nodeName;"
-                                + "                break;"
-                                + "        }"
-                                + "        comp.position = getPos(element);"
-                                + "    }"
-                                + "    for (var i = comps.length - 1; i >= 0; i--) {"
-                                + "        comp = comps[i];"
-                                + "        xpath += '/' + comp.name.toLowerCase();"
-                                + "        if (comp.position !== null) {"
-                                + "            xpath += '[' + comp.position + ']';"
-                                + "        }"
-                                + "    }"
-                                + "    return xpath;"
-                                + "}"
-                                + "return absoluteXPath(arguments[0]);",
-                        element);
-    }
-
     private static String loadScriptFromResource(String resourcePath) throws IOException {
         // Use ClassLoader to get the resource as an InputStream
         try (InputStream inputStream =
@@ -815,15 +635,6 @@ public class ScannerRuntimeBackend
 
             // Convert InputStream to String
             return new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
-        }
-    }
-
-    public static boolean isBrowserClosed(WebDriver webDriver) {
-        try {
-            webDriver.getTitle(); // Try accessing a property
-            return false; // If no exception, browser is open
-        } catch (Exception e) {
-            return true; // If exception occurs, browser is closed
         }
     }
 
@@ -1091,21 +902,6 @@ public class ScannerRuntimeBackend
             // initialiser). Safe to call on every test click.
             ensureWaitsInitialized();
 
-            // Arm the actionExecutor WITHOUT loading the JS plugin — just
-            // configure the ActionExecutorClient session and wire the two
-            // PerformActions callbacks (setOnPageRefresh / setActionExecutorInjector).
-            // The first real injection happens lazily inside
-            // PerformActions.ensureActionExecutor() when the runner actually
-            // needs the plugin. This avoids the double "Injecting plugin"
-            // log you saw when we called injectActionExecutor() here and then
-            // ensureActionExecutor() re-ran it because the window flag wasn't
-            // observable yet.
-            if (currentBotJob != null) {
-                armActionExecutorCallbacks();
-            } else {
-                logOperations.warn("testingActions - currentBotJob is null, skipping actionExecutor priming");
-            }
-
             // Synthetic InstructionLoad carrying the same xpath / shadow / css /
             // force_coordinates / iframe info that the engine reads at run time.
             // force_coordinates was set on the TargetElement from the GridItemScann
@@ -1313,7 +1109,7 @@ public class ScannerRuntimeBackend
         performActions.setCurrentARWebDriver(currentARWebDriver);
         performActions.setCurrentDriver(currentARWebDriver.getCurrentDriver());
 
-        if (!openWebDriver(false)) {
+        if (!openBrowser()) {
             ScannerShellLifecycle.getInstance().closeShell();
             return;
         }
@@ -1323,11 +1119,8 @@ public class ScannerRuntimeBackend
 
         updateSceneTitleWithCurrentURL(homeUrlDTO.getUrl());
 
-        //        if (!initializeScannerGridContainer()) {
-        //            return;
-        //        }
-
         selectPreferredBlockOption(false);
+        setPayloadEmpty();
         uiThreadDispatcher.execute(this::refreshGrids);
     }
 
@@ -1335,167 +1128,20 @@ public class ScannerRuntimeBackend
         scannerGridPublisher.publishScannerGridSearchTermsPayload(this.currentBotJob.getHomeBankingId(), payloadEmpty);
     }
 
-    private boolean initializeScannerGridContainer() {
-        setPayloadEmpty();
-
-        sessionIdFromJava = scannerGridPublisher.destinationSessionId(); // + this.currentBotJob.getHomeBankingId();
-        scannerGridContainerInitialized = true;
-        log.info(
-                "Scanner grid shell removed; React session {} must request scanner.bootstrap over WebSocket (port {}, homeBankingId {}, botJobId {}, job {})",
-                sessionIdFromJava,
-                portSocketInitial,
-                this.currentBotJob.getHomeBankingId(),
-                this.currentBotJob.getId(),
-                this.currentBotJob.getName());
-
-        if (isBrowserClosed(performActions.getCurrentDriver()) && performActions.getCurrentDriver() != null) {
-            performActions.getCurrentDriver().quit();
-            performActions.setCurrentDriver(null);
-            currentARWebDriver.getCurrentDriver().quit();
-            currentARWebDriver.setCurrentDriver(null);
-        }
-
-        String version = System.getProperty("java.version");
-        log.info("Detected Java Version: " + version);
-
-        int majorVersion = scannerJavaVersionService.majorVersion(version);
-        if (majorVersion >= 17) {
-            log.info("✅ Java 17 or higher is installed.");
-        } else {
-            log.error("Compatibility Issue: Incompatible Java Version");
-            performMessage.errorMessage(
-                    "Compatibility Issue: Incompatible Java Version",
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Critical: Your Java version is lower than the required 17!</span>",
-                    "<span style='color: #2E7D32; font-weight: bold;'>Attempting to execute the Engine with this older version may lead to unexpected behavior or failures.</span>",
-                    "<span style='font-style: italic;'>Please upgrade your Java installation to version 17 or higher for optimal performance and stability.</span>",
-                    null,
-                    0);
-        }
-
-        if (!openWebDriver(true)) {
-            ScannerShellLifecycle.getInstance().closeShell();
-            return false;
-        }
-        performActions.getIframeElementsMap();
-
-        handleWindowHandlesChange();
-
-        return true;
-    }
-
-    //    private static WebElement convertJsoupElementToWebElement(Element jsoupElement, WebDriver driver) {
-    //        // Create a new RemoteWebElement instance and set its properties
-    //        RemoteWebElement webElement = new RemoteWebElement();
-    //        webElement.setParent((RemoteWebElement) driver.findElementByTagName("html")); // Set a dummy parent
-    //        webElement.setId("dummy_id"); // Set a dummy id
-    //        // Simulate the href and text attributes
-    //        webElement.setAttribute("href", jsoupElement.attr("href"));
-    //        webElement.setText(jsoupElement.text());
-    //
-    //        return webElement;
-    //    }
-
-    private boolean openWebDriver(boolean firstLoad) {
-
-        String webDriverPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_WEBDRIVER);
-        if (!(new File(webDriverPath)).exists()) {
-            logOperations.error("Action Required: Missing WebDriver");
-            performMessage.errorMessage(
-                    "Action Required: Missing WebDriver",
-                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Critical: The WebDriver file is missing!</span>",
-                    "<span style='color: #2E7D32; font-weight: bold;'>To execute automated browser interactions, the WebDriver is absolutely essential.</span>",
-                    "<span style='font-style: italic;'>Please download the correct WebDriver for your browser and ensure it is accessible by the application.</span>",
-                    null,
-                    0);
-            return false;
-        }
+    private boolean openBrowser() {
         String browserType = arPropertyManager.getProperty(ARPropertyEnum.BROWSER);
-
-        if (!firstLoad
-                && isBrowserClosed(performActions.getCurrentDriver())
-                && performActions.getCurrentDriver() != null) {
-            performActions.getCurrentDriver().quit();
-            performActions.setCurrentDriver(null);
-            currentARWebDriver.getCurrentDriver().quit();
-            currentARWebDriver.setCurrentDriver(null);
-            firstLoad = true;
-        }
-
-        if (firstLoad) {
-            HomeUrlDTO homeUrlDTO = performLists.getHomeUrlByBankId(
-                    this.currentBotJob.getHomeBankingId(), this.currentBotJob.getHomeUrlId());
-            HomeBankingLoadDTO homeBanking = performLists.getHomeBankingById(this.currentBotJob.getHomeBankingId());
-
-            WebDriver returned = currentARWebDriver.openDriver(
-                    browserType,
-                    webDriverPath,
-                    homeUrlDTO.getUrl(),
-                    homeBanking.getOptionsConfig(),
-                    defaultSearch,
-                    searchHiddenFields,
-                    portSocketInitial);
-
-            // Playwright-only mode legitimately returns null (no Selenium driver) — that is
-            // success, not failure. Only bail when Selenium was expected but failed to open.
-            if (returned == null && !currentARWebDriver.isPlaywrightOnly()) {
-                return false;
-            }
-
-            performActions.initialize(arPriorities);
-            performActions.setCurrentARWebDriver(currentARWebDriver);
-            performActions.setCurrentDriver(currentARWebDriver.getCurrentDriver());
-        } else {
-
-            if (currentARWebDriver.getCurrentDriver() != null) {
-                HomeUrlDTO homeUrlDTO = performLists.getHomeUrlByBankId(
-                        this.currentBotJob.getHomeBankingId(), this.currentBotJob.getHomeUrlId());
-                currentARWebDriver.getCurrentDriver().get(homeUrlDTO.getUrl());
-            }
-        }
-
-        //        try {
-        //            performActions.onHoldInSeconds(3);
-        //        } catch (Exception ignore) {
-        //        }
-
-        return true;
-    }
-
-    public void initUIComponents() {
-
-        if (!initializeScannerGridContainer()) {
-            return;
-        }
-
-        buildUIComponents();
-
-        refreshBlocks(false);
-    }
-
-    //    public void saveReferencesToFile(String filePath, List<ARWebElement> elements) {
-    //        try (BufferedWriter writer = new BufferedWriter(new FileWriter(filePath))) {
-    //            for (ARWebElement element : elements) {
-    //                Map<String, String> savedReferences = element.getSavedReferences();
-    //
-    //                for (Map.Entry<String, String> entry : savedReferences.entrySet()) {
-    //                    writer.write(entry.getKey() + "=" + entry.getValue());
-    //                    writer.newLine();
-    //                }
-    //            }
-    //            logOperations.info("References saved to " + filePath);
-    //        } catch (IOException e) {
-    //            logOperations.error("Error writing to file: " + e.getMessage());
-    //        }
-    //    }
-
-    private void buildUIComponents() {
-        selectElementScanProfile(ALL_INTERACTIVE_SCAN_PROFILE);
-        appendLog("Page Scanner focus: " + selectedElementScanProfile.label(), "info");
-
         HomeUrlDTO homeUrlDTO = performLists.getHomeUrlByBankId(
                 this.currentBotJob.getHomeBankingId(), this.currentBotJob.getHomeUrlId());
-        updateSceneTitleWithCurrentURL(homeUrlDTO.getUrl());
-        selectPreferredBlockOption(false);
+        HomeBankingLoadDTO homeBanking = performLists.getHomeBankingById(this.currentBotJob.getHomeBankingId());
+
+        if (!currentARWebDriver.openBrowser(browserType, homeUrlDTO.getUrl(), homeBanking.getOptionsConfig())) {
+            return false;
+        }
+
+        performActions.initialize(arPriorities);
+        performActions.setCurrentARWebDriver(currentARWebDriver);
+        performActions.setCurrentDriver(null);
+        return true;
     }
 
     public void refreshBlocks(boolean secondItem) {
@@ -1504,14 +1150,14 @@ public class ScannerRuntimeBackend
 
     private void sendCurrentDomForReview() {
         try {
-            org.openqa.selenium.WebDriver driver = performActions.getCurrentDriver();
-            if (driver == null) {
+            ScannerPlaywrightBrowserAdapter browser = scannerPlaywrightBrowser();
+            if (!browser.hasCurrentDriver()) {
                 scannerSupportAlertAdapter.showNoActiveBrowser();
                 return;
             }
 
             Optional<ScannerDomReviewSnapshotService.Snapshot> snapshot =
-                    scannerDomReviewSnapshotService.snapshot(new ScannerSeleniumBrowserAdapter(driver));
+                    scannerDomReviewSnapshotService.snapshot(browser);
             if (snapshot.isEmpty()) {
                 log.warn("sendCurrentDomForReview — empty page source");
                 return;
@@ -1545,16 +1191,15 @@ public class ScannerRuntimeBackend
 
         uiThreadDispatcher.execute(() -> {
             try {
-                org.openqa.selenium.WebDriver driver = performActions.getCurrentDriver();
                 if (responseAction == ScannerSupportResponseActionService.Action.SEND) {
-                    SupportCapture.CaptureResult r = scannerSupportCaptureSendService.sendDomCapture(driver);
+                    SupportCapture.CaptureResult r = scannerSupportCaptureSendService.sendDomCapture();
                     ScannerSupportCaptureResultService.AlertMessage message =
                             scannerSupportCaptureResultService.domCapture(r);
                     scannerSupportAlertAdapter.showCaptureResult(message);
 
                 } else if (responseAction == ScannerSupportResponseActionService.Action.SAVE) {
                     ScannerSupportFileService.SupportFile supportFile =
-                            scannerPageReviewFileService.pageReview(html, new ScannerSeleniumBrowserAdapter(driver));
+                            scannerPageReviewFileService.pageReview(html, scannerPlaywrightBrowser());
                     scannerSupportSaveFlowAdapter.savePageReview(supportFile);
                 }
             } catch (Exception ex) {
@@ -1567,7 +1212,7 @@ public class ScannerRuntimeBackend
         try {
             int hbId = this.currentBotJob != null ? this.currentBotJob.getHomeBankingId() : 0;
             String destination = scannerSupportRequestService.requestSupport(
-                    hbId, new ScannerSeleniumBrowserAdapter(performActions::getCurrentDriver));
+                    hbId, scannerPlaywrightBrowser());
             log.info("requestSupport — WS message sent to {}", destination);
 
         } catch (Exception ex) {
@@ -1585,7 +1230,7 @@ public class ScannerRuntimeBackend
         try {
             int hbId = this.currentBotJob != null ? this.currentBotJob.getHomeBankingId() : 0;
             String destination = scannerSupportRequestService.requestElementsSupport(
-                    hbId, new ScannerSeleniumBrowserAdapter(performActions::getCurrentDriver));
+                    hbId, scannerPlaywrightBrowser());
             log.info("requestSupportElements — WS message sent to {}", destination);
 
         } catch (Exception ex) {
@@ -1593,11 +1238,17 @@ public class ScannerRuntimeBackend
         }
     }
 
+    private ScannerPlaywrightBrowserAdapter scannerPlaywrightBrowser() {
+        return new ScannerPlaywrightBrowserAdapter(() -> currentARWebDriver == null
+                ? null
+                : currentARWebDriver.currentPlaywrightDriver());
+    }
+
     /**
      * Elements counterpart of {@link #handleDomReviewResponse}: reuses the
      * Page-Review endpoint/envelope ({@code /support/dom-capture}) but the
      * payload carries the scanned {@code elementDetails} plus a best-effort
-     * live WebDriver snapshot per element — no HTML page. Same classification
+     * live Playwright snapshot per element — no full-page HTML. Same classification
      * on the portal, just {@code kind: "elements-review"}.
      */
     public void handleSupportRequestElementsResponse(String action, String message, String elementDetailsJson) {
@@ -1610,11 +1261,9 @@ public class ScannerRuntimeBackend
 
         uiThreadDispatcher.execute(() -> {
             try {
-                org.openqa.selenium.WebDriver driver = performActions.getCurrentDriver();
-
                 if (responseAction == ScannerSupportResponseActionService.Action.SEND) {
                     SupportCapture.CaptureResult r =
-                            scannerSupportCaptureSendService.sendElementsReview(driver, elementDetailsJson, message);
+                            scannerSupportCaptureSendService.sendElementsReview(elementDetailsJson, message);
 
                     ScannerSupportCaptureResultService.AlertMessage alertMessage =
                             scannerSupportCaptureResultService.elementsReview(r);
@@ -1622,7 +1271,8 @@ public class ScannerRuntimeBackend
 
                 } else if (responseAction == ScannerSupportResponseActionService.Action.SAVE) {
                     ScannerSupportFileService.SupportFile supportFile =
-                            scannerElementsReviewFileService.elementsReview(driver, elementDetailsJson, message);
+                            scannerElementsReviewFileService.elementsReview(
+                                    scannerPlaywrightBrowser(), elementDetailsJson, message);
                     scannerSupportSaveFlowAdapter.saveElementsReview(supportFile);
                 }
             } catch (Exception ex) {
@@ -2326,57 +1976,6 @@ public class ScannerRuntimeBackend
         return scannerBrowserRuntime.currentPageUrl();
     }
 
-    public void periodicSearchThread(
-            WebDriver driver,
-            String[] dataArray,
-            int port,
-            String sessionId,
-            String destinationId,
-            String operationId,
-            int homeBankingId,
-            int botJobId,
-            List<String> extendedRules) {
-        PerformListElements.ScanResult scan = scannerPageScanService.scan(
-                currentARWebDriver,
-                driver,
-                new ScannerPageScanService.Request(
-                        dataArray,
-                        searchHiddenFields,
-                        port,
-                        new ScannerSearchRoute(sessionId, destinationId, operationId),
-                        homeBankingId,
-                        botJobId,
-                        extendedRules));
-
-        if (scan.error != null) {
-            logOperations.error(
-                    "Error: periodicSearchThread - {} - {} - {}",
-                    scan.error.getErrorTitle(),
-                    scan.error.getErrorHeader(),
-                    scan.error.getErrorMessage());
-            scannerDialogPublisher.toast(
-                    ScannerDialogPublisher.Severity.ERROR,
-                    scan.error.getErrorTitle() + " - " + scan.error.getErrorHeader(),
-                    6);
-            return;
-        }
-
-        List<ElementDTO> elements = scan.elements;
-        if (elements == null || elements.isEmpty()) {
-            appendLog("Page Scanner returned 0 elements.", "warn");
-            return;
-        }
-
-        ScannerGridSearchResultsService.Result result = scannerGridSearchResultsService.publishResults(
-                homeBankingId, botJobId, currentBotJob.getName(), elements);
-        appendLog(
-                "Page Scanner: sent " + result.elementCount() + " elements to "
-                        + result.destinationSessionId() + ".",
-                "info");
-
-        flashFoundElements(driver, elements);
-    }
-
     /**
      * Visual sweep: briefly pulses a red outline on each scanned element so
      * the user can see which nodes the scanner picked up. Runs entirely in the
@@ -2475,23 +2074,6 @@ public class ScannerRuntimeBackend
 
     private void revertHoverPickInjections(WebDriver driver) {
         runInjectionScript("window.revertHoverPickInjections();");
-    }
-
-    public void injectJumpTab(WebDriver driver) {
-        runInjectionScript("var inputs = document.getElementsByTagName('input');"
-                + "for (var i = 0; i < inputs.length; i++) {"
-                + "    inputs[i].scrollIntoView();"
-                + "}");
-    }
-
-    public List<WebElement> searchAllInputs(WebDriver driver) {
-        // Execute JavaScript to find all input elements
-        String script = "var inputs = document.getElementsByTagName('input');" + "return inputs;";
-        List<WebElement> inputElements = (List<WebElement>) ((JavascriptExecutor) driver).executeScript(script);
-
-        // Print the number of input elements found
-        logOperations.info("Number of input elements: " + inputElements.size());
-        return inputElements;
     }
 
     private synchronized boolean recallJob() {
@@ -2665,7 +2247,7 @@ public class ScannerRuntimeBackend
     private final class PaneTestRunExecutionStartOperations implements ScannerTestRunExecutionStart.Operations {
         @Override
         public boolean openBrowser() {
-            return openWebDriver(true);
+            return ScannerRuntimeBackend.this.openBrowser();
         }
 
         @Override
@@ -2778,15 +2360,10 @@ public class ScannerRuntimeBackend
         }
 
         @Override
-        public void closeCurrentDriver() {
+        public void closeBrowser() {
             if (currentARWebDriver != null) {
-                currentARWebDriver.closeCurrentDriver();
+                currentARWebDriver.closeBrowser();
             }
-        }
-
-        @Override
-        public void clearCurrentDriver() {
-            performActions.setCurrentDriver(null);
         }
 
         @Override
@@ -2971,34 +2548,6 @@ public class ScannerRuntimeBackend
         setScannerStatus("Pre-Launch status: Ready", "info");
     }
 
-    public void quit(int status) {
-        performActions.getCurrentDriver().quit();
-        if (status == 0) {
-            System.exit(status);
-        }
-        Close();
-    }
-
-    /**
-     * Finds all elements with the specified attribute and returns a map with their XPaths as keys.
-     *
-     * @param driver    the WebDriver instance
-     * @param attribute the attribute to find elements by (e.g., "id" or "name")
-     * @return a map where keys are XPaths of elements and values are WebElements
-     */
-    private Map<String, WebElement> findElementsWithXPath(WebDriver driver, String attribute) {
-        jsExecutor = (JavascriptExecutor) driver;
-        List<WebElement> elements = (List<WebElement>)
-                jsExecutor.executeScript("return Array.from(document.querySelectorAll('[" + attribute + "]'));");
-        Set<WebElement> uniqueElements = new HashSet<>(elements);
-        Map<String, WebElement> elementMap = new HashMap<>();
-        for (WebElement element : uniqueElements) {
-            String xpath = getElementXPath(driver, element);
-            elementMap.put(xpath, element);
-        }
-        return elementMap;
-    }
-
     public void stop() throws Exception {
         // Cleanup tasks when the application stops
         executorServicePreLaunch.shutdown();
@@ -3015,15 +2564,10 @@ public class ScannerRuntimeBackend
         }
     }
 
-    private void Close() {
-        log.info("ScannerRuntimeBackend Close()");
-    }
-
     private void browserNotAttached() {
-        String webDriverPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_WEBDRIVER);
         log.error("Error: The Browser attached with this Web Scanner is Not Active");
         ScannerBrowserNotAttachedMessageService.Message message =
-                scannerBrowserNotAttachedMessageService.message(webDriverPath);
+                scannerBrowserNotAttachedMessageService.message();
         performMessage.errorMessage(
                 message.title(),
                 message.header(),
@@ -3166,13 +2710,6 @@ public class ScannerRuntimeBackend
 
     public void setPayloadEmpty() {
         this.payloadEmpty = scannerEmptyPayloadService.buildDefault(
-                this.currentBotJob,
-                new PaneEmptyPayloadOperations());
-    }
-
-    private void setPayloadEmpty(String destination) {
-        this.payloadEmpty = scannerEmptyPayloadService.buildForDestination(
-                destination,
                 this.currentBotJob,
                 new PaneEmptyPayloadOperations());
     }
@@ -3443,13 +2980,11 @@ public class ScannerRuntimeBackend
 
         logLaunch.info(baseLogString);
 
-        ExcelWriter.ExcelChain writerReport =
-                new ExcelWriter(currentBotJobName, performActions.getCurrentDriver(), false).withPurpose("report");
+        ExcelWriter.ExcelChain writerReport = new ExcelWriter(currentBotJobName, false).withPurpose("report");
         writerReport.insertReportHead();
 
         ExcelWriter.ExcelChain writerExport = null;
-        //                new ExcelWriter(blocksLoaded.get(0).getName(),
-        // performActions.getCurrentDriver()).withPurpose("export");
+        //                new ExcelWriter(blocksLoaded.get(0).getName(), false).withPurpose("export");
         boolean excelExportOnceCreation = true;
         //        writerExport.insertReportHead();
 
@@ -3586,10 +3121,6 @@ public class ScannerRuntimeBackend
                             lastBlockOrderPushed = currentBlockOrder;
 
                             performLists.resetListElements();
-                            pushUpdateListElements();
-
-                            // Inject actionExecutor plugin (once per page)
-                            injectActionExecutor();
 
                             logOperations.info("Total Target Elements: "
                                     + performLists.getListTargetElements().size());
@@ -3878,7 +3409,6 @@ public class ScannerRuntimeBackend
                                     lastInstructionIdPushed = currentInstructionId;
 
                                     performLists.resetListElements();
-                                    pushUpdateListElements();
 
                                     logOperations.info("Total Target Elements: "
                                             + performLists
@@ -4640,50 +4170,6 @@ public class ScannerRuntimeBackend
                                                             forceCoordinates,
                                                             byPassFlagLoop);
                                                 }
-                                                // ── Roadmap 3 Phase 3c-iii ────────────────────────────────
-                                                // Last-resort fallback: if every existing strategy
-                                                // (xpath match, name/text match, priorities ladder) failed,
-                                                // try the persisted locator via ElementRecoveryService.
-                                                // The recovery service walks its own ladder
-                                                // (XPATH_CURRENT > XPATH_ORIGINAL > CSS_SELECTOR >
-                                                //  ATTRIB_ID > ATTRIB_NAME > TEXT_FUZZY > COORDS) and
-                                                // writes an audit row when a non-direct strategy wins.
-                                                if (webElementFound == null
-                                                        && currentInstruction.getName() != null
-                                                        && !currentInstruction
-                                                                .getName()
-                                                                .isBlank()) {
-                                                    try {
-                                                        Integer hbId = this.currentBotJob.getHomeBankingId();
-                                                        Integer homeUrlId = this.currentBotJob.getHomeUrlId();
-                                                        com.allinweb.ch.model.ElementLocatorEntity loc =
-                                                                ElementLocatorRepository.getInstance()
-                                                                        .findByKey(
-                                                                                hbId,
-                                                                                homeUrlId,
-                                                                                currentInstruction.getName());
-                                                        if (loc != null) {
-                                                            ElementRecoveryService.Recovery r =
-                                                                    ElementRecoveryService.getInstance()
-                                                                            .findOrRecover(
-                                                                                    performActions.getCurrentDriver(),
-                                                                                    loc);
-                                                            if (r.found()) {
-                                                                webElementFound = r.element;
-                                                                logOperations.info(
-                                                                        "ElementRecoveryService recovered '{}'"
-                                                                                + " via {} (confidence={})",
-                                                                        currentInstruction.getName(),
-                                                                        r.strategy,
-                                                                        String.format("%.1f", r.confidence));
-                                                            }
-                                                        }
-                                                    } catch (Exception recoveryEx) {
-                                                        logOperations.warn(
-                                                                "ElementRecoveryService failed (non-fatal): {}",
-                                                                recoveryEx.getMessage());
-                                                    }
-                                                }
                                             } catch (Exception ex) {
                                                 success = false;
                                             }
@@ -5257,8 +4743,7 @@ public class ScannerRuntimeBackend
                                         }
 
                                         if (!Strings.isNullOrEmpty(newExcelFieldName)) {
-                                            writerExport = new ExcelWriter(
-                                                            newExcelFieldName, performActions.getCurrentDriver(), true)
+                                            writerExport = new ExcelWriter(newExcelFieldName, true)
                                                     .withPurpose("export");
 
                                             // Only create Columns if Have a file to write
@@ -5782,7 +5267,7 @@ public class ScannerRuntimeBackend
         logLaunch.info(baseLogString);
 
         if (resultActions.equalsIgnoreCase("Close Browser") || respModal.equals(ARExecution.DialogModal.STOP)) {
-            currentARWebDriver.getCurrentDriver().quit();
+            currentARWebDriver.closeBrowser();
         }
 
         performActions.setInterceptBotJob(true);
@@ -5803,119 +5288,6 @@ public class ScannerRuntimeBackend
     private void setScannerStatus(String message, String style) {
         scannerStatusText = Strings.nullToEmpty(message);
         scannerStatusStyle = Strings.nullToEmpty(style);
-    }
-
-    public void readAllElementsWithWebDriver() {
-        WebDriver driver = performActions.getCurrentDriver();
-
-        if (driver == null) {
-            appendLog("Please connect to device first", "warn");
-            return;
-        }
-
-        appendLog("Starting XML-based deep scan (pageSource)...", "info");
-
-        try {
-            Thread.sleep(500);
-        } catch (InterruptedException ie) {
-            Thread.currentThread().interrupt();
-        }
-
-        try {
-            List<ElementDTO> results = new ArrayList<>();
-            List<RenameEntry> renameReport = new ArrayList<>();
-
-            String canonicalXml;
-            try {
-                String rawPageSource = driver.getPageSource();
-
-                if (isMobileApp) {
-                    canonicalXml = CanonicalXmlNormalizer.normalize(rawPageSource);
-                } else {
-                    // HTML -> XHTML so DocumentBuilder can parse it
-                    canonicalXml = CanonicalXmlNormalizer.normalizeHtmlToXhtml(rawPageSource);
-
-                    // ✅ WEB: parse XHTML -> Document -> extract labels/inputs/buttons/links
-                    Document doc = parseXhtmlToDocument(canonicalXml);
-
-                    // If you want, keep dedup using attribId/xpath
-                    List<ElementDTO> webControls = extractWebControls(doc);
-
-                    // Optional dedup guard (recommended if your page repeats nodes)
-                    Set<String> seenKeys = new HashSet<>();
-                    for (ElementDTO dto : webControls) {
-                        String key = nz(dto.getAttribId()) + "||" + nz(dto.getXPath());
-                        if (seenKeys.add(key)) {
-                            results.add(dto);
-                        }
-                    }
-                }
-            } catch (Exception ex) {
-                appendLog("driver.getPageSource() failed: " + ex.getMessage(), "error");
-                return;
-            }
-
-            if (canonicalXml == null || canonicalXml.isBlank()) {
-                appendLog("Empty pageSource XML; stopping.", "warn");
-                return;
-            }
-
-            // Keep dedup structure if your traverse uses it
-            Set<String> seenKeys = new HashSet<>(50_000);
-
-            //            saveCanonicalXmlToAppFolder(canonicalXml);
-
-            extractAllTextElementsFromCanonicalXml(canonicalXml, results);
-
-            parseAppiumPageSourceXml(canonicalXml, results, renameReport, seenKeys);
-            if (isMobileApp) {
-                parseAppiumPageSourceXml(canonicalXml, results, renameReport, seenKeys);
-            } else {
-                parseWebPageSourceXhtml(canonicalXml, results, seenKeys);
-            }
-
-            appendLog("XML deep scan complete. Elements kept: " + results.size(), "info");
-
-            // ---- Wrap in SplitDTO and send as before ----
-            ScannerMobilePickRoute route = ScannerMobilePickRoute.standard();
-            splitDTO.setType(ScannerWorkspaceOperations.SEARCH_TOOL);
-            splitDTO.setSessionId(route.payloadSessionId());
-            splitDTO.setOperationId(route.payloadOperationId());
-            splitDTO.setElementDetails(results.toArray(new ElementDTO[0]));
-
-            sendChunks(
-                    results,
-                    25,
-                    splitDTO,
-                    webSocketSessionManager,
-                    route.sourceSessionId(),
-                    route.chunkOperationId());
-
-            List<String> excludeList = List.of("optional", "blockMarked", "editMode");
-            String jsonPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
-            performMessage.outputJsonElementDTO(splitDTO.getElementDetails(), excludeList, "elementDTO-PG", jsonPath);
-
-            excludeList = List.of(
-                    "optional",
-                    "blockMarked",
-                    "editMode",
-                    "id",
-                    "attributeData",
-                    "typeElement",
-                    "customXPath",
-                    "shadowRoot",
-                    "nestedShadow",
-                    "searchAttributeValue",
-                    "attributeType",
-                    "attributeValue");
-            performMessage.outputJsonElementDTO(
-                    splitDTO.getElementDetails(), excludeList, "AI-ElementDTO-PG", jsonPath);
-
-            appendLog("Payload sent. Elements in payload: " + results.size(), "info");
-
-        } catch (Exception e) {
-            appendLog("XML deep scan failed: " + e.getMessage(), "error");
-        }
     }
 
     // Optional: small struct to track renames (for logs/inspection)
@@ -7375,113 +6747,6 @@ public class ScannerRuntimeBackend
         } catch (Exception ignored) {
         }
         return null;
-    }
-
-    private void pushUpdateListElements() {
-        if (performActions == null || performActions.getCurrentDriver() == null) return;
-
-        int finalPort = portSocketInitial;
-        String socketSessionId = ScannerWorkspaceOperations.UPDATE_LIST_ELEMENTS;
-        String destinationId = ScannerWorkspaceSessions.PERFORM_LIST_DATA;
-        String[] dataArray = new String[] {"input", "textarea", "button", "a", "select", "label"};
-
-        updateListElements(
-                performActions.getCurrentDriver(),
-                dataArray,
-                finalPort,
-                socketSessionId,
-                destinationId,
-                scannerGridPublisher.searchTermsOperationId(),
-                this.currentBotJob.getHomeBankingId(),
-                this.currentBotJob.getId());
-    }
-
-    /**
-     * Inject the actionExecutor plugin into the current browser page.
-     * The plugin stays alive as a WebSocket listener and executes DOM
-     * actions (click, type, ...) sent from Java - no Selenium visibility checks.
-     * Safe to call multiple times: the JS guards against double injection.
-     */
-    /**
-     * Configure the {@link ActionExecutorClient} session and wire the two
-     * {@link PerformActions} callbacks — but do NOT load the JS plugin.
-     *
-     * <p>Lets {@link PerformActions#ensureActionExecutor()} perform the first
-     * real injection lazily when the plugin is actually needed. Callers that
-     * want the runner's fallback chain wired up (test path, any pre-run
-     * priming) should use this instead of {@link #injectActionExecutor()} to
-     * avoid a double "Injecting plugin" log — once from the caller, once from
-     * the lazy check — on every action.
-     */
-    private void armActionExecutorCallbacks() {
-        if (this.currentBotJob == null) return;
-        String sessionId = String.valueOf(this.currentBotJob.getHomeBankingId());
-        actionExecutorClient.configure(this.currentBotJob.getHomeBankingId(), sessionId);
-        performActions.setOnPageRefresh(this::injectActionExecutor);
-        performActions.setActionExecutorInjector(this::injectActionExecutor);
-    }
-
-    private void injectActionExecutor() {
-        if (performActions == null || performActions.getCurrentDriver() == null) return;
-
-        String sessionId = String.valueOf(this.currentBotJob.getHomeBankingId());
-        String destination = "engine-perform-bot-job";
-
-        ErrorMessage error = performActionExecutorLoad.injectActionExecutor(
-                performActions.getCurrentDriver(),
-                portSocketInitial,
-                sessionId,
-                destination,
-                this.currentBotJob.getHomeBankingId(),
-                this.currentBotJob.getId());
-
-        if (error != null) {
-            logOperations.warn(
-                    "actionExecutor injection failed: {} - falling back to Selenium", error.getErrorMessage());
-        } else {
-            // Configure the client so performWebActions can use it
-            actionExecutorClient.configure(this.currentBotJob.getHomeBankingId(), sessionId);
-        }
-
-        // Wire callbacks so the plugin is re-injected automatically:
-        // 1. After refreshPage() - page reload kills the JS plugin
-        performActions.setOnPageRefresh(this::injectActionExecutor);
-        // 2. Before any action step - ensureActionExecutor() checks if alive, re-injects if not
-        performActions.setActionExecutorInjector(this::injectActionExecutor);
-    }
-
-    public void updateListElements(
-            WebDriver driver,
-            String[] dataArray,
-            int port,
-            String sessionId,
-            String destinationId,
-            String operationId,
-            int homeBankingId,
-            int botJobId) {
-        ErrorMessage errorMessage = performListElements.dynamicLoadElementsDTO(
-                currentARWebDriver,
-                driver,
-                dataArray,
-                searchHiddenFields,
-                port,
-                sessionId,
-                destinationId,
-                operationId,
-                homeBankingId,
-                botJobId);
-
-        if (errorMessage != null) {
-            logOperations.error(
-                    "Error: updateListElements - {} - {} - {}",
-                    errorMessage.getErrorTitle(),
-                    errorMessage.getErrorHeader(),
-                    errorMessage.getErrorMessage());
-            scannerDialogPublisher.toast(
-                    ScannerDialogPublisher.Severity.ERROR,
-                    errorMessage.getErrorTitle() + " - " + errorMessage.getErrorHeader(),
-                    6);
-        }
     }
 
     private static boolean isWebElementInstruction(InstructionLoad instr) {

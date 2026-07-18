@@ -1085,6 +1085,49 @@ node scripts\generate-automation-test-catalog.mjs
 - [ ] Add execution controls only after each framework has an allowlisted runner, persisted result
       contract, cancellation/timeout ownership, and explicit confirmation for headed/live suites.
 
+### Selenium retirement continuation (2026-07-18)
+
+- [x] Established Playwright as the only Scanner browser launcher. No production source constructs
+      a Selenium browser driver, and Scanner startup no longer validates a WebDriver executable.
+- [x] Removed the always-empty WebDriver registry, dead ARWebDriver helper chain, five dead
+      Selenium-oriented production classes, and six non-JUnit socket-injection programs that could
+      not run without a Selenium driver.
+- [x] Removed `use_playwright` and `playwright_selenium_fallback`; failed Playwright actions can no
+      longer be routed into an unreachable Selenium fallback by configuration.
+- [x] Routed Scanner stop, QUIT, execution-tail close, Scanner close, and application shutdown
+      through the Playwright lifecycle. Browser close reuses the Playwright executor; application
+      shutdown terminates it; executor cleanup now runs even when browser close fails.
+- [x] Kept `path_web_driver` only for the separately launched external Engine and removed it from
+      mandatory Scanner properties and Scanner/browser error messages.
+- [x] Added explicit Guava ownership so final Selenium dependency removal will not accidentally
+      remove a currently transitive runtime dependency.
+- [x] Added the phased completion roadmap in
+      `specifications/migrations/SELENIUM_TO_PLAYWRIGHT_REMOVAL_2026_07_18.md`.
+- [x] Replaced the Selenium scanner adapter with browser-neutral Playwright support for page state,
+      review files, live element snapshots, screenshots, and support capture enrichment.
+- [x] Ported workspace previous/next-tab controls, `PerformListElements`, OCR/diagnostic capture, and
+      report screenshots to Playwright-only browser APIs.
+- [x] Removed the dead page-scan service, Selenium preload/actionExecutor injectors, duplicate
+      packaged plugin source, always-null insert/update enrichment, Selenium logger suppressor, and
+      additional unreachable locator/recovery helpers.
+- [x] Compiled 415 production and 203 test Java sources; passed 66 focused migration/scanner/action
+      tests, with five browser-launch cases skipped because browser download is disabled.
+- [x] Passed the complete safe backend sweep with only the external Access diagnostic excluded:
+      711 tests, 0 failures/errors, 19 environment/fixture skips. The earlier unfiltered 708-test default
+      sweep had exactly one failure: `PerformDBEngineAccessTest` could not find its configured live
+      Access database path; no migration test failed.
+- [x] Regenerated the complete automation inventory: 894 displayed rows, 860 code cases, and
+      19,452 generated API requests.
+- [x] Current working-tree checkpoint: removed the unused `BrowserJsUtils` Selenium bridge and its
+      uncalled iframe/highlight facade methods. Ported `EngineDialogs` browser messaging and QUIT
+      cleanup to `ARPlaywrightDriver`, eliminating Selenium from that class. The direct source
+      footprint is now 14 production files, 1 JUnit file, and 0 packaged plugin sources. The exact
+      checkpoint compiled 415 production and 203 test sources and passed the complete safe backend
+      sweep: 711 tests, 0 failures/errors, and 19 environment/fixture skips.
+- [ ] Remaining gate: migrate 14 production files and the final Selenium-typed JUnit file; packaged
+      plugin sources are already clear. Remove `selenium-java` only when the repository-wide
+      Selenium source search is empty.
+
 ## Decision log
 
 - D-001: One canonical roadmap file; reviewers append evidence here.

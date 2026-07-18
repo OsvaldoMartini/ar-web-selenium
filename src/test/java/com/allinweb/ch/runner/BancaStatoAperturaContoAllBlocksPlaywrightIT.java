@@ -72,7 +72,7 @@ class BancaStatoAperturaContoAllBlocksPlaywrightIT {
     @AfterEach
     void closeBrowser() {
         try {
-            ARWebDriver.getInstance().closeCurrentDriver();
+            ARWebDriver.getInstance().closeBrowser();
         } catch (Exception ignored) {
             // Best-effort diagnostic cleanup — mirrors the sibling BancaStato IT tests.
         } finally {
@@ -278,8 +278,6 @@ class BancaStatoAperturaContoAllBlocksPlaywrightIT {
     }
 
     private void forcePlaywrightOnly() {
-        properties.setProperty(ARPropertyEnum.USE_PLAYWRIGHT.getValue(), "true");
-        properties.setProperty(ARPropertyEnum.PLAYWRIGHT_SELENIUM_FALLBACK.getValue(), "false");
         if (properties.getProperty(ARPropertyEnum.BROWSER) == null
                 || properties.getProperty(ARPropertyEnum.BROWSER).isBlank()) {
             properties.setProperty(ARPropertyEnum.BROWSER.getValue(), ARConstantsEngine.EDGE);

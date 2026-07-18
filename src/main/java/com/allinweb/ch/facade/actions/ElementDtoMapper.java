@@ -9,12 +9,10 @@ import com.allinweb.ch.model.ElementDTO;
 import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.model.TargetElement;
 import com.allinweb.ch.util.ARConstantsEngine;
-import com.allinweb.ch.util.ARWebUtil;
 import com.google.common.base.Strings;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import org.openqa.selenium.Rectangle;
 import org.openqa.selenium.WebElement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -542,11 +540,6 @@ public final class ElementDtoMapper {
         // Handle XPath and attribute cases
         processXPathAndAttributes(targetRefs, targetRefs.getSavedReferences());
 
-        // If no match for XPath or attributes, process coordinates or dynamic creation
-        if (targetRefs.getSavedReferences().isEmpty()) {
-            processDynamicCreation(targetRefs, targetRefs.getSavedReferences());
-        }
-
         // Process coordinates
         processCoordinates(targetRefs, targetRefs.getSavedReferences());
 
@@ -687,31 +680,9 @@ public final class ElementDtoMapper {
         }
     }
 
-    private static void processDynamicCreation(TargetElement targetRefs, Map<String, String> savedReferences) {
-        // Handle dynamic creation (fallback to XPath extraction)
-        if (targetRefs.getElement() != null) {
-            savedReferences.put("xpath", ARWebUtil.extractWebElementXPath(targetRefs.getElement()));
-        }
-    }
-
     private static void processCoordinates(TargetElement targetRefs, Map<String, String> savedReferences) {
 
         savedReferences.put("js_coordinates", targetRefs.getCoordinates());
-
-        try {
-            // Attempt to get coordinates from the element
-            Rectangle coordinates = targetRefs.getElement().getRect();
-
-            // Compute new coordinates based on element's dimensions
-            String newCoordinates = (coordinates.getX() + (coordinates.getWidth() / 2.0)) + ","
-                    + (coordinates.getY() + (coordinates.getHeight() / 2.0));
-
-            // webdriver
-            savedReferences.put("coordinates", newCoordinates);
-            targetRefs.setCoordinates(newCoordinates);
-        } catch (Exception coords) {
-            //            logOperations.error("Invalid coordinates from WebDriver Selenium");
-        }
 
         String[] parts = targetRefs.getCoordinates().split(",");
 
@@ -720,15 +691,7 @@ public final class ElementDtoMapper {
             double x = Double.parseDouble(parts[0].trim());
             double y = Double.parseDouble(parts[1].trim());
 
-            int width = 100; // Replace with actual width if available
-            int height = 100; // Replace with actual height if available
-
-            // Create a Rectangle with rounded integer values
-            Rectangle coordinates = new Rectangle((int) Math.round(x), (int) Math.round(y), width, height);
-
-            // Compute new coordinates using double precision
-            String newCoordinates = (coordinates.getX() + (coordinates.getWidth() / 2.0)) + ","
-                    + (coordinates.getY() + (coordinates.getHeight() / 2.0));
+            String newCoordinates = (Math.round(x) + 50.0) + "," + (Math.round(y) + 50.0);
 
             // Computed
             savedReferences.put("cp_coordinates", newCoordinates);

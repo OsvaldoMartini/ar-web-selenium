@@ -3,37 +3,14 @@ package com.allinweb.ch.facade;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 import com.allinweb.ch.model.ScannerWorkspaceState;
-import java.util.Set;
 import org.junit.jupiter.api.Test;
-import org.openqa.selenium.WebDriver;
 
 class ScannerBrowserOperationsTest {
 
     @Test
-    void browserStateUsesSeleniumWhenDriverIsAvailable() {
-        WebDriver driver = mock(WebDriver.class);
-        when(driver.getWindowHandles()).thenReturn(Set.of("first", "second"));
-        when(driver.getCurrentUrl()).thenReturn("https://selenium.example");
-        when(driver.getTitle()).thenReturn("Selenium page");
-        RecordingRuntime runtime = new RecordingRuntime();
-        runtime.seleniumDriver = driver;
-        runtime.playwrightOpen = true;
-
-        ScannerWorkspaceState.Browser browser = new ScannerBrowserOperations(runtime).browserState();
-
-        assertEquals("OPEN", browser.state());
-        assertEquals("https://selenium.example", browser.activeUrl());
-        assertEquals("Selenium page", browser.activeTitle());
-        assertEquals(2, browser.openTabs());
-        assertTrue(browser.scannable());
-    }
-
-    @Test
-    void browserStateUsesPlaywrightWhenSeleniumIsNotAvailable() {
+    void browserStateUsesPlaywright() {
         RecordingRuntime runtime = new RecordingRuntime();
         runtime.playwrightOpen = true;
         runtime.playwrightCurrentUrl = "https://playwright.example";
@@ -61,19 +38,6 @@ class ScannerBrowserOperationsTest {
     }
 
     @Test
-    void browserStateIsClosedWhenSeleniumStateThrows() {
-        WebDriver driver = mock(WebDriver.class);
-        when(driver.getWindowHandles()).thenThrow(new IllegalStateException("browser gone"));
-        RecordingRuntime runtime = new RecordingRuntime();
-        runtime.seleniumDriver = driver;
-
-        ScannerWorkspaceState.Browser browser = new ScannerBrowserOperations(runtime).browserState();
-
-        assertEquals("CLOSED", browser.state());
-        assertFalse(browser.scannable());
-    }
-
-    @Test
     void browserStateKeepsPlaywrightOpenWhenOptionalDetailsFail() {
         RecordingRuntime runtime = new RecordingRuntime();
         runtime.playwrightOpen = true;
@@ -88,18 +52,32 @@ class ScannerBrowserOperationsTest {
         assertTrue(browser.scannable());
     }
 
+    @Test
+    void switchTabSelectsAnAdjacentPlaywrightPage() {
+        RecordingRuntime runtime = new RecordingRuntime();
+        ScannerBrowserOperations operations = new ScannerBrowserOperations(runtime);
+
+        operations.switchTab(-1);
+
+        assertEquals(-1, runtime.selectedDirection);
+    }
+
+    @Test
+    void switchTabIgnoresZeroDirection() {
+        RecordingRuntime runtime = new RecordingRuntime();
+
+        new ScannerBrowserOperations(runtime).switchTab(0);
+
+        assertEquals(0, runtime.selectedDirection);
+    }
+
     private static final class RecordingRuntime implements ScannerBrowserOperations.Runtime {
-        private WebDriver seleniumDriver;
         private boolean playwrightOpen;
         private String playwrightCurrentUrl = "";
         private String playwrightTitle = "";
         private int playwrightPageCount;
         private boolean failPlaywrightDetails;
-
-        @Override
-        public WebDriver seleniumDriver() {
-            return seleniumDriver;
-        }
+        private int selectedDirection;
 
         @Override
         public boolean playwrightOpen() {
@@ -128,6 +106,12 @@ class ScannerBrowserOperationsTest {
                 throw new IllegalStateException("count failed");
             }
             return playwrightPageCount;
+        }
+
+        @Override
+        public boolean selectPlaywrightPageRelative(int direction) {
+            selectedDirection = direction;
+            return true;
         }
     }
 }

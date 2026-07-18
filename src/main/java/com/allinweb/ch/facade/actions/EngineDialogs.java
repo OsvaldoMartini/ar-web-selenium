@@ -5,7 +5,6 @@ import com.allinweb.ch.model.*;
 import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
 import java.util.*;
-import org.openqa.selenium.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,7 +24,9 @@ public class EngineDialogs {
     }
 
     public void quit(int status) {
-        ctx.driver().quit();
+        if (ctx.arWebDriver() != null) {
+            ctx.arWebDriver().closeBrowser();
+        }
         if (status == 0) {
             System.exit(status);
         }
@@ -440,38 +441,35 @@ public class EngineDialogs {
     }
 
     public void alertMessage(String message) {
-        JavascriptExecutor js = (JavascriptExecutor) ctx.driver();
-
-        // Escape the quotes in the JavaScript string
-        String script = "let alertBox = document.createElement('div');" + "alertBox.style.position = 'fixed';"
-                + "alertBox.style.top = '50%';"
-                + "alertBox.style.left = '50%';"
-                + "alertBox.style.transform = 'translate(-50%, -50%)';"
-                + "alertBox.style.padding = '20px';"
-                + "alertBox.style.backgroundColor = '#FFDA33';"
-                + // Light orange background
-                "alertBox.style.border = '2px solid #ff0000';"
-                + // Red border
-                "alertBox.style.borderRadius = '10px';"
-                + "alertBox.style.boxShadow = '0 0 10px rgba(0, 0, 0, 0.5)';"
-                + "alertBox.style.zIndex = '10000';"
-                + "alertBox.innerHTML = \""
-                + message.replace("\"", "\\\"") + "\";" + "document.body.appendChild(alertBox);";
-
-        js.executeScript(script);
-
-        // Optional: Handle the alert
-        org.openqa.selenium.Alert alert = ctx.driver().switchTo().alert();
-
-        // Optional: pause for a few seconds to view the alert
-        try {
-            Thread.sleep(5000); // 10 minutes in milliseconds
-        } catch (InterruptedException e) {
-            logOperations.warn(e.getMessage());
+        if (ctx.arWebDriver() == null || ctx.arWebDriver().currentPlaywrightDriver() == null) {
+            logOperations.warn("Cannot display browser message because no Playwright page is attached");
+            return;
         }
-
-        // Accept (close) the alert
-        alert.accept();
+        try {
+            ctx.arWebDriver()
+                    .currentPlaywrightDriver()
+                    .evaluate(
+                            """
+                            (message) => {
+                              const previous = document.getElementById('__ar_engine_message');
+                              if (previous) previous.remove();
+                              const alertBox = document.createElement('div');
+                              alertBox.id = '__ar_engine_message';
+                              Object.assign(alertBox.style, {
+                                position: 'fixed', top: '50%', left: '50%',
+                                transform: 'translate(-50%, -50%)', padding: '20px',
+                                backgroundColor: '#FFDA33', border: '2px solid #ff0000',
+                                borderRadius: '10px', boxShadow: '0 0 10px rgba(0,0,0,.5)',
+                                zIndex: '10000'
+                              });
+                              alertBox.innerHTML = String(message ?? '');
+                              document.body.appendChild(alertBox);
+                            }
+                            """,
+                            message);
+        } catch (Exception error) {
+            logOperations.warn("Cannot display Playwright browser message: {}", error.getMessage());
+        }
     }
 
     public String actionResultMessage(String blockJobName, String[] actions, FieldData msgInstruction) {

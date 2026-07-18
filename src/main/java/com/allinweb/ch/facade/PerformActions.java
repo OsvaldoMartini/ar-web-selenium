@@ -1,10 +1,8 @@
 package com.allinweb.ch.facade;
 
-import com.allinweb.ch.builder.WebElementAttributeEnum;
 import com.allinweb.ch.builder.WebElementTagNameEnum;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.actions.ActionContext;
-import com.allinweb.ch.facade.actions.BrowserJsUtils;
 import com.allinweb.ch.facade.actions.CoordinateActions;
 import com.allinweb.ch.facade.actions.DataExtractor;
 import com.allinweb.ch.facade.actions.ElementDtoMapper;
@@ -22,12 +20,9 @@ import com.allinweb.ch.model.*;
 import com.allinweb.ch.readersAndWriters.ExcelWriter;
 import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
-import java.io.FileWriter;
-import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -110,10 +105,6 @@ public class PerformActions implements ActionContext {
     /** Called after page refresh/navigation to re-inject plugins (e.g. actionExecutor). */
     @Setter
     private Runnable onPageRefresh;
-
-    /** Called to re-inject the actionExecutor plugin when it's not alive in the browser. */
-    @Setter
-    private Runnable actionExecutorInjector;
 
     private final PlaywrightBridge playwrightBridge = new PlaywrightBridge(this);
     private final CoordinateActions coordinateActions = new CoordinateActions(this);
@@ -198,11 +189,6 @@ public class PerformActions implements ActionContext {
     }
 
     @Override
-    public Runnable actionExecutorInjector() {
-        return actionExecutorInjector;
-    }
-
-    @Override
     public String holdForSeconds(InstructionLoad instruction) throws Exception {
         return onHoldForSeconds(instruction);
     }
@@ -246,49 +232,12 @@ public class PerformActions implements ActionContext {
         return WebTextUtils.generateRandomName();
     }
 
-    private static boolean isElementVisible(WebElement element, WebDriver driver) {
-        return BrowserJsUtils.isElementVisible(element, driver);
-    }
-
-    public static String insertValueIFrameElement(
-            WebDriver driver, String iframeXPath, String inputXPath, String inputValue) {
-        return BrowserJsUtils.insertValueIFrameElement(driver, iframeXPath, inputXPath, inputValue);
-    }
-
-    public static String insertValueIFrameElement(
-            WebDriver driver,
-            String iframeXPath,
-            String inputXPath,
-            String inputValue,
-            String targetOriginURL,
-            String trustedOriginURL) {
-        return BrowserJsUtils.insertValueIFrameElement(
-                driver, iframeXPath, inputXPath, inputValue, targetOriginURL, trustedOriginURL);
-    }
-
     public static String truncateAndNormalize(String someText, int limit) {
         return WebTextUtils.truncateAndNormalize(someText, limit);
     }
 
     public static String extractFileExtension(String input) {
         return WebTextUtils.extractFileExtension(input);
-    }
-
-    public static WebElement findElementByID(WebDriver driver, String elementID) {
-        return ElementLocator.findElementByID(driver, elementID);
-    }
-
-    public static WebElement findElementsByName(WebDriver driver, String elementName) {
-        return ElementLocator.findElementsByName(driver, elementName);
-    }
-
-    public static WebElement findElementByAttributeParams(
-            WebDriver driver, String attributeName, String attributeValue) {
-        return ElementLocator.findElementByAttributeParams(driver, attributeName, attributeValue);
-    }
-
-    public static String extractAttribute(WebElement element, WebElementAttributeEnum attributeEnum) {
-        return WebTextUtils.extractAttribute(element, attributeEnum);
     }
 
     public AtomicBoolean interceptBotJobProperty() {
@@ -310,10 +259,6 @@ public class PerformActions implements ActionContext {
     public WebElement searchElement(
             InstructionLoad instruction, int botJobId, boolean forceCoordinates, boolean byPassFlagLoop) {
         return elementLocator.searchElement(instruction, botJobId, forceCoordinates, byPassFlagLoop);
-    }
-
-    public WebElement getElementAtCoordinates(int x, int y, WebDriver driver) {
-        return ElementLocator.getElementAtCoordinates(x, y, driver);
     }
 
     public boolean performWebActions(
@@ -356,13 +301,10 @@ public class PerformActions implements ActionContext {
 
             if (isPlaywrightOnlyMode()) {
                 logOperations.warn(
-                        "Playwright did not complete action '{}' and playwright_selenium_fallback=false; skipping Selenium fallback.",
+                        "Playwright did not complete action '{}'; the retired Selenium fallback will not run.",
                         actions[0]);
                 return false;
             }
-
-            // Playwright did not handle this action; keep the legacy JS/Selenium fallback ready.
-            ensureActionExecutor();
 
             if (instructionElement != null) {
                 boolean passed = true;
@@ -413,10 +355,6 @@ public class PerformActions implements ActionContext {
                                         "clickElement threw: {} - trying actionExecutor", clickEx.getMessage());
                                 passed = false;
                             }
-                            if (!passed) {
-                                // Fallback: try via actionExecutor (JS in browser, no visibility checks)
-                                passed = tryActionExecutor("click", currentInstruction, null);
-                            }
                         }
                         return passed;
                     case ARConstantsEngine.INSERT:
@@ -438,10 +376,6 @@ public class PerformActions implements ActionContext {
                                     passed = false;
                                 }
 
-                                if (!passed) {
-                                    // Fallback: try via actionExecutor (JS in browser)
-                                    passed = tryActionExecutor("select", currentInstruction, data.getValue());
-                                }
                                 if (!passed) {
                                     // Last resort: try by coordinates
                                     passed = executeActionsAtCoordinates(
@@ -475,10 +409,6 @@ public class PerformActions implements ActionContext {
                                 }
 
                                 if (!passed) {
-                                    // Fallback: try via actionExecutor (JS in browser)
-                                    passed = tryActionExecutor("type", currentInstruction, data.getValue());
-                                }
-                                if (!passed) {
                                     // Last resort: try by coordinates
                                     passed = executeActionsAtCoordinates(
                                             savedCoordinates, data, ARConstantsEngine.INSERT, pressEnterAfter);
@@ -500,25 +430,12 @@ public class PerformActions implements ActionContext {
         }
     }
 
-    /**
-     * Check if the actionExecutor JS plugin is alive in the browser.
-     * If not, re-inject it via the callback set by ScannerRuntimeBackend.
-     * Called before every action step to ensure the plugin is always available.
-     */
-    public void ensureActionExecutor() {
-        playwrightBridge.ensureActionExecutor();
-    }
-
     private boolean tryPlaywrightWebAction(InstructionLoad instruction, FieldData data, String action) {
         return playwrightBridge.tryPlaywrightWebAction(instruction, data, action);
     }
 
     private boolean isPlaywrightOnlyMode() {
         return playwrightBridge.isPlaywrightOnlyMode();
-    }
-
-    private boolean tryActionExecutor(String action, InstructionLoad instruction, String value) {
-        return playwrightBridge.tryActionExecutor(action, instruction, value);
     }
 
     public void performOtherActions(boolean byPassNotFound, InstructionLoad instruction, String[] actions)
@@ -1114,10 +1031,6 @@ public class PerformActions implements ActionContext {
         windowAndFrameManager.updateWindowHandlesList();
     }
 
-    public String getSessionId() {
-        return windowAndFrameManager.getSessionId();
-    }
-
     public void alertMessage(String message) {
         engineDialogs.alertMessage(message);
     }
@@ -1181,43 +1094,6 @@ public class PerformActions implements ActionContext {
 
     public Map<String, List<Integer>> getConditionIndexMapByParentId(BlockLoadDTO blockLoad) {
         return InstructionGraph.getConditionIndexMapByParentId(blockLoad);
-    }
-
-    public void createOutputHtml(String type, WebDriver driver) {
-        // Save the HTML to a file
-        List<WebElement> elements = driver.findElements(By.cssSelector(type));
-
-        // Create a Set to store unique visible elements
-        Set<String> uniqueElements = new HashSet<>();
-
-        // Create a List to store the HTML content
-        List<String> htmlArray = new ArrayList<>();
-
-        // Iterate over all elements and add their outer HTML to the List
-        for (WebElement element : elements) {
-            if (isElementVisible(element, driver)) {
-                String outerHTML = element.getAttribute("outerHTML");
-
-                // Only add the element if it hasn't been added before
-                if (uniqueElements.add(outerHTML)) {
-                    htmlArray.add(outerHTML);
-                }
-            }
-        }
-
-        // Save the content as an array of strings to a new file
-        String htmlPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_EXPORT);
-        try (FileWriter writer = new FileWriter(htmlPath + "/" + type + ".json")) {
-            // Convert the list of strings to a JSON-like array format
-            writer.write(htmlArray.stream()
-                    .map(s -> "\"" + s.replace("\"", "\\\"") + "\"") // Escape double quotes
-                    .collect(Collectors.joining(", ", "[", "]"))); // Format as JSON array
-        } catch (IOException e) {
-            logOperations.warn("Error writing to file: " + e.getMessage());
-        } finally {
-            // Close the browser if necessary
-            // driver.quit();
-        }
     }
 
     /**
@@ -1340,10 +1216,6 @@ public class PerformActions implements ActionContext {
                 action, progressCondition, mapConditional, parentBlockCondition, currentIndex);
     }
 
-    public Map<WebElement, List<WebElement>> getIframeElementsMap() {
-        return windowAndFrameManager.getIframeElementsMap();
-    }
-
     public ElementDTO convertTargetToElementDTO(TargetElement targetElement) {
         return ElementDtoMapper.convertTargetToElementDTO(targetElement);
     }
@@ -1370,14 +1242,6 @@ public class PerformActions implements ActionContext {
 
     public boolean isClickable(WebElement element, String tagNameDefined) {
         return ElementDtoMapper.isClickable(element, tagNameDefined);
-    }
-
-    public WebElement findElementByXPaths(List<String> xpaths, WebDriver driver) {
-        return elementLocator.findElementByXPaths(xpaths, driver);
-    }
-
-    public void highlightElement(JavascriptExecutor jsExecutor, WebElement previousElement, WebElement currentElement) {
-        BrowserJsUtils.highlightElement(jsExecutor, previousElement, currentElement);
     }
 
     public WebElement findShadowElementByCssSelector(String shadowLocator, String cssSelector) {

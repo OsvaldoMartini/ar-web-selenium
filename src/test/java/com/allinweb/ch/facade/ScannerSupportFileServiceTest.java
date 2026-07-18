@@ -84,6 +84,71 @@ class ScannerSupportFileServiceTest {
         assertEquals("www.example.com", root.getAsJsonObject("browser").get("url").getAsString());
     }
 
+    @Test
+    void elementsReviewUsesBrowserNeutralLiveSnapshot() throws Exception {
+        ScannerSupportFileService service = new ScannerSupportFileService(
+                new TestSupportContext(),
+                () -> Instant.parse("2026-07-15T11:00:00Z"),
+                () -> LocalDateTime.of(2026, 7, 15, 13, 5, 6));
+        SupportCapture.Browser browser = new SupportCapture.Browser() {
+            @Override
+            public String currentUrl() {
+                return "https://private.example/account";
+            }
+
+            @Override
+            public String title() {
+                return "Account";
+            }
+
+            @Override
+            public int[] viewportSize() {
+                return new int[] {1440, 900};
+            }
+
+            @Override
+            public SupportCapture.ElementSnapshot inspectElement(String xPath) {
+                return new SupportCapture.ElementSnapshot(
+                        true,
+                        2,
+                        true,
+                        true,
+                        true,
+                        12,
+                        34,
+                        120,
+                        40,
+                        "Continue",
+                        "<button id=\"continue\">Continue</button>",
+                        "Continue",
+                        "<main><button id=\"continue\">Continue</button></main>",
+                        "");
+            }
+        };
+
+        ScannerSupportFileService.SupportFile file = service.elementsReview(
+                browser,
+                "[{\"id\":7,\"tagName\":\"button\",\"xPath\":\"//button\"}]",
+                "Check it");
+        JsonObject root = JsonParser.parseString(file.json()).getAsJsonObject();
+        JsonObject viewport = root.getAsJsonObject("browser").getAsJsonObject("viewport");
+        JsonObject live = root.getAsJsonArray("elementsLive").get(0).getAsJsonObject();
+
+        assertEquals(1440, viewport.get("w").getAsInt());
+        assertEquals(900, viewport.get("h").getAsInt());
+        assertTrue(live.get("found").getAsBoolean());
+        assertEquals(2, live.get("matchCount").getAsInt());
+        assertTrue(live.get("selected").getAsBoolean());
+        assertEquals(12, live.getAsJsonObject("location").get("x").getAsInt());
+        assertEquals(40, live.getAsJsonObject("size").get("h").getAsInt());
+        assertEquals("Continue", live.get("text").getAsString());
+
+        String clickedHtml = gunzipBase64(root.get("html").getAsString());
+        assertTrue(clickedHtml.contains("<button id=\"continue\">Continue</button>"));
+        assertTrue(clickedHtml.contains("&lt;main&gt;"));
+        assertTrue(clickedHtml.contains("id=&quot;continue&quot;"));
+    }
+
     private static String gunzipBase64(String value) throws Exception {
         byte[] compressed = Base64.getDecoder().decode(value);
         try (GZIPInputStream gzip = new GZIPInputStream(new ByteArrayInputStream(compressed))) {
