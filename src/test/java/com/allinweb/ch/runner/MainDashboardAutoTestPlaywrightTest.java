@@ -262,6 +262,7 @@ class MainDashboardAutoTestPlaywrightTest {
                 coverDashboardCommandButtons(page);
                 coverDeleteControls(page);
                 coverUserIconAndAutomationCatalog(page, catalogEntryCount, automatedCodeCases);
+                coverDesktopShellLayout(page, baseUrl);
 
                 assertTrue(pageErrors.isEmpty(), "Browser page errors: " + pageErrors);
             } finally {
@@ -375,12 +376,10 @@ class MainDashboardAutoTestPlaywrightTest {
                 requestBodyAfterClick(page, button(page, "Open Job"), "mainDashboard.openBotJob")
                         .get("botJobId")
                         .getAsInt());
-        page.waitForFunction("() => window.__arOpenedTabs.length === 1");
-        @SuppressWarnings("unchecked")
-        Map<String, String> openedTab = (Map<String, String>) page.evaluate(
-                "() => window.__arOpenedTabs[0]");
-        assertTrue(openedTab.get("url").endsWith("/?openBotJob=101"));
-        assertEquals("_blank", openedTab.get("target"));
+        assertEquals(
+                0,
+                ((Number) page.evaluate("() => window.__arOpenedTabs.length")).intValue(),
+                "Open Job must be delegated to the Java Chromium app launcher, not window.open");
 
         int listRequests = requestCount(page, "mainDashboard.list");
         button(page, "Refresh").click();
@@ -390,7 +389,10 @@ class MainDashboardAutoTestPlaywrightTest {
         int beforeDoubleClick = requestCount(page, "mainDashboard.openBotJob");
         dashboardRow(page, 101).dblclick();
         awaitRequestCount(page, "mainDashboard.openBotJob", beforeDoubleClick + 1);
-        page.waitForFunction("() => window.__arOpenedTabs.length === 2");
+        assertEquals(
+                0,
+                ((Number) page.evaluate("() => window.__arOpenedTabs.length")).intValue(),
+                "Double-click must not create an ordinary browser tab");
     }
 
     private static void coverDeleteControls(Page page) {
@@ -556,6 +558,58 @@ class MainDashboardAutoTestPlaywrightTest {
         assertTrue(page.getByLabel("Open user menu").isVisible());
     }
 
+    private static void coverDesktopShellLayout(Page page, String baseUrl) {
+        page.setViewportSize(1240, 820);
+        page.navigate(baseUrl + "/?desktopShell=1");
+        Locator dashboard = page.locator("[data-testid='main-dashboard-workspace']");
+        dashboard.waitFor();
+        page.getByText("Main Dashboard", new Page.GetByTextOptions().setExact(true)).waitFor();
+        assertEquals("AR Web", page.title());
+        assertEquals(null, dashboard.getAttribute("aria-modal"));
+        page.waitForFunction(
+                """
+                () => {
+                  const bounds = document.querySelector('[data-testid="main-dashboard-workspace"]')
+                    .getBoundingClientRect();
+                  return Math.abs(bounds.left) < 1 && Math.abs(bounds.top) < 1
+                    && Math.abs(bounds.width - window.innerWidth) < 1
+                    && Math.abs(bounds.height - window.innerHeight) < 1;
+                }
+                """);
+        assertEquals("0px", dashboard.evaluate(
+                "element => window.getComputedStyle(element).borderRadius"));
+        assertEquals("none", dashboard.evaluate(
+                "element => window.getComputedStyle(element).boxShadow"));
+
+        BoundingBox before = dashboard.boundingBox();
+        BoundingBox handle = page.locator("[data-testid='main-dashboard-drag-handle']")
+                .boundingBox();
+        assertNotNull(before);
+        assertNotNull(handle);
+        page.mouse().move(handle.x + Math.min(48, handle.width / 2), handle.y + handle.height / 2);
+        page.mouse().down();
+        page.mouse().move(
+                handle.x + Math.min(48, handle.width / 2) + 80,
+                handle.y + handle.height / 2 + 50);
+        page.mouse().up();
+        BoundingBox after = dashboard.boundingBox();
+        assertNotNull(after);
+        assertEquals(before.x, after.x, 1.0);
+        assertEquals(before.y, after.y, 1.0);
+
+        page.setViewportSize(700, 900);
+        page.waitForFunction(
+                """
+                () => {
+                  const bounds = document.querySelector('[data-testid="main-dashboard-workspace"]')
+                    .getBoundingClientRect();
+                  return Math.abs(bounds.left) < 1 && Math.abs(bounds.top) < 1
+                    && Math.abs(bounds.width - 700) < 1
+                    && Math.abs(bounds.height - 900) < 1;
+                }
+                """);
+    }
+
     private static void awaitRowsMatchingCatalogFilter(Page page) {
         page.waitForFunction(
                 """
@@ -659,12 +713,21 @@ class MainDashboardAutoTestPlaywrightTest {
         String bundle = Files.readString(bundlePath, StandardCharsets.UTF_8);
         for (String marker : List.of(
                 "Open user menu", "main-dashboard-drag-handle",
-                "automationTests.list", "Auto Test automation catalog")) {
+                "automationTests.list", "Auto Test automation catalog", "desktopShell")) {
             assertTrue(
                     bundle.contains(marker),
                     "The deployed React build is stale (missing '" + marker
                             + "'). Build abr-react-ts-grid and clean-deploy it before running this test.");
         }
+
+        String indexHtml = Files.readString(BUILD_ROOT.resolve("index.html"), StandardCharsets.UTF_8);
+        assertTrue(indexHtml.contains("<title>AR Web</title>"));
+        JsonObject webManifest = JsonParser.parseString(
+                        Files.readString(BUILD_ROOT.resolve("manifest.json"), StandardCharsets.UTF_8))
+                .getAsJsonObject();
+        assertEquals("AR Web", webManifest.get("short_name").getAsString());
+        assertEquals("AR Web", webManifest.get("name").getAsString());
+        assertEquals("#0b5394", webManifest.get("theme_color").getAsString());
     }
 
     private void serveBuildFile(HttpExchange exchange) throws IOException {

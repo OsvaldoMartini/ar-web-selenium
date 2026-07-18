@@ -1,27 +1,27 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-18T00:49:30.302Z",
+  "generatedAt": "2026-07-18T01:56:20.489Z",
   "summary": {
-    "catalogEntries": 879,
-    "automatedCodeCases": 839,
+    "catalogEntries": 887,
+    "automatedCodeCases": 847,
     "generatedApiCases": 19452,
-    "totalAutomatedCases": 20291,
-    "automatedSuites": 232,
+    "totalAutomatedCases": 20299,
+    "automatedSuites": 234,
     "generatedSuites": 21,
     "manualArtifacts": 15,
     "supportArtifacts": 4,
-    "defaultRunnable": 819,
-    "safeRunAllEligible": 819
+    "defaultRunnable": 827,
+    "safeRunAllEligible": 827
   },
   "sources": [
     {
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "branch": "refactor/perform-actions-decomposition",
-      "commit": "f0bc942d0a627342df5acfdb1760fe8296b2ba58",
-      "sourceFiles": 206,
-      "automatedSuites": 191,
-      "automatedTestCases": 698,
+      "commit": "a6ace9e0a0b3dd6e00d827b23eb7f0a58a90f74f",
+      "sourceFiles": 207,
+      "automatedSuites": 192,
+      "automatedTestCases": 703,
       "generatedSuites": 0,
       "generatedCases": 0
     },
@@ -30,9 +30,9 @@
       "repository": "abr-react-ts-grid",
       "branch": "VERSION-4.6",
       "commit": "b0520e75f03b778e2da9ebc7417f5a9a797297ea",
-      "sourceFiles": 41,
-      "automatedSuites": 41,
-      "automatedTestCases": 141,
+      "sourceFiles": 42,
+      "automatedSuites": 42,
+      "automatedTestCases": 144,
       "generatedSuites": 21,
       "generatedCases": 19452
     },
@@ -16770,7 +16770,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.runner.BotJobDetailsToolbarPlaywrightTest#rendersAndOperatesTheCompleteBotJobDetailsToolbarContract@272",
+      "id": "junit:com.allinweb.ch.runner.BotJobDetailsToolbarPlaywrightTest#rendersAndOperatesTheCompleteBotJobDetailsToolbarContract@299",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -16784,7 +16784,7 @@
       "execution": "CONDITIONAL",
       "safety": "LOCAL_REQUIREMENT",
       "sourcePath": "src/test/java/com/allinweb/ch/runner/BotJobDetailsToolbarPlaywrightTest.java",
-      "line": 272,
+      "line": 299,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": false,
@@ -16837,6 +16837,126 @@
       "runnable": true,
       "runAllEligible": true,
       "command": "mvn -Dtest=com.allinweb.ch.socket.ARWebSocketServerBindingTest#sharedConnectorFactoryBindsOnlyToIpv4Loopback test",
+      "tags": [
+        "Test"
+      ]
+    },
+    {
+      "id": "junit:com.allinweb.ch.socket.DesktopAppBrowserLauncherTest#launchesDetectedChromeDirectlyWithDesktopAppArguments@19",
+      "project": "AR Web Scanner",
+      "repository": "ar-web-selenium",
+      "recordType": "AUTOMATED_CASE",
+      "suite": "com.allinweb.ch.socket.DesktopAppBrowserLauncherTest",
+      "name": "launchesDetectedChromeDirectlyWithDesktopAppArguments",
+      "displayName": "launchesDetectedChromeDirectlyWithDesktopAppArguments",
+      "framework": "JUnit 5",
+      "language": "Java",
+      "kind": "UNIT",
+      "runtime": "JVM",
+      "execution": "DEFAULT",
+      "safety": "SAFE",
+      "sourcePath": "src/test/java/com/allinweb/ch/socket/DesktopAppBrowserLauncherTest.java",
+      "line": 19,
+      "caseCount": 1,
+      "runnable": true,
+      "runAllEligible": true,
+      "command": "mvn -Dtest=com.allinweb.ch.socket.DesktopAppBrowserLauncherTest#launchesDetectedChromeDirectlyWithDesktopAppArguments test",
+      "tags": [
+        "Test"
+      ]
+    },
+    {
+      "id": "junit:com.allinweb.ch.socket.DesktopAppBrowserLauncherTest#triesTheNextDetectedChromiumBrowserWhenTheFirstLaunchFails@42",
+      "project": "AR Web Scanner",
+      "repository": "ar-web-selenium",
+      "recordType": "AUTOMATED_CASE",
+      "suite": "com.allinweb.ch.socket.DesktopAppBrowserLauncherTest",
+      "name": "triesTheNextDetectedChromiumBrowserWhenTheFirstLaunchFails",
+      "displayName": "triesTheNextDetectedChromiumBrowserWhenTheFirstLaunchFails",
+      "framework": "JUnit 5",
+      "language": "Java",
+      "kind": "UNIT",
+      "runtime": "JVM",
+      "execution": "DEFAULT",
+      "safety": "SAFE",
+      "sourcePath": "src/test/java/com/allinweb/ch/socket/DesktopAppBrowserLauncherTest.java",
+      "line": 42,
+      "caseCount": 1,
+      "runnable": true,
+      "runAllEligible": true,
+      "command": "mvn -Dtest=com.allinweb.ch.socket.DesktopAppBrowserLauncherTest#triesTheNextDetectedChromiumBrowserWhenTheFirstLaunchFails test",
+      "tags": [
+        "Test"
+      ]
+    },
+    {
+      "id": "junit:com.allinweb.ch.socket.DesktopAppBrowserLauncherTest#reportsUnavailableSoTheCallerCanUseItsDefaultBrowserFallback@64",
+      "project": "AR Web Scanner",
+      "repository": "ar-web-selenium",
+      "recordType": "AUTOMATED_CASE",
+      "suite": "com.allinweb.ch.socket.DesktopAppBrowserLauncherTest",
+      "name": "reportsUnavailableSoTheCallerCanUseItsDefaultBrowserFallback",
+      "displayName": "reportsUnavailableSoTheCallerCanUseItsDefaultBrowserFallback",
+      "framework": "JUnit 5",
+      "language": "Java",
+      "kind": "UNIT",
+      "runtime": "JVM",
+      "execution": "DEFAULT",
+      "safety": "SAFE",
+      "sourcePath": "src/test/java/com/allinweb/ch/socket/DesktopAppBrowserLauncherTest.java",
+      "line": 64,
+      "caseCount": 1,
+      "runnable": true,
+      "runAllEligible": true,
+      "command": "mvn -Dtest=com.allinweb.ch.socket.DesktopAppBrowserLauncherTest#reportsUnavailableSoTheCallerCanUseItsDefaultBrowserFallback test",
+      "tags": [
+        "Test"
+      ]
+    },
+    {
+      "id": "junit:com.allinweb.ch.socket.DesktopAppBrowserLauncherTest#detectsChromiumOnLinuxAndStillStartsItWithoutAShell@77",
+      "project": "AR Web Scanner",
+      "repository": "ar-web-selenium",
+      "recordType": "AUTOMATED_CASE",
+      "suite": "com.allinweb.ch.socket.DesktopAppBrowserLauncherTest",
+      "name": "detectsChromiumOnLinuxAndStillStartsItWithoutAShell",
+      "displayName": "detectsChromiumOnLinuxAndStillStartsItWithoutAShell",
+      "framework": "JUnit 5",
+      "language": "Java",
+      "kind": "UNIT",
+      "runtime": "JVM",
+      "execution": "DEFAULT",
+      "safety": "SAFE",
+      "sourcePath": "src/test/java/com/allinweb/ch/socket/DesktopAppBrowserLauncherTest.java",
+      "line": 77,
+      "caseCount": 1,
+      "runnable": true,
+      "runAllEligible": true,
+      "command": "mvn -Dtest=com.allinweb.ch.socket.DesktopAppBrowserLauncherTest#detectsChromiumOnLinuxAndStillStartsItWithoutAShell test",
+      "tags": [
+        "Test"
+      ]
+    },
+    {
+      "id": "junit:com.allinweb.ch.socket.DesktopAppBrowserLauncherTest#preservesExistingQueryAndFragmentWhenAddingDesktopShellFlag@93",
+      "project": "AR Web Scanner",
+      "repository": "ar-web-selenium",
+      "recordType": "AUTOMATED_CASE",
+      "suite": "com.allinweb.ch.socket.DesktopAppBrowserLauncherTest",
+      "name": "preservesExistingQueryAndFragmentWhenAddingDesktopShellFlag",
+      "displayName": "preservesExistingQueryAndFragmentWhenAddingDesktopShellFlag",
+      "framework": "JUnit 5",
+      "language": "Java",
+      "kind": "UNIT",
+      "runtime": "JVM",
+      "execution": "DEFAULT",
+      "safety": "SAFE",
+      "sourcePath": "src/test/java/com/allinweb/ch/socket/DesktopAppBrowserLauncherTest.java",
+      "line": 93,
+      "caseCount": 1,
+      "runnable": true,
+      "runAllEligible": true,
+      "command": "mvn -Dtest=com.allinweb.ch.socket.DesktopAppBrowserLauncherTest#preservesExistingQueryAndFragmentWhenAddingDesktopShellFlag test",
       "tags": [
         "Test"
       ]
@@ -17748,6 +17868,56 @@
       ]
     },
     {
+      "id": "playwright:e2e/bot-job-pre-scan-navigation.spec.ts::::uses the shared draggable non-modal Bot Job frame outside desktop-shell mode@203",
+      "project": "AR React UI",
+      "repository": "abr-react-ts-grid",
+      "recordType": "AUTOMATED_CASE",
+      "suite": "bot-job-pre-scan-navigation",
+      "name": "uses the shared draggable non-modal Bot Job frame outside desktop-shell mode",
+      "displayName": "uses the shared draggable non-modal Bot Job frame outside desktop-shell mode",
+      "framework": "Playwright Test",
+      "language": "TypeScript",
+      "kind": "PLAYWRIGHT",
+      "runtime": "HEADLESS_BROWSER",
+      "execution": "DEFAULT",
+      "safety": "SAFE",
+      "sourcePath": "e2e/bot-job-pre-scan-navigation.spec.ts",
+      "line": 203,
+      "caseCount": 1,
+      "runnable": true,
+      "runAllEligible": true,
+      "command": "npm run test:e2e -- --grep \"uses the shared draggable non-modal Bot Job frame outside desktop-shell mode\"",
+      "tags": [
+        "frontend",
+        "playwright"
+      ]
+    },
+    {
+      "id": "playwright:e2e/bot-job-pre-scan-navigation.spec.ts::::keeps Bot Job and Page Scanner Grid in the full-client desktop shell@228",
+      "project": "AR React UI",
+      "repository": "abr-react-ts-grid",
+      "recordType": "AUTOMATED_CASE",
+      "suite": "bot-job-pre-scan-navigation",
+      "name": "keeps Bot Job and Page Scanner Grid in the full-client desktop shell",
+      "displayName": "keeps Bot Job and Page Scanner Grid in the full-client desktop shell",
+      "framework": "Playwright Test",
+      "language": "TypeScript",
+      "kind": "PLAYWRIGHT",
+      "runtime": "HEADLESS_BROWSER",
+      "execution": "DEFAULT",
+      "safety": "SAFE",
+      "sourcePath": "e2e/bot-job-pre-scan-navigation.spec.ts",
+      "line": 228,
+      "caseCount": 1,
+      "runnable": true,
+      "runAllEligible": true,
+      "command": "npm run test:e2e -- --grep \"keeps Bot Job and Page Scanner Grid in the full-client desktop shell\"",
+      "tags": [
+        "frontend",
+        "playwright"
+      ]
+    },
+    {
       "id": "playwright:e2e/main-dashboard-navigation.spec.ts::::navigates every safe dashboard control and the Auto Test workspace without a backend@176",
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
@@ -18548,7 +18718,7 @@
       ]
     },
     {
-      "id": "jest:src/components/bot-job-details/useBotJobDetailsController.test.tsx::::applies bootstrap state only after request correlation and sends the draft base revision@61",
+      "id": "jest:src/components/bot-job-details/useBotJobDetailsController.test.tsx::::applies bootstrap state only after request correlation and sends the draft base revision@73",
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "recordType": "AUTOMATED_CASE",
@@ -18562,7 +18732,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/components/bot-job-details/useBotJobDetailsController.test.tsx",
-      "line": 61,
+      "line": 73,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -18573,7 +18743,7 @@
       ]
     },
     {
-      "id": "jest:src/components/bot-job-details/useBotJobDetailsController.test.tsx::::requires matching action and a successful known surface before updating workspace state@80",
+      "id": "jest:src/components/bot-job-details/useBotJobDetailsController.test.tsx::::requires matching action and a successful known surface before updating workspace state@92",
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "recordType": "AUTOMATED_CASE",
@@ -18587,7 +18757,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/components/bot-job-details/useBotJobDetailsController.test.tsx",
-      "line": 80,
+      "line": 92,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -18598,7 +18768,32 @@
       ]
     },
     {
-      "id": "jest:src/components/bot-job-details/useBotJobDetailsController.test.tsx::::matches metadata response operation before applying its state@113",
+      "id": "jest:src/components/bot-job-details/useBotJobDetailsController.test.tsx::::opens the Pre Scan surface only after a successful correlated action response@125",
+      "project": "AR React UI",
+      "repository": "abr-react-ts-grid",
+      "recordType": "AUTOMATED_CASE",
+      "suite": "useBotJobDetailsController",
+      "name": "opens the Pre Scan surface only after a successful correlated action response",
+      "displayName": "opens the Pre Scan surface only after a successful correlated action response",
+      "framework": "Jest / Testing Library",
+      "language": "TypeScript",
+      "kind": "FRONTEND",
+      "runtime": "JSDOM",
+      "execution": "DEFAULT",
+      "safety": "SAFE",
+      "sourcePath": "src/components/bot-job-details/useBotJobDetailsController.test.tsx",
+      "line": 125,
+      "caseCount": 1,
+      "runnable": true,
+      "runAllEligible": true,
+      "command": "npm test -- --runInBand --runTestsByPath src/components/bot-job-details/useBotJobDetailsController.test.tsx -t \"opens the Pre Scan surface only after a successful correlated action response\"",
+      "tags": [
+        "frontend",
+        "test"
+      ]
+    },
+    {
+      "id": "jest:src/components/bot-job-details/useBotJobDetailsController.test.tsx::::matches metadata response operation before applying its state@173",
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "recordType": "AUTOMATED_CASE",
@@ -18612,7 +18807,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/components/bot-job-details/useBotJobDetailsController.test.tsx",
-      "line": 113,
+      "line": 173,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -18623,7 +18818,7 @@
       ]
     },
     {
-      "id": "jest:src/components/bot-job-details/useBotJobDetailsController.test.tsx::::keeps the toolbar action pending until request and action correlation both match@138",
+      "id": "jest:src/components/bot-job-details/useBotJobDetailsController.test.tsx::::keeps the toolbar action pending until request and action correlation both match@198",
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "recordType": "AUTOMATED_CASE",
@@ -18637,7 +18832,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/components/bot-job-details/useBotJobDetailsController.test.tsx",
-      "line": 138,
+      "line": 198,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -18648,7 +18843,7 @@
       ]
     },
     {
-      "id": "jest:src/components/bot-job-details/useBotJobDetailsController.test.tsx::::does not replace a correlated toolbar request with a concurrent operation@178",
+      "id": "jest:src/components/bot-job-details/useBotJobDetailsController.test.tsx::::does not replace a correlated toolbar request with a concurrent operation@238",
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "recordType": "AUTOMATED_CASE",
@@ -18662,7 +18857,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/components/bot-job-details/useBotJobDetailsController.test.tsx",
-      "line": 178,
+      "line": 238,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -18673,7 +18868,7 @@
       ]
     },
     {
-      "id": "jest:src/components/bot-job-details/useBotJobDetailsController.test.tsx::::allows Close to supersede a pending native chooser operation@193",
+      "id": "jest:src/components/bot-job-details/useBotJobDetailsController.test.tsx::::allows Close to supersede a pending native chooser operation@253",
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "recordType": "AUTOMATED_CASE",
@@ -18687,7 +18882,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/components/bot-job-details/useBotJobDetailsController.test.tsx",
-      "line": 193,
+      "line": 253,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -18698,7 +18893,7 @@
       ]
     },
     {
-      "id": "jest:src/components/bot-job-details/useBotJobDetailsController.test.tsx::::allows prompt STOP to supersede a pending TEST RUN startup request@209",
+      "id": "jest:src/components/bot-job-details/useBotJobDetailsController.test.tsx::::allows prompt STOP to supersede a pending TEST RUN startup request@269",
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "recordType": "AUTOMATED_CASE",
@@ -18712,7 +18907,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/components/bot-job-details/useBotJobDetailsController.test.tsx",
-      "line": 209,
+      "line": 269,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -18723,7 +18918,7 @@
       ]
     },
     {
-      "id": "jest:src/components/bot-job-details/useBotJobDetailsController.test.tsx::::closes the saved draft when persistence committed but desktop synchronization failed@236",
+      "id": "jest:src/components/bot-job-details/useBotJobDetailsController.test.tsx::::closes the saved draft when persistence committed but desktop synchronization failed@296",
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "recordType": "AUTOMATED_CASE",
@@ -18737,7 +18932,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/components/bot-job-details/useBotJobDetailsController.test.tsx",
-      "line": 236,
+      "line": 296,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -18748,7 +18943,7 @@
       ]
     },
     {
-      "id": "jest:src/components/bot-job-details/useBotJobDetailsController.test.tsx::::invalidates capabilities on license loss and reboots state after activation@259",
+      "id": "jest:src/components/bot-job-details/useBotJobDetailsController.test.tsx::::invalidates capabilities on license loss and reboots state after activation@319",
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "recordType": "AUTOMATED_CASE",
@@ -18762,7 +18957,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/components/bot-job-details/useBotJobDetailsController.test.tsx",
-      "line": 259,
+      "line": 319,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -18773,7 +18968,7 @@
       ]
     },
     {
-      "id": "jest:src/components/bot-job-details/useBotJobDetailsController.test.tsx::::times out bootstrap and retries explicitly on the same socket@286",
+      "id": "jest:src/components/bot-job-details/useBotJobDetailsController.test.tsx::::times out bootstrap and retries explicitly on the same socket@346",
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "recordType": "AUTOMATED_CASE",
@@ -18787,7 +18982,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/components/bot-job-details/useBotJobDetailsController.test.tsx",
-      "line": 286,
+      "line": 346,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -18798,7 +18993,7 @@
       ]
     },
     {
-      "id": "jest:src/components/bot-job-details/useBotJobDetailsController.test.tsx::::identity change clears stale state and issues a new bootstrap@304",
+      "id": "jest:src/components/bot-job-details/useBotJobDetailsController.test.tsx::::identity change clears stale state and issues a new bootstrap@364",
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "recordType": "AUTOMATED_CASE",
@@ -18812,7 +19007,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/components/bot-job-details/useBotJobDetailsController.test.tsx",
-      "line": 304,
+      "line": 364,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,

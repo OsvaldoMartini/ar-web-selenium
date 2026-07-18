@@ -20,6 +20,7 @@ import com.allinweb.ch.facade.UiThreadDispatcher;
 import com.allinweb.ch.model.BotJobLoadDTO;
 import com.allinweb.ch.model.BlockLoadDTO;
 import com.allinweb.ch.model.HomeBankingLoadDTO;
+import com.allinweb.ch.socket.ARWebSocketServer;
 import com.allinweb.ch.socket.ReactReplyChannel;
 import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.util.ARPropertyEnum;
@@ -205,12 +206,12 @@ public class MainDashboardPresentationAdapter
 
     public void openBotJob(BotJobLoadDTO botJob) {
         uiThreadDispatcher.execute(() -> {
-            // Open Job opens a real new browser tab (see MainDashboard's Open Job handler); the
-            // dashboard's own session/tab is not switched anymore. Just do the backend-side
-            // preparation -- the new tab's own "botJobTasks" socket connects independently and
-            // requests its data via botJobDetails.bootstrap.
             reloadBlocks(botJob);
             botJobDetailsHost.initialize(botJob, isEnabledLicence);
+            // Keep Main Dashboard alive and open Bot Job Details in another Chromium application
+            // window. The target URL carries both the shell mode and job identity, so React can
+            // bootstrap the new workspace without exposing an ordinary browser tab/address bar.
+            ARWebSocketServer.getInstance().openBotJobDesktopShell(botJob.getId());
         });
     }
 

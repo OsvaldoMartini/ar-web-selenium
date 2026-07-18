@@ -902,15 +902,56 @@ boundary, the dashboard reuses its existing WebSocket session, and no JavaFX UI 
       user-menu click isolation, independent nested-window drag, responsive viewport clamping,
       post-drag command use, and Main Dashboard survival after Auto Test closes.
 
+### Address-bar-free desktop app shell continuation (2026-07-17)
+
+- [x] Replaced the normal default-browser startup with a direct Chrome/Edge/Chromium application-
+      mode launch. The command uses `--app=<loopback URL>`, requests a `1240 x 820` window, and does
+      not use a command shell; therefore the persistent tab strip and address bar are not shown.
+- [x] Added `desktopShell=1` as the production-only layout contract. Main Dashboard fills the full
+      browser client area with no gray browser canvas behind it, no shadow/gutter, and responsive
+      `100vw x 100dvh` sizing. Normal `/` navigation retains the floating, draggable dashboard for
+      development; in desktop-shell mode the native app window is the movable outer window while
+      Auto Test and future child workspaces remain independently draggable.
+- [x] Changed the browser title, manifest identity, and native theme color from `API Test`/black to
+      `AR Web`/`#0b5394`, matching the dashboard title bar.
+- [x] Kept the previous `Desktop.browse`/OS opener as a compatibility fallback when no Chromium
+      executable can be found or launched. Chrome/Edge app mode removes the normal address bar but
+      intentionally retains standard native window controls and browser security disclosure.
+- [x] Added deterministic no-shell launcher tests plus React and packaged Java Playwright assertions
+      for exact full-client bounds at `1240 x 820` and `700 x 900`, disabled root-panel drift in
+      desktop-shell mode, title/theme deployment, and the unchanged floating-browser mode.
+
+### Bot Job and Page Scanner desktop-shell continuation (2026-07-17)
+
+- [x] Removed the ordinary React `window.open(..., '_blank')` Bot Job path. `Open Job` and row
+      double-click now send only the canonical `mainDashboard.openBotJob` command; the Java host
+      opens `/?desktopShell=1&openBotJob=<id>` through the same Chromium `--app` launcher used by
+      Main Dashboard, so Bot Job Details has no normal tab strip or address bar.
+- [x] Added one reusable `DesktopWorkspaceShell` outer template for Bot Job Details, Components,
+      Page Scanner Grid, and Pre Scan. It preserves every existing grid column/control while using
+      the Main Dashboard `1240 x 820`, Arial, blue-border, non-modal drag contract in normal browser
+      mode and exact `100vw x 100dvh` full-client geometry in desktop-shell mode.
+- [x] Repaired the previously disconnected Pre Scan navigation boundary. Only a successful,
+      request-correlated Bot Job action response may map `botJob -> botJobTasks`,
+      `components -> componentTasks`, or `preScan -> preScannerGrid`; failed, stale, and mismatched
+      responses cannot switch the active React workspace.
+- [x] Kept the established Page Scanner implementation rather than duplicating it. Once
+      `preScannerGrid` mounts, `Page Scanner` sends `PRE_SCAN_PAGE`; the Java workflow opens/reuses
+      its visible isolated Playwright client browser, scans the selected web page, resolves names,
+      and publishes status/elements back into the Page Scanner Grid.
+- [x] Added controller, React Playwright, launcher, Main Dashboard, and packaged Bot Job Playwright
+      regressions for no ordinary tab, full-client/normal draggable geometry, Bot Job -> Pre Scan
+      navigation, the canonical Page Scanner payload, and rendered scan completion status.
+
 ### Complete inventory snapshot
 
 - Generated at 2026-07-17 from `ar-web-selenium`, `abr-react-ts-grid`, and `ar-web-engine`.
-- 879 displayed catalog rows.
-- 839 code test cases in 232 test files: 698 Java/JUnit cases in 191 files and 141
-  React Jest/Playwright cases in 41 files.
+- 887 displayed catalog rows.
+- 847 code test cases in 234 test files: 703 Java/JUnit cases in 192 files and 144
+  React Jest/Playwright cases in 42 files.
 - 19,452 generated API requests grouped under 21 generated Bash/curl suites rather than rendering
   19,452 duplicate DOM rows.
-- 20,291 total automated cases when code cases and generated API requests are combined.
+- 20,299 total automated cases when code cases and generated API requests are combined.
 - 15 manual artifacts and 4 support-only artifacts are retained and clearly labeled.
 - `ar-web-engine` was audited and truthfully reports zero committed automated tests. Its local/live
   Selenium launch profiles are manual, high-side-effect production automation and are excluded from
@@ -927,14 +968,26 @@ node scripts\generate-automation-test-catalog.mjs
 - [x] `npm test -- --runInBand --watchAll=false src/components/auto-test/AutoTestWorkspace.test.tsx`
       - 2 passed, 0 failed.
 - [x] `npm run test:e2e`
-      - 1 React-only Playwright navigation test passed; no backend was started. The test exercises
-        the floating Main Dashboard and Auto Test independently at desktop and narrow viewports.
+      - 3 React-only Playwright navigation tests passed; no backend was started. They exercise the
+        floating Main Dashboard and Auto Test, the normal draggable Bot Job frame, the exact full-
+        client desktop shells, correlated Pre Scan navigation, and the Page Scanner command/status.
+- [x] `npm test -- --runInBand --watchAll=false src/components/bot-job-details/useBotJobDetailsController.test.tsx src/components/workspace/WorkspaceHeader.test.tsx src/components/bot-job-details/BotJobDetailsHeader.test.tsx src/components/scanner/ScannerWorkspaceHeader.test.tsx`
+      - 31 passed, 0 failed, including the correlated Bot Job surface-navigation contract.
 - [x] `npm run build`
       - optimized React build completed; warnings are pre-existing project lint/dependency warnings.
 - [x] Clean-deployed 45 build files and verified source/destination SHA-256 parity.
-- [x] `mvn -Dtest=AutomationTestCatalogServiceTest,LicenseServiceTest,MainDashboardAutoTestPlaywrightTest test`
-      - 17 passed, 0 failures, 0 errors, 0 skips, including real headless Chrome assertions against
-        the deployed bundle and both floating workspace drag contracts.
+- [x] `mvn -Dtest=AutomationTestCatalogServiceTest,LicenseServiceTest,DesktopAppBrowserLauncherTest,ARWebSocketServerBindingTest test`
+      - 22 passed, 0 failures, 0 errors, 0 skips, including five direct Chromium app-mode launcher
+        contracts that never start a real browser or command shell.
+- [x] `mvn -Dtest=MainDashboardAutoTestPlaywrightTest test`
+      - 1 passed, 0 failures, 0 errors, 0 skips, including real headless Chrome assertions against
+        the deployed bundle, floating workspace behavior, and the full-client desktop shell.
+- [x] `mvn -Dtest=DesktopAppBrowserLauncherTest,PreScanWorkflowServiceTest,PreScanBrowserSessionTest,BotJobWorkspaceControllerTest test`
+      - 17 passed, 0 failures, 0 errors, 0 skips across the app launcher and existing visible-client
+        Page Scanner workflow boundaries.
+- [x] `mvn -Dtest=BotJobDetailsToolbarPlaywrightTest,MainDashboardAutoTestPlaywrightTest test`
+      - 2 passed, 0 failures, 0 errors, 0 skips in real headless Chrome against the clean-deployed
+        production bundle, including Bot Job -> Pre Scan -> Page Scanner.
 - [ ] Add execution controls only after each framework has an allowlisted runner, persisted result
       contract, cancellation/timeout ownership, and explicit confirmation for headed/live suites.
 

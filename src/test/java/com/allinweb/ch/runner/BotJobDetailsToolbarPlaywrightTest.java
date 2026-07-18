@@ -15,6 +15,7 @@ import com.microsoft.playwright.BrowserType;
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
+import com.microsoft.playwright.options.BoundingBox;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
@@ -46,8 +47,6 @@ import org.junit.jupiter.api.Timeout;
 class BotJobDetailsToolbarPlaywrightTest {
 
     private static final int BOT_JOB_ID = 42;
-    private static final int HOME_BANKING_ID = 7;
-    private static final int SOCKET_PORT = 54525;
     private static final String SESSION_ID = ScannerWorkspaceSessions.BOT_JOB_TASKS;
     private static final String SELECTED_TRANSFER_PATH = "C:/ARWeb/TestTransfer";
     private static final Path BUILD_ROOT =
@@ -191,6 +190,34 @@ class BotJobDetailsToolbarPlaywrightTest {
                     return;
                   }
 
+                  if (envelope.type === 'botJobDetails.action') {
+                    const action = body.action;
+                    if (action === 'SHOW_PRE_SCAN') {
+                      window.__arBotJobState.revision += 1;
+                      window.__arBotJobState.activeSurface = 'preScan';
+                      window.__arBotJobState.componentsVisible = false;
+                      emit(this, 'botJobDetails.actionResponse', {
+                        ok: true,
+                        action,
+                        message: 'Pre Scan workspace opened',
+                        requestId: body.requestId,
+                        botJobId: 42,
+                        activeSurface: 'preScan',
+                        componentsVisible: false
+                      });
+                    }
+                    return;
+                  }
+
+                  if (envelope.type === 'PRE_SCAN_PAGE') {
+                    emit(this, 'preScanStatus', {
+                      status: 'done',
+                      message: 'Found 3 web elements.',
+                      elementCount: 3
+                    });
+                    return;
+                  }
+
                   if (envelope.type !== 'botJobDetails.toolbar.action') return;
                   const action = body.action;
                   const response = {
@@ -282,37 +309,28 @@ class BotJobDetailsToolbarPlaywrightTest {
                             .setHeadless(true)
                             .setExecutablePath(chromeExecutable));
             BrowserContext context = browser.newContext(
-                    new Browser.NewContextOptions().setViewportSize(1440, 1100));
+                    new Browser.NewContextOptions().setViewportSize(1240, 820));
             context.addInitScript(WEBSOCKET_MOCK);
             Page page = context.newPage();
             page.setDefaultTimeout(10_000);
             page.onPageError(pageErrors::add);
 
             try {
-                page.navigate(baseUrl + "/");
-                page.waitForFunction("() => typeof window.receiveDataFromJava === 'function'");
-                page.evaluate(
-                        "args => window.receiveDataFromJava(...args)",
-                        List.of(
-                                "[]",
-                                SOCKET_PORT,
-                                SESSION_ID,
-                                HOME_BANKING_ID,
-                                "Test Bank",
-                                BOT_JOB_ID,
-                                "Payments"));
+                page.navigate(baseUrl + "/?desktopShell=1&openBotJob=42");
 
                 page.getByLabel("Starting block").waitFor();
                 page.locator("[role='group'][aria-label='Job files']").waitFor();
                 button(page, "Export").waitFor();
                 button(page, "Import").waitFor();
                 page.getByText("IDLE", new Page.GetByTextOptions().setExact(true)).waitFor();
+                coverDesktopShellLayout(page);
 
                 coverJobFileButtons(page);
                 coverNavigationAndExecution(page);
                 coverTransferActions(page);
                 coverSemanticMetadataForm(page, uiContractFailures);
                 coverResponsiveLayout(page);
+                coverPreScanPageScanner(page);
 
                 @SuppressWarnings("unchecked")
                 List<String> blockedControls =
@@ -328,6 +346,32 @@ class BotJobDetailsToolbarPlaywrightTest {
                 browser.close();
             }
         }
+    }
+
+    private void coverDesktopShellLayout(Page page) {
+        Locator workspace = page.locator("[data-testid='bot-job-details-workspace']");
+        workspace.waitFor();
+        page.waitForFunction(
+                """
+                () => {
+                  const bounds = document.querySelector('[data-testid="bot-job-details-workspace"]')
+                    .getBoundingClientRect();
+                  return Math.abs(bounds.left) < 1 && Math.abs(bounds.top) < 1
+                    && Math.abs(bounds.width - window.innerWidth) < 1
+                    && Math.abs(bounds.height - window.innerHeight) < 1;
+                }
+                """);
+
+        BoundingBox bounds = workspace.boundingBox();
+        assertNotNull(bounds);
+        assertEquals(0, bounds.x, 1.0);
+        assertEquals(0, bounds.y, 1.0);
+        assertEquals(1240, bounds.width, 1.0);
+        assertEquals(820, bounds.height, 1.0);
+        assertEquals("0px", workspace.evaluate(
+                "element => window.getComputedStyle(element).borderRadius"));
+        assertEquals("none", workspace.evaluate(
+                "element => window.getComputedStyle(element).boxShadow"));
     }
 
     private void coverJobFileButtons(Page page) {
@@ -517,6 +561,42 @@ class BotJobDetailsToolbarPlaywrightTest {
         assertTrue(button(page, "Import").isVisible());
     }
 
+    private void coverPreScanPageScanner(Page page) {
+        page.setViewportSize(1240, 820);
+        Locator preScan = button(page, "Pre Scan");
+        preScan.scrollIntoViewIfNeeded();
+        preScan.click();
+
+        Locator workspace = page.locator("[data-testid='pre-scan-workspace']");
+        workspace.waitFor();
+        Locator pageScanner = button(workspace, "Page Scanner");
+        pageScanner.waitFor();
+        assertTrue(pageScanner.isVisible());
+        pageScanner.click();
+
+        page.waitForFunction(
+                """
+                () => window.__arToolbarRequests.some((request) =>
+                  request.type === 'PRE_SCAN_PAGE'
+                    && request.sessionId === 'preScannerGrid'
+                    && request.botJobId === 42)
+                """);
+        String requestJson = (String) page.evaluate(
+                """
+                () => JSON.stringify(window.__arToolbarRequests
+                  .filter((request) => request.type === 'PRE_SCAN_PAGE')
+                  .at(-1))
+                """);
+        JsonObject request = JsonParser.parseString(requestJson).getAsJsonObject();
+        assertEquals("PRE_SCAN_PAGE", request.get("type").getAsString());
+        assertEquals(ScannerWorkspaceSessions.PRE_SCANNER_GRID, request.get("sessionId").getAsString());
+        assertEquals(BOT_JOB_ID, request.get("botJobId").getAsInt());
+
+        workspace.getByText("done", new Locator.GetByTextOptions().setExact(true)).waitFor();
+        assertTrue(workspace.getByText(
+                "Found 3 web elements.", new Locator.GetByTextOptions().setExact(true)).isVisible());
+    }
+
     private static JsonObject toolbarBodyAfterClick(Page page, Locator control, String action) {
         int before = toolbarRequestCount(page, action);
         control.scrollIntoViewIfNeeded();
@@ -630,7 +710,9 @@ class BotJobDetailsToolbarPlaywrightTest {
         Path bundlePath = BUILD_ROOT.resolve(mainJs.replace('/', java.io.File.separatorChar)).normalize();
         assertTrue(bundlePath.startsWith(BUILD_ROOT) && Files.isRegularFile(bundlePath), "Missing deployed main.js");
         String bundle = Files.readString(bundlePath, StandardCharsets.UTF_8);
-        for (String marker : List.of("botJobDetails.toolbar.action", "Execute All", "Job files")) {
+        for (String marker : List.of(
+                "botJobDetails.toolbar.action", "Execute All", "Job files",
+                "bot-job-details-workspace", "pre-scan-workspace", "PRE_SCAN_PAGE")) {
             assertTrue(
                     bundle.contains(marker),
                     "The deployed React build is stale (missing '" + marker

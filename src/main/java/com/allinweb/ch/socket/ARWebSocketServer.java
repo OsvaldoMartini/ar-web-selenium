@@ -27,6 +27,7 @@ public class ARWebSocketServer {
     private Server jettyServer;
     private ServerContainer wsContainer;
     private int boundPort;
+    private final DesktopAppBrowserLauncher desktopAppBrowserLauncher = new DesktopAppBrowserLauncher();
 
     private int fallBackPort = 54525; //
 
@@ -127,11 +128,10 @@ public class ARWebSocketServer {
         }
     }
 
-    /**
-     * Opens the UI in the user's default browser -- there is no embedded window anymore (the JCEF
-     * shell was removed), so without this nothing tells the user the app is ready.
-     */
+    /** Opens the UI in a desktop app window, with the user's default browser as a fallback. */
     private void openInBrowser(String url) {
+        if (desktopAppBrowserLauncher.launch(url)) return;
+
         try {
             if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
                 Desktop.getDesktop().browse(URI.create(url));
@@ -152,6 +152,16 @@ public class ARWebSocketServer {
         } catch (IOException e) {
             log.warn("Could not auto-open browser at {}: {}", url, e.getMessage());
         }
+    }
+
+    /** Opens one Bot Job Details workspace in the same address-bar-free desktop shell. */
+    public void openBotJobDesktopShell(int botJobId) {
+        if (botJobId <= 0) {
+            throw new IllegalArgumentException("A positive Bot Job ID is required");
+        }
+        openInBrowser(
+                "http://" + LOOPBACK_ADDRESS + ":" + boundPort
+                        + "/?desktopShell=1&openBotJob=" + botJobId);
     }
 
     /**
