@@ -268,6 +268,17 @@ public class BotJobDetailsWorkspaceHost {
                     public CompletableFuture<Void> applyMetadata(BotJobDetailsState state) {
                         return applyReactMetadataState(state);
                     }
+                    public void publishGridBootstrap(String sessionId, int botJobId) {
+                        presentation().execute(() -> {
+                            try {
+                                publishReactGridBootstrap(sessionId, botJobId);
+                            } catch (RuntimeException refreshFailure) {
+                                log.error(
+                                        "Unable to refresh the Bot Job grid after bootstrap",
+                                        refreshFailure);
+                            }
+                        });
+                    }
                     public void preScanCommand(String type, JsonObject body) { handlePreScanCommand(type, body); }
                     public void preScanElementTest(SplitDTO payload, String type) {
                         handlePreScanElementTest(payload, type);
@@ -1005,6 +1016,25 @@ public class BotJobDetailsWorkspaceHost {
 
     BotJobDetailsReactSessionContext.Context reactContext(String sessionId) {
         return reactSessionContext.resolve(sessionId);
+    }
+
+    private void publishReactGridBootstrap(String sessionId, int botJobId) {
+        if (!ScannerWorkspaceSessions.BOT_JOB_TASKS.equals(sessionId)
+                && !ScannerWorkspaceSessions.COMPONENT_TASKS.equals(sessionId)) {
+            throw new IllegalArgumentException("Unsupported Bot Job grid session");
+        }
+        botJobDetailsWorkspaceRegistry.require(botJobId);
+        if (selectedBotJob == null
+                || selectedBotJob.getId() == null
+                || selectedBotJob.getId() != botJobId) {
+            throw new IllegalStateException("Bot Job grid does not match the active workspace");
+        }
+        // Use the exact same reload-and-publish path as the REFRESH toolbar action. This runs only
+        // after the bootstrap response is acknowledged, so the retargeted grid socket is ready to
+        // receive the instruction snapshot.
+        if (!refreshGrids()) {
+            throw new IllegalStateException("Unable to refresh the Bot Job grids");
+        }
     }
 
     /** Executes an operation from the React Bot Job Details toolbar. */

@@ -1159,8 +1159,48 @@ public class SimpleWebSocketServer {
     }
 
     private void handleBotJobDetailsBootstrap(JsonObject envelope, Session transportSession) {
-        handleBotJobDetailsStateRequest(
-                envelope, transportSession, "botJobDetails.bootstrapResponse", botJobDetailsService::bootstrap);
+        try {
+            BotJobDetailsRequest request = parseBotJobDetailsRequest(envelope, transportSession);
+            BotJobDetailsResponse response = botJobDetailsService.bootstrap(request);
+            sendBotJobDetailsBootstrap(transportSession, request, response);
+        } catch (Exception error) {
+            sendBotJobDetailsParseFailure(
+                    transportSession,
+                    envelope,
+                    "botJobDetails.bootstrapResponse",
+                    error.getMessage());
+        }
+    }
+
+    void sendBotJobDetailsBootstrap(
+            Session transportSession,
+            BotJobDetailsRequest request,
+            BotJobDetailsResponse response) {
+        sendBotJobDetailsResponseAcknowledged(
+                        transportSession,
+                        authoritativeHomeBankingId(response),
+                        request.sessionId(),
+                        response,
+                        "botJobDetails.bootstrapResponse")
+                .whenComplete((ignored, sendFailure) -> {
+                    if (sendFailure != null) {
+                        log.error(
+                                "Unable to send Bot Job Details bootstrap response to session {}",
+                                request.sessionId(),
+                                sendFailure);
+                        return;
+                    }
+                    if (!response.ok()) return;
+                    try {
+                        BotJobWorkspaceController.getInstance()
+                                .publishGridBootstrap(request.sessionId(), request.botJobId());
+                    } catch (RuntimeException gridFailure) {
+                        log.error(
+                                "Unable to publish Bot Job instruction grid to session {}",
+                                request.sessionId(),
+                                gridFailure);
+                    }
+                });
     }
 
     private void handleBotJobDetailsEnvironmentRefresh(JsonObject envelope, Session transportSession) {

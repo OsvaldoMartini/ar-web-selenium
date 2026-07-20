@@ -48,6 +48,11 @@ public final class BotJobWorkspaceController {
         return host().applyMetadata(state);
     }
 
+    /** Publishes the cached instruction grid after Bot Job Details bootstrap is acknowledged. */
+    public void publishGridBootstrap(String sessionId, int botJobId) {
+        host().publishGridBootstrap(sessionId, botJobId);
+    }
+
     public void preScanCommand(String type, JsonObject body) { host().preScanCommand(type, body); }
 
     public void preScanElementTest(SplitDTO payload, String type) { host().preScanElementTest(payload, type); }
@@ -99,6 +104,11 @@ public final class BotJobWorkspaceController {
         CompletableFuture<BotJobToolbarActionResult> toolbarAction(
                 BotJobToolbarAction action, BotJobDetailsRequest request);
         CompletableFuture<Void> applyMetadata(BotJobDetailsState state);
+
+        default void publishGridBootstrap(String sessionId, int botJobId) {
+            throw new IllegalStateException("Bot Job grid bootstrap is not available");
+        }
+
         void preScanCommand(String type, JsonObject body);
         void preScanElementTest(SplitDTO payload, String type);
 

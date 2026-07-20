@@ -2703,18 +2703,6 @@ public class PerformDataBase {
                                 ? (instructionLoad.getInstructionActive() ? 1 : 0)
                                 : null);
                 addColumnValue.accept(
-                        "executed",
-                        instructionLoad.getExecuted() != null ? (instructionLoad.getExecuted() ? 1 : 0) : null);
-                addColumnValue.accept(
-                        "block_active",
-                        instructionLoad.getBlockActive() != null ? (instructionLoad.getBlockActive() ? 1 : 0) : null);
-                addColumnValue.accept(
-                        "refresh_loop",
-                        instructionLoad.getRefreshLoop() != null ? (instructionLoad.getRefreshLoop() ? 1 : 0) : null);
-                addColumnValue.accept(
-                        "loop_only",
-                        instructionLoad.getLoopOnly() != null ? (instructionLoad.getLoopOnly() ? 1 : 0) : null);
-                addColumnValue.accept(
                         "force_coordinates",
                         instructionLoad.getForceCoordinates() != null ? instructionLoad.getForceCoordinates() : "");
 
@@ -2999,15 +2987,6 @@ public class PerformDataBase {
                                 ? (instructionLoad.getInstructionActive() ? 1 : 0)
                                 : null);
                 addColumnValue.accept(
-                        "block_active",
-                        instructionLoad.getBlockActive() != null ? (instructionLoad.getBlockActive() ? 1 : 0) : null);
-                addColumnValue.accept(
-                        "refresh_loop",
-                        instructionLoad.getRefreshLoop() != null ? (instructionLoad.getRefreshLoop() ? 1 : 0) : null);
-                addColumnValue.accept(
-                        "loop_only",
-                        instructionLoad.getLoopOnly() != null ? (instructionLoad.getLoopOnly() ? 1 : 0) : null);
-                addColumnValue.accept(
                         "force_coordinates",
                         instructionLoad.getForceCoordinates() != null ? instructionLoad.getForceCoordinates() : "");
                 // Final SQL
@@ -3154,19 +3133,6 @@ public class PerformDataBase {
                     InstructionOperation.getInstructionActive() != null
                             ? (InstructionOperation.getInstructionActive() ? 1 : 0)
                             : null);
-            addColumnValue.accept(
-                    "block_active",
-                    InstructionOperation.getBlockActive() != null
-                            ? (InstructionOperation.getBlockActive() ? 1 : 0)
-                            : null);
-            addColumnValue.accept(
-                    "refresh_loop",
-                    InstructionOperation.getRefreshLoop() != null
-                            ? (InstructionOperation.getRefreshLoop() ? 1 : 0)
-                            : null);
-            addColumnValue.accept(
-                    "loop_only",
-                    InstructionOperation.getLoopOnly() != null ? (InstructionOperation.getLoopOnly() ? 1 : 0) : null);
             addColumnValue.accept(
                     "force_coordinates",
                     InstructionOperation.getForceCoordinates() != null
@@ -3888,10 +3854,9 @@ public class PerformDataBase {
                 + "coordinates, iframe_xpath, tag_name, shadow_host, shadow_root, css_selector, xpath, "
                 + "action_custom_max_wait_sec, actions, default_value, description, instruction_order_number, "
                 + "name, client_named, on_hold_seconds, operation, parent_block_id, parent_id, variable_id, "
-                + "block_id, bot_job_id, block_marked, codified, export_to_abr, optional, active, executed, "
-                + "block_active, refresh_loop, loop_only, force_coordinates) "
-                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, "
-                + "?, ?, ?, ?, ?)";
+                + "block_id, bot_job_id, block_marked, codified, export_to_abr, optional, active, "
+                + "force_coordinates) "
+                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         String referenceSql =
                 "INSERT INTO reference(reference_type, value, instruction_id, bot_job_id) VALUES (?, ?, ?, ?)";
         conn.setAutoCommit(false);
@@ -3967,10 +3932,6 @@ public class PerformDataBase {
         statement.setObject(parameter++, booleanValue(instruction.getExportToABR()));
         statement.setObject(parameter++, booleanValue(instruction.getOptional()));
         statement.setObject(parameter++, booleanValue(instruction.getInstructionActive()));
-        statement.setObject(parameter++, booleanValue(instruction.getExecuted()));
-        statement.setObject(parameter++, booleanValue(instruction.getBlockActive()));
-        statement.setObject(parameter++, booleanValue(instruction.getRefreshLoop()));
-        statement.setObject(parameter++, booleanValue(instruction.getLoopOnly()));
         statement.setObject(
                 parameter,
                 instruction.getForceCoordinates() == null ? "" : instruction.getForceCoordinates());

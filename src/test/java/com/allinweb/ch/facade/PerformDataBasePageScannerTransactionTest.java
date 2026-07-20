@@ -75,8 +75,7 @@ class PerformDataBasePageScannerTransactionTest {
                       parent_block_id INTEGER, parent_id INTEGER, variable_id INTEGER,
                       block_id INTEGER, bot_job_id INTEGER, block_marked INTEGER,
                       codified INTEGER, export_to_abr INTEGER, optional INTEGER, active INTEGER,
-                      executed INTEGER, block_active INTEGER, refresh_loop INTEGER,
-                      loop_only INTEGER, force_coordinates TEXT
+                      force_coordinates TEXT
                     )
                     """);
             statement.execute("CREATE TABLE reference ("

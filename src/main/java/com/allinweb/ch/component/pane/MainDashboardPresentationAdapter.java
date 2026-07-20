@@ -22,6 +22,7 @@ import com.allinweb.ch.model.BotJobLoadDTO;
 import com.allinweb.ch.model.BlockLoadDTO;
 import com.allinweb.ch.model.HomeBankingLoadDTO;
 import com.allinweb.ch.socket.ARWebSocketServer;
+import com.allinweb.ch.socket.InstructionRealtimePublisher;
 import com.allinweb.ch.socket.ReactReplyChannel;
 import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.util.ARPropertyEnum;
@@ -223,11 +224,8 @@ public class MainDashboardPresentationAdapter
         if (context == null) {
             throw new IllegalArgumentException("Bot Job React session context is required");
         }
-        webSocketSessionManager.sendMessageJson(
-                context.homeBankingId(),
-                targetSession,
-                context.jsonData(),
-                "botJobDetails.bootstrapResponse");
+        InstructionRealtimePublisher.getInstance()
+                .publishSerializedSnapshot(context.homeBankingId(), targetSession, context.jsonData());
         if (!WebSocketSessionManager.isSessionOpen(targetSession)) {
             log.info(
                     "Bot Job React session {} is not connected; bootstrap will be requested by React when available",
