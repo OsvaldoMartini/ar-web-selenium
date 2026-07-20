@@ -66,7 +66,8 @@ class BotJobDetailsToolbarPlaywrightTest {
             "ocr-results-623e4567-e89b-42d3-a456-426614174000";
     private static final String OCR_RESULTS_RETARGET_SESSION_ID =
             "ocr-results-723e4567-e89b-42d3-a456-426614174000";
-    private static final String SELECTED_TRANSFER_PATH = "C:/ARWeb/TestTransfer";
+    private static final String SELECTED_TRANSFER_PATH =
+            "D:\\Projects\\ARWebBancaStato\\ARWeb\\Export";
     private static final Path BUILD_ROOT =
             Path.of("src", "main", "resources", "build").toAbsolutePath().normalize();
 
@@ -386,7 +387,7 @@ class BotJobDetailsToolbarPlaywrightTest {
                     botJobId: 42
                   };
                   if (action === 'CHOOSE_TRANSFER_PATH') {
-                    response.selectedPath = 'C:/ARWeb/TestTransfer';
+                    response.selectedPath = '%9$s';
                   }
                   emit(this, 'botJobDetails.toolbar.actionResponse', response);
 
@@ -441,7 +442,8 @@ class BotJobDetailsToolbarPlaywrightTest {
                     OCR_CONFIG_SESSION_ID,
                     OCR_CONFIG_RETARGET_SESSION_ID,
                     OCR_RESULTS_SESSION_ID,
-                    OCR_RESULTS_RETARGET_SESSION_ID);
+                    OCR_RESULTS_RETARGET_SESSION_ID,
+                    SELECTED_TRANSFER_PATH.replace("\\", "\\\\"));
 
     private HttpServer server;
     private ExecutorService serverExecutor;

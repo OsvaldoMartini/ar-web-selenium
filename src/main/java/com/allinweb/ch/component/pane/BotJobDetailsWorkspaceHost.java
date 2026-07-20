@@ -1305,7 +1305,11 @@ public class BotJobDetailsWorkspaceHost {
         if (extracted != null && !booleanValue(body, "confirmed", false)) {
             throw new IllegalArgumentException("Confirm replacement of the existing Excel file");
         }
-        new ExcelUtils().generateExcelFiles(extracted, context.name(), null, true);
+        File generated = new ExcelUtils().generateExcelFiles(extracted, context.name(), null, true);
+        if (!generated.isFile() || generated.length() == 0L) {
+            throw new IllegalStateException("Excel generation did not produce a file");
+        }
+        log.info("Excel file generated: {}", generated.getAbsolutePath());
     }
 
     private File chooseReportFromReact() {
@@ -1340,6 +1344,9 @@ public class BotJobDetailsWorkspaceHost {
                 restoreDate,
                 path);
         if (!result.ok()) throw new IllegalStateException(result.message());
+        if (!refreshGrids()) {
+            throw new IllegalStateException("Bot Job imported but the instruction grids could not be refreshed");
+        }
     }
 
     private void createBatFromReact(BotJobToolbarContext context) throws IOException {
@@ -1408,15 +1415,15 @@ public class BotJobDetailsWorkspaceHost {
     private static String toolbarActionMessage(BotJobToolbarAction action) {
         return switch (action) {
             case OPEN_EXCEL -> "Excel file ready";
-            case GENERATE_EXCEL -> "Excel generation started";
+            case GENERATE_EXCEL -> "Excel file generated";
             case OPEN_REPORT -> "Report action completed";
             case SET_NAVIGATION_TIME -> "Navigation time updated";
             case LAUNCH -> "Bot Job launch started";
             case REFRESH_BLOCKS -> "Block list refreshed";
             case TEST_RUN -> "TEST RUN started";
             case STOP_TEST_RUN -> "TEST RUN stopped";
-            case EXPORT_JOB -> "Bot Job export started";
-            case IMPORT_JOB -> "Bot Job import started";
+            case EXPORT_JOB -> "Bot Job export completed";
+            case IMPORT_JOB -> "Bot Job import completed";
             case CHOOSE_TRANSFER_PATH -> "Transfer folder selected";
             case CREATE_BAT -> "BAT file created";
         };

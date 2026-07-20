@@ -4,6 +4,7 @@ import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.botjob.BotJobDetailsPresentationGateway;
 import com.allinweb.ch.facade.botjob.BotJobDetailsReactSessionContext;
 import com.allinweb.ch.facade.BotJobDetailsWorkspaceRegistry;
+import com.allinweb.ch.facade.BotJobTransferFolderResolver;
 import com.allinweb.ch.facade.ConfigPresentation;
 import com.allinweb.ch.facade.ConfigPresentationRegistry;
 import com.allinweb.ch.facade.MainDashboardService;
@@ -240,8 +241,9 @@ public class MainDashboardPresentationAdapter
 
     @Override
     public File chooseTransferFolder(String configuredPath) {
-        log.info("Bot Job transfer folder chooser ignored; React must provide the transfer path directly");
-        return null;
+        File selected = BotJobTransferFolderResolver.resolve(configuredPath);
+        log.info("Using configured Bot Job transfer folder: {}", selected.getAbsolutePath());
+        return selected;
     }
 
     @Override

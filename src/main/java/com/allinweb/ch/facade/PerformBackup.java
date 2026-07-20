@@ -302,14 +302,18 @@ public class PerformBackup {
                     String description = toSqlValue(rs.getString("description"));
                     String operation = toSqlValue(rs.getString("operation"));
                     boolean optional = rs.getBoolean("optional");
+                    boolean optionalWasNull = rs.wasNull();
                     boolean blockMarked = rs.getBoolean("block_marked");
+                    boolean blockMarkedWasNull = rs.wasNull();
                     String defaultValue = toSqlValue(rs.getString("default_value"));
                     int maxWait = rs.getInt("action_custom_max_wait_sec");
                     boolean maxWaitWasNull = rs.wasNull();
                     int holdSec = rs.getInt("on_hold_seconds");
                     boolean holdSecWasNull = rs.wasNull();
                     boolean codified = rs.getBoolean("codified");
+                    boolean codifiedWasNull = rs.wasNull();
                     boolean exportToAbr = rs.getBoolean("export_to_abr");
+                    boolean exportToAbrWasNull = rs.wasNull();
                     boolean active = rs.getBoolean("active");
                     int blockId = rs.getInt("block_id");
                     boolean blockIdWasNull = rs.wasNull();
@@ -325,7 +329,7 @@ public class PerformBackup {
 
                     String insert = String.format(
                             "INSERT INTO instruction (id, instruction_order_number, actions, name, xpath, coordinates, force_coordinates, iframe_xpath, tag_name, shadow_host, shadow_root, css_selector, description, operation, optional, block_marked, default_value, action_custom_max_wait_sec, on_hold_seconds, codified, export_to_abr, active, block_id, variable_id, parent_block_id, parent_id, bot_job_id, client_named) "
-                                    + "VALUES (%d, %d, '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', %d, %d, '%s', %s, %s, %d, %d, %d, %s, %s, %s, %s, %s, '%s');",
+                                    + "VALUES (%d, %d, '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', %s, %s, '%s', %s, %s, %s, %s, %d, %s, %s, %s, %s, %s, '%s');",
                             id,
                             order,
                             actions,
@@ -340,13 +344,13 @@ public class PerformBackup {
                             cssSelector,
                             description,
                             operation,
-                            optional ? 1 : 0,
-                            blockMarked ? 1 : 0,
+                            optionalWasNull ? "NULL" : (optional ? "1" : "0"),
+                            blockMarkedWasNull ? "NULL" : (blockMarked ? "1" : "0"),
                             defaultValue,
                             maxWaitWasNull ? "NULL" : maxWait,
                             holdSecWasNull ? "NULL" : holdSec,
-                            codified ? 1 : 0,
-                            exportToAbr ? 1 : 0,
+                            codifiedWasNull ? "NULL" : (codified ? "1" : "0"),
+                            exportToAbrWasNull ? "NULL" : (exportToAbr ? "1" : "0"),
                             active ? 1 : 0,
                             blockIdWasNull ? "NULL" : blockId,
                             variableIdWasNull ? "NULL" : variableId,
@@ -1063,19 +1067,35 @@ public class PerformBackup {
         List<String> values = new ArrayList<>();
         StringBuilder sb = new StringBuilder();
         boolean insideQuotes = false;
+        boolean quotedValue = false;
 
         for (int i = 0; i < valuesString.length(); i++) {
             char c = valuesString.charAt(i);
             if (c == '\'') {
-                insideQuotes = !insideQuotes;
+                if (insideQuotes && i + 1 < valuesString.length() && valuesString.charAt(i + 1) == '\'') {
+                    // SQL represents one literal apostrophe inside a string as two apostrophes.
+                    sb.append('\'');
+                    i++;
+                } else {
+                    insideQuotes = !insideQuotes;
+                    if (insideQuotes) {
+                        quotedValue = true;
+                        if (sb.toString().isBlank()) sb.setLength(0);
+                    }
+                }
             } else if (c == ',' && !insideQuotes) {
-                values.add(sb.toString().trim().replace("''", "'"));
+                values.add(quotedValue ? sb.toString() : sb.toString().trim());
                 sb.setLength(0);
+                quotedValue = false;
             } else {
-                sb.append(c);
+                // Ignore formatting whitespace after a closing quote, but preserve every
+                // character (including leading/trailing spaces) inside the quoted value.
+                if (insideQuotes || !quotedValue || !Character.isWhitespace(c)) {
+                    sb.append(c);
+                }
             }
         }
-        values.add(sb.toString().trim().replace("''", "'")); // add last value
+        values.add(quotedValue ? sb.toString() : sb.toString().trim()); // add last value
 
         return values;
     }
@@ -1626,10 +1646,12 @@ public class PerformBackup {
                     Integer parentBlockId = null;
                     Integer parentId = null;
 
-                    boolean hasParentBlockId = values.size() == 27; // has parent_block_id columns 27 cols
+                    // Both the 27-column format and the current 28-column format (which adds
+                    // client_named) carry parent_block_id and parent_id as separate values.
+                    boolean hasSeparateParentColumns = values.size() >= 27;
 
-                    if (hasParentBlockId) {
-                        // values.size() == 27: parent_block_id = 24, parent_id = 25
+                    if (hasSeparateParentColumns) {
+                        // 27/28 values: parent_block_id = 24, parent_id = 25
                         String parBlockValue = values.get(24);
                         String parIdValue = values.get(25);
 
@@ -1684,17 +1706,7 @@ public class PerformBackup {
                     // client_named — Roadmap 3 Phase 3d. Pre-migration backups have 26/27 values; only the
                     // 28-value format includes client_named at index 27. Treat the legacy "[null]" / "null"
                     // sentinel produced by toSqlValue as a real NULL.
-                    {
-                        String clientNamedValue = values.size() >= 28 ? values.get(27) : null;
-                        if (clientNamedValue != null
-                                && !clientNamedValue.isBlank()
-                                && !clientNamedValue.equalsIgnoreCase("null")
-                                && !clientNamedValue.equalsIgnoreCase("[null]")) {
-                            setSafeParam(pstmt, 27, clientNamedValue, Types.VARCHAR);
-                        } else {
-                            setSafeParam(pstmt, 27, null, Types.VARCHAR);
-                        }
-                    }
+                    setSafeParam(pstmt, 27, values.size() >= 28 ? values.get(27) : null, Types.VARCHAR);
 
                     for (int i = 1; i < values.size(); i++) {
                         switch (i) {
@@ -2435,10 +2447,12 @@ public class PerformBackup {
                     Integer parentBlockId = null;
                     Integer parentId = null;
 
-                    boolean hasParentBlockId = values.size() == 27; // has parent_block_id columns 27 cols
+                    // Both the 27-column format and the current 28-column format (which adds
+                    // client_named) carry parent_block_id and parent_id as separate values.
+                    boolean hasSeparateParentColumns = values.size() >= 27;
 
-                    if (hasParentBlockId) {
-                        // values.size() == 27: parent_block_id = 24, parent_id = 25
+                    if (hasSeparateParentColumns) {
+                        // 27/28 values: parent_block_id = 24, parent_id = 25
                         String parBlockValue = values.get(24);
                         String parIdValue = values.get(25);
 
@@ -2492,17 +2506,7 @@ public class PerformBackup {
                     setSafeParam(pstmt, 26, String.valueOf(newHomeBankId), Types.INTEGER);
                     // client_named — Roadmap 3 Phase 3d. Pre-migration backups have 26/27 values; only the
                     // 28-value format includes client_named at index 27.
-                    {
-                        String clientNamedValue = values.size() >= 28 ? values.get(27) : null;
-                        if (clientNamedValue != null
-                                && !clientNamedValue.isBlank()
-                                && !clientNamedValue.equalsIgnoreCase("null")
-                                && !clientNamedValue.equalsIgnoreCase("[null]")) {
-                            setSafeParam(pstmt, 27, clientNamedValue, Types.VARCHAR);
-                        } else {
-                            setSafeParam(pstmt, 27, null, Types.VARCHAR);
-                        }
-                    }
+                    setSafeParam(pstmt, 27, values.size() >= 28 ? values.get(27) : null, Types.VARCHAR);
 
                     for (int i = 1; i < values.size(); i++) {
                         switch (i) {
@@ -3016,7 +3020,11 @@ public class PerformBackup {
     }
 
     private void setSafeParam(PreparedStatement pstmt, int index, String val, int sqlType) throws SQLException {
-        if (val == null || val.isBlank() || val.equalsIgnoreCase("null") || val.equalsIgnoreCase("[null]")) {
+        if (val == null || val.equalsIgnoreCase("null") || val.equalsIgnoreCase("[null]")) {
+            pstmt.setNull(index, sqlType);
+            return;
+        }
+        if (val.isBlank() && sqlType != Types.VARCHAR) {
             pstmt.setNull(index, sqlType);
             return;
         }
@@ -3046,7 +3054,7 @@ public class PerformBackup {
     }
 
     private String toSqlValue(String val) {
-        if (val == null || val.isBlank()) {
+        if (val == null) {
             return "[null]";
         }
         return escapeSql(val);
@@ -3801,7 +3809,7 @@ public class PerformBackup {
             }
             default: {
                 String s = rs.getString(index);
-                if (s == null || s.isBlank()) return "'[null]'";
+                if (s == null) return "'[null]'";
                 return "'" + s.replace("'", "''") + "'";
             }
         }

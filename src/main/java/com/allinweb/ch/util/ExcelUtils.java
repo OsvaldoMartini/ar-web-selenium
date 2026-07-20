@@ -66,6 +66,9 @@ public class ExcelUtils {
 
         // Check if the Excel file already exists
         ExtractedData extractedData = ExcelUtils.isFileExists(selectedBotJob.getName(), performLists.getAllActions());
+        if (extractedData != null && !Strings.isNullOrEmpty(extractedData.getErrorMessage())) {
+            return;
+        }
 
         if (!fileCheck.exists() || fileCheck.isDirectory()) {
             // File does not exist or is a directory → create normally
@@ -98,17 +101,17 @@ public class ExcelUtils {
         if (fileCheck.exists() && !fileCheck.isDirectory()) {
 
             ExcelReader excelReader = new ExcelReader();
-            ExtractedData extractedData = null;
             try {
-                extractedData = excelReader.extractData(fileName, allActions, aliasOfCanonical);
+                return excelReader.extractData(fileName, allActions, aliasOfCanonical);
             } catch (Exception e) {
-                log.error("Excel File Error. Check All Excel Columns and Values!");
+                log.error("Unable to read the existing Excel file: {}", fileName, e);
                 performMessage.errorMessage(
                         "Excel File Error", "Check All Excel Columns and Values!", null, null, null, 0);
-                return null;
+                ExtractedData failure = new ExtractedData();
+                failure.setErrorTitle("Excel File Error");
+                failure.setErrorMessage("The existing Excel file could not be read. Close the file and verify its columns before generating it again.");
+                return failure;
             }
-
-            return extractedData;
         } else {
             return null;
         }
@@ -130,7 +133,11 @@ public class ExcelUtils {
         if (blocks == null || blocks.isEmpty()) return aliasMap;
 
         for (BlockLoadDTO block : blocks) {
-            performDataBase.loadInstructions(block.getBotJobId(), block.getId(), -1, "instruction");
+            ErrorMessage instructionError =
+                    performDataBase.loadInstructions(block.getBotJobId(), block.getId(), -1, "instruction");
+            if (instructionError != null) {
+                throw new IllegalStateException(excelErrorText("Unable to load Excel instructions", instructionError));
+            }
             List<InstructionLoad> instructions = performLists.getListInstruction();
             if (instructions == null) continue;
             for (InstructionLoad instr : instructions) {
@@ -179,19 +186,17 @@ public class ExcelUtils {
         }
     }
 
-    public void generateExcelFiles(
+    public File generateExcelFiles(
             ExtractedData extractedData, String newFileName, String nameToDuplicate, boolean openExcel) {
-
-        File excelFolder = new File(arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL));
-        if (!excelFolder.exists()) {
-            excelFolder.mkdirs();
-        }
+        File excelFolder = ExcelFileStore.requireOutputDirectory(
+                arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL));
         //        generateUnfilteredCSVFile(botJob);
-        File file = generateUnfilteredExcelFile(extractedData, newFileName, nameToDuplicate);
+        File file = generateUnfilteredExcelFile(extractedData, newFileName, nameToDuplicate, excelFolder);
 
         if (openExcel) {
             log.info("Excel file ready: {}", file.getAbsolutePath());
         }
+        return file;
     }
 
     private void generateUnfilteredCSVFile(BotJobLoadDTO botJob) {
@@ -268,16 +273,9 @@ public class ExcelUtils {
         log.info("CSV file ready: {}", file.getAbsolutePath());
     }
 
-    private File generateUnfilteredExcelFile(ExtractedData extractedData, String newFileName, String nameToDuplicate) {
-        String fileName = arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL) + "/" + newFileName
-                + ARConstants.FILE_FORMAT_EXCEL;
-
-        File file = new File(fileName);
-        try {
-            file.createNewFile();
-        } catch (IOException e) {
-            log.info(e.getMessage());
-        }
+    private File generateUnfilteredExcelFile(
+            ExtractedData extractedData, String newFileName, String nameToDuplicate, File excelFolder) {
+        File file = new File(excelFolder, newFileName + ARConstants.FILE_FORMAT_EXCEL);
 
         boolean duplicate = false;
         if (!Strings.isNullOrEmpty(nameToDuplicate)) {
@@ -286,25 +284,18 @@ public class ExcelUtils {
 
         File fileDuplica = null;
         if (duplicate) {
-            String fileNameDuplica = arPropertyManager.getProperty(ARPropertyEnum.PATH_EXCEL) + "/" + nameToDuplicate
-                    + ARConstants.FILE_FORMAT_EXCEL;
-            fileDuplica = new File(fileNameDuplica);
-            try {
-                fileDuplica.createNewFile();
-            } catch (IOException e) {
-                log.info(e.getMessage());
-            }
+            fileDuplica = new File(excelFolder, nameToDuplicate + ARConstants.FILE_FORMAT_EXCEL);
         }
 
-        XSSFWorkbook workbook = new XSSFWorkbook();
-        XSSFSheet spreadsheet = workbook.createSheet();
-        Row blockNameRow = spreadsheet.createRow(FIRST_ROW);
-        Row instructionFieldRow = spreadsheet.createRow(SECOND_ROW);
-        int currentIndex = 0;
+        try (XSSFWorkbook workbook = new XSSFWorkbook()) {
+            XSSFSheet spreadsheet = workbook.createSheet();
+            Row blockNameRow = spreadsheet.createRow(FIRST_ROW);
+            Row instructionFieldRow = spreadsheet.createRow(SECOND_ROW);
+            int currentIndex = 0;
 
-        if (!performLists.getListBlock().isEmpty()) {
+            if (!performLists.getListBlock().isEmpty()) {
 
-            for (BlockLoadDTO block : performLists.getListBlock()) {
+                for (BlockLoadDTO block : performLists.getListBlock()) {
                 // Per-block dedup: same canonical/displayKey across blocks must each get their
                 // own column. Reset on every block so the column is keyed by (block, header).
                 Set<String> fieldAddedInBlock = new HashSet<>();
@@ -314,7 +305,11 @@ public class ExcelUtils {
 
                 List<InstructionLoad> filteredInstructions = new ArrayList<>();
 
-                performDataBase.loadInstructions(block.getBotJobId(), block.getId(), -1, "instruction");
+                ErrorMessage instructionError =
+                        performDataBase.loadInstructions(block.getBotJobId(), block.getId(), -1, "instruction");
+                if (instructionError != null) {
+                    throw new IllegalStateException(excelErrorText("Unable to load Excel instructions", instructionError));
+                }
                 List<InstructionLoad> allInstructions = performLists.getListInstruction();
 
                 for (InstructionLoad instruction : allInstructions) {
@@ -392,38 +387,35 @@ public class ExcelUtils {
                     currentIndex++;
                 }
             }
-        } else {
-            Cell blockNameCell = blockNameRow.createCell(currentIndex, CellType.STRING);
-            blockNameCell.setCellValue("#" + newFileName + " default block");
-        }
+            } else {
+                Cell blockNameCell = blockNameRow.createCell(currentIndex, CellType.STRING);
+                blockNameCell.setCellValue("#" + newFileName + " default block");
+            }
 
-        // Auto-resize all columns after content is added
-        for (int i = 0; i < currentIndex; i++) {
-            spreadsheet.autoSizeColumn(i);
-        }
+            // Auto-resize all columns after content is added
+            for (int i = 0; i < currentIndex; i++) {
+                spreadsheet.autoSizeColumn(i);
+            }
 
-        // Write the workbook to the file
-        writeExcelWorkbookOnDisk(workbook, file);
-        if (duplicate && fileDuplica != null) {
-            writeExcelWorkbookOnDisk(workbook, fileDuplica);
+            // Publish complete workbooks without truncating an existing file on write failure.
+            writeExcelWorkbookOnDisk(workbook, file);
+            if (duplicate && fileDuplica != null) {
+                writeExcelWorkbookOnDisk(workbook, fileDuplica);
+            }
+            return file;
+        } catch (IOException error) {
+            throw new IllegalStateException("Unable to close the generated Excel workbook", error);
         }
-        return file;
     }
 
     private void writeExcelWorkbookOnDisk(Workbook workbook, File file) {
-        try {
-            FileOutputStream fileOutputStream = new FileOutputStream(file);
-            workbook.write(fileOutputStream);
-            fileOutputStream.close();
-        } catch (IOException error) {
-            log.error("Excel file generation failed. Error: {}", error.getMessage());
-            performMessage.errorMessage(
-                    "Excel file generation failed",
-                    "There was a problem with the excel file generation.",
-                    "Reason: " + error.getMessage(),
-                    null,
-                    null,
-                    0);
-        }
+        ExcelFileStore.writeAtomically(workbook, file);
+    }
+
+    private static String excelErrorText(String prefix, ErrorMessage error) {
+        if (error == null) return prefix;
+        if (!Strings.isNullOrEmpty(error.getErrorMessage())) return prefix + ": " + error.getErrorMessage();
+        if (!Strings.isNullOrEmpty(error.getErrorHeader())) return prefix + ": " + error.getErrorHeader();
+        return Strings.isNullOrEmpty(error.getErrorTitle()) ? prefix : prefix + ": " + error.getErrorTitle();
     }
 }

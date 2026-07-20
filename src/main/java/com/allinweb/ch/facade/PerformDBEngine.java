@@ -259,7 +259,8 @@ public class PerformDBEngine {
 
         sql.append("ORDER BY hb.name , hu.id");
 
-        try (PreparedStatement pstmt = getConnection().prepareStatement(sql.toString())) {
+        try (Connection connection = getConnection();
+                PreparedStatement pstmt = connection.prepareStatement(sql.toString())) {
             if (homeBankingId != null && homeBankingId > 0) {
                 pstmt.setInt(1, homeBankingId);
             }

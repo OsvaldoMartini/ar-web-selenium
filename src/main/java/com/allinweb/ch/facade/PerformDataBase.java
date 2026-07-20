@@ -2118,7 +2118,8 @@ public class PerformDataBase {
         Map<Integer, BotJobLoadDTO> botJobMap = new HashMap<>();
         Map<Integer, BlockLoadDTO> blockMap = new HashMap<>();
 
-        try (PreparedStatement pstmt = getConnection().prepareStatement(query);
+        try (Connection connection = getConnection();
+                PreparedStatement pstmt = connection.prepareStatement(query);
                 ResultSet rs = pstmt.executeQuery()) {
 
             while (rs.next()) {
