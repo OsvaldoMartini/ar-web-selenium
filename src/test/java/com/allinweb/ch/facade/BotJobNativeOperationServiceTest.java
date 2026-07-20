@@ -10,6 +10,7 @@ import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.EnumMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
@@ -27,12 +28,28 @@ class BotJobNativeOperationServiceTest {
         Files.createFile(excel);
         Path report = temporary.resolve("report.xlsx");
         Files.createFile(report);
-        BotJobNativeOperationService service = new BotJobNativeOperationService(properties, specification -> {});
+        AtomicReference<File> opened = new AtomicReference<>();
+        BotJobNativeOperationService service =
+                new BotJobNativeOperationService(properties, opened::set, specification -> {});
 
         assertEquals(excel.toFile(), service.openExcel(context("Web App")));
+        assertEquals(excel.toFile().getCanonicalFile(), opened.get());
         assertEquals(report.toFile(), service.openFile(report.toFile()));
+        assertEquals(report.toFile().getCanonicalFile(), opened.get());
         assertEquals(temporary.toFile(), service.reportDirectory());
         assertThrows(IllegalArgumentException.class, () -> service.openFile(temporary.resolve("missing").toFile()));
+
+        Path textReport = Files.createFile(temporary.resolve("execution.txt"));
+        assertEquals(textReport.toRealPath().toFile(), service.selectReport(textReport.toFile()));
+        Path executable = Files.createFile(temporary.resolve("not-a-report.exe"));
+        assertThrows(IllegalArgumentException.class, () -> service.selectReport(executable.toFile()));
+
+        Path outside = Files.createTempFile("arweb-outside-report-", ".xlsx");
+        try {
+            assertThrows(IllegalArgumentException.class, () -> service.selectReport(outside.toFile()));
+        } finally {
+            Files.deleteIfExists(outside);
+        }
     }
 
     @Test
@@ -43,7 +60,8 @@ class BotJobNativeOperationServiceTest {
         properties.values.put(ARPropertyEnum.PATH_ENGINE, engine.toString());
         String previous = System.clearProperty("ARWebConfig");
         try {
-            BotJobNativeOperationService service = new BotJobNativeOperationService(properties, specification -> {});
+            BotJobNativeOperationService service =
+                    new BotJobNativeOperationService(properties, file -> {}, specification -> {});
             File bat = service.createBat(context("Web App"));
             String command = Files.readString(bat.toPath());
 
@@ -67,7 +85,8 @@ class BotJobNativeOperationServiceTest {
         properties.values.put(ARPropertyEnum.PATH_WEBDRIVER, driver.toString());
         properties.values.put(ARPropertyEnum.PATH_LOG, logs.toString());
         AtomicReference<BotJobNativeOperationService.LaunchSpecification> launched = new AtomicReference<>();
-        BotJobNativeOperationService service = new BotJobNativeOperationService(properties, launched::set);
+        BotJobNativeOperationService service =
+                new BotJobNativeOperationService(properties, file -> {}, launched::set);
 
         service.launchExternalEngine(context("Rest Api"));
 
@@ -86,11 +105,27 @@ class BotJobNativeOperationServiceTest {
         FakeProperties properties = properties();
         Files.createFile(temporary.resolve("Payments.xlsx"));
         AtomicReference<BotJobNativeOperationService.LaunchSpecification> launched = new AtomicReference<>();
-        BotJobNativeOperationService service = new BotJobNativeOperationService(properties, launched::set);
+        BotJobNativeOperationService service =
+                new BotJobNativeOperationService(properties, file -> {}, launched::set);
 
         assertThrows(IllegalStateException.class, () -> service.launchExternalEngine(context("Android")));
         assertThrows(IllegalStateException.class, () -> service.launchExternalEngine(context("Web App")));
         assertEquals(null, launched.get());
+    }
+
+    @Test
+    void buildsPlatformSystemOpenCommandsWithoutAwtDesktop() throws Exception {
+        File workbook = temporary.resolve("Payments.xlsx").toFile().getAbsoluteFile();
+
+        assertEquals(
+                List.of("rundll32.exe", "url.dll,FileProtocolHandler", workbook.getAbsolutePath()),
+                BotJobNativeOperationService.systemOpenCommand(workbook, "Windows 11"));
+        assertEquals(
+                List.of("open", workbook.getAbsolutePath()),
+                BotJobNativeOperationService.systemOpenCommand(workbook, "Mac OS X"));
+        assertEquals(
+                List.of("xdg-open", workbook.getAbsolutePath()),
+                BotJobNativeOperationService.systemOpenCommand(workbook, "Linux"));
     }
 
     private FakeProperties properties() {

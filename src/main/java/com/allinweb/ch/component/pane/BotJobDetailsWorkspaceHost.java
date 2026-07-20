@@ -1071,7 +1071,7 @@ public class BotJobDetailsWorkspaceHost {
         if (action == BotJobToolbarAction.CHOOSE_TRANSFER_PATH) {
             runTransferChooser(context, request, completion, lease);
         } else if (action == BotJobToolbarAction.OPEN_REPORT) {
-            runReportChooser(context, completion, lease);
+            runReportChooser(context, request, completion, lease);
         } else {
             try {
                 botJobToolbarExecutor.execute(
@@ -1094,9 +1094,10 @@ public class BotJobDetailsWorkspaceHost {
         try (lease) {
             requireNonStopActionAllowed(context);
             requireExecutionStartAllowed(action);
+            File selectedFile = null;
             switch (action) {
-                case OPEN_EXCEL -> openExcelFromReact(context);
-                case GENERATE_EXCEL -> generateExcelFromReact(context, request.body());
+                case OPEN_EXCEL -> selectedFile = openExcelFromReact(context);
+                case GENERATE_EXCEL -> selectedFile = generateExcelFromReact(context, request.body());
                 case SET_NAVIGATION_TIME -> setNavigationTimeFromReact(request.body());
                 case LAUNCH -> launchExternalEngineFromReact(context);
                 case REFRESH_BLOCKS -> reloadBlocksFromReact(context);
@@ -1110,7 +1111,10 @@ public class BotJobDetailsWorkspaceHost {
             if (action != BotJobToolbarAction.TEST_RUN) {
                 botJobDetailsWorkspaceRegistry.require(context.botJobId(), context.workspaceEpoch());
                 botJobDetailsWorkspaceRegistry.touch(context.botJobId());
-                completion.complete(BotJobToolbarActionResult.success(action, toolbarActionMessage(action)));
+                completion.complete(selectedFile == null
+                        ? BotJobToolbarActionResult.success(action, toolbarActionMessage(action))
+                        : BotJobToolbarActionResult.success(
+                                action, toolbarActionMessage(action), selectedFile.getAbsolutePath()));
             }
         } catch (Exception error) {
             completeToolbarFailure(action, completion, error);
@@ -1146,12 +1150,13 @@ public class BotJobDetailsWorkspaceHost {
 
     private void runReportChooser(
             BotJobToolbarContext context,
+            BotJobDetailsRequest request,
             CompletableFuture<BotJobToolbarActionResult> completion,
             BotJobToolbarConcurrencyGuard.Lease lease) {
         Runnable chooser = () -> {
             try {
                 requireNonStopActionAllowed(context);
-                File selected = chooseReportFromReact();
+                File selected = chooseReportFromReact(request.body());
                 if (selected == null) {
                     lease.close();
                     completion.complete(BotJobToolbarActionResult.success(
@@ -1165,7 +1170,9 @@ public class BotJobDetailsWorkspaceHost {
                             File report = botJobNativeOperations.openFile(selected);
                             log.info("Report file ready: {}", report.getAbsolutePath());
                             completion.complete(BotJobToolbarActionResult.success(
-                                    BotJobToolbarAction.OPEN_REPORT, "Report file ready"));
+                                    BotJobToolbarAction.OPEN_REPORT,
+                                    "Report file opened",
+                                    report.getAbsolutePath()));
                         } catch (Exception error) {
                             completeToolbarFailure(BotJobToolbarAction.OPEN_REPORT, completion, error);
                         }
@@ -1286,34 +1293,46 @@ public class BotJobDetailsWorkspaceHost {
                 : BotJobToolbarActionResult.failure(action, result.message()));
     }
 
-    private void openExcelFromReact(BotJobToolbarContext context) {
+    private File openExcelFromReact(BotJobToolbarContext context) throws IOException {
         File excel = botJobNativeOperations.openExcel(context);
-        log.info("Excel file ready: {}", excel.getAbsolutePath());
+        log.info("Excel file opened: {}", excel.getAbsolutePath());
+        return excel;
     }
 
-    private void generateExcelFromReact(BotJobToolbarContext context, JsonObject body) throws Exception {
+    private File generateExcelFromReact(BotJobToolbarContext context, JsonObject body) throws Exception {
         ErrorMessage error = null;
         if (performLists.getQuickBotJobs().isEmpty()) error = performDataBase.loadQuickBotJobs();
         if (error == null) error = performDataBase.loadBlocks(context.botJobId(), context.name(), "block");
         if (error == null) error = performDBEngine.loadAllActionsPerBlock(performLists.getListBlock());
         if (error != null) throw new IllegalStateException(botJobErrorText(error));
 
-        ExtractedData extracted = ExcelUtils.isFileExists(context.name(), performLists.getAllActions());
+        String workbookName = context.name().trim();
+        File expected = botJobNativeOperations.excelDestination(context);
+        ExtractedData extracted = ExcelUtils.isFileExists(workbookName, performLists.getAllActions());
         if (extracted != null && extracted.getErrorMessage() != null) {
             throw new IllegalStateException(extracted.getErrorMessage());
         }
         if (extracted != null && !booleanValue(body, "confirmed", false)) {
             throw new IllegalArgumentException("Confirm replacement of the existing Excel file");
         }
-        File generated = new ExcelUtils().generateExcelFiles(extracted, context.name(), null, true);
+        File generated = new ExcelUtils().generateExcelFiles(extracted, workbookName, null, false);
         if (!generated.isFile() || generated.length() == 0L) {
             throw new IllegalStateException("Excel generation did not produce a file");
         }
-        log.info("Excel file generated: {}", generated.getAbsolutePath());
+        if (!generated.getCanonicalFile().equals(expected.getCanonicalFile())) {
+            throw new IllegalStateException("Excel generation produced an unexpected file");
+        }
+        File opened = botJobNativeOperations.openFile(generated);
+        log.info("Excel file generated and opened: {}", opened.getAbsolutePath());
+        return opened;
     }
 
-    private File chooseReportFromReact() {
-        return presentation().chooseReport(botJobNativeOperations.reportDirectory());
+    private File chooseReportFromReact(JsonObject body) throws IOException {
+        String requestedPath = optionalString(body, "reportPath");
+        File selected = requestedPath.isEmpty()
+                ? presentation().chooseReport(botJobNativeOperations.reportDirectory())
+                : new File(requestedPath);
+        return botJobNativeOperations.selectReport(selected);
     }
 
     private void exportJobFromReact(BotJobToolbarContext context, BotJobDetailsRequest request) {

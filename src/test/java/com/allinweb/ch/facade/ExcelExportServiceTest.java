@@ -6,11 +6,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import com.google.gson.JsonObject;
+import java.nio.file.Path;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 class ExcelExportServiceTest {
     private final ExcelExportService service = ExcelExportService.getInstance();
+
+    @TempDir
+    Path temporary;
 
     @Test
     void parsesWindowsDriveAndTrailingDelimiterWithoutSplittingDriveColon() {
@@ -56,6 +61,10 @@ class ExcelExportServiceTest {
         Map<String, Object> response = service.save(body);
         assertFalse((Boolean) response.get("ok"));
         assertEquals("Enter a valid export filename.", response.get("error"));
+        assertEquals("excel-test", response.get("requestId"));
+        assertEquals(19, response.get("botJobId"));
+        assertEquals(10, response.get("blockId"));
+        assertEquals(ScannerWorkspaceSessions.BOT_JOB_TASKS, response.get("sessionId"));
     }
 
     @Test
@@ -64,6 +73,40 @@ class ExcelExportServiceTest {
         Map<String, Object> response = service.bootstrap(body);
         assertFalse((Boolean) response.get("ok"));
         assertEquals("Excel export owner context is invalid.", response.get("error"));
+    }
+
+    @Test
+    void nativeDirectorySelectionReturnsRealDestinationWithoutPersisting() throws Exception {
+        JsonObject body = context(ScannerWorkspaceSessions.BOT_JOB_TASKS, 19, 2);
+        Map<String, Object> response = service.chooseDirectory(body, ignored -> temporary.toFile());
+
+        assertTrue((Boolean) response.get("ok"));
+        assertEquals(false, response.get("cancelled"));
+        assertEquals(temporary.toRealPath().toString(), response.get("directory"));
+        assertEquals("Excel export folder selected", response.get("message"));
+    }
+
+    @Test
+    void directorySelectionFailurePreservesRequestCorrelation() {
+        JsonObject body = context(ScannerWorkspaceSessions.BOT_JOB_TASKS, 19, 2);
+        Map<String, Object> response = service.chooseDirectory(
+                body, ignored -> temporary.resolve("missing-directory").toFile());
+
+        assertFalse((Boolean) response.get("ok"));
+        assertEquals("excel-test", response.get("requestId"));
+        assertEquals(19, response.get("botJobId"));
+        assertEquals(10, response.get("blockId"));
+        assertEquals(ScannerWorkspaceSessions.BOT_JOB_TASKS, response.get("sessionId"));
+    }
+
+    @Test
+    void buildsPersistedExecutionTargetInsideSelectedWritableDirectory() throws Exception {
+        String encoded = ExcelExportService.buildEncodedTarget(
+                temporary.toString(), "daily results", ".xlsx", "|");
+        ExcelExportTarget target = ExcelExportTarget.decode(encoded).orElseThrow();
+
+        assertEquals(temporary.toRealPath().resolve("daily results.xlsx"), target.path());
+        assertEquals("|", target.delimiter());
     }
 
     private JsonObject context(String sessionId, int botJobId, int homeBankingId) {

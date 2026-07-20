@@ -57,9 +57,11 @@ import com.google.gson.JsonObject;
 import java.io.*;
 import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.text.SimpleDateFormat;
 import java.time.Duration;
@@ -305,7 +307,6 @@ public class ScannerRuntimeBackend
     private String testActionsText = "0001";
     private String coordsText = "";
     private Map<String, String> mapOperators = new HashMap<>();
-    private Set<String> headersExport = new LinkedHashSet<>();
     private List<String> currentColumnsCSV = new ArrayList<>(); // set once
     private Map<String, CsvTable> csvTables = new LinkedHashMap<>();
     private List<VariableLoadDTO> variablesLoaded;
@@ -2983,11 +2984,6 @@ public class ScannerRuntimeBackend
         ExcelWriter.ExcelChain writerReport = new ExcelWriter(currentBotJobName, false).withPurpose("report");
         writerReport.insertReportHead();
 
-        ExcelWriter.ExcelChain writerExport = null;
-        //                new ExcelWriter(blocksLoaded.get(0).getName(), false).withPurpose("export");
-        boolean excelExportOnceCreation = true;
-        //        writerExport.insertReportHead();
-
         Set<String> mapIgnore = new HashSet<>();
 
         String mainMsg = "";
@@ -3008,9 +3004,7 @@ public class ScannerRuntimeBackend
         TargetElement matchXPath = null;
         WebElement webElementFound = null;
         int navTime = getNavigationTimeSeconds();
-        String previousExcelFieldName = "";
         String newExcelFieldName = "";
-        String currentExcelFileName = "";
         CsvTable currentTableCSV = null;
 
         //        List<InputInfo> inputs = new ArrayList<>();
@@ -3068,7 +3062,6 @@ public class ScannerRuntimeBackend
             int xExcelCurrentRow = 0;
             int xExcelDataSize = extractedData.getNumberOfDataRows();
             mapOperators.clear();
-            headersExport.clear();
             currentColumnsCSV.clear();
             csvTables.clear();
 
@@ -3133,7 +3126,6 @@ public class ScannerRuntimeBackend
                             // DomIntrospectionUtil.listAllRelevantElements(performActions.getCurrentDriver());
                         }
 
-                        newExcelFieldName = blockLoad.getExportFile();
                         // Always loads ExcelWrite columns per block
                         ErrorMessage errorMessage = performDBEngine.loadAllColumnsExcelWrite(
                                 "instruction", currentBotJob.getId(), blockLoad.getId());
@@ -3141,29 +3133,21 @@ public class ScannerRuntimeBackend
                             setCurrentColumns(performLists.getExcelColumnNames());
                         }
 
-                        if (newExcelFieldName != null && !newExcelFieldName.equals(previousExcelFieldName)) {
-                            // Sanitize
-                            if (!Strings.isNullOrEmpty(newExcelFieldName)) {
-                                String[] parts = newExcelFieldName.split(":");
-                                if (parts.length > 2) {
-                                    delimiterCSV = parts[2];
-                                    newExcelFieldName =
-                                            newExcelFieldName.replace(":,", "").replace(":|", "");
-                                }
-
-                                // Extract only file name with extension
-                                Path path = Paths.get(newExcelFieldName);
-                                currentExcelFileName = path.getFileName().toString();
-                            }
-
+                        // Resolve the complete persisted destination on every block. A block without
+                        // Excel Export must not inherit the previous block's file or writer.
+                        Optional<ExcelExportTarget> exportTarget =
+                                ExcelExportTarget.decode(blockLoad.getExportFile());
+                        currentTableCSV = null;
+                        newExcelFieldName = "";
+                        if (exportTarget.isPresent()) {
+                            ExcelExportTarget target = exportTarget.get();
+                            newExcelFieldName = target.path().toString();
+                            delimiterCSV = target.delimiter();
                             String finalNewExcelFieldName = newExcelFieldName;
-                            currentTableCSV = csvTables.computeIfAbsent(finalNewExcelFieldName, f -> {
-                                CsvTable t = new CsvTable(f, finalNewExcelFieldName, delimiterCSV);
-                                t.addColumns(currentColumnsCSV); // addAll per filename
-                                return t;
-                            });
-
-                            previousExcelFieldName = newExcelFieldName;
+                            String finalDelimiter = delimiterCSV;
+                            currentTableCSV = csvTables.computeIfAbsent(finalNewExcelFieldName, f ->
+                                    new CsvTable(f, finalNewExcelFieldName, finalDelimiter));
+                            currentTableCSV.addColumns(currentColumnsCSV);
                         }
                     }
 
@@ -4736,16 +4720,7 @@ public class ScannerRuntimeBackend
                                         success = false;
                                     } else {
 
-                                        if (excelExportOnceCreation) {
-                                            //
-                                            // writerExport.insertReportHead();
-                                            excelExportOnceCreation = false;
-                                        }
-
                                         if (!Strings.isNullOrEmpty(newExcelFieldName)) {
-                                            writerExport = new ExcelWriter(newExcelFieldName, true)
-                                                    .withPurpose("export");
-
                                             // Only create Columns if Have a file to write
                                             String webData = mapOperators
                                                     .get(variableField)
@@ -4766,20 +4741,7 @@ public class ScannerRuntimeBackend
                                                 mapOperators.get(variableField),
                                                 blockName,
                                                 currentInstruction.getId(),
-                                                (writerExport != null));
-
-                                        if (currentTableCSV != null
-                                                || currentTableCSV.getRows() == null
-                                                || currentTableCSV.getRows().isEmpty()) {
-                                            //
-                                            // writerExport.insertBlockSeparation(blockLoad.getName());
-                                            //                                            exportIndex *= 2;
-                                        }
-
-                                        // Insert the updated mapExport into the Excel after each instruction
-                                        if (writerExport != null) {
-                                            headersExport.add(parentField.trim());
-                                        }
+                                                (currentTableCSV != null));
 
                                         performActions.onHoldForSeconds(null);
 
@@ -5133,7 +5095,7 @@ public class ScannerRuntimeBackend
                     if (currentTableCSV != null
                             && currentTableCSV.getRows() != null
                             && !currentTableCSV.getRows().isEmpty()) {
-                        saveExcelWrite(newExcelFieldName, currentTableCSV, writerExport, exportIndex);
+                        saveExcelWrite(newExcelFieldName, currentTableCSV, exportIndex);
                     }
                 }
 
@@ -5143,7 +5105,7 @@ public class ScannerRuntimeBackend
                 if (currentTableCSV != null
                         && currentTableCSV.getRows() != null
                         && !currentTableCSV.getRows().isEmpty()) {
-                    saveExcelWrite(newExcelFieldName, currentTableCSV, writerExport, exportIndex);
+                    saveExcelWrite(newExcelFieldName, currentTableCSV, exportIndex);
                 }
             }
         }
@@ -5158,7 +5120,7 @@ public class ScannerRuntimeBackend
                     && currentTableCSV.getRows() != null
                     && !currentTableCSV.getRows().isEmpty()) {
 
-                saveExcelWrite(currentTableCSV.getFullPath(), currentTableCSV, writerExport, exportIndex);
+                saveExcelWrite(currentTableCSV.getFullPath(), currentTableCSV, exportIndex);
             }
         }
 
@@ -6779,14 +6741,44 @@ public class ScannerRuntimeBackend
     }
 
     public void writeToFileCSV(String filename, String content) {
-        try (Writer writer =
-                new BufferedWriter(new OutputStreamWriter(new FileOutputStream(filename), StandardCharsets.UTF_8))) {
+        if (filename == null || filename.isBlank()) {
+            throw new IllegalArgumentException("CSV export filename is required");
+        }
+        Path target = Path.of(filename).toAbsolutePath().normalize();
+        Path parent = target.getParent();
+        if (parent == null || !Files.isDirectory(parent)) {
+            throw new IllegalStateException("CSV export folder does not exist: " + parent);
+        }
 
-            writer.write(content);
-            logOperations.info("CSV written to file: {}", filename);
-
-        } catch (IOException e) {
-            logOperations.error("Error writing file: {}", e.getMessage(), e);
+        Path temporary = null;
+        try {
+            temporary = Files.createTempFile(parent, ".arweb-export-", ".tmp");
+            Files.writeString(
+                    temporary,
+                    content == null ? "" : content,
+                    StandardCharsets.UTF_8,
+                    StandardOpenOption.TRUNCATE_EXISTING);
+            try {
+                Files.move(
+                        temporary,
+                        target,
+                        StandardCopyOption.ATOMIC_MOVE,
+                        StandardCopyOption.REPLACE_EXISTING);
+            } catch (AtomicMoveNotSupportedException unsupported) {
+                Files.move(temporary, target, StandardCopyOption.REPLACE_EXISTING);
+            }
+            temporary = null;
+            logOperations.info("CSV written to file: {}", target);
+        } catch (IOException error) {
+            throw new IllegalStateException("Unable to write CSV export: " + target, error);
+        } finally {
+            if (temporary != null) {
+                try {
+                    Files.deleteIfExists(temporary);
+                } catch (IOException ignored) {
+                    // The incomplete file was never published as the configured destination.
+                }
+            }
         }
     }
 
@@ -6822,8 +6814,7 @@ public class ScannerRuntimeBackend
         return scannerCsvContentService.bancaStatoContent(tableCSV, delimiter);
     }
 
-    private void saveExcelWrite(
-            String newExcelFieldName, CsvTable tableCSV, ExcelWriter.ExcelChain writerExport, int exportIndex) {
+    private void saveExcelWrite(String newExcelFieldName, CsvTable tableCSV, int exportIndex) {
         if (newExcelFieldName != null && newExcelFieldName.toLowerCase().endsWith(".csv")) {
             String delimiter = tableCSV.getDelimiter();
             if (Strings.isNullOrEmpty(tableCSV.getDelimiter())) {
@@ -6839,10 +6830,12 @@ public class ScannerRuntimeBackend
             //
             //                    writerExport.insertFieldNameAndValueLastColumn(mapExportRows, exportIndex -
             // 1);
-            if (writerExport != null) {
-                if (tableCSV != null) {
-                    writerExport.insertCSVContentIntoExcel(tableCSV.getColumns(), tableCSV, exportIndex - 1);
-                }
+            if (tableCSV != null) {
+                // Create a writer bound to this exact target. Reusing the last block's writer can
+                // silently publish one configured export into a different workbook.
+                ExcelWriter.ExcelChain writerExport = new ExcelWriter(newExcelFieldName, true)
+                        .withPurpose("export");
+                writerExport.insertCSVContentIntoExcel(tableCSV.getColumns(), tableCSV, exportIndex - 1);
             }
         }
     }

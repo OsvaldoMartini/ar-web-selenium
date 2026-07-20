@@ -8,17 +8,25 @@ import com.google.common.base.Strings;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 /** Presentation-neutral file validation and external Engine operations for Bot Job Details. */
 public final class BotJobNativeOperationService {
+    private static final Set<String> REPORT_EXTENSIONS =
+            Set.of(".xlsx", ".xls", ".csv", ".html", ".htm", ".pdf", ".txt");
 
     private final PropertyPort properties;
+    private final FileOpenPort fileOpener;
     private final EnginePort engine;
 
-    BotJobNativeOperationService(PropertyPort properties, EnginePort engine) {
+    BotJobNativeOperationService(PropertyPort properties, FileOpenPort fileOpener, EnginePort engine) {
         this.properties = properties;
+        this.fileOpener = fileOpener;
         this.engine = engine;
     }
 
@@ -29,18 +37,20 @@ public final class BotJobNativeOperationService {
                     public String get(ARPropertyEnum key) { return properties.getProperty(key); }
                     public String configurationFileName() { return properties.getConfigurationFileName(); }
                 },
+                BotJobNativeOperationService::launchWithSystemApplication,
                 specification -> launchProcess(specification, guard));
     }
 
-    public File openExcel(BotJobToolbarContext context) {
-        File file = new File(requiredPath(ARPropertyEnum.PATH_EXCEL, "Excel folder"),
-                context.name() + ARConstants.FILE_FORMAT_EXCEL);
-        return openFile(file);
+    /** Opens only the authoritative workbook for the selected Bot Job. */
+    public File openExcel(BotJobToolbarContext context) throws IOException {
+        return openFile(requiredExcel(context, "Generate the Excel file before opening it"));
     }
 
-    public File openFile(File file) {
+    public File openFile(File file) throws IOException {
         if (file == null || !file.isFile()) throw new IllegalArgumentException("File does not exist");
-        return file;
+        File canonical = file.getCanonicalFile();
+        fileOpener.open(canonical);
+        return canonical;
     }
 
     public File reportDirectory() {
@@ -49,6 +59,47 @@ public final class BotJobNativeOperationService {
             throw new IllegalStateException("Report folder does not exist: " + folder.getAbsolutePath());
         }
         return folder;
+    }
+
+    /** Resolves an optional React path or native-chooser selection inside PATH_REPORT. */
+    public File selectReport(File selected) throws IOException {
+        if (selected == null) return null;
+        Path reportRoot = reportDirectory().toPath().toRealPath();
+        Path candidate = selected.toPath();
+        if (!candidate.isAbsolute()) candidate = reportRoot.resolve(candidate);
+        candidate = candidate.toAbsolutePath().normalize();
+        if (!Files.isRegularFile(candidate)) {
+            throw new IllegalArgumentException("Selected report file does not exist");
+        }
+        Path realCandidate = candidate.toRealPath();
+        if (!realCandidate.startsWith(reportRoot)) {
+            throw new IllegalArgumentException("Selected report must be inside the configured report folder");
+        }
+        String reportName = realCandidate.getFileName().toString().toLowerCase(Locale.ROOT);
+        if (REPORT_EXTENSIONS.stream().noneMatch(reportName::endsWith)) {
+            throw new IllegalArgumentException("Select an Excel, CSV, HTML, PDF, or text report file");
+        }
+        return realCandidate.toFile();
+    }
+
+    /** Safe destination used by Generate and by the current-workbook Excel action. */
+    public File excelDestination(BotJobToolbarContext context) {
+        if (context == null || Strings.isNullOrEmpty(context.name())) {
+            throw new IllegalArgumentException("Bot Job context is required");
+        }
+        final Path root;
+        try {
+            root = Path.of(requiredPath(ARPropertyEnum.PATH_EXCEL, "Excel folder"))
+                    .toAbsolutePath()
+                    .normalize();
+        } catch (InvalidPathException invalidPath) {
+            throw new IllegalStateException("Excel folder is invalid", invalidPath);
+        }
+        Path destination = root.resolve(context.name().trim() + ARConstants.FILE_FORMAT_EXCEL).normalize();
+        if (!destination.startsWith(root) || destination.getParent() == null || !destination.getParent().equals(root)) {
+            throw new IllegalArgumentException("Bot Job name cannot be used as an Excel filename");
+        }
+        return destination.toFile();
     }
 
     public File createBat(BotJobToolbarContext context) throws IOException {
@@ -96,8 +147,7 @@ public final class BotJobNativeOperationService {
     }
 
     private File requiredExcel(BotJobToolbarContext context, String missingMessage) {
-        File excel = new File(requiredPath(ARPropertyEnum.PATH_EXCEL, "Excel folder"),
-                context.name() + ARConstants.FILE_FORMAT_EXCEL);
+        File excel = excelDestination(context);
         if (!excel.isFile()) throw new IllegalStateException(missingMessage);
         return excel;
     }
@@ -105,7 +155,7 @@ public final class BotJobNativeOperationService {
     private String requiredPath(ARPropertyEnum key, String label) {
         String value = properties.get(key);
         if (Strings.isNullOrEmpty(value)) throw new IllegalStateException(label + " is not configured");
-        return value;
+        return value.trim();
     }
 
     private static boolean supportsDesktopBrowserTools(String priority) {
@@ -133,12 +183,32 @@ public final class BotJobNativeOperationService {
         process.onExit().whenComplete((finished, failure) -> guard.externalEngineFinished(process));
     }
 
+    private static void launchWithSystemApplication(File file) throws IOException {
+        new ProcessBuilder(systemOpenCommand(file, System.getProperty("os.name", ""))).start();
+    }
+
+    static List<String> systemOpenCommand(File file, String osName) {
+        if (file == null) throw new IllegalArgumentException("File is required");
+        String os = safe(osName).toLowerCase(Locale.ROOT);
+        if (os.contains("win")) {
+            return List.of("rundll32.exe", "url.dll,FileProtocolHandler", file.getAbsolutePath());
+        } else if (os.contains("mac")) {
+            return List.of("open", file.getAbsolutePath());
+        }
+        return List.of("xdg-open", file.getAbsolutePath());
+    }
+
     record LaunchSpecification(
             List<String> command, File workingDirectory, File standardOutput, File standardError) {}
 
     interface PropertyPort {
         String get(ARPropertyEnum key);
         String configurationFileName();
+    }
+
+    @FunctionalInterface
+    interface FileOpenPort {
+        void open(File file) throws IOException;
     }
 
     @FunctionalInterface

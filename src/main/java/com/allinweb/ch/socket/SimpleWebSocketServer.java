@@ -463,6 +463,10 @@ public class SimpleWebSocketServer {
                     sendCommandEditorResponse(homeBankingId, sessionId, "excelExport.bootstrapResponse",
                             excelExportService.bootstrap(extractBody(jsonObjMSG)));
                     break;
+                case "excelExport.chooseDirectory":
+                    sendCommandEditorResponse(homeBankingId, sessionId, "excelExport.chooseDirectoryResponse",
+                            excelExportService.chooseDirectory(extractBody(jsonObjMSG)));
+                    break;
                 case "excelExport.save":
                 case "excelExport.clear":
                     Map<String, Object> excelResponse = excelExportService.save(extractBody(jsonObjMSG));

@@ -10,10 +10,13 @@ import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.google.common.base.Strings;
 import java.io.*;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
@@ -35,29 +38,34 @@ public class ExcelWriter {
         arPropertyManager = ARPropertyManager.getInstance();
     }
 
-    private final Map<String, ManagedExcel> managedExcelMap = new HashMap<>();
-    private String botJobName;
+    private final String botJobName;
+    private final boolean fullPath;
 
     public ExcelWriter(String botJobName, boolean isFullPath) {
         this.botJobName = botJobName;
-        boolean exist = ManagedExcel.checkIfExcelExist(botJobName, "excel", isFullPath);
-        String now = LocalDateTime.now().format(FORMAT_DATE_AND_TIME);
-        try {
-            managedExcelMap.put("export", new ManagedExcel(botJobName, "export", true, isFullPath));
-
-            managedExcelMap.put("excel", new ManagedExcel(botJobName, "excel", !exist, isFullPath));
-            managedExcelMap.put("report", new ManagedExcel(botJobName + " (" + now + ")", "report", true, isFullPath));
-        } catch (Exception ex) {
-
-            log.warn(String.format("Excel Folder maybe not configured. %s\nError", botJobName, ex.getMessage()));
-        }
+        this.fullPath = isFullPath;
     }
 
     public ExcelChain withPurpose(String purpose) {
-        return new ExcelChain(managedExcelMap.get(purpose), botJobName);
+        ManagedExcel managedExcel = switch (purpose) {
+            case "export" -> new ManagedExcel(botJobName, purpose, true, fullPath);
+            case "excel" -> new ManagedExcel(
+                    botJobName,
+                    purpose,
+                    !ManagedExcel.checkIfExcelExist(botJobName, purpose, fullPath),
+                    fullPath);
+            case "report" -> new ManagedExcel(
+                    botJobName + " (" + LocalDateTime.now().format(FORMAT_DATE_AND_TIME) + ")",
+                    purpose,
+                    true,
+                    fullPath);
+            default -> throw new IllegalArgumentException("Unsupported Excel purpose: " + purpose);
+        };
+        return new ExcelChain(managedExcel, botJobName, "export".equals(purpose));
     }
 
-    public record ExcelChain(ManagedExcel managedExcel, String botJobName) {
+    public record ExcelChain(ManagedExcel managedExcel, String botJobName, boolean closeAfterWrite)
+            implements AutoCloseable {
 
         public static void writeMapToCSV(Map<String, String> mapExport, String filePath, String delimiterCSV) {
             try (FileWriter writer = new FileWriter(filePath)) {
@@ -121,11 +129,17 @@ public class ExcelWriter {
                 //                        .insertColumValueOnLastRow(value);
                 managedExcel.save();
             } catch (Exception ex) {
-
-                log.error(String.format(
-                        "Excel Writer insertValueFieldName.Check if the file exist. File: %s\nError",
-                        botJobName, ex.getMessage()));
+                log.error("Unable to write execution export workbook: {}", botJobName, ex);
+                throw new IllegalStateException(
+                        "Unable to write Excel export file: " + botJobName, ex);
+            } finally {
+                if (closeAfterWrite) close();
             }
+        }
+
+        @Override
+        public void close() {
+            managedExcel.close();
         }
 
         public void insertReportHead() {
@@ -391,6 +405,7 @@ public class ExcelWriter {
     static class ManagedExcel {
         private final XSSFWorkbook excelWorkbook;
         private final FileManager fileManager;
+        private boolean closed;
 
         public ManagedExcel(String fileName, String purpose, boolean create, boolean isFullPath) {
             ARPropertyEnum property =
@@ -447,13 +462,47 @@ public class ExcelWriter {
         }
 
         public void save() {
-            File excelFile = fileManager.deleteFileOnDisk().createFileOnDisk().getFile();
+            if (closed) throw new IllegalStateException("Excel workbook is already closed");
+            Path target = fileManager.getFile().toPath().toAbsolutePath().normalize();
+            Path parent = target.getParent();
+            if (parent == null) throw new IllegalStateException("Excel output folder is required");
+            Path temporary = null;
             try {
-                FileOutputStream fileOutputStream = new FileOutputStream(excelFile);
-                excelWorkbook.write(fileOutputStream);
-                fileOutputStream.close();
-            } catch (IOException e) {
-                throw new RuntimeException(e);
+                Files.createDirectories(parent);
+                temporary = Files.createTempFile(parent, ".arweb-workbook-", ".tmp");
+                try (OutputStream output = Files.newOutputStream(temporary)) {
+                    excelWorkbook.write(output);
+                }
+                try {
+                    Files.move(
+                            temporary,
+                            target,
+                            StandardCopyOption.ATOMIC_MOVE,
+                            StandardCopyOption.REPLACE_EXISTING);
+                } catch (AtomicMoveNotSupportedException unsupported) {
+                    Files.move(temporary, target, StandardCopyOption.REPLACE_EXISTING);
+                }
+                temporary = null;
+            } catch (IOException error) {
+                throw new IllegalStateException("Unable to save Excel workbook: " + target, error);
+            } finally {
+                if (temporary != null) {
+                    try {
+                        Files.deleteIfExists(temporary);
+                    } catch (IOException ignored) {
+                        // The incomplete workbook was never published as the configured destination.
+                    }
+                }
+            }
+        }
+
+        public void close() {
+            if (closed) return;
+            closed = true;
+            try {
+                excelWorkbook.close();
+            } catch (IOException error) {
+                throw new IllegalStateException("Unable to close Excel workbook", error);
             }
         }
     }
@@ -595,6 +644,7 @@ public class ExcelWriter {
 
             } catch (Exception ex) {
                 log.error("Excel Writer insertCSVContentIntoExcel error", ex);
+                throw new IllegalStateException("Unable to build Excel export content", ex);
             }
         }
 

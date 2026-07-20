@@ -68,6 +68,8 @@ class BotJobDetailsToolbarPlaywrightTest {
             "ocr-results-723e4567-e89b-42d3-a456-426614174000";
     private static final String SELECTED_TRANSFER_PATH =
             "D:\\Projects\\ARWebBancaStato\\ARWeb\\Export";
+    private static final String SELECTED_EXCEL_EXPORT_DIRECTORY =
+            "D:\\Projects\\ARWebBancaStato\\ARWeb\\ExecutionExports";
     private static final Path BUILD_ROOT =
             Path.of("src", "main", "resources", "build").toAbsolutePath().normalize();
 
@@ -75,7 +77,6 @@ class BotJobDetailsToolbarPlaywrightTest {
             (() => {
               const clone = (value) => JSON.parse(JSON.stringify(value));
               window.__arToolbarRequests = [];
-              window.__arConfirmMessages = [];
               window.__arDetachedPageScannerSession = '%2$s';
               window.__arRetargetDetachedPageScannerSession = '%3$s';
               window.__arBotJobWindowSession = '%4$s';
@@ -83,6 +84,7 @@ class BotJobDetailsToolbarPlaywrightTest {
               window.__arRetargetOcrConfigSession = '%6$s';
               window.__arOcrResultsSession = '%7$s';
               window.__arRetargetOcrResultsSession = '%8$s';
+              window.__arSelectedExcelExportDirectory = '%10$s';
               window.__arMockSockets = [];
               window.__arBotJobState = {
                 revision: 1,
@@ -124,11 +126,6 @@ class BotJobDetailsToolbarPlaywrightTest {
                 executionState: 'IDLE',
                 activeSurface: 'botJob',
                 componentsVisible: false
-              };
-
-              window.confirm = (message) => {
-                window.__arConfirmMessages.push(String(message));
-                return true;
               };
 
               const parseBody = (envelope) => {
@@ -377,6 +374,33 @@ class BotJobDetailsToolbarPlaywrightTest {
                     return;
                   }
 
+                  if (envelope.type === 'excelExport.chooseDirectory') {
+                    emit(this, 'excelExport.chooseDirectoryResponse', {
+                      ok: true,
+                      cancelled: false,
+                      requestId: body.requestId,
+                      sessionId: body.sessionId,
+                      homeBankingId: body.homeBankingId,
+                      botJobId: body.botJobId,
+                      blockId: body.blockId,
+                      directory: window.__arSelectedExcelExportDirectory
+                    });
+                    return;
+                  }
+
+                  if (envelope.type === 'excelExport.save') {
+                    emit(this, 'excelExport.saveResponse', {
+                      ok: true,
+                      requestId: body.requestId,
+                      sessionId: body.sessionId,
+                      homeBankingId: body.homeBankingId,
+                      botJobId: body.botJobId,
+                      blockId: body.blockId,
+                      message: 'Excel export configuration saved'
+                    });
+                    return;
+                  }
+
                   if (envelope.type !== 'botJobDetails.toolbar.action') return;
                   const action = body.action;
                   const response = {
@@ -443,7 +467,8 @@ class BotJobDetailsToolbarPlaywrightTest {
                     OCR_CONFIG_RETARGET_SESSION_ID,
                     OCR_RESULTS_SESSION_ID,
                     OCR_RESULTS_RETARGET_SESSION_ID,
-                    SELECTED_TRANSFER_PATH.replace("\\", "\\\\"));
+                    SELECTED_TRANSFER_PATH.replace("\\", "\\\\"),
+                    SELECTED_EXCEL_EXPORT_DIRECTORY.replace("\\", "\\\\"));
 
     private HttpServer server;
     private ExecutorService serverExecutor;
@@ -475,6 +500,7 @@ class BotJobDetailsToolbarPlaywrightTest {
     void rendersAndOperatesTheCompleteBotJobDetailsToolbarContract() throws Exception {
         assertToolbarBuildIsDeployed();
         List<String> pageErrors = new CopyOnWriteArrayList<>();
+        List<String> browserDialogs = new CopyOnWriteArrayList<>();
         List<String> uiContractFailures = new CopyOnWriteArrayList<>();
 
         Path chromeExecutable = locateChromeExecutable();
@@ -490,6 +516,10 @@ class BotJobDetailsToolbarPlaywrightTest {
             Page page = context.newPage();
             page.setDefaultTimeout(10_000);
             page.onPageError(pageErrors::add);
+            page.onDialog(dialog -> {
+                browserDialogs.add(dialog.type() + ": " + dialog.message());
+                dialog.dismiss();
+            });
 
             try {
                 page.navigate(baseUrl + "/?desktopShell=1&openBotJob=42&botJobWindowSession="
@@ -502,7 +532,8 @@ class BotJobDetailsToolbarPlaywrightTest {
                 page.getByText("IDLE", new Page.GetByTextOptions().setExact(true)).waitFor();
                 coverDesktopShellLayout(page);
 
-                coverJobFileButtons(page);
+                coverJobFileButtons(page, browserDialogs);
+                coverExcelExportDirectorySelection(page);
                 coverNavigationAndExecution(page);
                 coverTransferActions(page);
                 coverSemanticMetadataForm(page, uiContractFailures);
@@ -513,6 +544,8 @@ class BotJobDetailsToolbarPlaywrightTest {
                 List<String> blockedControls =
                         (List<String>) page.evaluate("() => window.__arBlockedToolbarControls || []");
                 pageErrors.forEach(error -> uiContractFailures.add("Browser page error: " + error));
+                browserDialogs.forEach(
+                        dialog -> uiContractFailures.add("Native browser dialog was opened: " + dialog));
                 blockedControls.forEach(
                         action -> uiContractFailures.add("Control is covered by another layer: " + action));
                 assertTrue(
@@ -551,7 +584,7 @@ class BotJobDetailsToolbarPlaywrightTest {
                 "element => window.getComputedStyle(element).boxShadow"));
     }
 
-    private void coverJobFileButtons(Page page) {
+    private void coverJobFileButtons(Page page, List<String> browserDialogs) {
         Locator excel = button(page, "Excel");
         Locator generate = button(page, "Generate");
         Locator report = button(page, "Report");
@@ -562,9 +595,23 @@ class BotJobDetailsToolbarPlaywrightTest {
         assertEquals("OPEN_EXCEL", toolbarBodyAfterClick(page, excel, "OPEN_EXCEL").get("action").getAsString());
         awaitToolbarIdle(page);
 
-        JsonObject generateBody = toolbarBodyAfterClick(page, generate, "GENERATE_EXCEL");
+        int beforeGenerate = toolbarRequestCount(page, "GENERATE_EXCEL");
+        generate.click();
+        Locator generateDialog = page.locator("[role='dialog'][aria-modal='true']");
+        generateDialog.waitFor();
+        assertEquals("Generate Excel file?", generateDialog.locator("#qc-header").textContent().trim());
+        assertTrue(generateDialog.textContent().contains("Existing job data may be replaced."));
+
+        button(generateDialog, "Cancel").click();
+        page.waitForFunction("() => !document.querySelector(\"[role='dialog'][aria-modal='true']\")");
+        assertEquals(beforeGenerate, toolbarRequestCount(page, "GENERATE_EXCEL"));
+
+        generate.click();
+        generateDialog.waitFor();
+        button(generateDialog, "Generate").click();
+        JsonObject generateBody = toolbarBodyAfterRequest(page, "GENERATE_EXCEL", beforeGenerate);
         assertTrue(generateBody.get("confirmed").getAsBoolean());
-        assertConfirmContains(page, "Generate the Excel file");
+        assertTrue(browserDialogs.isEmpty(), "Generate must use the React confirmation component");
         awaitToolbarIdle(page);
 
         assertEquals("OPEN_REPORT", toolbarBodyAfterClick(page, report, "OPEN_REPORT").get("action").getAsString());
@@ -642,6 +689,65 @@ class BotJobDetailsToolbarPlaywrightTest {
         toolbarBodyAfterClick(page, button(page, "Stop"), "STOP_TEST_RUN");
         awaitToolbarIdle(page);
         page.getByText("INTERRUPTED", new Page.GetByTextOptions().setExact(true)).waitFor();
+    }
+
+    private void coverExcelExportDirectorySelection(Page page) {
+        Boolean delivered = (Boolean) page.evaluate(
+                """
+                payload => window.__arEmitToSession(payload.sessionId, 'updateInstructions', [payload.instruction])
+                """,
+                Map.of(
+                        "sessionId", SESSION_ID,
+                        "instruction", Map.ofEntries(
+                                Map.entry("homeBankingId", 7),
+                                Map.entry("tagName", "button"),
+                                Map.entry("botJobId", BOT_JOB_ID),
+                                Map.entry("botJobName", "Payments"),
+                                Map.entry("id", 1001),
+                                Map.entry("instructionOrderNumber", 1),
+                                Map.entry("name", "submit_payment"),
+                                Map.entry("description", "Submit payment"),
+                                Map.entry("blockId", 91),
+                                Map.entry("blockOrderNumber", 1),
+                                Map.entry("blockName", "Login"),
+                                Map.entry("blockActive", true),
+                                Map.entry("blockWait", 0),
+                                Map.entry("actions", "CLICK"),
+                                Map.entry("instructionActive", true),
+                                Map.entry("exportFile", "No Excel Export File"))));
+        assertTrue(delivered, "The Bot Job grid transport must receive the Excel export fixture");
+
+        Locator excelExportIcon = page.locator("img[alt='excel']").first();
+        excelExportIcon.waitFor();
+        excelExportIcon.click();
+
+        Locator panel = page.locator("section[aria-label='Excel export configuration']");
+        panel.waitFor();
+        Locator destination = panel.locator("input[aria-label='Destination folder']");
+        assertEquals("", destination.inputValue());
+
+        int beforeChoose = socketRequestCount(page, "excelExport.chooseDirectory");
+        panel.locator("button[aria-label='Choose destination folder']").click();
+        JsonObject chooseBody = socketBodyAfterRequest(
+                page, "excelExport.chooseDirectory", beforeChoose, SESSION_ID);
+        assertEquals(BOT_JOB_ID, chooseBody.get("botJobId").getAsInt());
+        assertEquals(7, chooseBody.get("homeBankingId").getAsInt());
+        assertEquals(91, chooseBody.get("blockId").getAsInt());
+        assertEquals("", chooseBody.get("directory").getAsString());
+        page.waitForFunction(
+                "expected => document.querySelector('[aria-label=\"Destination folder\"]').value === expected",
+                SELECTED_EXCEL_EXPORT_DIRECTORY);
+        assertEquals(SELECTED_EXCEL_EXPORT_DIRECTORY, destination.inputValue());
+        assertTrue(panel.isVisible(), "Choosing a folder must keep the Excel export panel open");
+
+        panel.getByLabel("File name").fill("payment execution results");
+        int beforeSave = socketRequestCount(page, "excelExport.save");
+        button(panel, "Save").click();
+        JsonObject saveBody = socketBodyAfterRequest(page, "excelExport.save", beforeSave, SESSION_ID);
+        assertEquals(SELECTED_EXCEL_EXPORT_DIRECTORY, saveBody.get("directory").getAsString());
+        assertEquals("payment execution results", saveBody.get("filename").getAsString());
+        assertEquals(".xlsx", saveBody.get("fileType").getAsString());
+        assertEquals(",", saveBody.get("delimiter").getAsString());
     }
 
     private void coverTransferActions(Page page) {
@@ -1132,6 +1238,10 @@ class BotJobDetailsToolbarPlaywrightTest {
                     action);
             control.dispatchEvent("click");
         }
+        return toolbarBodyAfterRequest(page, action, before);
+    }
+
+    private static JsonObject toolbarBodyAfterRequest(Page page, String action, int before) {
         page.waitForFunction(
                 """
                 expected => window.__arToolbarRequests.filter((request) => {
@@ -1176,19 +1286,45 @@ class BotJobDetailsToolbarPlaywrightTest {
         return count.intValue();
     }
 
+    private static int socketRequestCount(Page page, String operation) {
+        Number count = (Number) page.evaluate(
+                """
+                operation => window.__arToolbarRequests.filter(
+                  request => request.type === operation).length
+                """,
+                operation);
+        return count.intValue();
+    }
+
+    private static JsonObject socketBodyAfterRequest(
+            Page page, String operation, int before, String expectedSessionId) {
+        page.waitForFunction(
+                """
+                expected => window.__arToolbarRequests.filter(
+                  request => request.type === expected.operation).length > expected.before
+                """,
+                Map.of("operation", operation, "before", before));
+        String requestJson = (String) page.evaluate(
+                """
+                operation => JSON.stringify(window.__arToolbarRequests
+                  .filter(request => request.type === operation)
+                  .at(-1))
+                """,
+                operation);
+        JsonObject envelope = JsonParser.parseString(requestJson).getAsJsonObject();
+        assertEquals(operation, envelope.get("type").getAsString());
+        assertEquals(expectedSessionId, envelope.get("sessionId").getAsString());
+        JsonObject body = JsonParser.parseString(envelope.get("body").getAsString()).getAsJsonObject();
+        assertTrue(body.has("requestId") && !body.get("requestId").getAsString().isBlank());
+        return body;
+    }
+
     private static void awaitToolbarIdle(Page page) {
         page.waitForFunction(
                 """
                 () => [...document.querySelectorAll('button')].some((button) =>
                   button.textContent.includes('Excel') && !button.disabled)
                 """);
-    }
-
-    private static void assertConfirmContains(Page page, String expectedText) {
-        Boolean found = (Boolean) page.evaluate(
-                "expected => window.__arConfirmMessages.some((message) => message.includes(expected))",
-                expectedText);
-        assertTrue(found, "Expected confirmation containing: " + expectedText);
     }
 
     private static Locator button(Page page, String text) {
@@ -1220,6 +1356,7 @@ class BotJobDetailsToolbarPlaywrightTest {
         String bundle = Files.readString(bundlePath, StandardCharsets.UTF_8);
         for (String marker : List.of(
                 "botJobDetails.toolbar.action", "Execute All", "Job files",
+                "Generate Excel file?", "excelExport.chooseDirectory", "Choose destination folder",
                 "bot-job-details-workspace", "detached-page-scanner-workspace",
                 "pageScannerWorkspace.open", "pageScannerWorkspace.bootstrap", "pageScanner.scan",
                 "Search Hidden Fields",

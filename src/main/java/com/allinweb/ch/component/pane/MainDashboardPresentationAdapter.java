@@ -10,6 +10,7 @@ import com.allinweb.ch.facade.ConfigPresentationRegistry;
 import com.allinweb.ch.facade.MainDashboardService;
 import com.allinweb.ch.facade.MainDashboardPresentation;
 import com.allinweb.ch.facade.MainDashboardPresentationRegistry;
+import com.allinweb.ch.facade.NativePathChooser;
 import com.allinweb.ch.facade.NewBotJobPresentation;
 import com.allinweb.ch.facade.NewBotJobPresentationRegistry;
 import com.allinweb.ch.facade.PerformDBEngine;
@@ -248,8 +249,11 @@ public class MainDashboardPresentationAdapter
 
     @Override
     public File chooseReport(File reportFolder) {
-        log.info("Bot Job report chooser ignored; React must provide or open the report path directly");
-        return null;
+        File selected = NativePathChooser.chooseReport(reportFolder);
+        if (selected != null) {
+            log.info("Selected Bot Job report file: {}", selected.getAbsolutePath());
+        }
+        return selected;
     }
 
     @Override
