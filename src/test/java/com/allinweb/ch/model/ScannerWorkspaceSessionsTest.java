@@ -1,6 +1,8 @@
 package com.allinweb.ch.model;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
@@ -16,5 +18,20 @@ class ScannerWorkspaceSessionsTest {
         assertEquals("perform-list-data", ScannerWorkspaceSessions.PERFORM_LIST_DATA);
         assertEquals("scannerTool", ScannerWorkspaceSessions.SCANNER_TOOL);
         assertEquals("scanner-element-pane", ScannerWorkspaceSessions.SCANNER_ELEMENT_PANE);
+    }
+
+    @Test
+    void classifiesOnlyWellFormedDetachedPageScannerSessions() {
+        assertEquals("page-scanner-", ScannerWorkspaceSessions.PAGE_SCANNER_PREFIX);
+        assertTrue(ScannerWorkspaceSessions.isPageScannerSession("page-scanner-window-42"));
+        assertTrue(ScannerWorkspaceSessions.isOcrSourceScannerSession("page-scanner-window-42"));
+        assertTrue(ScannerWorkspaceSessions.isOcrSourceScannerSession(ScannerWorkspaceSessions.SCANNER_GRID));
+        assertTrue(ScannerWorkspaceSessions.isOcrSourceScannerSession(ScannerWorkspaceSessions.PRE_SCANNER_GRID));
+
+        assertFalse(ScannerWorkspaceSessions.isPageScannerSession(null));
+        assertFalse(ScannerWorkspaceSessions.isPageScannerSession("page-scanner-"));
+        assertFalse(ScannerWorkspaceSessions.isPageScannerSession("page-scanner-window/42"));
+        assertFalse(ScannerWorkspaceSessions.isPageScannerSession("ocr-results-window-42"));
+        assertFalse(ScannerWorkspaceSessions.isOcrSourceScannerSession(ScannerWorkspaceSessions.BOT_JOB_TASKS));
     }
 }

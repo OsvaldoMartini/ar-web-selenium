@@ -98,6 +98,25 @@ class BotJobDetailsWorkspaceRegistryTest {
     }
 
     @Test
+    void workspaceMutationRequiresAndRetainsTheExactActiveEpoch() {
+        BotJobDetailsWorkspaceRegistry.Snapshot workspace = registry.require(42);
+
+        String result = registry.commitWorkspaceMutation(
+                42,
+                workspace.workspaceEpoch(),
+                () -> {
+                    assertEquals(workspace, registry.require(42, workspace.workspaceEpoch()));
+                    return "committed";
+                });
+
+        assertEquals("committed", result);
+        registry.close(42);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> registry.commitWorkspaceMutation(42, workspace.workspaceEpoch(), () -> "stale"));
+    }
+
+    @Test
     void executionTransitionsAdvanceStateWithoutInvalidatingMetadata() {
         BotJobDetailsWorkspaceRegistry.Snapshot before = registry.require(42);
 

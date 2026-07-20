@@ -3,6 +3,7 @@ package com.allinweb.ch.component.pane;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.botjob.BotJobDetailsPresentationGateway;
 import com.allinweb.ch.facade.botjob.BotJobDetailsReactSessionContext;
+import com.allinweb.ch.facade.BotJobDetailsWorkspaceRegistry;
 import com.allinweb.ch.facade.ConfigPresentation;
 import com.allinweb.ch.facade.ConfigPresentationRegistry;
 import com.allinweb.ch.facade.MainDashboardService;
@@ -201,12 +202,20 @@ public class MainDashboardPresentationAdapter
 
     public void openBotJob(BotJobLoadDTO botJob) {
         uiThreadDispatcher.execute(() -> {
-            reloadBlocks(botJob);
-            botJobDetailsHost.initialize(botJob, isEnabledLicence);
-            // Keep Main Dashboard alive and open Bot Job Details in another Chromium application
-            // window. The target URL carries both the shell mode and job identity, so React can
-            // bootstrap the new workspace without exposing an ordinary browser tab/address bar.
-            ARWebSocketServer.getInstance().openBotJobDesktopShell(botJob.getId());
+            BotJobDetailsWorkspaceRegistry.Snapshot workspace;
+            try {
+                workspace = BotJobDetailsWorkspaceRegistry.getInstance().require(botJob.getId());
+            } catch (IllegalArgumentException inactiveOrDifferentBotJob) {
+                reloadBlocks(botJob);
+                botJobDetailsHost.initialize(botJob, isEnabledLicence);
+                workspace = BotJobDetailsWorkspaceRegistry.getInstance().require(botJob.getId());
+            }
+
+            // Keep Main Dashboard alive and reuse the application's one Bot Job Details native
+            // window. A persistent control session retargets the existing physical panel when it
+            // is connected; Chromium is launched only when that panel does not exist.
+            ARWebSocketServer.getInstance().openBotJobDesktopShell(
+                    workspace.homeBankingId(), workspace.botJobId(), workspace.workspaceEpoch());
         });
     }
 

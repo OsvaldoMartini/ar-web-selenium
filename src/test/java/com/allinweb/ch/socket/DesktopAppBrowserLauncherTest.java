@@ -139,4 +139,71 @@ class DesktopAppBrowserLauncherTest {
                         OcrWorkspaceCoordinator.Kind.CONFIG,
                         "ocr-results-window-42"));
     }
+
+    @Test
+    void launchesStrictPageScannerRouteAsASeparateChromiumAppWindow() {
+        String chrome = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
+        AtomicReference<List<String>> launchedCommand = new AtomicReference<>();
+        DesktopAppBrowserLauncher launcher = new DesktopAppBrowserLauncher(
+                "Windows 11",
+                Map.of("ProgramFiles", "C:\\Program Files"),
+                candidate -> candidate.equals(Path.of(chrome)),
+                command -> launchedCommand.set(List.copyOf(command)));
+        String url = ARWebSocketServer.pageScannerDesktopUrl(53972, "page-scanner-window-42");
+
+        assertTrue(launcher.launch(url));
+        assertEquals(
+                "--app=http://127.0.0.1:53972/"
+                        + "?desktopShell=1&openPageScanner=preScan&pageScannerSession=page-scanner-window-42",
+                launchedCommand.get().get(1));
+        assertEquals("--window-size=1240,820", launchedCommand.get().get(2));
+        assertEquals("--new-window", launchedCommand.get().get(3));
+        assertFalse(launchedCommand.get().contains("cmd"));
+    }
+
+    @Test
+    void launchesStrictBotJobDetailsRouteWithPersistentWindowControlSession() {
+        String chrome = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
+        AtomicReference<List<String>> launchedCommand = new AtomicReference<>();
+        DesktopAppBrowserLauncher launcher = new DesktopAppBrowserLauncher(
+                "Windows 11",
+                Map.of("ProgramFiles", "C:\\Program Files"),
+                candidate -> candidate.equals(Path.of(chrome)),
+                command -> launchedCommand.set(List.copyOf(command)));
+        String controlSession = "bot-job-window-123e4567-e89b-42d3-a456-426614174000";
+        String url = ARWebSocketServer.botJobDetailsDesktopUrl(53972, 42, controlSession);
+
+        assertTrue(launcher.launch(url));
+        assertEquals(
+                "--app=http://127.0.0.1:53972/"
+                        + "?desktopShell=1&openBotJob=42&botJobWindowSession=" + controlSession,
+                launchedCommand.get().get(1));
+        assertEquals("--window-size=1240,820", launchedCommand.get().get(2));
+        assertEquals("--new-window", launchedCommand.get().get(3));
+        assertFalse(launchedCommand.get().contains("cmd"));
+    }
+
+    @Test
+    void rejectsMalformedPageScannerRoutes() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> ARWebSocketServer.pageScannerDesktopUrl(53972, "preScannerGrid"));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> ARWebSocketServer.pageScannerDesktopUrl(0, "page-scanner-window-42"));
+    }
+
+    @Test
+    void rejectsMalformedBotJobDetailsWindowRoutes() {
+        String controlSession = "bot-job-window-123e4567-e89b-42d3-a456-426614174000";
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> ARWebSocketServer.botJobDetailsDesktopUrl(0, 42, controlSession));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> ARWebSocketServer.botJobDetailsDesktopUrl(53972, 0, controlSession));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> ARWebSocketServer.botJobDetailsDesktopUrl(53972, 42, "botJobTasks"));
+    }
 }

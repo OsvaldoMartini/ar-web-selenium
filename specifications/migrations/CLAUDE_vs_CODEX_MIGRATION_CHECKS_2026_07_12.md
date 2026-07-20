@@ -1003,16 +1003,84 @@ it cannot satisfy the required three-monitor placement.
       `VERSION-4.6` and backend implementation commit `4360f037` on
       `refactor/perform-actions-decomposition`.
 
+### Singleton Bot Job Details, Page Scanner, and OCR window continuation (2026-07-20)
+
+This continuation supersedes two earlier assumptions without erasing their history: the
+2026-07-17 Bot Job path launched a new Chromium application window for every open request, and the
+initial detached Page Scanner roadmap proposed one workspace per active Bot Job. The required
+invariant is now **one global physical Bot Job Details panel, one global physical Page Scanner
+panel, one global OCR Config panel, and one independent global OCR Results panel** for the AR Web
+process.
+
+- [x] Added backend `BotJobDetailsWindowCoordinator` ownership around one unguessable
+      `bot-job-window-<UUID>` control session. The first request launches the native panel; later
+      Main Dashboard requests publish `botJobDetails.windowTarget` with the latest Bot Job and
+      workspace epoch to that persistent connection rather than calling `--new-window` again.
+- [x] Kept the Bot Job control connection independent from `botJobTasks`, `componentTasks`, and
+      other content sockets. This lets the same physical panel replace its route, clear job-specific
+      state, and reconnect the selected content surface even when the prior surface was not the Bot
+      Job task grid.
+- [x] Reduced Page Scanner native-window ownership from a per-Bot-Job map to one global physical
+      slot. A repeat request for the same trusted job/epoch reuses and focuses that panel.
+- [x] Defined cross-job scanner retargeting as physical reuse with logical replacement. The
+      coordinator allocates a fresh `page-scanner-<UUID>`, retires the previous scan workflow,
+      mutation ledger, browser ownership, and OCR source binding, then publishes
+      `pageScanner.workspaceRetarget` to the existing panel. The new session prevents late scan
+      chunks, Apply/block acknowledgements, OCR callbacks, and stale close events from Job A from
+      being accepted after the panel moves to Job B.
+- [x] Preserved the one scanner native panel during a Bot Job Details target switch while
+      invalidating the old Bot Job's authoritative workspace epoch. A scanner request from the new
+      Bot Job performs the fresh-session retarget; it never transfers the old job's transport
+      identity.
+- [x] Added a bounded initial-connection grace rule. A newer request received while a panel is
+      still starting updates its pending target and does not launch a duplicate.
+- [x] Defined Alt+F4/disconnect recovery: the next valid request may launch one replacement for the
+      latest target, but cannot create concurrent copies. Same-job repeat requests focus/reuse the
+      connected panel.
+- [x] Complete the React listeners and production-bundle proof. Bot Job Details validates its
+      exact control session, replaces history without opening a tab, resets/remounts for the
+      published job/epoch, and focuses the existing panel. Page Scanner accepts retarget only on
+      its old trusted connection, replaces the route/session, reconnects, and remounts under the
+      fresh logical session; a same-session notification only focuses.
+- [x] Reduced detached OCR ownership to one process-wide native window per OCR kind. Reopening OCR
+      Config or OCR Results for its current scanner context focuses the corresponding panel. A
+      request from another Page Scanner/Bot Job reuses that same physical panel, allocates a fresh
+      `ocr-config-*` or `ocr-results-*` logical identity, and publishes
+      `ocrWorkspace.windowRetarget`; Config and Results remain two independent movable windows.
+- [x] Added strict OCR retarget validation, URL replacement, keyed React remounting, and backend
+      active-session checks. Late operations from the retired OCR or Page Scanner transport are
+      rejected, so state and results from Job A cannot mutate or appear in Job B after retargeting.
+- [x] Added a two-second reconnect grace to Bot Job Details, Page Scanner, OCR Config, and OCR
+      Results ownership. A transient WebSocket replacement retains the reserved physical window;
+      only a transport that remains disconnected after the grace period may cause one replacement
+      launch.
+- [x] Serialized blocking and acknowledged asynchronous WebSocket writes per physical JSR-356
+      `Session`. This removes Jetty's `Blocking message pending 10000 for BLOCKING` race when scan
+      chunks/status, pings, OCR callbacks, and workspace-retarget events write concurrently. The
+      `10000` value is Jetty's hexadecimal blocking-state flag (`0x10000`), not a 10,000 ms timeout.
+- [x] Run the automated singleton-window verification gate. Evidence includes coordinator unit tests
+      for first launch, connected retarget, same-target focus, latest-target delivery on reconnect,
+      launch grace, publication rollback, strict session validation, stale disconnect isolation,
+      and one Alt+F4 replacement; frontend tests for route/state/socket replacement and malformed
+      event rejection; and production-bundle Playwright coverage proving Page Scanner, OCR Config,
+      and OCR Results each retarget in their existing browser page without increasing page count.
+- [ ] Run the manual Windows smoke test that opening Jobs A, B, then A leaves exactly one Bot Job
+      Details panel, one Page Scanner panel, one OCR Config panel, and one OCR Results panel,
+      including Alt+F4 replacement and multi-monitor drag.
+
+The full design, protocol, lifecycle rules, and acceptance checklist are recorded in
+`ROADMAP_DETACHED_PAGE_SCANNER_WORKSPACE_2026_07_20.md`.
+
 ### Complete inventory snapshot
 
-- Generated at 2026-07-18 from `ar-web-selenium`, `abr-react-ts-grid`, and `ar-web-engine`.
-- 899 displayed catalog rows.
-- 859 code test cases in 235 test files: 712 Java/JUnit cases in 193 files and 147
-  React Jest/Playwright cases in 42 files.
+- Regenerated at 2026-07-20 from `ar-web-selenium`, `abr-react-ts-grid`, and `ar-web-engine`.
+- 972 displayed catalog rows.
+- 938 code test cases in 257 source files: 772 Java/JUnit cases in 209 files and 166
+  React Jest/Playwright cases in 48 files.
 - 19,452 generated API requests grouped under 21 generated Bash/curl suites rather than rendering
   19,452 duplicate DOM rows.
-- 20,311 total automated cases when code cases and generated API requests are combined.
-- 15 manual artifacts and 4 support-only artifacts are retained and clearly labeled.
+- 20,390 total automated cases when code cases and generated API requests are combined.
+- 9 manual artifacts and 4 support-only artifacts are retained and clearly labeled.
 - `ar-web-engine` was audited and truthfully reports zero committed automated tests. Its local/live
   Selenium launch profiles are manual, high-side-effect production automation and are excluded from
   Run All eligibility.
@@ -1082,6 +1150,18 @@ node scripts\generate-automation-test-catalog.mjs
 - [x] Regenerated `automation-tests.json`: 899 catalog rows, 859 code cases, 19,452 generated API
       cases, and 20,311 total automated cases. Clean-deployed 45 React files with zero hash/path
       differences.
+- [x] 2026-07-20 singleton continuation verification:
+      - Eight focused React suites passed 32/32 tests; the full Jest sweep passed 43/46 suites and
+        158/160 tests, with only the three already-recorded stale legacy suites remaining red.
+      - `npm run test:e2e` passed 4/4 after updating the mock protocol to the persistent Bot Job
+        control session, detached Page Scanner, and in-place Page Scanner/OCR retarget contracts.
+      - The five critical Java coordinator/transport suites passed 63/63 tests. A real-Chromium
+        `BotJobDetailsToolbarPlaywrightTest` passed and kept Page Scanner, OCR Config, and OCR Results
+        in their existing pages across fresh logical-session retargets.
+      - `mvn clean package -DskipTests` completed successfully (419 production and 209 test sources),
+        and the 45-file React/backend deployment has zero relative-path SHA-256 mismatches.
+      - Regenerated inventory: 972 catalog rows, 938 code cases, 19,452 generated API cases, and
+        20,390 total automated cases; `AutomationTestCatalogServiceTest` passed 2/2 afterward.
 - [ ] Add execution controls only after each framework has an allowlisted runner, persisted result
       contract, cancellation/timeout ownership, and explicit confirmation for headed/live suites.
 

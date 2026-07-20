@@ -2599,7 +2599,7 @@ public class PerformDataBase {
         return null;
     }
 
-    public ErrorMessage insertInstructionsBatch(
+    public synchronized ErrorMessage insertInstructionsBatch(
             String typeTask,
             List<InstructionLoad> instructions,
             Integer currentBotJobId,
@@ -2618,6 +2618,8 @@ public class PerformDataBase {
                 Statement stmt = conn.createStatement();
                 Statement idStmtBefore = conn.createStatement();
                 Statement idStmtAfter = conn.createStatement()) {
+
+            conn.setAutoCommit(false);
 
             // Step 1: Get all IDs before insertion
             List<Integer> idsBefore = new ArrayList<>();
@@ -2745,6 +2747,8 @@ public class PerformDataBase {
             logDB.info(String.format(
                     "Batch insert completed for %d %s records. New IDs: %s",
                     count, tableName.toUpperCase(), idsInstrucAfter));
+
+            conn.commit();
 
             return null;
 
@@ -3785,12 +3789,14 @@ public class PerformDataBase {
         return savedlistBlock;
     }
 
-    public ErrorMessage insertReferencesBatch(List<InstructionLoad> instructionList) {
+    public synchronized ErrorMessage insertReferencesBatch(List<InstructionLoad> instructionList) {
         String insertSQL =
                 "INSERT INTO reference(reference_type, value, instruction_id, bot_job_id) VALUES (?, ?, ?, ?)";
 
         try (Connection conn = getConnection();
                 PreparedStatement pstmt = conn.prepareStatement(insertSQL)) {
+
+            conn.setAutoCommit(false);
 
             final int BATCH_SIZE = 100;
             int count = 0;
@@ -3825,6 +3831,8 @@ public class PerformDataBase {
                 pstmt.clearBatch();
             }
 
+            conn.commit();
+
             logDB.info("Reference batch insert completed successfully.");
             return null; // No error
 
@@ -3842,6 +3850,137 @@ public class PerformDataBase {
                     error.getMessage());
         }
     }
+
+    /**
+     * Atomically inserts one Page Scanner instruction batch and all of its locator references.
+     * Generated keys are read from the same connection; no global before/after ID diff is used.
+     */
+    public synchronized AtomicInstructionInsertResult insertInstructionsAndReferencesAtomic(
+            List<InstructionLoad> instructionList, int botJobId, int blockId) {
+        if (instructionList == null || instructionList.isEmpty()) {
+            return new AtomicInstructionInsertResult(
+                    new ErrorMessage("Instruction Insertion Error", "No instructions to insert.", null),
+                    List.of());
+        }
+        try (Connection conn = getConnection()) {
+            List<Integer> insertedIds = insertInstructionsAndReferencesTransaction(
+                    conn, instructionList, botJobId, blockId);
+            idsInstrucAfter.clear();
+            idsInstrucAfter.addAll(insertedIds);
+            return new AtomicInstructionInsertResult(null, List.copyOf(insertedIds));
+        } catch (SQLException | RuntimeException failure) {
+            logDB.error("Atomic Page Scanner insert failed: " + failure.getMessage());
+            return new AtomicInstructionInsertResult(
+                    new ErrorMessage(
+                            "Instruction Insertion Error",
+                            "Could not insert Page Scanner instructions and references.",
+                            failure.getMessage()),
+                    List.of());
+        }
+    }
+
+    static List<Integer> insertInstructionsAndReferencesTransaction(
+            Connection conn,
+            List<InstructionLoad> instructionList,
+            int botJobId,
+            int blockId) throws SQLException {
+        String instructionSql = "INSERT INTO instruction ("
+                + "coordinates, iframe_xpath, tag_name, shadow_host, shadow_root, css_selector, xpath, "
+                + "action_custom_max_wait_sec, actions, default_value, description, instruction_order_number, "
+                + "name, client_named, on_hold_seconds, operation, parent_block_id, parent_id, variable_id, "
+                + "block_id, bot_job_id, block_marked, codified, export_to_abr, optional, active, executed, "
+                + "block_active, refresh_loop, loop_only, force_coordinates) "
+                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, "
+                + "?, ?, ?, ?, ?)";
+        String referenceSql =
+                "INSERT INTO reference(reference_type, value, instruction_id, bot_job_id) VALUES (?, ?, ?, ?)";
+        conn.setAutoCommit(false);
+        try (PreparedStatement instructionStatement =
+                        conn.prepareStatement(instructionSql, Statement.RETURN_GENERATED_KEYS);
+                PreparedStatement referenceStatement = conn.prepareStatement(referenceSql)) {
+            List<Integer> insertedIds = new ArrayList<>(instructionList.size());
+            for (InstructionLoad instruction : instructionList) {
+                bindAtomicInstruction(instructionStatement, instruction, botJobId, blockId);
+                if (instructionStatement.executeUpdate() != 1) {
+                    throw new SQLException("Instruction insert did not create exactly one row");
+                }
+                int instructionId;
+                try (ResultSet keys = instructionStatement.getGeneratedKeys()) {
+                    if (!keys.next()) throw new SQLException("Instruction insert returned no generated id");
+                    instructionId = keys.getInt(1);
+                }
+                instruction.setId(instructionId);
+                insertedIds.add(instructionId);
+
+                if (instruction.getReferenceLoadDTOList() == null) continue;
+                for (ReferenceLoadDTO reference : instruction.getReferenceLoadDTOList()) {
+                    if (reference == null || "customXPath".equalsIgnoreCase(reference.getReferenceType())) continue;
+                    referenceStatement.setString(1, reference.getReferenceType());
+                    referenceStatement.setString(2, reference.getValue());
+                    referenceStatement.setInt(3, instructionId);
+                    referenceStatement.setInt(4, botJobId);
+                    referenceStatement.addBatch();
+                }
+            }
+            referenceStatement.executeBatch();
+            conn.commit();
+            return insertedIds;
+        } catch (SQLException | RuntimeException failure) {
+            try {
+                conn.rollback();
+            } catch (SQLException rollbackFailure) {
+                failure.addSuppressed(rollbackFailure);
+            }
+            throw failure;
+        }
+    }
+
+    private static void bindAtomicInstruction(
+            PreparedStatement statement,
+            InstructionLoad instruction,
+            int botJobId,
+            int blockId) throws SQLException {
+        int parameter = 1;
+        statement.setObject(parameter++, instruction.getCoordinates());
+        statement.setObject(parameter++, instruction.getIFrameXPath());
+        statement.setObject(parameter++, instruction.getTagName());
+        statement.setObject(parameter++, instruction.getShadowHost());
+        statement.setObject(parameter++, instruction.getShadowRoot());
+        statement.setObject(parameter++, instruction.getCssSelector());
+        statement.setObject(parameter++, instruction.getXpath());
+        statement.setObject(parameter++, instruction.getActionCustomMaxWaitSec());
+        statement.setObject(parameter++, instruction.getActions());
+        statement.setObject(parameter++, instruction.getDefaultValue());
+        statement.setObject(parameter++, instruction.getDescription());
+        statement.setObject(parameter++, instruction.getInstructionOrderNumber());
+        statement.setObject(parameter++, instruction.getName());
+        statement.setObject(parameter++, instruction.getClientNamed());
+        statement.setObject(parameter++, instruction.getOnHoldSeconds() == null ? 1 : instruction.getOnHoldSeconds());
+        statement.setObject(parameter++, instruction.getOperation());
+        statement.setObject(parameter++, instruction.getParentBlockId());
+        statement.setObject(parameter++, instruction.getParentId());
+        statement.setObject(parameter++, instruction.getVariableId());
+        statement.setInt(parameter++, blockId);
+        statement.setInt(parameter++, botJobId);
+        statement.setObject(parameter++, booleanValue(instruction.getBlockMarked()));
+        statement.setObject(parameter++, booleanValue(instruction.getCodified()));
+        statement.setObject(parameter++, booleanValue(instruction.getExportToABR()));
+        statement.setObject(parameter++, booleanValue(instruction.getOptional()));
+        statement.setObject(parameter++, booleanValue(instruction.getInstructionActive()));
+        statement.setObject(parameter++, booleanValue(instruction.getExecuted()));
+        statement.setObject(parameter++, booleanValue(instruction.getBlockActive()));
+        statement.setObject(parameter++, booleanValue(instruction.getRefreshLoop()));
+        statement.setObject(parameter++, booleanValue(instruction.getLoopOnly()));
+        statement.setObject(
+                parameter,
+                instruction.getForceCoordinates() == null ? "" : instruction.getForceCoordinates());
+    }
+
+    private static Integer booleanValue(Boolean value) {
+        return value == null ? null : value ? 1 : 0;
+    }
+
+    public record AtomicInstructionInsertResult(ErrorMessage error, List<Integer> instructionIds) {}
 
     public ErrorMessage upsertReferencesBatch(String typeTask, List<InstructionLoad> instructionList) {
 

@@ -136,7 +136,8 @@ public class PerformLists {
                 () -> {
                     try {
                         if (session != null && session.isOpen()) {
-                            session.getBasicRemote().sendText("ping-" + ScannerWorkspaceSessions.PERFORM_LIST_DATA);
+                            WebSocketSessionManager.sendText(
+                                    session, "ping-" + ScannerWorkspaceSessions.PERFORM_LIST_DATA);
                         }
                     } catch (IOException e) {
                         log.error("Error sending ping: {}", e.getMessage(), e);

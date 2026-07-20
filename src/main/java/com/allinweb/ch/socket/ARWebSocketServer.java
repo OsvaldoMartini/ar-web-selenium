@@ -156,19 +156,68 @@ public class ARWebSocketServer {
         }
     }
 
-    /** Opens one Bot Job Details workspace in the same address-bar-free desktop shell. */
-    public void openBotJobDesktopShell(int botJobId) {
-        if (botJobId <= 0) {
-            throw new IllegalArgumentException("A positive Bot Job ID is required");
-        }
-        openInBrowser(
-                "http://" + LOOPBACK_ADDRESS + ":" + boundPort
-                        + "/?desktopShell=1&openBotJob=" + botJobId);
+    /** Opens or retargets the application's one Bot Job Details native window. */
+    public BotJobDetailsWindowCoordinator.OpenResult openBotJobDesktopShell(
+            int homeBankingId, int botJobId, long workspaceEpoch) {
+        return BotJobDetailsWindowCoordinator.getInstance().open(
+                new BotJobDetailsWindowCoordinator.Target(
+                        botJobId, workspaceEpoch, homeBankingId));
+    }
+
+    /** Strict launcher used only by the single-window coordinator. */
+    boolean openBotJobDetailsDesktopShell(int botJobId, String controlSessionId) {
+        return desktopAppBrowserLauncher.launch(
+                botJobDetailsDesktopUrl(boundPort, botJobId, controlSessionId));
     }
 
     /** Opens one detached OCR workspace without falling back to a browser window with an address bar. */
     boolean openOcrWorkspaceDesktopShell(OcrWorkspaceCoordinator.Kind kind, String sessionId) {
         return desktopAppBrowserLauncher.launch(ocrWorkspaceDesktopUrl(boundPort, kind, sessionId));
+    }
+
+    /** Opens one detached Page Scanner without falling back to a browser with an address bar. */
+    boolean openPageScannerDesktopShell(String sessionId) {
+        return desktopAppBrowserLauncher.launch(pageScannerDesktopUrl(boundPort, sessionId));
+    }
+
+    /** Retires the detached Page Scanner bound to one exact Bot Job workspace epoch. */
+    public boolean closePageScannerWorkspace(
+            int homeBankingId, int botJobId, long workspaceEpoch) {
+        return PageScannerWorkspaceCoordinator.getInstance()
+                .closeForBotJob(homeBankingId, botJobId, workspaceEpoch);
+    }
+
+    /** Closes the one global Page Scanner when Bot Job Details itself is explicitly closed. */
+    public boolean closeActivePageScannerWorkspace() {
+        return PageScannerWorkspaceCoordinator.getInstance().closeActive();
+    }
+
+    static String pageScannerDesktopUrl(int port, String sessionId) {
+        if (port < 1 || port > 65535) {
+            throw new IllegalArgumentException("A valid AR Web port is required");
+        }
+        if (!com.allinweb.ch.model.ScannerWorkspaceSessions.isPageScannerSession(sessionId)) {
+            throw new IllegalArgumentException("A valid Page Scanner workspace session is required");
+        }
+        return "http://" + LOOPBACK_ADDRESS + ":" + port
+                + "/?desktopShell=1&openPageScanner=preScan&pageScannerSession="
+                + encodeQueryParameter(sessionId);
+    }
+
+    static String botJobDetailsDesktopUrl(
+            int port, int botJobId, String controlSessionId) {
+        if (port < 1 || port > 65535) {
+            throw new IllegalArgumentException("A valid AR Web port is required");
+        }
+        if (botJobId <= 0) {
+            throw new IllegalArgumentException("A positive Bot Job ID is required");
+        }
+        if (!BotJobDetailsWindowCoordinator.isControlSessionId(controlSessionId)) {
+            throw new IllegalArgumentException("A valid Bot Job Details window session is required");
+        }
+        return "http://" + LOOPBACK_ADDRESS + ":" + port
+                + "/?desktopShell=1&openBotJob=" + botJobId
+                + "&botJobWindowSession=" + encodeQueryParameter(controlSessionId);
     }
 
     static String ocrWorkspaceDesktopUrl(

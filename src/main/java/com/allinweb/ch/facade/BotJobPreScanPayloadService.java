@@ -34,8 +34,16 @@ public final class BotJobPreScanPayloadService {
     }
 
     public Result build(BotJobLoadDTO botJob, List<ElementDTO> elements) {
+        return build(botJob, elements, destinationSessionId());
+    }
+
+    /** Builds the same canonical payload for a unique detached Page Scanner destination. */
+    public Result build(BotJobLoadDTO botJob, List<ElementDTO> elements, String destinationSessionId) {
         if (botJob == null || botJob.getId() == null || botJob.getId() <= 0) {
             throw new IllegalArgumentException("An active Bot Job is required");
+        }
+        if (destinationSessionId == null || destinationSessionId.isBlank()) {
+            throw new IllegalArgumentException("A Pre Scan destination session is required");
         }
         ErrorMessage warning = null;
         if (data.blocks().isEmpty()) warning = data.loadBlocks(botJob.getId(), botJob.getName());
@@ -55,7 +63,7 @@ public final class BotJobPreScanPayloadService {
         payload.setBotJobId(botJob.getId());
         payload.setBotJobName(botJob.getName());
         payload.setType(route.payloadType());
-        payload.setSessionId(route.destinationSessionId());
+        payload.setSessionId(destinationSessionId.trim());
         payload.setOperationId(route.operationId());
         payload.setElementDetails((elements == null ? List.<ElementDTO>of() : elements).toArray(new ElementDTO[0]));
         payload.setBlocks(options);

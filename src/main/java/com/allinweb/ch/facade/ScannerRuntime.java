@@ -4,6 +4,7 @@ import com.allinweb.ch.facade.scanner.ScannerRuntimePort;
 import com.allinweb.ch.facade.scanner.ScannerRuntimeProvider;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.model.*;
+import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
 import com.allinweb.ch.util.ErrorMessage;
@@ -144,8 +145,9 @@ public class ScannerRuntime {
                 () -> {
                     try {
                         if (session != null && session.isOpen()) {
-                            session.getBasicRemote()
-                                    .sendText("ping-" + scannerElementPanePublisher.destinationSessionId());
+                            WebSocketSessionManager.sendText(
+                                    session,
+                                    "ping-" + scannerElementPanePublisher.destinationSessionId());
                         }
                     } catch (IOException e) {
                         log.error("Error sending ping: " + e.getMessage());

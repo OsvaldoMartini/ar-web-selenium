@@ -115,6 +115,20 @@ public final class BotJobDetailsWorkspaceRegistry {
         return new MetadataCommit<>(true, next, null);
     }
 
+    /**
+     * Runs a workspace-bound mutation while holding the same lifecycle lock used by activate and
+     * close. A Bot Job switch therefore cannot invalidate the epoch halfway through a detached
+     * Page Scanner database commit.
+     */
+    public synchronized <T> T commitWorkspaceMutation(
+            int botJobId, long workspaceEpoch, Supplier<T> mutation) {
+        require(botJobId, workspaceEpoch);
+        if (mutation == null) {
+            throw new IllegalArgumentException("Bot Job Details mutation operation is required");
+        }
+        return mutation.get();
+    }
+
     public synchronized Snapshot environmentsChanged(int botJobId) {
         Snapshot current = require(botJobId);
         Snapshot next = copyWithRevision(current, revisions.incrementAndGet());

@@ -55,6 +55,24 @@ public class SimpleWebSocketServer {
     private static final OcrTestService ocrTestService = OcrTestService.getInstance();
     private static final OcrWorkspaceCoordinator ocrWorkspaceCoordinator =
             OcrWorkspaceCoordinator.getInstance();
+    private static final PageScannerWorkspaceCoordinator pageScannerWorkspaceCoordinator =
+            PageScannerWorkspaceCoordinator.getInstance();
+    private static final PageScannerMutationLedger pageScannerMutationLedger =
+            PageScannerMutationLedger.getInstance();
+    private static final int MAX_PAGE_SCANNER_BODY_CHARACTERS = 2_000_000;
+    private static final int MAX_PAGE_SCANNER_ELEMENTS = 1_000;
+    private static final int MAX_PAGE_SCANNER_SEARCH_TERMS = 8_192;
+    private static final int MAX_PAGE_SCANNER_BLOCK_NAME = 256;
+    private static final Set<String> PAGE_SCANNER_OPERATIONS = Set.of(
+            "pageScannerWorkspace.open",
+            "pageScannerWorkspace.bootstrap",
+            "pageScanner.scan",
+            "pageScanner.refresh",
+            "pageScanner.clear",
+            "pageScanner.testElement",
+            "pageScanner.apply",
+            "pageScanner.createBlock",
+            "pageScanner.close");
     private static final ScannerPluginDownloadCommandService scannerPluginDownloadCommandService =
             ScannerPluginDownloadCommandService.getInstance();
     protected static volatile SimpleWebSocketServer instance;
@@ -143,8 +161,18 @@ public class SimpleWebSocketServer {
             return;
         }
 
+        boolean botJobWindowControl = BotJobDetailsWindowCoordinator.isControlSessionId(sessionId);
+        if (botJobWindowControl
+                && !BotJobDetailsWindowCoordinator.getInstance().isActiveControlSession(sessionId)) {
+            log.warn("Rejected unknown Bot Job Details window control session: {}", sessionId);
+            closeRejectedSession(session, "Bot Job Details window session is not active");
+            return;
+        }
+
         if (ScannerWorkspaceSessions.BOT_JOB_TASKS.equals(sessionId)
-                || OcrWorkspaceCoordinator.isWorkspaceSessionId(sessionId)) {
+                || botJobWindowControl
+                || OcrWorkspaceCoordinator.isWorkspaceSessionId(sessionId)
+                || ScannerWorkspaceSessions.isPageScannerSession(sessionId)) {
             // Only one Bot Job workspace is active in the backend at a time -- opening a job in a
             // new tab takes over from whichever tab had it before, rather than being rejected as a
             // duplicate session. Detached OCR pages use the same exact-session takeover so a page
@@ -158,6 +186,17 @@ public class SimpleWebSocketServer {
 
         BotJobTransferPathRegistry.getInstance().clearSession(sessionId);
         log.info("New connection: Session ID = {}", sessionId);
+
+        if (botJobWindowControl) {
+            try {
+                if (!BotJobDetailsWindowCoordinator.getInstance().connected(sessionId)) {
+                    log.warn("Bot Job Details window target could not be delivered to {}", sessionId);
+                }
+            } catch (IllegalArgumentException staleControlSession) {
+                closeRejectedSession(session, "Bot Job Details window session is no longer active");
+                return;
+            }
+        }
 
         if ("mainDashboardBootstrap".equals(sessionId)) {
             // Transient handshake session the React shell opens once on load, before it knows
@@ -182,7 +221,7 @@ public class SimpleWebSocketServer {
             envelope.addProperty("sessionId", "mainDashboard");
             envelope.addProperty("homeBankingId", -1);
             envelope.addProperty("operationId", "react.session.open");
-            session.getBasicRemote().sendText(envelope.toString());
+            WebSocketSessionManager.sendText(session, envelope.toString());
         } catch (IOException e) {
             log.warn("Failed to send bootstrap react.session.open: {}", e.getMessage());
         }
@@ -272,10 +311,32 @@ public class SimpleWebSocketServer {
             String transportSessionId = webSocketSessionManager.getSessionIdBySession(session);
             boolean ocrWorkspaceOperation = type.startsWith("ocrWorkspace.");
             boolean detachedOcrTransport = OcrWorkspaceCoordinator.isWorkspaceSessionId(transportSessionId);
-            String sessionId = ocrWorkspaceOperation || detachedOcrTransport
+            boolean pageScannerOperation = type.startsWith("pageScanner.")
+                    || type.startsWith("pageScannerWorkspace.");
+            boolean detachedPageScannerTransport =
+                    ScannerWorkspaceSessions.isPageScannerSession(transportSessionId);
+            String sessionId = ocrWorkspaceOperation
+                            || detachedOcrTransport
+                            || pageScannerOperation
+                            || detachedPageScannerTransport
                     ? transportSessionId
                     : claimedSessionId;
             ReactReplyChannel.set(sessionId);
+
+            // A retarget keeps the physical application window but retires its old logical
+            // identity. Reject any late request from that stale transport before it can mutate
+            // the newly selected Bot Job/scanner context.
+            if (detachedOcrTransport && !ocrWorkspaceCoordinator.isActiveWorkspace(transportSessionId)) {
+                log.warn("Rejected stale detached OCR transport {}", transportSessionId);
+                closeRejectedSession(session, "OCR workspace session is no longer active");
+                return;
+            }
+            if (detachedPageScannerTransport
+                    && !pageScannerWorkspaceCoordinator.isActiveWorkspace(transportSessionId)) {
+                log.warn("Rejected stale detached Page Scanner transport {}", transportSessionId);
+                closeRejectedSession(session, "Page Scanner workspace session is no longer active");
+                return;
+            }
 
             // After Decoding
             if (type == null || type.trim().isEmpty() || type.contains("CONNECT") || type.contains("ping")) {
@@ -284,13 +345,39 @@ public class SimpleWebSocketServer {
                 return;
             }
 
+            if (pageScannerOperation && !isSupportedPageScannerOperation(type)) {
+                log.warn("Rejected unsupported Page Scanner operation {}", type);
+                sendPageScannerFailure(
+                        bodyOrEmpty(jsonObjMSG),
+                        homeBankingId,
+                        transportSessionId,
+                        session,
+                        "pageScanner.errorResponse",
+                        "Unsupported Page Scanner operation.");
+                return;
+            }
+
             boolean closeWithoutLicense = "botJobDetails.action".equals(type)
                     && "CLOSE".equals(botJobDetailsAction(jsonObjMSG));
             boolean stopWithoutLicense = "botJobDetails.toolbar.action".equals(type)
                     && "STOP_TEST_RUN".equals(botJobDetailsToolbarAction(jsonObjMSG));
-            if (!LicenseService.getInstance().permits(type) && !closeWithoutLicense && !stopWithoutLicense) {
+            boolean pageScannerCloseWithoutLicense = "pageScanner.close".equals(type);
+            if (!LicenseService.getInstance().permits(type)
+                    && !closeWithoutLicense
+                    && !stopWithoutLicense
+                    && !pageScannerCloseWithoutLicense) {
                 if (type.startsWith("botJobDetails.")) {
                     sendBotJobDetailsLicenseFailure(jsonObjMSG, session, type);
+                    return;
+                }
+                if (pageScannerOperation || detachedPageScannerTransport) {
+                    sendPageScannerFailure(
+                            bodyOrEmpty(jsonObjMSG),
+                            homeBankingId,
+                            transportSessionId,
+                            session,
+                            pageScannerResponseOperation(type),
+                            "An active license is required for this Page Scanner operation");
                     return;
                 }
                 sendCommandEditorResponse(
@@ -298,6 +385,23 @@ public class SimpleWebSocketServer {
                         sessionId,
                         "license.requiredResponse",
                         LicenseService.getInstance().startup());
+                return;
+            }
+
+            if (detachedPageScannerTransport
+                    && !pageScannerOperation
+                    && !"ocrWorkspace.open".equals(type)) {
+                log.warn(
+                        "Rejected legacy operation {} from detached Page Scanner transport {}",
+                        type,
+                        transportSessionId);
+                sendPageScannerFailure(
+                        bodyOrEmpty(jsonObjMSG),
+                        homeBankingId,
+                        transportSessionId,
+                        session,
+                        "pageScanner.errorResponse",
+                        "Operation is not allowed from a detached Page Scanner workspace.");
                 return;
             }
 
@@ -402,6 +506,65 @@ public class SimpleWebSocketServer {
                     break;
                 case "ocrWorkspace.applySuggestions":
                     handleOcrWorkspaceApplySuggestions(
+                            jsonObjMSG,
+                            homeBankingId,
+                            claimedSessionId,
+                            transportSessionId,
+                            session);
+                    break;
+                case "pageScannerWorkspace.open":
+                    handlePageScannerWorkspaceOpen(
+                            jsonObjMSG,
+                            homeBankingId,
+                            claimedSessionId,
+                            transportSessionId,
+                            session);
+                    break;
+                case "pageScannerWorkspace.bootstrap":
+                    handlePageScannerWorkspaceBootstrap(
+                            jsonObjMSG,
+                            homeBankingId,
+                            claimedSessionId,
+                            transportSessionId,
+                            session);
+                    break;
+                case "pageScanner.scan":
+                case "pageScanner.refresh":
+                case "pageScanner.clear":
+                    handlePageScannerCommand(
+                            type,
+                            jsonObjMSG,
+                            homeBankingId,
+                            claimedSessionId,
+                            transportSessionId,
+                            session);
+                    break;
+                case "pageScanner.testElement":
+                    handlePageScannerElementTest(
+                            jsonObjMSG,
+                            homeBankingId,
+                            claimedSessionId,
+                            transportSessionId,
+                            session);
+                    break;
+                case "pageScanner.apply":
+                    handlePageScannerApply(
+                            jsonObjMSG,
+                            homeBankingId,
+                            claimedSessionId,
+                            transportSessionId,
+                            session);
+                    break;
+                case "pageScanner.createBlock":
+                    handlePageScannerCreateBlock(
+                            jsonObjMSG,
+                            homeBankingId,
+                            claimedSessionId,
+                            transportSessionId,
+                            session);
+                    break;
+                case "pageScanner.close":
+                    handlePageScannerClose(
                             jsonObjMSG,
                             homeBankingId,
                             claimedSessionId,
@@ -1318,23 +1481,7 @@ public class SimpleWebSocketServer {
         outbound.addProperty("sessionId", sessionId);
         outbound.addProperty("homeBankingId", homeBankingId);
         outbound.addProperty("operationId", operationId);
-        CompletableFuture<Void> completion = new CompletableFuture<>();
-        try {
-            targetSession.getAsyncRemote().sendText(outbound.toString(), result -> {
-                if (result.isOK()) {
-                    completion.complete(null);
-                } else {
-                    Throwable failure = result.getException();
-                    completion.completeExceptionally(failure == null
-                            ? new IllegalStateException(
-                                    "Unable to send Bot Job Details response to session " + sessionId)
-                            : failure);
-                }
-            });
-        } catch (RuntimeException error) {
-            completion.completeExceptionally(error);
-        }
-        return completion;
+        return WebSocketSessionManager.sendTextAcknowledged(targetSession, outbound.toString());
     }
 
     private int authoritativeHomeBankingId(int botJobId) {
@@ -1507,6 +1654,9 @@ public class SimpleWebSocketServer {
             if (!Strings.isNullOrEmpty(sessionId)) {
                 if (webSocketSessionManager.removeSession(sessionId, session)) {
                     BotJobTransferPathRegistry.getInstance().clearSession(sessionId);
+                    notifyBotJobWindowDisconnected(sessionId);
+                    notifyPageScannerWindowDisconnected(sessionId);
+                    notifyOcrWindowDisconnected(sessionId);
                 }
             }
         }
@@ -1906,6 +2056,736 @@ public class SimpleWebSocketServer {
                     "ocrWorkspace.applySuggestionsResponse",
                     "Unable to apply the OCR suggestions.");
         }
+    }
+
+    private void handlePageScannerWorkspaceOpen(
+            JsonObject envelope,
+            int envelopeHomeBankingId,
+            String claimedSessionId,
+            String transportSessionId,
+            Session transport) {
+        JsonObject body = bodyOrEmpty(envelope);
+        if (!validatePageScannerTransport(
+                body,
+                envelopeHomeBankingId,
+                claimedSessionId,
+                transportSessionId,
+                transport,
+                "pageScannerWorkspace.openResponse")) {
+            return;
+        }
+
+        try {
+            String requestId = requirePageScannerRequestId(body);
+            int botJobId = requirePositivePageScannerInt(body, "botJobId");
+            BotJobDetailsWorkspaceRegistry.Snapshot workspace =
+                    BotJobDetailsWorkspaceRegistry.getInstance().require(botJobId);
+            PreScanWorkflowService.Context scanContext =
+                    BotJobWorkspaceController.getInstance().pageScannerContext(botJobId);
+            if (workspace.homeBankingId() != scanContext.homeBankingId()) {
+                throw new IllegalArgumentException("Page Scanner organization does not match the active Bot Job");
+            }
+
+            PageScannerWorkspaceCoordinator.WorkspaceContext context =
+                    new PageScannerWorkspaceCoordinator.WorkspaceContext(
+                            scanContext.homeBankingId(),
+                            scanContext.botJobId(),
+                            workspace.workspaceEpoch(),
+                            scanContext.botJobName(),
+                            scanContext.homeUrlId(),
+                            scanContext.endpointUrl(),
+                            scanContext.browserType(),
+                            scanContext.optionsConfig(),
+                            scanContext.jsonPath());
+            PageScannerWorkspaceCoordinator.OpenResult result = pageScannerWorkspaceCoordinator.open(
+                    new PageScannerWorkspaceCoordinator.OpenRequest(transportSessionId, context));
+
+            JsonObject response = new JsonObject();
+            response.addProperty("requestId", requestId);
+            response.addProperty("ok", result.ok());
+            response.addProperty("botJobId", botJobId);
+            response.addProperty("launched", result.launched());
+            response.addProperty("alreadyOpen", result.alreadyOpen());
+            response.addProperty("sessionId", result.sessionId());
+            response.addProperty("message", result.message());
+            response.addProperty("expiresAt", result.expiresAt().toString());
+            sendPageScannerResponse(
+                    scanContext.homeBankingId(),
+                    transportSessionId,
+                    transport,
+                    "pageScannerWorkspace.openResponse",
+                    response);
+        } catch (IllegalArgumentException | IllegalStateException invalidRequest) {
+            sendPageScannerFailure(
+                    body,
+                    envelopeHomeBankingId,
+                    transportSessionId,
+                    transport,
+                    "pageScannerWorkspace.openResponse",
+                    invalidRequest.getMessage());
+        } catch (RuntimeException failure) {
+            log.error("Unable to open detached Page Scanner workspace", failure);
+            sendPageScannerFailure(
+                    body,
+                    envelopeHomeBankingId,
+                    transportSessionId,
+                    transport,
+                    "pageScannerWorkspace.openResponse",
+                    "Unable to open the Page Scanner workspace.");
+        }
+    }
+
+    private void handlePageScannerWorkspaceBootstrap(
+            JsonObject envelope,
+            int envelopeHomeBankingId,
+            String claimedSessionId,
+            String transportSessionId,
+            Session transport) {
+        JsonObject body = bodyOrEmpty(envelope);
+        if (!validatePageScannerTransport(
+                body,
+                envelopeHomeBankingId,
+                claimedSessionId,
+                transportSessionId,
+                transport,
+                "pageScannerWorkspace.bootstrapResponse")) {
+            return;
+        }
+
+        try {
+            String requestId = requirePageScannerRequestId(body);
+            PageScannerWorkspaceCoordinator.BootstrapContext workspace =
+                    requireActivePageScannerWorkspace(transportSessionId);
+            PreScanWorkflowService.Context scanContext = preScanContext(workspace.context());
+            PageScannerWorkspaceCoordinator.WorkspaceContext context = workspace.context();
+
+            JsonObject response = new JsonObject();
+            response.addProperty("requestId", requestId);
+            response.addProperty("ok", true);
+            response.addProperty("sessionId", workspace.sessionId());
+            response.addProperty("sourceSessionId", workspace.sourceBotJobSessionId());
+            response.addProperty("homeBankingId", context.homeBankingId());
+            response.addProperty("botJobId", context.botJobId());
+            response.addProperty("botJobName", context.botJobName());
+            if (context.homeUrlId() != null) response.addProperty("homeUrlId", context.homeUrlId());
+            response.addProperty("mode", "preScan");
+            response.addProperty("createdAt", workspace.createdAt().toString());
+            response.addProperty("expiresAt", workspace.expiresAt().toString());
+            sendPageScannerResponse(
+                    context.homeBankingId(),
+                    transportSessionId,
+                    transport,
+                    "pageScannerWorkspace.bootstrapResponse",
+                    response);
+
+            BotJobWorkspaceController.getInstance()
+                    .pageScannerBootstrap(transportSessionId, scanContext);
+        } catch (IllegalArgumentException | IllegalStateException invalidRequest) {
+            sendPageScannerFailure(
+                    body,
+                    envelopeHomeBankingId,
+                    transportSessionId,
+                    transport,
+                    "pageScannerWorkspace.bootstrapResponse",
+                    invalidRequest.getMessage());
+        } catch (RuntimeException failure) {
+            log.error("Unable to bootstrap detached Page Scanner workspace", failure);
+            sendPageScannerFailure(
+                    body,
+                    envelopeHomeBankingId,
+                    transportSessionId,
+                    transport,
+                    "pageScannerWorkspace.bootstrapResponse",
+                    "Unable to load the Page Scanner workspace.");
+        }
+    }
+
+    private void handlePageScannerCommand(
+            String operation,
+            JsonObject envelope,
+            int envelopeHomeBankingId,
+            String claimedSessionId,
+            String transportSessionId,
+            Session transport) {
+        JsonObject body = bodyOrEmpty(envelope);
+        String responseOperation = pageScannerResponseOperation(operation);
+        if (!validatePageScannerTransport(
+                body,
+                envelopeHomeBankingId,
+                claimedSessionId,
+                transportSessionId,
+                transport,
+                responseOperation)) {
+            return;
+        }
+
+        try {
+            String requestId = requirePageScannerRequestId(body);
+            PageScannerWorkspaceCoordinator.BootstrapContext workspace =
+                    requireActivePageScannerWorkspace(transportSessionId);
+            PreScanWorkflowService.Context scanContext = preScanContext(workspace.context());
+            String legacyOperation = switch (operation) {
+                case "pageScanner.scan" -> ScannerWorkspaceOperations.PRE_SCAN_PAGE;
+                case "pageScanner.refresh" -> ScannerWorkspaceOperations.PRE_SCAN_REFRESH_PAGE;
+                case "pageScanner.clear" -> ScannerWorkspaceOperations.PRE_SCAN_CLEAR_GRID;
+                default -> throw new IllegalArgumentException("Unsupported Page Scanner command");
+            };
+            String searchTerms = stringValue(body, "searchTerms");
+            if (searchTerms != null && searchTerms.length() > MAX_PAGE_SCANNER_SEARCH_TERMS) {
+                throw new IllegalArgumentException("Page Scanner search terms are too long");
+            }
+            BotJobWorkspaceController.getInstance()
+                    .pageScannerCommand(legacyOperation, body, transportSessionId, scanContext);
+
+            JsonObject response = new JsonObject();
+            response.addProperty("requestId", requestId);
+            response.addProperty("ok", true);
+            response.addProperty("accepted", true);
+            response.addProperty("message", switch (operation) {
+                case "pageScanner.scan" -> "Page Scanner started.";
+                case "pageScanner.refresh" -> "Page refresh started.";
+                default -> "Page Scanner grid cleared.";
+            });
+            sendPageScannerResponse(
+                    workspace.context().homeBankingId(),
+                    transportSessionId,
+                    transport,
+                    responseOperation,
+                    response);
+        } catch (IllegalArgumentException | IllegalStateException invalidRequest) {
+            sendPageScannerFailure(
+                    body,
+                    envelopeHomeBankingId,
+                    transportSessionId,
+                    transport,
+                    responseOperation,
+                    invalidRequest.getMessage());
+        } catch (RuntimeException failure) {
+            log.error("Unable to execute detached Page Scanner command {}", operation, failure);
+            sendPageScannerFailure(
+                    body,
+                    envelopeHomeBankingId,
+                    transportSessionId,
+                    transport,
+                    responseOperation,
+                    "Unable to execute the Page Scanner command.");
+        }
+    }
+
+    private void handlePageScannerElementTest(
+            JsonObject envelope,
+            int envelopeHomeBankingId,
+            String claimedSessionId,
+            String transportSessionId,
+            Session transport) {
+        JsonObject body = bodyOrEmpty(envelope);
+        String responseOperation = "pageScanner.testElementResponse";
+        if (!validatePageScannerTransport(
+                body,
+                envelopeHomeBankingId,
+                claimedSessionId,
+                transportSessionId,
+                transport,
+                responseOperation)) {
+            return;
+        }
+
+        try {
+            String requestId = requirePageScannerRequestId(body);
+            PageScannerWorkspaceCoordinator.BootstrapContext workspace =
+                    requireActivePageScannerWorkspace(transportSessionId);
+            String testType = stringValue(body, "testType");
+            if (testType == null) testType = stringValue(body, "action");
+            if (!ScannerWorkspaceOperations.TEST_CLICK_DTO.equals(testType)
+                    && !ScannerWorkspaceOperations.TEST_INPUT_DTO.equals(testType)) {
+                throw new IllegalArgumentException("Page Scanner testType is invalid");
+            }
+            SplitDTO payload = gson.fromJson(body, SplitDTO.class);
+            bindPageScannerPayload(payload, workspace.context(), transportSessionId, requestId);
+            if (payload.getElementDetails() == null || payload.getElementDetails().length != 1) {
+                throw new IllegalArgumentException("Page Scanner element test requires exactly one element");
+            }
+            BotJobWorkspaceController.getInstance().pageScannerElementTest(
+                    payload,
+                    testType,
+                    transportSessionId,
+                    preScanContext(workspace.context()));
+
+            JsonObject response = new JsonObject();
+            response.addProperty("requestId", requestId);
+            response.addProperty("ok", true);
+            response.addProperty("accepted", true);
+            response.addProperty("testType", testType);
+            response.addProperty("message", "Page Scanner element test started.");
+            sendPageScannerResponse(
+                    workspace.context().homeBankingId(),
+                    transportSessionId,
+                    transport,
+                    responseOperation,
+                    response);
+        } catch (IllegalArgumentException | IllegalStateException invalidRequest) {
+            sendPageScannerFailure(
+                    body,
+                    envelopeHomeBankingId,
+                    transportSessionId,
+                    transport,
+                    responseOperation,
+                    invalidRequest.getMessage());
+        } catch (RuntimeException failure) {
+            log.error("Unable to test a detached Page Scanner element", failure);
+            sendPageScannerFailure(
+                    body,
+                    envelopeHomeBankingId,
+                    transportSessionId,
+                    transport,
+                    responseOperation,
+                    "Unable to test the selected Page Scanner element.");
+        }
+    }
+
+    private void handlePageScannerApply(
+            JsonObject envelope,
+            int envelopeHomeBankingId,
+            String claimedSessionId,
+            String transportSessionId,
+            Session transport) {
+        JsonObject body = bodyOrEmpty(envelope);
+        String responseOperation = "pageScanner.applyResponse";
+        if (!validatePageScannerTransport(
+                body,
+                envelopeHomeBankingId,
+                claimedSessionId,
+                transportSessionId,
+                transport,
+                responseOperation)) {
+            return;
+        }
+
+        try {
+            String requestId = requirePageScannerRequestId(body);
+            PageScannerWorkspaceCoordinator.BootstrapContext workspace =
+                    requireActivePageScannerWorkspace(transportSessionId);
+            JsonObject response = BotJobDetailsWorkspaceRegistry.getInstance().commitWorkspaceMutation(
+                    workspace.context().botJobId(),
+                    workspace.context().workspaceEpoch(),
+                    () -> pageScannerMutationLedger.executeOnce(
+                            transportSessionId,
+                            requestId,
+                            "pageScanner.apply",
+                            body,
+                            () -> applyPageScannerElements(
+                                    body, requestId, transportSessionId, workspace.context())));
+            sendPageScannerResponse(
+                    workspace.context().homeBankingId(),
+                    transportSessionId,
+                    transport,
+                    responseOperation,
+                    response);
+        } catch (IllegalArgumentException | IllegalStateException invalidRequest) {
+            sendPageScannerFailure(
+                    body,
+                    envelopeHomeBankingId,
+                    transportSessionId,
+                    transport,
+                    responseOperation,
+                    invalidRequest.getMessage());
+        } catch (RuntimeException failure) {
+            log.error("Unable to apply detached Page Scanner elements", failure);
+            sendPageScannerFailure(
+                    body,
+                    envelopeHomeBankingId,
+                    transportSessionId,
+                    transport,
+                    responseOperation,
+                    "Unable to add the selected elements to the Bot Job.");
+        }
+    }
+
+    private JsonObject applyPageScannerElements(
+            JsonObject body,
+            String requestId,
+            String transportSessionId,
+            PageScannerWorkspaceCoordinator.WorkspaceContext context) {
+        SplitDTO payload = gson.fromJson(body, SplitDTO.class);
+        bindPageScannerPayload(payload, context, transportSessionId, requestId);
+        payload.setType(ScannerWorkspaceOperations.SEND_ALL_ELEMENTS_DTO);
+        if (payload.getBlockId() == null || payload.getBlockId() <= 0) {
+            throw new IllegalArgumentException("Select a target block before applying");
+        }
+        requirePageScannerBlock(context, payload.getBlockId());
+        ElementDTO[] elements = payload.getElementDetails();
+        if (elements == null || elements.length == 0) {
+            throw new IllegalArgumentException("No Page Scanner elements were selected");
+        }
+        if (elements.length > MAX_PAGE_SCANNER_ELEMENTS) {
+            throw new IllegalArgumentException("Too many Page Scanner elements were selected");
+        }
+        if (Arrays.stream(elements).anyMatch(Objects::isNull)) {
+            throw new IllegalArgumentException("Page Scanner element selection contains an empty row");
+        }
+
+        PreScanApplyService.ApplyResult result =
+                PreScanApplyService.getInstance().applyElementsDetailed(payload);
+        ErrorMessage error = result.error();
+        boolean committed = error == null;
+        JsonObject response = new JsonObject();
+        response.addProperty("requestId", requestId);
+        response.addProperty("ok", committed);
+        response.addProperty("committed", committed);
+        response.addProperty("synchronized", result.synchronizedSnapshot());
+        response.addProperty("insertedCount", result.insertedCount());
+        response.addProperty("blockId", payload.getBlockId());
+        response.addProperty(
+                "message",
+                committed
+                        ? result.synchronizedSnapshot()
+                                ? "Added " + result.insertedCount() + " element(s) to the Bot Job."
+                                : "Elements were added, but Bot Job Details could not refresh yet."
+                        : error.getErrorMessage());
+        if (error != null) response.addProperty("errorCode", "APPLY_FAILED");
+        if (committed && !result.synchronizedSnapshot()) {
+            response.addProperty("warningCode", "BOT_JOB_SYNC_FAILED");
+        }
+        return response;
+    }
+
+    private void handlePageScannerCreateBlock(
+            JsonObject envelope,
+            int envelopeHomeBankingId,
+            String claimedSessionId,
+            String transportSessionId,
+            Session transport) {
+        JsonObject body = bodyOrEmpty(envelope);
+        String responseOperation = "pageScanner.createBlockResponse";
+        if (!validatePageScannerTransport(
+                body,
+                envelopeHomeBankingId,
+                claimedSessionId,
+                transportSessionId,
+                transport,
+                responseOperation)) {
+            return;
+        }
+
+        try {
+            String requestId = requirePageScannerRequestId(body);
+            PageScannerWorkspaceCoordinator.BootstrapContext workspace =
+                    requireActivePageScannerWorkspace(transportSessionId);
+            JsonObject response = BotJobDetailsWorkspaceRegistry.getInstance().commitWorkspaceMutation(
+                    workspace.context().botJobId(),
+                    workspace.context().workspaceEpoch(),
+                    () -> pageScannerMutationLedger.executeOnce(
+                            transportSessionId,
+                            requestId,
+                            "pageScanner.createBlock",
+                            body,
+                            () -> createPageScannerBlock(
+                                    body, requestId, transportSessionId, workspace.context())));
+            sendPageScannerResponse(
+                    workspace.context().homeBankingId(),
+                    transportSessionId,
+                    transport,
+                    responseOperation,
+                    response);
+        } catch (IllegalArgumentException | IllegalStateException invalidRequest) {
+            sendPageScannerFailure(
+                    body,
+                    envelopeHomeBankingId,
+                    transportSessionId,
+                    transport,
+                    responseOperation,
+                    invalidRequest.getMessage());
+        } catch (RuntimeException failure) {
+            log.error("Unable to create a detached Page Scanner block", failure);
+            sendPageScannerFailure(
+                    body,
+                    envelopeHomeBankingId,
+                    transportSessionId,
+                    transport,
+                    responseOperation,
+                    "Unable to create the Page Scanner target block.");
+        }
+    }
+
+    private JsonObject createPageScannerBlock(
+            JsonObject body,
+            String requestId,
+            String transportSessionId,
+            PageScannerWorkspaceCoordinator.WorkspaceContext context) {
+        SplitDTO payload = gson.fromJson(body, SplitDTO.class);
+        bindPageScannerPayload(payload, context, transportSessionId, requestId);
+        String blockName = payload.getBlockName() == null ? "" : payload.getBlockName().trim();
+        if (blockName.isEmpty() || blockName.length() > MAX_PAGE_SCANNER_BLOCK_NAME) {
+            throw new IllegalArgumentException("Page Scanner block name must contain 1 to 256 characters");
+        }
+        payload.setBlockName(blockName);
+        String position = payload.getInsertPosition() == null
+                ? "END"
+                : payload.getInsertPosition().trim().toUpperCase(Locale.ROOT);
+        payload.setInsertPosition(position);
+        if ("BEFORE".equals(position)) {
+            if (payload.getBeforeBlockId() == null || payload.getBeforeBlockId() <= 0) {
+                throw new IllegalArgumentException("Choose the block position before creating a block");
+            }
+            requirePageScannerBlock(context, payload.getBeforeBlockId());
+        } else if (!"END".equals(position)) {
+            throw new IllegalArgumentException("Page Scanner block position must be END or BEFORE");
+        }
+
+        BlockCreationService.Result result = BlockCreationService.getInstance().createFrom(payload);
+        boolean committed = result.newBlockId() != null && result.newBlockId() > 0;
+        JsonObject response = new JsonObject();
+        response.addProperty("requestId", requestId);
+        response.addProperty("ok", committed);
+        response.addProperty("committed", committed);
+        response.addProperty("blockName", payload.getBlockName());
+        if (result.newBlockId() != null) response.addProperty("createdBlockId", result.newBlockId());
+        if (result.newBlockOrderNumber() != null) {
+            response.addProperty("createdBlockOrderNumber", result.newBlockOrderNumber());
+        }
+        response.add("blocks", gson.toJsonTree(mapBlockOptions("block", context.botJobId())));
+        response.addProperty(
+                "message",
+                committed
+                        ? result.error() == null
+                                ? "Target block created."
+                                : "Target block was created, but the refreshed block list is not available yet."
+                        : result.error() == null
+                                ? "Target block could not be created."
+                                : result.error().getErrorMessage());
+        if (!committed) {
+            response.addProperty("errorCode", "BLOCK_CREATE_FAILED");
+        } else {
+            if (result.error() != null) response.addProperty("warningCode", "BLOCK_REFRESH_FAILED");
+            publishPageScannerBotJobSnapshot(context, result.newBlockId());
+        }
+        return response;
+    }
+
+    private void handlePageScannerClose(
+            JsonObject envelope,
+            int envelopeHomeBankingId,
+            String claimedSessionId,
+            String transportSessionId,
+            Session transport) {
+        JsonObject body = bodyOrEmpty(envelope);
+        String responseOperation = "pageScanner.closeResponse";
+        if (!validatePageScannerTransport(
+                body,
+                envelopeHomeBankingId,
+                claimedSessionId,
+                transportSessionId,
+                transport,
+                responseOperation)) {
+            return;
+        }
+
+        try {
+            String requestId = requirePageScannerRequestId(body);
+            PageScannerWorkspaceCoordinator.BootstrapContext workspace =
+                    pageScannerWorkspaceCoordinator.bootstrap(transportSessionId);
+            pageScannerWorkspaceCoordinator.close(transportSessionId);
+            pageScannerMutationLedger.clearSession(transportSessionId);
+
+            JsonObject response = new JsonObject();
+            response.addProperty("requestId", requestId);
+            response.addProperty("ok", true);
+            response.addProperty("message", "Page Scanner workspace closed.");
+            sendPageScannerResponse(
+                    workspace.context().homeBankingId(),
+                    transportSessionId,
+                    transport,
+                    responseOperation,
+                    response);
+        } catch (IllegalArgumentException | IllegalStateException invalidRequest) {
+            sendPageScannerFailure(
+                    body,
+                    envelopeHomeBankingId,
+                    transportSessionId,
+                    transport,
+                    responseOperation,
+                    invalidRequest.getMessage());
+        }
+    }
+
+    private PageScannerWorkspaceCoordinator.BootstrapContext requireActivePageScannerWorkspace(
+            String transportSessionId) {
+        PageScannerWorkspaceCoordinator.BootstrapContext workspace =
+                pageScannerWorkspaceCoordinator.bootstrap(transportSessionId);
+        PageScannerWorkspaceCoordinator.WorkspaceContext context = workspace.context();
+        BotJobDetailsWorkspaceRegistry.getInstance()
+                .require(context.botJobId(), context.workspaceEpoch());
+        return workspace;
+    }
+
+    private static PreScanWorkflowService.Context preScanContext(
+            PageScannerWorkspaceCoordinator.WorkspaceContext context) {
+        return new PreScanWorkflowService.Context(
+                context.botJobId(),
+                context.botJobName(),
+                context.homeBankingId(),
+                context.homeUrlId(),
+                context.endpointUrl(),
+                context.browserType(),
+                context.optionsConfig(),
+                context.jsonPath());
+    }
+
+    private static void bindPageScannerPayload(
+            SplitDTO payload,
+            PageScannerWorkspaceCoordinator.WorkspaceContext context,
+            String transportSessionId,
+            String requestId) {
+        if (payload == null) throw new IllegalArgumentException("Page Scanner payload is required");
+        payload.setSessionId(transportSessionId);
+        payload.setRequestId(requestId);
+        payload.setHomeBankingId(context.homeBankingId());
+        payload.setBotJobId(context.botJobId());
+        payload.setBotJobName(context.botJobName());
+    }
+
+    private BlockLoadDTO requirePageScannerBlock(
+            PageScannerWorkspaceCoordinator.WorkspaceContext context, int blockId) {
+        ErrorMessage loadError = performDataBase.loadBlocks(context.botJobId(), context.botJobName(), "block");
+        if (loadError != null) {
+            throw new IllegalStateException(loadError.getErrorMessage());
+        }
+        return performLists.getListBlock().stream()
+                .filter(Objects::nonNull)
+                .filter(block -> block.getId() != null && block.getId() == blockId)
+                .filter(block -> block.getBotJobId() != null && block.getBotJobId() == context.botJobId())
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "The selected target block does not belong to the active Bot Job"));
+    }
+
+    private void publishPageScannerBotJobSnapshot(
+            PageScannerWorkspaceCoordinator.WorkspaceContext context, Integer createdBlockId) {
+        ErrorMessage loadError = performDBEngine.loadCompleteJobs(context.botJobId());
+        if (loadError != null) {
+            log.warn("Page Scanner block was created but Bot Job refresh failed: {}", loadError.getErrorMessage());
+            return;
+        }
+        List<InstructionLoad> instructions = performLists.getListBotJob().isEmpty()
+                ? List.of()
+                : performLists.buildJsonViewData(performLists.getListBotJob());
+        JsonObject update = new JsonObject();
+        update.add("instructions", gson.toJsonTree(instructions));
+        update.add("blocks", gson.toJsonTree(mapBlockOptions("block", context.botJobId())));
+        update.addProperty("botJobId", context.botJobId());
+        if (createdBlockId != null) update.addProperty("createdBlockId", createdBlockId);
+        instructionRealtimePublisher.publishSerializedSnapshot(
+                context.homeBankingId(),
+                ScannerWorkspaceSessions.BOT_JOB_TASKS,
+                gson.toJson(update));
+    }
+
+    private boolean validatePageScannerTransport(
+            JsonObject body,
+            int homeBankingId,
+            String claimedSessionId,
+            String transportSessionId,
+            Session transport,
+            String responseOperation) {
+        if (body != null && body.toString().length() > MAX_PAGE_SCANNER_BODY_CHARACTERS) {
+            sendPageScannerFailure(
+                    body,
+                    homeBankingId,
+                    transportSessionId,
+                    transport,
+                    responseOperation,
+                    "Page Scanner request is too large.");
+            return false;
+        }
+        if (transportSessionId != null && transportSessionId.equals(claimedSessionId)) return true;
+        log.warn(
+                "Rejected Page Scanner request with mismatched transport identity: claimed={}, actual={}",
+                claimedSessionId,
+                transportSessionId);
+        sendPageScannerFailure(
+                body,
+                homeBankingId,
+                transportSessionId,
+                transport,
+                responseOperation,
+                "WebSocket session identity mismatch.");
+        return false;
+    }
+
+    private void sendPageScannerFailure(
+            JsonObject body,
+            int homeBankingId,
+            String transportSessionId,
+            Session transport,
+            String operationId,
+            String message) {
+        JsonObject response = responseWithRequestId(body);
+        response.addProperty("ok", false);
+        copyPositivePageScannerBotJobId(body, response);
+        response.addProperty(
+                "message",
+                message == null || message.isBlank()
+                        ? "Invalid Page Scanner request."
+                        : message);
+        sendPageScannerResponse(
+                homeBankingId, transportSessionId, transport, operationId, response);
+    }
+
+    private void sendPageScannerResponse(
+            int homeBankingId,
+            String transportSessionId,
+            Session transport,
+            String operationId,
+            JsonObject response) {
+        if (transportSessionId == null || transport == null) return;
+        WebSocketSessionManager.sendMessageJson(
+                homeBankingId,
+                transport,
+                transportSessionId,
+                gson.toJson(response),
+                operationId);
+    }
+
+    static void copyPositivePageScannerBotJobId(
+            JsonObject requestBody, JsonObject response) {
+        if (requestBody == null || !requestBody.has("botJobId")) return;
+        try {
+            int botJobId = requestBody.get("botJobId").getAsInt();
+            if (botJobId > 0) response.addProperty("botJobId", botJobId);
+        } catch (RuntimeException invalidBotJobId) {
+            // Preserve the original validation failure without reflecting malformed identity data.
+        }
+    }
+
+    private static String pageScannerResponseOperation(String requestOperation) {
+        if (requestOperation == null || requestOperation.isBlank()) {
+            return "pageScanner.errorResponse";
+        }
+        return requestOperation.endsWith("Response")
+                ? requestOperation
+                : requestOperation + "Response";
+    }
+
+    static boolean isSupportedPageScannerOperation(String operation) {
+        return operation != null && PAGE_SCANNER_OPERATIONS.contains(operation);
+    }
+
+    private static String requirePageScannerRequestId(JsonObject body) {
+        String requestId = stringValue(body, "requestId");
+        if (requestId == null || requestId.isBlank()) {
+            throw new IllegalArgumentException("Page Scanner requestId is required");
+        }
+        String normalized = requestId.trim();
+        if (normalized.length() > 160 || !normalized.matches("[A-Za-z0-9._:-]+")) {
+            throw new IllegalArgumentException("Page Scanner requestId is invalid");
+        }
+        return normalized;
+    }
+
+    private static int requirePositivePageScannerInt(JsonObject body, String field) {
+        int value = intValue(body, field, -1);
+        if (value <= 0) throw new IllegalArgumentException("Page Scanner " + field + " must be positive");
+        return value;
     }
 
     private boolean validateOcrWorkspaceTransport(
@@ -3563,11 +4443,37 @@ public class SimpleWebSocketServer {
                     + closeReason.getCloseCode() + ")");
             if (webSocketSessionManager.removeSession(sessionId, session)) {
                 BotJobTransferPathRegistry.getInstance().clearSession(sessionId);
+                notifyBotJobWindowDisconnected(sessionId);
+                notifyPageScannerWindowDisconnected(sessionId);
+                notifyOcrWindowDisconnected(sessionId);
             }
         } else {
             log.info("Connection closed for unknown session, Reason: " + closeReason.getReasonPhrase() + " (Code: "
                     + closeReason.getCloseCode() + ")");
         }
+    }
+
+    private static void notifyBotJobWindowDisconnected(String sessionId) {
+        if (!BotJobDetailsWindowCoordinator.isControlSessionId(sessionId)) return;
+        try {
+            BotJobDetailsWindowCoordinator.getInstance().disconnected(sessionId);
+        } catch (IllegalArgumentException staleControlSession) {
+            log.debug("Ignoring stale Bot Job Details window disconnect for {}", sessionId);
+        }
+    }
+
+    private static void notifyPageScannerWindowDisconnected(String sessionId) {
+        if (!ScannerWorkspaceSessions.isPageScannerSession(sessionId)) return;
+        try {
+            PageScannerWorkspaceCoordinator.getInstance().disconnected(sessionId);
+        } catch (IllegalArgumentException staleWorkspaceSession) {
+            log.debug("Ignoring stale Page Scanner window disconnect for {}", sessionId);
+        }
+    }
+
+    private static void notifyOcrWindowDisconnected(String sessionId) {
+        if (!OcrWorkspaceCoordinator.isWorkspaceSessionId(sessionId)) return;
+        OcrWorkspaceCoordinator.getInstance().disconnected(sessionId);
     }
 
     // Handle BLOCKS_SPLITTED message

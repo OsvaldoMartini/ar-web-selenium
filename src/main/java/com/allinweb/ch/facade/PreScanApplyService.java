@@ -67,19 +67,23 @@ public final class PreScanApplyService {
      * the refreshed instruction list to the task grid — the same outcome as the
      * pane path. Returns null on success.
      */
-    public synchronized ErrorMessage applyElements(SplitDTO splitDTO) {
+    public ErrorMessage applyElements(SplitDTO splitDTO) {
+        return applyElementsDetailed(splitDTO).error();
+    }
+
+    public synchronized ApplyResult applyElementsDetailed(SplitDTO splitDTO) {
         if (splitDTO == null
                 || splitDTO.getBotJobId() == null
                 || splitDTO.getBotJobId() <= 0
                 || splitDTO.getHomeBankingId() == null) {
-            return failure("Missing bot job / home banking id");
+            return ApplyResult.failed(failure("Missing bot job / home banking id"));
         }
         if (splitDTO.getBlockId() == null || splitDTO.getBlockId() <= 0) {
-            return failure("Select a target block before applying");
+            return ApplyResult.failed(failure("Select a target block before applying"));
         }
         ElementDTO[] elements = splitDTO.getElementDetails();
         if (elements == null || elements.length == 0) {
-            return failure("No elements to apply");
+            return ApplyResult.failed(failure("No elements to apply"));
         }
 
         int botJobId = splitDTO.getBotJobId();
@@ -88,55 +92,44 @@ public final class PreScanApplyService {
 
         ErrorMessage loadError = performDataBase.loadInstructions(botJobId, blockId, -1, "instruction");
         if (loadError != null) {
-            return loadError;
+            return ApplyResult.failed(loadError);
         }
         int nextOrder = performLists.getListInstruction().size() + 1;
 
         List<InstructionLoad> instructionList = new ArrayList<>();
-        for (ElementDTO elementDTO : elements) {
+        for (int elementIndex = 0; elementIndex < elements.length; elementIndex++) {
+            ElementDTO elementDTO = elements[elementIndex];
             if (elementDTO == null) {
-                continue;
+                return ApplyResult.failed(
+                        failure("Selected element " + (elementIndex + 1) + " is empty; nothing was inserted"));
             }
             InstructionLoad instruction = buildInstruction(elementDTO, botJobId, blockId, nextOrder);
-            if (instruction != null) {
-                instructionList.add(instruction);
-                nextOrder++;
+            if (instruction == null) {
+                return ApplyResult.failed(failure(
+                        "Selected element " + (elementIndex + 1)
+                                + " could not be converted; nothing was inserted"));
             }
+            instructionList.add(instruction);
+            nextOrder++;
         }
         if (instructionList.isEmpty()) {
-            return failure("No element could be converted to an instruction");
+            return ApplyResult.failed(failure("No element could be converted to an instruction"));
         }
 
-        ErrorMessage insertError = performDataBase.insertInstructionsBatch(
-                ScannerWorkspaceSessions.BOT_JOB_TASKS, instructionList, botJobId, blockId, homeBankingId);
-        if (insertError != null) {
-            return insertError;
+        PerformDataBase.AtomicInstructionInsertResult persistence =
+                performDataBase.insertInstructionsAndReferencesAtomic(instructionList, botJobId, blockId);
+        if (persistence.error() != null) return ApplyResult.failed(persistence.error());
+        if (persistence.instructionIds().size() != instructionList.size()) {
+            return ApplyResult.failed(failure("Inserted instruction count mismatch"));
         }
 
-        List<Integer> newIds = performDataBase.getIdsInstrucAfter();
-        if (newIds.size() != instructionList.size()) {
-            log.error(
-                    "PRE SCAN Apply - inserted count mismatch: expected {} actual {}",
-                    instructionList.size(),
-                    newIds.size());
-            return failure("Inserted instruction count mismatch");
-        }
-        for (int i = 0; i < instructionList.size(); i++) {
-            instructionList.get(i).setId(newIds.get(i));
-        }
-
-        ErrorMessage referencesError = performDataBase.insertReferencesBatch(instructionList);
-        if (referencesError != null) {
-            return referencesError;
-        }
-
-        refreshBotJobTasks(botJobId, homeBankingId);
+        boolean synchronizedSnapshot = refreshBotJobTasks(botJobId, homeBankingId);
         log.info(
                 "PRE SCAN Apply - inserted {} instruction(s) into block {} of bot job {}",
                 instructionList.size(),
                 blockId,
                 botJobId);
-        return null;
+        return new ApplyResult(null, instructionList.size(), synchronizedSnapshot);
     }
 
     /**
@@ -211,11 +204,11 @@ public final class PreScanApplyService {
     }
 
     /** Same refresh {@code ScannerRuntime.updateBotJobTasks} performs after a pane insert. */
-    private void refreshBotJobTasks(int botJobId, int homeBankingId) {
+    private boolean refreshBotJobTasks(int botJobId, int homeBankingId) {
         ErrorMessage errorMessage = performDBEngine.loadCompleteJobs(botJobId);
         if (errorMessage != null) {
             log.warn("PRE SCAN Apply - refresh failed: {}", errorMessage.getErrorMessage());
-            return;
+            return false;
         }
         String jsonData = "[]";
         if (!performLists.getListBotJob().isEmpty()) {
@@ -224,5 +217,12 @@ public final class PreScanApplyService {
         }
         com.allinweb.ch.socket.InstructionRealtimePublisher.getInstance()
                 .publishSerializedSnapshot(homeBankingId, ScannerWorkspaceSessions.BOT_JOB_TASKS, jsonData);
+        return true;
+    }
+
+    public record ApplyResult(ErrorMessage error, int insertedCount, boolean synchronizedSnapshot) {
+        private static ApplyResult failed(ErrorMessage error) {
+            return new ApplyResult(error, 0, false);
+        }
     }
 }

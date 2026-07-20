@@ -8,7 +8,11 @@ import com.google.gson.JsonObject;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.WeakHashMap;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import javax.websocket.CloseReason;
 import javax.websocket.Session;
@@ -19,6 +23,7 @@ public class WebSocketSessionManager {
 
     private static final ConcurrentHashMap<String, Session> activeSessions = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<Session, String> sessionIds = new ConcurrentHashMap<>();
+    private static final Map<Session, Semaphore> outboundGates = new WeakHashMap<>();
     private static final Object sessionRegistryLock = new Object();
     protected static volatile WebSocketSessionManager instance;
 
@@ -181,7 +186,7 @@ public class WebSocketSessionManager {
                 if (operationId != null && !operationId.isEmpty()) {
                     jsonMessage.addProperty("operationId", operationId);
                 }
-                session.getBasicRemote().sendText(jsonMessage.toString());
+                sendText(session, jsonMessage.toString());
             } catch (IOException e) {
                 log.error("Error sending message to session " + sessionId + ": " + e.getMessage());
             }
@@ -199,6 +204,9 @@ public class WebSocketSessionManager {
         synchronized (sessionRegistryLock) {
             activeSessions.clear();
             sessionIds.clear();
+        }
+        synchronized (outboundGates) {
+            outboundGates.clear();
         }
     }
 
@@ -242,7 +250,7 @@ public class WebSocketSessionManager {
 
         if (session != null && session.isOpen()) {
             try {
-                session.getBasicRemote().sendText(message);
+                sendText(session, message);
             } catch (IOException e) {
                 log.debug("Cannot send to session {}: {}", sessionId, e.getMessage());
             }
@@ -265,7 +273,7 @@ public class WebSocketSessionManager {
                 if (operationId != null && !operationId.isEmpty()) {
                     jsonMessage.addProperty("operationId", operationId);
                 }
-                session.getBasicRemote().sendText(jsonMessage.toString());
+                sendText(session, jsonMessage.toString());
                 return session;
             } catch (IOException e) {
                 log.debug("Cannot send to session {}: {}", sessionId, e.getMessage());
@@ -311,7 +319,7 @@ public class WebSocketSessionManager {
                 String jsonString = jsonMessage.toString();
 
                 // Send the JSON string over WebSocket
-                session.getBasicRemote().sendText(jsonString);
+                sendText(session, jsonString);
             } catch (IOException e) {
                 log.error("Error sending message to session " + session.getId() + ": " + e.getMessage());
             }
@@ -343,6 +351,87 @@ public class WebSocketSessionManager {
 
             // send
             sendMessageJson(0, server, jsonData, routingKey);
+        }
+    }
+
+    /**
+     * Serializes every blocking/async write for one JSR-356 transport. Jetty rejects concurrent
+     * writes with messages such as "Blocking message pending ... for BLOCKING"; scanner status,
+     * chunks, OCR callbacks, pings, and retarget events can legitimately originate on different
+     * worker threads, so they must share one outbound gate.
+     */
+    public static void sendText(Session session, String message) throws IOException {
+        if (session == null) throw new IOException("WebSocket session is unavailable");
+        Semaphore gate = outboundGate(session);
+        boolean acquired = false;
+        try {
+            gate.acquire();
+            acquired = true;
+            if (!session.isOpen()) throw new IOException("WebSocket session is closed");
+            try {
+                session.getBasicRemote().sendText(message);
+            } catch (RuntimeException sendFailure) {
+                throw new IOException("WebSocket transport rejected the outbound message", sendFailure);
+            }
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            throw new IOException("Interrupted while waiting to send a WebSocket message", interrupted);
+        } finally {
+            if (acquired) gate.release();
+        }
+    }
+
+    static CompletableFuture<Void> sendTextAcknowledged(Session session, String message) {
+        CompletableFuture<Void> completion = new CompletableFuture<>();
+        if (session == null || !session.isOpen()) {
+            completion.completeExceptionally(new IOException("WebSocket session is unavailable"));
+            return completion;
+        }
+
+        Semaphore gate = outboundGate(session);
+        try {
+            gate.acquire();
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            completion.completeExceptionally(
+                    new IOException("Interrupted while waiting to send a WebSocket message", interrupted));
+            return completion;
+        }
+
+        if (!session.isOpen()) {
+            gate.release();
+            completion.completeExceptionally(new IOException("WebSocket session is closed"));
+            return completion;
+        }
+
+        AtomicBoolean released = new AtomicBoolean();
+        Runnable releaseGate = () -> {
+            if (released.compareAndSet(false, true)) {
+                gate.release();
+            }
+        };
+        try {
+            session.getAsyncRemote().sendText(message, result -> {
+                releaseGate.run();
+                if (result.isOK()) {
+                    completion.complete(null);
+                } else {
+                    Throwable failure = result.getException();
+                    completion.completeExceptionally(failure == null
+                            ? new IOException("Unable to send WebSocket message")
+                            : failure);
+                }
+            });
+        } catch (RuntimeException sendFailure) {
+            releaseGate.run();
+            completion.completeExceptionally(sendFailure);
+        }
+        return completion;
+    }
+
+    private static Semaphore outboundGate(Session session) {
+        synchronized (outboundGates) {
+            return outboundGates.computeIfAbsent(session, ignored -> new Semaphore(1, true));
         }
     }
 }

@@ -52,6 +52,40 @@ public final class BotJobWorkspaceController {
 
     public void preScanElementTest(SplitDTO payload, String type) { host().preScanElementTest(payload, type); }
 
+    /** Returns the immutable scan context for the active Bot Job after validating its identity. */
+    public PreScanWorkflowService.Context pageScannerContext(int botJobId) {
+        return host().pageScannerContext(botJobId);
+    }
+
+    /** Publishes the initial empty grid/block snapshot to one detached Page Scanner transport. */
+    public void pageScannerBootstrap(
+            String workspaceSessionId, PreScanWorkflowService.Context context) {
+        host().pageScannerBootstrap(workspaceSessionId, context);
+    }
+
+    /** Executes a scan/refresh/clear command for one authoritative detached transport. */
+    public void pageScannerCommand(
+            String type,
+            JsonObject body,
+            String workspaceSessionId,
+            PreScanWorkflowService.Context context) {
+        host().pageScannerCommand(type, body, workspaceSessionId, context);
+    }
+
+    /** Executes Test Click/Input against the detached workspace's isolated Playwright page. */
+    public void pageScannerElementTest(
+            SplitDTO payload,
+            String type,
+            String workspaceSessionId,
+            PreScanWorkflowService.Context context) {
+        host().pageScannerElementTest(payload, type, workspaceSessionId, context);
+    }
+
+    /** Releases only the isolated browser resources owned by the detached Page Scanner. */
+    public void closePageScanner(String workspaceSessionId) {
+        host().closePageScanner(workspaceSessionId);
+    }
+
     private HostPort host() {
         Registration registration = active.get();
         if (registration == null) throw new IllegalStateException("Bot Job Details workspace is not open");
@@ -67,5 +101,34 @@ public final class BotJobWorkspaceController {
         CompletableFuture<Void> applyMetadata(BotJobDetailsState state);
         void preScanCommand(String type, JsonObject body);
         void preScanElementTest(SplitDTO payload, String type);
+
+        default PreScanWorkflowService.Context pageScannerContext(int botJobId) {
+            throw new IllegalStateException("Detached Page Scanner is not available");
+        }
+
+        default void pageScannerBootstrap(
+                String workspaceSessionId, PreScanWorkflowService.Context context) {
+            throw new IllegalStateException("Detached Page Scanner is not available");
+        }
+
+        default void pageScannerCommand(
+                String type,
+                JsonObject body,
+                String workspaceSessionId,
+                PreScanWorkflowService.Context context) {
+            preScanCommand(type, body);
+        }
+
+        default void pageScannerElementTest(
+                SplitDTO payload,
+                String type,
+                String workspaceSessionId,
+                PreScanWorkflowService.Context context) {
+            preScanElementTest(payload, type);
+        }
+
+        default void closePageScanner(String workspaceSessionId) {
+            // Optional for compatibility hosts that do not own a detached scanner browser.
+        }
     }
 }

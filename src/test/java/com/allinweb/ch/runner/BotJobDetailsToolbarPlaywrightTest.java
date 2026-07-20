@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.allinweb.ch.driver.PlaywrightTestSupport;
 import com.allinweb.ch.model.ScannerWorkspaceSessions;
+import com.allinweb.ch.socket.BotJobDetailsWindowCoordinator;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.microsoft.playwright.Browser;
@@ -48,6 +49,23 @@ class BotJobDetailsToolbarPlaywrightTest {
 
     private static final int BOT_JOB_ID = 42;
     private static final String SESSION_ID = ScannerWorkspaceSessions.BOT_JOB_TASKS;
+    private static final String PAGE_SCANNER_SESSION_ID =
+            ScannerWorkspaceSessions.PAGE_SCANNER_PREFIX
+                    + "123e4567-e89b-42d3-a456-426614174000";
+    private static final String PAGE_SCANNER_RETARGET_SESSION_ID =
+            ScannerWorkspaceSessions.PAGE_SCANNER_PREFIX
+                    + "223e4567-e89b-42d3-a456-426614174000";
+    private static final String BOT_JOB_WINDOW_SESSION_ID =
+            BotJobDetailsWindowCoordinator.CONTROL_SESSION_PREFIX
+                    + "323e4567-e89b-42d3-a456-426614174000";
+    private static final String OCR_CONFIG_SESSION_ID =
+            "ocr-config-423e4567-e89b-42d3-a456-426614174000";
+    private static final String OCR_CONFIG_RETARGET_SESSION_ID =
+            "ocr-config-523e4567-e89b-42d3-a456-426614174000";
+    private static final String OCR_RESULTS_SESSION_ID =
+            "ocr-results-623e4567-e89b-42d3-a456-426614174000";
+    private static final String OCR_RESULTS_RETARGET_SESSION_ID =
+            "ocr-results-723e4567-e89b-42d3-a456-426614174000";
     private static final String SELECTED_TRANSFER_PATH = "C:/ARWeb/TestTransfer";
     private static final Path BUILD_ROOT =
             Path.of("src", "main", "resources", "build").toAbsolutePath().normalize();
@@ -57,6 +75,14 @@ class BotJobDetailsToolbarPlaywrightTest {
               const clone = (value) => JSON.parse(JSON.stringify(value));
               window.__arToolbarRequests = [];
               window.__arConfirmMessages = [];
+              window.__arDetachedPageScannerSession = '%2$s';
+              window.__arRetargetDetachedPageScannerSession = '%3$s';
+              window.__arBotJobWindowSession = '%4$s';
+              window.__arOcrConfigSession = '%5$s';
+              window.__arRetargetOcrConfigSession = '%6$s';
+              window.__arOcrResultsSession = '%7$s';
+              window.__arRetargetOcrResultsSession = '%8$s';
+              window.__arMockSockets = [];
               window.__arBotJobState = {
                 revision: 1,
                 metadataRevision: 3,
@@ -136,16 +162,25 @@ class BotJobDetailsToolbarPlaywrightTest {
               class MockWebSocket {
                 constructor(url) {
                   this.url = String(url);
-                  this.sessionId = new URL(this.url).searchParams.get('sessionId') || '%s';
+                  this.sessionId = new URL(this.url).searchParams.get('sessionId') || '%1$s';
                   this.readyState = MockWebSocket.CONNECTING;
                   this.onopen = null;
                   this.onmessage = null;
                   this.onerror = null;
                   this.onclose = null;
+                  window.__arMockSockets.push(this);
                   queueMicrotask(() => {
                     if (this.readyState !== MockWebSocket.CONNECTING) return;
                     this.readyState = MockWebSocket.OPEN;
                     if (typeof this.onopen === 'function') this.onopen({ type: 'open' });
+                    if (this.sessionId === window.__arBotJobWindowSession) {
+                      emit(this, 'botJobDetails.windowTarget', {
+                        controlSessionId: this.sessionId,
+                        botJobId: 42,
+                        workspaceEpoch: 1,
+                        homeBankingId: 7
+                      });
+                    }
                   });
                 }
 
@@ -190,30 +225,104 @@ class BotJobDetailsToolbarPlaywrightTest {
                     return;
                   }
 
-                  if (envelope.type === 'botJobDetails.action') {
-                    const action = body.action;
-                    if (action === 'SHOW_PRE_SCAN') {
-                      window.__arBotJobState.revision += 1;
-                      window.__arBotJobState.activeSurface = 'preScan';
-                      window.__arBotJobState.componentsVisible = false;
-                      emit(this, 'botJobDetails.actionResponse', {
-                        ok: true,
-                        action,
-                        message: 'Pre Scan workspace opened',
-                        requestId: body.requestId,
-                        botJobId: 42,
-                        activeSurface: 'preScan',
-                        componentsVisible: false
-                      });
-                    }
+                  if (envelope.type === 'pageScannerWorkspace.open') {
+                    emit(this, 'pageScannerWorkspace.openResponse', {
+                      ok: true,
+                      action: body.action,
+                      message: 'Detached Page Scanner opened',
+                      requestId: body.requestId,
+                      botJobId: 42,
+                      sessionId: window.__arDetachedPageScannerSession
+                    });
                     return;
                   }
 
-                  if (envelope.type === 'PRE_SCAN_PAGE') {
+                  if (envelope.type === 'pageScannerWorkspace.bootstrap') {
+                    const retargeted = this.sessionId === window.__arRetargetDetachedPageScannerSession;
+                    emit(this, 'pageScannerWorkspace.bootstrapResponse', {
+                      ok: true,
+                      requestId: body.requestId,
+                      sessionId: this.sessionId,
+                      homeBankingId: 7,
+                      botJobId: retargeted ? 43 : 42,
+                      botJobName: retargeted ? 'Transfers' : 'Payments',
+                      homeUrlId: 8,
+                      blocks: [
+                        { blockId: 91, blockOrderNumber: 1, blockName: 'Login' },
+                        { blockId: 92, blockOrderNumber: 2, blockName: 'Payment' }
+                      ]
+                    });
+                    return;
+                  }
+
+                  if (envelope.type === 'pageScanner.scan') {
+                    emit(this, 'preScanStatus', {
+                      status: 'waiting',
+                      message: 'Loading the Page - Opening isolated browser...',
+                      elementCount: 0
+                    });
+                    emit(this, 'searchTerms', {
+                      botJobId: 42,
+                      botJobName: 'Payments',
+                      blocks: [
+                        { blockId: 91, blockOrderNumber: 1, blockName: 'Login' },
+                        { blockId: 92, blockOrderNumber: 2, blockName: 'Payment' }
+                      ],
+                      elementDetails: [{
+                        id: 1,
+                        typeElement: 'button',
+                        tagName: 'button',
+                        xPath: "//button[@id='submit']",
+                        someText: 'Submit',
+                        attribId: 'submit',
+                        attribName: '',
+                        coordinates: '10,10',
+                        attributeData: [{ name: 'id', value: 'submit' }],
+                        customXPath: '',
+                        iFrameXPath: '',
+                        attributeValue: 'submit',
+                        attributeType: 'id',
+                        autoScroll: 'false',
+                        autoEnter: 'false',
+                        definedName: 'submit'
+                      }]
+                    });
                     emit(this, 'preScanStatus', {
                       status: 'done',
-                      message: 'Found 3 web elements.',
-                      elementCount: 3
+                      message: 'Found 1 web element.',
+                      elementCount: 1
+                    });
+                    return;
+                  }
+
+                  if (envelope.type === 'pageScanner.refresh') {
+                    emit(this, 'preScanStatus', {
+                      status: 'done',
+                      message: 'Page refreshed.',
+                      elementCount: 1
+                    });
+                    return;
+                  }
+
+                  if (envelope.type === 'pageScanner.clear') {
+                    emit(this, 'searchTerms', {
+                      botJobId: 42,
+                      botJobName: 'Payments',
+                      elementDetails: []
+                    });
+                    emit(this, 'preScanStatus', {
+                      status: 'idle',
+                      message: 'Ready',
+                      elementCount: 0
+                    });
+                    return;
+                  }
+
+                  if (envelope.type === 'pageScanner.close') {
+                    emit(this, 'pageScanner.closeResponse', {
+                      ok: true,
+                      requestId: body.requestId,
+                      sessionId: window.__arDetachedPageScannerSession
                     });
                     return;
                   }
@@ -225,6 +334,44 @@ class BotJobDetailsToolbarPlaywrightTest {
                       kind: body.kind,
                       sessionId: 'ocr-' + body.kind + '-detached-test-window',
                       message: 'OCR workspace opened.'
+                    });
+                    return;
+                  }
+
+                  if (envelope.type === 'ocrWorkspace.bootstrap') {
+                    const kind = this.sessionId.startsWith('ocr-config-') ? 'config' : 'results';
+                    const retargeted = this.sessionId === window.__arRetargetOcrConfigSession
+                      || this.sessionId === window.__arRetargetOcrResultsSession;
+                    emit(this, 'ocrWorkspace.bootstrapResponse', {
+                      ok: true,
+                      requestId: body.requestId,
+                      kind,
+                      sessionId: this.sessionId,
+                      homeBankingId: retargeted ? 9 : 7,
+                      botJobId: retargeted ? 43 : 42,
+                      homeUrlId: retargeted ? 12 : 8,
+                      parameters: [{ category: 'engine', key: 'scale', value: retargeted ? '600' : '300' }]
+                    });
+                    return;
+                  }
+
+                  if (envelope.type === 'ocrConfig.bootstrap') {
+                    emit(this, 'ocrConfig.bootstrapResponse', {
+                      ok: true,
+                      profiles: [],
+                      categories: [],
+                      parameters: []
+                    });
+                    return;
+                  }
+
+                  if (envelope.type === 'ocrTest.run') {
+                    emit(this, 'ocrTest.runResponse', {
+                      ok: true,
+                      source: 'Deterministic OCR result',
+                      wordCount: 0,
+                      counts: {},
+                      rows: []
                     });
                     return;
                   }
@@ -272,13 +419,29 @@ class BotJobDetailsToolbarPlaywrightTest {
               MockWebSocket.OPEN = 1;
               MockWebSocket.CLOSING = 2;
               MockWebSocket.CLOSED = 3;
+              window.__arEmitToSession = (sessionId, operationId, body) => {
+                const socket = [...window.__arMockSockets].reverse().find(
+                  candidate => candidate.sessionId === sessionId
+                    && candidate.readyState === MockWebSocket.OPEN);
+                if (!socket) return false;
+                emit(socket, operationId, body);
+                return true;
+              };
               Object.defineProperty(window, 'WebSocket', {
                 configurable: true,
                 writable: true,
                 value: MockWebSocket
               });
             })();
-            """.formatted(SESSION_ID);
+            """.formatted(
+                    SESSION_ID,
+                    PAGE_SCANNER_SESSION_ID,
+                    PAGE_SCANNER_RETARGET_SESSION_ID,
+                    BOT_JOB_WINDOW_SESSION_ID,
+                    OCR_CONFIG_SESSION_ID,
+                    OCR_CONFIG_RETARGET_SESSION_ID,
+                    OCR_RESULTS_SESSION_ID,
+                    OCR_RESULTS_RETARGET_SESSION_ID);
 
     private HttpServer server;
     private ExecutorService serverExecutor;
@@ -327,7 +490,8 @@ class BotJobDetailsToolbarPlaywrightTest {
             page.onPageError(pageErrors::add);
 
             try {
-                page.navigate(baseUrl + "/?desktopShell=1&openBotJob=42");
+                page.navigate(baseUrl + "/?desktopShell=1&openBotJob=42&botJobWindowSession="
+                        + BOT_JOB_WINDOW_SESSION_ID);
 
                 page.getByLabel("Starting block").waitFor();
                 page.locator("[role='group'][aria-label='Job files']").waitFor();
@@ -341,7 +505,7 @@ class BotJobDetailsToolbarPlaywrightTest {
                 coverTransferActions(page);
                 coverSemanticMetadataForm(page, uiContractFailures);
                 coverResponsiveLayout(page);
-                coverPreScanPageScanner(page);
+                coverPreScanPageScanner(page, pageErrors);
 
                 @SuppressWarnings("unchecked")
                 List<String> blockedControls =
@@ -552,8 +716,10 @@ class BotJobDetailsToolbarPlaywrightTest {
         button(page, "Save").click();
         button(page, "Edit").waitFor();
         Locator metadataPanel = page.locator("section[aria-label='Bot Job metadata']");
-        assertTrue(metadataPanel.getByText(
-                "Payments QA", new Locator.GetByTextOptions().setExact(true)).isVisible());
+        Locator savedName = metadataPanel.getByText(
+                "Payments QA", new Locator.GetByTextOptions().setExact(true));
+        savedName.waitFor();
+        assertTrue(savedName.isVisible());
         assertTrue(metadataPanel.getByText(
                 "Updated deterministic flow", new Locator.GetByTextOptions().setExact(true)).isVisible());
     }
@@ -572,45 +738,183 @@ class BotJobDetailsToolbarPlaywrightTest {
         assertTrue(button(page, "Import").isVisible());
     }
 
-    private void coverPreScanPageScanner(Page page) {
+    private void coverPreScanPageScanner(Page page, List<String> pageErrors) {
         page.setViewportSize(1240, 820);
+        String botJobUrl = page.url();
+        int initialPageCount = page.context().pages().size();
         Locator preScan = button(page, "Pre Scan");
         preScan.scrollIntoViewIfNeeded();
         preScan.click();
 
-        Locator workspace = page.locator("[data-testid='pre-scan-workspace']");
-        workspace.waitFor();
-        Locator pageScanner = button(workspace, "Page Scanner");
-        pageScanner.waitFor();
-        assertTrue(pageScanner.isVisible());
-        pageScanner.click();
-
         page.waitForFunction(
                 """
                 () => window.__arToolbarRequests.some((request) =>
-                  request.type === 'PRE_SCAN_PAGE'
-                    && request.sessionId === 'preScannerGrid'
-                    && request.botJobId === 42)
+                  request.type === 'pageScannerWorkspace.open'
+                    && request.sessionId === 'botJobTasks')
                 """);
-        String requestJson = (String) page.evaluate(
+        String openRequestJson = (String) page.evaluate(
                 """
                 () => JSON.stringify(window.__arToolbarRequests
-                  .filter((request) => request.type === 'PRE_SCAN_PAGE')
+                  .filter((request) => request.type === 'pageScannerWorkspace.open')
                   .at(-1))
                 """);
-        JsonObject request = JsonParser.parseString(requestJson).getAsJsonObject();
-        assertEquals("PRE_SCAN_PAGE", request.get("type").getAsString());
-        assertEquals(ScannerWorkspaceSessions.PRE_SCANNER_GRID, request.get("sessionId").getAsString());
-        assertEquals(BOT_JOB_ID, request.get("botJobId").getAsInt());
+        JsonObject openRequest = JsonParser.parseString(openRequestJson).getAsJsonObject();
+        JsonObject openBody = JsonParser.parseString(openRequest.get("body").getAsString()).getAsJsonObject();
+        assertEquals("pageScannerWorkspace.open", openRequest.get("type").getAsString());
+        assertEquals(SESSION_ID, openRequest.get("sessionId").getAsString());
+        assertEquals("SHOW_PRE_SCAN", openBody.get("action").getAsString());
+        assertEquals(BOT_JOB_ID, openBody.get("botJobId").getAsInt());
+        assertTrue(openBody.has("requestId") && !openBody.get("requestId").getAsString().isBlank());
 
-        workspace.getByText("done", new Locator.GetByTextOptions().setExact(true)).waitFor();
-        assertTrue(workspace.getByText(
-                "Found 3 web elements.", new Locator.GetByTextOptions().setExact(true)).isVisible());
+        Locator botJobWorkspace = page.locator("[data-testid='bot-job-details-workspace']");
+        assertTrue(botJobWorkspace.isVisible(), "Bot Job Details must remain mounted after Pre Scan");
+        assertEquals(0, page.locator("[data-testid='pre-scan-workspace']").count());
+        assertEquals(0, page.locator("[data-testid='detached-page-scanner-workspace']").count());
+        assertEquals(botJobUrl, page.url());
+        assertEquals(initialPageCount, page.context().pages().size());
 
-        coverOcrDetachedLaunchRequests(page, workspace);
+        Page scannerPage = page.context().newPage();
+        scannerPage.setDefaultTimeout(10_000);
+        scannerPage.onPageError(pageErrors::add);
+        try {
+            String scannerUrl = baseUrl
+                    + "/?desktopShell=1&openPageScanner=preScan&pageScannerSession="
+                    + PAGE_SCANNER_SESSION_ID;
+            scannerPage.navigate(scannerUrl);
+
+            Locator scannerWorkspace =
+                    scannerPage.locator("[data-testid='detached-page-scanner-workspace']");
+            scannerWorkspace.waitFor();
+            assertTrue(scannerWorkspace.isVisible());
+            assertEquals(scannerUrl, scannerPage.url());
+            assertEquals(initialPageCount + 1, page.context().pages().size());
+            assertTrue(botJobWorkspace.isVisible(), "Detached scanner must not unmount Bot Job Details");
+            assertEquals(botJobUrl, page.url());
+
+            scannerPage.waitForFunction(
+                    """
+                    () => window.__arToolbarRequests.some((request) =>
+                      request.type === 'pageScannerWorkspace.bootstrap'
+                        && request.sessionId === window.__arDetachedPageScannerSession)
+                    """);
+            String bootstrapRequestJson = (String) scannerPage.evaluate(
+                    """
+                    () => JSON.stringify(window.__arToolbarRequests
+                      .filter((request) => request.type === 'pageScannerWorkspace.bootstrap')
+                      .at(-1))
+                    """);
+            JsonObject bootstrapRequest =
+                    JsonParser.parseString(bootstrapRequestJson).getAsJsonObject();
+            JsonObject bootstrapBody =
+                    JsonParser.parseString(bootstrapRequest.get("body").getAsString()).getAsJsonObject();
+            assertEquals(PAGE_SCANNER_SESSION_ID, bootstrapRequest.get("sessionId").getAsString());
+            assertEquals(PAGE_SCANNER_SESSION_ID, bootstrapBody.get("sessionId").getAsString());
+            assertTrue(bootstrapBody.has("requestId"));
+
+            for (String control : List.of(
+                    "Page Scanner", "OCR Config", "OCR Results", "Refresh Web Page",
+                    "Clear Grid", "Search")) {
+                assertTrue(button(scannerWorkspace, control).isVisible(), control + " must be visible");
+            }
+            Locator hiddenFields = scannerPage.getByLabel("Search Hidden Fields");
+            assertTrue(hiddenFields.isVisible(), "Search Hidden Fields must be visible");
+            hiddenFields.check();
+            assertTrue(hiddenFields.isChecked());
+
+            JsonObject scanBody = scannerBodyAfterClick(
+                    scannerPage, button(scannerWorkspace, "Page Scanner"), "pageScanner.scan");
+            assertEquals("factory-default", scanBody.get("focusProfile").getAsString());
+            assertTrue(scanBody.get("searchHiddenFields").getAsBoolean());
+            assertTrue(scanBody.has("searchTerms"));
+            scannerWorkspace.getByText(
+                    "Found 1 web element.", new Locator.GetByTextOptions().setExact(true)).first().waitFor();
+
+            JsonObject refreshBody = scannerBodyAfterClick(
+                    scannerPage, button(scannerWorkspace, "Refresh Web Page"), "pageScanner.refresh");
+            assertTrue(refreshBody.has("requestId"));
+            scannerWorkspace.getByText(
+                    "Page refreshed.", new Locator.GetByTextOptions().setExact(true)).first().waitFor();
+
+            scannerPage.waitForFunction(
+                    """
+                    () => [...document.querySelectorAll('button')].some((button) =>
+                      button.textContent.trim() === 'Clear Grid' && !button.disabled)
+                    """);
+            JsonObject clearBody = scannerBodyAfterClick(
+                    scannerPage, button(scannerWorkspace, "Clear Grid"), "pageScanner.clear");
+            assertTrue(clearBody.has("requestId"));
+
+            coverOcrDetachedLaunchRequests(scannerPage, scannerWorkspace, pageErrors);
+            coverPageScannerRetarget(scannerPage, initialPageCount + 1);
+        } finally {
+            if (!scannerPage.isClosed()) scannerPage.close();
+        }
+
+        assertEquals(initialPageCount, page.context().pages().size());
+        assertTrue(botJobWorkspace.isVisible(), "Closing the detached scanner must keep Bot Job Details open");
     }
 
-    private void coverOcrDetachedLaunchRequests(Page page, Locator scannerWorkspace) {
+    private void coverPageScannerRetarget(Page scannerPage, int expectedPageCount) {
+        String oldSessionId = PAGE_SCANNER_SESSION_ID;
+        int originalPageCount = scannerPage.context().pages().size();
+        assertEquals(expectedPageCount, originalPageCount);
+
+        Boolean delivered = (Boolean) scannerPage.evaluate(
+                """
+                target => window.__arEmitToSession(target.previousSessionId,
+                  'pageScanner.workspaceRetarget', target)
+                """,
+                Map.of(
+                        "previousSessionId", oldSessionId,
+                        "sessionId", PAGE_SCANNER_RETARGET_SESSION_ID,
+                        "botJobId", 43,
+                        "workspaceEpoch", 2));
+        assertTrue(delivered, "The existing Page Scanner transport must receive the retarget");
+
+        scannerPage.waitForFunction(
+                """
+                expectedSession => new URL(window.location.href).searchParams
+                  .get('pageScannerSession') === expectedSession
+                """,
+                PAGE_SCANNER_RETARGET_SESSION_ID);
+        scannerPage.locator("[data-testid='detached-page-scanner-workspace']").waitFor();
+        scannerPage.waitForFunction(
+                """
+                expectedSession => window.__arToolbarRequests.some(request =>
+                  request.type === 'pageScannerWorkspace.bootstrap'
+                    && request.sessionId === expectedSession)
+                """,
+                PAGE_SCANNER_RETARGET_SESSION_ID);
+
+        assertEquals(originalPageCount, scannerPage.context().pages().size());
+        assertEquals(
+                PAGE_SCANNER_RETARGET_SESSION_ID,
+                java.net.URI.create(scannerPage.url()).getQuery().lines()
+                        .flatMap(query -> java.util.Arrays.stream(query.split("&")))
+                        .filter(parameter -> parameter.startsWith("pageScannerSession="))
+                        .map(parameter -> parameter.substring("pageScannerSession=".length()))
+                        .findFirst()
+                        .orElseThrow());
+
+        String retargetedUrl = scannerPage.url();
+        Boolean focused = (Boolean) scannerPage.evaluate(
+                """
+                target => window.__arEmitToSession(target.previousSessionId,
+                  'pageScanner.workspaceRetarget', target)
+                """,
+                Map.of(
+                        "previousSessionId", PAGE_SCANNER_RETARGET_SESSION_ID,
+                        "sessionId", PAGE_SCANNER_RETARGET_SESSION_ID,
+                        "botJobId", 43,
+                        "workspaceEpoch", 2));
+        assertTrue(focused, "The same Page Scanner session must accept a focus-only notification");
+        scannerPage.waitForTimeout(50);
+        assertEquals(retargetedUrl, scannerPage.url());
+        assertEquals(originalPageCount, scannerPage.context().pages().size());
+    }
+
+    private void coverOcrDetachedLaunchRequests(
+            Page page, Locator scannerWorkspace, List<String> pageErrors) {
         String initialUrl = page.url();
         int initialPageCount = page.context().pages().size();
 
@@ -637,7 +941,7 @@ class BotJobDetailsToolbarPlaywrightTest {
                     kind);
             JsonObject request = JsonParser.parseString(requestJson).getAsJsonObject();
             JsonObject body = JsonParser.parseString(request.get("body").getAsString()).getAsJsonObject();
-            assertEquals(ScannerWorkspaceSessions.PRE_SCANNER_GRID, request.get("sessionId").getAsString());
+            assertEquals(PAGE_SCANNER_SESSION_ID, request.get("sessionId").getAsString());
             assertEquals(BOT_JOB_ID, body.get("botJobId").getAsInt());
             assertEquals(7, body.get("homeBankingId").getAsInt());
             assertEquals(kind, body.get("kind").getAsString());
@@ -651,6 +955,152 @@ class BotJobDetailsToolbarPlaywrightTest {
 
         assertEquals(initialUrl, page.url());
         assertEquals(initialPageCount, page.context().pages().size());
+
+        Page configPage = page.context().newPage();
+        Page resultsPage = page.context().newPage();
+        configPage.setDefaultTimeout(10_000);
+        resultsPage.setDefaultTimeout(10_000);
+        configPage.onPageError(pageErrors::add);
+        resultsPage.onPageError(pageErrors::add);
+        try {
+            configPage.navigate(baseUrl + "/?desktopShell=1&openOcr=config&ocrSession="
+                    + OCR_CONFIG_SESSION_ID);
+            resultsPage.navigate(baseUrl + "/?desktopShell=1&openOcr=results&ocrSession="
+                    + OCR_RESULTS_SESSION_ID);
+
+            configPage.locator("[data-testid='ocr-config-workspace']").waitFor();
+            resultsPage.locator("[data-testid='ocr-results-workspace']").waitFor();
+            awaitOcrBootstrap(configPage, OCR_CONFIG_SESSION_ID);
+            awaitOcrBootstrap(resultsPage, OCR_RESULTS_SESSION_ID);
+
+            int oneWindowPerKindPageCount = initialPageCount + 2;
+            assertEquals(oneWindowPerKindPageCount, page.context().pages().size());
+            coverOcrWorkspaceRetarget(
+                    configPage,
+                    "config",
+                    "ocr-config-workspace",
+                    OCR_CONFIG_SESSION_ID,
+                    OCR_CONFIG_RETARGET_SESSION_ID,
+                    oneWindowPerKindPageCount);
+            coverOcrWorkspaceRetarget(
+                    resultsPage,
+                    "results",
+                    "ocr-results-workspace",
+                    OCR_RESULTS_SESSION_ID,
+                    OCR_RESULTS_RETARGET_SESSION_ID,
+                    oneWindowPerKindPageCount);
+        } finally {
+            if (!configPage.isClosed()) configPage.close();
+            if (!resultsPage.isClosed()) resultsPage.close();
+        }
+
+        assertEquals(initialPageCount, page.context().pages().size());
+        assertTrue(scannerWorkspace.isVisible(), "OCR windows must remain detached from Page Scanner");
+    }
+
+    private void coverOcrWorkspaceRetarget(
+            Page ocrPage,
+            String kind,
+            String workspaceTestId,
+            String previousSessionId,
+            String nextSessionId,
+            int expectedPageCount) {
+        int originalPageCount = ocrPage.context().pages().size();
+        assertEquals(expectedPageCount, originalPageCount);
+
+        Boolean delivered = (Boolean) ocrPage.evaluate(
+                """
+                target => window.__arEmitToSession(target.previousSessionId,
+                  'ocrWorkspace.windowRetarget', target)
+                """,
+                Map.of(
+                        "kind", kind,
+                        "previousSessionId", previousSessionId,
+                        "sessionId", nextSessionId,
+                        "homeBankingId", 9,
+                        "botJobId", 43,
+                        "homeUrlId", 12));
+        assertTrue(delivered, "The existing OCR " + kind + " transport must receive the retarget");
+
+        ocrPage.waitForFunction(
+                """
+                expectedSession => new URL(window.location.href).searchParams.get('ocrSession')
+                  === expectedSession
+                """,
+                nextSessionId);
+        ocrPage.locator("[data-testid='" + workspaceTestId + "']").waitFor();
+        awaitOcrBootstrap(ocrPage, nextSessionId);
+
+        assertEquals(originalPageCount, ocrPage.context().pages().size());
+        assertEquals(nextSessionId, queryParameter(ocrPage.url(), "ocrSession"));
+        assertEquals(kind, queryParameter(ocrPage.url(), "openOcr"));
+
+        String retargetedUrl = ocrPage.url();
+        Boolean focused = (Boolean) ocrPage.evaluate(
+                """
+                target => window.__arEmitToSession(target.previousSessionId,
+                  'ocrWorkspace.windowRetarget', target)
+                """,
+                Map.of(
+                        "kind", kind,
+                        "previousSessionId", nextSessionId,
+                        "sessionId", nextSessionId,
+                        "homeBankingId", 9,
+                        "botJobId", 43,
+                        "homeUrlId", 12));
+        assertTrue(focused, "The same OCR " + kind + " session must accept a focus-only notification");
+        ocrPage.waitForTimeout(50);
+        assertEquals(retargetedUrl, ocrPage.url());
+        assertEquals(originalPageCount, ocrPage.context().pages().size());
+    }
+
+    private static void awaitOcrBootstrap(Page page, String sessionId) {
+        page.waitForFunction(
+                """
+                expectedSession => window.__arToolbarRequests.some(request =>
+                  request.type === 'ocrWorkspace.bootstrap'
+                    && request.sessionId === expectedSession)
+                """,
+                sessionId);
+    }
+
+    private static String queryParameter(String url, String name) {
+        return java.net.URI.create(url).getQuery().lines()
+                .flatMap(query -> java.util.Arrays.stream(query.split("&")))
+                .filter(parameter -> parameter.startsWith(name + "="))
+                .map(parameter -> parameter.substring(name.length() + 1))
+                .findFirst()
+                .orElseThrow();
+    }
+
+    private static JsonObject scannerBodyAfterClick(Page page, Locator control, String operation) {
+        Number before = (Number) page.evaluate(
+                """
+                operation => window.__arToolbarRequests.filter(
+                  (request) => request.type === operation).length
+                """,
+                operation);
+        control.scrollIntoViewIfNeeded();
+        control.click();
+        page.waitForFunction(
+                """
+                expected => window.__arToolbarRequests.filter(
+                  (request) => request.type === expected.operation).length > expected.before
+                """,
+                Map.of("operation", operation, "before", before.intValue()));
+        String requestJson = (String) page.evaluate(
+                """
+                operation => JSON.stringify(window.__arToolbarRequests
+                  .filter((request) => request.type === operation)
+                  .at(-1))
+                """,
+                operation);
+        JsonObject request = JsonParser.parseString(requestJson).getAsJsonObject();
+        assertEquals(operation, request.get("type").getAsString());
+        assertEquals(PAGE_SCANNER_SESSION_ID, request.get("sessionId").getAsString());
+        JsonObject body = JsonParser.parseString(request.get("body").getAsString()).getAsJsonObject();
+        assertTrue(body.has("requestId") && !body.get("requestId").getAsString().isBlank());
+        return body;
     }
 
     private static JsonObject toolbarBodyAfterClick(Page page, Locator control, String action) {
@@ -768,7 +1218,9 @@ class BotJobDetailsToolbarPlaywrightTest {
         String bundle = Files.readString(bundlePath, StandardCharsets.UTF_8);
         for (String marker : List.of(
                 "botJobDetails.toolbar.action", "Execute All", "Job files",
-                "bot-job-details-workspace", "pre-scan-workspace", "PRE_SCAN_PAGE",
+                "bot-job-details-workspace", "detached-page-scanner-workspace",
+                "pageScannerWorkspace.open", "pageScannerWorkspace.bootstrap", "pageScanner.scan",
+                "Search Hidden Fields",
                 "ocrWorkspace.open", "ocr-config-window", "ocr-config-header",
                 "ocr-results-window", "ocr-results-header")) {
             assertTrue(

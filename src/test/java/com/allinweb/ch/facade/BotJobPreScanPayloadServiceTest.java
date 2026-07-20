@@ -50,6 +50,17 @@ class BotJobPreScanPayloadServiceTest {
     }
 
     @Test
+    void buildsPayloadForUniqueDetachedDestination() {
+        BotJobPreScanPayloadService service = new BotJobPreScanPayloadService(new Data(List.of(), null));
+
+        BotJobPreScanPayloadService.Result result =
+                service.build(job(), List.of(), "page-scanner-window-42");
+
+        assertEquals("page-scanner-window-42", result.payload().getSessionId());
+        assertEquals(PreScannerGridRoute.standardSearchTerms().operationId(), result.payload().getOperationId());
+    }
+
+    @Test
     void emptyCacheLoadsOnceAndReturnsDatabaseWarningWithEmptyElements() {
         List<BlockLoadDTO> blocks = new ArrayList<>();
         ErrorMessage warning = new ErrorMessage("DB", "Blocks", "failed");

@@ -17,6 +17,7 @@ import com.allinweb.ch.facade.BotJobWorkspaceCapabilityService;
 import com.allinweb.ch.facade.BotJobPreScanPayloadService;
 import com.allinweb.ch.facade.BotJobOrganizationCoordinator;
 import com.allinweb.ch.facade.BotJobWorkspaceController;
+import com.allinweb.ch.facade.PageScannerTaskGate;
 import com.allinweb.ch.facade.PreScanWorkflowService;
 import com.allinweb.ch.facade.PreScanBrowserSession;
 import com.allinweb.ch.facade.BotJobDetailsWorkspaceRegistry;
@@ -29,6 +30,7 @@ import com.allinweb.ch.license.LicenceVal;
 import com.allinweb.ch.license.LicenseManager;
 import com.allinweb.ch.model.*;
 import com.allinweb.ch.socket.WebSocketSessionManager;
+import com.allinweb.ch.socket.ARWebSocketServer;
 import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
@@ -121,7 +123,10 @@ public class BotJobDetailsWorkspaceHost {
     private final BotJobOrganizationCoordinator organizationCoordinator;
     private long workspaceControllerGeneration;
     private static final String EXECUTE_ALL_OPTION_LABEL = "Execute All";
+    private static final String PAGE_SCANNER_QUEUE_FULL_MESSAGE =
+            "Page Scanner is busy. Too many operations are waiting; wait for the current operation to finish and try again.";
     private final PreScanWorkflowService preScanWorkflowService = new PreScanWorkflowService();
+    private final PageScannerTaskGate detachedPageScannerTaskGate = new PageScannerTaskGate();
     // Temporary compatibility owner for zero-caller legacy helpers; removed after workflow verification.
     private final PreScanBrowserSession preScanBrowserSession = new PreScanBrowserSession();
     private BotJobLoadDTO selectedBotJob;
@@ -162,6 +167,7 @@ public class BotJobDetailsWorkspaceHost {
         workspaceCloseCoordinator = new BotJobWorkspaceCloseCoordinator(
                 () -> botJobToolbarGuard.activeOperation() != null
                         || preScanWorkflowService.isRunning()
+                        || detachedPageScannerTaskGate.isBusy()
                         || scannerCoordinator.isBusy(),
                 new BotJobWorkspaceCloseCoordinator.ExecutionPort() {
                     @Override
@@ -177,7 +183,7 @@ public class BotJobDetailsWorkspaceHost {
                 },
                 this::suspendReactWorkspaceSurfaces,
                 botJobTransferPathRegistry::clear,
-                preScanWorkflowService::shutdown,
+                this::closePageScannerOperations,
                 error -> log.debug("Unable to close the Pre Scan browser: {}", error.getMessage()));
         organizationCoordinator = new BotJobOrganizationCoordinator(
                 workspaceCapabilities,
@@ -242,7 +248,10 @@ public class BotJobDetailsWorkspaceHost {
                     "Stop the active Bot Job operation before opening another Bot Job");
         }
         if (switchingBotJob) {
-            suspendReactWorkspaceSurfaces(previousBotJobId);
+            // Keep the one detached Page Scanner native window alive. Its trusted old binding is
+            // rejected after the registry epoch changes and PRE SCAN on the new Bot Job retargets
+            // that same physical panel to a fresh logical scanner session.
+            suspendReactWorkspaceSurfaces(previousBotJobId, true);
         }
         this.isEnabledLicence = isEnabledLicence;
         this.selectedBotJob = selectedBotJob;
@@ -262,6 +271,30 @@ public class BotJobDetailsWorkspaceHost {
                     public void preScanCommand(String type, JsonObject body) { handlePreScanCommand(type, body); }
                     public void preScanElementTest(SplitDTO payload, String type) {
                         handlePreScanElementTest(payload, type);
+                    }
+                    public PreScanWorkflowService.Context pageScannerContext(int botJobId) {
+                        return detachedPageScannerContext(botJobId);
+                    }
+                    public void pageScannerBootstrap(
+                            String workspaceSessionId, PreScanWorkflowService.Context context) {
+                        sendPreScanReset(workspaceSessionId, context);
+                    }
+                    public void pageScannerCommand(
+                            String type,
+                            JsonObject body,
+                            String workspaceSessionId,
+                            PreScanWorkflowService.Context context) {
+                        handlePreScanCommand(type, body, workspaceSessionId, context);
+                    }
+                    public void pageScannerElementTest(
+                            SplitDTO payload,
+                            String type,
+                            String workspaceSessionId,
+                            PreScanWorkflowService.Context context) {
+                        handlePreScanElementTest(payload, type, workspaceSessionId, context);
+                    }
+                    public void closePageScanner(String workspaceSessionId) {
+                        closePageScannerOperations();
                     }
                 });
         BotJobWorkspaceService.GridSnapshot initialGridSnapshot;
@@ -342,17 +375,34 @@ public class BotJobDetailsWorkspaceHost {
 
 
     public void handlePreScanCommand(String type, JsonObject jsonEntry) {
+        handlePreScanCommand(type, jsonEntry, preScanPayloadService.destinationSessionId());
+    }
+
+    public void handlePreScanCommand(String type, JsonObject jsonEntry, String destinationSessionId) {
+        handlePreScanCommand(type, jsonEntry, destinationSessionId, preScanContext());
+    }
+
+    public void handlePreScanCommand(
+            String type,
+            JsonObject jsonEntry,
+            String destinationSessionId,
+            PreScanWorkflowService.Context context) {
+        PreScanWorkflowService.Context commandContext = java.util.Objects.requireNonNull(
+                context, "A Page Scanner context is required");
         if (ScannerWorkspaceOperations.PRE_SCAN_CLEAR_GRID.equals(type)) {
-            sendPreScanReset();
+            if (ScannerWorkspaceSessions.isPageScannerSession(destinationSessionId)) {
+                detachedPageScannerTaskGate.clearQueued();
+            }
+            sendPreScanReset(destinationSessionId, commandContext);
             return;
         }
 
         if (ScannerWorkspaceOperations.PRE_SCAN_REFRESH_PAGE.equals(type)) {
-            Thread worker = new Thread(
-                    this::refreshPreScanPage,
-                    "pre-scan-refresh-" + (selectedBotJob == null ? "unknown" : selectedBotJob.getId()));
-            worker.setDaemon(true);
-            worker.start();
+            dispatchPreScanOperation(
+                    () -> refreshPreScanPage(commandContext, destinationSessionId),
+                    "pre-scan-refresh-" + commandContext.botJobId(),
+                    destinationSessionId,
+                    commandContext);
             return;
         }
 
@@ -367,27 +417,44 @@ public class BotJobDetailsWorkspaceHost {
                 && jsonEntry.has("searchHiddenFields")
                 && jsonEntry.get("searchHiddenFields").getAsBoolean();
 
-        Thread worker = new Thread(
-                () -> runPreScan(searchTerms, searchHidden),
-                "pre-scan-" + (selectedBotJob == null ? "unknown" : selectedBotJob.getId()));
-        worker.setDaemon(true);
-        worker.start();
+        dispatchPreScanOperation(
+                () -> runPreScan(commandContext, searchTerms, searchHidden, destinationSessionId),
+                "pre-scan-" + commandContext.botJobId(),
+                destinationSessionId,
+                commandContext);
     }
 
     private void refreshPreScanPage() {
-        if (selectedBotJob == null) {
-            log.warn("PRE SCAN refresh skipped: no selected bot job");
-            return;
-        }
-        preScanWorkflowService.refresh(preScanContext(), preScanSink());
+        refreshPreScanPage(preScanPayloadService.destinationSessionId());
+    }
+
+    private void refreshPreScanPage(String destinationSessionId) {
+        refreshPreScanPage(preScanContext(), destinationSessionId);
+    }
+
+    private void refreshPreScanPage(
+            PreScanWorkflowService.Context context, String destinationSessionId) {
+        preScanWorkflowService.refresh(context, preScanSink(destinationSessionId, context));
     }
 
     private void runPreScan(String searchTerms, boolean searchHidden) {
-        if (selectedBotJob == null) {
-            log.warn("PRE SCAN skipped: no selected bot job");
-            return;
-        }
-        preScanWorkflowService.scan(preScanContext(), searchTerms, searchHidden, preScanSink());
+        runPreScan(searchTerms, searchHidden, preScanPayloadService.destinationSessionId());
+    }
+
+    private void runPreScan(String searchTerms, boolean searchHidden, String destinationSessionId) {
+        runPreScan(preScanContext(), searchTerms, searchHidden, destinationSessionId);
+    }
+
+    private void runPreScan(
+            PreScanWorkflowService.Context context,
+            String searchTerms,
+            boolean searchHidden,
+            String destinationSessionId) {
+        preScanWorkflowService.scan(
+                context,
+                searchTerms,
+                searchHidden,
+                preScanSink(destinationSessionId, context));
     }
 
     @Deprecated
@@ -609,8 +676,26 @@ public class BotJobDetailsWorkspaceHost {
      * Results stream to the dashboard status bar (done/failed) instead of a modal.
      */
     public void handlePreScanElementTest(SplitDTO splitDTO, String testType) {
+        handlePreScanElementTest(splitDTO, testType, preScanPayloadService.destinationSessionId());
+    }
+
+    public void handlePreScanElementTest(
+            SplitDTO splitDTO, String testType, String destinationSessionId) {
+        handlePreScanElementTest(splitDTO, testType, destinationSessionId, preScanContext());
+    }
+
+    public void handlePreScanElementTest(
+            SplitDTO splitDTO,
+            String testType,
+            String destinationSessionId,
+            PreScanWorkflowService.Context context) {
         if (!preScanWorkflowService.isOpen()) {
-            sendPreScanStatus("failed", "No pre-scan browser open. Run the Page Scanner first.", 0);
+            sendPreScanStatus(
+                    destinationSessionId,
+                    context,
+                    "failed",
+                    "No pre-scan browser open. Run the Page Scanner first.",
+                    0);
             return;
         }
         ElementDTO[] details = splitDTO == null ? null : splitDTO.getElementDetails();
@@ -618,15 +703,62 @@ public class BotJobDetailsWorkspaceHost {
             return;
         }
         ElementDTO elementDTO = details[0];
-        Thread worker = new Thread(
-                () -> runPreScanElementTest(elementDTO, testType),
-                "pre-scan-test-" + (selectedBotJob == null ? "unknown" : selectedBotJob.getId()));
-        worker.setDaemon(true);
-        worker.start();
+        dispatchPreScanOperation(
+                () -> runPreScanElementTest(elementDTO, testType, destinationSessionId, context),
+                "pre-scan-test-" + context.botJobId(),
+                destinationSessionId,
+                context);
+    }
+
+    private void dispatchPreScanOperation(
+            Runnable operation,
+            String legacyThreadName,
+            String destinationSessionId,
+            PreScanWorkflowService.Context context) {
+        if (!ScannerWorkspaceSessions.isPageScannerSession(destinationSessionId)) {
+            daemonThread(operation, legacyThreadName).start();
+            return;
+        }
+        if (detachedPageScannerTaskGate.submit(operation)) {
+            return;
+        }
+        sendPreScanStatus(destinationSessionId, context, "failed", PAGE_SCANNER_QUEUE_FULL_MESSAGE, 0);
+        throw new IllegalStateException(PAGE_SCANNER_QUEUE_FULL_MESSAGE);
+    }
+
+    private void closePageScannerOperations() {
+        detachedPageScannerTaskGate.clearQueued();
+        preScanWorkflowService.shutdown();
     }
 
     private void runPreScanElementTest(ElementDTO elementDTO, String testType) {
-        preScanWorkflowService.testElement(elementDTO, testType, preScanSink());
+        runPreScanElementTest(
+                elementDTO, testType, preScanPayloadService.destinationSessionId());
+    }
+
+    private void runPreScanElementTest(
+            ElementDTO elementDTO, String testType, String destinationSessionId) {
+        runPreScanElementTest(elementDTO, testType, destinationSessionId, preScanContext());
+    }
+
+    private void runPreScanElementTest(
+            ElementDTO elementDTO,
+            String testType,
+            String destinationSessionId,
+            PreScanWorkflowService.Context context) {
+        preScanWorkflowService.testElement(
+                elementDTO, testType, preScanSink(destinationSessionId, context));
+    }
+
+    private PreScanWorkflowService.Context detachedPageScannerContext(int botJobId) {
+        if (selectedBotJob == null
+                || selectedBotJob.getId() == null
+                || selectedBotJob.getId() != botJobId) {
+            throw new IllegalArgumentException("Page Scanner does not match the active Bot Job");
+        }
+        botJobDetailsWorkspaceRegistry.require(botJobId);
+        workspaceCapabilities.requirePreScan(selectedBotJob.getPriority());
+        return preScanContext();
     }
 
     private PreScanWorkflowService.Context preScanContext() {
@@ -642,24 +774,37 @@ public class BotJobDetailsWorkspaceHost {
     }
 
     private PreScanWorkflowService.Sink preScanSink() {
+        return preScanSink(preScanPayloadService.destinationSessionId());
+    }
+
+    private PreScanWorkflowService.Sink preScanSink(String destinationSessionId) {
+        return preScanSink(destinationSessionId, preScanContext());
+    }
+
+    private PreScanWorkflowService.Sink preScanSink(
+            String destinationSessionId, PreScanWorkflowService.Context context) {
         return new PreScanWorkflowService.Sink() {
             @Override
             public void status(String status, String message, int elementCount) {
-                sendPreScanStatus(status, message, elementCount);
+                sendPreScanStatus(destinationSessionId, context, status, message, elementCount);
             }
 
             @Override
             public void reset() {
-                sendPreScanReset();
+                sendPreScanReset(destinationSessionId, context);
             }
 
             @Override
             public void elements(List<ElementDTO> elements) {
-                sendPreScanElements(elements);
+                sendPreScanElements(elements, destinationSessionId, context);
             }
 
             @Override
             public void failure(String message) {
+                if (!preScanPayloadService.destinationSessionId().equals(destinationSessionId)) {
+                    log.warn("Detached Page Scanner failed: {}", message);
+                    return;
+                }
                 presentation().execute(() -> performMessage.errorMessage(
                         "PRE SCAN - Failed",
                         "<span style='color: #D32F2F; font-weight: bold;'>" + message + "</span>",
@@ -680,19 +825,31 @@ public class BotJobDetailsWorkspaceHost {
     }
 
     private void sendPreScanStatus(String status, String message, int elementCount) {
-        if (selectedBotJob == null) {
-            return;
-        }
+        sendPreScanStatus(
+                preScanPayloadService.destinationSessionId(), status, message, elementCount);
+    }
+
+    private void sendPreScanStatus(
+            String destinationSessionId, String status, String message, int elementCount) {
+        sendPreScanStatus(destinationSessionId, preScanContext(), status, message, elementCount);
+    }
+
+    private void sendPreScanStatus(
+            String destinationSessionId,
+            PreScanWorkflowService.Context context,
+            String status,
+            String message,
+            int elementCount) {
         java.util.Map<String, Object> payload = new java.util.LinkedHashMap<>();
         payload.put("status", status);
         payload.put("message", message == null ? "" : message);
         payload.put("elementCount", elementCount);
-        payload.put("botJobId", selectedBotJob.getId());
-        payload.put("botJobName", selectedBotJob.getName());
-        payload.put("homeBankingId", selectedBotJob.getHomeBankingId());
+        payload.put("botJobId", context.botJobId());
+        payload.put("botJobName", context.botJobName());
+        payload.put("homeBankingId", context.homeBankingId());
         webSocketSessionManager.sendMessageJson(
-                selectedBotJob.getHomeBankingId(),
-                preScanPayloadService.destinationSessionId(),
+                context.homeBankingId(),
+                destinationSessionId,
                 gson.toJson(payload),
                 "preScanStatus");
     }
@@ -726,27 +883,67 @@ public class BotJobDetailsWorkspaceHost {
     }
 
     private void sendPreScanReset() {
-        sendPreScanPayload(List.of());
+        sendPreScanReset(preScanPayloadService.destinationSessionId());
+    }
+
+    private void sendPreScanReset(String destinationSessionId) {
+        sendPreScanReset(destinationSessionId, preScanContext());
+    }
+
+    private void sendPreScanReset(
+            String destinationSessionId, PreScanWorkflowService.Context context) {
+        sendPreScanPayload(List.of(), destinationSessionId, context);
     }
 
     private void sendPreScanElements(List<ElementDTO> elements) {
+        sendPreScanElements(elements, preScanPayloadService.destinationSessionId());
+    }
+
+    private void sendPreScanElements(List<ElementDTO> elements, String destinationSessionId) {
+        sendPreScanElements(elements, destinationSessionId, preScanContext());
+    }
+
+    private void sendPreScanElements(
+            List<ElementDTO> elements,
+            String destinationSessionId,
+            PreScanWorkflowService.Context context) {
         if (elements == null || elements.isEmpty()) {
-            sendPreScanReset();
+            sendPreScanReset(destinationSessionId, context);
             return;
         }
         int chunkSize = 25;
         for (int i = 0; i < elements.size(); i += chunkSize) {
-            sendPreScanPayload(elements.subList(i, Math.min(i + chunkSize, elements.size())));
+            sendPreScanPayload(
+                    elements.subList(i, Math.min(i + chunkSize, elements.size())),
+                    destinationSessionId,
+                    context);
         }
     }
 
     private void sendPreScanPayload(List<ElementDTO> elements) {
-        BotJobPreScanPayloadService.Result result = preScanPayloadService.build(selectedBotJob, elements);
+        sendPreScanPayload(elements, preScanPayloadService.destinationSessionId());
+    }
+
+    private void sendPreScanPayload(List<ElementDTO> elements, String destinationSessionId) {
+        sendPreScanPayload(elements, destinationSessionId, preScanContext());
+    }
+
+    private void sendPreScanPayload(
+            List<ElementDTO> elements,
+            String destinationSessionId,
+            PreScanWorkflowService.Context context) {
+        BotJobLoadDTO payloadJob = new BotJobLoadDTO();
+        payloadJob.setId(context.botJobId());
+        payloadJob.setName(context.botJobName());
+        payloadJob.setHomeBankingId(context.homeBankingId());
+        payloadJob.setHomeUrlId(context.homeUrlId());
+        BotJobPreScanPayloadService.Result result =
+                preScanPayloadService.build(payloadJob, elements, destinationSessionId);
         if (result.warning() != null) {
             log.warn("PRE SCAN - could not load blocks: {}", result.warning().getErrorMessage());
         }
         webSocketSessionManager.sendMessageJson(
-                selectedBotJob.getHomeBankingId(),
+                context.homeBankingId(),
                 result.payload().getSessionId(),
                 gson.toJson(result.payload()),
                 result.payload().getOperationId());
@@ -1265,6 +1462,16 @@ public class BotJobDetailsWorkspaceHost {
     }
 
     private void suspendReactWorkspaceSurfaces(int botJobId) {
+        suspendReactWorkspaceSurfaces(botJobId, false);
+    }
+
+    private void suspendReactWorkspaceSurfaces(int botJobId, boolean preserveDetachedPageScanner) {
+        if (!preserveDetachedPageScanner) {
+            // Closing Bot Job Details retires whichever single scanner panel is still alive.
+            // This covers A -> B followed by closing B before the preserved A scanner has been
+            // retargeted from the new Bot Job.
+            ARWebSocketServer.getInstance().closeActivePageScannerWorkspace();
+        }
         reactSessionContext.deactivate(botJobId);
         for (String workspaceSession : List.of(
                 ScannerWorkspaceSessions.BOT_JOB_TASKS,

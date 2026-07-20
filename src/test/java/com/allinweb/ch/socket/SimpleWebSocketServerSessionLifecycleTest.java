@@ -1,8 +1,10 @@
 package com.allinweb.ch.socket;
 
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
@@ -33,6 +35,31 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class SimpleWebSocketServerSessionLifecycleTest {
+
+    @Test
+    void pageScannerProtocolUsesAnExactInboundAllowlist() {
+        assertTrue(SimpleWebSocketServer.isSupportedPageScannerOperation("pageScannerWorkspace.open"));
+        assertTrue(SimpleWebSocketServer.isSupportedPageScannerOperation("pageScanner.scan"));
+        assertTrue(SimpleWebSocketServer.isSupportedPageScannerOperation("pageScanner.close"));
+        assertFalse(SimpleWebSocketServer.isSupportedPageScannerOperation("pageScanner.deleteEverything"));
+        assertFalse(SimpleWebSocketServer.isSupportedPageScannerOperation("pageScannerWorkspace.unknown"));
+    }
+
+    @Test
+    void pageScannerFailureCorrelationCopiesOnlyAPositiveBotJobIdentity() {
+        JsonObject request = new JsonObject();
+        request.addProperty("botJobId", 42);
+        JsonObject response = new JsonObject();
+
+        SimpleWebSocketServer.copyPositivePageScannerBotJobId(request, response);
+
+        org.junit.jupiter.api.Assertions.assertEquals(42, response.get("botJobId").getAsInt());
+
+        request.addProperty("botJobId", "not-a-job");
+        JsonObject malformedResponse = new JsonObject();
+        SimpleWebSocketServer.copyPositivePageScannerBotJobId(request, malformedResponse);
+        org.junit.jupiter.api.Assertions.assertFalse(malformedResponse.has("botJobId"));
+    }
 
     @TempDir
     Path temporaryDirectory;
@@ -97,6 +124,21 @@ class SimpleWebSocketServerSessionLifecycleTest {
     @Test
     void detachedOcrWorkspaceReloadTakesOverTheExactLogicalSession() throws Exception {
         String logicalSession = "ocr-config-reload-safe-session";
+        Session original = sessionWithId(logicalSession, true);
+        Session replacement = sessionWithId(logicalSession, true);
+
+        endpoint.onOpen(original);
+        endpoint.onOpen(replacement);
+
+        assertSame(replacement, WebSocketSessionManager.getSession(logicalSession));
+        verify(original)
+                .close(argThat(reason -> CloseReason.CloseCodes.NORMAL_CLOSURE.equals(reason.getCloseCode())));
+        verify(replacement, never()).close(any(CloseReason.class));
+    }
+
+    @Test
+    void detachedPageScannerReloadTakesOverOnlyItsExactLogicalSession() throws Exception {
+        String logicalSession = "page-scanner-9cb0468e-4822-4d7a-91a8-f314c57f5ad4";
         Session original = sessionWithId(logicalSession, true);
         Session replacement = sessionWithId(logicalSession, true);
 
