@@ -1162,6 +1162,8 @@ node scripts\generate-automation-test-catalog.mjs
         and the 45-file React/backend deployment has zero relative-path SHA-256 mismatches.
       - Regenerated inventory: 972 catalog rows, 938 code cases, 19,452 generated API cases, and
         20,390 total automated cases; `AutomationTestCatalogServiceTest` passed 2/2 afterward.
+      - Versioned the implementation as frontend commit `786357d` on `VERSION-4.6` and backend
+        commit `896ae61e` on `refactor/perform-actions-decomposition`.
 - [ ] Add execution controls only after each framework has an allowlisted runner, persisted result
       contract, cancellation/timeout ownership, and explicit confirmation for headed/live suites.
 

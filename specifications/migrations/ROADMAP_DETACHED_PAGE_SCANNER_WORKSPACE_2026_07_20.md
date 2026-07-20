@@ -582,9 +582,10 @@ Existing files likely affected:
 
 Evidence recorded 2026-07-20:
 
-- Working baselines are the backend/frontend commits listed at the top of this document. The
-  frontend implementation is committed as `786357d` on `VERSION-4.6`; the backend implementation
-  commit ID is recorded by the follow-up documentation checkpoint after the implementation commit.
+- Working baselines are the backend/frontend commits listed at the top of this document. The final
+  implementation commits are frontend `786357d` on `VERSION-4.6` and backend `896ae61e` on
+  `refactor/perform-actions-decomposition`; this evidence update is the follow-up documentation
+  checkpoint.
 - Frontend singleton/retarget verification ran eight suites with 32 tests and zero failures,
   including Bot Job control, Page Scanner, OCR Config, OCR Results, strict kind/session validation,
   focus-only repeats, fresh cross-context sessions, URL replacement, and keyed remounting. The
