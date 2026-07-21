@@ -1,6 +1,8 @@
 package com.allinweb.ch.facade;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.allinweb.ch.builder.WebElementTagNameEnum;
 import com.allinweb.ch.facade.actions.ElementDtoMapper;
@@ -54,9 +56,36 @@ class PlaywrightElementScannerClassificationTest {
 
         String selector = buildSelector(new String[] {"input"});
 
-        org.junit.jupiter.api.Assertions.assertTrue(selector.contains("input"));
-        org.junit.jupiter.api.Assertions.assertTrue(selector.contains("textarea"));
-        org.junit.jupiter.api.Assertions.assertTrue(selector.contains("[role='textbox']"));
+        assertTrue(selector.contains("input"));
+        assertTrue(selector.contains("textarea"));
+        assertTrue(selector.contains("[role='textbox']"));
+    }
+
+    @Test
+    void attributeSearchSyntaxBuildsSafeSelectorsWithoutLeakingPseudoCss() throws Exception {
+        String selector = buildSelector(new String[] {
+            "input", "attr:test-id", "attr:qa-hook", "attr:qa-hook='save'"
+        });
+
+        assertTrue(selector.contains("[test-id]"));
+        assertTrue(selector.contains("[qa-hook]"));
+        assertTrue(selector.contains("[qa-hook=\"save\"]"));
+        assertTrue(selector.contains("[data-testid]"));
+        assertFalse(selector.contains("attr:"));
+        assertEquals(
+                java.util.List.of("test-id", "qa-hook"),
+                PlaywrightElementScanner.configuredAttributeNames(
+                        new String[] {"attr:test-id", "ATTR:qa-hook", "attr:qa-hook=save"}));
+    }
+
+    @Test
+    void unsafeAttributeSearchFallsBackToDefaultSelector() throws Exception {
+        String selector = buildSelector(new String[] {"attr:test-id], button"});
+
+        assertFalse(selector.contains("attr:"));
+        assertFalse(selector.contains("test-id], button"));
+        assertTrue(selector.contains("[test-id]"));
+        assertTrue(selector.contains("button"));
     }
 
     private static String classifyTag(String tagName, String scannedTypeElement, AttributeData[] attrs)

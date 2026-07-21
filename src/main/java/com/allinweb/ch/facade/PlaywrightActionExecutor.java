@@ -297,7 +297,7 @@ public class PlaywrightActionExecutor {
         return null;
     }
 
-    private static List<String> selectorsFor(InstructionLoad instruction) {
+    static List<String> selectorsFor(InstructionLoad instruction) {
         List<String> selectors = new ArrayList<>();
 
         addXPath(selectors, instruction.getXpath());
@@ -333,15 +333,21 @@ public class PlaywrightActionExecutor {
                 name = value;
             }
 
-            // Order matters: "test-id"/"data-testid" both contain "id", so they must be checked
-            // BEFORE the generic id branch, or they'd be mis-built as an #id selector.
             if (type.contains("xpath")) {
                 addXPath(selectors, value);
             } else if (type.contains("css")) {
                 addCss(selectors, value);
-            } else if (type.contains("test-id") || type.contains("data-testid")) {
-                String escaped = cssAttribute(value);
-                addCss(selectors, "[test-id=\"" + escaped + "\"], [data-testid=\"" + escaped + "\"]");
+            } else if (type.startsWith("attrdata:")) {
+                String attributeName = type.substring("attrdata:".length());
+                if (isUsableDomAttribute(attributeName)) {
+                    addCss(selectors, "[" + attributeName + "=\"" + cssAttribute(value) + "\"]");
+                }
+            } else if (type.equals("test-id")
+                    || type.equals("data-testid")
+                    || type.equals("data-test-id")
+                    || type.equals("data-cy")
+                    || type.equals("data-qa")) {
+                addCss(selectors, "[" + type + "=\"" + cssAttribute(value) + "\"]");
             } else if (type.contains("id")) {
                 addCss(selectors, "#" + cssEscape(value.replaceFirst("^#", "")));
             } else if (type.contains("name")) {
@@ -370,6 +376,15 @@ public class PlaywrightActionExecutor {
 
     private static boolean isSafeTagName(String value) {
         return value.matches("[A-Za-z][A-Za-z0-9_-]*");
+    }
+
+    private static boolean isUsableDomAttribute(String value) {
+        if (value == null || !value.matches("[a-z_:][a-z0-9_.:-]{0,127}")) return false;
+        return switch (value) {
+            case "generated-id", "original-tag", "select-xpath", "option-value", "option-text",
+                    "trigger-selector", "control.kind", "control.role", "z-index", "clickable" -> false;
+            default -> true;
+        };
     }
 
     private static boolean isSelectOptionInstruction(InstructionLoad instruction) {

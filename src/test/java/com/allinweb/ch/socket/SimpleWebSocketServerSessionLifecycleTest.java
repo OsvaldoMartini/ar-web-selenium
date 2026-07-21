@@ -40,9 +40,25 @@ class SimpleWebSocketServerSessionLifecycleTest {
     void pageScannerProtocolUsesAnExactInboundAllowlist() {
         assertTrue(SimpleWebSocketServer.isSupportedPageScannerOperation("pageScannerWorkspace.open"));
         assertTrue(SimpleWebSocketServer.isSupportedPageScannerOperation("pageScanner.scan"));
+        assertTrue(SimpleWebSocketServer.isSupportedPageScannerOperation("pageScannerProfile.list"));
+        assertTrue(SimpleWebSocketServer.isSupportedPageScannerOperation("pageScannerProfile.save"));
+        assertTrue(SimpleWebSocketServer.isSupportedPageScannerOperation("pageScannerProfile.delete"));
         assertTrue(SimpleWebSocketServer.isSupportedPageScannerOperation("pageScanner.close"));
         assertFalse(SimpleWebSocketServer.isSupportedPageScannerOperation("pageScanner.deleteEverything"));
         assertFalse(SimpleWebSocketServer.isSupportedPageScannerOperation("pageScannerWorkspace.unknown"));
+    }
+
+    @Test
+    void detachedPageScannerGuardAllowsProfileCrudAndStillRejectsLegacyOperations() {
+        assertTrue(SimpleWebSocketServer.isAllowedFromDetachedPageScannerTransport("pageScannerProfile.list"));
+        assertTrue(SimpleWebSocketServer.isAllowedFromDetachedPageScannerTransport("pageScannerProfile.save"));
+        assertTrue(SimpleWebSocketServer.isAllowedFromDetachedPageScannerTransport("pageScannerProfile.delete"));
+        assertTrue(SimpleWebSocketServer.isAllowedFromDetachedPageScannerTransport("pageScanner.scan"));
+        assertTrue(SimpleWebSocketServer.isAllowedFromDetachedPageScannerTransport("ocrWorkspace.open"));
+
+        assertFalse(SimpleWebSocketServer.isAllowedFromDetachedPageScannerTransport("broadcast"));
+        assertFalse(SimpleWebSocketServer.isAllowedFromDetachedPageScannerTransport("DELETE_INSTRUCTION"));
+        assertFalse(SimpleWebSocketServer.isAllowedFromDetachedPageScannerTransport(null));
     }
 
     @Test

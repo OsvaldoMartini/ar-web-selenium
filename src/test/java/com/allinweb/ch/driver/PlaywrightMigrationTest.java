@@ -130,10 +130,61 @@ class PlaywrightMigrationTest {
         }
     }
 
+    @Test
+    void scannerFindsLiteralTestIdAndConfiguredCustomAttributesExactly() {
+        ARPlaywrightDriver driver = new ARPlaywrightDriver();
+        try {
+            driver.open(ARConstantsEngine.EDGE, "about:blank", "");
+            driver.setContent("<!doctype html><html><body>"
+                    + "<button test-id='web-banking-common.web-banking-stepper.next-button-0'>Avanti</button>"
+                    + "<button qa-hook='cancel-action'>Annulla</button>"
+                    + "</body></html>");
+
+            // test-id remains an unconditional companion even for an unrelated input scan.
+            List<ElementDTO> defaultElements = driver.scanElements(new String[] {"input"}, false);
+            ElementDTO avanti = byAttribute(
+                    defaultElements,
+                    "test-id",
+                    "web-banking-common.web-banking-stepper.next-button-0");
+            assertNotNull(avanti, "the literal Banca Stato test-id button must be scanned automatically");
+            assertEquals("button", avanti.getTagName());
+            assertEquals("button", avanti.getTypeElement());
+            assertEquals("Avanti", avanti.getSomeText());
+            assertEquals(
+                    "button[test-id=\"web-banking-common.web-banking-stepper.next-button-0\"]",
+                    avanti.getCssSelector());
+            assertFalse(
+                    hasAttribute(avanti, "data-testid"),
+                    "a literal test-id must not be relabelled as data-testid");
+
+            List<ElementDTO> customElements = driver.scanElements(new String[] {"attr:qa-hook"}, false);
+            ElementDTO annulla = byAttribute(customElements, "qa-hook", "cancel-action");
+            assertNotNull(annulla, "a configured custom attribute must become a scanner selector");
+            assertEquals("button[qa-hook=\"cancel-action\"]", annulla.getCssSelector());
+        } finally {
+            driver.close();
+        }
+    }
+
     private static ElementDTO byId(List<ElementDTO> els, String id) {
         Optional<ElementDTO> found =
                 els.stream().filter(e -> id.equals(e.getAttribId())).findFirst();
         return found.orElse(null);
+    }
+
+    private static ElementDTO byAttribute(List<ElementDTO> elements, String name, String value) {
+        return elements.stream()
+                .filter(element -> element.getAttributeData() != null)
+                .filter(element -> java.util.Arrays.stream(element.getAttributeData())
+                        .anyMatch(attribute -> name.equals(attribute.getName()) && value.equals(attribute.getValue())))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private static boolean hasAttribute(ElementDTO element, String name) {
+        return element.getAttributeData() != null
+                && java.util.Arrays.stream(element.getAttributeData())
+                        .anyMatch(attribute -> name.equals(attribute.getName()));
     }
 
     private static String oneTrustBanner() {

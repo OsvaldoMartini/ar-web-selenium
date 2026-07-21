@@ -29,7 +29,15 @@ public class PlaywrightElementScanner {
 
     private static final String SCAN_SCRIPT =
             """
-            (elements, includeHidden) => {
+            (elements, scanOptions) => {
+              const includeHidden = scanOptions?.includeHidden === true;
+              const configuredAttributeNames = Array.isArray(scanOptions?.attributeNames)
+                ? scanOptions.attributeNames.filter(name => typeof name === 'string' && name)
+                : [];
+              const automationAttributeNames = Array.from(new Set([
+                'data-testid', 'data-test-id', 'test-id', 'data-cy', 'data-qa',
+                ...configuredAttributeNames
+              ]));
               function generateXPath(el) {
                 if (!el || el.nodeType !== 1) return '';
                 if (el.id) return "//*[@id='" + el.id.replace(/'/g, "\\\\'") + "']";
@@ -92,7 +100,7 @@ public class PlaywrightElementScanner {
               }
 
               function semanticAttributeText(el) {
-                const attrs = ['data-testid', 'data-test-id', 'test-id', 'data-cy', 'data-qa', 'aria-controls', 'name', 'id'];
+                const attrs = [...automationAttributeNames, 'aria-controls', 'name', 'id'];
                 for (const attrName of attrs) {
                   const rawValue = el.getAttribute(attrName) || '';
                   if (looksGeneratedToken(rawValue)) continue;
@@ -139,14 +147,10 @@ public class PlaywrightElementScanner {
                 if (el.id) return tag + '#' + CSS.escape(el.id);
                 const name = el.getAttribute('name');
                 if (name) return tag + '[name="' + name.replace(/"/g, '\\\\"') + '"]';
-                const testId = el.getAttribute('data-testid') || el.getAttribute('data-test-id') || el.getAttribute('test-id') || el.getAttribute('data-cy') || el.getAttribute('data-qa');
-                if (testId) {
-                  const attrName = el.getAttribute('data-testid') ? 'data-testid'
-                    : el.getAttribute('data-test-id') ? 'data-test-id'
-                    : el.getAttribute('test-id') ? 'test-id'
-                    : el.getAttribute('data-cy') ? 'data-cy'
-                    : 'data-qa';
-                  return tag + '[' + attrName + '="' + testId.replace(/"/g, '\\\\"') + '"]';
+                const attrName = automationAttributeNames.find(name => el.hasAttribute(name));
+                const attrValue = attrName ? (el.getAttribute(attrName) || '') : '';
+                if (attrName) {
+                  return tag + '[' + attrName + '="' + attrValue.replace(/"/g, '\\\\"') + '"]';
                 }
                 const role = el.getAttribute('role');
                 const controls = el.getAttribute('aria-controls');
@@ -335,8 +339,8 @@ public class PlaywrightElementScanner {
                 // spans): a host wrapping a selection control is the clickable card;
                 // anything living inside a button/link is clickable; the rest are
                 // readable outputs (ISIN / TKN / currency values).
-                const anyTestId = attr(el, 'test-id') || attr(el, 'data-testid') || attr(el, 'data-test-id') || attr(el, 'data-cy') || attr(el, 'data-qa');
-                if (anyTestId) {
+                const automationAttribute = automationAttributeNames.find(name => el.hasAttribute(name));
+                if (automationAttribute) {
                   if (el.querySelector('mat-radio-button, mat-checkbox, input[type="radio"], input[type="checkbox"], [role="radio"], [role="checkbox"]')) return 'button';
                   if (el.closest('button, a, [role="button"], [role="link"]')) return 'button';
                   return 'output';
@@ -382,22 +386,21 @@ public class PlaywrightElementScanner {
                 const rect = el.getBoundingClientRect();
                 const style = window.getComputedStyle(el);
                 const role = attr(el, 'role');
-                const testId = attr(el, 'data-testid') || attr(el, 'data-test-id') || attr(el, 'test-id') || attr(el, 'data-cy') || attr(el, 'data-qa');
+                const automationAttributeName = automationAttributeNames.find(name => el.hasAttribute(name));
                 const zIndex = style.zIndex && style.zIndex !== 'auto' ? style.zIndex : '';
                 const kind = override?.attributeType || controlKind(el, tag, role);
                 if (role) attrs.push({ name: 'role', value: role });
-                if (testId) attrs.push({ name: 'data-testid', value: testId });
                 if (zIndex) attrs.push({ name: 'z-index', value: zIndex });
                 if (kind) attrs.push({ name: 'control.kind', value: kind });
                 if (role) attrs.push({ name: 'control.role', value: role });
 
-                // Deterministic search id when the element has NO DOM id and NO testing
-                // attribute (BancaStato: 6/249 have ids, 0 have test-ids). Built from the
+                // Deterministic search id when the element has no DOM id and no configured
+                // automation attribute. Built from the
                 // strongest stable signals — name > aria-label > href segment > visible
                 // text > input type — prefixed with the tag and made unique within this
                 // scan. Stored only as attributeData['generated-id'] (a locator aid);
                 // el.id / attribId are never fabricated.
-                if (!el.id && !testId) {
+                if (!el.id && !automationAttributeName) {
                   const basis = el.getAttribute('name')
                     || attr(el, 'aria-label')
                     || lastHrefSegment(el.getAttribute('href') || '')
@@ -529,7 +532,11 @@ public class PlaywrightElementScanner {
 
         String selector = buildSelector(searchTerms);
         Locator locator = page.locator(selector);
-        Object raw = locator.evaluateAll(SCAN_SCRIPT, includeHidden);
+        Object raw = locator.evaluateAll(
+                SCAN_SCRIPT,
+                Map.of(
+                        "includeHidden", includeHidden,
+                        "attributeNames", configuredAttributeNames(searchTerms)));
         List<ElementDTO> elements = mapElements(raw);
         log.info("Playwright scanner returned {} element(s) for selector '{}'", elements.size(), selector);
         return elements;
@@ -547,7 +554,10 @@ public class PlaywrightElementScanner {
             }
 
             String normalized = term.trim().toLowerCase(Locale.ROOT);
-            if (normalized.contains("with id")) {
+            if (normalized.startsWith("attr:")) {
+                String attributeSelector = attributeSelector(term.trim());
+                if (attributeSelector != null) selectors.add(attributeSelector);
+            } else if (normalized.contains("with id")) {
                 selectors.add("[id]");
             } else if (normalized.contains("with name")) {
                 selectors.add("[name]");
@@ -627,6 +637,50 @@ public class PlaywrightElementScanner {
             addIfMissing(selectors, "[role='textbox']");
             addIfMissing(selectors, "[contenteditable='true']");
         }
+    }
+
+    static List<String> configuredAttributeNames(String[] searchTerms) {
+        if (searchTerms == null || searchTerms.length == 0) return List.of();
+        List<String> names = new ArrayList<>();
+        for (String term : searchTerms) {
+            if (term == null) continue;
+            String normalized = term.trim();
+            if (!normalized.regionMatches(true, 0, "attr:", 0, 5)) continue;
+            String specification = normalized.substring(5).trim();
+            int valueSeparator = specification.indexOf('=');
+            String name = (valueSeparator < 0 ? specification : specification.substring(0, valueSeparator)).trim();
+            if (isSafeAttributeName(name) && !names.contains(name.toLowerCase(Locale.ROOT))) {
+                names.add(name.toLowerCase(Locale.ROOT));
+            }
+        }
+        return List.copyOf(names);
+    }
+
+    private static String attributeSelector(String term) {
+        String specification = term.substring(5).trim();
+        int valueSeparator = specification.indexOf('=');
+        String name = (valueSeparator < 0 ? specification : specification.substring(0, valueSeparator)).trim();
+        if (!isSafeAttributeName(name)) {
+            log.warn("Ignoring unsafe Page Scanner attribute expression '{}'", term);
+            return null;
+        }
+        if (valueSeparator < 0) return "[" + name.toLowerCase(Locale.ROOT) + "]";
+
+        String value = specification.substring(valueSeparator + 1).trim();
+        if (value.length() >= 2
+                && ((value.startsWith("\"") && value.endsWith("\""))
+                        || (value.startsWith("'") && value.endsWith("'")))) {
+            value = value.substring(1, value.length() - 1);
+        }
+        return "[" + name.toLowerCase(Locale.ROOT) + "=\"" + cssAttributeValue(value) + "\"]";
+    }
+
+    private static boolean isSafeAttributeName(String value) {
+        return value != null && value.matches("[A-Za-z_:][A-Za-z0-9_.:-]{0,127}");
+    }
+
+    private static String cssAttributeValue(String value) {
+        return Objects.toString(value, "").replace("\\", "\\\\").replace("\"", "\\\"");
     }
 
     private static void addIfMissing(List<String> selectors, String selector) {
@@ -771,10 +825,15 @@ public class PlaywrightElementScanner {
                 || "svg".equals(tag)) {
             return "button";
         }
-        // Safety net mirroring the JS rule: a test-id carrier with no other signal is a
-        // readable output (Avaloq value spans). The JS scan normalizes the found test
-        // attribute into 'data-testid', and decides 'button' for card hosts itself.
-        String anyTestId = attr(attributeData, "data-testid");
+        // Safety net mirroring the JS rule: an automation-id carrier with no other signal
+        // is a readable output (Avaloq value spans). Preserve the exact DOM attribute name;
+        // test-id and data-testid are different locator contracts.
+        String anyTestId = firstNotBlank(
+                attr(attributeData, "data-testid"),
+                attr(attributeData, "data-test-id"),
+                attr(attributeData, "test-id"),
+                attr(attributeData, "data-cy"),
+                attr(attributeData, "data-qa"));
         if (anyTestId != null && !anyTestId.isBlank()) {
             return "output";
         }

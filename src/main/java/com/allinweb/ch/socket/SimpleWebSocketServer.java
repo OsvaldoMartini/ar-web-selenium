@@ -61,6 +61,8 @@ public class SimpleWebSocketServer {
             PageScannerWorkspaceCoordinator.getInstance();
     private static final PageScannerMutationLedger pageScannerMutationLedger =
             PageScannerMutationLedger.getInstance();
+    private static final PageScannerProfileService pageScannerProfileService =
+            PageScannerProfileService.getInstance();
     private static final int MAX_PAGE_SCANNER_BODY_CHARACTERS = 2_000_000;
     private static final int MAX_PAGE_SCANNER_ELEMENTS = 1_000;
     private static final int MAX_PAGE_SCANNER_SEARCH_TERMS = 8_192;
@@ -74,6 +76,9 @@ public class SimpleWebSocketServer {
             "pageScanner.testElement",
             "pageScanner.apply",
             "pageScanner.createBlock",
+            "pageScannerProfile.list",
+            "pageScannerProfile.save",
+            "pageScannerProfile.delete",
             "pageScanner.close");
     private static final ScannerPluginDownloadCommandService scannerPluginDownloadCommandService =
             ScannerPluginDownloadCommandService.getInstance();
@@ -323,8 +328,7 @@ public class SimpleWebSocketServer {
             String transportSessionId = webSocketSessionManager.getSessionIdBySession(session);
             boolean ocrWorkspaceOperation = type.startsWith("ocrWorkspace.");
             boolean detachedOcrTransport = OcrWorkspaceCoordinator.isWorkspaceSessionId(transportSessionId);
-            boolean pageScannerOperation = type.startsWith("pageScanner.")
-                    || type.startsWith("pageScannerWorkspace.");
+            boolean pageScannerOperation = isPageScannerTransportOperation(type);
             boolean detachedPageScannerTransport =
                     ScannerWorkspaceSessions.isPageScannerSession(transportSessionId);
             String sessionId = ocrWorkspaceOperation
@@ -403,8 +407,7 @@ public class SimpleWebSocketServer {
             }
 
             if (detachedPageScannerTransport
-                    && !pageScannerOperation
-                    && !"ocrWorkspace.open".equals(type)) {
+                    && !isAllowedFromDetachedPageScannerTransport(type)) {
                 log.warn(
                         "Rejected legacy operation {} from detached Page Scanner transport {}",
                         type,
@@ -575,6 +578,17 @@ public class SimpleWebSocketServer {
                     break;
                 case "pageScanner.createBlock":
                     handlePageScannerCreateBlock(
+                            jsonObjMSG,
+                            homeBankingId,
+                            claimedSessionId,
+                            transportSessionId,
+                            session);
+                    break;
+                case "pageScannerProfile.list":
+                case "pageScannerProfile.save":
+                case "pageScannerProfile.delete":
+                    handlePageScannerProfileCommand(
+                            type,
                             jsonObjMSG,
                             homeBankingId,
                             claimedSessionId,
@@ -2396,6 +2410,63 @@ public class SimpleWebSocketServer {
         }
     }
 
+    private void handlePageScannerProfileCommand(
+            String operation,
+            JsonObject envelope,
+            int envelopeHomeBankingId,
+            String claimedSessionId,
+            String transportSessionId,
+            Session transport) {
+        JsonObject body = bodyOrEmpty(envelope);
+        String responseOperation = pageScannerResponseOperation(operation);
+        if (!validatePageScannerTransport(
+                body,
+                envelopeHomeBankingId,
+                claimedSessionId,
+                transportSessionId,
+                transport,
+                responseOperation)) {
+            return;
+        }
+
+        try {
+            String requestId = requirePageScannerRequestId(body);
+            PageScannerWorkspaceCoordinator.BootstrapContext workspace =
+                    requireActivePageScannerWorkspace(transportSessionId);
+            Map<String, Object> result = switch (operation) {
+                case "pageScannerProfile.list" -> pageScannerProfileService.list(body);
+                case "pageScannerProfile.save" -> pageScannerProfileService.save(body);
+                case "pageScannerProfile.delete" -> pageScannerProfileService.delete(body);
+                default -> throw new IllegalArgumentException("Unsupported Page Scanner profile command");
+            };
+            JsonObject response = gson.toJsonTree(result).getAsJsonObject();
+            response.addProperty("requestId", requestId);
+            sendPageScannerResponse(
+                    workspace.context().homeBankingId(),
+                    transportSessionId,
+                    transport,
+                    responseOperation,
+                    response);
+        } catch (IllegalArgumentException | IllegalStateException invalidRequest) {
+            sendPageScannerFailure(
+                    body,
+                    envelopeHomeBankingId,
+                    transportSessionId,
+                    transport,
+                    responseOperation,
+                    invalidRequest.getMessage());
+        } catch (RuntimeException failure) {
+            log.error("Unable to execute detached Page Scanner profile command {}", operation, failure);
+            sendPageScannerFailure(
+                    body,
+                    envelopeHomeBankingId,
+                    transportSessionId,
+                    transport,
+                    responseOperation,
+                    "Unable to update Page Scanner focus profiles.");
+        }
+    }
+
     private void handlePageScannerElementTest(
             JsonObject envelope,
             int envelopeHomeBankingId,
@@ -2892,6 +2963,17 @@ public class SimpleWebSocketServer {
 
     static boolean isSupportedPageScannerOperation(String operation) {
         return operation != null && PAGE_SCANNER_OPERATIONS.contains(operation);
+    }
+
+    static boolean isPageScannerTransportOperation(String operation) {
+        return operation != null
+                && (operation.startsWith("pageScanner.")
+                        || operation.startsWith("pageScannerWorkspace.")
+                        || operation.startsWith("pageScannerProfile."));
+    }
+
+    static boolean isAllowedFromDetachedPageScannerTransport(String operation) {
+        return isPageScannerTransportOperation(operation) || "ocrWorkspace.open".equals(operation);
     }
 
     private static String requirePageScannerRequestId(JsonObject body) {

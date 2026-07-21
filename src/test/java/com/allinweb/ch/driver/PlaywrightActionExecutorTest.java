@@ -31,7 +31,8 @@ class PlaywrightActionExecutorTest {
         try {
             driver.open(ARConstantsEngine.EDGE, "about:blank", "");
             driver.setContent("<!doctype html><html><body>"
-                    + "<button data-testid='go' onclick=\"document.getElementById('out').innerText='clicked'\">Go</button>"
+                    + "<button test-id='go' onclick=\"document.getElementById('out').innerText='test-id'\">Go literal</button>"
+                    + "<button data-testid='go' onclick=\"document.getElementById('out').innerText='data-testid'\">Go data</button>"
                     + "<div id='out'>idle</div></body></html>");
 
             InstructionLoad ins = new InstructionLoad();
@@ -43,7 +44,40 @@ class PlaywrightActionExecutorTest {
             ins.setReferenceLoadDTOList(List.of(ref));
 
             assertTrue(driver.click(ins), "click via test-id reference should succeed");
-            assertEquals("clicked", String.valueOf(driver.evaluate("() => document.getElementById('out').innerText")));
+            assertEquals("test-id", String.valueOf(driver.evaluate("() => document.getElementById('out').innerText")));
+
+            ref.setReferenceType("data-testid");
+            assertTrue(driver.click(ins), "click via data-testid reference should succeed");
+            assertEquals(
+                    "data-testid",
+                    String.valueOf(driver.evaluate("() => document.getElementById('out').innerText")));
+        } finally {
+            driver.close();
+        }
+    }
+
+    @Test
+    void clicksByExactCustomAttrDataWithoutTreatingAttributeNameAsDomId() {
+        ARPlaywrightDriver driver = new ARPlaywrightDriver();
+        try {
+            driver.open(ARConstantsEngine.EDGE, "about:blank", "");
+            driver.setContent("<!doctype html><html><body>"
+                    + "<button id='same' onclick=\"document.getElementById('out').innerText='wrong-id'\">Wrong</button>"
+                    + "<button martini-id='same' onclick=\"document.getElementById('out').innerText='custom-attribute'\">Right</button>"
+                    + "<button qa-hook='save-action' onclick=\"document.getElementById('out').innerText='qa-hook'\">Save</button>"
+                    + "<div id='out'>idle</div></body></html>");
+
+            InstructionLoad customId = referenceOnly("AttrData:martini-id", "same");
+            assertTrue(driver.click(customId));
+            assertEquals(
+                    "custom-attribute",
+                    String.valueOf(driver.evaluate("() => document.getElementById('out').innerText")));
+
+            InstructionLoad qaHook = referenceOnly("AttrData:qa-hook", "save-action");
+            assertTrue(driver.click(qaHook));
+            assertEquals(
+                    "qa-hook",
+                    String.valueOf(driver.evaluate("() => document.getElementById('out').innerText")));
         } finally {
             driver.close();
         }
@@ -88,5 +122,15 @@ class PlaywrightActionExecutorTest {
         } finally {
             driver.close();
         }
+    }
+
+    private static InstructionLoad referenceOnly(String type, String value) {
+        InstructionLoad instruction = new InstructionLoad();
+        instruction.setName(value);
+        ReferenceLoadDTO reference = new ReferenceLoadDTO();
+        reference.setReferenceType(type);
+        reference.setValue(value);
+        instruction.setReferenceLoadDTOList(List.of(reference));
+        return instruction;
     }
 }
