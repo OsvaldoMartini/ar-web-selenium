@@ -108,12 +108,12 @@ public class PerformListElements {
     private void processScanElements(
             ARWebDriver arWebDriver, List<ElementDTO> elements, int homeBankingId, int botJobId) {
         performLists.resetListElements();
-        performLists.addMapElementsTarget(elements);
 
         if (elements == null || elements.isEmpty()) {
             return;
         }
 
+        boolean targetCachePopulated = false;
         try {
             ElementDTO[] asArray = elements.toArray(new ElementDTO[0]);
             String jsonPath = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.PATH_DB);
@@ -130,11 +130,12 @@ public class PerformListElements {
 
             com.allinweb.ch.model.OcrConfig resolverCfg =
                     OcrConfigService.getInstance().resolveFor(cfgHbId, cfgHomeUrlId);
-            ElementTextResolver.resolveAll(
+            resolveAndPopulateTargetCache(
                     asArray,
                     java.nio.file.Paths.get(
                             jsonPath, com.allinweb.ch.util.PageDiagnosticDumper.SUBFOLDER, "ocr-correlation-HP.json"),
                     resolverCfg);
+            targetCachePopulated = true;
 
             try {
                 Integer hbId = homeBankingId > 0 ? homeBankingId : null;
@@ -175,7 +176,22 @@ public class PerformListElements {
             performMessage.outputJsonElementDTO(asArray, aiExcludeList, "AI-ElementDTO-PS", jsonPath);
         } catch (Exception jsonError) {
             log.warn("PerformListElements - failed to persist element JSON: {}", jsonError.getMessage());
+        } finally {
+            // Diagnostics/OCR persistence is best-effort. If it failed before resolution,
+            // preserve the historical behavior of making the raw scan available to callers.
+            if (!targetCachePopulated) {
+                performLists.resetListElements();
+                performLists.addMapElementsTarget(elements);
+            }
         }
+    }
+
+    static void resolveAndPopulateTargetCache(
+            ElementDTO[] elements,
+            java.nio.file.Path ocrCorrelationFile,
+            com.allinweb.ch.model.OcrConfig resolverConfig) {
+        ElementTextResolver.resolveAll(elements, ocrCorrelationFile, resolverConfig);
+        performLists.addMapElementsTarget(Arrays.asList(elements));
     }
 
     /** Result bundle for {@link #scanElements}: either an error or the parsed list. */

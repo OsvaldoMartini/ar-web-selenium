@@ -17,6 +17,8 @@ public class PlaywrightActionExecutor {
 
     /** Short per-attempt timeout so hidden/unactionable elements fail fast instead of the 30s default. */
     private static final double ACTION_TIMEOUT_MS = 6000;
+    private static final String OPTION_CANDIDATE_SELECTOR =
+            "[role=\"option\"], [role=\"menuitem\"], [cmdk-item], [data-radix-select-item]";
 
     public boolean click(Page page, InstructionLoad instruction) {
         if (page == null || page.isClosed() || instruction == null) {
@@ -86,12 +88,10 @@ public class PlaywrightActionExecutor {
                 firstReferenceValue(instruction, "select.trigger.css", "trigger-selector", "AttrData:trigger-selector");
 
         String optionText = !text.isBlank() ? text : value;
-        if (clickVisibleOption(page, optionText)) {
-            return true;
-        }
-
-        if (openSelectTrigger(page, instruction, triggerCss, nativeSelectXPath)
-                && clickVisibleOption(page, optionText)) {
+        // A stable option test-id/XPath is safe to use while its own overlay is still open.
+        // Never start with a page-global text match: linked selects commonly expose the same
+        // currency text and that would click whichever side happened to be open.
+        if (clickSavedExactOption(page, instruction, optionText)) {
             return true;
         }
 
@@ -106,62 +106,115 @@ public class PlaywrightActionExecutor {
             }
         }
 
+        OpenedSelect opened = openSelectTrigger(page, instruction, triggerCss, nativeSelectXPath);
+        if (!opened.opened()) return false;
+
+        // Angular/CDK recreates the option after opening. Its stable automation id is the
+        // strongest contract and remains scoped to the intended debit/credit owner.
+        if (clickSavedExactOption(page, instruction, optionText)) {
+            return true;
+        }
+        if (!opened.panelCss().isBlank()
+                && clickExactOptions(page.locator(opened.panelCss()).locator(OPTION_CANDIDATE_SELECTOR), optionText, true)) {
+            return true;
+        }
+        // Last resort for libraries without aria-controls: only click when exactly one visible
+        // option on the entire page has the exact normalized text.
+        if (clickExactOptions(page.locator(OPTION_CANDIDATE_SELECTOR), optionText, true)) {
+            return true;
+        }
+
         return false;
     }
 
-    private boolean clickVisibleOption(Page page, String optionText) {
-        if (optionText == null || optionText.isBlank()) {
-            return false;
+    private boolean clickSavedExactOption(Page page, InstructionLoad instruction, String optionText) {
+        if (instruction.getCssSelector() != null
+                && !instruction.getCssSelector().isBlank()
+                && clickExactOptions(page.locator(instruction.getCssSelector()), optionText, true)) {
+            return true;
         }
-
-        String textSelector = quotePlaywrightText(optionText);
-        String[] selectors = {
-            "[role=\"option\"]:has-text(" + textSelector + ")",
-            "[role=\"menuitem\"]:has-text(" + textSelector + ")",
-            "[cmdk-item]:has-text(" + textSelector + ")",
-            "[data-radix-select-item]:has-text(" + textSelector + ")",
-            "text=" + textSelector
-        };
-
-        for (String selector : selectors) {
+        if (instruction.getXpath() != null && !instruction.getXpath().isBlank()) {
             try {
-                Locator option = page.locator(selector);
-                if (option.count() > 0) {
-                    if (clickLocator(option.last())) {
-                        return true;
-                    }
-                }
-            } catch (Exception optionClick) {
-                log.debug("Playwright option click failed for {}: {}", selector, optionClick.getMessage());
+                if (clickExactOptions(page.locator("xpath=" + instruction.getXpath()), optionText, true)) return true;
+            } catch (Exception invalidXPath) {
+                log.debug("Saved option XPath failed: {}", invalidXPath.getMessage());
             }
         }
+
+        String[][] automationReferences = {
+            {"test-id", "AttrData:test-id"},
+            {"data-testid", "AttrData:data-testid"},
+            {"data-test-id", "AttrData:data-test-id"},
+            {"data-cy", "AttrData:data-cy"},
+            {"data-qa", "AttrData:data-qa"}
+        };
+        for (String[] referenceTypes : automationReferences) {
+            String value = firstReferenceValue(instruction, referenceTypes);
+            if (value.isBlank()) continue;
+            String selector = "[" + referenceTypes[0] + "=\"" + cssAttribute(value) + "\"]";
+            if (clickExactOptions(page.locator(selector), optionText, true)) return true;
+        }
         return false;
     }
 
-    private boolean openSelectTrigger(
+    private boolean clickExactOptions(Locator candidates, String expectedText, boolean requireUnique) {
+        if (candidates == null || expectedText == null || expectedText.isBlank()) return false;
+        List<Locator> matches = new ArrayList<>();
+        try {
+            int count = candidates.count();
+            for (int index = 0; index < count; index++) {
+                Locator candidate = candidates.nth(index);
+                if (!candidate.isVisible()) continue;
+                String actual = candidate.innerText();
+                if (normalizeOptionText(expectedText).equals(normalizeOptionText(actual))) {
+                    matches.add(candidate);
+                }
+            }
+        } catch (Exception lookup) {
+            log.debug("Exact option lookup failed: {}", lookup.getMessage());
+            return false;
+        }
+        if (matches.isEmpty() || (requireUnique && matches.size() != 1)) return false;
+        return clickLocator(matches.get(0));
+    }
+
+    private OpenedSelect openSelectTrigger(
             Page page, InstructionLoad instruction, String triggerCss, String nativeSelectXPath) {
-        if (!triggerCss.isBlank() && clickFirst(page.locator(triggerCss))) {
-            return true;
+        if (!triggerCss.isBlank()) {
+            OpenedSelect opened = clickTrigger(page.locator(triggerCss));
+            if (opened.opened()) return opened;
         }
 
         if (!nativeSelectXPath.isBlank()) {
             String siblingTriggerXPath =
                     nativeSelectXPath + "/preceding-sibling::*[@role='combobox' or self::button][1]";
-            if (clickFirst(page.locator("xpath=" + siblingTriggerXPath))) {
-                return true;
-            }
+            OpenedSelect opened = clickTrigger(page.locator("xpath=" + siblingTriggerXPath));
+            if (opened.opened()) return opened;
         }
 
         Locator trigger = locate(page, instruction);
-        return trigger != null && trigger.count() > 0 && clickLocator(trigger.first());
+        return clickTrigger(trigger);
     }
 
-    private boolean clickFirst(Locator locator) {
+    private OpenedSelect clickTrigger(Locator locator) {
         try {
-            return locator != null && locator.count() > 0 && clickLocator(locator.first());
+            if (locator == null || locator.count() == 0) return OpenedSelect.notOpened();
+            Locator trigger = locator.first();
+            if (!clickLocator(trigger)) return OpenedSelect.notOpened();
+            String panelId = trigger.getAttribute("aria-controls");
+            if (panelId == null || panelId.isBlank()) panelId = trigger.getAttribute("aria-owns");
+            if (panelId == null || panelId.isBlank()) return new OpenedSelect(true, "");
+            String firstPanelId = panelId.trim().split("\\s+")[0];
+            return new OpenedSelect(true, "[id=\"" + cssAttribute(firstPanelId) + "\"]");
         } catch (Exception error) {
-            log.debug("Playwright clickFirst failed: {}", error.getMessage());
-            return false;
+            log.debug("Playwright select trigger failed: {}", error.getMessage());
+            return OpenedSelect.notOpened();
+        }
+    }
+
+    private record OpenedSelect(boolean opened, String panelCss) {
+        private static OpenedSelect notOpened() {
+            return new OpenedSelect(false, "");
         }
     }
 
@@ -382,7 +435,8 @@ public class PlaywrightActionExecutor {
         if (value == null || !value.matches("[a-z_:][a-z0-9_.:-]{0,127}")) return false;
         return switch (value) {
             case "generated-id", "original-tag", "select-xpath", "option-value", "option-text",
-                    "trigger-selector", "control.kind", "control.role", "z-index", "clickable" -> false;
+                    "trigger-selector", "text-source", "dom-label", "control.kind", "control.role", "z-index",
+                    "clickable" -> false;
             default -> true;
         };
     }
@@ -533,8 +587,8 @@ public class PlaywrightActionExecutor {
         return value.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 
-    private static String quotePlaywrightText(String value) {
-        return "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
+    private static String normalizeOptionText(String value) {
+        return value == null ? "" : value.replaceAll("\\s+", " ").trim();
     }
 
     @SuppressWarnings("unused")

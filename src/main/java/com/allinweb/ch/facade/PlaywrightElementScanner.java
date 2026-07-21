@@ -38,9 +38,78 @@ public class PlaywrightElementScanner {
                 'data-testid', 'data-test-id', 'test-id', 'data-cy', 'data-qa',
                 ...configuredAttributeNames
               ]));
+
+              function automationAttribute(el) {
+                if (!el) return null;
+                const name = automationAttributeNames.find(candidate => {
+                  const value = el.getAttribute(candidate);
+                  return value !== null && value.trim() !== '';
+                });
+                return name ? { name, value: el.getAttribute(name).trim() } : null;
+              }
+
+              function isVolatileFrameworkId(id) {
+                return /^(?:mat|cdk)(?:-[a-z0-9]+)*-[0-9]+(?:-[0-9]+)*$/i.test((id || '').trim());
+              }
+
+              function cssAttributeSelector(tag, name, value) {
+                const slash = String.fromCharCode(92);
+                const escaped = String(value || '')
+                  .split(slash).join(slash + slash)
+                  .split('"').join(slash + '"');
+                return tag + '[' + name + '="' + escaped + '"]';
+              }
+
+              function xpathLiteral(value) {
+                const text = String(value || '');
+                if (!text.includes("'")) return "'" + text + "'";
+                if (!text.includes('"')) return '"' + text + '"';
+                const apostropheLiteral = '"' + "'" + '"';
+                return 'concat(' + text.split("'").map(part => "'" + part + "'").join(', ' + apostropheLiteral + ', ') + ')';
+              }
+
+              function compositeAutomationLocator(el) {
+                const controlName = el?.getAttribute('formcontrolname') || '';
+                if (!controlName) return null;
+                for (let owner = el.parentElement; owner; owner = owner.parentElement) {
+                  const automation = automationAttribute(owner);
+                  if (!automation) continue;
+                  const ownerTag = owner.tagName.toLowerCase();
+                  const childTag = el.tagName.toLowerCase();
+                  const ownerCss = cssAttributeSelector(ownerTag, automation.name, automation.value);
+                  const childCss = cssAttributeSelector(childTag, 'formcontrolname', controlName);
+                  const compositeCss = ownerCss + ' ' + childCss;
+                  if (document.querySelectorAll(ownerCss).length !== 1
+                      || document.querySelectorAll(compositeCss).length !== 1) continue;
+                  return {
+                    css: compositeCss,
+                    xpath: '//' + ownerTag + '[@' + automation.name + '=' + xpathLiteral(automation.value) + ']'
+                      + '//' + childTag + '[@formcontrolname=' + xpathLiteral(controlName) + ']'
+                  };
+                }
+                return null;
+              }
+
               function generateXPath(el) {
                 if (!el || el.nodeType !== 1) return '';
-                if (el.id) return "//*[@id='" + el.id.replace(/'/g, "\\\\'") + "']";
+                const tag = el.tagName.toLowerCase();
+                const composite = compositeAutomationLocator(el);
+                if (composite) return composite.xpath;
+                const automation = automationAttribute(el);
+                const volatileId = isVolatileFrameworkId(el.id);
+                if (automation && (!el.id || volatileId || tag === 'mat-option')) {
+                  return '//' + tag + '[@' + automation.name + '=' + xpathLiteral(automation.value) + ']';
+                }
+                const controlName = el.getAttribute('formcontrolname') || '';
+                if (controlName && (!el.id || volatileId)) {
+                  return '//' + tag + '[@formcontrolname=' + xpathLiteral(controlName) + ']';
+                }
+                if (el.id) return "//*[@id=" + xpathLiteral(el.id) + "]";
+                if (automation) {
+                  return '//' + tag + '[@' + automation.name + '=' + xpathLiteral(automation.value) + ']';
+                }
+                const name = el.getAttribute('name') || '';
+                if (name) return '//' + tag + '[@name=' + xpathLiteral(name) + ']';
                 const parts = [];
                 for (let node = el; node && node.nodeType === 1; node = node.parentElement) {
                   let index = 1;
@@ -69,6 +138,7 @@ public class PlaywrightElementScanner {
               function looksGeneratedToken(text) {
                 const raw = (text || '').trim();
                 if (!raw) return false;
+                if (isVolatileFrameworkId(raw)) return true;
                 // Machine values must never become element names:
                 // - path-style framework names: __pagevalue__/0/11/0/43/...
                 if (/\\/\\d/.test(raw)) return true;
@@ -97,6 +167,12 @@ public class PlaywrightElementScanner {
                 if ((kind || '').includes('checkbox') && /^checkbox\\s*(label)?\\s*\\d*$/i.test(cleaned)) return '';
                 if ((kind || '').includes('radio') && /^radio\\s*(label)?\\s*\\d*$/i.test(cleaned)) return '';
                 return cleaned;
+              }
+
+              function rememberText(attrs, text, source, accessibleLabel) {
+                pushMetadata(attrs, 'text-source', source);
+                if (accessibleLabel) pushMetadata(attrs, 'dom-label', text);
+                return text;
               }
 
               function semanticAttributeText(el) {
@@ -144,13 +220,22 @@ public class PlaywrightElementScanner {
               function cssSelector(el) {
                 if (!el) return '';
                 const tag = el.tagName.toLowerCase();
+                const composite = compositeAutomationLocator(el);
+                if (composite) return composite.css;
+                const automation = automationAttribute(el);
+                const volatileId = isVolatileFrameworkId(el.id);
+                if (automation && (!el.id || volatileId || tag === 'mat-option')) {
+                  return cssAttributeSelector(tag, automation.name, automation.value);
+                }
+                const controlName = el.getAttribute('formcontrolname') || '';
+                if (controlName && (!el.id || volatileId)) {
+                  return cssAttributeSelector(tag, 'formcontrolname', controlName);
+                }
                 if (el.id) return tag + '#' + CSS.escape(el.id);
                 const name = el.getAttribute('name');
                 if (name) return tag + '[name="' + name.replace(/"/g, '\\\\"') + '"]';
-                const attrName = automationAttributeNames.find(name => el.hasAttribute(name));
-                const attrValue = attrName ? (el.getAttribute(attrName) || '') : '';
-                if (attrName) {
-                  return tag + '[' + attrName + '="' + attrValue.replace(/"/g, '\\\\"') + '"]';
+                if (automation) {
+                  return cssAttributeSelector(tag, automation.name, automation.value);
                 }
                 const role = el.getAttribute('role');
                 const controls = el.getAttribute('aria-controls');
@@ -186,22 +271,22 @@ public class PlaywrightElementScanner {
                     .filter(Boolean)
                     .join(' ');
                   const useful = usefulText(text, el, kind);
-                  if (useful) return useful;
+                  if (useful) return rememberText(attrs, useful, 'aria-labelledby', true);
                 }
                 if (el.id) {
                   const label = document.querySelector('label[for="' + CSS.escape(el.id) + '"]');
                   const useful = usefulText(label?.textContent, el, kind);
-                  if (useful) return useful;
+                  if (useful) return rememberText(attrs, useful, 'label-for', true);
                 }
                 const wrappedLabel = el.closest('label');
                 const wrappedText = usefulText(wrappedLabel?.textContent, el, kind);
-                if (wrappedText) return wrappedText;
+                if (wrappedText) return rememberText(attrs, wrappedText, 'wrapped-label', true);
                 const aria = attrs.find(a => a.name === 'aria-label')?.value;
                 const ariaText = usefulText(aria, el, kind);
-                if (ariaText) return ariaText;
+                if (ariaText) return rememberText(attrs, ariaText, 'aria-label', true);
                 const placeholder = attrs.find(a => a.name === 'placeholder')?.value;
                 const placeholderText = usefulText(placeholder, el, kind);
-                if (placeholderText) return placeholderText;
+                if (placeholderText) return rememberText(attrs, placeholderText, 'placeholder', false);
 
                 // Icon-only clickables carry their meaning in the sprite reference
                 // (<use xlink:href='#ext.defaulticons.languagefrempty-32'>) - the last
@@ -222,9 +307,11 @@ public class PlaywrightElementScanner {
                 // (e.g. 'Accetta tutti i cookie' became 'onetrust accept btn handler',
                 // because closest('[id]') matches the element itself).
                 const selfTag = el.tagName.toLowerCase();
-                if (!['input', 'textarea', 'select'].includes(selfTag)) {
+                const needsExternalLabel = ['input', 'textarea', 'select', 'mat-select'].includes(selfTag)
+                  || ['combobox', 'textbox'].includes(attr(el, 'role'));
+                if (!needsExternalLabel) {
                   const selfText = usefulText(el.innerText || el.textContent, el, kind);
-                  if (selfText) return selfText;
+                  if (selfText) return rememberText(attrs, selfText, 'self-text', false);
                 }
 
                 let current = el;
@@ -273,9 +360,9 @@ public class PlaywrightElementScanner {
                   }
                 }
 
-                const own = cleanText(el.innerText || el.textContent || '');
+                const own = needsExternalLabel ? '' : cleanText(el.innerText || el.textContent || '');
                 const ownText = usefulText(own, el, kind);
-                if (ownText) return ownText;
+                if (ownText) return rememberText(attrs, ownText, 'self-text', false);
                 const semantic = semanticAttributeText(el);
                 if (semantic) return semantic;
                 const fallback = [el.getAttribute('name'), el.id].find(v => v && !looksGeneratedToken(v));
@@ -290,6 +377,8 @@ public class PlaywrightElementScanner {
                 const type = inputType(el);
                 if (tag === 'option') return 'select-option';
                 if (tag === 'select') return 'select';
+                if (tag === 'mat-select') return 'select';
+                if (tag === 'mat-option') return 'select-option';
                 if (tag === 'textarea' || role === 'textbox' || el.isContentEditable) return 'text-input';
                 if (tag === 'input') {
                   if (['button', 'submit', 'reset'].includes(type)) return 'button';
@@ -354,14 +443,73 @@ public class PlaywrightElementScanner {
                 return container.querySelector('[role="combobox"], button, [data-slot="select-trigger"]');
               }
 
+              function matOptionOwner(el, optionText, optionValue) {
+                const automation = automationAttribute(el);
+                if (!automation?.value) return null;
+                const suffixes = Array.from(new Set([optionValue, optionText]
+                  .map(cleanText)
+                  .filter(Boolean)
+                  .flatMap(value => [value, value.replace(/ +/g, '-')])));
+                const candidates = Array.from(document.querySelectorAll('[' + automation.name + ']'));
+                for (const suffix of suffixes) {
+                  const marker = '-' + suffix;
+                  if (!automation.value.toLowerCase().endsWith(marker.toLowerCase())) continue;
+                  const ownerValue = automation.value.slice(0, automation.value.length - marker.length);
+                  const owners = candidates.filter(candidate => candidate !== el
+                    && (candidate.getAttribute(automation.name) || '') === ownerValue);
+                  if (owners.length === 1) return owners[0];
+                }
+                return null;
+              }
+
+              function triggerWithin(owner) {
+                if (!owner) return null;
+                const triggerSelector = 'mat-select[formcontrolname], select[formcontrolname], '
+                  + '[role="combobox"][formcontrolname], mat-select, select, [role="combobox"], button';
+                if (owner.matches(triggerSelector)) return owner;
+                return owner.querySelector(triggerSelector);
+              }
+
+              function optionTriggerSelector(el, optionText, optionValue) {
+                const nativeSelect = el.tagName.toLowerCase() === 'option' ? el.closest('select') : null;
+                if (nativeSelect) return cssSelector(nearestCombobox(nativeSelect) || nativeSelect);
+                const owner = matOptionOwner(el, optionText, optionValue);
+                const trigger = triggerWithin(owner);
+                return trigger ? cssSelector(trigger) : '';
+              }
+
               function isNativeSelectHiddenButUseful(el, tag) {
                 if (tag !== 'select') return false;
                 return Array.from(el.options || []).some(o => (o.textContent || '').trim());
               }
 
+              function isDuplicateActionProxy(el, tag) {
+                if (tag === 'mat-form-field'
+                    && el.querySelector('input, textarea, select, mat-select, [role="combobox"], [role="textbox"]')) {
+                  return true;
+                }
+                if (tag === 'mat-icon' && el.closest('button, a, [role="button"], [role="link"]')) {
+                  return true;
+                }
+                return false;
+              }
+
+              function pushMetadata(attrs, name, value) {
+                if (!value || attrs.some(attribute => attribute.name === name)) return;
+                attrs.push({ name, value });
+              }
+
               function optionXPath(selectEl, option) {
                 const base = generateXPath(selectEl);
                 const options = Array.from(selectEl.options || []);
+                const value = option.getAttribute('value') || '';
+                if (value && options.filter(candidate => (candidate.getAttribute('value') || '') === value).length === 1) {
+                  return base + '/option[@value=' + xpathLiteral(value) + ']';
+                }
+                const text = cleanText(option.textContent || '');
+                if (text && options.filter(candidate => cleanText(candidate.textContent || '') === text).length === 1) {
+                  return base + '/option[normalize-space(.)=' + xpathLiteral(text) + ']';
+                }
                 const index = Math.max(1, options.indexOf(option) + 1);
                 return base + '/option[' + index + ']';
               }
@@ -386,13 +534,21 @@ public class PlaywrightElementScanner {
                 const rect = el.getBoundingClientRect();
                 const style = window.getComputedStyle(el);
                 const role = attr(el, 'role');
-                const automationAttributeName = automationAttributeNames.find(name => el.hasAttribute(name));
+                const automationAttributeName = automationAttribute(el)?.name;
                 const zIndex = style.zIndex && style.zIndex !== 'auto' ? style.zIndex : '';
                 const kind = override?.attributeType || controlKind(el, tag, role);
                 if (role) attrs.push({ name: 'role', value: role });
                 if (zIndex) attrs.push({ name: 'z-index', value: zIndex });
                 if (kind) attrs.push({ name: 'control.kind', value: kind });
                 if (role) attrs.push({ name: 'control.role', value: role });
+
+                if (kind === 'select-option' && (tag === 'mat-option' || tag === 'option')) {
+                  const optionText = cleanText(el.innerText || el.textContent || '');
+                  const optionValue = el.getAttribute('value') || el.getAttribute('ng-reflect-value') || optionText;
+                  pushMetadata(attrs, 'option-text', optionText);
+                  pushMetadata(attrs, 'option-value', optionValue);
+                  pushMetadata(attrs, 'trigger-selector', optionTriggerSelector(el, optionText, optionValue));
+                }
 
                 // Deterministic search id when the element has no DOM id and no configured
                 // automation attribute. Built from the
@@ -451,6 +607,11 @@ public class PlaywrightElementScanner {
               const out = [];
               elements.forEach((el, idx) => {
                 const tag = el.tagName.toLowerCase();
+                if (isDuplicateActionProxy(el, tag)) return;
+                // Native <option> nodes are represented by the richer select synthesis below
+                // (clickable + readable DTO with trigger metadata). Emitting the raw node too
+                // creates a third, transient duplicate with a positional locator.
+                if (tag === 'option' && el.closest('select')) return;
                 // A <select> is the clickable trigger: emit it under the decided-category
                 // convention (tagName 'button', like the per-option DTOs below) so grids
                 // that group by tag land it in the Button bucket instead of minting a

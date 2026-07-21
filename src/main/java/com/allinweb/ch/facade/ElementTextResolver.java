@@ -17,6 +17,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 
@@ -120,6 +121,12 @@ public final class ElementTextResolver {
                 }
 
                 String slug = TextSimilarity.slug(resolved.isBlank() ? defaultBaseFor(e) : resolved);
+                String formControlSlug = stableFormControlSlug(getAttribute(e, "formcontrolname"));
+                if (!formControlSlug.isBlank()
+                        && !slug.equals(formControlSlug)
+                        && !slug.endsWith("_" + formControlSlug)) {
+                    slug = TextSimilarity.slug(slug + "_" + formControlSlug);
+                }
                 // Mega-menus produce dozens of same-label links (27x "Panoramica" on
                 // BancaStato): on a name collision, the href's last segment is the natural
                 // discriminator (panoramica_conti_e_carte), far more readable than the
@@ -193,7 +200,18 @@ public final class ElementTextResolver {
         }
 
         // S3 — scanner-provided someText (medium weight; defers to label / aria when present)
-        if (e.getSomeText() != null && !e.getSomeText().isBlank() && !isGenericControlLabel(e.getSomeText(), e)) {
+        String domOptionText = authoritativeOptionText(e);
+        String domControlText = authoritativeFormControlText(e);
+        String authoritativeDomText = !domOptionText.isBlank() ? domOptionText : domControlText;
+        if (!authoritativeDomText.isBlank()) {
+            // The rendered option is the browser/application value, not a weak label hint.
+            // OCR commonly confuses short currency codes (CHF -> CHE), so DOM option text
+            // and the label already resolved for a formcontrolname remain authoritative.
+            out.add(new TextCandidate(
+                    authoritativeDomText, 1.10, domOptionText.isBlank() ? "dom.form-control" : "dom.option-text"));
+        } else if (e.getSomeText() != null
+                && !e.getSomeText().isBlank()
+                && !isGenericControlLabel(e.getSomeText(), e)) {
             out.add(new TextCandidate(e.getSomeText(), 0.40, "scanner.someText"));
         }
 
@@ -222,7 +240,7 @@ public final class ElementTextResolver {
 
         // S7 / S8 — OCR (weights from cfg, default 0.85 / 0.70 / 0.55)
         OcrCorrelationResult ocr = ocrByXPath.get(e.getXPath());
-        if (ocr != null) {
+        if (ocr != null && authoritativeDomText.isBlank()) {
             String quality = ocr.matchQuality == null ? "" : ocr.matchQuality;
             String text = ocr.ocrText == null ? "" : ocr.ocrText;
             // Single-glyph OCR results ("m", "|", "l"…) are almost always artifacts, not labels.
@@ -337,6 +355,48 @@ public final class ElementTextResolver {
         kind = kind == null ? "" : kind.toLowerCase(Locale.ROOT);
         return (kind.contains("checkbox") && value.matches("checkbox\\s*(label)?\\s*\\d*"))
                 || (kind.contains("radio") && value.matches("radio\\s*(label)?\\s*\\d*"));
+    }
+
+    private static String authoritativeOptionText(ElementDTO e) {
+        if (e == null) return "";
+        String kind = getAttribute(e, "control.kind");
+        String role = getAttribute(e, "control.role");
+        String originalTag = getAttribute(e, "original-tag");
+        boolean isOption = "select-option".equalsIgnoreCase(kind)
+                || "option".equalsIgnoreCase(role)
+                || "option".equalsIgnoreCase(originalTag)
+                || "option".equalsIgnoreCase(e.getTagName())
+                || "mat-option".equalsIgnoreCase(e.getTagName());
+        if (!isOption) return "";
+
+        String optionText = getAttribute(e, "option-text");
+        if (optionText == null || optionText.isBlank()) optionText = e.getSomeText();
+        return clean(optionText);
+    }
+
+    private static String authoritativeFormControlText(ElementDTO e) {
+        if (e == null) return "";
+        String formControlName = getAttribute(e, "formcontrolname");
+        String textSource = getAttribute(e, "text-source");
+        String domLabel = getAttribute(e, "dom-label");
+        if (formControlName == null
+                || formControlName.isBlank()
+                || domLabel == null
+                || domLabel.isBlank()
+                || !List.of("aria-labelledby", "aria-label", "label-for", "wrapped-label")
+                        .contains(Objects.toString(textSource, "").toLowerCase(Locale.ROOT))
+                || isGenericControlLabel(domLabel, e)) {
+            return "";
+        }
+        return clean(domLabel);
+    }
+
+    private static String stableFormControlSlug(String formControlName) {
+        if (formControlName == null || formControlName.isBlank()) return "";
+        String separated = formControlName
+                .replaceAll("([a-z0-9])([A-Z])", "$1_$2")
+                .replaceAll("([A-Z])([A-Z][a-z])", "$1_$2");
+        return TextSimilarity.slug(separated);
     }
 
     private static String semanticAttributeText(ElementDTO e) {

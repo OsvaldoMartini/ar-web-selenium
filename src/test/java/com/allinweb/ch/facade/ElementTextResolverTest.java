@@ -97,4 +97,84 @@ class ElementTextResolverTest {
         assertEquals("Category Filter", checkbox.getSomeText());
         assertEquals("category_filter", checkbox.getDefinedName());
     }
+
+    @Test
+    void currencyOptionDomTextCannotBeReplacedBySimilarOcr(@TempDir Path dir) throws Exception {
+        ElementDTO chf = button("mat-option-83", "CHF");
+        chf.setTagName("mat-option");
+        chf.setXPath("//mat-option[@test-id='forex.credit-currency-CHF']");
+        chf.setAttributeData(new AttributeData[] {
+            new AttributeData("test-id", "forex.credit-currency-CHF"),
+            new AttributeData("role", "option"),
+            new AttributeData("control.kind", "select-option"),
+            new AttributeData("option-text", "CHF"),
+            new AttributeData("option-value", "CHF")
+        });
+        Path ocr = writeOcr(
+                dir,
+                "[{\"xpath\":\"//mat-option[@test-id='forex.credit-currency-CHF']\","
+                        + "\"matchQuality\":\"EXACT_CONTAIN\",\"ocrText\":\"CHE\"}]");
+
+        ElementTextResolver.resolveAll(new ElementDTO[] {chf}, ocr, null);
+
+        assertEquals("CHF", chf.getSomeText());
+        assertEquals("chf", chf.getDefinedName());
+    }
+
+    @Test
+    void formControlDomLabelsSurviveOcrAndUseStableControlNames(@TempDir Path dir) throws Exception {
+        ElementDTO debit = button("mat-select-35", "Valuta");
+        debit.setTagName("mat-select");
+        debit.setXPath("//mat-form-field[@test-id='forex.debit-currency']//mat-select[@formcontrolname='debitCurrency']");
+        debit.setAttributeData(new AttributeData[] {
+            new AttributeData("formcontrolname", "debitCurrency"),
+            new AttributeData("text-source", "aria-labelledby"),
+            new AttributeData("dom-label", "Valuta"),
+            new AttributeData("control.kind", "select")
+        });
+
+        ElementDTO credit = button("mat-select-38", "Conto di accredito");
+        credit.setTagName("mat-select");
+        credit.setXPath("//mat-form-field[@test-id='forex.credit-account']//mat-select[@formcontrolname='creditAccount']");
+        credit.setAttributeData(new AttributeData[] {
+            new AttributeData("formcontrolname", "creditAccount"),
+            new AttributeData("text-source", "aria-labelledby"),
+            new AttributeData("dom-label", "Conto di accredito"),
+            new AttributeData("control.kind", "select")
+        });
+
+        Path ocr = writeOcr(
+                dir,
+                "[{\"xpath\":\"" + debit.getXPath() + "\",\"matchQuality\":\"EXACT_CONTAIN\","
+                        + "\"ocrText\":\"eur_gbp_sigatorio\"},"
+                        + "{\"xpath\":\"" + credit.getXPath() + "\",\"matchQuality\":\"EXACT_CONTAIN\","
+                        + "\"ocrText\":\"L di accredito\"}]");
+
+        ElementTextResolver.resolveAll(new ElementDTO[] {debit, credit}, ocr, null);
+
+        assertEquals("Valuta", debit.getSomeText());
+        assertEquals("valuta_debit_currency", debit.getDefinedName());
+        assertEquals("Conto di accredito", credit.getSomeText());
+        assertEquals("conto_di_accredito_credit_account", credit.getDefinedName());
+    }
+
+    @Test
+    void unlabeledFormControlSelfTextDoesNotBecomeAuthoritative(@TempDir Path dir) throws Exception {
+        ElementDTO unlabeled = button("mat-select-40", "EUR");
+        unlabeled.setTagName("mat-select");
+        unlabeled.setXPath("//mat-select[@formcontrolname='creditCurrency']");
+        unlabeled.setAttributeData(new AttributeData[] {
+            new AttributeData("formcontrolname", "creditCurrency"),
+            new AttributeData("control.kind", "select")
+        });
+        Path ocr = writeOcr(
+                dir,
+                "[{\"xpath\":\"//mat-select[@formcontrolname='creditCurrency']\","
+                        + "\"matchQuality\":\"EXACT_CONTAIN\",\"ocrText\":\"Valuta\"}]");
+
+        ElementTextResolver.resolveAll(new ElementDTO[] {unlabeled}, ocr, null);
+
+        assertEquals("Valuta", unlabeled.getSomeText());
+        assertEquals("valuta_credit_currency", unlabeled.getDefinedName());
+    }
 }
