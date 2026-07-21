@@ -21,7 +21,7 @@ class ScannerTestRunStopperTest {
     }
 
     @Test
-    void cancelStartupInterruptsBrowserWhenActive() {
+    void cancelStartupInterruptsExecutionAndPreservesSharedBrowser() {
         FakeOperations operations = new FakeOperations();
         operations.startupActive = true;
         ScannerTestRunStopper stopper = new ScannerTestRunStopper(operations);
@@ -30,7 +30,40 @@ class ScannerTestRunStopperTest {
 
         assertTrue(operations.resetSingleBlock);
         assertTrue(operations.interceptRequested);
-        assertEquals(1, operations.closeCalls);
+        assertEquals(0, operations.closeCalls);
+    }
+
+    @Test
+    void cancelStartupMarksExecutionAllocatedBeforePreparationReturns() {
+        FakeOperations operations = new FakeOperations();
+        operations.startupActive = true;
+        operations.activeExecutionId = 17L;
+        operations.requestStopResult = true;
+        ScannerTestRunStopper stopper = new ScannerTestRunStopper(operations);
+
+        assertTrue(stopper.cancelStartup());
+
+        assertEquals(1, operations.requestStopCalls);
+        assertEquals(17L, operations.requestedStopExecutionId);
+        assertTrue(operations.resetSingleBlock);
+        assertTrue(operations.interceptRequested);
+        assertEquals(0, operations.closeCalls);
+    }
+
+    @Test
+    void cancelStartupDoesNotRewriteAllocatedExecutionAlreadyCompleted() {
+        FakeOperations operations = new FakeOperations();
+        operations.startupActive = true;
+        operations.activeExecutionId = 17L;
+        operations.completedExecutionId = 17L;
+        ScannerTestRunStopper stopper = new ScannerTestRunStopper(operations);
+
+        assertTrue(stopper.cancelStartup());
+
+        assertEquals(0, operations.requestStopCalls);
+        assertTrue(operations.resetSingleBlock);
+        assertTrue(operations.interceptRequested);
+        assertEquals(0, operations.closeCalls);
     }
 
     @Test
@@ -74,7 +107,7 @@ class ScannerTestRunStopperTest {
     }
 
     @Test
-    void stopInterruptsBrowserForActiveRunningExecution() {
+    void stopInterruptsActiveExecutionAndPreservesSharedBrowser() {
         FakeOperations operations = new FakeOperations();
         operations.activeExecutionId = 9L;
         operations.requestStopResult = true;
@@ -85,7 +118,7 @@ class ScannerTestRunStopperTest {
         assertEquals(1, operations.requestStopCalls);
         assertTrue(operations.resetSingleBlock);
         assertTrue(operations.interceptRequested);
-        assertEquals(1, operations.closeCalls);
+        assertEquals(0, operations.closeCalls);
     }
 
     @Test
@@ -115,6 +148,7 @@ class ScannerTestRunStopperTest {
         private boolean resetSingleBlock;
         private boolean interceptRequested;
         private int requestStopCalls;
+        private long requestedStopExecutionId;
         private int closeCalls;
         private int infoCalls;
 
@@ -141,6 +175,7 @@ class ScannerTestRunStopperTest {
         @Override
         public boolean requestStop(long executionId) {
             requestStopCalls++;
+            requestedStopExecutionId = executionId;
             return requestStopResult;
         }
 
@@ -159,7 +194,8 @@ class ScannerTestRunStopperTest {
             interceptRequested = true;
         }
 
-        @Override
+        // Deliberately not part of ScannerTestRunStopper.Operations. This sentinel catches any
+        // future attempt to give STOP browser-lifecycle authority again.
         public void closeBrowser() {
             closeCalls++;
         }
@@ -167,10 +203,6 @@ class ScannerTestRunStopperTest {
         @Override
         public void info(String message, Object... args) {
             infoCalls++;
-        }
-
-        @Override
-        public void warn(String message, Object... args) {
         }
     }
 }

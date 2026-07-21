@@ -44,6 +44,10 @@ public final class ScannerTestRunExecutionState {
         return outcomes.requestStop(executionId);
     }
 
+    public boolean isExecutionInterrupted(long executionId) {
+        return executionId > 0L && outcomes.isInterrupted(executionId);
+    }
+
     public void completeExecution(long executionId, boolean executionPassed) {
         outcomes.completed(executionId, executionPassed);
         completedExecutionId.accumulateAndGet(executionId, Math::max);

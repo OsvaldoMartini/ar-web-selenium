@@ -16,6 +16,7 @@ import com.allinweb.ch.facade.actions.ValidationMessageBuilder;
 import com.allinweb.ch.facade.actions.WaitSupport;
 import com.allinweb.ch.facade.actions.WebTextUtils;
 import com.allinweb.ch.facade.actions.WindowAndFrameManager;
+import com.allinweb.ch.facade.scanner.testrun.ScannerTestRunBrowserClosePolicy;
 import com.allinweb.ch.model.*;
 import com.allinweb.ch.readersAndWriters.ExcelWriter;
 import com.allinweb.ch.util.*;
@@ -98,6 +99,9 @@ public class PerformActions implements ActionContext {
     @Setter
     private ARWebDriver currentARWebDriver;
 
+    private volatile ScannerTestRunBrowserClosePolicy testRunBrowserClosePolicy =
+            ScannerTestRunBrowserClosePolicy.unrestricted();
+
     @Getter
     @Setter
     private boolean justCalledRefreshPage = false;
@@ -134,6 +138,12 @@ public class PerformActions implements ActionContext {
     @Override
     public ARWebDriver arWebDriver() {
         return currentARWebDriver;
+    }
+
+    @Override
+    public boolean closeBrowserForExecutionAction() {
+        ARWebDriver browser = currentARWebDriver;
+        return browser != null && testRunBrowserClosePolicy.closeBrowserIfAllowed(true, browser::closeBrowser);
     }
 
     @Override
@@ -250,6 +260,10 @@ public class PerformActions implements ActionContext {
 
     public void setInterceptBotJob(boolean value) {
         interceptBotJob.set(value);
+    }
+
+    public void setTestRunBrowserClosePolicy(ScannerTestRunBrowserClosePolicy policy) {
+        testRunBrowserClosePolicy = Objects.requireNonNull(policy, "policy");
     }
 
     public void initialize(ARPriorities arPriorities) {

@@ -133,7 +133,7 @@ public final class ExecutionPauseCoordinator {
                 && active.request.workspaceEpoch() == workspaceEpoch;
     }
 
-    /** Releases a blocked PAUSE when toolbar STOP closes the active execution browser. */
+    /** Releases a blocked PAUSE when toolbar STOP interrupts the active execution. */
     public boolean cancelExecution(long executionId) {
         PendingPause active = pending.get();
         if (active == null || active.request.executionId() != executionId) return false;
@@ -197,14 +197,6 @@ public final class ExecutionPauseCoordinator {
             }
             executionStartReserved = true;
             return new ExecutionStart(this);
-        }
-    }
-
-    /** STOP must not close Playwright in the middle of a scanner/OCR operation. */
-    public void awaitScannerIdle(long executionId) {
-        PendingPause active = pending.get();
-        if (active != null && active.request.executionId() == executionId) {
-            awaitScannerIdle(active, Decision.STOP, () -> false);
         }
     }
 

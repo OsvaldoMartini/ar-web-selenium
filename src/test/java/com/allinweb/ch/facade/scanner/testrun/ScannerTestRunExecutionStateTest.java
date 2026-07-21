@@ -48,9 +48,12 @@ class ScannerTestRunExecutionStateTest {
         ScannerTestRunExecutionState state =
                 new ScannerTestRunExecutionState(new AtomicLong(), new AtomicLong(), new AtomicLong(), outcomes);
 
+        assertFalse(state.isExecutionInterrupted(3L));
         assertTrue(state.requestStop(3L));
+        assertTrue(state.isExecutionInterrupted(3L));
         state.completeExecution(3L, true);
 
+        assertTrue(state.isExecutionInterrupted(3L));
         assertEquals("INTERRUPTED", state.terminalState(3L));
     }
 

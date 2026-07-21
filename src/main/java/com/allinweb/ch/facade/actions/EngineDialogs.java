@@ -24,9 +24,7 @@ public class EngineDialogs {
     }
 
     public void quit(int status) {
-        if (ctx.arWebDriver() != null) {
-            ctx.arWebDriver().closeBrowser();
-        }
+        ctx.closeBrowserForExecutionAction();
         if (status == 0) {
             System.exit(status);
         }

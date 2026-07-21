@@ -22,6 +22,11 @@ public final class TestRunExecutionOutcomeTracker {
         return true;
     }
 
+    public synchronized boolean isInterrupted(long executionId) {
+        requireExecutionId(executionId);
+        return outcomes.get(executionId) == Outcome.INTERRUPTED;
+    }
+
     public synchronized Outcome completed(long executionId, boolean passed) {
         requireExecutionId(executionId);
         Outcome current = outcomes.get(executionId);

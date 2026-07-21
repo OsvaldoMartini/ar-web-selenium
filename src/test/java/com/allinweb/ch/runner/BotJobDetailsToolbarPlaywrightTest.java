@@ -678,7 +678,7 @@ class BotJobDetailsToolbarPlaywrightTest {
 
         Locator stop = button(page, "Stop");
         assertFalse(stop.isDisabled());
-        toolbarBodyAfterClick(page, stop, "STOP_TEST_RUN");
+        toolbarBodyAfterConfirmedStop(page, stop);
         awaitToolbarIdle(page);
         page.getByText("INTERRUPTED", new Page.GetByTextOptions().setExact(true)).waitFor();
         assertTrue(stop.isDisabled());
@@ -696,7 +696,7 @@ class BotJobDetailsToolbarPlaywrightTest {
         assertEquals("ONE", executeOne.get("executionMode").getAsString());
         assertEquals(91, executeOne.get("blockId").getAsInt());
         page.getByText("RUNNING", new Page.GetByTextOptions().setExact(true)).waitFor();
-        toolbarBodyAfterClick(page, button(page, "Stop"), "STOP_TEST_RUN");
+        toolbarBodyAfterConfirmedStop(page, button(page, "Stop"));
         awaitToolbarIdle(page);
         page.getByText("INTERRUPTED", new Page.GetByTextOptions().setExact(true)).waitFor();
     }
@@ -1249,6 +1249,21 @@ class BotJobDetailsToolbarPlaywrightTest {
             control.dispatchEvent("click");
         }
         return toolbarBodyAfterRequest(page, action, before);
+    }
+
+    private static JsonObject toolbarBodyAfterConfirmedStop(Page page, Locator stopControl) {
+        int before = toolbarRequestCount(page, "STOP_TEST_RUN");
+        stopControl.scrollIntoViewIfNeeded();
+        stopControl.click();
+
+        Locator dialog = page.locator("[role='dialog'][aria-labelledby='qc-header']");
+        dialog.waitFor();
+        assertEquals("Stop Test Run", dialog.locator("#qc-header").innerText());
+        assertEquals("Do you want to stop the execution?", dialog.locator(".qc-body").innerText());
+        assertEquals(before, toolbarRequestCount(page, "STOP_TEST_RUN"));
+
+        dialog.locator("button.qc-btn--destructive").click();
+        return toolbarBodyAfterRequest(page, "STOP_TEST_RUN", before);
     }
 
     private static JsonObject toolbarBodyAfterRequest(Page page, String action, int before) {

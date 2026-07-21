@@ -42,6 +42,7 @@ import com.allinweb.ch.facade.scanner.testrun.ScannerTestRunResultHandler;
 import com.allinweb.ch.facade.scanner.testrun.ScannerTestRunStartupPreparation;
 import com.allinweb.ch.facade.scanner.testrun.ScannerTestRunStopper;
 import com.allinweb.ch.facade.scanner.testrun.ScannerTestRunBotJobPreparation;
+import com.allinweb.ch.facade.scanner.testrun.ScannerTestRunBrowserClosePolicy;
 import com.allinweb.ch.facade.scanner.testrun.ScannerTestRunDefinitionLoad;
 import com.allinweb.ch.facade.scanner.testrun.ScannerTestRunDefinitionValidation;
 import com.allinweb.ch.facade.scanner.testrun.TestRunExecutionOutcomeTracker;
@@ -138,6 +139,11 @@ public class ScannerRuntimeBackend
                     lastSubmittedJobExecutionId,
                     completedJobExecutionId,
                     jobExecutionOutcomes);
+    private final ScannerTestRunBrowserClosePolicy scannerTestRunBrowserClosePolicy =
+            new ScannerTestRunBrowserClosePolicy(
+                    scannerTestRunExecutionState::activeExecutionId,
+                    scannerTestRunExecutionState::requestStop,
+                    scannerTestRunExecutionState::isExecutionInterrupted);
     private final ScannerPreLaunchExecutionGate scannerPreLaunchExecutionGate =
             new ScannerPreLaunchExecutionGate(
                     isJobRunning,
@@ -367,6 +373,7 @@ public class ScannerRuntimeBackend
 
     // Private constructor to prevent instantiation
     private ScannerRuntimeBackend() {
+        performActions.setTestRunBrowserClosePolicy(scannerTestRunBrowserClosePolicy);
         ScannerWorkspaceService.getInstance().installExecutionOperations(new ScannerPreLaunchWorkspaceOperations(this));
         ScannerSupportRequestHandlers.getInstance().register(this);
         ScannerTestRunHandlers.getInstance().register(this);
@@ -2344,7 +2351,7 @@ public class ScannerRuntimeBackend
 
         @Override
         public boolean requestStop(long executionId) {
-            return scannerTestRunExecutionState.requestStop(executionId);
+            return scannerTestRunBrowserClosePolicy.requestStop(executionId);
         }
 
         @Override
@@ -2365,21 +2372,8 @@ public class ScannerRuntimeBackend
         }
 
         @Override
-        public void closeBrowser() {
-            executionPauseCoordinator.awaitScannerIdle(scannerTestRunExecutionState.activeExecutionId());
-            if (currentARWebDriver != null) {
-                currentARWebDriver.closeBrowser();
-            }
-        }
-
-        @Override
         public void info(String message, Object... args) {
             log.info(message, args);
-        }
-
-        @Override
-        public void warn(String message, Object... args) {
-            log.warn(message, args);
         }
     }
 
@@ -2480,9 +2474,9 @@ public class ScannerRuntimeBackend
     /**
      * STOP for TEST RUN — halts a running {@link #testRunBlockPlaywright} execution.
      *
-     * <p>Sets the intercept flag (so the executeJob loop breaks at its next checkpoint) and closes
-     * the single Playwright browser. {@code closeCurrentDriver} nulls the Playwright driver, so the
-     * next TEST RUN transparently recreates a fresh one. Safe to call from any thread.
+     * <p>Sets the intercept flag so the executeJob loop breaks at its next checkpoint. The shared
+     * Playwright browser, page, and session remain open for Page Scanner/OCR work and a later TEST
+     * RUN. Safe to call from any thread.
      */
     public void stopTestRun() {
         stopTestRun(activeJobExecutionId.get());
@@ -4833,7 +4827,7 @@ public class ScannerRuntimeBackend
 
                             if (pauseOperation && respModal.equals(ARExecution.DialogModal.STOP)) {
 
-                                scannerTestRunExecutionState.requestStop(activeJobExecutionId.get());
+                                scannerTestRunBrowserClosePolicy.requestStop(activeJobExecutionId.get());
                                 performActions.setInterceptBotJob(true);
                                 setInterceptBotJob(true);
 
@@ -5235,8 +5229,11 @@ public class ScannerRuntimeBackend
 
         logLaunch.info(baseLogString);
 
-        if (resultActions.equalsIgnoreCase("Close Browser") || respModal.equals(ARExecution.DialogModal.STOP)) {
-            currentARWebDriver.closeBrowser();
+        boolean browserCloseRequested = "Close Browser".equalsIgnoreCase(resultActions)
+                || ARExecution.DialogModal.STOP.equals(respModal);
+        ARWebDriver browser = currentARWebDriver;
+        if (browser != null) {
+            scannerTestRunBrowserClosePolicy.closeBrowserIfAllowed(browserCloseRequested, browser::closeBrowser);
         }
 
         performActions.setInterceptBotJob(true);

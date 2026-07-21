@@ -9,7 +9,11 @@ public final class ScannerTestRunStopper {
 
     public boolean cancelStartup() {
         if (!operations.startupActive()) return false;
-        interruptBrowser("TEST RUN \u2014 error closing browser during startup cancellation: {}");
+        long allocatedExecutionId = operations.activeExecutionId();
+        if (allocatedExecutionId > 0L && !isExecutionComplete(allocatedExecutionId)) {
+            operations.requestStop(allocatedExecutionId);
+        }
+        interruptExecution();
         return true;
     }
 
@@ -25,7 +29,7 @@ public final class ScannerTestRunStopper {
             operations.info("TEST RUN ignored completed stop for execution {}", expectedExecutionId);
             return false;
         }
-        interruptBrowser("TEST RUN \u2014 error closing browser on stop: {}");
+        interruptExecution();
         return true;
     }
 
@@ -42,14 +46,9 @@ public final class ScannerTestRunStopper {
         return operations.terminalOutcome(executionId);
     }
 
-    private void interruptBrowser(String closeWarningMessage) {
+    private void interruptExecution() {
         operations.resetSingleBlock();
         operations.requestIntercept();
-        try {
-            operations.closeBrowser();
-        } catch (Exception error) {
-            operations.warn(closeWarningMessage, error.getMessage());
-        }
     }
 
     public interface Operations {
@@ -69,10 +68,6 @@ public final class ScannerTestRunStopper {
 
         void requestIntercept();
 
-        void closeBrowser();
-
         void info(String message, Object... args);
-
-        void warn(String message, Object... args);
     }
 }
