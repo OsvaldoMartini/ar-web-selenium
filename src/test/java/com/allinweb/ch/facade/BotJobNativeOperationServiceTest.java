@@ -1,6 +1,7 @@
 package com.allinweb.ch.facade;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -55,7 +56,7 @@ class BotJobNativeOperationServiceTest {
     @Test
     void createsBatWithStableEngineContractAndTestConfigurationFallback() throws Exception {
         FakeProperties properties = properties();
-        Files.createFile(temporary.resolve("Payments.xlsx"));
+        Path excel = Files.createFile(temporary.resolve("Payments.xlsx"));
         Path engine = Files.createFile(temporary.resolve("engine.jar"));
         properties.values.put(ARPropertyEnum.PATH_ENGINE, engine.toString());
         String previous = System.clearProperty("ARWebConfig");
@@ -64,14 +65,40 @@ class BotJobNativeOperationServiceTest {
                     new BotJobNativeOperationService(properties, file -> {}, specification -> {});
             File bat = service.createBat(context("Web App"));
             String command = Files.readString(bat.toPath());
+            String expectedCommand = "java.exe -jar \"" + engine.toAbsolutePath()
+                    + "\" execute/j 7 42 1 \"" + excel.toAbsolutePath()
+                    + "\" -c \"TESTS.config\"";
 
+            assertEquals(temporary.resolve("execute_web_app_7_Botjob_42.bat").toFile(), bat);
+            assertEquals(temporary.toFile(), bat.getParentFile());
             assertEquals("execute_web_app_7_Botjob_42.bat", bat.getName());
-            assertTrue(command.contains("execute/j 7 42 1"));
-            assertTrue(command.contains("-c \"TESTS.config\""));
-            assertTrue(command.contains(engine.toAbsolutePath().toString()));
+            assertTrue(Files.isRegularFile(bat.toPath()));
+            assertTrue(Files.size(bat.toPath()) > 0L);
+            assertEquals(expectedCommand, command);
+
+            Files.writeString(bat.toPath(), "stale launcher");
+            File overwritten = service.createBat(context("Web App"));
+            assertEquals(bat, overwritten);
+            assertEquals(expectedCommand, Files.readString(overwritten.toPath()));
         } finally {
             if (previous != null) System.setProperty("ARWebConfig", previous);
         }
+    }
+
+    @Test
+    void doesNotCreateBatWhenCurrentBotJobWorkbookIsMissing() throws Exception {
+        FakeProperties properties = properties();
+        properties.values.put(ARPropertyEnum.PATH_ENGINE, temporary.resolve("engine.jar").toString());
+        BotJobNativeOperationService service =
+                new BotJobNativeOperationService(properties, file -> {}, specification -> {});
+        Path bat = temporary.resolve("execute_web_app_7_Botjob_42.bat");
+
+        IllegalStateException failure = assertThrows(
+                IllegalStateException.class,
+                () -> service.createBat(context("Web App")));
+
+        assertEquals("Generate the Excel file before creating the BAT file", failure.getMessage());
+        assertFalse(Files.exists(bat));
     }
 
     @Test

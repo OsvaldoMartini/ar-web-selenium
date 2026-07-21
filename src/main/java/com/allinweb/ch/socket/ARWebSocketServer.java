@@ -55,6 +55,25 @@ public class ARWebSocketServer {
         return instance;
     }
 
+    /** Stops the loopback server only when application startup created it already. */
+    public static void stopIfInitialized() {
+        ARWebSocketServer current = instance;
+        if (current != null) current.stopServer();
+    }
+
+    /**
+     * Retires the logical ownership records for every detached desktop shell. Physical windows are
+     * closed by the preceding {@code application.shutdown} broadcast, never by killing a generic
+     * Chrome/Edge process.
+     */
+    public static void retireOwnedDesktopWorkspaces() {
+        PageScannerWorkspaceCoordinator.getInstance().closeActive();
+        OcrWorkspaceCoordinator.getInstance().closeAll();
+        BotJobDetailsWindowCoordinator botJobWindows = BotJobDetailsWindowCoordinator.getInstance();
+        String controlSession = botJobWindows.activeControlSessionId();
+        if (!controlSession.isEmpty()) botJobWindows.retire(controlSession);
+    }
+
     /**
      * Starts the Jetty WebSocket server.
      * Determines the port and bind address, then initializes and starts Jetty.

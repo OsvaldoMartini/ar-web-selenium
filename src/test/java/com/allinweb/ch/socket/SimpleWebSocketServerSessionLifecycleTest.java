@@ -91,6 +91,22 @@ class SimpleWebSocketServerSessionLifecycleTest {
     }
 
     @Test
+    void primaryApplicationControlReloadTakesOverWithoutCreatingADuplicateOwner() throws Exception {
+        Session original = sessionWithId(MainApplicationControlLifecycle.SESSION_ID, true);
+        Session replacement = sessionWithId(MainApplicationControlLifecycle.SESSION_ID, true);
+
+        endpoint.onOpen(original);
+        endpoint.onOpen(replacement);
+
+        assertSame(
+                replacement,
+                WebSocketSessionManager.getSession(MainApplicationControlLifecycle.SESSION_ID));
+        verify(original)
+                .close(argThat(reason -> CloseReason.CloseCodes.NORMAL_CLOSURE.equals(reason.getCloseCode())));
+        verify(replacement, never()).close(any(CloseReason.class));
+    }
+
+    @Test
     void rejectsConnectionWithoutSessionId() throws Exception {
         Session session = sessionWithParameters(Collections.emptyMap(), true);
 

@@ -158,6 +158,33 @@ public class WebSocketSessionManager {
         return true;
     }
 
+    /**
+     * Removes and closes every AR Web transport without waiting for individual endpoint callbacks.
+     * The registry is cleared first so a delayed {@code @OnClose} cannot retire a newer mapping.
+     */
+    public static void closeAllSessions(String reason) {
+        List<Session> sessions;
+        synchronized (sessionRegistryLock) {
+            sessions = List.copyOf(activeSessions.values());
+            activeSessions.clear();
+            sessionIds.clear();
+        }
+        synchronized (outboundGates) {
+            outboundGates.clear();
+        }
+
+        CloseReason closeReason = new CloseReason(
+                CloseReason.CloseCodes.GOING_AWAY,
+                Strings.isNullOrEmpty(reason) ? "AR Web application is shutting down" : reason);
+        for (Session session : sessions) {
+            try {
+                if (session != null && session.isOpen()) session.close(closeReason);
+            } catch (IOException | RuntimeException error) {
+                log.debug("Unable to close an application WebSocket session: {}", error.getMessage());
+            }
+        }
+    }
+
     public static Session getSession(String sessionId) {
         return activeSessions.get(sessionId);
     }

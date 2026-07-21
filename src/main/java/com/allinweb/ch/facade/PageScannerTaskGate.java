@@ -80,7 +80,8 @@ public final class PageScannerTaskGate {
         return executor.getQueue().size();
     }
 
-    void shutdownNow() {
+    /** Permanently stops this gate during terminal application shutdown. */
+    public void shutdownNow() {
         generation.incrementAndGet();
         executor.shutdownNow();
     }

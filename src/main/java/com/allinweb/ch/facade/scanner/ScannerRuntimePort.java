@@ -25,6 +25,11 @@ public interface ScannerRuntimePort extends
 
     void destroy();
 
+    /** Terminal application cleanup; runtimes may override to stop active execution first. */
+    default void shutdownForApplication() {
+        destroy();
+    }
+
     void checkRunningProcess();
 
     void setTargetSelected(TargetElement target);

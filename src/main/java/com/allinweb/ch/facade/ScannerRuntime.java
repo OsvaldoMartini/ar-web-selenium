@@ -388,6 +388,28 @@ public class ScannerRuntime {
                 this::closeWebDrivers, executorWebSocket, executorServicePreLaunch));
     }
 
+    /** Stops the scanner client, active execution, owned browser, and local workers at application exit. */
+    public void shutdownForApplication() {
+        stopKeepAlivePings();
+        isConnectWebSocket = false;
+        try {
+            if (session != null && session.isOpen()) session.close();
+        } catch (Exception error) {
+            log.debug("Unable to close scanner WebSocket client during shutdown: {}", error.getMessage());
+        } finally {
+            session = null;
+        }
+        if (executorWebSocket != null) executorWebSocket.shutdownNow();
+        if (executorServicePreLaunch != null) executorServicePreLaunch.shutdownNow();
+        try {
+            scannerRuntime.shutdownForApplication();
+        } catch (RuntimeException error) {
+            log.warn("Unable to stop scanner execution during application shutdown: {}", error.getMessage());
+        }
+        closeWebDrivers();
+        closeModal();
+    }
+
     // Close the single browser runtime owned by ARWebDriver.
     public void closeWebDrivers() {
         arWebDriver.closeBrowser();

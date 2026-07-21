@@ -646,6 +646,15 @@ public class ScannerRuntimeBackend
     }
 
     @Override
+    public void shutdownForApplication() {
+        cancelTestRunStartup();
+        stopTestRun();
+        stopPreLaunchFromWorkspace();
+        stopScreenshotLoop();
+        destroy();
+    }
+
+    @Override
     public boolean isJobRunning() {
         return isJobRunning.get();
     }

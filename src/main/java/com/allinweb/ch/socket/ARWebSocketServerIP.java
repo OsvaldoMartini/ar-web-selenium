@@ -44,6 +44,12 @@ public class ARWebSocketServerIP {
         return instance;
     }
 
+    /** Stops the secondary loopback server only when application startup created it already. */
+    public static void stopIfInitialized() {
+        ARWebSocketServerIP current = instance;
+        if (current != null) current.stopServer();
+    }
+
     /**
      * Starts the Jetty WebSocket server.
      * Determines the port and bind address, then initializes and starts Jetty.

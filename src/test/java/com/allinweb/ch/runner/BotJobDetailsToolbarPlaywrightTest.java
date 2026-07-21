@@ -70,6 +70,8 @@ class BotJobDetailsToolbarPlaywrightTest {
             "D:\\Projects\\ARWebBancaStato\\ARWeb\\Export";
     private static final String SELECTED_EXCEL_EXPORT_DIRECTORY =
             "D:\\Projects\\ARWebBancaStato\\ARWeb\\ExecutionExports";
+    private static final String CREATED_BAT_PATH =
+            "D:\\Projects\\ARWebBancaStato\\ARWeb\\execute_web_app_2_Botjob_20.bat";
     private static final Path BUILD_ROOT =
             Path.of("src", "main", "resources", "build").toAbsolutePath().normalize();
 
@@ -412,6 +414,9 @@ class BotJobDetailsToolbarPlaywrightTest {
                   };
                   if (action === 'CHOOSE_TRANSFER_PATH') {
                     response.selectedPath = '%9$s';
+                  } else if (action === 'CREATE_BAT') {
+                    response.message = 'BAT file created';
+                    response.selectedPath = '%11$s';
                   }
                   emit(this, 'botJobDetails.toolbar.actionResponse', response);
 
@@ -468,7 +473,8 @@ class BotJobDetailsToolbarPlaywrightTest {
                     OCR_RESULTS_SESSION_ID,
                     OCR_RESULTS_RETARGET_SESSION_ID,
                     SELECTED_TRANSFER_PATH.replace("\\", "\\\\"),
-                    SELECTED_EXCEL_EXPORT_DIRECTORY.replace("\\", "\\\\"));
+                    SELECTED_EXCEL_EXPORT_DIRECTORY.replace("\\", "\\\\"),
+                    CREATED_BAT_PATH.replace("\\", "\\\\"));
 
     private HttpServer server;
     private ExecutorService serverExecutor;
@@ -623,6 +629,10 @@ class BotJobDetailsToolbarPlaywrightTest {
                         .get("action")
                         .getAsString());
         awaitToolbarIdle(page);
+        page.getByText(
+                        "BAT file created — " + CREATED_BAT_PATH,
+                        new Page.GetByTextOptions().setExact(true))
+                .waitFor();
     }
 
     private void coverNavigationAndExecution(Page page) {

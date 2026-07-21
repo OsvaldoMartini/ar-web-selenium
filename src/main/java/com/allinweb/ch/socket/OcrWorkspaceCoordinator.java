@@ -467,6 +467,12 @@ final class OcrWorkspaceCoordinator {
         return workspaces.size();
     }
 
+    /** Retires both application-owned OCR windows during terminal application shutdown. */
+    synchronized void closeAll() {
+        workspaces.clear();
+        activeSessionByKind.clear();
+    }
+
     synchronized boolean isActiveWorkspace(String sessionId) {
         purgeExpiredEntries();
         if (!isWorkspaceSessionId(sessionId)) return false;

@@ -1,6 +1,6 @@
 package com.allinweb.ch.component.pane;
 
-import com.allinweb.ch.driver.ARWebDriver;
+import com.allinweb.ch.facade.ApplicationShutdownCoordinator;
 import com.allinweb.ch.facade.botjob.BotJobDetailsPresentationGateway;
 import com.allinweb.ch.facade.botjob.BotJobDetailsReactSessionContext;
 import com.allinweb.ch.facade.BotJobDetailsWorkspaceRegistry;
@@ -54,7 +54,6 @@ public class MainDashboardPresentationAdapter
     private static final WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
     private static final Gson gson = new Gson();
     private static final BotJobDetailsWorkspaceHost botJobDetailsHost = BotJobDetailsWorkspaceHost.getInstance();
-    private static final ARWebDriver arWebDriver = ARWebDriver.getInstance();
 
     protected static volatile MainDashboardPresentationAdapter instance;
 
@@ -301,10 +300,7 @@ public class MainDashboardPresentationAdapter
     }
 
     public void exitApplication() {
-        uiThreadDispatcher.execute(() -> {
-            arWebDriver.shutdown();
-            System.exit(0);
-        });
+        ApplicationShutdownCoordinator.getInstance().requestShutdown();
     }
 
     private void dispatchReactSession(String targetSession) {

@@ -162,6 +162,7 @@ public class SimpleWebSocketServer {
         }
 
         boolean botJobWindowControl = BotJobDetailsWindowCoordinator.isControlSessionId(sessionId);
+        boolean mainApplicationControl = MainApplicationControlLifecycle.isControlSessionId(sessionId);
         if (botJobWindowControl
                 && !BotJobDetailsWindowCoordinator.getInstance().isActiveControlSession(sessionId)) {
             log.warn("Rejected unknown Bot Job Details window control session: {}", sessionId);
@@ -170,6 +171,7 @@ public class SimpleWebSocketServer {
         }
 
         if (ScannerWorkspaceSessions.BOT_JOB_TASKS.equals(sessionId)
+                || mainApplicationControl
                 || botJobWindowControl
                 || OcrWorkspaceCoordinator.isWorkspaceSessionId(sessionId)
                 || ScannerWorkspaceSessions.isPageScannerSession(sessionId)) {
@@ -186,6 +188,10 @@ public class SimpleWebSocketServer {
 
         BotJobTransferPathRegistry.getInstance().clearSession(sessionId);
         log.info("New connection: Session ID = {}", sessionId);
+
+        if (mainApplicationControl) {
+            MainApplicationControlLifecycle.getInstance().connected(sessionId);
+        }
 
         if (botJobWindowControl) {
             try {
@@ -1701,6 +1707,7 @@ public class SimpleWebSocketServer {
                     notifyBotJobWindowDisconnected(sessionId);
                     notifyPageScannerWindowDisconnected(sessionId);
                     notifyOcrWindowDisconnected(sessionId);
+                    notifyMainApplicationDisconnected(sessionId);
                 }
             }
         }
@@ -4490,6 +4497,7 @@ public class SimpleWebSocketServer {
                 notifyBotJobWindowDisconnected(sessionId);
                 notifyPageScannerWindowDisconnected(sessionId);
                 notifyOcrWindowDisconnected(sessionId);
+                notifyMainApplicationDisconnected(sessionId);
             }
         } else {
             log.info("Connection closed for unknown session, Reason: " + closeReason.getReasonPhrase() + " (Code: "
@@ -4518,6 +4526,11 @@ public class SimpleWebSocketServer {
     private static void notifyOcrWindowDisconnected(String sessionId) {
         if (!OcrWorkspaceCoordinator.isWorkspaceSessionId(sessionId)) return;
         OcrWorkspaceCoordinator.getInstance().disconnected(sessionId);
+    }
+
+    private static void notifyMainApplicationDisconnected(String sessionId) {
+        if (!MainApplicationControlLifecycle.isControlSessionId(sessionId)) return;
+        MainApplicationControlLifecycle.getInstance().disconnected(sessionId);
     }
 
     // Handle BLOCKS_SPLITTED message

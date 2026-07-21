@@ -1104,7 +1104,7 @@ public class BotJobDetailsWorkspaceHost {
                 case TEST_RUN -> runTestRunFromReact(context, request, action, completion);
                 case EXPORT_JOB -> exportJobFromReact(context, request);
                 case IMPORT_JOB -> importJobFromReact(context, request);
-                case CREATE_BAT -> createBatFromReact(context);
+                case CREATE_BAT -> selectedFile = createBatFromReact(context);
                 case STOP_TEST_RUN -> throw new IllegalStateException("STOP dispatch failed");
                 case OPEN_REPORT, CHOOSE_TRANSFER_PATH -> throw new IllegalStateException("Native chooser dispatch failed");
             }
@@ -1368,8 +1368,8 @@ public class BotJobDetailsWorkspaceHost {
         }
     }
 
-    private void createBatFromReact(BotJobToolbarContext context) throws IOException {
-        botJobNativeOperations.createBat(context);
+    private File createBatFromReact(BotJobToolbarContext context) throws IOException {
+        return botJobNativeOperations.createBat(context);
     }
 
     private void launchExternalEngineFromReact(BotJobToolbarContext context) throws IOException {
@@ -1670,6 +1670,36 @@ public class BotJobDetailsWorkspaceHost {
         if (!canCloseWorkspace()) return false;
         markWorkspaceClosed();
         return true;
+    }
+
+    /**
+     * Force-stops resources owned by Bot Job Details during terminal application shutdown. Unlike a
+     * user closing this one workspace, application shutdown must not be blocked by an active toolbar
+     * operation or TEST RUN.
+     */
+    public void shutdownForApplication() {
+        shutdownStage("external Engine", botJobToolbarGuard::terminateExternalEngine);
+        shutdownStage("toolbar executor", botJobToolbarExecutor::shutdownNow);
+        shutdownStage("detached Page Scanner queue", detachedPageScannerTaskGate::shutdownNow);
+        shutdownStage("Pre Scan browser", this::closePageScannerOperations);
+        shutdownStage("scanner shell", scannerCoordinator::close);
+
+        Integer botJobId = selectedBotJob == null ? null : selectedBotJob.getId();
+        if (botJobId != null && botJobId > 0) {
+            shutdownStage("Bot Job React surfaces", () -> suspendReactWorkspaceSurfaces(botJobId));
+            shutdownStage("Bot Job workspace registry", () -> botJobDetailsWorkspaceRegistry.close(botJobId));
+        }
+        shutdownStage(
+                "Bot Job workspace controller",
+                () -> BotJobWorkspaceController.getInstance().deactivate(workspaceControllerGeneration));
+    }
+
+    private static void shutdownStage(String resource, Runnable close) {
+        try {
+            close.run();
+        } catch (RuntimeException failure) {
+            log.warn("Unable to stop {} during application shutdown: {}", resource, failure.getMessage());
+        }
     }
 
 }
