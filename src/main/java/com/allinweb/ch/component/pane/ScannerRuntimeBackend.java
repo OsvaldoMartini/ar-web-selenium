@@ -3,6 +3,7 @@ package com.allinweb.ch.component.pane;
 import com.allinweb.ch.builder.WebElementAttributeEnum;
 import com.allinweb.ch.builder.WebElementAttributeTypeValueEnum;
 import com.allinweb.ch.builder.WebElementTagNameEnum;
+import com.allinweb.ch.driver.ARPlaywrightDriver;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.executors.AppExecutors;
 import com.allinweb.ch.executors.ExecutorsManager;
@@ -883,7 +884,13 @@ public class ScannerRuntimeBackend
 
         // In Playwright mode there is no Selenium WebElement handle — the test runs via
         // performWebActions -> tryPlaywrightWebAction using the instruction's xpath/css/coords.
-        boolean playwrightEnabled = currentARWebDriver != null && currentARWebDriver.isPlaywrightEnabled();
+        ARPlaywrightDriver activePlaywright =
+                currentARWebDriver == null ? null : currentARWebDriver.currentPlaywrightDriver();
+        boolean playwrightEnabled = activePlaywright != null && activePlaywright.isOpen();
+        if (playwrightEnabled) {
+            performActions.setCurrentARWebDriver(currentARWebDriver);
+            performActions.setCurrentDriver(null);
+        }
 
         try {
             // Selenium shadow-DOM pre-resolve (only meaningful when a Selenium driver exists).
@@ -930,35 +937,10 @@ public class ScannerRuntimeBackend
             synthetic.setIFrameXPath(targetDeepCopy.getIFrameXPath());
             synthetic.setReferenceLoadDTOList(buildSyntheticReferences(targetDeepCopy));
 
-            // Playwright test-click must run from the element's OWN page. The single browser may have
-            // wandered (previous test navigated a link, or the user browsed manually), so navigate to
-            // the element's page first — its scanned_element.page_url, else the bot job's home URL.
-            if (playwrightEnabled && currentBotJob != null) {
-                try {
-                    String targetUrl = null;
-                    com.allinweb.ch.facade.ScannedElementResolver.Result reg =
-                            performDataBase.resolveScannedElementByBotJob(currentBotJob.getId(), synthetic);
-                    if (reg.matched()
-                            && reg.element().getPageUrl() != null
-                            && !reg.element().getPageUrl().isBlank()) {
-                        targetUrl = reg.element().getPageUrl();
-                    }
-                    if (targetUrl == null && currentBotJob.getHomeBankingLoadDTO() != null) {
-                        targetUrl = currentBotJob.getHomeBankingLoadDTO().getUrl();
-                    }
-                    if (targetUrl != null && !targetUrl.isBlank()) {
-                        String current =
-                                currentARWebDriver.getPlaywrightDriver().currentUrl();
-                        if (current == null || !sameUrl(current, targetUrl)) {
-                            logOperations.info(
-                                    "testingActions - navigating to element page before test: {}", targetUrl);
-                            currentARWebDriver.getPlaywrightDriver().navigate(targetUrl);
-                        }
-                    }
-                } catch (Exception navEx) {
-                    logOperations.warn("testingActions - pre-navigate failed: {}", navEx.getMessage());
-                }
-            }
+            // TEST_CLICK and TEST_INPUT resolve against the exact active page in the shared session.
+            // The stored scan URL is metadata only; it never replaces the live active page.
+            // Resolve the locator against the current active page. A test action may open a new tab
+            // as its result, but command startup never navigates or reloads the shared page.
 
             String[] actions = synthetic.getActions().split(ARConstantsEngine.ACTION_SPECIFICATIONS_SPLITTER);
             FieldData fieldData = new FieldData("Test", inputValue);
@@ -1050,11 +1032,6 @@ public class ScannerRuntimeBackend
         return scannerSyntheticReferenceService.build(target, botJobId, homeBankingId);
     }
 
-    /** Loose URL equality — ignores trailing slash and #fragment so we don't needlessly re-navigate. */
-    private boolean sameUrl(String a, String b) {
-        return scannerTestActionFormatter.sameUrl(a, b);
-    }
-
     /** Human-readable list of active F/E/T/N/S bits for the result modal. */
     private String describeInputFlags(InputFlags flags) {
         return scannerTestActionFormatter.describeInputFlags(flags);
@@ -1142,12 +1119,24 @@ public class ScannerRuntimeBackend
     }
 
     private boolean openBrowser() {
+        return openBrowser(false);
+    }
+
+    private boolean openBrowserForTestRun() {
+        return openBrowser(true);
+    }
+
+    private boolean openBrowser(boolean preserveCurrentPage) {
         String browserType = arPropertyManager.getProperty(ARPropertyEnum.BROWSER);
         HomeUrlDTO homeUrlDTO = performLists.getHomeUrlByBankId(
                 this.currentBotJob.getHomeBankingId(), this.currentBotJob.getHomeUrlId());
         HomeBankingLoadDTO homeBanking = performLists.getHomeBankingById(this.currentBotJob.getHomeBankingId());
 
-        if (!currentARWebDriver.openBrowser(browserType, homeUrlDTO.getUrl(), homeBanking.getOptionsConfig())) {
+        boolean browserReady = preserveCurrentPage
+                ? currentARWebDriver.openBrowserPreservingCurrentPage(
+                        browserType, homeUrlDTO.getUrl(), homeBanking.getOptionsConfig())
+                : currentARWebDriver.openBrowser(browserType, homeUrlDTO.getUrl(), homeBanking.getOptionsConfig());
+        if (!browserReady) {
             return false;
         }
 
@@ -2262,7 +2251,7 @@ public class ScannerRuntimeBackend
     private final class PaneTestRunExecutionStartOperations implements ScannerTestRunExecutionStart.Operations {
         @Override
         public boolean openBrowser() {
-            return ScannerRuntimeBackend.this.openBrowser();
+            return ScannerRuntimeBackend.this.openBrowserForTestRun();
         }
 
         @Override

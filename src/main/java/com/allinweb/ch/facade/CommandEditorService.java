@@ -813,14 +813,27 @@ public final class CommandEditorService {
                 .sorted(Comparator.comparingInt(BlockLoadDTO::getBlockOrderNumber))
                 .toList();
         List<BlockOrderDetailDTO> submitted = split.getDetails().getUpdatedBlocks();
+        return validateLaterBlockOrders(split.getBotJobId(), expectedLater, submitted);
+    }
+
+    static String validateLaterBlockOrders(
+            int botJobId, List<BlockLoadDTO> expectedLater, List<BlockOrderDetailDTO> submitted) {
         if (submitted == null || submitted.size() != expectedLater.size()) {
             return "The split request does not include every affected later block.";
         }
-        for (int index = 0; index < expectedLater.size(); index++) {
-            BlockLoadDTO expected = expectedLater.get(index);
-            BlockOrderDetailDTO actual = submitted.get(index);
-            if (actual == null || actual.getBlockId() == null || !actual.getBlockId().equals(expected.getId())
-                    || actual.getBotJobId() == null || !actual.getBotJobId().equals(split.getBotJobId())
+        Map<Integer, BlockOrderDetailDTO> submittedByBlockId = new LinkedHashMap<>();
+        for (BlockOrderDetailDTO actual : submitted) {
+            if (actual == null
+                    || actual.getBlockId() == null
+                    || submittedByBlockId.putIfAbsent(actual.getBlockId(), actual) != null) {
+                return "The later block order updates are stale or invalid.";
+            }
+        }
+        for (BlockLoadDTO expected : expectedLater) {
+            BlockOrderDetailDTO actual = submittedByBlockId.get(expected.getId());
+            if (actual == null
+                    || actual.getBotJobId() == null
+                    || actual.getBotJobId() != botJobId
                     || actual.getBlockOrderNumber() == null
                     || actual.getBlockOrderNumber() != expected.getBlockOrderNumber() + 1) {
                 return "The later block order updates are stale or invalid.";

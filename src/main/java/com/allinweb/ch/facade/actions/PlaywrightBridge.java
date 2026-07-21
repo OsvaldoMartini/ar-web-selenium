@@ -1,5 +1,7 @@
 package com.allinweb.ch.facade.actions;
 
+import com.allinweb.ch.driver.ARPlaywrightDriver;
+import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.model.FieldData;
 import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.util.ARConstantsEngine;
@@ -22,7 +24,13 @@ public class PlaywrightBridge {
     }
 
     public boolean tryPlaywrightWebAction(InstructionLoad instruction, FieldData data, String action) {
-        if (ctx.arWebDriver() == null || !ctx.arWebDriver().isPlaywrightEnabled()) {
+        ARWebDriver runtime = ctx.arWebDriver();
+        if (runtime == null || !runtime.isPlaywrightEnabled()) {
+            return false;
+        }
+
+        ARPlaywrightDriver activeDriver = runtime.currentPlaywrightDriver();
+        if (activeDriver == null || !activeDriver.isOpen()) {
             return false;
         }
 
@@ -30,21 +38,17 @@ public class PlaywrightBridge {
             switch (action) {
                 case ARConstantsEngine.CLICK:
                 case ARConstantsEngine.OTHER:
-                    if (ctx.arWebDriver().getPlaywrightDriver().click(instruction)) {
+                    if (activeDriver.click(instruction)) {
                         return true;
                     }
-                    return healAndRetry(
-                            instruction,
-                            healed -> ctx.arWebDriver().getPlaywrightDriver().click(healed));
+                    return healAndRetry(instruction, activeDriver::click);
                 case ARConstantsEngine.INSERT:
-                    if (ctx.arWebDriver().getPlaywrightDriver().fill(instruction, data)) {
+                    if (activeDriver.fill(instruction, data)) {
                         return true;
                     }
-                    return healAndRetry(
-                            instruction,
-                            healed -> ctx.arWebDriver().getPlaywrightDriver().fill(healed, data));
+                    return healAndRetry(instruction, healed -> activeDriver.fill(healed, data));
                 case ARConstantsEngine.OUTPUT:
-                    String value = ctx.arWebDriver().getPlaywrightDriver().text(instruction);
+                    String value = activeDriver.text(instruction);
                     return !Strings.isNullOrEmpty(value);
                 default:
                     return false;

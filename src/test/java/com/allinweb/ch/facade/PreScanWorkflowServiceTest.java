@@ -88,6 +88,25 @@ class PreScanWorkflowServiceTest {
         assertTrue(sink.statuses.contains("done:Test Click passed - Email:0"));
     }
 
+    @Test
+    void elementTestsReuseTheOpenPageWithoutOpeningOrReloadingIt() {
+        FakeBrowser browser = new FakeBrowser();
+        browser.open = true;
+        FakeSink sink = new FakeSink();
+        InstructionLoad instruction = new InstructionLoad();
+        instruction.setName("Email");
+        PreScanWorkflowService service = new PreScanWorkflowService(browser, new FakeDiagnostics(), element -> instruction);
+        ElementDTO input = element("input");
+
+        service.testElement(input, ScannerWorkspaceOperations.TEST_CLICK_DTO, sink);
+        service.testElement(input, ScannerWorkspaceOperations.TEST_INPUT_DTO, sink);
+
+        assertEquals(0, browser.ensureOpenCalls);
+        assertEquals(0, browser.reloadCalls);
+        assertEquals(1, browser.clickCalls);
+        assertEquals("abc", browser.fillData.getValue());
+    }
+
     private static PreScanWorkflowService.Context context(String endpoint) {
         return new PreScanWorkflowService.Context(42, "Payments", 7, 8, endpoint, "chromium", "", "build/test");
     }
@@ -123,6 +142,7 @@ class PreScanWorkflowServiceTest {
     private static final class FakeBrowser implements PreScanWorkflowService.BrowserPort {
         private boolean running;
         private boolean open;
+        private int ensureOpenCalls;
         private int reloadCalls;
         private int clickCalls;
         private List<ElementDTO> elements = List.of();
@@ -133,7 +153,10 @@ class PreScanWorkflowServiceTest {
         public void finishScan() { running = false; }
         public boolean isScanRunning() { return running; }
         public boolean isOpen() { return open; }
-        public void ensureOpen(String browserType, String endpointUrl, String optionsConfig) { open = true; }
+        public void ensureOpen(String browserType, String endpointUrl, String optionsConfig) {
+            ensureOpenCalls++;
+            open = true;
+        }
         public void reload() { reloadCalls++; }
         public String currentUrl() { return "https://example.test"; }
         public long waitForPageSettled(long maxWaitMs) { return 10; }
