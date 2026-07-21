@@ -1698,7 +1698,8 @@ public class PerformDataBase {
                 + homeBankingId + "\n"
                 + "ORDER BY hb.id, blk.block_order_number, bli.instruction_order_number, bli.id ASC;";
 
-        try (Statement stmt = getConnection().createStatement();
+        try (Connection connection = getConnection();
+                Statement stmt = connection.createStatement();
                 ResultSet rs = stmt.executeQuery(query)) {
 
             Map<Integer, BotJobLoadDTO> botJobMapDTO = new HashMap<>();
@@ -2558,7 +2559,8 @@ public class PerformDataBase {
 
         Map<Integer, BlockLoadDTO> blockMapDTO = new HashMap<>();
 
-        try (PreparedStatement pstmt = getConnection().prepareStatement(query.toString())) {
+        try (Connection connection = getConnection();
+                PreparedStatement pstmt = connection.prepareStatement(query.toString())) {
             pstmt.setInt(1, whereId);
             try (ResultSet rs = pstmt.executeQuery()) {
                 while (rs.next()) {
@@ -3486,6 +3488,10 @@ public class PerformDataBase {
 
         } catch (Exception e) {
             logDB.error("Cannot Insert Instruction\nError: " + e.getMessage());
+            errorMessage = new ErrorMessage(
+                    "Cannot Insert Instruction",
+                    "The command could not be saved.",
+                    e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage());
         } finally {
             performLists.getInstrucOperList().clear();
         }
@@ -8638,7 +8644,8 @@ public class PerformDataBase {
             targetList = performLists.getListInstructionComp();
         }
 
-        try (PreparedStatement pstmt = getConnection().prepareStatement(querySQL.toString())) {
+        try (Connection connection = getConnection();
+                PreparedStatement pstmt = connection.prepareStatement(querySQL.toString())) {
             int paramIndex = 1;
             pstmt.setInt(paramIndex++, whereID);
             if (blockId > 0) {

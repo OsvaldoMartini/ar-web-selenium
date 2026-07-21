@@ -4,6 +4,7 @@ import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonArray;
+import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -11,7 +12,15 @@ import java.util.Set;
 
 /** Builds legacy operation strings from typed React command fields. */
 public final class CommandOperationCodec {
-    private final PerformDataBase database = PerformDataBase.getInstance();
+    private final PerformDataBase database;
+
+    public CommandOperationCodec() {
+        this(PerformDataBase.getInstance());
+    }
+
+    CommandOperationCodec(PerformDataBase database) {
+        this.database = java.util.Objects.requireNonNull(database);
+    }
 
     public String encode(JsonObject body, String action) throws SQLException {
         Relation relation = relation(body);
@@ -138,8 +147,9 @@ public final class CommandOperationCodec {
         String variableValue = "$EMPTY";
 
         if (parentId != null) {
-            try (PreparedStatement statement = database.getConnection()
-                    .prepareStatement("SELECT name FROM " + instructionTable + " WHERE id=?")) {
+            try (Connection connection = database.getConnection();
+                    PreparedStatement statement = connection
+                            .prepareStatement("SELECT name FROM " + instructionTable + " WHERE id=?")) {
                 statement.setInt(1, parentId);
                 try (ResultSet result = statement.executeQuery()) {
                     if (result.next()) webFieldName = result.getString("name");
@@ -147,8 +157,9 @@ public final class CommandOperationCodec {
             }
         }
         if (variableId != null) {
-            try (PreparedStatement statement = database.getConnection()
-                    .prepareStatement("SELECT type,name,value FROM " + variableTable + " WHERE id=?")) {
+            try (Connection connection = database.getConnection();
+                    PreparedStatement statement = connection
+                            .prepareStatement("SELECT type,name,value FROM " + variableTable + " WHERE id=?")) {
                 statement.setInt(1, variableId);
                 try (ResultSet result = statement.executeQuery()) {
                     if (result.next()) {

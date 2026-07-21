@@ -670,7 +670,26 @@ public class SimpleWebSocketServer {
                             commandApplyBody != null
                                     && commandApplyBody.has("graphRevision")
                                     && !commandApplyBody.get("graphRevision").isJsonNull());
-                    JsonObject commandApplyResponse = CommandEditorService.getInstance().apply(commandApplyBody);
+                    JsonObject commandApplyResponse;
+                    try {
+                        commandApplyResponse = CommandEditorService.getInstance().apply(commandApplyBody);
+                    } catch (Exception commandError) {
+                        log.error(
+                                "COMMAND_EDITOR_APPLY_EXCEPTION requestId={} action={}",
+                                commandLogValue(commandApplyBody, "requestId"),
+                                commandLogValue(commandApplyBody, "action"),
+                                commandError);
+                        commandApplyResponse = new JsonObject();
+                        commandApplyResponse.addProperty("ok", false);
+                        commandApplyResponse.addProperty(
+                                "error",
+                                commandError.getMessage() == null
+                                        ? "The command could not be saved."
+                                        : commandError.getMessage());
+                        if (commandApplyBody != null && commandApplyBody.has("requestId")) {
+                            commandApplyResponse.add("requestId", commandApplyBody.get("requestId"));
+                        }
+                    }
                     boolean commandSaved = commandApplyResponse.has("ok")
                             && commandApplyResponse.get("ok").getAsBoolean();
                     String commandResult = commandSaved

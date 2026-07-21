@@ -14,6 +14,7 @@ import com.allinweb.ch.util.ErrorMessage;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -351,7 +352,8 @@ public final class CommandEditorService {
                 + "COUNT(i.variable_id) used_vars FROM " + table + " v LEFT JOIN " + instructionTable
                 + " i ON i.variable_id=v.id WHERE v." + ownerColumn + "=? "
                 + "GROUP BY v.id,v.type,v.name,v.value,v.local_format,v.delimiter,v.instruction_id ORDER BY v.id";
-        try (PreparedStatement statement = database.getConnection().prepareStatement(sql)) {
+        try (Connection connection = database.getConnection();
+                PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setInt(1, whereId);
             try (ResultSet result = statement.executeQuery()) {
                 while (result.next()) {
@@ -381,7 +383,8 @@ public final class CommandEditorService {
         String ownerColumn = componentSession ? "home_banking_id" : "bot_job_id";
         int whereId = componentSession ? homeBankingId : botJobId;
         String sql = "SELECT type FROM " + table + " WHERE id=? AND " + ownerColumn + "=?";
-        try (PreparedStatement statement = database.getConnection().prepareStatement(sql)) {
+        try (Connection connection = database.getConnection();
+                PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setInt(1, variableId);
             statement.setInt(2, whereId);
             try (ResultSet result = statement.executeQuery()) {
@@ -397,7 +400,16 @@ public final class CommandEditorService {
     }
 
     public JsonObject apply(JsonObject body) {
-        return serializedMutation(body, () -> applyOnce(body));
+        return correlateResponse(body, serializedMutation(body, () -> applyOnce(body)));
+    }
+
+    static JsonObject correlateResponse(JsonObject request, JsonObject response) {
+        JsonObject correlated = response == null ? new JsonObject() : response;
+        if (request != null && request.has("requestId") && !request.get("requestId").isJsonNull()
+                && !correlated.has("requestId")) {
+            correlated.add("requestId", request.get("requestId").deepCopy());
+        }
+        return correlated;
     }
 
     private JsonObject applyOnce(JsonObject body) {
@@ -479,7 +491,8 @@ public final class CommandEditorService {
             }
         }
         try {
-            operation = operationCodec.encode(body, action);
+            operation = operationCodec.encode(
+                    canonicalOperationBody(body, parentId, variableId, parentBlockId), action);
         } catch (Exception exception) {
             return failure(exception.getMessage());
         }
@@ -549,6 +562,20 @@ public final class CommandEditorService {
                 action,
                 parentBlockId);
         return response;
+    }
+
+    static JsonObject canonicalOperationBody(
+            JsonObject body, Integer parentId, Integer variableId, Integer parentBlockId) {
+        JsonObject canonical = body == null ? new JsonObject() : body.deepCopy();
+        replaceNullableInteger(canonical, "parentId", parentId);
+        replaceNullableInteger(canonical, "variableId", variableId);
+        replaceNullableInteger(canonical, "parentBlockId", parentBlockId);
+        return canonical;
+    }
+
+    private static void replaceNullableInteger(JsonObject body, String key, Integer value) {
+        if (value == null) body.remove(key);
+        else body.addProperty(key, value);
     }
 
     public JsonObject insertElseIf(JsonObject body) {
@@ -999,7 +1026,8 @@ public final class CommandEditorService {
         int ownerId = component ? homeBankingId : botJobId;
         String sql = "SELECT COUNT(*) FROM " + table
                 + " WHERE " + owner + "=? AND actions='EXCEL GOTO' AND id<>?";
-        try (PreparedStatement statement = database.getConnection().prepareStatement(sql)) {
+        try (Connection connection = database.getConnection();
+                PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setInt(1, ownerId);
             statement.setInt(2, excludedInstructionId);
             try (ResultSet result = statement.executeQuery()) {
@@ -1034,7 +1062,8 @@ public final class CommandEditorService {
         int ownerId = component ? homeBankingId : botJobId;
         String sql = "SELECT COUNT(*) FROM " + table
                 + " WHERE id=? AND instruction_id=? AND " + ownerColumn + "=?";
-        try (PreparedStatement statement = database.getConnection().prepareStatement(sql)) {
+        try (Connection connection = database.getConnection();
+                PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setInt(1, variableId);
             statement.setInt(2, webFieldId);
             statement.setInt(3, ownerId);
