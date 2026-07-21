@@ -112,6 +112,8 @@ public class ScannerRuntimeBackend
     private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
     private static final PerformActions performActions = PerformActions.getInstance();
     private static final PerformMessage performMessage = PerformMessage.getInstance();
+    private static final ExecutionPauseCoordinator executionPauseCoordinator =
+            ExecutionPauseCoordinator.getInstance();
     private static final PerformListElements performListElements = PerformListElements.getInstance();
     public static TargetElement targetSelected = new TargetElement();
     protected static volatile ScannerRuntimeBackend instance;
@@ -647,6 +649,7 @@ public class ScannerRuntimeBackend
 
     @Override
     public void shutdownForApplication() {
+        executionPauseCoordinator.cancelAll();
         cancelTestRunStartup();
         stopTestRun();
         stopPreLaunchFromWorkspace();
@@ -1742,6 +1745,7 @@ public class ScannerRuntimeBackend
         public void requestIntercept() {
             performActions.setInterceptBotJob(true);
             setInterceptBotJob(true);
+            executionPauseCoordinator.cancelExecution(scannerTestRunExecutionState.activeExecutionId());
         }
 
         @Override
@@ -1796,6 +1800,7 @@ public class ScannerRuntimeBackend
         public void requestIntercept() {
             performActions.setInterceptBotJob(true);
             setInterceptBotJob(true);
+            executionPauseCoordinator.cancelExecution(scannerTestRunExecutionState.activeExecutionId());
         }
 
         @Override
@@ -2367,10 +2372,12 @@ public class ScannerRuntimeBackend
         public void requestIntercept() {
             performActions.setInterceptBotJob(true);
             setInterceptBotJob(true);
+            executionPauseCoordinator.cancelExecution(scannerTestRunExecutionState.activeExecutionId());
         }
 
         @Override
         public void closeBrowser() {
+            executionPauseCoordinator.awaitScannerIdle(scannerTestRunExecutionState.activeExecutionId());
             if (currentARWebDriver != null) {
                 currentARWebDriver.closeBrowser();
             }
@@ -3710,17 +3717,15 @@ public class ScannerRuntimeBackend
 
                             if (actions[0].equalsIgnoreCase(ARConstantsEngine.PAUSE)) {
                                 pauseOperation = true;
-
-                                respModal = performMessage.showCustomModalDialogDragWin11(
-                                        "PAUSE BOT JOB",
-                                        "PAUSED at Block Name",
+                                ExecutionPauseCoordinator.Decision pauseDecision = executionPauseCoordinator.pause(
+                                        currentBotJob.getId(),
+                                        activeJobExecutionId.get(),
                                         blockLoad.getName(),
-                                        " Please click OK to continue!",
-                                        null,
-                                        false,
-                                        "Continue",
-                                        "Stop Run",
-                                        0);
+                                        currentInstruction.getName(),
+                                        this::isInterceptBotJob);
+                                respModal = pauseDecision == ExecutionPauseCoordinator.Decision.CONTINUE
+                                        ? ARExecution.DialogModal.OK
+                                        : ARExecution.DialogModal.STOP;
                             } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.NEXT_ENTER)) {
                                 nextEnter = true;
                             } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.SWIPE_UP)) {
@@ -4838,6 +4843,10 @@ public class ScannerRuntimeBackend
                             failedMessage = "";
 
                             if (pauseOperation && respModal.equals(ARExecution.DialogModal.STOP)) {
+
+                                scannerTestRunExecutionState.requestStop(activeJobExecutionId.get());
+                                performActions.setInterceptBotJob(true);
+                                setInterceptBotJob(true);
 
                                 String nameInstruc =
                                         "(" + currentInstruction.getId() + ") " + currentInstruction.getName();

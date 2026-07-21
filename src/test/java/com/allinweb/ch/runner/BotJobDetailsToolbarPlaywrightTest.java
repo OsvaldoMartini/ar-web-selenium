@@ -258,7 +258,7 @@ class BotJobDetailsToolbarPlaywrightTest {
                   if (envelope.type === 'pageScanner.scan') {
                     emit(this, 'preScanStatus', {
                       status: 'waiting',
-                      message: 'Loading the Page - Opening isolated browser...',
+                      message: 'Loading the Page - Opening shared Playwright browser...',
                       elementCount: 0
                     });
                     emit(this, 'searchTerms', {

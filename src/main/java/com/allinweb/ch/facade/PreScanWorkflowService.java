@@ -167,12 +167,12 @@ public final class PreScanWorkflowService {
 
     private void openBrowser(Context context, Sink sink) {
         if (!browser.isOpen()) {
-            sink.status("waiting", "Loading the Page - Opening isolated browser...", 0);
+            sink.status("waiting", "Loading the Page - Opening shared Playwright browser...", 0);
             browser.ensureOpen(context.browserType(), context.endpointUrl(), context.optionsConfig());
             return;
         }
         try {
-            log.info("PRE SCAN - scanning current isolated browser page {}", browser.currentUrl());
+            log.info("PRE SCAN - scanning current shared Playwright page {}", browser.currentUrl());
         } catch (Exception ignored) {
             // The active page can still be scanned when its URL cannot be read.
         }

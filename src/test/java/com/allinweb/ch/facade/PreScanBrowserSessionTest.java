@@ -90,6 +90,25 @@ class PreScanBrowserSessionTest {
         assertFalse(session.isScanRunning());
     }
 
+    @Test
+    void sharedSessionAdoptsAnExistingBrowserAndNeverClosesTheRuntimeOwner() {
+        FakeDriver sharedDriver = new FakeDriver();
+        sharedDriver.open = true;
+        sharedDriver.url = "https://current.test/step-two";
+        PreScanBrowserSession session = new PreScanBrowserSession(sharedDriver);
+
+        assertFalse(session.ensureOpen("chromium", "https://home.test", ""));
+        assertEquals("https://current.test/step-two", session.currentUrl());
+        assertEquals(0, sharedDriver.openCalls, "Page Scanner must not navigate an existing TEST RUN page");
+
+        session.tryBeginScan();
+        session.shutdown();
+
+        assertTrue(session.isOpen(), "Page Scanner does not own the shared Playwright browser");
+        assertFalse(session.isScanRunning());
+        assertEquals(0, sharedDriver.shutdownCalls);
+    }
+
     private static final class FakeDriver implements PreScanBrowserSession.DriverPort {
         private boolean open;
         private int openCalls;

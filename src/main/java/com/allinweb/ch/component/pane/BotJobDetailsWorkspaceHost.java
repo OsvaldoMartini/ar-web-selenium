@@ -20,6 +20,7 @@ import com.allinweb.ch.facade.BotJobWorkspaceController;
 import com.allinweb.ch.facade.PageScannerTaskGate;
 import com.allinweb.ch.facade.PreScanWorkflowService;
 import com.allinweb.ch.facade.PreScanBrowserSession;
+import com.allinweb.ch.facade.ExecutionPauseCoordinator;
 import com.allinweb.ch.facade.BotJobDetailsWorkspaceRegistry;
 import com.allinweb.ch.facade.BotJobTransferPathRegistry;
 import com.allinweb.ch.facade.BotJobTransferService;
@@ -61,6 +62,8 @@ public class BotJobDetailsWorkspaceHost {
             BotJobTransferPathRegistry.getInstance();
     private static final BotJobTransferService botJobTransferService = BotJobTransferService.getInstance();
     private static final BotJobToolbarConcurrencyGuard botJobToolbarGuard = new BotJobToolbarConcurrencyGuard();
+    private static final ExecutionPauseCoordinator executionPauseCoordinator =
+            ExecutionPauseCoordinator.getInstance();
     private static final BotJobNativeOperationService botJobNativeOperations =
             BotJobNativeOperationService.createDefault(arPropertyManager, botJobToolbarGuard);
     private static final BotJobWorkspaceCapabilityService workspaceCapabilities =
@@ -127,7 +130,7 @@ public class BotJobDetailsWorkspaceHost {
             "Page Scanner is busy. Too many operations are waiting; wait for the current operation to finish and try again.";
     private final PreScanWorkflowService preScanWorkflowService = new PreScanWorkflowService();
     private final PageScannerTaskGate detachedPageScannerTaskGate = new PageScannerTaskGate();
-    // Temporary compatibility owner for zero-caller legacy helpers; removed after workflow verification.
+    // Compatibility helpers use the same non-owning process-wide Playwright adapter.
     private final PreScanBrowserSession preScanBrowserSession = new PreScanBrowserSession();
     private BotJobLoadDTO selectedBotJob;
     private volatile String reactEnvironmentUrl = "";
@@ -445,7 +448,10 @@ public class BotJobDetailsWorkspaceHost {
 
     private void refreshPreScanPage(
             PreScanWorkflowService.Context context, String destinationSessionId) {
-        preScanWorkflowService.refresh(context, preScanSink(destinationSessionId, context));
+        withSharedScannerActivity(
+                context,
+                destinationSessionId,
+                () -> preScanWorkflowService.refresh(context, preScanSink(destinationSessionId, context)));
     }
 
     private void runPreScan(String searchTerms, boolean searchHidden) {
@@ -461,11 +467,14 @@ public class BotJobDetailsWorkspaceHost {
             String searchTerms,
             boolean searchHidden,
             String destinationSessionId) {
-        preScanWorkflowService.scan(
+        withSharedScannerActivity(
                 context,
-                searchTerms,
-                searchHidden,
-                preScanSink(destinationSessionId, context));
+                destinationSessionId,
+                () -> preScanWorkflowService.scan(
+                        context,
+                        searchTerms,
+                        searchHidden,
+                        preScanSink(destinationSessionId, context)));
     }
 
     @Deprecated
@@ -676,14 +685,13 @@ public class BotJobDetailsWorkspaceHost {
         } catch (Exception ignored) {
             // If currentUrl cannot be read, still try to scan the active page.
         }
-        log.info("PRE SCAN - scanning current isolated browser page {}", currentUrl);
+        log.info("PRE SCAN - scanning current shared Playwright page {}", currentUrl);
         sendPreScanStatus("waiting", "Loading the Page - Using current browser page...", 0);
     }
 
     /**
-     * Pane-free row test (Test Click / Test Input) against the ISOLATED pre-scan browser.
-     * The legacy path runs {@code ScannerRuntimeBackend.testingActions} on the shared
-     * driver; here the scanned page lives in the isolated Pre Scan browser session, so the test must too.
+     * Pane-free row test (Test Click / Test Input) against the shared Playwright browser.
+     * TEST RUN, LAUNCH, Page Scanner, and row tests retain the same active page/context.
      * Results stream to the dashboard status bar (done/failed) instead of a modal.
      */
     public void handlePreScanElementTest(SplitDTO splitDTO, String testType) {
@@ -757,8 +765,25 @@ public class BotJobDetailsWorkspaceHost {
             String testType,
             String destinationSessionId,
             PreScanWorkflowService.Context context) {
-        preScanWorkflowService.testElement(
-                elementDTO, testType, preScanSink(destinationSessionId, context));
+        withSharedScannerActivity(
+                context,
+                destinationSessionId,
+                () -> preScanWorkflowService.testElement(
+                        elementDTO, testType, preScanSink(destinationSessionId, context)));
+    }
+
+    private void withSharedScannerActivity(
+            PreScanWorkflowService.Context context,
+            String destinationSessionId,
+            Runnable operation) {
+        BotJobDetailsWorkspaceRegistry.Snapshot snapshot =
+                botJobDetailsWorkspaceRegistry.require(context.botJobId());
+        try (ExecutionPauseCoordinator.ScannerActivity ignored = executionPauseCoordinator.beginScannerActivity(
+                context.botJobId(), snapshot.workspaceEpoch())) {
+            operation.run();
+        } catch (IllegalStateException unavailable) {
+            sendPreScanStatus(destinationSessionId, context, "failed", unavailable.getMessage(), 0);
+        }
     }
 
     private PreScanWorkflowService.Context detachedPageScannerContext(int botJobId) {
@@ -1099,7 +1124,7 @@ public class BotJobDetailsWorkspaceHost {
                 case OPEN_EXCEL -> selectedFile = openExcelFromReact(context);
                 case GENERATE_EXCEL -> selectedFile = generateExcelFromReact(context, request.body());
                 case SET_NAVIGATION_TIME -> setNavigationTimeFromReact(request.body());
-                case LAUNCH -> launchExternalEngineFromReact(context);
+                case LAUNCH -> runLaunchFromReact(context, request, action, completion);
                 case REFRESH_BLOCKS -> reloadBlocksFromReact(context);
                 case TEST_RUN -> runTestRunFromReact(context, request, action, completion);
                 case EXPORT_JOB -> exportJobFromReact(context, request);
@@ -1108,7 +1133,7 @@ public class BotJobDetailsWorkspaceHost {
                 case STOP_TEST_RUN -> throw new IllegalStateException("STOP dispatch failed");
                 case OPEN_REPORT, CHOOSE_TRANSFER_PATH -> throw new IllegalStateException("Native chooser dispatch failed");
             }
-            if (action != BotJobToolbarAction.TEST_RUN) {
+            if (action != BotJobToolbarAction.TEST_RUN && action != BotJobToolbarAction.LAUNCH) {
                 botJobDetailsWorkspaceRegistry.require(context.botJobId(), context.workspaceEpoch());
                 botJobDetailsWorkspaceRegistry.touch(context.botJobId());
                 completion.complete(selectedFile == null
@@ -1251,6 +1276,7 @@ public class BotJobDetailsWorkspaceHost {
             BotJobDetailsRequest request,
             BotJobToolbarAction action,
             CompletableFuture<BotJobToolbarActionResult> completion) {
+        requireDesktopBrowserExecution(context);
         JsonObject body = request.body();
         String mode = requiredString(body, "executionMode").toUpperCase(java.util.Locale.ROOT);
         if (!"ALL".equals(mode) && !"ONE".equals(mode)) {
@@ -1281,16 +1307,54 @@ public class BotJobDetailsWorkspaceHost {
 
         TestRunExecutionSelection selection = TestRunExecutionSelection.resolve(
                 blockOrder, executeAllSelected, "ONE".equals(mode));
-        BotJobTestRunCoordinator.StartResult result = botJobTestRunCoordinator.start(
-                context,
-                selection.blockOrderNumber(),
-                selection.runSingleBlock(),
-                mode,
-                blockName,
-                request.requestId());
+        BotJobTestRunCoordinator.StartResult result;
+        try (ExecutionPauseCoordinator.ExecutionStart ignored =
+                executionPauseCoordinator.reserveExecutionStart()) {
+            result = botJobTestRunCoordinator.start(
+                    context,
+                    selection.blockOrderNumber(),
+                    selection.runSingleBlock(),
+                    mode,
+                    blockName,
+                    request.requestId());
+        }
         completion.complete(result.accepted()
                 ? BotJobToolbarActionResult.success(action, result.message())
                 : BotJobToolbarActionResult.failure(action, result.message()));
+    }
+
+    /** LAUNCH now owns the same in-process Playwright runtime, progress stream, and PAUSE protocol. */
+    private void runLaunchFromReact(
+            BotJobToolbarContext context,
+            BotJobDetailsRequest request,
+            BotJobToolbarAction action,
+            CompletableFuture<BotJobToolbarActionResult> completion) {
+        requireDesktopBrowserExecution(context);
+        File workbook = botJobNativeOperations.excelDestination(context);
+        if (!workbook.isFile()) {
+            throw new IllegalStateException("Generate the Excel file before launching the Bot Job");
+        }
+        BotJobTestRunCoordinator.StartResult result;
+        try (ExecutionPauseCoordinator.ExecutionStart ignored =
+                executionPauseCoordinator.reserveExecutionStart()) {
+            result = botJobTestRunCoordinator.start(
+                    context,
+                    1,
+                    false,
+                    "ALL",
+                    EXECUTE_ALL_OPTION_LABEL,
+                    request.requestId());
+        }
+        String message = result.message().replace("TEST RUN", "LAUNCH");
+        completion.complete(result.accepted()
+                ? BotJobToolbarActionResult.success(action, message)
+                : BotJobToolbarActionResult.failure(action, message));
+    }
+
+    private void requireDesktopBrowserExecution(BotJobToolbarContext context) {
+        if (!workspaceCapabilities.supportsDesktopBrowserTools(context.projectType())) {
+            throw new IllegalStateException("Mobile Bot Jobs can only be executed from AR Mobile");
+        }
     }
 
     private File openExcelFromReact(BotJobToolbarContext context) throws IOException {
@@ -1370,10 +1434,6 @@ public class BotJobDetailsWorkspaceHost {
 
     private File createBatFromReact(BotJobToolbarContext context) throws IOException {
         return botJobNativeOperations.createBat(context);
-    }
-
-    private void launchExternalEngineFromReact(BotJobToolbarContext context) throws IOException {
-        botJobNativeOperations.launchExternalEngine(context);
     }
 
     private static int requiredInt(JsonObject body, String field, int minimum, int maximum) {

@@ -46,6 +46,14 @@ class SimpleWebSocketServerSessionLifecycleTest {
     }
 
     @Test
+    void pauseResponseAcceptsOnlyTheExactBotJobDetailsTransport() {
+        assertTrue(SimpleWebSocketServer.isBotJobExecutionPauseTransport("botJobTasks"));
+        assertFalse(SimpleWebSocketServer.isBotJobExecutionPauseTransport("botJobTasks-stale"));
+        assertFalse(SimpleWebSocketServer.isBotJobExecutionPauseTransport("componentTasks"));
+        assertFalse(SimpleWebSocketServer.isBotJobExecutionPauseTransport(null));
+    }
+
+    @Test
     void pageScannerFailureCorrelationCopiesOnlyAPositiveBotJobIdentity() {
         JsonObject request = new JsonObject();
         request.addProperty("botJobId", 42);

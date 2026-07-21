@@ -38,6 +38,8 @@ public class SimpleWebSocketServer {
     private static final CloneJobService cloneJobService = CloneJobService.getInstance();
     private static final ConfigService configService = ConfigService.getInstance();
     private static final BotJobDetailsService botJobDetailsService = BotJobDetailsService.getInstance();
+    private static final ExecutionPauseCoordinator executionPauseCoordinator =
+            ExecutionPauseCoordinator.getInstance();
     private static final ScannerWorkspaceService scannerWorkspaceService = ScannerWorkspaceService.getInstance();
     private static final BotJobDetailsActionLedger botJobDetailsActionLedger =
             new BotJobDetailsActionLedger();
@@ -102,6 +104,10 @@ public class SimpleWebSocketServer {
 
     private static boolean isBotJobTasksSession(String sessionId) {
         return sessionIdContains(sessionId, ScannerWorkspaceSessions.BOT_JOB_TASKS);
+    }
+
+    static boolean isBotJobExecutionPauseTransport(String sessionId) {
+        return ScannerWorkspaceSessions.BOT_JOB_TASKS.equals(sessionId);
     }
 
     private static boolean isComponentInstructionWorkspaceSession(String sessionId) {
@@ -367,10 +373,12 @@ public class SimpleWebSocketServer {
                     && "CLOSE".equals(botJobDetailsAction(jsonObjMSG));
             boolean stopWithoutLicense = "botJobDetails.toolbar.action".equals(type)
                     && "STOP_TEST_RUN".equals(botJobDetailsToolbarAction(jsonObjMSG));
+            boolean pauseResponseWithoutLicense = "botJobExecution.pause.response".equals(type);
             boolean pageScannerCloseWithoutLicense = "pageScanner.close".equals(type);
             if (!LicenseService.getInstance().permits(type)
                     && !closeWithoutLicense
                     && !stopWithoutLicense
+                    && !pauseResponseWithoutLicense
                     && !pageScannerCloseWithoutLicense) {
                 if (type.startsWith("botJobDetails.")) {
                     sendBotJobDetailsLicenseFailure(jsonObjMSG, session, type);
@@ -862,6 +870,9 @@ public class SimpleWebSocketServer {
                     break;
                 case "botJobDetails.environments.refresh":
                     handleBotJobDetailsEnvironmentRefresh(jsonObjMSG, session);
+                    break;
+                case "botJobExecution.pause.response":
+                    handleBotJobExecutionPauseResponse(jsonObjMSG, session);
                     break;
                 case ScannerWorkspaceOperations.BOOTSTRAP_COMMAND:
                     handleScannerBootstrap(jsonObjMSG, session);
@@ -1507,6 +1518,68 @@ public class SimpleWebSocketServer {
         response.put("message", "An active license is required for this Bot Job Details operation");
         response.put("errorCode", "LICENSE_REQUIRED");
         sendBotJobDetailsResponse(session, -1, transportSessionId(session), response, operationId);
+    }
+
+    private void handleBotJobExecutionPauseResponse(JsonObject envelope, Session session) {
+        String transportSessionId = transportSessionId(session);
+        if (!isBotJobExecutionPauseTransport(transportSessionId)) {
+            throw new IllegalArgumentException("PAUSE confirmation must come from Bot Job Details");
+        }
+        JsonObject body = extractBody(envelope);
+        ExecutionPauseCoordinator.PauseResponse response = new ExecutionPauseCoordinator.PauseResponse(
+                requiredString(body, "requestId", "PAUSE requestId is required"),
+                requiredPositiveInt(body, "botJobId", "PAUSE Bot Job ID must be positive"),
+                requiredPositiveLong(body, "workspaceEpoch", "PAUSE workspace epoch must be positive"),
+                requiredPositiveLong(body, "executionId", "PAUSE execution ID must be positive"),
+                requiredNonNegativeLong(
+                        body, "executionAttemptId", "PAUSE execution attempt cannot be negative"),
+                requiredString(body, "decision", "PAUSE decision is required"));
+        ExecutionPauseCoordinator.ResponseResult result = executionPauseCoordinator.respond(response);
+        Map<String, Object> acknowledgement = new LinkedHashMap<>();
+        acknowledgement.put("requestId", response.requestId());
+        acknowledgement.put("botJobId", response.botJobId());
+        acknowledgement.put("ok", result.accepted());
+        acknowledgement.put("decision", result.decision() == null ? null : result.decision().name());
+        acknowledgement.put("message", result.message());
+        sendBotJobDetailsResponse(
+                session,
+                -1,
+                transportSessionId,
+                acknowledgement,
+                "botJobExecution.pause.responseAck");
+    }
+
+    private static String requiredString(JsonObject body, String field, String message) {
+        String value = stringValue(body, field);
+        if (value == null || value.isBlank()) throw new IllegalArgumentException(message);
+        return value.trim();
+    }
+
+    private static int requiredPositiveInt(JsonObject body, String field, String message) {
+        long value = requiredPositiveLong(body, field, message);
+        if (value > Integer.MAX_VALUE) throw new IllegalArgumentException(message);
+        return (int) value;
+    }
+
+    private static long requiredPositiveLong(JsonObject body, String field, String message) {
+        long value = requiredNonNegativeLong(body, field, message);
+        if (value <= 0) throw new IllegalArgumentException(message);
+        return value;
+    }
+
+    private static long requiredNonNegativeLong(JsonObject body, String field, String message) {
+        try {
+            if (body == null || !body.has(field) || body.get(field).isJsonNull()) {
+                throw new IllegalArgumentException(message);
+            }
+            long value = body.get(field).getAsLong();
+            if (value < 0) throw new IllegalArgumentException(message);
+            return value;
+        } catch (IllegalArgumentException invalid) {
+            throw invalid;
+        } catch (RuntimeException invalid) {
+            throw new IllegalArgumentException(message, invalid);
+        }
     }
 
     private void sendBotJobDetailsResponse(
