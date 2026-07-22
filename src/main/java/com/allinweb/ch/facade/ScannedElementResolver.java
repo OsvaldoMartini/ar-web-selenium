@@ -17,7 +17,7 @@ import java.util.Locale;
  *
  * <p>Ladder (first match wins):
  * <ol>
- *   <li>exact current xPath</li>
+ *   <li>exact current or client-authored custom xPath</li>
  *   <li>exact CSS selector</li>
  *   <li>exact name (defined_name / some_text, case-insensitive): unique -&gt; take it; multiple
  *       (same name, different xPath) -&gt; disambiguate by nearest coordinates</li>
@@ -54,11 +54,11 @@ public final class ScannedElementResolver {
             return NO_MATCH;
         }
 
-        // 1) exact current xPath
+        // 1) exact current or client-authored xPath
         String xpath = trim(ins.getXpath());
         if (!xpath.isEmpty()) {
             for (ScannedElement s : registry) {
-                if (xpath.equals(trim(s.getXPath()))) {
+                if (xpath.equals(trim(s.getCustomXPath())) || xpath.equals(trim(s.getXPath()))) {
                     return new Result(s, Strategy.XPATH_EXACT, 1.0);
                 }
             }

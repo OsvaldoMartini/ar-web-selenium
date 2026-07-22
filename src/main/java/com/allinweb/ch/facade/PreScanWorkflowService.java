@@ -300,6 +300,17 @@ public final class PreScanWorkflowService {
             if (elements == null || elements.isEmpty()) return;
             try {
                 ElementDTO[] values = elements.toArray(new ElementDTO[0]);
+                int[] registry = PerformDataBase.getInstance().upsertScannedElements(
+                        context.homeBankingId(),
+                        context.botJobId(),
+                        context.homeUrlId(),
+                        context.endpointUrl(),
+                        elements);
+                log.info(
+                        "PRE SCAN scanned_element registry - inserted={} updated={} botJobId={}",
+                        registry[0],
+                        registry[1],
+                        context.botJobId());
                 messages.outputJsonElementDTO(
                         values, List.of("optional", "blockMarked", "editMode"), "elementDTO-PS-BJ", context.jsonPath());
                 messages.outputJsonElementDTO(

@@ -69,8 +69,8 @@ public final class ScannedElementRepository {
             return new UpsertResult(0, 0);
         }
 
-        String selectSql =
-                "SELECT id FROM scanned_element WHERE home_banking_id = ? AND bot_job_id = ? AND element_hash = ?";
+        String selectSql = "SELECT id, custom_x_path FROM scanned_element"
+                + " WHERE home_banking_id = ? AND bot_job_id = ? AND element_hash = ?";
         String insertSql = "INSERT INTO scanned_element ("
                 + "home_banking_id, bot_job_id, home_url_id, page_url, element_hash, tag_name, type_element,"
                 + "defined_name, client_named, some_text, x_path, custom_x_path, css_selector, attrib_id,"
@@ -96,11 +96,15 @@ public final class ScannedElementRepository {
                 String hash = hashOf(e);
 
                 Long existingId = null;
+                String existingCustomXPath = null;
                 sel.setObject(1, homeBankingId);
                 sel.setObject(2, botJobId);
                 sel.setString(3, hash);
                 try (ResultSet rs = sel.executeQuery()) {
-                    if (rs.next()) existingId = rs.getLong(1);
+                    if (rs.next()) {
+                        existingId = rs.getLong(1);
+                        existingCustomXPath = rs.getString(2);
+                    }
                 }
 
                 String attrJson = e.getAttributeData() == null ? null : GSON.toJson(e.getAttributeData());
@@ -139,7 +143,20 @@ public final class ScannedElementRepository {
                     upd.setString(i++, e.getClientNamed());
                     upd.setString(i++, e.getSomeText());
                     upd.setString(i++, e.getXPath());
-                    upd.setString(i++, e.getCustomXPath());
+                    // A normal re-scan does not know about a client-authored override. Preserve the
+                    // persisted custom XPath unless this DTO explicitly supplies a replacement.
+                    String customXPath = e.getCustomXPath() == null || e.getCustomXPath().isBlank()
+                            ? existingCustomXPath
+                            : e.getCustomXPath();
+                    if ((e.getCustomXPath() == null || e.getCustomXPath().isBlank())
+                            && customXPath != null
+                            && !customXPath.isBlank()) {
+                        // Rehydrate the override into the outgoing scan DTO as well as preserving
+                        // it in the registry. The detached grid can then apply the element later
+                        // without silently falling back to the raw scanner XPath.
+                        e.setCustomXPath(customXPath);
+                    }
+                    upd.setString(i++, customXPath);
                     upd.setString(i++, e.getCssSelector());
                     upd.setString(i++, e.getAttribId());
                     upd.setString(i++, e.getAttribName());
@@ -167,6 +184,37 @@ public final class ScannedElementRepository {
                 inserted,
                 updated);
         return new UpsertResult(inserted, updated);
+    }
+
+    /**
+     * Persist a client-authored XPath override for one element that already exists in the scanner
+     * registry. This deliberately does not insert a row or increment {@code scan_count}: applying a
+     * locator is a mutation of an authoritative scan result, not a new scan.
+     *
+     * @return the number of rows updated (zero when the scoped element identity is stale/missing).
+     */
+    public static int updateCustomXPath(
+            Connection conn,
+            Integer homeBankingId,
+            Integer botJobId,
+            ElementDTO element)
+            throws SQLException {
+        if (element == null
+                || element.getXPath() == null
+                || element.getXPath().isBlank()
+                || element.getCustomXPath() == null
+                || element.getCustomXPath().isBlank()) {
+            return 0;
+        }
+        String sql = "UPDATE scanned_element SET custom_x_path = ?"
+                + " WHERE home_banking_id = ? AND bot_job_id = ? AND element_hash = ?";
+        try (PreparedStatement statement = conn.prepareStatement(sql)) {
+            statement.setString(1, element.getCustomXPath());
+            statement.setObject(2, homeBankingId);
+            statement.setObject(3, botJobId);
+            statement.setString(4, hashOf(element));
+            return statement.executeUpdate();
+        }
     }
 
     /** Load all registry rows for a scope, most-recently-scanned first. */

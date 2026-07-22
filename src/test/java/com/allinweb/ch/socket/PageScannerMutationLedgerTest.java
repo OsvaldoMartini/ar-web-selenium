@@ -27,6 +27,32 @@ class PageScannerMutationLedgerTest {
     }
 
     @Test
+    void locatorApplyIsPersistedOnlyOnceWhenTheClientRetriesItsRequest() {
+        PageScannerMutationLedger ledger = new PageScannerMutationLedger(4);
+        AtomicInteger persistenceCalls = new AtomicInteger();
+        JsonObject body = body("locator-apply-1", 42);
+        body.addProperty("elementKey", "row-1");
+        body.addProperty("xpath", "//button[@test-id='next']");
+
+        JsonObject first = ledger.executeOnce(
+                "page-scanner-one",
+                "locator-apply-1",
+                "pageScanner.locator.apply",
+                body,
+                () -> success(persistenceCalls));
+        JsonObject retry = ledger.executeOnce(
+                "page-scanner-one",
+                "locator-apply-1",
+                "pageScanner.locator.apply",
+                body,
+                () -> success(persistenceCalls));
+
+        assertEquals(1, persistenceCalls.get());
+        assertTrue(first.get("ok").getAsBoolean());
+        assertTrue(retry.get("ok").getAsBoolean());
+    }
+
+    @Test
     void rejectsRequestIdReuseWithDifferentMutationData() {
         PageScannerMutationLedger ledger = new PageScannerMutationLedger(4);
         ledger.executeOnce(

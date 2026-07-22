@@ -75,6 +75,8 @@ public class SimpleWebSocketServer {
             "pageScanner.clear",
             "pageScanner.testElement",
             "pageScanner.apply",
+            "pageScanner.locator.generate",
+            "pageScanner.locator.apply",
             "pageScanner.createBlock",
             "pageScannerProfile.list",
             "pageScannerProfile.save",
@@ -570,6 +572,22 @@ public class SimpleWebSocketServer {
                     break;
                 case "pageScanner.apply":
                     handlePageScannerApply(
+                            jsonObjMSG,
+                            homeBankingId,
+                            claimedSessionId,
+                            transportSessionId,
+                            session);
+                    break;
+                case "pageScanner.locator.generate":
+                    handlePageScannerLocatorGenerate(
+                            jsonObjMSG,
+                            homeBankingId,
+                            claimedSessionId,
+                            transportSessionId,
+                            session);
+                    break;
+                case "pageScanner.locator.apply":
+                    handlePageScannerLocatorApply(
                             jsonObjMSG,
                             homeBankingId,
                             claimedSessionId,
@@ -2663,6 +2681,118 @@ public class SimpleWebSocketServer {
         return response;
     }
 
+    private void handlePageScannerLocatorGenerate(
+            JsonObject envelope,
+            int envelopeHomeBankingId,
+            String claimedSessionId,
+            String transportSessionId,
+            Session transport) {
+        JsonObject body = bodyOrEmpty(envelope);
+        String responseOperation = "pageScanner.locator.generateResponse";
+        if (!validatePageScannerTransport(
+                body,
+                envelopeHomeBankingId,
+                claimedSessionId,
+                transportSessionId,
+                transport,
+                responseOperation)) {
+            return;
+        }
+
+        try {
+            requirePageScannerRequestId(body);
+            PageScannerWorkspaceCoordinator.BootstrapContext workspace =
+                    requireActivePageScannerWorkspace(transportSessionId);
+            JsonObject response = LocatorGeneratorService.getInstance().generate(body);
+            sendPageScannerResponse(
+                    workspace.context().homeBankingId(),
+                    transportSessionId,
+                    transport,
+                    responseOperation,
+                    response);
+        } catch (IllegalArgumentException | IllegalStateException invalidRequest) {
+            sendPageScannerFailure(
+                    body,
+                    envelopeHomeBankingId,
+                    transportSessionId,
+                    transport,
+                    responseOperation,
+                    invalidRequest.getMessage());
+        } catch (RuntimeException failure) {
+            log.error("Unable to generate detached Page Scanner locators", failure);
+            sendPageScannerFailure(
+                    body,
+                    envelopeHomeBankingId,
+                    transportSessionId,
+                    transport,
+                    responseOperation,
+                    "Unable to generate locators from the pasted HTML.");
+        }
+    }
+
+    private void handlePageScannerLocatorApply(
+            JsonObject envelope,
+            int envelopeHomeBankingId,
+            String claimedSessionId,
+            String transportSessionId,
+            Session transport) {
+        JsonObject body = bodyOrEmpty(envelope);
+        String responseOperation = "pageScanner.locator.applyResponse";
+        if (!validatePageScannerTransport(
+                body,
+                envelopeHomeBankingId,
+                claimedSessionId,
+                transportSessionId,
+                transport,
+                responseOperation)) {
+            return;
+        }
+
+        try {
+            String requestId = requirePageScannerRequestId(body);
+            PageScannerWorkspaceCoordinator.BootstrapContext workspace =
+                    requireActivePageScannerWorkspace(transportSessionId);
+            JsonObject response = BotJobDetailsWorkspaceRegistry.getInstance().commitWorkspaceMutation(
+                    workspace.context().botJobId(),
+                    workspace.context().workspaceEpoch(),
+                    () -> pageScannerMutationLedger.executeOnce(
+                            transportSessionId,
+                            requestId,
+                            "pageScanner.locator.apply",
+                            body,
+                            () -> LocatorGeneratorService.getInstance().apply(
+                                    body,
+                                    workspace.context().homeBankingId(),
+                                    workspace.context().botJobId(),
+                                    workspace.context().homeUrlId(),
+                                    workspace.context().endpointUrl())));
+            copyBoundedPageScannerString(body, response, "elementKey", 2_048);
+            sendPageScannerResponse(
+                    workspace.context().homeBankingId(),
+                    transportSessionId,
+                    transport,
+                    responseOperation,
+                    response);
+        } catch (IllegalArgumentException | IllegalStateException invalidRequest) {
+            sendPageScannerFailure(
+                    body,
+                    envelopeHomeBankingId,
+                    transportSessionId,
+                    transport,
+                    responseOperation,
+                    invalidRequest.getMessage());
+        } catch (RuntimeException failure) {
+            log.error("Unable to apply a detached Page Scanner locator", failure);
+            sendPageScannerFailure(
+                    body,
+                    envelopeHomeBankingId,
+                    transportSessionId,
+                    transport,
+                    responseOperation,
+                    "Unable to apply the generated XPath to the selected element.");
+        }
+    }
+
     private void handlePageScannerCreateBlock(
             JsonObject envelope,
             int envelopeHomeBankingId,
@@ -2936,6 +3066,7 @@ public class SimpleWebSocketServer {
         JsonObject response = responseWithRequestId(body);
         response.addProperty("ok", false);
         copyPositivePageScannerBotJobId(body, response);
+        copyBoundedPageScannerString(body, response, "elementKey", 2_048);
         response.addProperty(
                 "message",
                 message == null || message.isBlank()
@@ -2968,6 +3099,22 @@ public class SimpleWebSocketServer {
             if (botJobId > 0) response.addProperty("botJobId", botJobId);
         } catch (RuntimeException invalidBotJobId) {
             // Preserve the original validation failure without reflecting malformed identity data.
+        }
+    }
+
+    private static void copyBoundedPageScannerString(
+            JsonObject requestBody,
+            JsonObject response,
+            String field,
+            int maximumLength) {
+        if (requestBody == null || response == null || field == null || !requestBody.has(field)) return;
+        try {
+            String value = requestBody.get(field).getAsString();
+            if (value != null && !value.isBlank() && value.length() <= maximumLength) {
+                response.addProperty(field, value);
+            }
+        } catch (RuntimeException invalidValue) {
+            // Do not reflect malformed correlation data.
         }
     }
 

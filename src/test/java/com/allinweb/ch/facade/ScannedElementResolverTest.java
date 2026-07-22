@@ -43,6 +43,21 @@ class ScannedElementResolverTest {
     }
 
     @Test
+    void instructionXpathMatchesPersistedCustomXpathBeforeSameNameFallback() {
+        ScannedElement first = se("//main//button[1]", null, "continue", "Continue", "10,10");
+        ScannedElement second = se("//aside//button[1]", null, "continue", "Continue", "20,20");
+        second.setCustomXPath("//button[@test-id='primary-next']");
+
+        var result = ScannedElementResolver.resolve(
+                List.of(first, second),
+                ins("//button[@test-id='primary-next']", null, "continue", null));
+
+        assertTrue(result.matched());
+        assertEquals(ScannedElementResolver.Strategy.XPATH_EXACT, result.strategy());
+        assertEquals("//aside//button[1]", result.element().getXPath());
+    }
+
+    @Test
     void uniqueNameResolvesWhenXpathDrifted() {
         List<ScannedElement> reg =
                 List.of(se("//*[@id='new-reject']", "button#new", "rifiuta_tutti", "Rifiuta tutti", "5,5"));

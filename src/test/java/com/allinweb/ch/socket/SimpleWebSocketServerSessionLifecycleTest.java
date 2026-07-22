@@ -40,12 +40,15 @@ class SimpleWebSocketServerSessionLifecycleTest {
     void pageScannerProtocolUsesAnExactInboundAllowlist() {
         assertTrue(SimpleWebSocketServer.isSupportedPageScannerOperation("pageScannerWorkspace.open"));
         assertTrue(SimpleWebSocketServer.isSupportedPageScannerOperation("pageScanner.scan"));
+        assertTrue(SimpleWebSocketServer.isSupportedPageScannerOperation("pageScanner.locator.generate"));
+        assertTrue(SimpleWebSocketServer.isSupportedPageScannerOperation("pageScanner.locator.apply"));
         assertTrue(SimpleWebSocketServer.isSupportedPageScannerOperation("pageScannerProfile.list"));
         assertTrue(SimpleWebSocketServer.isSupportedPageScannerOperation("pageScannerProfile.save"));
         assertTrue(SimpleWebSocketServer.isSupportedPageScannerOperation("pageScannerProfile.delete"));
         assertTrue(SimpleWebSocketServer.isSupportedPageScannerOperation("pageScanner.close"));
         assertFalse(SimpleWebSocketServer.isSupportedPageScannerOperation("pageScanner.deleteEverything"));
         assertFalse(SimpleWebSocketServer.isSupportedPageScannerOperation("pageScannerWorkspace.unknown"));
+        assertFalse(SimpleWebSocketServer.isSupportedPageScannerOperation("locatorGenerator.generate"));
     }
 
     @Test
@@ -54,10 +57,13 @@ class SimpleWebSocketServerSessionLifecycleTest {
         assertTrue(SimpleWebSocketServer.isAllowedFromDetachedPageScannerTransport("pageScannerProfile.save"));
         assertTrue(SimpleWebSocketServer.isAllowedFromDetachedPageScannerTransport("pageScannerProfile.delete"));
         assertTrue(SimpleWebSocketServer.isAllowedFromDetachedPageScannerTransport("pageScanner.scan"));
+        assertTrue(SimpleWebSocketServer.isAllowedFromDetachedPageScannerTransport("pageScanner.locator.generate"));
+        assertTrue(SimpleWebSocketServer.isAllowedFromDetachedPageScannerTransport("pageScanner.locator.apply"));
         assertTrue(SimpleWebSocketServer.isAllowedFromDetachedPageScannerTransport("ocrWorkspace.open"));
 
         assertFalse(SimpleWebSocketServer.isAllowedFromDetachedPageScannerTransport("broadcast"));
         assertFalse(SimpleWebSocketServer.isAllowedFromDetachedPageScannerTransport("DELETE_INSTRUCTION"));
+        assertFalse(SimpleWebSocketServer.isAllowedFromDetachedPageScannerTransport("locatorGenerator.generate"));
         assertFalse(SimpleWebSocketServer.isAllowedFromDetachedPageScannerTransport(null));
     }
 

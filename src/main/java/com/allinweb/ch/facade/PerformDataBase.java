@@ -155,6 +155,22 @@ public class PerformDataBase {
     }
 
     /**
+     * Strictly update one existing scanner row with a client-authored XPath. Database errors and a
+     * stale/missing row are reported to the correlated Page Scanner caller instead of being hidden
+     * by the scan-time best-effort path.
+     */
+    public int updateScannedElementCustomXPathStrict(
+            Integer homeBankingId,
+            Integer botJobId,
+            com.allinweb.ch.model.ElementDTO element)
+            throws SQLException {
+        try (Connection conn = getConnection()) {
+            return com.allinweb.ch.db.ScannedElementRepository.updateCustomXPath(
+                    conn, homeBankingId, botJobId, element);
+        }
+    }
+
+    /**
      * Self-healing lookup: load the scanned_element registry for a scope and resolve the best match
      * for an instruction (validate/re-resolve when its stored xPath drifts or a name collides).
      * Best-effort: returns a NONE result on any failure so execution can fall back to its own path.

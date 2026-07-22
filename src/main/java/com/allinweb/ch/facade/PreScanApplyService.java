@@ -169,6 +169,13 @@ public final class PreScanApplyService {
         InstructionLoad instruction = com.allinweb.ch.facade.actions.ElementDtoMapper.buildNewInstruction(
                 target.getTagType(), target.getTagName(), false, orderNumber, target);
 
+        // A client-authored locator is intentionally promoted to instruction.xpath. The instruction
+        // table is the execution source of truth and the legacy reference writer skips the
+        // `customXPath` reference type, so leaving it only on ElementDTO would silently discard it.
+        if (!Strings.isNullOrEmpty(elementDTO.getCustomXPath())) {
+            instruction.setXpath(elementDTO.getCustomXPath().trim());
+        }
+
         instruction.setForceCoordinates(Strings.nullToEmpty(target.getForceCoordinates()));
         instruction.setCoordinates(target.getCoordinates());
         instruction.setIFrameXPath(target.getIFrameXPath());

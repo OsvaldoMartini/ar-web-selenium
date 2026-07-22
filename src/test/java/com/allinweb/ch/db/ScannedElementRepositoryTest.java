@@ -2,6 +2,7 @@ package com.allinweb.ch.db;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.allinweb.ch.db.migrations.M20260704_ScannedElement;
@@ -84,6 +85,42 @@ class ScannedElementRepositoryTest {
             ScannedElementRepository.upsert(conn, 2, 6, 3, "u", List.of(e)); // different bot job
             assertEquals(1, ScannedElementRepository.load(conn, 2, 5).size());
             assertEquals(1, ScannedElementRepository.load(conn, 2, 6).size());
+        }
+    }
+
+    @Test
+    void customXpathUpdatesOnlyTheSelectedSameNameElementAndSurvivesRescan() throws Exception {
+        try (Connection conn = freshDb()) {
+            ElementDTO first = el("//main//button[1]", null, "Continue");
+            ElementDTO second = el("//aside//button[1]", null, "Continue");
+            ScannedElementRepository.upsert(conn, 2, 5, 3, "u", List.of(first, second));
+
+            first.setCustomXPath("//button[@test-id='primary-next']");
+            assertEquals(1, ScannedElementRepository.updateCustomXPath(conn, 2, 5, first));
+
+            ElementDTO stale = el("//footer//button[1]", null, "Continue");
+            stale.setCustomXPath("//button[@test-id='forged']");
+            assertEquals(
+                    0,
+                    ScannedElementRepository.updateCustomXPath(conn, 2, 5, stale),
+                    "locator apply must not insert a forged or stale scanner row");
+
+            // A subsequent raw scan carries no client override and must not erase it.
+            first.setCustomXPath(null);
+            ScannedElementRepository.upsert(conn, 2, 5, 3, "u", List.of(first, second));
+            assertEquals("//button[@test-id='primary-next']", first.getCustomXPath());
+
+            List<ScannedElement> rows = ScannedElementRepository.load(conn, 2, 5);
+            ScannedElement selected = rows.stream()
+                    .filter(row -> "//main//button[1]".equals(row.getXPath()))
+                    .findFirst()
+                    .orElseThrow();
+            ScannedElement untouched = rows.stream()
+                    .filter(row -> "//aside//button[1]".equals(row.getXPath()))
+                    .findFirst()
+                    .orElseThrow();
+            assertEquals("//button[@test-id='primary-next']", selected.getCustomXPath());
+            assertNull(untouched.getCustomXPath());
         }
     }
 }
