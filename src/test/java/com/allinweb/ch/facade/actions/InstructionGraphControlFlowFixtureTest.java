@@ -32,6 +32,16 @@ import org.junit.jupiter.api.Test;
 class InstructionGraphControlFlowFixtureTest {
 
     @Test
+    void testRunAcceptsRootInstructionsWithoutAParentId() {
+        InstructionLoad root = new InstructionLoad();
+        InstructionLoad nested = new InstructionLoad();
+        nested.setParentId(42);
+
+        assertEquals(0, InstructionGraph.executionParentId(root));
+        assertEquals(42, InstructionGraph.executionParentId(nested));
+    }
+
+    @Test
     void resolvesEndifIndexForElseAfterIf() {
         BlockLoadDTO block = ifElseEndifBlock();
         Map<String, List<Integer>> conditionalMap = InstructionGraph.getConditionIndexMapByParentId(block);

@@ -83,7 +83,10 @@ class PreScanWorkflowServiceTest {
 
         assertEquals(1, browser.reloadCalls);
         assertEquals("abc", browser.fillData.getValue());
-        assertEquals(1, browser.clickCalls);
+        assertEquals(0, browser.clickCalls);
+        assertEquals(1, browser.clickOnceCalls);
+        assertEquals(0, browser.fillCalls);
+        assertEquals(1, browser.fillOnceCalls);
         assertTrue(sink.statuses.contains("done:Test Input passed - Email:0"));
         assertTrue(sink.statuses.contains("done:Test Click passed - Email:0"));
     }
@@ -103,7 +106,10 @@ class PreScanWorkflowServiceTest {
 
         assertEquals(0, browser.ensureOpenCalls);
         assertEquals(0, browser.reloadCalls);
-        assertEquals(1, browser.clickCalls);
+        assertEquals(0, browser.clickCalls);
+        assertEquals(1, browser.clickOnceCalls);
+        assertEquals(0, browser.fillCalls);
+        assertEquals(1, browser.fillOnceCalls);
         assertEquals("abc", browser.fillData.getValue());
     }
 
@@ -145,6 +151,9 @@ class PreScanWorkflowServiceTest {
         private int ensureOpenCalls;
         private int reloadCalls;
         private int clickCalls;
+        private int clickOnceCalls;
+        private int fillCalls;
+        private int fillOnceCalls;
         private List<ElementDTO> elements = List.of();
         private RuntimeException scanFailure;
         private String[] searchTerms;
@@ -166,7 +175,9 @@ class PreScanWorkflowServiceTest {
             return elements;
         }
         public boolean click(InstructionLoad instruction) { clickCalls++; return true; }
-        public boolean fill(InstructionLoad instruction, FieldData data) { fillData = data; return true; }
+        public boolean clickOnce(InstructionLoad instruction) { clickOnceCalls++; return true; }
+        public boolean fill(InstructionLoad instruction, FieldData data) { fillCalls++; fillData = data; return true; }
+        public boolean fillOnce(InstructionLoad instruction, FieldData data) { fillOnceCalls++; fillData = data; return true; }
         public ARPlaywrightDriver playwrightDriver() { throw new UnsupportedOperationException(); }
         public void shutdown() { open = false; running = false; }
     }

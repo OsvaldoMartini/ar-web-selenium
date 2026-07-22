@@ -90,8 +90,16 @@ public final class PreScanBrowserSession {
         return requireOpen().click(instruction);
     }
 
+    public synchronized boolean clickOnce(InstructionLoad instruction) {
+        return requireOpen().clickOnce(instruction);
+    }
+
     public synchronized boolean fill(InstructionLoad instruction, FieldData data) {
         return requireOpen().fill(instruction, data);
+    }
+
+    public synchronized boolean fillOnce(InstructionLoad instruction, FieldData data) {
+        return requireOpen().fillOnce(instruction, data);
     }
 
     /** Narrow compatibility access for existing OCR/diagnostic utilities during their extraction. */
@@ -141,7 +149,11 @@ public final class PreScanBrowserSession {
 
         boolean click(InstructionLoad instruction);
 
+        boolean clickOnce(InstructionLoad instruction);
+
         boolean fill(InstructionLoad instruction, FieldData data);
+
+        boolean fillOnce(InstructionLoad instruction, FieldData data);
 
         default ARPlaywrightDriver playwrightDriver() {
             throw new IllegalStateException("The Pre Scan driver is not a Playwright driver");
@@ -193,8 +205,18 @@ public final class PreScanBrowserSession {
         }
 
         @Override
+        public boolean clickOnce(InstructionLoad instruction) {
+            return delegate.clickOnce(instruction);
+        }
+
+        @Override
         public boolean fill(InstructionLoad instruction, FieldData data) {
             return delegate.fill(instruction, data);
+        }
+
+        @Override
+        public boolean fillOnce(InstructionLoad instruction, FieldData data) {
+            return delegate.fillOnce(instruction, data);
         }
 
         @Override
@@ -255,8 +277,18 @@ public final class PreScanBrowserSession {
         }
 
         @Override
+        public boolean clickOnce(InstructionLoad instruction) {
+            return playwrightDriver().clickOnce(instruction);
+        }
+
+        @Override
         public boolean fill(InstructionLoad instruction, FieldData data) {
             return playwrightDriver().fill(instruction, data);
+        }
+
+        @Override
+        public boolean fillOnce(InstructionLoad instruction, FieldData data) {
+            return playwrightDriver().fillOnce(instruction, data);
         }
 
         @Override

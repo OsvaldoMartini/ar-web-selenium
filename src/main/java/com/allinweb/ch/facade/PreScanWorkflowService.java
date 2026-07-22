@@ -111,8 +111,8 @@ public final class PreScanWorkflowService {
             }
             sink.status("running", actionLabel + " - " + label, 0);
             boolean passed = click
-                    ? browser.click(instruction)
-                    : browser.fill(
+                    ? browser.clickOnce(instruction)
+                    : browser.fillOnce(
                             instruction,
                             new FieldData(
                                     instruction.getName(),
@@ -226,7 +226,9 @@ public final class PreScanWorkflowService {
         long waitForPageSettled(long maxWaitMs);
         List<ElementDTO> scanElements(String[] searchTerms, boolean includeHidden);
         boolean click(InstructionLoad instruction);
+        boolean clickOnce(InstructionLoad instruction);
         boolean fill(InstructionLoad instruction, FieldData data);
+        boolean fillOnce(InstructionLoad instruction, FieldData data);
         com.allinweb.ch.driver.ARPlaywrightDriver playwrightDriver();
         void shutdown();
     }
@@ -256,7 +258,9 @@ public final class PreScanWorkflowService {
         public long waitForPageSettled(long maxWaitMs) { return session.waitForPageSettled(maxWaitMs); }
         public List<ElementDTO> scanElements(String[] terms, boolean hidden) { return session.scanElements(terms, hidden); }
         public boolean click(InstructionLoad instruction) { return session.click(instruction); }
+        public boolean clickOnce(InstructionLoad instruction) { return session.clickOnce(instruction); }
         public boolean fill(InstructionLoad instruction, FieldData data) { return session.fill(instruction, data); }
+        public boolean fillOnce(InstructionLoad instruction, FieldData data) { return session.fillOnce(instruction, data); }
         public com.allinweb.ch.driver.ARPlaywrightDriver playwrightDriver() { return session.playwrightDriver(); }
         public void shutdown() { session.shutdown(); }
     }

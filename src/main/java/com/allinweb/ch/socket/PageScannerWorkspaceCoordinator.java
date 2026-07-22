@@ -9,6 +9,7 @@ import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -292,6 +293,14 @@ final class PageScannerWorkspaceCoordinator {
     synchronized int activeWorkspaceCount() {
         purgeExpiredEntries();
         return workspaces.size();
+    }
+
+    synchronized Optional<String> activeSessionIdForBotJob(int botJobId) {
+        purgeExpiredEntries();
+        return workspaces.values().stream()
+                .filter(entry -> entry.context().botJobId() == botJobId)
+                .map(WorkspaceEntry::sessionId)
+                .findFirst();
     }
 
     private WorkspaceEntry activeWorkspace() {

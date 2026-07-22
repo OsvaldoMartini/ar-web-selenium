@@ -79,6 +79,28 @@ class LocatorGeneratorServiceTest {
     }
 
     @Test
+    void generatedLocatorIncludesSomeTextAndDefinedName() {
+        String html = "<div>"
+                + "<button test-id='web-banking-common.web-banking-stepper.next-button-0'>Avanti</button>"
+                + "<input placeholder='User number'/>"
+                + "</div>";
+
+        JsonArray controls = controls(html);
+
+        JsonObject button = controls.get(0).getAsJsonObject();
+        JsonObject input = controls.get(1).getAsJsonObject();
+        assertEquals("Avanti", button.get("someText").getAsString());
+        assertEquals("avanti", button.get("definedName").getAsString());
+        assertEquals("test-id", button.get("attributeType").getAsString());
+        assertEquals(
+                "web-banking-common.web-banking-stepper.next-button-0",
+                button.get("attributeValue").getAsString());
+        assertEquals(button.get("css").getAsString(), button.get("cssSelector").getAsString());
+        assertEquals("User number", input.get("someText").getAsString());
+        assertEquals("user_number", input.get("definedName").getAsString());
+    }
+
+    @Test
     void angularMatSelectVsInputSameFormControlName() {
         String html = "<div>"
                 + "<mat-select formcontrolname='rate' id='mat-select-42'></mat-select>"

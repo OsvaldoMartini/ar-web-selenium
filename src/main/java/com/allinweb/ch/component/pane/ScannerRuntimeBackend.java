@@ -956,16 +956,22 @@ public class ScannerRuntimeBackend
                     : "coordinates";
 
             // Single real exercise — Selenium + actionExecutor.min.js plugin + coord fallback.
-            boolean success = performActions.performWebActions(
-                    true, // byPassNotFound: log and continue on not-found, don't abort
-                    savedCoords,
-                    fieldData,
-                    synthetic,
+            // In Playwright mode this uses clickOnce/fillOnce; the fallback chain below is only for
+            // non-Playwright legacy sessions.
+            boolean success = playwrightEnabled
+                    ? ScannerWorkspaceOperations.TEST_CLICK_DTO.equals(testType)
+                            ? activePlaywright.clickOnce(synthetic)
+                            : activePlaywright.fillOnce(synthetic, fieldData)
+                    : performActions.performWebActions(
+                            true, // byPassNotFound: log and continue on not-found, don't abort
+                            savedCoords,
+                            fieldData,
+                            synthetic,
                     new HashMap<>(), // empty mapOperators — OUTPUT isn't tested here
-                    targetDeepCopy.getElement(),
-                    actions,
-                    false, // not a mobile app
-                    null); // no SplitDTO context
+                            targetDeepCopy.getElement(),
+                            actions,
+                            false, // not a mobile app
+                            null); // no SplitDTO context
 
             InputFlags flags = InputFlags.of(synthetic.getForceCoordinates());
             String flagsLine = describeInputFlags(flags);
@@ -990,7 +996,7 @@ public class ScannerRuntimeBackend
                             "Test Action Success ✅",
                             "<span style='color:#2E7D32;font-weight:bold;font-size:1.1em;'>" + displayAction
                                     + " performed successfully!</span>",
-                            "<span style='color:#1565C0;font-weight:bold;'>Same code path a bot run uses: actionExecutor JS plugin + Selenium + coordinate fallback.</span>",
+                            "<span style='color:#1565C0;font-weight:bold;'>Scanner test action used the active Playwright page once.</span>",
                             body.toString(),
                             "<span style='font-style:italic;'>If this passes, the live bot run will take the same route.</span>",
                             false,
@@ -1003,7 +1009,7 @@ public class ScannerRuntimeBackend
                         "Test Action Failed ❌",
                         "<span style='color:#D32F2F;font-weight:bold;font-size:1.1em;'>" + displayAction
                                 + " could not be performed</span>",
-                        "<span style='color:#E65100;font-weight:bold;'>All fallback layers exhausted (Selenium + actionExecutor JS + coordinates).</span>",
+                        "<span style='color:#E65100;font-weight:bold;'>The single Playwright scanner test action did not complete.</span>",
                         "<span style='color:#6A1B9A;font-weight:bold;'>Flags tried:</span> " + flagsLine
                                 + "<br/><span style='color:#6A1B9A;font-weight:bold;'>Element:</span> " + elementLine,
                         null,
@@ -3109,7 +3115,9 @@ public class ScannerRuntimeBackend
                             // RESET instruction-level first-load flag
                             firstPageLoadDone = false;
 
-                            performActions.waitPage();
+                            if (!pwOnly) {
+                                performActions.waitPage();
+                            }
                             lastBlockOrderPushed = currentBlockOrder;
 
                             performLists.resetListElements();
@@ -3369,7 +3377,9 @@ public class ScannerRuntimeBackend
                                 webElementFound = immediateXPath(currentInstruction.getXpath());
                             }
 
-                            performActions.waitPage();
+                            if (!pwOnly) {
+                                performActions.waitPage();
+                            }
                             try {
                                 if (navTime > 0) {
                                     performActions.onHoldInSeconds(navTime);
@@ -3439,7 +3449,7 @@ public class ScannerRuntimeBackend
                             String localFormat = null;
                             //                            delimiterCSV = null;
                             String fieldName = null;
-                            int parentId = currentInstruction.getParentId();
+                            int parentId = InstructionGraph.executionParentId(currentInstruction);
 
                             if (mapIgnore.contains(currentInstruction.getId() + "-" + currentInstruction.getName())) {
                                 continue;
@@ -3464,7 +3474,9 @@ public class ScannerRuntimeBackend
                                         rowStatus.getInstructionId(),
                                         "green");
                                 try {
-                                    Thread.sleep(300);
+                                    if (!pwOnly || navTime > 0) {
+                                        Thread.sleep(300);
+                                    }
                                 } catch (Exception e) {
                                 }
                                 // Current

@@ -52,7 +52,7 @@ class SimpleWebSocketServerSessionLifecycleTest {
     }
 
     @Test
-    void detachedPageScannerGuardAllowsProfileCrudAndStillRejectsLegacyOperations() {
+    void detachedPageScannerGuardAllowsOnlyTheBoundBotJobExecutionContract() {
         assertTrue(SimpleWebSocketServer.isAllowedFromDetachedPageScannerTransport("pageScannerProfile.list"));
         assertTrue(SimpleWebSocketServer.isAllowedFromDetachedPageScannerTransport("pageScannerProfile.save"));
         assertTrue(SimpleWebSocketServer.isAllowedFromDetachedPageScannerTransport("pageScannerProfile.delete"));
@@ -60,6 +60,14 @@ class SimpleWebSocketServerSessionLifecycleTest {
         assertTrue(SimpleWebSocketServer.isAllowedFromDetachedPageScannerTransport("pageScanner.locator.generate"));
         assertTrue(SimpleWebSocketServer.isAllowedFromDetachedPageScannerTransport("pageScanner.locator.apply"));
         assertTrue(SimpleWebSocketServer.isAllowedFromDetachedPageScannerTransport("ocrWorkspace.open"));
+        assertTrue(SimpleWebSocketServer.isAllowedFromDetachedPageScannerTransport("botJobDetails.bootstrap"));
+        assertTrue(SimpleWebSocketServer.isAllowedFromDetachedPageScannerTransport("botJobDetails.toolbar.action"));
+
+        assertTrue(SimpleWebSocketServer.isAllowedDetachedPageScannerToolbarAction("TEST_RUN"));
+        assertTrue(SimpleWebSocketServer.isAllowedDetachedPageScannerToolbarAction("STOP_TEST_RUN"));
+        assertTrue(SimpleWebSocketServer.isAllowedDetachedPageScannerToolbarAction("REFRESH_BLOCKS"));
+        assertFalse(SimpleWebSocketServer.isAllowedDetachedPageScannerToolbarAction("LAUNCH"));
+        assertFalse(SimpleWebSocketServer.isAllowedDetachedPageScannerToolbarAction("IMPORT_JOB"));
 
         assertFalse(SimpleWebSocketServer.isAllowedFromDetachedPageScannerTransport("broadcast"));
         assertFalse(SimpleWebSocketServer.isAllowedFromDetachedPageScannerTransport("DELETE_INSTRUCTION"));

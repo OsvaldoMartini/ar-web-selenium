@@ -41,6 +41,9 @@ public final class InstructionMoveValidator {
             row.blockId = update.getBlockId();
             row.order = update.getInstructionOrderNumber();
         }
+        if (proposed.values().stream().noneMatch(ProposedRow::moved)) {
+            return "ROW_MOVE did not change any instruction position.";
+        }
         String conditionalMoveError = validateConditionalMovement(current, proposed);
         if (conditionalMoveError != null) return conditionalMoveError;
         String orderingError = validateBlockOrdering(proposed);

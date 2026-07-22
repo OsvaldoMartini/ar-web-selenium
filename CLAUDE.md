@@ -8,10 +8,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 OCR in this repo now routes through the native OCR bridge. Do not reintroduce Tess4J, JavaFX, Swing, or `BufferedImage` into main-code scanner flows.
 
+## ⛔ WHO BUILDS WHAT — standing order for the Claude Code assistant (do not violate)
+
+- **Java: NEVER run Maven.** The assistant must NOT run `mvn` at all — no `mvn clean package`, `mvn package -DskipTests`, `mvn compile`, `mvn test`, `mvn -Dtest=... test`, or `mvn spotless:apply`. Just edit the Java source and stop. **The user builds and runs the jar himself.** (`mvn` is itself a Java process, so never `Stop-Process java` either — it kills the user's build. A killed shade leaves a corrupt jar.)
+- **React: the assistant DOES build.** After editing `abr-react-ts-grid`, run `npm run build` there, then delete everything in `ar-web-selenium/src/main/resources/build` and copy the fresh `abr-react-ts-grid/build/` contents in. `npx tsc --noEmit` for a typecheck is fine.
+- **Per feature:** (1) edit Java, no build; (2) edit React → `npm run build` → copy to `resources/build`; (3) hand off to the user for `mvn clean package` + relaunch. Hand any Java tests to the user to run — do not run them.
+
 ## Build, run, test
 
 ```bash
-# Full build (produces the shaded fat jar in target/)
+# Full build (produces the shaded fat jar in target/) — RUN BY THE USER, not the assistant
 mvn clean package
 
 # Run the backend/React container

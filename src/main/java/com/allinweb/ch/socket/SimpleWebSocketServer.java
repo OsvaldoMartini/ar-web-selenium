@@ -82,6 +82,13 @@ public class SimpleWebSocketServer {
             "pageScannerProfile.save",
             "pageScannerProfile.delete",
             "pageScanner.close");
+    private static final Set<String> DETACHED_PAGE_SCANNER_BOT_JOB_OPERATIONS = Set.of(
+            "botJobDetails.bootstrap",
+            "botJobDetails.toolbar.action");
+    private static final Set<String> DETACHED_PAGE_SCANNER_TOOLBAR_ACTIONS = Set.of(
+            "REFRESH_BLOCKS",
+            "TEST_RUN",
+            "STOP_TEST_RUN");
     private static final ScannerPluginDownloadCommandService scannerPluginDownloadCommandService =
             ScannerPluginDownloadCommandService.getInstance();
     protected static volatile SimpleWebSocketServer instance;
@@ -1187,6 +1194,11 @@ public class SimpleWebSocketServer {
             response.put("botJobId", request.botJobId());
             BotJobToolbarAction action = BotJobToolbarAction.parse(
                     request.body().has("action") ? request.body().get("action").getAsString() : null);
+            if (ScannerWorkspaceSessions.isPageScannerSession(request.sessionId())
+                    && !isAllowedDetachedPageScannerToolbarAction(action.name())) {
+                throw new IllegalArgumentException(
+                        "Only block refresh, TEST RUN, and STOP are allowed from Page Scanner");
+            }
             botJobDetailsToolbarLedger
                     .executeOnce(
                             request.sessionId(),
@@ -1263,6 +1275,7 @@ public class SimpleWebSocketServer {
                         return;
                     }
                     if (!response.ok()) return;
+                    if (ScannerWorkspaceSessions.isPageScannerSession(request.sessionId())) return;
                     try {
                         BotJobWorkspaceController.getInstance()
                                 .publishGridBootstrap(request.sessionId(), request.botJobId());
@@ -1410,7 +1423,17 @@ public class SimpleWebSocketServer {
     }
 
     private BotJobDetailsRequest parseBotJobDetailsRequest(JsonObject envelope, Session transportSession) {
-        return BotJobDetailsRequest.parse(envelope, transportSessionId(transportSession));
+        BotJobDetailsRequest request =
+                BotJobDetailsRequest.parse(envelope, transportSessionId(transportSession));
+        if (ScannerWorkspaceSessions.isPageScannerSession(request.sessionId())) {
+            PageScannerWorkspaceCoordinator.BootstrapContext workspace =
+                    pageScannerWorkspaceCoordinator.bootstrap(request.sessionId());
+            if (workspace.context().botJobId() != request.botJobId()) {
+                throw new IllegalArgumentException(
+                        "Page Scanner Bot Job does not match its active workspace");
+            }
+        }
+        return request;
     }
 
     private void handleScannerBootstrap(JsonObject envelope, Session transportSession) {
@@ -1692,7 +1715,7 @@ public class SimpleWebSocketServer {
         event.put("requestId", causeRequestId);
         event.put("botJobId", response.botJobId());
         event.put("state", response.state());
-        for (String targetId : BotJobWorkspaceSessions.stateTargets()) {
+        for (String targetId : botJobDetailsStateTargets(response.botJobId())) {
             Session target = WebSocketSessionManager.getSession(targetId);
             if (target != null && target.isOpen()) {
                 sendBotJobDetailsResponse(
@@ -1727,7 +1750,7 @@ public class SimpleWebSocketServer {
         event.put("botJobId", botJobId);
         event.put("state", state);
         List<CompletableFuture<Void>> sends = new ArrayList<>();
-        for (String targetId : BotJobWorkspaceSessions.stateTargets()) {
+        for (String targetId : botJobDetailsStateTargets(botJobId)) {
             Session target = WebSocketSessionManager.getSession(targetId);
             if (target != null && target.isOpen()) {
                 sends.add(sendBotJobDetailsResponseAcknowledged(
@@ -1741,6 +1764,12 @@ public class SimpleWebSocketServer {
         CompletableFuture.allOf(sends.toArray(CompletableFuture[]::new))
                 .orTimeout(2L, TimeUnit.SECONDS)
                 .join();
+    }
+
+    private Set<String> botJobDetailsStateTargets(int botJobId) {
+        Set<String> targets = new LinkedHashSet<>(BotJobWorkspaceSessions.stateTargets());
+        pageScannerWorkspaceCoordinator.activeSessionIdForBotJob(botJobId).ifPresent(targets::add);
+        return targets;
     }
 
     private void handleNewBotJobBootstrap(String sessionId) {
@@ -3139,7 +3168,15 @@ public class SimpleWebSocketServer {
     }
 
     static boolean isAllowedFromDetachedPageScannerTransport(String operation) {
-        return isPageScannerTransportOperation(operation) || "ocrWorkspace.open".equals(operation);
+        return isPageScannerTransportOperation(operation)
+                || "ocrWorkspace.open".equals(operation)
+                || (operation != null && DETACHED_PAGE_SCANNER_BOT_JOB_OPERATIONS.contains(operation));
+    }
+
+    static boolean isAllowedDetachedPageScannerToolbarAction(String action) {
+        return action != null
+                && DETACHED_PAGE_SCANNER_TOOLBAR_ACTIONS.contains(
+                        action.trim().toUpperCase(Locale.ROOT));
     }
 
     private static String requirePageScannerRequestId(JsonObject body) {
@@ -4218,12 +4255,10 @@ public class SimpleWebSocketServer {
                         rememberCompletedRequest(processedRowMoves, moveRequestId);
                     }
 
-                    // calls perform list block update
-                    splitDTO.setType(updteBlocks);
-                    jsonData = gson.toJson(splitDTO);
-                    webSocketSessionManager.sendMessageJson(
-                            homeBankingId, ScannerWorkspaceSessions.PERFORM_LIST_DATA, jsonData, updteBlocks);
-
+                    // ROW_MOVE refreshes Bot Job Details through the authoritative mutation response
+                    // and updateInstructions snapshot below. Do not also emit the legacy
+                    // perform-list-data/UPDATE_BLOCKS frame here; it only carries partial row layout
+                    // data and can race the full grid refresh consumed by React.
                     alreadySentMgsSocket = false;
                     break;
                 case "INSERT_BEFORE":

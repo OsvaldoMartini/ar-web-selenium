@@ -3,6 +3,7 @@ package com.allinweb.ch.facade;
 import com.allinweb.ch.model.FieldData;
 import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.model.ReferenceLoadDTO;
+import com.allinweb.ch.util.InputFlags;
 import com.microsoft.playwright.FrameLocator;
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
@@ -77,6 +78,41 @@ public class PlaywrightActionExecutor {
         }
 
         return clickCoordinates(page, instruction.getCoordinates());
+    }
+
+    /**
+     * Single-shot click used by TEST_CLICK_DTO / TEST_INPUT_DTO scanner buttons.
+     *
+     * <p>Locator discovery may try multiple locator sources, but once a concrete Playwright action
+     * is attempted it does not run force-click, JS dispatch, or coordinate retry. This prevents the
+     * manual scanner test buttons from producing duplicate clicks when the first action changes the
+     * page but Playwright reports a failure.
+     */
+    public boolean clickOnce(Page page, InstructionLoad instruction) {
+        if (page == null || page.isClosed() || instruction == null) {
+            return false;
+        }
+
+        Locator locator = locate(page, instruction);
+        if (locator == null || locator.count() == 0) {
+            return runCoordinateClick(page, instruction.getCoordinates());
+        }
+
+        Locator target = locator.first();
+        try {
+            target.scrollIntoViewIfNeeded(
+                    new Locator.ScrollIntoViewIfNeededOptions().setTimeout(ACTION_TIMEOUT_MS));
+        } catch (Exception scroll) {
+            log.debug("Playwright single-shot scroll failed before click: {}", scroll.getMessage());
+        }
+
+        try {
+            target.click(new Locator.ClickOptions().setTimeout(ACTION_TIMEOUT_MS));
+            return true;
+        } catch (Exception click) {
+            log.debug("Playwright single-shot click failed; no second click will be attempted: {}", click.getMessage());
+            return false;
+        }
     }
 
     private boolean clickSelectOption(Page page, InstructionLoad instruction) {
@@ -274,7 +310,7 @@ public class PlaywrightActionExecutor {
 
         Locator locator = locateWritable(page, instruction);
         if (locator == null || locator.count() == 0) {
-            return fillCoordinates(page, instruction.getCoordinates(), data == null ? "" : data.getValue());
+            return fillCoordinates(page, instruction, data == null ? "" : data.getValue());
         }
 
         Locator first = locator.first();
@@ -285,10 +321,47 @@ public class PlaywrightActionExecutor {
         }
         try {
             first.fill(data == null ? "" : data.getValue(), new Locator.FillOptions().setTimeout(ACTION_TIMEOUT_MS));
-            return true;
+            return pressPostInputKeys(page, instruction);
         } catch (Exception fillError) {
             log.debug("Playwright fill failed, trying coordinates: {}", fillError.getMessage());
-            return fillCoordinates(page, instruction.getCoordinates(), data == null ? "" : data.getValue());
+            return fillCoordinates(page, instruction, data == null ? "" : data.getValue());
+        }
+    }
+
+    /**
+     * Single-shot fill used by TEST_INPUT_DTO. If the selected element is click-only, it delegates
+     * to {@link #clickOnce(Page, InstructionLoad)} so radio/checkbox/select scanner tests still run
+     * one Playwright action only.
+     */
+    public boolean fillOnce(Page page, InstructionLoad instruction, FieldData data) {
+        if (page == null || page.isClosed() || instruction == null) {
+            return false;
+        }
+
+        if (isClickOnlyInstruction(instruction)) {
+            log.info(
+                    "Playwright single-shot fill requested for click-only control '{}'; routing to one click",
+                    instruction.getName());
+            return clickOnce(page, instruction);
+        }
+
+        Locator locator = locateWritable(page, instruction);
+        if (locator == null || locator.count() == 0) {
+            return runCoordinateFill(page, instruction, data == null ? "" : data.getValue());
+        }
+
+        Locator first = locator.first();
+        try {
+            first.scrollIntoViewIfNeeded(new Locator.ScrollIntoViewIfNeededOptions().setTimeout(ACTION_TIMEOUT_MS));
+        } catch (Exception scroll) {
+            log.debug("Playwright single-shot scroll failed before fill: {}", scroll.getMessage());
+        }
+        try {
+            first.fill(data == null ? "" : data.getValue(), new Locator.FillOptions().setTimeout(ACTION_TIMEOUT_MS));
+            return pressPostInputKeys(page, instruction);
+        } catch (Exception fill) {
+            log.debug("Playwright single-shot fill failed; no second fill/click will be attempted: {}", fill.getMessage());
+            return false;
         }
     }
 
@@ -530,7 +603,17 @@ public class PlaywrightActionExecutor {
         return true;
     }
 
-    private static boolean fillCoordinates(Page page, String coordinates, String value) {
+    private static boolean runCoordinateClick(Page page, String coordinates) {
+        try {
+            return clickCoordinates(page, coordinates);
+        } catch (Exception error) {
+            log.debug("Playwright coordinate click failed: {}", error.getMessage());
+            return false;
+        }
+    }
+
+    private static boolean fillCoordinates(Page page, InstructionLoad instruction, String value) {
+        String coordinates = instruction == null ? null : instruction.getCoordinates();
         double[] point = parseCoordinates(coordinates);
         if (point == null) {
             return false;
@@ -556,7 +639,32 @@ public class PlaywrightActionExecutor {
         }
         page.keyboard().press("Control+A");
         page.keyboard().type(value == null ? "" : value);
-        return true;
+        return pressPostInputKeys(page, instruction);
+    }
+
+    private static boolean runCoordinateFill(Page page, InstructionLoad instruction, String value) {
+        try {
+            return fillCoordinates(page, instruction, value);
+        } catch (Exception error) {
+            log.debug("Playwright coordinate fill failed: {}", error.getMessage());
+            return false;
+        }
+    }
+
+    private static boolean pressPostInputKeys(Page page, InstructionLoad instruction) {
+        InputFlags flags = InputFlags.of(instruction == null ? null : instruction.getForceCoordinates());
+        try {
+            if (flags.hasEnter()) {
+                page.keyboard().press("Enter");
+            }
+            if (flags.hasTab()) {
+                page.keyboard().press("Tab");
+            }
+            return true;
+        } catch (Exception error) {
+            log.debug("Playwright post-input key press failed: {}", error.getMessage());
+            return false;
+        }
     }
 
     private static double[] parseCoordinates(String coordinates) {

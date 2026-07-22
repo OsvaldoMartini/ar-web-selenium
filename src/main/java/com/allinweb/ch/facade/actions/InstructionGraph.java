@@ -30,6 +30,12 @@ public final class InstructionGraph {
 
     private InstructionGraph() {}
 
+    /** Root instructions legitimately have no parent; execution uses zero as the no-parent sentinel. */
+    public static int executionParentId(InstructionLoad instruction) {
+        if (instruction == null || instruction.getParentId() == null) return 0;
+        return instruction.getParentId();
+    }
+
     public static String getXPathInstruction(InstructionLoad currentInstruction, BlockLoadDTO blockLoad) {
         try {
             return blockLoad.getInstructionLoad().stream()

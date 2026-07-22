@@ -157,7 +157,17 @@ class PreScanBrowserSessionTest {
         }
 
         @Override
+        public boolean clickOnce(InstructionLoad instruction) {
+            return true;
+        }
+
+        @Override
         public boolean fill(InstructionLoad instruction, FieldData data) {
+            return true;
+        }
+
+        @Override
+        public boolean fillOnce(InstructionLoad instruction, FieldData data) {
             return true;
         }
 

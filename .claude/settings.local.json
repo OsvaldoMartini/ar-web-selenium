@@ -127,7 +127,10 @@
       "Bash(powershell -NoProfile -Command \"Get-Content -Path 'D:\\\\Projects\\\\ARWebBancaStato\\\\ARWeb\\\\Logs\\\\ar_web_scanner_base-2026-07-17.9.log' -Wait -Tail 0\")",
       "PowerShell(Start-Process \"http://127.0.0.1:51352/\")",
       "Bash(powershell -NoProfile -Command \"Get-Content -Path 'D:\\\\Projects\\\\ARWebBancaStato\\\\ARWeb\\\\Logs\\\\ar_web_scanner_base-2026-07-17.10.log' -Wait -Tail 0\")",
-      "Bash(powershell -NoProfile -Command \"Get-Content -Path 'D:\\\\Projects\\\\ARWebBancaStato\\\\ARWeb\\\\Logs\\\\ar_web_scanner_base-2026-07-17.11.log' -Wait -Tail 0\")"
+      "Bash(powershell -NoProfile -Command \"Get-Content -Path 'D:\\\\Projects\\\\ARWebBancaStato\\\\ARWeb\\\\Logs\\\\ar_web_scanner_base-2026-07-17.11.log' -Wait -Tail 0\")",
+      "Bash(xargs head -20)",
+      "Bash(mvn clean *)",
+      "Bash(echo \"MVN_EXIT=$?\")"
     ]
   }
 }

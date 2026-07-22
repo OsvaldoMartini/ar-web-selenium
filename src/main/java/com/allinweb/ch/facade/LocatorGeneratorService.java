@@ -1,6 +1,7 @@
 package com.allinweb.ch.facade;
 
 import com.allinweb.ch.model.ElementDTO;
+import com.allinweb.ch.util.TextSimilarity;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -90,8 +91,9 @@ public final class LocatorGeneratorService {
 
             JsonArray controls = new JsonArray();
             boolean anyPositional = false;
+            Set<String> usedDefinedNames = new LinkedHashSet<>();
             for (int index = 0; index < candidates.size(); index++) {
-                JsonObject locator = buildLocator(candidates.get(index), document, index);
+                JsonObject locator = buildLocator(candidates.get(index), document, index, usedDefinedNames);
                 controls.add(locator);
                 anyPositional |= locator.get("positional").getAsBoolean();
             }
@@ -182,7 +184,11 @@ public final class LocatorGeneratorService {
         return new ArrayList<>(found);
     }
 
-    private JsonObject buildLocator(Element target, Document document, int controlIndex) {
+    private JsonObject buildLocator(
+            Element target,
+            Document document,
+            int controlIndex,
+            Set<String> usedDefinedNames) {
         String tag = target.tagName();
         List<String[]> available = stableAttributes(target);
         List<String[]> chosen = new ArrayList<>();
@@ -215,13 +221,23 @@ public final class LocatorGeneratorService {
             }
         }
 
+        String resolvedSomeText = someText(target);
+        String resolvedDefinedName = definedName(target, resolvedSomeText, usedDefinedNames);
         JsonObject out = new JsonObject();
         out.addProperty("controlIndex", controlIndex);
         out.addProperty("tagName", tag);
         out.addProperty("controlKind", controlKind(target));
         out.addProperty("label", label(target));
+        out.addProperty("someText", resolvedSomeText);
+        out.addProperty("definedName", resolvedDefinedName);
+        out.addProperty("attribId", Objects.toString(attributeValue(target, "id"), ""));
+        out.addProperty("attribName", Objects.toString(attributeValue(target, "name"), ""));
+        out.addProperty("attributeType", chosen.isEmpty() ? "" : chosen.get(0)[0]);
+        out.addProperty("attributeValue", chosen.isEmpty() ? "" : chosen.get(0)[1]);
+        out.add("attributeData", attributeData(available));
         out.addProperty("xpath", xpath);
         out.addProperty("css", css);
+        out.addProperty("cssSelector", css);
         out.addProperty("positional", positional);
         out.addProperty(
                 "note",
@@ -240,6 +256,17 @@ public final class LocatorGeneratorService {
             available.add(new String[] {attribute, value});
         }
         return available;
+    }
+
+    private static JsonArray attributeData(List<String[]> attributes) {
+        JsonArray data = new JsonArray();
+        for (String[] pair : attributes) {
+            JsonObject item = new JsonObject();
+            item.addProperty("name", pair[0]);
+            item.addProperty("value", pair[1]);
+            data.add(item);
+        }
+        return data;
     }
 
     private static boolean isUniqueInDocument(Document document, String css, Element target) {
@@ -378,6 +405,65 @@ public final class LocatorGeneratorService {
 
     private static String truncate(String value) {
         return value.length() <= 60 ? value : value.substring(0, 60) + "...";
+    }
+
+    private static String someText(Element element) {
+        for (String attribute : new String[] {"aria-label", "placeholder", "title", "alt", "value"}) {
+            String value = cleanText(attributeValue(element, attribute));
+            if (!value.isBlank()) return truncate(value, 160);
+        }
+        String own = cleanText(element.ownText());
+        if (!own.isBlank()) return truncate(own, 160);
+        String text = cleanText(element.text());
+        if (!text.isBlank()) return truncate(text, 160);
+
+        String semantic = semanticAttributeText(element);
+        return semantic.isBlank() ? "" : truncate(semantic, 160);
+    }
+
+    private static String definedName(Element element, String someText, Set<String> usedDefinedNames) {
+        String base = !blank(someText) ? someText : semanticAttributeText(element);
+        if (blank(base)) base = controlKind(element);
+        String slug = TextSimilarity.slug(base);
+        String unique = TextSimilarity.uniquify(slug, usedDefinedNames);
+        usedDefinedNames.add(unique);
+        return unique;
+    }
+
+    private static String semanticAttributeText(Element element) {
+        for (String attribute : new String[] {
+            "formcontrolname", "name", "id", "data-testid", "data-test", "test-id", "role", "type"
+        }) {
+            String value = attributeValue(element, attribute);
+            String human = humanizeSemanticAttribute(value);
+            if (!human.isBlank()) return human;
+        }
+        return "";
+    }
+
+    private static String humanizeSemanticAttribute(String value) {
+        if (value == null || value.isBlank()) return "";
+        String candidate = value.trim();
+        int segmentStart = Math.max(
+                Math.max(candidate.lastIndexOf('.'), candidate.lastIndexOf('/')),
+                candidate.lastIndexOf(':'));
+        if (segmentStart >= 0 && segmentStart + 1 < candidate.length()) {
+            candidate = candidate.substring(segmentStart + 1);
+        }
+        candidate = candidate.replaceAll("-?\\d+$", "");
+        return cleanText(TextSimilarity.humanize(candidate));
+    }
+
+    private static String cleanText(String value) {
+        if (value == null) return "";
+        return value.replace('\u00A0', ' ')
+                .replaceAll("\\s+", " ")
+                .replaceAll("[:*!]+$", "")
+                .trim();
+    }
+
+    private static String truncate(String value, int maximum) {
+        return value.length() <= maximum ? value : value.substring(0, maximum) + "...";
     }
 
     /** Must remain byte-for-byte compatible with the React PageScannerLocator element key. */

@@ -18,6 +18,12 @@ class InstructionMoveValidatorTest {
     }
 
     @Test
+    void rejectsNoOpMove() {
+        List<InstructionLoad> current = List.of(row(1, "CLICK", null, 10, 1), row(2, "CLICK", null, 10, 2));
+        assertNotNull(validator.validate(current, List.of(update(1, 10, 1), update(2, 10, 2))));
+    }
+
+    @Test
     void rejectsConditionalBoundaryMovement() {
         List<InstructionLoad> current = List.of(
                 row(1, "IF", 1, 10, 1), row(2, "CLICK", null, 10, 2),

@@ -375,8 +375,22 @@ public class ARPlaywrightDriver {
         });
     }
 
+    public boolean clickOnce(InstructionLoad instruction) {
+        return call(() -> {
+            Page actionPage = requirePage();
+            List<Page> pagesBefore = openPages();
+            boolean clicked = actionExecutor.clickOnce(actionPage, instruction);
+            if (clicked) adoptPageOpenedByAction(actionPage, pagesBefore, 2000);
+            return clicked;
+        });
+    }
+
     public boolean fill(InstructionLoad instruction, FieldData data) {
         return call(() -> actionExecutor.fill(requirePage(), instruction, data));
+    }
+
+    public boolean fillOnce(InstructionLoad instruction, FieldData data) {
+        return call(() -> actionExecutor.fillOnce(requirePage(), instruction, data));
     }
 
     public String text(InstructionLoad instruction) {
