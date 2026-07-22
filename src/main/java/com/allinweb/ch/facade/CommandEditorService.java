@@ -275,6 +275,47 @@ public final class CommandEditorService {
         return null;
     }
 
+    public ErrorMessage validateDeleteMetadata(SplitDTO request, InstructionLoad stored) {
+        if (request == null || stored == null) {
+            return new ErrorMessage(
+                    "Delete Instruction Refused",
+                    "Instruction not found",
+                    "The selected instruction no longer exists. Refresh the grid.");
+        }
+        if (deleteMetadataMatches(request, stored)) return null;
+
+        log.warn(
+                "DELETE_INSTRUCTION_METADATA_MISMATCH requestId={} instructionId={}"
+                        + " requestedAction={} storedAction={} requestedParentId={} storedParentId={}"
+                        + " requestedBlockId={} storedBlockId={}",
+                request.getRequestId(),
+                request.getInstructionId(),
+                request.getActions(),
+                stored.getActions(),
+                request.getParentId(),
+                stored.getParentId(),
+                request.getBlockId(),
+                stored.getBlockId());
+        return new ErrorMessage(
+                "Delete Instruction Refused",
+                "Instruction metadata changed",
+                "Refresh the grid before deleting this instruction.");
+    }
+
+    static boolean deleteMetadataMatches(SplitDTO request, InstructionLoad stored) {
+        if (request == null || stored == null) return false;
+        String requestedAction = request.getActions() == null ? "" : request.getActions().trim();
+        String storedAction = stored.getActions() == null ? "" : stored.getActions().trim();
+        return storedAction.equalsIgnoreCase(requestedAction)
+                && normalizeOptionalRelationshipId(stored.getParentId())
+                        == normalizeOptionalRelationshipId(request.getParentId())
+                && java.util.Objects.equals(stored.getBlockId(), request.getBlockId());
+    }
+
+    private static int normalizeOptionalRelationshipId(Integer value) {
+        return value == null || value <= 0 ? -1 : value;
+    }
+
     private Set<Integer> memoryProtectedIds(List<InstructionLoad> rows) {
         Set<Integer> protectedIds = new java.util.HashSet<>();
         Map<Integer, InstructionLoad> byId = rows.stream()

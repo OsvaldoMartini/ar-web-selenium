@@ -1773,7 +1773,7 @@ public class PerformDataBase {
                     instruction.setExportToABR(rs.getBoolean("export_to_abr"));
                     instruction.setOperation(rs.getString("operation"));
                     instruction.setBlockId(rs.getInt("block_id"));
-                    instruction.setParentBlockId(rs.getInt("parent_block_id"));
+                    instruction.setParentBlockId(readNullableInteger(rs, "parent_block_id"));
 
                     if (instruction.getName().equals("EXCEL GOTO")
                             && ((instruction.getParentBlockId() != null && instruction.getParentBlockId() == 0)
@@ -1781,8 +1781,8 @@ public class PerformDataBase {
                         instruction.setParentBlockId(instruction.getBlockId());
                     }
 
-                    instruction.setParentId(rs.getInt("parent_id"));
-                    instruction.setVariableId(rs.getInt("variable_id"));
+                    instruction.setParentId(readNullableInteger(rs, "parent_id"));
+                    instruction.setVariableId(readNullableInteger(rs, "variable_id"));
 
                     instruction.setInstructionActive(rs.getBoolean("instruction_active"));
 

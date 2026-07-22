@@ -4216,18 +4216,10 @@ public class SimpleWebSocketServer {
                                 "The selected instruction no longer exists. Refresh the grid.");
                         break;
                     }
-                    String storedAction = storedDelete.getActions() == null ? "" : storedDelete.getActions();
-                    int storedParentId = storedDelete.getParentId() == null ? -1 : storedDelete.getParentId();
                     int storedBlockId = storedDelete.getBlockId() == null ? -1 : storedDelete.getBlockId();
-                    if (!storedAction.equalsIgnoreCase(actions)
-                            || storedParentId != parentId
-                            || storedBlockId != blockId) {
-                        errorMessage = new ErrorMessage(
-                                "Delete Instruction Refused",
-                                "Instruction metadata changed",
-                                "Refresh the grid before deleting this instruction.");
-                        break;
-                    }
+                    errorMessage = CommandEditorService.getInstance()
+                            .validateDeleteMetadata(splitDTO, storedDelete);
+                    if (errorMessage != null) break;
 
                     boolean isIfFamily = actions.equalsIgnoreCase("IF")
                             || actions.equalsIgnoreCase("ELSE")
