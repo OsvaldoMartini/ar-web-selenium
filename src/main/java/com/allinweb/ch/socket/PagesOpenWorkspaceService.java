@@ -35,6 +35,7 @@ public final class PagesOpenWorkspaceService {
     public static final String WORKSPACE_CLOSE_OPERATION = "application.workspaceClose";
 
     private static final String MAIN_DASHBOARD_SESSION = "mainDashboard";
+    private static final String BOT_JOB_DETAILS_DATA_SESSION = "botJobTasks";
     private static final String AUTO_TEST_KEY = "inline:auto-test";
     private static final String AUTO_TEST_KIND = "AUTO_TEST";
     private static final long LAUNCH_PENDING_NANOS =
@@ -132,6 +133,9 @@ public final class PagesOpenWorkspaceService {
             launchPending = false;
             return failure(body, "Pages Open workspace could not be opened.");
         }
+        if (alreadyOpen) {
+            focusWorkspace();
+        }
 
         JsonObject response = snapshotResponse(
                 body,
@@ -142,6 +146,14 @@ public final class PagesOpenWorkspaceService {
                                 : "Pages Open workspace is opening.");
         response.addProperty("alreadyOpen", alreadyOpen);
         return response;
+    }
+
+    /** Returns the authoritative page inventory without opening the Pages Open workspace. */
+    public synchronized JsonObject summary(
+            JsonObject body, String requesterSessionId, Session requesterTransport) {
+        JsonObject validation = validateVisibleRequester(body, requesterSessionId, requesterTransport);
+        if (validation != null) return validation;
+        return snapshotResponse(body, "Open pages summary loaded.");
     }
 
     /** Bootstraps the fixed Pages Open page from its exact registered transport. */
@@ -298,6 +310,7 @@ public final class PagesOpenWorkspaceService {
             return failure(body, "The Pages Open requester is not authoritative.");
         }
         if (presentation(sessionId) == null
+                && !BOT_JOB_DETAILS_DATA_SESSION.equals(sessionId)
                 && !BotJobDetailsWindowCoordinator.isControlSessionId(sessionId)
                 && !ScannerWorkspaceSessions.isPageScannerSession(sessionId)
                 && !OcrWorkspaceCoordinator.isWorkspaceSessionId(sessionId)) {
@@ -529,11 +542,38 @@ public final class PagesOpenWorkspaceService {
     }
 
     private void publishSnapshot() {
+        JsonObject snapshot = snapshotResponse(null, "Open pages updated.");
+        Map<String, Session> recipients = new LinkedHashMap<>();
+        for (PageHandle handle : handlesById.values()) {
+            if (isCurrentHandle(handle)) {
+                recipients.put(handle.sessionId(), handle.transport());
+            }
+        }
+        addRegisteredRecipient(recipients, MAIN_DASHBOARD_SESSION);
+        addRegisteredRecipient(recipients, BOT_JOB_DETAILS_DATA_SESSION);
+
+        for (Map.Entry<String, Session> recipient : recipients.entrySet()) {
+            WebSocketSessionManager.sendMessageJson(
+                    -1,
+                    recipient.getValue(),
+                    recipient.getKey(),
+                    gson.toJson(snapshot),
+                    SNAPSHOT_OPERATION);
+        }
+    }
+
+    private void addRegisteredRecipient(Map<String, Session> recipients, String sessionId) {
+        Session transport = WebSocketSessionManager.getSession(sessionId);
+        if (transport != null && transport.isOpen()) {
+            recipients.put(sessionId, transport);
+        }
+    }
+
+    private void focusWorkspace() {
         Session target = WebSocketSessionManager.getSession(WORKSPACE_SESSION_ID);
         if (target == null || !target.isOpen()) return;
-        JsonObject snapshot = snapshotResponse(null, "Open pages updated.");
         WebSocketSessionManager.sendMessageJson(
-                -1, target, WORKSPACE_SESSION_ID, gson.toJson(snapshot), SNAPSHOT_OPERATION);
+                -1, target, WORKSPACE_SESSION_ID, "{}", "pagesOpen.focus");
     }
 
     private JsonObject snapshotResponse(JsonObject request, String message) {

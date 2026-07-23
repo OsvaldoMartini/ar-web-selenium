@@ -954,6 +954,9 @@ public class SimpleWebSocketServer {
                 case "pagesOpen.open":
                     handlePagesOpenOpen(jsonObjMSG, transportSessionId, session);
                     break;
+                case "pagesOpen.summary":
+                    handlePagesOpenSummary(jsonObjMSG, transportSessionId, session);
+                    break;
                 case "pagesOpen.bootstrap":
                     handlePagesOpenBootstrap(jsonObjMSG, transportSessionId, session);
                     break;
@@ -1236,6 +1239,16 @@ public class SimpleWebSocketServer {
                 transportSession,
                 "pagesOpen.openResponse",
                 pagesOpenWorkspaceService.open(
+                        extractBody(envelope), transportSessionId, transportSession));
+    }
+
+    private void handlePagesOpenSummary(
+            JsonObject envelope, String transportSessionId, Session transportSession) {
+        sendPagesOpenResponse(
+                transportSessionId,
+                transportSession,
+                "pagesOpen.summaryResponse",
+                pagesOpenWorkspaceService.summary(
                         extractBody(envelope), transportSessionId, transportSession));
     }
 
