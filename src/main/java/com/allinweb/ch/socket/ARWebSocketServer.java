@@ -9,6 +9,7 @@ import java.net.URI;
 import java.net.URLEncoder;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import com.allinweb.ch.model.DetachedWorkspaceSessions;
 import lombok.extern.slf4j.Slf4j;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
@@ -18,6 +19,7 @@ import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.util.resource.Resource;
 import org.eclipse.jetty.websocket.jsr356.server.ServerContainer;
 import org.eclipse.jetty.websocket.jsr356.server.deploy.WebSocketServerContainerInitializer;
+import com.allinweb.ch.socket.WebSocketSessionManager;
 
 @Slf4j
 public class ARWebSocketServer {
@@ -184,19 +186,36 @@ public class ARWebSocketServer {
     }
 
     /** Strict launcher used only by the single-window coordinator. */
-    boolean openBotJobDetailsDesktopShell(int botJobId, String controlSessionId) {
+    public boolean openBotJobDetailsDesktopShell(int botJobId, String controlSessionId) {
         return desktopAppBrowserLauncher.launch(
                 botJobDetailsDesktopUrl(boundPort, botJobId, controlSessionId));
     }
 
     /** Opens one detached OCR workspace without falling back to a browser window with an address bar. */
-    boolean openOcrWorkspaceDesktopShell(OcrWorkspaceCoordinator.Kind kind, String sessionId) {
+    public boolean openOcrWorkspaceDesktopShell(OcrWorkspaceCoordinator.Kind kind, String sessionId) {
         return desktopAppBrowserLauncher.launch(ocrWorkspaceDesktopUrl(boundPort, kind, sessionId));
     }
 
     /** Opens one detached Page Scanner without falling back to a browser with an address bar. */
-    boolean openPageScannerDesktopShell(String sessionId) {
+    public boolean openPageScannerDesktopShell(String sessionId) {
         return desktopAppBrowserLauncher.launch(pageScannerDesktopUrl(boundPort, sessionId));
+    }
+
+    /** Opens one detached floating React workspace without falling back to a browser with an address bar. */
+    public boolean openDetachedWorkspaceDesktopShell(String sessionId) {
+        return openDetachedWorkspaceDesktopShell(sessionId, -9999);
+    }
+
+    /** Opens one detached floating React workspace without falling back to a browser with an address bar. */
+    public boolean openDetachedWorkspaceDesktopShell(String sessionId, int sourceBotJobId) {
+        if (!DetachedWorkspaceSessions.isDetachedWorkspaceSession(sessionId)) {
+            throw new IllegalArgumentException("A valid detached workspace session is required");
+        }
+        if (WebSocketSessionManager.isSessionOpen(sessionId)) {
+            log.info("Detached workspace {} is already open; reusing the existing session", sessionId);
+            return true;
+        }
+        return desktopAppBrowserLauncher.launch(detachedWorkspaceDesktopUrl(boundPort, sessionId, sourceBotJobId));
     }
 
     /** Retires the detached Page Scanner bound to one exact Bot Job workspace epoch. */
@@ -256,6 +275,25 @@ public class ARWebSocketServer {
                 + encodeQueryParameter(kind.routeValue())
                 + "&ocrSession="
                 + encodeQueryParameter(sessionId);
+    }
+
+    static String detachedWorkspaceDesktopUrl(int port, String sessionId) {
+        return detachedWorkspaceDesktopUrl(port, sessionId, -9999);
+    }
+
+    static String detachedWorkspaceDesktopUrl(int port, String sessionId, int sourceBotJobId) {
+        if (port < 1 || port > 65535) {
+            throw new IllegalArgumentException("A valid AR Web port is required");
+        }
+        if (!DetachedWorkspaceSessions.isDetachedWorkspaceSession(sessionId)) {
+            throw new IllegalArgumentException("A valid detached workspace session is required");
+        }
+        String url = "http://" + LOOPBACK_ADDRESS + ":" + port
+                + "/?desktopShell=1&openWorkspace=" + encodeQueryParameter(sessionId);
+        if (sourceBotJobId > 0) {
+            url += "&sourceBotJobId=" + sourceBotJobId;
+        }
+        return url;
     }
 
     private static String encodeQueryParameter(String value) {

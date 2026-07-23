@@ -57,6 +57,9 @@ public final class MainDashboardPresentationRegistry {
         public void openConfig() {}
 
         @Override
+        public void openTemplate() {}
+
+        @Override
         public void openInfo() {}
 
         @Override

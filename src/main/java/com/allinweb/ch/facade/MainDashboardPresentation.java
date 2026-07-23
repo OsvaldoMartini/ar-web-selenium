@@ -21,6 +21,8 @@ public interface MainDashboardPresentation {
 
     void openConfig();
 
+    void openTemplate();
+
     void openInfo();
 
     void exitApplication();

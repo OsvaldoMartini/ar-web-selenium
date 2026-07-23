@@ -90,6 +90,11 @@ public class MainDashboardService {
         return successWithCurrentRows("Configuration opened");
     }
 
+    public Map<String, Object> openTemplate() {
+        presentation().openTemplate();
+        return successWithCurrentRows("TEMP opened");
+    }
+
     public Map<String, Object> openInfo() {
         presentation().openInfo();
         return successWithCurrentRows("Info opened");

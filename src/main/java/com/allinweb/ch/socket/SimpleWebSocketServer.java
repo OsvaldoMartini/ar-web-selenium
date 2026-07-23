@@ -908,6 +908,9 @@ public class SimpleWebSocketServer {
                 case "mainDashboard.openConfig":
                     handleMainDashboardOpenConfig(sessionId);
                     break;
+                case "mainDashboard.openTemplate":
+                    handleMainDashboardOpenTemplate(sessionId);
+                    break;
                 case "mainDashboard.openInfo":
                     handleMainDashboardOpenInfo(sessionId);
                     break;
@@ -1118,6 +1121,10 @@ public class SimpleWebSocketServer {
 
     private void handleMainDashboardOpenConfig(String sessionId) {
         sendMainDashboardResponse(sessionId, mainDashboardService.openConfig(), "mainDashboard.actionResponse");
+    }
+
+    private void handleMainDashboardOpenTemplate(String sessionId) {
+        sendMainDashboardResponse(sessionId, mainDashboardService.openTemplate(), "mainDashboard.actionResponse");
     }
 
     private void handleMainDashboardOpenInfo(String sessionId) {
@@ -1669,6 +1676,15 @@ public class SimpleWebSocketServer {
 
     CompletableFuture<Void> sendBotJobDetailsResponseAcknowledged(
             Session targetSession, int homeBankingId, String sessionId, Object response, String operationId) {
+        Session activeSession = WebSocketSessionManager.getSession(sessionId);
+        if (activeSession == null || !activeSession.isOpen()) {
+            log.debug("Bot Job Details response session {} is unavailable", sessionId);
+            return CompletableFuture.completedFuture(null);
+        }
+        if (!activeSession.equals(targetSession)) {
+            log.debug("Bot Job Details response session {} has been superseded; using active transport", sessionId);
+            targetSession = activeSession;
+        }
         if (targetSession == null || !targetSession.isOpen()) {
             log.debug("Bot Job Details response session {} is unavailable", sessionId);
             return CompletableFuture.completedFuture(null);
@@ -1678,7 +1694,7 @@ public class SimpleWebSocketServer {
         outbound.addProperty("sessionId", sessionId);
         outbound.addProperty("homeBankingId", homeBankingId);
         outbound.addProperty("operationId", operationId);
-        return WebSocketSessionManager.sendTextAcknowledged(targetSession, outbound.toString());
+        return WebSocketSessionManager.sendTextAcknowledged(activeSession, outbound.toString());
     }
 
     private int authoritativeHomeBankingId(int botJobId) {

@@ -122,14 +122,20 @@ public class MainDashboardPresentationAdapter
                         0);
                 return;
             }
-            dispatchReactSession("newBotJobManager");
+            if (!ARWebSocketServer.getInstance().openDetachedWorkspaceDesktopShell("newBotJobManager")) {
+                dispatchReactSession("newBotJobManager");
+            }
             performDataBase.loadQuickBotJobs();
             pushReactDashboardList();
         });
     }
 
     public void openCloneBotJob(BotJobLoadDTO botJob) {
-        uiThreadDispatcher.execute(() -> dispatchReactSession("cloneJobManager", botJob.getId()));
+        uiThreadDispatcher.execute(() -> {
+            if (!ARWebSocketServer.getInstance().openDetachedWorkspaceDesktopShell("cloneJobManager", botJob.getId())) {
+                dispatchReactSession("cloneJobManager", botJob.getId());
+            }
+        });
     }
 
     @Override
@@ -272,18 +278,39 @@ public class MainDashboardPresentationAdapter
 
     public void openConfig() {
         uiThreadDispatcher.execute(() -> {
-            dispatchReactSession("configManager");
+            if (!ARWebSocketServer.getInstance().openDetachedWorkspaceDesktopShell("configManager")) {
+                dispatchReactSession("configManager");
+            }
+            performDataBase.loadQuickBotJobs();
+            pushReactDashboardList();
+        });
+    }
+
+    @Override
+    public void openTemplate() {
+        uiThreadDispatcher.execute(() -> {
+            if (!ARWebSocketServer.getInstance().openDetachedWorkspaceDesktopShell("aTemplateManager")) {
+                dispatchReactSession("aTemplateManager");
+            }
             performDataBase.loadQuickBotJobs();
             pushReactDashboardList();
         });
     }
 
     public void openInfo() {
-        uiThreadDispatcher.execute(() -> dispatchReactSession("aboutPanel"));
+        uiThreadDispatcher.execute(() -> {
+            if (!ARWebSocketServer.getInstance().openDetachedWorkspaceDesktopShell("aboutPanel")) {
+                dispatchReactSession("aboutPanel");
+            }
+        });
     }
 
     public void openLicense() {
-        uiThreadDispatcher.execute(() -> dispatchReactSession("licenseManager"));
+        uiThreadDispatcher.execute(() -> {
+            if (!ARWebSocketServer.getInstance().openDetachedWorkspaceDesktopShell("licenseManager")) {
+                dispatchReactSession("licenseManager");
+            }
+        });
     }
 
     public void launchBotJob(BotJobLoadDTO botJob) {
