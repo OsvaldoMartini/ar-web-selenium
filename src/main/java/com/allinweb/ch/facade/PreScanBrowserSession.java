@@ -48,9 +48,19 @@ public final class PreScanBrowserSession {
         return driver != null && driver.isOpen();
     }
 
+    /** Verifies that a live shared browser matches the current configured browser selection. */
+    public synchronized void assertBrowserCompatible(String browserType) {
+        if (driver != null && driver.isOpen()) {
+            driver.assertBrowserCompatible(browserType);
+        }
+    }
+
     /** Opens a new driver when needed and returns true only when a driver was created. */
     public synchronized boolean ensureOpen(String browserType, String endpointUrl, String optionsConfig) {
-        if (driver != null && driver.isOpen()) return false;
+        if (driver != null && driver.isOpen()) {
+            driver.assertBrowserCompatible(browserType);
+            return false;
+        }
         if (ownsDriver) {
             closeDriver();
             driver = driverFactory.create();
@@ -137,6 +147,8 @@ public final class PreScanBrowserSession {
     interface DriverPort {
         boolean isOpen();
 
+        default void assertBrowserCompatible(String browserType) {}
+
         void openOrNavigate(String browserType, String endpointUrl, String optionsConfig);
 
         void reload();
@@ -172,6 +184,11 @@ public final class PreScanBrowserSession {
         @Override
         public boolean isOpen() {
             return delegate.isOpen();
+        }
+
+        @Override
+        public void assertBrowserCompatible(String browserType) {
+            delegate.assertBrowserCompatible(browserType);
         }
 
         @Override
@@ -242,6 +259,12 @@ public final class PreScanBrowserSession {
         public boolean isOpen() {
             ARPlaywrightDriver active = owner.currentPlaywrightDriver();
             return active != null && active.isOpen();
+        }
+
+        @Override
+        public void assertBrowserCompatible(String browserType) {
+            ARPlaywrightDriver active = owner.currentPlaywrightDriver();
+            if (active != null) active.assertBrowserCompatible(browserType);
         }
 
         @Override

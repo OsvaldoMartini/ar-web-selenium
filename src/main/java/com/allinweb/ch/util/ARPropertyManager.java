@@ -3,10 +3,16 @@ package com.allinweb.ch.util;
 import com.allinweb.ch.facade.PerformMessage;
 import com.google.common.base.Strings;
 import java.io.*;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.logging.Level;
 import lombok.Getter;
@@ -224,35 +230,90 @@ public class ARPropertyManager {
     }
 
     public void setProperty(String propertyName, String value) {
-        this.properties.setProperty(propertyName, value);
-        try (FileOutputStream output = new FileOutputStream(configurationFileName)) {
-            //            this.properties.store(output, "added property: " + propertyName + " with value: " + value);
-            this.properties.store(output, null);
-        } catch (FileNotFoundException e) {
-            log.error("Creation of new \"ARWeb.config\" file. Configuration file not found: {}", configurationFileName);
-            //            performMessage.errorMessage(
-            //                    configurationFileName, // Using configurationFileName as the title
-            //                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Critical:
-            // Configuration file not found!</span>",
-            //                    "<span style='color: #2E7D32; font-weight: bold;'>A new configuration file has been
-            // created at:</span>",
-            //                    "<span style='font-weight: bold;'>" + configurationFileName + "</span>.", // Filename
-            // on a new line
-            //                    "<span style='color: #E65100;'>Please set the necessary configuration values in this
-            // new file.</span><br><span style='font-style: italic;'>Details: "
-            //                            + e.getMessage() + "</span>",
-            //                    0);
+        try {
+            setPropertyChecked(propertyName, value);
         } catch (IOException error) {
-            log.warn("Error reading/writing to the file: " + configurationFileName);
-            //            performMessage.errorMessage(
-            //                    "Error Reading File",
-            //                    "<span style='color: #D32F2F; font-weight: bold; font-size: 1.1em;'>Failed to read
-            // file:</span>",
-            //                    "<span style='font-weight: bold;'>" + configurationFileName + "</span>.",
-            //                    "<span style='color: #E65100; font-weight: bold;'>Please ensure the application has
-            // the necessary read permissions for the file and that the file exists.</span>",
-            //                    "<span style='font-style: italic;'>Details: " + error.getMessage() + "</span>",
-            //                    0);
+            log.error(
+                    "Error writing property {} to configuration file {}: {}",
+                    propertyName,
+                    configurationFileName,
+                    error.getMessage());
+        }
+    }
+
+    /**
+     * Updates one property and atomically replaces the exact configuration file supplied with
+     * {@code -c}. Callers that report persistence success to React use this checked variant.
+     */
+    public synchronized void setPropertyChecked(String propertyName, String value) throws IOException {
+        Map<String, String> update = new LinkedHashMap<>();
+        update.put(propertyName, value);
+        setPropertiesChecked(update);
+    }
+
+    /**
+     * Persists a related group of configuration values with one atomic file replacement. The
+     * in-memory properties are restored when preparing, writing, or replacing the file fails.
+     */
+    public synchronized void setPropertiesChecked(Map<String, String> updates) throws IOException {
+        if (updates == null || updates.isEmpty()) return;
+        if (Strings.isNullOrEmpty(configurationFileName)) {
+            throw new IOException("The active configuration file is not available");
+        }
+        for (String propertyName : updates.keySet()) {
+            if (Strings.isNullOrEmpty(propertyName)) {
+                throw new IOException("A configuration property name is required");
+            }
+        }
+
+        Path target = new File(configurationFileName).toPath().toAbsolutePath().normalize();
+        Path parent = target.getParent();
+        if (parent == null) {
+            throw new IOException("The active configuration directory is not available");
+        }
+        Files.createDirectories(parent);
+
+        Map<String, String> previousValues = new LinkedHashMap<>();
+        for (Map.Entry<String, String> update : updates.entrySet()) {
+            previousValues.put(update.getKey(), properties.getProperty(update.getKey()));
+            properties.setProperty(update.getKey(), update.getValue() == null ? "" : update.getValue());
+        }
+
+        Path temporary = null;
+        try {
+            temporary = Files.createTempFile(parent, target.getFileName().toString() + ".", ".tmp");
+            try (FileOutputStream output = new FileOutputStream(temporary.toFile())) {
+                properties.store(output, null);
+            }
+            try {
+                Files.move(
+                        temporary,
+                        target,
+                        StandardCopyOption.ATOMIC_MOVE,
+                        StandardCopyOption.REPLACE_EXISTING);
+            } catch (AtomicMoveNotSupportedException unsupported) {
+                Files.move(temporary, target, StandardCopyOption.REPLACE_EXISTING);
+            }
+        } catch (IOException failure) {
+            for (Map.Entry<String, String> previous : previousValues.entrySet()) {
+                if (previous.getValue() == null) {
+                    properties.remove(previous.getKey());
+                } else {
+                    properties.setProperty(previous.getKey(), previous.getValue());
+                }
+            }
+            throw failure;
+        } finally {
+            if (temporary != null) {
+                try {
+                    Files.deleteIfExists(temporary);
+                } catch (IOException cleanupFailure) {
+                    log.warn(
+                            "Could not delete temporary configuration file {}: {}",
+                            temporary,
+                            cleanupFailure.getMessage());
+                }
+            }
         }
     }
 

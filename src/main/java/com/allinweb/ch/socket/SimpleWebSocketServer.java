@@ -1016,13 +1016,16 @@ public class SimpleWebSocketServer {
                     handleConfigBootstrap(sessionId);
                     break;
                 case "config.choosePath":
-                    handleConfigChoosePath(jsonObjMSG, sessionId);
+                    handleConfigChoosePath(jsonObjMSG, sessionId, session);
                     break;
                 case "config.save":
                     handleConfigSave(jsonObjMSG, sessionId, session);
                     break;
                 case "config.backup":
-                    handleConfigBackup(jsonObjMSG, sessionId);
+                    handleConfigBackup(jsonObjMSG, sessionId, session);
+                    break;
+                case "config.browser.update":
+                    handleConfigBrowserUpdate(jsonObjMSG, sessionId, session);
                     break;
                 case "config.restore":
                     handleConfigRestore(jsonObjMSG, sessionId, session);
@@ -1954,8 +1957,21 @@ public class SimpleWebSocketServer {
         sendConfigResponse(sessionId, configService.bootstrap(), "config.bootstrapResponse");
     }
 
-    private void handleConfigChoosePath(JsonObject jsonObjMSG, String sessionId) {
-        sendConfigResponse(sessionId, configService.choosePath(extractBody(jsonObjMSG)), "config.pathResponse");
+    private void handleConfigChoosePath(
+            JsonObject jsonObjMSG, String sessionId, Session transport) {
+        if (!isConfigurationReloadRequester(sessionId, transport)) {
+            sendConfigResponse(
+                    transport,
+                    sessionId,
+                    Map.of("ok", false, "message", "Path selection requires Config or TEMP."),
+                    "config.pathResponse");
+            return;
+        }
+        sendConfigResponse(
+                transport,
+                sessionId,
+                configService.choosePath(extractBody(jsonObjMSG)),
+                "config.pathResponse");
     }
 
     private void handleConfigSave(JsonObject jsonObjMSG, String sessionId, Session transport) {
@@ -1984,8 +2000,43 @@ public class SimpleWebSocketServer {
         sendConfigResponse(transport, sessionId, response, "config.saveResponse");
     }
 
-    private void handleConfigBackup(JsonObject jsonObjMSG, String sessionId) {
-        sendConfigResponse(sessionId, configService.backup(extractBody(jsonObjMSG)), "config.backupResponse");
+    private void handleConfigBackup(
+            JsonObject jsonObjMSG, String sessionId, Session transport) {
+        if (!isConfigurationReloadRequester(sessionId, transport)) {
+            sendConfigResponse(
+                    transport,
+                    sessionId,
+                    Map.of("ok", false, "message", "Database backup requires Config or TEMP."),
+                    "config.backupResponse");
+            return;
+        }
+        sendConfigResponse(
+                transport,
+                sessionId,
+                configService.backup(extractBody(jsonObjMSG)),
+                "config.backupResponse");
+    }
+
+    private void handleConfigBrowserUpdate(
+            JsonObject jsonObjMSG, String sessionId, Session transport) {
+        if (!isConfigurationReloadRequester(sessionId, transport)) {
+            sendConfigResponse(
+                    transport,
+                    sessionId,
+                    Map.of("ok", false, "message", "Browser selection requires Config or TEMP."),
+                    "config.browserResponse");
+            return;
+        }
+
+        Map<String, Object> response = configService.updateBrowser(extractBody(jsonObjMSG));
+        sendConfigResponse(
+                transport,
+                sessionId,
+                response,
+                "config.browserResponse");
+        if (Boolean.TRUE.equals(response.get("ok"))) {
+            broadcastBrowserConfig(response);
+        }
     }
 
     private void handleConfigRestore(JsonObject jsonObjMSG, String sessionId, Session transport) {
@@ -2041,6 +2092,20 @@ public class SimpleWebSocketServer {
                 && transport != null
                 && transport.isOpen()
                 && WebSocketSessionManager.getSession(sessionId) == transport;
+    }
+
+    private void broadcastBrowserConfig(Map<String, Object> response) {
+        for (String targetSessionId : List.of(
+                DetachedWorkspaceSessions.CONFIG_MANAGER,
+                DetachedWorkspaceSessions.A_TEMPLATE_MANAGER)) {
+            Session target = WebSocketSessionManager.getSession(targetSessionId);
+            if (target == null || !target.isOpen()) continue;
+            sendConfigResponse(
+                    target,
+                    targetSessionId,
+                    response,
+                    "config.browserUpdated");
+        }
     }
 
     private void handleConfigDeleteAllJobs(JsonObject jsonObjMSG, String sessionId) {

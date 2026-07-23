@@ -1,5 +1,8 @@
 package com.allinweb.ch.facade;
 
+import com.allinweb.ch.component.pane.BotJobDetailsWorkspaceHost;
+import com.allinweb.ch.driver.ARPlaywrightDriver;
+import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.model.BotJobLoadDTO;
 import com.allinweb.ch.model.HomeBankingLoadDTO;
 import com.allinweb.ch.socket.WebSocketSessionManager;
@@ -11,6 +14,7 @@ import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import java.io.File;
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.LocalDate;
@@ -36,6 +40,17 @@ public class ConfigService {
     private static final Gson gson = new Gson();
     private static final ConfigSceneShutdownService sceneShutdownService =
             new ConfigSceneShutdownService(ConfigSceneShutdownRegistry.getInstance()::current);
+    private static final Map<String, String> PATH_FIELD_MODES = Map.ofEntries(
+            Map.entry("pathLicense", "directory"),
+            Map.entry("pathExcel", "directory"),
+            Map.entry("pathLog", "directory"),
+            Map.entry("pathDb", "directory"),
+            Map.entry("pathReport", "directory"),
+            Map.entry("pathPriority", "directory"),
+            Map.entry("pathEngine", "file"),
+            Map.entry("pathWebDriver", "directory"),
+            Map.entry("pathAppium", "directory"),
+            Map.entry("pathPlugins", "directory"));
 
     protected static volatile ConfigService instance;
 
@@ -59,8 +74,23 @@ public class ConfigService {
 
     public Map<String, Object> choosePath(JsonObject body) {
         String field = str(body, "field");
-        String mode = str(body, "mode");
-        String path = presentation().choosePath(mode);
+        String expectedMode = PATH_FIELD_MODES.get(field);
+        String mode = str(body, "mode").toLowerCase(java.util.Locale.ROOT);
+        if (expectedMode == null || !expectedMode.equals(mode)) {
+            return failure("Unsupported configuration path selection");
+        }
+        String currentPath = str(body, "currentPath");
+        if (currentPath.isEmpty()) {
+            Object configuredPath = currentConfig().get(field);
+            currentPath = configuredPath == null ? "" : configuredPath.toString();
+        }
+        final String path;
+        try {
+            path = presentation().choosePath(mode, currentPath);
+        } catch (RuntimeException chooserFailure) {
+            log.warn("Config {} chooser failed: {}", field, chooserFailure.getMessage());
+            return failure("Unable to open the native path selector");
+        }
         Map<String, Object> response = ok(path == null ? "Path selection cancelled" : "Path selected");
         response.put("field", field);
         response.put("path", path);
@@ -77,27 +107,33 @@ public class ConfigService {
             return validation;
         }
 
+        String requestedBrowser = supportedBrowser(str(config, "browser"));
+        if (requestedBrowser.isEmpty()) {
+            return failure("Select Chrome, Edge, or Firefox");
+        }
+        String activeBrowser = activePlaywrightBrowser();
+        if (!activeBrowser.isEmpty() && !activeBrowser.equalsIgnoreCase(requestedBrowser)) {
+            String message = "unknown".equals(activeBrowser)
+                    ? "An existing Playwright browser is active. Use the Browser dropdown and confirm replacement with "
+                            + requestedBrowser
+                            + " before saving the full configuration."
+                    : "The active Playwright browser is "
+                            + activeBrowser
+                            + ". Use the Browser dropdown and confirm replacement with "
+                            + requestedBrowser
+                            + " before saving the full configuration.";
+            Map<String, Object> response = failure(message);
+            response.put("browserUpdateRequired", true);
+            response.put("activeBrowser", activeBrowser);
+            response.put("requestedBrowser", requestedBrowser);
+            return response;
+        }
+
         String databaseType = str(config, "databaseType");
         String pathDb = str(config, "pathDb");
         String dbUrl = str(config, "dbUrl");
         String dbUser = str(config, "dbUser");
         String dbPwd = str(config, "dbPwd");
-
-        set(ARPropertyEnum.BROWSER, str(config, "browser"));
-        set(ARPropertyEnum.PATH_LICENSE, str(config, "pathLicense"));
-        set(ARPropertyEnum.PATH_EXCEL, str(config, "pathExcel"));
-        set(ARPropertyEnum.PATH_LOG, str(config, "pathLog"));
-        set(ARPropertyEnum.PATH_PRIORITY, str(config, "pathPriority"));
-        set(ARPropertyEnum.PATH_REPORT, str(config, "pathReport"));
-        set(ARPropertyEnum.PATH_ENGINE, str(config, "pathEngine"));
-        set(ARPropertyEnum.PATH_WEBDRIVER, str(config, "pathWebDriver"));
-        set(ARPropertyEnum.PATH_APPIUM, str(config, "pathAppium"));
-        set(ARPropertyEnum.PATH_PLUGINS, str(config, "pathPlugins"));
-        set(ARPropertyEnum.URL_PLUGINS, str(config, "urlPlugins"));
-        set(ARPropertyEnum.AI_API_KEY, str(config, "aiApiKey"));
-        set(ARPropertyEnum.AI_ENDPOINT, str(config, "aiEndpoint"));
-        set(ARPropertyEnum.AI_MODEL, str(config, "aiModel"));
-        set(ARPropertyEnum.AI_MAX_BLOCKS, str(config, "aiMaxBlocks"));
 
         try {
             performInitializer.testConnection(databaseType, pathDb, dbUrl, dbUser, dbPwd);
@@ -105,11 +141,36 @@ public class ConfigService {
             return failure("Database connection Failed: " + error.getMessage());
         }
 
-        set(ARPropertyEnum.DATABASE_TYPE, databaseType);
-        set(ARPropertyEnum.PATH_DB, pathDb);
-        set(ARPropertyEnum.DB_URL, dbUrl);
-        set(ARPropertyEnum.DB_USER, dbUser);
-        set(ARPropertyEnum.DB_PWD, dbPwd);
+        Map<String, String> updates = new LinkedHashMap<>();
+        put(updates, ARPropertyEnum.BROWSER, requestedBrowser);
+        put(updates, ARPropertyEnum.PATH_LICENSE, str(config, "pathLicense"));
+        put(updates, ARPropertyEnum.PATH_EXCEL, str(config, "pathExcel"));
+        put(updates, ARPropertyEnum.PATH_LOG, str(config, "pathLog"));
+        put(updates, ARPropertyEnum.PATH_PRIORITY, str(config, "pathPriority"));
+        put(updates, ARPropertyEnum.PATH_REPORT, str(config, "pathReport"));
+        put(updates, ARPropertyEnum.PATH_ENGINE, str(config, "pathEngine"));
+        put(updates, ARPropertyEnum.PATH_WEBDRIVER, str(config, "pathWebDriver"));
+        put(updates, ARPropertyEnum.PATH_APPIUM, str(config, "pathAppium"));
+        put(updates, ARPropertyEnum.PATH_PLUGINS, str(config, "pathPlugins"));
+        put(updates, ARPropertyEnum.URL_PLUGINS, str(config, "urlPlugins"));
+        put(updates, ARPropertyEnum.AI_API_KEY, str(config, "aiApiKey"));
+        put(updates, ARPropertyEnum.AI_ENDPOINT, str(config, "aiEndpoint"));
+        put(updates, ARPropertyEnum.AI_MODEL, str(config, "aiModel"));
+        put(updates, ARPropertyEnum.AI_MAX_BLOCKS, str(config, "aiMaxBlocks"));
+        put(updates, ARPropertyEnum.DATABASE_TYPE, databaseType);
+        put(updates, ARPropertyEnum.PATH_DB, pathDb);
+        put(updates, ARPropertyEnum.DB_URL, dbUrl);
+        put(updates, ARPropertyEnum.DB_USER, dbUser);
+        put(updates, ARPropertyEnum.DB_PWD, dbPwd);
+        try {
+            arPropertyManager.setPropertiesChecked(updates);
+        } catch (IOException persistenceFailure) {
+            log.error(
+                    "Could not persist configuration to {}",
+                    arPropertyManager.getConfigurationFileName(),
+                    persistenceFailure);
+            return failure("Configuration could not be written to the active config file");
+        }
 
         try {
             performDataBase.changeDbConnection();
@@ -135,10 +196,21 @@ public class ConfigService {
         }
         String folder = str(body, "destinationFolder");
         if (Strings.isNullOrEmpty(folder)) {
-            folder = presentation().choosePath("directory");
+            String initialPath = str(body, "initialPath");
+            if (Strings.isNullOrEmpty(initialPath)) {
+                initialPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+            }
+            try {
+                folder = presentation().choosePath("directory", initialPath);
+            } catch (RuntimeException chooserFailure) {
+                log.warn("Database backup folder chooser failed: {}", chooserFailure.getMessage());
+                return failure("Unable to open the backup destination folder selector");
+            }
         }
         if (Strings.isNullOrEmpty(folder)) {
-            return failure("Backup cancelled");
+            Map<String, Object> response = ok("Database backup cancelled");
+            response.put("cancelled", true);
+            return response;
         }
         try {
             performDataBase.changeDbConnection();
@@ -163,8 +235,10 @@ public class ConfigService {
             return failure("Backup failed", error);
         }
         Map<String, Object> response = ok("Database backup completed");
+        response.put("cancelled", false);
         response.put("folder", folder);
         response.put("fileName", backupFileName);
+        response.put("path", backupFilePath);
         return response;
     }
 
@@ -180,7 +254,16 @@ public class ConfigService {
         }
         String folder = str(body, "sourceFolder");
         if (Strings.isNullOrEmpty(folder)) {
-            folder = presentation().choosePath("directory");
+            String initialPath = str(body, "initialPath");
+            if (Strings.isNullOrEmpty(initialPath)) {
+                initialPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
+            }
+            try {
+                folder = presentation().choosePath("directory", initialPath);
+            } catch (RuntimeException chooserFailure) {
+                log.warn("Database restore folder chooser failed: {}", chooserFailure.getMessage());
+                return failure("Unable to open the restore source folder selector");
+            }
         }
         if (Strings.isNullOrEmpty(folder)) {
             return failure("Restore cancelled");
@@ -216,6 +299,96 @@ public class ConfigService {
         closeAllScenes();
         pushMainDashboard();
         return configResponse("Database restored");
+    }
+
+    /**
+     * Persists only the global browser property. Replacing a live, different Playwright browser is
+     * explicit because the application owns exactly one shared browser session.
+     */
+    public Map<String, Object> updateBrowser(JsonObject body) {
+        String requestedBrowser = supportedBrowser(str(body, "browser"));
+        if (requestedBrowser.isEmpty()) {
+            return failure("Select Chrome, Edge, or Firefox");
+        }
+
+        String activeBrowser = activePlaywrightBrowser();
+        boolean replacementRequired =
+                !activeBrowser.isEmpty() && !activeBrowser.equalsIgnoreCase(requestedBrowser);
+        if (replacementRequired && !bool(body, "confirmReplace")) {
+            String activeBrowserLabel =
+                    "unknown".equals(activeBrowser) ? "An existing" : "A " + activeBrowser;
+            Map<String, Object> response = failure(
+                    activeBrowserLabel + " Playwright browser is currently running.");
+            response.put("confirmationRequired", true);
+            response.put("activeBrowser", activeBrowser);
+            response.put("requestedBrowser", requestedBrowser);
+            response.put(
+                    "warning",
+                    "Continuing closes the current shared Playwright browser before changing the configuration.");
+            return response;
+        }
+
+        if (replacementRequired && !BotJobDetailsWorkspaceHost.getInstance().canCloseWorkspace()) {
+            Map<String, Object> response = failure(
+                    "Stop the active Bot Job or Page Scanner operation before replacing the browser.");
+            response.put("confirmationRequired", false);
+            response.put("activeBrowser", activeBrowser);
+            response.put("requestedBrowser", requestedBrowser);
+            return response;
+        }
+
+        String previousConfiguredBrowser =
+                arPropertyManager.getProperty(ARPropertyEnum.BROWSER);
+        try {
+            arPropertyManager.setPropertyChecked(
+                    ARPropertyEnum.BROWSER.getValue(), requestedBrowser);
+        } catch (IOException persistenceFailure) {
+            log.error(
+                    "Could not persist browser {} to {}",
+                    requestedBrowser,
+                    arPropertyManager.getConfigurationFileName(),
+                    persistenceFailure);
+            return failure("Browser configuration could not be written to the active config file");
+        }
+
+        if (replacementRequired) {
+            try {
+                ARWebDriver.getInstance().closeBrowser();
+            } catch (RuntimeException closeFailure) {
+                log.error(
+                        "Could not close the active {} Playwright browser before selecting {}",
+                        activeBrowser,
+                        requestedBrowser,
+                        closeFailure);
+                boolean rollbackFailed = false;
+                try {
+                    arPropertyManager.setPropertyChecked(
+                            ARPropertyEnum.BROWSER.getValue(),
+                            previousConfiguredBrowser == null ? "" : previousConfiguredBrowser);
+                } catch (IOException rollbackFailure) {
+                    rollbackFailed = true;
+                    closeFailure.addSuppressed(rollbackFailure);
+                    log.error(
+                            "Could not restore browser configuration {} after close failure",
+                            previousConfiguredBrowser,
+                            rollbackFailure);
+                }
+                Map<String, Object> response =
+                        failure("The active Playwright browser could not be closed safely.");
+                response.put("confirmationRequired", false);
+                response.put("activeBrowser", activeBrowser);
+                response.put("requestedBrowser", requestedBrowser);
+                response.put("rollbackFailed", rollbackFailed);
+                return response;
+            }
+        }
+
+        Map<String, Object> response = configResponse("Browser updated to " + requestedBrowser);
+        response.put("browser", requestedBrowser);
+        response.put("activeBrowser", activePlaywrightBrowser());
+        response.put("browserClosed", replacementRequired);
+        response.put("configFile", arPropertyManager.getConfigurationFileName());
+        return response;
     }
 
     public Map<String, Object> deleteAllJobs(JsonObject body) {
@@ -388,8 +561,8 @@ public class ConfigService {
         return value == null ? "" : value;
     }
 
-    private void set(ARPropertyEnum property, String value) {
-        arPropertyManager.setProperty(property.getValue(), value == null ? "" : value.trim());
+    private void put(Map<String, String> updates, ARPropertyEnum property, String value) {
+        updates.put(property.getValue(), value == null ? "" : value.trim());
     }
 
     private void require(Map<String, Object> errors, JsonObject config, String field, String message) {
@@ -400,6 +573,24 @@ public class ConfigService {
 
     private boolean dbMatches(String savedDb, String selectedDb) {
         return savedDb != null && selectedDb != null && savedDb.trim().equalsIgnoreCase(selectedDb.trim());
+    }
+
+    private String supportedBrowser(String requested) {
+        for (String supported : Arrays.asList(ARConstants.CHROME, ARConstants.EDGE, ARConstants.FIREFOX)) {
+            if (supported.equalsIgnoreCase(requested)) return supported;
+        }
+        return "";
+    }
+
+    private String activePlaywrightBrowser() {
+        ARPlaywrightDriver driver = ARWebDriver.getInstance().currentPlaywrightDriver();
+        if (driver == null) return "";
+        try {
+            return driver.activeBrowserType();
+        } catch (RuntimeException unavailable) {
+            log.debug("Active Playwright browser type is unavailable: {}", unavailable.getMessage());
+            return "unknown";
+        }
     }
 
     private String dbDialectSlug(String dataBaseType) {
@@ -443,6 +634,17 @@ public class ConfigService {
             return body.get(field).getAsString().trim();
         } catch (Exception ignore) {
             return "";
+        }
+    }
+
+    private boolean bool(JsonObject body, String field) {
+        try {
+            return body != null
+                    && body.has(field)
+                    && !body.get(field).isJsonNull()
+                    && body.get(field).getAsBoolean();
+        } catch (Exception ignore) {
+            return false;
         }
     }
 }

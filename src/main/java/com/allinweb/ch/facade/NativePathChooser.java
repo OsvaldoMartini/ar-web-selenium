@@ -23,11 +23,32 @@ public final class NativePathChooser {
         return choose(initialDirectory, true, System.getProperty("os.name", ""), NativePathChooser::run);
     }
 
+    /** Opens a generic file selector for configuration paths such as the AR Engine executable/JAR. */
+    public static File chooseFile(File initialPath) {
+        return chooseGenericFile(
+                initialPath, System.getProperty("os.name", ""), NativePathChooser::run);
+    }
+
     static File choose(File initialDirectory, boolean directory, String osName, ProcessPort processPort) {
-        Command command = command(directory, osName);
+        return choose(initialDirectory, directory, false, osName, processPort);
+    }
+
+    private static File chooseGenericFile(
+            File initialPath, String osName, ProcessPort processPort) {
+        return choose(initialPath, false, true, osName, processPort);
+    }
+
+    private static File choose(
+            File initialPath,
+            boolean directory,
+            boolean genericFile,
+            String osName,
+            ProcessPort processPort) {
+        Command command = command(directory, genericFile, osName);
         Map<String, String> environment = new LinkedHashMap<>();
-        if (initialDirectory != null && initialDirectory.isDirectory()) {
-            environment.put(INITIAL_DIRECTORY_ENV, initialDirectory.getAbsolutePath());
+        File chooserInitialPath = resolveInitialPath(initialPath, directory);
+        if (chooserInitialPath != null) {
+            environment.put(INITIAL_DIRECTORY_ENV, chooserInitialPath.getAbsolutePath());
         }
 
         final ProcessResult result;
@@ -50,13 +71,17 @@ public final class NativePathChooser {
     }
 
     static Command command(boolean directory, String osName) {
-        String os = osName == null ? "" : osName.toLowerCase(Locale.ROOT);
-        if (os.contains("win")) return windowsCommand(directory);
-        if (os.contains("mac")) return macCommand(directory);
-        return linuxCommand(directory);
+        return command(directory, false, osName);
     }
 
-    private static Command windowsCommand(boolean directory) {
+    private static Command command(boolean directory, boolean genericFile, String osName) {
+        String os = osName == null ? "" : osName.toLowerCase(Locale.ROOT);
+        if (os.contains("win")) return windowsCommand(directory, genericFile);
+        if (os.contains("mac")) return macCommand(directory, genericFile);
+        return linuxCommand(directory, genericFile);
+    }
+
+    private static Command windowsCommand(boolean directory, boolean genericFile) {
         String common = "$ErrorActionPreference='Stop';"
                 + "[Console]::OutputEncoding=[Text.Encoding]::UTF8;"
                 + "Add-Type -AssemblyName System.Windows.Forms;"
@@ -65,17 +90,27 @@ public final class NativePathChooser {
         if (directory) {
             script = common
                     + "$d=New-Object System.Windows.Forms.FolderBrowserDialog;"
-                    + "$d.Description='Select Excel export destination folder';"
+                    + "$d.Description='Select configuration folder';"
                     + "$d.ShowNewFolderButton=$true;"
                     + "if($i -and [IO.Directory]::Exists($i)){$d.SelectedPath=$i};"
                     + "if($d.ShowDialog() -eq [Windows.Forms.DialogResult]::OK){"
                     + "[Console]::Out.Write($d.SelectedPath)}";
         } else {
+            String title = genericFile ? "Select configuration file" : "Select execution report";
+            String filter = genericFile
+                    ? "AR Engine files (*.jar;*.exe)|*.jar;*.exe|All files (*.*)|*.*"
+                    : "Report files (*.xlsx;*.xls;*.csv;*.html;*.pdf;*.txt)|*.xlsx;*.xls;*.csv;*.html;*.htm;*.pdf;*.txt";
             script = common
                     + "$d=New-Object System.Windows.Forms.OpenFileDialog;"
-                    + "$d.Title='Select execution report';"
-                    + "$d.Filter='Report files (*.xlsx;*.xls;*.csv;*.html;*.pdf;*.txt)|*.xlsx;*.xls;*.csv;*.html;*.htm;*.pdf;*.txt';"
-                    + "if($i -and [IO.Directory]::Exists($i)){$d.InitialDirectory=$i};"
+                    + "$d.Title='" + title + "';"
+                    + "$d.Filter='" + filter + "';"
+                    + "if($i -and [IO.File]::Exists($i)){"
+                    + "$d.InitialDirectory=[IO.Path]::GetDirectoryName($i);"
+                    + "$d.FileName=[IO.Path]::GetFileName($i)}"
+                    + "elseif($i -and [IO.Directory]::Exists($i)){$d.InitialDirectory=$i}"
+                    + "elseif($i){$p=Split-Path -Parent $i;"
+                    + "if($p -and [IO.Directory]::Exists($p)){"
+                    + "$d.InitialDirectory=$p;$d.FileName=Split-Path -Leaf $i}};"
                     + "if($d.ShowDialog() -eq [Windows.Forms.DialogResult]::OK){"
                     + "[Console]::Out.Write($d.FileName)}";
         }
@@ -83,23 +118,46 @@ public final class NativePathChooser {
                 "powershell.exe", "-NoLogo", "-NoProfile", "-NonInteractive", "-STA", "-Command", script));
     }
 
-    private static Command macCommand(boolean directory) {
+    private static Command macCommand(boolean directory, boolean genericFile) {
         String script = directory
-                ? "POSIX path of (choose folder with prompt \"Select Excel export destination folder\")"
-                : "POSIX path of (choose file with prompt \"Select execution report\")";
+                ? "POSIX path of (choose folder with prompt \"Select configuration folder\")"
+                : "POSIX path of (choose file with prompt \""
+                        + (genericFile ? "Select configuration file" : "Select execution report")
+                        + "\")";
         return new Command(List.of("osascript", "-e", script));
     }
 
-    private static Command linuxCommand(boolean directory) {
+    private static Command linuxCommand(boolean directory, boolean genericFile) {
         List<String> arguments = new ArrayList<>(List.of(
                 "zenity", "--file-selection", "--title="
-                        + (directory ? "Select Excel export destination folder" : "Select execution report")));
+                        + (directory
+                                ? "Select configuration folder"
+                                : genericFile ? "Select configuration file" : "Select execution report")));
         if (directory) {
             arguments.add("--directory");
-        } else {
+        } else if (!genericFile) {
             arguments.add("--file-filter=Report files | *.xlsx *.xls *.csv *.html *.htm *.pdf *.txt");
+        } else {
+            arguments.add("--file-filter=AR Engine files | *.jar *.exe");
+            arguments.add("--file-filter=All files | *");
         }
         return new Command(List.copyOf(arguments));
+    }
+
+    private static File resolveInitialPath(File requested, boolean directory) {
+        if (requested == null) return null;
+        File absolute = requested.getAbsoluteFile();
+        if (!directory) {
+            File parent = absolute.isDirectory() ? absolute : absolute.getParentFile();
+            if (absolute.isFile() || (parent != null && parent.isDirectory())) return absolute;
+        }
+
+        File candidate = absolute;
+        if (candidate.isFile()) candidate = candidate.getParentFile();
+        while (candidate != null && !candidate.isDirectory()) {
+            candidate = candidate.getParentFile();
+        }
+        return candidate;
     }
 
     private static ProcessResult run(List<String> command, Map<String, String> environment)

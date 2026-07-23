@@ -401,8 +401,8 @@ public class BotJobDetailsWorkspaceHost {
             JsonObject jsonEntry,
             String destinationSessionId,
             PreScanWorkflowService.Context context) {
-        PreScanWorkflowService.Context commandContext = java.util.Objects.requireNonNull(
-                context, "A Page Scanner context is required");
+        PreScanWorkflowService.Context commandContext = withCurrentConfiguredBrowser(
+                java.util.Objects.requireNonNull(context, "A Page Scanner context is required"));
         if (ScannerWorkspaceOperations.PRE_SCAN_CLEAR_GRID.equals(type)) {
             if (ScannerWorkspaceSessions.isPageScannerSession(destinationSessionId)) {
                 detachedPageScannerTaskGate.clearQueued();
@@ -807,6 +807,29 @@ public class BotJobDetailsWorkspaceHost {
                 arPropertyManager.getProperty(ARPropertyEnum.BROWSER),
                 preScanOptionsConfig(),
                 arPropertyManager.getProperty(ARPropertyEnum.PATH_DB));
+    }
+
+    /**
+     * Detached Page Scanner bindings keep immutable Bot Job identity, but the global browser
+     * selection is live configuration and must be resolved again for every future browser action.
+     */
+    private PreScanWorkflowService.Context withCurrentConfiguredBrowser(
+            PreScanWorkflowService.Context context) {
+        String configuredBrowser = arPropertyManager.getProperty(ARPropertyEnum.BROWSER);
+        if (configuredBrowser == null) configuredBrowser = "";
+        if (configuredBrowser.equalsIgnoreCase(
+                context.browserType() == null ? "" : context.browserType())) {
+            return context;
+        }
+        return new PreScanWorkflowService.Context(
+                context.botJobId(),
+                context.botJobName(),
+                context.homeBankingId(),
+                context.homeUrlId(),
+                context.endpointUrl(),
+                configuredBrowser,
+                context.optionsConfig(),
+                context.jsonPath());
     }
 
     private PreScanWorkflowService.Sink preScanSink() {

@@ -44,6 +44,8 @@ public class MainDashboardPresentationAdapter
         implements BotJobDetailsPresentationGateway, MainDashboardPresentation, NewBotJobPresentation, ConfigPresentation {
 
     private static final String SESSION_ID = "mainDashboard";
+    private static final String MAIN_APPLICATION_CONTROL_SESSION_ID = "mainApplicationControl";
+    private static final String ORGANIZATION_MANAGER_SESSION_ID = "organizationManager";
     private static final int DEFAULT_PORT = 54525;
     private static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
     private static final PerformLists performLists = PerformLists.getInstance();
@@ -103,7 +105,24 @@ public class MainDashboardPresentationAdapter
                 performMessage.errorMessageOperationFailed(errorMessage);
                 return;
             }
-            dispatchReactSession("organizationManager");
+            if (WebSocketSessionManager.isSessionOpen(ORGANIZATION_MANAGER_SESSION_ID)) {
+                webSocketSessionManager.sendMessageJson(
+                        -1,
+                        MAIN_APPLICATION_CONTROL_SESSION_ID,
+                        "{}",
+                        "application.workspaceFocus");
+                return;
+            }
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("targetSession", ORGANIZATION_MANAGER_SESSION_ID);
+            payload.put("port", resolveSocketPort());
+            payload.put("botJobId", -9999);
+            payload.put("source", SESSION_ID);
+            webSocketSessionManager.sendMessageJson(
+                    -1,
+                    MAIN_APPLICATION_CONTROL_SESSION_ID,
+                    gson.toJson(payload),
+                    "react.session.open");
         });
     }
 
@@ -205,7 +224,7 @@ public class MainDashboardPresentationAdapter
 
     @Override
     public void openCloneOrganizations() {
-        uiThreadDispatcher.execute(() -> dispatchReactSession("organizationManager"));
+        openOrganizations();
     }
 
     public void openBotJob(BotJobLoadDTO botJob) {
@@ -263,7 +282,19 @@ public class MainDashboardPresentationAdapter
 
     @Override
     public String choosePath(String mode) {
-        log.info("Config path chooser request ignored; React must provide the {} path directly", mode);
+        return choosePath(mode, "");
+    }
+
+    @Override
+    public String choosePath(String mode, String currentPath) {
+        File initialPath = Strings.isNullOrEmpty(currentPath) ? null : new File(currentPath.trim());
+        File selected = "file".equalsIgnoreCase(mode)
+                ? NativePathChooser.chooseFile(initialPath)
+                : NativePathChooser.chooseDirectory(initialPath);
+        if (selected != null) {
+            log.info("Selected Config {} path: {}", mode, selected.getAbsolutePath());
+            return selected.getAbsolutePath();
+        }
         return null;
     }
 

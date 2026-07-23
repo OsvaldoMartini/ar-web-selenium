@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -40,6 +41,7 @@ public class ARPlaywrightDriver {
     private Playwright playwright;
     private Browser browser;
     private BrowserContext context;
+    private String activeBrowserType = "";
     /** The page all driver operations currently target. Updated when Playwright opens a new tab. */
     private Page page;
     private final Set<Page> diagnosedPages = Collections.newSetFromMap(new IdentityHashMap<>());
@@ -52,6 +54,7 @@ public class ARPlaywrightDriver {
 
             playwright = createPlaywright();
             browser = launchBrowser(browserType, optionsConfig);
+            activeBrowserType = canonicalBrowserType(browserType);
             // bypassCSP so injected plugins (hoverPick/actionExecutor) can open their WebSocket back
             // to the Java server on sites with a strict connect-src Content-Security-Policy.
             // bypassCSP so injected plugins can open their WebSocket; null viewport so the page uses
@@ -73,6 +76,7 @@ public class ARPlaywrightDriver {
     public void openOrNavigate(String browserType, String url, String optionsConfig, boolean headless) {
         run(() -> {
             if (page != null && !page.isClosed()) {
+                assertBrowserCompatibleInternal(browserType);
                 navigateDomReady(page, url);
                 return null;
             }
@@ -80,6 +84,7 @@ public class ARPlaywrightDriver {
             closeInternal();
             playwright = createPlaywright();
             browser = launchBrowser(browserType, optionsConfig, headless);
+            activeBrowserType = canonicalBrowserType(browserType);
             context = browser.newContext(
                     new Browser.NewContextOptions().setBypassCSP(true).setViewportSize(null));
             attachContextTracking();
@@ -111,6 +116,7 @@ public class ARPlaywrightDriver {
             URI allowedOrigin = URI.create(url);
             playwright = createPlaywright();
             browser = launchBrowser(browserType, "", headless);
+            activeBrowserType = canonicalBrowserType(browserType);
             context = browser.newContext(new Browser.NewContextOptions()
                     .setBypassCSP(false)
                     .setServiceWorkers(ServiceWorkerPolicy.BLOCK)
@@ -401,6 +407,19 @@ public class ARPlaywrightDriver {
         return call(() -> !openPages().isEmpty());
     }
 
+    /** Returns the normalized type of the one live Playwright browser, or an empty value. */
+    public String activeBrowserType() {
+        return call(() -> openPages().isEmpty() ? "" : activeBrowserType);
+    }
+
+    /** Refuses to reuse a browser process launched with a different configured browser type. */
+    public void assertBrowserCompatible(String requestedBrowserType) {
+        run(() -> {
+            assertBrowserCompatibleInternal(requestedBrowserType);
+            return null;
+        });
+    }
+
     public int pageCount() {
         return call(() -> openPages().size());
     }
@@ -581,7 +600,7 @@ public class ARPlaywrightDriver {
         BrowserType.LaunchOptions options =
                 new BrowserType.LaunchOptions().setHeadless(headless).setArgs(launchArgs);
 
-        String normalized = Objects.toString(browserType, "").toLowerCase(Locale.ROOT);
+        String normalized = Objects.toString(browserType, "").trim().toLowerCase(Locale.ROOT);
         if (ARConstantsEngine.FIREFOX.toLowerCase(Locale.ROOT).equals(normalized)) {
             return playwright.firefox().launch(options);
         }
@@ -601,6 +620,29 @@ public class ARPlaywrightDriver {
             options.setExecutablePath(Paths.get(chromePath));
         }
         return playwright.chromium().launch(options);
+    }
+
+    private void assertBrowserCompatibleInternal(String requestedBrowserType) {
+        if (openPages().isEmpty() || activeBrowserType.isEmpty()) return;
+        String requested = canonicalBrowserType(requestedBrowserType);
+        if (activeBrowserType.equalsIgnoreCase(requested)) return;
+        throw new IllegalStateException(
+                "The active Playwright browser is "
+                        + activeBrowserType
+                        + ", but "
+                        + requested
+                        + " is configured. Use TEMP Browser and confirm replacement first.");
+    }
+
+    private static String canonicalBrowserType(String browserType) {
+        String normalized = Objects.toString(browserType, "").trim().toLowerCase(Locale.ROOT);
+        if (ARConstantsEngine.FIREFOX.equalsIgnoreCase(normalized)) {
+            return ARConstantsEngine.FIREFOX;
+        }
+        if (ARConstantsEngine.EDGE.equalsIgnoreCase(normalized)) {
+            return ARConstantsEngine.EDGE;
+        }
+        return ARConstantsEngine.CHROME;
     }
 
     private static Playwright createPlaywright() {
@@ -681,6 +723,7 @@ public class ARPlaywrightDriver {
         context = null;
         browser = null;
         playwright = null;
+        activeBrowserType = "";
         diagnosedPages.clear();
     }
 
@@ -747,8 +790,14 @@ public class ARPlaywrightDriver {
         Future<T> future = ensurePlaywrightThread().submit(callable);
         try {
             return future.get();
-        } catch (Exception error) {
-            throw new IllegalStateException("Playwright operation failed", error);
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Playwright operation was interrupted", interrupted);
+        } catch (ExecutionException executionFailure) {
+            Throwable cause = executionFailure.getCause();
+            if (cause instanceof RuntimeException runtimeFailure) throw runtimeFailure;
+            if (cause instanceof Error fatalFailure) throw fatalFailure;
+            throw new IllegalStateException("Playwright operation failed", cause);
         }
     }
 

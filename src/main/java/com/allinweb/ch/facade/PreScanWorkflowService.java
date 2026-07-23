@@ -46,6 +46,7 @@ public final class PreScanWorkflowService {
             if (!browser.isOpen()) {
                 openBrowser(context, sink);
             } else {
+                browser.assertBrowserCompatible(context.browserType());
                 sink.status("running", "Refreshing browser page...", 0);
                 browser.reload();
             }
@@ -171,6 +172,7 @@ public final class PreScanWorkflowService {
             browser.ensureOpen(context.browserType(), context.endpointUrl(), context.optionsConfig());
             return;
         }
+        browser.assertBrowserCompatible(context.browserType());
         try {
             log.info("PRE SCAN - scanning current shared Playwright page {}", browser.currentUrl());
         } catch (Exception ignored) {
@@ -220,6 +222,7 @@ public final class PreScanWorkflowService {
         void finishScan();
         boolean isScanRunning();
         boolean isOpen();
+        default void assertBrowserCompatible(String browserType) {}
         void ensureOpen(String browserType, String endpointUrl, String optionsConfig);
         void reload();
         String currentUrl();
@@ -250,6 +253,9 @@ public final class PreScanWorkflowService {
         public void finishScan() { session.finishScan(); }
         public boolean isScanRunning() { return session.isScanRunning(); }
         public boolean isOpen() { return session.isOpen(); }
+        public void assertBrowserCompatible(String browserType) {
+            session.assertBrowserCompatible(browserType);
+        }
         public void ensureOpen(String browserType, String endpointUrl, String optionsConfig) {
             session.ensureOpen(browserType, endpointUrl, optionsConfig);
         }

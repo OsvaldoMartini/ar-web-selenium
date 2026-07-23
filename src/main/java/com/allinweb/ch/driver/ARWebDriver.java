@@ -86,6 +86,7 @@ public class ARWebDriver {
     public boolean openBrowserPreservingCurrentPage(String browserType, String url, String optionsConfig) {
         ARPlaywrightDriver existing = currentPlaywrightDriver();
         if (existing != null && existing.isOpen()) {
+            existing.assertBrowserCompatible(browserType);
             log.info("Reusing the current Playwright page for TEST RUN without navigation or reload");
             this.currentDriver = null;
             return true;
