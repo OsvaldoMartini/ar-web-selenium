@@ -8,6 +8,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -96,6 +97,8 @@ public final class PagesOpenWorkspaceService {
     private static final PagesOpenWorkspaceService INSTANCE = new PagesOpenWorkspaceService();
 
     private final Gson gson = new Gson();
+    private final DesktopWindowFocusService desktopWindowFocusService =
+            new DesktopWindowFocusService();
     private final Map<String, PageHandle> handlesByKey = new LinkedHashMap<>();
     private final Map<String, PageHandle> handlesById = new LinkedHashMap<>();
     private boolean autoTestOpen;
@@ -254,11 +257,30 @@ public final class PagesOpenWorkspaceService {
             return failure(body, "The selected page is no longer authoritative.");
         }
 
+        String nativeTitleToken = desktopWindowFocusService.createTitleToken();
         boolean delivered = sendWindowOperation(
-                target, WORKSPACE_FOCUS_OPERATION, "Pages Open requested workspace focus.");
-        return delivered
-                ? success(body, target.presentation().title() + " brought to front.")
-                : failure(body, target.presentation().title() + " could not be focused.");
+                target,
+                WORKSPACE_FOCUS_OPERATION,
+                "Pages Open requested workspace focus.",
+                nativeTitleToken);
+        boolean nativeFocused = delivered
+                && desktopWindowFocusService.focusWindow(
+                        nativeTitleToken, Duration.ofMillis(1800));
+
+        JsonObject response;
+        if (nativeFocused) {
+            response = success(body, target.presentation().title() + " brought to front.");
+        } else if (delivered) {
+            response = success(
+                    body,
+                    target.presentation().title()
+                            + " received the focus request, but Windows did not confirm foreground activation.");
+        } else {
+            response = failure(body, target.presentation().title() + " could not be focused.");
+        }
+        response.addProperty("nativeFocused", nativeFocused);
+        response.addProperty("browserFocusRequested", delivered);
+        return response;
     }
 
     /**
@@ -543,12 +565,20 @@ public final class PagesOpenWorkspaceService {
     }
 
     private boolean sendWindowOperation(PageHandle target, String operation, String reason) {
+        return sendWindowOperation(target, operation, reason, "");
+    }
+
+    private boolean sendWindowOperation(
+            PageHandle target, String operation, String reason, String nativeWindowTitleToken) {
         if (!isCurrentHandle(target)) return false;
         JsonObject payload = new JsonObject();
         payload.addProperty("pageId", target.pageId());
         payload.addProperty("sessionId", target.sessionId());
         payload.addProperty("targetSessionId", target.sessionId());
         payload.addProperty("reason", reason);
+        if (nativeWindowTitleToken != null && !nativeWindowTitleToken.isBlank()) {
+            payload.addProperty("nativeWindowTitleToken", nativeWindowTitleToken);
+        }
         JsonObject envelope = new JsonObject();
         envelope.addProperty("homeBankingId", -1);
         envelope.addProperty("sessionId", target.sessionId());
