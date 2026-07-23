@@ -963,6 +963,9 @@ public class SimpleWebSocketServer {
                 case "pagesOpen.closePage":
                     handlePagesOpenClosePage(jsonObjMSG, transportSessionId, session);
                     break;
+                case "pagesOpen.focusPage":
+                    handlePagesOpenFocusPage(jsonObjMSG, transportSessionId, session);
+                    break;
                 case "pagesOpen.inlineState":
                     handlePagesOpenInlineState(jsonObjMSG, transportSessionId, session);
                     break;
@@ -1269,6 +1272,16 @@ public class SimpleWebSocketServer {
                 transportSession,
                 "pagesOpen.closePageResponse",
                 pagesOpenWorkspaceService.closePage(
+                        extractBody(envelope), transportSessionId, transportSession));
+    }
+
+    private void handlePagesOpenFocusPage(
+            JsonObject envelope, String transportSessionId, Session transportSession) {
+        sendPagesOpenResponse(
+                transportSessionId,
+                transportSession,
+                "pagesOpen.focusPageResponse",
+                pagesOpenWorkspaceService.focusPage(
                         extractBody(envelope), transportSessionId, transportSession));
     }
 

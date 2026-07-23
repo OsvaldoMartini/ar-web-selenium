@@ -33,6 +33,7 @@ public final class PagesOpenWorkspaceService {
     public static final String SNAPSHOT_OPERATION = "pagesOpen.snapshot";
     public static final String INLINE_CLOSE_OPERATION = "pagesOpen.inlineClose";
     public static final String WORKSPACE_CLOSE_OPERATION = "application.workspaceClose";
+    public static final String WORKSPACE_FOCUS_OPERATION = "application.workspaceFocus";
 
     private static final String MAIN_DASHBOARD_SESSION = "mainDashboard";
     private static final String BOT_JOB_DETAILS_DATA_SESSION = "botJobTasks";
@@ -226,6 +227,38 @@ public final class PagesOpenWorkspaceService {
         return delivered
                 ? success(body, target.presentation().title() + " close requested.")
                 : failure(body, target.presentation().title() + " could not be closed.");
+    }
+
+    /** Focuses one page only after validating its opaque ID against the exact live transport. */
+    public synchronized JsonObject focusPage(
+            JsonObject body, String requesterSessionId, Session requesterTransport) {
+        JsonObject validation = validatePagesOpenRequester(body, requesterSessionId, requesterTransport);
+        if (validation != null) return validation;
+        String pageId = string(body, "pageId");
+        if (pageId.isEmpty()) return failure(body, "A page ID is required.");
+
+        reconcileHandles();
+        PageHandle target = handlesById.get(pageId);
+        if (target == null) return failure(body, "The selected page is no longer open.");
+        String claimedSessionId = string(body, "sessionId");
+        if (!claimedSessionId.isEmpty() && !claimedSessionId.equals(target.sessionId())) {
+            return failure(body, "The selected page mapping is stale.");
+        }
+        String claimedKind = string(body, "kind");
+        if (!claimedKind.isEmpty()
+                && !claimedKind.equalsIgnoreCase(target.presentation().kind())) {
+            return failure(body, "The selected page type is stale.");
+        }
+        if (!isCurrentHandle(target)) {
+            reconcileHandles();
+            return failure(body, "The selected page is no longer authoritative.");
+        }
+
+        boolean delivered = sendWindowOperation(
+                target, WORKSPACE_FOCUS_OPERATION, "Pages Open requested workspace focus.");
+        return delivered
+                ? success(body, target.presentation().title() + " brought to front.")
+                : failure(body, target.presentation().title() + " could not be focused.");
     }
 
     /**
