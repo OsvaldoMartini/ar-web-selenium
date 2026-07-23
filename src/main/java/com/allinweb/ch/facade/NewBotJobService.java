@@ -146,8 +146,25 @@ public class NewBotJobService {
     private Map<String, Object> environmentResponse(String message) {
         Map<String, Object> response = ok(message);
         response.put("appTypes", Arrays.asList("Web App", "Android", "iOS"));
+        response.put("organizations", organizationRows());
         response.put("environments", environmentRows());
         return response;
+    }
+
+    private List<Map<String, Object>> organizationRows() {
+        List<Map<String, Object>> rows = new ArrayList<>();
+        for (HomeBankingLoadDTO organization : performLists.getListHomeBanking()) {
+            if (organization.getId() == null || organization.getId() <= 0) {
+                continue;
+            }
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("id", organization.getId());
+            row.put("name", organization.getName());
+            row.put("activeJobs", organization.getJobs());
+            row.put("url", organization.getUrl());
+            rows.add(row);
+        }
+        return rows;
     }
 
     private List<Map<String, Object>> environmentRows() {
@@ -201,6 +218,7 @@ public class NewBotJobService {
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("ok", false);
         response.put("message", message);
+        response.put("organizations", organizationRows());
         response.put("environments", environmentRows());
         return response;
     }
