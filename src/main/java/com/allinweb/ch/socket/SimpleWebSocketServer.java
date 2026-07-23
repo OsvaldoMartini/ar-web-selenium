@@ -261,7 +261,10 @@ public class SimpleWebSocketServer {
 
     private int resolveBootstrapSocketPort() {
         try {
-            String port = arPropertyManager.getProperty(ARPropertyEnum.PORT_SOCKET);
+            String port = System.getProperty("ARWebChosenPort");
+            if (Strings.isNullOrEmpty(port)) {
+                port = arPropertyManager.getProperty(ARPropertyEnum.PORT_SOCKET);
+            }
             if (!Strings.isNullOrEmpty(port)) {
                 return Integer.parseInt(port);
             }

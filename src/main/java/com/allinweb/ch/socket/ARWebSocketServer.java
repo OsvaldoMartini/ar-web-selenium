@@ -114,6 +114,9 @@ public class ARWebSocketServer {
                         + fallBackPort + " are in use.");
             }
         }
+        // The runtime port is authoritative. Config persistence is best-effort and may still be
+        // completing while the main React shell performs its bootstrap handshake.
+        System.setProperty("ARWebChosenPort", String.valueOf(this.boundPort));
 
         // This is an in-process desktop control channel. Never expose it on LAN interfaces.
         jettyServer = new Server();

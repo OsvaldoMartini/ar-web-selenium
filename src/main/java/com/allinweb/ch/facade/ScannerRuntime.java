@@ -120,7 +120,10 @@ public class ScannerRuntime {
         this.executorWebSocket = Executors.newSingleThreadExecutor();
         this.executorServicePreLaunch = Executors.newSingleThreadExecutor();
 
-        String port = arPropertyManager.getProperty(ARPropertyEnum.PORT_SOCKET);
+        String port = System.getProperty("ARWebChosenPort");
+        if (Strings.isNullOrEmpty(port)) {
+            port = arPropertyManager.getProperty(ARPropertyEnum.PORT_SOCKET);
+        }
         if (!Strings.isNullOrEmpty(port)) {
             portSocketInitial = Integer.parseInt(port);
         }

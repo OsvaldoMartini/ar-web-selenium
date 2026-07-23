@@ -252,8 +252,10 @@ public class ARPropertyManager {
     }
 
     /**
-     * Persists a related group of configuration values with one atomic file replacement. The
-     * in-memory properties are restored when preparing, writing, or replacing the file fails.
+     * Persists a related group of configuration values, preferring one atomic file replacement.
+     * Windows cannot replace the file while the startup configuration stream is still open, so
+     * that specific replacement failure falls back to the same in-place write used previously.
+     * The in-memory properties are restored when both persistence strategies fail.
      */
     public synchronized void setPropertiesChecked(Map<String, String> updates) throws IOException {
         if (updates == null || updates.isEmpty()) return;
@@ -286,13 +288,22 @@ public class ARPropertyManager {
                 properties.store(output, null);
             }
             try {
-                Files.move(
-                        temporary,
-                        target,
-                        StandardCopyOption.ATOMIC_MOVE,
-                        StandardCopyOption.REPLACE_EXISTING);
-            } catch (AtomicMoveNotSupportedException unsupported) {
-                Files.move(temporary, target, StandardCopyOption.REPLACE_EXISTING);
+                try {
+                    Files.move(
+                            temporary,
+                            target,
+                            StandardCopyOption.ATOMIC_MOVE,
+                            StandardCopyOption.REPLACE_EXISTING);
+                } catch (AtomicMoveNotSupportedException unsupported) {
+                    Files.move(temporary, target, StandardCopyOption.REPLACE_EXISTING);
+                }
+            } catch (IOException replacementFailure) {
+                try (FileOutputStream output = new FileOutputStream(target.toFile())) {
+                    properties.store(output, null);
+                } catch (IOException directWriteFailure) {
+                    directWriteFailure.addSuppressed(replacementFailure);
+                    throw directWriteFailure;
+                }
             }
         } catch (IOException failure) {
             for (Map.Entry<String, String> previous : previousValues.entrySet()) {
