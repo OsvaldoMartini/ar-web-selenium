@@ -67,7 +67,8 @@ class LicenseServiceTest {
                 "license.request",
                 "license.activate",
                 "license.useExisting",
-                "about.bootstrap");
+                "about.bootstrap",
+                "about.openLicense");
         allowed.forEach(operation -> assertTrue(LicenseService.permits(operation, false), operation));
 
         List<String> protectedOperations = List.of(

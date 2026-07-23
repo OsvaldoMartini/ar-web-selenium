@@ -63,6 +63,9 @@ public final class MainDashboardPresentationRegistry {
         public void openInfo() {}
 
         @Override
+        public void openLicense() {}
+
+        @Override
         public void exitApplication() {}
 
         @Override

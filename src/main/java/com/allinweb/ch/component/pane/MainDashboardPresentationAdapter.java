@@ -339,20 +339,30 @@ public class MainDashboardPresentationAdapter
         });
     }
 
+    @Override
     public void openInfo() {
-        uiThreadDispatcher.execute(() -> {
-            if (!ARWebSocketServer.getInstance().openDetachedWorkspaceDesktopShell("aboutPanel")) {
-                dispatchReactSession("aboutPanel");
-            }
-        });
+        uiThreadDispatcher.execute(() ->
+                openOrFocusDetachedWorkspace(DetachedWorkspaceSessions.ABOUT_PANEL, "Info"));
     }
 
+    @Override
     public void openLicense() {
-        uiThreadDispatcher.execute(() -> {
-            if (!ARWebSocketServer.getInstance().openDetachedWorkspaceDesktopShell("licenseManager")) {
-                dispatchReactSession("licenseManager");
-            }
-        });
+        uiThreadDispatcher.execute(() ->
+                openOrFocusDetachedWorkspace(DetachedWorkspaceSessions.LICENSE_MANAGER, "License Manager"));
+    }
+
+    private void openOrFocusDetachedWorkspace(String sessionId, String workspaceName) {
+        if (WebSocketSessionManager.isSessionOpen(sessionId)) {
+            webSocketSessionManager.sendMessageJson(
+                    -1,
+                    sessionId,
+                    "{}",
+                    "application.workspaceFocus");
+            return;
+        }
+        if (!ARWebSocketServer.getInstance().openDetachedWorkspaceDesktopShell(sessionId)) {
+            log.error("Could not open the detached {} workspace ({})", workspaceName, sessionId);
+        }
     }
 
     public void launchBotJob(BotJobLoadDTO botJob) {

@@ -481,6 +481,13 @@ public class SimpleWebSocketServer {
                             "about.bootstrapResponse",
                             LicenseService.getInstance().about());
                     break;
+                case "about.openLicense":
+                    sendCommandEditorResponse(
+                            homeBankingId,
+                            sessionId,
+                            "about.openLicenseResponse",
+                            mainDashboardService.openLicense());
+                    break;
                 case "license.request":
                     JsonObject requestResponse = LicenseService.getInstance().request(extractBody(jsonObjMSG));
                     sendCommandEditorResponse(homeBankingId, sessionId, "license.requestResponse", requestResponse);

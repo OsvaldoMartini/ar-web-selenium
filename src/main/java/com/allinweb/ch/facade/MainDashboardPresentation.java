@@ -25,6 +25,8 @@ public interface MainDashboardPresentation {
 
     void openInfo();
 
+    void openLicense();
+
     void exitApplication();
 
     void launchBotJob(BotJobLoadDTO botJob);

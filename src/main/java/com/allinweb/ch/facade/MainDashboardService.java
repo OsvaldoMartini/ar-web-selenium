@@ -100,6 +100,11 @@ public class MainDashboardService {
         return successWithCurrentRows("Info opened");
     }
 
+    public Map<String, Object> openLicense() {
+        presentation().openLicense();
+        return ok("License Manager opened");
+    }
+
     public Map<String, Object> exit() {
         presentation().exitApplication();
         return ok("Exit requested");

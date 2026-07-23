@@ -20,7 +20,7 @@ import java.util.Set;
 public final class LicenseService {
     private static final Set<String> UNRESTRICTED_OPERATIONS = Set.of(
             "echo", "license.bootstrap", "license.status", "license.startup", "license.request",
-            "license.activate", "license.useExisting", "about.bootstrap");
+            "license.activate", "license.useExisting", "about.bootstrap", "about.openLicense");
     private static final LicenseService INSTANCE = new LicenseService();
     private final ARPropertyManager properties = ARPropertyManager.getInstance();
     private final CompletedRequestCache completedRequests = new CompletedRequestCache(128);

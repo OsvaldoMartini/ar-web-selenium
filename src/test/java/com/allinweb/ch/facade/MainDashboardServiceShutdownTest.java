@@ -67,6 +67,9 @@ class MainDashboardServiceShutdownTest {
         public void openInfo() {}
 
         @Override
+        public void openLicense() {}
+
+        @Override
         public void exitApplication() {
             exitRequests.incrementAndGet();
         }

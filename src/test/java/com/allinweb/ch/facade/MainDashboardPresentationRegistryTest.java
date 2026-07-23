@@ -65,6 +65,9 @@ class MainDashboardPresentationRegistryTest {
         public void openInfo() {}
 
         @Override
+        public void openLicense() {}
+
+        @Override
         public void exitApplication() {}
 
         @Override
