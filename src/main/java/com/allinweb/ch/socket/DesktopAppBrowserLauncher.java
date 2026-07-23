@@ -48,6 +48,17 @@ final class DesktopAppBrowserLauncher {
     }
 
     boolean launch(String baseUrl) {
+        return launch(baseUrl, WINDOW_SIZE);
+    }
+
+    boolean launch(String baseUrl, int windowWidth, int windowHeight) {
+        if (windowWidth <= 0 || windowHeight <= 0) {
+            throw new IllegalArgumentException("Desktop shell dimensions must be positive");
+        }
+        return launch(baseUrl, windowWidth + "," + windowHeight);
+    }
+
+    private boolean launch(String baseUrl, String windowSize) {
         String appUrl = withDesktopShellFlag(baseUrl);
         for (Path executable : browserCandidates()) {
             if (!executableExists.test(executable)) continue;
@@ -55,7 +66,7 @@ final class DesktopAppBrowserLauncher {
             List<String> command = List.of(
                     executable.toString(),
                     "--app=" + appUrl,
-                    "--window-size=" + WINDOW_SIZE,
+                    "--window-size=" + windowSize,
                     "--new-window",
                     "--no-first-run",
                     "--no-default-browser-check");

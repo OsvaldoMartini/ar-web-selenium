@@ -20,6 +20,7 @@ public final class MemoryListWorkspaceService {
 
     public static final String WORKSPACE_SESSION_ID = DetachedWorkspaceSessions.MEMORY_LIST_MANAGER;
     public static final String SNAPSHOT_OPERATION = "memoryList.snapshot";
+    public static final String FOCUS_OPERATION = "memoryList.focus";
     public static final String SOURCE_COMMAND_OPERATION = "memoryList.command";
 
     private static final int MAX_SNAPSHOT_CHARACTERS = 1_000_000;
@@ -87,7 +88,10 @@ public final class MemoryListWorkspaceService {
             return failure(body, "Memory List workspace could not be opened.");
         }
 
-        if (alreadyOpen) publishSnapshot(next);
+        if (alreadyOpen) {
+            publishSnapshot(next);
+            publishFocus(next);
+        }
         boolean pendingReuse = !alreadyOpen && !launchRequired;
         JsonObject response = snapshotResponse(next, alreadyOpen
                 ? "Memory List workspace already open."
@@ -321,6 +325,21 @@ public final class MemoryListWorkspaceService {
                     WORKSPACE_SESSION_ID,
                     gson.toJson(snapshotResponse(state, "Memory List synchronized.")),
                     SNAPSHOT_OPERATION);
+        }
+    }
+
+    private void publishFocus(MemoryState state) {
+        synchronized (stateLock) {
+            if (current == null || !current.ownerEpoch().equals(state.ownerEpoch())) return;
+            if (!WebSocketSessionManager.isSessionOpen(WORKSPACE_SESSION_ID)) return;
+            JsonObject focus = new JsonObject();
+            focus.addProperty("sessionId", WORKSPACE_SESSION_ID);
+            focus.addProperty("botJobId", state.botJobId());
+            WebSocketSessionManager.getInstance().sendMessageJson(
+                    state.homeBankingId(),
+                    WORKSPACE_SESSION_ID,
+                    gson.toJson(focus),
+                    FOCUS_OPERATION);
         }
     }
 

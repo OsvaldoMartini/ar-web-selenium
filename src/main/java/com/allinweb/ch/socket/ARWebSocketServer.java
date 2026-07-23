@@ -28,6 +28,8 @@ public class ARWebSocketServer {
     //    private static final ARPropertyManager arPropertyManager;
     protected static volatile ARWebSocketServer instance;
     public static final String LOOPBACK_ADDRESS = "127.0.0.1";
+    private static final int MEMORY_LIST_WINDOW_WIDTH = 620;
+    private static final int MEMORY_LIST_WINDOW_HEIGHT = 410;
     private Server jettyServer;
     private ServerContainer wsContainer;
     private int boundPort;
@@ -215,7 +217,12 @@ public class ARWebSocketServer {
             log.info("Detached workspace {} is already open; reusing the existing session", sessionId);
             return true;
         }
-        return desktopAppBrowserLauncher.launch(detachedWorkspaceDesktopUrl(boundPort, sessionId, sourceBotJobId));
+        String desktopUrl = detachedWorkspaceDesktopUrl(boundPort, sessionId, sourceBotJobId);
+        if (DetachedWorkspaceSessions.MEMORY_LIST_MANAGER.equals(sessionId)) {
+            return desktopAppBrowserLauncher.launch(
+                    desktopUrl, MEMORY_LIST_WINDOW_WIDTH, MEMORY_LIST_WINDOW_HEIGHT);
+        }
+        return desktopAppBrowserLauncher.launch(desktopUrl);
     }
 
     /** Retires the detached Page Scanner bound to one exact Bot Job workspace epoch. */
