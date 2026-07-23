@@ -63,6 +63,8 @@ public class SimpleWebSocketServer {
             PageScannerMutationLedger.getInstance();
     private static final PageScannerProfileService pageScannerProfileService =
             PageScannerProfileService.getInstance();
+    private static final MemoryListWorkspaceService memoryListWorkspaceService =
+            MemoryListWorkspaceService.getInstance();
     private static final int MAX_PAGE_SCANNER_BODY_CHARACTERS = 2_000_000;
     private static final int MAX_PAGE_SCANNER_ELEMENTS = 1_000;
     private static final int MAX_PAGE_SCANNER_SEARCH_TERMS = 8_192;
@@ -340,10 +342,12 @@ public class SimpleWebSocketServer {
             boolean pageScannerOperation = isPageScannerTransportOperation(type);
             boolean detachedPageScannerTransport =
                     ScannerWorkspaceSessions.isPageScannerSession(transportSessionId);
+            boolean memoryListOperation = type.startsWith("memoryList.");
             String sessionId = ocrWorkspaceOperation
                             || detachedOcrTransport
                             || pageScannerOperation
                             || detachedPageScannerTransport
+                            || memoryListOperation
                     ? transportSessionId
                     : claimedSessionId;
             ReactReplyChannel.set(sessionId);
@@ -917,6 +921,18 @@ public class SimpleWebSocketServer {
                 case "mainDashboard.exit":
                     handleMainDashboardExit(sessionId);
                     break;
+                case "memoryList.open":
+                    handleMemoryListOpen(jsonObjMSG, transportSessionId, session);
+                    break;
+                case "memoryList.sync":
+                    handleMemoryListSync(jsonObjMSG, transportSessionId, session);
+                    break;
+                case "memoryList.bootstrap":
+                    handleMemoryListBootstrap(jsonObjMSG, transportSessionId, session);
+                    break;
+                case "memoryList.command":
+                    handleMemoryListCommand(jsonObjMSG, transportSessionId, session);
+                    break;
                 case "botJobDetails.action":
                     handleBotJobDetailsAction(jsonObjMSG, session);
                     break;
@@ -1133,6 +1149,62 @@ public class SimpleWebSocketServer {
 
     private void handleMainDashboardExit(String sessionId) {
         sendMainDashboardResponse(sessionId, mainDashboardService.exit(), "mainDashboard.actionResponse");
+    }
+
+    private void handleMemoryListOpen(
+            JsonObject envelope, String transportSessionId, Session transportSession) {
+        JsonObject body = extractBody(envelope);
+        sendCommandEditorResponse(
+                memoryListHomeBankingId(envelope, body),
+                transportSessionId,
+                "memoryList.openResponse",
+                memoryListWorkspaceService.open(body, transportSessionId, transportSession));
+    }
+
+    private void handleMemoryListSync(
+            JsonObject envelope, String transportSessionId, Session transportSession) {
+        JsonObject body = extractBody(envelope);
+        sendCommandEditorResponse(
+                memoryListHomeBankingId(envelope, body),
+                transportSessionId,
+                "memoryList.syncResponse",
+                memoryListWorkspaceService.sync(body, transportSessionId, transportSession));
+    }
+
+    private void handleMemoryListBootstrap(
+            JsonObject envelope, String transportSessionId, Session transportSession) {
+        JsonObject body = extractBody(envelope);
+        sendCommandEditorResponse(
+                memoryListHomeBankingId(envelope, body),
+                transportSessionId,
+                "memoryList.bootstrapResponse",
+                memoryListWorkspaceService.bootstrap(body, transportSessionId, transportSession));
+    }
+
+    private void handleMemoryListCommand(
+            JsonObject envelope, String transportSessionId, Session transportSession) {
+        JsonObject body = extractBody(envelope);
+        sendCommandEditorResponse(
+                memoryListHomeBankingId(envelope, body),
+                transportSessionId,
+                "memoryList.commandResponse",
+                memoryListWorkspaceService.command(body, transportSessionId, transportSession));
+    }
+
+    private int memoryListHomeBankingId(JsonObject envelope, JsonObject body) {
+        int homeBankingId = positiveJsonInteger(body, "homeBankingId");
+        if (homeBankingId > 0) return homeBankingId;
+        return positiveJsonInteger(envelope, "homeBankingId");
+    }
+
+    private int positiveJsonInteger(JsonObject source, String field) {
+        if (source == null || !source.has(field) || source.get(field).isJsonNull()) return -1;
+        try {
+            int value = source.get(field).getAsInt();
+            return value > 0 ? value : -1;
+        } catch (RuntimeException invalidInteger) {
+            return -1;
+        }
     }
 
     private void sendMainDashboardResponse(String sessionId, Object response, String operationId) {

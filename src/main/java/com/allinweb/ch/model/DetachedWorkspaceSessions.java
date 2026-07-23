@@ -7,6 +7,7 @@ public final class DetachedWorkspaceSessions {
     public static final String CLONE_JOB_MANAGER = "cloneJobManager";
     public static final String CONFIG_MANAGER = "configManager";
     public static final String A_TEMPLATE_MANAGER = "aTemplateManager";
+    public static final String MEMORY_LIST_MANAGER = "memoryListManager";
     public static final String ABOUT_PANEL = "aboutPanel";
     public static final String LICENSE_MANAGER = "licenseManager";
 
@@ -15,6 +16,7 @@ public final class DetachedWorkspaceSessions {
             CLONE_JOB_MANAGER,
             CONFIG_MANAGER,
             A_TEMPLATE_MANAGER,
+            MEMORY_LIST_MANAGER,
             ABOUT_PANEL,
             LICENSE_MANAGER);
 
