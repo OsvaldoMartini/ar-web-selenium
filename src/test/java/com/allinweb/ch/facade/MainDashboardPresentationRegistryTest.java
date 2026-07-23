@@ -59,6 +59,9 @@ class MainDashboardPresentationRegistryTest {
         public void openConfig() {}
 
         @Override
+        public void openTemplate() {}
+
+        @Override
         public void openInfo() {}
 
         @Override
