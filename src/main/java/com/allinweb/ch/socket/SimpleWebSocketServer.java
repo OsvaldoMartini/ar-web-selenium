@@ -3472,6 +3472,8 @@ public class SimpleWebSocketServer {
     static boolean isAllowedFromDetachedPageScannerTransport(String operation) {
         return isPageScannerTransportOperation(operation)
                 || "ocrWorkspace.open".equals(operation)
+                || "memoryList.open".equals(operation)
+                || "memoryList.sync".equals(operation)
                 || (operation != null && DETACHED_PAGE_SCANNER_BOT_JOB_OPERATIONS.contains(operation));
     }
 

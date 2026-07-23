@@ -77,7 +77,8 @@ public class ConfigService {
         String expectedMode = PATH_FIELD_MODES.get(field);
         String mode = str(body, "mode").toLowerCase(java.util.Locale.ROOT);
         if (expectedMode == null || !expectedMode.equals(mode)) {
-            return failure("Unsupported configuration path selection");
+            return correlatePathResponse(
+                    body, failure("Unsupported configuration path selection"));
         }
         String currentPath = str(body, "currentPath");
         if (currentPath.isEmpty()) {
@@ -89,13 +90,14 @@ public class ConfigService {
             path = presentation().choosePath(mode, currentPath);
         } catch (RuntimeException chooserFailure) {
             log.warn("Config {} chooser failed: {}", field, chooserFailure.getMessage());
-            return failure("Unable to open the native path selector");
+            return correlatePathResponse(
+                    body, failure("Unable to open the native path selector"));
         }
         Map<String, Object> response = ok(path == null ? "Path selection cancelled" : "Path selected");
         response.put("field", field);
         response.put("path", path);
         response.put("cancelled", path == null);
-        return response;
+        return correlatePathResponse(body, response);
     }
 
     public Map<String, Object> save(JsonObject body) {
@@ -622,6 +624,21 @@ public class ConfigService {
         Map<String, Object> response = failure(message);
         if (error != null) {
             response.put("error", error);
+        }
+        return response;
+    }
+
+    private Map<String, Object> correlatePathResponse(
+            JsonObject body, Map<String, Object> response) {
+        String requestId = str(body, "requestId");
+        if (!requestId.isEmpty()) {
+            response.put("requestId", requestId);
+        }
+        String purpose = str(body, "purpose");
+        if ("config".equals(purpose)
+                || "backup".equals(purpose)
+                || "restore".equals(purpose)) {
+            response.put("purpose", purpose);
         }
         return response;
     }
