@@ -141,6 +141,22 @@ public final class PreScanApplyService {
         return buildInstruction(elementDTO, 0, 0, 1);
     }
 
+    /**
+     * Converts one scanner row for the backend-owned mixed Memory List apply flow.
+     *
+     * <p>The returned instruction is transient until
+     * {@link PerformDataBase#insertInstructionsAndReferencesAtomic(List, int, int)} assigns its
+     * database id. Keeping the conversion here guarantees that Page Scanner Apply and Memory List
+     * Apply persist exactly the same locator/reference fields.
+     */
+    public InstructionLoad buildMemoryListInstruction(
+            ElementDTO elementDTO, int botJobId, int blockId, int orderNumber) {
+        if (elementDTO == null || botJobId <= 0 || blockId <= 0 || orderNumber <= 0) {
+            return null;
+        }
+        return buildInstruction(elementDTO, botJobId, blockId, orderNumber);
+    }
+
     /** Pane-free mirror of {@code prepareToInsertElementDTO} with {@code manyElements=true}. */
     private InstructionLoad buildInstruction(ElementDTO elementDTO, int botJobId, int blockId, int orderNumber) {
         TargetElement target = TargetElementHelper.getInstance().extractPickClone(elementDTO, true);

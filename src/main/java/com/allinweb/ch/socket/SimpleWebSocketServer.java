@@ -3374,23 +3374,45 @@ public class SimpleWebSocketServer {
 
     private void publishPageScannerBotJobSnapshot(
             PageScannerWorkspaceCoordinator.WorkspaceContext context, Integer createdBlockId) {
-        ErrorMessage loadError = performDBEngine.loadCompleteJobs(context.botJobId());
+        ErrorMessage loadError = publishBotJobTasksAuthoritativeSnapshot(
+                context.homeBankingId(), context.botJobId(), createdBlockId, null, null);
         if (loadError != null) {
             log.warn("Page Scanner block was created but Bot Job refresh failed: {}", loadError.getErrorMessage());
-            return;
         }
+    }
+
+    private ErrorMessage publishBotJobTasksAuthoritativeSnapshot(
+            int homeBankingId,
+            int botJobId,
+            Integer createdBlockId,
+            String createdBlockName,
+            Integer createdBlockOrderNumber) {
+        ErrorMessage loadError = performDBEngine.loadCompleteJobs(botJobId);
+        if (loadError != null) {
+            return loadError;
+        }
+        loadError = performDataBase.loadBlocks(botJobId, "", "block");
+        if (loadError != null) {
+            return loadError;
+        }
+
         List<InstructionLoad> instructions = performLists.getListBotJob().isEmpty()
                 ? List.of()
                 : performLists.buildJsonViewData(performLists.getListBotJob());
         JsonObject update = new JsonObject();
         update.add("instructions", gson.toJsonTree(instructions));
-        update.add("blocks", gson.toJsonTree(mapBlockOptions("block", context.botJobId())));
-        update.addProperty("botJobId", context.botJobId());
+        update.add("blocks", gson.toJsonTree(mapBlockOptions("block", botJobId)));
+        update.addProperty("botJobId", botJobId);
         if (createdBlockId != null) update.addProperty("createdBlockId", createdBlockId);
+        if (createdBlockName != null) update.addProperty("createdBlockName", createdBlockName);
+        if (createdBlockOrderNumber != null) {
+            update.addProperty("createdBlockOrderNumber", createdBlockOrderNumber);
+        }
         instructionRealtimePublisher.publishSerializedSnapshot(
-                context.homeBankingId(),
+                homeBankingId,
                 ScannerWorkspaceSessions.BOT_JOB_TASKS,
                 gson.toJson(update));
+        return null;
     }
 
     private boolean validatePageScannerTransport(
@@ -3934,6 +3956,7 @@ public class SimpleWebSocketServer {
         // Dispatch to the correct method based on the message type
 
         boolean alreadySentMgsSocket = false;
+        boolean authoritativeBotJobSnapshotPublished = false;
         ErrorMessage errorMessage = null;
         SplitDTO splitDTO = parseSplitDTO(jsonEntry);
 
@@ -5025,7 +5048,31 @@ public class SimpleWebSocketServer {
                     errorMessage == null);
         }
 
-        if (!alreadySentMgsSocket) {
+        boolean requiresAuthoritativeBotJobSnapshot = errorMessage == null
+                && isBotJobTasksSession(sessionIdToSend)
+                && ("ROW_MOVE".equals(type)
+                        || "BLOCK_CREATE".equals(type)
+                        || "CREATE_BLOCK".equals(type));
+        if (requiresAuthoritativeBotJobSnapshot) {
+            boolean blockCreated = "BLOCK_CREATE".equals(type) || "CREATE_BLOCK".equals(type);
+            ErrorMessage snapshotError = publishBotJobTasksAuthoritativeSnapshot(
+                    homeBankingId,
+                    botJobIdTask,
+                    blockCreated ? splitDTO.getBlockId() : null,
+                    blockCreated ? splitDTO.getBlockName() : null,
+                    blockCreated ? splitDTO.getBlockOrderNumber() : null);
+            authoritativeBotJobSnapshotPublished = snapshotError == null;
+            if (snapshotError != null) {
+                log.warn(
+                        "Bot Job mutation succeeded but the authoritative grid refresh failed: type={} botJobId={} error={}",
+                        type,
+                        botJobIdTask,
+                        snapshotError.getErrorMessage());
+                performMessage.errorMessageOperationFailed(snapshotError);
+            }
+        }
+
+        if (!alreadySentMgsSocket && !authoritativeBotJobSnapshotPublished) {
             List<BotJobLoadDTO> listBot =
                     instrTable.equals("instruction") ? performLists.getListBotJob() : performLists.getListBotJobComp();
 
