@@ -480,6 +480,18 @@ final class OcrWorkspaceCoordinator {
         return entry != null && sessionId.equals(activeSessionByKind.get(entry.kind()));
     }
 
+    /** Explicitly retires one exact OCR workspace without affecting the other OCR kind. */
+    synchronized boolean close(String sessionId) {
+        purgeExpiredEntries();
+        if (!isWorkspaceSessionId(sessionId)) return false;
+        WorkspaceEntry entry = workspaces.get(sessionId);
+        if (entry == null || !sessionId.equals(activeSessionByKind.get(entry.kind()))) {
+            return false;
+        }
+        removeEntry(entry);
+        return true;
+    }
+
     synchronized boolean disconnected(String sessionId) {
         purgeExpiredEntries();
         if (!isWorkspaceSessionId(sessionId)) return false;

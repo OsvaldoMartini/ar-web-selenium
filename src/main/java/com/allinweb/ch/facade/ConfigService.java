@@ -117,12 +117,12 @@ public class ConfigService {
             return failure("Database change failed: " + error.getMessage());
         }
 
-        closeAllScenes();
         performLists.clearAllLists();
         ErrorMessage error = reloadLists();
         if (error != null) {
             return failure("Configuration saved but reload failed", error);
         }
+        closeAllScenes();
         pushMainDashboard();
         return configResponse("Configuration saved");
     }
@@ -208,12 +208,12 @@ public class ConfigService {
         if (error != null) {
             return failure("Restore failed", error);
         }
-        closeAllScenes();
         performLists.clearAllLists();
         error = reloadLists();
         if (error != null) {
             return failure("Database restored but reload failed", error);
         }
+        closeAllScenes();
         pushMainDashboard();
         return configResponse("Database restored");
     }

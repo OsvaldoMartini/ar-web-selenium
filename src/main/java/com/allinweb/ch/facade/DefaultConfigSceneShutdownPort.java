@@ -14,12 +14,15 @@ public final class DefaultConfigSceneShutdownPort implements ConfigSceneShutdown
 
     @Override
     public void closeNewBotJob() {
-        NewBotJobPresentationRegistry.getInstance().current().closeModal();
+        // Detached New Bot Job pages are retired after a successful database reload by
+        // PagesOpenWorkspaceService. Calling the shared presentation close action here can
+        // navigate the Configuration/TEMP requester back to the Main Dashboard.
     }
 
     @Override
     public void closeBotJobWorkspaceIfIdle() {
-        ConfigPresentationRegistry.getInstance().current().closeModal();
+        // Configuration/TEMP owns the database reload request and must remain open to receive the
+        // completed save/restore response. Only the Bot Job workspace is retired here.
         BotJobDetailsWorkspaceHost.getInstance().closeWorkspaceIfIdle();
     }
 

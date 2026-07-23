@@ -1,5 +1,6 @@
 package com.allinweb.ch.socket;
 
+import com.allinweb.ch.component.pane.BotJobDetailsWorkspaceHost;
 import com.allinweb.ch.component.pane.ScannerPluginDownloadCommandService;
 import com.allinweb.ch.facade.*;
 import com.allinweb.ch.model.*;
@@ -65,6 +66,8 @@ public class SimpleWebSocketServer {
             PageScannerProfileService.getInstance();
     private static final MemoryListWorkspaceService memoryListWorkspaceService =
             MemoryListWorkspaceService.getInstance();
+    private static final PagesOpenWorkspaceService pagesOpenWorkspaceService =
+            PagesOpenWorkspaceService.getInstance();
     private static final int MAX_PAGE_SCANNER_BODY_CHARACTERS = 2_000_000;
     private static final int MAX_PAGE_SCANNER_ELEMENTS = 1_000;
     private static final int MAX_PAGE_SCANNER_SEARCH_TERMS = 8_192;
@@ -234,6 +237,7 @@ public class SimpleWebSocketServer {
             // target. The shell closes this socket once it has read the reply.
             sendBootstrapReactSessionOpen(session);
         }
+        pagesOpenWorkspaceService.sessionRegistryChanged();
     }
 
     private void sendBootstrapReactSessionOpen(Session session) {
@@ -343,11 +347,15 @@ public class SimpleWebSocketServer {
             boolean detachedPageScannerTransport =
                     ScannerWorkspaceSessions.isPageScannerSession(transportSessionId);
             boolean memoryListOperation = type.startsWith("memoryList.");
+            boolean pagesOpenOperation = type.startsWith("pagesOpen.");
+            boolean configOperation = type.startsWith("config.");
             String sessionId = ocrWorkspaceOperation
                             || detachedOcrTransport
                             || pageScannerOperation
-                            || detachedPageScannerTransport
-                            || memoryListOperation
+                             || detachedPageScannerTransport
+                             || memoryListOperation
+                             || pagesOpenOperation
+                             || configOperation
                     ? transportSessionId
                     : claimedSessionId;
             ReactReplyChannel.set(sessionId);
@@ -933,6 +941,18 @@ public class SimpleWebSocketServer {
                 case "memoryList.command":
                     handleMemoryListCommand(jsonObjMSG, transportSessionId, session);
                     break;
+                case "pagesOpen.open":
+                    handlePagesOpenOpen(jsonObjMSG, transportSessionId, session);
+                    break;
+                case "pagesOpen.bootstrap":
+                    handlePagesOpenBootstrap(jsonObjMSG, transportSessionId, session);
+                    break;
+                case "pagesOpen.closePage":
+                    handlePagesOpenClosePage(jsonObjMSG, transportSessionId, session);
+                    break;
+                case "pagesOpen.inlineState":
+                    handlePagesOpenInlineState(jsonObjMSG, transportSessionId, session);
+                    break;
                 case "botJobDetails.action":
                     handleBotJobDetailsAction(jsonObjMSG, session);
                     break;
@@ -999,13 +1019,13 @@ public class SimpleWebSocketServer {
                     handleConfigChoosePath(jsonObjMSG, sessionId);
                     break;
                 case "config.save":
-                    handleConfigSave(jsonObjMSG, sessionId);
+                    handleConfigSave(jsonObjMSG, sessionId, session);
                     break;
                 case "config.backup":
                     handleConfigBackup(jsonObjMSG, sessionId);
                     break;
                 case "config.restore":
-                    handleConfigRestore(jsonObjMSG, sessionId);
+                    handleConfigRestore(jsonObjMSG, sessionId, session);
                     break;
                 case "config.deleteAllJobs":
                     handleConfigDeleteAllJobs(jsonObjMSG, sessionId);
@@ -1189,6 +1209,52 @@ public class SimpleWebSocketServer {
                 transportSessionId,
                 "memoryList.commandResponse",
                 memoryListWorkspaceService.command(body, transportSessionId, transportSession));
+    }
+
+    private void handlePagesOpenOpen(
+            JsonObject envelope, String transportSessionId, Session transportSession) {
+        sendPagesOpenResponse(
+                transportSessionId,
+                transportSession,
+                "pagesOpen.openResponse",
+                pagesOpenWorkspaceService.open(
+                        extractBody(envelope), transportSessionId, transportSession));
+    }
+
+    private void handlePagesOpenBootstrap(
+            JsonObject envelope, String transportSessionId, Session transportSession) {
+        sendPagesOpenResponse(
+                transportSessionId,
+                transportSession,
+                "pagesOpen.bootstrapResponse",
+                pagesOpenWorkspaceService.bootstrap(
+                        extractBody(envelope), transportSessionId, transportSession));
+    }
+
+    private void handlePagesOpenClosePage(
+            JsonObject envelope, String transportSessionId, Session transportSession) {
+        sendPagesOpenResponse(
+                transportSessionId,
+                transportSession,
+                "pagesOpen.closePageResponse",
+                pagesOpenWorkspaceService.closePage(
+                        extractBody(envelope), transportSessionId, transportSession));
+    }
+
+    private void handlePagesOpenInlineState(
+            JsonObject envelope, String transportSessionId, Session transportSession) {
+        sendPagesOpenResponse(
+                transportSessionId,
+                transportSession,
+                "pagesOpen.inlineStateResponse",
+                pagesOpenWorkspaceService.inlineState(
+                        extractBody(envelope), transportSessionId, transportSession));
+    }
+
+    private void sendPagesOpenResponse(
+            String sessionId, Session transport, String operationId, JsonObject response) {
+        WebSocketSessionManager.sendMessageJson(
+                -1, transport, sessionId, gson.toJson(response), operationId);
     }
 
     private int memoryListHomeBankingId(JsonObject envelope, JsonObject body) {
@@ -1892,16 +1958,89 @@ public class SimpleWebSocketServer {
         sendConfigResponse(sessionId, configService.choosePath(extractBody(jsonObjMSG)), "config.pathResponse");
     }
 
-    private void handleConfigSave(JsonObject jsonObjMSG, String sessionId) {
-        sendConfigResponse(sessionId, configService.save(extractBody(jsonObjMSG)), "config.saveResponse");
+    private void handleConfigSave(JsonObject jsonObjMSG, String sessionId, Session transport) {
+        if (!isConfigurationReloadRequester(sessionId, transport)) {
+            sendConfigResponse(
+                    transport,
+                    sessionId,
+                    Map.of("ok", false, "message", "Configuration save requires Config or TEMP."),
+                    "config.saveResponse");
+            return;
+        }
+        if (!BotJobDetailsWorkspaceHost.getInstance().canCloseWorkspace()) {
+            sendConfigResponse(
+                    transport,
+                    sessionId,
+                    Map.of(
+                            "ok",
+                            false,
+                            "message",
+                            "Stop the active Bot Job operation before saving configuration."),
+                    "config.saveResponse");
+            return;
+        }
+        Map<String, Object> response = configService.save(extractBody(jsonObjMSG));
+        closePagesAfterSuccessfulConfigReload(sessionId, transport, response);
+        sendConfigResponse(transport, sessionId, response, "config.saveResponse");
     }
 
     private void handleConfigBackup(JsonObject jsonObjMSG, String sessionId) {
         sendConfigResponse(sessionId, configService.backup(extractBody(jsonObjMSG)), "config.backupResponse");
     }
 
-    private void handleConfigRestore(JsonObject jsonObjMSG, String sessionId) {
-        sendConfigResponse(sessionId, configService.restore(extractBody(jsonObjMSG)), "config.restoreResponse");
+    private void handleConfigRestore(JsonObject jsonObjMSG, String sessionId, Session transport) {
+        if (!isConfigurationReloadRequester(sessionId, transport)) {
+            sendConfigResponse(
+                    transport,
+                    sessionId,
+                    Map.of("ok", false, "message", "Configuration restore requires Config or TEMP."),
+                    "config.restoreResponse");
+            return;
+        }
+        if (!BotJobDetailsWorkspaceHost.getInstance().canCloseWorkspace()) {
+            sendConfigResponse(
+                    transport,
+                    sessionId,
+                    Map.of(
+                            "ok",
+                            false,
+                            "message",
+                            "Stop the active Bot Job operation before restoring configuration."),
+                    "config.restoreResponse");
+            return;
+        }
+        Map<String, Object> response = configService.restore(extractBody(jsonObjMSG));
+        closePagesAfterSuccessfulConfigReload(sessionId, transport, response);
+        sendConfigResponse(transport, sessionId, response, "config.restoreResponse");
+    }
+
+    private void closePagesAfterSuccessfulConfigReload(
+            String requesterSessionId, Session requesterTransport, Map<String, Object> response) {
+        if (!Boolean.TRUE.equals(response.get("ok"))) return;
+        if (!isConfigurationReloadRequester(requesterSessionId, requesterTransport)) {
+            response.put(
+                    "workspaceCloseWarning",
+                    "Configuration reloaded, but the requesting Config/TEMP page is no longer authoritative.");
+            return;
+        }
+        try {
+            response.put(
+                    "closedPages",
+                    pagesOpenWorkspaceService.closeForDatabaseReload(requesterSessionId));
+        } catch (IllegalArgumentException | IllegalStateException closeFailure) {
+            log.warn(
+                    "Configuration reload completed, but open pages could not all be closed: {}",
+                    closeFailure.getMessage());
+            response.put("workspaceCloseWarning", closeFailure.getMessage());
+        }
+    }
+
+    private boolean isConfigurationReloadRequester(String sessionId, Session transport) {
+        return (DetachedWorkspaceSessions.CONFIG_MANAGER.equals(sessionId)
+                        || DetachedWorkspaceSessions.A_TEMPLATE_MANAGER.equals(sessionId))
+                && transport != null
+                && transport.isOpen()
+                && WebSocketSessionManager.getSession(sessionId) == transport;
     }
 
     private void handleConfigDeleteAllJobs(JsonObject jsonObjMSG, String sessionId) {
@@ -1928,6 +2067,12 @@ public class SimpleWebSocketServer {
         webSocketSessionManager.sendMessageJson(-1, sessionId, gson.toJson(response), operationId);
     }
 
+    private void sendConfigResponse(
+            Session transport, String sessionId, Object response, String operationId) {
+        WebSocketSessionManager.sendMessageJson(
+                -1, transport, sessionId, gson.toJson(response), operationId);
+    }
+
     @OnError
     public void onError(Session session, Throwable throwable) {
         String sessionId = webSocketSessionManager.getSessionIdBySession(session);
@@ -1949,6 +2094,7 @@ public class SimpleWebSocketServer {
                     notifyPageScannerWindowDisconnected(sessionId);
                     notifyOcrWindowDisconnected(sessionId);
                     notifyMainApplicationDisconnected(sessionId);
+                    pagesOpenWorkspaceService.sessionRegistryChanged();
                 }
             }
         }
@@ -4934,6 +5080,7 @@ public class SimpleWebSocketServer {
                 notifyPageScannerWindowDisconnected(sessionId);
                 notifyOcrWindowDisconnected(sessionId);
                 notifyMainApplicationDisconnected(sessionId);
+                pagesOpenWorkspaceService.sessionRegistryChanged();
             }
         } else {
             log.info("Connection closed for unknown session, Reason: " + closeReason.getReasonPhrase() + " (Code: "
