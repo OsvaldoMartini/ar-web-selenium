@@ -22,6 +22,7 @@ import com.allinweb.ch.facade.ScannerTestRunHandlers;
 import com.allinweb.ch.facade.UiThreadDispatcher;
 import com.allinweb.ch.model.BotJobLoadDTO;
 import com.allinweb.ch.model.BlockLoadDTO;
+import com.allinweb.ch.model.DetachedWorkspaceSessions;
 import com.allinweb.ch.model.HomeBankingLoadDTO;
 import com.allinweb.ch.socket.ARWebSocketServer;
 import com.allinweb.ch.socket.InstructionRealtimePublisher;
@@ -44,8 +45,8 @@ public class MainDashboardPresentationAdapter
         implements BotJobDetailsPresentationGateway, MainDashboardPresentation, NewBotJobPresentation, ConfigPresentation {
 
     private static final String SESSION_ID = "mainDashboard";
-    private static final String MAIN_APPLICATION_CONTROL_SESSION_ID = "mainApplicationControl";
-    private static final String ORGANIZATION_MANAGER_SESSION_ID = "organizationManager";
+    private static final String ORGANIZATION_MANAGER_SESSION_ID =
+            DetachedWorkspaceSessions.ORGANIZATION_MANAGER;
     private static final int DEFAULT_PORT = 54525;
     private static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
     private static final PerformLists performLists = PerformLists.getInstance();
@@ -108,21 +109,17 @@ public class MainDashboardPresentationAdapter
             if (WebSocketSessionManager.isSessionOpen(ORGANIZATION_MANAGER_SESSION_ID)) {
                 webSocketSessionManager.sendMessageJson(
                         -1,
-                        MAIN_APPLICATION_CONTROL_SESSION_ID,
+                        ORGANIZATION_MANAGER_SESSION_ID,
                         "{}",
                         "application.workspaceFocus");
                 return;
             }
-            Map<String, Object> payload = new LinkedHashMap<>();
-            payload.put("targetSession", ORGANIZATION_MANAGER_SESSION_ID);
-            payload.put("port", resolveSocketPort());
-            payload.put("botJobId", -9999);
-            payload.put("source", SESSION_ID);
-            webSocketSessionManager.sendMessageJson(
-                    -1,
-                    MAIN_APPLICATION_CONTROL_SESSION_ID,
-                    gson.toJson(payload),
-                    "react.session.open");
+            if (!ARWebSocketServer.getInstance()
+                    .openDetachedWorkspaceDesktopShell(ORGANIZATION_MANAGER_SESSION_ID)) {
+                log.error(
+                        "Organizations detached workspace could not be opened; "
+                                + "the Main Dashboard will remain unchanged");
+            }
         });
     }
 

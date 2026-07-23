@@ -35,7 +35,6 @@ public final class PagesOpenWorkspaceService {
     public static final String WORKSPACE_CLOSE_OPERATION = "application.workspaceClose";
 
     private static final String MAIN_DASHBOARD_SESSION = "mainDashboard";
-    private static final String ORGANIZATION_MANAGER_SESSION = "organizationManager";
     private static final String AUTO_TEST_KEY = "inline:auto-test";
     private static final String AUTO_TEST_KIND = "AUTO_TEST";
     private static final long LAUNCH_PENDING_NANOS =
@@ -43,7 +42,6 @@ public final class PagesOpenWorkspaceService {
     private static final int MAX_REQUEST_ID_CHARACTERS = 160;
 
     private static final Set<String> STANDALONE_VISIBLE_SESSIONS = Set.of(
-            ORGANIZATION_MANAGER_SESSION,
             "activationRequired",
             ScannerWorkspaceSessions.SCANNER_GRID,
             ScannerWorkspaceSessions.PRE_SCANNER_GRID,
@@ -52,7 +50,6 @@ public final class PagesOpenWorkspaceService {
             "capiApiTestToolAI");
     private static final List<String> LOGICAL_MAIN_SESSIONS = List.of(
             MAIN_DASHBOARD_SESSION,
-            ORGANIZATION_MANAGER_SESSION,
             "activationRequired",
             ScannerWorkspaceSessions.SCANNER_GRID,
             ScannerWorkspaceSessions.PRE_SCANNER_GRID,
@@ -61,6 +58,14 @@ public final class PagesOpenWorkspaceService {
             "capiApiTestToolAI");
 
     private static final Map<String, PagePresentation> FIXED_PRESENTATIONS = Map.ofEntries(
+            Map.entry(
+                    DetachedWorkspaceSessions.ORGANIZATION_MANAGER,
+                    new PagePresentation(
+                            "Organizations",
+                            "ORGANIZATIONS",
+                            "Detached workspace",
+                            false,
+                            true)),
             Map.entry(
                     DetachedWorkspaceSessions.NEW_BOT_JOB_MANAGER,
                     new PagePresentation("New Bot Job", "NEW_BOT_JOB", "Detached workspace", false, true)),
@@ -412,10 +417,6 @@ public final class PagesOpenWorkspaceService {
         if (MAIN_DASHBOARD_SESSION.equals(sessionId)) {
             return new PagePresentation(
                     "AR Web", "MAIN_DASHBOARD", "Main Dashboard", true, true);
-        }
-        if (ORGANIZATION_MANAGER_SESSION.equals(sessionId)) {
-            return new PagePresentation(
-                    "Organizations", "ORGANIZATIONS", "Main Dashboard organization view", true, true);
         }
         PagePresentation fixed = FIXED_PRESENTATIONS.get(sessionId);
         if (fixed != null) return fixed;
