@@ -3,10 +3,14 @@ package com.allinweb.ch.facade;
 import com.allinweb.ch.model.BotJobLoadDTO;
 import com.allinweb.ch.model.HomeBankingLoadDTO;
 import com.allinweb.ch.model.HomeUrlDTO;
+import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.util.ErrorMessage;
 import com.allinweb.ch.util.ExcelUtils;
+import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -19,29 +23,33 @@ public final class CloneJobService {
     private final PerformDataBase database = PerformDataBase.getInstance();
     private final PerformDBEngine engine = PerformDBEngine.getInstance();
     private final PerformLists lists = PerformLists.getInstance();
+    private final MainDashboardService mainDashboardService = MainDashboardService.getInstance();
+    private final WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
+    private final Gson gson = new Gson();
 
     private CloneJobService() {}
 
     public static CloneJobService getInstance() { return INSTANCE; }
 
     public synchronized Map<String, Object> bootstrap(JsonObject body) {
+        ErrorMessage error = reloadDestinations();
+        if (error != null) return failure("Environments could not be loaded", error);
         BotJobLoadDTO source = source(intValue(body, "sourceBotJobId"));
         if (source == null) return failure("Source Bot Job was not found");
-        ErrorMessage error = loadEnvironments();
-        if (error != null) return failure("Environments could not be loaded", error);
         Map<String, Object> response = ok("Clone Job loaded");
         response.put("sourceBotJob", sourceRow(source));
-        response.put("environments", environmentRows(source.getHomeBankingId()));
+        addDestinations(response);
         return response;
     }
 
     public synchronized Map<String, Object> environments(JsonObject body) {
+        ErrorMessage error = reloadDestinations();
+        if (error != null) return failure("Environments could not be refreshed", error);
         BotJobLoadDTO source = source(intValue(body, "sourceBotJobId"));
         if (source == null) return failure("Source Bot Job was not found");
-        ErrorMessage error = engine.loadHomeUrls(null);
-        if (error != null) return failure("Environments could not be refreshed", error);
         Map<String, Object> response = ok("Environments refreshed");
-        response.put("environments", environmentRows(source.getHomeBankingId()));
+        response.put("sourceBotJob", sourceRow(source));
+        addDestinations(response);
         return response;
     }
 
@@ -52,6 +60,9 @@ public final class CloneJobService {
     }
 
     public synchronized Map<String, Object> create(JsonObject body) {
+        ErrorMessage error = reloadDestinations();
+        if (error != null) return failure("Clone destinations could not be loaded", error);
+
         int sourceId = intValue(body, "sourceBotJobId");
         BotJobLoadDTO source = source(sourceId);
         if (source == null) return failure("Source Bot Job was not found");
@@ -59,27 +70,34 @@ public final class CloneJobService {
         String name = text(body, "name");
         String description = text(body, "description");
         String url = text(body, "url");
+        String priority = normalizePriority(text(body, "priority"), source.getPriority());
+        int targetOrganizationId = intValue(body, "homeBankingId");
+        int targetEnvironmentId = intValue(body, "homeUrlId");
         String validation = nameError(name);
         if (validation != null) return failure(validation);
-        if (url.isBlank()) return failure("Target environment URL is required");
-        if (intValue(body, "homeBankingId") != source.getHomeBankingId()) {
-            return failure("Target environment must belong to the source organization");
+        HomeBankingLoadDTO targetOrganization = lists.getHomeBankingById(targetOrganizationId);
+        if (targetOrganization == null) {
+            return failure("Select a valid target Organization");
         }
 
-        ErrorMessage error = loadEnvironments();
-        if (error != null) return failure("Environments could not be loaded", error);
-        HomeUrlDTO environment = findEnvironment(source.getHomeBankingId(), intValue(body, "homeUrlId"), url);
+        HomeUrlDTO environment = findEnvironment(targetOrganizationId, targetEnvironmentId, url);
+        if (targetEnvironmentId > 0 && environment == null) {
+            return failure("Select a valid target Organization Environment");
+        }
+        Integer createdEnvironmentId = null;
         if (environment == null) {
-            error = database.createNewHomeUrl(source.getHomeBankingId(), url);
+            if (url.isBlank()) return failure("Target environment URL is required");
+            error = database.createNewHomeUrl(targetOrganizationId, url);
             if (error != null) return failure("Target environment could not be created", error);
             environment = new HomeUrlDTO();
             environment.setId(database.getNewHomeUrlId());
-            environment.setHomeBankingId(source.getHomeBankingId());
+            environment.setHomeBankingId(targetOrganizationId);
             environment.setUrl(url);
+            createdEnvironmentId = environment.getId();
         }
 
         Integer clonedId = null;
-        error = database.cloneBotJob(environment, sourceId, name, description);
+        error = database.cloneBotJob(environment, sourceId, name, description, priority);
         if (error == null) clonedId = database.getNewBotBojId(sourceId);
         if (error == null) error = database.cloneBlock(sourceId);
         if (error == null) error = database.cloneInstructions(sourceId);
@@ -88,26 +106,39 @@ public final class CloneJobService {
         if (error == null) error = database.cloneReferences(sourceId);
         if (error != null) {
             if (clonedId != null && clonedId > 0) database.deleteBotJobData(clonedId);
+            deleteUnusedEnvironment(createdEnvironmentId);
             return failure("Clone Job failed and partial database data was removed", error);
         }
-        if (clonedId == null || clonedId <= 0) return failure("Clone completed without a new Bot Job id");
+        if (clonedId == null || clonedId <= 0) {
+            deleteUnusedEnvironment(createdEnvironmentId);
+            return failure("Clone completed without a new Bot Job id");
+        }
 
         // File work occurs only after every request and database validation has succeeded.
         if (booleanValue(body, "createExcelDataFile", true)) ExcelUtils.createExcelDataFile(source, name);
         error = database.loadQuickBotJobs();
         if (error != null) return failure("Bot Job cloned but dashboard refresh failed", error);
 
+        Map<String, Object> dashboard = mainDashboardService.list();
+        webSocketSessionManager.sendMessageJson(
+                -1,
+                "mainDashboard",
+                gson.toJson(dashboard),
+                "mainDashboard.listResponse");
+
         Map<String, Object> response = ok("Bot Job cloned successfully");
         response.put("sourceBotJobId", sourceId);
         response.put("clonedBotJobId", clonedId);
         response.put("clonedBotJob", source(clonedId) == null ? null : sourceRow(source(clonedId)));
-        response.put("botJobs", MainDashboardService.getInstance().dashboardRows());
+        response.put("botJobs", dashboard.get("botJobs"));
         return response;
     }
 
-    private ErrorMessage loadEnvironments() {
-        ErrorMessage error = lists.getListHomeBanking().isEmpty() ? engine.loadHomeBanking(null) : null;
-        return error == null && lists.getListHomeUrl().isEmpty() ? engine.loadHomeUrls(null) : error;
+    private ErrorMessage reloadDestinations() {
+        ErrorMessage error = engine.loadHomeBanking(null);
+        if (error == null) error = engine.loadHomeUrls(null);
+        if (error == null) error = database.loadQuickBotJobs();
+        return error;
     }
 
     private BotJobLoadDTO source(int id) {
@@ -125,21 +156,66 @@ public final class CloneJobService {
     }
 
     private HomeUrlDTO findEnvironment(int organizationId, int environmentId, String url) {
+        if (environmentId > 0) {
+            return lists.getHomeUrlsByBankId(organizationId).stream()
+                    .filter(item -> Objects.equals(item.getId(), environmentId))
+                    .findFirst()
+                    .orElse(null);
+        }
+        if (url.isBlank()) return null;
         return lists.getHomeUrlsByBankId(organizationId).stream()
-                .filter(item -> (environmentId > 0 && Objects.equals(item.getId(), environmentId))
-                        || url.equals(item.getUrl()))
-                .findFirst().orElse(null);
+                .filter(item -> url.equals(item.getUrl()))
+                .findFirst()
+                .orElse(null);
     }
 
-    private List<Map<String, Object>> environmentRows(int organizationId) {
+    private void deleteUnusedEnvironment(Integer environmentId) {
+        if (environmentId == null || environmentId <= 0) return;
+        try {
+            database.deleteHomeUrl(environmentId);
+        } catch (SQLException ignored) {
+            // Best-effort cleanup; preserve the original Clone Job error in the response.
+        }
+    }
+
+    private void addDestinations(Map<String, Object> response) {
+        response.put("appTypes", Arrays.asList("Web App", "Android", "iOS", "Rest Api"));
+        response.put("organizations", organizationRows());
+        response.put("environments", environmentRows());
+    }
+
+    private List<Map<String, Object>> organizationRows() {
         List<Map<String, Object>> rows = new ArrayList<>();
-        for (HomeUrlDTO item : lists.getHomeUrlsByBankId(organizationId)) {
+        for (HomeBankingLoadDTO item : lists.getListHomeBanking()) {
+            if (item.getId() == null || item.getId() <= 0) continue;
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("id", item.getId());
+            row.put("name", item.getName());
+            row.put("activeJobs", item.getJobs());
+            row.put("url", item.getUrl());
+            rows.add(row);
+        }
+        return rows;
+    }
+
+    private List<Map<String, Object>> environmentRows() {
+        List<Map<String, Object>> rows = new ArrayList<>();
+        for (HomeUrlDTO item : lists.getListHomeUrl()) {
+            if (item.getId() == null || item.getId() <= 0) continue;
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("id", item.getId()); row.put("homeBankingId", item.getHomeBankingId());
             row.put("orgName", item.getOrgName()); row.put("name", item.getName()); row.put("url", item.getUrl());
             rows.add(row);
         }
         return rows;
+    }
+
+    private String normalizePriority(String requested, String fallback) {
+        String value = requested.isBlank() ? Objects.toString(fallback, "") : requested;
+        if ("Android".equalsIgnoreCase(value)) return "Android";
+        if ("iOS".equalsIgnoreCase(value)) return "iOS";
+        if ("Rest Api".equalsIgnoreCase(value)) return "Rest Api";
+        return "Web App";
     }
 
     private Map<String, Object> sourceRow(BotJobLoadDTO source) {

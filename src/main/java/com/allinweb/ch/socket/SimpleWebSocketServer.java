@@ -1013,7 +1013,12 @@ public class SimpleWebSocketServer {
                     sendCloneJobResponse(sessionId, java.util.Map.of("ok", true, "message", "Organizations opened"), "cloneJob.actionResponse");
                     break;
                 case "cloneJob.cancel":
-                    MainDashboardPresentationRegistry.getInstance().current().closeCloneJob();
+                    sendCloneJobResponse(
+                            sessionId,
+                            java.util.Map.of(
+                                    "ok", true,
+                                    "message", "Close this detached Clone Job window"),
+                            "cloneJob.actionResponse");
                     break;
                 case "config.bootstrap":
                     handleConfigBootstrap(sessionId);

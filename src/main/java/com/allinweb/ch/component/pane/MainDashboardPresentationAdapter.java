@@ -148,8 +148,22 @@ public class MainDashboardPresentationAdapter
 
     public void openCloneBotJob(BotJobLoadDTO botJob) {
         uiThreadDispatcher.execute(() -> {
-            if (!ARWebSocketServer.getInstance().openDetachedWorkspaceDesktopShell("cloneJobManager", botJob.getId())) {
-                dispatchReactSession("cloneJobManager", botJob.getId());
+            String sessionId = DetachedWorkspaceSessions.CLONE_JOB_MANAGER;
+            if (WebSocketSessionManager.isSessionOpen(sessionId)) {
+                Map<String, Object> payload = new LinkedHashMap<>();
+                payload.put("sourceBotJobId", botJob.getId());
+                webSocketSessionManager.sendMessageJson(
+                        -1,
+                        sessionId,
+                        gson.toJson(payload),
+                        "cloneJob.retarget");
+                return;
+            }
+            if (!ARWebSocketServer.getInstance()
+                    .openDetachedWorkspaceDesktopShell(sessionId, botJob.getId())) {
+                log.error(
+                        "Clone Job detached workspace could not be opened; "
+                                + "the Main Dashboard will remain unchanged");
             }
         });
     }

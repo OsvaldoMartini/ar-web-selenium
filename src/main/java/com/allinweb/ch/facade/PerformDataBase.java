@@ -6419,7 +6419,11 @@ public class PerformDataBase {
     }
 
     public ErrorMessage cloneBotJob(
-            HomeUrlDTO homeUrlDTO, int previousBotJob, String newBotJobName, String newDescription) {
+            HomeUrlDTO homeUrlDTO,
+            int previousBotJob,
+            String newBotJobName,
+            String newDescription,
+            String priority) {
 
         String selectComponentIdsSQL =
                 "SELECT id FROM bot_job WHERE home_banking_id = " + homeUrlDTO.getHomeBankingId() + " ORDER BY id";
@@ -6440,7 +6444,7 @@ public class PerformDataBase {
 
             String insertSQL =
                     "INSERT INTO bot_job (name, description, priority, home_banking_id, home_url_id, active) "
-                            + "SELECT ?, ?, priority, home_banking_id, ?, ? FROM bot_job WHERE id = ?";
+                            + "SELECT ?, ?, ?, ?, ?, ? FROM bot_job WHERE id = ?";
 
             botJobMap.clear();
             botJobMap.put(previousBotJob, -1);
@@ -6449,9 +6453,11 @@ public class PerformDataBase {
 
                 insertStmt.setString(1, newBotJobName);
                 insertStmt.setString(2, newDescription);
-                insertStmt.setInt(3, homeUrlDTO.getId());
-                insertStmt.setInt(4, 1);
-                insertStmt.setInt(5, previousBotJob);
+                insertStmt.setString(3, priority);
+                insertStmt.setInt(4, homeUrlDTO.getHomeBankingId());
+                insertStmt.setInt(5, homeUrlDTO.getId());
+                insertStmt.setInt(6, 1);
+                insertStmt.setInt(7, previousBotJob);
 
                 insertStmt.addBatch();
                 insertStmt.executeBatch();
