@@ -182,8 +182,12 @@ Each `[ ]` = create the component **+ its own `.module.scss` (styles preserved) 
   (superseded by the duplication directive); revisit only if duplication becomes unwieldy.
 
 ### Phase 5 — List + Block composites
-- [ ] `InstructionList` — per-block list; maps instructions → `InstructionRow`; owns the find-hide
-      per-row filter and the empty/insert placeholder.
+- [x] `InstructionList` — Claude. Per-block rbd Droppable: owns the drop-zone highlight, the row-level
+      find-hide filter, the EXCEL-GOTO skip, the Draggable wrapper, and the placeholder. GridItem
+      passes a `renderRow` render-prop that still builds each `InstructionRow` (keeps the ~24
+      state-derived props in GridItem). Imports GridItem's CSS module for `.instructionsList`/valid
+      -invalid drop-zone. Removed `Droppable`/`Draggable` from GridItem's rbd import (only
+      `DragDropContext` remains). Surgical (GridItem 39+/72−). tsc clean; grid 37/37.
 - [ ] `BlockCard` — one block: `BlockHeader` + `InstructionList`; **accepts params**
       (`blockData`, `index`, capability maps, all callbacks). This is the "Block is just a component
       that accepts params" the requester asked for.
