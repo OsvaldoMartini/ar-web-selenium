@@ -130,7 +130,10 @@
       "Bash(powershell -NoProfile -Command \"Get-Content -Path 'D:\\\\Projects\\\\ARWebBancaStato\\\\ARWeb\\\\Logs\\\\ar_web_scanner_base-2026-07-17.11.log' -Wait -Tail 0\")",
       "Bash(xargs head -20)",
       "Bash(mvn clean *)",
-      "Bash(echo \"MVN_EXIT=$?\")"
+      "Bash(echo \"MVN_EXIT=$?\")",
+      "PowerShell(Get-CimInstance *)",
+      "PowerShell($cands = @\\(54525,54524,8080,3000,9090\\); foreach\\($p in $cands\\){ try { $r=Invoke-WebRequest -Uri \\(\"http://localhost:{0}/\" -f $p\\) -TimeoutSec 2 -UseBasicParsing -ErrorAction Stop; $isAR = $r.Content -match 'AR Web|memoryListManager|main\\\\.'; Write-Output \\(\"PORT {0}: HTTP {1}  ARWeb={2}\" -f $p, $r.StatusCode, $isAR\\) } catch { Write-Output \\(\"PORT {0}: no response\" -f $p\\) } })",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/)"
     ]
   }
 }
