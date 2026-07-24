@@ -42,6 +42,8 @@ public final class PagesOpenWorkspaceService {
     private static final String AUTO_TEST_KIND = "AUTO_TEST";
     private static final long LAUNCH_PENDING_NANOS =
             java.util.concurrent.TimeUnit.SECONDS.toNanos(15);
+    private static final long FIXED_WORKSPACE_LAUNCH_PENDING_NANOS =
+            java.util.concurrent.TimeUnit.SECONDS.toNanos(15);
     private static final int MAX_REQUEST_ID_CHARACTERS = 160;
 
     private static final Set<String> STANDALONE_VISIBLE_SESSIONS = Set.of(
@@ -82,6 +84,9 @@ public final class PagesOpenWorkspaceService {
                     DetachedWorkspaceSessions.A_TEMPLATE_MANAGER,
                     new PagePresentation("TEMP", "TEMPLATE", "Detached workspace", false, true)),
             Map.entry(
+                    DetachedWorkspaceSessions.COMPONENTS_MANAGER,
+                    new PagePresentation("Components", "COMPONENTS", "Bot Job component library", false, true)),
+            Map.entry(
                     DetachedWorkspaceSessions.MEMORY_LIST_MANAGER,
                     new PagePresentation("Memory List", "MEMORY_LIST", "Detached workspace", false, true)),
             Map.entry(
@@ -101,6 +106,7 @@ public final class PagesOpenWorkspaceService {
             new DesktopWindowFocusService();
     private final Map<String, PageHandle> handlesByKey = new LinkedHashMap<>();
     private final Map<String, PageHandle> handlesById = new LinkedHashMap<>();
+    private final Map<String, Long> fixedWorkspaceLaunchPendingSince = new LinkedHashMap<>();
     private boolean autoTestOpen;
     private boolean launchPending;
     private long launchPendingSince;
@@ -109,6 +115,59 @@ public final class PagesOpenWorkspaceService {
 
     public static PagesOpenWorkspaceService getInstance() {
         return INSTANCE;
+    }
+
+    /**
+     * Opens one fixed detached workspace once, or raises its exact existing native window.
+     *
+     * <p>The short pending window prevents a rapid double click from launching two Chromium app
+     * windows before the first window has connected its authoritative WebSocket.
+     */
+    public synchronized boolean openOrFocusDetachedWorkspace(
+            String sessionId, int sourceBotJobId, String reason) {
+        if (!DetachedWorkspaceSessions.isDetachedWorkspaceSession(sessionId)
+                || !FIXED_PRESENTATIONS.containsKey(sessionId)) {
+            throw new IllegalArgumentException("A fixed detached workspace session is required.");
+        }
+
+        if (WebSocketSessionManager.isSessionOpen(sessionId)) {
+            fixedWorkspaceLaunchPendingSince.remove(sessionId);
+            focusSession(sessionId, reason);
+            return true;
+        }
+
+        long now = System.nanoTime();
+        Long pendingSince = fixedWorkspaceLaunchPendingSince.get(sessionId);
+        if (pendingSince != null
+                && now - pendingSince < FIXED_WORKSPACE_LAUNCH_PENDING_NANOS) {
+            return true;
+        }
+
+        fixedWorkspaceLaunchPendingSince.put(sessionId, now);
+        boolean launched = ARWebSocketServer.getInstance()
+                .openDetachedWorkspaceDesktopShell(sessionId, sourceBotJobId);
+        if (!launched) {
+            fixedWorkspaceLaunchPendingSince.remove(sessionId);
+        }
+        return launched;
+    }
+
+    /** Raises one exact fixed workspace using the same native focus handshake as a row click. */
+    public synchronized boolean focusSession(String sessionId, String reason) {
+        reconcileHandles();
+        PageHandle target = handlesByKey.get(sessionId);
+        if (target == null || !isCurrentHandle(target)) return false;
+        return focusHandle(target, reason).browserFocusRequested();
+    }
+
+    /** Requests that one detached window close itself without touching the main application. */
+    public synchronized boolean closeDetachedWorkspaceSession(String sessionId, String reason) {
+        reconcileHandles();
+        PageHandle target = handlesByKey.get(sessionId);
+        if (target == null || !isCurrentHandle(target) || target.presentation().main()) {
+            return false;
+        }
+        return sendWindowOperation(target, WORKSPACE_CLOSE_OPERATION, reason);
     }
 
     /** Opens or reuses the one fixed Pages Open detached workspace. */
@@ -353,6 +412,9 @@ public final class PagesOpenWorkspaceService {
         if (!WebSocketSessionManager.isSessionOpen(MAIN_DASHBOARD_SESSION)) {
             autoTestOpen = false;
         }
+        fixedWorkspaceLaunchPendingSince
+                .keySet()
+                .removeIf(WebSocketSessionManager::isSessionOpen);
         reconcileHandles();
         publishSnapshot();
     }

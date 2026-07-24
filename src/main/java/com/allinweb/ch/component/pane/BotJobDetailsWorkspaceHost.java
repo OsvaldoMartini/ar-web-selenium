@@ -32,6 +32,7 @@ import com.allinweb.ch.license.LicenseManager;
 import com.allinweb.ch.model.*;
 import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.socket.ARWebSocketServer;
+import com.allinweb.ch.socket.PagesOpenWorkspaceService;
 import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
@@ -1611,21 +1612,53 @@ public class BotJobDetailsWorkspaceHost {
             // retargeted from the new Bot Job.
             ARWebSocketServer.getInstance().closeActivePageScannerWorkspace();
         }
+        requestComponentsWorkspaceClose();
         reactSessionContext.deactivate(botJobId);
         for (String workspaceSession : List.of(
                 ScannerWorkspaceSessions.BOT_JOB_TASKS,
-                ScannerWorkspaceSessions.COMPONENT_TASKS,
                 preScanPayloadService.destinationSessionId())) {
             WebSocketSessionManager.closeSession(workspaceSession);
             botJobTransferPathRegistry.clear(workspaceSession, botJobId);
         }
+        botJobTransferPathRegistry.clear(ScannerWorkspaceSessions.COMPONENT_TASKS, botJobId);
     }
 
     private void showComponentsWorkspace() {
-        headlessSurface = "components";
+        // Components is an independent floating page. Keep Bot Job Details as the active surface
+        // so the originating window is never replaced by the component grid.
+        headlessSurface = "botJob";
         presentation().showSurface(
                 ScannerWorkspaceSessions.COMPONENT_TASKS,
                 reactContext(ScannerWorkspaceSessions.COMPONENT_TASKS));
+        boolean opened = PagesOpenWorkspaceService.getInstance().openOrFocusDetachedWorkspace(
+                ScannerWorkspaceSessions.COMPONENT_TASKS,
+                selectedBotJob.getId(),
+                "Bot Job Details requested the Components workspace.");
+        if (!opened) {
+            throw new IllegalStateException("The Components workspace could not be opened");
+        }
+    }
+
+    private void requestComponentsWorkspaceClose() {
+        String sessionId = ScannerWorkspaceSessions.COMPONENT_TASKS;
+        if (!WebSocketSessionManager.isSessionOpen(sessionId)) return;
+        boolean delivered = PagesOpenWorkspaceService.getInstance()
+                .closeDetachedWorkspaceSession(
+                        sessionId,
+                        "The active Bot Job Details workspace changed or closed.");
+        if (delivered) return;
+
+        JsonObject payload = new JsonObject();
+        payload.addProperty("sessionId", sessionId);
+        payload.addProperty("targetSessionId", sessionId);
+        payload.addProperty(
+                "reason",
+                "The active Bot Job Details workspace changed or closed.");
+        webSocketSessionManager.sendMessageJson(
+                -1,
+                sessionId,
+                gson.toJson(payload),
+                "application.workspaceClose");
     }
 
     private void showPreScanWorkspace() {
