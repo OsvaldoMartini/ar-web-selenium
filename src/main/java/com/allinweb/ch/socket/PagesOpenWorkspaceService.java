@@ -137,18 +137,22 @@ public final class PagesOpenWorkspaceService {
             launchPending = false;
             return failure(body, "Pages Open workspace could not be opened.");
         }
-        if (alreadyOpen) {
-            focusWorkspace();
-        }
+        FocusResult focusResult = alreadyOpen
+                ? focusWorkspace()
+                : FocusResult.notRequested();
 
         JsonObject response = snapshotResponse(
                 body,
                 alreadyOpen
-                        ? "Pages Open workspace already open."
+                        ? focusResult.nativeFocused()
+                                ? "Pages Open workspace brought to front."
+                                : "Pages Open workspace already open; focus requested."
                         : launchRequired
                                 ? "Pages Open workspace opened."
                                 : "Pages Open workspace is opening.");
         response.addProperty("alreadyOpen", alreadyOpen);
+        response.addProperty("browserFocusRequested", focusResult.browserFocusRequested());
+        response.addProperty("nativeFocused", focusResult.nativeFocused());
         return response;
     }
 
@@ -257,20 +261,13 @@ public final class PagesOpenWorkspaceService {
             return failure(body, "The selected page is no longer authoritative.");
         }
 
-        String nativeTitleToken = desktopWindowFocusService.createTitleToken();
-        boolean delivered = sendWindowOperation(
-                target,
-                WORKSPACE_FOCUS_OPERATION,
-                "Pages Open requested workspace focus.",
-                nativeTitleToken);
-        boolean nativeFocused = delivered
-                && desktopWindowFocusService.focusWindow(
-                        nativeTitleToken, Duration.ofMillis(1800));
+        FocusResult focusResult =
+                focusHandle(target, "Pages Open requested workspace focus.");
 
         JsonObject response;
-        if (nativeFocused) {
+        if (focusResult.nativeFocused()) {
             response = success(body, target.presentation().title() + " brought to front.");
-        } else if (delivered) {
+        } else if (focusResult.browserFocusRequested()) {
             response = success(
                     body,
                     target.presentation().title()
@@ -278,8 +275,9 @@ public final class PagesOpenWorkspaceService {
         } else {
             response = failure(body, target.presentation().title() + " could not be focused.");
         }
-        response.addProperty("nativeFocused", nativeFocused);
-        response.addProperty("browserFocusRequested", delivered);
+        response.addProperty("nativeFocused", focusResult.nativeFocused());
+        response.addProperty(
+                "browserFocusRequested", focusResult.browserFocusRequested());
         return response;
     }
 
@@ -632,11 +630,28 @@ public final class PagesOpenWorkspaceService {
         }
     }
 
-    private void focusWorkspace() {
-        Session target = WebSocketSessionManager.getSession(WORKSPACE_SESSION_ID);
-        if (target == null || !target.isOpen()) return;
-        WebSocketSessionManager.sendMessageJson(
-                -1, target, WORKSPACE_SESSION_ID, "{}", "pagesOpen.focus");
+    /**
+     * Uses the same native-window handshake as a Pages Open row click. A browser-only
+     * {@code window.focus()} is not sufficient when another detached desktop shell owns the
+     * Windows foreground.
+     */
+    private FocusResult focusWorkspace() {
+        reconcileHandles();
+        PageHandle target = handlesByKey.get(WORKSPACE_SESSION_ID);
+        if (target == null || !isCurrentHandle(target)) {
+            return FocusResult.notRequested();
+        }
+        return focusHandle(target, "Pages button requested Pages Open workspace focus.");
+    }
+
+    private FocusResult focusHandle(PageHandle target, String reason) {
+        String nativeTitleToken = desktopWindowFocusService.createTitleToken();
+        boolean delivered =
+                sendWindowOperation(target, WORKSPACE_FOCUS_OPERATION, reason, nativeTitleToken);
+        boolean nativeFocused = delivered
+                && desktopWindowFocusService.focusWindow(
+                        nativeTitleToken, Duration.ofMillis(1800));
+        return new FocusResult(delivered, nativeFocused);
     }
 
     private JsonObject snapshotResponse(JsonObject request, String message) {
@@ -719,6 +734,12 @@ public final class PagesOpenWorkspaceService {
             return presentation.equals(nextPresentation)
                     ? this
                     : new PageHandle(pageId, key, sessionId, transport, nextPresentation);
+        }
+    }
+
+    private record FocusResult(boolean browserFocusRequested, boolean nativeFocused) {
+        private static FocusResult notRequested() {
+            return new FocusResult(false, false);
         }
     }
 }
