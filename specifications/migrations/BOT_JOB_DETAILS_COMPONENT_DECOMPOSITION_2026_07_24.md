@@ -1,0 +1,167 @@
+# Bot Job Details — Component Decomposition Roadmap (GridItem.tsx) — 2026-07-24
+
+Status: **DRAFT for review.** Claude authored the initial roadmap; CODEX to review, correct, and
+increment ideas. No extraction has started yet. This is a shared CLAUDE ⇆ CODEX roadmap — update
+this file in place rather than forking a parallel plan.
+
+## Goal
+
+Break the monolithic **`abr-react-ts-grid/src/components/GridItem.tsx`** (the Bot Job Details
+instruction grid) into many **small, single-responsibility React/TypeScript components**, each in its
+own file with its **own `.module.scss`**, styles preserved exactly. The Block becomes a component
+that accepts params; rows, headers, menus, editors, and the find bar each become their own
+component. Once every piece is isolated, implement a **high-context native drag & drop** (the final
+phase) — easier and safer to reason about when each unit is small and owns its own handlers.
+
+Guiding principle from the requester: *"never is late to refactor."* Extract medium-sized code into
+individual components; separate as much as possible; one `.module.scss` per component; preserve all
+styles; drag & drop is the **last** task.
+
+## Premise / current state
+
+| Fact | Value |
+|---|---|
+| `GridItem.tsx` | **3,705 lines** — Bot Job Details instruction grid (blocks + instructions) |
+| `GridItem.module.scss` | **1,570 lines**, **209 classes** |
+| State hooks in `GridItem` | ~80 `useState` (blocks, instructions, memory, drag, find, collapse, execution, editing, excel, alerts) |
+| Drag today | react-beautiful-dnd (`DragDropContext`/`Droppable` per block/`Draggable` per instruction) → `onDragEnd(result)` |
+| Reorder logic | Already **decoupled** from rbd: Up/Down buttons build the same `result` and call `onDragEnd` (`GridItem.tsx:2146–2165`) |
+| Existing extraction pattern | `src/components/bot-job-details/` already holds ~15 components + `.module.scss` + tests (Chrome, Header, MetadataPanel, ExecutionControls, FileActions, DataActions, ComponentWorkspaceHeader, controller hook…) — **build on this** |
+| Memory List | Already decomposed + native drag done (see `CLAUDE_vs_CODEX_MIGRATION_CHECKS_2026_07_12.md`) — the template for this work |
+
+`GridItem.tsx` is the largest remaining un-decomposed screen. Everything else in Bot Job Details
+(header, metadata, toolbar, file/data actions) was already extracted by CODEX into `bot-job-details/`.
+
+## Non-negotiable principles
+
+1. **One component per file, one `.module.scss` per component.** No shared mega-scss. When a class
+   moves out of `GridItem.module.scss`, copy the exact rules (and any nested selectors it depends on)
+   into the new component's module — **byte-for-byte style preservation**. Visual parity is a
+   release gate.
+2. **Params-driven, presentational-first.** Extracted components receive data + callbacks via props;
+   they hold no WebSocket/business logic. State stays in `GridItem` (or a controller hook) and is
+   passed down. This keeps each extraction a pure, reviewable move.
+3. **Leaf-first extraction order.** Extract the innermost, lowest-risk pieces first (buttons, badges,
+   editors), then composites (row → list → block), then hoist state into a hook. Never extract a
+   parent before its children.
+4. **No behavior change per step.** Each phase is a mechanical move: same DOM, same classes, same
+   handlers wired the same way. `npx tsc --noEmit` clean + visual parity after every component.
+5. **Do not block other parts / minimal diff.** Only `GridItem` and the new files change per step.
+   Memory List, `bot-job-details/*`, and unrelated screens are untouched. rbd stays in
+   `package.json` (other files may still use it) until the last drag phase removes it from this tree.
+6. **Drag & drop is the FINAL phase.** Until then, the existing rbd drag keeps working unchanged.
+7. **Build discipline.** React only: after edits run `npm run build`, wipe
+   `ar-web-selenium/src/main/resources/build`, copy the fresh build in. **Do not build the Java
+   jar** (user owns that). Commit React with a `CLAUDE…`/`CODEX…` prefix per author; deployed build
+   with an `FE:` prefix; keep them separate commits.
+
+## Target folder structure
+
+```
+abr-react-ts-grid/src/components/bot-job-details/grid/
+  InstructionGrid.tsx / .module.scss        # thin orchestrator (was GridItem's render)
+  BlockCard.tsx / .module.scss              # ONE block, accepts params
+  BlockHeader.tsx / .module.scss            # active toggle, collapse, order#, name, up/down, delete, excel
+  BlockNameEditor.tsx / .module.scss        # inline block-name edit
+  BlockStatusToggle.tsx / .module.scss      # active/inactive image button
+  BlockCollapseToggle.tsx / .module.scss    # collapse badge (wraps existing CollapseToggleIcon)
+  InstructionList.tsx / .module.scss        # per-block list container (droppable in final phase)
+  InstructionRow.tsx / .module.scss         # ONE instruction row
+  InstructionDragHandle.tsx / .module.scss  # ≡ handle + Alt+Arrow keyboard move
+  InstructionNameEditor.tsx / .module.scss  # inline instruction-name edit
+  InstructionActionMenu.tsx / .module.scss  # per-row menu (edit, delete, add-to-memory, command editor, status)
+  InsertStepDropdown.tsx / .module.scss     # "Insert New Step" dropdown
+  ExecutionStateOverlay.tsx / .module.scss  # execution background overlay
+  FindBar.tsx / .module.scss                # find/search input + memory-move status
+  EmptyBlocksPlaceholder.tsx / .module.scss # "No blocks were created yet"
+  useInstructionGrid.ts                      # state + handlers controller hook (final hoist)
+  instructionGrid.types.ts                   # shared row/block prop types
+  __tests__/ …                               # one focused test per component
+```
+
+`GridItem.tsx` shrinks to a thin shell that mounts `<InstructionGrid …/>` (or is renamed), so
+existing imports keep working during the migration.
+
+## Phased task list
+
+Each `[ ]` = create the component **+ its own `.module.scss` (styles preserved) + a focused test**,
+`tsc` clean, visual parity, commit `CLAUDE…`/`CODEX…`. Build+deploy at the end of each phase.
+
+### Phase 1 — Leaf presentational (no state, props only) — lowest risk
+- [ ] `FindBar` — find input, clear, result count / memory-move status.
+- [ ] `BlockStatusToggle` — active/inactive image button (`handleBlockStatus` via prop).
+- [ ] `BlockCollapseToggle` — collapse badge wrapping existing `CollapseToggleIcon`.
+- [ ] `ExecutionStateOverlay` — execution background div keyed by `executionState`.
+- [ ] `EmptyBlocksPlaceholder` — the empty-groupedData block.
+
+### Phase 2 — Inline editors (controlled inputs)
+- [ ] `BlockNameEditor` — view/edit block name, Enter-to-save, blur handling.
+- [ ] `InstructionNameEditor` — view/edit instruction name.
+
+### Phase 3 — Menus / dropdowns
+- [ ] `InsertStepDropdown` — "Insert New Step" positioning (above/below) + actions.
+- [ ] `InstructionActionMenu` — per-row: edit, delete, add-to-memory, open command editor, status toggle.
+
+### Phase 4 — Instruction row
+- [ ] `InstructionDragHandle` — the `≡` button + Alt+Arrow keyboard move (`handleMoveRowUp/Down`).
+- [ ] `InstructionRow` — composes DragHandle + NameEditor + ActionMenu + ExecutionOverlay; receives
+      `instruction`, `index`, `capabilities`, and callbacks. IF/ELSEIF/ELSE/ENDIF highlight preserved.
+
+### Phase 5 — List + Block composites
+- [ ] `InstructionList` — per-block list; maps instructions → `InstructionRow`; owns the find-hide
+      per-row filter and the empty/insert placeholder.
+- [ ] `BlockCard` — one block: `BlockHeader` + `InstructionList`; **accepts params**
+      (`blockData`, `index`, capability maps, all callbacks). This is the "Block is just a component
+      that accepts params" the requester asked for.
+- [ ] `BlockHeader` — status toggle + collapse + order# + `BlockNameEditor` + up/down + delete +
+      excel file name.
+
+### Phase 6 — State controller hook (hoist logic out of the render)
+- [ ] `useInstructionGrid.ts` — move the ~80 `useState` + handlers into a controller hook returning a
+      typed view-model. `InstructionGrid`/`GridItem` become thin. WebSocket wiring stays here,
+      unchanged. Split into sub-hooks if it helps (`useBlockMutations`, `useInstructionMemory`,
+      `useInstructionFind`).
+- [ ] `instructionGrid.types.ts` — shared prop/row/block types consumed by all `grid/*` components.
+
+### Phase 7 — High-context native drag & drop (FINAL)
+With every unit isolated, swap rbd for native HTML5 drag (the proven Memory List approach), reusing
+the existing `onDragEnd(result)` and `ROW_MOVE`/`submitInstructionMove` verbatim.
+- [ ] `InstructionRow` gets native `draggable` + `onDragStart`/`onDragOver`/`onDrop`; `InstructionList`
+      (per block) is the drop zone; on drop, synthesize the rbd-shaped
+      `{ draggableId, source:{droppableId,index}, destination:{droppableId,index} }` and call the
+      existing `onDragEnd`. Cross-block + renumber logic unchanged.
+- [ ] Preserve `memoryCapabilities` move validation (`canMove`, `allowedBlockIds`) via `draggable={…}`
+      and by rejecting drops on disallowed blocks; preserve valid/invalid drop-zone highlighting.
+- [ ] Add `window.__gridReorder(instructionId, toBlockId, toIndex)` diagnostic hook + `[Grid][drag]`
+      step logs (mirroring `[MemoryList][drag]` / `window.__mlReorder`) for occluded-tab/automated
+      verification.
+- [ ] Remove `react-beautiful-dnd` from `GridItem`/`grid/*`. Drop the dependency from `package.json`
+      only once a repo-wide search shows no remaining importers.
+
+## Acceptance criteria (per phase and overall)
+
+- `npx tsc --noEmit` clean for all touched files (pre-existing `node_modules/i18next` TS errors are
+  unrelated and ignored).
+- **Visual parity**: the screen looks identical after each extraction (styles moved, not changed).
+- No behavior change until Phase 7; drag keeps working via the untouched `onDragEnd` throughout.
+- Each new component has a focused test (render + key interaction).
+- After Phase 7: drag/reorder within and across blocks works with a real mouse in the foreground
+  window; `window.__gridReorder` reorders in any tab state; capability validation still blocks
+  disallowed moves.
+- `GridItem.module.scss` shrinks toward empty as classes migrate; no orphaned/duplicated rules.
+
+## Review ledger (fill on each pass)
+
+| Reviewer | Status | Notes |
+|---|---|---|
+| Claude | Draft authored | Initial roadmap, folder plan, 7 phases, drag last. Awaiting CODEX review. |
+| CODEX | Pending | Review component boundaries, propose additional splits / sub-hooks, validate scss-split safety, confirm the Phase-7 native-drag contract matches `onDragEnd`. |
+
+## Open questions for CODEX
+
+- Should `grid/` live under `bot-job-details/` or as a sibling `instruction-grid/` folder?
+- Is a controller hook (Phase 6) preferred over a small context provider for the ~80 state values?
+- Any block/instruction rendering paths (nested IF/LOOP, EXCEL GOTO hidden rows) that need their own
+  component rather than living inside `InstructionRow`?
+- Should the scss split introduce a shared `grid/_tokens.scss` for colors/spacing, or keep each
+  module fully standalone (current principle #1)?
