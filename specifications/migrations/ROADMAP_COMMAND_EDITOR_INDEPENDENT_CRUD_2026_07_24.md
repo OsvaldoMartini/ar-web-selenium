@@ -1,7 +1,7 @@
 # Independent Command Editor CRUD Roadmap
 
 Date: 2026-07-24
-Status: Investigation complete; implementation not started
+Status: Phase 0 complete; Phase 3 non-empty Block/Instruction selection slice implemented
 
 ## Objective
 
@@ -23,11 +23,43 @@ This roadmap extends `ROADMAP_NEW_COMMAND_INLINE_REACT.md`. That document descri
 inline/floating command migration. The present document covers the newer detached-window,
 independent-selection, complete-CRUD requirement.
 
-## Immediate Finding: Why The Page Is Empty
+## Implementation Checkpoint - 2026-07-24
+
+The first deployable slice is implemented:
+
+- React consumes one complete `workspaceBootstrapResponse`/`workspaceTarget`/selection snapshot
+  without the detached child's redundant mount-time bootstrap.
+- The target ref is assigned synchronously with the rendered snapshot.
+- Loading, ready, empty, error, and Retry states are explicit.
+- Java returns every owner-scoped Block and Instruction, every current Web Field, the Java command
+  catalogue, variables, draft, graph revision, row capabilities, and selected IDs.
+- Production Instruction rows are enriched with Block name/order before deterministic sorting.
+- `commandEditor.select` validates the registered manager transport, active Bot Job/workspace,
+  organization, Block, Instruction, and Block membership.
+- Accepted selection rotates `bindingEpoch`, advances `selectionRevision`, and returns one complete
+  correlated snapshot. Failed or stale selection keeps the previous binding.
+- React Block/Instruction selectors send exactly one correlated selection request and ignore stale
+  request IDs, binding epochs, and snapshots.
+- Retargeting an already-open Command Editor validates the full snapshot before committing the new
+  binding.
+- Command Editor transport identity is derived from the registered WebSocket transport for every
+  `commandEditor.*` operation.
+- Focused React verification passed: 2 suites, 27 tests.
+- The production React build succeeded and was mirrored into `src/main/resources/build`
+  (`main.362b81d6.js`, `main.c23c7909.css`).
+- A focused Java unit test was added for owner validation, ordering, and Block enrichment. It was
+  not executed because this repository's standing rule prohibits Maven/Java builds and tests.
+
+This is not yet complete CRUD. The current selection contract requires a non-empty Block and a
+valid Instruction. Immutable direct-read repository work, historical-row classification,
+empty-Block append, typed delete preview/delete, deterministic recovery after external deletion,
+and two-way Bot Job Details/Page Scanner synchronization remain in the phases below.
+
+## Original Empty-Page Finding (Fixed In Phase 0)
 
 The database and Java bootstrap are not empty. The initial data is lost at the React boundary.
 
-Current sequence:
+Original failing sequence:
 
 1. `GridItem.tsx` sends `commandEditor.workspaceOpen` for one instruction.
 2. `CommandEditorWorkspaceService.open(...)` binds the singleton editor to that instruction.
@@ -60,7 +92,7 @@ Primary backend evidence:
 - `CommandEditorWorkspaceService.bootstrap(...)`, lines 156-179, already returns one merged payload.
 - `CommandEditorService.bootstrap(...)`, lines 104-142, already loads the available data.
 
-### Required P0 correction
+### Implemented P0 correction
 
 Use one atomic, typed `workspaceBootstrapResponse` to hydrate the page.
 

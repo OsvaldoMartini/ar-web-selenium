@@ -1491,7 +1491,7 @@ workspace with Block/Instruction selection, every Web Field, and every command.
 Detailed roadmap:
 `ROADMAP_COMMAND_EDITOR_INDEPENDENT_CRUD_2026_07_24.md`
 
-### Confirmed immediate defect
+### Confirmed immediate defect (fixed in the checkpoint below)
 
 - [x] Java already merges variables, Web Fields, Blocks, command definitions, the selected draft,
       graph revision, and capabilities into `commandEditor.workspaceBootstrapResponse`.
@@ -1502,7 +1502,7 @@ Detailed roadmap:
       silently skipped or carries a stale binding.
 - [x] `commands`, `webFields`, and `graphRevision` therefore remain empty and the command actions
       stay disabled.
-- [ ] P0 implementation: consume one atomic workspace snapshot, synchronize the target before child
+- [x] P0 implementation: consume one atomic workspace snapshot, synchronize the target before child
       use, remove the duplicate bootstrap dependency, and add loading/error/retry states.
 
 ### Confirmed independent-CRUD gaps
@@ -1520,7 +1520,9 @@ Detailed roadmap:
       read DTOs.
 - [x] Existing mutation paths require a transaction/generated-key/owner-scope audit before they can
       be called complete CRUD.
-- [x] No detached Command Editor hydration/lifecycle/realtime integration test currently exists.
+- [x] At investigation time no detached Command Editor hydration/lifecycle/realtime integration
+      test existed. The first-open and selection-correlation React coverage was added in the
+      implementation checkpoint below; lifecycle and two-way realtime integration remain open.
 
 ### Read-only data evidence
 
@@ -1531,16 +1533,41 @@ empty database.
 
 ### Agreed implementation order
 
-- [ ] Phase 0: fix first-open hydration and add a page-level regression test.
+- [x] Phase 0: fix first-open hydration and add a page-level regression test.
 - [ ] Phase 1: freeze the supported-command and historical-row classification.
 - [ ] Phase 2: return one immutable complete workspace snapshot.
-- [ ] Phase 3: add backend-authoritative Block/Instruction selection.
+- [ ] Phase 3: add backend-authoritative Block/Instruction selection. The non-empty
+      Block/Instruction slice is implemented; empty-Block selection and deletion recovery remain.
 - [ ] Phase 4: extract one owner-scoped transactional mutation foundation.
 - [ ] Phase 5: complete create/update, including empty-Block append.
 - [ ] Phase 6: add delete preview, confirmation, atomic delete, and selection recovery.
 - [ ] Phase 7: add two-way realtime snapshots across Command Editor, Bot Job Details, and Page
       Scanner.
 - [ ] Phase 8: finish UX, focused tests, React build, resource deployment, commit, and push.
+
+### Implementation checkpoint - 2026-07-24
+
+- [x] React hydrates target, Blocks, Instructions, Web Fields, command catalogue, variables, draft,
+      capabilities, and revisions from one complete workspace response.
+- [x] Detached page mode no longer sends the redundant child bootstrap.
+- [x] Added explicit loading, empty, error, and Retry states.
+- [x] Backend returns owner-filtered detached copies of all Blocks/Instructions, enriches
+      Instructions with production Block metadata, and sorts deterministically.
+- [x] Added `commandEditor.select` with registered-transport identity, active-workspace/owner
+      validation, Block membership validation, request correlation, `bindingEpoch` rotation, and
+      `selectionRevision`.
+- [x] Added Block/Instruction selectors and stale request/binding/snapshot rejection in React.
+- [x] Failed selections and failed retarget snapshots preserve the previous backend binding.
+- [x] Focused React result: 2 suites and 27 tests passed.
+- [x] React production build succeeded and was mirrored to backend resources as
+      `main.362b81d6.js` and `main.c23c7909.css`.
+- [x] Added focused Java source coverage for ordering, Block enrichment, and owner validation.
+      Maven/Java execution was intentionally not run under the repository standing rule.
+- [ ] Phase-2 immutable direct-read repository remains open. This slice reduces shared-list risk
+      with immediate owner-filtered detached copies but does not claim a transactional immutable
+      multi-table snapshot.
+- [ ] Empty-Block append, typed delete preview/delete, selection recovery, and two-way external
+      mutation synchronization remain open.
 
 ### Decisions
 

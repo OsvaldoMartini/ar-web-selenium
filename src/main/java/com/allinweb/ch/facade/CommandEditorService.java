@@ -24,6 +24,7 @@ import java.util.Comparator;
 import java.util.Deque;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 
@@ -76,29 +77,143 @@ public final class CommandEditorService {
             throw new IllegalArgumentException(error.getErrorMessage());
         }
 
-        InstructionLoad resolved = lists.getListInstruction().stream()
+        List<InstructionLoad> instructionRows =
+                ownerInstructionCopies(targetSessionId, botJobId);
+        InstructionLoad selected = instructionRows.stream()
                 .filter(row -> row != null
                         && row.getId() != null
                         && row.getId() == instructionId)
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException(
                         "The selected instruction is no longer available. Refresh Bot Job Details."));
-        if (resolved.getBotJobId() != null && resolved.getBotJobId() != botJobId) {
-            throw new IllegalArgumentException("The selected instruction does not belong to this Bot Job.");
-        }
-        if (homeBankingId > 0
-                && resolved.getHomeBankingId() != null
-                && resolved.getHomeBankingId() > 0
-                && resolved.getHomeBankingId() != homeBankingId) {
-            throw new IllegalArgumentException("The selected instruction does not belong to this organization.");
-        }
-        if (resolved.getBlockId() == null || resolved.getBlockId() <= 0) {
+        if (selected.getBlockId() == null || selected.getBlockId() <= 0) {
             throw new IllegalArgumentException("The selected instruction has no valid Block.");
         }
 
-        // The PerformLists rows are shared mutable view state. Return a detached copy so a later
-        // reload cannot silently alter a workspace binding that is being validated.
-        return gson.fromJson(gson.toJson(resolved), InstructionLoad.class);
+        error = database.loadBlocks(botJobId, "", "block");
+        if (error != null) {
+            throw new IllegalArgumentException(error.getErrorMessage());
+        }
+        List<BlockLoadDTO> blockRows =
+                ownerBlockCopies(targetSessionId, botJobId);
+        InstructionLoad resolved = resolveSelectionFromRows(
+                blockRows,
+                instructionRows,
+                botJobId,
+                homeBankingId,
+                selected.getBlockId(),
+                instructionId);
+        return enrichAndOrderInstructions(
+                        List.of(gson.fromJson(gson.toJson(resolved), InstructionLoad.class)),
+                        blockRows)
+                .get(0);
+    }
+
+    /**
+     * Resolves an instruction and its Block as one owner-scoped Command Editor selection.
+     *
+     * <p>The detached page is allowed to change its selection, but it is never allowed to assert
+     * ownership by sending IDs. Both collections are reloaded for the active Bot Job and the
+     * submitted Instruction must belong to the submitted Block.
+     */
+    public InstructionLoad resolveSelection(
+            String targetSessionId,
+            int botJobId,
+            int homeBankingId,
+            int blockId,
+            int instructionId) {
+        if (!ScannerWorkspaceSessions.BOT_JOB_TASKS.equals(targetSessionId)) {
+            throw new IllegalArgumentException("The Command Editor target session is not supported.");
+        }
+        if (botJobId <= 0 || blockId <= 0 || instructionId <= 0) {
+            throw new IllegalArgumentException(
+                    "A valid Bot Job, Block, and Instruction are required.");
+        }
+
+        ErrorMessage error = database.loadInstructions(botJobId, -1, -1, "instruction");
+        if (error == null) {
+            error = database.loadBlocks(botJobId, "", "block");
+        }
+        if (error != null) {
+            throw new IllegalArgumentException(error.getErrorMessage());
+        }
+
+        List<BlockLoadDTO> blockRows =
+                ownerBlockCopies(targetSessionId, botJobId);
+        List<InstructionLoad> instructionRows =
+                ownerInstructionCopies(targetSessionId, botJobId);
+        InstructionLoad resolved = resolveSelectionFromRows(
+                blockRows,
+                instructionRows,
+                botJobId,
+                homeBankingId,
+                blockId,
+                instructionId);
+        InstructionLoad detached =
+                gson.fromJson(gson.toJson(resolved), InstructionLoad.class);
+        return enrichAndOrderInstructions(List.of(detached), blockRows)
+                .get(0);
+    }
+
+    static InstructionLoad resolveSelectionFromRows(
+            List<BlockLoadDTO> blocks,
+            List<InstructionLoad> instructionRows,
+            int botJobId,
+            int homeBankingId,
+            int blockId,
+            int instructionId) {
+        BlockLoadDTO block = blocks == null
+                ? null
+                : blocks.stream()
+                        .filter(row -> row != null
+                                && row.getId() != null
+                                && row.getId() == blockId)
+                        .findFirst()
+                        .orElse(null);
+        if (block == null) {
+            throw new IllegalArgumentException(
+                    "The selected Block is no longer available. Refresh the Command Editor.");
+        }
+        if (!Objects.equals(block.getBotJobId(), botJobId)) {
+            throw new IllegalArgumentException(
+                    "The selected Block does not belong to this Bot Job.");
+        }
+        if (homeBankingId > 0
+                && block.getHomeBankingId() != null
+                && block.getHomeBankingId() > 0
+                && block.getHomeBankingId() != homeBankingId) {
+            throw new IllegalArgumentException(
+                    "The selected Block does not belong to this organization.");
+        }
+
+        InstructionLoad instruction = instructionRows == null
+                ? null
+                : instructionRows.stream()
+                        .filter(row -> row != null
+                                && row.getId() != null
+                                && row.getId() == instructionId)
+                        .findFirst()
+                        .orElse(null);
+        if (instruction == null) {
+            throw new IllegalArgumentException(
+                    "The selected instruction is no longer available. Refresh the Command Editor.");
+        }
+        if (!Objects.equals(instruction.getBotJobId(), botJobId)) {
+            throw new IllegalArgumentException(
+                    "The selected instruction does not belong to this Bot Job.");
+        }
+        if (homeBankingId > 0
+                && instruction.getHomeBankingId() != null
+                && instruction.getHomeBankingId() > 0
+                && instruction.getHomeBankingId() != homeBankingId) {
+            throw new IllegalArgumentException(
+                    "The selected instruction does not belong to this organization.");
+        }
+        if (instruction.getBlockId() == null || instruction.getBlockId() != blockId) {
+            throw new IllegalArgumentException(
+                    "The selected instruction does not belong to the selected Block.");
+        }
+        return instruction;
     }
 
     public JsonObject bootstrap(JsonObject body) {
@@ -110,36 +225,133 @@ public final class CommandEditorService {
                 : integer(body, "botJobId", -1);
         String variableTable = componentSession ? "component_variable" : "variable";
         String blockTable = componentSession ? "component_block" : "block";
-        int instructionId = integer(body, "instructionId", -1);
-        String instructionName = string(body, "instructionName", "");
+        int instructionId = integer(
+                body,
+                "selectedInstructionId",
+                integer(body, "instructionId", -1));
 
         ErrorMessage error = database.loadInstructions(
                 whereId, -1, -1, componentSession ? "component_instruction" : "instruction");
+        List<InstructionLoad> loadedInstructions =
+                error == null ? ownerInstructionCopies(sessionId, whereId) : List.of();
         if (error == null) error = database.loadBlocks(whereId, "", blockTable);
+        List<BlockLoadDTO> orderedBlocks = error == null
+                ? orderedBlocks(ownerBlockCopies(sessionId, whereId))
+                : List.of();
+        List<InstructionLoad> orderedInstructions =
+                enrichAndOrderInstructions(loadedInstructions, orderedBlocks);
+        InstructionLoad selectedInstruction = orderedInstructions.stream()
+                .filter(row -> row.getId() != null && row.getId() == instructionId)
+                .findFirst()
+                .orElse(null);
+        int selectedBlockId = selectedInstruction != null
+                        && selectedInstruction.getBlockId() != null
+                ? selectedInstruction.getBlockId()
+                : integer(body, "selectedBlockId", integer(body, "blockId", -1));
 
         response.addProperty("ok", error == null);
         response.add("variables", loadVariables(variableTable, whereId));
-        response.add("webFields", webFields(sessionId));
-        response.add("blocks", gson.toJsonTree(
-                componentSession ? lists.getListBlockComp() : lists.getListBlock()));
+        response.add("webFields", webFields(orderedInstructions));
+        response.add("blocks", gson.toJsonTree(orderedBlocks));
+        response.add("instructions", gson.toJsonTree(orderedInstructions));
+        response.addProperty("selectedBlockId", selectedBlockId);
+        response.addProperty(
+                "selectedInstructionId",
+                selectedInstruction == null ? -1 : selectedInstruction.getId());
         boolean excelGotoConflict = excelGotoExists(
                 sessionId,
                 integer(body, "botJobId", -1),
                 integer(body, "homeBankingId", -1),
                 instructionId);
         response.add("commands", capabilityService.catalog(string(body, "instructionActions", ""), excelGotoConflict));
-        response.addProperty("graphRevision", graphRevision(sessionId));
+        response.addProperty("graphRevision", revisionService.revision(orderedInstructions));
         JsonObject rowCapabilities = new JsonObject();
-        rowCapabilities.addProperty("canInsertElseIf", canInsertElseIf(sessionId, instructionId));
-        rowCapabilities.addProperty("canSplit", canSplit(sessionId, instructionId));
+        rowCapabilities.addProperty(
+                "canInsertElseIf", canInsertElseIf(orderedInstructions, instructionId));
+        rowCapabilities.addProperty(
+                "canSplit",
+                !componentSession && canSplit(orderedInstructions, instructionId));
         response.add("rowCapabilities", rowCapabilities);
-        instructions(sessionId).stream()
-                .filter(row -> row != null && row.getId() != null && row.getId() == instructionId)
+        orderedInstructions.stream()
+                .filter(row -> row.getId() != null && row.getId() == instructionId)
                 .findFirst()
                 .filter(row -> CommandRegistry.isEditableCommand(row.getActions()))
                 .ifPresent(row -> response.add("draft", operationCodec.decode(row)));
         if (error != null) response.addProperty("error", error.getErrorMessage());
         return response;
+    }
+
+    static List<InstructionLoad> orderedInstructions(List<InstructionLoad> rows) {
+        if (rows == null) return List.of();
+        return rows.stream()
+                .filter(java.util.Objects::nonNull)
+                .sorted(Comparator
+                        .comparingInt((InstructionLoad row) ->
+                                value(row.getBlockOrderNumber(), Integer.MAX_VALUE))
+                        .thenComparingInt(row ->
+                                value(row.getBlockId(), Integer.MAX_VALUE))
+                        .thenComparingInt(row ->
+                                value(row.getInstructionOrderNumber(), Integer.MAX_VALUE))
+                        .thenComparingInt(row ->
+                                value(row.getId(), Integer.MAX_VALUE)))
+                .toList();
+    }
+
+    static List<BlockLoadDTO> orderedBlocks(List<BlockLoadDTO> rows) {
+        if (rows == null) return List.of();
+        return rows.stream()
+                .filter(java.util.Objects::nonNull)
+                .sorted(Comparator
+                        .comparingInt((BlockLoadDTO row) ->
+                                value(row.getBlockOrderNumber(), Integer.MAX_VALUE))
+                        .thenComparingInt(row -> value(row.getId(), Integer.MAX_VALUE)))
+                .toList();
+    }
+
+    private List<InstructionLoad> ownerInstructionCopies(
+            String sessionId, int ownerId) {
+        boolean componentSession = isComponentSession(sessionId);
+        return instructions(sessionId).stream()
+                .filter(Objects::nonNull)
+                .filter(row -> componentSession
+                        ? Objects.equals(row.getHomeBankingId(), ownerId)
+                        : Objects.equals(row.getBotJobId(), ownerId))
+                .map(row -> gson.fromJson(gson.toJson(row), InstructionLoad.class))
+                .toList();
+    }
+
+    private List<BlockLoadDTO> ownerBlockCopies(String sessionId, int ownerId) {
+        boolean componentSession = isComponentSession(sessionId);
+        List<BlockLoadDTO> source =
+                componentSession ? lists.getListBlockComp() : lists.getListBlock();
+        return source.stream()
+                .filter(Objects::nonNull)
+                .filter(row -> componentSession
+                        ? Objects.equals(row.getHomeBankingId(), ownerId)
+                        : Objects.equals(row.getBotJobId(), ownerId))
+                .map(row -> gson.fromJson(gson.toJson(row), BlockLoadDTO.class))
+                .toList();
+    }
+
+    static List<InstructionLoad> enrichAndOrderInstructions(
+            List<InstructionLoad> instructionRows, List<BlockLoadDTO> blockRows) {
+        Map<Integer, BlockLoadDTO> blocksById = new LinkedHashMap<>();
+        if (blockRows != null) {
+            blockRows.stream()
+                    .filter(row -> row != null && row.getId() != null)
+                    .forEach(row -> blocksById.put(row.getId(), row));
+        }
+        if (instructionRows != null) {
+            instructionRows.stream()
+                    .filter(Objects::nonNull)
+                    .forEach(row -> {
+                        BlockLoadDTO block = blocksById.get(row.getBlockId());
+                        if (block == null) return;
+                        row.setBlockName(block.getName());
+                        row.setBlockOrderNumber(block.getBlockOrderNumber());
+                    });
+        }
+        return orderedInstructions(instructionRows);
     }
 
     public JsonObject memoryCapabilities(JsonObject body) {
@@ -411,10 +623,7 @@ public final class CommandEditorService {
         return null;
     }
 
-    private JsonArray webFields(String sessionId) {
-        List<InstructionLoad> instructions = isComponentSession(sessionId)
-                ? lists.getListInstructionComp()
-                : lists.getListInstruction();
+    private JsonArray webFields(List<InstructionLoad> instructions) {
         JsonArray rows = new JsonArray();
         for (InstructionLoad instruction : instructions) {
             if (instruction == null || instruction.getId() == null || isSpecialAction(instruction.getActions())) continue;
@@ -1016,12 +1225,17 @@ public final class CommandEditorService {
     }
 
     private boolean canInsertElseIf(String sessionId, int instructionId) {
-        InstructionLoad selected = instructions(sessionId).stream()
+        return canInsertElseIf(instructions(sessionId), instructionId);
+    }
+
+    private boolean canInsertElseIf(
+            List<InstructionLoad> instructionRows, int instructionId) {
+        InstructionLoad selected = instructionRows.stream()
                 .filter(row -> row != null && row.getId() != null && row.getId() == instructionId)
                 .findFirst()
                 .orElse(null);
         if (selected == null || selected.getBlockId() == null) return false;
-        List<InstructionLoad> blockRows = instructions(sessionId).stream()
+        List<InstructionLoad> blockRows = instructionRows.stream()
                 .filter(row -> row != null && selected.getBlockId().equals(row.getBlockId()))
                 .sorted(Comparator.comparingInt(row -> row.getInstructionOrderNumber() == null
                         ? Integer.MAX_VALUE
@@ -1043,12 +1257,16 @@ public final class CommandEditorService {
 
     private boolean canSplit(String sessionId, int instructionId) {
         if (isComponentSession(sessionId)) return false;
-        InstructionLoad selected = instructions(sessionId).stream()
+        return canSplit(instructions(sessionId), instructionId);
+    }
+
+    private boolean canSplit(List<InstructionLoad> instructionRows, int instructionId) {
+        InstructionLoad selected = instructionRows.stream()
                 .filter(row -> row != null && row.getId() != null && row.getId() == instructionId)
                 .findFirst()
                 .orElse(null);
         if (selected == null || selected.getBlockId() == null) return false;
-        List<InstructionLoad> blockRows = instructions(sessionId).stream()
+        List<InstructionLoad> blockRows = instructionRows.stream()
                 .filter(row -> row != null && selected.getBlockId().equals(row.getBlockId()))
                 .sorted(Comparator.comparingInt(row -> row.getInstructionOrderNumber() == null
                         ? Integer.MAX_VALUE
@@ -1209,6 +1427,10 @@ public final class CommandEditorService {
         } catch (Exception ignored) {
             return fallback;
         }
+    }
+
+    private static int value(Integer value, int fallback) {
+        return value == null ? fallback : value;
     }
 
     private static Integer nullableInteger(JsonObject body, String key) {

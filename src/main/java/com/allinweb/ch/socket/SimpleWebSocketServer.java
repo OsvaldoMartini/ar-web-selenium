@@ -99,6 +99,7 @@ public class SimpleWebSocketServer {
     private static final Set<String> DETACHED_COMMAND_EDITOR_OPERATIONS = Set.of(
             "commandEditor.workspaceBootstrap",
             "commandEditor.bootstrap",
+            "commandEditor.select",
             "commandEditor.apply",
             "commandEditor.insertElseIf",
             "instructionGraph.previewSplit",
@@ -380,8 +381,8 @@ public class SimpleWebSocketServer {
             boolean memoryListOperation = type.startsWith("memoryList.");
             boolean pagesOpenOperation = type.startsWith("pagesOpen.");
             boolean configOperation = type.startsWith("config.");
-            boolean commandEditorWorkspaceOperation =
-                    type.startsWith("commandEditor.workspace");
+            boolean commandEditorOperation =
+                    type.startsWith("commandEditor.");
             boolean detachedCommandEditorTransport =
                     CommandEditorWorkspaceService.isWorkspaceSession(transportSessionId);
             String sessionId = ocrWorkspaceOperation
@@ -391,7 +392,7 @@ public class SimpleWebSocketServer {
                              || memoryListOperation
                              || pagesOpenOperation
                              || configOperation
-                             || commandEditorWorkspaceOperation
+                             || commandEditorOperation
                              || detachedCommandEditorTransport
                     ? transportSessionId
                     : claimedSessionId;
@@ -759,6 +760,16 @@ public class SimpleWebSocketServer {
                             "commandEditor.workspaceBootstrapResponse",
                             commandEditorWorkspaceService.bootstrap(
                                     commandWorkspaceBody, sessionId, session));
+                    break;
+                }
+                case "commandEditor.select": {
+                    JsonObject commandSelectBody = extractBody(jsonObjMSG);
+                    sendCommandEditorResponse(
+                            homeBankingId,
+                            sessionId,
+                            "commandEditor.selectResponse",
+                            commandEditorWorkspaceService.select(
+                                    commandSelectBody, sessionId, session));
                     break;
                 }
                 case "commandEditor.bootstrap": {

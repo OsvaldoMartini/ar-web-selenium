@@ -100,8 +100,16 @@ public final class CommandEditorWorkspaceService {
             // This makes late replies from the previous panel view harmless and forces the
             // detached page to reload authoritative row/graph metadata.
             String bindingEpoch = UUID.randomUUID().toString();
+            long selectionRevision = previous != null
+                            && previous.sourceTransport() == requesterTransport
+                            && previous.sourceSessionId().equals(targetSessionId)
+                            && previous.botJobId() == workspace.botJobId()
+                            && previous.botJobWorkspaceEpoch() == workspace.workspaceEpoch()
+                    ? previous.selectionRevision() + 1
+                    : 1L;
             Binding next = new Binding(
                     bindingEpoch,
+                    selectionRevision,
                     targetSessionId,
                     requesterTransport,
                     workspace.workspaceEpoch(),
@@ -110,25 +118,38 @@ public final class CommandEditorWorkspaceService {
                     workspace.name(),
                     instructionId,
                     instruction);
+            JsonObject nextSnapshot = loadSnapshot(next);
             binding = next;
 
             boolean alreadyOpen =
                     WebSocketSessionManager.isSessionOpen(WORKSPACE_SESSION_ID);
-            boolean opened = pagesOpenWorkspaceService.openOrFocusDetachedWorkspace(
-                    WORKSPACE_SESSION_ID,
-                    workspace.botJobId(),
-                    "An instruction requested the Command Editor.");
+            boolean opened;
+            try {
+                opened = pagesOpenWorkspaceService.openOrFocusDetachedWorkspace(
+                        WORKSPACE_SESSION_ID,
+                        workspace.botJobId(),
+                        "An instruction requested the Command Editor.");
+            } catch (RuntimeException error) {
+                binding = previous;
+                throw error;
+            }
             if (!opened) {
                 binding = previous;
                 return failure(request, "The Command Editor workspace could not be opened.");
             }
 
             if (alreadyOpen) {
-                publishTarget(
-                        next,
-                        sameTarget
-                                ? "Command Editor target refreshed."
-                                : "Command Editor target changed.");
+                try {
+                    publishTarget(
+                            next,
+                            sameTarget
+                                    ? "Command Editor target refreshed."
+                                    : "Command Editor target changed.",
+                            nextSnapshot);
+                } catch (RuntimeException error) {
+                    binding = previous;
+                    throw error;
+                }
             }
 
             JsonObject response = targetPayload(
@@ -170,9 +191,8 @@ public final class CommandEditorWorkspaceService {
             }
 
             Binding current = refreshBinding(binding);
+            JsonObject editorBootstrap = loadSnapshot(current);
             binding = current;
-            JsonObject canonical = canonicalIdentity(request, current);
-            JsonObject editorBootstrap = commandEditorService.bootstrap(canonical);
             JsonObject response = targetPayload(current, "Command Editor loaded.");
             merge(response, editorBootstrap);
             correlate(request, response);
@@ -183,6 +203,77 @@ public final class CommandEditorWorkspaceService {
             log.error("Unable to bootstrap the detached Command Editor", error);
             return failureForCurrentBinding(
                     request, "The Command Editor could not load its instruction.");
+        }
+    }
+
+    /**
+     * Changes the detached editor selection inside its already-authorized active Bot Job.
+     *
+     * <p>A successful selection rotates {@code bindingEpoch}. All late command mutations created
+     * for the previous row are consequently refused, while a failed selection leaves the previous
+     * binding fully usable.
+     */
+    public synchronized JsonObject select(
+            JsonObject body, String requesterSessionId, Session requesterTransport) {
+        JsonObject request = body == null ? new JsonObject() : body;
+        try {
+            requireManagerTransport(requesterSessionId, requesterTransport);
+            if (binding == null) {
+                throw new IllegalArgumentException(
+                        "The Command Editor has no active instruction target.");
+            }
+            String requestedEpoch = string(request, "bindingEpoch", "");
+            if (requestedEpoch.isBlank()) {
+                throw new IllegalArgumentException(
+                        "Command Editor binding is required. Reload the current selection.");
+            }
+            if (!requestedEpoch.equals(binding.bindingEpoch())) {
+                throw new IllegalArgumentException(
+                        "The Command Editor target changed. Reload the current selection.");
+            }
+            long requestedSelectionRevision =
+                    longValue(request, "selectionRevision", 0L);
+            if (requestedSelectionRevision > 0
+                    && requestedSelectionRevision != binding.selectionRevision()) {
+                throw new IllegalArgumentException(
+                        "The Command Editor selection changed. Reload the current selection.");
+            }
+
+            Binding current = refreshBinding(binding);
+            binding = current;
+            int selectedBlockId = integer(
+                    request,
+                    "selectedBlockId",
+                    integer(request, "blockId", -1));
+            int selectedInstructionId = integer(
+                    request,
+                    "selectedInstructionId",
+                    integer(request, "instructionId", -1));
+            InstructionLoad selectedInstruction = commandEditorService.resolveSelection(
+                    current.sourceSessionId(),
+                    current.botJobId(),
+                    current.homeBankingId(),
+                    selectedBlockId,
+                    selectedInstructionId);
+
+            Binding next = current.withSelection(
+                    UUID.randomUUID().toString(),
+                    current.selectionRevision() + 1,
+                    selectedInstruction);
+            JsonObject editorBootstrap = loadSnapshot(next);
+
+            JsonObject response = targetPayload(
+                    next, "Command Editor selection changed.");
+            merge(response, editorBootstrap);
+            correlate(request, response);
+            binding = next;
+            return response;
+        } catch (IllegalArgumentException error) {
+            return failureForCurrentBinding(request, error.getMessage());
+        } catch (RuntimeException error) {
+            log.error("Unable to select the detached Command Editor target", error);
+            return failureForCurrentBinding(
+                    request, "The Command Editor selection could not be loaded.");
         }
     }
 
@@ -206,6 +297,13 @@ public final class CommandEditorWorkspaceService {
         if (!requestedEpoch.equals(binding.bindingEpoch())) {
             throw new IllegalArgumentException(
                     "The Command Editor target changed. Reload the current selection.");
+        }
+        long requestedSelectionRevision =
+                longValue(request, "selectionRevision", 0L);
+        if (requestedSelectionRevision > 0
+                && requestedSelectionRevision != binding.selectionRevision()) {
+            throw new IllegalArgumentException(
+                    "The Command Editor selection changed. Reload the current selection.");
         }
 
         Binding current = refreshBinding(binding);
@@ -385,15 +483,19 @@ public final class CommandEditorWorkspaceService {
         canonical.addProperty("botJobId", current.botJobId());
         canonical.addProperty("botJobName", current.botJobName());
         canonical.addProperty("instructionId", current.instructionId());
+        canonical.addProperty("selectedInstructionId", current.instructionId());
         canonical.addProperty("instructionName", safe(instruction.getName()));
         canonical.addProperty("instructionActions", safe(instruction.getActions()));
         canonical.addProperty("blockId", value(instruction.getBlockId(), -1));
+        canonical.addProperty(
+                "selectedBlockId", value(instruction.getBlockId(), -1));
         canonical.addProperty("blockName", safe(instruction.getBlockName()));
         canonical.addProperty(
                 "blockOrderNumber", value(instruction.getBlockOrderNumber(), 1));
         canonical.addProperty(
                 "instructionOrderNumber",
                 value(instruction.getInstructionOrderNumber(), 1));
+        canonical.addProperty("selectionRevision", current.selectionRevision());
         return canonical;
     }
 
@@ -402,23 +504,109 @@ public final class CommandEditorWorkspaceService {
         response.addProperty("ok", true);
         response.addProperty("message", message);
         response.addProperty("bindingEpoch", current.bindingEpoch());
+        response.addProperty("selectionRevision", current.selectionRevision());
         response.addProperty("targetSessionId", current.sourceSessionId());
         response.addProperty("workspaceEpoch", current.botJobWorkspaceEpoch());
         response.addProperty("homeBankingId", current.homeBankingId());
         response.addProperty("botJobId", current.botJobId());
         response.addProperty("botJobName", current.botJobName());
+        response.addProperty(
+                "selectedBlockId", value(current.instruction().getBlockId(), -1));
+        response.addProperty("selectedInstructionId", current.instructionId());
         response.add("instruction", gson.toJsonTree(current.instruction()));
         return response;
     }
 
-    private void publishTarget(Binding current, String message) {
+    private void publishTarget(
+            Binding current, String message, JsonObject editorBootstrap) {
         if (!WebSocketSessionManager.isSessionOpen(WORKSPACE_SESSION_ID)) return;
         JsonObject payload = targetPayload(current, message);
+        merge(payload, editorBootstrap);
         sessions.sendMessageJson(
                 current.homeBankingId(),
                 WORKSPACE_SESSION_ID,
                 gson.toJson(payload),
                 TARGET_OPERATION);
+    }
+
+    private JsonObject loadSnapshot(Binding current) {
+        BotJobDetailsWorkspaceRegistry.Snapshot before = workspaceRegistry.require(
+                current.botJobId(), current.botJobWorkspaceEpoch());
+        if (before.homeBankingId() != current.homeBankingId()) {
+            throw new IllegalArgumentException(
+                    "The active Bot Job organization changed. Reopen the Command Editor.");
+        }
+
+        JsonObject snapshot = commandEditorService.bootstrap(
+                canonicalIdentity(new JsonObject(), current));
+        if (!snapshot.has("ok") || !snapshot.get("ok").getAsBoolean()) {
+            String message = snapshot.has("error")
+                    && !snapshot.get("error").isJsonNull()
+                    ? snapshot.get("error").getAsString()
+                    : "The Command Editor workspace could not be loaded.";
+            throw new IllegalArgumentException(message);
+        }
+        int selectedBlockId = integer(snapshot, "selectedBlockId", -1);
+        int selectedInstructionId =
+                integer(snapshot, "selectedInstructionId", -1);
+        if (selectedBlockId
+                        != value(current.instruction().getBlockId(), -1)
+                || selectedInstructionId != current.instructionId()) {
+            throw new IllegalArgumentException(
+                    "The selected instruction changed while the Command Editor was loading. Refresh and try again.");
+        }
+        if (!containsRowId(snapshot, "blocks", selectedBlockId)
+                || !containsInstruction(
+                        snapshot,
+                        selectedBlockId,
+                        selectedInstructionId)) {
+            throw new IllegalArgumentException(
+                    "The selected Block or instruction changed while the Command Editor was loading. Refresh and try again.");
+        }
+
+        BotJobDetailsWorkspaceRegistry.Snapshot after = workspaceRegistry.require(
+                current.botJobId(), current.botJobWorkspaceEpoch());
+        if (after.homeBankingId() != current.homeBankingId()) {
+            throw new IllegalArgumentException(
+                    "The active Bot Job organization changed. Reopen the Command Editor.");
+        }
+        return snapshot;
+    }
+
+    private static boolean containsRowId(
+            JsonObject snapshot, String collectionName, int expectedId) {
+        if (snapshot == null
+                || !snapshot.has(collectionName)
+                || !snapshot.get(collectionName).isJsonArray()) {
+            return false;
+        }
+        for (JsonElement element : snapshot.getAsJsonArray(collectionName)) {
+            if (element != null
+                    && element.isJsonObject()
+                    && integer(element.getAsJsonObject(), "id", -1)
+                            == expectedId) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean containsInstruction(
+            JsonObject snapshot, int expectedBlockId, int expectedInstructionId) {
+        if (snapshot == null
+                || !snapshot.has("instructions")
+                || !snapshot.get("instructions").isJsonArray()) {
+            return false;
+        }
+        for (JsonElement element : snapshot.getAsJsonArray("instructions")) {
+            if (element == null || !element.isJsonObject()) continue;
+            JsonObject row = element.getAsJsonObject();
+            if (integer(row, "id", -1) == expectedInstructionId
+                    && integer(row, "blockId", -1) == expectedBlockId) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static void merge(JsonObject target, JsonObject source) {
@@ -540,6 +728,7 @@ public final class CommandEditorWorkspaceService {
 
     private record Binding(
             String bindingEpoch,
+            long selectionRevision,
             String sourceSessionId,
             Session sourceTransport,
             long botJobWorkspaceEpoch,
@@ -553,6 +742,7 @@ public final class CommandEditorWorkspaceService {
                 String refreshedBotJobName, InstructionLoad refreshedInstruction) {
             return new Binding(
                     bindingEpoch,
+                    selectionRevision,
                     sourceSessionId,
                     sourceTransport,
                     botJobWorkspaceEpoch,
@@ -566,6 +756,7 @@ public final class CommandEditorWorkspaceService {
         private Binding withBindingEpoch(String refreshedBindingEpoch) {
             return new Binding(
                     refreshedBindingEpoch,
+                    selectionRevision,
                     sourceSessionId,
                     sourceTransport,
                     botJobWorkspaceEpoch,
@@ -574,6 +765,23 @@ public final class CommandEditorWorkspaceService {
                     botJobName,
                     instructionId,
                     instruction);
+        }
+
+        private Binding withSelection(
+                String refreshedBindingEpoch,
+                long refreshedSelectionRevision,
+                InstructionLoad selectedInstruction) {
+            return new Binding(
+                    refreshedBindingEpoch,
+                    refreshedSelectionRevision,
+                    sourceSessionId,
+                    sourceTransport,
+                    botJobWorkspaceEpoch,
+                    botJobId,
+                    homeBankingId,
+                    botJobName,
+                    selectedInstruction.getId(),
+                    selectedInstruction);
         }
     }
 }
