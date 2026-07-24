@@ -169,8 +169,13 @@ Each `[ ]` = create the component **+ its own `.module.scss` (styles preserved) 
         grid 31/31. **EOL LESSON:** `sed -i` flipped the CRLF file to LF (full-file 3360+/3569− churn);
         fixed by restoring CRLF (`sed 's/\r$//; s/$/\r/'`) → real diff 6+/215−. For big line-range
         deletions on this CRLF file, restore CRLF before committing (or use a CRLF-safe editor).
-  - [ ] Then the `InstructionRow` container (owns `.instructionItem` 5-col grid + descendant rules;
-        helper outputs passed as `ReactNode` props). Still the largest single piece.
+  - [x] **`InstructionRow`** container — Claude. The whole `<Draggable>` body composes all the row
+        sub-components; GridItem now renders `<InstructionRow/>` passing the 5 helper outputs
+        (operations/device/edit/move/test) as `ReactNode` props + bound handlers. To preserve the
+        `.instructionItem` 5-col grid + descendant rules (incl. `.instructionItem .instructionDetails`
+        on the helper nodes), InstructionRow **imports GridItem's CSS module** (same scoped names →
+        design identical, no duplication). Removed 6 now-unused GridItem imports. Surgical
+        (GridItem 27+/100−, net −73). tsc clean; grid 34/34. **→ Phase 4 COMPLETE.**
 
   **CODEX review addressed:** the FindBar EOL-only churn note is fixed — subsequent commits keep
   surgical diffs (this batch: GridItem.tsx 11+/29−, no EOL explosion). `gridShared` is now OPTIONAL
