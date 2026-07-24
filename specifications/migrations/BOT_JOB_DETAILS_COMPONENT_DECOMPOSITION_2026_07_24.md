@@ -149,13 +149,23 @@ Each `[ ]` = create the component **+ its own `.module.scss` (styles preserved) 
   - The row also pulls in 6 GridItem helper renderers (`getInstructionTypeElement`, `renderOperations`,
     `renderDeviceOptionsRow`, `renderEditButton`, `renderMoveButtons`, `renderTestClick`).
 
-  **Proposed resolution (answers roadmap open-question #4):** add a **shared** grid styles module
-  `grid/gridShared.module.scss` holding the common button-group + cross-header classes, imported by
-  `GridItem`, `InstructionRow`, and (later) `BlockHeader`. Each component keeps its own module for its
-  *exclusive* classes and composes shared ones from `gridShared`. This is a small, deliberate
-  exception to "one module per component" for genuinely shared design tokens. Once agreed, extract
-  `InstructionRow` passing the 6 helper outputs as pre-rendered `ReactNode` props (not functions).
-  **Recommend Claude or CODEX build `gridShared` next; `InstructionRow` and `BlockHeader` depend on it.**
+  **RESOLUTION (user directive, 2026-07-24): duplication is fine — prefer MICRO-COMPONENTS over
+  DRY, never break the design.** So instead of a risky GridItem-wide `gridShared` rewrite, extract the
+  row's children as small components that each duplicate the few styles they need into their own
+  `.module.scss`. The `.instructionItem` 5-col CSS grid + its descendant selectors stay in GridItem
+  (untouched → no layout risk) until the whole row/`BlockHeader` move out. Micro-components landed so
+  far:
+  - [x] Row active/inactive toggle now **reuses `BlockStatusToggle`** (identical images/styles) —
+        removed unused `activeImage`/`inactiveImage` imports. Claude.
+  - [x] **`MemoryAddButton`** (shared `+`) — used by BOTH the block header and instruction rows;
+        `.memoryAddButton` removed from `Griditem.module.scss`. Claude. tsc clean; grid 26/26.
+  - [ ] Remaining row micro-components: `InstructionDeleteButton` (`.crossButton`), the type element
+        (`getInstructionTypeElement` → `InstructionTypeBadge`), then the `InstructionRow` container
+        (owns `.instructionItem` grid + descendant rules; helper outputs passed as `ReactNode` props).
+
+  **CODEX review addressed:** the FindBar EOL-only churn note is fixed — subsequent commits keep
+  surgical diffs (this batch: GridItem.tsx 11+/29−, no EOL explosion). `gridShared` is now OPTIONAL
+  (superseded by the duplication directive); revisit only if duplication becomes unwieldy.
 
 ### Phase 5 — List + Block composites
 - [ ] `InstructionList` — per-block list; maps instructions → `InstructionRow`; owns the find-hide
