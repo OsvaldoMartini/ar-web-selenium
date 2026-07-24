@@ -1458,3 +1458,76 @@ all 10 rows while still hidden.
 - [ ] Rebuild the jar (`mvn clean package`) so the running app finally contains the drag code +
       new bundle. This is the actual unblock for "inside Java."
 - [ ] Run `mvn -Dtest=MemoryListReorderTest test` to see the backend drag contract go green.
+
+## CODEX — Independent Command Editor CRUD investigation (2026-07-24)
+
+Task thread: the detached Command Editor opens empty and must become an independent, real-time CRUD
+workspace with Block/Instruction selection, every Web Field, and every command.
+
+Detailed roadmap:
+`ROADMAP_COMMAND_EDITOR_INDEPENDENT_CRUD_2026_07_24.md`
+
+### Confirmed immediate defect
+
+- [x] Java already merges variables, Web Fields, Blocks, command definitions, the selected draft,
+      graph revision, and capabilities into `commandEditor.workspaceBootstrapResponse`.
+- [x] `CommandEditorPage.tsx` consumes only the target from that response and discards the merged
+      editor data.
+- [x] The child then attempts a redundant `commandEditor.bootstrap`.
+- [x] The child passive effect can run before the parent effect assigns `targetRef`; the request is
+      silently skipped or carries a stale binding.
+- [x] `commands`, `webFields`, and `graphRevision` therefore remain empty and the command actions
+      stay disabled.
+- [ ] P0 implementation: consume one atomic workspace snapshot, synchronize the target before child
+      use, remove the duplicate bootstrap dependency, and add loading/error/retry states.
+
+### Confirmed independent-CRUD gaps
+
+- [x] The detached workspace is bound to one fixed instruction, not one Bot Job with mutable
+      Block/Instruction selection.
+- [x] Bootstrap has no complete `instructions` collection or selected-Block state.
+- [x] Create-before, create-after, and edit already exist through `commandEditor.apply`.
+- [x] Detached command deletion and first-command creation in an empty Block do not exist.
+- [x] Command Editor mutations update Bot Job Details, but Bot Job Details/Page Scanner mutations do
+      not currently push an authoritative snapshot back into Command Editor.
+- [x] Existing safe delete/graph logic is embedded in the generic WebSocket mutation path and must
+      be extracted rather than exposing raw `UPDATE_BLOCKS` to the detached page.
+- [x] Current reads use shared mutable `PerformLists`; complete CRUD needs immutable owner-scoped
+      read DTOs.
+- [x] Existing mutation paths require a transaction/generated-key/owner-scope audit before they can
+      be called complete CRUD.
+- [x] No detached Command Editor hydration/lifecycle/realtime integration test currently exists.
+
+### Read-only data evidence
+
+The production SQLite database was queried read-only on 2026-07-24. Bot Job 5 contained 16 Blocks,
+150 Instruction rows, 139 native Web Field rows, and 11 command rows at inspection time. Across all
+jobs, 62 distinct raw action values existed. The data is present; the empty page is not caused by an
+empty database.
+
+### Agreed implementation order
+
+- [ ] Phase 0: fix first-open hydration and add a page-level regression test.
+- [ ] Phase 1: freeze the supported-command and historical-row classification.
+- [ ] Phase 2: return one immutable complete workspace snapshot.
+- [ ] Phase 3: add backend-authoritative Block/Instruction selection.
+- [ ] Phase 4: extract one owner-scoped transactional mutation foundation.
+- [ ] Phase 5: complete create/update, including empty-Block append.
+- [ ] Phase 6: add delete preview, confirmation, atomic delete, and selection recovery.
+- [ ] Phase 7: add two-way realtime snapshots across Command Editor, Bot Job Details, and Page
+      Scanner.
+- [ ] Phase 8: finish UX, focused tests, React build, resource deployment, commit, and push.
+
+### Decisions
+
+- D-017: A command remains an Instruction row; do not introduce a parallel command table.
+- D-018: One atomic Command Editor workspace snapshot is the hydration and refresh source of truth.
+- D-019: Bind the detached editor to the active Bot Job/workspace epoch; keep Block and Instruction
+  selection mutable and backend-owned.
+- D-020: Display every supported command and every historical command row. Unsupported historical
+  rows remain visible and read-only; incompatible commands are disabled with a Java reason.
+- D-021: Every successful mutation publishes acknowledgement first, then authoritative snapshots.
+- D-022: Do not authorize generic `UPDATE_BLOCKS` from the detached editor. Extract and reuse typed
+  mutation services and graph validators.
+- D-023: Complete CRUD requires owner-scoped SQL, generated keys, one transaction, idempotent
+  request IDs, and stale workspace/selection/content revision rejection.
