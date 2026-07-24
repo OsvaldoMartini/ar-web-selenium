@@ -32,6 +32,7 @@ import com.allinweb.ch.license.LicenseManager;
 import com.allinweb.ch.model.*;
 import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.socket.ARWebSocketServer;
+import com.allinweb.ch.socket.CommandEditorWorkspaceService;
 import com.allinweb.ch.socket.PagesOpenWorkspaceService;
 import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
@@ -1612,6 +1613,9 @@ public class BotJobDetailsWorkspaceHost {
             // retargeted from the new Bot Job.
             ARWebSocketServer.getInstance().closeActivePageScannerWorkspace();
         }
+        CommandEditorWorkspaceService.getInstance().retireForBotJob(
+                botJobId,
+                "The active Bot Job Details workspace changed or closed.");
         requestComponentsWorkspaceClose();
         reactSessionContext.deactivate(botJobId);
         for (String workspaceSession : List.of(

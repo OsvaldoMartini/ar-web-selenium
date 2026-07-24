@@ -55,6 +55,52 @@ public final class CommandEditorService {
         return INSTANCE;
     }
 
+    /**
+     * Resolves one command-editor anchor from the authoritative Bot Job instruction table.
+     *
+     * <p>The detached command editor uses this boundary before it opens and again before every
+     * operation. Client-supplied block and instruction metadata is therefore never treated as an
+     * ownership assertion.
+     */
+    public InstructionLoad resolveInstruction(
+            String targetSessionId, int botJobId, int homeBankingId, int instructionId) {
+        if (!ScannerWorkspaceSessions.BOT_JOB_TASKS.equals(targetSessionId)) {
+            throw new IllegalArgumentException("The Command Editor target session is not supported.");
+        }
+        if (botJobId <= 0 || instructionId <= 0) {
+            throw new IllegalArgumentException("A valid Bot Job and instruction are required.");
+        }
+
+        ErrorMessage error = database.loadInstructions(botJobId, -1, -1, "instruction");
+        if (error != null) {
+            throw new IllegalArgumentException(error.getErrorMessage());
+        }
+
+        InstructionLoad resolved = lists.getListInstruction().stream()
+                .filter(row -> row != null
+                        && row.getId() != null
+                        && row.getId() == instructionId)
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "The selected instruction is no longer available. Refresh Bot Job Details."));
+        if (resolved.getBotJobId() != null && resolved.getBotJobId() != botJobId) {
+            throw new IllegalArgumentException("The selected instruction does not belong to this Bot Job.");
+        }
+        if (homeBankingId > 0
+                && resolved.getHomeBankingId() != null
+                && resolved.getHomeBankingId() > 0
+                && resolved.getHomeBankingId() != homeBankingId) {
+            throw new IllegalArgumentException("The selected instruction does not belong to this organization.");
+        }
+        if (resolved.getBlockId() == null || resolved.getBlockId() <= 0) {
+            throw new IllegalArgumentException("The selected instruction has no valid Block.");
+        }
+
+        // The PerformLists rows are shared mutable view state. Return a detached copy so a later
+        // reload cannot silently alter a workspace binding that is being validated.
+        return gson.fromJson(gson.toJson(resolved), InstructionLoad.class);
+    }
+
     public JsonObject bootstrap(JsonObject body) {
         JsonObject response = new JsonObject();
         String sessionId = string(body, "targetSessionId", ScannerWorkspaceSessions.BOT_JOB_TASKS);
@@ -512,6 +558,33 @@ public final class CommandEditorService {
         if (requiresWebField && parentId == null) return failure("Select a compatible Web Field.");
         if (requiresVariable && variableId == null) return failure("Select a Variable for the Web Field.");
         if (requiresBlock && parentBlockId == null) return failure("Select a destination Block.");
+        if (requiresBlock) {
+            boolean componentSession = isComponentSession(targetSession);
+            int ownerId = componentSession
+                    ? integer(body, "homeBankingId", -1)
+                    : integer(body, "botJobId", -1);
+            ErrorMessage blockLoadError = database.loadBlocks(
+                    ownerId,
+                    "",
+                    componentSession ? "component_block" : "block");
+            if (blockLoadError != null) {
+                return failure(blockLoadError.getErrorMessage());
+            }
+            List<BlockLoadDTO> ownerBlocks = componentSession
+                    ? lists.getListBlockComp()
+                    : lists.getListBlock();
+            boolean destinationExists = ownerBlocks.stream()
+                    .anyMatch(block -> block != null
+                            && block.getId() != null
+                            && block.getId().equals(parentBlockId));
+            if (!destinationExists) {
+                return failure(
+                        "The selected destination Block is no longer available. Refresh the grid.");
+            }
+            if (parentBlockId.equals(integer(body, "blockId", -1))) {
+                return failure("Select a destination Block different from the current Block.");
+            }
+        }
         InstructionLoad selectedWebField = parentId == null ? null : webField(targetSession, parentId);
         if (parentId != null && (selectedWebField == null
                 || selectedWebField.getBlockId() == null

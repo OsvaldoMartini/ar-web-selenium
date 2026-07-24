@@ -87,6 +87,14 @@ public final class PagesOpenWorkspaceService {
                     DetachedWorkspaceSessions.COMPONENTS_MANAGER,
                     new PagePresentation("Components", "COMPONENTS", "Bot Job component library", false, true)),
             Map.entry(
+                    DetachedWorkspaceSessions.COMMAND_EDITOR_MANAGER,
+                    new PagePresentation(
+                            "Command Editor",
+                            "COMMAND_EDITOR",
+                            "Detached instruction command workspace",
+                            false,
+                            true)),
+            Map.entry(
                     DetachedWorkspaceSessions.MEMORY_LIST_MANAGER,
                     new PagePresentation("Memory List", "MEMORY_LIST", "Detached workspace", false, true)),
             Map.entry(

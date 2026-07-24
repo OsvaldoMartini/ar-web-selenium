@@ -68,6 +68,8 @@ public class SimpleWebSocketServer {
             MemoryListWorkspaceService.getInstance();
     private static final PagesOpenWorkspaceService pagesOpenWorkspaceService =
             PagesOpenWorkspaceService.getInstance();
+    private static final CommandEditorWorkspaceService commandEditorWorkspaceService =
+            CommandEditorWorkspaceService.getInstance();
     private static final int MAX_PAGE_SCANNER_BODY_CHARACTERS = 2_000_000;
     private static final int MAX_PAGE_SCANNER_ELEMENTS = 1_000;
     private static final int MAX_PAGE_SCANNER_SEARCH_TERMS = 8_192;
@@ -94,6 +96,19 @@ public class SimpleWebSocketServer {
             "REFRESH_BLOCKS",
             "TEST_RUN",
             "STOP_TEST_RUN");
+    private static final Set<String> DETACHED_COMMAND_EDITOR_OPERATIONS = Set.of(
+            "commandEditor.workspaceBootstrap",
+            "commandEditor.bootstrap",
+            "commandEditor.apply",
+            "commandEditor.insertElseIf",
+            "instructionGraph.previewSplit",
+            "instructionGraph.previewMove",
+            "instructionEditor.memoryCapabilities",
+            "variableEditor.bootstrap",
+            "variableEditor.save",
+            "variableEditor.delete",
+            "pagesOpen.open",
+            "pagesOpen.summary");
     private static final ScannerPluginDownloadCommandService scannerPluginDownloadCommandService =
             ScannerPluginDownloadCommandService.getInstance();
     protected static volatile SimpleWebSocketServer instance;
@@ -195,15 +210,24 @@ public class SimpleWebSocketServer {
             return;
         }
 
+        if (ScannerWorkspaceSessions.BOT_JOB_TASKS.equals(sessionId)) {
+            Session previousSource = WebSocketSessionManager.getSession(sessionId);
+            if (previousSource != null && previousSource != session) {
+                commandEditorWorkspaceService.disconnected(sessionId, previousSource);
+            }
+        }
+
         if (ScannerWorkspaceSessions.BOT_JOB_TASKS.equals(sessionId)
                 || mainApplicationControl
                 || botJobWindowControl
                 || OcrWorkspaceCoordinator.isWorkspaceSessionId(sessionId)
-                || ScannerWorkspaceSessions.isPageScannerSession(sessionId)) {
+                || ScannerWorkspaceSessions.isPageScannerSession(sessionId)
+                || CommandEditorWorkspaceService.isWorkspaceSession(sessionId)) {
             // Only one Bot Job workspace is active in the backend at a time -- opening a job in a
             // new tab takes over from whichever tab had it before, rather than being rejected as a
             // duplicate session. Detached OCR pages use the same exact-session takeover so a page
-            // reload can reconnect without losing its backend-owned workspace context.
+            // reload can reconnect without losing its backend-owned workspace context. The fixed
+            // Command Editor likewise preserves its binding while replacing a reloaded transport.
             WebSocketSessionManager.takeOverSession(sessionId, session);
         } else if (!webSocketSessionManager.addSession(sessionId, session)) {
             log.warn("Rejected duplicate live WebSocket session: {}", sessionId);
@@ -227,6 +251,10 @@ public class SimpleWebSocketServer {
                 closeRejectedSession(session, "Bot Job Details window session is no longer active");
                 return;
             }
+        }
+
+        if (CommandEditorWorkspaceService.isWorkspaceSession(sessionId)) {
+            commandEditorWorkspaceService.connected(sessionId, session);
         }
 
         if ("mainDashboardBootstrap".equals(sessionId)) {
@@ -352,6 +380,10 @@ public class SimpleWebSocketServer {
             boolean memoryListOperation = type.startsWith("memoryList.");
             boolean pagesOpenOperation = type.startsWith("pagesOpen.");
             boolean configOperation = type.startsWith("config.");
+            boolean commandEditorWorkspaceOperation =
+                    type.startsWith("commandEditor.workspace");
+            boolean detachedCommandEditorTransport =
+                    CommandEditorWorkspaceService.isWorkspaceSession(transportSessionId);
             String sessionId = ocrWorkspaceOperation
                             || detachedOcrTransport
                             || pageScannerOperation
@@ -359,6 +391,8 @@ public class SimpleWebSocketServer {
                              || memoryListOperation
                              || pagesOpenOperation
                              || configOperation
+                             || commandEditorWorkspaceOperation
+                             || detachedCommandEditorTransport
                     ? transportSessionId
                     : claimedSessionId;
             ReactReplyChannel.set(sessionId);
@@ -443,6 +477,21 @@ public class SimpleWebSocketServer {
                         session,
                         "pageScanner.errorResponse",
                         "Operation is not allowed from a detached Page Scanner workspace.");
+                return;
+            }
+            if (detachedCommandEditorTransport
+                    && !isAllowedFromDetachedCommandEditorTransport(type)) {
+                log.warn(
+                        "Rejected operation {} from detached Command Editor transport {}",
+                        type,
+                        transportSessionId);
+                sendCommandEditorResponse(
+                        homeBankingId,
+                        transportSessionId,
+                        "commandEditor.errorResponse",
+                        commandEditorFailure(
+                                extractBody(jsonObjMSG),
+                                "Operation is not allowed from the detached Command Editor."));
                 return;
             }
 
@@ -692,15 +741,88 @@ public class SimpleWebSocketServer {
                             "scanner.plugin.downloadBatchResponse",
                             scannerPluginDownloadCommandService.downloadBatch(extractBody(jsonObjMSG)));
                     break;
-                case "commandEditor.bootstrap":
+                case "commandEditor.workspaceOpen": {
+                    JsonObject commandWorkspaceBody = extractBody(jsonObjMSG);
                     sendCommandEditorResponse(
                             homeBankingId,
                             sessionId,
-                            "commandEditor.bootstrapResponse",
-                            CommandEditorService.getInstance().bootstrap(extractBody(jsonObjMSG)));
+                            "commandEditor.workspaceOpenResponse",
+                            commandEditorWorkspaceService.open(
+                                    commandWorkspaceBody, sessionId, session));
                     break;
-                case "commandEditor.apply":
+                }
+                case "commandEditor.workspaceBootstrap": {
+                    JsonObject commandWorkspaceBody = extractBody(jsonObjMSG);
+                    sendCommandEditorResponse(
+                            homeBankingId,
+                            sessionId,
+                            "commandEditor.workspaceBootstrapResponse",
+                            commandEditorWorkspaceService.bootstrap(
+                                    commandWorkspaceBody, sessionId, session));
+                    break;
+                }
+                case "commandEditor.bootstrap": {
+                    JsonObject commandBootstrapBody = extractBody(jsonObjMSG);
+                    try {
+                        commandBootstrapBody = authorizeCommandEditorRequest(
+                                commandBootstrapBody, sessionId, session);
+                    } catch (IllegalArgumentException authorizationError) {
+                        sendCommandEditorResponse(
+                                homeBankingId,
+                                sessionId,
+                                "commandEditor.bootstrapResponse",
+                                commandEditorFailure(
+                                        commandBootstrapBody,
+                                        authorizationError.getMessage()));
+                        break;
+                    }
+                    sendCommandEditorResponse(
+                            commandEditorHomeBankingId(
+                                    commandBootstrapBody, homeBankingId),
+                            sessionId,
+                            "commandEditor.bootstrapResponse",
+                            attachCommandEditorBindingEpoch(
+                                    CommandEditorService.getInstance()
+                                            .bootstrap(commandBootstrapBody),
+                                    commandBootstrapBody,
+                                    sessionId));
+                    break;
+                }
+                case "commandEditor.apply": {
                     JsonObject commandApplyBody = extractBody(jsonObjMSG);
+                    boolean detachedCommandEditor =
+                            CommandEditorWorkspaceService.isWorkspaceSession(sessionId);
+                    int commandHomeBankingId = homeBankingId;
+                    boolean commandMutationReplayed = false;
+                    JsonObject commandApplyResponse;
+                    try {
+                        if (detachedCommandEditor) {
+                            CommandEditorWorkspaceService.AuthorizedMutation mutation =
+                                    commandEditorWorkspaceService.executeMutation(
+                                            commandApplyBody,
+                                            sessionId,
+                                            session,
+                                            CommandEditorService.getInstance()::apply);
+                            commandApplyBody = mutation.request().body();
+                            commandHomeBankingId = mutation.request().homeBankingId();
+                            commandMutationReplayed = mutation.replayed();
+                            commandApplyResponse = mutation.response();
+                        } else {
+                            commandApplyResponse =
+                                    CommandEditorService.getInstance().apply(commandApplyBody);
+                        }
+                    } catch (Exception commandError) {
+                        log.error(
+                                "COMMAND_EDITOR_APPLY_EXCEPTION requestId={} action={}",
+                                commandLogValue(commandApplyBody, "requestId"),
+                                commandLogValue(commandApplyBody, "action"),
+                                commandError);
+                        commandApplyResponse = commandEditorFailure(
+                                commandApplyBody,
+                                commandError.getMessage() == null
+                                        ? "The command could not be saved."
+                                        : commandError.getMessage());
+                    }
                     log.info(
                             "COMMAND_EDITOR_APPLY_RECEIVED requestId={} wsSession={} targetSession={}"
                                     + " instructionId={} blockId={} action={} mode={} parentBlockId={} count={}"
@@ -717,26 +839,6 @@ public class SimpleWebSocketServer {
                             commandApplyBody != null
                                     && commandApplyBody.has("graphRevision")
                                     && !commandApplyBody.get("graphRevision").isJsonNull());
-                    JsonObject commandApplyResponse;
-                    try {
-                        commandApplyResponse = CommandEditorService.getInstance().apply(commandApplyBody);
-                    } catch (Exception commandError) {
-                        log.error(
-                                "COMMAND_EDITOR_APPLY_EXCEPTION requestId={} action={}",
-                                commandLogValue(commandApplyBody, "requestId"),
-                                commandLogValue(commandApplyBody, "action"),
-                                commandError);
-                        commandApplyResponse = new JsonObject();
-                        commandApplyResponse.addProperty("ok", false);
-                        commandApplyResponse.addProperty(
-                                "error",
-                                commandError.getMessage() == null
-                                        ? "The command could not be saved."
-                                        : commandError.getMessage());
-                        if (commandApplyBody != null && commandApplyBody.has("requestId")) {
-                            commandApplyResponse.add("requestId", commandApplyBody.get("requestId"));
-                        }
-                    }
                     boolean commandSaved = commandApplyResponse.has("ok")
                             && commandApplyResponse.get("ok").getAsBoolean();
                     String commandResult = commandSaved
@@ -765,66 +867,262 @@ public class SimpleWebSocketServer {
                             targetSessionId = ScannerWorkspaceSessions.BOT_JOB_TASKS;
                         }
                         String updateOperationId = instructionRealtimePublisher.snapshotOperation(targetSessionId);
-                        instructionRealtimePublisher.publishMutationThenSnapshot(
-                                homeBankingId,
-                                targetSessionId,
-                                "commandEditor.applyResponse",
-                                commandApplyResponse,
-                                commandApplyResponse.getAsJsonArray("instructions"));
-                        log.info(
-                                "COMMAND_EDITOR_REALTIME_UPDATE requestId={} targetSession={} operationId={} rows={}",
-                                commandLogValue(commandApplyBody, "requestId"),
-                                targetSessionId,
-                                updateOperationId,
-                                commandApplyResponse.getAsJsonArray("instructions").size());
+                        if (detachedCommandEditor) {
+                            instructionRealtimePublisher.publishResponse(
+                                    commandHomeBankingId,
+                                    sessionId,
+                                    "commandEditor.applyResponse",
+                                    commandApplyResponse);
+                            if (!commandMutationReplayed) {
+                                instructionRealtimePublisher.publishSnapshot(
+                                        commandHomeBankingId,
+                                        targetSessionId,
+                                        commandApplyResponse.getAsJsonArray("instructions"));
+                            }
+                        } else {
+                            instructionRealtimePublisher.publishMutationThenSnapshot(
+                                    commandHomeBankingId,
+                                    targetSessionId,
+                                    "commandEditor.applyResponse",
+                                    commandApplyResponse,
+                                    commandApplyResponse.getAsJsonArray("instructions"));
+                        }
+                        if (!commandMutationReplayed) {
+                            log.info(
+                                    "COMMAND_EDITOR_REALTIME_UPDATE requestId={} targetSession={} operationId={} rows={}",
+                                    commandLogValue(commandApplyBody, "requestId"),
+                                    targetSessionId,
+                                    updateOperationId,
+                                    commandApplyResponse.getAsJsonArray("instructions").size());
+                        }
                     } else {
                         instructionRealtimePublisher.publishResponse(
-                                homeBankingId,
+                                commandHomeBankingId,
                                 sessionId,
                                 "commandEditor.applyResponse",
                                 commandApplyResponse);
                     }
                     break;
-                case "commandEditor.insertElseIf":
+                }
+                case "commandEditor.insertElseIf": {
+                    JsonObject commandElseIfBody = extractBody(jsonObjMSG);
+                    JsonObject commandElseIfResponse;
+                    int commandElseIfHomeBankingId = homeBankingId;
+                    try {
+                        if (CommandEditorWorkspaceService.isWorkspaceSession(sessionId)) {
+                            CommandEditorWorkspaceService.AuthorizedMutation mutation =
+                                    commandEditorWorkspaceService.executeMutation(
+                                            commandElseIfBody,
+                                            sessionId,
+                                            session,
+                                            CommandEditorService.getInstance()::insertElseIf);
+                            commandElseIfBody = mutation.request().body();
+                            commandElseIfHomeBankingId =
+                                    mutation.request().homeBankingId();
+                            commandElseIfResponse = mutation.response();
+                        } else {
+                            commandElseIfResponse = CommandEditorService.getInstance()
+                                    .insertElseIf(commandElseIfBody);
+                        }
+                    } catch (IllegalArgumentException authorizationError) {
+                        sendCommandEditorResponse(
+                                commandElseIfHomeBankingId,
+                                sessionId,
+                                "commandEditor.insertElseIfResponse",
+                                commandEditorFailure(
+                                        commandElseIfBody,
+                                        authorizationError.getMessage()));
+                        break;
+                    }
                     sendCommandEditorResponse(
-                            homeBankingId,
+                            commandElseIfHomeBankingId,
                             sessionId,
                             "commandEditor.insertElseIfResponse",
-                            CommandEditorService.getInstance().insertElseIf(extractBody(jsonObjMSG)));
+                            commandElseIfResponse);
                     break;
-                case "instructionGraph.previewSplit":
+                }
+                case "instructionGraph.previewSplit": {
+                    JsonObject commandPreviewBody = extractBody(jsonObjMSG);
+                    try {
+                        commandPreviewBody = authorizeCommandEditorRequest(
+                                commandPreviewBody, sessionId, session);
+                    } catch (IllegalArgumentException authorizationError) {
+                        sendCommandEditorResponse(
+                                homeBankingId,
+                                sessionId,
+                                "instructionGraph.previewSplitResponse",
+                                commandEditorFailure(
+                                        commandPreviewBody,
+                                        authorizationError.getMessage()));
+                        break;
+                    }
                     sendCommandEditorResponse(
-                            homeBankingId,
+                            commandEditorHomeBankingId(
+                                    commandPreviewBody, homeBankingId),
                             sessionId,
                             "instructionGraph.previewSplitResponse",
-                            CommandEditorService.getInstance().previewSplit(extractBody(jsonObjMSG)));
+                            attachCommandEditorBindingEpoch(
+                                    CommandEditorService.getInstance()
+                                            .previewSplit(commandPreviewBody),
+                                    commandPreviewBody,
+                                    sessionId));
                     break;
-                case "instructionGraph.previewMove":
+                }
+                case "instructionGraph.previewMove": {
+                    JsonObject commandPreviewBody = extractBody(jsonObjMSG);
+                    try {
+                        commandPreviewBody = authorizeCommandEditorRequest(
+                                commandPreviewBody, sessionId, session);
+                    } catch (IllegalArgumentException authorizationError) {
+                        sendCommandEditorResponse(
+                                homeBankingId,
+                                sessionId,
+                                "instructionGraph.previewMoveResponse",
+                                commandEditorFailure(
+                                        commandPreviewBody,
+                                        authorizationError.getMessage()));
+                        break;
+                    }
                     sendCommandEditorResponse(
-                            homeBankingId,
+                            commandEditorHomeBankingId(
+                                    commandPreviewBody, homeBankingId),
                             sessionId,
                             "instructionGraph.previewMoveResponse",
-                            CommandEditorService.getInstance().previewMove(extractBody(jsonObjMSG)));
+                            attachCommandEditorBindingEpoch(
+                                    CommandEditorService.getInstance()
+                                            .previewMove(commandPreviewBody),
+                                    commandPreviewBody,
+                                    sessionId));
                     break;
-                case "instructionEditor.memoryCapabilities":
+                }
+                case "instructionEditor.memoryCapabilities": {
+                    JsonObject commandMemoryBody = extractBody(jsonObjMSG);
+                    try {
+                        commandMemoryBody = authorizeCommandEditorRequest(
+                                commandMemoryBody, sessionId, session);
+                    } catch (IllegalArgumentException authorizationError) {
+                        sendCommandEditorResponse(
+                                homeBankingId,
+                                sessionId,
+                                "instructionEditor.memoryCapabilitiesResponse",
+                                commandEditorFailure(
+                                        commandMemoryBody,
+                                        authorizationError.getMessage()));
+                        break;
+                    }
                     sendCommandEditorResponse(
-                            homeBankingId,
+                            commandEditorHomeBankingId(
+                                    commandMemoryBody, homeBankingId),
                             sessionId,
                             "instructionEditor.memoryCapabilitiesResponse",
-                            CommandEditorService.getInstance().memoryCapabilities(extractBody(jsonObjMSG)));
+                            attachCommandEditorBindingEpoch(
+                                    CommandEditorService.getInstance()
+                                            .memoryCapabilities(commandMemoryBody),
+                                    commandMemoryBody,
+                                    sessionId));
                     break;
-                case "variableEditor.bootstrap":
-                    sendCommandEditorResponse(homeBankingId, sessionId, "variableEditor.bootstrapResponse",
-                            VariableEditorService.getInstance().list(extractBody(jsonObjMSG)));
+                }
+                case "variableEditor.bootstrap": {
+                    JsonObject variableEditorBody = extractBody(jsonObjMSG);
+                    try {
+                        variableEditorBody = authorizeCommandEditorRequest(
+                                variableEditorBody, sessionId, session);
+                    } catch (IllegalArgumentException authorizationError) {
+                        sendCommandEditorResponse(
+                                homeBankingId,
+                                sessionId,
+                                "variableEditor.bootstrapResponse",
+                                commandEditorFailure(
+                                        variableEditorBody,
+                                        authorizationError.getMessage()));
+                        break;
+                    }
+                    sendCommandEditorResponse(
+                            commandEditorHomeBankingId(
+                                    variableEditorBody, homeBankingId),
+                            sessionId,
+                            "variableEditor.bootstrapResponse",
+                            attachCommandEditorBindingEpoch(
+                                    VariableEditorService.getInstance()
+                                            .list(variableEditorBody),
+                                    variableEditorBody,
+                                    sessionId));
                     break;
-                case "variableEditor.save":
-                    sendCommandEditorResponse(homeBankingId, sessionId, "variableEditor.saveResponse",
-                            VariableEditorService.getInstance().save(extractBody(jsonObjMSG)));
+                }
+                case "variableEditor.save": {
+                    JsonObject variableEditorBody = extractBody(jsonObjMSG);
+                    JsonObject variableEditorResponse;
+                    int variableEditorHomeBankingId = homeBankingId;
+                    try {
+                        if (CommandEditorWorkspaceService.isWorkspaceSession(sessionId)) {
+                            CommandEditorWorkspaceService.AuthorizedMutation mutation =
+                                    commandEditorWorkspaceService.executeMutation(
+                                            variableEditorBody,
+                                            sessionId,
+                                            session,
+                                            VariableEditorService.getInstance()::save);
+                            variableEditorBody = mutation.request().body();
+                            variableEditorHomeBankingId =
+                                    mutation.request().homeBankingId();
+                            variableEditorResponse = mutation.response();
+                        } else {
+                            variableEditorResponse =
+                                    VariableEditorService.getInstance().save(variableEditorBody);
+                        }
+                    } catch (IllegalArgumentException authorizationError) {
+                        sendCommandEditorResponse(
+                                variableEditorHomeBankingId,
+                                sessionId,
+                                "variableEditor.saveResponse",
+                                commandEditorFailure(
+                                        variableEditorBody,
+                                        authorizationError.getMessage()));
+                        break;
+                    }
+                    sendCommandEditorResponse(
+                            variableEditorHomeBankingId,
+                            sessionId,
+                            "variableEditor.saveResponse",
+                            variableEditorResponse);
                     break;
-                case "variableEditor.delete":
-                    sendCommandEditorResponse(homeBankingId, sessionId, "variableEditor.deleteResponse",
-                            VariableEditorService.getInstance().delete(extractBody(jsonObjMSG)));
+                }
+                case "variableEditor.delete": {
+                    JsonObject variableEditorBody = extractBody(jsonObjMSG);
+                    JsonObject variableEditorResponse;
+                    int variableEditorHomeBankingId = homeBankingId;
+                    try {
+                        if (CommandEditorWorkspaceService.isWorkspaceSession(sessionId)) {
+                            CommandEditorWorkspaceService.AuthorizedMutation mutation =
+                                    commandEditorWorkspaceService.executeMutation(
+                                            variableEditorBody,
+                                            sessionId,
+                                            session,
+                                            VariableEditorService.getInstance()::delete);
+                            variableEditorBody = mutation.request().body();
+                            variableEditorHomeBankingId =
+                                    mutation.request().homeBankingId();
+                            variableEditorResponse = mutation.response();
+                        } else {
+                            variableEditorResponse =
+                                    VariableEditorService.getInstance().delete(variableEditorBody);
+                        }
+                    } catch (IllegalArgumentException authorizationError) {
+                        sendCommandEditorResponse(
+                                variableEditorHomeBankingId,
+                                sessionId,
+                                "variableEditor.deleteResponse",
+                                commandEditorFailure(
+                                        variableEditorBody,
+                                        authorizationError.getMessage()));
+                        break;
+                    }
+                    sendCommandEditorResponse(
+                            variableEditorHomeBankingId,
+                            sessionId,
+                            "variableEditor.deleteResponse",
+                            variableEditorResponse);
                     break;
+                }
                 case "botJob.getInputInstructions":
                     handleBotJobInputInstructions(jsonObjMSG, sessionId, homeBankingId);
                     break;
@@ -2200,6 +2498,7 @@ public class SimpleWebSocketServer {
                     notifyPageScannerWindowDisconnected(sessionId);
                     notifyOcrWindowDisconnected(sessionId);
                     notifyMainApplicationDisconnected(sessionId);
+                    commandEditorWorkspaceService.disconnected(sessionId, session);
                     pagesOpenWorkspaceService.sessionRegistryChanged();
                 }
             }
@@ -3535,6 +3834,10 @@ public class SimpleWebSocketServer {
                 || "memoryList.open".equals(operation)
                 || "memoryList.sync".equals(operation)
                 || (operation != null && DETACHED_PAGE_SCANNER_BOT_JOB_OPERATIONS.contains(operation));
+    }
+
+    static boolean isAllowedFromDetachedCommandEditorTransport(String operation) {
+        return operation != null && DETACHED_COMMAND_EDITOR_OPERATIONS.contains(operation);
     }
 
     static boolean isAllowedDetachedPageScannerToolbarAction(String action) {
@@ -5235,6 +5538,7 @@ public class SimpleWebSocketServer {
                 notifyPageScannerWindowDisconnected(sessionId);
                 notifyOcrWindowDisconnected(sessionId);
                 notifyMainApplicationDisconnected(sessionId);
+                commandEditorWorkspaceService.disconnected(sessionId, session);
                 pagesOpenWorkspaceService.sessionRegistryChanged();
             }
         } else {
@@ -5608,6 +5912,67 @@ public class SimpleWebSocketServer {
         String jsonData = gson.toJson(webSockteSocketSignal);
 
         webSocketSessionManager.sendMessageJson(homeBankId, sessionId, jsonData, operationId);
+    }
+
+    private JsonObject authorizeCommandEditorRequest(
+            JsonObject body, String sessionId, Session transport) {
+        if (!CommandEditorWorkspaceService.isWorkspaceSession(sessionId)) {
+            return body == null ? new JsonObject() : body;
+        }
+        return commandEditorWorkspaceService
+                .authorize(body, sessionId, transport)
+                .body();
+    }
+
+    private JsonObject attachCommandEditorBindingEpoch(
+            JsonObject response, JsonObject authorizedBody, String sessionId) {
+        JsonObject correlated = response == null ? new JsonObject() : response;
+        if (!CommandEditorWorkspaceService.isWorkspaceSession(sessionId)
+                || authorizedBody == null
+                || !authorizedBody.has("bindingEpoch")
+                || authorizedBody.get("bindingEpoch").isJsonNull()) {
+            return correlated;
+        }
+        correlated.add(
+                "bindingEpoch",
+                authorizedBody.get("bindingEpoch").deepCopy());
+        return correlated;
+    }
+
+    private JsonObject commandEditorFailure(JsonObject request, String message) {
+        JsonObject response = new JsonObject();
+        response.addProperty("ok", false);
+        response.addProperty(
+                "error",
+                Strings.isNullOrEmpty(message)
+                        ? "The Command Editor request was refused."
+                        : message);
+        if (request != null
+                && request.has("requestId")
+                && !request.get("requestId").isJsonNull()) {
+            response.add("requestId", request.get("requestId").deepCopy());
+        }
+        if (request != null
+                && request.has("bindingEpoch")
+                && !request.get("bindingEpoch").isJsonNull()) {
+            response.add(
+                    "bindingEpoch",
+                    request.get("bindingEpoch").deepCopy());
+        }
+        return response;
+    }
+
+    private int commandEditorHomeBankingId(
+            JsonObject authorizedBody, int fallback) {
+        try {
+            return authorizedBody != null
+                            && authorizedBody.has("homeBankingId")
+                            && !authorizedBody.get("homeBankingId").isJsonNull()
+                    ? authorizedBody.get("homeBankingId").getAsInt()
+                    : fallback;
+        } catch (RuntimeException ignored) {
+            return fallback;
+        }
     }
 
     private void sendCommandEditorResponse(
