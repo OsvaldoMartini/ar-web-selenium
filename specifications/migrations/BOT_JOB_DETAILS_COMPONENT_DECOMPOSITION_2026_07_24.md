@@ -162,9 +162,13 @@ Each `[ ]` = create the component **+ its own `.module.scss` (styles preserved) 
   - [x] **`DeleteButton`** (shared `✕`) — used by ALL THREE delete sites (block header, instruction
         row, Excel GOTO row); removed unused `crossImage` import. `.crossButton` left as harmless
         dead style to avoid touching the shared button-group selector. Claude. tsc clean; grid 28/28.
-  - [ ] **`InstructionTypeBadge`** (`getInstructionTypeElement`) — **MEDIUM, not micro** (~150-line
-        switch over action types, ~20 image imports, `renderHighlighted`, `instructionDisplayLabel`,
-        `.operations`/`.inputImage`/`.linkImage`/… classes). Needs a dedicated careful pass.
+  - [x] **`InstructionTypeBadge`** (`getInstructionTypeElement`, ~194 lines) — Claude. Owns its own
+        24 image imports + duplicated `.operations`/`@extend` image classes + `.instructionType`;
+        imports `instructionDisplayLabel` directly; find-highlighting via a `renderHighlighted` prop.
+        Removed the function + 20 now-unused image imports from GridItem (net −209 lines). tsc clean;
+        grid 31/31. **EOL LESSON:** `sed -i` flipped the CRLF file to LF (full-file 3360+/3569− churn);
+        fixed by restoring CRLF (`sed 's/\r$//; s/$/\r/'`) → real diff 6+/215−. For big line-range
+        deletions on this CRLF file, restore CRLF before committing (or use a CRLF-safe editor).
   - [ ] Then the `InstructionRow` container (owns `.instructionItem` 5-col grid + descendant rules;
         helper outputs passed as `ReactNode` props). Still the largest single piece.
 
