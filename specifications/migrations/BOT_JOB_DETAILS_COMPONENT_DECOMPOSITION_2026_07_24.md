@@ -159,9 +159,14 @@ Each `[ ]` = create the component **+ its own `.module.scss` (styles preserved) 
         removed unused `activeImage`/`inactiveImage` imports. Claude.
   - [x] **`MemoryAddButton`** (shared `+`) — used by BOTH the block header and instruction rows;
         `.memoryAddButton` removed from `Griditem.module.scss`. Claude. tsc clean; grid 26/26.
-  - [ ] Remaining row micro-components: `InstructionDeleteButton` (`.crossButton`), the type element
-        (`getInstructionTypeElement` → `InstructionTypeBadge`), then the `InstructionRow` container
-        (owns `.instructionItem` grid + descendant rules; helper outputs passed as `ReactNode` props).
+  - [x] **`DeleteButton`** (shared `✕`) — used by ALL THREE delete sites (block header, instruction
+        row, Excel GOTO row); removed unused `crossImage` import. `.crossButton` left as harmless
+        dead style to avoid touching the shared button-group selector. Claude. tsc clean; grid 28/28.
+  - [ ] **`InstructionTypeBadge`** (`getInstructionTypeElement`) — **MEDIUM, not micro** (~150-line
+        switch over action types, ~20 image imports, `renderHighlighted`, `instructionDisplayLabel`,
+        `.operations`/`.inputImage`/`.linkImage`/… classes). Needs a dedicated careful pass.
+  - [ ] Then the `InstructionRow` container (owns `.instructionItem` 5-col grid + descendant rules;
+        helper outputs passed as `ReactNode` props). Still the largest single piece.
 
   **CODEX review addressed:** the FindBar EOL-only churn note is fixed — subsequent commits keep
   surgical diffs (this batch: GridItem.tsx 11+/29−, no EOL explosion). `gridShared` is now OPTIONAL
