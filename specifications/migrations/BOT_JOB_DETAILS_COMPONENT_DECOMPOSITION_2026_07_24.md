@@ -188,11 +188,17 @@ Each `[ ]` = create the component **+ its own `.module.scss` (styles preserved) 
       state-derived props in GridItem). Imports GridItem's CSS module for `.instructionsList`/valid
       -invalid drop-zone. Removed `Droppable`/`Draggable` from GridItem's rbd import (only
       `DragDropContext` remains). Surgical (GridItem 39+/72−). tsc clean; grid 37/37.
-- [ ] `BlockCard` — one block: `BlockHeader` + `InstructionList`; **accepts params**
-      (`blockData`, `index`, capability maps, all callbacks). This is the "Block is just a component
-      that accepts params" the requester asked for.
-- [ ] `BlockHeader` — status toggle + collapse + order# + `BlockNameEditor` + up/down + delete +
-      excel file name.
+- [x] `BlockHeader` — Claude. The full header row (status/collapse toggles, order#, name view/edit,
+      count, add-to-memory `+`, export-file label, and the move/edit/excel/save/delete controls).
+      Composes the sub-components; imports GridItem's CSS module to preserve the `.blockHeader`
+      descendant rules (`.blockName`/`.blockCount`/`.moveButtons`). Excel-GOTO badge + export-file
+      passed as node props (logic stays in GridItem). Removed 7 now-unused GridItem imports. Surgical
+      (GridItem 51+/123−, net −72). tsc clean; grid 40/40.
+- [~] `BlockCard` — **LOW VALUE / optional.** It would only be the `.block` div + the
+      `{!collapsed && <InstructionList/>}` conditional wrapping `<BlockHeader/>` + `<InstructionList/>`.
+      Since those two ARE the real block components, BlockCard is a ~4-line structural wrapper; a
+      node-prop version (`header`/`list` nodes) or a 40-prop params version both add little. Defer
+      unless the block wrapper needs its own behavior later.
 
 ### Phase 6 — State controller hook (hoist logic out of the render)
 - [ ] `useInstructionGrid.ts` — move the ~80 `useState` + handlers into a controller hook returning a
