@@ -1218,3 +1218,57 @@ node scripts\generate-automation-test-catalog.mjs
 - D-004: `ALL + numbered block` currently means FROM_SELECTED and must be named explicitly internally.
 - D-005: Do not migrate by copying the older Engine method over newer Scanner behavior.
 - D-006: Stable block ID, immutable request context, and integrated GOTO tests are prerequisites for claiming execution parity.
+
+## Claude — Memory List drag & drop fix + test bench (2026-07-24)
+
+Task thread: user reported Memory List row reordering "worked in `npm start` (real Chrome) but
+did NOT work inside Playwright." Investigated, root-caused, fixed, and verified through browser
+automation.
+
+### Root cause
+
+`react-beautiful-dnd@13.1.1` does not register its `Droppable` under React 18 `StrictMode` in dev
+(`index.tsx:399` wraps the whole app in `<React.StrictMode>`). The double-invoke of effects
+un-registers the droppable, so the reorder drag silently no-ops. This is a known rbd + React 18
+incompatibility, not a component bug.
+
+Separately, `MemoryList.tsx` renders rows only from the Java WebSocket snapshot (`snapshot.items`),
+so with `npm start` and no backend the list is empty — nothing to drag, which masked the above.
+
+### What Claude changed (frontend only, `abr-react-ts-grid` `VERSION-4.6`, no backend touched)
+
+- [x] Added `src/components/MemoryDragDemo.tsx` — standalone, backend-free test bench: 10 synthetic
+      rows, reorder held in local React state, reachable via `http://localhost:3000/?memoryDragDemo=1`.
+      Committed `bad3087` (`CLAUDE:` prefix), pushed to `origin/VERSION-4.6`.
+- [x] Introduced a reusable `StrictModeDroppable` wrapper (delays one `requestAnimationFrame`
+      before mounting the real `Droppable`) in both the demo and the real `MemoryList.tsx`, and
+      swapped the bare `<Droppable>` in `MemoryList.tsx` for it. Fixes drag in the deployed app too.
+- [x] `npx tsc --noEmit` clean for `MemoryDragDemo.tsx`, `MemoryList.tsx`, and `index.tsx`
+      (only pre-existing `node_modules/i18next` TS-4.9 errors remain, unrelated).
+
+### Verification (claude-in-chrome browser automation against the live `npm start`)
+
+- [x] `left_click_drag` (stepped native drag) row 1 → slot 3: reordered, status "Moved item 1 from
+      position 1 to 3." Confirms rbd's mouse sensor works when the drag is stepped.
+- [x] Keyboard sensor (focus handle → Space lift → ArrowDown → Space drop) on row 2: reordered to
+      position 2, deterministic single step.
+
+### Why the user's Playwright drag failed (and the fix for their suite)
+
+rbd's mouse sensor requires: primary `mousedown` → a `mousemove` crossing the ~5px threshold →
+several intermediate `mousemove`s across animation frames → `mouseup`. A naive Playwright
+`locator.dragTo()` / single down-move-up does it in one jump and never leaves idle.
+
+- Recommended e2e path: **keyboard sensor** (`handle.focus()` → `Space` → `ArrowDown` → `Space`),
+  fully deterministic, no pixel math.
+- Alternative: stepped `page.mouse.move(..., { steps })` with small `waitForTimeout`s between the
+  threshold-crossing move and the travel move.
+
+### Remaining (not done this pass)
+
+- [ ] Task: When ready to deploy, run `npm run build` in `abr-react-ts-grid`, wipe
+      `ar-web-selenium/src/main/resources/build`, and copy the fresh build (per the standard
+      sequence in "Validation and deployment record"). The real-`MemoryList` StrictMode fix only
+      reaches the running app after a rebuilt jar (user-owned Java build).
+- [ ] Task (optional): add a Playwright spec for the demo (`?memoryDragDemo=1`) exercising the
+      keyboard-sensor reorder, so rbd drag has regression coverage.
