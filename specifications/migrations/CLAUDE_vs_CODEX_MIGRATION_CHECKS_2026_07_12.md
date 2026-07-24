@@ -1459,6 +1459,30 @@ all 10 rows while still hidden.
       new bundle. This is the actual unblock for "inside Java."
 - [ ] Run `mvn -Dtest=MemoryListReorderTest test` to see the backend drag contract go green.
 
+## Claude — Memory List: replaced react-beautiful-dnd with native HTML5 drag (2026-07-24, latest)
+
+rbd proved too fragile: it depends on `requestAnimationFrame`, which the browser **pauses for
+hidden/occluded tabs**, so its reorder silently died there and was nearly impossible to drive or
+verify. Replaced it with plain native drag in `MemoryList.tsx`.
+
+- [x] `MemoryList.tsx` now uses native draggable rows (`draggable` + `onDragStart`/`onDragOver`/
+      `onDrop`/`onDragEnd`) and a pure `reorderByIndex(from,to)` core. rbd import removed. Same
+      optimistic snapshot update + `REORDER` command to the backend — only the drag mechanism changed.
+- [x] Step-by-step `[MemoryList][drag]` logs: GRABBED / MOVE / DROP / REORDERED / send, with
+      before/after key arrays and indices.
+- [x] `window.__mlReorder(from,to)` hook triggers the whole pipeline without a physical drag (for
+      occluded tabs and automated tests).
+- [x] Verified live in a HIDDEN tab (which rbd could not survive): dispatched real
+      `dragstart→dragover→drop` reorders correctly and logs every step; `__mlReorder` reorders
+      correctly. Backend `MemoryListReorderTest` passed 10/10 in the user's `mvn` build.
+- [x] Backend unchanged (`MemoryListReorder` + `REORDER` command still correct). React commit
+      `033afec`; deployed bundle `main.98eaaef4.js`.
+- [ ] User: rebuild the jar to pick up the native-drag bundle; drag then works with a real mouse
+      in the foreground Memory List window.
+
+Note: `MemoryDragDemo.tsx` (the `?memoryDragDemo=1` scratch bench) still uses rbd; the real
+`MemoryList` and `?memoryListDemo=1` are native and robust.
+
 ## CODEX — Independent Command Editor CRUD investigation (2026-07-24)
 
 Task thread: the detached Command Editor opens empty and must become an independent, real-time CRUD
