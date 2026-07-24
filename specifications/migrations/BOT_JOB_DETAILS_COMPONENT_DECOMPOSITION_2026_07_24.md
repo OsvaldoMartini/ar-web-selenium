@@ -94,10 +94,14 @@ Each `[ ]` = create the component **+ its own `.module.scss` (styles preserved) 
 - [x] `BlockStatusToggle` — active/inactive image button (`handleBlockStatus` via prop).
 - [x] `BlockCollapseToggle` — collapse badge wrapping existing `CollapseToggleIcon`.
 - [x] `ExecutionStateOverlay` — execution background div keyed by `executionState`.
-- [ ] `EmptyBlocksPlaceholder` — the empty-groupedData block.
+- [~] `EmptyBlocksPlaceholder` — **DEFERRED to Phase 5** (Claude, 2026-07-24). It reuses 9 shared
+      block-chrome classes (`.block`, `.blockHeader`, `.blockName`, `.blockOrderNumber`,
+      `.instructionsList`, `.dropdownMenu`, `.dropdownAbove`, `.instructionItem`, `.noDataMessage`)
+      plus `dropdownRef`/`dropdownPosition`. Extracting now would duplicate block chrome (DRY + parity
+      risk). Do it after `BlockCard`/`BlockHeader` own those classes. Phase 1 leaves are otherwise done.
 
 ### Phase 2 — Inline editors (controlled inputs)
-- [ ] `BlockNameEditor` — view/edit block name, Enter-to-save, blur handling.
+- [ ] `BlockNameEditor` — view/edit block name, Enter-to-save, blur handling. **CLAIMED: Claude** (2026-07-24).
 - [ ] `InstructionNameEditor` — view/edit instruction name.
 
 ### Phase 3 — Menus / dropdowns
