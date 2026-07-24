@@ -63,6 +63,21 @@ public class ARControlPanel {
 
         log.info("Application started - all console output is now redirected to logback.");
 
+        // Global single-instance guard. A fixed, config-independent lock acquired BEFORE any
+        // config is read or any server/dashboard is opened, so a second launch is blocked no
+        // matter which -c config or path_log it would use (e.g. IDE run + jar run). A separate
+        // path_log-scoped lock is still taken later in setLogPath(). The OS frees this lock if
+        // the process dies, so a crash never leaves a stale lock blocking the next start.
+        String globalLockDir = System.getProperty("user.home");
+        if (globalLockDir == null || globalLockDir.isBlank()) {
+            globalLockDir = System.getProperty("java.io.tmpdir");
+        }
+        if (!SingleInstance.acquire("ARWebScanner-global", globalLockDir)) {
+            log.warn("Another AR Web Scanner instance is already running (global lock at {}). Exiting.", globalLockDir);
+            System.exit(0);
+        }
+        Runtime.getRuntime().addShutdownHook(new Thread(SingleInstance::release));
+
         List<String> arguments = Arrays.asList(args);
         int chosenPort = getInitialPort();
         int chosenPortIP = getInitialPort();
