@@ -207,20 +207,28 @@ Each `[ ]` = create the component **+ its own `.module.scss` (styles preserved) 
       `useInstructionFind`).
 - [ ] `instructionGrid.types.ts` — shared prop/row/block types consumed by all `grid/*` components.
 
-### Phase 7 — High-context native drag & drop (FINAL)
-With every unit isolated, swap rbd for native HTML5 drag (the proven Memory List approach), reusing
-the existing `onDragEnd(result)` and `ROW_MOVE`/`submitInstructionMove` verbatim.
-- [ ] `InstructionRow` gets native `draggable` + `onDragStart`/`onDragOver`/`onDrop`; `InstructionList`
-      (per block) is the drop zone; on drop, synthesize the rbd-shaped
-      `{ draggableId, source:{droppableId,index}, destination:{droppableId,index} }` and call the
-      existing `onDragEnd`. Cross-block + renumber logic unchanged.
-- [ ] Preserve `memoryCapabilities` move validation (`canMove`, `allowedBlockIds`) via `draggable={…}`
-      and by rejecting drops on disallowed blocks; preserve valid/invalid drop-zone highlighting.
-- [ ] Add `window.__gridReorder(instructionId, toBlockId, toIndex)` diagnostic hook + `[Grid][drag]`
-      step logs (mirroring `[MemoryList][drag]` / `window.__mlReorder`) for occluded-tab/automated
-      verification.
-- [ ] Remove `react-beautiful-dnd` from `GridItem`/`grid/*`. Drop the dependency from `package.json`
-      only once a repo-wide search shows no remaining importers.
+### Phase 7 — High-context native drag & drop (FINAL) — Claude, 2026-07-24
+Swapped rbd for native HTML5 drag at the isolated `InstructionList`/`InstructionRow` seam (the
+Memory List pattern), reusing the existing `onDragEnd(result)` and its preview-move flow verbatim.
+- [x] `InstructionRow` — whole-row native `draggable` + `onDragStart`/`onDragOver`/`onDrop`/`onDragEnd`;
+      dropped the rbd `provided`. `InstructionList` — plain native drop-zone div (no Droppable/Draggable),
+      keeps drop-zone highlight + find-hide filter + EXCEL-GOTO skip. On drop, GridItem synthesizes the
+      **exact rbd result shape** `{ draggableId, source:{droppableId,index}, destination:{droppableId,index} }`
+      and calls the **unchanged `onDragEnd`** → `instructionGraph.previewMove` backend round-trip intact.
+- [x] Move validation preserved: `draggable={!dragDisabled}` (findText/`canMove`), and `onDragEnd`'s
+      existing `allowedBlockIds` check + not-allowed alert are untouched; valid/invalid drop-zone
+      highlight preserved via `activeDraggedInstructionId`.
+- [x] Added `window.__gridReorder(instructionId, destBlock, destIndex)` (looks up the source) +
+      `[Grid][drag]` GRABBED/DROP/RELEASED logs.
+- [x] Removed `DragDropContext` + the rbd import from GridItem. tsc clean; grid 40/40. Built/deployed
+      (`main.3821ed98.js`).
+- [ ] **USER: runtime-verify in the app** (rebuild jar) — drag within a block and across blocks;
+      confirm the reorder persists and disallowed drops still show the alert. The preview-move flow
+      can't be exercised without the backend. If the drop index is off-by-one, the `[Grid][drag]` logs
+      + `__gridReorder` pinpoint it and it's a one-line tweak in `commitInstructionDrag`.
+- [ ] `InstructionDragHandle` still imports an rbd type (harmless). Drop `react-beautiful-dnd` from
+      `package.json` only once a repo-wide search shows no importers (other screens may still use it;
+      `MemoryDragDemo` too).
 
 ## Acceptance criteria (per phase and overall)
 
