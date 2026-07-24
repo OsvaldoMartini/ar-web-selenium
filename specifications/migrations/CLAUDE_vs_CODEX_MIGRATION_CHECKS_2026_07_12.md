@@ -1272,3 +1272,159 @@ several intermediate `mousemove`s across animation frames → `mouseup`. A naive
       reaches the running app after a rebuilt jar (user-owned Java build).
 - [ ] Task (optional): add a Playwright spec for the demo (`?memoryDragDemo=1`) exercising the
       keyboard-sensor reorder, so rbd drag has regression coverage.
+
+## CODEX — Page Scanner element repository and current-page self-healing (2026-07-24)
+
+Task thread: build a reusable Banca Stato web-element repository by scanning many application pages,
+then use it during `executeJob()` when authored locators drift.
+
+Detailed roadmap:
+`ROADMAP_PAGE_SCANNER_ELEMENT_REPOSITORY_2026_07_24.md`
+
+### Confirmed current behavior
+
+- [x] The detached Page Scanner does persist every non-empty retained scan result into
+      `scanned_element`.
+- [x] Re-scanning the same scope/hash updates the row, increments `scan_count`, and refreshes
+      `last_scanned_at`.
+- [x] A distinct locator hash inserts another row; missing elements are not deleted.
+- [x] A plain scan does not create Bot Job instructions. `pageScanner.apply` remains the explicit
+      instruction/reference mutation.
+- [x] The detached scan does not update the older `element_locator`/`element_locator_rename`
+      repository; the two repositories currently diverge.
+- [x] Diagnostic `elementDTO-PS-BJ.json` files are overwritten per scan and are not the cumulative
+      element repository.
+
+Code path:
+
+1. `GridItemScann.tsx` sends `pageScanner.scan`.
+2. `SimpleWebSocketServer.handlePageScannerCommand(...)` maps it to `PRE_SCAN_PAGE`.
+3. `BotJobDetailsWorkspaceHost` calls `PreScanWorkflowService.scan(...)`.
+4. `PreScanWorkflowService.DefaultDiagnosticsPort.persist(...)` calls
+   `PerformDataBase.upsertScannedElements(...)`.
+5. `ScannedElementRepository.upsert(...)` performs the transactional insert/update.
+
+### Read-only production evidence
+
+The production SQLite database
+`D:\Projects\ARWebBancaStato\ARWeb\database.db` was queried read-only on 2026-07-24:
+
+- 537 `scanned_element` rows for Bot Job 5;
+- 15,885 cumulative scan observations;
+- three stored `page_url` values;
+- latest update `2026-07-24 10:51:49`;
+- 536/537 rows have `defined_name`;
+- 56 same-page duplicate `defined_name` groups;
+- zero rows currently persist raw OCR text/confidence.
+
+This confirms that repeated Page Scanner runs are already building and updating the database
+registry. It also confirms that name uniqueness cannot be assumed.
+
+### Critical gaps found
+
+- [ ] Persistence saves `context.endpointUrl()` instead of the actual active
+      `browser.currentUrl()`. Manual navigation can therefore scan one page while labeling its rows
+      with another URL.
+- [ ] The unique key is `(home_banking_id, bot_job_id, element_hash)`, and `element_hash` excludes
+      page identity. Equal locator signatures on different pages collide.
+- [ ] Scan-time database errors are converted to `[0,0]`; the final Page Scanner `done` state does
+      not guarantee that persistence succeeded.
+- [ ] The detached workflow retains only results classified as input/button/output/label, not every
+      DOM element returned by the scanner.
+- [ ] OCR audit fields exist but are not written by the current scanned-element upsert SQL.
+
+### Existing execution healing and its limits
+
+- [x] `executeJob()` uses Playwright and consults `scanned_element` after failed CLICK/OTHER and
+      INSERT actions.
+- [x] The current resolver supports exact XPath/custom XPath, exact CSS, unique exact name,
+      coordinate-disambiguated duplicate name, and fuzzy name.
+- [ ] The resolver loads every historical row for the Bot Job and is not scoped to the current
+      Playwright page.
+- [ ] `InstructionLoad.name` is not a direct live Playwright locator. The resolver only uses it to
+      select a stored registry row and then retries that row's locator.
+- [ ] Name matching excludes `client_named` and HTML `attrib_name`.
+- [ ] OUTPUT/text operations do not use scanned-repository healing.
+- [ ] Coordinates are attempted before registry healing, so a stale coordinate can act before the
+      safer current-page name path.
+- [ ] Boolean action results do not distinguish `NOT_FOUND` from an action already attempted and
+      failed; healing therefore lacks a strict one-side-effect guarantee.
+
+### Agreed implementation order
+
+- [ ] Phase 0: back up production data and freeze normalized page-identity rules.
+- [ ] Phase 1: persist the actual current page and return a correlated typed persistence receipt.
+- [ ] Phase 2: add an append-only migration for page-scoped element identity and freshness.
+- [ ] Phase 3: implement page-aware repository/name resolution including all approved aliases.
+- [ ] Phase 4: validate one unique candidate against the live current Playwright page.
+- [ ] Phase 5: integrate structured failure states, healing before coordinates, OUTPUT support, and
+      exactly one final side-effecting action.
+- [ ] Phase 6: expose repository counts, duplicates, stale observations, and healing diagnostics.
+- [ ] Phase 7: run focused multi-page, cross-page-refusal, migration, and one-action verification.
+
+### Decisions added by this investigation
+
+- D-007: The cumulative repository is `scanned_element`; diagnostic JSON files are not repository
+  storage.
+- D-008: Scanning and instruction creation remain separate operations.
+- D-009: A candidate from another page must never heal a current-page instruction.
+- D-010: Ambiguous name matches are refused; first-row selection is not an accepted fallback.
+- D-011: Coordinates remain the last fallback and cannot precede page-aware repository resolution.
+- D-012: A Page Scanner `done` result must eventually include authoritative database persistence
+  outcome and counts.
+- D-013: Do not edit the applied `M20260704_ScannedElement` migration; page-aware schema work gets a
+  new append-only migration.
+
+## Claude — Memory List drag correction: root cause is the stale jar, not StrictMode (2026-07-24, later)
+
+Follow-up after the user reported "inside Java is not working" and asked for a direct Memory List
+diagnostic + a Java drag & drop test. Superseding correction to the section above — nothing there is
+deleted, per this file's contract.
+
+### Corrected diagnosis
+
+- The `StrictMode` + react-beautiful-dnd problem is **dev-only** (`npm start`). Inside the packaged
+  jar the app serves the **production** build, where React StrictMode does **not** double-invoke
+  effects, so a plain `Droppable` works. StrictMode was therefore **not** why drag failed inside Java.
+- The real reason drag "does not work inside Java": the React build is packaged **into the jar** at
+  `mvn package` time. The running jar is dated **07-17/07-22**, older than the drag code (**07-24**),
+  so it serves an old bundle. Copying files into `src/main/resources/build` does nothing until the
+  jar is repackaged. Verified by timestamp: deployed jar 07-17 21:51 vs bundle 07-24.
+- Backend `REORDER` is correct (traced end to end): `commandPayload` keeps `orderedItemKeys`,
+  `canonicalCommand` maps `SELECT_BLOCK→SELECT_TARGET_BLOCK`, `reorder()` validates + rewrites
+  `state.order` + bumps revision, `publishSnapshot` echoes the new order. Row keys match on both
+  sides (`kind + ":" + rawKey`).
+
+### Regression found and removed
+
+The earlier `StrictModeDroppable` wrapper gated the list behind a `requestAnimationFrame`. rAF is
+**paused in hidden/background tabs**, so that wrapper would render the Memory List **empty** if its
+detached window ever opened in the background — a production risk introduced by the "fix." Confirmed
+live: with `document.hidden === true`, the rAF-gated list showed 0 rows; a plain `Droppable` showed
+all 10 rows while still hidden.
+
+- [x] Reverted `MemoryList.tsx` and `MemoryDragDemo.tsx` to a plain `<Droppable>` (no rAF gate).
+- [x] Render the dev demo routes **outside** `React.StrictMode` in `index.tsx`, which matches
+      production behavior (no double-invoke) and lets a plain `Droppable` work in `npm start`.
+
+### Deliverables this pass
+
+- [x] Frontend shortcut to test the **real** Memory List with synthetic data, no backend:
+      `http://localhost:3000/?memoryListDemo=1`. Added a `demoMode` prop to `MemoryList` that seeds a
+      10-row snapshot and keeps every command local. Verified live: all 10 rows + droppable render
+      even in a hidden tab.
+- [x] Runtime console monitor on the drag path (`[MemoryList][drag]` in `handleDragEnd`): logs
+      drag-end, abort reasons, no-op reorders, and the `REORDER` send. Open DevTools in the jar,
+      drag a row, and it prints exactly where the path stops.
+- [x] Java drag & drop test without WebSocket/DB/JavaFX: extracted the pure reorder core into
+      `com.allinweb.ch.socket.MemoryListReorder` and added `MemoryListReorderTest`
+      (accepts complete permutations, rejects wrong count / null / unknown / duplicate / null-key;
+      exhaustive adjacent-swap and full-reversal cases). Run:
+      `mvn -Dtest=MemoryListReorderTest test` (user-owned; assistant does not run Maven).
+- [x] Built React (`main.1a51dabd.js`, 45 files) and clean-copied into `resources/build`.
+
+### Still user-owned
+
+- [ ] Rebuild the jar (`mvn clean package`) so the running app finally contains the drag code +
+      new bundle. This is the actual unblock for "inside Java."
+- [ ] Run `mvn -Dtest=MemoryListReorderTest test` to see the backend drag contract go green.

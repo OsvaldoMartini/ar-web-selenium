@@ -251,25 +251,24 @@ public final class MemoryListWorkspaceService {
 
     private JsonObject reorder(MemoryState state, JsonObject payload, JsonObject request) {
         JsonArray requested = array(payload, "orderedItemKeys");
-        if (requested == null || requested.size() != state.order.size()) {
-            return failure(request, "Memory List order is incomplete. Refresh and try again.");
+        List<String> requestedKeys = null;
+        if (requested != null) {
+            requestedKeys = new ArrayList<>(requested.size());
+            for (JsonElement value : requested) {
+                try {
+                    requestedKeys.add(value.getAsString());
+                } catch (RuntimeException invalid) {
+                    return failure(request, "Memory List order contains an invalid row.");
+                }
+            }
         }
-        List<String> next = new ArrayList<>();
-        Set<String> unique = new HashSet<>();
-        for (JsonElement value : requested) {
-            String key;
-            try {
-                key = value.getAsString();
-            } catch (RuntimeException invalid) {
-                return failure(request, "Memory List order contains an invalid row.");
-            }
-            if (!state.items.containsKey(key) || !unique.add(key)) {
-                return failure(request, "Memory List order contains a missing or duplicate row.");
-            }
-            next.add(key);
+        MemoryListReorder.Outcome outcome =
+                MemoryListReorder.resolve(state.order.size(), state.items.keySet(), requestedKeys);
+        if (!outcome.ok()) {
+            return failure(request, outcome.error());
         }
         state.order.clear();
-        state.order.addAll(next);
+        state.order.addAll(outcome.orderedKeys());
         state.revision++;
         return success(request, state, "Memory List order updated.");
     }
