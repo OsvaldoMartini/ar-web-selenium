@@ -1,7 +1,8 @@
 # Bot Job Details — Component Decomposition Roadmap (GridItem.tsx) — 2026-07-24
 
-Status: **DRAFT for review.** Claude authored the initial roadmap; CODEX to review, correct, and
-increment ideas. No extraction has started yet. This is a shared CLAUDE ⇆ CODEX roadmap — update
+Status: **IN PROGRESS — Phase 1 is 4/5 complete.** Claude authored the initial roadmap and extracted
+`FindBar` plus `BlockCollapseToggle`; CODEX reviewed/corrected those leaves and extracted
+`BlockStatusToggle` plus `ExecutionStateOverlay`. This is a shared CLAUDE ⇆ CODEX roadmap — update
 this file in place rather than forking a parallel plan.
 
 ## Goal
@@ -72,7 +73,7 @@ abr-react-ts-grid/src/components/bot-job-details/grid/
   InstructionActionMenu.tsx / .module.scss  # per-row menu (edit, delete, add-to-memory, command editor, status)
   InsertStepDropdown.tsx / .module.scss     # "Insert New Step" dropdown
   ExecutionStateOverlay.tsx / .module.scss  # execution background overlay
-  FindBar.tsx / .module.scss                # find/search input + memory-move status
+  FindBar.tsx / .module.scss                # find/search input + Memory-list reopen action
   EmptyBlocksPlaceholder.tsx / .module.scss # "No blocks were created yet"
   useInstructionGrid.ts                      # state + handlers controller hook (final hoist)
   instructionGrid.types.ts                   # shared row/block prop types
@@ -88,10 +89,11 @@ Each `[ ]` = create the component **+ its own `.module.scss` (styles preserved) 
 `tsc` clean, visual parity, commit `CLAUDE…`/`CODEX…`. Build+deploy at the end of each phase.
 
 ### Phase 1 — Leaf presentational (no state, props only) — lowest risk
-- [ ] `FindBar` — find input, clear, result count / memory-move status.
-- [ ] `BlockStatusToggle` — active/inactive image button (`handleBlockStatus` via prop).
-- [ ] `BlockCollapseToggle` — collapse badge wrapping existing `CollapseToggleIcon`.
-- [ ] `ExecutionStateOverlay` — execution background div keyed by `executionState`.
+- [x] `FindBar` — find input, clear, and the existing Memory-count reopen action. The detached
+      Memory List remains responsible for move status; no result count existed in the original row.
+- [x] `BlockStatusToggle` — active/inactive image button (`handleBlockStatus` via prop).
+- [x] `BlockCollapseToggle` — collapse badge wrapping existing `CollapseToggleIcon`.
+- [x] `ExecutionStateOverlay` — execution background div keyed by `executionState`.
 - [ ] `EmptyBlocksPlaceholder` — the empty-groupedData block.
 
 ### Phase 2 — Inline editors (controlled inputs)
@@ -154,8 +156,19 @@ the existing `onDragEnd(result)` and `ROW_MOVE`/`submitInstructionMove` verbatim
 
 | Reviewer | Status | Notes |
 |---|---|---|
-| Claude | Draft authored | Initial roadmap, folder plan, 7 phases, drag last. Awaiting CODEX review. |
-| CODEX | Pending | Review component boundaries, propose additional splits / sub-hooks, validate scss-split safety, confirm the Phase-7 native-drag contract matches `onDragEnd`. |
+| Claude | Phase-1 leaves submitted | `FindBar` in `d0b82a2`/`0780216`; `BlockCollapseToggle` in `35184e4`. |
+| CODEX | Reviewed; approved after corrections | Restored the collapsed-state class contract, corrected FindBar's compiled-style parity, moved its existing Memory action, and completed the next two leaves in `eb7b4db`. Claude's FindBar commit contains avoidable EOL-only churn; future extractions must keep surgical diffs. |
+
+## Phase 1 evidence — 2026-07-24
+
+- Frontend commits reviewed: `d0b82a2`, `0780216`, `35184e4`.
+- CODEX corrections and next two tasks: `eb7b4db`.
+- Focused React verification only: 4 suites, 15 tests passed
+  (`FindBar`, `BlockCollapseToggle`, `BlockStatusToggle`, `ExecutionStateOverlay`).
+- `npm run build`: successful with pre-existing repository lint warnings.
+- Deployed resources: `main.d40f66d4.js`, `main.f87986ad.css`; source and destination each contain
+  45 files with identical relative-path SHA-256 sets.
+- Maven/Java compilation was intentionally not run under the repository standing rule.
 
 ## Open questions for CODEX
 

@@ -1582,3 +1582,40 @@ empty database.
   mutation services and graph validators.
 - D-023: Complete CRUD requires owner-scoped SQL, generated keys, one transaction, idempotent
   request IDs, and stale workspace/selection/content revision rejection.
+
+## CLAUDE ⇆ CODEX — Bot Job Details decomposition Phase 1 review (2026-07-24)
+
+Roadmap:
+`BOT_JOB_DETAILS_COMPONENT_DECOMPOSITION_2026_07_24.md`
+
+### Review of Claude's first leaves
+
+- [x] Reviewed `FindBar` commits `d0b82a2` and `0780216`.
+- [x] Reviewed `BlockCollapseToggle` commit `35184e4`.
+- [x] Confirmed both leaves preserve state and business handlers in `GridItem`.
+- [x] Corrected FindBar's effective compiled CSS parity (`250px` width and `10px` right padding).
+- [x] Moved the existing Memory-count reopen action into `FindBar`, matching the roadmap boundary.
+- [x] Restored the literal `is-collapsed` class for DOM/external-automation parity.
+- [x] Recorded one process concern: the initial FindBar extraction normalized many unrelated line
+      endings. It did not produce an identified runtime defect, but future leaf commits must avoid
+      EOL-only churn to reduce merge-conflict and review risk.
+
+### Next two tasks completed by CODEX
+
+- [x] Added presentational `BlockStatusToggle.tsx` + `.module.scss` + focused tests.
+- [x] Added presentational `ExecutionStateOverlay.tsx` + `.module.scss` + focused tests.
+- [x] Preserved block-status persistence through the original `handleBlockStatus` callback.
+- [x] Preserved execution green/red/yellow animation and row stacking while moving the overlay
+      styles out of `Griditem.module.scss`.
+- [x] Frontend commit: `eb7b4db`.
+
+### Focused verification and deployment
+
+- [x] Focused Jest: 4 suites, 15 tests passed. No complete test suite was run.
+- [x] React production build succeeded with existing lint warnings.
+- [x] Deployed `main.d40f66d4.js` and `main.f87986ad.css` to
+      `src/main/resources/build`.
+- [x] Verified source/deployment parity: 45 files on each side and no relative-path/SHA-256 delta.
+- [x] Maven/Java compilation was not run.
+
+Next unclaimed leaf: `EmptyBlocksPlaceholder`.
