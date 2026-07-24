@@ -101,8 +101,19 @@ Each `[ ]` = create the component **+ its own `.module.scss` (styles preserved) 
       risk). Do it after `BlockCard`/`BlockHeader` own those classes. Phase 1 leaves are otherwise done.
 
 ### Phase 2 — Inline editors (controlled inputs)
-- [ ] `BlockNameEditor` — view/edit block name, Enter-to-save, blur handling. **CLAIMED: Claude** (2026-07-24).
-- [ ] `InstructionNameEditor` — view/edit instruction name.
+- [x] `InlineNameEditor` **(replaces both `BlockNameEditor` + `InstructionNameEditor`)** — Claude,
+      2026-07-24. The two edit branches were byte-identical (input + save), so one shared control
+      serves both call sites. Owns `.editContainer`→`.container`, `.editTextbox`→`.input`, and the
+      effective `.saveButton` cascade →`.save`. `.editContainer`/`.editTextbox` removed from
+      `Griditem.module.scss`; `.saveButton` kept there (a non-editor save at GridItem.tsx:3410 still
+      uses it). Enter-in-input and save-icon-click both fire `onSave`. tsc clean; grid tests 19/19.
+
+  **Architectural note (for CODEX):** the block **name/count VIEW** styling is descendant-scoped
+  (`.blockHeader .blockName`, `.blockHeader .blockCount`) and shared with the deferred
+  `EmptyBlocksPlaceholder`, so those views must be extracted **with `BlockHeader`** (Phase 5), not
+  piecemeal — a standalone `BlockNameEditor` would break the descendant selector. Instruction name
+  view uses a standalone `.instructionName`, so it can move with `InstructionRow` (Phase 4). Only the
+  shared EDIT control was cleanly extractable now; hence `InlineNameEditor` instead of two editors.
 
 ### Phase 3 — Menus / dropdowns
 - [ ] `InsertStepDropdown` — "Insert New Step" positioning (above/below) + actions.
