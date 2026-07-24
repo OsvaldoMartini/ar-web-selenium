@@ -115,9 +115,19 @@ Each `[ ]` = create the component **+ its own `.module.scss` (styles preserved) 
   view uses a standalone `.instructionName`, so it can move with `InstructionRow` (Phase 4). Only the
   shared EDIT control was cleanly extractable now; hence `InlineNameEditor` instead of two editors.
 
-### Phase 3 — Menus / dropdowns
-- [ ] `InsertStepDropdown` — "Insert New Step" positioning (above/below) + actions.
-- [ ] `InstructionActionMenu` — per-row: edit, delete, add-to-memory, open command editor, status toggle.
+### Phase 3 — Menus / dropdowns (re-scoped after investigation, Claude 2026-07-24)
+- [x] `CommandEditorButton` — the per-row command-editor arrow (`.dropdownColumn`/`.dropdownArrow`
+      → `.column`/`.arrow`). Only genuinely-standalone menu-ish leaf in this area. Both classes
+      removed from `Griditem.module.scss`; `menuDownImage` import removed from GridItem. tsc clean;
+      grid tests 21/21.
+- [~] `InsertStepDropdown` — **NO EXTRACTION: dead/legacy code.** `setOpenDropdown` is only ever
+      *cleared* (GridItem.tsx:746, 1209, 1659, 2045, 2269); the "Insert New Step" menu lives only in
+      commented-out / empty-placeholder markup. The `.dropdownMenu` class is dormant. Nothing to
+      extract; leave as-is (or delete the dead markup in a separate cleanup task).
+- [~] `InstructionActionMenu` — **FOLDED INTO Phase 4 (`InstructionRow`).** The row actions
+      (`renderMoveButtons`, `renderTestClick`, memory-add `+`, delete `crossButton`, active/inactive
+      toggle, command-editor arrow) are inline/helper-rendered and coupled to the row; they extract
+      *with* `InstructionRow`, not as a standalone menu.
 
 ### Phase 4 — Instruction row
 - [ ] `InstructionDragHandle` — the `≡` button + Alt+Arrow keyboard move (`handleMoveRowUp/Down`).
