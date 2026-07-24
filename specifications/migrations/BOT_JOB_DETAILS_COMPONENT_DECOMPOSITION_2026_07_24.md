@@ -130,9 +130,32 @@ Each `[ ]` = create the component **+ its own `.module.scss` (styles preserved) 
       *with* `InstructionRow`, not as a standalone menu.
 
 ### Phase 4 — Instruction row
-- [ ] `InstructionDragHandle` — the `≡` button + Alt+Arrow keyboard move (`handleMoveRowUp/Down`).
-- [ ] `InstructionRow` — composes DragHandle + NameEditor + ActionMenu + ExecutionOverlay; receives
+- [x] `InstructionDragHandle` — the `≡` button + Alt+Arrow keyboard move. Claude, 2026-07-24. Owns
+      row-exclusive `.dragHandle` (+ states) → `.handle`, removed from `Griditem.module.scss`. Accepts
+      the current drag lib's `dragHandleProps` (rbd today; Phase 7 swaps the source). tsc clean; grid 24/24.
+- [ ] `InstructionRow` — **BLOCKED on a shared-styles decision (see below).** Composes DragHandle +
+      InlineNameEditor + ExecutionStateOverlay + CommandEditorButton + the action cluster; receives
       `instruction`, `index`, `capabilities`, and callbacks. IF/ELSEIF/ELSE/ENDIF highlight preserved.
+
+  **Shared-styling blocker (Claude, 2026-07-24) — needs a decision before `InstructionRow`/`BlockHeader`:**
+  The row and the block header **share many classes and a bundled button-group selector**, so neither
+  can own its full `.module.scss` in isolation:
+  - Shared with the block header: `.memoryAddButton` (block "+" at GridItem.tsx:3358 and row `+`),
+    `.activeButton`/`.inactiveButton`, `.moveButtons`, `.crossButton`, `.optionsColumn`.
+  - One selector bundles ~14 buttons: `.moveButton, .rollbackButton, .garbageButton, .editButton,
+    .excelButton, .crossButton, .saveButton, .pickButton, .warningButton, .testButton, .activeButton,
+    .inactiveButton, .arrowLeftButton, .brickButton { … &:hover { scale(1.4) } }`. Splitting one button
+    out means duplicating or breaking that rule.
+  - The row also pulls in 6 GridItem helper renderers (`getInstructionTypeElement`, `renderOperations`,
+    `renderDeviceOptionsRow`, `renderEditButton`, `renderMoveButtons`, `renderTestClick`).
+
+  **Proposed resolution (answers roadmap open-question #4):** add a **shared** grid styles module
+  `grid/gridShared.module.scss` holding the common button-group + cross-header classes, imported by
+  `GridItem`, `InstructionRow`, and (later) `BlockHeader`. Each component keeps its own module for its
+  *exclusive* classes and composes shared ones from `gridShared`. This is a small, deliberate
+  exception to "one module per component" for genuinely shared design tokens. Once agreed, extract
+  `InstructionRow` passing the 6 helper outputs as pre-rendered `ReactNode` props (not functions).
+  **Recommend Claude or CODEX build `gridShared` next; `InstructionRow` and `BlockHeader` depend on it.**
 
 ### Phase 5 — List + Block composites
 - [ ] `InstructionList` — per-block list; maps instructions → `InstructionRow`; owns the find-hide
