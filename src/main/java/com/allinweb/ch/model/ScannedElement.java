@@ -5,8 +5,9 @@ import lombok.NoArgsConstructor;
 
 /**
  * A row in the {@code scanned_element} registry — the source of truth for elements seen by the
- * scanner, scoped by organization ({@code homeBankingId}) + {@code botJobId} and identified by a
- * stable {@code elementHash} (so same-name/different-xPath elements stay distinct).
+ * scanner, scoped by organization ({@code homeBankingId}) + {@code botJobId} + {@code pageKey} and
+ * identified by a stable {@code elementHash} (so same-name/different-page/different-xPath elements
+ * stay distinct).
  *
  * <p>Populated/updated on every scan (see {@code ScannedElementRepository.upsert}); OCR results
  * correct {@code someText}/{@code definedName} and are also stored raw for auditing. Bot-job
@@ -21,8 +22,9 @@ public class ScannedElement {
     private Integer botJobId;
     private Integer homeUrlId;
     private String pageUrl;
+    private String pageKey;
 
-    /** Stable identity hash of the locator fields — the disambiguation key within a scope. */
+    /** Stable identity hash of the page key plus locator fields. */
     private String elementHash;
 
     private String tagName;

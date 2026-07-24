@@ -227,6 +227,11 @@ public class BotJobDetailsWorkspaceHost {
         return instance;
     }
 
+    /** Exact live Page Scanner URL used to scope locator mutations to the scanned page. */
+    public String currentPageScannerUrl() {
+        return preScanWorkflowService.currentPageUrl();
+    }
+
     public void setPresentationPort(BotJobDetailsPresentationGateway presentationPort) {
         this.presentationPort = java.util.Objects.requireNonNull(presentationPort, "presentationPort");
     }

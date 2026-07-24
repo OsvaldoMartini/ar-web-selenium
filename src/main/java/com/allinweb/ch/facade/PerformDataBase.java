@@ -137,20 +137,37 @@ public class PerformDataBase {
             Integer homeUrlId,
             String pageUrl,
             java.util.List<com.allinweb.ch.model.ElementDTO> elements) {
+        try {
+            return upsertScannedElementsStrict(
+                    homeBankingId, botJobId, homeUrlId, pageUrl, elements);
+        } catch (Exception e) {
+            log.warn("upsertScannedElements failed (hb={}, bot={}): {}", homeBankingId, botJobId, e.getMessage());
+            return new int[] {0, 0};
+        }
+    }
+
+    /**
+     * Persist a scanner batch and report any page-identity/schema failure to the interactive Page
+     * Scanner caller.
+     */
+    public int[] upsertScannedElementsStrict(
+            Integer homeBankingId,
+            Integer botJobId,
+            Integer homeUrlId,
+            String pageUrl,
+            java.util.List<com.allinweb.ch.model.ElementDTO> elements)
+            throws SQLException {
         try (Connection conn = getConnection()) {
-            com.allinweb.ch.db.ScannedElementRepository.UpsertResult r =
+            com.allinweb.ch.db.ScannedElementRepository.UpsertResult result =
                     com.allinweb.ch.db.ScannedElementRepository.upsert(
                             conn, homeBankingId, botJobId, homeUrlId, pageUrl, elements);
             logDB.info(
                     "{} New Web Elements inserted to scanned_element and {} updated (homeBankingId={}, botJobId={})",
-                    r.inserted(),
-                    r.updated(),
+                    result.inserted(),
+                    result.updated(),
                     homeBankingId,
                     botJobId);
-            return new int[] {r.inserted(), r.updated()};
-        } catch (Exception e) {
-            log.warn("upsertScannedElements failed (hb={}, bot={}): {}", homeBankingId, botJobId, e.getMessage());
-            return new int[] {0, 0};
+            return new int[] {result.inserted(), result.updated()};
         }
     }
 
@@ -162,11 +179,12 @@ public class PerformDataBase {
     public int updateScannedElementCustomXPathStrict(
             Integer homeBankingId,
             Integer botJobId,
+            String pageUrl,
             com.allinweb.ch.model.ElementDTO element)
             throws SQLException {
         try (Connection conn = getConnection()) {
             return com.allinweb.ch.db.ScannedElementRepository.updateCustomXPath(
-                    conn, homeBankingId, botJobId, element);
+                    conn, homeBankingId, botJobId, pageUrl, element);
         }
     }
 
@@ -197,6 +215,27 @@ public class PerformDataBase {
             return com.allinweb.ch.facade.ScannedElementResolver.resolve(registry, instruction);
         } catch (Exception e) {
             log.warn("resolveScannedElementByBotJob failed (bot={}): {}", botJobId, e.getMessage());
+            return new com.allinweb.ch.facade.ScannedElementResolver.Result(
+                    null, com.allinweb.ch.facade.ScannedElementResolver.Strategy.NONE, 0.0);
+        }
+    }
+
+    /** Current-page-only self-healing lookup for the active Playwright session. */
+    public com.allinweb.ch.facade.ScannedElementResolver.Result resolveScannedElementByBotJobAndPage(
+            Integer botJobId,
+            String pageUrl,
+            com.allinweb.ch.model.InstructionLoad instruction) {
+        try (Connection conn = getConnection()) {
+            java.util.List<com.allinweb.ch.model.ScannedElement> registry =
+                    com.allinweb.ch.db.ScannedElementRepository.loadByBotJobAndPage(
+                            conn, botJobId, pageUrl);
+            return com.allinweb.ch.facade.ScannedElementResolver.resolve(registry, instruction);
+        } catch (Exception e) {
+            log.warn(
+                    "resolveScannedElementByBotJobAndPage failed (bot={}, page={}): {}",
+                    botJobId,
+                    pageUrl,
+                    e.getMessage());
             return new com.allinweb.ch.facade.ScannedElementResolver.Result(
                     null, com.allinweb.ch.facade.ScannedElementResolver.Strategy.NONE, 0.0);
         }

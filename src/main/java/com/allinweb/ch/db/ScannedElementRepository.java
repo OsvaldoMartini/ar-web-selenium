@@ -33,8 +33,36 @@ public final class ScannedElementRepository {
      * xPath/iframe/id/css produce different hashes — the disambiguation key within a scope.
      */
     public static String hashOf(ElementDTO e) {
-        String basis = nz(e.getXPath()) + "|" + nz(e.getIFrameXPath()) + "|" + nz(e.getAttribId()) + "|"
-                + nz(e.getCssSelector());
+        return hash(locatorBasis(e));
+    }
+
+    /**
+     * Stable row identity for a locator observed on one exact page.
+     *
+     * <p>Including the page key in the digest makes the original cross-dialect unique constraint
+     * page-aware without destructive table rebuilds on SQLite or Access.
+     */
+    public static String pageScopedHash(String pageKey, ElementDTO element) {
+        if (pageKey == null || pageKey.isBlank()) {
+            throw new IllegalArgumentException("A scanned page key is required");
+        }
+        return hash(pageKey + "\u0000" + locatorBasis(element));
+    }
+
+    private static String locatorBasis(ElementDTO element) {
+        if (element == null) return "0:0:0:0:";
+        return encoded(element.getXPath())
+                + encoded(element.getIFrameXPath())
+                + encoded(element.getAttribId())
+                + encoded(element.getCssSelector());
+    }
+
+    private static String encoded(String value) {
+        String safe = nz(value);
+        return safe.length() + ":" + safe;
+    }
+
+    private static String hash(String basis) {
         try {
             MessageDigest md = MessageDigest.getInstance("SHA-256");
             byte[] digest = md.digest(basis.getBytes(StandardCharsets.UTF_8));
@@ -44,8 +72,8 @@ public final class ScannedElementRepository {
             }
             return sb.toString();
         } catch (Exception ex) {
-            // Fallback: never fail a scan over hashing — degrade to a stable string hash.
-            return Integer.toHexString(basis.hashCode());
+            throw new IllegalStateException(
+                    "SHA-256 is required for scanned element identity", ex);
         }
     }
 
@@ -53,9 +81,10 @@ public final class ScannedElementRepository {
     public record UpsertResult(int inserted, int updated) {}
 
     /**
-     * Insert new elements or refresh existing ones (matched by scope + element_hash), bumping
-     * scan_count and last_scanned_at. {@code someText}/{@code definedName} on the DTOs are already
-     * OCR-corrected by ElementTextResolver, so persisting them captures the OCR correction.
+     * Insert new elements or refresh existing ones (matched by organization + Bot Job + exact page
+     * + page-scoped element hash), bumping scan_count and last_scanned_at. {@code
+     * someText}/{@code definedName} on the DTOs are already OCR-corrected by ElementTextResolver,
+     * so persisting them captures the OCR correction.
      */
     public static UpsertResult upsert(
             Connection conn,
@@ -69,19 +98,22 @@ public final class ScannedElementRepository {
             return new UpsertResult(0, 0);
         }
 
+        requireScope(homeBankingId, botJobId);
+        ScannedPageIdentity page = ScannedPageIdentity.fromLiveUrl(pageUrl);
         String selectSql = "SELECT id, custom_x_path FROM scanned_element"
-                + " WHERE home_banking_id = ? AND bot_job_id = ? AND element_hash = ?";
+                + " WHERE home_banking_id = ? AND bot_job_id = ? AND page_key = ? AND element_hash = ?";
         String insertSql = "INSERT INTO scanned_element ("
-                + "home_banking_id, bot_job_id, home_url_id, page_url, element_hash, tag_name, type_element,"
-                + "defined_name, client_named, some_text, x_path, custom_x_path, css_selector, attrib_id,"
-                + "attrib_name, coordinates, iframe_xpath, shadow_host, shadow_root, attribute_data,"
+                + "home_banking_id, bot_job_id, home_url_id, page_url, page_key, element_hash, tag_name,"
+                + "type_element, defined_name, client_named, some_text, x_path, custom_x_path,"
+                + "css_selector, attrib_id, attrib_name, coordinates, iframe_xpath, shadow_host,"
+                + "shadow_root, attribute_data,"
                 + "scan_count, first_scanned_at, last_scanned_at) VALUES ("
-                + "?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)";
+                + "?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)";
         String updateSql = "UPDATE scanned_element SET "
-                + "home_url_id = ?, page_url = ?, tag_name = ?, type_element = ?, defined_name = ?,"
-                + "client_named = ?, some_text = ?, x_path = ?, custom_x_path = ?, css_selector = ?,"
-                + "attrib_id = ?, attrib_name = ?, coordinates = ?, iframe_xpath = ?, shadow_host = ?,"
-                + "shadow_root = ?, attribute_data = ?, scan_count = scan_count + 1,"
+                + "home_url_id = ?, page_url = ?, page_key = ?, tag_name = ?, type_element = ?,"
+                + "defined_name = ?, client_named = ?, some_text = ?, x_path = ?, custom_x_path = ?,"
+                + "css_selector = ?, attrib_id = ?, attrib_name = ?, coordinates = ?, iframe_xpath = ?,"
+                + "shadow_host = ?, shadow_root = ?, attribute_data = ?, scan_count = scan_count + 1,"
                 + "last_scanned_at = CURRENT_TIMESTAMP WHERE id = ?";
 
         int inserted = 0;
@@ -93,13 +125,14 @@ public final class ScannedElementRepository {
                 PreparedStatement upd = conn.prepareStatement(updateSql)) {
             for (ElementDTO e : elements) {
                 if (e == null) continue;
-                String hash = hashOf(e);
+                String elementHash = pageScopedHash(page.pageKey(), e);
 
                 Long existingId = null;
                 String existingCustomXPath = null;
                 sel.setObject(1, homeBankingId);
                 sel.setObject(2, botJobId);
-                sel.setString(3, hash);
+                sel.setString(3, page.pageKey());
+                sel.setString(4, elementHash);
                 try (ResultSet rs = sel.executeQuery()) {
                     if (rs.next()) {
                         existingId = rs.getLong(1);
@@ -114,8 +147,9 @@ public final class ScannedElementRepository {
                     ins.setObject(i++, homeBankingId);
                     ins.setObject(i++, botJobId);
                     ins.setObject(i++, homeUrlId);
-                    ins.setString(i++, pageUrl);
-                    ins.setString(i++, hash);
+                    ins.setString(i++, page.actualUrl());
+                    ins.setString(i++, page.pageKey());
+                    ins.setString(i++, elementHash);
                     ins.setString(i++, e.getTagName());
                     ins.setString(i++, e.getTypeElement());
                     ins.setString(i++, e.getDefinedName());
@@ -136,7 +170,8 @@ public final class ScannedElementRepository {
                 } else {
                     int i = 1;
                     upd.setObject(i++, homeUrlId);
-                    upd.setString(i++, pageUrl);
+                    upd.setString(i++, page.actualUrl());
+                    upd.setString(i++, page.pageKey());
                     upd.setString(i++, e.getTagName());
                     upd.setString(i++, e.getTypeElement());
                     upd.setString(i++, e.getDefinedName());
@@ -197,6 +232,7 @@ public final class ScannedElementRepository {
             Connection conn,
             Integer homeBankingId,
             Integer botJobId,
+            String pageUrl,
             ElementDTO element)
             throws SQLException {
         if (element == null
@@ -206,13 +242,16 @@ public final class ScannedElementRepository {
                 || element.getCustomXPath().isBlank()) {
             return 0;
         }
+        requireScope(homeBankingId, botJobId);
+        ScannedPageIdentity page = ScannedPageIdentity.fromLiveUrl(pageUrl);
         String sql = "UPDATE scanned_element SET custom_x_path = ?"
-                + " WHERE home_banking_id = ? AND bot_job_id = ? AND element_hash = ?";
+                + " WHERE home_banking_id = ? AND bot_job_id = ? AND page_key = ? AND element_hash = ?";
         try (PreparedStatement statement = conn.prepareStatement(sql)) {
             statement.setString(1, element.getCustomXPath());
             statement.setObject(2, homeBankingId);
             statement.setObject(3, botJobId);
-            statement.setString(4, hashOf(element));
+            statement.setString(4, page.pageKey());
+            statement.setString(5, pageScopedHash(page.pageKey(), element));
             return statement.executeUpdate();
         }
     }
@@ -253,6 +292,28 @@ public final class ScannedElementRepository {
         return out;
     }
 
+    /** Load only observations made on the active Playwright page. */
+    public static List<ScannedElement> loadByBotJobAndPage(
+            Connection conn, Integer botJobId, String pageUrl) throws SQLException {
+        if (botJobId == null || botJobId <= 0) {
+            throw new IllegalArgumentException("A Bot Job is required for page-scoped scanner lookup");
+        }
+        ScannedPageIdentity page = ScannedPageIdentity.fromLiveUrl(pageUrl);
+        String sql = "SELECT * FROM scanned_element WHERE bot_job_id = ? AND page_key = ?"
+                + " ORDER BY last_scanned_at DESC, id ASC";
+        List<ScannedElement> out = new ArrayList<>();
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setObject(1, botJobId);
+            ps.setString(2, page.pageKey());
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    out.add(map(rs));
+                }
+            }
+        }
+        return out;
+    }
+
     private static ScannedElement map(ResultSet rs) throws SQLException {
         ScannedElement s = new ScannedElement();
         s.setId(rs.getLong("id"));
@@ -260,6 +321,7 @@ public final class ScannedElementRepository {
         s.setBotJobId((Integer) rs.getObject("bot_job_id"));
         s.setHomeUrlId((Integer) rs.getObject("home_url_id"));
         s.setPageUrl(rs.getString("page_url"));
+        s.setPageKey(rs.getString("page_key"));
         s.setElementHash(rs.getString("element_hash"));
         s.setTagName(rs.getString("tag_name"));
         s.setTypeElement(rs.getString("type_element"));
@@ -288,5 +350,12 @@ public final class ScannedElementRepository {
 
     private static String nz(String s) {
         return s == null ? "" : s;
+    }
+
+    private static void requireScope(Integer homeBankingId, Integer botJobId) {
+        if (homeBankingId == null || homeBankingId <= 0 || botJobId == null || botJobId <= 0) {
+            throw new IllegalArgumentException(
+                    "Organization and Bot Job are required for scanner persistence");
+        }
     }
 }

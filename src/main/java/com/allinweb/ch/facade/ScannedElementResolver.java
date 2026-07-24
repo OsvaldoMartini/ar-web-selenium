@@ -19,8 +19,9 @@ import java.util.Locale;
  * <ol>
  *   <li>exact current or client-authored custom xPath</li>
  *   <li>exact CSS selector</li>
- *   <li>exact name (defined_name / some_text, case-insensitive): unique -&gt; take it; multiple
- *       (same name, different xPath) -&gt; disambiguate by nearest coordinates</li>
+ *   <li>exact name ({@code defined_name}, {@code some_text}, {@code client_named}, or HTML
+ *       {@code attrib_name}, case-insensitive): unique -&gt; take it; multiple (same name, different
+ *       xPath) -&gt; disambiguate by nearest coordinates</li>
  *   <li>fuzzy name (Levenshtein ratio &ge; threshold)</li>
  * </ol>
  */
@@ -79,8 +80,7 @@ public final class ScannedElementResolver {
         if (!name.isEmpty()) {
             List<ScannedElement> byName = new ArrayList<>();
             for (ScannedElement s : registry) {
-                if (name.equals(trim(s.getDefinedName()).toLowerCase(Locale.ROOT))
-                        || name.equals(trim(s.getSomeText()).toLowerCase(Locale.ROOT))) {
+                if (matchesName(name, s)) {
                     byName.add(s);
                 }
             }
@@ -116,11 +116,12 @@ public final class ScannedElementResolver {
             ScannedElement best = null;
             double bestRatio = 0.0;
             for (ScannedElement s : registry) {
-                double r = Math.max(
-                        TextSimilarity.levenshteinRatio(
-                                name, trim(s.getDefinedName()).toLowerCase(Locale.ROOT)),
-                        TextSimilarity.levenshteinRatio(
-                                name, trim(s.getSomeText()).toLowerCase(Locale.ROOT)));
+                double r = maxSimilarity(
+                        name,
+                        s.getDefinedName(),
+                        s.getSomeText(),
+                        s.getClientNamed(),
+                        s.getAttribName());
                 if (r > bestRatio) {
                     bestRatio = r;
                     best = s;
@@ -132,6 +133,27 @@ public final class ScannedElementResolver {
         }
 
         return NO_MATCH;
+    }
+
+    private static boolean matchesName(String expected, ScannedElement element) {
+        return expected.equals(normalized(element.getDefinedName()))
+                || expected.equals(normalized(element.getSomeText()))
+                || expected.equals(normalized(element.getClientNamed()))
+                || expected.equals(normalized(element.getAttribName()));
+    }
+
+    private static double maxSimilarity(String expected, String... candidates) {
+        double best = 0.0;
+        for (String candidate : candidates) {
+            best = Math.max(
+                    best,
+                    TextSimilarity.levenshteinRatio(expected, normalized(candidate)));
+        }
+        return best;
+    }
+
+    private static String normalized(String value) {
+        return trim(value).toLowerCase(Locale.ROOT);
     }
 
     private static double[] parseCoords(String coords) {

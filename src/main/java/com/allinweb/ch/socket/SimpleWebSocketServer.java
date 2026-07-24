@@ -3433,7 +3433,8 @@ public class SimpleWebSocketServer {
                                     workspace.context().homeBankingId(),
                                     workspace.context().botJobId(),
                                     workspace.context().homeUrlId(),
-                                    workspace.context().endpointUrl())));
+                                    BotJobDetailsWorkspaceHost.getInstance()
+                                            .currentPageScannerUrl())));
             copyBoundedPageScannerString(body, response, "elementKey", 2_048);
             sendPageScannerResponse(
                     workspace.context().homeBankingId(),

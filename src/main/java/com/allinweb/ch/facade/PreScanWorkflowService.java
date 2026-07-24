@@ -1,5 +1,6 @@
 package com.allinweb.ch.facade;
 
+import com.allinweb.ch.db.ScannedPageIdentity;
 import com.allinweb.ch.model.AttributeData;
 import com.allinweb.ch.model.ElementDTO;
 import com.allinweb.ch.model.FieldData;
@@ -75,10 +76,18 @@ public final class PreScanWorkflowService {
             long settledMs = browser.waitForPageSettled(15_000);
             log.info("PRE SCAN - page settled after {} ms", settledMs);
             sink.status("running", "web elements...", 0);
+            ScannedPageIdentity scannedPage =
+                    ScannedPageIdentity.fromLiveUrl(browser.currentUrl());
             List<ElementDTO> elements = keepActionableElements(
                     browser.scanElements(searchTermsArray(searchTerms), searchHidden));
             diagnostics.resolveNames(context, browser, elements, sink);
-            diagnostics.persist(context, elements);
+            ScannedPageIdentity persistencePage =
+                    ScannedPageIdentity.fromLiveUrl(browser.currentUrl());
+            if (!scannedPage.pageKey().equals(persistencePage.pageKey())) {
+                throw new IllegalStateException(
+                        "The browser page changed during Page Scanner. Scan the current page again.");
+            }
+            diagnostics.persist(context, scannedPage, elements);
             sink.elements(elements);
             int count = elements == null ? 0 : elements.size();
             sink.status(
@@ -136,6 +145,14 @@ public final class PreScanWorkflowService {
 
     public boolean isRunning() {
         return browser.isScanRunning();
+    }
+
+    /** The exact live URL used to scope Page Scanner mutations such as Apply XPath. */
+    public String currentPageUrl() {
+        if (!browser.isOpen()) {
+            throw new IllegalStateException("No Page Scanner browser is open");
+        }
+        return ScannedPageIdentity.fromLiveUrl(browser.currentUrl()).actualUrl();
     }
 
     public void shutdown() {
@@ -238,7 +255,8 @@ public final class PreScanWorkflowService {
 
     interface DiagnosticsPort {
         void resolveNames(Context context, BrowserPort browser, List<ElementDTO> elements, Sink sink);
-        void persist(Context context, List<ElementDTO> elements);
+        void persist(Context context, ScannedPageIdentity page, List<ElementDTO> elements)
+                throws Exception;
     }
 
     @FunctionalInterface
@@ -306,21 +324,24 @@ public final class PreScanWorkflowService {
         }
 
         @Override
-        public void persist(Context context, List<ElementDTO> elements) {
+        public void persist(
+                Context context, ScannedPageIdentity page, List<ElementDTO> elements)
+                throws Exception {
             if (elements == null || elements.isEmpty()) return;
+            int[] registry = PerformDataBase.getInstance().upsertScannedElementsStrict(
+                    context.homeBankingId(),
+                    context.botJobId(),
+                    context.homeUrlId(),
+                    page.actualUrl(),
+                    elements);
+            log.info(
+                    "PRE SCAN scanned_element registry - inserted={} updated={} botJobId={} pageKey={}",
+                    registry[0],
+                    registry[1],
+                    context.botJobId(),
+                    page.pageKey());
             try {
                 ElementDTO[] values = elements.toArray(new ElementDTO[0]);
-                int[] registry = PerformDataBase.getInstance().upsertScannedElements(
-                        context.homeBankingId(),
-                        context.botJobId(),
-                        context.homeUrlId(),
-                        context.endpointUrl(),
-                        elements);
-                log.info(
-                        "PRE SCAN scanned_element registry - inserted={} updated={} botJobId={}",
-                        registry[0],
-                        registry[1],
-                        context.botJobId());
                 messages.outputJsonElementDTO(
                         values, List.of("optional", "blockMarked", "editMode"), "elementDTO-PS-BJ", context.jsonPath());
                 messages.outputJsonElementDTO(
@@ -331,7 +352,7 @@ public final class PreScanWorkflowService {
                         "AI-ElementDTO-PS-BJ",
                         context.jsonPath());
             } catch (Exception error) {
-                log.warn("PRE SCAN - failed to persist element JSON: {}", error.getMessage());
+                log.warn("PRE SCAN - registry saved but diagnostic JSON failed: {}", error.getMessage());
             }
         }
     }

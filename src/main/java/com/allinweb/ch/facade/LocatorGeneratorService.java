@@ -552,7 +552,8 @@ public final class LocatorGeneratorService {
                 String pageUrl,
                 ElementDTO element) throws Exception {
             int updated = PerformDataBase.getInstance()
-                    .updateScannedElementCustomXPathStrict(homeBankingId, botJobId, element);
+                    .updateScannedElementCustomXPathStrict(
+                            homeBankingId, botJobId, pageUrl, element);
             return new PersistenceResult(0, updated);
         }
     }

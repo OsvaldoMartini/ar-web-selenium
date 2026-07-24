@@ -20,6 +20,7 @@ class PerformListElementsPlaywrightTest {
         ARPlaywrightDriver browser = mock(ARPlaywrightDriver.class);
         String[] terms = {"button"};
         when(browserSession.currentPlaywrightDriver()).thenReturn(browser);
+        when(browser.currentUrl()).thenReturn("https://bank.example/accounts");
         when(browser.scanElements(terms, false)).thenReturn(List.of());
 
         PerformListElements.ScanResult result = PerformListElements.getInstance()

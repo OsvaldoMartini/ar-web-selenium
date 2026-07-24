@@ -1375,6 +1375,36 @@ registry. It also confirms that name uniqueness cannot be assumed.
 - D-013: Do not edit the applied `M20260704_ScannedElement` migration; page-aware schema work gets a
   new append-only migration.
 
+### CODEX implementation update — page-scoped scanner persistence (2026-07-24)
+
+- [x] Added collision-first `ScannedPageIdentity` (`url-v1`) using the exact live HTTP(S) URL.
+      Query ordering/duplicates and SPA fragments are preserved; invalid live URLs are refused.
+- [x] Added append-only `M20260724_ScannedElementPageScope` and registered it after the existing
+      migrations. It adds/backfills `page_key`, converts locator identity to a page-scoped hash,
+      and creates page/hash plus page/name indexes without editing the applied 2026-07-04 migration.
+- [x] Detached and legacy scanner paths capture the active Playwright URL and refuse the repository
+      write when navigation changes during scanning/OCR.
+- [x] Re-scans now update only organization + Bot Job + exact page + locator. Equal locators on
+      different pages remain separate observations.
+- [x] Generated custom XPath Apply is scoped by the current Page Scanner URL obtained server-side.
+- [x] `executeJob()` repository healing now queries the active Playwright page only, recognizes
+      `client_named`/HTML `attrib_name`, prefers custom XPath, and includes OUTPUT/text retry.
+- [x] Added focused source tests for URL identity, live-vs-endpoint persistence, navigation refusal,
+      migration backfill/idempotency/indexes, cross-page isolation, page-local rescan/custom XPath,
+      and name aliases.
+- [ ] User-owned validation: run the focused Java tests and package the backend. Codex did not run
+      Maven and did not modify the production Banca Stato database.
+- [ ] Remaining safety work: live DOM uniqueness validation, registry healing before coordinates,
+      freshness/retirement state, OCR audit columns, and a correlated typed WebSocket receipt.
+
+Decisions:
+
+- D-014: New scanner observations require a valid live Playwright HTTP(S) URL; no shared unknown
+  bucket is allowed for new writes.
+- D-015: `url-v1` preserves raw query and fragment data to prevent silent cross-page merging.
+- D-016: The existing SQLite/Access unique constraint remains in place; `element_hash` is made
+  page-scoped so cross-page rows coexist without a destructive table rebuild.
+
 ## Claude — Memory List drag correction: root cause is the stale jar, not StrictMode (2026-07-24, later)
 
 Follow-up after the user reported "inside Java is not working" and asked for a direct Memory List

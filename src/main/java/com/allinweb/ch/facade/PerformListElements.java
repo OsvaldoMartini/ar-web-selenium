@@ -1,5 +1,6 @@
 package com.allinweb.ch.facade;
 
+import com.allinweb.ch.db.ScannedPageIdentity;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.model.ElementDTO;
 import com.allinweb.ch.util.ARPropertyEnum;
@@ -80,9 +81,20 @@ public class PerformListElements {
                         "No active Playwright browser is attached"));
             }
 
+            ScannedPageIdentity scannedPage =
+                    ScannedPageIdentity.fromLiveUrl(currentPageUrl(arWebDriver));
             List<ElementDTO> elements =
                     arWebDriver.currentPlaywrightDriver().scanElements(dataArray, searchHiddenFields);
-            processScanElements(arWebDriver, elements, homeBankingId, botJobId);
+            ScannedPageIdentity afterScan =
+                    ScannedPageIdentity.fromLiveUrl(currentPageUrl(arWebDriver));
+            if (!scannedPage.pageKey().equals(afterScan.pageKey())) {
+                return ScanResult.ofError(new ErrorMessage(
+                        "Playwright Page Scanner",
+                        "Page changed during scan",
+                        "Scan the current browser page again"));
+            }
+            processScanElements(
+                    arWebDriver, elements, homeBankingId, botJobId, scannedPage);
             return ScanResult.ofElements(elements);
         } catch (Exception error) {
             return ScanResult.ofError(
@@ -106,7 +118,11 @@ public class PerformListElements {
     }
 
     private void processScanElements(
-            ARWebDriver arWebDriver, List<ElementDTO> elements, int homeBankingId, int botJobId) {
+            ARWebDriver arWebDriver,
+            List<ElementDTO> elements,
+            int homeBankingId,
+            int botJobId,
+            ScannedPageIdentity scannedPage) {
         performLists.resetListElements();
 
         if (elements == null || elements.isEmpty()) {
@@ -146,12 +162,22 @@ public class PerformListElements {
             }
 
             // Source-of-truth registry: upsert every scanned element (OCR-corrected someText/definedName
-            // already applied above) scoped by organization + bot job, stamping last_scanned_at.
+            // already applied above) scoped by organization + Bot Job + live page, stamping
+            // last_scanned_at.
             try {
-                String pageUrl = currentPageUrl(arWebDriver);
+                ScannedPageIdentity persistencePage =
+                        ScannedPageIdentity.fromLiveUrl(currentPageUrl(arWebDriver));
+                if (!scannedPage.pageKey().equals(persistencePage.pageKey())) {
+                    throw new IllegalStateException(
+                            "Browser page changed before scanner persistence; registry update skipped");
+                }
                 int[] up = PerformDataBase.getInstance()
                         .upsertScannedElements(
-                                cfgHbId, botJobId > 0 ? botJobId : null, cfgHomeUrlId, pageUrl, Arrays.asList(asArray));
+                                cfgHbId,
+                                botJobId > 0 ? botJobId : null,
+                                cfgHomeUrlId,
+                                scannedPage.actualUrl(),
+                                Arrays.asList(asArray));
                 log.info("scanned_element registry — inserted={} updated={} (bot={})", up[0], up[1], botJobId);
             } catch (Exception regEx) {
                 log.warn("scanned_element upsert failed (non-fatal): {}", regEx.getMessage());

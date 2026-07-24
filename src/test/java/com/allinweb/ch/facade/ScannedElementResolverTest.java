@@ -69,6 +69,28 @@ class ScannedElementResolverTest {
     }
 
     @Test
+    void clientNameAndHtmlNameAreEligibleAliases() {
+        ScannedElement clientNamed =
+                se("//*[@test-id='next']", "button.next", null, null, "5,5");
+        clientNamed.setClientNamed("continue_order");
+        ScannedElement htmlNamed =
+                se("//*[@name='iban']", "input[name='iban']", null, null, "10,10");
+        htmlNamed.setAttribName("beneficiaryIban");
+
+        var clientResult = ScannedElementResolver.resolve(
+                List.of(clientNamed, htmlNamed),
+                ins("//stale", null, "continue_order", null));
+        var htmlNameResult = ScannedElementResolver.resolve(
+                List.of(clientNamed, htmlNamed),
+                ins("//stale", null, "beneficiaryIban", null));
+
+        assertEquals(ScannedElementResolver.Strategy.NAME_UNIQUE, clientResult.strategy());
+        assertEquals("//*[@test-id='next']", clientResult.element().getXPath());
+        assertEquals(ScannedElementResolver.Strategy.NAME_UNIQUE, htmlNameResult.strategy());
+        assertEquals("//*[@name='iban']", htmlNameResult.element().getXPath());
+    }
+
+    @Test
     void sameNameDisambiguatedByNearestCoordinates() {
         List<ScannedElement> reg = List.of(
                 se("//header//button", "header button", "cerca", "Cerca", "100,50"),

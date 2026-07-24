@@ -41,15 +41,22 @@ public class PlaywrightBridge {
                     if (activeDriver.click(instruction)) {
                         return true;
                     }
-                    return healAndRetry(instruction, activeDriver::click);
+                    return healAndRetry(instruction, activeDriver, activeDriver::click);
                 case ARConstantsEngine.INSERT:
                     if (activeDriver.fill(instruction, data)) {
                         return true;
                     }
-                    return healAndRetry(instruction, healed -> activeDriver.fill(healed, data));
+                    return healAndRetry(
+                            instruction, activeDriver, healed -> activeDriver.fill(healed, data));
                 case ARConstantsEngine.OUTPUT:
                     String value = activeDriver.text(instruction);
-                    return !Strings.isNullOrEmpty(value);
+                    if (!Strings.isNullOrEmpty(value)) {
+                        return true;
+                    }
+                    return healAndRetry(
+                            instruction,
+                            activeDriver,
+                            healed -> !Strings.isNullOrEmpty(activeDriver.text(healed)));
                 default:
                     return false;
             }
@@ -65,13 +72,17 @@ public class PlaywrightBridge {
      * action with the registry's current locator. Only fires on failure and only for high-confidence
      * matches — a pure improvement over "action failed".
      */
-    private boolean healAndRetry(InstructionLoad instruction, java.util.function.Predicate<InstructionLoad> retry) {
+    private boolean healAndRetry(
+            InstructionLoad instruction,
+            ARPlaywrightDriver activeDriver,
+            java.util.function.Predicate<InstructionLoad> retry) {
         Integer botJobId = ctx.priorities() == null ? null : ctx.priorities().getJobId();
         if (botJobId == null) {
             return false;
         }
+        String currentPageUrl = activeDriver.currentUrl();
         com.allinweb.ch.facade.ScannedElementResolver.Result r = com.allinweb.ch.facade.PerformDataBase.getInstance()
-                .resolveScannedElementByBotJob(botJobId, instruction);
+                .resolveScannedElementByBotJobAndPage(botJobId, currentPageUrl, instruction);
         if (!r.matched() || r.confidence() < 0.75) {
             return false;
         }
@@ -80,7 +91,7 @@ public class PlaywrightBridge {
         healed.setName(instruction.getName());
         healed.setActions(instruction.getActions());
         healed.setForceCoordinates(instruction.getForceCoordinates());
-        healed.setXpath(s.getXPath());
+        healed.setXpath(Strings.isNullOrEmpty(s.getCustomXPath()) ? s.getXPath() : s.getCustomXPath());
         healed.setCssSelector(s.getCssSelector());
         healed.setCoordinates(s.getCoordinates());
         healed.setIFrameXPath(s.getIFrameXPath());

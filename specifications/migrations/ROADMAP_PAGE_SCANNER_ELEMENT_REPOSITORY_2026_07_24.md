@@ -1,7 +1,7 @@
 # Page Scanner Element Repository and Page-Aware Playwright Self-Healing Roadmap
 
 Date: 2026-07-24
-Status: Investigation complete; implementation not started
+Status: Page-collision correction implemented in source; user-owned build/tests pending
 Canonical coordination document:
 `CLAUDE_vs_CODEX_MIGRATION_CHECKS_2026_07_12.md`
 
@@ -233,6 +233,32 @@ means every retained actionable result, not every DOM node returned by the scann
 The schema/model contains `ocr_text`, `ocr_match_quality`, and `ocr_confidence`, but the current
 insert/update statements do not write those columns.
 
+## 6.1 Implemented Page-Collision Correction (2026-07-24)
+
+The following source changes supersede G1-G3 and the related parts of G4:
+
+- `ScannedPageIdentity` defines collision-first `url-v1` identity from a valid live HTTP(S) URL.
+- `PreScanWorkflowService` captures the live URL before scanning, checks it again after OCR, and
+  refuses persistence when the page changed.
+- `PerformListElements` applies the same before/after page guard to its scanner path.
+- `M20260724_ScannedElementPageScope` appends `page_key`, backfills legacy rows, recomputes
+  `element_hash` as page key + length-delimited locator identity, and creates page/hash and
+  page/name indexes.
+- `ScannedElementRepository` inserts, updates, loads, and applies custom XPath only inside the exact
+  page scope.
+- Locator Apply obtains the current Page Scanner browser URL server-side rather than trusting the
+  configured endpoint.
+- `PlaywrightBridge` loads fallback candidates only for `activeDriver.currentUrl()`, prefers
+  `custom_x_path`, and enables the same page-aware retry for OUTPUT.
+- `ScannedElementResolver` now also recognizes `client_named` and HTML `attrib_name`.
+
+The migration deliberately retains the original cross-dialect unique constraint. Because the
+stored `element_hash` is now page-scoped, that constraint no longer merges equal locator
+signatures from different pages. This avoids destructive SQLite/Access table rebuilds.
+
+Still pending: live DOM name/role uniqueness validation, healing before coordinate fallback,
+freshness/retirement state, OCR audit persistence, and a typed WebSocket persistence receipt.
+
 ## 7. Target Safety and Matching Contract
 
 The implementation must enforce this order:
@@ -262,40 +288,46 @@ Candidate resolution must:
 - [x] Trace `executeJob()` Playwright locator and healing paths.
 - [x] Capture a read-only production database baseline.
 - [ ] Back up the production database before any schema migration or mass scan.
-- [ ] Define URL normalization:
+- [x] Define collision-first URL normalization (`url-v1`):
   - lower-case scheme/host;
-  - normalize default ports and trailing slash;
-  - remove fragments unless the application uses a fragment router;
-  - define which query parameters identify a page and which are volatile;
-  - preserve SPA route identity.
-- [ ] Define whether the page key is URL-only or URL plus a stable application/page signature.
+  - normalize default ports and one trailing slash;
+  - preserve raw query order, duplicate parameters, empty values, and values;
+  - preserve fragments and SPA route identity;
+  - reject blank/non-HTTP(S) live URLs instead of writing an unknown-page observation.
+- [x] Use a versioned URL-only page key:
+  `url-v1:` + SHA-256(normalized live URL).
+  Exact same-URL wizard states remain an explicit future `viewDiscriminator` case.
 
 ### Phase 1 - Make each scan persistence result authoritative
 
-- [ ] Capture `browser.currentUrl()` after the page settles and immediately before persistence.
+- [x] Capture the live `browser.currentUrl()` before scanning and verify it again before
+  persistence; refuse the write when navigation changes the page key.
 - [ ] Pass an immutable `ScanPersistenceContext` containing configured endpoint, actual URL,
   normalized page key, organization ID, Bot Job ID, Home URL ID, and scan request ID.
 - [ ] Replace `[inserted, updated]` with a typed receipt:
   `inserted`, `updated`, `unchanged`, `failed`, `pageKey`, `scanId`, and error details.
-- [ ] Stop converting database errors into a fake `[0,0]` success.
+- [x] Add a strict interactive persistence path so a Page Scanner database failure reaches the
+  workflow failure state instead of becoming fake `[0,0]` success.
 - [ ] Publish a correlated final Page Scanner persistence response.
 - [ ] Display “Saved: N new / N updated” or a professional failure message in Page Scanner.
-- [ ] Keep JSON diagnostic failure separate from database repository failure.
+- [x] Keep JSON diagnostic failure separate from database repository failure.
 
 ### Phase 2 - Introduce page-aware schema without editing the applied migration
 
-- [ ] Add a new dated migration; do not modify `M20260704_ScannedElement`.
-- [ ] Add a normalized `page_key`, or introduce a `scanned_page` parent table and reference it.
-- [ ] Migrate uniqueness to:
+- [x] Add append-only `M20260724_ScannedElementPageScope`; do not modify
+  `M20260704_ScannedElement`.
+- [x] Add normalized `page_key`.
+- [x] Make uniqueness page-aware:
 
 ```text
 (home_banking_id, bot_job_id, page_key, element_hash)
 ```
 
-- [ ] Backfill legacy rows conservatively from stored `page_url`.
-- [ ] Preserve rows whose historical page cannot be proven; mark their page identity as legacy
+- [x] Backfill legacy rows conservatively from stored `page_url`.
+- [x] Preserve rows whose historical page cannot be proven; mark their page identity as legacy
   instead of assigning them silently to the current page.
-- [ ] Add indexes for page/name and page/stable-attribute lookups.
+- [x] Add unique page/hash and page/name indexes. `element_hash` now includes the page key, keeping
+  the original SQLite/Access unique constraint safe without destructive table rebuilds.
 - [ ] Add `last_seen_scan_id`/freshness state so absence can be observed without destructive delete.
 - [ ] Decide whether to consolidate `element_locator` into this repository or synchronize detached
   scans with it. Do not maintain two silently divergent sources of truth.
@@ -303,15 +335,16 @@ Candidate resolution must:
 
 ### Phase 3 - Build a deterministic page-aware resolver
 
-- [ ] Add a repository query scoped by Bot Job and normalized current page key.
+- [x] Add a repository query scoped by Bot Job and normalized current page key.
 - [ ] Pass the Bot Job ID directly in immutable execution context instead of deriving it only from
   mutable `ARPriorities`.
-- [ ] Extend aliases to include `client_named`, `defined_name`, `some_text`, HTML `attrib_name`,
+- [x] Extend persisted-name aliases to include `client_named`, `defined_name`, `some_text`, and
+  HTML `attrib_name`. Live accessible-name/label/role resolution remains pending.
   accessible name, label, role, and configured custom attributes.
 - [ ] Score stable attributes above fuzzy text.
 - [ ] Prefer recent/frequently confirmed rows only after exact page and stable-attribute matching.
 - [ ] Reject ambiguous same-name candidates without a safe discriminator.
-- [ ] Prefer `custom_x_path` over raw scanner XPath.
+- [x] Prefer `custom_x_path` over raw scanner XPath.
 - [ ] Return a structured resolution result with candidate count, strategy, confidence, and reason.
 
 ### Phase 4 - Resolve and validate against the live current page
@@ -331,7 +364,7 @@ Candidate resolution must:
   `SUCCESS`, `NOT_FOUND`, `NOT_UNIQUE`, `NOT_ACTIONABLE`, and `ACTION_FAILED`.
 - [ ] Run repository/name healing only for safe pre-action failure states.
 - [ ] Move coordinate fallback after repository/live-name resolution.
-- [ ] Extend healing to OUTPUT and other element-reading operations.
+- [x] Extend the existing repository healing retry to OUTPUT/text operations.
 - [ ] Copy all required locator/reference/shadow/iframe fields into the healed instruction.
 - [ ] Execute the final side-effecting Playwright action exactly once.
 - [ ] Remove the stale “falling back to Selenium” log message.
@@ -346,16 +379,19 @@ Candidate resolution must:
 
 ### Phase 7 - Focused verification
 
-- [ ] Same name on two different Banca Stato pages remains two page-scoped observations.
-- [ ] The current-page candidate wins over a newer candidate from another page.
-- [ ] A cross-page name candidate is refused.
+- [x] Add focused SQLite source tests proving the same locator on two pages remains two page-scoped
+  observations (test execution is user-owned).
+- [x] Add focused source tests proving a rescan/custom-XPath mutation updates only its page.
+- [x] Scope execution lookup by the active Playwright page so cross-page name candidates are not
+  loaded.
 - [ ] A duplicate current-page name without a stable discriminator is refused.
-- [ ] Custom XPath survives every rescan and is preferred during healing.
-- [ ] OUTPUT uses page-aware healing.
+- [x] Add source coverage showing custom XPath survives a same-page rescan and is page-local.
+- [x] Route OUTPUT through page-aware healing.
 - [ ] Registry healing occurs before coordinates.
 - [ ] Locator discovery can try several sources while the final click/fill runs once.
 - [ ] Persistence failure produces a correlated UI failure, not `done`.
-- [ ] URL normalization covers fragments, query parameters, trailing slashes, and SPA routes.
+- [x] Add source tests for fragments, query order/duplicates, trailing slash, invalid live URLs,
+  default ports, and SPA routes.
 - [ ] Switching Bot Jobs cannot query the previous Bot Job's repository.
 - [ ] PostgreSQL, SQL Server, SQLite/TEXT, and Access migrations preserve existing observations.
 - [ ] A production-copy Banca Stato pilot scans multiple pages, then replays locator-drift fixtures
@@ -394,9 +430,9 @@ Focused tests:
 ## 10. Acceptance Criteria
 
 - [ ] Every completed Page Scanner run states whether repository persistence succeeded.
-- [ ] The stored page identity is the actual page scanned, not merely the configured start URL.
-- [ ] The same locator signature on different pages remains independently addressable.
-- [ ] `executeJob()` never considers another page's same-name element as a current-page match.
+- [x] The stored page identity is the actual live page scanned, not merely the configured start URL.
+- [x] The same locator signature on different pages remains independently addressable.
+- [x] `executeJob()` queries only the active page's repository observations during healing.
 - [ ] When authored locators drift, a unique current-page name/stable-attribute candidate can heal
   CLICK, INSERT, and OUTPUT.
 - [ ] Ambiguous candidates fail safely with diagnostics.
@@ -408,14 +444,16 @@ Focused tests:
 
 ## 11. Current Operational Recommendation
 
-Scanning today does add useful data to `scanned_element`, and repeated scans update observation
-counts. However, a large multi-page collection should not yet be treated as a safe page-aware
-self-healing repository.
+The page-collision correction is implemented in source. A scan now uses the exact live Playwright
+URL, refuses persistence if navigation changes during the scan, and upserts independently by
+organization + Bot Job + page + locator.
 
 Before initiating a systematic Banca Stato scan campaign:
 
 1. back up `database.db`;
-2. complete at least Phases 1 and 2 so the actual page and page-scoped identity are reliable;
-3. expose the persistence receipt so every scan proves its database result;
-4. use a copy of production data for resolver validation;
-5. enable execution healing only after current-page uniqueness and one-action safety tests pass.
+2. compile/package the backend so the append-only migration is present at startup;
+3. run the focused migration/repository/workflow tests listed in this roadmap;
+4. expose the richer correlated persistence receipt before beginning an unattended mass scan;
+5. use a copy of production data for resolver validation;
+6. finish live candidate uniqueness and healing-before-coordinates before treating self-healing as
+   fully safe for side-effecting actions.

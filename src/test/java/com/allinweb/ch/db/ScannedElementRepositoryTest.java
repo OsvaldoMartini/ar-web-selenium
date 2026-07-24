@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.allinweb.ch.db.migrations.M20260704_ScannedElement;
+import com.allinweb.ch.db.migrations.M20260724_ScannedElementPageScope;
 import com.allinweb.ch.model.ElementDTO;
 import com.allinweb.ch.model.ScannedElement;
 import java.sql.Connection;
@@ -16,9 +17,13 @@ import org.junit.jupiter.api.Test;
 /** Repository behavior over in-memory SQLite: hashing, upsert semantics, and load. */
 class ScannedElementRepositoryTest {
 
+    private static final String ACCOUNTS_PAGE = "https://bank.example/accounts";
+    private static final String PAYMENTS_PAGE = "https://bank.example/payments";
+
     private static Connection freshDb() throws Exception {
         Connection conn = DriverManager.getConnection("jdbc:sqlite::memory:");
         new M20260704_ScannedElement().apply(conn, "TEXT");
+        new M20260724_ScannedElementPageScope().apply(conn, "TEXT");
         return conn;
     }
 
@@ -81,10 +86,111 @@ class ScannedElementRepositoryTest {
     void scopeIsolation() throws Exception {
         try (Connection conn = freshDb()) {
             ElementDTO e = el("//*[@id='x']", "x", "X");
-            ScannedElementRepository.upsert(conn, 2, 5, 3, "u", List.of(e));
-            ScannedElementRepository.upsert(conn, 2, 6, 3, "u", List.of(e)); // different bot job
+            ScannedElementRepository.upsert(conn, 2, 5, 3, ACCOUNTS_PAGE, List.of(e));
+            ScannedElementRepository.upsert(conn, 2, 6, 3, ACCOUNTS_PAGE, List.of(e)); // different bot job
             assertEquals(1, ScannedElementRepository.load(conn, 2, 5).size());
             assertEquals(1, ScannedElementRepository.load(conn, 2, 6).size());
+        }
+    }
+
+    @Test
+    void sameLocatorOnTwoPagesCreatesTwoPageScopedRows() throws Exception {
+        try (Connection conn = freshDb()) {
+            ElementDTO continueButton = el("//button[@test-id='continue']", "continue", "Continue");
+
+            ScannedElementRepository.UpsertResult accounts =
+                    ScannedElementRepository.upsert(conn, 2, 5, 3, ACCOUNTS_PAGE, List.of(continueButton));
+            ScannedElementRepository.UpsertResult payments =
+                    ScannedElementRepository.upsert(conn, 2, 5, 3, PAYMENTS_PAGE, List.of(continueButton));
+
+            assertEquals(1, accounts.inserted());
+            assertEquals(1, payments.inserted());
+            List<ScannedElement> rows = ScannedElementRepository.load(conn, 2, 5);
+            assertEquals(2, rows.size());
+            assertNotEquals(rows.get(0).getPageKey(), rows.get(1).getPageKey());
+            assertNotEquals(rows.get(0).getElementHash(), rows.get(1).getElementHash());
+        }
+    }
+
+    @Test
+    void rescanUpdatesOnlyTheMatchingPageObservation() throws Exception {
+        try (Connection conn = freshDb()) {
+            ElementDTO continueButton = el("//button[@test-id='continue']", "continue", "Continue");
+            ScannedElementRepository.upsert(conn, 2, 5, 3, ACCOUNTS_PAGE, List.of(continueButton));
+            ScannedElementRepository.upsert(conn, 2, 5, 3, PAYMENTS_PAGE, List.of(continueButton));
+            ScannedElementRepository.UpsertResult rescan =
+                    ScannedElementRepository.upsert(conn, 2, 5, 3, ACCOUNTS_PAGE, List.of(continueButton));
+
+            assertEquals(0, rescan.inserted());
+            assertEquals(1, rescan.updated());
+            assertEquals(
+                    2,
+                    ScannedElementRepository.loadByBotJobAndPage(conn, 5, ACCOUNTS_PAGE)
+                            .get(0)
+                            .getScanCount());
+            assertEquals(
+                    1,
+                    ScannedElementRepository.loadByBotJobAndPage(conn, 5, PAYMENTS_PAGE)
+                            .get(0)
+                            .getScanCount());
+        }
+    }
+
+    @Test
+    void pageScopedLoadReturnsOnlyTheRequestedPage() throws Exception {
+        try (Connection conn = freshDb()) {
+            ElementDTO accountsPrimary = el("//main//button[1]", "accounts-primary", "Continue");
+            ElementDTO accountsSecondary = el("//main//button[2]", "accounts-secondary", "Cancel");
+            ElementDTO paymentsPrimary = el("//main//button[1]", "accounts-primary", "Continue");
+
+            ScannedElementRepository.upsert(
+                    conn, 2, 5, 3, ACCOUNTS_PAGE, List.of(accountsPrimary, accountsSecondary));
+            ScannedElementRepository.upsert(conn, 2, 5, 3, PAYMENTS_PAGE, List.of(paymentsPrimary));
+
+            List<ScannedElement> accounts =
+                    ScannedElementRepository.loadByBotJobAndPage(conn, 5, ACCOUNTS_PAGE);
+            List<ScannedElement> payments =
+                    ScannedElementRepository.loadByBotJobAndPage(conn, 5, PAYMENTS_PAGE);
+            assertEquals(2, accounts.size());
+            assertEquals(1, payments.size());
+
+            String accountsKey = ScannedPageIdentity.fromLiveUrl(ACCOUNTS_PAGE).pageKey();
+            String paymentsKey = ScannedPageIdentity.fromLiveUrl(PAYMENTS_PAGE).pageKey();
+            assertTrue(accounts.stream().allMatch(row -> accountsKey.equals(row.getPageKey())));
+            assertTrue(payments.stream().allMatch(row -> paymentsKey.equals(row.getPageKey())));
+        }
+    }
+
+    @Test
+    void customXpathMutationAndRescanRemainPageLocal() throws Exception {
+        try (Connection conn = freshDb()) {
+            ElementDTO continueButton = el("//button[@test-id='continue']", "continue", "Continue");
+            ScannedElementRepository.upsert(conn, 2, 5, 3, ACCOUNTS_PAGE, List.of(continueButton));
+            ScannedElementRepository.upsert(conn, 2, 5, 3, PAYMENTS_PAGE, List.of(continueButton));
+
+            continueButton.setCustomXPath("//accounts//button[@test-id='continue']");
+            assertEquals(
+                    1,
+                    ScannedElementRepository.updateCustomXPath(
+                            conn, 2, 5, ACCOUNTS_PAGE, continueButton));
+
+            assertEquals(
+                    "//accounts//button[@test-id='continue']",
+                    ScannedElementRepository.loadByBotJobAndPage(conn, 5, ACCOUNTS_PAGE)
+                            .get(0)
+                            .getCustomXPath());
+            assertNull(
+                    ScannedElementRepository.loadByBotJobAndPage(conn, 5, PAYMENTS_PAGE)
+                            .get(0)
+                            .getCustomXPath());
+
+            continueButton.setCustomXPath(null);
+            ScannedElementRepository.upsert(conn, 2, 5, 3, ACCOUNTS_PAGE, List.of(continueButton));
+            assertEquals("//accounts//button[@test-id='continue']", continueButton.getCustomXPath());
+            assertNull(
+                    ScannedElementRepository.loadByBotJobAndPage(conn, 5, PAYMENTS_PAGE)
+                            .get(0)
+                            .getCustomXPath());
         }
     }
 
@@ -93,21 +199,23 @@ class ScannedElementRepositoryTest {
         try (Connection conn = freshDb()) {
             ElementDTO first = el("//main//button[1]", null, "Continue");
             ElementDTO second = el("//aside//button[1]", null, "Continue");
-            ScannedElementRepository.upsert(conn, 2, 5, 3, "u", List.of(first, second));
+            ScannedElementRepository.upsert(conn, 2, 5, 3, ACCOUNTS_PAGE, List.of(first, second));
 
             first.setCustomXPath("//button[@test-id='primary-next']");
-            assertEquals(1, ScannedElementRepository.updateCustomXPath(conn, 2, 5, first));
+            assertEquals(
+                    1,
+                    ScannedElementRepository.updateCustomXPath(conn, 2, 5, ACCOUNTS_PAGE, first));
 
             ElementDTO stale = el("//footer//button[1]", null, "Continue");
             stale.setCustomXPath("//button[@test-id='forged']");
             assertEquals(
                     0,
-                    ScannedElementRepository.updateCustomXPath(conn, 2, 5, stale),
+                    ScannedElementRepository.updateCustomXPath(conn, 2, 5, ACCOUNTS_PAGE, stale),
                     "locator apply must not insert a forged or stale scanner row");
 
             // A subsequent raw scan carries no client override and must not erase it.
             first.setCustomXPath(null);
-            ScannedElementRepository.upsert(conn, 2, 5, 3, "u", List.of(first, second));
+            ScannedElementRepository.upsert(conn, 2, 5, 3, ACCOUNTS_PAGE, List.of(first, second));
             assertEquals("//button[@test-id='primary-next']", first.getCustomXPath());
 
             List<ScannedElement> rows = ScannedElementRepository.load(conn, 2, 5);
