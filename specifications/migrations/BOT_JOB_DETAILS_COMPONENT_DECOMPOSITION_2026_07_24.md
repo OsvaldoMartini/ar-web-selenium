@@ -194,11 +194,13 @@ Each `[ ]` = create the component **+ its own `.module.scss` (styles preserved) 
       descendant rules (`.blockName`/`.blockCount`/`.moveButtons`). Excel-GOTO badge + export-file
       passed as node props (logic stays in GridItem). Removed 7 now-unused GridItem imports. Surgical
       (GridItem 51+/123−, net −72). tsc clean; grid 40/40.
-- [~] `BlockCard` — **LOW VALUE / optional.** It would only be the `.block` div + the
-      `{!collapsed && <InstructionList/>}` conditional wrapping `<BlockHeader/>` + `<InstructionList/>`.
-      Since those two ARE the real block components, BlockCard is a ~4-line structural wrapper; a
-      node-prop version (`header`/`list` nodes) or a 40-prop params version both add little. Defer
-      unless the block wrapper needs its own behavior later.
+- [x] `BlockCard` — Claude (done once it earned its keep). Wraps the `.block` div + `header` node +
+      collapsed `list` node, AND is the unit for the **new block-level drag & drop**: the header is a
+      native block-drag source, the card is the block drop target. GridItem's `commitBlockReorder`
+      reassigns every block's `blockOrderNumber` and sends the existing `BLOCK_MOVE` with the full new
+      order; `window.__blockReorder(from,to)` + `[Block][drag]` logs. Block vs instruction drags are
+      kept independent (block drop ignores non-block drags). tsc clean; grid 46/46. **NEW FEATURE —
+      needs user runtime verification** (BLOCK_MOVE round-trip). Bundle `main.4a8cc6f7.js`.
 
 ### Phase 6 — State controller hook (hoist logic out of the render)
 - [ ] `useInstructionGrid.ts` — move the ~80 `useState` + handlers into a controller hook returning a
