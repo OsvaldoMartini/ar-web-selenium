@@ -133,9 +133,8 @@ Each `[ ]` = create the component **+ its own `.module.scss` (styles preserved) 
 - [x] `InstructionDragHandle` — the `≡` button + Alt+Arrow keyboard move. Claude, 2026-07-24. Owns
       row-exclusive `.dragHandle` (+ states) → `.handle`, removed from `Griditem.module.scss`. Accepts
       the current drag lib's `dragHandleProps` (rbd today; Phase 7 swaps the source). tsc clean; grid 24/24.
-- [ ] `InstructionRow` — **BLOCKED on a shared-styles decision (see below).** Composes DragHandle +
-      InlineNameEditor + ExecutionStateOverlay + CommandEditorButton + the action cluster; receives
-      `instruction`, `index`, `capabilities`, and callbacks. IF/ELSEIF/ELSE/ENDIF highlight preserved.
+- [x] `InstructionRow` — DONE (see the completed entry lower in this Phase-4 block). The shared-styles
+      "blocker" was resolved by importing GridItem's CSS module. (This bullet superseded.)
 
   **Shared-styling blocker (Claude, 2026-07-24) — needs a decision before `InstructionRow`/`BlockHeader`:**
   The row and the block header **share many classes and a bundled button-group selector**, so neither
@@ -228,9 +227,23 @@ Memory List pattern), reusing the existing `onDragEnd(result)` and its preview-m
       confirm the reorder persists and disallowed drops still show the alert. The preview-move flow
       can't be exercised without the backend. If the drop index is off-by-one, the `[Grid][drag]` logs
       + `__gridReorder` pinpoint it and it's a one-line tweak in `commitInstructionDrag`.
-- [ ] `InstructionDragHandle` still imports an rbd type (harmless). Drop `react-beautiful-dnd` from
-      `package.json` only once a repo-wide search shows no importers (other screens may still use it;
-      `MemoryDragDemo` too).
+- [x] **react-beautiful-dnd FULLY REMOVED (2026-07-24).** Converted the last importers to native:
+      `GridItemComp` (Components workspace), `MemoryDragDemo`, `InstructionDragHandle` (rbd type dropped);
+      deleted 3 dead rbd files (BlockList, BlockInstructionsDnd, MyComponent); removed the dep from
+      `package.json`. `GridItem.dragMessages` regression drives native drag and passes for BOTH grids.
+      (node_modules still physically holds rbd — npm ERESOLVE blocked the uninstall; harmless, pruned by
+      a future `npm install`.) Build succeeds; grid + dragMessages 46/46.
+
+### Phase 8 — Block-level drag & drop + unified BLOCK_MOVE (2026-07-24)
+- [x] `BlockCard` block drag & drop (see Phase-5 entry): drag a block header, drop on another block.
+- [x] **Unified block reordering to ONE code path.** `handleMoveBlockUp`/`handleMoveBlockDown` (the
+      up/down buttons) now delegate to `commitBlockReorder` just like drag & drop, so EVERY block move
+      sends a single `BLOCK_MOVE` with the **full ordered block list** (`blockOrderNumber` reassigned
+      1..N), never a 2-block swap. `window.__blockReorder(from,to)` tests it. tsc clean; tests green.
+- [ ] **USER: runtime-verify** block reorder (buttons + drag). If the backend `BLOCK_MOVE` handler
+      only accepts a 2-item swap, it must accept the full list (recommended) — this is the one backend
+      contract to confirm.
+- [ ] Optional: apply the same block drag + unified BLOCK_MOVE to `GridItemComp` (Components workspace).
 
 ## Acceptance criteria (per phase and overall)
 
