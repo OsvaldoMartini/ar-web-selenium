@@ -240,9 +240,12 @@ Memory List pattern), reusing the existing `onDragEnd(result)` and its preview-m
       up/down buttons) now delegate to `commitBlockReorder` just like drag & drop, so EVERY block move
       sends a single `BLOCK_MOVE` with the **full ordered block list** (`blockOrderNumber` reassigned
       1..N), never a 2-block swap. `window.__blockReorder(from,to)` tests it. tsc clean; tests green.
-- [ ] **USER: runtime-verify** block reorder (buttons + drag). If the backend `BLOCK_MOVE` handler
-      only accepts a 2-item swap, it must accept the full list (recommended) — this is the one backend
-      contract to confirm.
+- [x] **Backend `BLOCK_MOVE` confirmed compatible — NO change needed.** `SimpleWebSocketServer`
+      BLOCK_MOVE → `PerformDataBase.updateSwiftBlockOrderNumber` iterates the whole `updatedBlocks`
+      list (any size) with a batched `UPDATE block SET block_order_number = ? WHERE id = ?`
+      (+ `updateMemorySwiftBlockOrder` for the in-memory list). It never assumed a 2-item swap; the
+      full ordered list is a drop-in.
+- [ ] **USER: runtime-verify** block reorder (buttons + drag) in the app after a jar rebuild.
 - [ ] Optional: apply the same block drag + unified BLOCK_MOVE to `GridItemComp` (Components workspace).
 
 ## Acceptance criteria (per phase and overall)
