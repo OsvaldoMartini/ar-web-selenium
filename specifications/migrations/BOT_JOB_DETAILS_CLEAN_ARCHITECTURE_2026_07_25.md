@@ -113,10 +113,33 @@ lifted out of the hooks during Phase 6.
 
 ## Status (executing this now)
 
-Phase 6 is delivering the **refactored production-grade code** layer by layer, one hook per commit:
-- ✅ Application slices done: `useInstructionFind`, `useBlockCollapse`, `useGridAlerts`, `useExecutionState`.
-- ⏳ Next: `useInstructionMemory` → `useExcelExport` → `useInstructionDragController` → block/instruction
-  mutations → `useGridData` (core WS effect) → `useInstructionGrid` composition → extract `domain/` +
-  `messaging/` → share the hook with `GridItemComp`.
+Phase 6 is delivering the **refactored production-grade code** layer by layer, one commit each
+(every commit: verbatim lift, `renderHook`/unit test, `tsc --noEmit` clean, `GridItem.dragMessages`
+regression green). Done so far (GridItem down ~430 lines):
 
-Each slice moves logic *out of* the god component into the correct layer with a test, no behavior change.
+- ✅ **Application layer** (hooks/): `useInstructionFind`, `useBlockCollapse`, `useGridAlerts`,
+  `useExecutionState`, `useInstructionMemory`, `useExcelExport`, `useBlockReorder`.
+- ✅ **Domain layer** (domain/): `memoryOptions` (block-option + memory-item mapping),
+  `grouping` (`groupByBlock` + `reassignInstructionOrderNumbersByBlock`).
+
+### The remaining core is ONE cohesive unit (not further cleanly splittable)
+
+Everything left — `instructionsData` / `groupedData` / editing state, **all** the mutation handlers
+(create/edit/status/remove/rollback block; add/edit/status/remove/force/move instruction; component
+save/split), `applyDragMove` + `onDragEnd`, `correctBlockOrderNumbers`, and the **~700-line WebSocket
+message effect** — shares the *same* core-data dependency set. Each mutation handler reads
+`instructionsData`, calls `setGroupedData(groupByBlock(...))`, sends over the socket, and surfaces alerts.
+They are the **data layer** (`useGridData`), and the WS effect is its linchpin.
+
+**Risk note (why this is different from steps 1–8):** the WS effect + non-drag mutations are **not**
+covered by the `dragMessages` regression and cannot be unit-tested without a WebSocket/backend mock
+harness that doesn't exist here. They are only truly verifiable by running the rebuilt jar and
+exercising the grid (scan/insert, block & row drag, status toggles, delete/rollback, split, memory
+apply, Excel export). Extraction stays behavior-preserving via verbatim lift + `tsc`, but **final
+verification is the user's runtime test** — same division of labour as every prior WS-coupled handler
+(`handleApplyMemory`, the `excelExport.*` handlers) already left wired in GridItem.
+
+Options for the remainder (user's call): (a) split by responsibility into `useBlockMutations` +
+`useInstructionMutations` + `useGridData` — many-dep micro-hooks, aligns with the "duplication-OK
+micro-component" preference; (b) one `useGridData` owning the whole data layer; (c) leave the data
+layer as GridItem's own body (it *is* the composition shell) and stop at the clean 8.
