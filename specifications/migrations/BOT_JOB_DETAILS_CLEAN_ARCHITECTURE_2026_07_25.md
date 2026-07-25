@@ -143,3 +143,25 @@ Options for the remainder (user's call): (a) split by responsibility into `useBl
 `useInstructionMutations` + `useGridData` — many-dep micro-hooks, aligns with the "duplication-OK
 micro-component" preference; (b) one `useGridData` owning the whole data layer; (c) leave the data
 layer as GridItem's own body (it *is* the composition shell) and stop at the clean 8.
+
+### RESOLUTION (2026-07-25): option (b) — DONE
+
+- ✅ **step 9 `useGridData`** — wholesale verbatim lift of the entire data layer (core state + drag
+  state + refs + the ~700-line WS `messages` effect + `__gridReorder` + reorder/reassign/BLOCK_ORDER
+  effects + every mutation/drag handler + `applyDragMove`/`onDragEnd`/`handleApplyMemory`) into one hook
+  taking a deps object. GridItem −1945 lines. tsc clean; dragMessages + locator (full-render integration)
+  + 25 hook/domain tests green.
+- ✅ **step 10 `useInstructionGrid` + `types/instructionGrid.types.ts`** — composition root: `useWebSocket`,
+  identity state, controller, UI refs, all 9 sub-hook calls with their wiring, and the focus/click-outside
+  effects move into one hook returning a flat view-model. GridItem is now `const grid =
+  useInstructionGrid(props)` + destructure + render helpers + JSX. Followed by an import prune (removed the
+  imports the extraction orphaned; remaining ESLint warnings are all pre-existing dead local helpers).
+
+**Result:** `GridItem.tsx` went from ~3,700 lines to ~900, purely presentational. The Bot Job Details grid
+is now 10 focused hooks + 2 domain modules + a types module, each unit/integration-tested. Every step was a
+verbatim behavior-preserving lift gated by `tsc` + the drag regression + full-render integration tests.
+
+**Still pending (user-owned):** rebuild the React bundle (`npm run build`) → copy into
+`ar-web-selenium/src/main/resources/build` → rebuild the jar → runtime-verify the grid (the non-drag WS
+handlers can only be confirmed at runtime). Optional future work: parameterize `useInstructionGrid` so the
+`GridItemComp` twin shares it (collapses ~3,000 duplicated lines).
