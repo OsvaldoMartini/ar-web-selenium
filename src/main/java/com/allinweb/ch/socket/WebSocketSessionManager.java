@@ -202,10 +202,21 @@ public class WebSocketSessionManager {
         return session != null && session.isOpen();
     }
 
+    // Dedicated backend WS-traffic logger → ar_web_scanner_backend.log (see logback.xml).
+    // Every outbound send logs one 'RES ...' line (incoming verbs log 'REQ ...' in
+    // SimpleWebSocketServer), so request↔response loops are visible end-to-end.
+    private static final org.slf4j.Logger logBackend =
+            org.slf4j.LoggerFactory.getLogger("com.allinweb.backend");
+
     public static void sendMessageJson(
             int homeBankingId, Session session, String sessionId, String body, String operationId) {
         if (session != null && session.isOpen()) {
             try {
+                logBackend.info(
+                        "RES op={} sessionId={} bytes={}",
+                        operationId == null ? "-" : operationId,
+                        sessionId,
+                        body == null ? 0 : body.length());
                 JsonObject jsonMessage = new JsonObject();
                 jsonMessage.addProperty("homeBankingId", homeBankingId);
                 jsonMessage.addProperty("sessionId", sessionId);
@@ -277,6 +288,8 @@ public class WebSocketSessionManager {
 
         if (session != null && session.isOpen()) {
             try {
+                logBackend.info(
+                        "RES op=raw sessionId={} bytes={}", sessionId, message == null ? 0 : message.length());
                 sendText(session, message);
             } catch (IOException e) {
                 log.debug("Cannot send to session {}: {}", sessionId, e.getMessage());
@@ -293,6 +306,11 @@ public class WebSocketSessionManager {
 
         if (session != null && session.isOpen()) {
             try {
+                logBackend.info(
+                        "RES op={} sessionId={} bytes={}",
+                        operationId == null ? "-" : operationId,
+                        sessionId,
+                        body == null ? 0 : body.length());
                 JsonObject jsonMessage = new JsonObject();
                 jsonMessage.addProperty("body", body);
                 jsonMessage.addProperty("sessionId", sessionId);
