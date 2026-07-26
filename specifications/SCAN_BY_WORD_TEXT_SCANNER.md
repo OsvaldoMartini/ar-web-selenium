@@ -7,12 +7,16 @@ Do NOT modify existing scanners; this is an ADDITIVE new FOCUS option. Captured 
 Add a new option to the **FOCUS:** dropdown on the **PAGE SCANNER** page: **"Scan by Word/Text"**.
 
 When the user picks this mode and supplies a match string (e.g. `"Log in"`, `"Go Getters"`), the scanner
-finds **web elements whose text matches/contains that string** — matching against, at least:
+finds **web elements whose text matches that string** — matching against, at least:
 - the element's **label text** (associated `<label>`, `aria-label`, visible text),
 - the element's **placeholder** value,
 - (and other reasonable text sources — button/anchor inner text, `title`, `value`, `name`).
 
-The match should be **contains / case-insensitive** (not exact), so `"Log in"` finds "Log In", "User Login", etc.
+**TWO match modes (user selectable):**
+1. **EXACT match** — the text equals the match string (case-insensitive, trimmed). `"Log in"` matches only "Log In".
+2. **Match CONTAINS** — the text contains the match string (case-insensitive). `"Log in"` also matches "User Login", "Log in here", etc.
+
+The UI must let the user choose EXACT vs CONTAINS (e.g. a toggle/segmented control next to the match input).
 
 Crucially, it must still **classify the element type exactly as the current scanners do** — OUTPUT / INPUT /
 CLICK / LINK / etc. — i.e. reuse the existing element-identification/classification pipeline; only the
@@ -30,10 +34,16 @@ CLICK / LINK / etc. — i.e. reuse the existing element-identification/classific
   already works from Page Scanner).
 
 ## Acceptance (draft — refine at build time)
-- New "Scan by Word/Text" entry in the FOCUS dropdown; selecting it reveals a text-to-match input.
-- Given a match string, the scan returns all matching elements with correct type classification.
-- Matches on label text OR placeholder (OR the other text sources above), contains + case-insensitive.
+- New "Scan by Word/Text" entry in the FOCUS dropdown; selecting it reveals a text-to-match input + an
+  EXACT / CONTAINS mode selector.
+- Given a match string + mode, the scan returns all matching elements with correct type classification.
+- EXACT = equals (case-insensitive, trimmed); CONTAINS = substring (case-insensitive). Both match on label
+  text OR placeholder (OR the other text sources above).
 - Existing FOCUS modes/scanners unchanged.
+
+## Start gate
+Do NOT start #5 without the user's explicit authorization — the user will raise one prevention/precaution
+first. Build order: fix bug #7 → Memory List hub #6 → then this (#5).
 
 ## Related (also pending — see backlog)
 - Memory List as central maintenance hub (blue-arrow reinsert via Memory List modal; multi-source add).
