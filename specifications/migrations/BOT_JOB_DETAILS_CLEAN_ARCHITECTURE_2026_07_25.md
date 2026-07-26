@@ -161,7 +161,23 @@ layer as GridItem's own body (it *is* the composition shell) and stop at the cle
 is now 10 focused hooks + 2 domain modules + a types module, each unit/integration-tested. Every step was a
 verbatim behavior-preserving lift gated by `tsc` + the drag regression + full-render integration tests.
 
-**Still pending (user-owned):** rebuild the React bundle (`npm run build`) → copy into
-`ar-web-selenium/src/main/resources/build` → rebuild the jar → runtime-verify the grid (the non-drag WS
-handlers can only be confirmed at runtime). Optional future work: parameterize `useInstructionGrid` so the
-`GridItemComp` twin shares it (collapses ~3,000 duplicated lines).
+**Deployed:** React bundle rebuilt and copied into `ar-web-selenium/src/main/resources/build` (FE commits).
+User rebuilds the jar + runtime-verifies (the non-drag WS handlers are only confirmable at runtime).
+
+### Step 12 (GridItemComp) — safe-hooks sharing DONE (2026-07-25)
+
+Audited GridItemComp vs the extracted hooks first (it binds the **Components** workspace — `componentTasks`
+session, `ComponentsInstructionsDTO`, and has unique features: `COMPONENT_INJECT` cross-session,
+`ACTIONS_UPDATE`, inline command editor; and lacks Memory List / save-as-component / block-collapse /
+execution-highlight). Verdict: full unification is MODERATE-risk (BLOCK_MOVE payload shape differs
+full-list vs 2-swap; `updateInstructions` vs `componentsUpdate`; divergent command editor) — deferred.
+
+Chosen path: **share only the session-agnostic hooks** (duplication-OK, zero risk). GridItemComp now
+consumes:
+- ✅ `useExcelExport` (routes on its own `sessionId` prop = `componentTasks`; handlers were byte-identical),
+- ✅ `useGridAlerts` (init + handleClose behavior-equivalent),
+- ✅ `useInstructionFind` (`findText` + `renderHighlighted` — same SCSS; kept its own DTO-typed matcher).
+
+`useBlockCollapse` / `useExecutionState` N/A (features GridItemComp doesn't have). ~90 duplicated lines
+removed; every step gated by tsc + the shared drag regression. **Not** unified — the risky data-layer merge
+(`useGridData`) stays deferred pending a backend `BLOCK_MOVE` contract check for `componentTasks`.
