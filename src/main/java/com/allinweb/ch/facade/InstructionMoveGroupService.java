@@ -11,6 +11,13 @@ import java.util.Set;
 
 /** Resolves the complete connected instruction group represented by one dragged row. */
 public final class InstructionMoveGroupService {
+    // Fix A: a "Web Field dependency" is any row with a parentId that is NOT a conditional
+    // boundary or loop action — this MUST match InstructionMoveValidator.validateParentRelationships
+    // (CONDITIONAL_BOUNDARIES + LOOP_ACTIONS), so that whatever the validator requires to share a
+    // block always travels together in the resolved move group.
+    private static final Set<String> NON_WEB_FIELD_ACTIONS =
+            Set.of("IF", "ELSEIF", "ELSE", "ENDIF", "LOOP", "REFRESH_LOOP");
+
     public List<InstructionLoad> resolve(List<InstructionLoad> rows, int instructionId) {
         InstructionLoad selected = rows.stream()
                 .filter(row -> row != null && row.getId() != null && row.getId() == instructionId)
@@ -73,17 +80,25 @@ public final class InstructionMoveGroupService {
         addRange(block, bestStart, bestEnd, ids);
     }
 
+    /** Matches InstructionMoveValidator's Web-Field dependency rule (parentId, not conditional/loop). */
+    private boolean isWebFieldDependent(InstructionLoad row) {
+        return row.getParentId() != null && !NON_WEB_FIELD_ACTIONS.contains(row.getActions());
+    }
+
     private void addDependentFamily(List<InstructionLoad> block, InstructionLoad selected, Set<Integer> ids) {
-        Integer parentId = selected.getParentId();
-        boolean selectedIsCommand = CommandRegistry.isSpecialAction(selected.getActions())
-                && parentId != null
-                && !parentId.equals(selected.getId());
-        int rootId = selectedIsCommand ? parentId : selected.getId();
+        // Fix A: resolve the dragged row to the SAME family the validator enforces. If the dragged
+        // row is a Web-Field dependent child, root on its parent; otherwise treat it as the root.
+        // Then pull the root plus every dependent child of that root — regardless of whether the
+        // child's action is a "special" command — so a plain-action (INPUT/CLICK/OUTPUT) child can
+        // no longer be left behind and trip "must remain in their parent block".
+        boolean selectedIsDependentChild = isWebFieldDependent(selected)
+                && !selected.getParentId().equals(selected.getId());
+        int rootId = selectedIsDependentChild ? selected.getParentId() : selected.getId();
         block.stream()
                 .filter(row -> row.getId() != null
                         && (row.getId() == rootId
                                 || (row.getParentId() != null && row.getParentId() == rootId
-                                        && CommandRegistry.isSpecialAction(row.getActions()))))
+                                        && isWebFieldDependent(row))))
                 .forEach(row -> ids.add(row.getId()));
     }
 

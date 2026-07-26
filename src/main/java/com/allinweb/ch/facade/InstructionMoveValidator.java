@@ -131,6 +131,12 @@ public final class InstructionMoveValidator {
             if (command.parentId == null || CONDITIONAL_BOUNDARIES.contains(command.action)
                     || LOOP_ACTIONS.contains(command.action)) continue;
             ProposedRow parent = proposed.get(command.parentId);
+            // Fix B: only enforce Web-Field parent-block coherence for families TOUCHED by
+            // this move. A pre-existing separation (or orphaned parentId) in a family that
+            // did not move must not block an otherwise-valid, unrelated move — mirrors how
+            // conditional/loop groups already skip when nothing in the group moved.
+            boolean touched = command.moved() || (parent != null && parent.moved());
+            if (!touched) continue;
             if (parent == null) return "A command references a missing parent instruction.";
             if (parent.blockId != command.blockId) {
                 return "Commands with Web Field dependencies must remain in their parent block.";
