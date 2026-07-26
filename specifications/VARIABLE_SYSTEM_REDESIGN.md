@@ -27,31 +27,46 @@ its producer is **refused with an explanatory message** naming both steps ("'Get
 'Extract Field' (#6) that reads its variable"). Enforced in `InstructionMoveValidator` as a new `validateVariableOrder`
 pass. (Producers/consumers among SET/GET/CK/PDF CHECK/CSV CHECK/E — exact classification to confirm with user.)
 
-## Floating Variable Panel (FE, non-modal)
-- A **button on GridItem** opens a **floating, non-modal** panel (draggable, dismissible) listing **all variables in
-  the bot job / current execution**. Reuse the Memory-List floating pattern where sensible.
-- Each row: variable name (`VAR-id-name`), owning instruction (id + step name), **initial value**, **current value**,
-  and status. Clicking a row could highlight/scroll to the owning instruction in the grid.
-- During a live run it updates as the Engine emits values; when idle it shows the declared variables + last-known
-  values.
+## Variable Page (FE — its own page, like the Memory List page)
+- A **new dedicated, floating, drag & drop page** — modeled on the existing **"memory list" page**, NOT a modal and
+  NOT inside the command editor (the command editor should be broken down; variables are becoming too important to
+  bury there). Opened from GridItem (button/link) the same way the memory list is.
+- Lists **all variables in the bot job / current execution**. Each row: variable name (`VAR-id-name`), owning
+  instruction (id + step name), **initial value**, **current value**, status. Clicking a row highlights/scrolls to the
+  owning instruction in the grid.
+- During a live run it updates as the Engine emits values; when **paused**, the user can **edit a variable's value**
+  inline and **Resume** to continue `executeJob` exactly where it stopped. When idle it shows declared variables +
+  last-known values.
 
 ## Phased roadmap (each phase: no behavior break, tests, user runtime-verify)
 - **P0 — Model & migration:** enforce one-variable-per-instruction, add the activation flag + auto-name; DB migration
   (dated class under `db/migrations/`), keep engine DTO compatibility. (Backend + schema.)
 - **P1 — Ordering enforcement (the #8 fix):** `validateVariableOrder` in `InstructionMoveValidator` + explanatory
   yes/why-not messages in both grids. (Backend + FE messaging.)
-- **P2 — Floating Variable Panel (declared variables):** button on GridItem → floating panel listing the bot job's
-  variables + owning instructions (no live values yet). (FE.)
-- **P3 — Execution value tracking (initial + current):** the Engine emits variable values during `executeJob`; panel
-  shows initial→current. **Gated by Engine repo access** (separate artifact; source not in these repos).
+- **P2 — Variable Page (declared variables):** new floating drag & drop page (like the memory list page) listing the
+  bot job's variables + owning instructions (no live values yet). (FE — break the command editor down.)
+- **P3 — Execution value tracking + pause/edit/resume:** the Engine emits variable values during `executeJob`; the
+  page shows initial→current, and on a **pause** the user edits a value + **Resume** continues exactly where it
+  stopped. **Gated by Engine repo access** (separate artifact; source not in these repos — needs Engine pause +
+  variable get/set hooks).
 
-## Open decisions (confirm before P0)
-1. **One variable per instruction** — confirm hard rule (drop multi-variable support / migrate existing multi-var rows).
-2. **Producer/consumer classification** — is `Extract Field` (E) a **consumer** of a `GET`'s variable (must be after
-   GET), a producer, or both? Exact per-action rule for SET/GET/CK/PDF CHECK/CSV CHECK/E.
-3. **Panel placement** — a button on GridItem opening the floating panel (recommended) vs a docked side panel.
-4. **Live values (P3)** — do we have Engine source / a way for the Engine to emit variable values at runtime? If not,
-   P3 is limited to scanner-side execution (`ScannerRuntimeBackend.executeJob`) or deferred.
+## Decisions — CONFIRMED (2026-07-26)
+1. **One variable per instruction — YES, hard rule.** Migrate/drop existing multi-variable rows.
+2. **Per-action semantics (rule to be MODIFIED):**
+   - **GET** = PRODUCER. Purely reads a value from a web element → into a variable.
+   - **SET** = CONSUMER. Puts a value into a web element that can receive it; the value may be a **literal** OR a
+     **variable picked from the variable list**. (SET may also assign a variable directly.) When execution reaches
+     the SET step it applies the value.
+   - **Extract (E)** = rule changes: E may **connect to a variable, exclusively one produced by a GET** (consumer of
+     a GET's variable). CK/PDF CHECK/CSV CHECK = consumers (read a variable to compare).
+   - **Ordering rule:** the GET that produces a variable must run BEFORE any SET / E / CK / check that reads it.
+3. **Variable UI = a NEW dedicated PAGE** (floating, drag & drop), built like the existing **"memory list" page** — NOT
+   a modal, NOT crammed into the command editor. Rationale: variables are becoming a first-class "flow indication of
+   values read across pages"; the command editor should be broken down and variables get their own page. It lists the
+   bot job's variables and their owning instructions.
+4. **Live values — YES, with pause/edit/resume:** during a run the panel shows values live; if execution is **paused**
+   at a moment, the user can **edit a variable's value** in the floating panel and click **Resume** to continue
+   `executeJob` exactly where it stopped. (P3 needs the Engine to expose pause + variable get/set at runtime.)
 
 ## Relationship to other work
 - Subsumes task #8 (producer→consumer order). GridItemComp drag-not-working (#8) is a SEPARATE concrete bug — fix
