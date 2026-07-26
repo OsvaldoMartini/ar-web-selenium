@@ -286,3 +286,37 @@ Memory List pattern), reusing the existing `onDragEnd(result)` and its preview-m
   component rather than living inside `InstructionRow`?
 - Should the scss split introduce a shared `grid/_tokens.scss` for colors/spacing, or keep each
   module fully standalone (current principle #1)?
+
+## Components page (GridItemComp) status — 2026-07-26 (shared CLAUDE/CODEX note)
+
+**GridItemComp was NOT decomposed.** It remains a monolith that only ADOPTED shared hooks:
+`useExcelExport`, `useGridAlerts`, `useInstructionFind`, `useBlockReorder` (generic, `targetSessionId:
+'componentTasks'`). GridItem (Bot Job Details) is the fully decomposed, 100%-working reference.
+
+### Instruction move/drag bug — root cause + fix (CLOSED, pending runtime confirm)
+- Line-by-line comparison of the full instruction-move chain (capabilities request → response handler →
+  `moveGraphRevision`/`moveCapabilities` → draggable gate → `onDragEnd` → `previewMove` →
+  `previewMoveResponse` → `applyDragMove` → `useInstructionDrag` ROW_MOVE) confirmed GridItemComp is
+  IDENTICAL to the working useGridData path — except one divergence:
+- **Root cause:** a defensive `homeBankingId > 0` guard (added 2026-07-26, bundle `main.7d2e0df4.js`)
+  on GridItemComp's `instructionEditor.memoryCapabilities` request. The Components workspace is
+  bank-agnostic and legitimately runs with `homeBankingId = 0`, so the guard suppressed the request
+  permanently → empty `moveCapabilities` + empty `moveGraphRevision` → row up/down disabled AND rows
+  not draggable (block reorder needs neither → kept working).
+- **Fix:** guard removed (commit `34c5531`); bundle back to `main.420900ed.js` — byte-identical to the
+  pre-guard bundle on which drag verifiably reached the backend (user saw the validator's "Move
+  Instruction Refused", since fixed in Java by #7 Fix A/B: family moves together + touched-family gate).
+- **Verify at runtime:** rebuild jar (embeds `main.420900ed.js`) → Components page → row up/down enabled
+  and drag works, cross-block moves of web-field families prompt "Move N connected instructions?".
+
+### Contingency (user-approved fallback if runtime test still fails): COMPONENTS_2
+If GridItemComp still misbehaves after the fix, STOP patching the monolith. Instead:
+1. Back up the current Components page (`GridItemComp.tsx` + its scss usage) untouched.
+2. Create **COMPONENTS_2**: a 100% copy of the decomposed, working GridItem stack
+   (`useInstructionGrid`/`useGridData` composition + `InstructionRow`/`InstructionList`/`BlockCard`),
+   with its own `.module.scss`, then change ONLY the context lines: DTO `ComponentsInstructionsDTO`,
+   session/target `componentTasks`, refresh verb `componentsUpdate` (vs `updateInstructions`),
+   command editor `commandEditor.apply`/`insertElseIf` (vs `workspaceOpen`), Comp-only features
+   (`COMPONENT_INJECT` → targets 'botJobTasks'; `ACTIONS_UPDATE`), and NO Memory-List/BLOCK_CREATE/
+   save-as-component (Bot-Job-only features). See BOTJOB_VS_COMPONENT_CONTEXT_MAP.md for the full
+   difference table. GridItem itself must NOT be modified.
