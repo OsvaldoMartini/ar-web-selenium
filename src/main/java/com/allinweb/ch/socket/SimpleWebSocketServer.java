@@ -119,6 +119,8 @@ public class SimpleWebSocketServer {
     private static final Map<String, Boolean> processedRowMoves = new LinkedHashMap<>();
     private static final Map<String, Boolean> processedBlockDeletes = new LinkedHashMap<>();
     private static final InstructionMoveValidator instructionMoveValidator = new InstructionMoveValidator();
+    // Dedicated backend request-traffic logger → ar_web_scanner_backend.log (see logback.xml)
+    private static final org.slf4j.Logger logBackend = org.slf4j.LoggerFactory.getLogger("com.allinweb.backend");
     private final Gson gson = new Gson();
     private final BotJobWorkspaceCapabilityService botJobWorkspaceCapabilityService =
             BotJobWorkspaceCapabilityService.getInstance();
@@ -4269,6 +4271,10 @@ public class SimpleWebSocketServer {
 
     private void handleMessageByType(String type, JsonObject jsonEntry, Session session, String sessionId) {
         // Dispatch to the correct method based on the message type
+
+        // Backend request-traffic log (ar_web_scanner_backend.log): one line per incoming
+        // verb so runaway client loops (a verb re-sent many times per second) are visible.
+        logBackend.info("REQ type={} sessionId={}", type, sessionId);
 
         boolean alreadySentMgsSocket = false;
         boolean authoritativeBotJobSnapshotPublished = false;

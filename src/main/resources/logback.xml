@@ -95,6 +95,24 @@
         </rollingPolicy>
     </appender>
 
+    <!-- Backend Rolling File Appender — incoming WebSocket verbs (who calls the backend,
+         how often). One line per request: verb + session + owner ids. Use this file to
+         spot runaway request loops (e.g. a client re-sending a verb many times/second). -->
+    <appender name="BACKEND_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/ar_web_scanner_backend.log</file>
+        <prudent>true</prudent>
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <pattern>%d{ISO8601} %m%n%throwable</pattern>
+        </encoder>
+
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/ar_web_scanner_backend-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <maxFileSize>10MB</maxFileSize>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>200MB</totalSizeCap>
+        </rollingPolicy>
+    </appender>
+
     <!-- Suppress Jetty logs completely -->
     <logger name="org.eclipse.jetty" level="OFF" additivity="false"/>
     <logger name="org.eclipse.jetty.util.log" level="OFF" additivity="false"/>
@@ -128,6 +146,11 @@
     <!-- Logger for OCR / scanner pipeline events (PageOcrDumper runs, Test On Current Page summaries) -->
     <logger name="com.allinweb.scanner" level="INFO" additivity="false">
         <appender-ref ref="SCANNER_FILE"/>
+    </logger>
+
+    <!-- Logger for backend WebSocket request traffic -->
+    <logger name="com.allinweb.backend" level="INFO" additivity="false">
+        <appender-ref ref="BACKEND_FILE"/>
     </logger>
 
     <!-- In-memory ring buffer of last N log lines, read by SupportCapture

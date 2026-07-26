@@ -20,6 +20,20 @@ public class PerformDataBase {
 
     private static final Logger logDB = LoggerFactory.getLogger("com.allinweb.database");
 
+    // De-duplicated logging: getConnection() runs on every query and instruction loads are
+    // triggered per WS request, so logging each occurrence floods the database log
+    // (thousands of identical lines per minute). Log only when the message CHANGES.
+    private static volatile String lastLoggedConnectionUrl = "";
+    private static volatile String lastLoggedFetchSignature = "";
+
+    private static void logConnectionUrlOnce(String label, String url) {
+        String signature = label + url;
+        if (!signature.equals(lastLoggedConnectionUrl)) {
+            lastLoggedConnectionUrl = signature;
+            logDB.info(label + " connection URL: " + url);
+        }
+    }
+
     public static final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
     public static final PerformMessage performMessage = PerformMessage.getInstance();
     public static final PerformInitializer performInitializer = PerformInitializer.getInstance();
@@ -270,7 +284,7 @@ public class PerformDataBase {
                 String userDB = arPropertyManager.getProperty(ARPropertyEnum.DB_USER);
                 String userPwd = arPropertyManager.getProperty(ARPropertyEnum.DB_PWD);
 
-                logDB.info("POSTGRES connection URL: " + dbUrl);
+                logConnectionUrlOnce("POSTGRES", dbUrl);
                 // logDB.info("User Details: " + userDB + " - [PROTECTED]");
 
                 Class.forName("org.postgresql.Driver");
@@ -292,7 +306,7 @@ public class PerformDataBase {
                         + dbPath
                         + ARConstants.FILE_NAME_SQLITE; // make sure you have FILE_NAME_SQLITE constant
 
-                logDB.info("SQLITE connection URL: " + sqliteUrl);
+                logConnectionUrlOnce("SQLITE", sqliteUrl);
 
                 Class.forName("org.sqlite.JDBC");
 
@@ -316,7 +330,7 @@ public class PerformDataBase {
                 String dbPath = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
                 String dbUrl = CONNECTION_TYPE + dbPath + ARConstants.FILE_NAME_ACCESS + CONNECTION_PARAMETERS;
 
-                logDB.info("ACCESS connection URL: " + dbUrl);
+                logConnectionUrlOnce("ACCESS", dbUrl);
 
                 Class.forName("net.ucanaccess.jdbc.UcanaccessDriver");
                 Connection conn = DriverManager.getConnection(dbUrl);
@@ -8783,12 +8797,18 @@ public class PerformDataBase {
                 instructions.addAll(instructionMap.values());
                 targetList.addAll(instructions);
 
-                logDB.info(String.format(
+                String fetchMessage = String.format(
                         "Fetched %d instructions (with references) from table %s%s%s",
                         instructions.size(),
                         tableName,
                         blockId > 0 ? " for Block ID " + blockId : "",
-                        instrucId > -1 ? " and Instruction ID " + instrucId : ""));
+                        instrucId > -1 ? " and Instruction ID " + instrucId : "");
+                // Identical reloads repeat many times per second (per-request reloads);
+                // only log when the result actually changes.
+                if (!fetchMessage.equals(lastLoggedFetchSignature)) {
+                    lastLoggedFetchSignature = fetchMessage;
+                    logDB.info(fetchMessage);
+                }
             }
             return null;
         } catch (SQLException error) {
