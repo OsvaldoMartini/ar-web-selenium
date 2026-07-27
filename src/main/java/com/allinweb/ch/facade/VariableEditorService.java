@@ -2,6 +2,7 @@ package com.allinweb.ch.facade;
 
 import com.allinweb.ch.model.*;
 import com.allinweb.ch.socket.WebSocketSessionManager;
+import com.allinweb.ch.socket.VariablesWorkspaceService;
 import com.allinweb.ch.util.ErrorMessage;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
@@ -122,12 +123,15 @@ public final class VariableEditorService {
         }
         if (error != null) return failure(error.getErrorMessage());
         if (id != null && id >= 0) publishInstructionRefresh(context);
+        if (!isComponentSession(context.sessionId)) {
+            VariablesWorkspaceService.getInstance().notifyMutation(context.botJobId);
+        }
         JsonObject response = list(body);
         response.addProperty("message", id == null || id < 0 ? "Variable created." : "Variable updated.");
         return response;
     }
 
-    private void publishInstructionRefresh(Context context) {
+    private boolean publishInstructionRefresh(Context context) {
         ErrorMessage error;
         if (isComponentSession(context.sessionId)) {
             error = database.loadComponentsComplete(
@@ -135,13 +139,14 @@ public final class VariableEditorService {
         } else {
             error = engine.loadCompleteJobs(context.botJobId);
         }
-        if (error != null) return;
+        if (error != null) return false;
         List<BotJobLoadDTO> jobs = isComponentSession(context.sessionId)
                 ? lists.getListBotJobComp()
                 : lists.getListBotJob();
         List<InstructionLoad> instructions = lists.buildJsonViewData(jobs);
         com.allinweb.ch.socket.InstructionRealtimePublisher.getInstance()
                 .publishSnapshot(context.homeBankingId, context.sessionId, instructions);
+        return true;
     }
 
     public JsonObject delete(JsonObject body) {
@@ -169,6 +174,9 @@ public final class VariableEditorService {
         }
         ErrorMessage error = database.deleteUserData(context.variableTable, context.whereId, id);
         if (error != null) return failure(error.getErrorMessage());
+        if (!isComponentSession(context.sessionId)) {
+            VariablesWorkspaceService.getInstance().notifyMutation(context.botJobId);
+        }
         JsonObject response = list(body);
         response.addProperty("message", "Variable deleted.");
         return response;

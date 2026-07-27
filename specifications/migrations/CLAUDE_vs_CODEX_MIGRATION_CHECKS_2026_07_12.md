@@ -1843,3 +1843,70 @@ Next unclaimed leaf: `EmptyBlocksPlaceholder`.
   reported and deterministically repaired.
 - D-036: SET cannot be validated as a GET consumer until the Engine distinguishes literal SET from
   variable-source SET and executes those modes accordingly.
+
+## CODEX - Detached Variables relationship workspace (2026-07-27)
+
+### Bot Job-scoped implementation
+
+- [x] Added a **Variables** action to Bot Job Details.
+- [x] Added one fixed detached `variablesManager` page; reopening retargets/focuses the singleton
+      instead of creating duplicate Variables windows.
+- [x] Bound page authority to the active Bot Job Details registry and exact live
+      `botJobTasks` transport. Browser-supplied Bot Job identity is not accepted as authority.
+- [x] Added Pages Open presentation, native focus participation, local Close behavior, reload
+      generation/grace, retirement tombstone, and forced-close fallback.
+- [x] Added a Bot Job-scoped backend graph containing declarations, Blocks, commands, active state,
+      `DECLARES`/`WRITES`/`READS`/`ASSIGNS_LITERAL`/`INVALID_LINK` edges, summary, revision, and
+      diagnostics.
+- [x] Effective health/order diagnostics consider active instructions in active Blocks while still
+      transporting inactive links for authoring visibility.
+- [x] Persisted variable and instruction graph mutations queue an exact-Bot-Job realtime update.
+      Per-step execution/status traffic does not rebuild or republish this graph.
+- [x] Kept registry access, SQL, and WebSocket sends outside the Variables state monitor; focused
+      concurrency coverage verifies the previous lock-inversion path cannot deadlock.
+- [x] Sanitized graph-load failures before they cross the WebSocket boundary.
+
+### React relationship explorer
+
+- [x] Added a TEMP-pattern detached page with title/status, Pages counter, local Close, summary,
+      Find, health filters, Expand all/Collapse all, and responsive independent scrolling.
+- [x] Added a collapsible variable tree and selected flow:
+      declaration Web Field -> GET producer -> variable memory -> E/CK/PDF CHECK/CSV CHECK readers.
+- [x] Rendered current SET compatibility separately as
+      `literal SET -> declaration Web Field`; the UI does not falsely claim current SET reads a
+      prior GET variable.
+- [x] Added separate selected-variable and whole-Bot-Job diagnostics.
+- [x] Added strict canonical snapshot parsing. A malformed variable/command/edge or incomplete
+      revision/binding cannot replace the last valid graph.
+- [x] Added request correlation, older-workspace rejection, same-workspace binding rotation,
+      10-second request timeout, first-load Retry, and last-valid-snapshot preservation.
+- [x] Frontend source committed and pushed as `e05503e`.
+
+### Verification and deployment
+
+- [x] Focused backend result: 22 tests passed with zero failures/errors.
+- [x] Focused frontend result: 4 suites, 29 tests passed with zero failures.
+- [x] `npm run build` completed successfully with existing repository warnings.
+- [x] Produced `main.f69dd91d.js` and `main.3451644a.css`.
+- [x] Mirrored the React build to backend resources: 45 source files, 45 target files, and zero
+      relative-path/SHA-256 differences.
+- [x] Production database rows were not modified.
+- [ ] P3 remains deferred: execution initial/current value streaming, pause-time value editing,
+      and Resume require a safe Engine run-scoped variable API.
+- [ ] Organization-wide variable expansion is deferred until the Bot Job-scoped execution model
+      is runtime-accepted.
+- [ ] Shared hardening follow-up: all fixed detached pages should receive one-use launch nonces
+      before session takeover. Variables currently follows the same loopback-only fixed-session
+      boundary as the existing fixed pages.
+
+### Decisions
+
+- D-037: Variables P2 is scoped to one authoritative active Bot Job. Organization aggregation is
+  a later expansion and cannot mix execution memories across Bot Jobs.
+- D-038: The declared relationship graph and live execution values are separate contracts.
+  P2 exposes declarations/relationships; P3 owns run-scoped initial/current values.
+- D-039: Current literal SET is an assignment into the declaration Web Field, not a variable
+  consumer. The UI and edge direction must preserve actual Engine behavior.
+- D-040: A failed or stale refresh never clears the last valid Variables graph.
+- D-041: Realtime Variables publication is mutation-driven and revision-deduplicated; execution
+  paint/status events are not graph mutations.

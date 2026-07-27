@@ -5,6 +5,7 @@ import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.model.ScannerWorkspaceOperations;
 import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import com.allinweb.ch.socket.WebSocketSessionManager;
+import com.allinweb.ch.socket.VariablesWorkspaceService;
 import com.allinweb.ch.util.ErrorMessage;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
@@ -31,6 +32,7 @@ public final class ScannerBotJobTasksPublisher {
     }
 
     public ErrorMessage publish(int homeBankingId, int botJobId) {
+        VariablesWorkspaceService.getInstance().notifyMutation(botJobId);
         ErrorMessage error = data.loadCompleteJobs(botJobId);
         if (error != null) {
             return error;
@@ -60,6 +62,7 @@ public final class ScannerBotJobTasksPublisher {
             int botJobId,
             JsonArray blocks,
             JsonObject correlation) {
+        VariablesWorkspaceService.getInstance().notifyMutation(botJobId);
         ErrorMessage error = data.loadCompleteJobs(botJobId);
         if (error != null) {
             return error;

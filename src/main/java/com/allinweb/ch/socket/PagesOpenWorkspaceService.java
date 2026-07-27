@@ -95,6 +95,14 @@ public final class PagesOpenWorkspaceService {
                             false,
                             true)),
             Map.entry(
+                    DetachedWorkspaceSessions.VARIABLES_MANAGER,
+                    new PagePresentation(
+                            "Variables",
+                            "VARIABLES",
+                            "Bot Job variable relationships",
+                            false,
+                            true)),
+            Map.entry(
                     DetachedWorkspaceSessions.MEMORY_LIST_MANAGER,
                     new PagePresentation("Memory List", "MEMORY_LIST", "Detached workspace", false, true)),
             Map.entry(

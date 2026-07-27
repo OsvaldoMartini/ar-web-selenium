@@ -169,9 +169,36 @@ block-header `+` stages one typed whole-block Memory item and does not apply row
 - Compatibility note: current SET is a literal writer, so GET-before-SET is deferred until an
   explicit SET source mode is implemented in the execution engine.
 - Add `validateVariableOrder` to every move/copy path.
-- Build the detached Variables page for declared variables.
-- Add execution-time initial/current value streaming and pause/edit/resume only after the Engine
+- [x] Phase P2: build one detached, draggable Variables page for the active Bot Job's declared
+  variables, owners, GET producers, readers/checks, literal SET assignments, inactive links, and
+  relationship diagnostics.
+- [x] Phase P2: keep the Variables binding backend-owned, retarget the singleton page when the
+  active Bot Job changes, and publish persisted graph mutations in real time without publishing
+  per-step execution-status noise.
+- [x] Phase P2: use a collapsible/searchable tree plus an explicit relationship flow. Literal SET
+  is rendered as `SET -> declaration Web Field`, not as a false variable consumer.
+- [x] Phase P2: preserve the last valid graph on refresh/transport failure and reject partial,
+  stale, uncorrelated, or older-workspace responses.
+- [ ] Phase P3: add execution-time initial/current value streaming and pause/edit/resume only after the Engine
   exposes a safe run-scoped API.
+
+#### Shared detached-window launch-token follow-up
+
+The Variables workspace currently uses the same fixed-session launch boundary as Configuration,
+Memory List, Command Editor, and the other fixed detached pages:
+
+- the desktop HTTP/WebSocket listener is loopback-only;
+- the backend owns the active Bot Job and workspace epoch;
+- bootstrap accepts only the exact transport registered for that fixed session;
+- Pages Open focus uses an opaque page ID and a one-use native window-title focus token.
+
+The fixed desktop launch URL itself does not yet carry a one-use nonce. This is a shared platform
+gap, not a Variables-specific exception: a same-host page that knows a fixed session name could
+attempt transport takeover before the workspace service rejects its requests. A platform phase
+must add one-use, short-lived launch nonces to every fixed detached page, validate and consume the
+nonce before `WebSocketSessionManager.takeOverSession`, and preserve the existing opaque focus
+token. Variables must migrate with the other fixed pages; it must not introduce an incompatible
+one-off launch protocol.
 
 ## Main Dashboard work stream
 

@@ -34,6 +34,7 @@ import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.socket.ARWebSocketServer;
 import com.allinweb.ch.socket.CommandEditorWorkspaceService;
 import com.allinweb.ch.socket.PagesOpenWorkspaceService;
+import com.allinweb.ch.socket.VariablesWorkspaceService;
 import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
@@ -1587,6 +1588,7 @@ public class BotJobDetailsWorkspaceHost {
                     }
                     case SHOW_BOT_JOB, HIDE_COMPONENTS -> showBotJobWorkspace();
                     case SHOW_COMPONENTS -> showComponentsWorkspace();
+                    case SHOW_VARIABLES -> showVariablesWorkspace();
                     case SHOW_PRE_SCAN -> showPreScanWorkspace();
                     case OPEN_ORGANIZATIONS -> {
                         // Capability-gated organization presentation was completed above.
@@ -1633,6 +1635,20 @@ public class BotJobDetailsWorkspaceHost {
         CommandEditorWorkspaceService.getInstance().retireForBotJob(
                 botJobId,
                 "The active Bot Job Details workspace changed or closed.");
+        VariablesWorkspaceService.RetireResult variablesRetirement =
+                VariablesWorkspaceService.getInstance().retireForBotJobDetailed(
+                botJobId,
+                "The active Bot Job Details workspace changed or closed.");
+        if (variablesRetirement.matched() && !variablesRetirement.closed()) {
+            log.error(
+                    "Variables workspace could not be closed while retiring Bot Job {}",
+                    botJobId);
+        } else if (variablesRetirement.matched()
+                && !variablesRetirement.tombstoneDelivered()) {
+            log.warn(
+                    "Variables workspace retired for Bot Job {} without delivering its tombstone",
+                    botJobId);
+        }
         requestComponentsWorkspaceClose();
         reactSessionContext.deactivate(botJobId);
         for (String workspaceSession : List.of(
@@ -1657,6 +1673,22 @@ public class BotJobDetailsWorkspaceHost {
                 "Bot Job Details requested the Components workspace.");
         if (!opened) {
             throw new IllegalStateException("The Components workspace could not be opened");
+        }
+    }
+
+    private void showVariablesWorkspace() {
+        JsonObject response = VariablesWorkspaceService.getInstance()
+                .openForBotJob(selectedBotJob.getId());
+        if (response == null
+                || !response.has("ok")
+                || response.get("ok").isJsonNull()
+                || !response.get("ok").getAsBoolean()) {
+            String error = response != null
+                            && response.has("error")
+                            && !response.get("error").isJsonNull()
+                    ? response.get("error").getAsString()
+                    : "The Variables workspace could not be opened";
+            throw new IllegalStateException(error);
         }
     }
 
@@ -1727,6 +1759,7 @@ public class BotJobDetailsWorkspaceHost {
             case REFRESH -> "Bot Job grids refreshed";
             case SHOW_BOT_JOB -> "Bot Job workspace opened";
             case SHOW_COMPONENTS -> "Components workspace opened";
+            case SHOW_VARIABLES -> "Variables workspace opened";
             case HIDE_COMPONENTS -> "Components workspace hidden";
             case SHOW_PRE_SCAN -> "Pre Scan workspace opened";
             case OPEN_ORGANIZATIONS -> "Organizations opened";

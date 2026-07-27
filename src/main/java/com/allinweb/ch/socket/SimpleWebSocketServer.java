@@ -70,6 +70,8 @@ public class SimpleWebSocketServer {
             PagesOpenWorkspaceService.getInstance();
     private static final CommandEditorWorkspaceService commandEditorWorkspaceService =
             CommandEditorWorkspaceService.getInstance();
+    private static final VariablesWorkspaceService variablesWorkspaceService =
+            VariablesWorkspaceService.getInstance();
     private static final int MAX_PAGE_SCANNER_BODY_CHARACTERS = 2_000_000;
     private static final int MAX_PAGE_SCANNER_ELEMENTS = 1_000;
     private static final int MAX_PAGE_SCANNER_SEARCH_TERMS = 8_192;
@@ -108,6 +110,11 @@ public class SimpleWebSocketServer {
             "variableEditor.bootstrap",
             "variableEditor.save",
             "variableEditor.delete",
+            "pagesOpen.open",
+            "pagesOpen.summary");
+    private static final Set<String> DETACHED_VARIABLES_OPERATIONS = Set.of(
+            "variablesWorkspace.bootstrap",
+            "variablesWorkspace.refresh",
             "pagesOpen.open",
             "pagesOpen.summary");
     private static final ScannerPluginDownloadCommandService scannerPluginDownloadCommandService =
@@ -290,7 +297,8 @@ public class SimpleWebSocketServer {
                 || botJobWindowControl
                 || OcrWorkspaceCoordinator.isWorkspaceSessionId(sessionId)
                 || ScannerWorkspaceSessions.isPageScannerSession(sessionId)
-                || CommandEditorWorkspaceService.isWorkspaceSession(sessionId)) {
+                || CommandEditorWorkspaceService.isWorkspaceSession(sessionId)
+                || VariablesWorkspaceService.isWorkspaceSession(sessionId)) {
             // Only one Bot Job workspace is active in the backend at a time -- opening a job in a
             // new tab takes over from whichever tab had it before, rather than being rejected as a
             // duplicate session. Detached OCR pages use the same exact-session takeover so a page
@@ -323,6 +331,9 @@ public class SimpleWebSocketServer {
 
         if (CommandEditorWorkspaceService.isWorkspaceSession(sessionId)) {
             commandEditorWorkspaceService.connected(sessionId, session);
+        }
+        if (VariablesWorkspaceService.isWorkspaceSession(sessionId)) {
+            variablesWorkspaceService.connected(sessionId, session);
         }
 
         if ("mainDashboardBootstrap".equals(sessionId)) {
@@ -452,6 +463,10 @@ public class SimpleWebSocketServer {
                     type.startsWith("commandEditor.");
             boolean detachedCommandEditorTransport =
                     CommandEditorWorkspaceService.isWorkspaceSession(transportSessionId);
+            boolean variablesWorkspaceOperation =
+                    type.startsWith("variablesWorkspace.");
+            boolean detachedVariablesTransport =
+                    VariablesWorkspaceService.isWorkspaceSession(transportSessionId);
             String sessionId = ocrWorkspaceOperation
                             || detachedOcrTransport
                             || pageScannerOperation
@@ -461,6 +476,8 @@ public class SimpleWebSocketServer {
                              || configOperation
                              || commandEditorOperation
                              || detachedCommandEditorTransport
+                             || variablesWorkspaceOperation
+                             || detachedVariablesTransport
                     ? transportSessionId
                     : claimedSessionId;
             ReactReplyChannel.set(sessionId);
@@ -560,6 +577,21 @@ public class SimpleWebSocketServer {
                         commandEditorFailure(
                                 extractBody(jsonObjMSG),
                                 "Operation is not allowed from the detached Command Editor."));
+                return;
+            }
+            if (detachedVariablesTransport
+                    && !DETACHED_VARIABLES_OPERATIONS.contains(type)) {
+                log.warn(
+                        "Rejected operation {} from detached Variables transport {}",
+                        type,
+                        transportSessionId);
+                sendCommandEditorResponse(
+                        homeBankingId,
+                        transportSessionId,
+                        "variablesWorkspace.errorResponse",
+                        variablesWorkspaceFailure(
+                                extractBody(jsonObjMSG),
+                                "Operation is not allowed from the detached Variables workspace."));
                 return;
             }
 
@@ -833,6 +865,26 @@ public class SimpleWebSocketServer {
                             "commandEditor.workspaceBootstrapResponse",
                             commandEditorWorkspaceService.bootstrap(
                                     commandWorkspaceBody, sessionId, session));
+                    break;
+                }
+                case "variablesWorkspace.bootstrap": {
+                    JsonObject variablesBody = extractBody(jsonObjMSG);
+                    sendCommandEditorResponse(
+                            homeBankingId,
+                            sessionId,
+                            "variablesWorkspace.bootstrapResponse",
+                            variablesWorkspaceService.bootstrap(
+                                    variablesBody, sessionId, session));
+                    break;
+                }
+                case "variablesWorkspace.refresh": {
+                    JsonObject variablesBody = extractBody(jsonObjMSG);
+                    sendCommandEditorResponse(
+                            homeBankingId,
+                            sessionId,
+                            "variablesWorkspace.refreshResponse",
+                            variablesWorkspaceService.refresh(
+                                    variablesBody, sessionId, session));
                     break;
                 }
                 case "commandEditor.select": {
@@ -1776,6 +1828,9 @@ public class SimpleWebSocketServer {
             response.put("botJobId", request.botJobId());
             BotJobWorkspaceAction action = BotJobWorkspaceAction.parse(
                     request.body().has("action") ? request.body().get("action").getAsString() : null);
+            if (action == BotJobWorkspaceAction.SHOW_VARIABLES) {
+                requireVariablesWorkspaceOpenAuthority(request, transportSession);
+            }
             botJobDetailsActionLedger
                     .executeOnce(
                             request.sessionId(),
@@ -2116,6 +2171,17 @@ public class SimpleWebSocketServer {
             }
         }
         return request;
+    }
+
+    void requireVariablesWorkspaceOpenAuthority(
+            BotJobDetailsRequest request, Session transportSession) {
+        if (request == null
+                || !ScannerWorkspaceSessions.BOT_JOB_TASKS.equals(request.sessionId())
+                || !isAuthoritativeBotJobTransport(transportSession)) {
+            throw new IllegalArgumentException(
+                    "Variables must be opened from the authoritative Bot Job Details workspace");
+        }
+        BotJobDetailsWorkspaceRegistry.getInstance().require(request.botJobId());
     }
 
     private void handleScannerBootstrap(JsonObject envelope, Session transportSession) {
@@ -2731,6 +2797,7 @@ public class SimpleWebSocketServer {
                     notifyOcrWindowDisconnected(sessionId);
                     notifyMainApplicationDisconnected(sessionId);
                     commandEditorWorkspaceService.disconnected(sessionId, session);
+                    variablesWorkspaceService.disconnected(sessionId, session);
                     pagesOpenWorkspaceService.sessionRegistryChanged();
                 }
             }
@@ -5991,6 +6058,7 @@ public class SimpleWebSocketServer {
                 notifyOcrWindowDisconnected(sessionId);
                 notifyMainApplicationDisconnected(sessionId);
                 commandEditorWorkspaceService.disconnected(sessionId, session);
+                variablesWorkspaceService.disconnected(sessionId, session);
                 pagesOpenWorkspaceService.sessionRegistryChanged();
             }
         } else {
@@ -6459,6 +6527,23 @@ public class SimpleWebSocketServer {
             response.add(
                     "bindingEpoch",
                     request.get("bindingEpoch").deepCopy());
+        }
+        return response;
+    }
+
+    private JsonObject variablesWorkspaceFailure(JsonObject request, String message) {
+        JsonObject response = new JsonObject();
+        response.addProperty("ok", false);
+        response.addProperty("preserveSnapshot", true);
+        response.addProperty(
+                "error",
+                Strings.isNullOrEmpty(message)
+                        ? "The Variables workspace request was refused."
+                        : message);
+        if (request != null
+                && request.has("requestId")
+                && !request.get("requestId").isJsonNull()) {
+            response.add("requestId", request.get("requestId").deepCopy());
         }
         return response;
     }

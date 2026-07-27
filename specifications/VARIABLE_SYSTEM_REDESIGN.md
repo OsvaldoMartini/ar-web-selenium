@@ -186,3 +186,53 @@ execution engine does not provide.
 7. Re-run the audit; ambiguous rows must be reported, never guessed.
 8. Only after a clean audit, add unique indexes for `(bot_job_id, instruction_id)` and
    `(home_banking_id, instruction_id)`.
+
+## 2026-07-27 - Phase P2 detached Variables workspace completed
+
+Phase P2 now provides one independent `variablesManager` window scoped to the authoritative active
+Bot Job. It opens from **Bot Job Details -> Variables**, participates in Pages Open, can be moved
+between displays, and closes without closing the application or the Bot Job page.
+
+### Relationship model delivered
+
+- The backend loads declarations directly from the selected Bot Job and emits the declaration
+  owner, all variable-linked commands, Blocks, typed edges, active/inactive state, and diagnostics.
+- Canonical edges are `DECLARES`, `WRITES`, `READS`, `ASSIGNS_LITERAL`, and `INVALID_LINK`.
+- GET is presented as the runtime writer/producer.
+- E, CK, PDF CHECK, and CSV CHECK are presented as readers/consumers.
+- Current SET compatibility is shown in a separate `SET -> declaration Web Field` lane. It is not
+  presented as reading the variable because the current Engine writes a literal.
+- The React page uses a searchable, collapsible variable tree and a selected-variable flow:
+  declaration Web Field -> GET -> variable memory -> readers/checks.
+- Runtime initial/current values are deliberately labelled unavailable. P3 remains responsible for
+  execution value streaming, pause-time editing, and Resume.
+
+### Integrity and lifecycle behavior
+
+- Effective execution diagnostics use only active instructions in active Blocks, while inactive
+  links remain visible for authoring.
+- Diagnostics cover missing owners/producers, duplicate or multiple producers, consumers before
+  GET, dangling variable links, invalid action links, and Block/owner mismatches.
+- Persisted variable/instruction mutations queue an exact-Bot-Job realtime refresh; ordinary
+  execution color/status traffic does not rebuild the graph.
+- A fixed singleton page is retargeted instead of duplicated. Reload uses a binding generation and
+  grace period; retirement sends a tombstone and has a forced-close fallback.
+- Graph SQL, registry access, and WebSocket delivery do not run while holding the Variables state
+  monitor, preventing the registry/Variables lock inversion identified during review.
+- React correlates request IDs, rejects older workspace epochs and incomplete canonical graphs,
+  accepts a same-workspace binding rotation, times out lost requests after 10 seconds, and keeps
+  the last valid graph visible on failure.
+
+### Verification and deployment
+
+- Backend focused result: 22 tests passed, zero failures/errors
+  (`VariableRelationshipServiceTest`, `VariablesWorkspaceServiceTest`,
+  `VariablesWorkspaceAuthorizationTest`, `BotJobWorkspaceActionTest`, and
+  `VariableDefinitionPolicyTest`).
+- Frontend focused result: 29 tests passed across four suites, zero failures.
+- `npm run build` completed successfully with pre-existing warnings and produced
+  `main.f69dd91d.js` and `main.3451644a.css`.
+- Frontend build deployment parity: 45 source files, 45 backend-resource files, zero relative-path
+  or SHA-256 differences.
+- Frontend source commit: `e05503e`.
+- No production database row was modified by this phase.

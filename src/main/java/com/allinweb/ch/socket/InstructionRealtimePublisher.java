@@ -4,6 +4,8 @@ import com.allinweb.ch.model.RowStatus;
 import com.allinweb.ch.model.ScannerWorkspaceOperations;
 import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import com.google.gson.Gson;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -44,6 +46,10 @@ public final class InstructionRealtimePublisher {
     public void publishSerializedSnapshot(int homeBankingId, String sessionId, String snapshotJson) {
         String operationId = snapshotOperation(sessionId);
         sessions.sendMessageJson(homeBankingId, sessionId, snapshotJson, operationId);
+        if (ScannerWorkspaceSessions.BOT_JOB_TASKS.equals(sessionId)) {
+            VariablesWorkspaceService.getInstance()
+                    .notifyMutation(snapshotBotJobId(snapshotJson));
+        }
         log.debug("Instruction snapshot published: session={} operation={}", sessionId, operationId);
     }
 
@@ -63,5 +69,41 @@ public final class InstructionRealtimePublisher {
         status.setInstructionId(instructionId);
         status.setColor(color);
         sessions.sendMessageJson(homeBankingId, sessionId, gson.toJson(status), "rowStatus");
+    }
+
+    private static int snapshotBotJobId(String snapshotJson) {
+        try {
+            return snapshotBotJobId(JsonParser.parseString(snapshotJson));
+        } catch (RuntimeException malformedSnapshot) {
+            return -1;
+        }
+    }
+
+    private static int snapshotBotJobId(JsonElement root) {
+        if (root == null || root.isJsonNull()) return -1;
+        if (root.isJsonObject()) {
+            if (root.getAsJsonObject().has("botJobId")
+                    && !root.getAsJsonObject().get("botJobId").isJsonNull()) {
+                int direct = root.getAsJsonObject().get("botJobId").getAsInt();
+                if (direct > 0) return direct;
+            }
+            for (String collection : new String[] {"instructions", "rows", "data"}) {
+                if (root.getAsJsonObject().has(collection)) {
+                    int nested =
+                            snapshotBotJobId(root.getAsJsonObject().get(collection));
+                    if (nested > 0) return nested;
+                }
+            }
+            return -1;
+        }
+        if (!root.isJsonArray()) return -1;
+        int botJobId = -1;
+        for (JsonElement item : root.getAsJsonArray()) {
+            int candidate = snapshotBotJobId(item);
+            if (candidate <= 0) continue;
+            if (botJobId > 0 && botJobId != candidate) return -1;
+            botJobId = candidate;
+        }
+        return botJobId;
     }
 }

@@ -11,6 +11,7 @@ class BotJobWorkspaceActionTest {
     void parsesKnownActionsCaseInsensitively() {
         assertEquals(BotJobWorkspaceAction.REFRESH, BotJobWorkspaceAction.parse("refresh"));
         assertEquals(BotJobWorkspaceAction.SHOW_COMPONENTS, BotJobWorkspaceAction.parse("show_components"));
+        assertEquals(BotJobWorkspaceAction.SHOW_VARIABLES, BotJobWorkspaceAction.parse("show_variables"));
         assertEquals(BotJobWorkspaceAction.SHOW_PRE_SCAN, BotJobWorkspaceAction.parse("SHOW_PRE_SCAN"));
         assertEquals(
                 BotJobWorkspaceAction.OPEN_ORGANIZATIONS,
