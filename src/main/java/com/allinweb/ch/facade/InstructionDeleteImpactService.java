@@ -23,7 +23,7 @@ public final class InstructionDeleteImpactService {
             Integer rootId = "IF".equals(action) ? selected.getId() : selected.getParentId();
             ids = rootId == null ? Set.of(selected.getId()) : conditionalFamilyIds(rows, rootId);
         } else {
-            ids = Set.of(selected.getId());
+            ids = dependentFamilyIds(rows, selected.getId());
         }
         return rows.stream()
                 .filter(row -> row != null && row.getId() != null && ids.contains(row.getId()))
@@ -31,6 +31,32 @@ public final class InstructionDeleteImpactService {
                         ? Integer.MAX_VALUE
                         : row.getInstructionOrderNumber()))
                 .toList();
+    }
+
+    /**
+     * Deletes an ordinary instruction together with every instruction that depends on it.
+     * A LOOP boundary also owns its complete loop span, so deleting its Web Field cannot leave
+     * a detached loop body behind.
+     */
+    private Set<Integer> dependentFamilyIds(List<InstructionLoad> rows, int rootId) {
+        Set<Integer> ids = new HashSet<>();
+        ids.add(rootId);
+        boolean changed;
+        do {
+            changed = false;
+            for (InstructionLoad row : rows) {
+                if (row == null || row.getId() == null || row.getParentId() == null) continue;
+                if (!ids.contains(row.getParentId()) || ids.contains(row.getId())) continue;
+                if (Set.of("LOOP", "REFRESH_LOOP").contains(row.getActions())) {
+                    List<Integer> loopIds = loopGroupService.groupIds(rows, row.getId());
+                    if (loopIds.isEmpty()) changed |= ids.add(row.getId());
+                    else changed |= ids.addAll(loopIds);
+                } else {
+                    changed |= ids.add(row.getId());
+                }
+            }
+        } while (changed);
+        return ids;
     }
 
     private Set<Integer> conditionalFamilyIds(List<InstructionLoad> rows, int rootId) {

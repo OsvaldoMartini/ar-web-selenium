@@ -444,10 +444,6 @@ public final class CommandEditorService {
                     ? lists.getListBlockComp()
                     : lists.getListBlock();
             Set<Integer> protectedIds = memoryProtectedIds(instructionRows);
-            Set<Integer> referencedIds = instructionRows.stream()
-                    .filter(row -> row != null && row.getParentId() != null && !row.getParentId().equals(row.getId()))
-                    .map(InstructionLoad::getParentId)
-                    .collect(java.util.stream.Collectors.toSet());
             Set<Integer> invalidConditionalIds = invalidConditionalBlockIds(instructionRows);
             for (InstructionLoad row : instructionRows) {
                 if (row == null || row.getId() == null) continue;
@@ -469,7 +465,7 @@ public final class CommandEditorService {
                             .forEach(block -> allowedBlockIds.add(block.getId()));
                 }
                 capability.add("allowedBlockIds", allowedBlockIds);
-                String deleteReason = deleteBlockReason(row, referencedIds, invalidConditionalIds, instructionRows);
+                String deleteReason = deleteBlockReason(row, invalidConditionalIds, instructionRows);
                 capability.addProperty("canDelete", deleteReason == null);
                 capability.addProperty("deleteCount", deleteImpactCount(row, instructionRows));
                 capability.add("deleteRows", deleteImpactRows(row, instructionRows));
@@ -533,7 +529,7 @@ public final class CommandEditorService {
         return invalidIds;
     }
 
-    private String deleteBlockReason(InstructionLoad row, Set<Integer> referencedIds, Set<Integer> invalidConditionalIds,
+    private String deleteBlockReason(InstructionLoad row, Set<Integer> invalidConditionalIds,
             List<InstructionLoad> rows) {
         if (invalidConditionalIds.contains(row.getId())) return "Conditional graph is invalid.";
         if (Set.of("LOOP", "REFRESH_LOOP").contains(row.getActions())
@@ -543,9 +539,6 @@ public final class CommandEditorService {
         if ("ELSEIF".equals(row.getActions())
                 && conditionalBranchService.elseIfBranchIds(rows, row.getId()).isEmpty()) {
             return "ELSEIF branch boundaries are invalid.";
-        }
-        if (referencedIds.contains(row.getId()) && !Set.of("IF", "ELSE", "ENDIF").contains(row.getActions())) {
-            return "Other instructions depend on this row.";
         }
         return null;
     }

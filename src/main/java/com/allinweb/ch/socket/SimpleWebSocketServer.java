@@ -5490,7 +5490,19 @@ public class SimpleWebSocketServer {
                             || actions.equalsIgnoreCase("ELSE")
                             || actions.equalsIgnoreCase("ENDIF");
 
-                    int ifRootId = actions.equalsIgnoreCase("IF") ? instructionId : splitDTO.getParentId();
+                    Integer storedParentId = storedDelete.getParentId();
+                    if (isIfFamilyRootDelete
+                            && !actions.equalsIgnoreCase("IF")
+                            && storedParentId == null) {
+                        errorMessage = new ErrorMessage(
+                                "Delete Instruction Refused",
+                                "Invalid conditional graph",
+                                "The selected conditional boundary has no IF parent.");
+                        break;
+                    }
+                    int ifRootId = actions.equalsIgnoreCase("IF")
+                            ? instructionId
+                            : storedParentId == null ? -1 : storedParentId;
 
                     // ELSEIF must load for itself (doesn't matter much now, but keep correct)
                     int parentsRootId = (isIfFamilyRootDelete ? ifRootId : instructionId);
@@ -5501,23 +5513,11 @@ public class SimpleWebSocketServer {
 
                     if (errorMessage == null) {
 
-                        // Dependent-row cascades require explicit React impact confirmation.
-                        if (!performLists.getListParentOperations().isEmpty() && !isIfFamily) {
-                            String dependencies = performLists.getListParentOperations().stream()
-                                    .map(parent -> parent.getName() + " (" + parent.getInstructionId() + ")")
-                                    .collect(Collectors.joining(", "));
-                            errorMessage = new ErrorMessage(
-                                    "Delete Instruction Refused",
-                                    "Steps are attached to this instruction",
-                                    "Dependent steps: " + dependencies);
-                            continueDelete = false;
-                            deleteParents = false;
-
-                        } else {
-                            // IF-family OR no children -> proceed
-                            continueDelete = true;
-                            deleteParents = true;
-                        }
+                        // React already presents the authoritative impact list and asks for
+                        // confirmation. The confirmed mutation therefore removes the same
+                        // dependency graph instead of refusing a parent instruction.
+                        continueDelete = true;
+                        deleteParents = true;
 
                     }
 
@@ -5525,29 +5525,13 @@ public class SimpleWebSocketServer {
                         List<InstructionLoad> currentDeleteRows = instrTable.equals("instruction")
                                 ? performLists.getListInstruction()
                                 : performLists.getListInstructionComp();
-                        List<Integer> deleteIds;
-                        if (actions.equalsIgnoreCase("LOOP") || actions.equalsIgnoreCase("REFRESH_LOOP")) {
-                            List<InstructionLoad> blockRows = currentDeleteRows.stream()
-                                    .filter(row -> row != null && Objects.equals(row.getBlockId(), storedBlockId))
-                                    .toList();
-                            deleteIds = new LoopGroupService().groupIds(blockRows, splitDTO.getInstructionId());
-                        } else if (actions.equalsIgnoreCase("ELSEIF")) {
-                            List<InstructionLoad> blockRows = currentDeleteRows.stream()
-                                    .filter(row -> row != null && Objects.equals(row.getBlockId(), storedBlockId))
-                                    .toList();
-                            deleteIds = new ConditionalBranchService()
-                                    .elseIfBranchIds(blockRows, splitDTO.getInstructionId());
-                        } else if (isIfFamilyRootDelete) {
-                            deleteIds = currentDeleteRows.stream()
-                                        .filter(row -> row != null && row.getId() != null
-                                                && (row.getId() == ifRootId
-                                                        || (row.getParentId() != null && row.getParentId() == ifRootId)))
-                                        .map(InstructionLoad::getId)
-                                        .distinct()
-                                        .toList();
-                        } else {
-                            deleteIds = List.of(splitDTO.getInstructionId());
-                        }
+                        List<Integer> deleteIds = new InstructionDeleteImpactService()
+                                .resolve(storedDelete, currentDeleteRows)
+                                .stream()
+                                .map(InstructionLoad::getId)
+                                .filter(Objects::nonNull)
+                                .distinct()
+                                .toList();
 
                         if (deleteIds.isEmpty()) {
                             errorMessage = new ErrorMessage(
