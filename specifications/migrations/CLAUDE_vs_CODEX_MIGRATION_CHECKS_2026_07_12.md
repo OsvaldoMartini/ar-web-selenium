@@ -1746,3 +1746,54 @@ Next unclaimed leaf: `EmptyBlocksPlaceholder`.
 - D-030: A destructive rollback must validate both the instruction revision and complete Block
   catalogue on the same transaction/connection used for its writes; a preflight check on another
   connection is diagnostic only and is never the concurrency boundary.
+
+## CODEX - Nullable deletion and authoritative Component block staging (2026-07-27)
+
+### Incident correction
+
+- [x] Traced the production delete failure to null unboxing of `SplitDTO.getParentId()`.
+- [x] Confirmed null parents are valid root metadata, including Component-derived Click rows.
+- [x] Changed delete execution to use authoritative stored metadata.
+- [x] Ordinary parent deletion now resolves a transitive dependent closure and uses the existing
+      atomic graph-delete transaction for instructions, variables, and references.
+- [x] Backend fix committed and pushed as `c3422325`.
+
+### Component mapping
+
+- [x] Identified the requested Components display-order block 18, `Check payment`, as database
+      `component_block.id = 36`.
+- [x] Mapped its 15 instructions, two variables, 25 references, IF/ELSE/ENDIF, LOOP, PAUSE,
+      GET/CK/E, parent links, and variable links.
+- [x] Found that the existing block `+` was filtering the aggregate through row-level `canAdd`,
+      staging only instructions 42 and 43 and omitting the dependent graph.
+- [x] Routed the existing Components block-header `+` to one typed whole-block Memory item.
+- [x] Kept the obsolete blue arrow removed.
+- [x] The existing transactional `ComponentMemoryApplyService` remains the sole whole-block copy
+      path and remaps generated block, instruction, variable, reference, parent, and GOTO IDs.
+- [x] Frontend source committed and pushed as `c8ca242`.
+- [x] `npm run build` completed successfully with existing repository warnings; broad tests were
+      intentionally deferred.
+- [x] Deployed `main.5fdca76c.js` and `main.73f5e771.css` to backend resources.
+- [x] Verified deployment parity: 45 source files, 45 target files, zero SHA-256 differences.
+
+### Roadmap
+
+- [x] Added
+      `ROADMAP_COMPONENT_MEMORY_VARIABLE_AND_MULTI_EXECUTION_2026_07_27.md`.
+- [x] Updated `specifications/VARIABLE_SYSTEM_REDESIGN.md` with Component aggregate rules.
+- [ ] Next safe backend phase: one shared transitive dependency-closure service for preview,
+      Memory selection, copy, move, and cascade deletion.
+- [ ] Easiest independent dashboard phase: add the non-executing `Execution` checkbox column.
+- [ ] Searchable Application Type, Name/Description editing, and authoritative realtime metadata
+      publication follow.
+- [ ] Headed/headless multi-launch and its tests remain explicitly last.
+
+### Decisions
+
+- D-031: A null parent is valid root metadata. Delete and copy paths must remain nullable end to
+  end and may never infer corruption from null alone.
+- D-032: A whole reusable Component block is one versioned aggregate. The block `+` stages one
+  typed `BLOCK` item and never a filtered list of instruction items.
+- D-033: Multi-launch cannot wrap the current single Launch call in a loop. It requires an
+  explicit run coordinator, execution mode, isolation/concurrency policy, per-job state, and
+  cancellation.

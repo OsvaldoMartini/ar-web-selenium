@@ -73,3 +73,32 @@ pass. (Producers/consumers among SET/GET/CK/PDF CHECK/CSV CHECK/E — exact clas
   independently first (see investigation: componentTasks `memoryCapabilities` returns empty, likely stale
   `homeBankingId`).
 - Related: Memory List central hub (#6), Scan-by-Word/Text (#5).
+
+## 2026-07-27 - Component and Memory List integrity addendum
+
+The Components investigation established that variables cannot be copied as isolated instruction
+fields. A reusable Component block is one aggregate:
+
+`component_block + component_instruction + component_variable + component_reference + relations`.
+
+The canonical fixture is Components display-order block 18, `Check payment`
+(`component_block.id = 36`). It contains 15 instructions, two variables, 25 locator references,
+IF/ELSE/ENDIF, LOOP, PAUSE, GET, CK, and E.
+
+### New rules
+
+1. Root instructions may have a null `parent_id`; null must never be unboxed or treated as deletion
+   corruption.
+2. A whole Component block must enter the Memory List as one typed `BLOCK` item. Row-level
+   capability filtering is not allowed to silently remove dependent instructions.
+3. The authoritative backend reloads the source aggregate and transactionally remaps block,
+   instruction, variable, reference, parent, parent-block, and GOTO IDs.
+4. Variable producer/consumer ordering is validated on the final generated graph immediately
+   before commit.
+5. Deleting a producer or parent uses a confirmed transitive cascade and atomically removes
+   dependent instructions, variables, and references.
+6. Future component revisions must include variables, references, and block metadata so a stale
+   source cannot pass an instruction-only revision check.
+
+Detailed implementation phases and acceptance criteria are in
+`migrations/ROADMAP_COMPONENT_MEMORY_VARIABLE_AND_MULTI_EXECUTION_2026_07_27.md`.
