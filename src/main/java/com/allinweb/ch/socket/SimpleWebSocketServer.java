@@ -116,9 +116,8 @@ public class SimpleWebSocketServer {
     private static WebSocketSessionManager webSocketSessionManager = WebSocketSessionManager.getInstance();
     private static ActionExecutorClient actionExecutorClient = ActionExecutorClient.getInstance();
     private static final Map<String, Boolean> processedInstructionDeletes = new LinkedHashMap<>();
-    private static final Map<String, Boolean> processedRowMoves = new LinkedHashMap<>();
     private static final Map<String, Boolean> processedBlockDeletes = new LinkedHashMap<>();
-    private static final InstructionMoveValidator instructionMoveValidator = new InstructionMoveValidator();
+    // ROW_MOVE idempotency + validation now live in facade.RowMoveService (one method per concern).
     // Dedicated backend request-traffic logger → ar_web_scanner_backend.log (see logback.xml)
     private static final org.slf4j.Logger logBackend = org.slf4j.LoggerFactory.getLogger("com.allinweb.backend");
     private final Gson gson = new Gson();
@@ -4909,37 +4908,10 @@ public class SimpleWebSocketServer {
                     alreadySentMgsSocket = false;
                     break;
                 case "ROW_MOVE":
-                    String moveRequestId = splitDTO.getRequestId() == null ? "" : splitDTO.getRequestId().trim();
-                    if (moveRequestId.isEmpty()) {
-                        errorMessage = new ErrorMessage(
-                                "Move Instruction Refused", "Request ID is required", "Refresh the grid and try again.");
-                        break;
-                    }
-                    synchronized (processedRowMoves) {
-                        if (processedRowMoves.containsKey(moveRequestId)) break;
-                    }
-                    errorMessage = CommandEditorService.getInstance().validateMoveRevision(splitDTO);
-                    if (errorMessage != null) break;
-                    List<InstructionLoad> currentMoveRows = instrTable.equals("instruction")
-                            ? performLists.getListInstruction()
-                            : performLists.getListInstructionComp();
-                    String moveError = instructionMoveValidator.validate(currentMoveRows, splitDTO.getUpdatedRows());
-                    if (moveError != null) {
-                        errorMessage = new ErrorMessage("Move Instruction Refused", "Invalid instruction graph", moveError);
-                        break;
-                    }
-                    errorMessage = performDataBase.updateMoveRowsOrder(blockTable, whereId, splitDTO.getUpdatedRows());
-
-                    // It needs to Reload this List
-                    if (errorMessage == null) {
-                        errorMessage = performDataBase.loadInstructions(whereId, -1, -1, instrTable);
-                    }
-                    if (errorMessage == null) {
-                        errorMessage = performDataBase.loadBlocks(whereId, "", blockTable);
-                    }
-                    if (errorMessage == null) {
-                        rememberCompletedRequest(processedRowMoves, moveRequestId);
-                    }
+                    // Full pipeline (request-id, idempotency, revision, graph validation,
+                    // transactional persist, state refresh) lives in RowMoveService — one
+                    // method per concern. Works for both Bot Job and Components workspaces.
+                    errorMessage = RowMoveService.getInstance().move(splitDTO, instrTable, blockTable, whereId);
 
                     // ROW_MOVE refreshes Bot Job Details through the authoritative mutation response
                     // and updateInstructions snapshot below. Do not also emit the legacy
