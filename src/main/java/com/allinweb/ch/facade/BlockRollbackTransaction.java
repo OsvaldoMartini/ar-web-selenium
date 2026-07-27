@@ -327,7 +327,7 @@ final class BlockRollbackTransaction {
             if (expected.getBlockOrderNumber() != stored.order()
                     || !Objects.equals(expected.getBlockName(), stored.name())
                     || expectedActive != stored.active()
-                    || expectedWait != stored.wait()
+                    || expectedWait != stored.blockWait()
                     || !Objects.equals(expected.getExportFile(), stored.exportFile())) {
                 throw new SQLException(
                         "Block "
@@ -555,7 +555,7 @@ final class BlockRollbackTransaction {
             int order,
             String name,
             boolean active,
-            int wait,
+            int blockWait,
             String exportFile) {}
 
     private record StoredInstruction(
