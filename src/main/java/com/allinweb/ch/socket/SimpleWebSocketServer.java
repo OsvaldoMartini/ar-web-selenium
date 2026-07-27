@@ -4908,15 +4908,25 @@ public class SimpleWebSocketServer {
                     alreadySentMgsSocket = false;
                     break;
                 case "ROW_MOVE":
-                    // Full pipeline (request-id, idempotency, revision, graph validation,
-                    // transactional persist, state refresh) lives in RowMoveService — one
-                    // method per concern. Works for both Bot Job and Components workspaces.
-                    errorMessage = RowMoveService.getInstance().move(splitDTO, instrTable, blockTable, whereId);
+                    // Bot Job workspace pipeline (instruction/block, bot_job_id scope), one method
+                    // per concern in BotJobRowMoveService. A legacy client still sending ROW_MOVE
+                    // from a Components session is routed to the component pipeline so it can never
+                    // hit the wrong tables.
+                    errorMessage = isComponentInstructionWorkspaceSession(sessionIdToSend)
+                            ? ComponentRowMoveService.getInstance().move(splitDTO, whereId)
+                            : BotJobRowMoveService.getInstance().move(splitDTO, whereId);
 
                     // ROW_MOVE refreshes Bot Job Details through the authoritative mutation response
                     // and updateInstructions snapshot below. Do not also emit the legacy
                     // perform-list-data/UPDATE_BLOCKS frame here; it only carries partial row layout
                     // data and can race the full grid refresh consumed by React.
+                    alreadySentMgsSocket = false;
+                    break;
+                case "COMPONENT_ROW_MOVE":
+                    // Components workspace pipeline (component_instruction/component_block,
+                    // home_banking_id scope) — the dedicated verb the Components grid sends, fully
+                    // separated from the Bot Job pipeline end-to-end.
+                    errorMessage = ComponentRowMoveService.getInstance().move(splitDTO, whereId);
                     alreadySentMgsSocket = false;
                     break;
                 case "INSERT_BEFORE":
@@ -5293,6 +5303,7 @@ public class SimpleWebSocketServer {
 
         if (errorMessage != null
                 && !"ROW_MOVE".equals(type)
+                && !"COMPONENT_ROW_MOVE".equals(type)
                 && !"DELETE_INSTRUCTION".equals(type)
                 && !"DELETE_BLOCK".equals(type)) {
             performMessage.errorMessageOperationFailed(errorMessage);
@@ -5317,7 +5328,10 @@ public class SimpleWebSocketServer {
         // Send mutation acknowledgement before the refreshed grid. The React grid consumes the
         // newest WebSocket message in a batched render, so the task-update operation must be
         // the final message or a following success response can hide the live refresh.
-        if ("ROW_MOVE".equals(type) || "DELETE_INSTRUCTION".equals(type) || "DELETE_BLOCK".equals(type)) {
+        if ("ROW_MOVE".equals(type)
+                || "COMPONENT_ROW_MOVE".equals(type)
+                || "DELETE_INSTRUCTION".equals(type)
+                || "DELETE_BLOCK".equals(type)) {
             JsonObject mutationResponse = new JsonObject();
             mutationResponse.addProperty("ok", errorMessage == null);
             mutationResponse.addProperty("requestId", splitDTO.getRequestId());
@@ -5326,7 +5340,7 @@ public class SimpleWebSocketServer {
                 mutationResponse.addProperty("errorHeader", errorMessage.getErrorHeader());
                 mutationResponse.addProperty("error", errorMessage.getErrorMessage());
             }
-            String responseOperation = "ROW_MOVE".equals(type)
+            String responseOperation = "ROW_MOVE".equals(type) || "COMPONENT_ROW_MOVE".equals(type)
                     ? "instructionEditor.rowMoveResponse"
                     : "DELETE_BLOCK".equals(type)
                             ? "instructionEditor.blockDeleteResponse"
@@ -5394,6 +5408,7 @@ public class SimpleWebSocketServer {
                 instructionRealtimePublisher.publishSerializedSnapshot(
                         homeBankingId, sessionIdToSend, jsonData);
                 if ("ROW_MOVE".equals(type)
+                        || "COMPONENT_ROW_MOVE".equals(type)
                         || "DELETE_INSTRUCTION".equals(type)
                         || "DELETE_BLOCK".equals(type)) {
                     log.info(

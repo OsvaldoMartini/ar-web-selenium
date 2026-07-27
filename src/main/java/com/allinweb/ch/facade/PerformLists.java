@@ -1395,79 +1395,9 @@ public class PerformLists {
         }
     }
 
-    public void updateMemoryRowMove(String tableName, Integer whereId, List<UpdatedRow> updatedRows) {
-        try {
-            if ("block".equalsIgnoreCase(tableName)) {
-                for (BotJobLoadDTO botJob : getListBotJob()) {
-                    if (botJob.getId().equals(whereId)) { // filter by botJobId
-                        if (botJob.getBlockLoadDTOList() != null) {
-                            applyUpdates(botJob.getBlockLoadDTOList(), updatedRows);
-                        }
-                    }
-                }
-
-            } else if ("component_block".equalsIgnoreCase(tableName)) {
-                for (BotJobLoadDTO botJob : getListBotJobComp()) {
-                    if (botJob.getHomeBankingId().equals(whereId)) { // filter by homeBankingId
-                        if (botJob.getBlockLoadDTOList() != null) {
-                            applyUpdates(botJob.getBlockLoadDTOList(), updatedRows);
-                        }
-                    }
-                }
-
-            } else {
-                throw new IllegalArgumentException("Invalid tableName: " + tableName);
-            }
-        } catch (Exception error) {
-
-            log.error("Error: Memory Update failed for 'updateMemoryRowMove': " + error.getMessage());
-        }
-    }
-
-    private void applyUpdates(List<BlockLoadDTO> blockList, List<UpdatedRow> updatedRows) {
-        Map<Integer, BlockLoadDTO> blockMap = blockList.stream().collect(Collectors.toMap(BlockLoadDTO::getId, b -> b));
-
-        for (UpdatedRow mapped : updatedRows) {
-            for (BlockLoadDTO block : blockList) {
-                if (block.getInstructionLoad() != null) {
-                    Iterator<InstructionLoad> it = block.getInstructionLoad().iterator();
-                    while (it.hasNext()) {
-                        InstructionLoad instr = it.next();
-                        if (instr.getId().equals(mapped.getInstructionId())) {
-
-                            // If blockId changed, move instruction to new block
-                            if (!Objects.equals(instr.getBlockId(), mapped.getBlockId())) {
-                                it.remove(); // remove from old block
-                                BlockLoadDTO newBlock = blockMap.get(mapped.getBlockId());
-                                if (newBlock != null) {
-                                    if (newBlock.getInstructionLoad() == null) {
-                                        newBlock.setInstructionLoad(new ArrayList<>());
-                                    }
-                                    instr.setBlockId(mapped.getBlockId());
-                                    newBlock.getInstructionLoad().add(instr);
-                                }
-                            }
-
-                            // Update order number
-                            if (!Objects.equals(
-                                    instr.getInstructionOrderNumber(), mapped.getInstructionOrderNumber())) {
-                                instr.setInstructionOrderNumber(mapped.getInstructionOrderNumber());
-                            }
-
-                            break; // found and updated
-                        }
-                    }
-                }
-            }
-        }
-
-        // Re-sort each blocks instructions by instructionOrderNumber
-        for (BlockLoadDTO block : blockList) {
-            if (block.getInstructionLoad() != null) {
-                block.getInstructionLoad().sort(Comparator.comparing(InstructionLoad::getInstructionOrderNumber));
-            }
-        }
-    }
+    // updateMemoryRowMove + applyUpdates removed 2026-07-26: DEAD CODE (zero callers).
+    // Row moves refresh the in-memory state by reloading from the database instead
+    // (see BotJobRowMoveService / ComponentRowMoveService refreshState).
 
     /**
      * Clears all internal lists in PerformLists to reset the state.
