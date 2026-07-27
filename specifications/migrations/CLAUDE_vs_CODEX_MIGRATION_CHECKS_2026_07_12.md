@@ -1723,7 +1723,11 @@ Next unclaimed leaf: `EmptyBlocksPlaceholder`.
       authorization/correlation, component bootstrap with empty Blocks, snapshot policy, stale
       rollback revisions, concurrent empty-Block catalogue changes, and correlated bootstrap
       publication failure recovery.
-- [x] Java/Maven tests and React production build were intentionally not run for this checkpoint.
+- [x] Java/Maven tests were intentionally not run for this checkpoint.
+- [x] Follow-up deployment on 2026-07-27: `npm run build` completed successfully with warnings,
+      producing `main.2e8a4913.js` and `main.3000f6dd.css`.
+- [x] Mirrored the React `build` directory into `src/main/resources/build`: 45 source files,
+      45 deployed files, and zero relative-path/SHA-256 differences.
 
 ### Decisions
 
