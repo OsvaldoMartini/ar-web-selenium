@@ -1,6 +1,7 @@
-# Variable System Redesign — design & roadmap (planning — NOT started)
+# Variable System Redesign — design & roadmap (Phase 0A active)
 
-Captured 2026-07-26 from user. Big, cross-cutting feature. Plan first, build in phases, confirm before code.
+Captured 2026-07-26 from user. Implementation started 2026-07-27 with a read-only
+production audit and backward-compatible integrity guards.
 
 ## The problem (today)
 - An instruction can carry **many** variables (`variableId` link + others), values cross, and the producer→consumer
@@ -102,3 +103,86 @@ IF/ELSE/ENDIF, LOOP, PAUSE, GET, CK, and E.
 
 Detailed implementation phases and acceptance criteria are in
 `migrations/ROADMAP_COMPONENT_MEMORY_VARIABLE_AND_MULTI_EXECUTION_2026_07_27.md`.
+
+## 2026-07-27 - Phase 0A implementation checkpoint
+
+Phase 0 has started with a read-only production audit and backward-compatible write guards. No
+production database row was modified.
+
+### Production baseline
+
+| Metric | Bot Jobs | Components |
+|---|---:|---:|
+| Instructions | 665 | 201 |
+| Variables | 22 | 5 |
+| Variable-linked instructions | 32 | 8 |
+| Variables with no consumers | 6 | 2 |
+| Variables with multiple consumers | 14 | 2 |
+| Missing/cross-owner variable links | 0 | 0 |
+| Missing variable owner instructions | 0 | 0 |
+
+Only one declaration violates the future one-variable-per-owner rule:
+
+- Component instruction 44 owns variable 1 (`Order Number`) and variable 2 (`check value`).
+- Variable 1 is used; variable 2 is unused.
+
+Other repair candidates discovered:
+
+- Component instruction 45 (`H`) has a stale `variable_id=1`, although Wait is not a variable
+  command.
+- Bot Job 18 instructions 190 GET, 191 E, and 192 CSV CHECK use variable 12 but lost their
+  `parent_id`; their Component source instructions 196-198 correctly reference Web Field 195.
+- 28 of 41 Bot Job dependent rows have no `parent_block_id`; their non-null `parent_id` targets
+  remain valid.
+
+No current parent-order or GET-before-E violation was found.
+
+### Runtime compatibility decision
+
+The current engine does **not** yet execute SET as a prior-GET consumer. SET writes its configured
+literal value and then stores that literal in the runtime map. Therefore:
+
+- GET is the runtime producer.
+- E, CK, PDF CHECK, and CSV CHECK are current GET consumers.
+- SET remains a variable-capable legacy literal writer during Phase 0.
+- GET-before-SET enforcement is deferred until SET has an explicit `LITERAL` versus
+  `VARIABLE_SOURCE` mode and the engine actually reads the selected variable.
+
+This transitional rule prevents the new authoring validator from promising behavior that the
+execution engine does not provide.
+
+### Implemented in Phase 0A
+
+- Added one Java-owned `VariableDefinitionPolicy` for producer, consumer, variable-command, and
+  generated-name semantics.
+- New declarations receive the stable default name
+  `VAR-<instructionId>-<normalized instruction name>`.
+- The Variable Editor/create-variable application path now refuses a second declaration for the
+  same owner instruction in the same Bot Job/organization transaction.
+- Existing-variable updates are bound to both the workspace owner and the selected Web Field, so
+  a stale or forged variable ID cannot update another instruction's declaration.
+- Dependent command loads and atomic rewrites are additionally bound to `variable_id`; editing one
+  legacy duplicate cannot rewrite commands belonging to its sibling declaration.
+- Existing duplicate declarations are left untouched; no destructive startup migration runs.
+- This is an application-path guard, not yet a global database invariant: component copy/import
+  paths remain audit targets until Phase 0B repairs legacy data and adds unique indexes.
+- Row move validation now protects GET ordering before E/CK/PDF CHECK/CSV CHECK, including
+  cross-block comparisons when authoritative block order is available.
+- Memory List dependency normalization uses the same policy.
+- Component Memory apply refuses E/CK/PDF CHECK/CSV CHECK selections that omit their matching GET
+  producer, and rolls back without partial Bot Job rows.
+- SET literal compatibility is explicitly covered.
+- Focused result: 45 tests passed with zero failures/errors; the complete Maven suite was not run.
+
+### Phase 0B - repair before constraints
+
+1. Add a mutation-time `VariableGraphIntegrityService` for Bot Job and Component graphs.
+2. Produce an explicit repair report and database backup.
+3. Retain used variable 1 and remove unused duplicate variable 2 from Component instruction 44.
+4. Clear the stale variable link from Wait instruction 45.
+5. Repair Bot Job 18 command parents only where variable owner and Component provenance identify
+   one unambiguous Web Field.
+6. Backfill `parent_block_id` from each valid parent instruction.
+7. Re-run the audit; ambiguous rows must be reported, never guessed.
+8. Only after a clean audit, add unique indexes for `(bot_job_id, instruction_id)` and
+   `(home_banking_id, instruction_id)`.

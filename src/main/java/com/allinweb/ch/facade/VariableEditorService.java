@@ -9,8 +9,8 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.Objects;
 import java.util.List;
+import java.util.Objects;
 
 /** Presentation-neutral variable CRUD used by the React instruction command panel. */
 public final class VariableEditorService {
@@ -48,22 +48,37 @@ public final class VariableEditorService {
         Context context = context(body);
         JsonObject draft = body != null && body.has("variable") ? body.getAsJsonObject("variable") : new JsonObject();
         Integer id = nullableInteger(draft, "id");
-        String name = string(draft, "name", "").trim();
+        boolean creating = id == null || id < 0;
+        String submittedName = string(draft, "name", "").trim();
         String type = string(draft, "type", "").trim();
         String value = string(draft, "value", "$EMPTY").trim();
-        if (name.isEmpty()) return failure("Variable name is required.");
+        if (!creating && submittedName.isEmpty()) return failure("Variable name is required.");
         if (!"$String".equals(type) && !"#Numeric".equals(type)) return failure("Select String or Numeric type.");
 
-        database.loadAllVariablesByCriteria(
+        ErrorMessage loadError = database.loadAllVariablesByCriteria(
                 context.variableTable, context.whereId, context.instructionId, context.instructionName);
+        if (loadError != null) return failure(loadError.getErrorMessage());
+        InstructionLoad parent = lists.getInstructionById(
+                context.instructionTable, context.whereId, context.instructionId);
+        String parentName = parent == null ? context.instructionName : parent.getName();
+        String name = creating
+                ? VariableDefinitionPolicy.generatedName(context.instructionId, parentName)
+                : submittedName;
+        VariableUserDTO storedVariable = creating
+                ? null
+                : lists.getListVariablesUser().stream()
+                        .filter(item -> Objects.equals(item.getId(), id))
+                        .findFirst()
+                        .orElse(null);
+        if (!creating && storedVariable == null) {
+            return failure("The variable does not belong to the selected Web Field.");
+        }
         boolean duplicate = lists.getListVariablesUser().stream()
                 .anyMatch(item -> item.getName() != null
                         && item.getName().equalsIgnoreCase(name)
                         && !Objects.equals(item.getId(), id));
         if (duplicate) return failure("A variable with this name already exists.");
 
-        InstructionLoad parent = lists.getInstructionById(
-                context.instructionTable, context.whereId, context.instructionId);
         VariableUserDTO variable = new VariableUserDTO(
                 id == null ? -1 : id,
                 type,
@@ -71,7 +86,7 @@ public final class VariableEditorService {
                 value.isEmpty() ? "$EMPTY" : value,
                 context.botJobId,
                 parent == null ? context.instructionId : parent.getId(),
-                parent == null ? context.instructionName : parent.getName(),
+                parentName,
                 string(draft, "localFormat", ""),
                 string(draft, "delimiter", ""),
                 string(draft, "usedVars", ""));
@@ -83,18 +98,26 @@ public final class VariableEditorService {
                     context.whereId,
                     variable);
         } else {
-            error = prepareDependentOperations(context, variable);
-            if (error == null) {
-                error = database.updateVariableAndOperationsAtomic(
-                        context.variableTable,
+            List<ParentOperations> dependents;
+            try {
+                dependents = database.loadVariableDependents(
                         context.instructionTable,
                         context.whereId,
-                        variable,
-                        lists.getListParentOperations());
+                        context.instructionId,
+                        variable.getId());
+            } catch (SQLException exception) {
+                return failure("Variable commands could not be loaded: " + exception.getMessage());
             }
+            operationRewriteService.rewrite(dependents, variable);
+            error = database.updateVariableAndOperationsAtomic(
+                    context.variableTable,
+                    context.instructionTable,
+                    context.whereId,
+                    variable,
+                    dependents);
             if (error == null) {
                 lists.updateMemoryParentOpenName(
-                        context.instructionTable, context.whereId, lists.getListParentOperations());
+                        context.instructionTable, context.whereId, dependents);
             }
         }
         if (error != null) return failure(error.getErrorMessage());
@@ -102,14 +125,6 @@ public final class VariableEditorService {
         JsonObject response = list(body);
         response.addProperty("message", id == null || id < 0 ? "Variable created." : "Variable updated.");
         return response;
-    }
-
-    private ErrorMessage prepareDependentOperations(Context context, VariableUserDTO variable) {
-        ErrorMessage error = database.loadAllParents(
-                context.instructionTable, context.whereId, context.instructionId);
-        if (error != null) return error;
-        operationRewriteService.rewrite(lists.getListParentOperations(), variable);
-        return null;
     }
 
     private void publishInstructionRefresh(Context context) {
@@ -136,8 +151,9 @@ public final class VariableEditorService {
     private JsonObject deleteOnce(JsonObject body) {
         Context context = context(body);
         int id = integer(body, "variableId", -1);
-        database.loadAllVariablesByCriteria(
+        ErrorMessage loadError = database.loadAllVariablesByCriteria(
                 context.variableTable, context.whereId, context.instructionId, context.instructionName);
+        if (loadError != null) return failure(loadError.getErrorMessage());
         VariableUserDTO variable = lists.getListVariablesUser().stream()
                 .filter(item -> Objects.equals(item.getId(), id))
                 .findFirst()

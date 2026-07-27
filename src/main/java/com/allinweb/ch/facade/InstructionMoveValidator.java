@@ -20,10 +20,14 @@ public final class InstructionMoveValidator {
     public String validate(List<InstructionLoad> current, List<UpdatedRow> updates) {
         if (updates == null || updates.isEmpty()) return "No instruction movement was supplied.";
         Map<Integer, ProposedRow> proposed = new HashMap<>();
+        Map<Integer, Integer> blockOrders = new HashMap<>();
         for (InstructionLoad row : current) {
             if (row == null || row.getId() == null) continue;
             if (row.getBlockId() == null || row.getInstructionOrderNumber() == null) {
                 return "The current instruction graph contains a missing block or order.";
+            }
+            if (row.getBlockOrderNumber() != null) {
+                blockOrders.putIfAbsent(row.getBlockId(), row.getBlockOrderNumber());
             }
             proposed.put(row.getId(), ProposedRow.from(row));
         }
@@ -40,6 +44,7 @@ public final class InstructionMoveValidator {
             }
             row.blockId = update.getBlockId();
             row.order = update.getInstructionOrderNumber();
+            row.blockOrder = blockOrders.get(update.getBlockId());
         }
         if (proposed.values().stream().noneMatch(ProposedRow::moved)) {
             return "ROW_MOVE did not change any instruction position.";
@@ -154,23 +159,38 @@ public final class InstructionMoveValidator {
 
     private String validateVariableOrder(Map<Integer, ProposedRow> proposed) {
         for (ProposedRow consumer : proposed.values()) {
-            if (!"E".equalsIgnoreCase(consumer.action) || consumer.variableId == null) continue;
+            if (!VariableDefinitionPolicy.isConsumer(consumer.action) || consumer.variableId == null) continue;
             List<ProposedRow> producers = proposed.values().stream()
-                    .filter(row -> "GET".equalsIgnoreCase(row.action))
+                    .filter(row -> VariableDefinitionPolicy.isProducer(row.action))
                     .filter(row -> java.util.Objects.equals(row.variableId, consumer.variableId))
-                    .filter(row -> row.blockId == consumer.blockId)
                     .toList();
             if (producers.isEmpty()) continue;
             boolean touched =
                     consumer.moved() || producers.stream().anyMatch(ProposedRow::moved);
             if (!touched) continue;
             boolean producerRunsFirst =
-                    producers.stream().anyMatch(producer -> producer.order < consumer.order);
+                    producers.stream().anyMatch(producer -> runsBeforeOrOrderUnknown(producer, consumer));
             if (!producerRunsFirst) {
-                return "GET must run before Excel/Extract (E) that reads its variable.";
+                return "GET must run before "
+                        + CommandRegistry.canonicalize(consumer.action)
+                        + " instruction #"
+                        + consumer.id
+                        + " that reads variable #"
+                        + consumer.variableId
+                        + ".";
             }
         }
         return null;
+    }
+
+    private boolean runsBeforeOrOrderUnknown(ProposedRow producer, ProposedRow consumer) {
+        if (producer.blockId == consumer.blockId) return producer.order < consumer.order;
+        if (producer.blockOrder == null || consumer.blockOrder == null) {
+            // Some legacy/component snapshots do not yet transport block order. Preserve those
+            // graphs until the aggregate migration can backfill authoritative execution ranks.
+            return true;
+        }
+        return producer.blockOrder < consumer.blockOrder;
     }
 
     private Map<Integer, List<InstructionLoad>> groupCurrentBlocks(List<InstructionLoad> current) {
@@ -190,8 +210,10 @@ public final class InstructionMoveValidator {
         private final Integer variableId;
         private final int originalBlockId;
         private final int originalOrder;
+        private final Integer originalBlockOrder;
         private int blockId;
         private int order;
+        private Integer blockOrder;
 
         private ProposedRow(
                 int id,
@@ -199,6 +221,7 @@ public final class InstructionMoveValidator {
                 Integer parentId,
                 Integer variableId,
                 int blockId,
+                Integer blockOrder,
                 int order) {
             this.id = id;
             this.action = action;
@@ -206,8 +229,10 @@ public final class InstructionMoveValidator {
             this.variableId = variableId;
             this.originalBlockId = blockId;
             this.originalOrder = order;
+            this.originalBlockOrder = blockOrder;
             this.blockId = blockId;
             this.order = order;
+            this.blockOrder = blockOrder;
         }
 
         private static ProposedRow from(InstructionLoad row) {
@@ -217,6 +242,7 @@ public final class InstructionMoveValidator {
                     row.getParentId(),
                     row.getVariableId(),
                     row.getBlockId(),
+                    row.getBlockOrderNumber(),
                     row.getInstructionOrderNumber());
         }
 
@@ -227,6 +253,7 @@ public final class InstructionMoveValidator {
             row.setParentId(parentId);
             row.setVariableId(variableId);
             row.setBlockId(blockId);
+            row.setBlockOrderNumber(blockOrder);
             row.setInstructionOrderNumber(order);
             return row;
         }
@@ -238,6 +265,7 @@ public final class InstructionMoveValidator {
             row.setParentId(parentId);
             row.setVariableId(variableId);
             row.setBlockId(originalBlockId);
+            row.setBlockOrderNumber(originalBlockOrder);
             row.setInstructionOrderNumber(originalOrder);
             return row;
         }

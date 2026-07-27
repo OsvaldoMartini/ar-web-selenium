@@ -680,6 +680,30 @@ public final class ComponentMemoryApplyService {
             }
         }
 
+        for (Integer instructionId : selectedAll) {
+            InstructionRow consumer = byId.get(instructionId);
+            if (consumer == null
+                    || !VariableDefinitionPolicy.isConsumer(consumer.actions())) {
+                continue;
+            }
+            if (consumer.variableId() == null) {
+                throw new ApplyRefused(
+                        "A selected variable consumer has no variable declaration.");
+            }
+            boolean hasSelectedProducer = selectedAll.stream()
+                    .map(byId::get)
+                    .filter(Objects::nonNull)
+                    .anyMatch(candidate -> VariableDefinitionPolicy.isProducer(candidate.actions())
+                            && Objects.equals(
+                                    candidate.variableId(), consumer.variableId()));
+            if (!hasSelectedProducer) {
+                throw new ApplyRefused(
+                        "A selected "
+                                + CommandRegistry.canonicalize(consumer.actions())
+                                + " command requires its matching GET producer in Memory List.");
+            }
+        }
+
         return new ComponentSelectionPlan(
                 Set.copyOf(selectedAll),
                 Set.copyOf(covered),
@@ -1047,18 +1071,18 @@ public final class ComponentMemoryApplyService {
             if (!changed) break;
         }
 
-        // GET produces the variable consumed by Excel/Extract (E).
+        // GET produces the variable consumed by Extract and Check commands.
         for (Integer consumerId : List.copyOf(ordered)) {
             InstructionRow consumer = byId.get(consumerId);
             if (consumer == null
-                    || !"E".equals(normalizedAction(consumer.actions()))
+                    || !VariableDefinitionPolicy.isConsumer(consumer.actions())
                     || consumer.variableId() == null) {
                 continue;
             }
             Integer producerId = ordered.stream()
                     .map(byId::get)
                     .filter(Objects::nonNull)
-                    .filter(row -> "GET".equals(normalizedAction(row.actions())))
+                    .filter(row -> VariableDefinitionPolicy.isProducer(row.actions()))
                     .filter(row -> Objects.equals(row.variableId(), consumer.variableId()))
                     .map(InstructionRow::id)
                     .findFirst()

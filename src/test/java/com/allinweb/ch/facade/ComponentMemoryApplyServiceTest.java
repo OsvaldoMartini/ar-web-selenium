@@ -15,6 +15,8 @@ import java.sql.Statement;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class ComponentMemoryApplyServiceTest {
 
@@ -121,6 +123,56 @@ class ComponentMemoryApplyServiceTest {
                     scalar(
                             statement,
                             "SELECT COUNT(*) FROM instruction WHERE bot_job_id=5"));
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"E", "CK", "PDF CHECK", "CSV CHECK"})
+    void variableConsumerWithoutItsGetProducerIsRejectedAtomically(String consumerAction)
+            throws Exception {
+        String url = databaseUrl("missing-get-" + consumerAction.replace(' ', '-'));
+        initializeDatabase(url);
+        try (Connection connection = DriverManager.getConnection(url);
+                Statement statement = connection.createStatement()) {
+            statement.execute(componentInstructionInsert(
+                    103, 3, "GET", "GET", 20, 201, 101));
+            statement.execute(componentInstructionInsert(
+                    104, 4, consumerAction, consumerAction, 20, 201, 101));
+        }
+        ComponentMemoryApplyService service =
+                new ComponentMemoryApplyService(() -> DriverManager.getConnection(url));
+
+        ComponentMemoryApplyService.Result result = service.apply(
+                new ComponentMemoryApplyService.Request(
+                        "copy-consumer-without-get-" + consumerAction,
+                        5,
+                        2,
+                        10,
+                        List.of(
+                                ComponentMemoryApplyService.OrderedItem.componentInstruction(
+                                        "COMPONENT:INSTRUCTION:2:20:101",
+                                        101,
+                                        20,
+                                        variableConsumerRevision(consumerAction)),
+                                ComponentMemoryApplyService.OrderedItem.componentInstruction(
+                                        "COMPONENT:INSTRUCTION:2:20:104",
+                                        104,
+                                        20,
+                                        variableConsumerRevision(consumerAction)))));
+
+        assertFalse(result.committed());
+        assertNotNull(result.error());
+        assertTrue(result.error().getErrorHeader().contains("matching GET producer"));
+        try (Connection connection = DriverManager.getConnection(url);
+                Statement statement = connection.createStatement()) {
+            assertEquals(
+                    0,
+                    scalar(
+                            statement,
+                            "SELECT COUNT(*) FROM instruction WHERE bot_job_id=5"));
+            assertEquals(
+                    0,
+                    scalar(statement, "SELECT COUNT(*) FROM variable WHERE bot_job_id=5"));
         }
     }
 
@@ -640,6 +692,28 @@ class ComponentMemoryApplyServiceTest {
         loop.setActions("LOOP");
         loop.setParentId(101);
         return new InstructionGraphRevisionService().revision(List.of(field, loop));
+    }
+
+    private String variableConsumerRevision(String consumerAction) {
+        InstructionLoad field = revisionRow(101, 1, "C", 201, null);
+        InstructionLoad loop = revisionRow(102, 2, "LOOP", null, 101);
+        InstructionLoad get = revisionRow(103, 3, "GET", 201, 101);
+        InstructionLoad consumer =
+                revisionRow(104, 4, consumerAction, 201, 101);
+        return new InstructionGraphRevisionService()
+                .revision(List.of(field, loop, get, consumer));
+    }
+
+    private InstructionLoad revisionRow(
+            int id, int order, String action, Integer variableId, Integer parentId) {
+        InstructionLoad row = new InstructionLoad();
+        row.setId(id);
+        row.setBlockId(20);
+        row.setInstructionOrderNumber(order);
+        row.setActions(action);
+        row.setVariableId(variableId);
+        row.setParentId(parentId);
+        return row;
     }
 
     private int scalar(Statement statement, String sql) throws Exception {

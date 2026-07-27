@@ -1797,3 +1797,49 @@ Next unclaimed leaf: `EmptyBlocksPlaceholder`.
 - D-033: Multi-launch cannot wrap the current single Launch call in a loop. It requires an
   explicit run coordinator, execution mode, isolation/concurrency policy, per-job state, and
   cancellation.
+
+## CODEX - Variables Phase 0A started (2026-07-27)
+
+### Read-only production audit
+
+- [x] Audited `D:\Projects\ARWebBancaStato\ARWeb\database.db` without changing rows.
+- [x] Found 22 Bot Job variables and 5 Component variables.
+- [x] Found zero orphan or cross-owner variable links and zero missing variable owners.
+- [x] Found one duplicate owner: Component instruction 44 owns variables 1 and 2; variable 2 is
+      unused.
+- [x] Found stale `variable_id=1` on Component Wait instruction 45.
+- [x] Found Bot Job 18 cloned consumers 190-192 with missing parents; their Component source
+      196-198 is structurally correct.
+- [x] Confirmed current producer ordering has no GET-after-consumer violation.
+
+### Backward-compatible implementation
+
+- [x] Added canonical variable action/name policy.
+- [x] New variables receive `VAR-<instructionId>-<normalized instruction name>`.
+- [x] The Variable Editor/create-variable path refuses new duplicate declarations for one owner
+      instruction transactionally.
+- [x] Existing-variable updates require variable ID + selected Web Field + workspace owner, which
+      prevents a stale/forged ID from modifying another Web Field's declaration.
+- [x] Dependent operation loading and rewriting also require the selected `variable_id`, preventing
+      cross-rewrites when legacy duplicate declarations share one Web Field.
+- [x] Recorded that this is not yet a global database invariant; copy/import bypass paths remain
+      in Phase 0B scope until repaired data can receive unique indexes.
+- [x] GET ordering now protects E, CK, PDF CHECK, and CSV CHECK during row movement.
+- [x] Component/Memory dependency normalization uses the same consumer policy.
+- [x] Component Memory apply rejects E/CK/PDF CHECK/CSV CHECK selections without their matching GET
+      and leaves the target Bot Job unchanged.
+- [x] Preserved current SET runtime semantics: SET writes a literal and is not yet required to
+      follow GET.
+- [x] Focused Maven verification: 45 tests passed with zero failures/errors; no broad suite was
+      run.
+- [ ] Next: repair/audit service, explicit backup, deterministic legacy cleanup, then unique
+      owner-instruction indexes.
+
+### Decisions
+
+- D-034: `variable.instruction_id` owns the Web Field declaration; GET is the runtime producer
+  command referencing that declaration.
+- D-035: Do not add a uniqueness constraint until duplicate/stale production rows have been
+  reported and deterministically repaired.
+- D-036: SET cannot be validated as a GET consumer until the Engine distinguishes literal SET from
+  variable-source SET and executes those modes accordingly.

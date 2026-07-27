@@ -151,9 +151,23 @@ block-header `+` stages one typed whole-block Memory item and does not apply row
 
 ### C5 - Variables as a first-class aggregate
 
-- Enforce one producer variable per instruction after a migration report identifies conflicting
-  existing data.
-- GET is the producer; SET/E/CK/check actions are consumers.
+- [x] Phase 0A: prevent new duplicate declarations through the Variable Editor/create-variable
+  application path without modifying legacy production rows.
+- [x] Phase 0A: bind declaration updates to variable ID + selected Web Field + workspace owner.
+- [x] Phase 0A: bind dependent command loads/rewrites to the selected variable ID.
+- [x] Phase 0A: atomically reject copied consumers that omit their matching GET producer.
+- [ ] Phase 0B: cover component copy/import bypass paths and enforce the invariant with database
+  unique indexes after deterministic repair.
+- [x] Phase 0A: centralize generated names and runtime producer/consumer action semantics.
+- [x] Phase 0A: validate GET ordering before E/CK/PDF CHECK/CSV CHECK on touched row moves.
+- [ ] Phase 0B: repair the one known duplicate owner, stale Wait binding, missing cloned parents,
+  and missing parent-block metadata before adding database uniqueness.
+- Enforce one producer variable per instruction after the repair report confirms there are no
+  ambiguous conflicts.
+- GET is the producer; E/CK/PDF CHECK/CSV CHECK are current consumers. SET becomes a consumer only
+  in its future `VARIABLE_SOURCE` mode.
+- Compatibility note: current SET is a literal writer, so GET-before-SET is deferred until an
+  explicit SET source mode is implemented in the execution engine.
 - Add `validateVariableOrder` to every move/copy path.
 - Build the detached Variables page for declared variables.
 - Add execution-time initial/current value streaming and pause/edit/resume only after the Engine

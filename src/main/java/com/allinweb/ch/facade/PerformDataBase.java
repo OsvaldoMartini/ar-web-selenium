@@ -514,6 +514,62 @@ public class PerformDataBase {
         }
     }
 
+    /**
+     * Loads only commands bound to one variable declaration.
+     *
+     * <p>Legacy data can contain more than one variable owned by the same Web Field. Scoping only
+     * by {@code parent_id} would rewrite commands belonging to every declaration on that field.
+     */
+    List<ParentOperations> loadVariableDependents(
+            String tableName, int whereId, int instructionId, int variableId)
+            throws SQLException {
+        try (Connection connection = getConnection()) {
+            return loadVariableDependents(
+                    connection, tableName, whereId, instructionId, variableId);
+        }
+    }
+
+    List<ParentOperations> loadVariableDependents(
+            Connection connection,
+            String tableName,
+            int whereId,
+            int instructionId,
+            int variableId)
+            throws SQLException {
+        if (!"instruction".equals(tableName)
+                && !"component_instruction".equals(tableName)) {
+            throw new SQLException("Unsupported variable instruction workspace.");
+        }
+        String whereColumn =
+                "instruction".equals(tableName) ? "bot_job_id" : "home_banking_id";
+        String selectSql = "SELECT parent.name AS parent_name,"
+                + " child.actions, child.operation, child.name AS child_name, child.id"
+                + " FROM " + tableName + " AS child"
+                + " LEFT JOIN " + tableName + " AS parent ON child.parent_id = parent.id"
+                + " WHERE child.parent_id = ? AND child.variable_id = ?"
+                + " AND child." + whereColumn + " = ?"
+                + " ORDER BY child.id";
+        List<ParentOperations> dependents = new ArrayList<>();
+        try (PreparedStatement statement = connection.prepareStatement(selectSql)) {
+            statement.setInt(1, instructionId);
+            statement.setInt(2, variableId);
+            statement.setInt(3, whereId);
+            try (ResultSet result = statement.executeQuery()) {
+                while (result.next()) {
+                    ParentOperations dependent = new ParentOperations();
+                    dependent.setId(result.getInt("id"));
+                    dependent.setName(result.getString("child_name"));
+                    dependent.setParentName(result.getString("parent_name"));
+                    dependent.setActions(result.getString("actions"));
+                    dependent.setOperations(result.getString("operation"));
+                    dependent.setInstructionId(instructionId);
+                    dependents.add(dependent);
+                }
+            }
+        }
+        return List.copyOf(dependents);
+    }
+
     public ErrorMessage deleteVariablesBatch(
             String tableName, // e.g., "instruction_variable" or "component_instruction_variable"
             int whereId, // e.g., bot_job_id or home_banking_id
@@ -7622,7 +7678,7 @@ public class PerformDataBase {
         }
     }
 
-    ErrorMessage createVariableTransaction(
+    synchronized ErrorMessage createVariableTransaction(
             Connection conn,
             String tableName,
             String instructionTable,
@@ -7642,6 +7698,19 @@ public class PerformDataBase {
                     if (!result.next() || result.getInt(1) != 1) {
                         throw new SQLException(
                                 "The variable parent instruction does not belong to the active workspace");
+                    }
+                }
+            }
+
+            try (PreparedStatement existing = conn.prepareStatement(
+                    "SELECT id FROM " + tableName
+                            + " WHERE instruction_id = ? AND " + ownerColumn + " = ?")) {
+                existing.setInt(1, user.getParentId());
+                existing.setInt(2, ownerId);
+                try (ResultSet result = existing.executeQuery()) {
+                    if (result.next()) {
+                        throw new SQLException(
+                                "The instruction already owns a variable. Edit the existing variable instead.");
                     }
                 }
             }

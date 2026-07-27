@@ -2,6 +2,7 @@ package com.allinweb.ch.facade;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.model.UpdatedRow;
@@ -96,6 +97,61 @@ class InstructionMoveValidatorTest {
                 update(1, 20, 2), update(2, 20, 3), update(3, 20, 4))));
     }
 
+    @Test
+    void rejectsEveryVariableConsumerMovedBeforeItsGetProducer() {
+        for (String action : List.of("E", "CK", "PDF CHECK", "CSV CHECK")) {
+            List<InstructionLoad> current = List.of(
+                    variableRow(1, "GET", 7, 10, 1, 1),
+                    variableRow(2, action, 7, 10, 1, 2));
+
+            String error = validator.validate(
+                    current,
+                    List.of(update(1, 10, 2), update(2, 10, 1)));
+
+            assertNotNull(error, action);
+            assertTrue(error.contains(action), error);
+            assertTrue(error.contains("variable #7"), error);
+        }
+    }
+
+    @Test
+    void acceptsAConsumerMoveThatKeepsGetFirst() {
+        List<InstructionLoad> current = List.of(
+                variableRow(1, "GET", 7, 10, 1, 1),
+                row(2, "CLICK", null, 10, 2),
+                variableRow(3, "CSV CHECK", 7, 10, 1, 3));
+
+        assertNull(validator.validate(
+                current,
+                List.of(update(2, 10, 3), update(3, 10, 2))));
+    }
+
+    @Test
+    void rejectsAConsumerThatWouldExecuteInAnEarlierBlockThanGet() {
+        List<InstructionLoad> current = List.of(
+                variableRow(1, "GET", 7, 10, 2, 1),
+                variableRow(2, "CK", 7, 20, 1, 1),
+                variableRow(3, "SET", null, 20, 1, 2));
+
+        String error = validator.validate(
+                current,
+                List.of(update(2, 20, 2), update(3, 20, 1)));
+
+        assertNotNull(error);
+        assertTrue(error.contains("CK"));
+    }
+
+    @Test
+    void preservesLegacySetLiteralExecutionWithoutGetOrdering() {
+        List<InstructionLoad> current = List.of(
+                variableRow(1, "GET", 7, 10, 1, 1),
+                variableRow(2, "SET", 7, 10, 1, 2));
+
+        assertNull(validator.validate(
+                current,
+                List.of(update(1, 10, 2), update(2, 10, 1))));
+    }
+
     private InstructionLoad row(int id, String action, Integer parentId, int blockId, int order) {
         InstructionLoad row = new InstructionLoad();
         row.setId(id);
@@ -111,6 +167,19 @@ class InstructionMoveValidatorTest {
         row.setInstructionId(id);
         row.setBlockId(blockId);
         row.setInstructionOrderNumber(order);
+        return row;
+    }
+
+    private InstructionLoad variableRow(
+            int id,
+            String action,
+            Integer variableId,
+            int blockId,
+            int blockOrder,
+            int instructionOrder) {
+        InstructionLoad row = row(id, action, null, blockId, instructionOrder);
+        row.setVariableId(variableId);
+        row.setBlockOrderNumber(blockOrder);
         return row;
     }
 }
