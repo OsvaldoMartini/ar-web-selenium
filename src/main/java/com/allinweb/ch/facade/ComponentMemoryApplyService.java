@@ -81,6 +81,8 @@ public final class ComponentMemoryApplyService {
     private final InstructionGraphRevisionService revisionService =
             new InstructionGraphRevisionService();
     private final InstructionMoveValidator moveValidator = new InstructionMoveValidator();
+    private final InstructionMoveGroupService moveGroupService =
+            new InstructionMoveGroupService();
     private final ConditionalGraphValidator conditionalValidator = new ConditionalGraphValidator();
     private final Gson gson = new Gson();
     private final LinkedHashMap<String, CompletedRequest> successfulRequests =
@@ -388,13 +390,29 @@ public final class ComponentMemoryApplyService {
             List<InstructionRow> completeRows = new ArrayList<>(currentBotRows);
             completeRows.addAll(insertedRows);
             assertTargetLayoutUnchanged(connection, request.botJobId(), completeRows);
+            List<InstructionLoad> currentBotInstructions =
+                    currentBotRows.stream().map(InstructionRow::asInstruction).toList();
             List<Integer> orderedTargetIds = new ArrayList<>();
             Set<Integer> appendedTargetIds = new HashSet<>();
             for (OrderedItem item : request.orderedItems()) {
                 switch (item.kind()) {
                     case BOT_JOB_INSTRUCTION -> {
-                        if (appendedTargetIds.add(item.botJobInstructionId())) {
-                            orderedTargetIds.add(item.botJobInstructionId());
+                        List<InstructionLoad> moveGroup = moveGroupService.resolve(
+                                currentBotInstructions, item.botJobInstructionId());
+                        if (moveGroup.isEmpty()) {
+                            InstructionRow selected =
+                                    currentBotById.get(item.botJobInstructionId());
+                            if (selected != null
+                                    && appendedTargetIds.add(selected.id())) {
+                                orderedTargetIds.add(selected.id());
+                            }
+                            break;
+                        }
+                        for (InstructionLoad member : moveGroup) {
+                            if (member.getId() != null
+                                    && appendedTargetIds.add(member.getId())) {
+                                orderedTargetIds.add(member.getId());
+                            }
                         }
                     }
                     case PAGE_SCANNER_INSTRUCTION -> {
@@ -421,6 +439,8 @@ public final class ComponentMemoryApplyService {
                     }
                 }
             }
+            orderedTargetIds =
+                    normalizeMemoryDependencyOrder(completeRows, orderedTargetIds);
 
             List<UpdatedRow> finalLayout =
                     finalLayout(completeRows, resolvedTargetBlockId, orderedTargetIds);
@@ -993,6 +1013,68 @@ public final class ComponentMemoryApplyService {
             }
         }
         return updates;
+    }
+
+    /**
+     * Keeps execution dependencies valid even when the detached Memory List was manually reordered.
+     * Unrelated rows retain their requested order; only a dependent family is corrected.
+     */
+    private List<Integer> normalizeMemoryDependencyOrder(
+            List<InstructionRow> rows, List<Integer> requestedIds) {
+        List<Integer> ordered = new ArrayList<>(new LinkedHashSet<>(requestedIds));
+        Map<Integer, InstructionRow> byId = indexInstructions(rows);
+        Set<String> nonWebFieldActions =
+                Set.of("IF", "ELSEIF", "ELSE", "ENDIF", "LOOP", "REFRESH_LOOP");
+
+        // A Web Field must execute before every command that references it.
+        for (int pass = 0; pass < ordered.size(); pass++) {
+            boolean changed = false;
+            for (Integer childId : List.copyOf(ordered)) {
+                InstructionRow child = byId.get(childId);
+                if (child == null
+                        || child.parentId() == null
+                        || nonWebFieldActions.contains(normalizedAction(child.actions()))) {
+                    continue;
+                }
+                int parentIndex = ordered.indexOf(child.parentId());
+                int childIndex = ordered.indexOf(childId);
+                if (parentIndex >= 0 && childIndex >= 0 && parentIndex > childIndex) {
+                    Integer parentId = ordered.remove(parentIndex);
+                    ordered.add(childIndex, parentId);
+                    changed = true;
+                }
+            }
+            if (!changed) break;
+        }
+
+        // GET produces the variable consumed by Excel/Extract (E).
+        for (Integer consumerId : List.copyOf(ordered)) {
+            InstructionRow consumer = byId.get(consumerId);
+            if (consumer == null
+                    || !"E".equals(normalizedAction(consumer.actions()))
+                    || consumer.variableId() == null) {
+                continue;
+            }
+            Integer producerId = ordered.stream()
+                    .map(byId::get)
+                    .filter(Objects::nonNull)
+                    .filter(row -> "GET".equals(normalizedAction(row.actions())))
+                    .filter(row -> Objects.equals(row.variableId(), consumer.variableId()))
+                    .map(InstructionRow::id)
+                    .findFirst()
+                    .orElse(null);
+            int producerIndex = producerId == null ? -1 : ordered.indexOf(producerId);
+            int consumerIndex = ordered.indexOf(consumerId);
+            if (producerIndex > consumerIndex && consumerIndex >= 0) {
+                ordered.remove(producerIndex);
+                ordered.add(consumerIndex, producerId);
+            }
+        }
+        return ordered;
+    }
+
+    private String normalizedAction(String action) {
+        return action == null ? "" : action.trim().toUpperCase(Locale.ROOT);
     }
 
     private boolean layoutChanged(List<InstructionRow> rows, List<UpdatedRow> updates) {

@@ -51,7 +51,11 @@ public final class InstructionMoveValidator {
         String excelGotoError = validateExcelGotoBlocks(proposed);
         if (excelGotoError != null) return excelGotoError;
         String parentError = validateParentRelationships(proposed);
-        return parentError == null ? validateLoopRelationships(proposed) : parentError;
+        if (parentError != null) return parentError;
+        String variableOrderError = validateVariableOrder(proposed);
+        return variableOrderError == null
+                ? validateLoopRelationships(proposed)
+                : variableOrderError;
     }
 
     private String validateExcelGotoBlocks(Map<Integer, ProposedRow> proposed) {
@@ -141,6 +145,30 @@ public final class InstructionMoveValidator {
             if (parent.blockId != command.blockId) {
                 return "Commands with Web Field dependencies must remain in their parent block.";
             }
+            if (parent.order >= command.order) {
+                return "A Web Field must run before the commands that depend on it.";
+            }
+        }
+        return null;
+    }
+
+    private String validateVariableOrder(Map<Integer, ProposedRow> proposed) {
+        for (ProposedRow consumer : proposed.values()) {
+            if (!"E".equalsIgnoreCase(consumer.action) || consumer.variableId == null) continue;
+            List<ProposedRow> producers = proposed.values().stream()
+                    .filter(row -> "GET".equalsIgnoreCase(row.action))
+                    .filter(row -> java.util.Objects.equals(row.variableId, consumer.variableId))
+                    .filter(row -> row.blockId == consumer.blockId)
+                    .toList();
+            if (producers.isEmpty()) continue;
+            boolean touched =
+                    consumer.moved() || producers.stream().anyMatch(ProposedRow::moved);
+            if (!touched) continue;
+            boolean producerRunsFirst =
+                    producers.stream().anyMatch(producer -> producer.order < consumer.order);
+            if (!producerRunsFirst) {
+                return "GET must run before Excel/Extract (E) that reads its variable.";
+            }
         }
         return null;
     }
@@ -159,15 +187,23 @@ public final class InstructionMoveValidator {
         private final int id;
         private final String action;
         private final Integer parentId;
+        private final Integer variableId;
         private final int originalBlockId;
         private final int originalOrder;
         private int blockId;
         private int order;
 
-        private ProposedRow(int id, String action, Integer parentId, int blockId, int order) {
+        private ProposedRow(
+                int id,
+                String action,
+                Integer parentId,
+                Integer variableId,
+                int blockId,
+                int order) {
             this.id = id;
             this.action = action;
             this.parentId = parentId;
+            this.variableId = variableId;
             this.originalBlockId = blockId;
             this.originalOrder = order;
             this.blockId = blockId;
@@ -175,7 +211,13 @@ public final class InstructionMoveValidator {
         }
 
         private static ProposedRow from(InstructionLoad row) {
-            return new ProposedRow(row.getId(), row.getActions(), row.getParentId(), row.getBlockId(), row.getInstructionOrderNumber());
+            return new ProposedRow(
+                    row.getId(),
+                    row.getActions(),
+                    row.getParentId(),
+                    row.getVariableId(),
+                    row.getBlockId(),
+                    row.getInstructionOrderNumber());
         }
 
         private InstructionLoad asInstruction() {
@@ -183,6 +225,7 @@ public final class InstructionMoveValidator {
             row.setId(id);
             row.setActions(action);
             row.setParentId(parentId);
+            row.setVariableId(variableId);
             row.setBlockId(blockId);
             row.setInstructionOrderNumber(order);
             return row;
@@ -193,6 +236,7 @@ public final class InstructionMoveValidator {
             row.setId(id);
             row.setActions(action);
             row.setParentId(parentId);
+            row.setVariableId(variableId);
             row.setBlockId(originalBlockId);
             row.setInstructionOrderNumber(originalOrder);
             return row;
