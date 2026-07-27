@@ -376,7 +376,7 @@ public final class MemoryListWorkspaceService {
                             ? "The target block could not be created."
                             : result.error().getErrorMessage());
         }
-        reloadBlocks(state);
+        ErrorMessage blockRefreshError = reloadBlocks(state);
         state.targetBlockId = result.newBlockId();
         state.revision++;
 
@@ -385,11 +385,13 @@ public final class MemoryListWorkspaceService {
         for (SourceState source : state.sources.values()) {
             forward(state, source.kind, requestId, "SELECT_TARGET_BLOCK", selected);
         }
-        boolean synchronizedSnapshot = publishCreatedBlockSnapshot(
-                state,
-                result.newBlockId(),
-                blockName,
-                result.newBlockOrderNumber());
+        boolean synchronizedSnapshot = blockRefreshError == null
+                && publishCreatedBlockSnapshot(
+                        state,
+                        requestId,
+                        result.newBlockId(),
+                        blockName,
+                        result.newBlockOrderNumber());
         JsonObject response = success(
                 request,
                 state,
@@ -404,31 +406,26 @@ public final class MemoryListWorkspaceService {
 
     private boolean publishCreatedBlockSnapshot(
             MemoryState state,
+            String requestId,
             Integer createdBlockId,
             String createdBlockName,
             Integer createdBlockOrderNumber) {
-        try {
-            List<InstructionLoad> instructions = performLists.getListBotJob().isEmpty()
-                    ? List.of()
-                    : performLists.buildJsonViewData(performLists.getListBotJob());
-            JsonObject update = new JsonObject();
-            update.add("instructions", gson.toJsonTree(instructions));
-            JsonArray blocks = new JsonArray();
-            state.blocks.values().forEach(block -> blocks.add(block.deepCopy()));
-            update.add("blocks", blocks);
-            update.addProperty("botJobId", state.botJobId);
-            update.addProperty("createdBlockId", createdBlockId);
-            update.addProperty("createdBlockName", createdBlockName);
-            update.addProperty("createdBlockOrderNumber", createdBlockOrderNumber);
-            InstructionRealtimePublisher.getInstance()
-                    .publishSerializedSnapshot(
-                            state.homeBankingId,
-                            ScannerWorkspaceSessions.BOT_JOB_TASKS,
-                            gson.toJson(update));
-            return true;
-        } catch (RuntimeException refreshFailure) {
-            return false;
-        }
+        JsonObject correlation = new JsonObject();
+        correlation.addProperty("memoryListRequestId", requestId);
+        correlation.addProperty("createdBlockId", createdBlockId);
+        correlation.addProperty("createdBlockName", createdBlockName);
+        correlation.addProperty("createdBlockOrderNumber", createdBlockOrderNumber);
+        correlation.addProperty("targetBlockId", createdBlockId);
+        correlation.addProperty("botJobName", state.botJobName);
+        return publishStructuredBotJobSnapshot(state, correlation) == null;
+    }
+
+    private ErrorMessage publishStructuredBotJobSnapshot(
+            MemoryState state, JsonObject correlation) {
+        JsonArray blocks = new JsonArray();
+        state.persistedBlocks.values().forEach(block -> blocks.add(block.deepCopy()));
+        return botJobTasksPublisher.publishStructured(
+                state.homeBankingId, state.botJobId, blocks, correlation);
     }
 
     private JsonObject apply(
@@ -541,8 +538,15 @@ public final class MemoryListWorkspaceService {
             return failure(request, message);
         }
 
-        ErrorMessage refreshError =
-                botJobTasksPublisher.publish(state.homeBankingId, state.botJobId);
+        ErrorMessage refreshError = reloadBlocks(state);
+        if (refreshError == null) {
+            JsonObject correlation = new JsonObject();
+            correlation.addProperty("memoryListRequestId", requestId);
+            correlation.addProperty("targetBlockId", targetBlockId);
+            correlation.addProperty("botJobName", state.botJobName);
+            correlation.addProperty("memoryListAppliedCount", transaction.appliedCount());
+            refreshError = publishStructuredBotJobSnapshot(state, correlation);
+        }
         Set<String> appliedKeys = applicable.stream().map(item -> item.globalKey).collect(
                 java.util.stream.Collectors.toCollection(java.util.LinkedHashSet::new));
         Map<String, List<AggregatedItem>> appliedBySource = new LinkedHashMap<>();
@@ -569,7 +573,6 @@ public final class MemoryListWorkspaceService {
         }
         if (targetBlockId > 0) state.targetBlockId = targetBlockId;
         state.revision++;
-        reloadBlocks(state);
 
         JsonObject response = success(
                 request,
@@ -741,9 +744,9 @@ public final class MemoryListWorkspaceService {
         }
     }
 
-    private void reloadBlocks(MemoryState state) {
+    private ErrorMessage reloadBlocks(MemoryState state) {
         ErrorMessage error = performDataBase.loadBlocks(state.botJobId, "", "block");
-        if (error != null) return;
+        if (error != null) return error;
         state.persistedBlocks.clear();
         for (BlockLoadDTO block : performLists.getListBlock()) {
             if (block == null || block.getId() == null || block.getId() <= 0) continue;
@@ -753,9 +756,15 @@ public final class MemoryListWorkspaceService {
             option.addProperty(
                     "blockOrderNumber",
                     block.getBlockOrderNumber() == null ? 0 : block.getBlockOrderNumber());
+            option.addProperty("blockActive", block.getActive() == null || block.getActive());
+            option.addProperty("blockWait", block.getWait() == null ? 0 : block.getWait());
+            if (block.getExportFile() != null) {
+                option.addProperty("exportFile", block.getExportFile());
+            }
             state.persistedBlocks.put(block.getId(), option);
         }
         rebuildBlocks(state);
+        return null;
     }
 
     private JsonObject validateSourceRequest(

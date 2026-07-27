@@ -7,6 +7,8 @@ import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.util.ErrorMessage;
 import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 import java.util.List;
 
 /** Reloads and publishes the bot-job task grid after scanner mutations. */
@@ -43,6 +45,49 @@ public final class ScannerBotJobTasksPublisher {
                 homeBankingId,
                 ScannerWorkspaceSessions.BOT_JOB_TASKS,
                 json,
+                ScannerWorkspaceOperations.UPDATE_INSTRUCTIONS);
+        return null;
+    }
+
+    /**
+     * Reloads and publishes a complete Bot Job grid envelope.
+     *
+     * <p>Memory List mutations use this shape because a bare instruction array cannot describe an
+     * empty block or authoritatively replace stale block order in Bot Job Details.
+     */
+    public ErrorMessage publishStructured(
+            int homeBankingId,
+            int botJobId,
+            JsonArray blocks,
+            JsonObject correlation) {
+        ErrorMessage error = data.loadCompleteJobs(botJobId);
+        if (error != null) {
+            return error;
+        }
+
+        List<InstructionLoad> instructions = List.of();
+        List<BotJobLoadDTO> jobs = data.botJobs();
+        if (jobs != null && !jobs.isEmpty()) {
+            List<InstructionLoad> loaded = data.buildJsonViewData(jobs);
+            if (loaded != null) instructions = loaded;
+        }
+
+        JsonObject payload = new JsonObject();
+        payload.add("instructions", gson.toJsonTree(instructions));
+        payload.add("blocks", blocks == null ? new JsonArray() : blocks.deepCopy());
+        payload.addProperty("homeBankingId", homeBankingId);
+        payload.addProperty("botJobId", botJobId);
+        if (correlation != null) {
+            correlation.entrySet().forEach(entry -> {
+                if (!payload.has(entry.getKey()) && entry.getValue() != null) {
+                    payload.add(entry.getKey(), entry.getValue().deepCopy());
+                }
+            });
+        }
+        sender.sendMessageJson(
+                homeBankingId,
+                ScannerWorkspaceSessions.BOT_JOB_TASKS,
+                gson.toJson(payload),
                 ScannerWorkspaceOperations.UPDATE_INSTRUCTIONS);
         return null;
     }

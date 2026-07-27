@@ -10,6 +10,9 @@ import com.allinweb.ch.model.ScannerWorkspaceOperations;
 import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import com.allinweb.ch.util.ErrorMessage;
 import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -57,6 +60,35 @@ class ScannerBotJobTasksPublisherTest {
 
         assertSame(error, result);
         assertNull(sender.sendCall);
+    }
+
+    @Test
+    void publishesStructuredInstructionsBlocksIdentityAndCorrelation() {
+        RecordingData data = new RecordingData();
+        data.jobs.add(new BotJobLoadDTO());
+        data.viewRows = List.of(InstructionLoad.builder().id(12).name("Login").build());
+        RecordingSender sender = new RecordingSender();
+        ScannerBotJobTasksPublisher publisher = new ScannerBotJobTasksPublisher(data, sender, new Gson());
+        JsonArray blocks = JsonParser.parseString(
+                        "[{\"blockId\":7,\"blockOrderNumber\":1,\"blockName\":\"Login\"}]")
+                .getAsJsonArray();
+        JsonObject correlation = new JsonObject();
+        correlation.addProperty("memoryListRequestId", "memory-apply-1");
+        correlation.addProperty("targetBlockId", 7);
+
+        ErrorMessage result =
+                publisher.publishStructured(2, 5, blocks, correlation);
+
+        assertNull(result);
+        JsonObject payload = JsonParser.parseString(sender.json).getAsJsonObject();
+        assertEquals(12, payload.getAsJsonArray("instructions")
+                .get(0).getAsJsonObject().get("id").getAsInt());
+        assertEquals(7, payload.getAsJsonArray("blocks")
+                .get(0).getAsJsonObject().get("blockId").getAsInt());
+        assertEquals(2, payload.get("homeBankingId").getAsInt());
+        assertEquals(5, payload.get("botJobId").getAsInt());
+        assertEquals("memory-apply-1", payload.get("memoryListRequestId").getAsString());
+        assertEquals(7, payload.get("targetBlockId").getAsInt());
     }
 
     private static final class RecordingData implements ScannerBotJobTasksPublisher.DataPort {
