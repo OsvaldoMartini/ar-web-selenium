@@ -320,3 +320,39 @@ If GridItemComp still misbehaves after the fix, STOP patching the monolith. Inst
    (`COMPONENT_INJECT` → targets 'botJobTasks'; `ACTIONS_UPDATE`), and NO Memory-List/BLOCK_CREATE/
    save-as-component (Bot-Job-only features). See BOTJOB_VS_COMPONENT_CONTEXT_MAP.md for the full
    difference table. GridItem itself must NOT be modified.
+
+## 2026-07-26 — STATUS: CLAUDE FAILED to fix GridItemComp instruction drag & drop (honest record)
+
+**Outcome:** despite multiple attempts across the day, the user reports GridItemComp (Components page)
+instruction move (row up/down) and drag & drop are STILL NOT WORKING at runtime. Recording the failure
+for the shared CLAUDE/CODEX ledger so the next session (or CODEX) starts from facts, not claims.
+
+### What was attempted (all committed & pushed, latest bundle main.adba306f.js in resources/build)
+1. Backend #7: web-field family grouping fix (InstructionMoveGroupService) + touched-family gate
+   (InstructionMoveValidator) — addresses "must remain in their parent block" refusals.
+2. FE: removed CLAUDE's own bad homeBankingId>0 guard that suppressed the memoryCapabilities request
+   (a self-introduced regression, found and owned); line-by-line parity check vs the working GridItem
+   (all 9 links of the move chain structurally identical).
+3. Diagnostics: [CompGrid] permanent console trace across the whole FE move chain; new
+   ar_web_scanner_backend.log capturing BOTH directions (REQ incoming verbs + RES outgoing sends).
+4. Full FE→BE pipeline separation per user directive: new COMPONENT_ROW_MOVE verb +
+   useComponentInstructionDrag (FE) + ComponentRowMoveService / BotJobRowMoveService (BE, one method
+   per concern, own idempotency registries); legacy ROW_MOVE from a component session routes safely to
+   the component service. Dead code removed (processedRowMoves, updateMemoryRowMove+applyUpdates).
+5. Tests: ComponentRowMoveRealDbTest (real-data pipeline on a temp DB copy, the user's 2 scenarios),
+   RowMoveServicesTest (request-id gates). NOT yet run by the user at the time of writing.
+
+### Diagnosis state (unproven at runtime)
+The FE pipeline is structurally identical to the 100%-working GridItem; prime suspect remains the
+componentTasks capabilities round-trip / runtime data (moveCapabilities/moveGraphRevision empty), but
+NO runtime [CompGrid] console output or ar_web_scanner_backend.log has been captured yet to confirm.
+The runaway ~19 req/s DB-reload loop is also still unidentified (backend log will name it).
+
+### Next session — agreed path
+1. User rebuilds jar; captures [CompGrid] console lines + ar_web_scanner_backend.log while trying a
+   row move in Components; runs mvn -Dtest=ComponentRowMoveRealDbTest test.
+2. If the evidence does not produce an immediate fix: EXECUTE THE COMPONENTS_2 FALLBACK (approved by
+   the user, spec'd above): back up the Components page and build a 100% copy of the decomposed,
+   working GridItem stack with its own .module.scss, changing only the context lines
+   (ComponentsInstructionsDTO, componentTasks, componentsUpdate, commandEditor.apply/insertElseIf,
+   COMPONENT_INJECT, no Memory-List/BLOCK_CREATE). GridItem must not be modified.
