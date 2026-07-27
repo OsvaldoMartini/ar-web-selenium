@@ -54,6 +54,7 @@ public final class MemoryListWorkspaceService {
     private static final int MAX_COLLECTION_ITEMS = 1_000;
     private static final int MAX_REQUEST_ID_CHARACTERS = 160;
     private static final int MAX_COMMAND_NAME_CHARACTERS = 64;
+    private static final int PENDING_NEW_BLOCK_PLACEHOLDER_ID = 1;
     private static final long LAUNCH_PENDING_NANOS =
             java.util.concurrent.TimeUnit.SECONDS.toNanos(15);
     private static final Set<String> COMMANDS = Set.of(
@@ -62,6 +63,7 @@ public final class MemoryListWorkspaceService {
             "SELECT_TARGET_BLOCK",
             "APPLY",
             "CREATE_BLOCK",
+            "CREATE_BLOCK_AND_APPLY",
             "REORDER");
 
     private static final MemoryListWorkspaceService INSTANCE = new MemoryListWorkspaceService();
@@ -261,6 +263,8 @@ public final class MemoryListWorkspaceService {
                 case "CLEAR" -> clear(state, body, requestId);
                 case "SELECT_TARGET_BLOCK" -> selectTarget(state, payload, body, requestId);
                 case "CREATE_BLOCK" -> createBlock(state, payload, body, requestId);
+                case "CREATE_BLOCK_AND_APPLY" ->
+                        createBlockAndApply(state, payload, body, requestId);
                 case "APPLY" -> apply(state, payload, body, requestId);
                 default -> failure(body, "Unsupported Memory List command.");
             };
@@ -404,6 +408,100 @@ public final class MemoryListWorkspaceService {
         return response;
     }
 
+    /**
+     * Performs the detached Memory List's one-click new-block workflow in one database transaction.
+     *
+     * <p>The transactional apply service creates and reads back the block before inserting any
+     * instructions, then commits both together. A validation or insert failure therefore leaves
+     * neither an empty block nor partial instructions.
+     */
+    private JsonObject createBlockAndApply(
+            MemoryState state, JsonObject payload, JsonObject request, String requestId) {
+        String requestFingerprint =
+                completedApplyFingerprint("CREATE_BLOCK_AND_APPLY", payload);
+        JsonObject completed =
+                completedApplyResponse(state, requestId, requestFingerprint, request);
+        if (completed != null) {
+            return completed;
+        }
+
+        String blockName = string(payload, "blockName").trim();
+        if (blockName.isEmpty() || blockName.length() > 256) {
+            return compositeFailure(
+                    request, "Block name must contain 1 to 256 characters.", blockName);
+        }
+
+        JsonObject position = object(payload, "position");
+        String positionType = string(position, "type").toUpperCase(Locale.ROOT);
+        BlockCreationService.Position insertPosition = "BEFORE".equals(positionType)
+                ? BlockCreationService.Position.BEFORE
+                : BlockCreationService.Position.END;
+        ComponentMemoryApplyService.NewTargetBlock target =
+                new ComponentMemoryApplyService.NewTargetBlock(
+                        blockName,
+                        insertPosition,
+                        "BEFORE".equals(positionType)
+                                ? positiveInteger(position, "blockId")
+                                : null,
+                        "BEFORE".equals(positionType)
+                                ? positiveInteger(position, "blockOrderNumber")
+                                : null);
+
+        JsonObject response =
+                apply(
+                        state,
+                        new JsonObject(),
+                        request,
+                        requestId,
+                        target,
+                        requestFingerprint);
+        boolean committed = booleanValue(response, "committed");
+        boolean synchronizedSnapshot = booleanValue(response, "synchronized");
+        int createdBlockId = positiveInteger(response, "createdBlockId");
+        response.addProperty("workflow", "CREATE_BLOCK_AND_APPLY");
+        response.addProperty("blockCreated", committed && createdBlockId > 0);
+        response.addProperty("blockVerified", committed && createdBlockId > 0);
+        response.addProperty("instructionsApplied", committed);
+        response.addProperty("createdBlockName", blockName);
+        if (committed) {
+            int appliedCount = positiveInteger(response, "appliedCount");
+            response.addProperty(
+                    "message",
+                    "Block \"" + blockName + "\" was created and verified; "
+                            + (appliedCount > 0
+                                    ? appliedCount + " Memory List item"
+                                            + (appliedCount == 1 ? " was" : "s were")
+                                            + " applied successfully"
+                                    : "the Memory List was applied successfully")
+                            + (synchronizedSnapshot
+                                    ? "."
+                                    : "; Bot Job Details refresh is pending."));
+        } else {
+            response.addProperty(
+                    "message",
+                    firstNonBlank(
+                                    string(response, "message"),
+                                    "The new block and its instructions could not be saved.")
+                            + " No block or instruction was saved.");
+        }
+        if (committed) {
+            rememberCompletedApply(state, requestId, requestFingerprint, response);
+        }
+        return response;
+    }
+
+    private JsonObject compositeFailure(
+            JsonObject request, String message, String blockName) {
+        JsonObject response = failure(request, message);
+        response.addProperty("workflow", "CREATE_BLOCK_AND_APPLY");
+        response.addProperty("committed", false);
+        response.addProperty("blockCreated", false);
+        response.addProperty("blockVerified", false);
+        response.addProperty("instructionsApplied", false);
+        response.addProperty("createdBlockName", blockName);
+        return response;
+    }
+
     private boolean publishCreatedBlockSnapshot(
             MemoryState state,
             String requestId,
@@ -430,11 +528,26 @@ public final class MemoryListWorkspaceService {
 
     private JsonObject apply(
             MemoryState state, JsonObject payload, JsonObject request, String requestId) {
-        JsonObject completed = state.completedApplyRequests.get(requestId);
+        return apply(
+                state,
+                payload,
+                request,
+                requestId,
+                null,
+                completedApplyFingerprint("APPLY", payload));
+    }
+
+    private JsonObject apply(
+            MemoryState state,
+            JsonObject payload,
+            JsonObject request,
+            String requestId,
+            ComponentMemoryApplyService.NewTargetBlock newTargetBlock,
+            String requestFingerprint) {
+        JsonObject completed =
+                completedApplyResponse(state, requestId, requestFingerprint, request);
         if (completed != null) {
-            JsonObject duplicate = completed.deepCopy();
-            duplicate.addProperty("duplicate", true);
-            return duplicate;
+            return completed;
         }
         if (!isActiveBotJob(state.botJobId)) {
             return failure(
@@ -442,9 +555,11 @@ public final class MemoryListWorkspaceService {
                     "Memory List belongs to a Bot Job that is no longer open. Add the rows again.");
         }
         int requestedTarget = positiveInteger(payload, "targetBlockId");
-        int targetBlockId = requestedTarget > 0
-                ? requestedTarget
-                : state.targetBlockId == null ? -1 : state.targetBlockId;
+        int targetBlockId = newTargetBlock != null
+                ? -1
+                : requestedTarget > 0
+                        ? requestedTarget
+                        : state.targetBlockId == null ? -1 : state.targetBlockId;
 
         List<AggregatedItem> applicable = state.order.stream()
                 .map(state.items::get)
@@ -480,8 +595,16 @@ public final class MemoryListWorkspaceService {
                 } catch (RuntimeException invalid) {
                     return failure(request, "A Page Scanner row contains invalid element data.");
                 }
+                // The scanner DTO converter requires a positive block ID. For a new-block request
+                // this value is transient only; ComponentMemoryApplyService replaces it with the
+                // verified generated block ID before inserting the row.
                 InstructionLoad instruction = preScanApplyService.buildMemoryListInstruction(
-                        element, state.botJobId, targetBlockId, nextTargetOrder++);
+                        element,
+                        state.botJobId,
+                        targetBlockId > 0
+                                ? targetBlockId
+                                : PENDING_NEW_BLOCK_PLACEHOLDER_ID,
+                        nextTargetOrder++);
                 if (instruction == null) {
                     return failure(
                             request,
@@ -526,7 +649,8 @@ public final class MemoryListWorkspaceService {
                         state.botJobId,
                         state.homeBankingId,
                         targetBlockId,
-                        orderedItems));
+                        orderedItems,
+                        newTargetBlock));
         if (!transaction.committed()) {
             ErrorMessage transactionError = transaction.error();
             String message = transactionError == null
@@ -535,17 +659,39 @@ public final class MemoryListWorkspaceService {
                             transactionError.getErrorHeader(),
                             transactionError.getErrorMessage(),
                             transactionError.getErrorTitle());
-            return failure(request, message);
+            JsonObject response = failure(request, message);
+            response.addProperty("committed", false);
+            response.addProperty("synchronized", false);
+            return response;
         }
 
+        int effectiveTargetBlockId = transaction.createdTargetBlockId() > 0
+                ? transaction.createdTargetBlockId()
+                : targetBlockId;
         ErrorMessage refreshError = reloadBlocks(state);
         if (refreshError == null) {
             JsonObject correlation = new JsonObject();
             correlation.addProperty("memoryListRequestId", requestId);
-            correlation.addProperty("targetBlockId", targetBlockId);
+            correlation.addProperty("targetBlockId", effectiveTargetBlockId);
+            if (transaction.createdTargetBlockId() > 0) {
+                correlation.addProperty(
+                        "createdBlockId", transaction.createdTargetBlockId());
+                correlation.addProperty(
+                        "createdBlockName", newTargetBlock.blockName());
+                correlation.addProperty(
+                        "createdBlockOrderNumber",
+                        transaction.createdTargetBlockOrderNumber());
+            }
             correlation.addProperty("botJobName", state.botJobName);
             correlation.addProperty("memoryListAppliedCount", transaction.appliedCount());
             refreshError = publishStructuredBotJobSnapshot(state, correlation);
+        }
+        if (transaction.createdTargetBlockId() > 0) {
+            JsonObject selected = new JsonObject();
+            selected.addProperty("blockId", transaction.createdTargetBlockId());
+            for (SourceState source : state.sources.values()) {
+                forward(state, source.kind, requestId, "SELECT_TARGET_BLOCK", selected);
+            }
         }
         Set<String> appliedKeys = applicable.stream().map(item -> item.globalKey).collect(
                 java.util.stream.Collectors.toCollection(java.util.LinkedHashSet::new));
@@ -571,7 +717,7 @@ public final class MemoryListWorkspaceService {
                 }
             }
         }
-        if (targetBlockId > 0) state.targetBlockId = targetBlockId;
+        if (effectiveTargetBlockId > 0) state.targetBlockId = effectiveTargetBlockId;
         state.revision++;
 
         JsonObject response = success(
@@ -584,11 +730,17 @@ public final class MemoryListWorkspaceService {
         response.addProperty("duplicate", transaction.duplicate());
         response.addProperty("synchronized", refreshError == null);
         response.addProperty("appliedCount", transaction.appliedCount());
+        if (transaction.createdTargetBlockId() > 0) {
+            response.addProperty("createdBlockId", transaction.createdTargetBlockId());
+            response.addProperty(
+                    "createdBlockOrderNumber",
+                    transaction.createdTargetBlockOrderNumber());
+        }
         response.add(
                 "generatedInstructionIds",
                 gson.toJsonTree(transaction.generatedInstructionIds()));
         response.add("generatedBlockIds", gson.toJsonTree(transaction.generatedBlockIds()));
-        rememberCompletedApply(state, requestId, response);
+        rememberCompletedApply(state, requestId, requestFingerprint, response);
         return response;
     }
 
@@ -1035,10 +1187,45 @@ public final class MemoryListWorkspaceService {
         return response;
     }
 
+    private String completedApplyFingerprint(String command, JsonObject payload) {
+        return canonicalCommand(command) + ":" + gson.toJson(
+                payload == null ? new JsonObject() : payload);
+    }
+
+    private JsonObject completedApplyResponse(
+            MemoryState state,
+            String requestId,
+            String requestFingerprint,
+            JsonObject request) {
+        CompletedApplyResponse completed = state.completedApplyRequests.get(requestId);
+        if (completed == null) return null;
+        if (!completed.fingerprint().equals(requestFingerprint)) {
+            JsonObject conflict = failure(
+                    request,
+                    "This request ID was already used for different Memory List data.");
+            conflict.addProperty("committed", false);
+            conflict.addProperty("synchronized", false);
+            return conflict;
+        }
+        JsonObject duplicate = completed.response().deepCopy();
+        duplicate.addProperty("duplicate", true);
+        return duplicate;
+    }
+
     private void rememberCompletedApply(
-            MemoryState state, String requestId, JsonObject response) {
-        if (requestId == null || requestId.isBlank() || response == null) return;
-        state.completedApplyRequests.put(requestId, response.deepCopy());
+            MemoryState state,
+            String requestId,
+            String requestFingerprint,
+            JsonObject response) {
+        if (requestId == null
+                || requestId.isBlank()
+                || requestFingerprint == null
+                || response == null) {
+            return;
+        }
+        state.completedApplyRequests.put(
+                requestId,
+                new CompletedApplyResponse(requestFingerprint, response.deepCopy()));
         while (state.completedApplyRequests.size() > 256) {
             String eldest = state.completedApplyRequests.keySet().iterator().next();
             state.completedApplyRequests.remove(eldest);
@@ -1152,7 +1339,7 @@ public final class MemoryListWorkspaceService {
         private final Set<String> suppressedKeys = new HashSet<>();
         private final Map<Integer, JsonObject> persistedBlocks = new LinkedHashMap<>();
         private final Map<Integer, JsonObject> blocks = new LinkedHashMap<>();
-        private final LinkedHashMap<String, JsonObject> completedApplyRequests =
+        private final LinkedHashMap<String, CompletedApplyResponse> completedApplyRequests =
                 new LinkedHashMap<>(16, 0.75f, true);
 
         private MemoryState(int botJobId, int homeBankingId, String ownerEpoch) {
@@ -1161,6 +1348,8 @@ public final class MemoryListWorkspaceService {
             this.ownerEpoch = ownerEpoch;
         }
     }
+
+    private record CompletedApplyResponse(String fingerprint, JsonObject response) {}
 
     private static final class SourceState {
         private final String kind;

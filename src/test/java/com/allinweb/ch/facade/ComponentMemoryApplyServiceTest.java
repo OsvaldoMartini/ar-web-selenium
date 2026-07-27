@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.allinweb.ch.model.InstructionLoad;
+import com.allinweb.ch.model.ReferenceLoadDTO;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -223,6 +224,272 @@ class ComponentMemoryApplyServiceTest {
                             "SELECT COUNT(*) FROM instruction WHERE bot_job_id=5 AND block_id=10"));
             assertEquals(1, scalar(statement, "SELECT COUNT(*) FROM variable WHERE bot_job_id=5"));
             assertEquals(1, scalar(statement, "SELECT COUNT(*) FROM reference WHERE bot_job_id=5"));
+        }
+    }
+
+    @Test
+    void newEndTargetBlockAndIndividualInstructionCommitAtomically() throws Exception {
+        String url = databaseUrl("new-target-end");
+        initializeDatabase(url);
+        ComponentMemoryApplyService service =
+                new ComponentMemoryApplyService(() -> DriverManager.getConnection(url));
+
+        ComponentMemoryApplyService.Result result = service.apply(
+                new ComponentMemoryApplyService.Request(
+                        "new-target-end-1",
+                        5,
+                        2,
+                        -1,
+                        List.of(ComponentMemoryApplyService.OrderedItem.componentInstruction(
+                                "COMPONENT:INSTRUCTION:2:20:101",
+                                101,
+                                20,
+                                sourceRevision())),
+                        new ComponentMemoryApplyService.NewTargetBlock(
+                                "Created Target",
+                                BlockCreationService.Position.END,
+                                null,
+                                null)));
+
+        assertTrue(result.committed());
+        assertFalse(result.duplicate());
+        assertEquals(2, result.createdTargetBlockOrderNumber());
+        assertTrue(result.createdTargetBlockId() > 0);
+        assertEquals(1, result.generatedInstructionIds().size());
+        try (Connection connection = DriverManager.getConnection(url);
+                Statement statement = connection.createStatement()) {
+            int createdBlockId = result.createdTargetBlockId();
+            assertEquals(
+                    1,
+                    scalar(
+                            statement,
+                            "SELECT COUNT(*) FROM block WHERE id=" + createdBlockId
+                                    + " AND bot_job_id=5 AND name='Created Target'"
+                                    + " AND block_order_number=2"));
+            assertEquals(
+                    1,
+                    scalar(
+                            statement,
+                            "SELECT COUNT(*) FROM instruction WHERE bot_job_id=5 AND block_id="
+                                    + createdBlockId + " AND name='Field'"));
+        }
+    }
+
+    @Test
+    void newTargetBlockReceivesScannerInstructionAndItsReferenceInOneCommit()
+            throws Exception {
+        String url = databaseUrl("new-target-scanner");
+        initializeDatabase(url);
+        ComponentMemoryApplyService service =
+                new ComponentMemoryApplyService(() -> DriverManager.getConnection(url));
+        InstructionLoad scannerInstruction = new InstructionLoad();
+        scannerInstruction.setInstructionOrderNumber(1);
+        scannerInstruction.setActions("C");
+        scannerInstruction.setName("Scanned Button");
+        scannerInstruction.setTagName("button");
+        scannerInstruction.setXpath("//button[@data-testid='submit']");
+        scannerInstruction.setInstructionActive(true);
+        scannerInstruction.setBlockId(7_777);
+        ReferenceLoadDTO reference = new ReferenceLoadDTO();
+        reference.setReferenceType("currentXPath");
+        reference.setValue("//button[@data-testid='submit']");
+        scannerInstruction.setReferenceLoadDTOList(List.of(reference));
+
+        ComponentMemoryApplyService.Result result = service.apply(
+                new ComponentMemoryApplyService.Request(
+                        "new-target-scanner-1",
+                        5,
+                        2,
+                        -1,
+                        List.of(ComponentMemoryApplyService.OrderedItem.scanner(
+                                "PAGE_SCANNER:scanner-row-1", scannerInstruction)),
+                        new ComponentMemoryApplyService.NewTargetBlock(
+                                "Scanner Target",
+                                BlockCreationService.Position.END,
+                                null,
+                                null)));
+
+        assertTrue(result.committed());
+        assertFalse(result.duplicate());
+        assertTrue(result.createdTargetBlockId() > 0);
+        assertEquals(2, result.createdTargetBlockOrderNumber());
+        assertEquals(1, result.generatedInstructionIds().size());
+        int generatedInstructionId =
+                result.generatedInstructionIds().get("PAGE_SCANNER:scanner-row-1");
+        try (Connection connection = DriverManager.getConnection(url);
+                Statement statement = connection.createStatement()) {
+            int createdBlockId = result.createdTargetBlockId();
+            assertEquals(
+                    1,
+                    scalar(
+                            statement,
+                            "SELECT COUNT(*) FROM instruction WHERE id="
+                                    + generatedInstructionId + " AND bot_job_id=5 AND block_id="
+                                    + createdBlockId + " AND name='Scanned Button'"));
+            assertEquals(
+                    1,
+                    scalar(
+                            statement,
+                            "SELECT COUNT(*) FROM reference WHERE instruction_id="
+                                    + generatedInstructionId + " AND bot_job_id=5"
+                                    + " AND reference_type='currentXPath'"
+                                    + " AND value='//button[@data-testid=''submit'']'"));
+        }
+    }
+
+    @Test
+    void duplicateNewTargetRequestCreatesOnlyOneBlockAndInstructionSet() throws Exception {
+        String url = databaseUrl("new-target-idempotent");
+        initializeDatabase(url);
+        ComponentMemoryApplyService service =
+                new ComponentMemoryApplyService(() -> DriverManager.getConnection(url));
+        ComponentMemoryApplyService.Request request =
+                new ComponentMemoryApplyService.Request(
+                        "new-target-same-request",
+                        5,
+                        2,
+                        -1,
+                        List.of(ComponentMemoryApplyService.OrderedItem.componentInstruction(
+                                "COMPONENT:INSTRUCTION:2:20:101",
+                                101,
+                                20,
+                                sourceRevision())),
+                        new ComponentMemoryApplyService.NewTargetBlock(
+                                "Idempotent Target",
+                                BlockCreationService.Position.END,
+                                null,
+                                null));
+
+        ComponentMemoryApplyService.Result first = service.apply(request);
+        ComponentMemoryApplyService.Result retry = service.apply(request);
+
+        assertTrue(first.committed());
+        assertFalse(first.duplicate());
+        assertTrue(retry.committed());
+        assertTrue(retry.duplicate());
+        assertEquals(first.createdTargetBlockId(), retry.createdTargetBlockId());
+        assertEquals(
+                first.createdTargetBlockOrderNumber(),
+                retry.createdTargetBlockOrderNumber());
+        try (Connection connection = DriverManager.getConnection(url);
+                Statement statement = connection.createStatement()) {
+            assertEquals(2, scalar(statement, "SELECT COUNT(*) FROM block WHERE bot_job_id=5"));
+            assertEquals(
+                    1,
+                    scalar(
+                            statement,
+                            "SELECT COUNT(*) FROM block WHERE bot_job_id=5"
+                                    + " AND name='Idempotent Target'"));
+            assertEquals(
+                    1,
+                    scalar(
+                            statement,
+                            "SELECT COUNT(*) FROM instruction WHERE bot_job_id=5"));
+        }
+    }
+
+    @Test
+    void orphanInstructionFailureRollsBackNewTargetAndShiftedOrder() throws Exception {
+        String url = databaseUrl("new-target-rollback");
+        initializeDatabase(url);
+        ComponentMemoryApplyService service =
+                new ComponentMemoryApplyService(() -> DriverManager.getConnection(url));
+
+        ComponentMemoryApplyService.Result result = service.apply(
+                new ComponentMemoryApplyService.Request(
+                        "new-target-orphan",
+                        5,
+                        2,
+                        -1,
+                        List.of(ComponentMemoryApplyService.OrderedItem.componentInstruction(
+                                "COMPONENT:INSTRUCTION:2:20:102",
+                                102,
+                                20,
+                                sourceRevision())),
+                        new ComponentMemoryApplyService.NewTargetBlock(
+                                "Rolled Back Target",
+                                BlockCreationService.Position.BEFORE,
+                                10,
+                                1)));
+
+        assertFalse(result.committed());
+        assertNotNull(result.error());
+        assertTrue(result.error().getErrorHeader().contains("references an instruction"));
+        try (Connection connection = DriverManager.getConnection(url);
+                Statement statement = connection.createStatement()) {
+            assertEquals(1, scalar(statement, "SELECT COUNT(*) FROM block WHERE bot_job_id=5"));
+            assertEquals(
+                    1,
+                    scalar(
+                            statement,
+                            "SELECT block_order_number FROM block WHERE id=10 AND bot_job_id=5"));
+            assertEquals(
+                    0,
+                    scalar(
+                            statement,
+                            "SELECT COUNT(*) FROM block WHERE bot_job_id=5"
+                                    + " AND name='Rolled Back Target'"));
+            assertEquals(
+                    0,
+                    scalar(
+                            statement,
+                            "SELECT COUNT(*) FROM instruction WHERE bot_job_id=5"));
+        }
+    }
+
+    @Test
+    void newTargetBeforeExistingBlockKeepsContiguousOrderAndReceivesInstruction()
+            throws Exception {
+        String url = databaseUrl("new-target-before");
+        initializeDatabase(url);
+        ComponentMemoryApplyService service =
+                new ComponentMemoryApplyService(() -> DriverManager.getConnection(url));
+
+        ComponentMemoryApplyService.Result result = service.apply(
+                new ComponentMemoryApplyService.Request(
+                        "new-target-before-1",
+                        5,
+                        2,
+                        -1,
+                        List.of(ComponentMemoryApplyService.OrderedItem.componentInstruction(
+                                "COMPONENT:INSTRUCTION:2:20:101",
+                                101,
+                                20,
+                                sourceRevision())),
+                        new ComponentMemoryApplyService.NewTargetBlock(
+                                "Before Target",
+                                BlockCreationService.Position.BEFORE,
+                                10,
+                                1)));
+
+        assertTrue(result.committed());
+        assertEquals(1, result.createdTargetBlockOrderNumber());
+        try (Connection connection = DriverManager.getConnection(url);
+                Statement statement = connection.createStatement()) {
+            int createdBlockId = result.createdTargetBlockId();
+            assertEquals(
+                    1,
+                    scalar(
+                            statement,
+                            "SELECT block_order_number FROM block WHERE id=" + createdBlockId
+                                    + " AND bot_job_id=5"));
+            assertEquals(
+                    2,
+                    scalar(
+                            statement,
+                            "SELECT block_order_number FROM block WHERE id=10 AND bot_job_id=5"));
+            assertEquals(
+                    2,
+                    scalar(
+                            statement,
+                            "SELECT COUNT(DISTINCT block_order_number) FROM block"
+                                    + " WHERE bot_job_id=5 AND block_order_number BETWEEN 1 AND 2"));
+            assertEquals(
+                    1,
+                    scalar(
+                            statement,
+                            "SELECT COUNT(*) FROM instruction WHERE bot_job_id=5 AND block_id="
+                                    + createdBlockId + " AND name='Field'"));
         }
     }
 

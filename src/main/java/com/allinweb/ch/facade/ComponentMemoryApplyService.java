@@ -204,11 +204,46 @@ public final class ComponentMemoryApplyService {
                     !componentPlan.coveredBySelectedBlock().contains(item.componentInstructionId());
                 default -> true;
             });
+            int effectiveTargetBlockId = request.targetBlockId();
+            int createdTargetBlockId = -1;
+            int createdTargetBlockOrderNumber = -1;
+            NewTargetBlock newTargetBlock = request.newTargetBlock();
+            if (newTargetBlock != null) {
+                if (!targetRequired) {
+                    throw new ApplyRefused(
+                            "The selected Memory List rows create complete blocks and do not use a "
+                                    + "new target block.");
+                }
+                BlockCreationService.InsertedBlock inserted =
+                        BlockCreationService.insertBlockWithoutCommit(
+                                connection,
+                                request.botJobId(),
+                                newTargetBlock.blockName(),
+                                newTargetBlock.position(),
+                                newTargetBlock.beforeBlockId(),
+                                newTargetBlock.beforeBlockOrderNumber());
+                createdTargetBlockId = inserted.blockId();
+                createdTargetBlockOrderNumber = inserted.orderNumber();
+
+                // Read the generated row back on this same transaction. This is both the required
+                // create verification and the authoritative block-order catalog after a BEFORE
+                // insertion shifted existing rows.
+                botBlocks = loadBotBlocks(connection, request.botJobId());
+                BlockRow verified = botBlocks.get(createdTargetBlockId);
+                if (verified == null
+                        || verified.order() != createdTargetBlockOrderNumber
+                        || !Objects.equals(verified.name(), newTargetBlock.blockName())) {
+                    throw new ApplyRefused(
+                            "The new target block could not be verified. No data was saved.");
+                }
+                effectiveTargetBlockId = createdTargetBlockId;
+            }
             if (targetRequired
-                    && (request.targetBlockId() <= 0
-                            || !botBlocks.containsKey(request.targetBlockId()))) {
+                    && (effectiveTargetBlockId <= 0
+                            || !botBlocks.containsKey(effectiveTargetBlockId))) {
                 throw new ApplyRefused("Select a valid target block before applying.");
             }
+            final int resolvedTargetBlockId = effectiveTargetBlockId;
 
             int nextBlockOrder = botBlocks.values().stream()
                             .map(BlockRow::order)
@@ -246,7 +281,7 @@ public final class ComponentMemoryApplyService {
             }
 
             int nextTargetOrder = currentBotRows.stream()
-                            .filter(row -> row.blockId() == request.targetBlockId())
+                            .filter(row -> row.blockId() == resolvedTargetBlockId)
                             .map(InstructionRow::order)
                             .max(Integer::compareTo)
                             .orElse(0)
@@ -292,14 +327,14 @@ public final class ComponentMemoryApplyService {
                                 insertInstruction,
                                 source.withoutRelations(),
                                 nextTargetOrder++,
-                                request.targetBlockId(),
+                                resolvedTargetBlockId,
                                 request.botJobId());
                         generatedComponentInstructionIds.put(sourceInstructionId, generatedId);
                         generatedInstructionsByItem.put(item.itemKey(), generatedId);
                         insertedRows.add(
                                 source.asInserted(
                                         generatedId,
-                                        request.targetBlockId(),
+                                        resolvedTargetBlockId,
                                         nextTargetOrder - 1));
                     } else if (item.kind() == ItemKind.PAGE_SCANNER_INSTRUCTION) {
                         InstructionRow source = InstructionRow.fromScanner(item.scannerInstruction());
@@ -307,13 +342,13 @@ public final class ComponentMemoryApplyService {
                                 insertInstruction,
                                 source,
                                 nextTargetOrder++,
-                                request.targetBlockId(),
+                                resolvedTargetBlockId,
                                 request.botJobId());
                         generatedScannerInstructionsByItem.put(item.itemKey(), generatedId);
                         insertedRows.add(
                                 source.asInserted(
                                         generatedId,
-                                        request.targetBlockId(),
+                                        resolvedTargetBlockId,
                                         nextTargetOrder - 1));
                     }
                 }
@@ -388,7 +423,7 @@ public final class ComponentMemoryApplyService {
             }
 
             List<UpdatedRow> finalLayout =
-                    finalLayout(completeRows, request.targetBlockId(), orderedTargetIds);
+                    finalLayout(completeRows, resolvedTargetBlockId, orderedTargetIds);
             if (layoutChanged(completeRows, finalLayout)) {
                 String graphError = moveValidator.validate(
                         completeRows.stream().map(InstructionRow::asInstruction).toList(),
@@ -412,7 +447,9 @@ public final class ComponentMemoryApplyService {
                     false,
                     request.orderedItems().size(),
                     Map.copyOf(generatedByItem),
-                    Map.copyOf(generatedBlocksByItem));
+                    Map.copyOf(generatedBlocksByItem),
+                    createdTargetBlockId,
+                    createdTargetBlockOrderNumber);
         } catch (ApplyRefused refused) {
             rollback(connection);
             restoreAutoCommit(connection, previousAutoCommit);
@@ -447,6 +484,25 @@ public final class ComponentMemoryApplyService {
         if (request.orderedItems() == null || request.orderedItems().isEmpty()) {
             return error(
                     "Memory List Apply Refused", "No active Memory List rows are available.", null);
+        }
+        if (request.newTargetBlock() != null) {
+            if (request.targetBlockId() > 0) {
+                return error(
+                        "Memory List Apply Refused",
+                        "Choose either an existing target block or create a new one, not both.",
+                        null);
+            }
+            String blockName = request.newTargetBlock().blockName();
+            if (blockName == null || blockName.isBlank()) {
+                return error(
+                        "Memory List Apply Refused", "The new block name is required.", null);
+            }
+            if (blockName.length() > 256) {
+                return error(
+                        "Memory List Apply Refused",
+                        "The new block name is too long.",
+                        "Use 256 characters or fewer.");
+            }
         }
         Set<String> keys = new HashSet<>();
         for (OrderedItem item : request.orderedItems()) {
@@ -1150,14 +1206,35 @@ public final class ComponentMemoryApplyService {
         }
     }
 
+    public record NewTargetBlock(
+            String blockName,
+            BlockCreationService.Position position,
+            Integer beforeBlockId,
+            Integer beforeBlockOrderNumber) {
+        public NewTargetBlock {
+            blockName = blockName == null ? "" : blockName.trim();
+            position = position == null ? BlockCreationService.Position.END : position;
+        }
+    }
+
     public record Request(
             String requestId,
             int botJobId,
             int homeBankingId,
             int targetBlockId,
-            List<OrderedItem> orderedItems) {
+            List<OrderedItem> orderedItems,
+            NewTargetBlock newTargetBlock) {
         public Request {
             orderedItems = orderedItems == null ? List.of() : List.copyOf(orderedItems);
+        }
+
+        public Request(
+                String requestId,
+                int botJobId,
+                int homeBankingId,
+                int targetBlockId,
+                List<OrderedItem> orderedItems) {
+            this(requestId, botJobId, homeBankingId, targetBlockId, orderedItems, null);
         }
     }
 
@@ -1167,10 +1244,12 @@ public final class ComponentMemoryApplyService {
             boolean duplicate,
             int appliedCount,
             Map<String, Integer> generatedInstructionIds,
-            Map<String, Integer> generatedBlockIds) {
+            Map<String, Integer> generatedBlockIds,
+            int createdTargetBlockId,
+            int createdTargetBlockOrderNumber) {
 
         static Result failed(ErrorMessage error) {
-            return new Result(error, false, false, 0, Map.of(), Map.of());
+            return new Result(error, false, false, 0, Map.of(), Map.of(), -1, -1);
         }
 
         Result asDuplicate() {
@@ -1180,7 +1259,9 @@ public final class ComponentMemoryApplyService {
                     true,
                     appliedCount,
                     generatedInstructionIds,
-                    generatedBlockIds);
+                    generatedBlockIds,
+                    createdTargetBlockId,
+                    createdTargetBlockOrderNumber);
         }
     }
 

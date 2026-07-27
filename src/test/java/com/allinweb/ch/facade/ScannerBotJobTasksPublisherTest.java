@@ -1,6 +1,7 @@
 package com.allinweb.ch.facade;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
@@ -91,6 +92,32 @@ class ScannerBotJobTasksPublisherTest {
         assertEquals(7, payload.get("targetBlockId").getAsInt());
     }
 
+    @Test
+    void returnsRefreshErrorWhenStructuredSnapshotCannotBeDelivered() {
+        RecordingData data = new RecordingData();
+        data.jobs.add(new BotJobLoadDTO());
+        data.viewRows = List.of(InstructionLoad.builder().id(12).name("Login").build());
+        RecordingSender sender = new RecordingSender();
+        sender.deliverySuccessful = false;
+        ScannerBotJobTasksPublisher publisher =
+                new ScannerBotJobTasksPublisher(data, sender, new Gson());
+
+        ErrorMessage result =
+                publisher.publishStructured(2, 5, new JsonArray(), new JsonObject());
+
+        assertNotNull(result);
+        assertEquals("Bot Job Details Refresh", result.getErrorTitle());
+        assertEquals(
+                "The database was saved, but Bot Job Details could not be refreshed.",
+                result.getErrorHeader());
+        assertEquals(
+                "The Bot Job Details session is unavailable. Reopen or refresh that workspace "
+                        + "to load the committed changes.",
+                result.getErrorMessage());
+        assertEquals("send:2:" + ScannerWorkspaceSessions.BOT_JOB_TASKS + ":"
+                + ScannerWorkspaceOperations.UPDATE_INSTRUCTIONS, sender.sendCall);
+    }
+
     private static final class RecordingData implements ScannerBotJobTasksPublisher.DataPort {
         private final List<String> calls = new ArrayList<>();
         private final List<BotJobLoadDTO> jobs = new ArrayList<>();
@@ -119,11 +146,14 @@ class ScannerBotJobTasksPublisherTest {
     private static final class RecordingSender implements ScannerBotJobTasksPublisher.SenderPort {
         private String sendCall;
         private String json;
+        private boolean deliverySuccessful = true;
 
         @Override
-        public void sendMessageJson(int homeBankingId, String sessionId, String json, String operationId) {
+        public boolean sendMessageJson(
+                int homeBankingId, String sessionId, String json, String operationId) {
             sendCall = "send:" + homeBankingId + ":" + sessionId + ":" + operationId;
             this.json = json;
+            return deliverySuccessful;
         }
     }
 }

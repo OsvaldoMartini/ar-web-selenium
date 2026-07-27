@@ -118,11 +118,15 @@ public final class BlockCreationService {
             Integer beforeBlockOrderNumber) throws SQLException {
         conn.setAutoCommit(false);
         try {
-            int targetOrder = computeOrderAndShift(
-                    conn, botJobId, position, beforeBlockId, beforeBlockOrderNumber);
-            int newId = insertBlock(conn, botJobId, blockName, targetOrder);
+            InsertedBlock inserted = insertBlockWithoutCommit(
+                    conn,
+                    botJobId,
+                    blockName,
+                    position,
+                    beforeBlockId,
+                    beforeBlockOrderNumber);
             conn.commit();
-            return new InsertedBlock(newId, targetOrder);
+            return inserted;
         } catch (SQLException | RuntimeException failure) {
             try {
                 conn.rollback();
@@ -131,6 +135,26 @@ public final class BlockCreationService {
             }
             throw failure;
         }
+    }
+
+    /**
+     * Opens the requested block-order slot and inserts the block on the caller's transaction.
+     *
+     * <p>This method never changes auto-commit and never commits or rolls back. It is used by the
+     * one-click Memory List workflow so block creation and instruction insertion succeed or fail
+     * together.
+     */
+    static InsertedBlock insertBlockWithoutCommit(
+            Connection conn,
+            int botJobId,
+            String blockName,
+            Position position,
+            Integer beforeBlockId,
+            Integer beforeBlockOrderNumber) throws SQLException {
+        int targetOrder = computeOrderAndShift(
+                conn, botJobId, position, beforeBlockId, beforeBlockOrderNumber);
+        int newId = insertBlock(conn, botJobId, blockName, targetOrder);
+        return new InsertedBlock(newId, targetOrder);
     }
 
     private static Integer insertBlock(

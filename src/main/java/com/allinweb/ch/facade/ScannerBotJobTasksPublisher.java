@@ -84,11 +84,18 @@ public final class ScannerBotJobTasksPublisher {
                 }
             });
         }
-        sender.sendMessageJson(
+        boolean delivered = sender.sendMessageJson(
                 homeBankingId,
                 ScannerWorkspaceSessions.BOT_JOB_TASKS,
                 gson.toJson(payload),
                 ScannerWorkspaceOperations.UPDATE_INSTRUCTIONS);
+        if (!delivered) {
+            return new ErrorMessage(
+                    "Bot Job Details Refresh",
+                    "The database was saved, but Bot Job Details could not be refreshed.",
+                    "The Bot Job Details session is unavailable. Reopen or refresh that workspace "
+                            + "to load the committed changes.");
+        }
         return null;
     }
 
@@ -101,7 +108,8 @@ public final class ScannerBotJobTasksPublisher {
     }
 
     interface SenderPort {
-        void sendMessageJson(int homeBankingId, String sessionId, String json, String operationId);
+        boolean sendMessageJson(
+                int homeBankingId, String sessionId, String json, String operationId);
     }
 
     private static final class DefaultDataPort implements DataPort {
@@ -128,8 +136,9 @@ public final class ScannerBotJobTasksPublisher {
         private final WebSocketSessionManager sessions = WebSocketSessionManager.getInstance();
 
         @Override
-        public void sendMessageJson(int homeBankingId, String sessionId, String json, String operationId) {
-            sessions.sendMessageJson(homeBankingId, sessionId, json, operationId);
+        public boolean sendMessageJson(
+                int homeBankingId, String sessionId, String json, String operationId) {
+            return sessions.sendMessageJson(homeBankingId, sessionId, json, operationId) != null;
         }
     }
 }
