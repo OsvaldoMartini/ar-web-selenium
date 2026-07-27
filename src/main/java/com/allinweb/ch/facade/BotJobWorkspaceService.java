@@ -7,7 +7,11 @@ import com.allinweb.ch.model.PayloadJson;
 import com.allinweb.ch.util.ErrorMessage;
 import com.allinweb.ch.util.ExcelUtils;
 import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Presentation-neutral owner of Bot Job workspace cache activation and grid snapshot loading.
@@ -84,8 +88,55 @@ public final class BotJobWorkspaceService {
 
         requireSuccess(data.loadComponents(botJob.getHomeBankingId(), botJob.getId(), botJob.getName()));
         requireSuccess(data.loadComponentBlocks(botJob.getHomeBankingId(), botJob.getName()));
-        String componentJson = payload(botJob, data.components(), data.componentBlocks());
+        String componentJson = componentPayload(botJob, data.components(), data.componentBlocks());
         return new GridSnapshot(botJobJson, componentJson);
+    }
+
+    /**
+     * Components always receive an envelope because component blocks can exist without instructions.
+     * The separate block catalog is the authoritative source for block identity and presentation.
+     */
+    private String componentPayload(
+            BotJobLoadDTO selectedBotJob,
+            List<BotJobLoadDTO> jobs,
+            List<BlockLoadDTO> blocks) {
+        List<InstructionLoad> instructions = List.of();
+        if (jobs != null && !jobs.isEmpty()) {
+            List<InstructionLoad> loaded = data.buildJsonViewData(jobs);
+            if (loaded != null) instructions = loaded;
+        }
+
+        JsonObject payload = new JsonObject();
+        payload.add("instructions", gson.toJsonTree(instructions));
+        payload.add("blocks", gson.toJsonTree(componentBlockCatalog(blocks)));
+        payload.addProperty("botJobId", selectedBotJob.getId());
+        payload.addProperty("botJobName", selectedBotJob.getName());
+        payload.addProperty("homeBankingId", selectedBotJob.getHomeBankingId());
+        return gson.toJson(payload);
+    }
+
+    private static List<Map<String, Object>> componentBlockCatalog(List<BlockLoadDTO> blocks) {
+        if (blocks == null || blocks.isEmpty()) return List.of();
+
+        return blocks.stream()
+                .filter(block -> block != null && block.getId() != null)
+                .sorted(Comparator
+                        .comparingInt((BlockLoadDTO block) ->
+                                block.getBlockOrderNumber() == null
+                                        ? Integer.MAX_VALUE
+                                        : block.getBlockOrderNumber())
+                        .thenComparingInt(BlockLoadDTO::getId))
+                .map(block -> {
+                    Map<String, Object> entry = new LinkedHashMap<>();
+                    entry.put("blockId", block.getId());
+                    entry.put("blockOrderNumber", block.getBlockOrderNumber());
+                    entry.put("blockName", block.getName());
+                    entry.put("blockActive", block.getActive());
+                    entry.put("blockWait", block.getWait());
+                    entry.put("exportFile", block.getExportFile());
+                    return entry;
+                })
+                .toList();
     }
 
     private String payload(

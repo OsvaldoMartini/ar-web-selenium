@@ -12,6 +12,8 @@ public class SplitDTO {
 
     private String type;
     private String sessionId;
+    /** Workspace that owns the selected row when sessionId is a destination pane. */
+    private String sourceSessionId;
     private String operationId;
     private String requestId;
     private String graphRevision;

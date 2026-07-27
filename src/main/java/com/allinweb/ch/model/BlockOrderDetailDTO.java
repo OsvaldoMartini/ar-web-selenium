@@ -9,4 +9,7 @@ public class BlockOrderDetailDTO {
     private Integer blockId;
     private String blockName;
     private Integer blockOrderNumber;
+    private Boolean blockActive;
+    private Integer blockWait;
+    private String exportFile;
 }

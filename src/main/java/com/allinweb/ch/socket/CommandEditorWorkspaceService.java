@@ -424,7 +424,7 @@ public final class CommandEditorWorkspaceService {
         if (!isRegisteredTransport(
                 current.sourceSessionId(), current.sourceTransport())) {
             throw new IllegalArgumentException(
-                    "Bot Job Details is no longer connected. Reopen the Command Editor.");
+                    "The source instruction grid is no longer connected. Reopen the Command Editor.");
         }
         BotJobDetailsWorkspaceRegistry.Snapshot workspace = workspaceRegistry.require(
                 current.botJobId(), current.botJobWorkspaceEpoch());
@@ -442,15 +442,20 @@ public final class CommandEditorWorkspaceService {
 
     private void requireSupportedSource(
             String targetSessionId, String requesterSessionId, Session requesterTransport) {
-        if (!ScannerWorkspaceSessions.BOT_JOB_TASKS.equals(targetSessionId)) {
+        if (!isSupportedInstructionSource(targetSessionId)) {
             throw new IllegalArgumentException(
-                    "Command Editor can only be opened from Bot Job Details.");
+                    "Command Editor can only be opened from Bot Job Details or Components.");
         }
         if (!targetSessionId.equals(requesterSessionId)
                 || !isRegisteredTransport(requesterSessionId, requesterTransport)) {
             throw new IllegalArgumentException(
                     "The Command Editor requester is not authoritative.");
         }
+    }
+
+    static boolean isSupportedInstructionSource(String sessionId) {
+        return ScannerWorkspaceSessions.BOT_JOB_TASKS.equals(sessionId)
+                || ScannerWorkspaceSessions.COMPONENT_TASKS.equals(sessionId);
     }
 
     private void requireManagerTransport(

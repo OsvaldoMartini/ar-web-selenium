@@ -146,8 +146,58 @@ public class SimpleWebSocketServer {
         return ScannerWorkspaceSessions.BOT_JOB_TASKS.equals(sessionId);
     }
 
-    private static boolean isComponentInstructionWorkspaceSession(String sessionId) {
-        return sessionIdContains(sessionId, ScannerWorkspaceSessions.COMPONENT_TASKS);
+    static boolean isComponentInstructionWorkspaceSession(String sessionId) {
+        return ScannerWorkspaceSessions.COMPONENT_TASKS.equals(sessionId);
+    }
+
+    static boolean isAllowedComponentCrossSurfaceOperation(
+            String type, String destinationSessionId) {
+        return (("TEST_CLICK_DTO".equals(type)
+                                || "TEST_INPUT_DTO".equals(type))
+                        && ScannerWorkspaceSessions.SCANNER_ELEMENT_PANE.equals(
+                                destinationSessionId))
+                || ("HOVERED_ROW".equals(type)
+                        && ScannerWorkspaceSessions.SCANNER_TOOL.equals(
+                                destinationSessionId));
+    }
+
+    /**
+     * The physical WebSocket identity is authoritative. A Components socket may
+     * address its own grid, or the explicit read/test surfaces above, but it can
+     * never relabel a mutation as Bot Job Details and select Bot Job tables.
+     */
+    static boolean isComponentTransportRouteConsistent(
+            String type,
+            String transportSessionId,
+            String destinationSessionId,
+            String sourceSessionId) {
+        boolean componentTransport =
+                isComponentInstructionWorkspaceSession(transportSessionId);
+        boolean componentDestination =
+                isComponentInstructionWorkspaceSession(destinationSessionId);
+        boolean componentSource =
+                isComponentInstructionWorkspaceSession(sourceSessionId);
+        if (componentTransport) {
+            return componentDestination
+                    || (componentSource
+                            && isAllowedComponentCrossSurfaceOperation(
+                                    type, destinationSessionId));
+        }
+        return !componentDestination && !componentSource;
+    }
+
+    /**
+     * Bot Job grid writes are accepted only from the one physical Bot Job Details transport.
+     * A claimed JSON session name is routing metadata, never authorization.
+     */
+    static boolean isBotJobGridMutationTransportConsistent(
+            String type, String transportSessionId, String destinationSessionId) {
+        if (!InstructionMutationSnapshotPolicy.isGridMutation(type)
+                || isComponentInstructionWorkspaceSession(destinationSessionId)) {
+            return true;
+        }
+        return ScannerWorkspaceSessions.BOT_JOB_TASKS.equals(destinationSessionId)
+                && ScannerWorkspaceSessions.BOT_JOB_TASKS.equals(transportSessionId);
     }
 
     private static boolean isBotJobInstructionWorkspaceSession(String sessionId) {
@@ -172,6 +222,22 @@ public class SimpleWebSocketServer {
 
     private boolean isScannerElementPaneOpen() {
         return WebSocketSessionManager.isSessionOpen(scannerElementPanePublisher.destinationSessionId());
+    }
+
+    boolean isAuthoritativeComponentTransport(Session transport) {
+        return transport != null
+                && transport.isOpen()
+                && ScannerWorkspaceSessions.COMPONENT_TASKS.equals(transportSessionId(transport))
+                && WebSocketSessionManager.getSession(ScannerWorkspaceSessions.COMPONENT_TASKS)
+                        == transport;
+    }
+
+    boolean isAuthoritativeBotJobTransport(Session transport) {
+        return transport != null
+                && transport.isOpen()
+                && ScannerWorkspaceSessions.BOT_JOB_TASKS.equals(transportSessionId(transport))
+                && WebSocketSessionManager.getSession(ScannerWorkspaceSessions.BOT_JOB_TASKS)
+                        == transport;
     }
 
     public static SimpleWebSocketServer getInstance() {
@@ -458,9 +524,9 @@ public class SimpleWebSocketServer {
                             "An active license is required for this Page Scanner operation");
                     return;
                 }
-                sendCommandEditorResponse(
+                sendCommandEditorFailureToTransport(
+                        session,
                         homeBankingId,
-                        sessionId,
                         "license.requiredResponse",
                         LicenseService.getInstance().startup());
                 return;
@@ -572,8 +638,15 @@ public class SimpleWebSocketServer {
                     sendCommandEditorResponse(homeBankingId, sessionId, "excelExport.saveResponse", excelResponse);
                     if (Boolean.TRUE.equals(excelResponse.get("ok"))) {
                         String updateOperation = String.valueOf(excelResponse.get("updateOperation"));
-                        webSocketSessionManager.sendMessageJson(homeBankingId, sessionId,
-                                gson.toJson(excelResponse.get("instructions")), updateOperation);
+                        if (ScannerWorkspaceOperations.COMPONENTS_UPDATE.equals(updateOperation)) {
+                            ErrorMessage snapshotError = publishCurrentComponentTasksSnapshot(homeBankingId);
+                            if (snapshotError != null) {
+                                performMessage.errorMessageOperationFailed(snapshotError);
+                            }
+                        } else {
+                            webSocketSessionManager.sendMessageJson(homeBankingId, sessionId,
+                                    gson.toJson(excelResponse.get("instructions")), updateOperation);
+                        }
                     }
                     break;
                 case "componentSave.bootstrap":
@@ -584,11 +657,10 @@ public class SimpleWebSocketServer {
                     Map<String, Object> componentResponse = saveComponentService.save(extractBody(jsonObjMSG));
                     sendCommandEditorResponse(homeBankingId, sessionId, "componentSave.applyResponse", componentResponse);
                     if (Boolean.TRUE.equals(componentResponse.get("ok"))) {
-                        webSocketSessionManager.sendMessageJson(
-                                homeBankingId,
-                                ScannerWorkspaceSessions.COMPONENT_TASKS,
-                                gson.toJson(componentResponse.get("instructions")),
-                                ScannerWorkspaceOperations.COMPONENTS_UPDATE);
+                        ErrorMessage snapshotError = publishCurrentComponentTasksSnapshot(homeBankingId);
+                        if (snapshotError != null) {
+                            performMessage.errorMessageOperationFailed(snapshotError);
+                        }
                     }
                     break;
                 case "ocrWorkspace.open":
@@ -820,6 +892,11 @@ public class SimpleWebSocketServer {
                             commandMutationReplayed = mutation.replayed();
                             commandApplyResponse = mutation.response();
                         } else {
+                            commandApplyBody = authorizeInstructionGridRequest(
+                                    commandApplyBody, sessionId, session);
+                            commandHomeBankingId =
+                                    commandEditorHomeBankingId(
+                                            commandApplyBody, homeBankingId);
                             commandApplyResponse =
                                     CommandEditorService.getInstance().apply(commandApplyBody);
                         }
@@ -879,7 +956,20 @@ public class SimpleWebSocketServer {
                             targetSessionId = ScannerWorkspaceSessions.BOT_JOB_TASKS;
                         }
                         String updateOperationId = instructionRealtimePublisher.snapshotOperation(targetSessionId);
-                        if (detachedCommandEditor) {
+                        if (isComponentInstructionWorkspaceSession(targetSessionId)) {
+                            instructionRealtimePublisher.publishResponse(
+                                    commandHomeBankingId,
+                                    sessionId,
+                                    "commandEditor.applyResponse",
+                                    commandApplyResponse);
+                            if (!commandMutationReplayed) {
+                                ErrorMessage snapshotError =
+                                        publishCurrentComponentTasksSnapshot(commandHomeBankingId);
+                                if (snapshotError != null) {
+                                    performMessage.errorMessageOperationFailed(snapshotError);
+                                }
+                            }
+                        } else if (detachedCommandEditor) {
                             instructionRealtimePublisher.publishResponse(
                                     commandHomeBankingId,
                                     sessionId,
@@ -920,6 +1010,7 @@ public class SimpleWebSocketServer {
                     JsonObject commandElseIfBody = extractBody(jsonObjMSG);
                     JsonObject commandElseIfResponse;
                     int commandElseIfHomeBankingId = homeBankingId;
+                    boolean commandElseIfReplayed = false;
                     try {
                         if (CommandEditorWorkspaceService.isWorkspaceSession(sessionId)) {
                             CommandEditorWorkspaceService.AuthorizedMutation mutation =
@@ -932,7 +1023,13 @@ public class SimpleWebSocketServer {
                             commandElseIfHomeBankingId =
                                     mutation.request().homeBankingId();
                             commandElseIfResponse = mutation.response();
+                            commandElseIfReplayed = mutation.replayed();
                         } else {
+                            commandElseIfBody = authorizeInstructionGridRequest(
+                                    commandElseIfBody, sessionId, session);
+                            commandElseIfHomeBankingId =
+                                    commandEditorHomeBankingId(
+                                            commandElseIfBody, homeBankingId);
                             commandElseIfResponse = CommandEditorService.getInstance()
                                     .insertElseIf(commandElseIfBody);
                         }
@@ -946,11 +1043,38 @@ public class SimpleWebSocketServer {
                                         authorizationError.getMessage()));
                         break;
                     }
-                    sendCommandEditorResponse(
+                    instructionRealtimePublisher.publishResponse(
                             commandElseIfHomeBankingId,
                             sessionId,
                             "commandEditor.insertElseIfResponse",
                             commandElseIfResponse);
+                    if (!commandElseIfReplayed
+                            && commandElseIfResponse.has("ok")
+                            && commandElseIfResponse.get("ok").getAsBoolean()
+                            && commandElseIfResponse.has("instructions")
+                            && commandElseIfResponse.get("instructions").isJsonArray()) {
+                        String targetSessionId =
+                                commandLogValue(commandElseIfBody, "targetSessionId");
+                        if (isComponentInstructionWorkspaceSession(targetSessionId)) {
+                            ErrorMessage snapshotError =
+                                    publishCurrentComponentTasksSnapshot(
+                                            commandElseIfHomeBankingId);
+                            if (snapshotError != null) {
+                                performMessage.errorMessageOperationFailed(snapshotError);
+                            }
+                        } else {
+                            ErrorMessage snapshotError =
+                                    publishBotJobTasksAuthoritativeSnapshot(
+                                            commandElseIfHomeBankingId,
+                                            positiveJsonInt(commandElseIfBody, "botJobId"),
+                                            null,
+                                            null,
+                                            null);
+                            if (snapshotError != null) {
+                                performMessage.errorMessageOperationFailed(snapshotError);
+                            }
+                        }
+                    }
                     break;
                 }
                 case "instructionGraph.previewSplit": {
@@ -959,9 +1083,9 @@ public class SimpleWebSocketServer {
                         commandPreviewBody = authorizeCommandEditorRequest(
                                 commandPreviewBody, sessionId, session);
                     } catch (IllegalArgumentException authorizationError) {
-                        sendCommandEditorResponse(
+                        sendCommandEditorFailureToTransport(
+                                session,
                                 homeBankingId,
-                                sessionId,
                                 "instructionGraph.previewSplitResponse",
                                 commandEditorFailure(
                                         commandPreviewBody,
@@ -986,9 +1110,9 @@ public class SimpleWebSocketServer {
                         commandPreviewBody = authorizeCommandEditorRequest(
                                 commandPreviewBody, sessionId, session);
                     } catch (IllegalArgumentException authorizationError) {
-                        sendCommandEditorResponse(
+                        sendCommandEditorFailureToTransport(
+                                session,
                                 homeBankingId,
-                                sessionId,
                                 "instructionGraph.previewMoveResponse",
                                 commandEditorFailure(
                                         commandPreviewBody,
@@ -1013,13 +1137,15 @@ public class SimpleWebSocketServer {
                         commandMemoryBody = authorizeCommandEditorRequest(
                                 commandMemoryBody, sessionId, session);
                     } catch (IllegalArgumentException authorizationError) {
-                        sendCommandEditorResponse(
+                        sendCommandEditorFailureToTransport(
+                                session,
                                 homeBankingId,
-                                sessionId,
                                 "instructionEditor.memoryCapabilitiesResponse",
-                                commandEditorFailure(
-                                        commandMemoryBody,
-                                        authorizationError.getMessage()));
+                                attachMemoryCapabilitiesCorrelation(
+                                        commandEditorFailure(
+                                                commandMemoryBody,
+                                                authorizationError.getMessage()),
+                                        commandMemoryBody));
                         break;
                     }
                     sendCommandEditorResponse(
@@ -1027,11 +1153,10 @@ public class SimpleWebSocketServer {
                                     commandMemoryBody, homeBankingId),
                             sessionId,
                             "instructionEditor.memoryCapabilitiesResponse",
-                            attachCommandEditorBindingEpoch(
-                                    CommandEditorService.getInstance()
-                                            .memoryCapabilities(commandMemoryBody),
-                                    commandMemoryBody,
-                                    sessionId));
+                                attachMemoryCapabilitiesCorrelation(
+                                        CommandEditorService.getInstance()
+                                                .memoryCapabilities(commandMemoryBody),
+                                        commandMemoryBody));
                     break;
                 }
                 case "variableEditor.bootstrap": {
@@ -1040,9 +1165,9 @@ public class SimpleWebSocketServer {
                         variableEditorBody = authorizeCommandEditorRequest(
                                 variableEditorBody, sessionId, session);
                     } catch (IllegalArgumentException authorizationError) {
-                        sendCommandEditorResponse(
+                        sendCommandEditorFailureToTransport(
+                                session,
                                 homeBankingId,
-                                sessionId,
                                 "variableEditor.bootstrapResponse",
                                 commandEditorFailure(
                                         variableEditorBody,
@@ -1078,13 +1203,18 @@ public class SimpleWebSocketServer {
                                     mutation.request().homeBankingId();
                             variableEditorResponse = mutation.response();
                         } else {
+                            variableEditorBody = authorizeInstructionGridRequest(
+                                    variableEditorBody, sessionId, session);
+                            variableEditorHomeBankingId =
+                                    commandEditorHomeBankingId(
+                                            variableEditorBody, homeBankingId);
                             variableEditorResponse =
                                     VariableEditorService.getInstance().save(variableEditorBody);
                         }
                     } catch (IllegalArgumentException authorizationError) {
-                        sendCommandEditorResponse(
+                        sendCommandEditorFailureToTransport(
+                                session,
                                 variableEditorHomeBankingId,
-                                sessionId,
                                 "variableEditor.saveResponse",
                                 commandEditorFailure(
                                         variableEditorBody,
@@ -1095,7 +1225,8 @@ public class SimpleWebSocketServer {
                             variableEditorHomeBankingId,
                             sessionId,
                             "variableEditor.saveResponse",
-                            variableEditorResponse);
+                            attachInstructionRequestCorrelation(
+                                    variableEditorResponse, variableEditorBody));
                     break;
                 }
                 case "variableEditor.delete": {
@@ -1115,13 +1246,18 @@ public class SimpleWebSocketServer {
                                     mutation.request().homeBankingId();
                             variableEditorResponse = mutation.response();
                         } else {
+                            variableEditorBody = authorizeInstructionGridRequest(
+                                    variableEditorBody, sessionId, session);
+                            variableEditorHomeBankingId =
+                                    commandEditorHomeBankingId(
+                                            variableEditorBody, homeBankingId);
                             variableEditorResponse =
                                     VariableEditorService.getInstance().delete(variableEditorBody);
                         }
                     } catch (IllegalArgumentException authorizationError) {
-                        sendCommandEditorResponse(
+                        sendCommandEditorFailureToTransport(
+                                session,
                                 variableEditorHomeBankingId,
-                                sessionId,
                                 "variableEditor.deleteResponse",
                                 commandEditorFailure(
                                         variableEditorBody,
@@ -1132,7 +1268,8 @@ public class SimpleWebSocketServer {
                             variableEditorHomeBankingId,
                             sessionId,
                             "variableEditor.deleteResponse",
-                            variableEditorResponse);
+                            attachInstructionRequestCorrelation(
+                                    variableEditorResponse, variableEditorBody));
                     break;
                 }
                 case "botJob.getInputInstructions":
@@ -1776,15 +1913,61 @@ public class SimpleWebSocketServer {
                     if (!response.ok()) return;
                     if (ScannerWorkspaceSessions.isPageScannerSession(request.sessionId())) return;
                     try {
-                        BotJobWorkspaceController.getInstance()
-                                .publishGridBootstrap(request.sessionId(), request.botJobId());
+                        CompletableFuture<Void> gridPublication =
+                                BotJobWorkspaceController.getInstance()
+                                        .publishGridBootstrapAsync(
+                                                request.sessionId(), request.botJobId());
+                        if (gridPublication == null) {
+                            throw new IllegalStateException(
+                                    "Bot Job grid bootstrap did not return a completion");
+                        }
+                        gridPublication.whenComplete((unused, gridFailure) -> {
+                            if (gridFailure == null) return;
+                            log.error(
+                                    "Unable to publish Bot Job instruction grid to session {}",
+                                    request.sessionId(),
+                                    gridFailure);
+                            sendGridBootstrapFailure(
+                                    transportSession, request, response);
+                        });
                     } catch (RuntimeException gridFailure) {
                         log.error(
                                 "Unable to publish Bot Job instruction grid to session {}",
                                 request.sessionId(),
                                 gridFailure);
+                        sendGridBootstrapFailure(
+                                transportSession, request, response);
                     }
                 });
+    }
+
+    private void sendGridBootstrapFailure(
+            Session transportSession,
+            BotJobDetailsRequest request,
+            BotJobDetailsResponse response) {
+        boolean components =
+                ScannerWorkspaceSessions.COMPONENT_TASKS.equals(request.sessionId());
+        JsonObject failure = new JsonObject();
+        failure.addProperty("ok", false);
+        failure.addProperty("resyncRequired", true);
+        failure.addProperty("requestId", request.requestId());
+        failure.addProperty("botJobId", request.botJobId());
+        failure.addProperty(
+                "error",
+                components
+                        ? "Components could not be loaded from the authoritative database."
+                        : "The Bot Job instruction grid could not be loaded from the authoritative database.");
+        failure.addProperty(
+                "action",
+                components
+                        ? "Select Refresh to reload Components."
+                        : "Refresh Bot Job Details before making another change.");
+        sendBotJobDetailsResponse(
+                transportSession,
+                authoritativeHomeBankingId(response),
+                request.sessionId(),
+                failure,
+                "instructionEditor.resyncRequired");
     }
 
     private void handleBotJobDetailsEnvironmentRefresh(JsonObject envelope, Session transportSession) {
@@ -2164,6 +2347,43 @@ public class SimpleWebSocketServer {
                         log.error("Unable to send Bot Job Details response to session {}", sessionId, error);
                     }
                 });
+    }
+
+    private void sendCommandEditorFailureToTransport(
+            Session transport, int homeBankingId, String operationId, Object response) {
+        sendPhysicalTransportResponseAcknowledged(
+                        transport, homeBankingId, operationId, response)
+                .whenComplete((ignored, error) -> {
+                    if (error != null) {
+                        log.error(
+                                "Unable to send Command Editor failure to physical session {}",
+                                transportSessionId(transport),
+                                error);
+                    }
+                });
+    }
+
+    /**
+     * Sends a refusal only to the socket that submitted the invalid request. Unlike logical
+     * workspace publishing, this method intentionally never substitutes another active session;
+     * doing so would let a forged sessionId inject a correlated failure into a victim window.
+     */
+    CompletableFuture<Void> sendPhysicalTransportResponseAcknowledged(
+            Session transport, int homeBankingId, String operationId, Object response) {
+        if (transport == null || !transport.isOpen()) {
+            return CompletableFuture.completedFuture(null);
+        }
+        String physicalSessionId = transportSessionId(transport);
+        if (Strings.isNullOrEmpty(physicalSessionId)) {
+            return CompletableFuture.completedFuture(null);
+        }
+        JsonObject outbound = new JsonObject();
+        outbound.addProperty("body", gson.toJson(response));
+        outbound.addProperty("sessionId", physicalSessionId);
+        outbound.addProperty("homeBankingId", homeBankingId);
+        outbound.addProperty("operationId", operationId);
+        return WebSocketSessionManager.sendTextAcknowledged(
+                transport, outbound.toString());
     }
 
     CompletableFuture<Void> sendBotJobDetailsResponseAcknowledged(
@@ -3727,6 +3947,65 @@ public class SimpleWebSocketServer {
         return null;
     }
 
+    private synchronized ErrorMessage publishComponentTasksAuthoritativeSnapshot(
+            int homeBankingId,
+            int botJobId,
+            String botJobName,
+            String destinationSessionId,
+            Integer createdBlockId,
+            String createdBlockName,
+            Integer createdBlockOrderNumber) {
+        ErrorMessage loadError =
+                performDataBase.loadComponentsComplete(homeBankingId, botJobId, botJobName);
+        if (loadError != null) {
+            return loadError;
+        }
+        loadError = performDataBase.loadBlocks(homeBankingId, botJobName, "component_block");
+        if (loadError != null) {
+            return loadError;
+        }
+
+        List<InstructionLoad> instructions = performLists.getListBotJobComp().isEmpty()
+                ? List.of()
+                : performLists.buildJsonViewData(performLists.getListBotJobComp());
+        JsonObject update = new JsonObject();
+        update.add("instructions", gson.toJsonTree(instructions));
+        update.add(
+                "blocks",
+                gson.toJsonTree(mapBlockOptions("component_block", homeBankingId)));
+        update.addProperty("botJobId", botJobId);
+        update.addProperty("botJobName", botJobName);
+        update.addProperty("homeBankingId", homeBankingId);
+        if (createdBlockId != null) update.addProperty("createdBlockId", createdBlockId);
+        if (createdBlockName != null) update.addProperty("createdBlockName", createdBlockName);
+        if (createdBlockOrderNumber != null) {
+            update.addProperty("createdBlockOrderNumber", createdBlockOrderNumber);
+        }
+        instructionRealtimePublisher.publishSerializedSnapshot(
+                homeBankingId, destinationSessionId, gson.toJson(update));
+        return null;
+    }
+
+    private ErrorMessage publishCurrentComponentTasksSnapshot(int homeBankingId) {
+        final BotJobDetailsWorkspaceRegistry.Snapshot active;
+        try {
+            active = BotJobDetailsWorkspaceRegistry.getInstance().requireHomeBanking(homeBankingId);
+        } catch (IllegalArgumentException staleWorkspace) {
+            return new ErrorMessage(
+                    "Components Refresh Refused",
+                    "The Components workspace is no longer active",
+                    "Reopen Bot Job Details before changing reusable components.");
+        }
+        return publishComponentTasksAuthoritativeSnapshot(
+                homeBankingId,
+                active.botJobId(),
+                active.name(),
+                ScannerWorkspaceSessions.COMPONENT_TASKS,
+                null,
+                null,
+                null);
+    }
+
     private boolean validatePageScannerTransport(
             JsonObject body,
             int homeBankingId,
@@ -4367,6 +4646,92 @@ public class SimpleWebSocketServer {
             }
         }
 
+        String physicalTransportSessionId = transportSessionId(session);
+        boolean componentRoute = isComponentInstructionWorkspaceSession(sessionIdToSend)
+                || isComponentInstructionWorkspaceSession(splitDTO.getSourceSessionId());
+        if (!isComponentTransportRouteConsistent(
+                type,
+                physicalTransportSessionId,
+                sessionIdToSend,
+                splitDTO.getSourceSessionId())) {
+            log.warn(
+                    "Rejected mismatched Components route: type={} transport={} destination={} source={}",
+                    type,
+                    physicalTransportSessionId,
+                    sessionIdToSend,
+                    splitDTO.getSourceSessionId());
+            closeRejectedSession(session, "Components workspace session identity mismatch");
+            return;
+        }
+        if (componentRoute) {
+            if (!isAuthoritativeComponentTransport(session)) {
+                log.warn(
+                        "Rejected forged Components route from transport {}",
+                        physicalTransportSessionId);
+                closeRejectedSession(
+                        session, "Components workspace transport is not authoritative");
+                return;
+            }
+            try {
+                BotJobDetailsWorkspaceRegistry.getInstance().requireHomeBanking(homeBankingId);
+            } catch (IllegalArgumentException staleOrWrongOrganization) {
+                log.warn(
+                        "Rejected Components mutation for inactive organization {} from transport {}",
+                        homeBankingId,
+                        transportSessionId(session));
+                closeRejectedSession(
+                        session, "Components workspace context is no longer active");
+                return;
+            }
+        }
+
+        boolean botJobGridMutation =
+                InstructionMutationSnapshotPolicy.isGridMutation(type) && !componentRoute;
+        if (!isBotJobGridMutationTransportConsistent(
+                type, physicalTransportSessionId, sessionIdToSend)) {
+            log.warn(
+                    "Rejected mismatched Bot Job grid route: type={} transport={} destination={}",
+                    type,
+                    physicalTransportSessionId,
+                    sessionIdToSend);
+            closeRejectedSession(session, "Bot Job Details session identity mismatch");
+            return;
+        }
+        if (botJobGridMutation) {
+            if (!isAuthoritativeBotJobTransport(session)) {
+                log.warn(
+                        "Rejected forged Bot Job grid route from transport {}",
+                        physicalTransportSessionId);
+                closeRejectedSession(
+                        session, "Bot Job Details transport is not authoritative");
+                return;
+            }
+            try {
+                BotJobDetailsWorkspaceRegistry.Snapshot activeWorkspace =
+                        BotJobDetailsWorkspaceRegistry.getInstance().require(botJobIdTask);
+                if (homeBankingId > 0
+                        && homeBankingId != activeWorkspace.homeBankingId()) {
+                    throw new IllegalArgumentException(
+                            "Bot Job Details organization does not match the active workspace");
+                }
+                botJobIdTask = activeWorkspace.botJobId();
+                botJobNameTask = activeWorkspace.name();
+                homeBankingId = activeWorkspace.homeBankingId();
+                whereId = activeWorkspace.botJobId();
+                splitDTO.setBotJobId(botJobIdTask);
+                splitDTO.setBotJobName(botJobNameTask);
+                splitDTO.setHomeBankingId(homeBankingId);
+            } catch (IllegalArgumentException staleOrWrongBotJob) {
+                log.warn(
+                        "Rejected Bot Job mutation for inactive job {} from transport {}",
+                        botJobIdTask,
+                        physicalTransportSessionId);
+                closeRejectedSession(
+                        session, "Bot Job Details context is no longer active");
+                return;
+            }
+        }
+
         errorMessage = performDataBase.loadBlocks(whereId, "", blockTable);
 
         List<Integer> previousBlockIds = (blockTable.equals("block")
@@ -4787,25 +5152,32 @@ public class SimpleWebSocketServer {
                     alreadySentMgsSocket = true;
                     break;
                 case "COMPONENT_INJECT":
-                    injectBlockComponent(splitDTO);
-                    // calls perform list block update
-                    splitDTO.setType(ScannerWorkspaceOperations.UPDATE_BLOCKS);
-                    jsonData = gson.toJson(splitDTO);
-                    webSocketSessionManager.sendMessageJson(
-                            homeBankingId,
-                            ScannerWorkspaceSessions.PERFORM_LIST_DATA,
-                            jsonData,
-                            ScannerWorkspaceOperations.UPDATE_BLOCKS);
+                    errorMessage = new ErrorMessage(
+                            "Component Apply Refused",
+                            "Direct component injection is no longer supported.",
+                            "Add the component instruction or block to Memory List and apply it there.");
                     alreadySentMgsSocket = true;
                     break;
                 case "BLOCK_CREATE":
                 case "CREATE_BLOCK":
-                    BlockCreationService.Result createResult =
-                            BlockCreationService.getInstance().createFrom(splitDTO);
-                    errorMessage = createResult.error();
+                    if (isComponentInstructionWorkspaceSession(sessionIdToSend)) {
+                        ComponentBlockCreationService.Result createResult =
+                                ComponentBlockCreationService.getInstance().createFrom(splitDTO);
+                        errorMessage = createResult.error();
+                        if (errorMessage == null) {
+                            splitDTO.setBlockId(createResult.newBlockId());
+                            splitDTO.setBlockOrderNumber(createResult.newBlockOrderNumber());
+                        }
+                    } else {
+                        BlockCreationService.Result createResult =
+                                BlockCreationService.getInstance().createFrom(splitDTO);
+                        errorMessage = createResult.error();
+                        if (errorMessage == null) {
+                            splitDTO.setBlockId(createResult.newBlockId());
+                            splitDTO.setBlockOrderNumber(createResult.newBlockOrderNumber());
+                        }
+                    }
                     if (errorMessage == null) {
-                        splitDTO.setBlockId(createResult.newBlockId());
-                        splitDTO.setBlockOrderNumber(createResult.newBlockOrderNumber());
                         splitDTO.setBlocks(mapBlockOptions(blockTable, whereId));
                     }
                     splitDTO.setType(updteBlocks);
@@ -4813,16 +5185,24 @@ public class SimpleWebSocketServer {
                     scannerBlockUpdatePublisher.publishBlockCreationUpdate(homeBankingId, jsonData, updteBlocks);
                     alreadySentMgsSocket = false;
                     break;
-                case "BLOCKS_SPLITTER":
+                case "BLOCKS_SPLITTER": {
                     errorMessage = CommandEditorService.getInstance().executeSplit(splitDTO, () -> splitBlocks(splitDTO));
 
+                    boolean componentSplit =
+                            isComponentInstructionWorkspaceSession(sessionIdToSend);
                     JsonObject splitResponse = new JsonObject();
                     splitResponse.addProperty("ok", errorMessage == null);
                     splitResponse.addProperty("requestId", splitDTO.getRequestId());
                     if (errorMessage == null) {
-                        splitResponse.add("blocks", gson.toJsonTree(performLists.getListBlock()));
+                        List<BlockLoadDTO> splitBlocks = componentSplit
+                                ? performLists.getListBlockComp()
+                                : performLists.getListBlock();
+                        List<BotJobLoadDTO> splitJobs = componentSplit
+                                ? performLists.getListBotJobComp()
+                                : performLists.getListBotJob();
+                        splitResponse.add("blocks", gson.toJsonTree(splitBlocks));
                         splitResponse.add("instructions", gson.toJsonTree(
-                                performLists.buildJsonViewData(performLists.getListBotJob())));
+                                performLists.buildJsonViewData(splitJobs)));
                     } else {
                         splitResponse.addProperty("errorTitle", errorMessage.getErrorTitle());
                         splitResponse.addProperty("errorHeader", errorMessage.getErrorHeader());
@@ -4841,13 +5221,15 @@ public class SimpleWebSocketServer {
                             homeBankingId, ScannerWorkspaceSessions.PERFORM_LIST_DATA, jsonData, updteBlocks);
                     alreadySentMgsSocket = false;
                     break;
+                }
                 case "BLOCK_MOVE":
                     try {
                         if (blockTable != null) {
                             List<BlockLoadDTO> mappedBlocks =
                                     mapToBlockLoad(homeBankingId, splitDTO.getUpdatedBlocks());
                             errorMessage =
-                                    performDataBase.updateSwiftBlockOrderNumber(blockTable, whereId, mappedBlocks);
+                                    performDataBase.updateSubmittedBlockOrder(
+                                            blockTable, whereId, mappedBlocks);
 
                             // UPDATE BLOCK ORDER MEMORY LIST
                             if (errorMessage == null) {
@@ -4863,6 +5245,10 @@ public class SimpleWebSocketServer {
 
                     } catch (Exception error) {
                         log.error("Error: " + error.getMessage());
+                        errorMessage = new ErrorMessage(
+                                "Move Block Refused",
+                                "The block order was not saved",
+                                error.getMessage());
                     }
                     alreadySentMgsSocket = false;
                     break;
@@ -4951,11 +5337,13 @@ public class SimpleWebSocketServer {
                     break;
                 case "BLOCK_ORDER":
                     if (!splitDTO.getUpdatedBlocks().isEmpty()) {
-                        errorMessage = performDataBase.loadBlocks(whereId, "", blockTable);
-
-                        // updateBlockOrderNumber  ALREADY UPDATE MEMORY LIST
+                        List<BlockLoadDTO> mappedBlocks =
+                                mapToBlockLoad(homeBankingId, splitDTO.getUpdatedBlocks());
+                        errorMessage = performDataBase.updateSubmittedBlockOrder(
+                                blockTable, whereId, mappedBlocks);
                         if (errorMessage == null) {
-                            errorMessage = performDataBase.updateBlockOrderNumber(blockTable, whereId, true);
+                            performLists.updateMemorySwiftBlockOrder(
+                                    blockTable, whereId, mappedBlocks);
                         }
 
                         // calls perform list block update
@@ -5017,11 +5405,12 @@ public class SimpleWebSocketServer {
                     alreadySentMgsSocket = false;
                     break;
                 case "BLOCK_STATUS":
-                    errorMessage = performDataBase.updateBlockStatus(blockTable, whereId, blockId, blockActive);
-
-                    if (errorMessage == null) {
-                        performDataBase.updateInstructionStatusByBlock(instrTable, whereId, blockId, blockActive);
-                    }
+                    errorMessage = performDataBase.updateBlockAndInstructionStatus(
+                            blockTable,
+                            instrTable,
+                            whereId,
+                            blockId,
+                            blockActive);
 
                     if (errorMessage == null) {
                         performLists.updateMemoryBlockStatusUpdate(blockTable, whereId, blockId, blockActive);
@@ -5270,7 +5659,14 @@ public class SimpleWebSocketServer {
                     alreadySentMgsSocket = false;
                     break;
                 case "BLOCK_ROLLBACK":
-                    errorMessage = performDataBase.rollBackBlocksRows("instruction", splitDTO);
+                    errorMessage =
+                            CommandEditorService.getInstance()
+                                    .validateRollbackRevision(splitDTO);
+                    if (errorMessage == null) {
+                        errorMessage =
+                                performDataBase.rollBackBlocksRows(
+                                        instrTable, whereId, splitDTO);
+                    }
 
                     if (errorMessage == null) {
                         errorMessage =
@@ -5297,7 +5693,19 @@ public class SimpleWebSocketServer {
             log.error("Error: " + error.getMessage());
 
             if (errorMessage == null) {
-                errorMessage = deleteNullsAndMemoryReload(instrTable, blockTable, whereId, previousBlockIds);
+                if (InstructionMutationSnapshotPolicy.isGridMutation(type)) {
+                    String detail = Strings.isNullOrEmpty(error.getMessage())
+                            ? error.getClass().getSimpleName()
+                            : error.getMessage();
+                    errorMessage = new ErrorMessage(
+                            "Instruction Mutation Refused",
+                            "The grid change was not completed.",
+                            detail);
+                } else {
+                    errorMessage =
+                            deleteNullsAndMemoryReload(
+                                    instrTable, blockTable, whereId, previousBlockIds);
+                }
             }
         }
 
@@ -5311,16 +5719,21 @@ public class SimpleWebSocketServer {
 
         if (!alreadySentMgsSocket && isBotJobTasksSession(sessionIdToSend)) {
             if (performLists.getListBotJob().isEmpty()) {
-                errorMessage = performDBEngine.loadCompleteJobs(botJobIdTask);
-                if (errorMessage != null) {
-                    performMessage.errorMessageOperationFailed(errorMessage);
+                ErrorMessage reloadError =
+                        performDBEngine.loadCompleteJobs(botJobIdTask);
+                if (reloadError != null) {
+                    performMessage.errorMessageOperationFailed(reloadError);
+                    if (errorMessage == null) errorMessage = reloadError;
                 }
             }
         } else if (!alreadySentMgsSocket && isComponentInstructionWorkspaceSession(sessionIdToSend)) {
             if (performLists.getListBotJobComp().isEmpty()) {
-                errorMessage = performDataBase.loadComponentsComplete(homeBankingId, botJobIdTask, botJobNameTask);
-                if (errorMessage != null) {
-                    performMessage.errorMessageOperationFailed(errorMessage);
+                ErrorMessage reloadError =
+                        performDataBase.loadComponentsComplete(
+                                homeBankingId, botJobIdTask, botJobNameTask);
+                if (reloadError != null) {
+                    performMessage.errorMessageOperationFailed(reloadError);
+                    if (errorMessage == null) errorMessage = reloadError;
                 }
             }
         }
@@ -5379,7 +5792,57 @@ public class SimpleWebSocketServer {
             }
         }
 
-        if (!alreadySentMgsSocket && !authoritativeBotJobSnapshotPublished) {
+        boolean componentMutationCommitted =
+                InstructionMutationSnapshotPolicy.requiresAuthoritativeComponentSnapshot(
+                        errorMessage == null,
+                        isComponentInstructionWorkspaceSession(sessionIdToSend),
+                        type);
+        boolean reloadAuthoritativeComponentSnapshot =
+                InstructionMutationSnapshotPolicy.shouldReloadAuthoritativeComponentSnapshot(
+                        isComponentInstructionWorkspaceSession(sessionIdToSend),
+                        type);
+        if (reloadAuthoritativeComponentSnapshot) {
+            boolean blockCreated = "BLOCK_CREATE".equals(type) || "CREATE_BLOCK".equals(type);
+            ErrorMessage snapshotError = publishComponentTasksAuthoritativeSnapshot(
+                    homeBankingId,
+                    botJobIdTask,
+                    botJobNameTask,
+                    sessionIdToSend,
+                    blockCreated ? splitDTO.getBlockId() : null,
+                    blockCreated ? splitDTO.getBlockName() : null,
+                    blockCreated ? splitDTO.getBlockOrderNumber() : null);
+            if (snapshotError != null) {
+                log.warn(
+                        "Component mutation authoritative grid refresh failed: "
+                                + "type={} homeBankingId={} error={}",
+                        type,
+                        homeBankingId,
+                        snapshotError.getErrorMessage());
+                performMessage.errorMessageOperationFailed(snapshotError);
+                JsonObject resyncRequired = new JsonObject();
+                resyncRequired.addProperty("ok", false);
+                resyncRequired.addProperty("resyncRequired", true);
+                resyncRequired.addProperty("requestId", splitDTO.getRequestId());
+                resyncRequired.addProperty(
+                        "error",
+                        componentMutationCommitted
+                                ? "The change was saved, but Components could not be refreshed."
+                                : "The change was refused, and the current Components state could not be refreshed.");
+                resyncRequired.addProperty(
+                        "action",
+                        "Refresh Components before making another change.");
+                instructionRealtimePublisher.publishResponse(
+                        homeBankingId,
+                        sessionIdToSend,
+                        "instructionEditor.resyncRequired",
+                        resyncRequired);
+            }
+        }
+
+        if (InstructionMutationSnapshotPolicy.shouldPublishGenericSnapshot(
+                alreadySentMgsSocket,
+                authoritativeBotJobSnapshotPublished,
+                reloadAuthoritativeComponentSnapshot)) {
             List<BotJobLoadDTO> listBot =
                     instrTable.equals("instruction") ? performLists.getListBotJob() : performLists.getListBotJobComp();
 
@@ -5584,14 +6047,28 @@ public class SimpleWebSocketServer {
     private ErrorMessage splitBlocks(SplitDTO blockSplitDTO) {
         BlockDetailsDTO originalBlock = blockSplitDTO.getDetails().getOriginalBlock();
         BlockDetailsDTO newBlock = blockSplitDTO.getDetails().getNewBlock();
-        List<BlockOrderDetailDTO> updatedBlock = blockSplitDTO.getDetails().getUpdatedBlocks();
+        List<BlockOrderDetailDTO> updatedBlock =
+                blockSplitDTO.getDetails().getUpdatedBlocks() == null
+                        ? List.of()
+                        : blockSplitDTO.getDetails().getUpdatedBlocks();
+        boolean componentSplit =
+                isComponentInstructionWorkspaceSession(blockSplitDTO.getSessionId());
+        String blockTable = componentSplit ? "component_block" : "block";
+        String instructionTable =
+                componentSplit ? "component_instruction" : "instruction";
+        Integer requestedOwnerId = componentSplit
+                ? blockSplitDTO.getHomeBankingId()
+                : blockSplitDTO.getBotJobId();
+        int ownerId = requestedOwnerId == null ? -1 : requestedOwnerId;
         log.info("Original Block ID: " + originalBlock.getBlockId());
         log.info("New Block Name: " + newBlock.getBlockName());
         log.info("Updated Block: " + updatedBlock.size());
         newBlock.setForceOrder(true);
 
         ErrorMessage errorMessage = performDataBase.splitBlockAtomic(
-                blockSplitDTO.getBotJobId(),
+                blockTable,
+                instructionTable,
+                ownerId,
                 newBlock,
                 originalBlock.getBlockId(),
                 newBlock.getInstructions(),
@@ -5600,19 +6077,28 @@ public class SimpleWebSocketServer {
         if (errorMessage == null) {
             // this is Important to update Easi the Memory
             if (errorMessage == null) {
-                errorMessage = performDataBase.loadBlocks(blockSplitDTO.getBotJobId(), "", "block");
+                errorMessage =
+                        performDataBase.loadBlocks(ownerId, "", blockTable);
             }
 
             if (errorMessage == null) {
-                errorMessage = performDBEngine.loadCompleteJobs(blockSplitDTO.getBotJobId());
+                errorMessage = componentSplit
+                        ? performDataBase.loadComponentsComplete(
+                                blockSplitDTO.getHomeBankingId(),
+                                blockSplitDTO.getBotJobId(),
+                                blockSplitDTO.getBotJobName())
+                        : performDBEngine.loadCompleteJobs(blockSplitDTO.getBotJobId());
             }
 
             if (errorMessage == null && !updatedBlock.isEmpty()) {
 
                 if (errorMessage == null) {
                     // Work directly with the List<BlockLoadDTO> in performLists
+                    List<BlockLoadDTO> currentBlocks = componentSplit
+                            ? performLists.getListBlockComp()
+                            : performLists.getListBlock();
                     for (BlockOrderDetailDTO updated : updatedBlock) {
-                        for (BlockLoadDTO current : performLists.getListBlock()) {
+                        for (BlockLoadDTO current : currentBlocks) {
                             if (current.getId() != null && current.getId().equals(updated.getBlockId())) {
                                 current.setBlockOrderNumber(updated.getBlockOrderNumber());
                                 break;
@@ -5624,7 +6110,8 @@ public class SimpleWebSocketServer {
 
                     // UPDATE BLOCK ORDER MEMORY LIST
                     if (errorMessage == null) {
-                        performLists.updateMemorySwiftBlockOrder("block", blockSplitDTO.getBotJobId(), mappedBlocks);
+                        performLists.updateMemorySwiftBlockOrder(
+                                blockTable, ownerId, mappedBlocks);
                     }
                 }
 
@@ -5636,7 +6123,6 @@ public class SimpleWebSocketServer {
             performMessage.errorMessageOperationFailed(errorMessage);
         }
 
-        //        performDataBase.loadBlocks(blockSplitDTO.getBotJobId(), "", "block");
         return errorMessage;
     }
 
@@ -5685,77 +6171,6 @@ public class SimpleWebSocketServer {
                         "Cannot Insert \"Instruction\"  \"%s\"\nCannot be saved!\nError: %s",
                         ARConstants.ELSEIF, e.getMessage()));
             }
-        }
-    }
-
-    private void injectBlockComponent(SplitDTO blockSplitDTO) {
-        // Ensure workspace updates are routed through the active presentation boundary.
-
-        BlockDetailsDTO blockDetailsDTO = blockSplitDTO.getDetails().getNewBlock();
-        blockDetailsDTO.setHomeBankingId(blockSplitDTO.getHomeBankingId());
-        blockDetailsDTO.setBotJobId(blockSplitDTO.getBotJobId());
-        blockDetailsDTO.setSessionId(blockSplitDTO.getSessionId());
-
-        ErrorMessage errorMessage = null;
-
-        // Add at the end of it
-        if (!performLists.getListBlock().isEmpty()) {
-            blockDetailsDTO.setBlockOrderNumber(performLists.getListBlock().size() + 1);
-        } else {
-            blockDetailsDTO.setBlockOrderNumber(1);
-        }
-
-        if (errorMessage == null) {
-            errorMessage = performDataBase.createInjectBlock(blockDetailsDTO);
-        }
-
-        int newBlockId = -9999;
-        if (!performDataBase.getIdsBlockAfter().isEmpty()
-                && performDataBase.getIdsBlockAfter().get(0) > 0) {
-            newBlockId = performDataBase.getIdsBlockAfter().get(0);
-        }
-
-        if (errorMessage == null) {
-            errorMessage = performDataBase.createInjectInstructions(blockDetailsDTO);
-        }
-        if (errorMessage == null) {
-            errorMessage = performDataBase.createInjectVariables(blockDetailsDTO);
-        }
-        if (errorMessage == null) {
-            errorMessage = performDataBase.createUpdateInjectInstruction(blockDetailsDTO);
-        }
-        if (errorMessage == null) {
-            errorMessage = performDataBase.createInjectReferences(blockDetailsDTO);
-        }
-
-        if (errorMessage == null) {
-            errorMessage = performDataBase.updateBlockOrderNumber("block", blockDetailsDTO.getBotJobId(), true);
-        }
-
-        if (errorMessage == null) {
-            errorMessage = performDataBase.loadBlocks(blockDetailsDTO.getBotJobId(), "", "block");
-        }
-        if (errorMessage == null) {
-
-            errorMessage = performDBEngine.loadCompleteJobs(blockDetailsDTO.getBotJobId());
-            if (errorMessage != null) {
-                performMessage.errorMessageOperationFailed(errorMessage);
-            }
-
-            String jsonData = "[]";
-            if (!performLists.getListBotJob().isEmpty()) {
-                List<InstructionLoad> blockLoopInstructions =
-                        performLists.buildJsonViewData(performLists.getListBotJob());
-                jsonData = gson.toJson(blockLoopInstructions);
-            }
-            webSocketSessionManager.sendMessageJson(
-                    blockDetailsDTO.getHomeBankingId(),
-                    blockDetailsDTO.getSessionId(),
-                    jsonData,
-                    ScannerWorkspaceOperations.UPDATE_INSTRUCTIONS);
-
-        } else {
-            performDataBase.deleteBlockDirect("block", blockDetailsDTO.getBotJobId(), newBlockId);
         }
     }
 
@@ -5868,6 +6283,9 @@ public class SimpleWebSocketServer {
                     option.put("blockId", block.getId());
                     option.put("blockOrderNumber", block.getBlockOrderNumber());
                     option.put("blockName", block.getName());
+                    option.put("blockActive", block.getActive());
+                    option.put("blockWait", block.getWait());
+                    option.put("exportFile", block.getExportFile());
                     return option;
                 })
                 .toList();
@@ -5921,12 +6339,80 @@ public class SimpleWebSocketServer {
 
     private JsonObject authorizeCommandEditorRequest(
             JsonObject body, String sessionId, Session transport) {
-        if (!CommandEditorWorkspaceService.isWorkspaceSession(sessionId)) {
-            return body == null ? new JsonObject() : body;
+        if (CommandEditorWorkspaceService.isWorkspaceSession(sessionId)) {
+            return commandEditorWorkspaceService
+                    .authorize(body, sessionId, transport)
+                    .body();
         }
-        return commandEditorWorkspaceService
-                .authorize(body, sessionId, transport)
-                .body();
+        return authorizeInstructionGridRequest(body, sessionId, transport);
+    }
+
+    JsonObject authorizeInstructionGridRequest(
+            JsonObject body, String sessionId, Session transport) {
+        if (!CommandEditorWorkspaceService.isSupportedInstructionSource(sessionId)
+                || transport == null
+                || !transport.isOpen()
+                || WebSocketSessionManager.getSession(sessionId) != transport) {
+            throw new IllegalArgumentException(
+                    "The instruction grid requester is not authoritative.");
+        }
+
+        JsonObject canonical = body == null ? new JsonObject() : body.deepCopy();
+        String requestedTarget = canonical.has("targetSessionId")
+                        && !canonical.get("targetSessionId").isJsonNull()
+                ? canonical.get("targetSessionId").getAsString()
+                : sessionId;
+        if (!sessionId.equals(requestedTarget)) {
+            throw new IllegalArgumentException(
+                    "The instruction grid target does not match its WebSocket session.");
+        }
+
+        int requestedHomeBankingId = positiveJsonInt(canonical, "homeBankingId");
+        int requestedBotJobId = positiveJsonInt(canonical, "botJobId");
+        BotJobDetailsWorkspaceRegistry.Snapshot active;
+        if (isComponentInstructionWorkspaceSession(sessionId)) {
+            if (requestedHomeBankingId <= 0) {
+                throw new IllegalArgumentException(
+                        "The Components organization is required.");
+            }
+            active = BotJobDetailsWorkspaceRegistry.getInstance()
+                    .requireHomeBanking(requestedHomeBankingId);
+        } else {
+            if (requestedBotJobId <= 0) {
+                throw new IllegalArgumentException(
+                        "The active Bot Job is required.");
+            }
+            active = BotJobDetailsWorkspaceRegistry.getInstance()
+                    .require(requestedBotJobId);
+        }
+        if (requestedHomeBankingId > 0
+                && requestedHomeBankingId != active.homeBankingId()) {
+            throw new IllegalArgumentException(
+                    "The instruction grid organization does not match Bot Job Details.");
+        }
+        if (requestedBotJobId > 0 && requestedBotJobId != active.botJobId()) {
+            throw new IllegalArgumentException(
+                    "The instruction grid Bot Job does not match Bot Job Details.");
+        }
+
+        canonical.addProperty("targetSessionId", sessionId);
+        canonical.addProperty("homeBankingId", active.homeBankingId());
+        canonical.addProperty("botJobId", active.botJobId());
+        canonical.addProperty("botJobName", active.name());
+        canonical.addProperty("workspaceEpoch", active.workspaceEpoch());
+        return canonical;
+    }
+
+    private static int positiveJsonInt(JsonObject body, String field) {
+        try {
+            return body != null
+                            && body.has(field)
+                            && !body.get(field).isJsonNull()
+                    ? body.get(field).getAsInt()
+                    : -1;
+        } catch (RuntimeException malformed) {
+            return -1;
+        }
     }
 
     private JsonObject attachCommandEditorBindingEpoch(
@@ -5941,6 +6427,32 @@ public class SimpleWebSocketServer {
         correlated.add(
                 "bindingEpoch",
                 authorizedBody.get("bindingEpoch").deepCopy());
+        return correlated;
+    }
+
+    static JsonObject attachMemoryCapabilitiesCorrelation(
+            JsonObject response, JsonObject authorizedBody) {
+        return attachInstructionRequestCorrelation(response, authorizedBody);
+    }
+
+    static JsonObject attachInstructionRequestCorrelation(
+            JsonObject response, JsonObject authorizedBody) {
+        JsonObject correlated = response == null ? new JsonObject() : response;
+        if (authorizedBody == null) {
+            return correlated;
+        }
+        for (String field : new String[] {
+            "requestId",
+            "bindingEpoch",
+            "targetSessionId",
+            "homeBankingId",
+            "botJobId"
+        }) {
+            if (authorizedBody.has(field)
+                    && !authorizedBody.get(field).isJsonNull()) {
+                correlated.add(field, authorizedBody.get(field).deepCopy());
+            }
+        }
         return correlated;
     }
 

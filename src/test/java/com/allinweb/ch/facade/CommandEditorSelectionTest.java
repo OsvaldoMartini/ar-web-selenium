@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.allinweb.ch.model.BlockLoadDTO;
 import com.allinweb.ch.model.InstructionLoad;
+import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -136,6 +137,91 @@ class CommandEditorSelectionTest {
                         7,
                         11,
                         101));
+    }
+
+    @Test
+    void routesComponentTargetsThroughOrganizationOwnedTables() {
+        CommandEditorService.InstructionTarget target =
+                CommandEditorService.instructionTarget(
+                        ScannerWorkspaceSessions.COMPONENT_TASKS,
+                        42,
+                        7);
+
+        assertEquals(7, target.ownerId());
+        assertEquals("component_instruction", target.instructionTable());
+        assertEquals("component_block", target.blockTable());
+        assertEquals("Components", target.workspaceLabel());
+    }
+
+    @Test
+    void retainsBotJobTargetTablesAndOwnerScope() {
+        CommandEditorService.InstructionTarget target =
+                CommandEditorService.instructionTarget(
+                        ScannerWorkspaceSessions.BOT_JOB_TASKS,
+                        42,
+                        7);
+
+        assertEquals(42, target.ownerId());
+        assertEquals("instruction", target.instructionTable());
+        assertEquals("block", target.blockTable());
+        assertEquals("Bot Job Details", target.workspaceLabel());
+    }
+
+    @Test
+    void resolvesComponentSelectionByOrganizationInsteadOfBotJobMetadata() {
+        BlockLoadDTO selectedBlock = block(11, 1, 7, 7);
+        InstructionLoad selectedInstruction = instruction(101, 11, 1, 1, 42, 7);
+        selectedInstruction.setBotJobId(null);
+
+        InstructionLoad resolved = CommandEditorService.resolveSelectionFromRows(
+                ScannerWorkspaceSessions.COMPONENT_TASKS,
+                List.of(selectedBlock),
+                List.of(selectedInstruction),
+                42,
+                7,
+                11,
+                101);
+
+        assertSame(selectedInstruction, resolved);
+    }
+
+    @Test
+    void refusesComponentRowsOwnedByAnotherOrganization() {
+        BlockLoadDTO selectedBlock = block(11, 1, 99, 8);
+        InstructionLoad selectedInstruction = instruction(101, 11, 1, 1, 99, 7);
+        selectedInstruction.setBotJobId(null);
+
+        IllegalArgumentException foreignBlock = assertThrows(
+                IllegalArgumentException.class,
+                () -> CommandEditorService.resolveSelectionFromRows(
+                        ScannerWorkspaceSessions.COMPONENT_TASKS,
+                        List.of(selectedBlock),
+                        List.of(selectedInstruction),
+                        42,
+                        7,
+                        11,
+                        101));
+
+        assertEquals(
+                "The selected Block does not belong to this organization.",
+                foreignBlock.getMessage());
+
+        selectedBlock.setHomeBankingId(7);
+        selectedInstruction.setHomeBankingId(8);
+        IllegalArgumentException foreignInstruction = assertThrows(
+                IllegalArgumentException.class,
+                () -> CommandEditorService.resolveSelectionFromRows(
+                        ScannerWorkspaceSessions.COMPONENT_TASKS,
+                        List.of(selectedBlock),
+                        List.of(selectedInstruction),
+                        42,
+                        7,
+                        11,
+                        101));
+
+        assertEquals(
+                "The selected instruction does not belong to this organization.",
+                foreignInstruction.getMessage());
     }
 
     private static BlockLoadDTO block(

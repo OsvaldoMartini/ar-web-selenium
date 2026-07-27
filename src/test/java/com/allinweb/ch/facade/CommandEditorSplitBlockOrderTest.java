@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 
 import com.allinweb.ch.model.BlockLoadDTO;
 import com.allinweb.ch.model.BlockOrderDetailDTO;
+import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -31,6 +32,32 @@ class CommandEditorSplitBlockOrderTest {
                 "The later block order updates are stale or invalid.",
                 CommandEditorService.validateLaterBlockOrders(
                         5, expected, List.of(update(242, 3), update(45, 99))));
+    }
+
+    @Test
+    void componentLaterBlocksAreValidatedByOrganizationInsteadOfBotJob() {
+        List<BlockLoadDTO> expected = List.of(block(242, 2), block(45, 3));
+        BlockOrderDetailDTO first = update(242, 3);
+        first.setBotJobId(999);
+        first.setHomeBankId(7);
+        BlockOrderDetailDTO second = update(45, 4);
+        second.setBotJobId(999);
+        second.setHomeBankId(7);
+
+        assertNull(CommandEditorService.validateLaterBlockOrders(
+                ScannerWorkspaceSessions.COMPONENT_TASKS,
+                7,
+                expected,
+                List.of(second, first)));
+
+        second.setHomeBankId(8);
+        assertEquals(
+                "The later block order updates are stale or invalid.",
+                CommandEditorService.validateLaterBlockOrders(
+                        ScannerWorkspaceSessions.COMPONENT_TASKS,
+                        7,
+                        expected,
+                        List.of(first, second)));
     }
 
     private static BlockLoadDTO block(int id, int order) {

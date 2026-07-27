@@ -278,16 +278,28 @@ public class BotJobDetailsWorkspaceHost {
                     public CompletableFuture<Void> applyMetadata(BotJobDetailsState state) {
                         return applyReactMetadataState(state);
                     }
-                    public void publishGridBootstrap(String sessionId, int botJobId) {
-                        presentation().execute(() -> {
-                            try {
-                                publishReactGridBootstrap(sessionId, botJobId);
-                            } catch (RuntimeException refreshFailure) {
-                                log.error(
-                                        "Unable to refresh the Bot Job grid after bootstrap",
-                                        refreshFailure);
-                            }
-                        });
+                    public CompletableFuture<Void> publishGridBootstrapAsync(
+                            String sessionId, int botJobId) {
+                        CompletableFuture<Void> completion = new CompletableFuture<>();
+                        try {
+                            presentation().execute(() -> {
+                                try {
+                                    publishReactGridBootstrap(sessionId, botJobId);
+                                    completion.complete(null);
+                                } catch (RuntimeException refreshFailure) {
+                                    log.error(
+                                            "Unable to refresh the Bot Job grid after bootstrap",
+                                            refreshFailure);
+                                    completion.completeExceptionally(refreshFailure);
+                                }
+                            });
+                        } catch (RuntimeException dispatchFailure) {
+                            log.error(
+                                    "Unable to dispatch the Bot Job grid bootstrap",
+                                    dispatchFailure);
+                            completion.completeExceptionally(dispatchFailure);
+                        }
+                        return completion;
                     }
                     public void preScanCommand(String type, JsonObject body) { handlePreScanCommand(type, body); }
                     public void preScanElementTest(SplitDTO payload, String type) {

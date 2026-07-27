@@ -57,46 +57,52 @@ public final class CommandEditorService {
     }
 
     /**
-     * Resolves one command-editor anchor from the authoritative Bot Job instruction table.
+     * Resolves one command-editor anchor from the authoritative instruction workspace.
      *
      * <p>The detached command editor uses this boundary before it opens and again before every
      * operation. Client-supplied block and instruction metadata is therefore never treated as an
-     * ownership assertion.
+     * ownership assertion. Bot Job rows are scoped by {@code bot_job_id}; reusable Component rows
+     * are scoped independently by {@code home_banking_id}.
      */
     public InstructionLoad resolveInstruction(
             String targetSessionId, int botJobId, int homeBankingId, int instructionId) {
-        if (!ScannerWorkspaceSessions.BOT_JOB_TASKS.equals(targetSessionId)) {
-            throw new IllegalArgumentException("The Command Editor target session is not supported.");
-        }
-        if (botJobId <= 0 || instructionId <= 0) {
-            throw new IllegalArgumentException("A valid Bot Job and instruction are required.");
+        InstructionTarget target =
+                instructionTarget(targetSessionId, botJobId, homeBankingId);
+        if (target.ownerId() <= 0 || instructionId <= 0) {
+            throw new IllegalArgumentException(target.component()
+                    ? "A valid organization and instruction are required."
+                    : "A valid Bot Job and instruction are required.");
         }
 
-        ErrorMessage error = database.loadInstructions(botJobId, -1, -1, "instruction");
+        ErrorMessage error =
+                database.loadInstructions(target.ownerId(), -1, -1, target.instructionTable());
         if (error != null) {
             throw new IllegalArgumentException(error.getErrorMessage());
         }
 
         List<InstructionLoad> instructionRows =
-                ownerInstructionCopies(targetSessionId, botJobId);
+                ownerInstructionCopies(targetSessionId, target.ownerId());
         InstructionLoad selected = instructionRows.stream()
                 .filter(row -> row != null
                         && row.getId() != null
                         && row.getId() == instructionId)
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException(
-                        "The selected instruction is no longer available. Refresh Bot Job Details."));
+                        "The selected instruction is no longer available. Refresh "
+                                + target.workspaceLabel()
+                                + "."));
         if (selected.getBlockId() == null || selected.getBlockId() <= 0) {
             throw new IllegalArgumentException("The selected instruction has no valid Block.");
         }
 
-        error = database.loadBlocks(botJobId, "", "block");
+        error = database.loadBlocks(target.ownerId(), "", target.blockTable());
         if (error != null) {
             throw new IllegalArgumentException(error.getErrorMessage());
         }
         List<BlockLoadDTO> blockRows =
-                ownerBlockCopies(targetSessionId, botJobId);
+                ownerBlockCopies(targetSessionId, target.ownerId());
         InstructionLoad resolved = resolveSelectionFromRows(
+                targetSessionId,
                 blockRows,
                 instructionRows,
                 botJobId,
@@ -113,8 +119,8 @@ public final class CommandEditorService {
      * Resolves an instruction and its Block as one owner-scoped Command Editor selection.
      *
      * <p>The detached page is allowed to change its selection, but it is never allowed to assert
-     * ownership by sending IDs. Both collections are reloaded for the active Bot Job and the
-     * submitted Instruction must belong to the submitted Block.
+     * ownership by sending IDs. Both collections are reloaded for the active workspace owner and
+     * the submitted Instruction must belong to the submitted Block.
      */
     public InstructionLoad resolveSelection(
             String targetSessionId,
@@ -122,27 +128,29 @@ public final class CommandEditorService {
             int homeBankingId,
             int blockId,
             int instructionId) {
-        if (!ScannerWorkspaceSessions.BOT_JOB_TASKS.equals(targetSessionId)) {
-            throw new IllegalArgumentException("The Command Editor target session is not supported.");
-        }
-        if (botJobId <= 0 || blockId <= 0 || instructionId <= 0) {
-            throw new IllegalArgumentException(
-                    "A valid Bot Job, Block, and Instruction are required.");
+        InstructionTarget target =
+                instructionTarget(targetSessionId, botJobId, homeBankingId);
+        if (target.ownerId() <= 0 || blockId <= 0 || instructionId <= 0) {
+            throw new IllegalArgumentException(target.component()
+                    ? "A valid organization, Block, and Instruction are required."
+                    : "A valid Bot Job, Block, and Instruction are required.");
         }
 
-        ErrorMessage error = database.loadInstructions(botJobId, -1, -1, "instruction");
+        ErrorMessage error =
+                database.loadInstructions(target.ownerId(), -1, -1, target.instructionTable());
         if (error == null) {
-            error = database.loadBlocks(botJobId, "", "block");
+            error = database.loadBlocks(target.ownerId(), "", target.blockTable());
         }
         if (error != null) {
             throw new IllegalArgumentException(error.getErrorMessage());
         }
 
         List<BlockLoadDTO> blockRows =
-                ownerBlockCopies(targetSessionId, botJobId);
+                ownerBlockCopies(targetSessionId, target.ownerId());
         List<InstructionLoad> instructionRows =
-                ownerInstructionCopies(targetSessionId, botJobId);
+                ownerInstructionCopies(targetSessionId, target.ownerId());
         InstructionLoad resolved = resolveSelectionFromRows(
+                targetSessionId,
                 blockRows,
                 instructionRows,
                 botJobId,
@@ -162,6 +170,31 @@ public final class CommandEditorService {
             int homeBankingId,
             int blockId,
             int instructionId) {
+        return resolveSelectionFromRows(
+                ScannerWorkspaceSessions.BOT_JOB_TASKS,
+                blocks,
+                instructionRows,
+                botJobId,
+                homeBankingId,
+                blockId,
+                instructionId);
+    }
+
+    static InstructionLoad resolveSelectionFromRows(
+            String targetSessionId,
+            List<BlockLoadDTO> blocks,
+            List<InstructionLoad> instructionRows,
+            int botJobId,
+            int homeBankingId,
+            int blockId,
+            int instructionId) {
+        InstructionTarget target =
+                instructionTarget(targetSessionId, botJobId, homeBankingId);
+        if (target.ownerId() <= 0) {
+            throw new IllegalArgumentException(target.component()
+                    ? "A valid organization is required."
+                    : "A valid Bot Job is required.");
+        }
         BlockLoadDTO block = blocks == null
                 ? null
                 : blocks.stream()
@@ -174,11 +207,15 @@ public final class CommandEditorService {
             throw new IllegalArgumentException(
                     "The selected Block is no longer available. Refresh the Command Editor.");
         }
-        if (!Objects.equals(block.getBotJobId(), botJobId)) {
+        if (target.component()) {
+            if (!Objects.equals(block.getHomeBankingId(), target.ownerId())) {
+                throw new IllegalArgumentException(
+                        "The selected Block does not belong to this organization.");
+            }
+        } else if (!Objects.equals(block.getBotJobId(), target.ownerId())) {
             throw new IllegalArgumentException(
                     "The selected Block does not belong to this Bot Job.");
-        }
-        if (homeBankingId > 0
+        } else if (homeBankingId > 0
                 && block.getHomeBankingId() != null
                 && block.getHomeBankingId() > 0
                 && block.getHomeBankingId() != homeBankingId) {
@@ -198,11 +235,15 @@ public final class CommandEditorService {
             throw new IllegalArgumentException(
                     "The selected instruction is no longer available. Refresh the Command Editor.");
         }
-        if (!Objects.equals(instruction.getBotJobId(), botJobId)) {
+        if (target.component()) {
+            if (!Objects.equals(instruction.getHomeBankingId(), target.ownerId())) {
+                throw new IllegalArgumentException(
+                        "The selected instruction does not belong to this organization.");
+            }
+        } else if (!Objects.equals(instruction.getBotJobId(), target.ownerId())) {
             throw new IllegalArgumentException(
                     "The selected instruction does not belong to this Bot Job.");
-        }
-        if (homeBankingId > 0
+        } else if (homeBankingId > 0
                 && instruction.getHomeBankingId() != null
                 && instruction.getHomeBankingId() > 0
                 && instruction.getHomeBankingId() != homeBankingId) {
@@ -215,6 +256,35 @@ public final class CommandEditorService {
         }
         return instruction;
     }
+
+    static InstructionTarget instructionTarget(
+            String targetSessionId, int botJobId, int homeBankingId) {
+        if (ScannerWorkspaceSessions.BOT_JOB_TASKS.equals(targetSessionId)) {
+            return new InstructionTarget(
+                    false,
+                    botJobId,
+                    "instruction",
+                    "block",
+                    "Bot Job Details");
+        }
+        if (ScannerWorkspaceSessions.COMPONENT_TASKS.equals(targetSessionId)) {
+            return new InstructionTarget(
+                    true,
+                    homeBankingId,
+                    "component_instruction",
+                    "component_block",
+                    "Components");
+        }
+        throw new IllegalArgumentException(
+                "The Command Editor target session is not supported.");
+    }
+
+    record InstructionTarget(
+            boolean component,
+            int ownerId,
+            String instructionTable,
+            String blockTable,
+            String workspaceLabel) {}
 
     public JsonObject bootstrap(JsonObject body) {
         JsonObject response = new JsonObject();
@@ -270,7 +340,7 @@ public final class CommandEditorService {
                 "canInsertElseIf", canInsertElseIf(orderedInstructions, instructionId));
         rowCapabilities.addProperty(
                 "canSplit",
-                !componentSession && canSplit(orderedInstructions, instructionId));
+                canSplit(orderedInstructions, instructionId));
         response.add("rowCapabilities", rowCapabilities);
         orderedInstructions.stream()
                 .filter(row -> row.getId() != null && row.getId() == instructionId)
@@ -529,6 +599,38 @@ public final class CommandEditorService {
         }
         if (!split.getGraphRevision().equals(graphRevision(sessionId))) {
             return new ErrorMessage("Delete Instruction Refused", "Instructions changed", "Refresh the grid before deleting.");
+        }
+        return null;
+    }
+
+    public ErrorMessage validateRollbackRevision(SplitDTO split) {
+        if (split == null) {
+            return new ErrorMessage(
+                    "Rollback Block Refused",
+                    "Missing request",
+                    "BLOCK_ROLLBACK payload is missing.");
+        }
+        String sessionId = targetTaskSession(split.getSessionId());
+        JsonObject body = new JsonObject();
+        body.addProperty(
+                "botJobId",
+                split.getBotJobId() == null ? -1 : split.getBotJobId());
+        body.addProperty(
+                "homeBankingId",
+                split.getHomeBankingId() == null ? -1 : split.getHomeBankingId());
+        ErrorMessage error = reloadInstructions(body, sessionId);
+        if (error != null) return error;
+        if (split.getGraphRevision() == null || split.getGraphRevision().isBlank()) {
+            return new ErrorMessage(
+                    "Rollback Block Refused",
+                    "Graph revision is required",
+                    "Refresh the grid and try again.");
+        }
+        if (!split.getGraphRevision().equals(graphRevision(sessionId))) {
+            return new ErrorMessage(
+                    "Rollback Block Refused",
+                    "Instructions changed",
+                    "Refresh the grid before rolling back Blocks.");
         }
         return null;
     }
@@ -993,11 +1095,24 @@ public final class CommandEditorService {
     public JsonObject previewSplit(JsonObject body) {
         JsonObject response = new JsonObject();
         String targetSession = string(body, "targetSessionId", ScannerWorkspaceSessions.BOT_JOB_TASKS);
-        if (isComponentSession(targetSession)) return failure("Component blocks cannot be split here.");
+        InstructionTarget target;
+        try {
+            target = instructionTarget(
+                    targetSession,
+                    integer(body, "botJobId", -1),
+                    integer(body, "homeBankingId", -1));
+        } catch (IllegalArgumentException invalidTarget) {
+            return failure(invalidTarget.getMessage());
+        }
+        if (target.ownerId() <= 0) {
+            return failure(target.component()
+                    ? "A valid organization is required."
+                    : "A valid Bot Job is required.");
+        }
 
         ErrorMessage loadError = reloadInstructions(body, targetSession);
         if (loadError != null) return failure(loadError.getErrorMessage());
-        loadError = database.loadBlocks(integer(body, "botJobId", -1), "", "block");
+        loadError = database.loadBlocks(target.ownerId(), "", target.blockTable());
         if (loadError != null) return failure(loadError.getErrorMessage());
         JsonObject stale = validateGraphRevision(body, targetSession);
         if (stale != null) return stale;
@@ -1093,34 +1208,51 @@ public final class CommandEditorService {
     }
 
     private ErrorMessage validateSplit(SplitDTO split) {
-        if (split == null || split.getBotJobId() == null || split.getInstructionId() == null) {
-            return splitError("Split request is missing its job or anchor instruction.");
+        if (split == null || split.getInstructionId() == null) {
+            return splitError("Split request is missing its owner or anchor instruction.");
         }
-        ErrorMessage error = database.loadInstructions(split.getBotJobId(), -1, -1, "instruction");
+        String targetSession = split.getSessionId();
+        InstructionTarget target;
+        try {
+            target = instructionTarget(
+                    targetSession,
+                    split.getBotJobId() == null ? -1 : split.getBotJobId(),
+                    split.getHomeBankingId() == null ? -1 : split.getHomeBankingId());
+        } catch (IllegalArgumentException invalidTarget) {
+            return splitError(invalidTarget.getMessage());
+        }
+        if (target.ownerId() <= 0) {
+            return splitError(target.component()
+                    ? "Split request is missing its organization."
+                    : "Split request is missing its Bot Job.");
+        }
+        ErrorMessage error = database.loadInstructions(
+                target.ownerId(), -1, -1, target.instructionTable());
         if (error != null) return error;
-        error = database.loadBlocks(split.getBotJobId(), "", "block");
+        error = database.loadBlocks(target.ownerId(), "", target.blockTable());
         if (error != null) return error;
         if (split.getGraphRevision() == null || split.getGraphRevision().isBlank()) {
             return splitError("Instruction graph revision is required. Reopen the command panel.");
         }
-        if (!split.getGraphRevision().equals(graphRevision(ScannerWorkspaceSessions.BOT_JOB_TASKS))) {
+        if (!split.getGraphRevision().equals(graphRevision(targetSession))) {
             return splitError("Instructions changed while this panel was open. Reopen it before splitting.");
         }
-        if (!canSplit(ScannerWorkspaceSessions.BOT_JOB_TASKS, split.getInstructionId())) {
+        if (!canSplit(targetSession, split.getInstructionId())) {
             return splitError("Split Component is not allowed at the selected instruction.");
         }
-        String partitionError = validateSplitPartition(split);
+        String partitionError = validateSplitPartition(split, targetSession, target);
         if (partitionError != null) return splitError(partitionError);
         return null;
     }
 
-    private String validateSplitPartition(SplitDTO split) {
-        InstructionLoad anchor = instructions(ScannerWorkspaceSessions.BOT_JOB_TASKS).stream()
+    private String validateSplitPartition(
+            SplitDTO split, String targetSession, InstructionTarget target) {
+        InstructionLoad anchor = instructions(targetSession).stream()
                 .filter(row -> row != null && row.getId() != null && row.getId().equals(split.getInstructionId()))
                 .findFirst()
                 .orElse(null);
         if (anchor == null || anchor.getBlockId() == null) return "The split anchor no longer exists.";
-        List<InstructionLoad> currentRows = instructions(ScannerWorkspaceSessions.BOT_JOB_TASKS).stream()
+        List<InstructionLoad> currentRows = instructions(targetSession).stream()
                 .filter(row -> row != null && anchor.getBlockId().equals(row.getBlockId()))
                 .sorted(Comparator.comparingInt(row -> row.getInstructionOrderNumber() == null
                         ? Integer.MAX_VALUE
@@ -1131,22 +1263,45 @@ public final class CommandEditorService {
         BlockDetailsDTO original = details == null ? null : details.getOriginalBlock();
         BlockDetailsDTO created = details == null ? null : details.getNewBlock();
         if (anchorIndex < 0 || original == null || created == null
-                || !anchor.getBlockId().equals(original.getBlockId())
-                || original.getBotJobId() == null || !original.getBotJobId().equals(split.getBotJobId())
-                || created.getBotJobId() == null || !created.getBotJobId().equals(split.getBotJobId())) {
+                || !anchor.getBlockId().equals(original.getBlockId())) {
+            return "The split block details do not match the selected instruction.";
+        }
+        if (target.component()) {
+            if ((original.getHomeBankingId() != null
+                            && original.getHomeBankingId() > 0
+                            && !original.getHomeBankingId().equals(target.ownerId()))
+                    || (created.getHomeBankingId() != null
+                            && created.getHomeBankingId() > 0
+                            && !created.getHomeBankingId().equals(target.ownerId()))) {
+                return "The split block details do not match the active organization.";
+            }
+        } else if (original.getBotJobId() == null
+                || !original.getBotJobId().equals(target.ownerId())
+                || created.getBotJobId() == null
+                || !created.getBotJobId().equals(target.ownerId())) {
             return "The split block details do not match the selected instruction.";
         }
         if (!matchesPartition(original.getUpdatedInstructions(), currentRows.subList(0, anchorIndex + 1), true)
                 || !matchesPartition(created.getInstructions(), currentRows.subList(anchorIndex + 1, currentRows.size()), false)) {
             return "The split rows are stale or do not form a contiguous block partition.";
         }
-        String blockOrderError = validateSplitBlockOrders(split, original, created);
+        String blockOrderError =
+                validateSplitBlockOrders(split, targetSession, target, original, created);
         if (blockOrderError != null) return blockOrderError;
         return null;
     }
 
-    private String validateSplitBlockOrders(SplitDTO split, BlockDetailsDTO original, BlockDetailsDTO created) {
-        BlockLoadDTO currentBlock = lists.getListBlock().stream()
+    private String validateSplitBlockOrders(
+            SplitDTO split,
+            String targetSession,
+            InstructionTarget target,
+            BlockDetailsDTO original,
+            BlockDetailsDTO created) {
+        List<BlockLoadDTO> ownerBlocks =
+                isComponentSession(targetSession)
+                        ? lists.getListBlockComp()
+                        : lists.getListBlock();
+        BlockLoadDTO currentBlock = ownerBlocks.stream()
                 .filter(block -> block != null && block.getId() != null && block.getId().equals(original.getBlockId()))
                 .findFirst()
                 .orElse(null);
@@ -1157,17 +1312,30 @@ public final class CommandEditorService {
                 || created.getBlockOrderNumber() != currentBlock.getBlockOrderNumber() + 1) {
             return "The split block order does not match the current database order.";
         }
-        List<BlockLoadDTO> expectedLater = lists.getListBlock().stream()
+        List<BlockLoadDTO> expectedLater = ownerBlocks.stream()
                 .filter(block -> block != null && block.getId() != null && block.getBlockOrderNumber() != null
                         && block.getBlockOrderNumber() > currentBlock.getBlockOrderNumber())
                 .sorted(Comparator.comparingInt(BlockLoadDTO::getBlockOrderNumber))
                 .toList();
         List<BlockOrderDetailDTO> submitted = split.getDetails().getUpdatedBlocks();
-        return validateLaterBlockOrders(split.getBotJobId(), expectedLater, submitted);
+        return validateLaterBlockOrders(
+                targetSession, target.ownerId(), expectedLater, submitted);
     }
 
     static String validateLaterBlockOrders(
             int botJobId, List<BlockLoadDTO> expectedLater, List<BlockOrderDetailDTO> submitted) {
+        return validateLaterBlockOrders(
+                ScannerWorkspaceSessions.BOT_JOB_TASKS,
+                botJobId,
+                expectedLater,
+                submitted);
+    }
+
+    static String validateLaterBlockOrders(
+            String targetSessionId,
+            int ownerId,
+            List<BlockLoadDTO> expectedLater,
+            List<BlockOrderDetailDTO> submitted) {
         if (submitted == null || submitted.size() != expectedLater.size()) {
             return "The split request does not include every affected later block.";
         }
@@ -1181,9 +1349,16 @@ public final class CommandEditorService {
         }
         for (BlockLoadDTO expected : expectedLater) {
             BlockOrderDetailDTO actual = submittedByBlockId.get(expected.getId());
+            boolean ownerMismatch = isComponentSession(targetSessionId)
+                    ? actual != null
+                            && actual.getHomeBankId() != null
+                            && actual.getHomeBankId() > 0
+                            && actual.getHomeBankId() != ownerId
+                    : actual == null
+                            || actual.getBotJobId() == null
+                            || actual.getBotJobId() != ownerId;
             if (actual == null
-                    || actual.getBotJobId() == null
-                    || actual.getBotJobId() != botJobId
+                    || ownerMismatch
                     || actual.getBlockOrderNumber() == null
                     || actual.getBlockOrderNumber() != expected.getBlockOrderNumber() + 1) {
                 return "The later block order updates are stale or invalid.";
@@ -1256,7 +1431,6 @@ public final class CommandEditorService {
     }
 
     private boolean canSplit(String sessionId, int instructionId) {
-        if (isComponentSession(sessionId)) return false;
         return canSplit(instructions(sessionId), instructionId);
     }
 

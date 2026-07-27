@@ -78,7 +78,10 @@ public final class VariableEditorService {
 
         ErrorMessage error;
         if (id == null || id < 0) {
-            error = database.createVariable(variable);
+            error = database.createVariable(
+                    context.variableTable,
+                    context.whereId,
+                    variable);
         } else {
             error = prepareDependentOperations(context, variable);
             if (error == null) {

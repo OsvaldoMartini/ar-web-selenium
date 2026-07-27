@@ -2,7 +2,7 @@ package com.allinweb.ch.socket;
 
 import com.allinweb.ch.facade.BlockCreationService;
 import com.allinweb.ch.facade.BotJobDetailsWorkspaceRegistry;
-import com.allinweb.ch.facade.InstructionMoveValidator;
+import com.allinweb.ch.facade.ComponentMemoryApplyService;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.PreScanApplyService;
@@ -13,7 +13,6 @@ import com.allinweb.ch.model.ElementDTO;
 import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import com.allinweb.ch.model.SplitDTO;
-import com.allinweb.ch.model.UpdatedRow;
 import com.allinweb.ch.util.ErrorMessage;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
@@ -21,7 +20,6 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -35,10 +33,10 @@ import javax.websocket.Session;
 /**
  * Backend-owned state for the one detached Memory List.
  *
- * <p>Bot Job Details and Page Scanner contribute independently to one ordered list. A contribution
- * updates only its own rows; it can no longer replace rows supplied by the other page. Commands
- * that mutate the mixed list are performed here so the list remains usable even when one source
- * window is temporarily behind or has been closed.
+ * <p>Bot Job Details, Components, and Page Scanner contribute independently to one ordered list. A
+ * contribution updates only its own rows; it can no longer replace rows supplied by another page.
+ * Commands that mutate the mixed list are performed here so the list remains usable even when one
+ * source window is temporarily behind or has been closed.
  */
 public final class MemoryListWorkspaceService {
 
@@ -49,6 +47,7 @@ public final class MemoryListWorkspaceService {
 
     private static final String BOT_JOB_SOURCE = "BOT_JOB";
     private static final String PAGE_SCANNER_SOURCE = "PAGE_SCANNER";
+    private static final String COMPONENT_SOURCE = "COMPONENT";
     private static final String MIXED_SOURCE = "MIXED";
     private static final int MAX_SNAPSHOT_CHARACTERS = 1_000_000;
     private static final int MAX_COMMAND_PAYLOAD_CHARACTERS = 128_000;
@@ -72,7 +71,8 @@ public final class MemoryListWorkspaceService {
     private final PerformDataBase performDataBase = PerformDataBase.getInstance();
     private final PerformLists performLists = PerformLists.getInstance();
     private final PreScanApplyService preScanApplyService = PreScanApplyService.getInstance();
-    private final InstructionMoveValidator instructionMoveValidator = new InstructionMoveValidator();
+    private final ComponentMemoryApplyService componentMemoryApplyService =
+            ComponentMemoryApplyService.getInstance();
     private final BlockCreationService blockCreationService = BlockCreationService.getInstance();
     private final ScannerBotJobTasksPublisher botJobTasksPublisher =
             ScannerBotJobTasksPublisher.getInstance();
@@ -95,26 +95,37 @@ public final class MemoryListWorkspaceService {
         boolean alreadyOpen = WebSocketSessionManager.isSessionOpen(WORKSPACE_SESSION_ID);
         boolean launchRequired;
         long now = System.nanoTime();
-        synchronized (stateLock) {
-            int botJobId = positiveInteger(body, "botJobId");
-            int homeBankingId = sourceHomeBankingId(body);
-            if (current == null || current.botJobId != botJobId) {
-                current = new MemoryState(botJobId, homeBankingId, UUID.randomUUID().toString());
-            } else if (homeBankingId > 0) {
-                current.homeBankingId = homeBankingId;
+        try {
+            synchronized (stateLock) {
+                int botJobId = positiveInteger(body, "botJobId");
+                int homeBankingId = sourceHomeBankingId(body, transportSessionId);
+                if (current == null || current.botJobId != botJobId) {
+                    current =
+                            new MemoryState(
+                                    botJobId, homeBankingId, UUID.randomUUID().toString());
+                } else if (homeBankingId > 0) {
+                    current.homeBankingId = homeBankingId;
+                }
+                upsertSource(current, body, transportSessionId, transportSession);
+                if (COMPONENT_SOURCE.equals(sourceKind(transportSessionId))) {
+                    reloadBlocks(current);
+                }
+                state = current;
+                if (alreadyOpen) {
+                    launchPending = false;
+                    launchRequired = false;
+                } else if (launchPending && now - launchPendingSince < LAUNCH_PENDING_NANOS) {
+                    launchRequired = false;
+                } else {
+                    launchPending = true;
+                    launchPendingSince = now;
+                    launchRequired = true;
+                }
             }
-            upsertSource(current, body, transportSessionId, transportSession);
-            state = current;
-            if (alreadyOpen) {
-                launchPending = false;
-                launchRequired = false;
-            } else if (launchPending && now - launchPendingSince < LAUNCH_PENDING_NANOS) {
-                launchRequired = false;
-            } else {
-                launchPending = true;
-                launchPendingSince = now;
-                launchRequired = true;
-            }
+        } catch (IllegalArgumentException inactiveWorkspace) {
+            return failure(
+                    body,
+                    "Components do not match the active Bot Job Details workspace.");
         }
 
         boolean launched = !launchRequired || ARWebSocketServer.getInstance()
@@ -150,26 +161,35 @@ public final class MemoryListWorkspaceService {
         if (validation != null) return validation;
 
         MemoryState state;
-        synchronized (stateLock) {
-            state = current;
-            if (state == null) {
-                return failure(body, "Open the Memory List before synchronizing it.");
+        try {
+            synchronized (stateLock) {
+                state = current;
+                if (state == null) {
+                    return failure(body, "Open the Memory List before synchronizing it.");
+                }
+                String ownerEpoch = string(body, "ownerEpoch");
+                if (state.botJobId != positiveInteger(body, "botJobId")
+                        || ownerEpoch.isEmpty()
+                        || !state.ownerEpoch.equals(ownerEpoch)) {
+                    return failure(
+                            body,
+                            "Memory List ownership changed. Open this Memory List again to continue.");
+                }
+                SourceState source = state.sources.get(sourceKind(transportSessionId));
+                if (source == null
+                        || source.transport != transportSession
+                        || !source.sessionId.equals(transportSessionId)) {
+                    return failure(body, "Memory List source ownership changed. Open it again.");
+                }
+                upsertSource(state, body, transportSessionId, transportSession);
+                if (COMPONENT_SOURCE.equals(sourceKind(transportSessionId))) {
+                    reloadBlocks(state);
+                }
             }
-            String ownerEpoch = string(body, "ownerEpoch");
-            if (state.botJobId != positiveInteger(body, "botJobId")
-                    || ownerEpoch.isEmpty()
-                    || !state.ownerEpoch.equals(ownerEpoch)) {
-                return failure(
-                        body,
-                        "Memory List ownership changed. Open this Memory List again to continue.");
-            }
-            SourceState source = state.sources.get(sourceKind(transportSessionId));
-            if (source == null
-                    || source.transport != transportSession
-                    || !source.sessionId.equals(transportSessionId)) {
-                return failure(body, "Memory List source ownership changed. Open it again.");
-            }
-            upsertSource(state, body, transportSessionId, transportSession);
+        } catch (IllegalArgumentException inactiveWorkspace) {
+            return failure(
+                    body,
+                    "Components do not match the active Bot Job Details workspace.");
         }
         publishSnapshot(state);
         JsonObject response = snapshotResponse(state, "Memory List synchronized.");
@@ -413,6 +433,12 @@ public final class MemoryListWorkspaceService {
 
     private JsonObject apply(
             MemoryState state, JsonObject payload, JsonObject request, String requestId) {
+        JsonObject completed = state.completedApplyRequests.get(requestId);
+        if (completed != null) {
+            JsonObject duplicate = completed.deepCopy();
+            duplicate.addProperty("duplicate", true);
+            return duplicate;
+        }
         if (!isActiveBotJob(state.botJobId)) {
             return failure(
                     request,
@@ -422,9 +448,6 @@ public final class MemoryListWorkspaceService {
         int targetBlockId = requestedTarget > 0
                 ? requestedTarget
                 : state.targetBlockId == null ? -1 : state.targetBlockId;
-        if (targetBlockId <= 0 || !state.blocks.containsKey(targetBlockId)) {
-            return failure(request, "Select a valid target block before applying.");
-        }
 
         List<AggregatedItem> applicable = state.order.stream()
                 .map(state.items::get)
@@ -436,97 +459,86 @@ public final class MemoryListWorkspaceService {
                 .toList();
         if (applicable.isEmpty()) return failure(request, "No active Memory List rows are available.");
 
-        ErrorMessage loadError =
-                performDataBase.loadInstructions(state.botJobId, -1, -1, "instruction");
-        if (loadError != null) return failure(request, loadError.getErrorMessage());
-        List<InstructionLoad> currentRows = new ArrayList<>(performLists.getListInstruction());
-        Map<Integer, InstructionLoad> currentById = new HashMap<>();
-        for (InstructionLoad row : currentRows) {
-            if (row != null && row.getId() != null) currentById.put(row.getId(), row);
-        }
-
-        List<InstructionLoad> scannerInstructions = new ArrayList<>();
-        Map<String, Integer> orderedIds = new LinkedHashMap<>();
-        int dummyId = -1;
-        int nextTargetOrder = currentRows.stream()
-                        .filter(row -> Objects.equals(row.getBlockId(), targetBlockId))
-                        .map(InstructionLoad::getInstructionOrderNumber)
-                        .filter(Objects::nonNull)
-                        .max(Integer::compareTo)
-                        .orElse(0)
-                + 1;
+        List<ComponentMemoryApplyService.OrderedItem> orderedItems = new ArrayList<>();
+        // The transactional service assigns the final authoritative target order. This value is
+        // only a valid placeholder required by the Page Scanner DTO converter.
+        int nextTargetOrder = 1;
         for (AggregatedItem item : applicable) {
             if (BOT_JOB_SOURCE.equals(item.sourceKind)) {
                 int instructionId = positiveInteger(item.payload, "instructionId");
                 if (instructionId <= 0) instructionId = positiveInteger(item.presentation, "sourceItemKey");
-                if (!currentById.containsKey(instructionId)) {
-                    return failure(request, "An instruction in Memory List no longer exists. Refresh and try again.");
-                }
-                orderedIds.put(item.globalKey, instructionId);
+                orderedItems.add(
+                        ComponentMemoryApplyService.OrderedItem.botJob(
+                                item.globalKey, instructionId));
                 continue;
             }
-            JsonObject elementObject = object(item.payload, "elementDTO");
-            if (elementObject == null) {
-                return failure(request, "A Page Scanner row has no element data. Add it again.");
+            if (PAGE_SCANNER_SOURCE.equals(item.sourceKind)) {
+                JsonObject elementObject = object(item.payload, "elementDTO");
+                if (elementObject == null) {
+                    return failure(request, "A Page Scanner row has no element data. Add it again.");
+                }
+                ElementDTO element;
+                try {
+                    element = gson.fromJson(elementObject, ElementDTO.class);
+                } catch (RuntimeException invalid) {
+                    return failure(request, "A Page Scanner row contains invalid element data.");
+                }
+                InstructionLoad instruction = preScanApplyService.buildMemoryListInstruction(
+                        element, state.botJobId, targetBlockId, nextTargetOrder++);
+                if (instruction == null) {
+                    return failure(
+                            request,
+                            "A Page Scanner row could not be converted to an instruction.");
+                }
+                orderedItems.add(
+                        ComponentMemoryApplyService.OrderedItem.scanner(
+                                item.globalKey, instruction));
+                continue;
             }
-            ElementDTO element;
-            try {
-                element = gson.fromJson(elementObject, ElementDTO.class);
-            } catch (RuntimeException invalid) {
-                return failure(request, "A Page Scanner row contains invalid element data.");
+            if (!COMPONENT_SOURCE.equals(item.sourceKind)) {
+                return failure(request, "Memory List contains an unsupported source row.");
             }
-            InstructionLoad instruction = preScanApplyService.buildMemoryListInstruction(
-                    element, state.botJobId, targetBlockId, nextTargetOrder++);
-            if (instruction == null) {
-                return failure(request, "A Page Scanner row could not be converted to an instruction.");
+            String kind = string(item.payload, "kind");
+            ComponentMemoryApplyService.ItemKind componentKind =
+                    ComponentMemoryApplyService.ItemKind.componentKind(kind);
+            String sourceRevision = string(item.payload, "sourceRevision");
+            if (sourceRevision.isEmpty()) {
+                sourceRevision = string(item.payload, "graphRevision");
             }
-            instruction.setId(dummyId);
-            scannerInstructions.add(instruction);
-            orderedIds.put(item.globalKey, dummyId);
-            dummyId--;
-        }
-
-        List<InstructionLoad> proposedRows = new ArrayList<>(currentRows);
-        proposedRows.addAll(scannerInstructions);
-        List<UpdatedRow> proposedLayout =
-                buildFinalLayout(proposedRows, targetBlockId, new ArrayList<>(orderedIds.values()));
-        boolean layoutChanged = layoutChanged(proposedRows, proposedLayout);
-        if (layoutChanged) {
-            String graphError = instructionMoveValidator.validate(proposedRows, proposedLayout);
-            if (graphError != null) {
-                return failure(request, "Memory List order creates an invalid instruction graph: " + graphError);
-            }
-        }
-
-        Map<Integer, Integer> generatedIds = new HashMap<>();
-        if (!scannerInstructions.isEmpty()) {
-            List<Integer> dummyIds = scannerInstructions.stream().map(InstructionLoad::getId).toList();
-            PerformDataBase.AtomicInstructionInsertResult insertion =
-                    performDataBase.insertInstructionsAndReferencesAtomic(
-                            scannerInstructions, state.botJobId, targetBlockId);
-            if (insertion.error() != null) {
-                return failure(request, insertion.error().getErrorMessage());
-            }
-            if (insertion.instructionIds().size() != dummyIds.size()) {
-                return failure(request, "Inserted instruction count does not match Memory List.");
-            }
-            for (int index = 0; index < dummyIds.size(); index++) {
-                generatedIds.put(dummyIds.get(index), insertion.instructionIds().get(index));
-            }
-        }
-
-        if (layoutChanged) {
-            List<UpdatedRow> persistedLayout = proposedLayout.stream()
-                    .map(row -> copyWithGeneratedId(row, generatedIds))
-                    .toList();
-            ErrorMessage moveError =
-                    performDataBase.updateMoveRowsOrder("block", state.botJobId, persistedLayout);
-            if (moveError != null) {
+            if (componentKind == ComponentMemoryApplyService.ItemKind.COMPONENT_INSTRUCTION) {
+                orderedItems.add(ComponentMemoryApplyService.OrderedItem.componentInstruction(
+                        item.globalKey,
+                        positiveInteger(item.payload, "componentInstructionId"),
+                        positiveInteger(item.payload, "componentBlockId"),
+                        sourceRevision));
+            } else if (componentKind == ComponentMemoryApplyService.ItemKind.COMPONENT_BLOCK) {
+                orderedItems.add(ComponentMemoryApplyService.OrderedItem.componentBlock(
+                        item.globalKey,
+                        positiveInteger(item.payload, "componentBlockId"),
+                        sourceRevision));
+            } else {
                 return failure(
                         request,
-                        "Instructions were prepared, but their final order could not be saved: "
-                                + moveError.getErrorMessage());
+                        "A Components row has no valid INSTRUCTION or BLOCK payload.");
             }
+        }
+
+        ComponentMemoryApplyService.Result transaction = componentMemoryApplyService.apply(
+                new ComponentMemoryApplyService.Request(
+                        requestId,
+                        state.botJobId,
+                        state.homeBankingId,
+                        targetBlockId,
+                        orderedItems));
+        if (!transaction.committed()) {
+            ErrorMessage transactionError = transaction.error();
+            String message = transactionError == null
+                    ? "Memory List could not be applied."
+                    : firstNonBlank(
+                            transactionError.getErrorHeader(),
+                            transactionError.getErrorMessage(),
+                            transactionError.getErrorTitle());
+            return failure(request, message);
         }
 
         ErrorMessage refreshError =
@@ -555,7 +567,7 @@ public final class MemoryListWorkspaceService {
                 }
             }
         }
-        state.targetBlockId = targetBlockId;
+        if (targetBlockId > 0) state.targetBlockId = targetBlockId;
         state.revision++;
         reloadBlocks(state);
 
@@ -566,8 +578,14 @@ public final class MemoryListWorkspaceService {
                         ? "Memory List applied."
                         : "Memory List applied; Bot Job Details refresh is pending.");
         response.addProperty("committed", true);
+        response.addProperty("duplicate", transaction.duplicate());
         response.addProperty("synchronized", refreshError == null);
-        response.addProperty("appliedCount", appliedKeys.size());
+        response.addProperty("appliedCount", transaction.appliedCount());
+        response.add(
+                "generatedInstructionIds",
+                gson.toJsonTree(transaction.generatedInstructionIds()));
+        response.add("generatedBlockIds", gson.toJsonTree(transaction.generatedBlockIds()));
+        rememberCompletedApply(state, requestId, response);
         return response;
     }
 
@@ -578,73 +596,6 @@ public final class MemoryListWorkspaceService {
         } catch (IllegalArgumentException inactiveWorkspace) {
             return false;
         }
-    }
-
-    private List<UpdatedRow> buildFinalLayout(
-            List<InstructionLoad> rows, int targetBlockId, List<Integer> orderedSelectedIds) {
-        Set<Integer> selected = new HashSet<>(orderedSelectedIds);
-        Map<Integer, List<InstructionLoad>> blocks = new LinkedHashMap<>();
-        rows.stream()
-                .filter(row -> row != null && row.getId() != null && row.getBlockId() != null)
-                .sorted(Comparator.comparing(
-                                (InstructionLoad row) -> row.getBlockId() == null ? Integer.MAX_VALUE : row.getBlockId())
-                        .thenComparing(row -> row.getInstructionOrderNumber() == null
-                                ? Integer.MAX_VALUE
-                                : row.getInstructionOrderNumber()))
-                .forEach(row -> blocks.computeIfAbsent(row.getBlockId(), ignored -> new ArrayList<>()).add(row));
-        Map<Integer, InstructionLoad> byId = new HashMap<>();
-        rows.forEach(row -> {
-            if (row != null && row.getId() != null) byId.put(row.getId(), row);
-        });
-        blocks.values().forEach(blockRows -> blockRows.removeIf(row -> selected.contains(row.getId())));
-        List<InstructionLoad> target =
-                blocks.computeIfAbsent(targetBlockId, ignored -> new ArrayList<>());
-        for (Integer instructionId : orderedSelectedIds) {
-            InstructionLoad row = byId.get(instructionId);
-            if (row != null) target.add(row);
-        }
-
-        List<UpdatedRow> result = new ArrayList<>();
-        for (var block : blocks.entrySet()) {
-            List<InstructionLoad> blockRows = block.getValue();
-            for (int index = 0; index < blockRows.size(); index++) {
-                UpdatedRow update = new UpdatedRow();
-                update.setInstructionId(blockRows.get(index).getId());
-                update.setBlockId(block.getKey());
-                update.setInstructionOrderNumber(index + 1);
-                result.add(update);
-            }
-        }
-        return result;
-    }
-
-    private boolean layoutChanged(List<InstructionLoad> rows, List<UpdatedRow> updates) {
-        Map<Integer, InstructionLoad> currentById = new HashMap<>();
-        rows.forEach(row -> {
-            if (row != null && row.getId() != null) currentById.put(row.getId(), row);
-        });
-        for (UpdatedRow update : updates) {
-            InstructionLoad currentRow = currentById.get(update.getInstructionId());
-            if (currentRow == null
-                    || !Objects.equals(currentRow.getBlockId(), update.getBlockId())
-                    || !Objects.equals(
-                            currentRow.getInstructionOrderNumber(),
-                            update.getInstructionOrderNumber())) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private UpdatedRow copyWithGeneratedId(UpdatedRow source, Map<Integer, Integer> generatedIds) {
-        UpdatedRow copy = new UpdatedRow();
-        copy.setInstructionId(generatedIds.getOrDefault(source.getInstructionId(), source.getInstructionId()));
-        copy.setInstructionOrderNumber(source.getInstructionOrderNumber());
-        copy.setBlockId(source.getBlockId());
-        copy.setBlockOrderNumber(source.getBlockOrderNumber());
-        copy.setParentBlockId(source.getParentBlockId());
-        copy.setParentId(source.getParentId());
-        return copy;
     }
 
     private void suppressAndRemove(MemoryState state, AggregatedItem item) {
@@ -687,6 +638,15 @@ public final class MemoryListWorkspaceService {
             Session transportSession) {
         JsonObject submittedSnapshot = snapshot(body).deepCopy();
         String kind = sourceKind(transportSessionId);
+        if (COMPONENT_SOURCE.equals(kind)) {
+            BotJobDetailsWorkspaceRegistry.Snapshot active =
+                    BotJobDetailsWorkspaceRegistry.getInstance().require(state.botJobId);
+            submittedSnapshot.addProperty("botJobId", active.botJobId());
+            submittedSnapshot.addProperty("botJobName", active.name());
+            submittedSnapshot.addProperty("homeBankingId", active.homeBankingId());
+            submittedSnapshot.add("blocks", new JsonArray());
+            submittedSnapshot.remove("targetBlockId");
+        }
         SourceState previous = state.sources.get(kind);
         Set<String> previousKeys =
                 previous == null ? Set.of() : new HashSet<>(previous.itemKeys);
@@ -802,7 +762,9 @@ public final class MemoryListWorkspaceService {
             JsonObject body, String transportSessionId, Session transportSession) {
         String sourceKind = sourceKind(transportSessionId);
         if (sourceKind.isEmpty()) {
-            return failure(body, "Only Bot Job Details or Page Scanner can update the Memory List.");
+            return failure(
+                    body,
+                    "Only Bot Job Details, Page Scanner, or Components can update the Memory List.");
         }
         if (!isRegisteredTransport(transportSessionId, transportSession)) {
             return failure(body, "The Memory List source is not authoritative.");
@@ -810,6 +772,22 @@ public final class MemoryListWorkspaceService {
         if (body == null) return failure(null, "Memory List body is required.");
         if (positiveInteger(body, "botJobId") <= 0) {
             return failure(body, "A positive Bot Job ID is required.");
+        }
+        if (COMPONENT_SOURCE.equals(sourceKind)) {
+            try {
+                BotJobDetailsWorkspaceRegistry.Snapshot active =
+                        BotJobDetailsWorkspaceRegistry.getInstance()
+                                .require(positiveInteger(body, "botJobId"));
+                if (active.homeBankingId() <= 0) {
+                    return failure(
+                            body,
+                            "The active Bot Job has no authoritative organization for Components.");
+                }
+            } catch (IllegalArgumentException inactive) {
+                return failure(
+                        body,
+                        "Components do not match the active Bot Job Details workspace.");
+            }
         }
         JsonObject snapshot = snapshot(body);
         if (snapshot == null) return failure(body, "A Memory List snapshot is required.");
@@ -824,6 +802,10 @@ public final class MemoryListWorkspaceService {
                     && value.getAsJsonArray().size() > MAX_COLLECTION_ITEMS) {
                 return failure(body, "Memory List collection is too large: " + collection);
             }
+        }
+        if (COMPONENT_SOURCE.equals(sourceKind)) {
+            JsonObject componentValidation = validateComponentSnapshot(body, snapshot);
+            if (componentValidation != null) return componentValidation;
         }
         return null;
     }
@@ -852,14 +834,71 @@ public final class MemoryListWorkspaceService {
         if (ScannerWorkspaceSessions.isOcrSourceScannerSession(transportSessionId)) {
             return PAGE_SCANNER_SOURCE;
         }
+        if (ScannerWorkspaceSessions.COMPONENT_TASKS.equals(transportSessionId)) {
+            return COMPONENT_SOURCE;
+        }
         return "";
     }
 
-    private int sourceHomeBankingId(JsonObject body) {
+    private int sourceHomeBankingId(JsonObject body, String transportSessionId) {
+        if (COMPONENT_SOURCE.equals(sourceKind(transportSessionId))) {
+            return BotJobDetailsWorkspaceRegistry.getInstance()
+                    .require(positiveInteger(body, "botJobId"))
+                    .homeBankingId();
+        }
         int value = positiveInteger(body, "homeBankingId");
         if (value > 0) return value;
         JsonObject nested = snapshot(body);
         return positiveInteger(nested, "homeBankingId");
+    }
+
+    private JsonObject validateComponentSnapshot(JsonObject request, JsonObject submittedSnapshot) {
+        JsonArray items = array(submittedSnapshot, "items");
+        if (items == null) return null;
+        Set<String> sourceKeys = new HashSet<>();
+        for (JsonElement value : items) {
+            if (value == null || !value.isJsonObject()) {
+                return failure(request, "A Components Memory List row is invalid.");
+            }
+            JsonObject item = value.getAsJsonObject();
+            String sourceItemKey = string(item, "sourceItemKey");
+            if (sourceItemKey.isBlank() || !sourceKeys.add(sourceItemKey)) {
+                return failure(
+                        request,
+                        "Components Memory List rows require unique stable source keys.");
+            }
+            JsonObject payload = object(item, "payload");
+            if (payload == null) {
+                return failure(request, "A Components Memory List row has no typed payload.");
+            }
+            ComponentMemoryApplyService.ItemKind kind =
+                    ComponentMemoryApplyService.ItemKind.componentKind(string(payload, "kind"));
+            String revision = string(payload, "sourceRevision");
+            if (revision.isEmpty()) revision = string(payload, "graphRevision");
+            if (revision.isBlank() || revision.length() > 128) {
+                return failure(
+                        request,
+                        "A Components row has no valid source graph revision. Refresh Components.");
+            }
+            if (kind == ComponentMemoryApplyService.ItemKind.COMPONENT_INSTRUCTION) {
+                if (positiveInteger(payload, "componentInstructionId") <= 0
+                        || positiveInteger(payload, "componentBlockId") <= 0) {
+                    return failure(
+                            request,
+                            "A Components instruction row has invalid authoritative IDs.");
+                }
+            } else if (kind == ComponentMemoryApplyService.ItemKind.COMPONENT_BLOCK) {
+                if (positiveInteger(payload, "componentBlockId") <= 0) {
+                    return failure(
+                            request, "A Components block row has an invalid authoritative ID.");
+                }
+            } else {
+                return failure(
+                        request,
+                        "A Components row must be typed as INSTRUCTION or BLOCK.");
+            }
+        }
+        return null;
     }
 
     private JsonObject snapshot(JsonObject body) {
@@ -942,17 +981,28 @@ public final class MemoryListWorkspaceService {
         }
         snapshot.addProperty(
                 "emptyMessage",
-                "Click \"+\" on Bot Job instructions or Page Scanner elements to add them here.");
+                "Click \"+\" on Bot Job instructions, Components, or Page Scanner elements to add them here.");
         boolean busy = state.sources.values().stream()
                 .map(source -> source.snapshot)
                 .anyMatch(source -> booleanValue(source, "busy"));
         snapshot.addProperty("busy", busy);
+        Set<Integer> selectedComponentBlocks = state.items.values().stream()
+                .filter(item -> COMPONENT_SOURCE.equals(item.sourceKind))
+                .filter(item -> "BLOCK".equalsIgnoreCase(string(item.payload, "kind")))
+                .map(item -> positiveInteger(item.payload, "componentBlockId"))
+                .filter(blockId -> blockId > 0)
+                .collect(java.util.stream.Collectors.toSet());
+        boolean targetRequired = state.items.values().stream().anyMatch(item -> {
+            if (!COMPONENT_SOURCE.equals(item.sourceKind)) return true;
+            if ("BLOCK".equalsIgnoreCase(string(item.payload, "kind"))) return false;
+            return !selectedComponentBlocks.contains(
+                    positiveInteger(item.payload, "componentBlockId"));
+        });
+        boolean validTarget = state.targetBlockId != null
+                && state.blocks.containsKey(state.targetBlockId);
         snapshot.addProperty(
                 "canApply",
-                !busy
-                        && !state.items.isEmpty()
-                        && state.targetBlockId != null
-                        && state.blocks.containsKey(state.targetBlockId));
+                !busy && !state.items.isEmpty() && (!targetRequired || validTarget));
         snapshot.addProperty(
                 "status",
                 state.items.size()
@@ -974,6 +1024,24 @@ public final class MemoryListWorkspaceService {
         response.addProperty("ownerEpoch", state.ownerEpoch);
         response.addProperty("revision", state.revision);
         return response;
+    }
+
+    private void rememberCompletedApply(
+            MemoryState state, String requestId, JsonObject response) {
+        if (requestId == null || requestId.isBlank() || response == null) return;
+        state.completedApplyRequests.put(requestId, response.deepCopy());
+        while (state.completedApplyRequests.size() > 256) {
+            String eldest = state.completedApplyRequests.keySet().iterator().next();
+            state.completedApplyRequests.remove(eldest);
+        }
+    }
+
+    private static String firstNonBlank(String... values) {
+        if (values == null) return "Memory List operation failed.";
+        for (String value : values) {
+            if (value != null && !value.isBlank()) return value;
+        }
+        return "Memory List operation failed.";
     }
 
     private void copyRequestId(JsonObject response, JsonObject request) {
@@ -1075,6 +1143,8 @@ public final class MemoryListWorkspaceService {
         private final Set<String> suppressedKeys = new HashSet<>();
         private final Map<Integer, JsonObject> persistedBlocks = new LinkedHashMap<>();
         private final Map<Integer, JsonObject> blocks = new LinkedHashMap<>();
+        private final LinkedHashMap<String, JsonObject> completedApplyRequests =
+                new LinkedHashMap<>(16, 0.75f, true);
 
         private MemoryState(int botJobId, int homeBankingId, String ownerEpoch) {
             this.botJobId = botJobId;

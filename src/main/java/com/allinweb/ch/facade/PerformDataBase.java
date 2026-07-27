@@ -859,6 +859,25 @@ public class PerformDataBase {
         return null; // Success
     }
 
+    public ErrorMessage updateSubmittedBlockOrder(
+            String tableName, int whereId, List<BlockLoadDTO> submittedBlocks) {
+        try (Connection connection = getConnection()) {
+            new BlockOrderTransaction().execute(
+                    connection, tableName, whereId, submittedBlocks);
+            return null;
+        } catch (SQLException error) {
+            logDB.error(
+                    "Atomic block order update failed for table {} owner {}: {}",
+                    tableName,
+                    whereId,
+                    error.getMessage());
+            return new ErrorMessage(
+                    "Move Block Refused",
+                    "The block order was not saved",
+                    error.getMessage());
+        }
+    }
+
     public ErrorMessage updateSwiftBlockOrderNumber(
             String tableName,
             int whereId, // either "bot_job_id" or "home_banking_id"
@@ -1212,74 +1231,176 @@ public class PerformDataBase {
             int originalBlockId,
             List<UpdatedRow> instructions,
             List<BlockOrderDetailDTO> updatedBlocks) {
-        String insertSql =
-                "INSERT INTO block (block_order_number, description, name, type_id, active, wait, bot_job_id) "
-                        + "VALUES (?, ?, ?, ?, ?, ?, ?)";
-        String moveSql =
-                "UPDATE instruction SET instruction_order_number = ?, block_id = ? WHERE id = ? AND block_id = ?";
-        String orderSql = "UPDATE block SET block_order_number = ? WHERE id = ? AND bot_job_id = ?";
+        return splitBlockAtomic(
+                "block",
+                "instruction",
+                botJobId,
+                newBlock,
+                originalBlockId,
+                instructions,
+                updatedBlocks);
+    }
 
+    public ErrorMessage splitBlockAtomic(
+            String blockTable,
+            String instructionTable,
+            int ownerId,
+            BlockDetailsDTO newBlock,
+            int originalBlockId,
+            List<UpdatedRow> instructions,
+            List<BlockOrderDetailDTO> updatedBlocks) {
         try (Connection conn = getConnection()) {
-            conn.setAutoCommit(false);
             try {
-                int newBlockId;
-                try (PreparedStatement insert = conn.prepareStatement(insertSql, Statement.RETURN_GENERATED_KEYS)) {
-                    insert.setInt(1, newBlock.getBlockOrderNumber());
-                    insert.setString(2, newBlock.getBlockName() + " description");
-                    insert.setString(3, newBlock.getBlockName());
-                    insert.setInt(4, 1);
-                    insert.setInt(5, newBlock.getActive() ? 1 : 0);
-                    insert.setInt(6, 3);
-                    insert.setInt(7, botJobId);
-                    if (insert.executeUpdate() != 1) {
-                        throw new SQLException("Expected one inserted block row");
-                    }
-                    try (ResultSet keys = insert.getGeneratedKeys()) {
-                        if (!keys.next()) {
-                            throw new SQLException("Database did not return the new block ID");
-                        }
-                        newBlockId = keys.getInt(1);
-                    }
-                }
-
-                try (PreparedStatement move = conn.prepareStatement(moveSql)) {
-                    for (UpdatedRow instruction : instructions) {
-                        move.setInt(1, instruction.getInstructionOrderNumber());
-                        move.setInt(2, newBlockId);
-                        move.setInt(3, instruction.getInstructionId());
-                        move.setInt(4, originalBlockId);
-                        if (move.executeUpdate() != 1) {
-                            throw new SQLException("Instruction " + instruction.getInstructionId()
-                                    + " was not in source block " + originalBlockId);
-                        }
-                    }
-                }
-
-                try (PreparedStatement order = conn.prepareStatement(orderSql)) {
-                    for (BlockOrderDetailDTO block : updatedBlocks) {
-                        order.setInt(1, block.getBlockOrderNumber());
-                        order.setInt(2, block.getBlockId());
-                        order.setInt(3, botJobId);
-                        if (order.executeUpdate() != 1) {
-                            throw new SQLException("Block " + block.getBlockId() + " could not be reordered");
-                        }
-                    }
-                }
-
-                conn.commit();
+                int newBlockId = splitBlockTransaction(
+                        conn,
+                        blockTable,
+                        instructionTable,
+                        ownerId,
+                        newBlock,
+                        originalBlockId,
+                        instructions,
+                        updatedBlocks);
                 idsBlockAfter.clear();
                 idsBlockAfter.add(newBlockId);
+                newBlock.setBlockId(newBlockId);
                 return null;
             } catch (SQLException error) {
-                conn.rollback();
-                logDB.error("Atomic block split rolled back", error);
+                logDB.error(
+                        "Atomic block split rolled back for {} owner {}",
+                        blockTable,
+                        ownerId,
+                        error);
                 return new ErrorMessage("Split Block Error", "The block split was rolled back", error.getMessage());
-            } finally {
-                conn.setAutoCommit(true);
             }
         } catch (SQLException error) {
             logDB.error("Connection error during atomic block split", error);
             return new ErrorMessage("Database Connection Error", "Could not split the block", error.getMessage());
+        }
+    }
+
+    static int splitBlockTransaction(
+            Connection connection,
+            String blockTable,
+            String instructionTable,
+            int ownerId,
+            BlockDetailsDTO newBlock,
+            int originalBlockId,
+            List<UpdatedRow> instructions,
+            List<BlockOrderDetailDTO> updatedBlocks)
+            throws SQLException {
+        boolean botJobTables =
+                "block".equals(blockTable) && "instruction".equals(instructionTable);
+        boolean componentTables =
+                "component_block".equals(blockTable)
+                        && "component_instruction".equals(instructionTable);
+        if (!botJobTables && !componentTables) {
+            throw new SQLException("Unsupported block split table pair");
+        }
+        if (ownerId <= 0 || originalBlockId <= 0 || newBlock == null
+                || newBlock.getBlockOrderNumber() == null
+                || newBlock.getBlockOrderNumber() <= 0
+                || newBlock.getBlockName() == null
+                || newBlock.getBlockName().isBlank()
+                || instructions == null
+                || instructions.isEmpty()) {
+            throw new SQLException("Block split context is incomplete");
+        }
+
+        String ownerColumn = componentTables ? "home_banking_id" : "bot_job_id";
+        String insertSql = "INSERT INTO " + blockTable
+                + " (block_order_number, description, name, type_id, active, wait, "
+                + ownerColumn + ") VALUES (?, ?, ?, ?, ?, ?, ?)";
+        String moveSql = "UPDATE " + instructionTable
+                + " SET instruction_order_number = ?, block_id = ?"
+                + " WHERE id = ? AND block_id = ? AND " + ownerColumn + " = ?";
+        String orderSql = "UPDATE " + blockTable
+                + " SET block_order_number = ? WHERE id = ? AND " + ownerColumn + " = ?";
+
+        boolean previousAutoCommit = connection.getAutoCommit();
+        connection.setAutoCommit(false);
+        try {
+            int newBlockId;
+            try (PreparedStatement insert =
+                    connection.prepareStatement(insertSql, Statement.RETURN_GENERATED_KEYS)) {
+                insert.setInt(1, newBlock.getBlockOrderNumber());
+                insert.setString(
+                        2,
+                        newBlock.getBlockDescription() == null
+                                || newBlock.getBlockDescription().isBlank()
+                                ? newBlock.getBlockName() + " description"
+                                : newBlock.getBlockDescription());
+                insert.setString(3, newBlock.getBlockName());
+                insert.setInt(4, newBlock.getTypeId() == null ? 1 : newBlock.getTypeId());
+                insert.setInt(5, Boolean.FALSE.equals(newBlock.getActive()) ? 0 : 1);
+                insert.setInt(6, newBlock.getWait() == null ? 3 : newBlock.getWait());
+                insert.setInt(7, ownerId);
+                if (insert.executeUpdate() != 1) {
+                    throw new SQLException("Expected one inserted block row");
+                }
+                try (ResultSet keys = insert.getGeneratedKeys()) {
+                    if (!keys.next()) {
+                        throw new SQLException("Database did not return the new block ID");
+                    }
+                    newBlockId = keys.getInt(1);
+                }
+            }
+
+            try (PreparedStatement move = connection.prepareStatement(moveSql)) {
+                for (UpdatedRow instruction : instructions) {
+                    if (instruction == null
+                            || instruction.getInstructionId() == null
+                            || instruction.getInstructionOrderNumber() == null) {
+                        throw new SQLException("Block split contains an incomplete instruction row");
+                    }
+                    move.setInt(1, instruction.getInstructionOrderNumber());
+                    move.setInt(2, newBlockId);
+                    move.setInt(3, instruction.getInstructionId());
+                    move.setInt(4, originalBlockId);
+                    move.setInt(5, ownerId);
+                    if (move.executeUpdate() != 1) {
+                        throw new SQLException("Instruction " + instruction.getInstructionId()
+                                + " was not in source block " + originalBlockId
+                                + " for the active owner");
+                    }
+                }
+            }
+
+            try (PreparedStatement order = connection.prepareStatement(orderSql)) {
+                for (BlockOrderDetailDTO block :
+                        updatedBlocks == null ? List.<BlockOrderDetailDTO>of() : updatedBlocks) {
+                    if (block == null
+                            || block.getBlockId() == null
+                            || block.getBlockOrderNumber() == null) {
+                        throw new SQLException("Block split contains an incomplete block order row");
+                    }
+                    order.setInt(1, block.getBlockOrderNumber());
+                    order.setInt(2, block.getBlockId());
+                    order.setInt(3, ownerId);
+                    if (order.executeUpdate() != 1) {
+                        throw new SQLException("Block " + block.getBlockId()
+                                + " could not be reordered for the active owner");
+                    }
+                }
+            }
+
+            connection.commit();
+            return newBlockId;
+        } catch (SQLException | RuntimeException error) {
+            try {
+                connection.rollback();
+            } catch (SQLException rollbackFailure) {
+                error.addSuppressed(rollbackFailure);
+            }
+            if (error instanceof SQLException sqlError) {
+                throw sqlError;
+            }
+            throw new SQLException("Block split transaction failed", error);
+        } finally {
+            try {
+                connection.setAutoCommit(previousAutoCommit);
+            } catch (SQLException restoreFailure) {
+                logDB.warn("Could not restore block split connection auto-commit", restoreFailure);
+            }
         }
     }
 
@@ -1553,61 +1674,62 @@ public class PerformDataBase {
         }
     }
 
-    public ErrorMessage rollBackBlocksRows(String targetTable, SplitDTO splitDTO) {
-        final int BATCH_SIZE = 100; // Batch size for executeBatch()
-        String updateSQL = "UPDATE " + targetTable
-                + " SET instruction_order_number = ?, block_id = ?, parent_block_id = ? WHERE id = ?";
-
+    public ErrorMessage rollBackBlocksRows(
+            String targetTable, int ownerId, SplitDTO splitDTO) {
+        if (!"instruction".equals(targetTable)
+                && !"component_instruction".equals(targetTable)) {
+            return new ErrorMessage(
+                    "RollBack Error",
+                    "Unsupported instruction table",
+                    "Only instruction workspaces can roll back a block.");
+        }
+        if (ownerId <= 0
+                || splitDTO == null
+                || splitDTO.getBlockId() == null
+                || splitDTO.getBlockId() <= 0
+                || splitDTO.getGraphRevision() == null
+                || splitDTO.getGraphRevision().isBlank()
+                || splitDTO.getUpdatedBlocks() == null
+                || splitDTO.getUpdatedBlocks().isEmpty()
+                || splitDTO.getUpdatedRows() == null
+                || splitDTO.getUpdatedRows().isEmpty()) {
+            return new ErrorMessage(
+                    "RollBack Error",
+                    "Invalid rollback request",
+                    "The owner, revision, complete block catalog, destination block, "
+                            + "and instruction rows are required.");
+        }
         try (Connection conn = getConnection()) {
-            conn.setAutoCommit(false); // Disable auto-commit
-
-            try (PreparedStatement pstmt = conn.prepareStatement(updateSQL)) {
-                int count = 0;
-
-                for (UpdatedRow instruction : splitDTO.getUpdatedRows()) {
-                    pstmt.setInt(1, instruction.getInstructionOrderNumber());
-                    pstmt.setInt(2, splitDTO.getBlockId());
-                    if (instruction.getParentBlockId() != null && instruction.getParentBlockId() > 0) {
-                        pstmt.setInt(3, splitDTO.getBlockId());
-                    } else {
-                        pstmt.setNull(3, Types.INTEGER);
-                    }
-                    pstmt.setInt(4, instruction.getInstructionId());
-
-                    pstmt.addBatch();
-                    count++;
-
-                    if (count % BATCH_SIZE == 0) {
-                        int[] rowsAffected = pstmt.executeBatch();
-                        conn.commit();
-
-                        logDB.info("Executed batch of " + BATCH_SIZE + " updates for blockId " + splitDTO.getBlockId());
-                    }
-                }
-
-                // Execute any remaining batch
-                if (count % BATCH_SIZE != 0) {
-                    int[] rowsAffected = pstmt.executeBatch();
-                    conn.commit();
-
-                    logDB.info("Executed final batch of " + (count % BATCH_SIZE) + " updates for blockId "
-                            + splitDTO.getBlockId());
-                }
-
-                return null; // Success
-            } catch (SQLException e) {
-
-                logDB.error(String.format(
-                        "RollBackBlocks - Error updating BlockId %d. Error: %s",
-                        splitDTO.getBlockId(), e.getMessage()));
-                return new ErrorMessage("RollBack Error", "Failed to roll back instructions", e.getMessage());
+            try {
+                new BlockRollbackTransaction()
+                        .execute(
+                                conn,
+                                targetTable,
+                                ownerId,
+                                splitDTO.getBlockId(),
+                                splitDTO.getGraphRevision(),
+                                splitDTO.getUpdatedBlocks(),
+                                splitDTO.getUpdatedRows());
+                return null;
+            } catch (SQLException error) {
+                logDB.error(
+                        "RollBackBlocks - Error updating BlockId {}. Error: {}",
+                        splitDTO.getBlockId(),
+                        error.getMessage());
+                return new ErrorMessage(
+                        "RollBack Error",
+                        "Failed to roll back instructions",
+                        error.getMessage());
             }
         } catch (SQLException ex) {
-
-            logDB.error(String.format(
-                    "Connection error while rolling back BlockId %d. Error: %s",
-                    splitDTO.getBlockId(), ex.getMessage()));
-            return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
+            logDB.error(
+                    "Connection error while rolling back BlockId {}. Error: {}",
+                    splitDTO.getBlockId(),
+                    ex.getMessage());
+            return new ErrorMessage(
+                    "Database Connection Error",
+                    "Could not connect to database",
+                    ex.getMessage());
         }
     }
 
@@ -2507,6 +2629,35 @@ public class PerformDataBase {
         return null; // Success
     }
 
+    public ErrorMessage updateBlockAndInstructionStatus(
+            String blockTable,
+            String instructionTable,
+            int whereId,
+            int blockId,
+            boolean blockActive) {
+        try (Connection connection = getConnection()) {
+            new BlockStatusTransaction().execute(
+                    connection,
+                    blockTable,
+                    instructionTable,
+                    whereId,
+                    blockId,
+                    blockActive);
+            return null;
+        } catch (SQLException error) {
+            logDB.error(
+                    "Atomic block status update failed for table {} owner {} block {}: {}",
+                    blockTable,
+                    whereId,
+                    blockId,
+                    error.getMessage());
+            return new ErrorMessage(
+                    "Update Block Status Error",
+                    "The block and instruction statuses were not saved",
+                    error.getMessage());
+        }
+    }
+
     public ErrorMessage updateInstructionStatusByBlock(
             String tableName, // "instruction" or "component_instruction"
             int whereId, // bot_job_id or home_banking_id
@@ -2591,6 +2742,7 @@ public class PerformDataBase {
                     .append("b.name AS block_name, ")
                     .append("b.description, ")
                     .append("b.type_id, ")
+                    .append("b.export_file, ")
                     .append("b.wait, ")
                     .append("b.active, ")
                     .append("b.bot_job_id ")
@@ -2605,6 +2757,7 @@ public class PerformDataBase {
                     .append("b.name AS block_name, ")
                     .append("b.description, ")
                     .append("b.type_id, ")
+                    .append("b.export_file, ")
                     .append("b.wait, ")
                     .append("b.active, ")
                     .append("b.home_banking_id ")
@@ -2643,6 +2796,7 @@ public class PerformDataBase {
                         blockDTO.setName(rs.getString("block_name"));
                         blockDTO.setDescription(rs.getString("description"));
                         blockDTO.setTypeId(rs.getInt("type_id"));
+                        blockDTO.setExportFile(rs.getString("export_file"));
                         blockDTO.setWait(rs.getInt("wait"));
                         blockDTO.setActive(rs.getBoolean("active"));
 
@@ -7411,59 +7565,127 @@ public class PerformDataBase {
     }
 
     public ErrorMessage createVariable(VariableUserDTO user) {
-        String tableName = "variable";
-        String insertSQL = "INSERT INTO " + tableName
-                + " (type, Name, Value, bot_job_id, instruction_id, local_format, delimiter) "
-                + "VALUES (?, ?, ?, ?, ?, ?, ?)";
+        return createVariable("variable", user == null ? -1 : user.getBotJobId(), user);
+    }
 
-        try (Connection conn = getConnection();
-                Statement idStmtBefore = conn.createStatement();
-                Statement idStmtAfter = conn.createStatement();
-                PreparedStatement pstmt = conn.prepareStatement(insertSQL)) {
+    /**
+     * Creates a variable in the instruction workspace that owns it.
+     *
+     * <p>The Components command editor is scoped by {@code home_banking_id}; routing its create
+     * operation through the legacy overload wrote the row into {@code variable} using a Bot Job
+     * owner. Keep the table choice whitelisted and verify the parent instruction on the same
+     * transaction before inserting.
+     */
+    public ErrorMessage createVariable(
+            String targetTable, int ownerId, VariableUserDTO user) {
+        if (user == null
+                || ownerId <= 0
+                || user.getParentId() == null
+                || user.getParentId() <= 0) {
+            return new ErrorMessage(
+                    "Variable Insertion Error",
+                    "A variable, parent instruction, and positive workspace owner are required.",
+                    null);
+        }
+        String tableName;
+        String instructionTable;
+        String ownerColumn;
+        if ("variable".equals(targetTable)) {
+            tableName = "variable";
+            instructionTable = "instruction";
+            ownerColumn = "bot_job_id";
+        } else if ("component_variable".equals(targetTable)) {
+            tableName = "component_variable";
+            instructionTable = "component_instruction";
+            ownerColumn = "home_banking_id";
+        } else {
+            return new ErrorMessage(
+                    "Variable Insertion Error",
+                    "Unsupported variable workspace.",
+                    targetTable);
+        }
 
-            conn.setAutoCommit(false); // Disable auto-commit
-
-            // Step 1: Get IDs before insertion
-            List<Integer> idsBefore = new ArrayList<>();
-            try (ResultSet rsBefore = idStmtBefore.executeQuery("SELECT ID FROM " + tableName + " ORDER BY ID")) {
-                while (rsBefore.next()) {
-                    idsBefore.add(rsBefore.getInt("ID"));
-                }
-            }
-
-            // Step 2: Insert new variable record
-            pstmt.setString(1, user.getType());
-            pstmt.setString(2, user.getName());
-            pstmt.setString(3, user.getValue());
-            pstmt.setInt(4, user.getBotJobId());
-            pstmt.setInt(5, user.getParentId());
-            pstmt.setString(6, user.getLocalFormat());
-            pstmt.setString(7, user.getDelimiter());
-
-            pstmt.addBatch();
-            pstmt.executeBatch();
-
-            // Step 3: Get IDs after insertion
-            idsVariableAfter.clear();
-            try (ResultSet rsAfter = idStmtAfter.executeQuery("SELECT ID FROM " + tableName + " ORDER BY ID")) {
-                while (rsAfter.next()) {
-                    idsVariableAfter.add(rsAfter.getInt("ID"));
-                }
-            }
-
-            // Step 4: Keep only the new IDs
-            idsVariableAfter.removeAll(idsBefore);
-
-            logDB.info(String.format("Variable inserted successfully. New IDs: %s", idsVariableAfter));
-
-            conn.commit(); // Commit transaction
-            return null; // Success
-
+        try (Connection conn = getConnection()) {
+            return createVariableTransaction(
+                    conn,
+                    tableName,
+                    instructionTable,
+                    ownerColumn,
+                    ownerId,
+                    user);
         } catch (SQLException error) {
+            logDB.error("createVariable - Error: {}", error.getMessage());
+            return new ErrorMessage(
+                    "Variable Insertion Error",
+                    "Error inserting a new variable.",
+                    error.getMessage());
+        }
+    }
 
-            logDB.error(String.format("createVariable - Error: %s", error.getMessage()));
+    ErrorMessage createVariableTransaction(
+            Connection conn,
+            String tableName,
+            String instructionTable,
+            String ownerColumn,
+            int ownerId,
+            VariableUserDTO user)
+            throws SQLException {
+        boolean previousAutoCommit = conn.getAutoCommit();
+        conn.setAutoCommit(false);
+        try {
+            try (PreparedStatement parent = conn.prepareStatement(
+                    "SELECT COUNT(*) FROM " + instructionTable
+                            + " WHERE id = ? AND " + ownerColumn + " = ?")) {
+                parent.setInt(1, user.getParentId());
+                parent.setInt(2, ownerId);
+                try (ResultSet result = parent.executeQuery()) {
+                    if (!result.next() || result.getInt(1) != 1) {
+                        throw new SQLException(
+                                "The variable parent instruction does not belong to the active workspace");
+                    }
+                }
+            }
 
-            return new ErrorMessage("Variable Insertion Error", "Error inserting a new variable.", error.getMessage());
+            String insertSQL = "INSERT INTO " + tableName
+                    + " (type, Name, Value, " + ownerColumn
+                    + ", instruction_id, local_format, delimiter) "
+                    + "VALUES (?, ?, ?, ?, ?, ?, ?)";
+            try (PreparedStatement insert =
+                    conn.prepareStatement(insertSQL, Statement.RETURN_GENERATED_KEYS)) {
+                insert.setString(1, user.getType());
+                insert.setString(2, user.getName());
+                insert.setString(3, user.getValue());
+                insert.setInt(4, ownerId);
+                insert.setInt(5, user.getParentId());
+                insert.setString(6, user.getLocalFormat());
+                insert.setString(7, user.getDelimiter());
+                if (insert.executeUpdate() != 1) {
+                    throw new SQLException("Variable insert did not create exactly one row");
+                }
+                idsVariableAfter.clear();
+                try (ResultSet keys = insert.getGeneratedKeys()) {
+                    if (keys.next()) idsVariableAfter.add(keys.getInt(1));
+                }
+            }
+            conn.commit();
+            logDB.info(
+                    "Variable inserted successfully into {}. New IDs: {}",
+                    tableName,
+                    idsVariableAfter);
+            return null;
+        } catch (SQLException | RuntimeException failure) {
+            try {
+                conn.rollback();
+            } catch (SQLException rollbackFailure) {
+                failure.addSuppressed(rollbackFailure);
+            }
+            throw failure;
+        } finally {
+            try {
+                conn.setAutoCommit(previousAutoCommit);
+            } catch (SQLException ignored) {
+                // The transaction outcome is already known and the caller closes the connection.
+            }
         }
     }
 
@@ -8677,7 +8899,8 @@ public class PerformDataBase {
                 .append("i.block_id, i.instruction_order_number, i.actions, i.name, i.client_named, i.operation, ")
                 .append("i.xpath, i.coordinates, i.force_coordinates, i.iframe_xpath, ")
                 .append("i.tag_name, i.shadow_host, i.shadow_root, i.css_selector, ")
-                .append("i.description AS instruction_description, i.optional, i.action_custom_max_wait_sec, ")
+                .append("i.description AS instruction_description, i.default_value, ")
+                .append("i.optional, i.action_custom_max_wait_sec, ")
                 .append("i.on_hold_seconds, i.codified, i.export_to_abr, i.active AS instruction_active, ")
                 .append("i.variable_id, i.parent_id, i.parent_block_id, ")
                 .append("r.id AS reference_id, r.instruction_id AS ref_instruction_id, r.value AS reference_value, ")
@@ -8763,6 +8986,7 @@ public class PerformDataBase {
                         instruction.setShadowRoot(rs.getString("shadow_root"));
                         instruction.setCssSelector(rs.getString("css_selector"));
                         instruction.setDescription(rs.getString("instruction_description"));
+                        instruction.setDefaultValue(rs.getString("default_value"));
                         instruction.setOptional(rs.getBoolean("optional"));
                         instruction.setActionCustomMaxWaitSec(rs.getInt("action_custom_max_wait_sec"));
                         instruction.setOnHoldSeconds(rs.getInt("on_hold_seconds"));

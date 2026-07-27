@@ -1619,3 +1619,126 @@ Roadmap:
 - [x] Maven/Java compilation was not run.
 
 Next unclaimed leaf: `EmptyBlocksPlaceholder`.
+
+## CODEX - GridItemComp production parity and component-safe Memory flow (2026-07-27)
+
+### Production diagnosis
+
+- [x] The former `GridItemComp.tsx` was an independent legacy copy of `GridItem.tsx`. Its 2,400+
+      lines had drifted from the canonical Bot Job grid, so later button, command, drag/drop,
+      Memory List, validation, and realtime fixes were present in only one copy.
+- [x] Component row and block requests did not have one explicit routing policy. A forged or stale
+      target session could therefore select the wrong table family.
+- [x] The component blue-arrow path bypassed the global Memory List and used the legacy direct
+      injection pipeline, whose multiple connections/commits could leave a partially copied graph.
+- [x] Component mutations could be followed by a stale process-cache snapshot, visually undoing a
+      successful database write.
+- [x] Instruction-array-only snapshots dropped empty component Blocks, so empty Blocks disappeared
+      after refresh and could not be deleted, rolled back, or reordered reliably.
+- [x] Component block reorder previously renumbered cached rows instead of persisting the submitted
+      permutation. Block status also used two independent commits for the Block and its children.
+
+### Frontend correction
+
+- [x] `GridItemComp` is now a thin wrapper around the canonical `GridItem` with
+      `workspaceMode="COMPONENT"`. All row/block buttons, command actions, status controls,
+      move arrows, drag/drop handlers, find behavior, delete/rollback behavior, and Memory buttons
+      are therefore the same implementation rather than a second copy.
+- [x] Added one typed workspace policy:
+      `componentTasks` + `componentsUpdate` + `COMPONENT_ROW_MOVE`.
+- [x] Preserved the Components block-header design in `Griditem.module.scss`, including the dark
+      blue `#0b5394` background, 20px height, white text, radius, padding, and shadow.
+- [x] The row `+` stages one component instruction in the global Memory List.
+- [x] The block `+` stages every eligible instruction in the block.
+- [x] The blue arrow stages one typed whole-component Block in Memory and never sends
+      `COMPONENT_INJECT`.
+- [x] Component Memory items carry stable keys, authoritative source IDs, and a graph revision.
+      Duplicate clicks are de-duplicated; stale source revisions are refused by the backend.
+- [x] Full component Block catalogues are maintained independently from instruction rows, retaining
+      empty Blocks across initial bootstrap and authoritative updates.
+- [x] Empty Blocks are real row-drop targets. Moving a row into an empty component Block uses the
+      same validated `COMPONENT_ROW_MOVE` transaction and does not delete unrelated pre-existing
+      empty Blocks.
+- [x] The first Components connection now requests an explicit bootstrap after its physical socket
+      is registered, eliminating the former first-open race where the Java snapshot was published
+      before the browser could receive it.
+- [x] Bootstrap success is acknowledged before grid publication, but publication completion is now
+      observed. A presentation-thread refresh failure emits a correlated
+      `instructionEditor.resyncRequired` to the same physical page instead of leaving an empty
+      Components grid with a false green status.
+- [x] A failed authoritative refresh after a committed mutation now raises
+      `instructionEditor.resyncRequired`; the grid disables further mutation until refreshed.
+- [x] Refused component mutations also reload the authoritative snapshot, restoring any
+      optimistically changed empty-Block catalogue, row order, status, or name.
+- [x] The detached Components header now reports controller bootstrap state and exposes an
+      explicit Refresh action. The Command Editor accepts and hydrates both typed
+      `botJobTasks` and `componentTasks` workspaces.
+
+### Backend correction
+
+- [x] Direct `COMPONENT_INJECT` is refused with instructions to use Memory List.
+- [x] `ComponentMemoryApplyService` performs mixed Memory apply on one connection and one
+      transaction. It validates Bot Job ownership, component ownership/revision, target Block,
+      command parents/GOTO Blocks, conditionals, variables, references, generated IDs, concurrent
+      layout changes, and idempotent request IDs before commit.
+- [x] Component instruction moves validate every destination Block against the active organization
+      before updating any row.
+- [x] Component Block order uses the complete submitted owner-scoped permutation and one
+      transaction; unknown, duplicate, missing, or non-contiguous entries are rejected.
+- [x] Block active status and all owned child instruction statuses are persisted in one transaction,
+      including empty Blocks.
+- [x] Component create/rollback/split, Command Editor, and Variable Editor paths now use
+      owner-scoped validation and authoritative component snapshots.
+- [x] The physical WebSocket session is authoritative. Component transport cannot relabel itself as
+      Bot Job Details; the only cross-surface operations are exact test/hover destination mappings.
+- [x] Bot Job grid writes also require the exact currently registered `botJobTasks` physical
+      transport and the active registry binding. Submitted Bot Job/organization identity is
+      validated and canonicalized before any table is read.
+- [x] Authorization failures for graph preview, Memory capabilities, and Variable Editor operations
+      are returned directly to the offending physical connection; a forged logical session cannot
+      inject a correlated refusal into another page.
+- [x] Component Test Click/Input resolves the source instruction freshly for each request so an ID
+      collision with a Bot Job instruction cannot execute the wrong row.
+- [x] Partial row moves resolve an omitted parent from its stored authoritative Block. Rollback
+      normalizes the sole surviving destination Block to order 1.
+- [x] Destructive Block rollback validates the submitted instruction graph revision and the
+      complete pre-change Block catalogue inside the same database transaction. A concurrent row
+      move or newly-created/reordered empty Block therefore refuses the stale rollback instead of
+      being overwritten or deleted.
+- [x] Block catalog loading now includes `export_file`, so empty component Blocks retain their
+      Excel export metadata through bootstrap, refresh, and mutation recovery.
+- [x] Early licence/routing failures and capability/editor authorization failures are returned to
+      the offending physical WebSocket transport. Secondary cache reload failures are preserved
+      without replacing the original mutation result.
+
+### Focused verification
+
+- [x] React focused regression result: 8 suites, 32 tests passed.
+- [x] Covered component row/block Memory staging, blue-arrow Memory-only behavior, stable
+      de-duplication, response correlation, component row-move routing, empty-Block persistence,
+      empty-Block drop targets, complete rollback catalogues, block reorder payloads, component
+      Command Editor hydration, and Components header refresh/status behavior.
+- [x] Added focused Java source tests for Memory apply transaction/rollback/idempotency,
+      component block create/rollback/status/order, foreign move destinations, WebSocket route
+      authorization/correlation, component bootstrap with empty Blocks, snapshot policy, stale
+      rollback revisions, concurrent empty-Block catalogue changes, and correlated bootstrap
+      publication failure recovery.
+- [x] Java/Maven tests and React production build were intentionally not run for this checkpoint.
+
+### Decisions
+
+- D-024: Maintain one canonical instruction-grid implementation; select table/session behavior
+  through a typed workspace policy.
+- D-025: Components are reusable source data. Applying a component to a Bot Job must always pass
+  through the global Memory List and its transactional backend service.
+- D-026: A committed component mutation is followed only by an authoritative database reload.
+  Never publish the legacy nested component cache as a fallback.
+- D-027: Empty Blocks are first-class workspace entities and must be transported separately from
+  instruction rows.
+- D-028: Logical session IDs inside JSON are routing metadata only. Physical registered transport
+  identity plus the active workspace registry are the authorization boundary for grid writes.
+- D-029: A refused optimistic component mutation still requires an authoritative database snapshot;
+  generic process-cache snapshots are never a recovery source.
+- D-030: A destructive rollback must validate both the instruction revision and complete Block
+  catalogue on the same transaction/connection used for its writes; a preflight check on another
+  connection is diagnostic only and is never the concurrency boundary.

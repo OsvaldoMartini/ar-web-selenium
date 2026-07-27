@@ -43,7 +43,22 @@ class ScannerElementTestLookupServiceTest {
         assertEquals(ScannerElementTestLookupService.COMPONENT_INSTRUCTION_TABLE, result.tableName());
         assertEquals(44, result.whereId());
         assertNull(result.loadError());
-        assertNull(ports.loadCall);
+        assertEquals("load:44:component_instruction", ports.loadCall);
+        assertEquals("find:component_instruction:44:88", ports.findCall);
+    }
+
+    @Test
+    void resolvesComponentInstructionWhenScannerPaneIsDestination() {
+        Ports ports = new Ports(false, null);
+        ScannerElementTestLookupService service = new ScannerElementTestLookupService(ports, ports);
+        SplitDTO request = request("scanner-element-pane", 11, 44, 88);
+        request.setSourceSessionId(ScannerWorkspaceSessions.COMPONENT_TASKS);
+
+        ScannerElementTestLookupService.Result result = service.resolve(request, botJob(22, 33));
+
+        assertEquals(ScannerElementTestLookupService.COMPONENT_INSTRUCTION_TABLE, result.tableName());
+        assertEquals(44, result.whereId());
+        assertEquals("load:44:component_instruction", ports.loadCall);
         assertEquals("find:component_instruction:44:88", ports.findCall);
     }
 

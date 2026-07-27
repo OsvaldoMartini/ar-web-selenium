@@ -26,10 +26,9 @@ public final class ScannerElementTestLookupService {
             return new Result(context.tableName(), context.whereId(), null, null);
         }
 
-        ErrorMessage loadError = null;
-        if (lists.isInstructionListEmpty(context.tableName())) {
-            loadError = data.loadInstructions(context.whereId(), context.tableName());
-        }
+        // A TEST click is user-driven and infrequent. Reload every time so a non-empty cache
+        // belonging to another Bot Job/organization can never resolve the same numeric ID.
+        ErrorMessage loadError = data.loadInstructions(context.whereId(), context.tableName());
 
         InstructionLoad instruction = null;
         if (loadError == null && splitDTO.getElementDetails() != null && splitDTO.getElementDetails().length > 0) {
@@ -43,7 +42,8 @@ public final class ScannerElementTestLookupService {
     }
 
     private Context context(SplitDTO splitDTO, BotJobLoadDTO currentBotJob) {
-        if (ScannerWorkspaceSessions.COMPONENT_TASKS.equals(splitDTO.getSessionId())) {
+        if (ScannerWorkspaceSessions.COMPONENT_TASKS.equals(splitDTO.getSourceSessionId())
+                || ScannerWorkspaceSessions.COMPONENT_TASKS.equals(splitDTO.getSessionId())) {
             int whereId = value(splitDTO.getHomeBankingId(), value(currentBotJob == null ? null : currentBotJob.getHomeBankingId(), -1));
             return new Context(COMPONENT_INSTRUCTION_TABLE, whereId);
         }

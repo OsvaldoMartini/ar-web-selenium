@@ -48,9 +48,21 @@ public final class BotJobWorkspaceController {
         return host().applyMetadata(state);
     }
 
-    /** Publishes the cached instruction grid after Bot Job Details bootstrap is acknowledged. */
+    /**
+     * Compatibility entry point for callers that do not observe publication completion.
+     * New bootstrap flows must use {@link #publishGridBootstrapAsync(String, int)}.
+     */
     public void publishGridBootstrap(String sessionId, int botJobId) {
-        host().publishGridBootstrap(sessionId, botJobId);
+        publishGridBootstrapAsync(sessionId, botJobId);
+    }
+
+    /**
+     * Publishes the instruction grid and completes only after the active host has finished the
+     * presentation-thread refresh. Compatibility hosts that publish synchronously are adapted by
+     * the default {@link HostPort} implementation.
+     */
+    public CompletableFuture<Void> publishGridBootstrapAsync(String sessionId, int botJobId) {
+        return host().publishGridBootstrapAsync(sessionId, botJobId);
     }
 
     public void preScanCommand(String type, JsonObject body) { host().preScanCommand(type, body); }
@@ -107,6 +119,16 @@ public final class BotJobWorkspaceController {
 
         default void publishGridBootstrap(String sessionId, int botJobId) {
             throw new IllegalStateException("Bot Job grid bootstrap is not available");
+        }
+
+        default CompletableFuture<Void> publishGridBootstrapAsync(
+                String sessionId, int botJobId) {
+            try {
+                publishGridBootstrap(sessionId, botJobId);
+                return CompletableFuture.completedFuture(null);
+            } catch (RuntimeException failure) {
+                return CompletableFuture.failedFuture(failure);
+            }
         }
 
         void preScanCommand(String type, JsonObject body);

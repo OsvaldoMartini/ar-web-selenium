@@ -57,6 +57,24 @@ public final class BotJobDetailsWorkspaceRegistry {
         return snapshot;
     }
 
+    /**
+     * Requires the organization currently owned by the single Bot Job Details workspace.
+     *
+     * <p>Reusable Components are organization-scoped and may carry a synthetic Bot Job id. Their
+     * authorization boundary is therefore the active organization, not the submitted Bot Job id.
+     */
+    public synchronized Snapshot requireHomeBanking(int homeBankingId) {
+        Snapshot snapshot = active.get();
+        if (snapshot == null
+                || !snapshot.open()
+                || homeBankingId <= 0
+                || snapshot.homeBankingId() != homeBankingId) {
+            throw new IllegalArgumentException(
+                    "Components do not match the active Bot Job Details organization");
+        }
+        return snapshot;
+    }
+
     public synchronized Snapshot require(int botJobId, long workspaceEpoch) {
         Snapshot snapshot = require(botJobId);
         if (snapshot.workspaceEpoch() != workspaceEpoch) {

@@ -145,6 +145,28 @@ class BotJobDetailsWorkspaceRegistryTest {
     }
 
     @Test
+    void componentOrganizationMustMatchTheOpenBotJobWorkspace() {
+        assertEquals(7, registry.requireHomeBanking(7).homeBankingId());
+        assertThrows(IllegalArgumentException.class, () -> registry.requireHomeBanking(0));
+        assertThrows(IllegalArgumentException.class, () -> registry.requireHomeBanking(8));
+
+        registry.close(42);
+        assertThrows(IllegalArgumentException.class, () -> registry.requireHomeBanking(7));
+    }
+
+    @Test
+    void switchingOrganizationInvalidatesThePreviousComponentContext() {
+        BotJobLoadDTO replacement = new BotJobLoadDTO();
+        replacement.setId(43);
+        replacement.setName("Cards");
+        replacement.setHomeBankingId(9);
+        registry.activate(replacement, false);
+
+        assertThrows(IllegalArgumentException.class, () -> registry.requireHomeBanking(7));
+        assertEquals(9, registry.requireHomeBanking(9).homeBankingId());
+    }
+
+    @Test
     void stopDuringStartupIsPromptAndTerminalStateCannotBeOverwritten() {
         BotJobDetailsWorkspaceRegistry.Snapshot workspace = registry.require(42);
         BotJobDetailsWorkspaceRegistry.ExecutionAttempt attempt =

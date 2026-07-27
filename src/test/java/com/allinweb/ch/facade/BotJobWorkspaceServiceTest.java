@@ -9,6 +9,9 @@ import com.allinweb.ch.model.BotJobLoadDTO;
 import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.util.ErrorMessage;
 import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -35,6 +38,7 @@ class BotJobWorkspaceServiceTest {
         assertEquals(List.of("42:null"), excelCalls);
         assertTrue(result.botJobJson().contains("\"id\":19"));
         assertTrue(result.componentJson().contains("\"name\":\"Account\""));
+        assertTrue(JsonParser.parseString(result.botJobJson()).isJsonArray());
     }
 
     @Test
@@ -68,7 +72,9 @@ class BotJobWorkspaceServiceTest {
         FakeDataPort data = new FakeDataPort();
         BlockLoadDTO block = new BlockLoadDTO();
         block.setId(77);
+        block.setBlockOrderNumber(1);
         block.setName("1# Login");
+        block.setExportFile("D:\\Exports\\component.xlsx");
         data.blocks.add(block);
         data.componentBlocks.add(block);
         BotJobWorkspaceService service = new BotJobWorkspaceService(data, (job, name) -> {}, new Gson());
@@ -76,7 +82,38 @@ class BotJobWorkspaceServiceTest {
         BotJobWorkspaceService.GridSnapshot result = service.refresh(job("Web App"));
 
         assertTrue(result.botJobJson().contains("\"blockId\":77"));
-        assertTrue(result.componentJson().contains("\"name\":\"1# Login\""));
+        JsonObject componentPayload = JsonParser.parseString(result.componentJson()).getAsJsonObject();
+        assertEquals(0, componentPayload.getAsJsonArray("instructions").size());
+        assertEquals(77, componentPayload.getAsJsonArray("blocks")
+                .get(0).getAsJsonObject().get("blockId").getAsInt());
+        assertEquals("1# Login", componentPayload.getAsJsonArray("blocks")
+                .get(0).getAsJsonObject().get("blockName").getAsString());
+        assertEquals("D:\\Exports\\component.xlsx", componentPayload.getAsJsonArray("blocks")
+                .get(0).getAsJsonObject().get("exportFile").getAsString());
+        assertEquals(42, componentPayload.get("botJobId").getAsInt());
+        assertEquals("Payments", componentPayload.get("botJobName").getAsString());
+        assertEquals(7, componentPayload.get("homeBankingId").getAsInt());
+    }
+
+    @Test
+    void componentSnapshotKeepsEmptyBlocksAlongsideInstructionBearingBlocks() {
+        FakeDataPort data = new FakeDataPort();
+        data.components.add(new BotJobLoadDTO());
+        data.instructions = List.of(InstructionLoad.builder().id(19).name("Account").build());
+        data.componentBlocks.add(block(77, 1, "Empty reusable block"));
+        data.componentBlocks.add(block(88, 2, "Populated reusable block"));
+        BotJobWorkspaceService service = new BotJobWorkspaceService(data, (job, name) -> {}, new Gson());
+
+        BotJobWorkspaceService.GridSnapshot result = service.refresh(job("Web App"));
+
+        JsonObject componentPayload = JsonParser.parseString(result.componentJson()).getAsJsonObject();
+        assertEquals(1, componentPayload.getAsJsonArray("instructions").size());
+        JsonArray blocks = componentPayload.getAsJsonArray("blocks");
+        assertEquals(2, blocks.size());
+        assertEquals(77, blocks.get(0).getAsJsonObject().get("blockId").getAsInt());
+        assertEquals("Empty reusable block", blocks.get(0).getAsJsonObject().get("blockName").getAsString());
+        assertEquals(88, blocks.get(1).getAsJsonObject().get("blockId").getAsInt());
+        assertEquals(2, blocks.get(1).getAsJsonObject().get("blockOrderNumber").getAsInt());
     }
 
     @Test
@@ -98,6 +135,16 @@ class BotJobWorkspaceServiceTest {
         job.setHomeBankingId(7);
         job.setPriority(priority);
         return job;
+    }
+
+    private static BlockLoadDTO block(int id, int order, String name) {
+        BlockLoadDTO block = new BlockLoadDTO();
+        block.setId(id);
+        block.setBlockOrderNumber(order);
+        block.setName(name);
+        block.setActive(true);
+        block.setWait(0);
+        return block;
     }
 
     private static final class FakeDataPort implements BotJobWorkspaceService.DataPort {

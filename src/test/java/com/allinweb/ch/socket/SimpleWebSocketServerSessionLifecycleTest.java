@@ -1,6 +1,7 @@
 package com.allinweb.ch.socket;
 
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -22,6 +23,8 @@ import java.util.Map;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import com.allinweb.ch.facade.BotJobTransferPathRegistry;
+import com.allinweb.ch.facade.BotJobDetailsWorkspaceRegistry;
+import com.allinweb.ch.model.BotJobLoadDTO;
 import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import com.google.gson.JsonObject;
 import javax.websocket.CloseReason;
@@ -84,6 +87,95 @@ class SimpleWebSocketServerSessionLifecycleTest {
     }
 
     @Test
+    void componentTableRoutingAcceptsOnlyTheExactComponentWorkspaceName() {
+        assertTrue(SimpleWebSocketServer.isComponentInstructionWorkspaceSession("componentTasks"));
+        assertFalse(SimpleWebSocketServer.isComponentInstructionWorkspaceSession("x-componentTasks"));
+        assertFalse(SimpleWebSocketServer.isComponentInstructionWorkspaceSession("componentTasks-stale"));
+        assertFalse(SimpleWebSocketServer.isComponentInstructionWorkspaceSession(null));
+    }
+
+    @Test
+    void componentTransportCannotRelabelAMutationAsBotJobDetails() {
+        assertTrue(SimpleWebSocketServer.isComponentTransportRouteConsistent(
+                "COMPONENT_ROW_MOVE", "componentTasks", "componentTasks", null));
+        assertTrue(SimpleWebSocketServer.isComponentTransportRouteConsistent(
+                "TEST_CLICK_DTO",
+                "componentTasks",
+                ScannerWorkspaceSessions.SCANNER_ELEMENT_PANE,
+                "componentTasks"));
+
+        assertFalse(SimpleWebSocketServer.isComponentTransportRouteConsistent(
+                "ROW_MOVE", "componentTasks", "botJobTasks", null));
+        assertFalse(SimpleWebSocketServer.isComponentTransportRouteConsistent(
+                "ROW_MOVE", "componentTasks", "botJobTasks", "componentTasks"));
+        assertFalse(SimpleWebSocketServer.isComponentTransportRouteConsistent(
+                "TEST_CLICK_DTO", "componentTasks", "botJobTasks", "componentTasks"));
+        assertFalse(SimpleWebSocketServer.isComponentTransportRouteConsistent(
+                "TEST_INPUT_DTO", "componentTasks", "botJobTasks", "componentTasks"));
+        assertFalse(SimpleWebSocketServer.isComponentTransportRouteConsistent(
+                "HOVERED_ROW", "componentTasks", "botJobTasks", "componentTasks"));
+        assertFalse(SimpleWebSocketServer.isComponentTransportRouteConsistent(
+                "COMPONENT_ROW_MOVE", "botJobTasks", "componentTasks", null));
+    }
+
+    @Test
+    void botJobGridMutationsRequireTheExactPhysicalBotJobTransport() {
+        assertTrue(SimpleWebSocketServer.isBotJobGridMutationTransportConsistent(
+                "ROW_MOVE", "botJobTasks", "botJobTasks"));
+        assertTrue(SimpleWebSocketServer.isBotJobGridMutationTransportConsistent(
+                "TEST_CLICK_DTO", "scannerTool", "botJobTasks"));
+
+        assertFalse(SimpleWebSocketServer.isBotJobGridMutationTransportConsistent(
+                "ROW_MOVE", "scannerTool", "botJobTasks"));
+        assertFalse(SimpleWebSocketServer.isBotJobGridMutationTransportConsistent(
+                "DELETE_INSTRUCTION", "botJobTasks", "x-botJobTasks"));
+        assertFalse(SimpleWebSocketServer.isBotJobGridMutationTransportConsistent(
+                "CREATE_BLOCK", "componentTasks", "botJobTasks"));
+        assertFalse(SimpleWebSocketServer.isBotJobGridMutationTransportConsistent(
+                "BLOCKS_SPLITTER", "scannerTool", "unknown"));
+    }
+
+    @Test
+    void componentCommandRequestsAreCanonicalizedToTheActiveOrganization() throws Exception {
+        BotJobLoadDTO job = new BotJobLoadDTO();
+        job.setId(42);
+        job.setName("Active Job");
+        job.setHomeBankingId(7);
+        BotJobDetailsWorkspaceRegistry registry =
+                BotJobDetailsWorkspaceRegistry.getInstance();
+        registry.activate(job, false);
+        Session component =
+                sessionWithId(ScannerWorkspaceSessions.COMPONENT_TASKS, true);
+        endpoint.onOpen(component);
+        try {
+            JsonObject request = new JsonObject();
+            request.addProperty(
+                    "targetSessionId",
+                    ScannerWorkspaceSessions.COMPONENT_TASKS);
+            request.addProperty("homeBankingId", 7);
+            request.addProperty("botJobId", 42);
+
+            JsonObject canonical = endpoint.authorizeInstructionGridRequest(
+                    request,
+                    ScannerWorkspaceSessions.COMPONENT_TASKS,
+                    component);
+            assertEquals(7, canonical.get("homeBankingId").getAsInt());
+            assertEquals(42, canonical.get("botJobId").getAsInt());
+            assertEquals("Active Job", canonical.get("botJobName").getAsString());
+
+            request.addProperty("homeBankingId", 999);
+            assertThrows(
+                    IllegalArgumentException.class,
+                    () -> endpoint.authorizeInstructionGridRequest(
+                            request,
+                            ScannerWorkspaceSessions.COMPONENT_TASKS,
+                            component));
+        } finally {
+            registry.close(42);
+        }
+    }
+
+    @Test
     void pageScannerFailureCorrelationCopiesOnlyAPositiveBotJobIdentity() {
         JsonObject request = new JsonObject();
         request.addProperty("botJobId", 42);
@@ -126,6 +218,61 @@ class SimpleWebSocketServerSessionLifecycleTest {
         verify(original)
                 .close(argThat(reason -> CloseReason.CloseCodes.NORMAL_CLOSURE.equals(reason.getCloseCode())));
         verify(replacement, never()).close(any(CloseReason.class));
+    }
+
+    @Test
+    void onlyTheCurrentlyRegisteredComponentTransportIsAuthoritative() throws Exception {
+        Session component = sessionWithId(ScannerWorkspaceSessions.COMPONENT_TASKS, true);
+        Session other = sessionWithId(ScannerWorkspaceSessions.BOT_JOB_TASKS, true);
+        endpoint.onOpen(component);
+        endpoint.onOpen(other);
+
+        assertTrue(endpoint.isAuthoritativeComponentTransport(component));
+        assertFalse(endpoint.isAuthoritativeComponentTransport(other));
+    }
+
+    @Test
+    void onlyTheCurrentlyRegisteredBotJobTransportIsAuthoritative() throws Exception {
+        Session botJob = sessionWithId(ScannerWorkspaceSessions.BOT_JOB_TASKS, true);
+        Session other = sessionWithId(ScannerWorkspaceSessions.COMPONENT_TASKS, true);
+        endpoint.onOpen(botJob);
+        endpoint.onOpen(other);
+
+        assertTrue(endpoint.isAuthoritativeBotJobTransport(botJob));
+        assertFalse(endpoint.isAuthoritativeBotJobTransport(other));
+    }
+
+    @Test
+    void physicalFailureResponseCannotBeRedirectedToAClaimedVictimSession() {
+        Session requester = sessionWithId(ScannerWorkspaceSessions.SCANNER_TOOL, true);
+        Session victim = sessionWithId(ScannerWorkspaceSessions.BOT_JOB_TASKS, true);
+        RemoteEndpoint.Async requesterRemote = mock(RemoteEndpoint.Async.class);
+        RemoteEndpoint.Async victimRemote = mock(RemoteEndpoint.Async.class);
+        when(requester.getAsyncRemote()).thenReturn(requesterRemote);
+        when(victim.getAsyncRemote()).thenReturn(victimRemote);
+        String[] sentPayload = new String[1];
+        doAnswer(invocation -> {
+                    sentPayload[0] = invocation.getArgument(0);
+                    SendHandler handler = invocation.getArgument(1);
+                    handler.onResult(new SendResult());
+                    return null;
+                })
+                .when(requesterRemote)
+                .sendText(anyString(), any(SendHandler.class));
+        WebSocketSessionManager.addSession(ScannerWorkspaceSessions.SCANNER_TOOL, requester);
+        WebSocketSessionManager.addSession(ScannerWorkspaceSessions.BOT_JOB_TASKS, victim);
+
+        endpoint.sendPhysicalTransportResponseAcknowledged(
+                        requester,
+                        7,
+                        "instructionGraph.previewMoveResponse",
+                        Map.of("ok", false, "requestId", "request-1"))
+                .join();
+
+        assertTrue(sentPayload[0].contains(
+                "\"sessionId\":\"" + ScannerWorkspaceSessions.SCANNER_TOOL + "\""));
+        verify(requesterRemote).sendText(anyString(), any(SendHandler.class));
+        verify(victimRemote, never()).sendText(anyString(), any(SendHandler.class));
     }
 
     @Test
