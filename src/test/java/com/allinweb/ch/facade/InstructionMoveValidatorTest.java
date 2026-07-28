@@ -75,6 +75,30 @@ class InstructionMoveValidatorTest {
     }
 
     @Test
+    void acceptsTrueCrossBlockGotoNavigationWhenItsCallerBlockIsReordered() {
+        InstructionLoad target = row(1, "CLICK", null, 10, 1);
+        InstructionLoad goTo = row(2, "GOTO", 1, 20, 1);
+        goTo.setParentBlockId(10);
+        InstructionLoad sibling = row(3, "CLICK", null, 20, 2);
+
+        assertNull(validator.validate(
+                List.of(target, goTo, sibling),
+                List.of(update(2, 20, 2), update(3, 20, 1))));
+    }
+
+    @Test
+    void sameBlockGotoStillUsesNormalParentOwnershipValidation() {
+        InstructionLoad parent = row(1, "CLICK", null, 10, 1);
+        InstructionLoad goTo = row(2, "GOTO", 1, 10, 2);
+        goTo.setParentBlockId(10);
+        InstructionLoad destinationMember = row(3, "CLICK", null, 20, 1);
+
+        assertNotNull(validator.validate(
+                List.of(parent, goTo, destinationMember),
+                List.of(update(2, 20, 2))));
+    }
+
+    @Test
     void allowsUnrelatedMoveDespitePreExistingWebFieldSeparation() {
         // Fix B: SET 2's parent INPUT 1 is in block 10 while SET 2 already sits in block 20 (a
         // pre-existing/legacy separation). An unrelated move that leaves that untouched family

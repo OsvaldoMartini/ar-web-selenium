@@ -287,7 +287,11 @@ public final class MemoryListWorkspaceService {
             }
         }
         MemoryListReorder.Outcome outcome =
-                MemoryListReorder.resolve(state.order.size(), state.items.keySet(), requestedKeys);
+                MemoryListReorder.resolveGrouped(
+                        state.order,
+                        state.items.keySet(),
+                        dependencyGroups(state),
+                        requestedKeys);
         if (!outcome.ok()) {
             return failure(request, outcome.error());
         }
@@ -302,13 +306,34 @@ public final class MemoryListWorkspaceService {
         String globalKey = string(payload, "itemKey");
         AggregatedItem item = state.items.get(globalKey);
         if (item == null) return failure(request, "Memory List row is no longer available.");
-        suppressAndRemove(state, item);
-        JsonObject sourcePayload = new JsonObject();
-        sourcePayload.addProperty("itemKey", item.sourceItemKey);
-        sourcePayload.addProperty("sourceItemKey", item.sourceItemKey);
-        forward(state, item.sourceKind, requestId, "REMOVE", sourcePayload);
+        List<String> removalKeys = MemoryListReorder.connectedRemovalKeys(
+                state.order, dependencyGroups(state), globalKey);
+        List<AggregatedItem> removalItems = removalKeys.stream()
+                .map(state.items::get)
+                .filter(java.util.Objects::nonNull)
+                .toList();
+        for (AggregatedItem removalItem : removalItems) {
+            suppressAndRemove(state, removalItem);
+        }
+        for (AggregatedItem removalItem : removalItems) {
+            JsonObject sourcePayload = new JsonObject();
+            sourcePayload.addProperty("itemKey", removalItem.sourceItemKey);
+            sourcePayload.addProperty("sourceItemKey", removalItem.sourceItemKey);
+            forward(
+                    state,
+                    removalItem.sourceKind,
+                    requestId,
+                    "REMOVE",
+                    sourcePayload);
+        }
         state.revision++;
-        return success(request, state, "Memory List row removed.");
+        return success(
+                request,
+                state,
+                removalItems.size() <= 1
+                        ? "Memory List row removed."
+                        : removalItems.size()
+                                + " connected Memory List rows removed together.");
     }
 
     private JsonObject clear(MemoryState state, JsonObject request, String requestId) {
@@ -757,6 +782,15 @@ public final class MemoryListWorkspaceService {
         state.suppressedKeys.add(item.globalKey);
         state.items.remove(item.globalKey);
         state.order.remove(item.globalKey);
+    }
+
+    private Map<String, String> dependencyGroups(MemoryState state) {
+        Map<String, String> groups = new LinkedHashMap<>();
+        for (AggregatedItem item : state.items.values()) {
+            String groupKey = string(item.presentation, "dependencyGroupKey");
+            if (!groupKey.isBlank()) groups.put(item.globalKey, groupKey);
+        }
+        return groups;
     }
 
     private void forward(

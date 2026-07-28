@@ -138,7 +138,10 @@ public final class InstructionMoveValidator {
     private String validateParentRelationships(Map<Integer, ProposedRow> proposed) {
         for (ProposedRow command : proposed.values()) {
             if (command.parentId == null || CONDITIONAL_BOUNDARIES.contains(command.action)
-                    || LOOP_ACTIONS.contains(command.action)) continue;
+                    || LOOP_ACTIONS.contains(command.action)
+                    || command.isCrossBlockNavigation()) {
+                continue;
+            }
             ProposedRow parent = proposed.get(command.parentId);
             // Fix B: only enforce Web-Field parent-block coherence for families TOUCHED by
             // this move. A pre-existing separation (or orphaned parentId) in a family that
@@ -207,6 +210,7 @@ public final class InstructionMoveValidator {
         private final int id;
         private final String action;
         private final Integer parentId;
+        private final Integer parentBlockId;
         private final Integer variableId;
         private final int originalBlockId;
         private final int originalOrder;
@@ -219,6 +223,7 @@ public final class InstructionMoveValidator {
                 int id,
                 String action,
                 Integer parentId,
+                Integer parentBlockId,
                 Integer variableId,
                 int blockId,
                 Integer blockOrder,
@@ -226,6 +231,7 @@ public final class InstructionMoveValidator {
             this.id = id;
             this.action = action;
             this.parentId = parentId;
+            this.parentBlockId = parentBlockId;
             this.variableId = variableId;
             this.originalBlockId = blockId;
             this.originalOrder = order;
@@ -240,6 +246,7 @@ public final class InstructionMoveValidator {
                     row.getId(),
                     row.getActions(),
                     row.getParentId(),
+                    row.getParentBlockId(),
                     row.getVariableId(),
                     row.getBlockId(),
                     row.getBlockOrderNumber(),
@@ -251,6 +258,7 @@ public final class InstructionMoveValidator {
             row.setId(id);
             row.setActions(action);
             row.setParentId(parentId);
+            row.setParentBlockId(parentBlockId);
             row.setVariableId(variableId);
             row.setBlockId(blockId);
             row.setBlockOrderNumber(blockOrder);
@@ -263,6 +271,7 @@ public final class InstructionMoveValidator {
             row.setId(id);
             row.setActions(action);
             row.setParentId(parentId);
+            row.setParentBlockId(parentBlockId);
             row.setVariableId(variableId);
             row.setBlockId(originalBlockId);
             row.setBlockOrderNumber(originalBlockOrder);
@@ -272,6 +281,11 @@ public final class InstructionMoveValidator {
 
         private boolean moved() {
             return blockId != originalBlockId || order != originalOrder;
+        }
+
+        private boolean isCrossBlockNavigation() {
+            return CommandRegistry.isCrossBlockNavigation(
+                    action, parentBlockId, originalBlockId);
         }
     }
 }

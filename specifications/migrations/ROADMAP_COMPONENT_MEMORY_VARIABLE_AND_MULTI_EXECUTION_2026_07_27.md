@@ -121,17 +121,37 @@ block-header `+` stages one typed whole-block Memory item and does not apply row
 
 - Restore the pure `componentBlockMemoryItem` producer.
 - Route the Components block-header `+` to one typed `BLOCK` Memory item.
-- Keep row `+` available for deliberate single-instruction selection.
+- Keep row `+` available for graph-aware instruction selection.
 - Keep the obsolete blue arrow removed.
 - Frontend commit: `c8ca242`.
 - Built and deployed the React bundle (`main.5fdca76c.js`, `main.73f5e771.css`).
 
-### C2 - Shared dependency-closure service
+### C2 - Shared dependency-closure service (complete)
 
-- Use one service for preview, Memory selection, copy, move, and cascade deletion.
-- Return reasons and exact dependent IDs to React.
-- Include transitive parent, conditional, loop, variable-producer, and GOTO dependencies.
-- Do not let each UI surface invent a different closure.
+- [x] Resolve one fixed-point dependency closure for Memory preview and transactional apply.
+- [x] Return structured refusal reasons, the exact ordered instruction group, required GOTO
+  blocks, and a stable group key to React.
+- [x] Include transitive parent/child, conditional, loop, variable owner/user, and recursive
+  Component GOTO dependencies.
+- [x] Stage the complete group atomically from the row `+`; stale, missing, duplicate, or partial
+  UI groups are refused before Memory state changes.
+- [x] Revalidate the same complete group inside the database transaction before copying or moving.
+- [x] Generate fresh Bot Job block, instruction, variable, and reference IDs for Component copies,
+  then remap every parent, parent-block, variable, and reference relationship.
+- [x] Roll back the complete operation when any source relation cannot be remapped; source
+  Component IDs are never silently persisted as destination relationships.
+- [x] Keep Bot Job GOTO destinations in place during a same-job move while requiring Component
+  GOTO destination blocks during a cross-owner copy.
+
+Focused verification on 2026-07-27:
+
+- Backend dependency closure, transactional copy/remapping, move validation, and Memory List
+  group-order suites: 56 tests passed.
+- React Memory resolution, atomic row/block staging/removal/reorder, stale-confirmation guards,
+  Component revision refresh, GridItemComp parity, lifecycle, and drag-message suites:
+  47 tests passed.
+- A Component block selection now stages its complete external dependency union, while Memory List
+  removal and drag/drop treat every connected dependency group as one indivisible unit.
 
 ### C3 - Full graph validation
 

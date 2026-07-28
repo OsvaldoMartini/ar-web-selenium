@@ -9,6 +9,7 @@ import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import com.allinweb.ch.model.SplitDTO;
 import com.allinweb.ch.model.UpdatedRow;
+import com.allinweb.ch.model.VariableLoadDTO;
 import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.util.ErrorMessage;
 import com.google.gson.Gson;
@@ -47,6 +48,8 @@ public final class CommandEditorService {
     private final ConditionalBranchService conditionalBranchService = new ConditionalBranchService();
     private final LoopGroupService loopGroupService = new LoopGroupService();
     private final InstructionMoveGroupService moveGroupService = new InstructionMoveGroupService();
+    private final InstructionDependencyClosureService dependencyClosureService =
+            new InstructionDependencyClosureService();
     private final InstructionGraphRevisionService revisionService = new InstructionGraphRevisionService();
     private final InstructionDeleteImpactService deleteImpactService = new InstructionDeleteImpactService();
 
@@ -434,20 +437,39 @@ public final class CommandEditorService {
         if (error == null) {
             error = database.loadBlocks(whereId, "", componentSession ? "component_block" : "block");
         }
+        List<VariableLoadDTO> variableRows = List.of();
+        if (error == null) {
+            try {
+                variableRows = loadDependencyVariables(componentSession, whereId);
+            } catch (SQLException exception) {
+                error = new ErrorMessage(
+                        "Memory List Dependencies Unavailable",
+                        "Variables could not be loaded",
+                        exception.getMessage());
+            }
+        }
         JsonObject response = new JsonObject();
         response.addProperty("ok", error == null);
         JsonArray capabilities = new JsonArray();
         JsonArray blockCapabilities = new JsonArray();
         if (error == null) {
-            List<InstructionLoad> instructionRows = instructions(sessionId);
-            List<BlockLoadDTO> blockRows = componentSession
-                    ? lists.getListBlockComp()
-                    : lists.getListBlock();
-            Set<Integer> protectedIds = memoryProtectedIds(instructionRows);
+            List<BlockLoadDTO> blockRows = ownerBlockCopies(sessionId, whereId);
+            List<InstructionLoad> instructionRows = enrichAndOrderInstructions(
+                    ownerInstructionCopies(sessionId, whereId), blockRows);
             Set<Integer> invalidConditionalIds = invalidConditionalBlockIds(instructionRows);
             for (InstructionLoad row : instructionRows) {
                 if (row == null || row.getId() == null) continue;
-                String addReason = memoryBlockReason(row, protectedIds);
+                InstructionDependencyClosureService.Result memoryGroup =
+                        dependencyClosureService.resolve(
+                                instructionRows,
+                                variableRows,
+                                row.getId(),
+                                componentSession
+                                        ? InstructionDependencyClosureService.Mode.COMPONENT_COPY
+                                        : InstructionDependencyClosureService.Mode.BOT_JOB_MOVE);
+                String addReason = memoryGroup.successful()
+                        ? null
+                        : memoryGroup.error().message();
                 String moveReason = moveGroupService.resolve(instructionRows, row.getId()).isEmpty()
                         ? "The connected move group could not be resolved."
                         : null;
@@ -469,6 +491,19 @@ public final class CommandEditorService {
                 capability.addProperty("canDelete", deleteReason == null);
                 capability.addProperty("deleteCount", deleteImpactCount(row, instructionRows));
                 capability.add("deleteRows", deleteImpactRows(row, instructionRows));
+                if (memoryGroup.successful()) {
+                    capability.add(
+                            "memoryGroupRows",
+                            movePreviewRows(memoryGroup.orderedInstructions()));
+                    capability.add(
+                            "memoryGroupBlocks",
+                            memoryGroupBlocks(memoryGroup.requiredBlockIds(), blockRows));
+                    capability.addProperty(
+                            "memoryGroupKey",
+                            memoryGroupKey(
+                                    memoryGroup.orderedInstructions(),
+                                    memoryGroup.requiredBlockIds()));
+                }
                 if (moveReason != null) capability.addProperty("reason", moveReason);
                 if (addReason != null) capability.addProperty("addReason", addReason);
                 if (deleteReason != null) capability.addProperty("deleteReason", deleteReason);
@@ -504,6 +539,53 @@ public final class CommandEditorService {
                 externalReferences.forEach(row -> addDeleteImpactRow(references, row));
                 blockCapability.add("externalReferences", references);
                 if (blockDeleteReason != null) blockCapability.addProperty("reason", blockDeleteReason);
+                if (componentSession) {
+                    Map<Integer, InstructionLoad> groupRowsById = new LinkedHashMap<>();
+                    contained.forEach(row -> groupRowsById.put(row.getId(), row));
+                    Set<Integer> requiredBlockIds = new java.util.LinkedHashSet<>();
+                    String addReason = null;
+                    for (InstructionLoad member : contained) {
+                        InstructionDependencyClosureService.Result memoryGroup =
+                                dependencyClosureService.resolve(
+                                        instructionRows,
+                                        variableRows,
+                                        member.getId(),
+                                        InstructionDependencyClosureService.Mode.COMPONENT_COPY);
+                        if (!memoryGroup.successful()) {
+                            addReason = memoryGroup.error().message();
+                            break;
+                        }
+                        memoryGroup.orderedInstructions()
+                                .forEach(row -> groupRowsById.put(row.getId(), row));
+                        requiredBlockIds.addAll(memoryGroup.requiredBlockIds());
+                    }
+                    blockCapability.addProperty("canAddToMemory", addReason == null);
+                    if (addReason == null) {
+                        Set<Integer> groupInstructionIds = groupRowsById.keySet();
+                        List<InstructionLoad> orderedGroupRows = instructionRows.stream()
+                                .filter(row -> row != null
+                                        && row.getId() != null
+                                        && groupInstructionIds.contains(row.getId()))
+                                .toList();
+                        List<Integer> orderedRequiredBlocks = blockRows.stream()
+                                .filter(row -> row != null
+                                        && row.getId() != null
+                                        && requiredBlockIds.contains(row.getId()))
+                                .map(BlockLoadDTO::getId)
+                                .toList();
+                        blockCapability.add(
+                                "memoryGroupRows", movePreviewRows(orderedGroupRows));
+                        blockCapability.add(
+                                "memoryGroupBlocks",
+                                memoryGroupBlocks(orderedRequiredBlocks, blockRows));
+                        blockCapability.addProperty(
+                                "memoryGroupKey",
+                                memoryGroupKey(
+                                        orderedGroupRows, orderedRequiredBlocks));
+                    } else {
+                        blockCapability.addProperty("addReason", addReason);
+                    }
+                }
                 blockCapabilities.add(blockCapability);
             }
         } else {
@@ -513,6 +595,72 @@ public final class CommandEditorService {
         response.add("blockCapabilities", blockCapabilities);
         if (error == null) response.addProperty("graphRevision", graphRevision(sessionId));
         return response;
+    }
+
+    private List<VariableLoadDTO> loadDependencyVariables(boolean component, int ownerId)
+            throws SQLException {
+        String table = component ? "component_variable" : "variable";
+        String ownerColumn = component ? "home_banking_id" : "bot_job_id";
+        String sql = "SELECT id, instruction_id FROM " + table
+                + " WHERE " + ownerColumn + " = ? ORDER BY id";
+        List<VariableLoadDTO> variables = new java.util.ArrayList<>();
+        try (Connection connection = database.getConnection();
+                PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setInt(1, ownerId);
+            try (ResultSet result = statement.executeQuery()) {
+                while (result.next()) {
+                    variables.add(new VariableLoadDTO(
+                            result.getInt("id"),
+                            component ? ownerId : null,
+                            component ? null : ownerId,
+                            nullableResultInteger(result, "instruction_id"),
+                            null,
+                            null,
+                            null,
+                            null,
+                            null,
+                            0));
+                }
+            }
+        }
+        return List.copyOf(variables);
+    }
+
+    private static Integer nullableResultInteger(ResultSet result, String column)
+            throws SQLException {
+        Object value = result.getObject(column);
+        return value == null ? null : ((Number) value).intValue();
+    }
+
+    private JsonArray memoryGroupBlocks(
+            List<Integer> requiredBlockIds, List<BlockLoadDTO> blockRows) {
+        Map<Integer, BlockLoadDTO> blocksById = new LinkedHashMap<>();
+        blockRows.stream()
+                .filter(block -> block != null && block.getId() != null)
+                .forEach(block -> blocksById.put(block.getId(), block));
+        JsonArray blocks = new JsonArray();
+        for (Integer blockId : requiredBlockIds) {
+            BlockLoadDTO block = blocksById.get(blockId);
+            if (block == null) continue;
+            JsonObject item = new JsonObject();
+            item.addProperty("blockId", blockId);
+            item.addProperty("blockOrderNumber", block.getBlockOrderNumber());
+            item.addProperty("blockName", block.getName());
+            blocks.add(item);
+        }
+        return blocks;
+    }
+
+    private String memoryGroupKey(
+            List<InstructionLoad> rows, List<Integer> requiredBlockIds) {
+        String instructionIds = rows.stream()
+                .map(InstructionLoad::getId)
+                .map(String::valueOf)
+                .collect(java.util.stream.Collectors.joining(","));
+        String blockIds = requiredBlockIds.stream()
+                .map(String::valueOf)
+                .collect(java.util.stream.Collectors.joining(","));
+        return "I:" + instructionIds + "|B:" + blockIds;
     }
 
     private Set<Integer> invalidConditionalBlockIds(List<InstructionLoad> rows) {
@@ -667,55 +815,6 @@ public final class CommandEditorService {
 
     private static int normalizeOptionalRelationshipId(Integer value) {
         return value == null || value <= 0 ? -1 : value;
-    }
-
-    private Set<Integer> memoryProtectedIds(List<InstructionLoad> rows) {
-        Set<Integer> protectedIds = new java.util.HashSet<>();
-        Map<Integer, InstructionLoad> byId = rows.stream()
-                .filter(row -> row != null && row.getId() != null)
-                .collect(java.util.stream.Collectors.toMap(InstructionLoad::getId, row -> row));
-        for (InstructionLoad row : rows) {
-            if (row == null || !Set.of("LOOP", "REFRESH_LOOP").contains(row.getActions())) continue;
-            if (row.getId() != null) protectedIds.add(row.getId());
-            if (row.getParentId() != null) {
-                protectedIds.add(row.getParentId());
-                InstructionLoad parent = byId.get(row.getParentId());
-                if (parent != null && parent.getBlockId() != null && parent.getInstructionOrderNumber() != null
-                        && row.getInstructionOrderNumber() != null) {
-                    int first = Math.min(parent.getInstructionOrderNumber(), row.getInstructionOrderNumber());
-                    int last = Math.max(parent.getInstructionOrderNumber(), row.getInstructionOrderNumber());
-                    rows.stream()
-                            .filter(member -> member != null && parent.getBlockId().equals(member.getBlockId())
-                                    && member.getInstructionOrderNumber() != null
-                                    && member.getInstructionOrderNumber() >= first
-                                    && member.getInstructionOrderNumber() <= last
-                                    && member.getId() != null)
-                            .forEach(member -> protectedIds.add(member.getId()));
-                }
-            }
-        }
-        for (List<InstructionLoad> blockRows : rows.stream()
-                .filter(row -> row != null && row.getBlockId() != null)
-                .collect(java.util.stream.Collectors.groupingBy(InstructionLoad::getBlockId)).values()) {
-            blockRows.sort(Comparator.comparingInt(row -> row.getInstructionOrderNumber() == null
-                    ? Integer.MAX_VALUE : row.getInstructionOrderNumber()));
-            int depth = 0;
-            for (InstructionLoad row : blockRows) {
-                if ("IF".equals(row.getActions())) depth++;
-                if (depth > 0 && row.getId() != null) protectedIds.add(row.getId());
-                if ("ENDIF".equals(row.getActions()) && depth > 0) depth--;
-            }
-        }
-        return protectedIds;
-    }
-
-    private String memoryBlockReason(InstructionLoad row, Set<Integer> protectedIds) {
-        if (protectedIds.contains(row.getId())) return "Part of a conditional or loop group.";
-        if (CommandRegistry.isSpecialAction(row.getActions())
-                && (row.getParentId() != null || row.getVariableId() != null || row.getParentBlockId() != null)) {
-            return "Command has Web Field, Variable, or Block dependencies.";
-        }
-        return null;
     }
 
     private JsonArray webFields(List<InstructionLoad> instructions) {

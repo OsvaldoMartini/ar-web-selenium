@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 
@@ -170,5 +171,64 @@ class MemoryListReorderTest {
         assertEquals(reversed, outcome.orderedKeys());
         // Sanity: full reversal is still a permutation of the same key set.
         assertEquals(new LinkedHashSet<>(Arrays.asList(reversed.toArray(new String[0]))).size(), 10);
+    }
+
+    @Test
+    void connectedParentGetExcelGroupCanMoveOnlyAsOneContiguousUnit() {
+        List<String> current = List.of(
+                "BOT_JOB:field",
+                "BOT_JOB:get",
+                "BOT_JOB:excel",
+                "BOT_JOB:other");
+        Set<String> valid = new LinkedHashSet<>(current);
+        Map<String, String> groups = Map.of(
+                "BOT_JOB:field", "BOT_JOB:2:5:I:1,2,3|B:",
+                "BOT_JOB:get", "BOT_JOB:2:5:I:1,2,3|B:",
+                "BOT_JOB:excel", "BOT_JOB:2:5:I:1,2,3|B:");
+
+        MemoryListReorder.Outcome moved = MemoryListReorder.resolveGrouped(
+                current,
+                valid,
+                groups,
+                List.of(
+                        "BOT_JOB:other",
+                        "BOT_JOB:field",
+                        "BOT_JOB:get",
+                        "BOT_JOB:excel"));
+        assertTrue(moved.ok());
+
+        MemoryListReorder.Outcome split = MemoryListReorder.resolveGrouped(
+                current,
+                valid,
+                groups,
+                List.of(
+                        "BOT_JOB:field",
+                        "BOT_JOB:other",
+                        "BOT_JOB:get",
+                        "BOT_JOB:excel"));
+        assertFalse(split.ok());
+        assertEquals(MemoryListReorder.CONNECTED_GROUP_SPLIT, split.error());
+    }
+
+    @Test
+    void removingOneConnectedInstructionReturnsTheCompleteGroupInCurrentOrder() {
+        List<String> current = List.of(
+                "BOT_JOB:other",
+                "BOT_JOB:field",
+                "BOT_JOB:get",
+                "BOT_JOB:excel");
+        Map<String, String> groups = Map.of(
+                "BOT_JOB:field", "group-1",
+                "BOT_JOB:get", "group-1",
+                "BOT_JOB:excel", "group-1");
+
+        assertEquals(
+                List.of("BOT_JOB:field", "BOT_JOB:get", "BOT_JOB:excel"),
+                MemoryListReorder.connectedRemovalKeys(
+                        current, groups, "BOT_JOB:get"));
+        assertEquals(
+                List.of("BOT_JOB:other"),
+                MemoryListReorder.connectedRemovalKeys(
+                        current, groups, "BOT_JOB:other"));
     }
 }

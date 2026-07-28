@@ -40,6 +40,22 @@ public final class CommandRegistry {
         return DEFINITIONS.containsKey(canonical) && !"IF".equals(canonical);
     }
 
+    /**
+     * Returns whether a GOTO command owns a real cross-block navigation edge.
+     *
+     * <p>A same-block GOTO still has an ordinary parent family: when that family moves to another
+     * block, {@code parent_block_id} must move with it. Keeping this predicate here prevents
+     * closure, validation, and persistence from using subtly different action-only checks.
+     */
+    public static boolean isCrossBlockNavigation(
+            String action, Integer parentBlockId, Integer instructionBlockId) {
+        String canonical = canonicalize(action);
+        return ("GOTO".equals(canonical) || "EXCEL GOTO".equals(canonical))
+                && parentBlockId != null
+                && instructionBlockId != null
+                && !parentBlockId.equals(instructionBlockId);
+    }
+
     public static boolean requires(String action, String field) {
         Definition definition = DEFINITIONS.get(canonicalize(action));
         return definition != null && definition.fields().contains(field);

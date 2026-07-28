@@ -3,6 +3,7 @@ package com.allinweb.ch.facade;
 import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.model.ReferenceLoadDTO;
 import com.allinweb.ch.model.UpdatedRow;
+import com.allinweb.ch.model.VariableLoadDTO;
 import com.allinweb.ch.util.ErrorMessage;
 import com.google.gson.Gson;
 import java.sql.Connection;
@@ -81,8 +82,8 @@ public final class ComponentMemoryApplyService {
     private final InstructionGraphRevisionService revisionService =
             new InstructionGraphRevisionService();
     private final InstructionMoveValidator moveValidator = new InstructionMoveValidator();
-    private final InstructionMoveGroupService moveGroupService =
-            new InstructionMoveGroupService();
+    private final InstructionDependencyClosureService dependencyClosureService =
+            new InstructionDependencyClosureService();
     private final ConditionalGraphValidator conditionalValidator = new ConditionalGraphValidator();
     private final Gson gson = new Gson();
     private final LinkedHashMap<String, CompletedRequest> successfulRequests =
@@ -179,6 +180,8 @@ public final class ComponentMemoryApplyService {
                     loadInstructionRows(connection, BOT_INSTRUCTION_SELECT, request.botJobId(), false);
             Map<Integer, InstructionRow> currentBotById = indexInstructions(currentBotRows);
             Map<Integer, BlockRow> botBlocks = loadBotBlocks(connection, request.botJobId());
+            List<VariableLoadDTO> botVariables = loadDependencyVariables(
+                    connection, false, request.botJobId(), request.homeBankingId());
 
             List<InstructionRow> componentRows =
                     loadInstructionRows(
@@ -189,6 +192,8 @@ public final class ComponentMemoryApplyService {
             Map<Integer, InstructionRow> componentById = indexInstructions(componentRows);
             Map<Integer, BlockRow> componentBlocks =
                     loadComponentBlocks(connection, request.homeBankingId());
+            List<VariableLoadDTO> componentVariables = loadDependencyVariables(
+                    connection, true, request.homeBankingId(), request.homeBankingId());
             String currentComponentRevision = revisionService.revision(
                     componentRows.stream().map(InstructionRow::asInstruction).toList());
 
@@ -197,9 +202,11 @@ public final class ComponentMemoryApplyService {
                     componentRows,
                     componentById,
                     componentBlocks,
+                    componentVariables,
                     currentComponentRevision);
 
-            validateExistingSelections(request, currentBotById);
+            validateExistingSelections(
+                    request, currentBotById, currentBotRows, botVariables);
             boolean targetRequired = request.orderedItems().stream().anyMatch(item -> switch (item.kind()) {
                 case COMPONENT_BLOCK -> false;
                 case COMPONENT_INSTRUCTION ->
@@ -390,29 +397,15 @@ public final class ComponentMemoryApplyService {
             List<InstructionRow> completeRows = new ArrayList<>(currentBotRows);
             completeRows.addAll(insertedRows);
             assertTargetLayoutUnchanged(connection, request.botJobId(), completeRows);
-            List<InstructionLoad> currentBotInstructions =
-                    currentBotRows.stream().map(InstructionRow::asInstruction).toList();
             List<Integer> orderedTargetIds = new ArrayList<>();
             Set<Integer> appendedTargetIds = new HashSet<>();
             for (OrderedItem item : request.orderedItems()) {
                 switch (item.kind()) {
                     case BOT_JOB_INSTRUCTION -> {
-                        List<InstructionLoad> moveGroup = moveGroupService.resolve(
-                                currentBotInstructions, item.botJobInstructionId());
-                        if (moveGroup.isEmpty()) {
-                            InstructionRow selected =
-                                    currentBotById.get(item.botJobInstructionId());
-                            if (selected != null
-                                    && appendedTargetIds.add(selected.id())) {
-                                orderedTargetIds.add(selected.id());
-                            }
-                            break;
-                        }
-                        for (InstructionLoad member : moveGroup) {
-                            if (member.getId() != null
-                                    && appendedTargetIds.add(member.getId())) {
-                                orderedTargetIds.add(member.getId());
-                            }
+                        InstructionRow selected =
+                                currentBotById.get(item.botJobInstructionId());
+                        if (selected != null && appendedTargetIds.add(selected.id())) {
+                            orderedTargetIds.add(selected.id());
                         }
                     }
                     case PAGE_SCANNER_INSTRUCTION -> {
@@ -609,6 +602,7 @@ public final class ComponentMemoryApplyService {
             List<InstructionRow> allRows,
             Map<Integer, InstructionRow> byId,
             Map<Integer, BlockRow> blocks,
+            List<VariableLoadDTO> variables,
             String currentRevision) {
         LinkedHashSet<Integer> selectedBlocks = new LinkedHashSet<>();
         LinkedHashSet<Integer> selectedInstructions = new LinkedHashSet<>();
@@ -661,6 +655,27 @@ public final class ComponentMemoryApplyService {
         LinkedHashSet<Integer> selectedAll = new LinkedHashSet<>(covered);
         selectedAll.addAll(selectedInstructions);
 
+        List<InstructionLoad> dependencyGraph =
+                allRows.stream().map(InstructionRow::asInstruction).toList();
+        for (Integer selectedInstructionId : selectedInstructions) {
+            InstructionDependencyClosureService.Result closure =
+                    dependencyClosureService.resolve(
+                            dependencyGraph,
+                            variables,
+                            selectedInstructionId,
+                            InstructionDependencyClosureService.Mode.COMPONENT_COPY);
+            requireCompleteClosure(closure, selectedAll, selectedBlocks, "component");
+        }
+        for (Integer coveredInstructionId : covered) {
+            InstructionDependencyClosureService.Result closure =
+                    dependencyClosureService.resolve(
+                            dependencyGraph,
+                            variables,
+                            coveredInstructionId,
+                            InstructionDependencyClosureService.Mode.COMPONENT_COPY);
+            requireCompleteClosure(closure, selectedAll, selectedBlocks, "component Block");
+        }
+
         for (Integer instructionId : selectedAll) {
             InstructionRow row = byId.get(instructionId);
             if (row == null) {
@@ -675,8 +690,17 @@ public final class ComponentMemoryApplyService {
             }
             Integer parentBlockId = row.parentBlockId();
             if (parentBlockId != null && !selectedBlocks.contains(parentBlockId)) {
-                throw new ApplyRefused(
-                        "A selected component GOTO references a block that was not selected.");
+                InstructionRow selectedParent =
+                        parentId == null ? null : byId.get(parentId);
+                boolean derivedParentBlock = selectedParent != null
+                        && selectedAll.contains(selectedParent.id())
+                        && selectedParent.blockId() == parentBlockId
+                        && !CommandRegistry.isCrossBlockNavigation(
+                                row.actions(), row.parentBlockId(), row.blockId());
+                if (!derivedParentBlock) {
+                    throw new ApplyRefused(
+                            "A selected component GOTO references a block that was not selected.");
+                }
             }
         }
 
@@ -711,7 +735,10 @@ public final class ComponentMemoryApplyService {
     }
 
     private void validateExistingSelections(
-            Request request, Map<Integer, InstructionRow> currentBotById) {
+            Request request,
+            Map<Integer, InstructionRow> currentBotById,
+            List<InstructionRow> currentBotRows,
+            List<VariableLoadDTO> variables) {
         Set<Integer> ids = new HashSet<>();
         for (OrderedItem item : request.orderedItems()) {
             if (item.kind() != ItemKind.BOT_JOB_INSTRUCTION) continue;
@@ -721,6 +748,35 @@ public final class ComponentMemoryApplyService {
                 throw new ApplyRefused(
                         "An instruction in Memory List no longer exists. Refresh and try again.");
             }
+        }
+        List<InstructionLoad> dependencyGraph =
+                currentBotRows.stream().map(InstructionRow::asInstruction).toList();
+        for (Integer instructionId : ids) {
+            InstructionDependencyClosureService.Result closure =
+                    dependencyClosureService.resolve(
+                            dependencyGraph,
+                            variables,
+                            instructionId,
+                            InstructionDependencyClosureService.Mode.BOT_JOB_MOVE);
+            requireCompleteClosure(closure, ids, Set.of(), "Bot Job");
+        }
+    }
+
+    private void requireCompleteClosure(
+            InstructionDependencyClosureService.Result closure,
+            Set<Integer> selectedInstructionIds,
+            Set<Integer> selectedBlockIds,
+            String sourceLabel) {
+        if (!closure.successful()) {
+            throw new ApplyRefused(closure.error().message());
+        }
+        boolean missingInstruction = closure.orderedInstructions().stream()
+                .map(InstructionLoad::getId)
+                .anyMatch(id -> !selectedInstructionIds.contains(id));
+        if (missingInstruction || !selectedBlockIds.containsAll(closure.requiredBlockIds())) {
+            throw new ApplyRefused(
+                    "The complete connected " + sourceLabel
+                            + " instruction group must be present in Memory List.");
         }
     }
 
@@ -753,6 +809,35 @@ public final class ComponentMemoryApplyService {
                 "SELECT id, block_order_number, name, description, type_id, export_file, active, wait "
                         + "FROM component_block WHERE home_banking_id = ? ORDER BY block_order_number, id",
                 homeBankingId);
+    }
+
+    private List<VariableLoadDTO> loadDependencyVariables(
+            Connection connection, boolean component, int ownerId, int homeBankingId)
+            throws SQLException {
+        String table = component ? "component_variable" : "variable";
+        String ownerColumn = component ? "home_banking_id" : "bot_job_id";
+        String sql = "SELECT id, instruction_id FROM " + table
+                + " WHERE " + ownerColumn + " = ? ORDER BY id";
+        List<VariableLoadDTO> variables = new ArrayList<>();
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setInt(1, ownerId);
+            try (ResultSet result = statement.executeQuery()) {
+                while (result.next()) {
+                    variables.add(new VariableLoadDTO(
+                            result.getInt("id"),
+                            homeBankingId,
+                            component ? null : ownerId,
+                            nullableInteger(result, "instruction_id"),
+                            null,
+                            null,
+                            null,
+                            null,
+                            null,
+                            0));
+                }
+            }
+        }
+        return List.copyOf(variables);
     }
 
     private Map<Integer, BlockRow> loadBlocks(Connection connection, String sql, int ownerId)
@@ -908,6 +993,12 @@ public final class ComponentMemoryApplyService {
             Map<Integer, Integer> instructionIds,
             Map<Integer, Integer> blockIds)
             throws SQLException {
+        Map<Integer, Integer> destinationBlockBySourceInstruction = new HashMap<>();
+        for (InstructionRow row : insertedRows) {
+            if (row.sourceComponentId() != null) {
+                destinationBlockBySourceInstruction.put(row.sourceComponentId(), row.blockId());
+            }
+        }
         String update =
                 "UPDATE instruction SET variable_id = ?, parent_block_id = ?, parent_id = ? WHERE id = ?";
         try (PreparedStatement statement = connection.prepareStatement(update)) {
@@ -917,9 +1008,22 @@ public final class ComponentMemoryApplyService {
                 Integer parentId = row.parentId() == null
                         ? null
                         : instructionIds.get(row.parentId());
-                Integer parentBlockId = row.parentBlockId() == null
-                        ? null
-                        : blockIds.get(row.parentBlockId());
+                if (row.parentId() != null && parentId == null) {
+                    throw new ApplyRefused(
+                            "A copied component instruction references a parent that was not copied.");
+                }
+                Integer parentBlockId = null;
+                if (row.parentBlockId() != null) {
+                    parentBlockId = blockIds.get(row.parentBlockId());
+                    if (parentBlockId == null && row.parentId() != null) {
+                        parentBlockId =
+                                destinationBlockBySourceInstruction.get(row.parentId());
+                    }
+                    if (parentBlockId == null) {
+                        throw new ApplyRefused(
+                                "A copied component instruction references a Block that was not copied.");
+                    }
+                }
                 bindNullableInteger(statement, 1, row.variableId());
                 bindNullableInteger(statement, 2, parentBlockId);
                 bindNullableInteger(statement, 3, parentId);
@@ -1167,7 +1271,8 @@ public final class ComponentMemoryApplyService {
             List<InstructionRow> expectedRows,
             List<UpdatedRow> layout)
             throws SQLException {
-        String update = "UPDATE instruction SET instruction_order_number = ?, block_id = ? "
+        String update = "UPDATE instruction SET instruction_order_number = ?, block_id = ?, "
+                + "parent_block_id = ? "
                 + "WHERE id = ? AND bot_job_id = ? "
                 + "AND instruction_order_number = ? AND block_id = ?";
         Map<Integer, InstructionRow> expectedById = indexInstructions(expectedRows);
@@ -1181,10 +1286,19 @@ public final class ComponentMemoryApplyService {
                 }
                 statement.setInt(1, row.getInstructionOrderNumber());
                 statement.setInt(2, row.getBlockId());
-                statement.setInt(3, row.getInstructionId());
-                statement.setInt(4, botJobId);
-                statement.setInt(5, expected.order());
-                statement.setInt(6, expected.blockId());
+                Integer parentBlockId = expected.parentBlockId();
+                if (expected.parentId() != null
+                        && !CommandRegistry.isCrossBlockNavigation(
+                                expected.actions(),
+                                expected.parentBlockId(),
+                                expected.blockId())) {
+                    parentBlockId = row.getBlockId();
+                }
+                bindNullableInteger(statement, 3, parentBlockId);
+                statement.setInt(4, row.getInstructionId());
+                statement.setInt(5, botJobId);
+                statement.setInt(6, expected.order());
+                statement.setInt(7, expected.blockId());
                 if (statement.executeUpdate() != 1) {
                     throw new ApplyRefused(
                             "Instruction " + row.getInstructionId()

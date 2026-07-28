@@ -1,8 +1,11 @@
 package com.allinweb.ch.socket;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -22,6 +25,8 @@ public final class MemoryListReorder {
             "Memory List order is incomplete. Refresh and try again.";
     public static final String MISSING_OR_DUPLICATE =
             "Memory List order contains a missing or duplicate row.";
+    public static final String CONNECTED_GROUP_SPLIT =
+            "Connected Memory List instructions must move together.";
 
     private MemoryListReorder() {}
 
@@ -74,5 +79,73 @@ public final class MemoryListReorder {
             next.add(key);
         }
         return new Outcome(true, next, null);
+    }
+
+    /**
+     * Validates a complete permutation and additionally guarantees that members
+     * of one dependency group stay contiguous and retain their internal order.
+     */
+    public static Outcome resolveGrouped(
+            List<String> currentOrder,
+            Set<String> validKeys,
+            Map<String, String> dependencyGroupByItem,
+            List<String> requestedKeys) {
+        Outcome base = resolve(
+                currentOrder == null ? 0 : currentOrder.size(),
+                validKeys,
+                requestedKeys);
+        if (!base.ok()) return base;
+        if (currentOrder == null
+                || dependencyGroupByItem == null
+                || dependencyGroupByItem.isEmpty()) {
+            return base;
+        }
+
+        Map<String, List<String>> currentGroups = groupedMembers(
+                currentOrder, dependencyGroupByItem);
+        for (List<String> members : currentGroups.values()) {
+            if (members.size() <= 1) continue;
+            int first = base.orderedKeys().indexOf(members.get(0));
+            if (first < 0 || first + members.size() > base.orderedKeys().size()) {
+                return new Outcome(false, null, CONNECTED_GROUP_SPLIT);
+            }
+            for (int index = 0; index < members.size(); index++) {
+                if (!members.get(index).equals(base.orderedKeys().get(first + index))) {
+                    return new Outcome(false, null, CONNECTED_GROUP_SPLIT);
+                }
+            }
+        }
+        return base;
+    }
+
+    /** Returns every row that must be removed with the selected connected row. */
+    public static List<String> connectedRemovalKeys(
+            List<String> currentOrder,
+            Map<String, String> dependencyGroupByItem,
+            String selectedKey) {
+        if (selectedKey == null || currentOrder == null || !currentOrder.contains(selectedKey)) {
+            return List.of();
+        }
+        String selectedGroup = dependencyGroupByItem == null
+                ? null
+                : dependencyGroupByItem.get(selectedKey);
+        if (selectedGroup == null || selectedGroup.isBlank()) return List.of(selectedKey);
+        List<String> connected = currentOrder.stream()
+                .filter(key -> selectedGroup.equals(dependencyGroupByItem.get(key)))
+                .toList();
+        return connected.isEmpty() ? List.of(selectedKey) : connected;
+    }
+
+    private static Map<String, List<String>> groupedMembers(
+            List<String> order, Map<String, String> dependencyGroupByItem) {
+        Map<String, LinkedHashSet<String>> grouped = new LinkedHashMap<>();
+        for (String itemKey : order) {
+            String groupKey = dependencyGroupByItem.get(itemKey);
+            if (groupKey == null || groupKey.isBlank()) continue;
+            grouped.computeIfAbsent(groupKey, ignored -> new LinkedHashSet<>()).add(itemKey);
+        }
+        Map<String, List<String>> result = new LinkedHashMap<>();
+        grouped.forEach((key, members) -> result.put(key, List.copyOf(members)));
+        return result;
     }
 }
