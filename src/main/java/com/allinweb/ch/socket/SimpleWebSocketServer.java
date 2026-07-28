@@ -105,7 +105,6 @@ public class SimpleWebSocketServer {
             "commandEditor.apply",
             "commandEditor.insertElseIf",
             "instructionGraph.previewSplit",
-            "instructionGraph.previewMove",
             "instructionEditor.memoryCapabilities",
             "variableEditor.bootstrap",
             "variableEditor.save",
@@ -1152,33 +1151,6 @@ public class SimpleWebSocketServer {
                             attachCommandEditorBindingEpoch(
                                     CommandEditorService.getInstance()
                                             .previewSplit(commandPreviewBody),
-                                    commandPreviewBody,
-                                    sessionId));
-                    break;
-                }
-                case "instructionGraph.previewMove": {
-                    JsonObject commandPreviewBody = extractBody(jsonObjMSG);
-                    try {
-                        commandPreviewBody = authorizeCommandEditorRequest(
-                                commandPreviewBody, sessionId, session);
-                    } catch (IllegalArgumentException authorizationError) {
-                        sendCommandEditorFailureToTransport(
-                                session,
-                                homeBankingId,
-                                "instructionGraph.previewMoveResponse",
-                                commandEditorFailure(
-                                        commandPreviewBody,
-                                        authorizationError.getMessage()));
-                        break;
-                    }
-                    sendCommandEditorResponse(
-                            commandEditorHomeBankingId(
-                                    commandPreviewBody, homeBankingId),
-                            sessionId,
-                            "instructionGraph.previewMoveResponse",
-                            attachCommandEditorBindingEpoch(
-                                    CommandEditorService.getInstance()
-                                            .previewMove(commandPreviewBody),
                                     commandPreviewBody,
                                     sessionId));
                     break;
@@ -4825,7 +4797,7 @@ public class SimpleWebSocketServer {
                 errorMessage = performDataBase.loadBlocks(whereId, botJobNameTask, blockTable);
             }
 
-            if (errorMessage == null) {
+            if (errorMessage == null && !"ROW_MOVE".equals(type) && !"COMPONENT_ROW_MOVE".equals(type)) {
                 errorMessage = performDataBase.checkGapsBlockOrder(listBlocks, blockTable, whereId, botJobNameTask);
             }
 
@@ -5737,7 +5709,7 @@ public class SimpleWebSocketServer {
                     break;
             }
 
-            if (errorMessage == null) {
+            if (errorMessage == null && !"ROW_MOVE".equals(type) && !"COMPONENT_ROW_MOVE".equals(type)) {
                 errorMessage = performDataBase.checkGapsBlockOrder(listBlocks, blockTable, whereId, botJobNameTask);
             }
         } catch (Exception error) {

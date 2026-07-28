@@ -42,10 +42,7 @@ import org.junit.jupiter.api.io.TempDir;
  *  1. Move the FIRST row of the FIRST component block to the LAST position of the SAME block.
  *  2. Move the SECOND row of the FIRST component block to position 3 of the SECOND block.
  *
- * If the chosen row belongs to a connected group (web-field family / conditional / loop), the
- * group is resolved exactly like the previewMove flow and moved together — mirroring the frontend
- * applyDragMove. A validator refusal FAILS the test with the backend's explanatory message, which
- * is exactly the diagnostic we want to capture.
+ * The fixture submits the complete versioned layout, including its parent relationship fields.
  *
  * Tests are skipped (not failed) when the real DB/config are absent (e.g. CI machines).
  */
@@ -57,8 +54,6 @@ class ComponentRowMoveRealDbTest {
     private final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
     private final PerformDataBase performDataBase = PerformDataBase.getInstance();
     private final PerformLists performLists = PerformLists.getInstance();
-    private final InstructionMoveGroupService moveGroupService = new InstructionMoveGroupService();
-    private final InstructionMoveValidator moveValidator = new InstructionMoveValidator();
 
     @TempDir
     Path tempDir;
@@ -101,26 +96,19 @@ class ComponentRowMoveRealDbTest {
         List<InstructionLoad> blockRows = blockRows(current, firstBlockId);
         assumeTrue(blockRows.size() >= 2, "First block needs at least 2 rows for this scenario.");
 
-        InstructionLoad movedRow = blockRows.get(0);
-        List<InstructionLoad> group = moveGroupService.resolve(current, movedRow.getId());
-        assumeTrue(!group.isEmpty(), "Move group could not be resolved for row " + movedRow.getId());
-        assumeTrue(group.size() < blockRows.size(),
-                "The connected group spans the whole block; moving it to the end would be a no-op.");
-        List<Integer> groupIds = group.stream().map(InstructionLoad::getId).toList();
+        InstructionLoad movedRow = independentRoot(current, blockRows);
+        assumeTrue(movedRow != null, "First block needs an independent root row for this structural fixture.");
 
         // Build the final layout exactly like the frontend applyDragMove: remove the group from
         // the block, append it at the end, renumber 1..N.
         List<InstructionLoad> remainder = blockRows.stream()
-                .filter(row -> !groupIds.contains(row.getId()))
+                .filter(row -> !movedRow.getId().equals(row.getId()))
                 .toList();
         List<InstructionLoad> reordered = new ArrayList<>(remainder);
-        reordered.addAll(group);
-        List<UpdatedRow> updates = renumber(reordered, firstBlockId);
+        reordered.add(movedRow);
+        List<UpdatedRow> updates = fullLayout(current, Map.of(firstBlockId, reordered));
 
-        String refusal = moveValidator.validate(current, updates);
-        assertNull(refusal, "Backend refused the same-block move: " + refusal);
-
-        assertNull(performDataBase.updateMoveRowsOrder("component_block", homeBankingId, updates),
+        assertNull(performDataBase.updateMoveRowsOrder("component_block", homeBankingId, updates, null, 2),
                 "updateMoveRowsOrder reported an error");
 
         // Assert against the database copy: the group now occupies the LAST positions in order.
@@ -128,10 +116,10 @@ class ComponentRowMoveRealDbTest {
         List<int[]> persistedBlock = persisted.get(firstBlockId);
         assertContiguous(persistedBlock, firstBlockId);
         List<Integer> lastIds = persistedBlock.stream()
-                .skip(Math.max(0, persistedBlock.size() - groupIds.size()))
+                .skip(Math.max(0, persistedBlock.size() - 1))
                 .map(row -> row[0])
                 .toList();
-        assertEquals(groupIds, lastIds, "Moved group must occupy the last positions of the block, in order");
+        assertEquals(List.of(movedRow.getId()), lastIds, "Moved row must occupy the last position of the block");
     }
 
     // ── Scenario 2: second row of first block → position 3 of the SECOND block ────────────────
@@ -150,28 +138,22 @@ class ComponentRowMoveRealDbTest {
         assumeTrue(firstBlockRows.size() >= 2, "First block needs at least 2 rows.");
         assumeTrue(secondBlockRows.size() >= 2, "Second block needs at least 2 rows for position 3.");
 
-        InstructionLoad movedRow = firstBlockRows.get(1);
-        List<InstructionLoad> group = moveGroupService.resolve(current, movedRow.getId());
-        assumeTrue(!group.isEmpty(), "Move group could not be resolved for row " + movedRow.getId());
-        List<Integer> groupIds = group.stream().map(InstructionLoad::getId).toList();
+        InstructionLoad movedRow = independentRoot(current, firstBlockRows);
+        assumeTrue(movedRow != null, "First block needs an independent root row for this structural fixture.");
 
         // Destination position 3 → index 2 (clamped to the destination size, like a real drop).
         int destinationIndex = Math.min(2, secondBlockRows.size());
 
         List<InstructionLoad> sourceRemainder = firstBlockRows.stream()
-                .filter(row -> !groupIds.contains(row.getId()))
+                .filter(row -> !movedRow.getId().equals(row.getId()))
                 .toList();
         List<InstructionLoad> destinationRows = new ArrayList<>(secondBlockRows);
-        destinationRows.addAll(destinationIndex, group);
+        destinationRows.add(destinationIndex, movedRow);
 
-        List<UpdatedRow> updates = new ArrayList<>();
-        updates.addAll(renumber(sourceRemainder, firstBlockId));
-        updates.addAll(renumber(destinationRows, secondBlockId));
+        List<UpdatedRow> updates = fullLayout(
+                current, Map.of(firstBlockId, sourceRemainder, secondBlockId, destinationRows));
 
-        String refusal = moveValidator.validate(current, updates);
-        assertNull(refusal, "Backend refused the cross-block move: " + refusal);
-
-        assertNull(performDataBase.updateMoveRowsOrder("component_block", homeBankingId, updates),
+        assertNull(performDataBase.updateMoveRowsOrder("component_block", homeBankingId, updates, null, 2),
                 "updateMoveRowsOrder reported an error");
 
         Map<Integer, List<int[]>> persisted = persistedOrders();
@@ -183,11 +165,11 @@ class ComponentRowMoveRealDbTest {
         // The moved group sits at the destination position, in order.
         List<Integer> movedSlice = persistedSecond.stream()
                 .skip(destinationIndex)
-                .limit(groupIds.size())
+                .limit(1)
                 .map(row -> row[0])
                 .toList();
-        assertEquals(groupIds, movedSlice,
-                "Moved group must sit at position " + (destinationIndex + 1) + " of the second block");
+        assertEquals(List.of(movedRow.getId()), movedSlice,
+                "Moved row must sit at position " + (destinationIndex + 1) + " of the second block");
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────────────────────
@@ -242,16 +224,47 @@ class ComponentRowMoveRealDbTest {
                 .toList();
     }
 
-    private List<UpdatedRow> renumber(List<InstructionLoad> rows, int blockId) {
+    private InstructionLoad independentRoot(List<InstructionLoad> allRows, List<InstructionLoad> candidates) {
+        return candidates.stream()
+                .filter(row -> row.getParentId() == null)
+                .filter(candidate -> allRows.stream().noneMatch(row -> candidate.getId().equals(row.getParentId())))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private List<UpdatedRow> fullLayout(
+            List<InstructionLoad> current, Map<Integer, List<InstructionLoad>> replacements) {
+        Map<Integer, Integer> blockOrders = blockOrders();
         List<UpdatedRow> updates = new ArrayList<>();
-        for (int index = 0; index < rows.size(); index++) {
-            UpdatedRow update = new UpdatedRow();
-            update.setInstructionId(rows.get(index).getId());
-            update.setBlockId(blockId);
-            update.setInstructionOrderNumber(index + 1);
-            updates.add(update);
+        for (Integer blockId : orderedBlockIds(current)) {
+            List<InstructionLoad> rows = replacements.getOrDefault(blockId, blockRows(current, blockId));
+            for (int index = 0; index < rows.size(); index++) {
+                InstructionLoad source = rows.get(index);
+                UpdatedRow update = new UpdatedRow();
+                update.setInstructionId(source.getId());
+                update.setBlockId(blockId);
+                update.setBlockOrderNumber(blockOrders.get(blockId));
+                update.setInstructionOrderNumber(index + 1);
+                update.setParentId(source.getParentId());
+                update.setParentBlockId(source.getParentBlockId());
+                updates.add(update);
+            }
         }
         return updates;
+    }
+
+    private Map<Integer, Integer> blockOrders() {
+        Map<Integer, Integer> result = new LinkedHashMap<>();
+        String sql = "SELECT id,block_order_number FROM component_block WHERE home_banking_id=?";
+        try (Connection conn = openCopy(); PreparedStatement statement = conn.prepareStatement(sql)) {
+            statement.setInt(1, homeBankingId);
+            try (ResultSet rows = statement.executeQuery()) {
+                while (rows.next()) result.put(rows.getInt("id"), rows.getInt("block_order_number"));
+            }
+        } catch (SQLException error) {
+            throw new IllegalStateException("Could not read component block orders: " + error.getMessage(), error);
+        }
+        return result;
     }
 
     /** blockId → [instructionId, order] rows read straight from the DB copy, order-sorted. */

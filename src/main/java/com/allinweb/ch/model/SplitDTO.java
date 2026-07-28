@@ -17,6 +17,8 @@ public class SplitDTO {
     private String operationId;
     private String requestId;
     private String graphRevision;
+    /** Versioned ROW_MOVE persistence layout contract. */
+    private Integer rowMoveLayoutVersion;
 
     private Integer homeBankingId;
     private Integer botJobId;

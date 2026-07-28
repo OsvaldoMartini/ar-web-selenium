@@ -47,7 +47,6 @@ public final class CommandEditorService {
     private final InstructionSplitValidator splitValidator = new InstructionSplitValidator();
     private final ConditionalBranchService conditionalBranchService = new ConditionalBranchService();
     private final LoopGroupService loopGroupService = new LoopGroupService();
-    private final InstructionMoveGroupService moveGroupService = new InstructionMoveGroupService();
     private final InstructionGraphRevisionService revisionService = new InstructionGraphRevisionService();
     private final InstructionDeleteImpactService deleteImpactService = new InstructionDeleteImpactService();
 
@@ -477,27 +476,19 @@ public final class CommandEditorService {
             Set<Integer> invalidConditionalIds = invalidConditionalBlockIds(instructionRows);
             for (InstructionLoad row : instructionRows) {
                 if (row == null || row.getId() == null) continue;
-                String moveReason = moveGroupService.resolve(instructionRows, row.getId()).isEmpty()
-                        ? "The connected move group could not be resolved."
-                        : null;
                 JsonObject capability = new JsonObject();
                 capability.addProperty("instructionId", row.getId());
-                capability.addProperty("canMove", moveReason == null);
+                capability.addProperty("canMove", true);
                 JsonArray allowedBlockIds = new JsonArray();
-                if (moveReason == null) {
-                    blockRows.stream()
-                            .filter(block -> block != null && block.getId() != null)
-                            .sorted(Comparator.comparingInt(block -> block.getBlockOrderNumber() == null
-                                    ? Integer.MAX_VALUE
-                                    : block.getBlockOrderNumber()))
-                            .forEach(block -> allowedBlockIds.add(block.getId()));
-                }
+                blockRows.stream().filter(block -> block != null && block.getId() != null)
+                        .sorted(Comparator.comparingInt(block -> block.getBlockOrderNumber() == null
+                                ? Integer.MAX_VALUE : block.getBlockOrderNumber()))
+                        .forEach(block -> allowedBlockIds.add(block.getId()));
                 capability.add("allowedBlockIds", allowedBlockIds);
                 String deleteReason = deleteBlockReason(row, invalidConditionalIds, instructionRows);
                 capability.addProperty("canDelete", deleteReason == null);
                 capability.addProperty("deleteCount", deleteImpactCount(row, instructionRows));
                 capability.add("deleteRows", deleteImpactRows(row, instructionRows));
-                if (moveReason != null) capability.addProperty("reason", moveReason);
                 if (deleteReason != null) capability.addProperty("deleteReason", deleteReason);
                 capabilities.add(capability);
             }
@@ -1168,56 +1159,6 @@ public final class CommandEditorService {
         response.addProperty("movedCount", blockRows.size() - splitIndex - 1);
         if (body.has("requestId")) response.add("requestId", body.get("requestId"));
         return response;
-    }
-
-    public JsonObject previewMove(JsonObject body) {
-        String targetSession = string(body, "targetSessionId", ScannerWorkspaceSessions.BOT_JOB_TASKS);
-        ErrorMessage loadError = reloadInstructions(body, targetSession);
-        if (loadError != null) return failure(loadError.getErrorMessage());
-        JsonObject stale = validateGraphRevision(body, targetSession);
-        if (stale != null) return stale;
-
-        int instructionId = integer(body, "instructionId", -1);
-        int destinationBlockId = integer(body, "destinationBlockId", -1);
-        List<InstructionLoad> group = moveGroupService.resolve(instructions(targetSession), instructionId);
-        if (group.isEmpty()) return failure("The move instruction no longer exists.");
-        if (destinationBlockId < 1) return failure("A destination block is required.");
-
-        boolean destinationExists = (isComponentSession(targetSession)
-                        ? lists.getListBlockComp()
-                        : lists.getListBlock())
-                .stream()
-                .anyMatch(block -> block != null && block.getId() != null && block.getId() == destinationBlockId);
-        if (!destinationExists) return failure("The destination block no longer exists.");
-
-        JsonObject response = new JsonObject();
-        response.addProperty("ok", true);
-        response.addProperty(
-                "graphRevision",
-                graphRevision(
-                        targetSession, revisionOwnerId(body, targetSession)));
-        response.addProperty("sourceBlockId", group.get(0).getBlockId());
-        response.addProperty("destinationBlockId", destinationBlockId);
-        response.addProperty("destinationIndex", integer(body, "destinationIndex", 0));
-        response.addProperty("groupCount", group.size());
-        response.add("groupRows", movePreviewRows(group));
-        if (body.has("requestId")) response.add("requestId", body.get("requestId"));
-        return response;
-    }
-
-    private JsonArray movePreviewRows(List<InstructionLoad> rows) {
-        JsonArray preview = new JsonArray();
-        for (InstructionLoad row : rows) {
-            JsonObject item = new JsonObject();
-            item.addProperty("id", row.getId());
-            item.addProperty("order", row.getInstructionOrderNumber());
-            item.addProperty("name", row.getName());
-            item.addProperty("action", row.getActions());
-            item.addProperty("parentId", row.getParentId());
-            item.addProperty("blockId", row.getBlockId());
-            preview.add(item);
-        }
-        return preview;
     }
 
     private JsonArray splitPreviewRows(List<InstructionLoad> rows) {

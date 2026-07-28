@@ -265,7 +265,7 @@ class SimpleWebSocketServerSessionLifecycleTest {
         endpoint.sendPhysicalTransportResponseAcknowledged(
                         requester,
                         7,
-                        "instructionGraph.previewMoveResponse",
+                        "instructionEditor.rowMoveResponse",
                         Map.of("ok", false, "requestId", "request-1"))
                 .join();
 
@@ -386,6 +386,7 @@ class SimpleWebSocketServerSessionLifecycleTest {
         Session session = sessionWithId(ScannerWorkspaceSessions.BOT_JOB_TASKS, true);
         RemoteEndpoint.Async asyncRemote = mock(RemoteEndpoint.Async.class);
         when(session.getAsyncRemote()).thenReturn(asyncRemote);
+        WebSocketSessionManager.addSession(ScannerWorkspaceSessions.BOT_JOB_TASKS, session);
         doAnswer(invocation -> {
                     SendHandler handler = invocation.getArgument(1);
                     handler.onResult(new SendResult(new IOException("transport failed")));
@@ -412,6 +413,7 @@ class SimpleWebSocketServerSessionLifecycleTest {
         Session session = sessionWithId(ScannerWorkspaceSessions.BOT_JOB_TASKS, true);
         RemoteEndpoint.Async asyncRemote = mock(RemoteEndpoint.Async.class);
         when(session.getAsyncRemote()).thenReturn(asyncRemote);
+        WebSocketSessionManager.addSession(ScannerWorkspaceSessions.BOT_JOB_TASKS, session);
         doAnswer(invocation -> {
                     SendHandler handler = invocation.getArgument(1);
                     handler.onResult(new SendResult());

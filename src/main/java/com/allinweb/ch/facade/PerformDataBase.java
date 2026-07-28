@@ -1603,126 +1603,22 @@ public class PerformDataBase {
 
     public ErrorMessage updateMoveRowsOrder(
             String tableName, int whereId, List<UpdatedRow> instructions) {
-        if (instructions == null || instructions.isEmpty()) return null;
-        try (Connection connection = getConnection()) {
-            new InstructionMoveTransaction().execute(connection, tableName, whereId, instructions);
-            return null;
-        } catch (SQLException error) {
-            logDB.error("Update Move Rows Order Error: " + error.getMessage());
-            return new ErrorMessage(
-                    "Update Move Rows Order Error", "Failed to update instruction order numbers", error.getMessage());
-        }
+        return updateMoveRowsOrder(tableName, whereId, instructions, null, 2);
     }
 
-    private ErrorMessage updateMoveRowsOrderLegacy(
-            String tableName,
-            int whereId, // either bot_job_id or home_banking_id
-            List<UpdatedRow> instructions) {
+    public ErrorMessage updateMoveRowsOrder(
+            String tableName, int whereId, List<UpdatedRow> instructions,
+            String expectedRevision, Integer layoutVersion) {
         if (instructions == null || instructions.isEmpty()) {
-            return null; // nothing to do
+            return new ErrorMessage(
+                    "Update Move Rows Order Error",
+                    "Failed to update instruction order numbers",
+                    "ROW_MOVE layout must include every instruction owned by the active owner.");
         }
-
-        String idColumn = "id";
-        String blockIdColumn = "block_id";
-        String orderColumn = "instruction_order_number";
-        String whereColumn = tableName.equals("block") ? "bot_job_id" : "home_banking_id";
-
-        String instructionTable = tableName.equals("block") ? "instruction" : "component_instruction";
-        String updateSQL = "UPDATE " + instructionTable + " SET "
-                + orderColumn + " = ?, "
-                + blockIdColumn + " = ?, parent_block_id = ? "
-                + "WHERE " + idColumn + " = ? AND " + whereColumn + " = ?";
-        String parentSQL = "SELECT id, parent_id FROM " + instructionTable + " WHERE " + whereColumn + " = ?";
-        String blocksSQL = "SELECT id FROM " + tableName + " WHERE " + whereColumn + " = ? ORDER BY block_order_number, id";
-        String occupiedSQL = "SELECT DISTINCT block_id FROM " + instructionTable + " WHERE " + whereColumn + " = ?";
-        String deleteBlockSQL = "DELETE FROM " + tableName + " WHERE id = ? AND " + whereColumn + " = ?";
-        String reorderBlockSQL = "UPDATE " + tableName + " SET block_order_number = ? WHERE id = ? AND " + whereColumn + " = ?";
-
-        try (Connection conn = getConnection()) {
-            conn.setAutoCommit(false);
-            try {
-                Map<Integer, Integer> destinationBlocks = instructions.stream().collect(Collectors.toMap(
-                        UpdatedRow::getInstructionId, UpdatedRow::getBlockId, (first, ignored) -> first));
-                Map<Integer, Integer> parentIds = new HashMap<>();
-                try (PreparedStatement parents = conn.prepareStatement(parentSQL)) {
-                    parents.setInt(1, whereId);
-                    try (ResultSet rows = parents.executeQuery()) {
-                        while (rows.next()) {
-                            int parentId = rows.getInt("parent_id");
-                            if (!rows.wasNull()) parentIds.put(rows.getInt("id"), parentId);
-                        }
-                    }
-                }
-
-                try (PreparedStatement update = conn.prepareStatement(updateSQL)) {
-                    for (UpdatedRow instruction : instructions) {
-                        Integer parentId = parentIds.get(instruction.getInstructionId());
-                        Integer parentBlockId = parentId == null ? null : destinationBlocks.get(parentId);
-                        if (parentId != null && parentBlockId == null) {
-                            throw new SQLException("Parent instruction " + parentId + " is missing from the move layout");
-                        }
-                        update.setInt(1, instruction.getInstructionOrderNumber());
-                        update.setInt(2, instruction.getBlockId());
-                        if (parentBlockId == null) update.setNull(3, Types.INTEGER);
-                        else update.setInt(3, parentBlockId);
-                        update.setInt(4, instruction.getInstructionId());
-                        update.setInt(5, whereId);
-                        if (update.executeUpdate() != 1) {
-                            throw new SQLException("Instruction " + instruction.getInstructionId()
-                                    + " could not be updated exactly once");
-                        }
-                    }
-                }
-
-                List<Integer> blockIds = new ArrayList<>();
-                try (PreparedStatement blocks = conn.prepareStatement(blocksSQL)) {
-                    blocks.setInt(1, whereId);
-                    try (ResultSet rows = blocks.executeQuery()) {
-                        while (rows.next()) blockIds.add(rows.getInt("id"));
-                    }
-                }
-                Set<Integer> occupiedBlockIds = new HashSet<>();
-                try (PreparedStatement occupied = conn.prepareStatement(occupiedSQL)) {
-                    occupied.setInt(1, whereId);
-                    try (ResultSet rows = occupied.executeQuery()) {
-                        while (rows.next()) occupiedBlockIds.add(rows.getInt("block_id"));
-                    }
-                }
-                List<Integer> remainingBlockIds = blockIds.stream()
-                        .filter(occupiedBlockIds::contains)
-                        .collect(Collectors.toCollection(ArrayList::new));
-                if (remainingBlockIds.isEmpty() && "block".equals(tableName) && !blockIds.isEmpty()) {
-                    remainingBlockIds.add(blockIds.get(0));
-                }
-                try (PreparedStatement deleteBlock = conn.prepareStatement(deleteBlockSQL)) {
-                    for (Integer blockId : blockIds) {
-                        if (remainingBlockIds.contains(blockId)) continue;
-                        deleteBlock.setInt(1, blockId);
-                        deleteBlock.setInt(2, whereId);
-                        if (deleteBlock.executeUpdate() != 1) {
-                            throw new SQLException("Empty block " + blockId + " could not be deleted exactly once");
-                        }
-                    }
-                }
-                try (PreparedStatement reorderBlock = conn.prepareStatement(reorderBlockSQL)) {
-                    for (int index = 0; index < remainingBlockIds.size(); index++) {
-                        reorderBlock.setInt(1, index + 1);
-                        reorderBlock.setInt(2, remainingBlockIds.get(index));
-                        reorderBlock.setInt(3, whereId);
-                        if (reorderBlock.executeUpdate() != 1) {
-                            throw new SQLException("Block " + remainingBlockIds.get(index)
-                                    + " could not be reordered exactly once");
-                        }
-                    }
-                }
-                conn.commit();
-                return null;
-            } catch (SQLException error) {
-                conn.rollback();
-                throw error;
-            } finally {
-                conn.setAutoCommit(true);
-            }
+        try (Connection connection = getConnection()) {
+            new InstructionMoveTransaction().execute(
+                    connection, tableName, whereId, instructions, expectedRevision, layoutVersion);
+            return null;
         } catch (SQLException error) {
             logDB.error("Update Move Rows Order Error: " + error.getMessage());
             return new ErrorMessage(
