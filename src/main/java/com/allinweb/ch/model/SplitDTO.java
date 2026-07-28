@@ -19,6 +19,12 @@ public class SplitDTO {
     private String graphRevision;
     /** Versioned ROW_MOVE persistence layout contract. */
     private Integer rowMoveLayoutVersion;
+    /** Versioned DELETE_INSTRUCTION contract. Version 2 persists the exact React-planned IDs. */
+    private Integer deleteContractVersion;
+    /** Exact, ordered instruction IDs confirmed by the client for DELETE_INSTRUCTION v2. */
+    private List<Integer> deleteInstructionIds;
+    /** Explicit surviving rows whose deleted parent relationship must be cleared atomically. */
+    private List<UpdatedRow> deleteParentRepairs;
 
     private Integer homeBankingId;
     private Integer botJobId;

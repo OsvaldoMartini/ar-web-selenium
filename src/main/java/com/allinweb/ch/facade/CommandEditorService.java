@@ -45,10 +45,7 @@ public final class CommandEditorService {
     private final CompletedRequestCache completedRequests = new CompletedRequestCache(256);
     private final Map<String, Boolean> completedSplitRequests = new LinkedHashMap<>();
     private final InstructionSplitValidator splitValidator = new InstructionSplitValidator();
-    private final ConditionalBranchService conditionalBranchService = new ConditionalBranchService();
-    private final LoopGroupService loopGroupService = new LoopGroupService();
     private final InstructionGraphRevisionService revisionService = new InstructionGraphRevisionService();
-    private final InstructionDeleteImpactService deleteImpactService = new InstructionDeleteImpactService();
 
     private CommandEditorService() {}
 
@@ -473,7 +470,6 @@ public final class CommandEditorService {
                     ownerInstructionCopies(sessionId, whereId), blockRows);
             currentGraphRevision =
                     revisionService.revision(instructionRows, variableRows);
-            Set<Integer> invalidConditionalIds = invalidConditionalBlockIds(instructionRows);
             for (InstructionLoad row : instructionRows) {
                 if (row == null || row.getId() == null) continue;
                 JsonObject capability = new JsonObject();
@@ -485,11 +481,13 @@ public final class CommandEditorService {
                                 ? Integer.MAX_VALUE : block.getBlockOrderNumber()))
                         .forEach(block -> allowedBlockIds.add(block.getId()));
                 capability.add("allowedBlockIds", allowedBlockIds);
-                String deleteReason = deleteBlockReason(row, invalidConditionalIds, instructionRows);
-                capability.addProperty("canDelete", deleteReason == null);
-                capability.addProperty("deleteCount", deleteImpactCount(row, instructionRows));
-                capability.add("deleteRows", deleteImpactRows(row, instructionRows));
-                if (deleteReason != null) capability.addProperty("deleteReason", deleteReason);
+                // React owns DELETE_INSTRUCTION semantics. Java exposes only neutral selected-row
+                // compatibility fields plus the authoritative revision/owner envelope.
+                capability.addProperty("canDelete", true);
+                capability.addProperty("deleteCount", 1);
+                JsonArray selectedOnly = new JsonArray();
+                addDeleteImpactRow(selectedOnly, row);
+                capability.add("deleteRows", selectedOnly);
                 capabilities.add(capability);
             }
             for (BlockLoadDTO block : blockRows) {
@@ -580,44 +578,6 @@ public final class CommandEditorService {
             throws SQLException {
         Object value = result.getObject(column);
         return value == null ? null : ((Number) value).intValue();
-    }
-
-    private Set<Integer> invalidConditionalBlockIds(List<InstructionLoad> rows) {
-        Set<Integer> invalidIds = new java.util.HashSet<>();
-        for (List<InstructionLoad> blockRows : rows.stream()
-                .filter(row -> row != null && row.getBlockId() != null)
-                .collect(java.util.stream.Collectors.groupingBy(InstructionLoad::getBlockId)).values()) {
-            blockRows.sort(Comparator.comparingInt(row -> row.getInstructionOrderNumber() == null
-                    ? Integer.MAX_VALUE : row.getInstructionOrderNumber()));
-            if (conditionalValidator.validate(blockRows) != null) {
-                blockRows.stream().filter(row -> row.getId() != null).forEach(row -> invalidIds.add(row.getId()));
-            }
-        }
-        return invalidIds;
-    }
-
-    private String deleteBlockReason(InstructionLoad row, Set<Integer> invalidConditionalIds,
-            List<InstructionLoad> rows) {
-        if (invalidConditionalIds.contains(row.getId())) return "Conditional graph is invalid.";
-        if (Set.of("LOOP", "REFRESH_LOOP").contains(row.getActions())
-                && loopGroupService.groupIds(rows, row.getId()).isEmpty()) {
-            return "Loop parent relationship is invalid.";
-        }
-        if ("ELSEIF".equals(row.getActions())
-                && conditionalBranchService.elseIfBranchIds(rows, row.getId()).isEmpty()) {
-            return "ELSEIF branch boundaries are invalid.";
-        }
-        return null;
-    }
-
-    private int deleteImpactCount(InstructionLoad row, List<InstructionLoad> rows) {
-        return deleteImpactService.resolve(row, rows).size();
-    }
-
-    private JsonArray deleteImpactRows(InstructionLoad row, List<InstructionLoad> rows) {
-        JsonArray impact = new JsonArray();
-        deleteImpactService.resolve(row, rows).forEach(candidate -> addDeleteImpactRow(impact, candidate));
-        return impact;
     }
 
     private void addDeleteImpactRow(JsonArray impact, InstructionLoad candidate) {

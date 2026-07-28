@@ -5494,153 +5494,117 @@ public class SimpleWebSocketServer {
                                 "The selected instruction no longer exists. Refresh the grid.");
                         break;
                     }
-                    int storedBlockId = storedDelete.getBlockId() == null ? -1 : storedDelete.getBlockId();
                     errorMessage = CommandEditorService.getInstance()
                             .validateDeleteMetadata(splitDTO, storedDelete);
                     if (errorMessage != null) break;
 
-                    boolean isIfFamily = actions.equalsIgnoreCase("IF")
-                            || actions.equalsIgnoreCase("ELSE")
-                            || actions.equalsIgnoreCase("ENDIF")
-                            || actions.equalsIgnoreCase("ELSEIF");
-
-                    if (isIfFamily) {
-                        List<InstructionLoad> conditionalBlock = (instrTable.equals("instruction")
-                                        ? performLists.getListInstruction()
-                                        : performLists.getListInstructionComp())
-                                .stream()
-                                .filter(row -> row != null && Objects.equals(row.getBlockId(), storedBlockId))
-                                .sorted(Comparator.comparingInt(row -> row.getInstructionOrderNumber() == null
-                                        ? Integer.MAX_VALUE
-                                        : row.getInstructionOrderNumber()))
-                                .toList();
-                        String conditionalError = new ConditionalGraphValidator().validate(conditionalBlock);
-                        if (conditionalError != null) {
-                            errorMessage = new ErrorMessage(
-                                    "Delete Instruction Refused",
-                                    "Invalid conditional graph",
-                                    conditionalError);
-                            break;
-                        }
-                    }
-
-                    // only IF/ELSE/ENDIF delete the whole group (root IF)
-                    boolean isIfFamilyRootDelete = actions.equalsIgnoreCase("IF")
-                            || actions.equalsIgnoreCase("ELSE")
-                            || actions.equalsIgnoreCase("ENDIF");
-
-                    Integer storedParentId = storedDelete.getParentId();
-                    if (isIfFamilyRootDelete
-                            && !actions.equalsIgnoreCase("IF")
-                            && storedParentId == null) {
+                    Integer deleteContractVersion = splitDTO.getDeleteContractVersion();
+                    boolean exactDeleteContract =
+                            Integer.valueOf(InstructionDeleteContractValidator.CONTRACT_VERSION)
+                                    .equals(deleteContractVersion);
+                    if (!exactDeleteContract) {
                         errorMessage = new ErrorMessage(
                                 "Delete Instruction Refused",
-                                "Invalid conditional graph",
-                                "The selected conditional boundary has no IF parent.");
+                                "Delete contract version 2 is required",
+                                "Refresh the workspace and submit DELETE_INSTRUCTION contract version 2.");
                         break;
                     }
-                    int ifRootId = actions.equalsIgnoreCase("IF")
-                            ? instructionId
-                            : storedParentId == null ? -1 : storedParentId;
 
-                    // ELSEIF must load for itself (doesn't matter much now, but keep correct)
-                    int parentsRootId = (isIfFamilyRootDelete ? ifRootId : instructionId);
-                    errorMessage = performDataBase.loadAllParents(instrTable, whereId, parentsRootId);
+                    List<InstructionLoad> currentDeleteRows = instrTable.equals("instruction")
+                            ? performLists.getListInstruction()
+                            : performLists.getListInstructionComp();
+                    InstructionDeleteContractValidator.Validation validation =
+                            new InstructionDeleteContractValidator().validate(
+                                    splitDTO,
+                                    currentDeleteRows,
+                                    whereId,
+                                    "component_instruction".equals(instrTable));
+                    if (!validation.successful()) {
+                        errorMessage = validation.error();
+                        break;
+                    }
+                    // Contract v2 is authoritative: persist exactly the ordered IDs React
+                    // presented and the user confirmed. Do not infer IF/LOOP/parent groups.
+                    List<Integer> deleteIds = validation.instructionIds();
+                    Set<Integer> affectedBlockIds = currentDeleteRows.stream()
+                            .filter(row -> row != null && deleteIds.contains(row.getId()))
+                            .map(InstructionLoad::getBlockId)
+                            .filter(Objects::nonNull)
+                            .collect(Collectors.toCollection(LinkedHashSet::new));
 
-                    boolean continueDelete = true;
-                    boolean deleteParents = false;
-
-                    if (errorMessage == null) {
-
-                        // React already presents the authoritative impact list and asks for
-                        // confirmation. The confirmed mutation therefore removes the same
-                        // dependency graph instead of refusing a parent instruction.
-                        continueDelete = true;
-                        deleteParents = true;
-
+                    if (deleteIds.isEmpty()) {
+                        errorMessage = new ErrorMessage(
+                                "Delete Instruction Refused",
+                                "Instruction group is invalid",
+                                "Refresh the grid before deleting this instruction group.");
+                        break;
                     }
 
-                    if (continueDelete && deleteParents && errorMessage == null) {
-                        List<InstructionLoad> currentDeleteRows = instrTable.equals("instruction")
-                                ? performLists.getListInstruction()
-                                : performLists.getListInstructionComp();
-                        List<Integer> deleteIds = new InstructionDeleteImpactService()
-                                .resolve(storedDelete, currentDeleteRows)
-                                .stream()
-                                .map(InstructionLoad::getId)
-                                .filter(Objects::nonNull)
-                                .distinct()
-                                .toList();
+                    errorMessage = performDataBase.deleteInstructionGraphAtomic(
+                            instrTable,
+                            whereId,
+                            deleteIds,
+                            validation.parentRepairs());
 
-                        if (deleteIds.isEmpty()) {
-                            errorMessage = new ErrorMessage(
-                                    "Delete Instruction Refused",
-                                    "Instruction group is invalid",
-                                    "Refresh the grid before deleting this instruction group.");
-                            break;
+                    if (errorMessage == null) {
+                        for (Integer removedId : deleteIds) {
+                            performLists.updateMemoryRemoveInstructionId(instrTable, whereId, removedId);
                         }
 
-                        errorMessage = performDataBase.deleteInstructionGraphAtomic(
-                                instrTable, whereId, deleteIds);
+                        if (errorMessage == null) {
+                            errorMessage =
+                                    performDataBase.loadInstructions(whereId, -1, -1, instrTable);
+                        }
+
+                        List<InstructionLoad> rowsList = instrTable.equals("instruction")
+                                ? performLists.getListInstruction()
+                                : performLists.getListInstructionComp();
 
                         if (errorMessage == null) {
-                            for (Integer removedId : deleteIds) {
-                                performLists.updateMemoryRemoveInstructionId(instrTable, whereId, removedId);
+                            errorMessage = deleteNullsAndMemoryReload(
+                                    instrTable, blockTable, whereId, previousBlockIds);
+                        }
+
+                        if (errorMessage == null) {
+                            performDataBase.updateBlockOrderNumber(blockTable, whereId, true);
+                        }
+
+                        if (errorMessage == null) {
+                            List<BlockLoadDTO> blockLoad = new ArrayList<>();
+                            for (Integer affectedBlockId : affectedBlockIds) {
+                                List<InstructionLoad> survivingRows = rowsList.stream()
+                                        .filter(row -> row != null
+                                                && Objects.equals(
+                                                        row.getBlockId(), affectedBlockId))
+                                        .sorted(Comparator.comparingInt(
+                                                row -> row.getInstructionOrderNumber() == null
+                                                        ? Integer.MAX_VALUE
+                                                        : row.getInstructionOrderNumber()))
+                                        .toList();
+                                if (survivingRows.isEmpty()) continue;
+                                BlockLoadDTO affectedBlock = new BlockLoadDTO();
+                                affectedBlock.setId(affectedBlockId);
+                                affectedBlock.setInstructionLoad(survivingRows);
+                                blockLoad.add(affectedBlock);
                             }
+                            errorMessage = performDataBase.reorderInstructionsListBlock(
+                                    blockLoad, instrTable, true);
+                        }
+                        if (errorMessage == null) {
+                            // Publish the same normalized orders that were persisted for every
+                            // affected surviving block.
+                            errorMessage =
+                                    performDataBase.loadInstructions(whereId, -1, -1, instrTable);
+                        }
 
-                            if (errorMessage == null) {
-                                errorMessage = performDataBase.loadInstructions(whereId, -1, -1, instrTable);
-                            }
-
-                            List<InstructionLoad> rowsList = instrTable.equals("instruction")
-                                    ? performLists.getListInstruction()
-                                    : performLists.getListInstructionComp();
-
-                            InstructionLoad hasExcelGotoOneBlock = hasOnlyExcelGoto(rowsList, instrTable);
-
-                            if (hasExcelGotoOneBlock != null) {
-                                errorMessage = performDataBase.deleteInstruction(
-                                        instrTable, whereId, hasExcelGotoOneBlock, false);
-                            }
-
-                            if (errorMessage == null) {
-                                errorMessage =
-                                        deleteNullsAndMemoryReload(instrTable, blockTable, whereId, previousBlockIds);
-                            }
-
-                            if (errorMessage == null) {
-                                performDataBase.updateBlockOrderNumber(blockTable, whereId, true);
-                            }
-
-                            if (errorMessage == null) {
-                                final int finalWhereId = whereId;
-
-                                List<BlockLoadDTO> blockLoad = instrTable.equals("instruction")
-                                        ? performLists.getListBotJob().stream()
-                                                .filter(b -> Objects.equals(b.getId(), finalWhereId))
-                                                .findFirst()
-                                                .map(b -> b.getBlockLoadDTOList().stream()
-                                                        .filter(block ->
-                                                                Objects.equals(block.getId(), splitDTO.getBlockId()))
-                                                        .toList())
-                                                .orElse(Collections.emptyList())
-                                        : performLists.getListBotJobComp().stream()
-                                                .filter(b -> Objects.equals(b.getHomeBankingId(), finalWhereId))
-                                                .findFirst()
-                                                .map(b -> b.getBlockLoadDTOList().stream()
-                                                        .filter(block ->
-                                                                Objects.equals(block.getId(), splitDTO.getBlockId()))
-                                                        .toList())
-                                                .orElse(Collections.emptyList());
-
-                                errorMessage =
-                                        performDataBase.reorderInstructionsListBlock(blockLoad, instrTable, true);
-                            }
-
+                        if (errorMessage == null) {
                             splitDTO.setType(updteBlocks);
                             jsonData = gson.toJson(splitDTO);
                             webSocketSessionManager.sendMessageJson(
-                                    homeBankingId, ScannerWorkspaceSessions.PERFORM_LIST_DATA, jsonData, updteBlocks);
+                                    homeBankingId,
+                                    ScannerWorkspaceSessions.PERFORM_LIST_DATA,
+                                    jsonData,
+                                    updteBlocks);
                         }
                     }
 
@@ -6221,38 +6185,6 @@ public class SimpleWebSocketServer {
             }
         }
         this.payloadEmpty = new PayloadJson(whereId, blockId, botJobName, 0);
-    }
-
-    public InstructionLoad hasOnlyExcelGoto(List<InstructionLoad> instructions, String instrTable) {
-
-        List<InstructionLoad> excelGotoInstructions = instructions.stream()
-                .filter(instr -> "EXCEL GOTO".equalsIgnoreCase(instr.getActions()))
-                .toList();
-
-        if (excelGotoInstructions.isEmpty()) {
-            return null;
-        }
-
-        // all blockIds used by "EXCEL GOTO"
-        Set<Integer> excelGotoBlockIds = excelGotoInstructions.stream()
-                .map(InstructionLoad::getBlockId)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toSet());
-
-        // check each blockId has *only* EXCEL GOTO instructions
-        boolean uniqueBlocks = excelGotoBlockIds.size() == 1
-                && instructions.stream()
-                        .filter(instr -> excelGotoBlockIds.contains(instr.getBlockId()))
-                        .allMatch(instr -> "EXCEL GOTO".equalsIgnoreCase(instr.getActions()));
-
-        if (uniqueBlocks) {
-            InstructionLoad first = excelGotoInstructions.get(0);
-            // remove all EXCEL GOTO instructions from that block
-            instructions.removeIf(instr -> excelGotoBlockIds.contains(instr.getBlockId()));
-            return first;
-        }
-
-        return null;
     }
 
     public List<BlockLoadDTO> mapToBlockLoad(int homeBankId, List<BlockOrderDetailDTO> updatedBlock) {

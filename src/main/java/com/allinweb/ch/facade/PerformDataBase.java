@@ -4375,7 +4375,11 @@ public class PerformDataBase {
         return errorMessage;
     }
 
-    public ErrorMessage deleteInstructionGraphAtomic(String instructionTable, int whereId, List<Integer> ids) {
+    public ErrorMessage deleteInstructionGraphAtomic(
+            String instructionTable,
+            int whereId,
+            List<Integer> ids,
+            List<UpdatedRow> parentRepairs) {
         if (!"instruction".equals(instructionTable) && !"component_instruction".equals(instructionTable)) {
             return new ErrorMessage("Delete Instruction Error", "Invalid instruction table", instructionTable);
         }
@@ -4387,6 +4391,19 @@ public class PerformDataBase {
         if (deleteIds.isEmpty()) {
             return new ErrorMessage("Delete Instruction Error", "No instructions selected", "Delete list is empty.");
         }
+        List<UpdatedRow> repairs = parentRepairs == null ? List.of() : parentRepairs;
+        Set<Integer> repairIds = new HashSet<>();
+        for (UpdatedRow repair : repairs) {
+            if (repair == null || repair.getInstructionId() == null
+                    || repair.getInstructionId() <= 0
+                    || repair.getParentId() != null
+                    || !repairIds.add(repair.getInstructionId())) {
+                return new ErrorMessage(
+                        "Delete Instruction Error",
+                        "Invalid parent repair",
+                        "Parent repairs must contain unique surviving IDs and a null parentId.");
+            }
+        }
         String ownerColumn = "instruction".equals(instructionTable) ? "bot_job_id" : "home_banking_id";
         String variableTable = "instruction".equals(instructionTable) ? "variable" : "component_variable";
         String referenceTable = "instruction".equals(instructionTable) ? "reference" : "component_reference";
@@ -4397,6 +4414,14 @@ public class PerformDataBase {
             connection = getConnection();
             previousAutoCommit = connection.getAutoCommit();
             connection.setAutoCommit(false);
+            clearDeletedParentRelationships(
+                    connection,
+                    instructionTable,
+                    ownerColumn,
+                    whereId,
+                    deleteIds,
+                    repairs,
+                    placeholders);
             deleteOwnedRows(connection, variableTable, ownerColumn, whereId, deleteIds, placeholders);
             deleteOwnedRows(connection, referenceTable, ownerColumn, whereId, deleteIds, placeholders);
             String sql = "DELETE FROM " + instructionTable + " WHERE " + ownerColumn + "=? AND id IN (" + placeholders + ")";
@@ -4419,6 +4444,37 @@ public class PerformDataBase {
                     try { connection.setAutoCommit(previousAutoCommit); } catch (SQLException ignored) { }
                 }
                 try { connection.close(); } catch (SQLException ignored) { }
+            }
+        }
+    }
+
+    private void clearDeletedParentRelationships(
+            Connection connection,
+            String instructionTable,
+            String ownerColumn,
+            int whereId,
+            List<Integer> deleteIds,
+            List<UpdatedRow> parentRepairs,
+            String deletePlaceholders)
+            throws SQLException {
+        if (parentRepairs.isEmpty()) return;
+        String sql = "UPDATE " + instructionTable
+                + " SET parent_id=NULL WHERE " + ownerColumn
+                + "=? AND id=? AND parent_id IN (" + deletePlaceholders + ")";
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            for (UpdatedRow repair : parentRepairs) {
+                statement.setInt(1, whereId);
+                statement.setInt(2, repair.getInstructionId());
+                for (int index = 0; index < deleteIds.size(); index++) {
+                    statement.setInt(index + 3, deleteIds.get(index));
+                }
+                int repaired = statement.executeUpdate();
+                if (repaired != 1) {
+                    throw new SQLException(
+                            "Parent repair for instruction #"
+                                    + repair.getInstructionId()
+                                    + " no longer matches the confirmed graph.");
+                }
             }
         }
     }
