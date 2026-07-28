@@ -26,7 +26,7 @@ public final class MemoryListReorder {
     public static final String MISSING_OR_DUPLICATE =
             "Memory List order contains a missing or duplicate row.";
     public static final String CONNECTED_GROUP_SPLIT =
-            "Connected Memory List instructions must move together.";
+            "Connected Memory List instructions must keep their internal order.";
 
     private MemoryListReorder() {}
 
@@ -82,8 +82,11 @@ public final class MemoryListReorder {
     }
 
     /**
-     * Validates a complete permutation and additionally guarantees that members
-     * of one dependency group stay contiguous and retain their internal order.
+     * Validates a complete permutation and additionally guarantees that members of one
+     * dependency group keep their relative order. Contiguity is deliberately NOT required:
+     * an independent row may be dropped between two connected members (the applied output
+     * then contains it at that position), but the connected members themselves may never
+     * be reordered relative to each other.
      */
     public static Outcome resolveGrouped(
             List<String> currentOrder,
@@ -105,14 +108,13 @@ public final class MemoryListReorder {
                 currentOrder, dependencyGroupByItem);
         for (List<String> members : currentGroups.values()) {
             if (members.size() <= 1) continue;
-            int first = base.orderedKeys().indexOf(members.get(0));
-            if (first < 0 || first + members.size() > base.orderedKeys().size()) {
-                return new Outcome(false, null, CONNECTED_GROUP_SPLIT);
+            Set<String> memberSet = new HashSet<>(members);
+            List<String> requestedRelativeOrder = new ArrayList<>(members.size());
+            for (String key : base.orderedKeys()) {
+                if (memberSet.contains(key)) requestedRelativeOrder.add(key);
             }
-            for (int index = 0; index < members.size(); index++) {
-                if (!members.get(index).equals(base.orderedKeys().get(first + index))) {
-                    return new Outcome(false, null, CONNECTED_GROUP_SPLIT);
-                }
+            if (!requestedRelativeOrder.equals(members)) {
+                return new Outcome(false, null, CONNECTED_GROUP_SPLIT);
             }
         }
         return base;

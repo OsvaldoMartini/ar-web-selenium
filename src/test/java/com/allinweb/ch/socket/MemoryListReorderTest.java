@@ -174,7 +174,7 @@ class MemoryListReorderTest {
     }
 
     @Test
-    void connectedParentGetExcelGroupCanMoveOnlyAsOneContiguousUnit() {
+    void connectedParentGetExcelGroupKeepsInternalOrderButAcceptsInsertions() {
         List<String> current = List.of(
                 "BOT_JOB:field",
                 "BOT_JOB:get",
@@ -195,9 +195,11 @@ class MemoryListReorderTest {
                         "BOT_JOB:field",
                         "BOT_JOB:get",
                         "BOT_JOB:excel"));
-        assertTrue(moved.ok());
+        assertTrue(moved.ok(), "moving the whole group after an outside row must be accepted");
 
-        MemoryListReorder.Outcome split = MemoryListReorder.resolveGrouped(
+        // Dropping an independent row BETWEEN two connected members is a legitimate edit of
+        // the applied output; the members keep their relative order, so it is accepted.
+        MemoryListReorder.Outcome inserted = MemoryListReorder.resolveGrouped(
                 current,
                 valid,
                 groups,
@@ -206,8 +208,20 @@ class MemoryListReorderTest {
                         "BOT_JOB:other",
                         "BOT_JOB:get",
                         "BOT_JOB:excel"));
-        assertFalse(split.ok());
-        assertEquals(MemoryListReorder.CONNECTED_GROUP_SPLIT, split.error());
+        assertTrue(inserted.ok(), "inserting an outside row inside the group must be accepted");
+
+        // Reordering the connected members relative to each other is still refused.
+        MemoryListReorder.Outcome reordered = MemoryListReorder.resolveGrouped(
+                current,
+                valid,
+                groups,
+                List.of(
+                        "BOT_JOB:get",
+                        "BOT_JOB:field",
+                        "BOT_JOB:other",
+                        "BOT_JOB:excel"));
+        assertFalse(reordered.ok());
+        assertEquals(MemoryListReorder.CONNECTED_GROUP_SPLIT, reordered.error());
     }
 
     @Test
