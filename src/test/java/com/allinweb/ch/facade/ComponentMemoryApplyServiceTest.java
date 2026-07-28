@@ -3,6 +3,7 @@ package com.allinweb.ch.facade;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.allinweb.ch.model.InstructionLoad;
@@ -13,6 +14,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -216,7 +218,7 @@ class ComponentMemoryApplyServiceTest {
 
         assertFalse(result.committed());
         assertNotNull(result.error());
-        assertTrue(result.error().getErrorHeader().contains("complete connected"));
+        assertTrue(result.error().getErrorHeader().contains("was not selected"));
         try (Connection connection = DriverManager.getConnection(url);
                 Statement statement = connection.createStatement()) {
             assertEquals(
@@ -263,7 +265,7 @@ class ComponentMemoryApplyServiceTest {
 
         assertFalse(result.committed());
         assertNotNull(result.error());
-        assertTrue(result.error().getErrorHeader().contains("complete connected"));
+        assertTrue(result.error().getErrorHeader().contains("matching GET producer"));
         try (Connection connection = DriverManager.getConnection(url);
                 Statement statement = connection.createStatement()) {
             assertEquals(
@@ -571,7 +573,7 @@ class ComponentMemoryApplyServiceTest {
 
         assertFalse(result.committed());
         assertNotNull(result.error());
-        assertTrue(result.error().getErrorHeader().contains("complete connected"));
+        assertTrue(result.error().getErrorHeader().contains("was not selected"));
         try (Connection connection = DriverManager.getConnection(url);
                 Statement statement = connection.createStatement()) {
             assertEquals(1, scalar(statement, "SELECT COUNT(*) FROM block WHERE bot_job_id=5"));
@@ -885,9 +887,9 @@ class ComponentMemoryApplyServiceTest {
                         11,
                         List.of(
                                 ComponentMemoryApplyService.OrderedItem.botJob(
-                                        "BOT_JOB:501", 501),
+                                        "BOT_JOB:501", 501, botJobRevision(url)),
                                 ComponentMemoryApplyService.OrderedItem.botJob(
-                                        "BOT_JOB:502", 502))));
+                                        "BOT_JOB:502", 502, botJobRevision(url)))));
 
         assertTrue(result.committed());
         int copiedTargetId = result.generatedInstructionIds().get("BOT_JOB:501");
@@ -964,9 +966,9 @@ class ComponentMemoryApplyServiceTest {
                         11,
                         List.of(
                                 ComponentMemoryApplyService.OrderedItem.botJob(
-                                        "BOT_JOB:501", 501),
+                                        "BOT_JOB:501", 501, botJobRevision(url)),
                                 ComponentMemoryApplyService.OrderedItem.botJob(
-                                        "BOT_JOB:502", 502))));
+                                        "BOT_JOB:502", 502, botJobRevision(url)))));
 
         assertTrue(result.committed());
         int copiedParentId = result.generatedInstructionIds().get("BOT_JOB:501");
@@ -1008,11 +1010,11 @@ class ComponentMemoryApplyServiceTest {
                         11,
                         List.of(
                                 ComponentMemoryApplyService.OrderedItem.botJob(
-                                        "BOT_JOB:503", 503),
+                                        "BOT_JOB:503", 503, botJobRevision(url)),
                                 ComponentMemoryApplyService.OrderedItem.botJob(
-                                        "BOT_JOB:502", 502),
+                                        "BOT_JOB:502", 502, botJobRevision(url)),
                                 ComponentMemoryApplyService.OrderedItem.botJob(
-                                        "BOT_JOB:501", 501))));
+                                        "BOT_JOB:501", 501, botJobRevision(url)))));
 
         assertTrue(result.committed());
         int copiedFieldId = result.generatedInstructionIds().get("BOT_JOB:501");
@@ -1123,7 +1125,7 @@ class ComponentMemoryApplyServiceTest {
     }
 
     @Test
-    void botJobIncompleteConnectedFamilyIsRejectedWithoutAnyWrites()
+    void botJobInstructionWithMissingParentIsRejectedWithoutAnyWrites()
             throws Exception {
         String url = databaseUrl("bot-job-incomplete-family-copy");
         initializeDatabase(url);
@@ -1138,11 +1140,11 @@ class ComponentMemoryApplyServiceTest {
                         2,
                         11,
                         List.of(ComponentMemoryApplyService.OrderedItem.botJob(
-                                "BOT_JOB:502", 502))));
+                                "BOT_JOB:502", 502, botJobRevision(url)))));
 
         assertFalse(result.committed());
         assertNotNull(result.error());
-        assertTrue(result.error().getErrorHeader().contains("complete connected Bot Job"));
+        assertTrue(result.error().getErrorHeader().contains("parent instruction"));
         try (Connection connection = DriverManager.getConnection(url);
                 Statement statement = connection.createStatement()) {
             assertEquals(3, scalar(statement, "SELECT COUNT(*) FROM instruction WHERE bot_job_id=5"));
@@ -1162,6 +1164,106 @@ class ComponentMemoryApplyServiceTest {
     }
 
     @Test
+    void botJobSourceRevisionRejectsAStaleFrontendSelectionWithoutAnyWrites()
+            throws Exception {
+        String url = databaseUrl("bot-job-stale-frontend-selection");
+        initializeDatabase(url);
+        seedBotJobWebFieldFamily(url);
+        String stagedRevision = botJobRevision(url);
+        try (Connection connection = DriverManager.getConnection(url);
+                Statement statement = connection.createStatement()) {
+            statement.execute(
+                    "UPDATE instruction SET instruction_order_number=30 WHERE id=503");
+        }
+        ComponentMemoryApplyService service =
+                new ComponentMemoryApplyService(() -> DriverManager.getConnection(url));
+
+        ComponentMemoryApplyService.Result result = service.apply(
+                new ComponentMemoryApplyService.Request(
+                        "bot-job-stale-frontend-selection",
+                        5,
+                        2,
+                        11,
+                        List.of(
+                                ComponentMemoryApplyService.OrderedItem.botJob(
+                                        "BOT_JOB:501", 501, stagedRevision),
+                                ComponentMemoryApplyService.OrderedItem.botJob(
+                                        "BOT_JOB:502", 502, stagedRevision),
+                                ComponentMemoryApplyService.OrderedItem.botJob(
+                                        "BOT_JOB:503", 503, stagedRevision))));
+
+        assertFalse(result.committed());
+        assertNotNull(result.error());
+        assertTrue(result.error().getErrorHeader().contains("changed after they were added"));
+        try (Connection connection = DriverManager.getConnection(url);
+                Statement statement = connection.createStatement()) {
+            assertEquals(
+                    0,
+                    scalar(
+                            statement,
+                            "SELECT COUNT(*) FROM instruction "
+                                    + "WHERE bot_job_id=5 AND block_id=11"));
+        }
+    }
+
+    @Test
+    void botJobApplyPersistsExactlyTheFrontendSelectionWithoutExpandingSharedConsumers()
+            throws Exception {
+        String url = databaseUrl("bot-job-exact-frontend-selection");
+        initializeDatabase(url);
+        seedBotJobWebFieldFamily(url);
+        try (Connection connection = DriverManager.getConnection(url);
+                Statement statement = connection.createStatement()) {
+            statement.execute(
+                    "INSERT INTO instruction("
+                            + "id,instruction_order_number,actions,name,active,block_id,"
+                            + "variable_id,parent_block_id,parent_id,bot_job_id) VALUES"
+                            + "(504,4,'CK','Unrelated consumer',1,10,701,10,501,5)");
+        }
+        String stagedRevision = botJobRevision(url);
+        ComponentMemoryApplyService service =
+                new ComponentMemoryApplyService(() -> DriverManager.getConnection(url));
+
+        ComponentMemoryApplyService.Result result = service.apply(
+                new ComponentMemoryApplyService.Request(
+                        "bot-job-exact-frontend-selection",
+                        5,
+                        2,
+                        11,
+                        List.of(
+                                ComponentMemoryApplyService.OrderedItem.botJob(
+                                        "BOT_JOB:501", 501, stagedRevision),
+                                ComponentMemoryApplyService.OrderedItem.botJob(
+                                        "BOT_JOB:502", 502, stagedRevision),
+                                ComponentMemoryApplyService.OrderedItem.botJob(
+                                        "BOT_JOB:503", 503, stagedRevision))));
+
+        assertTrue(result.committed());
+        assertNull(result.error());
+        try (Connection connection = DriverManager.getConnection(url);
+                Statement statement = connection.createStatement()) {
+            assertEquals(
+                    3,
+                    scalar(
+                            statement,
+                            "SELECT COUNT(*) FROM instruction "
+                                    + "WHERE bot_job_id=5 AND block_id=11"));
+            assertEquals(
+                    0,
+                    scalar(
+                            statement,
+                            "SELECT COUNT(*) FROM instruction "
+                                    + "WHERE bot_job_id=5 AND block_id=11 AND actions='CK'"));
+            assertEquals(
+                    1,
+                    scalar(
+                            statement,
+                            "SELECT COUNT(*) FROM instruction "
+                                    + "WHERE bot_job_id=5 AND block_id=10 AND actions='CK'"));
+        }
+    }
+
+    @Test
     void botJobFamilyCreatesNewTargetOnceAndRetryDoesNotDuplicateRows()
             throws Exception {
         String url = databaseUrl("bot-job-new-target-copy");
@@ -1177,11 +1279,11 @@ class ComponentMemoryApplyServiceTest {
                         -1,
                         List.of(
                                 ComponentMemoryApplyService.OrderedItem.botJob(
-                                        "BOT_JOB:501", 501),
+                                        "BOT_JOB:501", 501, botJobRevision(url)),
                                 ComponentMemoryApplyService.OrderedItem.botJob(
-                                        "BOT_JOB:502", 502),
+                                        "BOT_JOB:502", 502, botJobRevision(url)),
                                 ComponentMemoryApplyService.OrderedItem.botJob(
-                                        "BOT_JOB:503", 503)),
+                                        "BOT_JOB:503", 503, botJobRevision(url))),
                         new ComponentMemoryApplyService.NewTargetBlock(
                                 "Copied Bot Job Family",
                                 BlockCreationService.Position.END,
@@ -1245,11 +1347,11 @@ class ComponentMemoryApplyServiceTest {
                         -1,
                         List.of(
                                 ComponentMemoryApplyService.OrderedItem.botJob(
-                                        "BOT_JOB:501", 501),
+                                        "BOT_JOB:501", 501, botJobRevision(url)),
                                 ComponentMemoryApplyService.OrderedItem.botJob(
-                                        "BOT_JOB:502", 502),
+                                        "BOT_JOB:502", 502, botJobRevision(url)),
                                 ComponentMemoryApplyService.OrderedItem.botJob(
-                                        "BOT_JOB:503", 503)),
+                                        "BOT_JOB:503", 503, botJobRevision(url))),
                         new ComponentMemoryApplyService.NewTargetBlock(
                                 "Must Roll Back",
                                 BlockCreationService.Position.END,
@@ -1302,7 +1404,7 @@ class ComponentMemoryApplyServiceTest {
                         2,
                         12,
                         List.of(ComponentMemoryApplyService.OrderedItem.botJob(
-                                "BOT_JOB:601", 601))));
+                                "BOT_JOB:601", 601, botJobRevision(url)))));
 
         assertTrue(result.committed());
         int copiedGotoId = result.generatedInstructionIds().get("BOT_JOB:601");
@@ -1353,7 +1455,7 @@ class ComponentMemoryApplyServiceTest {
                         2,
                         11,
                         List.of(ComponentMemoryApplyService.OrderedItem.botJob(
-                                "BOT_JOB:601", 601))));
+                                "BOT_JOB:601", 601, botJobRevision(url)))));
 
         assertFalse(result.committed());
         assertNotNull(result.error());
@@ -1398,7 +1500,7 @@ class ComponentMemoryApplyServiceTest {
                         2,
                         12,
                         List.of(ComponentMemoryApplyService.OrderedItem.botJob(
-                                "BOT_JOB:611", 611))));
+                                "BOT_JOB:611", 611, botJobRevision(url)))));
 
         assertFalse(result.committed());
         assertNotNull(result.error());
@@ -1416,7 +1518,7 @@ class ComponentMemoryApplyServiceTest {
     }
 
     @Test
-    void wholeComponentBlockRequiresExternalVariableDependencies() throws Exception {
+    void wholeComponentBlockDoesNotExpandToAnUnreferencedExternalProducer() throws Exception {
         String url = databaseUrl("whole-block-external-variable");
         initializeDatabase(url);
         try (Connection connection = DriverManager.getConnection(url);
@@ -1441,15 +1543,20 @@ class ComponentMemoryApplyServiceTest {
                         List.of(ComponentMemoryApplyService.OrderedItem.componentBlock(
                                 "COMPONENT:BLOCK:2:20", 20, revision))));
 
-        assertFalse(result.committed());
-        assertNotNull(result.error());
-        assertTrue(result.error().getErrorHeader().contains("complete connected"));
+        assertTrue(result.committed());
+        assertNull(result.error());
         try (Connection connection = DriverManager.getConnection(url);
                 Statement statement = connection.createStatement()) {
-            assertEquals(1, scalar(statement, "SELECT COUNT(*) FROM block WHERE bot_job_id=5"));
-            assertEquals(0, scalar(statement, "SELECT COUNT(*) FROM instruction WHERE bot_job_id=5"));
-            assertEquals(0, scalar(statement, "SELECT COUNT(*) FROM variable WHERE bot_job_id=5"));
-            assertEquals(0, scalar(statement, "SELECT COUNT(*) FROM reference WHERE bot_job_id=5"));
+            assertEquals(2, scalar(statement, "SELECT COUNT(*) FROM block WHERE bot_job_id=5"));
+            assertEquals(2, scalar(statement, "SELECT COUNT(*) FROM instruction WHERE bot_job_id=5"));
+            assertEquals(1, scalar(statement, "SELECT COUNT(*) FROM variable WHERE bot_job_id=5"));
+            assertEquals(1, scalar(statement, "SELECT COUNT(*) FROM reference WHERE bot_job_id=5"));
+            assertEquals(
+                    0,
+                    scalar(
+                            statement,
+                            "SELECT COUNT(*) FROM instruction "
+                                    + "WHERE bot_job_id=5 AND actions='GET'"));
         }
     }
 
@@ -1602,6 +1709,50 @@ class ComponentMemoryApplyServiceTest {
         loop.setParentId(101);
         loop.setParentBlockId(20);
         return componentRevision(List.of(field, loop));
+    }
+
+    private String botJobRevision(String url) throws Exception {
+        List<InstructionLoad> rows = new ArrayList<>();
+        List<VariableLoadDTO> variables = new ArrayList<>();
+        try (Connection connection = DriverManager.getConnection(url);
+                Statement statement = connection.createStatement()) {
+            try (ResultSet result = statement.executeQuery(
+                    "SELECT id,block_id,instruction_order_number,actions,parent_id,"
+                            + "parent_block_id,variable_id,operation "
+                            + "FROM instruction WHERE bot_job_id=5 ORDER BY id")) {
+                while (result.next()) {
+                    InstructionLoad row = new InstructionLoad();
+                    row.setId(result.getInt("id"));
+                    row.setBlockId(result.getInt("block_id"));
+                    row.setInstructionOrderNumber(
+                            result.getInt("instruction_order_number"));
+                    row.setActions(result.getString("actions"));
+                    row.setParentId((Integer) result.getObject("parent_id"));
+                    row.setParentBlockId((Integer) result.getObject("parent_block_id"));
+                    row.setVariableId((Integer) result.getObject("variable_id"));
+                    row.setOperation(result.getString("operation"));
+                    rows.add(row);
+                }
+            }
+            try (ResultSet result = statement.executeQuery(
+                    "SELECT id,instruction_id FROM variable "
+                            + "WHERE bot_job_id=5 ORDER BY id")) {
+                while (result.next()) {
+                    variables.add(new VariableLoadDTO(
+                            result.getInt("id"),
+                            null,
+                            5,
+                            (Integer) result.getObject("instruction_id"),
+                            null,
+                            null,
+                            null,
+                            null,
+                            null,
+                            0));
+                }
+            }
+        }
+        return new InstructionGraphRevisionService().revision(rows, variables);
     }
 
     private String componentRevisionWithLegacyNullParentBlock() {

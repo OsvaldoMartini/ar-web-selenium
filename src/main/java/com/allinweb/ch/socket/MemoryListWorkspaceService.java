@@ -604,9 +604,10 @@ public final class MemoryListWorkspaceService {
             if (BOT_JOB_SOURCE.equals(item.sourceKind)) {
                 int instructionId = positiveInteger(item.payload, "instructionId");
                 if (instructionId <= 0) instructionId = positiveInteger(item.presentation, "sourceItemKey");
+                String sourceRevision = string(item.payload, "sourceRevision");
                 orderedItems.add(
                         ComponentMemoryApplyService.OrderedItem.botJob(
-                                item.globalKey, instructionId));
+                                item.globalKey, instructionId, sourceRevision));
                 continue;
             }
             if (PAGE_SCANNER_SOURCE.equals(item.sourceKind)) {

@@ -82,8 +82,6 @@ public final class ComponentMemoryApplyService {
     private final InstructionGraphRevisionService revisionService =
             new InstructionGraphRevisionService();
     private final InstructionMoveValidator moveValidator = new InstructionMoveValidator();
-    private final InstructionDependencyClosureService dependencyClosureService =
-            new InstructionDependencyClosureService();
     private final ConditionalGraphValidator conditionalValidator = new ConditionalGraphValidator();
     private final Gson gson = new Gson();
     private final LinkedHashMap<String, CompletedRequest> successfulRequests =
@@ -182,6 +180,9 @@ public final class ComponentMemoryApplyService {
             Map<Integer, BlockRow> botBlocks = loadBotBlocks(connection, request.botJobId());
             List<VariableLoadDTO> botVariables = loadDependencyVariables(
                     connection, false, request.botJobId(), request.homeBankingId());
+            String currentBotRevision = revisionService.revision(
+                    currentBotRows.stream().map(InstructionRow::asInstruction).toList(),
+                    botVariables);
 
             List<InstructionRow> componentRows =
                     loadInstructionRows(
@@ -207,7 +208,11 @@ public final class ComponentMemoryApplyService {
                     currentComponentRevision);
 
             Set<Integer> selectedBotJobInstructionIds = validateExistingSelections(
-                    request, currentBotById, currentBotRows, botVariables);
+                    request,
+                    currentBotById,
+                    botVariables,
+                    currentBotRevision,
+                    botBlocks);
             boolean targetRequired = request.orderedItems().stream().anyMatch(item -> switch (item.kind()) {
                 case COMPONENT_BLOCK -> false;
                 case COMPONENT_INSTRUCTION ->
@@ -580,6 +585,14 @@ public final class ComponentMemoryApplyService {
                         "A Bot Job Memory List row has an invalid instruction ID.",
                         item.itemKey());
             }
+            if (item.kind() == ItemKind.BOT_JOB_INSTRUCTION
+                    && (item.sourceRevision() == null
+                            || item.sourceRevision().isBlank())) {
+                return error(
+                        "Memory List Apply Refused",
+                        "A Bot Job Memory List row has no source graph revision.",
+                        "Refresh Bot Job Details and add the row again.");
+            }
             if (item.kind() == ItemKind.COMPONENT_INSTRUCTION
                     && (item.componentInstructionId() <= 0
                             || item.componentBlockId() <= 0)) {
@@ -695,27 +708,6 @@ public final class ComponentMemoryApplyService {
         LinkedHashSet<Integer> selectedAll = new LinkedHashSet<>(covered);
         selectedAll.addAll(selectedInstructions);
 
-        List<InstructionLoad> dependencyGraph =
-                allRows.stream().map(InstructionRow::asInstruction).toList();
-        for (Integer selectedInstructionId : selectedInstructions) {
-            InstructionDependencyClosureService.Result closure =
-                    dependencyClosureService.resolve(
-                            dependencyGraph,
-                            variables,
-                            selectedInstructionId,
-                            InstructionDependencyClosureService.Mode.COMPONENT_COPY);
-            requireCompleteClosure(closure, selectedAll, selectedBlocks, "component");
-        }
-        for (Integer coveredInstructionId : covered) {
-            InstructionDependencyClosureService.Result closure =
-                    dependencyClosureService.resolve(
-                            dependencyGraph,
-                            variables,
-                            coveredInstructionId,
-                            InstructionDependencyClosureService.Mode.COMPONENT_COPY);
-            requireCompleteClosure(closure, selectedAll, selectedBlocks, "component Block");
-        }
-
         for (Integer instructionId : selectedAll) {
             InstructionRow row = byId.get(instructionId);
             if (row == null) {
@@ -743,30 +735,8 @@ public final class ComponentMemoryApplyService {
                 }
             }
         }
-
-        for (Integer instructionId : selectedAll) {
-            InstructionRow consumer = byId.get(instructionId);
-            if (consumer == null
-                    || !VariableDefinitionPolicy.isConsumer(consumer.actions())) {
-                continue;
-            }
-            if (consumer.variableId() == null) {
-                throw new ApplyRefused(
-                        "A selected variable consumer has no variable declaration.");
-            }
-            boolean hasSelectedProducer = selectedAll.stream()
-                    .map(byId::get)
-                    .filter(Objects::nonNull)
-                    .anyMatch(candidate -> VariableDefinitionPolicy.isProducer(candidate.actions())
-                            && Objects.equals(
-                                    candidate.variableId(), consumer.variableId()));
-            if (!hasSelectedProducer) {
-                throw new ApplyRefused(
-                        "A selected "
-                                + CommandRegistry.canonicalize(consumer.actions())
-                                + " command requires its matching GET producer in Memory List.");
-            }
-        }
+        validateSelectedVariableIntegrity(
+                selectedAll, byId, variables, "component");
 
         return new ComponentSelectionPlan(
                 Set.copyOf(selectedAll),
@@ -777,11 +747,19 @@ public final class ComponentMemoryApplyService {
     private Set<Integer> validateExistingSelections(
             Request request,
             Map<Integer, InstructionRow> currentBotById,
-            List<InstructionRow> currentBotRows,
-            List<VariableLoadDTO> variables) {
+            List<VariableLoadDTO> variables,
+            String currentRevision,
+            Map<Integer, BlockRow> botBlocks) {
         Set<Integer> ids = new HashSet<>();
         for (OrderedItem item : request.orderedItems()) {
             if (item.kind() != ItemKind.BOT_JOB_INSTRUCTION) continue;
+            if (item.sourceRevision() == null
+                    || item.sourceRevision().isBlank()
+                    || !item.sourceRevision().equals(currentRevision)) {
+                throw new ApplyRefused(
+                        "Bot Job instructions changed after they were added. "
+                                + "Refresh Bot Job Details and add them again.");
+            }
             if (item.botJobInstructionId() <= 0
                     || !ids.add(item.botJobInstructionId())
                     || !currentBotById.containsKey(item.botJobInstructionId())) {
@@ -789,8 +767,6 @@ public final class ComponentMemoryApplyService {
                         "An instruction in Memory List no longer exists. Refresh and try again.");
             }
         }
-        List<InstructionLoad> dependencyGraph =
-                currentBotRows.stream().map(InstructionRow::asInstruction).toList();
         for (Integer instructionId : ids) {
             InstructionRow selected = currentBotById.get(instructionId);
             if (selected != null
@@ -800,32 +776,89 @@ public final class ComponentMemoryApplyService {
                         "EXCEL GOTO cannot be copied inside the same Bot Job because only one "
                                 + "EXCEL GOTO command is allowed.");
             }
-            InstructionDependencyClosureService.Result closure =
-                    dependencyClosureService.resolve(
-                            dependencyGraph,
-                            variables,
-                            instructionId,
-                            InstructionDependencyClosureService.Mode.BOT_JOB_COPY);
-            requireCompleteClosure(closure, ids, Set.of(), "Bot Job");
+            boolean crossBlockNavigation = CommandRegistry.isCrossBlockNavigation(
+                    selected.actions(), selected.parentBlockId(), selected.blockId());
+            if (selected.parentId() != null
+                    && !selected.parentId().equals(selected.id())
+                    && !crossBlockNavigation
+                    && !ids.contains(selected.parentId())) {
+                throw new ApplyRefused(
+                        "A selected Bot Job command references a parent instruction "
+                                + "that was not selected.");
+            }
+            if (crossBlockNavigation) {
+                Integer targetBlockId = selected.parentBlockId();
+                if (targetBlockId == null || !botBlocks.containsKey(targetBlockId)) {
+                    throw new ApplyRefused(
+                            "A copied Bot Job GOTO references a block that no longer exists.");
+                }
+                if (selected.parentId() != null) {
+                    InstructionRow target = currentBotById.get(selected.parentId());
+                    if (target == null || target.blockId() != targetBlockId) {
+                        throw new ApplyRefused(
+                                "A copied Bot Job GOTO references an instruction "
+                                        + "that no longer exists.");
+                    }
+                }
+            }
         }
+        validateSelectedVariableIntegrity(ids, currentBotById, variables, "Bot Job");
         return Set.copyOf(ids);
     }
 
-    private void requireCompleteClosure(
-            InstructionDependencyClosureService.Result closure,
+    /**
+     * Persistence integrity only: React chooses the submitted FULL or DIRECT IDs.
+     * Java verifies that every submitted variable reference can be remapped without
+     * discovering or enlarging that selection.
+     */
+    private void validateSelectedVariableIntegrity(
             Set<Integer> selectedInstructionIds,
-            Set<Integer> selectedBlockIds,
+            Map<Integer, InstructionRow> instructionsById,
+            List<VariableLoadDTO> variables,
             String sourceLabel) {
-        if (!closure.successful()) {
-            throw new ApplyRefused(closure.error().message());
+        Map<Integer, VariableLoadDTO> variablesById = new HashMap<>();
+        for (VariableLoadDTO variable : variables) {
+            if (variable != null && variable.getId() != null) {
+                variablesById.put(variable.getId(), variable);
+            }
         }
-        boolean missingInstruction = closure.orderedInstructions().stream()
-                .map(InstructionLoad::getId)
-                .anyMatch(id -> !selectedInstructionIds.contains(id));
-        if (missingInstruction || !selectedBlockIds.containsAll(closure.requiredBlockIds())) {
-            throw new ApplyRefused(
-                    "The complete connected " + sourceLabel
-                            + " instruction group must be present in Memory List.");
+        for (Integer instructionId : selectedInstructionIds) {
+            InstructionRow instruction = instructionsById.get(instructionId);
+            if (instruction == null) {
+                throw new ApplyRefused(
+                        "A selected " + sourceLabel + " instruction no longer exists.");
+            }
+            if (instruction.variableId() != null) {
+                VariableLoadDTO variable = variablesById.get(instruction.variableId());
+                if (variable == null) {
+                    throw new ApplyRefused(
+                            "A selected " + sourceLabel
+                                    + " instruction references a variable that no longer exists.");
+                }
+                Integer ownerId = variable.getInstructionId();
+                if (ownerId == null || !selectedInstructionIds.contains(ownerId)) {
+                    throw new ApplyRefused(
+                            "A selected " + sourceLabel
+                                    + " variable owner was not selected.");
+                }
+            }
+            if (!VariableDefinitionPolicy.isConsumer(instruction.actions())) continue;
+            if (instruction.variableId() == null) {
+                throw new ApplyRefused(
+                        "A selected variable consumer has no variable declaration.");
+            }
+            boolean hasSelectedProducer = selectedInstructionIds.stream()
+                    .map(instructionsById::get)
+                    .filter(Objects::nonNull)
+                    .anyMatch(candidate -> VariableDefinitionPolicy.isProducer(candidate.actions())
+                            && Objects.equals(
+                                    candidate.variableId(), instruction.variableId()));
+            if (!hasSelectedProducer) {
+                throw new ApplyRefused(
+                        "A selected "
+                                + CommandRegistry.canonicalize(instruction.actions())
+                                + " command requires its matching GET producer in Memory List.");
+            }
         }
     }
 
@@ -1686,14 +1719,15 @@ public final class ComponentMemoryApplyService {
             String sourceRevision,
             InstructionLoad scannerInstruction) {
 
-        public static OrderedItem botJob(String itemKey, int instructionId) {
+        public static OrderedItem botJob(
+                String itemKey, int instructionId, String sourceRevision) {
             return new OrderedItem(
                     itemKey,
                     ItemKind.BOT_JOB_INSTRUCTION,
                     instructionId,
                     -1,
                     -1,
-                    "",
+                    sourceRevision,
                     null);
         }
 
