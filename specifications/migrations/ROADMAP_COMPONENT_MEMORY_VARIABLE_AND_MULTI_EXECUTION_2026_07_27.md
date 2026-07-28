@@ -153,6 +153,76 @@ Focused verification on 2026-07-27:
 - A Component block selection now stages its complete external dependency union, while Memory List
   removal and drag/drop treat every connected dependency group as one indivisible unit.
 
+### C2A - Runtime acceptance and Components-first continuation (active, 2026-07-27)
+
+The user manually accepted the completed **Bot Job Details** Memory Apply path: staging an instruction
+or connected group and applying it creates fresh Bot Job rows, preserves the source rows, and keeps
+the remapped relationships. That working behavior is now the reference contract for
+`GridItemComp`/Components. Work proceeds in this order:
+
+1. finish Components copy/memory parity;
+2. finish the Components instruction drag controller and runtime verification;
+3. restore the detached Memory List drag controller;
+4. only then return to the Bot Job Details connected-group destination-index follow-up.
+
+Completed backend Component-copy parity in this continuation:
+
+- [x] A generated Component command with a valid `parent_id` and legacy null
+  `parent_block_id` receives the generated parent block; the reusable
+  `component_instruction` source is not repaired or mutated as a side effect.
+- [x] Generated Component relationship updates are scoped by both generated instruction ID and
+  destination `bot_job_id`, with exactly-one-row verification.
+- [x] `GridItemComp` uses the dedicated `useComponentInstructionDrag` transport and
+  `COMPONENT_ROW_MOVE`; the Bot Job sender is not reused for Component commits.
+- [x] Connected Component rows preserve authoritative family order, drop on their own family is a
+  no-op, and same-block downward placement is calculated after removing the complete family.
+- [x] Component and Bot Job diagnostic drag entry points are namespaced independently, preventing
+  one open workspace from replacing the other workspace's callback.
+- [ ] User runtime acceptance of this completed Components continuation remains pending.
+
+#### Drag-controller isolation directive
+
+Drag state must not be shared across the three interactive surfaces. Each owns a private controller
+and lifecycle:
+
+- `GridItem` / Bot Job Details owns the Bot Job instruction/block drag controller;
+- `GridItemComp` / Components owns the Component instruction/block drag controller;
+- detached Memory List owns the Memory List item/group drag controller.
+
+Shared code is limited to immutable DTO types and pure, stateless graph/reorder policies. Sensor
+state, dragged IDs, source/destination indices, pending previews, confirmations, rollback snapshots,
+and WebSocket request correlation must remain private to the owning page. A reconnect, refresh, or
+drag in one surface must never reset or complete a drag in another.
+
+#### Memory List drag facts
+
+- [x] Backend `MemoryListReorder.resolveGrouped` validates a complete permutation and refuses a
+  split or internally reordered dependency group.
+- [x] Backend removal resolves every member of a connected group.
+- [x] The detached Memory List now owns `useMemoryListDrag`, carries stable item keys instead of
+  render indices, displays refused movements, and moves a parent/child family as one contiguous
+  unit while preserving internal order.
+- [x] Whole Bot Job block staging now computes the smallest transitive dependency families instead
+  of assigning one artificial dependency key to every row in the block. Independent instructions
+  remain independently draggable.
+- [x] A workspace-level regression verifies that one connected drag emits exactly one correlated
+  `memoryList.command/REORDER` with the complete ordered key list.
+- [ ] User runtime acceptance of detached Memory List drag remains pending.
+
+Focused verification on 2026-07-28:
+
+- React Components/Memory List suites: 45 tests passed.
+- Java Component copy plus Memory List reorder suites: 41 tests passed.
+- React production build completed and was mirrored exactly into
+  `src/main/resources/build` (`robocopy /MIR /L` reported no differences).
+
+#### Explicit deferred Bot Job follow-up
+
+- [ ] After Components and Memory List runtime acceptance, revisit Bot Job Details same-block
+  connected-group destination-index calculation. The drop index must be calculated after removing
+  the complete moving group, then the group must be inserted once with relative order preserved.
+  This later task must not be mixed into the Components-first delivery.
+
 ### C3 - Full graph validation
 
 - Validate the resulting graph immediately before commit.

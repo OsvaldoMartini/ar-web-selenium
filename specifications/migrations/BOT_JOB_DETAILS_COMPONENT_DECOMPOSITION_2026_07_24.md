@@ -356,3 +356,44 @@ The runaway ~19 req/s DB-reload loop is also still unidentified (backend log wil
    working GridItem stack with its own .module.scss, changing only the context lines
    (ComponentsInstructionsDTO, componentTasks, componentsUpdate, commandEditor.apply/insertElseIf,
    COMPONENT_INJECT, no Memory-List/BLOCK_CREATE). GridItem must not be modified.
+
+## 2026-07-27 - Authoritative Components-first continuation
+
+The user runtime-tested and accepted the Bot Job Details Memory Apply copy behavior. The immediate
+scope is now `GridItemComp`; do not change the accepted `GridItem` behavior while establishing
+Components parity.
+
+The earlier contingency statement that Components has no Memory List is superseded. Components must
+retain both instruction `+` and block-header `+`; both stage authoritative, graph-complete Component
+items in the global Memory List. Apply remains a copy into the active Bot Job with fresh generated
+IDs, never a move out of `component_instruction`.
+
+### Private drag-controller boundary
+
+Visual parity does not authorize shared mutable drag state. Maintain three independent controllers:
+
+1. Bot Job Details instruction/block drag;
+2. Components instruction/block drag;
+3. detached Memory List item/dependency-group drag.
+
+They may reuse pure stateless ordering/graph helpers and DTO contracts only. Each controller owns its
+sensor lifecycle, active IDs, indices, preview correlation, confirmation, optimistic snapshot, and
+rollback. A page refresh/reconnect cannot cancel or complete another page's drag.
+
+### Current delivery order and truth
+
+- [x] Bot Job Details Memory Apply manually accepted by the user.
+- [x] Component-generated relationships now normalize a legacy null parent-block on the clone only
+  and scope the generated update to the destination Bot Job.
+- [x] Complete focused automated `GridItemComp` parity, including connected parent/child moves,
+  own-family no-op handling, block `+`, row `+`, and Component-only WebSocket routing.
+- [ ] User runtime acceptance of the completed `GridItemComp` continuation remains pending.
+- [x] Memory List backend grouped reorder/removal policy exists and rejects split dependency groups.
+- [x] Memory List frontend drag is restored through private `useMemoryListDrag`; it uses stable
+  item keys and moves a connected group as one contiguous unit.
+- [x] Whole-block staging keeps independent dependency families separate and merges only
+  overlapping parent/child families.
+- [ ] User runtime acceptance of Memory List drag remains pending.
+- [ ] After Components and Memory List are accepted, return to Bot Job Details for the deferred
+  connected-group destination-index fix. Compute the destination index after removing the complete
+  moving group so a same-block drop neither duplicates nor offsets the group.

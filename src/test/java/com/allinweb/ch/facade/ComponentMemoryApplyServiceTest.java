@@ -72,6 +72,70 @@ class ComponentMemoryApplyServiceTest {
     }
 
     @Test
+    void componentCopyDoesNotRepairLegacySourceParentBlockAndNormalizesOnlyGeneratedClone()
+            throws Exception {
+        String url = databaseUrl("component-legacy-null-parent-block-copy");
+        initializeDatabase(url);
+        try (Connection connection = DriverManager.getConnection(url);
+                Statement statement = connection.createStatement()) {
+            statement.execute(
+                    "UPDATE component_instruction "
+                            + "SET actions='C', name='Child', parent_block_id=NULL "
+                            + "WHERE id=102");
+        }
+        ComponentMemoryApplyService service =
+                new ComponentMemoryApplyService(() -> DriverManager.getConnection(url));
+
+        ComponentMemoryApplyService.Result result = service.apply(
+                new ComponentMemoryApplyService.Request(
+                        "component-legacy-null-parent-block-copy",
+                        5,
+                        2,
+                        -1,
+                        List.of(ComponentMemoryApplyService.OrderedItem.componentBlock(
+                                "COMPONENT:BLOCK:2:20",
+                                20,
+                                componentRevisionWithLegacyNullParentBlock()))));
+
+        assertTrue(result.committed());
+        int generatedBlockId =
+                result.generatedBlockIds().get("COMPONENT:BLOCK:2:20");
+        try (Connection connection = DriverManager.getConnection(url);
+                Statement statement = connection.createStatement()) {
+            try (ResultSet source = statement.executeQuery(
+                    "SELECT block_id,parent_id,parent_block_id "
+                            + "FROM component_instruction WHERE id=102")) {
+                assertTrue(source.next());
+                assertEquals(20, source.getInt("block_id"));
+                assertEquals(101, source.getInt("parent_id"));
+                assertTrue(source.getObject("parent_block_id") == null);
+            }
+
+            int copiedParentId;
+            try (ResultSet copied = statement.executeQuery(
+                    "SELECT id,block_id,parent_id,parent_block_id "
+                            + "FROM instruction WHERE bot_job_id=5 AND name='Child'")) {
+                assertTrue(copied.next());
+                copiedParentId = copied.getInt("parent_id");
+                assertTrue(copied.getInt("id") != 102);
+                assertEquals(generatedBlockId, copied.getInt("block_id"));
+                assertTrue(copiedParentId != 101);
+                assertEquals(generatedBlockId, copied.getInt("parent_block_id"));
+                assertTrue(!copied.next());
+            }
+            assertEquals(
+                    1,
+                    scalar(
+                            statement,
+                            "SELECT COUNT(*) FROM instruction WHERE id="
+                                    + copiedParentId
+                                    + " AND block_id="
+                                    + generatedBlockId
+                                    + " AND bot_job_id=5"));
+        }
+    }
+
+    @Test
     void staleComponentRevisionRollsBackWithoutPartialRows() throws Exception {
         String url = databaseUrl("stale");
         initializeDatabase(url);
@@ -1502,6 +1566,12 @@ class ComponentMemoryApplyServiceTest {
         loop.setParentId(101);
         loop.setParentBlockId(20);
         return new InstructionGraphRevisionService().revision(List.of(field, loop));
+    }
+
+    private String componentRevisionWithLegacyNullParentBlock() {
+        InstructionLoad field = revisionRow(101, 1, "C", 201, null);
+        InstructionLoad child = revisionRow(102, 2, "C", null, 101);
+        return new InstructionGraphRevisionService().revision(List.of(field, child));
     }
 
     private String variableConsumerRevision(String consumerAction) {

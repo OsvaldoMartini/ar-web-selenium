@@ -408,6 +408,7 @@ public final class ComponentMemoryApplyService {
                     insertedRows);
             remapComponentRelationships(
                     connection,
+                    request.botJobId(),
                     insertedRows,
                     generatedComponentInstructionIds,
                     generatedBlockIds);
@@ -1269,6 +1270,7 @@ public final class ComponentMemoryApplyService {
 
     private void remapComponentRelationships(
             Connection connection,
+            int botJobId,
             List<InstructionRow> insertedRows,
             Map<Integer, Integer> instructionIds,
             Map<Integer, Integer> blockIds)
@@ -1279,8 +1281,9 @@ public final class ComponentMemoryApplyService {
                 destinationBlockBySourceInstruction.put(row.sourceComponentId(), row.blockId());
             }
         }
-        String update =
-                "UPDATE instruction SET variable_id = ?, parent_block_id = ?, parent_id = ? WHERE id = ?";
+        String update = "UPDATE instruction "
+                + "SET variable_id = ?, parent_block_id = ?, parent_id = ? "
+                + "WHERE id = ? AND bot_job_id = ?";
         try (PreparedStatement statement = connection.prepareStatement(update)) {
             for (int index = 0; index < insertedRows.size(); index++) {
                 InstructionRow row = insertedRows.get(index);
@@ -1303,11 +1306,22 @@ public final class ComponentMemoryApplyService {
                         throw new ApplyRefused(
                                 "A copied component instruction references a Block that was not copied.");
                     }
+                } else if (row.parentId() != null) {
+                    // Legacy Component rows may have a valid parent_id but a null
+                    // parent_block_id. Normalize only the generated Bot Job clone; the reusable
+                    // Component source remains untouched.
+                    parentBlockId =
+                            destinationBlockBySourceInstruction.get(row.parentId());
+                    if (parentBlockId == null) {
+                        throw new ApplyRefused(
+                                "A copied component instruction references a parent Block that was not copied.");
+                    }
                 }
                 bindNullableInteger(statement, 1, row.variableId());
                 bindNullableInteger(statement, 2, parentBlockId);
                 bindNullableInteger(statement, 3, parentId);
                 statement.setInt(4, row.id());
+                statement.setInt(5, botJobId);
                 if (statement.executeUpdate() != 1) {
                     throw new SQLException(
                             "Copied component instruction could not be relationship-remapped.");
