@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.model.ReferenceLoadDTO;
+import com.allinweb.ch.model.VariableLoadDTO;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -155,6 +156,41 @@ class ComponentMemoryApplyServiceTest {
         try (Connection connection = DriverManager.getConnection(url);
                 Statement statement = connection.createStatement()) {
             assertEquals(1, scalar(statement, "SELECT COUNT(*) FROM block WHERE bot_job_id=5"));
+            assertEquals(
+                    0,
+                    scalar(
+                            statement,
+                            "SELECT COUNT(*) FROM instruction WHERE bot_job_id=5"));
+        }
+    }
+
+    @Test
+    void variableOwnershipChangeMakesComponentRevisionStale() throws Exception {
+        String url = databaseUrl("stale-variable-owner");
+        initializeDatabase(url);
+        String staleRevision = sourceRevision();
+        try (Connection connection = DriverManager.getConnection(url);
+                Statement statement = connection.createStatement()) {
+            statement.execute(
+                    "UPDATE component_variable SET instruction_id=102 WHERE id=201");
+        }
+        ComponentMemoryApplyService service =
+                new ComponentMemoryApplyService(() -> DriverManager.getConnection(url));
+
+        ComponentMemoryApplyService.Result result = service.apply(
+                new ComponentMemoryApplyService.Request(
+                        "stale-component-variable-owner",
+                        5,
+                        2,
+                        -1,
+                        List.of(ComponentMemoryApplyService.OrderedItem.componentBlock(
+                                "COMPONENT:BLOCK:2:20", 20, staleRevision))));
+
+        assertFalse(result.committed());
+        assertNotNull(result.error());
+        assertTrue(result.error().getErrorHeader().contains("Components changed"));
+        try (Connection connection = DriverManager.getConnection(url);
+                Statement statement = connection.createStatement()) {
             assertEquals(
                     0,
                     scalar(
@@ -1565,13 +1601,13 @@ class ComponentMemoryApplyServiceTest {
         loop.setActions("LOOP");
         loop.setParentId(101);
         loop.setParentBlockId(20);
-        return new InstructionGraphRevisionService().revision(List.of(field, loop));
+        return componentRevision(List.of(field, loop));
     }
 
     private String componentRevisionWithLegacyNullParentBlock() {
         InstructionLoad field = revisionRow(101, 1, "C", 201, null);
         InstructionLoad child = revisionRow(102, 2, "C", null, 101);
-        return new InstructionGraphRevisionService().revision(List.of(field, child));
+        return componentRevision(List.of(field, child));
     }
 
     private String variableConsumerRevision(String consumerAction) {
@@ -1581,8 +1617,7 @@ class ComponentMemoryApplyServiceTest {
         InstructionLoad get = revisionRow(103, 3, "GET", 201, 101);
         InstructionLoad consumer =
                 revisionRow(104, 4, consumerAction, 201, 101);
-        return new InstructionGraphRevisionService()
-                .revision(List.of(field, loop, get, consumer));
+        return componentRevision(List.of(field, loop, get, consumer));
     }
 
     private String componentRevisionWithGoto() {
@@ -1595,7 +1630,7 @@ class ComponentMemoryApplyServiceTest {
         goTo.setBlockId(30);
         goTo.setBlockOrderNumber(2);
         goTo.setParentBlockId(20);
-        return new InstructionGraphRevisionService().revision(List.of(field, loop, goTo));
+        return componentRevision(List.of(field, loop, goTo));
     }
 
     private String webFieldGetExtractRevision() {
@@ -1604,7 +1639,7 @@ class ComponentMemoryApplyServiceTest {
         get.setParentBlockId(20);
         InstructionLoad extract = revisionRow(104, 3, "E", 201, 101);
         extract.setParentBlockId(20);
-        return new InstructionGraphRevisionService().revision(List.of(field, get, extract));
+        return componentRevision(List.of(field, get, extract));
     }
 
     private String componentRevisionWithExternalGet() {
@@ -1613,8 +1648,24 @@ class ComponentMemoryApplyServiceTest {
         loop.setParentBlockId(20);
         InstructionLoad externalGet = revisionRow(201, 1, "GET", 201, null);
         externalGet.setBlockId(30);
+        return componentRevision(List.of(field, loop, externalGet));
+    }
+
+    private String componentRevision(List<InstructionLoad> rows) {
         return new InstructionGraphRevisionService()
-                .revision(List.of(field, loop, externalGet));
+                .revision(
+                        rows,
+                        List.of(new VariableLoadDTO(
+                                201,
+                                2,
+                                null,
+                                101,
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                0)));
     }
 
     private InstructionLoad revisionRow(

@@ -48,8 +48,6 @@ public final class CommandEditorService {
     private final ConditionalBranchService conditionalBranchService = new ConditionalBranchService();
     private final LoopGroupService loopGroupService = new LoopGroupService();
     private final InstructionMoveGroupService moveGroupService = new InstructionMoveGroupService();
-    private final InstructionDependencyClosureService dependencyClosureService =
-            new InstructionDependencyClosureService();
     private final InstructionGraphRevisionService revisionService = new InstructionGraphRevisionService();
     private final InstructionDeleteImpactService deleteImpactService = new InstructionDeleteImpactService();
 
@@ -313,6 +311,18 @@ public final class CommandEditorService {
                 : List.of();
         List<InstructionLoad> orderedInstructions =
                 enrichAndOrderInstructions(loadedInstructions, orderedBlocks);
+        List<VariableLoadDTO> dependencyVariables = List.of();
+        if (error == null) {
+            try {
+                dependencyVariables =
+                        loadDependencyVariables(componentSession, whereId);
+            } catch (SQLException exception) {
+                error = new ErrorMessage(
+                        "Command Editor Dependencies Unavailable",
+                        "Variables could not be loaded",
+                        exception.getMessage());
+            }
+        }
         InstructionLoad selectedInstruction = orderedInstructions.stream()
                 .filter(row -> row.getId() != null && row.getId() == instructionId)
                 .findFirst()
@@ -337,7 +347,12 @@ public final class CommandEditorService {
                 integer(body, "homeBankingId", -1),
                 instructionId);
         response.add("commands", capabilityService.catalog(string(body, "instructionActions", ""), excelGotoConflict));
-        response.addProperty("graphRevision", revisionService.revision(orderedInstructions));
+        if (error == null) {
+            response.addProperty(
+                    "graphRevision",
+                    revisionService.revision(
+                            orderedInstructions, dependencyVariables));
+        }
         JsonObject rowCapabilities = new JsonObject();
         rowCapabilities.addProperty(
                 "canInsertElseIf", canInsertElseIf(orderedInstructions, instructionId));
@@ -452,30 +467,21 @@ public final class CommandEditorService {
         response.addProperty("ok", error == null);
         JsonArray capabilities = new JsonArray();
         JsonArray blockCapabilities = new JsonArray();
+        String currentGraphRevision = "";
         if (error == null) {
             List<BlockLoadDTO> blockRows = ownerBlockCopies(sessionId, whereId);
             List<InstructionLoad> instructionRows = enrichAndOrderInstructions(
                     ownerInstructionCopies(sessionId, whereId), blockRows);
+            currentGraphRevision =
+                    revisionService.revision(instructionRows, variableRows);
             Set<Integer> invalidConditionalIds = invalidConditionalBlockIds(instructionRows);
             for (InstructionLoad row : instructionRows) {
                 if (row == null || row.getId() == null) continue;
-                InstructionDependencyClosureService.Result memoryGroup =
-                        dependencyClosureService.resolve(
-                                instructionRows,
-                                variableRows,
-                                row.getId(),
-                                componentSession
-                                        ? InstructionDependencyClosureService.Mode.COMPONENT_COPY
-                                        : InstructionDependencyClosureService.Mode.BOT_JOB_MOVE);
-                String addReason = memoryGroup.successful()
-                        ? null
-                        : memoryGroup.error().message();
                 String moveReason = moveGroupService.resolve(instructionRows, row.getId()).isEmpty()
                         ? "The connected move group could not be resolved."
                         : null;
                 JsonObject capability = new JsonObject();
                 capability.addProperty("instructionId", row.getId());
-                capability.addProperty("canAddToMemory", addReason == null);
                 capability.addProperty("canMove", moveReason == null);
                 JsonArray allowedBlockIds = new JsonArray();
                 if (moveReason == null) {
@@ -491,21 +497,7 @@ public final class CommandEditorService {
                 capability.addProperty("canDelete", deleteReason == null);
                 capability.addProperty("deleteCount", deleteImpactCount(row, instructionRows));
                 capability.add("deleteRows", deleteImpactRows(row, instructionRows));
-                if (memoryGroup.successful()) {
-                    capability.add(
-                            "memoryGroupRows",
-                            movePreviewRows(memoryGroup.orderedInstructions()));
-                    capability.add(
-                            "memoryGroupBlocks",
-                            memoryGroupBlocks(memoryGroup.requiredBlockIds(), blockRows));
-                    capability.addProperty(
-                            "memoryGroupKey",
-                            memoryGroupKey(
-                                    memoryGroup.orderedInstructions(),
-                                    memoryGroup.requiredBlockIds()));
-                }
                 if (moveReason != null) capability.addProperty("reason", moveReason);
-                if (addReason != null) capability.addProperty("addReason", addReason);
                 if (deleteReason != null) capability.addProperty("deleteReason", deleteReason);
                 capabilities.add(capability);
             }
@@ -539,53 +531,6 @@ public final class CommandEditorService {
                 externalReferences.forEach(row -> addDeleteImpactRow(references, row));
                 blockCapability.add("externalReferences", references);
                 if (blockDeleteReason != null) blockCapability.addProperty("reason", blockDeleteReason);
-                if (componentSession) {
-                    Map<Integer, InstructionLoad> groupRowsById = new LinkedHashMap<>();
-                    contained.forEach(row -> groupRowsById.put(row.getId(), row));
-                    Set<Integer> requiredBlockIds = new java.util.LinkedHashSet<>();
-                    String addReason = null;
-                    for (InstructionLoad member : contained) {
-                        InstructionDependencyClosureService.Result memoryGroup =
-                                dependencyClosureService.resolve(
-                                        instructionRows,
-                                        variableRows,
-                                        member.getId(),
-                                        InstructionDependencyClosureService.Mode.COMPONENT_COPY);
-                        if (!memoryGroup.successful()) {
-                            addReason = memoryGroup.error().message();
-                            break;
-                        }
-                        memoryGroup.orderedInstructions()
-                                .forEach(row -> groupRowsById.put(row.getId(), row));
-                        requiredBlockIds.addAll(memoryGroup.requiredBlockIds());
-                    }
-                    blockCapability.addProperty("canAddToMemory", addReason == null);
-                    if (addReason == null) {
-                        Set<Integer> groupInstructionIds = groupRowsById.keySet();
-                        List<InstructionLoad> orderedGroupRows = instructionRows.stream()
-                                .filter(row -> row != null
-                                        && row.getId() != null
-                                        && groupInstructionIds.contains(row.getId()))
-                                .toList();
-                        List<Integer> orderedRequiredBlocks = blockRows.stream()
-                                .filter(row -> row != null
-                                        && row.getId() != null
-                                        && requiredBlockIds.contains(row.getId()))
-                                .map(BlockLoadDTO::getId)
-                                .toList();
-                        blockCapability.add(
-                                "memoryGroupRows", movePreviewRows(orderedGroupRows));
-                        blockCapability.add(
-                                "memoryGroupBlocks",
-                                memoryGroupBlocks(orderedRequiredBlocks, blockRows));
-                        blockCapability.addProperty(
-                                "memoryGroupKey",
-                                memoryGroupKey(
-                                        orderedGroupRows, orderedRequiredBlocks));
-                    } else {
-                        blockCapability.addProperty("addReason", addReason);
-                    }
-                }
                 blockCapabilities.add(blockCapability);
             }
         } else {
@@ -593,7 +538,8 @@ public final class CommandEditorService {
         }
         response.add("capabilities", capabilities);
         response.add("blockCapabilities", blockCapabilities);
-        if (error == null) response.addProperty("graphRevision", graphRevision(sessionId));
+        response.add("variableLinks", variableLinks(variableRows));
+        if (error == null) response.addProperty("graphRevision", currentGraphRevision);
         return response;
     }
 
@@ -626,41 +572,23 @@ public final class CommandEditorService {
         return List.copyOf(variables);
     }
 
+    static JsonArray variableLinks(List<VariableLoadDTO> variables) {
+        JsonArray links = new JsonArray();
+        if (variables == null) return links;
+        for (VariableLoadDTO variable : variables) {
+            if (variable == null || variable.getId() == null) continue;
+            JsonObject link = new JsonObject();
+            link.addProperty("id", variable.getId());
+            link.addProperty("instructionId", variable.getInstructionId());
+            links.add(link);
+        }
+        return links;
+    }
+
     private static Integer nullableResultInteger(ResultSet result, String column)
             throws SQLException {
         Object value = result.getObject(column);
         return value == null ? null : ((Number) value).intValue();
-    }
-
-    private JsonArray memoryGroupBlocks(
-            List<Integer> requiredBlockIds, List<BlockLoadDTO> blockRows) {
-        Map<Integer, BlockLoadDTO> blocksById = new LinkedHashMap<>();
-        blockRows.stream()
-                .filter(block -> block != null && block.getId() != null)
-                .forEach(block -> blocksById.put(block.getId(), block));
-        JsonArray blocks = new JsonArray();
-        for (Integer blockId : requiredBlockIds) {
-            BlockLoadDTO block = blocksById.get(blockId);
-            if (block == null) continue;
-            JsonObject item = new JsonObject();
-            item.addProperty("blockId", blockId);
-            item.addProperty("blockOrderNumber", block.getBlockOrderNumber());
-            item.addProperty("blockName", block.getName());
-            blocks.add(item);
-        }
-        return blocks;
-    }
-
-    private String memoryGroupKey(
-            List<InstructionLoad> rows, List<Integer> requiredBlockIds) {
-        String instructionIds = rows.stream()
-                .map(InstructionLoad::getId)
-                .map(String::valueOf)
-                .collect(java.util.stream.Collectors.joining(","));
-        String blockIds = requiredBlockIds.stream()
-                .map(String::valueOf)
-                .collect(java.util.stream.Collectors.joining(","));
-        return "I:" + instructionIds + "|B:" + blockIds;
     }
 
     private Set<Integer> invalidConditionalBlockIds(List<InstructionLoad> rows) {
@@ -721,7 +649,8 @@ public final class CommandEditorService {
         if (split.getGraphRevision() == null || split.getGraphRevision().isBlank()) {
             return new ErrorMessage("Move Instruction Refused", "Graph revision is required", "Refresh the grid and try again.");
         }
-        if (!split.getGraphRevision().equals(graphRevision(sessionId))) {
+        if (!split.getGraphRevision().equals(graphRevision(
+                sessionId, revisionOwnerId(body, sessionId)))) {
             return new ErrorMessage("Move Instruction Refused", "Instructions changed", "Refresh the grid before moving rows.");
         }
         return null;
@@ -738,7 +667,8 @@ public final class CommandEditorService {
         if (split.getGraphRevision() == null || split.getGraphRevision().isBlank()) {
             return new ErrorMessage("Delete Instruction Refused", "Graph revision is required", "Refresh the grid and try again.");
         }
-        if (!split.getGraphRevision().equals(graphRevision(sessionId))) {
+        if (!split.getGraphRevision().equals(graphRevision(
+                sessionId, revisionOwnerId(body, sessionId)))) {
             return new ErrorMessage("Delete Instruction Refused", "Instructions changed", "Refresh the grid before deleting.");
         }
         return null;
@@ -767,7 +697,8 @@ public final class CommandEditorService {
                     "Graph revision is required",
                     "Refresh the grid and try again.");
         }
-        if (!split.getGraphRevision().equals(graphRevision(sessionId))) {
+        if (!split.getGraphRevision().equals(graphRevision(
+                sessionId, revisionOwnerId(body, sessionId)))) {
             return new ErrorMessage(
                     "Rollback Block Refused",
                     "Instructions changed",
@@ -1227,7 +1158,8 @@ public final class CommandEditorService {
 
         int splitIndex = indexOf(blockRows, anchorId);
         response.addProperty("ok", true);
-        response.addProperty("graphRevision", graphRevision(targetSession));
+        response.addProperty(
+                "graphRevision", graphRevision(targetSession, target.ownerId()));
         response.addProperty("blockId", anchor.getBlockId());
         response.addProperty("anchorInstructionId", anchorId);
         response.add("retainedRows", splitPreviewRows(blockRows.subList(0, splitIndex + 1)));
@@ -1260,7 +1192,10 @@ public final class CommandEditorService {
 
         JsonObject response = new JsonObject();
         response.addProperty("ok", true);
-        response.addProperty("graphRevision", graphRevision(targetSession));
+        response.addProperty(
+                "graphRevision",
+                graphRevision(
+                        targetSession, revisionOwnerId(body, targetSession)));
         response.addProperty("sourceBlockId", group.get(0).getBlockId());
         response.addProperty("destinationBlockId", destinationBlockId);
         response.addProperty("destinationIndex", integer(body, "destinationIndex", 0));
@@ -1326,7 +1261,8 @@ public final class CommandEditorService {
         if (split.getGraphRevision() == null || split.getGraphRevision().isBlank()) {
             return splitError("Instruction graph revision is required. Reopen the command panel.");
         }
-        if (!split.getGraphRevision().equals(graphRevision(targetSession))) {
+        if (!split.getGraphRevision().equals(
+                graphRevision(targetSession, target.ownerId()))) {
             return splitError("Instructions changed while this panel was open. Reopen it before splitting.");
         }
         if (!canSplit(targetSession, split.getInstructionId())) {
@@ -1606,14 +1542,36 @@ public final class CommandEditorService {
     private JsonObject validateGraphRevision(JsonObject body, String sessionId) {
         String expected = string(body, "graphRevision", "");
         if (expected.isBlank()) return failure("Instruction graph revision is required. Reopen the command panel.");
-        if (!expected.equals(graphRevision(sessionId))) {
+        if (!expected.equals(
+                graphRevision(sessionId, revisionOwnerId(body, sessionId)))) {
             return failure("Instructions changed while this panel was open. Reopen it before saving.");
         }
         return null;
     }
 
-    private String graphRevision(String sessionId) {
-        return revisionService.revision(instructions(sessionId));
+    private String graphRevision(String sessionId, int ownerId) {
+        if (ownerId <= 0) return "";
+        boolean component = isComponentSession(sessionId);
+        try {
+            return revisionService.revision(
+                    instructions(sessionId),
+                    loadDependencyVariables(component, ownerId));
+        } catch (SQLException exception) {
+            log.error(
+                    "Could not calculate instruction graph revision for session {} owner {}",
+                    sessionId,
+                    ownerId,
+                    exception);
+            // An empty current revision can never equal a client-accepted non-blank revision.
+            // This fails mutations closed when variable ownership cannot be verified.
+            return "";
+        }
+    }
+
+    private int revisionOwnerId(JsonObject body, String sessionId) {
+        return isComponentSession(sessionId)
+                ? integer(body, "homeBankingId", -1)
+                : integer(body, "botJobId", -1);
     }
 
     private boolean excelGotoExists(

@@ -2,6 +2,15 @@
 
 Status: Claude and CODEX investigation passes complete; the CODEX remaining Bot Job Details controls migration is implemented, tested, React-deployed, Java-packaged, and committed. Desktop runtime validation and the explicitly unchecked follow-up tasks remain pending.
 
+2026-07-28 shared note: Memory List dependency-group selection has moved from Java capability
+expansion to a pure React/TypeScript resolver over the currently loaded GridItem/GridItemComp graph.
+The resolver covers parent/child, Variables, IF/ENDIF, LOOP/REFRESH_LOOP, and recursive Component
+`GOTO`/`EXCEL GOTO` destination blocks. Java now supplies raw variable ownership metadata and keeps
+transactional completeness validation plus fresh-ID persistence only. Detailed evidence and pending
+runtime acceptance are recorded in `BOT_JOB_DETAILS_COMPONENT_DECOMPOSITION_2026_07_24.md`.
+Both `GOTO` and `EXCEL GOTO` retain their source/target block and parent/child semantics, and graph
+revisions now include variable ownership so a stale variable relationship cannot be persisted.
+
 This is the canonical investigation and roadmap for aligning local Scanner TEST RUN execution with the external AR Web Engine. Future Claude and Codex reviews must update this file instead of creating parallel roadmaps.
 
 ## Review ledger

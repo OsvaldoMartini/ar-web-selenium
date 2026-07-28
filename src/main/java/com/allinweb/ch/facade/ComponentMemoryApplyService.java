@@ -195,7 +195,8 @@ public final class ComponentMemoryApplyService {
             List<VariableLoadDTO> componentVariables = loadDependencyVariables(
                     connection, true, request.homeBankingId(), request.homeBankingId());
             String currentComponentRevision = revisionService.revision(
-                    componentRows.stream().map(InstructionRow::asInstruction).toList());
+                    componentRows.stream().map(InstructionRow::asInstruction).toList(),
+                    componentVariables);
 
             ComponentSelectionPlan componentPlan = planComponentSelections(
                     request,

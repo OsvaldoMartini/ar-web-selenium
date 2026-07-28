@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.allinweb.ch.model.BlockOrderDetailDTO;
 import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.model.UpdatedRow;
+import com.allinweb.ch.model.VariableLoadDTO;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -246,6 +247,43 @@ class BlockRollbackTransactionTest {
     }
 
     @Test
+    void refusesAStaleVariableOwnershipRevisionInsideTheRollbackTransaction()
+            throws Exception {
+        try (Connection connection = botJobDatabase();
+                Statement sql = connection.createStatement()) {
+            seedBotJob(sql);
+            sql.execute(
+                    "INSERT INTO variable(id,instruction_id,bot_job_id) VALUES(201,1,19)");
+            String staleRevision =
+                    currentGraphRevision(connection, "instruction", 19);
+            List<BlockOrderDetailDTO> expectedBlocks =
+                    currentBlockCatalog(connection, "instruction", 19);
+
+            sql.execute("UPDATE variable SET instruction_id=2 WHERE id=201");
+
+            assertThrows(
+                    SQLException.class,
+                    () -> new BlockRollbackTransaction()
+                            .execute(
+                                    connection,
+                                    "instruction",
+                                    19,
+                                    10,
+                                    staleRevision,
+                                    expectedBlocks,
+                                    List.of(update(1, 10, 1), update(2, 10, 2))));
+
+            assertInstruction(sql, 1, 10, 1, 10, 501);
+            assertInstruction(sql, 2, 20, 1, 20, 502);
+            assertEquals(
+                    2,
+                    scalar(
+                            sql,
+                            "SELECT instruction_id FROM variable WHERE id=201"));
+        }
+    }
+
+    @Test
     void refusesAStaleCatalogAndPreservesANewEmptyBlock() throws Exception {
         try (Connection connection = botJobDatabase();
                 Statement sql = connection.createStatement()) {
@@ -316,6 +354,11 @@ class BlockRollbackTransactionTest {
                             + "actions TEXT,"
                             + "variable_id INTEGER,"
                             + "operation TEXT)");
+            sql.execute(
+                    "CREATE TABLE component_variable("
+                            + "id INTEGER PRIMARY KEY,"
+                            + "home_banking_id INTEGER NOT NULL,"
+                            + "instruction_id INTEGER)");
         }
         return connection;
     }
@@ -343,6 +386,11 @@ class BlockRollbackTransactionTest {
                             + "actions TEXT,"
                             + "variable_id INTEGER,"
                             + "operation TEXT)");
+            sql.execute(
+                    "CREATE TABLE variable("
+                            + "id INTEGER PRIMARY KEY,"
+                            + "bot_job_id INTEGER NOT NULL,"
+                            + "instruction_id INTEGER)");
         }
         return connection;
     }
@@ -408,7 +456,33 @@ class BlockRollbackTransactionTest {
                 }
             }
         }
-        return new InstructionGraphRevisionService().revision(rows);
+        String variableTable = component ? "component_variable" : "variable";
+        List<VariableLoadDTO> variableOwnership = new ArrayList<>();
+        String variableQuery = "SELECT id,instruction_id FROM "
+                + variableTable
+                + " WHERE "
+                + ownerColumn
+                + "=? ORDER BY id";
+        try (PreparedStatement statement = connection.prepareStatement(variableQuery)) {
+            statement.setInt(1, ownerId);
+            try (ResultSet result = statement.executeQuery()) {
+                while (result.next()) {
+                    variableOwnership.add(new VariableLoadDTO(
+                            result.getInt("id"),
+                            component ? ownerId : null,
+                            component ? null : ownerId,
+                            nullableInteger(result, "instruction_id"),
+                            null,
+                            null,
+                            null,
+                            null,
+                            null,
+                            0));
+                }
+            }
+        }
+        return new InstructionGraphRevisionService()
+                .revision(rows, variableOwnership);
     }
 
     private List<BlockOrderDetailDTO> currentBlockCatalog(

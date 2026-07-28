@@ -3,6 +3,7 @@ package com.allinweb.ch.facade;
 import com.allinweb.ch.model.BlockOrderDetailDTO;
 import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.model.UpdatedRow;
+import com.allinweb.ch.model.VariableLoadDTO;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -54,6 +55,7 @@ final class BlockRollbackTransaction {
         }
 
         String blockTable = componentTable ? "component_block" : "block";
+        String variableTable = componentTable ? "component_variable" : "variable";
         String ownerColumn = componentTable ? "home_banking_id" : "bot_job_id";
         boolean previousAutoCommit = connection.getAutoCommit();
         if (!previousAutoCommit) {
@@ -76,7 +78,13 @@ final class BlockRollbackTransaction {
 
             Map<Integer, StoredInstruction> storedRows =
                     loadOwnedInstructions(connection, instructionTable, ownerColumn, ownerId);
-            validateGraphRevision(expectedGraphRevision, storedRows);
+            validateGraphRevision(
+                    connection,
+                    variableTable,
+                    ownerColumn,
+                    ownerId,
+                    expectedGraphRevision,
+                    storedRows);
             validateCompleteOwnerLayout(requests, storedRows);
             validateStoredRelationships(storedRows, ownedBlockIds);
 
@@ -86,7 +94,7 @@ final class BlockRollbackTransaction {
                 expectedParentBlocks.put(
                         stored.id(),
                         Objects.equals(parentBlockId, stored.sourceBlockId())
-                                ? destinationBlockId
+                                ? Integer.valueOf(destinationBlockId)
                                 : parentBlockId);
             }
 
@@ -338,6 +346,10 @@ final class BlockRollbackTransaction {
     }
 
     private void validateGraphRevision(
+            Connection connection,
+            String variableTable,
+            String ownerColumn,
+            int ownerId,
             String expectedGraphRevision,
             Map<Integer, StoredInstruction> storedRows)
             throws SQLException {
@@ -354,12 +366,48 @@ final class BlockRollbackTransaction {
             row.setOperation(stored.operation());
             graphRows.add(row);
         }
-        String actualGraphRevision =
-                new InstructionGraphRevisionService().revision(graphRows);
+        List<VariableLoadDTO> variableOwnership =
+                loadVariableOwnership(
+                        connection, variableTable, ownerColumn, ownerId);
+        String actualGraphRevision = new InstructionGraphRevisionService()
+                .revision(graphRows, variableOwnership);
         if (!expectedGraphRevision.equals(actualGraphRevision)) {
             throw new SQLException(
                     "Instructions changed while the rollback was being applied");
         }
+    }
+
+    private List<VariableLoadDTO> loadVariableOwnership(
+            Connection connection,
+            String variableTable,
+            String ownerColumn,
+            int ownerId)
+            throws SQLException {
+        List<VariableLoadDTO> variables = new ArrayList<>();
+        String sql = "SELECT id, instruction_id FROM "
+                + variableTable
+                + " WHERE "
+                + ownerColumn
+                + " = ? ORDER BY id";
+        try (PreparedStatement select = connection.prepareStatement(sql)) {
+            select.setInt(1, ownerId);
+            try (ResultSet rows = select.executeQuery()) {
+                while (rows.next()) {
+                    variables.add(new VariableLoadDTO(
+                            rows.getInt("id"),
+                            "component_variable".equals(variableTable) ? ownerId : null,
+                            "variable".equals(variableTable) ? ownerId : null,
+                            nullableInteger(rows, "instruction_id"),
+                            null,
+                            null,
+                            null,
+                            null,
+                            null,
+                            0));
+                }
+            }
+        }
+        return List.copyOf(variables);
     }
 
     private void validateCompleteOwnerLayout(
