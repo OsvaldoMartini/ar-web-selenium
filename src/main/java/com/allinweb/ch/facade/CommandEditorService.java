@@ -481,13 +481,9 @@ public final class CommandEditorService {
                                 ? Integer.MAX_VALUE : block.getBlockOrderNumber()))
                         .forEach(block -> allowedBlockIds.add(block.getId()));
                 capability.add("allowedBlockIds", allowedBlockIds);
-                // React owns DELETE_INSTRUCTION semantics. Java exposes only neutral selected-row
-                // compatibility fields plus the authoritative revision/owner envelope.
-                capability.addProperty("canDelete", true);
-                capability.addProperty("deleteCount", 1);
-                JsonArray selectedOnly = new JsonArray();
-                addDeleteImpactRow(selectedOnly, row);
-                capability.add("deleteRows", selectedOnly);
+                // React owns DELETE_INSTRUCTION planning and presentation. Java supplies
+                // correlated row coverage plus the authoritative revision/owner envelope;
+                // the v2 mutation handler validates and persists React's exact confirmed IDs.
                 capabilities.add(capability);
             }
             for (BlockLoadDTO block : blockRows) {

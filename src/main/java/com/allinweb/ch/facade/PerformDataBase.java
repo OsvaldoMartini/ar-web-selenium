@@ -4313,68 +4313,6 @@ public class PerformDataBase {
         }
     }
 
-    public InstructionLoad loadInstructionById(String tableName, int whereId, int instructionId) {
-        String foreignKeyColumn = "instruction".equalsIgnoreCase(tableName) ? "bot_job_id" : "home_banking_id";
-
-        String sql = "SELECT * FROM " + tableName + " WHERE instruction_id = ? AND " + foreignKeyColumn + " = ?";
-
-        try (Connection conn = getConnection();
-                PreparedStatement ps = conn.prepareStatement(sql)) {
-
-            ps.setInt(1, instructionId);
-            ps.setInt(2, whereId);
-
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    InstructionLoad i = new InstructionLoad();
-                    // map fields you need (at least instructionId + action/type + blockId etc.)
-                    i.setId(rs.getInt("instruction_id"));
-                    i.setParentId(rs.getInt("parent_id"));
-                    i.setActions(rs.getString("action"));
-                    // ... map other required columns
-                    return i;
-                }
-            }
-            return null;
-        } catch (SQLException e) {
-            logDB.error("loadInstructionById error: " + e.getMessage());
-            return null;
-        }
-    }
-
-    // Handle DELETE_INSTRUCTION message
-    public ErrorMessage deleteInstruction(
-            String tableName, int whereId, InstructionLoad toDelete, boolean blockDeletion) {
-
-        List<InstructionLoad> listInstruc = new ArrayList<>();
-        listInstruc.add(toDelete);
-
-        ErrorMessage errorMessage = null;
-
-        if (errorMessage == null) {
-            String variableTable = tableName.equals("instruction") ? "variable" : "component_variable";
-            errorMessage = deleteVariablesBatch(variableTable, whereId, listInstruc);
-        }
-
-        if (errorMessage == null) {
-
-            String referenceTable = tableName.equals("instruction") ? "reference" : "component_reference";
-            errorMessage = deleteReferencesBatch(referenceTable, whereId, listInstruc);
-        }
-
-        if (errorMessage == null) {
-            String instructionTable = tableName.equals("instruction") ? "instruction" : "component_instruction";
-            errorMessage = deleteInstructionsBatch(instructionTable, whereId, listInstruc);
-        }
-
-        if (errorMessage != null) {
-
-            logDB.error("Error: " + errorMessage.getErrorTitle() + "-" + errorMessage.getErrorMessage());
-        }
-
-        return errorMessage;
-    }
-
     public ErrorMessage deleteInstructionGraphAtomic(
             String instructionTable,
             int whereId,

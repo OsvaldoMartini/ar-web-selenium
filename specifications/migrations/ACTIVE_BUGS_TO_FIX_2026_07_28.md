@@ -11,7 +11,7 @@ frontend artifacts until the owning change has been reviewed and committed.
 
 | ID | Priority | Area | Status | Owner |
 |---|---|---|---|---|
-| BUG-001 | Critical | Instruction deletion selects positional IF/LOOP body rows | Fixed; focused verification passed | CODEX |
+| BUG-001 | Critical | Instruction deletion selects positional IF/LOOP body rows | Fixed; focused verification and deployment passed | CODEX |
 | BUG-002 | Critical | GridItemComp still shares branching Bot Job orchestration instead of independent typed Component calls | Pending | Unclaimed |
 | BUG-003 | Critical | Memory List drag/drop must remain isolated from GridItem and GridItemComp drag/drop controllers | Pending | Unclaimed |
 | BUG-004 | High | Memory Apply and Bot Job Details refresh/realtime synchronization need end-to-end regression coverage | Pending | Unclaimed |
@@ -45,6 +45,15 @@ frontend artifacts until the owning change has been reviewed and committed.
 - [x] React integration test proves modal IDs equal WebSocket IDs.
 - [x] Java contract tests cover exact ordering, owner isolation, duplicates,
       selected-ID inclusion, version enforcement, and explicit repairs.
+- [x] Instruction-delete confirmations show detailed rows only up to five;
+      larger exact plans show a count while preserving the complete v2 request.
+- [x] Shared confirmation content is viewport-bounded and scrollable while its
+      footer and Confirm/Cancel controls remain outside the scrolling region.
+- [x] Java no longer emits instruction-level `canDelete`, `deleteCount`, or
+      `deleteRows` UI planning fields. React derives delete readiness from
+      synchronized graph coverage; Java retains v2 validation and persistence.
+- [x] Dead legacy single-row deletion entry points were removed so the strict
+      exact-plan transaction is the only active instruction-deletion path.
 - [ ] Manual production verification on a disposable Bot Job copy.
 
 ## Next execution order
