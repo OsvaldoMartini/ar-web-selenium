@@ -21,8 +21,11 @@ import java.util.Set;
  *
  * <p>{@link Mode#COMPONENT_COPY} recursively includes every instruction in an external block
  * referenced by GOTO or EXCEL GOTO. Those external whole blocks are reported separately through
- * {@link Result#requiredBlockIds()}. {@link Mode#BOT_JOB_MOVE} leaves referenced GOTO blocks in
- * place while still resolving parent, conditional, loop, and variable relationships.
+ * {@link Result#requiredBlockIds()}. {@link Mode#BOT_JOB_MOVE} and
+ * {@link Mode#BOT_JOB_COPY} leave referenced GOTO blocks in place while still resolving parent,
+ * conditional, loop, and variable relationships. A Bot Job copy can therefore preserve an
+ * intentional cross-block navigation target while remapping relationships inside the copied
+ * group.
  */
 public final class InstructionDependencyClosureService {
     private static final Comparator<InstructionLoad> INSTRUCTION_ORDER = Comparator
@@ -332,6 +335,7 @@ public final class InstructionDependencyClosureService {
 
     public enum Mode {
         COMPONENT_COPY,
+        BOT_JOB_COPY,
         BOT_JOB_MOVE
     }
 

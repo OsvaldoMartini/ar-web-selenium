@@ -31,7 +31,7 @@ import java.util.Set;
  * methods use separate connections and intermediate commits, so a failed variable/reference copy
  * can leave a partially injected component. Here source rows are loaded again from the database,
  * ownership and graph revision are checked in the transaction, generated keys are mapped on the
- * same connection, and the complete copy/move is committed once.
+ * same connection, and the complete copy/insert is committed once.
  */
 public final class ComponentMemoryApplyService {
 
@@ -205,7 +205,7 @@ public final class ComponentMemoryApplyService {
                     componentVariables,
                     currentComponentRevision);
 
-            validateExistingSelections(
+            Set<Integer> selectedBotJobInstructionIds = validateExistingSelections(
                     request, currentBotById, currentBotRows, botVariables);
             boolean targetRequired = request.orderedItems().stream().anyMatch(item -> switch (item.kind()) {
                 case COMPONENT_BLOCK -> false;
@@ -296,6 +296,8 @@ public final class ComponentMemoryApplyService {
                             .orElse(0)
                     + 1;
             Map<Integer, Integer> generatedComponentInstructionIds = new LinkedHashMap<>();
+            Map<Integer, Integer> generatedBotJobInstructionIds = new LinkedHashMap<>();
+            Map<String, Integer> generatedBotJobInstructionsByItem = new LinkedHashMap<>();
             Map<String, Integer> generatedInstructionsByItem = new LinkedHashMap<>();
             Map<String, Integer> generatedScannerInstructionsByItem = new LinkedHashMap<>();
             List<InstructionRow> insertedRows = new ArrayList<>();
@@ -323,7 +325,23 @@ public final class ComponentMemoryApplyService {
 
                 // Individual component rows and scanner rows are copied into the selected target.
                 for (OrderedItem item : request.orderedItems()) {
-                    if (item.kind() == ItemKind.COMPONENT_INSTRUCTION) {
+                    if (item.kind() == ItemKind.BOT_JOB_INSTRUCTION) {
+                        int sourceInstructionId = item.botJobInstructionId();
+                        InstructionRow source = currentBotById.get(sourceInstructionId);
+                        int generatedId = insertInstruction(
+                                insertInstruction,
+                                source.withoutRelations(),
+                                nextTargetOrder++,
+                                resolvedTargetBlockId,
+                                request.botJobId());
+                        generatedBotJobInstructionIds.put(sourceInstructionId, generatedId);
+                        generatedBotJobInstructionsByItem.put(item.itemKey(), generatedId);
+                        insertedRows.add(
+                                source.asInserted(
+                                        generatedId,
+                                        resolvedTargetBlockId,
+                                        nextTargetOrder - 1));
+                    } else if (item.kind() == ItemKind.COMPONENT_INSTRUCTION) {
                         int sourceInstructionId = item.componentInstructionId();
                         Integer alreadyGenerated =
                                 generatedComponentInstructionIds.get(sourceInstructionId);
@@ -363,6 +381,25 @@ public final class ComponentMemoryApplyService {
                 }
             }
 
+            copyBotJobVariables(
+                    connection,
+                    request,
+                    selectedBotJobInstructionIds,
+                    currentBotById,
+                    generatedBotJobInstructionIds,
+                    insertedRows);
+            remapBotJobRelationships(
+                    connection,
+                    request.botJobId(),
+                    currentBotById,
+                    botBlocks,
+                    generatedBotJobInstructionIds,
+                    insertedRows);
+            copyBotJobReferences(
+                    connection,
+                    request,
+                    selectedBotJobInstructionIds,
+                    generatedBotJobInstructionIds);
             copyComponentVariables(
                     connection,
                     request,
@@ -402,10 +439,10 @@ public final class ComponentMemoryApplyService {
             for (OrderedItem item : request.orderedItems()) {
                 switch (item.kind()) {
                     case BOT_JOB_INSTRUCTION -> {
-                        InstructionRow selected =
-                                currentBotById.get(item.botJobInstructionId());
-                        if (selected != null && appendedTargetIds.add(selected.id())) {
-                            orderedTargetIds.add(selected.id());
+                        Integer generated =
+                                generatedBotJobInstructionsByItem.get(item.itemKey());
+                        if (generated != null && appendedTargetIds.add(generated)) {
+                            orderedTargetIds.add(generated);
                         }
                     }
                     case PAGE_SCANNER_INSTRUCTION -> {
@@ -452,6 +489,7 @@ public final class ComponentMemoryApplyService {
             connection.commit();
             restoreAutoCommit(connection, previousAutoCommit);
             Map<String, Integer> generatedByItem = new LinkedHashMap<>();
+            generatedByItem.putAll(generatedBotJobInstructionsByItem);
             generatedByItem.putAll(generatedInstructionsByItem);
             generatedByItem.putAll(generatedScannerInstructionsByItem);
             return new Result(
@@ -734,7 +772,7 @@ public final class ComponentMemoryApplyService {
                 Map.copyOf(rowsByBlock));
     }
 
-    private void validateExistingSelections(
+    private Set<Integer> validateExistingSelections(
             Request request,
             Map<Integer, InstructionRow> currentBotById,
             List<InstructionRow> currentBotRows,
@@ -752,14 +790,23 @@ public final class ComponentMemoryApplyService {
         List<InstructionLoad> dependencyGraph =
                 currentBotRows.stream().map(InstructionRow::asInstruction).toList();
         for (Integer instructionId : ids) {
+            InstructionRow selected = currentBotById.get(instructionId);
+            if (selected != null
+                    && "EXCEL GOTO".equals(
+                            CommandRegistry.canonicalize(selected.actions()))) {
+                throw new ApplyRefused(
+                        "EXCEL GOTO cannot be copied inside the same Bot Job because only one "
+                                + "EXCEL GOTO command is allowed.");
+            }
             InstructionDependencyClosureService.Result closure =
                     dependencyClosureService.resolve(
                             dependencyGraph,
                             variables,
                             instructionId,
-                            InstructionDependencyClosureService.Mode.BOT_JOB_MOVE);
+                            InstructionDependencyClosureService.Mode.BOT_JOB_COPY);
             requireCompleteClosure(closure, ids, Set.of(), "Bot Job");
         }
+        return Set.copyOf(ids);
     }
 
     private void requireCompleteClosure(
@@ -927,6 +974,239 @@ public final class ComponentMemoryApplyService {
             if (!keys.next()) throw new SQLException(entity + " insert returned no generated ID.");
             return keys.getInt(1);
         }
+    }
+
+    private void copyBotJobVariables(
+            Connection connection,
+            Request request,
+            Set<Integer> selectedInstructionIds,
+            Map<Integer, InstructionRow> sourceInstructions,
+            Map<Integer, Integer> generatedInstructionIds,
+            List<InstructionRow> insertedRows)
+            throws SQLException {
+        if (selectedInstructionIds.isEmpty()) return;
+
+        List<VariableCopyRow> sourceVariables = new ArrayList<>();
+        String select = "SELECT id, type, name, value, local_format, delimiter, instruction_id "
+                + "FROM variable WHERE bot_job_id = ? ORDER BY id";
+        try (PreparedStatement statement = connection.prepareStatement(select)) {
+            statement.setInt(1, request.botJobId());
+            try (ResultSet result = statement.executeQuery()) {
+                while (result.next()) {
+                    Integer sourceInstructionId = nullableInteger(result, "instruction_id");
+                    if (sourceInstructionId == null
+                            || !selectedInstructionIds.contains(sourceInstructionId)) {
+                        continue;
+                    }
+                    sourceVariables.add(new VariableCopyRow(
+                            result.getInt("id"),
+                            result.getObject("type"),
+                            result.getObject("name"),
+                            result.getObject("value"),
+                            result.getObject("local_format"),
+                            result.getObject("delimiter"),
+                            sourceInstructionId));
+                }
+            }
+        }
+
+        String insert = "INSERT INTO variable "
+                + "(type, name, value, local_format, delimiter, instruction_id, bot_job_id) "
+                + "VALUES (?, ?, ?, ?, ?, ?, ?)";
+        Map<Integer, Integer> generatedVariableIds = new LinkedHashMap<>();
+        try (PreparedStatement statement =
+                connection.prepareStatement(insert, Statement.RETURN_GENERATED_KEYS)) {
+            for (VariableCopyRow source : sourceVariables) {
+                Integer generatedOwnerId =
+                        generatedInstructionIds.get(source.instructionId());
+                if (generatedOwnerId == null) {
+                    throw new ApplyRefused(
+                            "A Bot Job variable owner was not copied with its connected group.");
+                }
+                statement.setObject(1, source.type());
+                statement.setObject(2, source.name());
+                statement.setObject(3, source.value());
+                statement.setObject(4, source.localFormat());
+                statement.setObject(5, source.delimiter());
+                statement.setInt(6, generatedOwnerId);
+                statement.setInt(7, request.botJobId());
+                if (statement.executeUpdate() != 1) {
+                    throw new SQLException(
+                            "Bot Job variable copy did not create exactly one row.");
+                }
+                generatedVariableIds.put(
+                        source.id(), generatedId(statement, "Bot Job variable"));
+            }
+        }
+
+        for (Map.Entry<Integer, Integer> generated :
+                generatedInstructionIds.entrySet()) {
+            InstructionRow source = sourceInstructions.get(generated.getKey());
+            if (source == null || source.variableId() == null) continue;
+            Integer generatedVariableId = generatedVariableIds.get(source.variableId());
+            if (generatedVariableId == null) {
+                throw new ApplyRefused(
+                        "A copied Bot Job instruction references a variable that was not copied.");
+            }
+            replaceInsertedRow(
+                    insertedRows,
+                    generated.getValue(),
+                    row -> row.withVariableId(generatedVariableId));
+        }
+    }
+
+    private void remapBotJobRelationships(
+            Connection connection,
+            int botJobId,
+            Map<Integer, InstructionRow> sourceInstructions,
+            Map<Integer, BlockRow> botBlocks,
+            Map<Integer, Integer> generatedInstructionIds,
+            List<InstructionRow> insertedRows)
+            throws SQLException {
+        String update = "UPDATE instruction "
+                + "SET variable_id = ?, parent_block_id = ?, parent_id = ? "
+                + "WHERE id = ? AND bot_job_id = ?";
+        try (PreparedStatement statement = connection.prepareStatement(update)) {
+            for (Map.Entry<Integer, Integer> generated :
+                    generatedInstructionIds.entrySet()) {
+                InstructionRow source = sourceInstructions.get(generated.getKey());
+                if (source == null) {
+                    throw new ApplyRefused(
+                            "A Bot Job instruction disappeared while its copy was being prepared.");
+                }
+                InstructionRow inserted =
+                        findInsertedRow(insertedRows, generated.getValue());
+
+                boolean crossBlockNavigation = CommandRegistry.isCrossBlockNavigation(
+                        source.actions(), source.parentBlockId(), source.blockId());
+                Integer generatedParentId = null;
+                Integer generatedParentBlockId = null;
+                if (crossBlockNavigation) {
+                    generatedParentId = source.parentId();
+                    generatedParentBlockId = source.parentBlockId();
+                    if (generatedParentBlockId == null
+                            || !botBlocks.containsKey(generatedParentBlockId)) {
+                        throw new ApplyRefused(
+                                "A copied Bot Job GOTO references a block that no longer exists.");
+                    }
+                    if (inserted.blockId() == generatedParentBlockId) {
+                        throw new ApplyRefused(
+                                "A copied Bot Job GOTO cannot use its own destination block as "
+                                        + "the Memory List target.");
+                    }
+                    if (generatedParentId != null) {
+                        InstructionRow target = sourceInstructions.get(generatedParentId);
+                        if (target == null
+                                || target.blockId() != generatedParentBlockId) {
+                            throw new ApplyRefused(
+                                    "A copied Bot Job GOTO references an instruction that no longer exists.");
+                        }
+                    }
+                } else {
+                    if (source.parentId() != null) {
+                        generatedParentId =
+                                generatedInstructionIds.get(source.parentId());
+                        if (generatedParentId == null) {
+                            throw new ApplyRefused(
+                                    "A copied Bot Job instruction references a parent that was not copied.");
+                        }
+                    }
+                    if (source.parentId() != null || source.parentBlockId() != null) {
+                        generatedParentBlockId = inserted.blockId();
+                    }
+                }
+
+                bindNullableInteger(statement, 1, inserted.variableId());
+                bindNullableInteger(statement, 2, generatedParentBlockId);
+                bindNullableInteger(statement, 3, generatedParentId);
+                statement.setInt(4, inserted.id());
+                statement.setInt(5, botJobId);
+                if (statement.executeUpdate() != 1) {
+                    throw new SQLException(
+                            "Copied Bot Job instruction could not be relationship-remapped.");
+                }
+                Integer remappedParentId = generatedParentId;
+                Integer remappedParentBlockId = generatedParentBlockId;
+                replaceInsertedRow(
+                        insertedRows,
+                        inserted.id(),
+                        row -> row.withRelations(
+                                remappedParentId, remappedParentBlockId));
+            }
+        }
+    }
+
+    private void copyBotJobReferences(
+            Connection connection,
+            Request request,
+            Set<Integer> selectedInstructionIds,
+            Map<Integer, Integer> generatedInstructionIds)
+            throws SQLException {
+        if (selectedInstructionIds.isEmpty()) return;
+
+        List<ReferenceCopyRow> sourceReferences = new ArrayList<>();
+        String select = "SELECT reference_type, value, instruction_id "
+                + "FROM reference WHERE bot_job_id = ? ORDER BY id";
+        try (PreparedStatement statement = connection.prepareStatement(select)) {
+            statement.setInt(1, request.botJobId());
+            try (ResultSet result = statement.executeQuery()) {
+                while (result.next()) {
+                    Integer sourceInstructionId =
+                            nullableInteger(result, "instruction_id");
+                    if (sourceInstructionId == null
+                            || !selectedInstructionIds.contains(sourceInstructionId)) {
+                        continue;
+                    }
+                    sourceReferences.add(new ReferenceCopyRow(
+                            result.getObject("reference_type"),
+                            result.getObject("value"),
+                            sourceInstructionId));
+                }
+            }
+        }
+
+        String insert = "INSERT INTO reference "
+                + "(reference_type, value, instruction_id, bot_job_id) VALUES (?, ?, ?, ?)";
+        try (PreparedStatement statement = connection.prepareStatement(insert)) {
+            for (ReferenceCopyRow source : sourceReferences) {
+                Integer generatedInstructionId =
+                        generatedInstructionIds.get(source.instructionId());
+                if (generatedInstructionId == null) {
+                    throw new ApplyRefused(
+                            "A Bot Job locator reference belongs to an instruction that was not copied.");
+                }
+                statement.setObject(1, source.referenceType());
+                statement.setObject(2, source.value());
+                statement.setInt(3, generatedInstructionId);
+                statement.setInt(4, request.botJobId());
+                if (statement.executeUpdate() != 1) {
+                    throw new SQLException(
+                            "Bot Job reference copy did not create exactly one row.");
+                }
+            }
+        }
+    }
+
+    private InstructionRow findInsertedRow(List<InstructionRow> rows, int instructionId) {
+        return rows.stream()
+                .filter(row -> row.id() == instructionId)
+                .findFirst()
+                .orElseThrow(() -> new ApplyRefused(
+                        "A generated instruction is missing from the pending Memory List copy."));
+    }
+
+    private void replaceInsertedRow(
+            List<InstructionRow> rows,
+            int instructionId,
+            java.util.function.UnaryOperator<InstructionRow> update) {
+        for (int index = 0; index < rows.size(); index++) {
+            InstructionRow row = rows.get(index);
+            if (row.id() != instructionId) continue;
+            rows.set(index, update.apply(row));
+            return;
+        }
+        throw new ApplyRefused(
+                "A generated instruction is missing from the pending Memory List copy.");
     }
 
     private void copyComponentVariables(
@@ -1113,32 +1393,40 @@ public final class ComponentMemoryApplyService {
     private List<UpdatedRow> finalLayout(
             List<InstructionRow> rows, int targetBlockId, List<Integer> orderedSelectedIds) {
         Set<Integer> selected = new HashSet<>(orderedSelectedIds);
-        Map<Integer, List<InstructionRow>> blocks = new LinkedHashMap<>();
-        rows.stream()
+        Map<Integer, InstructionRow> byId = indexInstructions(rows);
+        int nextTargetOrder = rows.stream()
+                        .filter(row -> row.blockId() == targetBlockId)
+                        .filter(row -> !selected.contains(row.id()))
+                        .map(InstructionRow::order)
+                        .max(Integer::compareTo)
+                        .orElse(0)
+                + 1;
+        Map<Integer, UpdatedRow> selectedUpdates = new LinkedHashMap<>();
+        for (Integer instructionId : orderedSelectedIds) {
+            if (!byId.containsKey(instructionId)) continue;
+            UpdatedRow update = new UpdatedRow();
+            update.setInstructionId(instructionId);
+            update.setBlockId(targetBlockId);
+            update.setInstructionOrderNumber(nextTargetOrder++);
+            selectedUpdates.put(instructionId, update);
+        }
+
+        // Preserve every source and unrelated destination row exactly. Memory List Apply is a
+        // clone/insert workflow; only generated rows may receive a new position here.
+        List<UpdatedRow> updates = new ArrayList<>();
+        for (InstructionRow row : rows.stream()
                 .sorted(Comparator.comparingInt(InstructionRow::blockId)
                         .thenComparingInt(InstructionRow::order)
                         .thenComparingInt(InstructionRow::id))
-                .forEach(row ->
-                        blocks.computeIfAbsent(row.blockId(), ignored -> new ArrayList<>()).add(row));
-        Map<Integer, InstructionRow> byId = indexInstructions(rows);
-        blocks.values().forEach(block -> block.removeIf(row -> selected.contains(row.id())));
-        if (!orderedSelectedIds.isEmpty()) {
-            List<InstructionRow> target =
-                    blocks.computeIfAbsent(targetBlockId, ignored -> new ArrayList<>());
-            for (Integer instructionId : orderedSelectedIds) {
-                InstructionRow row = byId.get(instructionId);
-                if (row != null) target.add(row);
+                .toList()) {
+            UpdatedRow update = selectedUpdates.get(row.id());
+            if (update == null) {
+                update = new UpdatedRow();
+                update.setInstructionId(row.id());
+                update.setBlockId(row.blockId());
+                update.setInstructionOrderNumber(row.order());
             }
-        }
-        List<UpdatedRow> updates = new ArrayList<>();
-        for (Map.Entry<Integer, List<InstructionRow>> block : blocks.entrySet()) {
-            for (int index = 0; index < block.getValue().size(); index++) {
-                UpdatedRow update = new UpdatedRow();
-                update.setInstructionId(block.getValue().get(index).id());
-                update.setBlockId(block.getKey());
-                update.setInstructionOrderNumber(index + 1);
-                updates.add(update);
-            }
+            updates.add(update);
         }
         return updates;
     }
@@ -1283,6 +1571,13 @@ public final class ComponentMemoryApplyService {
                     throw new SQLException(
                             "Instruction " + row.getInstructionId()
                                     + " was not part of the validated Memory List graph.");
+                }
+                if (expected.order() == row.getInstructionOrderNumber()
+                        && expected.blockId() == row.getBlockId()) {
+                    // Memory Apply must never normalize or repair an unchanged source row. Every
+                    // relationship on generated rows was already persisted by the copy/remap
+                    // phase, so an unchanged position is a complete no-op here.
+                    continue;
                 }
                 statement.setInt(1, row.getInstructionOrderNumber());
                 statement.setInt(2, row.getBlockId());
@@ -1491,6 +1786,18 @@ public final class ComponentMemoryApplyService {
             Map<Integer, List<InstructionRow>> rowsBySelectedBlock) {}
 
     private record CompletedRequest(String fingerprint, Result result) {}
+
+    private record VariableCopyRow(
+            int id,
+            Object type,
+            Object name,
+            Object value,
+            Object localFormat,
+            Object delimiter,
+            int instructionId) {}
+
+    private record ReferenceCopyRow(
+            Object referenceType, Object value, int instructionId) {}
 
     private record BlockRow(
             int id,

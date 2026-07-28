@@ -758,8 +758,9 @@ class ComponentMemoryApplyServiceTest {
     }
 
     @Test
-    void sameBlockGotoFamilyMoveRemapsParentBlockToItsDestinationBlock() throws Exception {
-        String url = databaseUrl("same-block-goto-move");
+    void botJobSameBlockGotoFamilyIsClonedWithFreshIdsAndSourceRemainsUnchanged()
+            throws Exception {
+        String url = databaseUrl("same-block-goto-copy");
         initializeDatabase(url);
         try (Connection connection = DriverManager.getConnection(url);
                 Statement statement = connection.createStatement()) {
@@ -778,7 +779,7 @@ class ComponentMemoryApplyServiceTest {
 
         ComponentMemoryApplyService.Result result = service.apply(
                 new ComponentMemoryApplyService.Request(
-                        "same-block-goto-move",
+                        "same-block-goto-copy",
                         5,
                         2,
                         11,
@@ -789,15 +790,528 @@ class ComponentMemoryApplyServiceTest {
                                         "BOT_JOB:502", 502))));
 
         assertTrue(result.committed());
+        int copiedTargetId = result.generatedInstructionIds().get("BOT_JOB:501");
+        int copiedGotoId = result.generatedInstructionIds().get("BOT_JOB:502");
+        assertTrue(copiedTargetId != 501);
+        assertTrue(copiedGotoId != 502);
         try (Connection connection = DriverManager.getConnection(url);
-                Statement statement = connection.createStatement();
-                ResultSet row = statement.executeQuery(
-                        "SELECT block_id,parent_id,parent_block_id "
-                                + "FROM instruction WHERE id=502")) {
-            assertTrue(row.next());
-            assertEquals(11, row.getInt("block_id"));
-            assertEquals(501, row.getInt("parent_id"));
-            assertEquals(11, row.getInt("parent_block_id"));
+                Statement statement = connection.createStatement()) {
+            assertEquals(5, scalar(statement, "SELECT COUNT(*) FROM instruction WHERE bot_job_id=5"));
+            try (ResultSet source = statement.executeQuery(
+                    "SELECT id,instruction_order_number,block_id,parent_id,parent_block_id "
+                            + "FROM instruction WHERE id IN (501,502) ORDER BY id")) {
+                assertTrue(source.next());
+                assertEquals(501, source.getInt("id"));
+                assertEquals(1, source.getInt("instruction_order_number"));
+                assertEquals(10, source.getInt("block_id"));
+                assertTrue(source.getObject("parent_id") == null);
+                assertTrue(source.getObject("parent_block_id") == null);
+
+                assertTrue(source.next());
+                assertEquals(502, source.getInt("id"));
+                assertEquals(2, source.getInt("instruction_order_number"));
+                assertEquals(10, source.getInt("block_id"));
+                assertEquals(501, source.getInt("parent_id"));
+                assertEquals(10, source.getInt("parent_block_id"));
+                assertTrue(!source.next());
+            }
+            try (ResultSet copied = statement.executeQuery(
+                    "SELECT id,instruction_order_number,block_id,parent_id,parent_block_id "
+                            + "FROM instruction WHERE id IN (" + copiedTargetId + ","
+                            + copiedGotoId + ") ORDER BY instruction_order_number")) {
+                assertTrue(copied.next());
+                assertEquals(copiedTargetId, copied.getInt("id"));
+                assertEquals(2, copied.getInt("instruction_order_number"));
+                assertEquals(11, copied.getInt("block_id"));
+                assertTrue(copied.getObject("parent_id") == null);
+                assertTrue(copied.getObject("parent_block_id") == null);
+
+                assertTrue(copied.next());
+                assertEquals(copiedGotoId, copied.getInt("id"));
+                assertEquals(3, copied.getInt("instruction_order_number"));
+                assertEquals(11, copied.getInt("block_id"));
+                assertEquals(copiedTargetId, copied.getInt("parent_id"));
+                assertEquals(11, copied.getInt("parent_block_id"));
+                assertTrue(!copied.next());
+            }
+        }
+    }
+
+    @Test
+    void botJobCopyDoesNotRepairLegacySourceParentBlockAndNormalizesOnlyTheClone()
+            throws Exception {
+        String url = databaseUrl("bot-job-legacy-null-parent-block-copy");
+        initializeDatabase(url);
+        try (Connection connection = DriverManager.getConnection(url);
+                Statement statement = connection.createStatement()) {
+            statement.execute(
+                    "INSERT INTO block(id,block_order_number,name,description,type_id,active,wait,"
+                            + "bot_job_id) VALUES(11,2,'Destination','Destination',1,1,0,5)");
+            statement.execute(
+                    "INSERT INTO instruction(id,instruction_order_number,actions,name,active,"
+                            + "block_id,parent_block_id,parent_id,bot_job_id) VALUES"
+                            + "(501,1,'C','Legacy parent',1,10,NULL,NULL,5),"
+                            + "(502,2,'GET','Legacy child',1,10,NULL,501,5)");
+        }
+        ComponentMemoryApplyService service =
+                new ComponentMemoryApplyService(() -> DriverManager.getConnection(url));
+
+        ComponentMemoryApplyService.Result result = service.apply(
+                new ComponentMemoryApplyService.Request(
+                        "bot-job-legacy-null-parent-block-copy",
+                        5,
+                        2,
+                        11,
+                        List.of(
+                                ComponentMemoryApplyService.OrderedItem.botJob(
+                                        "BOT_JOB:501", 501),
+                                ComponentMemoryApplyService.OrderedItem.botJob(
+                                        "BOT_JOB:502", 502))));
+
+        assertTrue(result.committed());
+        int copiedParentId = result.generatedInstructionIds().get("BOT_JOB:501");
+        int copiedChildId = result.generatedInstructionIds().get("BOT_JOB:502");
+        try (Connection connection = DriverManager.getConnection(url);
+                Statement statement = connection.createStatement()) {
+            try (ResultSet source = statement.executeQuery(
+                    "SELECT block_id,parent_id,parent_block_id FROM instruction WHERE id=502")) {
+                assertTrue(source.next());
+                assertEquals(10, source.getInt("block_id"));
+                assertEquals(501, source.getInt("parent_id"));
+                assertTrue(source.getObject("parent_block_id") == null);
+            }
+            try (ResultSet copied = statement.executeQuery(
+                    "SELECT block_id,parent_id,parent_block_id FROM instruction WHERE id="
+                            + copiedChildId)) {
+                assertTrue(copied.next());
+                assertEquals(11, copied.getInt("block_id"));
+                assertEquals(copiedParentId, copied.getInt("parent_id"));
+                assertEquals(11, copied.getInt("parent_block_id"));
+            }
+        }
+    }
+
+    @Test
+    void botJobWebFieldGetExtractFamilyCopiesVariablesReferencesAndKeepsSource()
+            throws Exception {
+        String url = databaseUrl("bot-job-variable-family-copy");
+        initializeDatabase(url);
+        seedBotJobWebFieldFamily(url);
+        ComponentMemoryApplyService service =
+                new ComponentMemoryApplyService(() -> DriverManager.getConnection(url));
+
+        ComponentMemoryApplyService.Result result = service.apply(
+                new ComponentMemoryApplyService.Request(
+                        "bot-job-variable-family-copy",
+                        5,
+                        2,
+                        11,
+                        List.of(
+                                ComponentMemoryApplyService.OrderedItem.botJob(
+                                        "BOT_JOB:503", 503),
+                                ComponentMemoryApplyService.OrderedItem.botJob(
+                                        "BOT_JOB:502", 502),
+                                ComponentMemoryApplyService.OrderedItem.botJob(
+                                        "BOT_JOB:501", 501))));
+
+        assertTrue(result.committed());
+        int copiedFieldId = result.generatedInstructionIds().get("BOT_JOB:501");
+        int copiedGetId = result.generatedInstructionIds().get("BOT_JOB:502");
+        int copiedExtractId = result.generatedInstructionIds().get("BOT_JOB:503");
+        assertTrue(copiedFieldId != 501);
+        assertTrue(copiedGetId != 502);
+        assertTrue(copiedExtractId != 503);
+
+        try (Connection connection = DriverManager.getConnection(url);
+                Statement statement = connection.createStatement()) {
+            assertEquals(
+                    3,
+                    scalar(
+                            statement,
+                            "SELECT COUNT(*) FROM instruction WHERE bot_job_id=5 AND block_id=10"));
+            assertEquals(
+                    3,
+                    scalar(
+                            statement,
+                            "SELECT COUNT(*) FROM instruction WHERE bot_job_id=5 AND block_id=11"));
+            assertEquals(2, scalar(statement, "SELECT COUNT(*) FROM variable WHERE bot_job_id=5"));
+            assertEquals(6, scalar(statement, "SELECT COUNT(*) FROM reference WHERE bot_job_id=5"));
+
+            try (ResultSet source = statement.executeQuery(
+                    "SELECT id,instruction_order_number,block_id,variable_id,parent_id,parent_block_id "
+                            + "FROM instruction WHERE id IN (501,502,503) "
+                            + "ORDER BY instruction_order_number")) {
+                assertTrue(source.next());
+                assertEquals(501, source.getInt("id"));
+                assertEquals(1, source.getInt("instruction_order_number"));
+                assertEquals(10, source.getInt("block_id"));
+                assertEquals(701, source.getInt("variable_id"));
+                assertTrue(source.getObject("parent_id") == null);
+
+                assertTrue(source.next());
+                assertEquals(502, source.getInt("id"));
+                assertEquals(2, source.getInt("instruction_order_number"));
+                assertEquals(10, source.getInt("block_id"));
+                assertEquals(701, source.getInt("variable_id"));
+                assertEquals(501, source.getInt("parent_id"));
+                assertEquals(10, source.getInt("parent_block_id"));
+
+                assertTrue(source.next());
+                assertEquals(503, source.getInt("id"));
+                assertEquals(3, source.getInt("instruction_order_number"));
+                assertEquals(10, source.getInt("block_id"));
+                assertEquals(701, source.getInt("variable_id"));
+                assertEquals(501, source.getInt("parent_id"));
+                assertEquals(10, source.getInt("parent_block_id"));
+                assertTrue(!source.next());
+            }
+
+            int copiedVariableId;
+            try (ResultSet variable = statement.executeQuery(
+                    "SELECT id,type,name,value,local_format,delimiter,instruction_id "
+                            + "FROM variable WHERE bot_job_id=5 AND id<>701")) {
+                assertTrue(variable.next());
+                copiedVariableId = variable.getInt("id");
+                assertEquals("TEXT", variable.getString("type"));
+                assertEquals("balance", variable.getString("name"));
+                assertEquals("0", variable.getString("value"));
+                assertEquals("CH", variable.getString("local_format"));
+                assertEquals(",", variable.getString("delimiter"));
+                assertEquals(copiedGetId, variable.getInt("instruction_id"));
+                assertTrue(!variable.next());
+            }
+
+            try (ResultSet copied = statement.executeQuery(
+                    "SELECT id,name,instruction_order_number,variable_id,parent_id,parent_block_id "
+                            + "FROM instruction WHERE block_id=11 "
+                            + "ORDER BY instruction_order_number")) {
+                assertTrue(copied.next());
+                assertEquals(copiedFieldId, copied.getInt("id"));
+                assertEquals("Web Field", copied.getString("name"));
+                assertEquals(copiedVariableId, copied.getInt("variable_id"));
+                assertTrue(copied.getObject("parent_id") == null);
+
+                assertTrue(copied.next());
+                assertEquals(copiedGetId, copied.getInt("id"));
+                assertEquals("Get Value", copied.getString("name"));
+                assertEquals(copiedVariableId, copied.getInt("variable_id"));
+                assertEquals(copiedFieldId, copied.getInt("parent_id"));
+                assertEquals(11, copied.getInt("parent_block_id"));
+
+                assertTrue(copied.next());
+                assertEquals(copiedExtractId, copied.getInt("id"));
+                assertEquals("Extract Field", copied.getString("name"));
+                assertEquals(copiedVariableId, copied.getInt("variable_id"));
+                assertEquals(copiedFieldId, copied.getInt("parent_id"));
+                assertEquals(11, copied.getInt("parent_block_id"));
+                assertTrue(!copied.next());
+            }
+            assertEquals(
+                    3,
+                    scalar(
+                            statement,
+                            "SELECT COUNT(*) FROM reference WHERE bot_job_id=5"
+                                    + " AND instruction_id IN (" + copiedFieldId + ","
+                                    + copiedGetId + "," + copiedExtractId + ")"));
+            assertEquals(
+                    3,
+                    scalar(
+                            statement,
+                            "SELECT COUNT(*) FROM reference WHERE bot_job_id=5"
+                                    + " AND instruction_id IN (501,502,503)"));
+        }
+    }
+
+    @Test
+    void botJobIncompleteConnectedFamilyIsRejectedWithoutAnyWrites()
+            throws Exception {
+        String url = databaseUrl("bot-job-incomplete-family-copy");
+        initializeDatabase(url);
+        seedBotJobWebFieldFamily(url);
+        ComponentMemoryApplyService service =
+                new ComponentMemoryApplyService(() -> DriverManager.getConnection(url));
+
+        ComponentMemoryApplyService.Result result = service.apply(
+                new ComponentMemoryApplyService.Request(
+                        "bot-job-incomplete-family-copy",
+                        5,
+                        2,
+                        11,
+                        List.of(ComponentMemoryApplyService.OrderedItem.botJob(
+                                "BOT_JOB:502", 502))));
+
+        assertFalse(result.committed());
+        assertNotNull(result.error());
+        assertTrue(result.error().getErrorHeader().contains("complete connected Bot Job"));
+        try (Connection connection = DriverManager.getConnection(url);
+                Statement statement = connection.createStatement()) {
+            assertEquals(3, scalar(statement, "SELECT COUNT(*) FROM instruction WHERE bot_job_id=5"));
+            assertEquals(1, scalar(statement, "SELECT COUNT(*) FROM variable WHERE bot_job_id=5"));
+            assertEquals(3, scalar(statement, "SELECT COUNT(*) FROM reference WHERE bot_job_id=5"));
+            assertEquals(
+                    3,
+                    scalar(
+                            statement,
+                            "SELECT COUNT(*) FROM instruction WHERE bot_job_id=5 AND block_id=10"));
+            assertEquals(
+                    0,
+                    scalar(
+                            statement,
+                            "SELECT COUNT(*) FROM instruction WHERE bot_job_id=5 AND block_id=11"));
+        }
+    }
+
+    @Test
+    void botJobFamilyCreatesNewTargetOnceAndRetryDoesNotDuplicateRows()
+            throws Exception {
+        String url = databaseUrl("bot-job-new-target-copy");
+        initializeDatabase(url);
+        seedBotJobWebFieldFamily(url);
+        ComponentMemoryApplyService service =
+                new ComponentMemoryApplyService(() -> DriverManager.getConnection(url));
+        ComponentMemoryApplyService.Request request =
+                new ComponentMemoryApplyService.Request(
+                        "bot-job-new-target-copy",
+                        5,
+                        2,
+                        -1,
+                        List.of(
+                                ComponentMemoryApplyService.OrderedItem.botJob(
+                                        "BOT_JOB:501", 501),
+                                ComponentMemoryApplyService.OrderedItem.botJob(
+                                        "BOT_JOB:502", 502),
+                                ComponentMemoryApplyService.OrderedItem.botJob(
+                                        "BOT_JOB:503", 503)),
+                        new ComponentMemoryApplyService.NewTargetBlock(
+                                "Copied Bot Job Family",
+                                BlockCreationService.Position.END,
+                                null,
+                                null));
+
+        ComponentMemoryApplyService.Result first = service.apply(request);
+        ComponentMemoryApplyService.Result retry = service.apply(request);
+
+        assertTrue(first.committed());
+        assertFalse(first.duplicate());
+        assertTrue(retry.committed());
+        assertTrue(retry.duplicate());
+        assertEquals(first.createdTargetBlockId(), retry.createdTargetBlockId());
+        assertEquals(first.generatedInstructionIds(), retry.generatedInstructionIds());
+        try (Connection connection = DriverManager.getConnection(url);
+                Statement statement = connection.createStatement()) {
+            assertEquals(3, scalar(statement, "SELECT COUNT(*) FROM block WHERE bot_job_id=5"));
+            assertEquals(
+                    1,
+                    scalar(
+                            statement,
+                            "SELECT COUNT(*) FROM block WHERE bot_job_id=5"
+                                    + " AND name='Copied Bot Job Family'"));
+            assertEquals(6, scalar(statement, "SELECT COUNT(*) FROM instruction WHERE bot_job_id=5"));
+            assertEquals(
+                    3,
+                    scalar(
+                            statement,
+                            "SELECT COUNT(*) FROM instruction WHERE bot_job_id=5 AND block_id="
+                                    + first.createdTargetBlockId()));
+            assertEquals(
+                    3,
+                    scalar(
+                            statement,
+                            "SELECT COUNT(*) FROM instruction WHERE bot_job_id=5 AND block_id=10"));
+            assertEquals(2, scalar(statement, "SELECT COUNT(*) FROM variable WHERE bot_job_id=5"));
+            assertEquals(6, scalar(statement, "SELECT COUNT(*) FROM reference WHERE bot_job_id=5"));
+        }
+    }
+
+    @Test
+    void botJobCopyFailureRollsBackNewBlockAndEveryGeneratedRow() throws Exception {
+        String url = databaseUrl("bot-job-copy-rollback");
+        initializeDatabase(url);
+        seedBotJobWebFieldFamily(url);
+        try (Connection connection = DriverManager.getConnection(url);
+                Statement statement = connection.createStatement()) {
+            statement.execute(
+                    "CREATE TRIGGER refuse_copied_reference BEFORE INSERT ON reference "
+                            + "BEGIN SELECT RAISE(ABORT, 'forced bot clone reference failure'); END");
+        }
+        ComponentMemoryApplyService service =
+                new ComponentMemoryApplyService(() -> DriverManager.getConnection(url));
+
+        ComponentMemoryApplyService.Result result = service.apply(
+                new ComponentMemoryApplyService.Request(
+                        "bot-job-copy-rollback",
+                        5,
+                        2,
+                        -1,
+                        List.of(
+                                ComponentMemoryApplyService.OrderedItem.botJob(
+                                        "BOT_JOB:501", 501),
+                                ComponentMemoryApplyService.OrderedItem.botJob(
+                                        "BOT_JOB:502", 502),
+                                ComponentMemoryApplyService.OrderedItem.botJob(
+                                        "BOT_JOB:503", 503)),
+                        new ComponentMemoryApplyService.NewTargetBlock(
+                                "Must Roll Back",
+                                BlockCreationService.Position.END,
+                                null,
+                                null)));
+
+        assertFalse(result.committed());
+        assertNotNull(result.error());
+        assertTrue(result.error().getErrorMessage().contains("forced bot clone reference failure"));
+        try (Connection connection = DriverManager.getConnection(url);
+                Statement statement = connection.createStatement()) {
+            assertEquals(2, scalar(statement, "SELECT COUNT(*) FROM block WHERE bot_job_id=5"));
+            assertEquals(
+                    0,
+                    scalar(
+                            statement,
+                            "SELECT COUNT(*) FROM block WHERE bot_job_id=5"
+                                    + " AND name='Must Roll Back'"));
+            assertEquals(3, scalar(statement, "SELECT COUNT(*) FROM instruction WHERE bot_job_id=5"));
+            assertEquals(1, scalar(statement, "SELECT COUNT(*) FROM variable WHERE bot_job_id=5"));
+            assertEquals(3, scalar(statement, "SELECT COUNT(*) FROM reference WHERE bot_job_id=5"));
+        }
+    }
+
+    @Test
+    void botJobCrossBlockGotoCopyPreservesItsExistingSameJobDestination()
+            throws Exception {
+        String url = databaseUrl("bot-job-cross-block-goto-copy");
+        initializeDatabase(url);
+        try (Connection connection = DriverManager.getConnection(url);
+                Statement statement = connection.createStatement()) {
+            statement.execute(
+                    "INSERT INTO block(id,block_order_number,name,description,type_id,active,wait,"
+                            + "bot_job_id) VALUES"
+                            + "(11,2,'Navigation Target','Navigation Target',1,1,0,5),"
+                            + "(12,3,'Copy Target','Copy Target',1,1,0,5)");
+            statement.execute(
+                    "INSERT INTO instruction(id,instruction_order_number,actions,name,active,"
+                            + "block_id,parent_block_id,parent_id,bot_job_id) VALUES"
+                            + "(601,1,'GOTO','Open target',1,10,11,602,5),"
+                            + "(602,1,'C','Target field',1,11,NULL,NULL,5)");
+        }
+        ComponentMemoryApplyService service =
+                new ComponentMemoryApplyService(() -> DriverManager.getConnection(url));
+
+        ComponentMemoryApplyService.Result result = service.apply(
+                new ComponentMemoryApplyService.Request(
+                        "bot-job-cross-block-goto-copy",
+                        5,
+                        2,
+                        12,
+                        List.of(ComponentMemoryApplyService.OrderedItem.botJob(
+                                "BOT_JOB:601", 601))));
+
+        assertTrue(result.committed());
+        int copiedGotoId = result.generatedInstructionIds().get("BOT_JOB:601");
+        try (Connection connection = DriverManager.getConnection(url);
+                Statement statement = connection.createStatement()) {
+            try (ResultSet source = statement.executeQuery(
+                    "SELECT block_id,parent_block_id,parent_id FROM instruction WHERE id=601")) {
+                assertTrue(source.next());
+                assertEquals(10, source.getInt("block_id"));
+                assertEquals(11, source.getInt("parent_block_id"));
+                assertEquals(602, source.getInt("parent_id"));
+            }
+            try (ResultSet copied = statement.executeQuery(
+                    "SELECT block_id,parent_block_id,parent_id FROM instruction WHERE id="
+                            + copiedGotoId)) {
+                assertTrue(copied.next());
+                assertEquals(12, copied.getInt("block_id"));
+                assertEquals(11, copied.getInt("parent_block_id"));
+                assertEquals(602, copied.getInt("parent_id"));
+            }
+        }
+    }
+
+    @Test
+    void botJobCrossBlockGotoCopyRefusesItsOwnNavigationDestinationAsTarget()
+            throws Exception {
+        String url = databaseUrl("bot-job-cross-block-goto-self-target-refused");
+        initializeDatabase(url);
+        try (Connection connection = DriverManager.getConnection(url);
+                Statement statement = connection.createStatement()) {
+            statement.execute(
+                    "INSERT INTO block(id,block_order_number,name,description,type_id,active,wait,"
+                            + "bot_job_id) VALUES"
+                            + "(11,2,'Navigation Target','Navigation Target',1,1,0,5)");
+            statement.execute(
+                    "INSERT INTO instruction(id,instruction_order_number,actions,name,active,"
+                            + "block_id,parent_block_id,parent_id,bot_job_id) VALUES"
+                            + "(601,1,'GOTO','Open target',1,10,11,602,5),"
+                            + "(602,1,'C','Target field',1,11,NULL,NULL,5)");
+        }
+        ComponentMemoryApplyService service =
+                new ComponentMemoryApplyService(() -> DriverManager.getConnection(url));
+
+        ComponentMemoryApplyService.Result result = service.apply(
+                new ComponentMemoryApplyService.Request(
+                        "bot-job-cross-block-goto-self-target-refused",
+                        5,
+                        2,
+                        11,
+                        List.of(ComponentMemoryApplyService.OrderedItem.botJob(
+                                "BOT_JOB:601", 601))));
+
+        assertFalse(result.committed());
+        assertNotNull(result.error());
+        assertTrue(result.error().getErrorHeader().contains("own destination block"));
+        try (Connection connection = DriverManager.getConnection(url);
+                Statement statement = connection.createStatement()) {
+            assertEquals(2, scalar(statement, "SELECT COUNT(*) FROM instruction WHERE bot_job_id=5"));
+            assertEquals(
+                    1,
+                    scalar(
+                            statement,
+                            "SELECT COUNT(*) FROM instruction WHERE id=601"
+                                    + " AND block_id=10 AND parent_block_id=11 AND parent_id=602"));
+        }
+    }
+
+    @Test
+    void botJobExcelGotoCopyIsRefusedBecauseTheSourceMustRemain()
+            throws Exception {
+        String url = databaseUrl("bot-job-excel-goto-copy-refused");
+        initializeDatabase(url);
+        try (Connection connection = DriverManager.getConnection(url);
+                Statement statement = connection.createStatement()) {
+            statement.execute(
+                    "INSERT INTO block(id,block_order_number,name,description,type_id,active,wait,"
+                            + "bot_job_id) VALUES"
+                            + "(11,2,'Navigation Target','Navigation Target',1,1,0,5),"
+                            + "(12,3,'Copy Target','Copy Target',1,1,0,5)");
+            statement.execute(
+                    "INSERT INTO instruction(id,instruction_order_number,actions,name,active,"
+                            + "block_id,parent_block_id,parent_id,bot_job_id) VALUES"
+                            + "(611,1,'EXCEL GOTO','Excel navigation',1,10,11,612,5),"
+                            + "(612,1,'C','Target field',1,11,NULL,NULL,5)");
+        }
+        ComponentMemoryApplyService service =
+                new ComponentMemoryApplyService(() -> DriverManager.getConnection(url));
+
+        ComponentMemoryApplyService.Result result = service.apply(
+                new ComponentMemoryApplyService.Request(
+                        "bot-job-excel-goto-copy-refused",
+                        5,
+                        2,
+                        12,
+                        List.of(ComponentMemoryApplyService.OrderedItem.botJob(
+                                "BOT_JOB:611", 611))));
+
+        assertFalse(result.committed());
+        assertNotNull(result.error());
+        assertTrue(result.error().getErrorHeader().contains("only one EXCEL GOTO"));
+        try (Connection connection = DriverManager.getConnection(url);
+                Statement statement = connection.createStatement()) {
+            assertEquals(2, scalar(statement, "SELECT COUNT(*) FROM instruction WHERE bot_job_id=5"));
+            assertEquals(
+                    1,
+                    scalar(
+                            statement,
+                            "SELECT COUNT(*) FROM instruction WHERE id=611"
+                                    + " AND block_id=10 AND parent_block_id=11 AND parent_id=612"));
         }
     }
 
@@ -846,6 +1360,35 @@ class ComponentMemoryApplyServiceTest {
                         "COMPONENT:INSTRUCTION:2:20:101", 101, 20, revision),
                 ComponentMemoryApplyService.OrderedItem.componentInstruction(
                         "COMPONENT:INSTRUCTION:2:20:102", 102, 20, revision));
+    }
+
+    private void seedBotJobWebFieldFamily(String url) throws Exception {
+        try (Connection connection = DriverManager.getConnection(url);
+                Statement statement = connection.createStatement()) {
+            statement.execute(
+                    "INSERT INTO block(id,block_order_number,name,description,type_id,active,wait,"
+                            + "bot_job_id) VALUES(11,2,'Copy Target','Copy Target',1,1,0,5)");
+            statement.execute(
+                    "INSERT INTO instruction("
+                            + "id,instruction_order_number,actions,name,xpath,css_selector,"
+                            + "description,operation,active,block_id,variable_id,parent_block_id,"
+                            + "parent_id,bot_job_id,client_named) VALUES"
+                            + "(501,1,'C','Web Field','//input[@id=''balance'']','#balance',"
+                            + "'Balance input','ET',1,10,701,NULL,NULL,5,'balanceField'),"
+                            + "(502,2,'GET','Get Value',NULL,NULL,'Read balance',NULL,"
+                            + "1,10,701,10,501,5,NULL),"
+                            + "(503,3,'E','Extract Field',NULL,NULL,'Extract balance',NULL,"
+                            + "1,10,701,10,501,5,NULL)");
+            statement.execute(
+                    "INSERT INTO variable(id,type,name,value,local_format,delimiter,"
+                            + "instruction_id,bot_job_id) "
+                            + "VALUES(701,'TEXT','balance','0','CH',',',502,5)");
+            statement.execute(
+                    "INSERT INTO reference(id,reference_type,value,instruction_id,bot_job_id) VALUES"
+                            + "(801,'xpath','//input[@id=''balance'']',501,5),"
+                            + "(802,'css','#balance',502,5),"
+                            + "(803,'text','Balance',503,5)");
+        }
     }
 
     private String databaseUrl(String name) {
