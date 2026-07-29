@@ -1,0 +1,712 @@
+{
+  "fixtureVersion": 1,
+  "description": "Synthetic instruction-graph facts for variable, relationship, drag, delete, and Memory List characterization.",
+  "sanitization": {
+    "syntheticOwners": true,
+    "syntheticIds": true,
+    "containsCustomerNames": false,
+    "containsLocators": false,
+    "containsConfiguredValues": false
+  },
+  "frozenMemoryContract": {
+    "selectionPlanner": "REACT_VISIBLE_GRAPH",
+    "blockSelectionCreatesOneTypedItem": true,
+    "applyCreatesFreshIds": true,
+    "applyLeavesSourceUnchanged": true,
+    "applyRemapsExplicitLinks": true,
+    "reorderMovesDependencyGroupsAtomically": true,
+    "clearOccursAfterAcknowledgedSuccessOnly": true
+  },
+  "cases": [
+    {
+      "name": "simple_parent_child",
+      "workspace": {
+        "kind": "BOT_JOB",
+        "organizationId": 9001,
+        "ownerId": 1001
+      },
+      "blocks": [
+        {
+          "id": 1101,
+          "order": 1,
+          "active": true,
+          "waitSeconds": 0,
+          "exportFile": "$EMPTY"
+        }
+      ],
+      "instructions": [
+        {
+          "id": 1111,
+          "blockId": 1101,
+          "blockOrder": 1,
+          "order": 1,
+          "action": "C",
+          "parentId": null,
+          "parentBlockId": null,
+          "variableId": null,
+          "active": true
+        },
+        {
+          "id": 1112,
+          "blockId": 1101,
+          "blockOrder": 1,
+          "order": 2,
+          "action": "GET",
+          "parentId": 1111,
+          "parentBlockId": 1101,
+          "variableId": 1191,
+          "active": true
+        }
+      ],
+      "variables": [
+        {
+          "id": 1191,
+          "ownerInstructionId": 1111
+        }
+      ],
+      "references": [],
+      "expectations": {
+        "baselineV2": {
+          "validParentLinks": true,
+          "validVariableLinks": true
+        },
+        "memorySelections": {
+          "direct_1112": [1111, 1112],
+          "full_1112": [1111, 1112],
+          "whole_block": [1111, 1112]
+        }
+      }
+    },
+    {
+      "name": "get_multiple_consumers",
+      "workspace": {
+        "kind": "BOT_JOB",
+        "organizationId": 9002,
+        "ownerId": 2001
+      },
+      "blocks": [
+        {
+          "id": 2101,
+          "order": 1,
+          "active": true,
+          "waitSeconds": 0,
+          "exportFile": "$EMPTY"
+        }
+      ],
+      "instructions": [
+        {
+          "id": 2111,
+          "blockId": 2101,
+          "blockOrder": 1,
+          "order": 1,
+          "action": "O",
+          "parentId": null,
+          "parentBlockId": null,
+          "variableId": null,
+          "active": true
+        },
+        {
+          "id": 2112,
+          "blockId": 2101,
+          "blockOrder": 1,
+          "order": 2,
+          "action": "GET",
+          "parentId": 2111,
+          "parentBlockId": 2101,
+          "variableId": 2191,
+          "active": true
+        },
+        {
+          "id": 2113,
+          "blockId": 2101,
+          "blockOrder": 1,
+          "order": 3,
+          "action": "E",
+          "parentId": 2111,
+          "parentBlockId": 2101,
+          "variableId": 2191,
+          "active": true
+        },
+        {
+          "id": 2114,
+          "blockId": 2101,
+          "blockOrder": 1,
+          "order": 4,
+          "action": "CK",
+          "parentId": 2111,
+          "parentBlockId": 2101,
+          "variableId": 2191,
+          "active": true
+        }
+      ],
+      "variables": [
+        {
+          "id": 2191,
+          "ownerInstructionId": 2111
+        }
+      ],
+      "references": [],
+      "expectations": {
+        "baselineV2": {
+          "producerInstructionId": 2112,
+          "consumerInstructionIds": [2113, 2114],
+          "producerRunsFirst": true
+        },
+        "memorySelections": {
+          "direct_2113": [2111, 2112, 2113, 2114],
+          "full_2113": [2111, 2112, 2113, 2114],
+          "whole_block": [2111, 2112, 2113, 2114]
+        }
+      }
+    },
+    {
+      "name": "loop_with_positional_body",
+      "workspace": {
+        "kind": "BOT_JOB",
+        "organizationId": 9003,
+        "ownerId": 3001
+      },
+      "blocks": [
+        {
+          "id": 3101,
+          "order": 1,
+          "active": true,
+          "waitSeconds": 0,
+          "exportFile": "$EMPTY"
+        }
+      ],
+      "instructions": [
+        {
+          "id": 3111,
+          "blockId": 3101,
+          "blockOrder": 1,
+          "order": 1,
+          "action": "O",
+          "parentId": null,
+          "parentBlockId": null,
+          "variableId": null,
+          "active": true
+        },
+        {
+          "id": 3112,
+          "blockId": 3101,
+          "blockOrder": 1,
+          "order": 2,
+          "action": "C",
+          "parentId": null,
+          "parentBlockId": null,
+          "variableId": null,
+          "active": true
+        },
+        {
+          "id": 3113,
+          "blockId": 3101,
+          "blockOrder": 1,
+          "order": 3,
+          "action": "H",
+          "parentId": null,
+          "parentBlockId": null,
+          "variableId": null,
+          "active": true
+        },
+        {
+          "id": 3114,
+          "blockId": 3101,
+          "blockOrder": 1,
+          "order": 4,
+          "action": "LOOP",
+          "parentId": 3111,
+          "parentBlockId": 3101,
+          "variableId": null,
+          "active": true
+        }
+      ],
+      "variables": [],
+      "references": [],
+      "expectations": {
+        "baselineV2": {
+          "loopAnchorInstructionId": 3111,
+          "positionalBodyInstructionIds": [3112, 3113]
+        },
+        "memorySelections": {
+          "direct_3114": [3111, 3114],
+          "direct_3112": [3112],
+          "full_3112": [3111, 3112, 3113, 3114],
+          "whole_block": [3111, 3112, 3113, 3114]
+        }
+      }
+    },
+    {
+      "name": "if_else_endif_family",
+      "workspace": {
+        "kind": "BOT_JOB",
+        "organizationId": 9004,
+        "ownerId": 4001
+      },
+      "blocks": [
+        {
+          "id": 4101,
+          "order": 1,
+          "active": true,
+          "waitSeconds": 0,
+          "exportFile": "$EMPTY"
+        }
+      ],
+      "instructions": [
+        {
+          "id": 4111,
+          "blockId": 4101,
+          "blockOrder": 1,
+          "order": 1,
+          "action": "IF",
+          "parentId": 4111,
+          "parentBlockId": 4101,
+          "variableId": null,
+          "active": true
+        },
+        {
+          "id": 4112,
+          "blockId": 4101,
+          "blockOrder": 1,
+          "order": 2,
+          "action": "C",
+          "parentId": null,
+          "parentBlockId": null,
+          "variableId": null,
+          "active": true
+        },
+        {
+          "id": 4113,
+          "blockId": 4101,
+          "blockOrder": 1,
+          "order": 3,
+          "action": "ELSE",
+          "parentId": 4111,
+          "parentBlockId": 4101,
+          "variableId": null,
+          "active": true
+        },
+        {
+          "id": 4114,
+          "blockId": 4101,
+          "blockOrder": 1,
+          "order": 4,
+          "action": "C",
+          "parentId": null,
+          "parentBlockId": null,
+          "variableId": null,
+          "active": true
+        },
+        {
+          "id": 4115,
+          "blockId": 4101,
+          "blockOrder": 1,
+          "order": 5,
+          "action": "ENDIF",
+          "parentId": 4111,
+          "parentBlockId": 4101,
+          "variableId": null,
+          "active": true
+        }
+      ],
+      "variables": [],
+      "references": [],
+      "expectations": {
+        "baselineV2": {
+          "conditionalRootInstructionId": 4111,
+          "conditionalBoundaryInstructionIds": [4111, 4113, 4115],
+          "positionalBodyInstructionIds": [4112, 4114]
+        },
+        "memorySelections": {
+          "direct_4113": [4111, 4113, 4115],
+          "direct_4112": [4112],
+          "full_4112": [4111, 4112, 4113, 4114, 4115],
+          "whole_block": [4111, 4112, 4113, 4114, 4115]
+        }
+      }
+    },
+    {
+      "name": "goto_excel_goto_chain",
+      "workspace": {
+        "kind": "BOT_JOB",
+        "organizationId": 9005,
+        "ownerId": 5001
+      },
+      "blocks": [
+        {
+          "id": 5101,
+          "order": 1,
+          "active": true,
+          "waitSeconds": 0,
+          "exportFile": "$EMPTY"
+        },
+        {
+          "id": 5102,
+          "order": 2,
+          "active": true,
+          "waitSeconds": 0,
+          "exportFile": "$EMPTY"
+        }
+      ],
+      "instructions": [
+        {
+          "id": 5111,
+          "blockId": 5101,
+          "blockOrder": 1,
+          "order": 1,
+          "action": "GOTO",
+          "parentId": null,
+          "parentBlockId": 5102,
+          "variableId": null,
+          "active": true
+        },
+        {
+          "id": 5112,
+          "blockId": 5101,
+          "blockOrder": 1,
+          "order": 2,
+          "action": "EXCEL GOTO",
+          "parentId": null,
+          "parentBlockId": 5102,
+          "variableId": null,
+          "active": true
+        },
+        {
+          "id": 5121,
+          "blockId": 5102,
+          "blockOrder": 2,
+          "order": 1,
+          "action": "O",
+          "parentId": null,
+          "parentBlockId": null,
+          "variableId": null,
+          "active": true
+        },
+        {
+          "id": 5122,
+          "blockId": 5102,
+          "blockOrder": 2,
+          "order": 2,
+          "action": "C",
+          "parentId": 5121,
+          "parentBlockId": 5102,
+          "variableId": null,
+          "active": true
+        }
+      ],
+      "variables": [],
+      "references": [],
+      "expectations": {
+        "baselineV2": {
+          "navigationInstructionIds": [5111, 5112],
+          "destinationBlockId": 5102,
+          "navigationNeverOwnsDestinationRows": true
+        },
+        "memorySelections": {
+          "direct_5111": [5111],
+          "direct_5112": [5112],
+          "whole_source_block": [5111, 5112],
+          "whole_destination_block": [5121, 5122]
+        }
+      }
+    },
+    {
+      "name": "ownerless_memory_variable",
+      "workspace": {
+        "kind": "BOT_JOB",
+        "organizationId": 9006,
+        "ownerId": 6001
+      },
+      "blocks": [
+        {
+          "id": 6101,
+          "order": 1,
+          "active": true,
+          "waitSeconds": 0,
+          "exportFile": "$EMPTY"
+        }
+      ],
+      "instructions": [
+        {
+          "id": 6111,
+          "blockId": 6101,
+          "blockOrder": 1,
+          "order": 1,
+          "action": "SET",
+          "parentId": null,
+          "parentBlockId": null,
+          "variableId": 6191,
+          "active": true
+        },
+        {
+          "id": 6112,
+          "blockId": 6101,
+          "blockOrder": 1,
+          "order": 2,
+          "action": "CK",
+          "parentId": null,
+          "parentBlockId": null,
+          "variableId": 6191,
+          "active": false
+        }
+      ],
+      "variables": [
+        {
+          "id": 6191,
+          "ownerInstructionId": null
+        }
+      ],
+      "references": [],
+      "expectations": {
+        "baselineV2": {
+          "relationshipState": "MISSING_OWNER",
+          "currentSetSemantics": "LITERAL_WRITER",
+          "activeExecutionReady": false
+        },
+        "memorySelections": {
+          "direct_6111": [6111],
+          "direct_6112": [6112],
+          "whole_block": [6111, 6112]
+        }
+      }
+    },
+    {
+      "name": "component_check_payment_complex",
+      "workspace": {
+        "kind": "COMPONENT",
+        "organizationId": 9007,
+        "ownerId": 7001
+      },
+      "blocks": [
+        {
+          "id": 7101,
+          "order": 18,
+          "active": true,
+          "waitSeconds": 0,
+          "exportFile": "$EMPTY"
+        }
+      ],
+      "instructions": [
+        {
+          "id": 7202,
+          "blockId": 7101,
+          "blockOrder": 18,
+          "order": 1,
+          "action": "PAUSE",
+          "parentId": null,
+          "parentBlockId": null,
+          "variableId": null,
+          "active": true
+        },
+        {
+          "id": 7203,
+          "blockId": 7101,
+          "blockOrder": 18,
+          "order": 2,
+          "action": "C",
+          "parentId": null,
+          "parentBlockId": null,
+          "variableId": null,
+          "active": true
+        },
+        {
+          "id": 7204,
+          "blockId": 7101,
+          "blockOrder": 18,
+          "order": 3,
+          "action": "O",
+          "parentId": null,
+          "parentBlockId": null,
+          "variableId": null,
+          "active": true
+        },
+        {
+          "id": 7205,
+          "blockId": 7101,
+          "blockOrder": 18,
+          "order": 4,
+          "action": "H",
+          "parentId": 7204,
+          "parentBlockId": 7101,
+          "variableId": 7291,
+          "active": true
+        },
+        {
+          "id": 7206,
+          "blockId": 7101,
+          "blockOrder": 18,
+          "order": 5,
+          "action": "IF",
+          "parentId": 7206,
+          "parentBlockId": 7101,
+          "variableId": null,
+          "active": true
+        },
+        {
+          "id": 7207,
+          "blockId": 7101,
+          "blockOrder": 18,
+          "order": 6,
+          "action": "GET",
+          "parentId": 7204,
+          "parentBlockId": 7101,
+          "variableId": 7291,
+          "active": true
+        },
+        {
+          "id": 7208,
+          "blockId": 7101,
+          "blockOrder": 18,
+          "order": 7,
+          "action": "CK",
+          "parentId": 7204,
+          "parentBlockId": 7101,
+          "variableId": 7291,
+          "active": true
+        },
+        {
+          "id": 7209,
+          "blockId": 7101,
+          "blockOrder": 18,
+          "order": 8,
+          "action": "E",
+          "parentId": 7204,
+          "parentBlockId": 7101,
+          "variableId": 7291,
+          "active": true
+        },
+        {
+          "id": 7210,
+          "blockId": 7101,
+          "blockOrder": 18,
+          "order": 9,
+          "action": "ELSE",
+          "parentId": 7206,
+          "parentBlockId": 7101,
+          "variableId": null,
+          "active": true
+        },
+        {
+          "id": 7211,
+          "blockId": 7101,
+          "blockOrder": 18,
+          "order": 10,
+          "action": "C",
+          "parentId": null,
+          "parentBlockId": null,
+          "variableId": null,
+          "active": true
+        },
+        {
+          "id": 7212,
+          "blockId": 7101,
+          "blockOrder": 18,
+          "order": 11,
+          "action": "C",
+          "parentId": null,
+          "parentBlockId": null,
+          "variableId": null,
+          "active": true
+        },
+        {
+          "id": 7213,
+          "blockId": 7101,
+          "blockOrder": 18,
+          "order": 12,
+          "action": "H",
+          "parentId": null,
+          "parentBlockId": null,
+          "variableId": null,
+          "active": true
+        },
+        {
+          "id": 7214,
+          "blockId": 7101,
+          "blockOrder": 18,
+          "order": 13,
+          "action": "C",
+          "parentId": null,
+          "parentBlockId": null,
+          "variableId": null,
+          "active": true
+        },
+        {
+          "id": 7215,
+          "blockId": 7101,
+          "blockOrder": 18,
+          "order": 14,
+          "action": "LOOP",
+          "parentId": 7204,
+          "parentBlockId": 7101,
+          "variableId": null,
+          "active": true
+        },
+        {
+          "id": 7216,
+          "blockId": 7101,
+          "blockOrder": 18,
+          "order": 15,
+          "action": "ENDIF",
+          "parentId": 7206,
+          "parentBlockId": 7101,
+          "variableId": null,
+          "active": true
+        }
+      ],
+      "variables": [
+        {
+          "id": 7291,
+          "ownerInstructionId": 7204
+        },
+        {
+          "id": 7292,
+          "ownerInstructionId": 7204
+        }
+      ],
+      "references": [
+        {"id": 7301, "instructionId": 7203, "kind": "SANITIZED"},
+        {"id": 7302, "instructionId": 7203, "kind": "SANITIZED"},
+        {"id": 7303, "instructionId": 7204, "kind": "SANITIZED"},
+        {"id": 7304, "instructionId": 7204, "kind": "SANITIZED"},
+        {"id": 7305, "instructionId": 7204, "kind": "SANITIZED"},
+        {"id": 7306, "instructionId": 7207, "kind": "SANITIZED"},
+        {"id": 7307, "instructionId": 7207, "kind": "SANITIZED"},
+        {"id": 7308, "instructionId": 7207, "kind": "SANITIZED"},
+        {"id": 7309, "instructionId": 7208, "kind": "SANITIZED"},
+        {"id": 7310, "instructionId": 7208, "kind": "SANITIZED"},
+        {"id": 7311, "instructionId": 7209, "kind": "SANITIZED"},
+        {"id": 7312, "instructionId": 7209, "kind": "SANITIZED"},
+        {"id": 7313, "instructionId": 7211, "kind": "SANITIZED"},
+        {"id": 7314, "instructionId": 7211, "kind": "SANITIZED"},
+        {"id": 7315, "instructionId": 7212, "kind": "SANITIZED"},
+        {"id": 7316, "instructionId": 7212, "kind": "SANITIZED"},
+        {"id": 7317, "instructionId": 7212, "kind": "SANITIZED"},
+        {"id": 7318, "instructionId": 7213, "kind": "SANITIZED"},
+        {"id": 7319, "instructionId": 7214, "kind": "SANITIZED"},
+        {"id": 7320, "instructionId": 7214, "kind": "SANITIZED"},
+        {"id": 7321, "instructionId": 7214, "kind": "SANITIZED"},
+        {"id": 7322, "instructionId": 7215, "kind": "SANITIZED"},
+        {"id": 7323, "instructionId": 7215, "kind": "SANITIZED"},
+        {"id": 7324, "instructionId": 7216, "kind": "SANITIZED"},
+        {"id": 7325, "instructionId": 7216, "kind": "SANITIZED"}
+      ],
+      "expectations": {
+        "baselineV2": {
+          "preservesDuplicateOwnerAnomaly": true,
+          "duplicateVariableOwnerInstructionId": 7204,
+          "invalidVariableCommandInstructionId": 7205,
+          "referenceCount": 25
+        },
+        "memorySelections": {
+          "direct_7209": [7204, 7205, 7207, 7208, 7209],
+          "direct_7206": [7206, 7210, 7216],
+          "direct_7210": [7206, 7210, 7216],
+          "direct_7216": [7206, 7210, 7216],
+          "direct_7212": [7212],
+          "full_7212": [7204, 7205, 7206, 7207, 7208, 7209, 7210, 7211, 7212, 7213, 7214, 7215, 7216],
+          "whole_block": [7202, 7203, 7204, 7205, 7206, 7207, 7208, 7209, 7210, 7211, 7212, 7213, 7214, 7215, 7216]
+        }
+      }
+    }
+  ]
+}
