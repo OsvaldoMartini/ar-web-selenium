@@ -240,8 +240,17 @@ gates:
 
 - BUG-001 deletion on a disposable production-shaped Bot Job;
 - BUG-003 concurrent Bot Job, Component, and Memory List drag isolation;
-- identification of the actual launch artifact/config when AR Web is next running;
+- matching the configured launch artifact to any future running external Engine process; P1
+  identified and fingerprinted the configured JAR and its authoritative source checkout;
 - a new production backup immediately before any later schema or repair phase.
+
+### User-reported insertion check — 2026-07-29
+
+The user manually added the previously missing GET for `user_number`. The application created
+instruction `716` in Block `1` at order `4`, and the command/variable addition worked. This is
+positive evidence for the current command-plus-variable insertion path. It does not close the
+separate deletion or three-window drag acceptance gates above, and it is not a substitute for the
+P1 execution-semantics characterization tests.
 
 ## 10. Focused verification record
 

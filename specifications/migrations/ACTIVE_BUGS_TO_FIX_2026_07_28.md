@@ -17,6 +17,10 @@ frontend artifacts until the owning change has been reviewed and committed.
 | BUG-004 | High | Memory Apply and Bot Job Details refresh/realtime synchronization need end-to-end regression coverage | Partially covered; complete end-to-end regression pending | Unclaimed |
 | BUG-005 | High | Variable producer/consumer and parent-reference repair need production-data audit coverage | P0 sanitized audit captured; repair coverage remains pending | CODEX P0 documentation only |
 | BUG-006 | High | Separate deletion-modal correction in another terminal | In progress | Claude terminal |
+| BUG-007 | Critical | Configured external Engine PDF/CSV CHECK reads an uninitialized validation context | P1 verified; runtime correction pending | Unclaimed after CODEX audit |
+| BUG-008 | Critical | GET/SET bypass the mandatory Playwright-first/one-attempt path in Scanner and Engine | P1 verified; runtime correction pending | Unclaimed after CODEX audit |
+| BUG-009 | Critical | Scanner and configured Engine implement forward GOTO differently | P1 verified; parity correction pending | Unclaimed after CODEX audit |
+| BUG-010 | High | Classic Pre-Launch can continue after definition-load failure | P1 verified; P4 execution-gate correction pending | Variable roadmap P4 |
 
 ## P0 file ownership claim — 2026-07-29
 
@@ -28,6 +32,17 @@ runtime implementation for BUG-002, BUG-004, or BUG-006.
 | Variable-graph P0 baseline | CODEX | `ROADMAP_VARIABLE_CENTRIC_INSTRUCTION_GRAPH_2026_07_29.md`, `../VARIABLE_SYSTEM_REDESIGN.md`, `P0_VARIABLE_GRAPH_BASELINE_2026_07_29.md` | None |
 | Sanitized audit and fixture | CODEX | `../../scripts/p0/ReadOnlyInstructionGraphAudit.java`, `../../src/test/resources/fixtures/instruction-graph/*`, `../../src/test/java/com/allinweb/ch/testsupport/GoldenInstructionGraphFixtureTest.java` | None |
 | BUG-003 acceptance record | CODEX verification only | This document and the P0 baseline | None unless acceptance exposes a separately claimed defect |
+
+## P1 file ownership claim — 2026-07-29
+
+P1 is a no-runtime-change execution audit. It claims only its specification and focused
+characterization test; it does not claim implementation of BUG-007, BUG-008, or BUG-009 in the
+external Engine repository.
+
+| Work | Owner | Files | Runtime behavior |
+|---|---|---|---|
+| Execution semantics and entry-point audit | CODEX | `ROADMAP_VARIABLE_CENTRIC_INSTRUCTION_GRAPH_2026_07_29.md`, `P1_ENGINE_EXECUTION_SEMANTICS_2026_07_29.md` | None |
+| Persisted command characterization | CODEX | `../../src/test/java/com/allinweb/ch/facade/ExecutionCommandSemanticsCharacterizationTest.java` | None |
 
 ## BUG-001 — Exact React-owned instruction deletion
 

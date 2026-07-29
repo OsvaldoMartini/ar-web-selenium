@@ -1,7 +1,7 @@
 # Variable-Centric Instruction Graph Roadmap
 
 Date: 2026-07-29
-Status: proposed; implementation has not started
+Status: active; P0 and P1 complete, P2 is the next implementation phase
 Scope: Bot Job Details first, Components second, Variables workspace, Java persistence, and
 execution safety
 Canonical source notes:
@@ -126,19 +126,24 @@ For variable-capable commands, `parentId` remains an Engine compatibility projec
 Engine still needs a Web Element target. React calculates any required projection patch; Java does
 not silently infer it.
 
-### D-004 - Existing command semantics remain unchanged until audited
+### D-004 - Existing command semantics remain unchanged until deliberately redesigned
 
 The drag redesign must not redefine execution:
 
-- GET is the current runtime producer.
-- E, CK, PDF CHECK, and CSV CHECK are current consumers and require a prior compatible GET.
-- SET remains the current literal writer. It is not treated as a GET producer or consumer until an
-  explicit SET source mode exists in the Engine.
+- GET writes its Web Element value into runtime memory.
+- SET writes its configured literal to the Web Element and the same runtime-memory key. E and CK
+  can therefore consume a preceding GET or SET value.
+- E and CK consume runtime memory.
+- PDF CHECK and CSV CHECK do not consume the ordinary variable-memory value. Their current Scanner
+  path uses `fieldsToValidate` and OUTPUT-derived runtime keys; the configured external Engine
+  validation context is defective and must be repaired before parity can be claimed.
 - LOOP and REFRESH_LOOP retain an explicit Web Element anchor.
 - GOTO and EXCEL GOTO retain an explicit destination Block.
 
-Claims that SET or every consumer can run without a Web Element are hypotheses to verify in Phase
-1, not implementation facts.
+Variable owner `instruction_id` is not consulted by the audited runtimes. It remains an
+authoring/integrity relationship, while each command's actual element/variable/block requirements
+remain independently classified. The full evidence is frozen in
+`P1_ENGINE_EXECUTION_SEMANTICS_2026_07_29.md`.
 
 ### D-005 - Relationships are typed
 
@@ -304,10 +309,11 @@ exactly one variable; historical rows reach that invariant only after audited P1
 | Action/row | Variable | Web Element target | Other relation | Initial free-move policy | Execution requirement |
 |---|---|---|---|---|---|
 | Persisted Web Element | Owns one variable after P9 | Conceptual anchor only; do not persist `parentId=self` | None | Single row | Locator remains valid for commands that use it |
-| GET | Required | Required | Producer ordering | Single row | Owner/target exists and GET runs before consumers |
-| SET (current mode) | Required metadata | Required writable element | Literal assignment | Single row | Preserve current Engine behavior |
-| E | Required | Preserve current required target | Consumer ordering | Single row | Compatible GET runs first |
-| CK/PDF CHECK/CSV CHECK | Required | Preserve current required target | Consumer ordering | Single row | Compatible GET runs first |
+| GET | Required | Required | Runtime-memory write ordering | Single row | Target and variable resolve; value is written before a reader |
+| SET (current mode) | Required metadata/runtime key | Required writable element | Literal and runtime-memory assignment | Single row | Target and variable resolve; configured literal is written |
+| E | Required | Preserve current required target | Runtime-memory read ordering | Single row | Target context exists and GET or SET has populated the key |
+| CK | Required | Preserve current required target | Runtime-memory read ordering | Single row | Target context exists and GET or SET has populated the key |
+| PDF CHECK/CSV CHECK | Persisted today, not actual-value source | Persisted command context | OUTPUT/validation-field source | Single row | Block until the audited Scanner/Engine validation defects are resolved |
 | LOOP/REFRESH_LOOP | Not newly required | Required anchor | Positional body | Single LOOP row after Phase 6 | Anchor exists and precedes LOOP |
 | IF/ELSEIF/ELSE/ENDIF | None | None | Conditional root | Boundary constrained initially | Structurally valid family |
 | GOTO/EXCEL GOTO | None | None | Destination Block | Single row | Destination Block exists |
@@ -322,13 +328,16 @@ Before P5 implementation, P1 must publish the exact rule for each variable-capab
 
 | Action | Must `parentId == variable.ownerInstructionId` when owned? | Ownerless variable record valid? | Active instruction executable ownerless today? |
 |---|---|---|---|
-| GET | Audit/lock required; current model expects the owner Web Element | Yes | No |
-| SET literal | Audit/lock required; current Engine still targets a Web Element | Yes | No |
-| E | Audit/lock required; current Engine fails without `parentField` | Yes | No |
-| CK/PDF CHECK/CSV CHECK | Audit/lock required for target and producer separately | Yes | No unless P1 proves otherwise |
+| GET | Runtime does not compare owner; authoring expects parent target and owner to agree when owned | Yes | Runtime can execute if `parentId` target and `variableId` resolve |
+| SET literal | Runtime does not compare owner; authoring expects parent target and owner to agree when owned | Yes | Runtime can execute if writable `parentId` target and `variableId` resolve |
+| E | Runtime does not compare owner; `parentId` context and populated variable key are required | Yes | Runtime can execute after GET or SET if target context and key resolve |
+| CK | Runtime does not compare owner; `parentId` context and populated variable key are required | Yes | Runtime can execute after GET or SET if target context and key resolve |
+| PDF CHECK/CSV CHECK | Owner is not the actual-value source; current validation context is not execution-safe | Yes | Not eligible until Scanner/Engine validation behavior is repaired and tested |
 | LOOP/REFRESH_LOOP | Not a variable-owner relation; uses `LOOP_ANCHOR` | Not applicable | No without anchor |
 
-No v3 relationship patch may change these actions until this table is replaced by audited rules.
+No v3 relationship patch may silently make variable ownership an Engine requirement or remove an
+existing target requirement. P4 may enforce a stricter explicit authoring policy, but it must label
+that policy separately from the audited runtime facts.
 
 ## 5. Target relationship states
 
@@ -753,25 +762,28 @@ Goal: remove speculation before changing command semantics or allowing unresolve
 
 Tasks:
 
-- [ ] Trace GET, SET, E, CK, PDF CHECK, CSV CHECK, LOOP, REFRESH_LOOP, GOTO, and EXCEL GOTO from
+- [x] Trace GET, SET, E, CK, PDF CHECK, CSV CHECK, LOOP, REFRESH_LOOP, GOTO, and EXCEL GOTO from
   persisted fields through local `executeJob()` and the external Engine contract.
-- [ ] Record whether each action reads `parentId`, `variableId`, variable owner
+- [x] Record whether each action reads `parentId`, `variableId`, variable owner
   `instruction_id`, `parentBlockId`, or derived Excel fields.
-- [ ] Map every Test Run and Launch entry point:
+- [x] Map every Test Run and Launch entry point:
   - Bot Job Details;
   - Main Dashboard;
   - Page Scanner/prelaunch;
   - external Engine launch;
   - any legacy/direct caller.
-- [ ] Record that `ScannerPreLaunchExecutionGate` currently controls execution concurrency, not
+- [x] Record that `ScannerPreLaunchExecutionGate` currently controls execution concurrency, not
   graph readiness; do not mistake it for the new relationship gate.
-- [ ] Identify the exact readiness insertion points in `ScannerPreLaunchStarter` and
+- [x] Identify the exact readiness insertion points in `ScannerPreLaunchStarter` and
   `ScannerTestRunPreparationFlow`, before browser/Engine work starts.
-- [ ] Audit `ScannerPreLaunchPreparation.loadAndFixExcelGoto`; strict execution must not silently
+- [x] Audit `ScannerPreLaunchPreparation.loadAndFixExcelGoto`; strict execution must not silently
   repair an invalid EXCEL GOTO graph at runtime.
-- [ ] Decide the revision-bound execution-preflight request/response.
-- [ ] Add characterization tests for current SET literal behavior and all consumer actions.
-- [ ] Lock the command capability matrix in the shared command registry/specification.
+- [x] Decide the revision-bound execution-preflight request/response.
+- [x] Add characterization tests for current SET literal behavior and all consumer actions.
+- [x] Lock the command capability matrix in the shared command registry/specification.
+
+Evidence and the locked capability/entry-point matrices are recorded in
+`P1_ENGINE_EXECUTION_SEMANTICS_2026_07_29.md`.
 
 Acceptance:
 
