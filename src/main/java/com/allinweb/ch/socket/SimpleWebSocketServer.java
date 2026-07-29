@@ -7,6 +7,7 @@ import com.allinweb.ch.model.*;
 import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -126,6 +127,8 @@ public class SimpleWebSocketServer {
     // ROW_MOVE idempotency + validation now live in facade.RowMoveService (one method per concern).
     // Dedicated backend request-traffic logger → ar_web_scanner_backend.log (see logback.xml)
     private static final org.slf4j.Logger logBackend = org.slf4j.LoggerFactory.getLogger("com.allinweb.backend");
+    private static final Gson EXECUTION_PREFLIGHT_GSON =
+            new GsonBuilder().serializeNulls().create();
     private final Gson gson = new Gson();
     private final BotJobWorkspaceCapabilityService botJobWorkspaceCapabilityService =
             BotJobWorkspaceCapabilityService.getInstance();
@@ -1876,12 +1879,7 @@ public class SimpleWebSocketServer {
                             response.put("action", action.name());
                             response.put("message", failure.getMessage());
                         } else {
-                            response.put("ok", result.ok());
-                            response.put("action", result.action());
-                            response.put("message", result.message());
-                            if (!Strings.isNullOrEmpty(result.selectedPath())) {
-                                response.put("selectedPath", result.selectedPath());
-                            }
+                            addBotJobDetailsToolbarResult(response, result);
                         }
                         sendBotJobDetailsResponse(
                                 transportSession,
@@ -1903,6 +1901,30 @@ public class SimpleWebSocketServer {
                     response,
                     "botJobDetails.toolbar.actionResponse");
         }
+    }
+
+    static void addBotJobDetailsToolbarResult(
+            Map<String, Object> response,
+            BotJobToolbarActionResult result) {
+        Objects.requireNonNull(response, "response");
+        Objects.requireNonNull(result, "result");
+        response.put("ok", result.ok());
+        response.put("action", result.action());
+        response.put("message", result.message());
+        if (!Strings.isNullOrEmpty(result.selectedPath())) {
+            response.put("selectedPath", result.selectedPath());
+        }
+        if (result.executionPreflight() != null) {
+            response.put("executionPreflight", result.executionPreflight());
+        }
+    }
+
+    static String serializeBotJobDetailsResponse(Object response) {
+        if (response instanceof Map<?, ?> values
+                && values.get("executionPreflight") != null) {
+            return EXECUTION_PREFLIGHT_GSON.toJson(response);
+        }
+        return new Gson().toJson(response);
     }
 
     private void handleBotJobDetailsBootstrap(JsonObject envelope, Session transportSession) {
@@ -2440,7 +2462,7 @@ public class SimpleWebSocketServer {
             return CompletableFuture.completedFuture(null);
         }
         JsonObject outbound = new JsonObject();
-        outbound.addProperty("body", gson.toJson(response));
+        outbound.addProperty("body", serializeBotJobDetailsResponse(response));
         outbound.addProperty("sessionId", sessionId);
         outbound.addProperty("homeBankingId", homeBankingId);
         outbound.addProperty("operationId", operationId);

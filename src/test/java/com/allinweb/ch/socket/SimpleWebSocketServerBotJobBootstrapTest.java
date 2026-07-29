@@ -12,6 +12,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.allinweb.ch.facade.BotJobWorkspaceController;
+import com.allinweb.ch.facade.execution.ExecutionPreflightReport;
 import com.allinweb.ch.model.BotJobDetailsRequest;
 import com.allinweb.ch.model.BotJobDetailsResponse;
 import com.allinweb.ch.model.BotJobDetailsState;
@@ -24,7 +25,9 @@ import com.allinweb.ch.model.SplitDTO;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -239,6 +242,57 @@ class SimpleWebSocketServerBotJobBootstrapTest {
         assertTrue(failure.get("action").getAsString().contains("Refresh"));
 
         acknowledgements.get(1).onResult(new SendResult());
+    }
+
+    @Test
+    void includesAuthoritativeExecutionPreflightInToolbarResponsePayload() {
+        ExecutionPreflightReport report = new ExecutionPreflightReport(
+                "WARN",
+                "WOULD_BLOCK",
+                "BOT_JOB_DETAILS_TEST_RUN",
+                new ExecutionPreflightReport.OwnerReport(2, 5),
+                new ExecutionPreflightReport.RunScopeReport("ONE", 10),
+                17L,
+                "content-revision",
+                List.of(10),
+                List.of(91),
+                1,
+                List.of(new ExecutionPreflightReport.IssueReport(
+                        "MISSING_LOOP_ANCHOR",
+                        "LOOP_ANCHOR",
+                        10,
+                        91,
+                        "Instruction 91 has no LOOP anchor")),
+                null);
+        BotJobToolbarActionResult result = BotJobToolbarActionResult
+                .success(BotJobToolbarAction.TEST_RUN, "TEST RUN accepted")
+                .withExecutionPreflight(report);
+        Map<String, Object> response = new LinkedHashMap<>();
+
+        SimpleWebSocketServer.addBotJobDetailsToolbarResult(response, result);
+
+        JsonObject payload = JsonParser.parseString(
+                        SimpleWebSocketServer.serializeBotJobDetailsResponse(response))
+                .getAsJsonObject();
+        assertTrue(payload.get("ok").getAsBoolean());
+        JsonObject serializedReport = payload.getAsJsonObject("executionPreflight");
+        assertEquals("WARN", serializedReport.get("enforcement").getAsString());
+        assertEquals("WOULD_BLOCK", serializedReport.get("status").getAsString());
+        assertEquals(2, serializedReport.getAsJsonObject("owner")
+                .get("homeBankingId")
+                .getAsInt());
+        assertEquals("ONE", serializedReport.getAsJsonObject("runScope")
+                .get("kind")
+                .getAsString());
+        assertEquals(1, serializedReport.get("totalIssues").getAsInt());
+        assertEquals(
+                91,
+                serializedReport.getAsJsonArray("issues")
+                        .get(0)
+                        .getAsJsonObject()
+                        .get("instructionId")
+                        .getAsInt());
+        assertTrue(serializedReport.get("unavailableReason").isJsonNull());
     }
 
     private void registerTransport(String sessionId, Session transport) {

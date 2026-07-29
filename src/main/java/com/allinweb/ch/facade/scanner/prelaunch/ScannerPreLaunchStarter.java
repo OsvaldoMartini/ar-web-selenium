@@ -17,9 +17,13 @@ public final class ScannerPreLaunchStarter {
         operations.beginRun();
         ErrorMessage errorMessage = operations.loadDefinitions();
         operations.reportLoadError(errorMessage);
+        if (errorMessage != null) {
+            return;
+        }
         if (!operations.loadCurrentBotJob()) {
             return;
         }
+        operations.observeExecutionPreflight();
         operations.prepareExcel();
         if (!operations.validateExcel()) {
             return;
@@ -40,6 +44,8 @@ public final class ScannerPreLaunchStarter {
         void reportLoadError(ErrorMessage errorMessage);
 
         boolean loadCurrentBotJob();
+
+        void observeExecutionPreflight();
 
         void prepareExcel();
 

@@ -31,6 +31,7 @@ import com.allinweb.ch.facade.scanner.prelaunch.ScannerPreLaunchStopper;
 import com.allinweb.ch.facade.scanner.prelaunch.ScannerPreLaunchWindowBookkeeping;
 import com.allinweb.ch.facade.scanner.prelaunch.ScannerPreLaunchWorkspaceOperations;
 import com.allinweb.ch.facade.scanner.prelaunch.ScannerPreLaunchWorkspaceRequests;
+import com.allinweb.ch.facade.scanner.prelaunch.ScannerExecutionPreflightMonitor;
 import com.allinweb.ch.facade.scanner.ScannerRuntimePort;
 import com.allinweb.ch.facade.scanner.support.ScannerSupportAlertAdapter;
 import com.allinweb.ch.facade.scanner.support.ScannerSupportSaveFlowAdapter;
@@ -48,6 +49,8 @@ import com.allinweb.ch.facade.scanner.testrun.ScannerTestRunDefinitionValidation
 import com.allinweb.ch.facade.scanner.testrun.TestRunExecutionOutcomeTracker;
 import com.allinweb.ch.facade.scanner.validation.ScannerValidationEvaluator;
 import com.allinweb.ch.facade.actions.InstructionGraph;
+import com.allinweb.ch.facade.execution.ExecutionPreflightSnapshotRepository;
+import com.allinweb.ch.facade.execution.RunScope;
 import com.allinweb.ch.model.*;
 import com.allinweb.ch.readersAndWriters.ExcelWriter;
 import com.allinweb.ch.socket.WebSocketSessionManager;
@@ -184,6 +187,10 @@ public class ScannerRuntimeBackend
     private final ScannerLocalPluginInventory scannerLocalPluginInventory = new ScannerLocalPluginInventory();
     private final ScannerBrowserNotAttachedMessageService scannerBrowserNotAttachedMessageService =
             new ScannerBrowserNotAttachedMessageService();
+    private final ScannerExecutionPreflightMonitor scannerExecutionPreflightMonitor =
+            new ScannerExecutionPreflightMonitor(
+                    new ExecutionPreflightSnapshotRepository(performDBEngine::getConnection),
+                    new PaneExecutionPreflightOperations());
     private final UiThreadDispatcher uiThreadDispatcher = UiThreadDispatcher.getInstance();
     private final ScannerDomReviewSnapshotService scannerDomReviewSnapshotService =
             new ScannerDomReviewSnapshotService();
@@ -1496,6 +1503,14 @@ public class ScannerRuntimeBackend
         }
 
         @Override
+        public void observeExecutionPreflight() {
+            scannerExecutionPreflightMonitor.observe(
+                    "CLASSIC_SCANNER_PRE_LAUNCH",
+                    currentBotJob,
+                    currentPreLaunchRunScope());
+        }
+
+        @Override
         public void prepareExcel() {
             preparePreLaunchExcel();
         }
@@ -2169,6 +2184,29 @@ public class ScannerRuntimeBackend
         public void error(String message, Object... args) {
             log.error(message, args);
         }
+    }
+
+    private final class PaneExecutionPreflightOperations
+            implements ScannerExecutionPreflightMonitor.Operations {
+        @Override
+        public void info(String message, Object... args) {
+            log.info(message, args);
+        }
+
+        @Override
+        public void warn(String message, Object... args) {
+            log.warn(message, args);
+        }
+    }
+
+    private RunScope currentPreLaunchRunScope() {
+        BlockOptions selected = selectedBlockOption;
+        if (!scannerBlockOptionSelectionService.isRealBlock(selected)
+                || selected.getBlockId() == null
+                || selected.getBlockId() <= 0) {
+            return RunScope.all();
+        }
+        return RunScope.fromBlock(selected.getBlockId());
     }
 
     private final class PaneTestRunStartupOperations implements ScannerTestRunStartupPreparation.Operations {

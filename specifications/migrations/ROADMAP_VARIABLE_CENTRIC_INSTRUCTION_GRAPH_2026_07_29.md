@@ -1,7 +1,7 @@
 # Variable-Centric Instruction Graph Roadmap
 
 Date: 2026-07-29
-Status: active; P0 through P3 complete, P4 is the next implementation phase
+Status: active; P0 through P3 complete, P4 shadow/warn implementation is in progress
 Scope: Bot Job Details first, Components second, Variables workspace, Java persistence, and
 execution safety
 Canonical source notes:
@@ -912,28 +912,34 @@ Goal: make flexible authoring safe before free movement can persist a broken gra
 Tasks:
 
 - [x] Add pure TypeScript execution eligibility output with exact row IDs and messages.
-- [ ] Display a bounded modal/list with row focus actions.
-- [ ] Start in shadow/warn mode and record which existing jobs would be blocked.
+- [x] Display a bounded modal/list with row focus actions. Bot Job Details can clear Find, expand,
+  scroll, focus, and transiently highlight the affected row; detached Page Scanner displays the
+  same authoritative bounded report without inventing unavailable local row data.
+- [x] Start in shadow/warn mode and record which existing jobs would be blocked. Accepted Test
+  Run/Launch requests still dispatch exactly once; warnings are displayed after the correlated
+  response and never offer a second Continue/Run action.
 - [ ] After repair is available or P0 proves no blocking legacy issue, block all mapped Test
   Run/Launch entry points for active unresolved rows.
-- [ ] Preserve user Active flags.
+- [x] Preserve user Active flags; authoritative preflight reads them without rewriting them.
 - [ ] Bind preflight to exact authoritative owner, database graph version, content revision, and
   the actual requested run scope. Workspace epoch is additionally required for detached-workspace
   callers, not invented for Main Dashboard/legacy callers.
-- [x] Add the pure Java authoritative-snapshot readiness evaluator. Live execution entry-point
-  wiring and the immediate version recheck remain open; React remains the user-facing diagnostic
-  planner.
+- [x] Add the pure Java authoritative-snapshot readiness evaluator and wire warning-only
+  observations into Bot Job Details Test Run/Launch, detached Page Scanner Test Run through the
+  same host, and classic scanner/prelaunch. React remains the user-facing diagnostic surface.
+  Main Dashboard/mobile/external Engine entry-point coverage and the immediate version recheck
+  remain open.
 - [ ] Atomically recheck graph version immediately before Engine start so preflight cannot race a
   mutation.
-- [ ] Validate only the reachable run plan: ONE/single-Block Test Run validates that selected
+- [x] Validate only the reachable run plan: ONE/single-Block Test Run validates that selected
   active scope; full/from-selected runs validate their actual active reachable scope.
-- [ ] Cover current runtime facts: GET and SET need compatible Web Elements; E currently needs its
+- [x] Cover current runtime facts: GET and SET need compatible Web Elements; E currently needs its
   persisted target plus variable/producer; CK/PDF/CSV need their current target/variable contract;
   LOOP needs its anchor; IF needs valid structure; GOTO needs its target Block.
 - [ ] Make active/inactive policy explicit and identical for Bot Job Details Test Run, full Launch,
   Main Dashboard Launch, and scanner/prelaunch.
 - [ ] Disable silent runtime `fixExcelGoto`; move legacy repair to an explicit migration/action.
-- [ ] Make full Launch return immediately when definition load fails instead of reporting an error
+- [x] Make full Launch return immediately when definition load fails instead of reporting an error
   and continuing.
 
 Acceptance:

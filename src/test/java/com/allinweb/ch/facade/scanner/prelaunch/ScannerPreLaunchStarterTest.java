@@ -23,6 +23,7 @@ class ScannerPreLaunchStarterTest {
                         "loadDefinitions",
                         "reportLoadError",
                         "loadCurrentBotJob",
+                        "observeExecutionPreflight",
                         "prepareExcel",
                         "validateExcel",
                         "confirmMultipleExcelRows",
@@ -60,6 +61,24 @@ class ScannerPreLaunchStarterTest {
     }
 
     @Test
+    void startStopsImmediatelyWhenDefinitionLoadFails() {
+        RecordingOperations operations = new RecordingOperations();
+        operations.loadError =
+                new ErrorMessage("definitions", "Definitions unavailable", "database error");
+        ScannerPreLaunchStarter starter = new ScannerPreLaunchStarter(operations);
+
+        starter.start();
+
+        assertEquals(
+                List.of(
+                        "lastBrowserTab",
+                        "beginRun",
+                        "loadDefinitions",
+                        "reportLoadError"),
+                operations.calls);
+    }
+
+    @Test
     void startStopsWhenExcelValidationFails() {
         RecordingOperations operations = new RecordingOperations();
         operations.validateExcel = false;
@@ -74,6 +93,7 @@ class ScannerPreLaunchStarterTest {
                         "loadDefinitions",
                         "reportLoadError",
                         "loadCurrentBotJob",
+                        "observeExecutionPreflight",
                         "prepareExcel",
                         "validateExcel"),
                 operations.calls);
@@ -94,6 +114,7 @@ class ScannerPreLaunchStarterTest {
                         "loadDefinitions",
                         "reportLoadError",
                         "loadCurrentBotJob",
+                        "observeExecutionPreflight",
                         "prepareExcel",
                         "validateExcel",
                         "confirmMultipleExcelRows"),
@@ -106,6 +127,7 @@ class ScannerPreLaunchStarterTest {
         private boolean loadCurrentBotJob = true;
         private boolean validateExcel = true;
         private boolean confirmMultipleExcelRows = true;
+        private ErrorMessage loadError;
 
         @Override
         public boolean lastBrowserTab() {
@@ -121,7 +143,7 @@ class ScannerPreLaunchStarterTest {
         @Override
         public ErrorMessage loadDefinitions() {
             calls.add("loadDefinitions");
-            return null;
+            return loadError;
         }
 
         @Override
@@ -133,6 +155,11 @@ class ScannerPreLaunchStarterTest {
         public boolean loadCurrentBotJob() {
             calls.add("loadCurrentBotJob");
             return loadCurrentBotJob;
+        }
+
+        @Override
+        public void observeExecutionPreflight() {
+            calls.add("observeExecutionPreflight");
         }
 
         @Override

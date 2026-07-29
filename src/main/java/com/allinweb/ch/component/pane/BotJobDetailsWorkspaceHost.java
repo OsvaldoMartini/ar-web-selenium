@@ -27,6 +27,10 @@ import com.allinweb.ch.facade.BotJobTransferService;
 import com.allinweb.ch.facade.BotJobToolbarConcurrencyGuard;
 import com.allinweb.ch.facade.botjob.BotJobDetailsPresentationGateway;
 import com.allinweb.ch.facade.botjob.BotJobDetailsReactSessionContext;
+import com.allinweb.ch.facade.execution.ExecutionPreflightReport;
+import com.allinweb.ch.facade.execution.ExecutionPreflightSnapshotRepository;
+import com.allinweb.ch.facade.execution.RunScope;
+import com.allinweb.ch.facade.scanner.prelaunch.ScannerExecutionPreflightMonitor;
 import com.allinweb.ch.license.LicenceVal;
 import com.allinweb.ch.license.LicenseManager;
 import com.allinweb.ch.model.*;
@@ -74,6 +78,20 @@ public class BotJobDetailsWorkspaceHost {
     private static final BotJobPreScanPayloadService preScanPayloadService =
             BotJobPreScanPayloadService.getInstance();
     private static final BotJobDetailsReactSessionContext reactSessionContext = new BotJobDetailsReactSessionContext();
+    private static final ScannerExecutionPreflightMonitor executionPreflightMonitor =
+            new ScannerExecutionPreflightMonitor(
+                    new ExecutionPreflightSnapshotRepository(performDBEngine::getConnection),
+                    new ScannerExecutionPreflightMonitor.Operations() {
+                        @Override
+                        public void info(String message, Object... args) {
+                            log.info(message, args);
+                        }
+
+                        @Override
+                        public void warn(String message, Object... args) {
+                            log.warn(message, args);
+                        }
+                    });
     private static final BotJobTestRunCoordinator botJobTestRunCoordinator = new BotJobTestRunCoordinator(
             botJobDetailsWorkspaceRegistry,
             new BotJobTestRunCoordinator.ScannerPort() {
@@ -1350,6 +1368,16 @@ public class BotJobDetailsWorkspaceHost {
 
         TestRunExecutionSelection selection = TestRunExecutionSelection.resolve(
                 blockOrder, executeAllSelected, "ONE".equals(mode));
+        RunScope runScope = executeAllSelected
+                ? RunScope.all()
+                : "ONE".equals(mode)
+                        ? RunScope.one(blockId)
+                        : RunScope.fromBlock(blockId);
+        ScannerExecutionPreflightMonitor.Observation preflightObservation =
+                executionPreflightMonitor.observe(
+                        "BOT_JOB_DETAILS_TEST_RUN",
+                        context.executionBotJob(),
+                        runScope);
         BotJobTestRunCoordinator.StartResult result;
         try (ExecutionPauseCoordinator.ExecutionStart ignored =
                 executionPauseCoordinator.reserveExecutionStart()) {
@@ -1363,6 +1391,8 @@ public class BotJobDetailsWorkspaceHost {
         }
         completion.complete(result.accepted()
                 ? BotJobToolbarActionResult.success(action, result.message())
+                        .withExecutionPreflight(
+                                ExecutionPreflightReport.from(preflightObservation))
                 : BotJobToolbarActionResult.failure(action, result.message()));
     }
 
@@ -1377,6 +1407,11 @@ public class BotJobDetailsWorkspaceHost {
         if (!workbook.isFile()) {
             throw new IllegalStateException("Generate the Excel file before launching the Bot Job");
         }
+        ScannerExecutionPreflightMonitor.Observation preflightObservation =
+                executionPreflightMonitor.observe(
+                        "BOT_JOB_DETAILS_LAUNCH",
+                        context.executionBotJob(),
+                        RunScope.all());
         BotJobTestRunCoordinator.StartResult result;
         try (ExecutionPauseCoordinator.ExecutionStart ignored =
                 executionPauseCoordinator.reserveExecutionStart()) {
@@ -1391,6 +1426,8 @@ public class BotJobDetailsWorkspaceHost {
         String message = result.message().replace("TEST RUN", "LAUNCH");
         completion.complete(result.accepted()
                 ? BotJobToolbarActionResult.success(action, message)
+                        .withExecutionPreflight(
+                                ExecutionPreflightReport.from(preflightObservation))
                 : BotJobToolbarActionResult.failure(action, message));
     }
 
