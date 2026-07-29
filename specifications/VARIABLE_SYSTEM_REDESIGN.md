@@ -1,79 +1,56 @@
-# Variable System Redesign — design & roadmap (Phase 0A active)
+# Variable System Redesign — historical baseline and canonical roadmap pointer
 
-Captured 2026-07-26 from user. Implementation started 2026-07-27 with a read-only
-production audit and backward-compatible integrity guards.
+Updated 2026-07-29. This document now records implemented facts and historical audit results. It
+is no longer the implementation roadmap.
 
-## The problem (today)
-- An instruction can carry **many** variables (`variableId` link + others), values cross, and the producer→consumer
-  sequence is implicit (order-only). There is **no ordering enforcement** and **no visibility** into variable values.
-- A "variable" should capture a value read from a **web element's text/label** (e.g. an account balance "15 chf")
-  at a moment in execution, keep it in memory, and be reused later to **validate (CHECK)** or **SET** another input
-  — possibly across pages/moments.
+## Canonical authority
 
-## Target model (proposed)
-1. **One variable per instruction.** The instruction that "activates" the variable is its single **producer/owner**.
-   No many-to-one, no crossing. Simple, sequential meaning.
-2. **Activation flag** on an instruction: "capture as variable". When on, the instruction reads the web element's
-   text and publishes a named variable into the execution's variable memory.
-3. **Auto-naming:** `VAR-<instructionId>-<instruction name>` (stable, unique, traceable back to the step).
-4. **Scope:** the bot job **execution** (all variables produced during a run). Later reads (CHECK/SET) reference a
-   variable by name/id.
-5. **Value tracking:** each variable keeps its **initial value** (the moment first read) and its **current value**
-   (operations ahead may change it), so the panel can show initial → current history.
+All future variable, relationship, drag, reconnect, delete, execution-gate, schema, and rollback
+work is governed by:
 
-## Producer→consumer ordering (subsumes the #8 fix)
-With one clear producer per variable, the rule is exact: **the producer instruction must have a lower execution
-order than every consumer that reads its variable.** A move (drag or Memory List) that would place a reader before
-its producer is **refused with an explanatory message** naming both steps ("'Get Value' (#7) must run before
-'Extract Field' (#6) that reads its variable"). Enforced in `InstructionMoveValidator` as a new `validateVariableOrder`
-pass. (Producers/consumers among SET/GET/CK/PDF CHECK/CSV CHECK/E — exact classification to confirm with user.)
+`migrations/ROADMAP_VARIABLE_CENTRIC_INSTRUCTION_GRAPH_2026_07_29.md`
 
-## Variable Page (FE — its own page, like the Memory List page)
-- A **new dedicated, floating, drag & drop page** — modeled on the existing **"memory list" page**, NOT a modal and
-  NOT inside the command editor (the command editor should be broken down; variables are becoming too important to
-  bury there). Opened from GridItem (button/link) the same way the memory list is.
-- Lists **all variables in the bot job / current execution**. Each row: variable name (`VAR-id-name`), owning
-  instruction (id + step name), **initial value**, **current value**, status. Clicking a row highlights/scrolls to the
-  owning instruction in the grid.
-- During a live run it updates as the Engine emits values; when **paused**, the user can **edit a variable's value**
-  inline and **Resume** to continue `executeJob` exactly where it stopped. When idle it shows declared variables +
-  last-known values.
+The roadmap deliberately supersedes the earlier future-design rules that:
 
-## Phased roadmap (each phase: no behavior break, tests, user runtime-verify)
-- **P0 — Model & migration:** enforce one-variable-per-instruction, add the activation flag + auto-name; DB migration
-  (dated class under `db/migrations/`), keep engine DTO compatibility. (Backend + schema.)
-- **P1 — Ordering enforcement (the #8 fix):** `validateVariableOrder` in `InstructionMoveValidator` + explanatory
-  yes/why-not messages in both grids. (Backend + FE messaging.)
-- **P2 — Variable Page (declared variables):** new floating drag & drop page (like the memory list page) listing the
-  bot job's variables + owning instructions (no live values yet). (FE — break the command editor down.)
-- **P3 — Execution value tracking + pause/edit/resume:** the Engine emits variable values during `executeJob`; the
-  page shows initial→current, and on a **pause** the user edits a value + **Resume** continues exactly where it
-  stopped. **Gated by Engine repo access** (separate artifact; source not in these repos — needs Engine pause +
-  variable get/set hooks).
+- refused every move that temporarily placed a consumer before its GET;
+- treated connected or positional rows as an automatic delete cascade;
+- required destructive removal of duplicate or ownerless variables at startup;
+- made `parent_id` the permanent center of every variable relationship;
+- enabled broken drafts before an execution-readiness gate existed.
 
-## Decisions — CONFIRMED (2026-07-26)
-1. **One variable per instruction — YES, hard rule.** Migrate/drop existing multi-variable rows.
-2. **Per-action semantics (rule to be MODIFIED):**
-   - **GET** = PRODUCER. Purely reads a value from a web element → into a variable.
-   - **SET** = CONSUMER. Puts a value into a web element that can receive it; the value may be a **literal** OR a
-     **variable picked from the variable list**. (SET may also assign a variable directly.) When execution reaches
-     the SET step it applies the value.
-   - **Extract (E)** = rule changes: E may **connect to a variable, exclusively one produced by a GET** (consumer of
-     a GET's variable). CK/PDF CHECK/CSV CHECK = consumers (read a variable to compare).
-   - **Ordering rule:** the GET that produces a variable must run BEFORE any SET / E / CK / check that reads it.
-3. **Variable UI = a NEW dedicated PAGE** (floating, drag & drop), built like the existing **"memory list" page** — NOT
-   a modal, NOT crammed into the command editor. Rationale: variables are becoming a first-class "flow indication of
-   values read across pages"; the command editor should be broken down and variables get their own page. It lists the
-   bot job's variables and their owning instructions.
-4. **Live values — YES, with pause/edit/resume:** during a run the panel shows values live; if execution is **paused**
-   at a moment, the user can **edit a variable's value** in the floating panel and click **Resume** to continue
-   `executeJob` exactly where it stopped. (P3 needs the Engine to expose pause + variable get/set at runtime.)
+Do not reintroduce those rules from historical commits or prose below. The working `+` Memory List
+selection and fresh-ID copy behavior remain frozen.
+
+## Approved direction
+
+1. A variable is durable workspace memory. It may temporarily have no Web Element owner.
+2. A variable has at most one owner Web Element in one exact Bot Job or Component owner.
+3. Multiple compatible commands may refer to the same variable.
+4. Relationships are explicit typed data and have independently computed health states.
+5. React computes the exact visible-graph edit plan. Java validates owner, revision, expected old
+   values, and structural integrity, then persists that exact plan atomically.
+6. Valid single-row editing is introduced first. Persisted broken drafts are enabled only after
+   reconnect exists and the backend execution-readiness gate is mandatory.
+7. Delete offers exact selected, direct-explicit, and full-explicit modes. Positional IF/LOOP body
+   rows are never inferred as deletions.
+8. Current Engine semantics remain unchanged until they are traced and proven:
+   GET is the runtime producer; E, CK, PDF CHECK, and CSV CHECK are current consumers; SET remains
+   a legacy literal writer.
+9. Runtime initial/current values and pause/edit/resume remain a separate Engine project.
+
+## Variables workspace
+
+The dedicated floating Variables page is already delivered. It remains the read-only relationship
+and diagnostic surface until the canonical roadmap reaches its gated interactive phase. It must
+keep the last valid graph visible on refresh or transport failure.
 
 ## Relationship to other work
-- Subsumes task #8 (producer→consumer order). GridItemComp drag-not-working (#8) is a SEPARATE concrete bug — fix
-  independently first (see investigation: componentTasks `memoryCapabilities` returns empty, likely stale
-  `homeBankingId`).
-- Related: Memory List central hub (#6), Scan-by-Word/Text (#5).
+
+- Components orchestration independence is tracked separately as BUG-002.
+- Detached Memory List drag isolation runtime acceptance is BUG-003.
+- Memory Apply to Bot Job Details realtime repaint coverage is BUG-004.
+- Production-shaped variable/parent audit and later repair coverage is BUG-005.
+- Memory List central hub and Scan-by-Word/Text remain related but do not change this roadmap.
 
 ## 2026-07-27 - Component and Memory List integrity addendum
 
@@ -86,7 +63,7 @@ The canonical fixture is Components display-order block 18, `Check payment`
 (`component_block.id = 36`). It contains 15 instructions, two variables, 25 locator references,
 IF/ELSE/ENDIF, LOOP, PAUSE, GET, CK, and E.
 
-### New rules
+### Implemented baseline rules
 
 1. Root instructions may have a null `parent_id`; null must never be unboxed or treated as deletion
    corruption.
@@ -96,8 +73,9 @@ IF/ELSE/ENDIF, LOOP, PAUSE, GET, CK, and E.
    instruction, variable, reference, parent, parent-block, and GOTO IDs.
 4. Variable producer/consumer ordering is validated on the final generated graph immediately
    before commit.
-5. Deleting a producer or parent uses a confirmed transitive cascade and atomically removes
-   dependent instructions, variables, and references.
+5. The currently deployed exact delete/copy contracts remain characterized for compatibility.
+   Future deletion follows the canonical selected/direct/full exact plans and never expands
+   through positional IF/LOOP body rows.
 6. Future component revisions must include variables, references, and block metadata so a stale
    source cannot pass an instruction-only revision check.
 
@@ -174,18 +152,13 @@ execution engine does not provide.
 - SET literal compatibility is explicitly covered.
 - Focused result: 45 tests passed with zero failures/errors; the complete Maven suite was not run.
 
-### Phase 0B - repair before constraints
+### Former Phase 0B plan — superseded
 
-1. Add a mutation-time `VariableGraphIntegrityService` for Bot Job and Component graphs.
-2. Produce an explicit repair report and database backup.
-3. Retain used variable 1 and remove unused duplicate variable 2 from Component instruction 44.
-4. Clear the stale variable link from Wait instruction 45.
-5. Repair Bot Job 18 command parents only where variable owner and Component provenance identify
-   one unambiguous Web Field.
-6. Backfill `parent_block_id` from each valid parent instruction.
-7. Re-run the audit; ambiguous rows must be reported, never guessed.
-8. Only after a clean audit, add unique indexes for `(bot_job_id, instruction_id)` and
-   `(home_banking_id, instruction_id)`.
+The concrete repair candidates remain useful audit facts, but this older repair sequence must not
+be executed. The canonical roadmap separates durable ownerless variables, uniqueness, explicit
+repair, and historical constraints into independently backed-up and feature-gated phases. No
+duplicate, stale link, missing `parent_block_id`, or ownerless declaration may be repaired merely
+because it appears in this historical document.
 
 ## 2026-07-27 - Phase P2 detached Variables workspace completed
 

@@ -713,16 +713,16 @@ Goal: capture current truth before changing semantics.
 
 Tasks:
 
-- [ ] Record frontend/backend branch, commit, deployed bundle hashes, and database engine/version.
-- [ ] Record actual production column nullability, foreign keys, and delete actions for
+- [x] Record frontend/backend branch, commit, deployed bundle hashes, and database engine/version.
+- [x] Record actual production column nullability, foreign keys, and delete actions for
   `variable`, `component_variable`, `instruction`, and `component_instruction`.
-- [ ] Claim planned files in the shared active-bug document.
-- [ ] Confirm BUG-001 disposable-copy verification status.
-- [ ] Confirm BUG-002, BUG-003, and BUG-004 ownership so work does not overlap.
+- [x] Claim planned files in the shared active-bug document.
+- [x] Confirm BUG-001 disposable-copy verification status.
+- [x] Confirm BUG-002, BUG-003, and BUG-004 ownership so work does not overlap.
 - [ ] Manually accept the existing three private drag hooks and prove no cross-workspace drag
   completion/reset before marking BUG-003 complete.
-- [ ] Export a read-only graph audit for Bot Job and Component owners.
-- [ ] Create sanitized fixtures for:
+- [x] Export a read-only graph audit for Bot Job and Component owners.
+- [x] Create sanitized fixtures for:
   - a simple parent/child pair;
   - GET plus multiple consumers;
   - Web Element plus LOOP and positional body;
@@ -730,10 +730,13 @@ Tasks:
   - GOTO and EXCEL GOTO;
   - an ownerless variable;
   - Components `Check payment` aggregate.
-- [ ] Capture current Memory List `+`, apply, and reorder behavior as golden tests.
-- [ ] Back up the production database before any later data phase.
-- [ ] Update `../VARIABLE_SYSTEM_REDESIGN.md` in a separate documentation commit so its old
+- [x] Capture current Memory List `+`, apply, and reorder behavior as golden tests.
+- [x] Back up the production database before any later data phase.
+- [x] Update `../VARIABLE_SYSTEM_REDESIGN.md` in a separate documentation commit so its old
   cascade/refusal rules no longer claim to be the future design.
+
+Automated P0 evidence is recorded in `P0_VARIABLE_GRAPH_BASELINE_2026_07_29.md`. The unchecked
+three-window item is an explicit manual acceptance gate; it is not silently treated as complete.
 
 Acceptance:
 

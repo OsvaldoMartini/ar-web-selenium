@@ -11,12 +11,23 @@ frontend artifacts until the owning change has been reviewed and committed.
 
 | ID | Priority | Area | Status | Owner |
 |---|---|---|---|---|
-| BUG-001 | Critical | Instruction deletion selects positional IF/LOOP body rows | Fixed; focused verification and deployment passed | CODEX |
+| BUG-001 | Critical | Instruction deletion selects positional IF/LOOP body rows | Automated/deployment verification passed; manual disposable-copy acceptance pending | CODEX |
 | BUG-002 | Critical | GridItemComp still shares branching Bot Job orchestration instead of independent typed Component calls | Pending | Unclaimed |
-| BUG-003 | Critical | Memory List drag/drop must remain isolated from GridItem and GridItemComp drag/drop controllers | Pending | Unclaimed |
-| BUG-004 | High | Memory Apply and Bot Job Details refresh/realtime synchronization need end-to-end regression coverage | Pending | Unclaimed |
-| BUG-005 | High | Variable producer/consumer and parent-reference repair need production-data audit coverage | Pending | Unclaimed |
+| BUG-003 | Critical | Memory List drag/drop must remain isolated from GridItem and GridItemComp drag/drop controllers | Implemented; automated regression passed; three-window manual acceptance pending | CODEX verification only |
+| BUG-004 | High | Memory Apply and Bot Job Details refresh/realtime synchronization need end-to-end regression coverage | Partially covered; complete end-to-end regression pending | Unclaimed |
+| BUG-005 | High | Variable producer/consumer and parent-reference repair need production-data audit coverage | P0 sanitized audit captured; repair coverage remains pending | CODEX P0 documentation only |
 | BUG-006 | High | Separate deletion-modal correction in another terminal | In progress | Claude terminal |
+
+## P0 file ownership claim — 2026-07-29
+
+This claim covers baseline documentation and deterministic test fixtures only. It does not claim
+runtime implementation for BUG-002, BUG-004, or BUG-006.
+
+| Work | Owner | Files | Runtime behavior |
+|---|---|---|---|
+| Variable-graph P0 baseline | CODEX | `ROADMAP_VARIABLE_CENTRIC_INSTRUCTION_GRAPH_2026_07_29.md`, `../VARIABLE_SYSTEM_REDESIGN.md`, `P0_VARIABLE_GRAPH_BASELINE_2026_07_29.md` | None |
+| Sanitized audit and fixture | CODEX | `../../scripts/p0/ReadOnlyInstructionGraphAudit.java`, `../../src/test/resources/fixtures/instruction-graph/*`, `../../src/test/java/com/allinweb/ch/testsupport/GoldenInstructionGraphFixtureTest.java` | None |
+| BUG-003 acceptance record | CODEX verification only | This document and the P0 baseline | None unless acceptance exposes a separately claimed defect |
 
 ## BUG-001 — Exact React-owned instruction deletion
 
@@ -56,10 +67,38 @@ frontend artifacts until the owning change has been reviewed and committed.
       exact-plan transaction is the only active instruction-deletion path.
 - [ ] Manual production verification on a disposable Bot Job copy.
 
+## BUG-003 — Three private drag boundaries
+
+The implementation has three separately named boundaries:
+
+1. Bot Job transport: `useInstructionDrag` -> `ROW_MOVE` / `botJobTasks`.
+2. Component transport: `useComponentInstructionDrag` -> `COMPONENT_ROW_MOVE` /
+   `componentTasks`.
+3. Detached Memory List controller: `useMemoryListDrag` -> one
+   `memoryList.command` / `REORDER`.
+
+The first two are private transport submitters. Their native row sensors, optimistic state, and
+confirmation state live in separately mounted `useGridData` instances. The Memory List hook owns
+its complete native drag lifecycle.
+
+### Manual acceptance still required
+
+- [ ] Open Bot Job Details, Components, and Memory List against a disposable owner.
+- [ ] Leave a Bot Job move confirmation pending, reorder Memory List, and prove neither Components
+      nor Memory List completes or resets the Bot Job move.
+- [ ] Repeat with a Component move confirmation and prove only one
+      `COMPONENT_ROW_MOVE` / `componentTasks` payload is emitted.
+- [ ] Reorder Memory List and prove exactly one `memoryList.command` / `REORDER` payload contains
+      the current owner epoch and complete stable item-key order.
+- [ ] Prove each window exposes only its own diagnostic (`__gridReorder`,
+      `__componentGridReorder`, or `__mlReorder`).
+- [ ] Record all three before/after orders and outbound payloads without customer row data.
+
 ## Next execution order
 
 1. Manually verify BUG-001 on a disposable Bot Job copy.
-2. Separate GridItemComp orchestration and contracts (BUG-002).
-3. Repair and isolate Memory List drag/drop (BUG-003).
-4. Add refresh/realtime regression coverage (BUG-004).
-5. Complete the production variable-relation audit (BUG-005).
+2. Complete the BUG-003 three-window manual isolation acceptance.
+3. Claim and separate GridItemComp orchestration and contracts (BUG-002).
+4. Claim and add the missing full Memory Apply/realtime repaint regression (BUG-004).
+5. Use the P0 audit as the baseline for BUG-005 repair coverage; do not repair production rows
+   before the variable-centric roadmap reaches its gated data phases.
