@@ -1,7 +1,7 @@
 # Variable-Centric Instruction Graph Roadmap
 
 Date: 2026-07-29
-Status: active; P0 and P1 complete, P2 is the next implementation phase
+Status: active; P0, P1, and P2 complete, P3 is the next implementation phase
 Scope: Bot Job Details first, Components second, Variables workspace, Java persistence, and
 execution safety
 Canonical source notes:
@@ -11,6 +11,7 @@ Canonical source notes:
 - `../VARIABLE_SYSTEM_REDESIGN.md`
 - `ROADMAP_COMPONENT_MEMORY_VARIABLE_AND_MULTI_EXECUTION_2026_07_27.md`
 - `ACTIVE_BUGS_TO_FIX_2026_07_28.md`
+- `P2_REACT_RELATIONSHIP_CLASSIFIER_2026_07_29.md`
 
 This document merges the Codex and Claude investigations into one delivery plan. It supersedes
 their suggested implementation order where this roadmap explicitly makes a decision. It does not
@@ -800,17 +801,18 @@ Goal: calculate relationship health without changing rendering or persistence.
 
 Tasks:
 
-- [ ] Add `instructionRelationshipPolicy.ts`.
-- [ ] Add `instructionRelationshipGraph.ts`.
-- [ ] Type `parentId`, `parentBlockId`, and `variableId` as `number | null`.
-- [ ] Add an explicit relationship role (`WEB_ELEMENT`, variable command, structural boundary,
+- [x] Add `instructionRelationshipPolicy.ts`.
+- [x] Add `instructionRelationshipGraph.ts`.
+- [x] Type normalized `parentId`, `parentBlockId`, and `variableId` facts as `number | null`;
+  widen the shared transport DTO to accept explicit `null`.
+- [x] Add an explicit relationship role (`WEB_ELEMENT`, variable command, structural boundary,
   navigation, neutral command) from a stable action policy rather than label text.
-- [ ] Do not claim scanned-vs-authored provenance: the current schema has no reliable
+- [x] Do not claim scanned-vs-authored provenance: the current schema has no reliable
   `source_kind`. If product behavior later depends on provenance, add it through a separate
   migration rather than guessing from names/actions.
-- [ ] Classify typed relationships and candidate compatibility from the current rendered graph.
-- [ ] Reclassify ownerless memory separately from truly invalid command relationships.
-- [ ] Keep current drag/delete/Memory behavior unchanged.
+- [x] Classify typed relationships and candidate compatibility from the current rendered graph.
+- [x] Reclassify ownerless memory separately from truly invalid command relationships.
+- [x] Keep current drag/delete/Memory behavior unchanged.
 
 Focused tests:
 
