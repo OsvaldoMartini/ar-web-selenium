@@ -139,8 +139,12 @@ The drag redesign must not redefine execution:
 - PDF CHECK and CSV CHECK do not consume the ordinary variable-memory value. Their current Scanner
   path uses `fieldsToValidate` and OUTPUT-derived runtime keys; the configured external Engine
   validation context is defective and must be repaired before parity can be claimed.
-- LOOP and REFRESH_LOOP retain an explicit Web Element anchor.
-- GOTO and EXCEL GOTO retain an explicit destination Block.
+- LOOP and REFRESH_LOOP retain an explicit Web Element anchor. The anchor identity is stored in
+  `parentId`; `parentBlockId`, when carried as a compatibility projection, must agree with the
+  resolved anchor's containing Block and never substitutes for `parentId`.
+- GOTO and EXCEL GOTO retain an explicit destination Block stored in `parentBlockId`. That
+  destination must resolve inside the same owner and must not equal the GOTO row's containing
+  `blockId`.
 
 Variable owner `instruction_id` is not consulted by the audited runtimes. It remains an
 authoring/integrity relationship, while each command's actual element/variable/block requirements
@@ -168,8 +172,16 @@ automatic move or delete cascades.
 Dropping a row next to another row does not automatically choose that neighbor as a parent,
 variable owner, conditional root, LOOP anchor, or block target.
 
-The UI may offer a compatible suggestion, but the user must choose `MOVE + RECONNECT`. A normal
-gap drop means `MOVE ONLY`.
+The UI may offer compatible candidates, but the user must explicitly choose the target through a
+reconnect action. A relationship that remains valid is preserved unchanged. A relationship that
+cannot remain valid requires an explicit `MOVE + DISCONNECT` or `MOVE + RECONNECT`; React never
+silently clears it and never derives a replacement from row proximity.
+
+For GOTO and EXCEL GOTO specifically, `parentBlockId` is preserved during movement only while it
+remains different from the row's final containing `blockId`. Moving a GOTO row into its current
+destination Block cannot preserve that destination: the user must explicitly disconnect it or
+reconnect it to another compatible Block. The source Block, drop Block, row above, and nearest
+Block are never automatic targets.
 
 ### D-007 - Clean unresolved state; no dangling IDs
 
@@ -189,6 +201,10 @@ release.
 - IF/ELSEIF/ELSE/ENDIF boundary movement stays constrained in the first release; ordinary rows
   can move into or out of the positional body.
 - Cross-Block movement comes only after reconnect and execution gates are accepted.
+- Cross-Block movement is an exact single-row mutation: it never carries parents, children,
+  positional body rows, variable producers/consumers, LOOP anchors, or GOTO targets merely because
+  they are related. React preserves relations that remain valid and requires an explicit
+  disconnect or reconnect patch for each relation invalidated by the move.
 - Individual conditional-boundary movement is a later opt-in phase, not part of the first free
   drag release.
 
@@ -223,28 +239,32 @@ active unresolved row remains.
 
 ### D-011 - React owns authoring semantics
 
-React calculates:
+React is the sole authoring planner. It calculates:
 
 - the exact row layout;
 - relationship classification;
 - candidate compatibility;
+- whether each existing relation is preserved, explicitly disconnected, or explicitly
+  reconnected;
 - relationship patches;
 - variable-owner patches;
 - delete IDs and surviving-row repairs;
 - user-facing impact previews.
 
-Java validates:
+Java retains only the structural, atomicity, security/ownership, concurrency, and runtime-safety
+boundary. For authoring mutations it validates:
 
 - request version and shape;
 - session and owner scope;
-- graph revision;
+- graph revision and database compare-and-set version;
 - unique and complete IDs;
 - expected old values;
 - block ownership and order permutation;
 - transaction success and committed-state verification.
 
 Java persists exactly the submitted intent and broadcasts the authoritative result. It does not
-expand a group or choose a relationship target.
+expand a group, plan a disconnect, choose a relationship target, or silently repair/relink an
+authoring graph.
 
 ### D-012 - Runtime safety remains defense in depth
 
@@ -253,8 +273,12 @@ revision and a valid execution-preflight result before invoking the Engine. This
 for Java to reintroduce drag grouping; it prevents stale or non-React callers from bypassing the
 execution gate.
 
-The final preflight transport design is locked in Phase 1 after all Test Run and Launch entry
-points are mapped.
+Runtime preflight is the only semantic safety decision retained in Java: it validates the
+authoritative execution snapshot immediately before Engine start. It must not be reused to plan or
+rewrite an authoring mutation.
+
+The final preflight transport design is locked by the completed Phase 1 audit and is implemented
+and activated in Phase 4.
 
 ### D-013 - Owner identity is compound
 
@@ -302,6 +326,16 @@ The last authoritative grid remains rendered during pending requests, stale revi
 mutations, WebSocket loss, and relationship errors. Errors are overlays/messages; they do not
 replace the client data with a blank page.
 
+### D-017 - Reconnect UX starts with a modal
+
+The first reconnect UX is a clickable relationship/reconnect chip in the instruction details.
+Clicking the chip opens a bounded modal that shows the relation kind, current target, compatible
+same-owner candidates, explicit disconnect/reconnect choices, and the exact patch preview.
+
+Animated relationship arrows are a later visualization enhancement. They are not part of the
+first reconnect implementation, are not an activation dependency for P7 or P11, and must never
+become a hidden authoring planner.
+
 ## 4. Command and relationship matrix
 
 This is the target/post-phase matrix. Before P9/P14, a historical Web Element may own zero, one,
@@ -316,9 +350,9 @@ exactly one variable; historical rows reach that invariant only after audited P1
 | E | Required | Preserve current required target | Runtime-memory read ordering | Single row | Target context exists and GET or SET has populated the key |
 | CK | Required | Preserve current required target | Runtime-memory read ordering | Single row | Target context exists and GET or SET has populated the key |
 | PDF CHECK/CSV CHECK | Persisted today, not actual-value source | Persisted command context | OUTPUT/validation-field source | Single row | Block until the audited Scanner/Engine validation defects are resolved |
-| LOOP/REFRESH_LOOP | Not newly required | Required anchor | Positional body | Single LOOP row after Phase 6 | Anchor exists and precedes LOOP |
+| LOOP/REFRESH_LOOP | Not newly required | Required anchor in `parentId` | Positional body | Single LOOP row after Phase 6 | `parentId` anchor exists and precedes LOOP |
 | IF/ELSEIF/ELSE/ENDIF | None | None | Conditional root | Boundary constrained initially | Structurally valid family |
-| GOTO/EXCEL GOTO | None | None | Destination Block | Single row | Destination Block exists |
+| GOTO/EXCEL GOTO | None | None | Destination Block in `parentBlockId` | Single row | Destination Block exists in the same owner and differs from containing `blockId` |
 | Wait/Pause/Screenshot/Refresh/swipe | None | None | None | Single row | Action-specific fields only |
 
 This table is intentionally conservative. Phase 1 may document future modes, but no mode changes
@@ -444,6 +478,13 @@ Rules:
 - Patch operations are explicit. Parent-like patches carry both `parent_id` and
   `parent_block_id`; Block-target patches carry `parent_block_id`; variable-binding patches carry
   `instruction.variable_id`; variable-owner patches carry `variable.instruction_id`.
+- A LOOP/REFRESH_LOOP anchor patch identifies its anchor through `parent_id`. A supplied
+  `parent_block_id` is a checked projection of the resolved anchor's Block, not an alternative
+  anchor identity.
+- A GOTO/EXCEL GOTO Block-target patch reads and writes `parent_block_id`. The validator rejects
+  `newParentBlockId == final layoutRows[instructionId].blockId`. If a move places the row into its
+  existing destination Block, React must submit an explicit `CLEAR` or an explicit `SET` to a
+  different compatible Block; omission is not an instruction to auto-target another Block.
 - `KEEP`, `SET`, `CLEAR`, `DETACH`, `REASSIGN`, and explicit `DELETE` cannot be inferred from
   omitted or JSON-null fields.
 - Move and relationship patches commit or roll back together.
@@ -678,6 +719,11 @@ invariant.
     a request is in flight, ignore the late response and force authoritative refresh.
 14. Once any broken draft is persisted, the backend execution readiness gate remains mandatory
     until broken-authoring capabilities are disabled and a full authoritative audit is clean.
+15. Activation order is fixed: harden P4 execution preflight first; land P5 version-3
+    transport/CAS second; activate P6 valid same-Block single-row movement third; activate P7
+    modal reconnect and explicit broken-draft choices fourth; only then activate P11 cross-Block
+    and later conditional freedom. Later code may be prepared behind disabled capabilities, but it
+    cannot be activated out of this order.
 
 Recommended independent capability flags:
 
@@ -705,7 +751,7 @@ Recommended independent capability flags:
 | P4 | Execution preflight gate | Low | Shadow/warn, then mandatory |
 | P5 | Additive version-3 mutation contract | Low | Capability off |
 | P6 | Bot Job same-Block single-row drag that preserves relationships | Medium | Bot Job valid-only flag |
-| P7 | Explicit reconnect plus broken-draft activation | Medium | Reconnect + mandatory gate |
+| P7 | Chip-to-modal reconnect plus broken-draft activation | Medium | Reconnect + mandatory gate |
 | P8 | Durable ownerless memory variables | High | Data flag + backup |
 | P9 | Owner uniqueness, then automatic variable creation for new Web Elements | High | Migration + creation flag |
 | P10 | Delete selected/direct/full explicit modes | High | Delete v3 flag |
@@ -865,7 +911,7 @@ Goal: make flexible authoring safe before free movement can persist a broken gra
 
 Tasks:
 
-- [ ] Add pure TypeScript execution eligibility output with exact row IDs and messages.
+- [x] Add pure TypeScript execution eligibility output with exact row IDs and messages.
 - [ ] Display a bounded modal/list with row focus actions.
 - [ ] Start in shadow/warn mode and record which existing jobs would be blocked.
 - [ ] After repair is available or P0 proves no blocking legacy issue, block all mapped Test
@@ -874,8 +920,9 @@ Tasks:
 - [ ] Bind preflight to exact authoritative owner, database graph version, content revision, and
   the actual requested run scope. Workspace epoch is additionally required for detached-workspace
   callers, not invented for Main Dashboard/legacy callers.
-- [ ] Recompute readiness in Java from the exact server-loaded execution snapshot (or execute an
-  immutable validated snapshot). React remains the user-facing diagnostic planner.
+- [x] Add the pure Java authoritative-snapshot readiness evaluator. Live execution entry-point
+  wiring and the immediate version recheck remain open; React remains the user-facing diagnostic
+  planner.
 - [ ] Atomically recheck graph version immediately before Engine start so preflight cannot race a
   mutation.
 - [ ] Validate only the reachable run plan: ONE/single-Block Test Run validates that selected
@@ -909,19 +956,20 @@ Goal: land transport and transaction support without changing user behavior.
 
 Tasks:
 
-- [ ] Define typed React DTOs for owner, layout, relationship patches, variable-owner patches, and
+- [x] Define typed React DTOs for owner, layout, relationship patches, variable-owner patches, and
   expected old values.
-- [ ] Add a dedicated `InstructionGraphMutationDTO`; do not overload `SplitDTO` with ambiguous
+- [x] Add a dedicated `InstructionGraphMutationV3`; do not overload `SplitDTO` with ambiguous
   nullable fields.
-- [ ] Add version-3 structural contract validator in Java.
-- [ ] Add a database-owned graph-state row with a compound workspace/owner primary key,
+- [x] Add version-3 structural contract validator in Java.
+- [x] Add a database-owned graph-state row with a compound workspace/owner primary key,
   atomic first-row creation, owner-deletion cleanup/tombstone policy, and compare-and-set version.
   Register the production migration in
   `com.allinweb.ch.db.MigrationRunner`.
 - [ ] Make fresh SQLite/Access initialization and migration ordering self-healing; capability
   activation fails closed if graph-state support is absent.
 - [ ] Make every remaining v2 and v3 graph writer bump the same version in its own transaction.
-- [ ] Add one transaction that applies layout and patches atomically.
+- [x] Add one Bot-Job-only transaction foundation that applies a complete layout and explicit
+  relationship/variable patches atomically.
 - [ ] Verify the complete final state inside the open transaction, commit, then reload the
   authoritative state before acknowledgement/publication.
 - [ ] Broadcast correlated grid and Variables snapshots after commit.
@@ -932,6 +980,21 @@ Tasks:
 - [ ] Define the content-hash scope separately from graph-version CAS. Either expand the hash to
   all execution-relevant Block/instruction/variable/reference facts or treat graph version as the
   authoritative concurrency token.
+
+Implementation checkpoint (2026-07-29):
+
+- the React contract, private inert transport hook, Java structural validator, graph-state
+  migration/repository, and additive Bot Job transaction exist behind no advertised capability;
+- explicit and implicit GOTO self-targets are rejected, including moving a GOTO into its existing
+  destination while attempting to keep `parentBlockId`;
+- focused tests cover atomic rollback, expected-old state, graph-version staleness, variable
+  binding/ownership, empty-Block preservation, and the GOTO invariant;
+- live routing remains prohibited until every v2/legacy Bot Job graph writer increments the same
+  database graph version, otherwise a non-participating writer can still be overwritten;
+- the transaction must retain the rollback-failure connection invalidation safeguard, and live
+  routing must source owner/epoch from server session state rather than request data;
+- capability advertisement, correlated WebSocket routing, post-commit authoritative broadcast,
+  idempotency, mixed-writer tests, and production-dialect verification remain open.
 
 Focused tests:
 
@@ -963,13 +1026,14 @@ only moves that preserve every required relationship in this phase.
 
 Tasks:
 
-- [ ] Add `instructionFreeMove.ts`.
+- [x] Add the pure, currently unwired `instructionFreeMove.ts` planner.
 - [ ] Make a gap drop move exactly the selected row.
 - [ ] Preserve valid relationships unchanged.
 - [ ] If a proposed move would create a new broken/detached relationship, preview the issue and
   refuse activation until P7 provides repair. Do not persist unresolved drafts in P6.
 - [ ] Keep IF-family boundaries constrained in this first release.
-- [ ] Keep Block movement and cross-Block row movement unchanged.
+- [ ] Keep Block movement and cross-Block row movement unchanged; exact cross-Block single-row
+  behavior belongs to P11.
 - [ ] Use private Bot Job drag state and one correlated request.
 - [ ] Roll back the optimistic layout on refusal/timeout.
 
@@ -979,7 +1043,8 @@ Acceptance:
 - GET/SET/E/CK/CHECK rows move individually when all audited required relations remain valid.
 - Moving inside a LOOP body does not drag the positional body.
 - LOOP itself moves only when its anchor outcome is explicit.
-- GOTO destination remains unchanged.
+- GOTO/EXCEL GOTO destination remains the existing `parentBlockId`, which is valid because P6 is
+  same-Block only.
 - The grid never disappears on refusal.
 
 Rollback:
@@ -994,14 +1059,22 @@ Deliver in separate commits:
 
 #### P7A - Element and LOOP targets
 
-- [ ] Add `ReconnectRelationshipDialog`.
-- [ ] Reuse `SearchBox` with exact-owner compatible candidates.
+- [x] Add the isolated, currently unwired `ReconnectRelationshipDialog`.
+- [ ] Open the dialog by clicking the relationship/reconnect chip; keep animated relationship
+  arrows deferred until after modal reconnect and P11 acceptance.
+- [x] Reuse `SearchBox`; the caller supplies already-filtered exact-owner compatible candidates.
 - [ ] Support `RECONNECT_PARENT` and `RECONNECT_LOOP`.
-- [ ] Preview expected old/new target and impacted rows.
+- [ ] Treat LOOP/REFRESH_LOOP `parentId` as the anchor identity.
+- [x] Preview the current and selected target. Impacted-row integration remains part of live
+  reconnect wiring.
 
 #### P7B - Block and conditional targets
 
 - [ ] Support `RECONNECT_BLOCK`.
+- [ ] Read/write the GOTO/EXCEL GOTO destination through `parentBlockId`.
+- [ ] Exclude the row's containing `blockId` from compatible GOTO targets and refuse an attempted
+  same-Block target.
+- [ ] Never select the source, destination, drop, nearest, or preceding Block automatically.
 - [ ] Support `REPAIR_CONDITIONAL` without moving positional body rows.
 
 #### P7C - Variable binding and owner transfer
@@ -1155,8 +1228,13 @@ Goal: extend accepted single-row semantics after reconnect and execution gates a
 
 Subphases:
 
-- [ ] P11A: ordinary and variable-command cross-Block movement.
-- [ ] P11B: LOOP cross-Block movement with explicit anchor result.
+- [ ] P11A: ordinary and variable-command cross-Block movement as exact single-row layout changes.
+  For every relation invalidated by the final Block, require an explicit disconnect or reconnect
+  patch; never move an attached row automatically.
+- [ ] P11B: LOOP cross-Block movement with an explicit `parentId` anchor result.
+- [ ] P11B-GOTO: preserve GOTO/EXCEL GOTO `parentBlockId` when it remains a valid different
+  destination. Moving into that destination requires explicit disconnect or reconnect to another
+  Block; never auto-target.
 - [ ] P11C: optional individual IF/ELSEIF/ELSE/ENDIF draft movement.
 - [ ] P11D: empty-Block preservation/removal policy.
 - [ ] P11E: keyboard move parity with pointer drag.
@@ -1164,6 +1242,10 @@ Subphases:
 Acceptance:
 
 - Every new unresolved state has a chip, reconnect path, and preflight rule before activation.
+- A cross-Block drag mutates exactly the selected instruction plus the explicit relation patches
+  React previewed and the user confirmed.
+- No relation target changes because of physical proximity.
+- A GOTO/EXCEL GOTO row never commits with `parentBlockId == blockId`.
 - Parent/variable/block IDs never resolve across owners.
 
 Rollback:
@@ -1453,12 +1535,24 @@ The redesign is complete only when:
 
 ## 15. Immediate next task
 
-Start P0 only:
+Finish P4 activation and the P5 shared-version boundary; do not advertise or consume the prepared
+v3 capability yet:
 
-1. claim files/owners;
-2. capture baseline commits and deployed bundle hashes;
-3. create sanitized golden graph fixtures;
-4. run the read-only production relationship audit;
-5. update `VARIABLE_SYSTEM_REDESIGN.md` to point to this roadmap and remove superseded future
-   cascade/refusal claims;
-6. stop for review before implementing P1 or changing application code.
+1. wire the Java authoritative execution preflight plus immediate graph-version recheck into every
+   audited Test Run/Launch entry point;
+2. add the bounded React diagnostic modal and run P4 in shadow/warn mode against
+   sanitized/disposable fixtures;
+3. hard-enable `executionRelationshipGateV1` only after the P4 acceptance checks pass;
+4. inventory every remaining v2/legacy Bot Job graph writer and make each increment the same
+   `instruction_graph_state` version in its own transaction, or retire it behind the v3 route;
+5. add mixed-writer, rollback-failure, wrong-owner/epoch, idempotency, response/broadcast-order,
+   and production-schema/dialect tests;
+6. add the correlated server-owned v3 WebSocket route and authoritative post-commit publication;
+7. advertise `rowMoveContractV3` only after the preceding checks pass, then activate P6
+   same-Block valid-only movement;
+8. stop for review before wiring P7 reconnect or P11 cross-Block draft movement.
+
+The approved activation sequence remains P4 gate -> P5 v3 -> P6 same-Block valid-only single-row
+movement -> P7 chip-to-modal reconnect and explicit disconnect/reconnect -> P11 exact cross-Block
+single-row movement. Prepared P5/P7 modules stay inert until their prerequisite phase is accepted.
+Animated relationship arrows remain deferred.
