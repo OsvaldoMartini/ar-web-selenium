@@ -76,6 +76,34 @@ public final class BotJobGraphMutationTransaction {
             AuthenticatedBotJob owner,
             InstructionGraphMutationV3.Request request)
             throws SQLException {
+        return execute(connection, owner, request, null);
+    }
+
+    /**
+     * Persists the narrow individual-row move advertised by the Variables page.
+     *
+     * <p>The React planner still owns the chosen target and complete final layout. The profile is
+     * evaluated against the same authoritative snapshot and inside the same transaction used for
+     * persistence, closing the inspection/write race without turning Java into a drag planner.
+     */
+    public CommitResult executeVariablesInstructionMove(
+            Connection connection,
+            AuthenticatedBotJob owner,
+            InstructionGraphMutationV3.Request request)
+            throws SQLException {
+        return execute(
+                connection,
+                owner,
+                request,
+                new VariablesInstructionMutationProfile());
+    }
+
+    private CommitResult execute(
+            Connection connection,
+            AuthenticatedBotJob owner,
+            InstructionGraphMutationV3.Request request,
+            VariablesInstructionMutationProfile variablesProfile)
+            throws SQLException {
         requireOpenConnection(connection);
         Objects.requireNonNull(owner, "owner");
         Objects.requireNonNull(request, "request");
@@ -93,6 +121,9 @@ public final class BotJobGraphMutationTransaction {
                 throw new MutationRefusedException(
                         validation.error().code().name(),
                         validation.error().message());
+            }
+            if (variablesProfile != null) {
+                variablesProfile.validate(request, graphSnapshot(before));
             }
 
             NormalizedMutation mutation = validation.mutation();
@@ -138,6 +169,65 @@ public final class BotJobGraphMutationTransaction {
         }
     }
 
+    /**
+     * Reads the exact versioned graph facts required by a React mutation planner.
+     *
+     * <p>No movement or relationship semantics are inferred here. The returned layout, raw
+     * persisted action, and relationship IDs are authoritative database facts. React classifies
+     * the action and decides the complete intended final layout; Java later validates and
+     * persists that exact submission.
+     */
+    public GraphSnapshot inspect(
+            Connection connection,
+            AuthenticatedBotJob owner)
+            throws SQLException {
+        requireOpenConnection(connection);
+        Objects.requireNonNull(owner, "owner");
+        if (!connection.getAutoCommit()) {
+            throw new SQLException(
+                    "Bot Job graph inspection requires an unbound auto-commit connection.");
+        }
+
+        return graphSnapshot(loadAuthoritative(connection, owner));
+    }
+
+    private GraphSnapshot graphSnapshot(AuthoritativeSnapshot snapshot) {
+        Map<Integer, Integer> blockOrders = new LinkedHashMap<>();
+        snapshot.ownerGraph().blocks().forEach(
+                block -> blockOrders.put(block.id(), block.order()));
+
+        List<GraphInstructionFact> instructionFacts =
+                snapshot.ownerGraph().instructions().stream()
+                        .map(instruction -> new GraphInstructionFact(
+                                instruction.id(),
+                                instruction.blockId(),
+                                blockOrders.get(instruction.blockId()),
+                                instruction.order(),
+                                snapshot.actionsByInstruction()
+                                        .getOrDefault(instruction.id(), ""),
+                                instruction.parentId(),
+                                instruction.parentBlockId(),
+                                instruction.variableId()))
+                        .sorted(java.util.Comparator
+                                .comparingInt(GraphInstructionFact::blockOrderNumber)
+                                .thenComparingInt(GraphInstructionFact::instructionOrderNumber)
+                                .thenComparingInt(GraphInstructionFact::instructionId))
+                        .toList();
+        List<InstructionGraphMutationV3.LayoutRow> layoutRows =
+                instructionFacts.stream()
+                        .map(instruction -> new InstructionGraphMutationV3.LayoutRow(
+                                instruction.instructionId(),
+                                instruction.blockId(),
+                                instruction.blockOrderNumber(),
+                                instruction.instructionOrderNumber()))
+                        .toList();
+        return new GraphSnapshot(
+                snapshot.ownerGraph().scope().graphVersion(),
+                snapshot.revision(),
+                layoutRows,
+                instructionFacts);
+    }
+
     private AuthoritativeSnapshot loadAuthoritative(
             Connection connection,
             AuthenticatedBotJob authenticatedOwner)
@@ -149,6 +239,7 @@ public final class BotJobGraphMutationTransaction {
         List<StoredBlock> blocks = loadBlocks(connection, owner.ownerId());
         List<StoredInstruction> instructions = new ArrayList<>();
         List<InstructionLoad> revisionInstructions = new ArrayList<>();
+        Map<Integer, String> actionsByInstruction = new LinkedHashMap<>();
         String instructionSql = "SELECT id,block_id,instruction_order_number,actions,parent_id,"
                 + "parent_block_id,variable_id,operation FROM instruction"
                 + " WHERE bot_job_id=? ORDER BY id";
@@ -160,6 +251,7 @@ public final class BotJobGraphMutationTransaction {
                     int blockId = rows.getInt("block_id");
                     int order = rows.getInt("instruction_order_number");
                     String action = rows.getString("actions");
+                    actionsByInstruction.put(id, action == null ? "" : action);
                     Integer parentId = nullableInteger(rows, "parent_id");
                     Integer parentBlockId = nullableInteger(rows, "parent_block_id");
                     Integer variableId = nullableInteger(rows, "variable_id");
@@ -222,7 +314,8 @@ public final class BotJobGraphMutationTransaction {
                 revision);
         return new AuthoritativeSnapshot(
                 new OwnerGraph(scope, blocks, instructions, variables),
-                revision);
+                revision,
+                actionsByInstruction);
     }
 
     private List<StoredBlock> loadBlocks(Connection connection, int botJobId)
@@ -477,6 +570,28 @@ public final class BotJobGraphMutationTransaction {
             long committedGraphVersion,
             String graphRevision) {}
 
+    public record GraphInstructionFact(
+            int instructionId,
+            int blockId,
+            int blockOrderNumber,
+            int instructionOrderNumber,
+            String action,
+            Integer parentId,
+            Integer parentBlockId,
+            Integer variableId) {}
+
+    public record GraphSnapshot(
+            long graphVersion,
+            String graphRevision,
+            List<InstructionGraphMutationV3.LayoutRow> layoutRows,
+            List<GraphInstructionFact> instructionFacts) {
+
+        public GraphSnapshot {
+            layoutRows = List.copyOf(layoutRows);
+            instructionFacts = List.copyOf(instructionFacts);
+        }
+    }
+
     public static final class MutationRefusedException extends SQLException {
         private final String code;
 
@@ -503,5 +618,11 @@ public final class BotJobGraphMutationTransaction {
 
     private record AuthoritativeSnapshot(
             OwnerGraph ownerGraph,
-            String revision) {}
+            String revision,
+            Map<Integer, String> actionsByInstruction) {
+
+        private AuthoritativeSnapshot {
+            actionsByInstruction = Map.copyOf(actionsByInstruction);
+        }
+    }
 }

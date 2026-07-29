@@ -10,6 +10,8 @@ import com.allinweb.ch.db.InstructionGraphStateRepository;
 import com.allinweb.ch.db.InstructionGraphStateRepository.OwnerKey;
 import com.allinweb.ch.db.migrations.M20260729_InstructionGraphState;
 import com.allinweb.ch.facade.BotJobGraphMutationTransaction.AuthenticatedBotJob;
+import com.allinweb.ch.facade.BotJobGraphMutationTransaction.GraphInstructionFact;
+import com.allinweb.ch.facade.BotJobGraphMutationTransaction.GraphSnapshot;
 import com.allinweb.ch.facade.BotJobGraphMutationTransaction.MutationRefusedException;
 import com.allinweb.ch.facade.BotJobGraphMutationTransaction.TransactionPhase;
 import com.allinweb.ch.model.InstructionGraphMutationV3;
@@ -438,6 +440,154 @@ class BotJobGraphMutationTransactionTest {
             assertEquals(0L, currentVersion(connection));
             assertTrue(connection.getAutoCommit());
             assertFalse(connection.isClosed());
+        }
+    }
+
+    @Test
+    void inspectReturnsCanonicalVersionedLayoutAndRelationshipFactsWithoutWriting()
+            throws Exception {
+        try (Connection connection = database()) {
+            GraphSnapshot snapshot =
+                    new BotJobGraphMutationTransaction()
+                            .inspect(connection, authenticatedOwner);
+
+            assertEquals(0L, snapshot.graphVersion());
+            assertEquals(revision(connection), snapshot.graphRevision());
+            assertEquals(defaultLayout(), snapshot.layoutRows());
+            assertEquals(
+                    List.of(
+                            new GraphInstructionFact(
+                                    100,
+                                    10,
+                                    1,
+                                    1,
+                                    "C",
+                                    null,
+                                    null,
+                                    null),
+                            new GraphInstructionFact(
+                                    101,
+                                    10,
+                                    1,
+                                    2,
+                                    "LOOP",
+                                    100,
+                                    10,
+                                    null),
+                            new GraphInstructionFact(
+                                    104,
+                                    20,
+                                    2,
+                                    1,
+                                    "C",
+                                    null,
+                                    null,
+                                    null),
+                            new GraphInstructionFact(
+                                    103,
+                                    20,
+                                    2,
+                                    2,
+                                    "GET",
+                                    104,
+                                    20,
+                                    501),
+                            new GraphInstructionFact(
+                                    102,
+                                    20,
+                                    2,
+                                    3,
+                                    "GOTO",
+                                    null,
+                                    10,
+                                    null)),
+                    snapshot.instructionFacts());
+            assertEquals(0L, currentVersion(connection));
+            assertTrue(connection.getAutoCommit());
+            assertFalse(connection.isClosed());
+        }
+    }
+
+    @Test
+    void variablesProfileCommitsOneSameBlockCommandReinsertAtomically()
+            throws Exception {
+        try (Connection connection = database()) {
+            try (Statement statement = connection.createStatement()) {
+                statement.executeUpdate(
+                        "UPDATE instruction SET instruction_order_number=4 WHERE id=102");
+                statement.executeUpdate(
+                        "INSERT INTO instruction VALUES"
+                                + "(105,5,20,3,'H',NULL,NULL,NULL,'wait')");
+            }
+            List<LayoutRow> movedGetAcrossOrdinaryWait = List.of(
+                    row(100, 10, 1, 1),
+                    row(101, 10, 1, 2),
+                    row(104, 20, 2, 1),
+                    row(105, 20, 2, 2),
+                    row(103, 20, 2, 3),
+                    row(102, 20, 2, 4));
+            InstructionGraphMutationV3.Request request = request(
+                    connection,
+                    InstructionGraphMutationV3.MutationKind.ROW_MOVE,
+                    103,
+                    movedGetAcrossOrdinaryWait,
+                    List.of(),
+                    List.of(),
+                    List.of());
+
+            BotJobGraphMutationTransaction.CommitResult committed =
+                    new BotJobGraphMutationTransaction()
+                            .executeVariablesInstructionMove(
+                                    connection, authenticatedOwner, request);
+
+            assertEquals(1L, committed.committedGraphVersion());
+            assertEquals(3, integerValue(
+                    connection,
+                    "SELECT instruction_order_number FROM instruction WHERE id=103"));
+            assertEquals(2, integerValue(
+                    connection,
+                    "SELECT instruction_order_number FROM instruction WHERE id=105"));
+            assertEquals(104, integerValue(
+                    connection,
+                    "SELECT parent_id FROM instruction WHERE id=103"));
+            assertEquals(501, integerValue(
+                    connection,
+                    "SELECT variable_id FROM instruction WHERE id=103"));
+            assertEquals(4, integerValue(
+                    connection,
+                    "SELECT instruction_order_number FROM instruction WHERE id=102"));
+            assertTrue(connection.getAutoCommit());
+        }
+    }
+
+    @Test
+    void variablesProfileRefusesGenericGraphMutationBeforeAnyWrite()
+            throws Exception {
+        try (Connection connection = database()) {
+            InstructionGraphMutationV3.Request request = request(
+                    connection,
+                    InstructionGraphMutationV3.MutationKind.RELATIONSHIP_UPDATE,
+                    103,
+                    defaultLayout(),
+                    List.of(),
+                    List.of(),
+                    List.of());
+
+            MutationRefusedException refused = assertThrows(
+                    MutationRefusedException.class,
+                    () -> new BotJobGraphMutationTransaction()
+                            .executeVariablesInstructionMove(
+                                    connection, authenticatedOwner, request));
+
+            assertEquals("VARIABLES_ROW_MOVE_ONLY", refused.code());
+            assertEquals(2, integerValue(
+                    connection,
+                    "SELECT instruction_order_number FROM instruction WHERE id=103"));
+            assertEquals(104, integerValue(
+                    connection,
+                    "SELECT parent_id FROM instruction WHERE id=103"));
+            assertEquals(0L, currentVersion(connection));
+            assertTrue(connection.getAutoCommit());
         }
     }
 

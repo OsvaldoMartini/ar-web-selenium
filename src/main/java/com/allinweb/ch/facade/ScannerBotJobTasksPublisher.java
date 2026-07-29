@@ -33,6 +33,16 @@ public final class ScannerBotJobTasksPublisher {
 
     public ErrorMessage publish(int homeBankingId, int botJobId) {
         VariablesWorkspaceService.getInstance().notifyMutation(botJobId);
+        return publishGridOnly(homeBankingId, botJobId);
+    }
+
+    /**
+     * Reloads and publishes only the Bot Job Details grid.
+     *
+     * <p>Callers that own a stricter acknowledgement/publication sequence can publish this view
+     * first and notify other detached workspaces afterward.
+     */
+    public ErrorMessage publishGridOnly(int homeBankingId, int botJobId) {
         ErrorMessage error = data.loadCompleteJobs(botJobId);
         if (error != null) {
             return error;
@@ -43,11 +53,14 @@ public final class ScannerBotJobTasksPublisher {
         if (jobs != null && !jobs.isEmpty()) {
             json = gson.toJson(data.buildJsonViewData(jobs));
         }
-        sender.sendMessageJson(
+        boolean delivered = sender.sendMessageJson(
                 homeBankingId,
                 ScannerWorkspaceSessions.BOT_JOB_TASKS,
                 json,
                 ScannerWorkspaceOperations.UPDATE_INSTRUCTIONS);
+        if (!delivered) {
+            return refreshUnavailable();
+        }
         return null;
     }
 
@@ -93,13 +106,17 @@ public final class ScannerBotJobTasksPublisher {
                 gson.toJson(payload),
                 ScannerWorkspaceOperations.UPDATE_INSTRUCTIONS);
         if (!delivered) {
-            return new ErrorMessage(
-                    "Bot Job Details Refresh",
-                    "The database was saved, but Bot Job Details could not be refreshed.",
-                    "The Bot Job Details session is unavailable. Reopen or refresh that workspace "
-                            + "to load the committed changes.");
+            return refreshUnavailable();
         }
         return null;
+    }
+
+    private ErrorMessage refreshUnavailable() {
+        return new ErrorMessage(
+                "Bot Job Details Refresh",
+                "The database was saved, but Bot Job Details could not be refreshed.",
+                "The Bot Job Details session is unavailable. Reopen or refresh that workspace "
+                        + "to load the committed changes.");
     }
 
     interface DataPort {

@@ -7,9 +7,18 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.allinweb.ch.db.InstructionGraphStateRepository.OwnerKey;
+import com.allinweb.ch.facade.BotJobDetailsWorkspaceRegistry;
+import com.allinweb.ch.facade.BotJobGraphMutationTransaction.CommitResult;
+import com.allinweb.ch.facade.BotJobGraphMutationTransaction.GraphInstructionFact;
+import com.allinweb.ch.facade.BotJobGraphMutationTransaction.GraphSnapshot;
+import com.allinweb.ch.model.BotJobLoadDTO;
+import com.allinweb.ch.model.InstructionGraphMutationV3;
+import com.allinweb.ch.model.InstructionGraphMutationV3.LayoutRow;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -323,6 +332,322 @@ class VariablesWorkspaceServiceTest {
         }
     }
 
+    @Test
+    void bootstrapAdvertisesExactVersionedMutationCapabilityAlongsideContentRevision() {
+        FakeMutations mutations = FakeMutations.ready();
+        VariablesWorkspaceService mutableService =
+                new VariablesWorkspaceService(
+                        workspaces,
+                        graphs,
+                        windows,
+                        new Gson(),
+                        tasks,
+                        mutations);
+        mutableService.openForBotJob(5);
+        Session manager = openSession();
+        windows.register(manager);
+        mutableService.connected(VariablesWorkspaceService.WORKSPACE_SESSION_ID, manager);
+
+        JsonObject response = mutableService.bootstrap(
+                new JsonObject(),
+                VariablesWorkspaceService.WORKSPACE_SESSION_ID,
+                manager);
+
+        assertTrue(response.get("ok").getAsBoolean());
+        assertEquals("revision-five", response.get("contentRevision").getAsString());
+        assertEquals("revision-five", response.get("graphRevision").getAsString());
+        assertEquals(4L, response.get("graphVersion").getAsLong());
+        JsonObject capability = response.getAsJsonObject("mutationCapability");
+        assertTrue(capability.get("enabled").getAsBoolean());
+        assertEquals(
+                InstructionGraphMutationV3.CONTRACT_VERSION,
+                capability.get("contractVersion").getAsInt());
+        assertEquals(
+                "VARIABLES_INDIVIDUAL_ROW_V1",
+                capability.get("profile").getAsString());
+        assertEquals(4L, capability.get("graphVersion").getAsLong());
+        assertEquals("mutation-five", capability.get("graphRevision").getAsString());
+        assertEquals(
+                "BOT_JOB",
+                capability.getAsJsonObject("ownerAssertion")
+                        .get("workspaceKind")
+                        .getAsString());
+        assertEquals(2, capability.getAsJsonObject("ownerAssertion")
+                .get("homeBankingId")
+                .getAsInt());
+        assertEquals(5, capability.getAsJsonObject("ownerAssertion")
+                .get("botJobId")
+                .getAsInt());
+        assertEquals(3, capability.getAsJsonArray("layoutRows").size());
+        assertEquals(3, capability.getAsJsonArray("instructionFacts").size());
+        assertEquals(1, mutations.inspectCalls);
+        assertEquals(2, mutations.lastHomeBankingId);
+        assertEquals(5, mutations.lastBotJobId);
+        assertEquals(10L, mutations.lastWorkspaceEpoch);
+
+        int publishedBefore = windows.sent.size();
+        graphs.responses.put(5, graph("revision-five-changed"));
+        assertTrue(mutableService.publishIfOpen(5));
+        assertEquals(publishedBefore + 1, windows.sent.size());
+        JsonObject changed = windows.sent.get(windows.sent.size() - 1).body();
+        assertEquals("revision-five-changed", changed.get("graphRevision").getAsString());
+        assertEquals(
+                "mutation-five",
+                changed.getAsJsonObject("mutationCapability")
+                        .get("graphRevision")
+                        .getAsString());
+    }
+
+    @Test
+    void mutationRefusesForgedTransportAndStaleBindingBeforePersistence() {
+        FakeMutations mutations = FakeMutations.ready();
+        VariablesWorkspaceService mutableService =
+                new VariablesWorkspaceService(
+                        workspaces,
+                        graphs,
+                        windows,
+                        new Gson(),
+                        tasks,
+                        mutations);
+        mutableService.openForBotJob(5);
+        Session manager = openSession();
+        windows.register(manager);
+        mutableService.connected(VariablesWorkspaceService.WORKSPACE_SESSION_ID, manager);
+        JsonObject bootstrap = mutableService.bootstrap(
+                new JsonObject(),
+                VariablesWorkspaceService.WORKSPACE_SESSION_ID,
+                manager);
+        String bindingEpoch = bootstrap.get("bindingEpoch").getAsString();
+
+        JsonObject forgedRequest = new JsonObject();
+        forgedRequest.addProperty("requestId", "forged-request");
+        forgedRequest.addProperty("bindingEpoch", bindingEpoch);
+        JsonObject forged = mutableService.mutate(
+                forgedRequest,
+                VariablesWorkspaceService.WORKSPACE_SESSION_ID,
+                openSession());
+
+        assertFalse(forged.get("ok").getAsBoolean());
+        assertTrue(forged.get("preserveSnapshot").getAsBoolean());
+        assertEquals("REQUEST_REFUSED", forged.get("errorCode").getAsString());
+        assertEquals("forged-request", forged.get("requestId").getAsString());
+
+        JsonObject staleRequest = new JsonObject();
+        staleRequest.addProperty("requestId", "stale-binding");
+        staleRequest.addProperty("bindingEpoch", "retired-binding");
+        JsonObject stale = mutableService.mutate(
+                staleRequest,
+                VariablesWorkspaceService.WORKSPACE_SESSION_ID,
+                manager);
+
+        assertFalse(stale.get("ok").getAsBoolean());
+        assertTrue(stale.get("preserveSnapshot").getAsBoolean());
+        assertEquals("REQUEST_REFUSED", stale.get("errorCode").getAsString());
+        assertEquals("stale-binding", stale.get("requestId").getAsString());
+        assertEquals(bindingEpoch, stale.get("bindingEpoch").getAsString());
+        assertEquals(0, mutations.mutateCalls);
+    }
+
+    @Test
+    void mutationUsesBoundOwnerAndReturnsCorrelatedCommittedVersion() {
+        BotJobDetailsWorkspaceRegistry registry =
+                BotJobDetailsWorkspaceRegistry.getInstance();
+        BotJobLoadDTO botJob = new BotJobLoadDTO();
+        botJob.setId(5);
+        botJob.setName("Job Five");
+        botJob.setHomeBankingId(2);
+        BotJobDetailsWorkspaceRegistry.Snapshot active =
+                registry.activate(botJob, false);
+        try {
+            FakeWorkspaces exactWorkspaces = new FakeWorkspaces();
+            exactWorkspaces.add(new VariablesWorkspaceService.WorkspaceContext(
+                    active.workspaceEpoch(),
+                    5,
+                    2,
+                    "Job Five",
+                    "Bank"));
+            FakeMutations mutations = FakeMutations.ready();
+            mutations.commitResult = new CommitResult(
+                    OwnerKey.botJob(2, 5),
+                    active.workspaceEpoch(),
+                    "variables-mutate-1",
+                    4L,
+                    5L,
+                    "mutation-after");
+            VariablesWorkspaceService mutableService =
+                    new VariablesWorkspaceService(
+                            exactWorkspaces,
+                            graphs,
+                            windows,
+                            new Gson(),
+                            tasks,
+                            mutations);
+            mutableService.openForBotJob(5);
+            Session manager = openSession();
+            windows.register(manager);
+            mutableService.connected(
+                    VariablesWorkspaceService.WORKSPACE_SESSION_ID,
+                    manager);
+            JsonObject bootstrap = mutableService.bootstrap(
+                    new JsonObject(),
+                    VariablesWorkspaceService.WORKSPACE_SESSION_ID,
+                    manager);
+            InstructionGraphMutationV3.Request mutation =
+                    new InstructionGraphMutationV3.Request(
+                            InstructionGraphMutationV3.CONTRACT_VERSION,
+                            InstructionGraphMutationV3.MutationKind.ROW_MOVE,
+                            "variables-mutate-1",
+                            4L,
+                            "mutation-five",
+                            active.workspaceEpoch(),
+                            new InstructionGraphMutationV3.OwnerAssertion(
+                                    InstructionGraphMutationV3.WorkspaceKind.BOT_JOB,
+                                    2,
+                                    5),
+                            100,
+                            List.of(
+                                    new LayoutRow(101, 10, 1, 1),
+                                    new LayoutRow(100, 10, 1, 2),
+                                    new LayoutRow(102, 10, 1, 3)),
+                            List.of(),
+                            List.of(),
+                            List.of());
+            JsonObject request =
+                    new Gson().toJsonTree(mutation).getAsJsonObject();
+            request.addProperty(
+                    "bindingEpoch",
+                    bootstrap.get("bindingEpoch").getAsString());
+            request.addProperty("homeBankingId", 999);
+            request.addProperty("botJobId", 999);
+
+            JsonObject response = mutableService.mutate(
+                    request,
+                    VariablesWorkspaceService.WORKSPACE_SESSION_ID,
+                    manager);
+
+            assertTrue(response.get("ok").getAsBoolean(), response.toString());
+            assertEquals(
+                    "variables-mutate-1",
+                    response.get("requestId").getAsString());
+            assertEquals(
+                    bootstrap.get("bindingEpoch").getAsString(),
+                    response.get("bindingEpoch").getAsString());
+            assertEquals(active.workspaceEpoch(), response.get("workspaceEpoch").getAsLong());
+            assertEquals(5, response.get("botJobId").getAsInt());
+            assertEquals(2, response.get("homeBankingId").getAsInt());
+            assertEquals(5L, response.get("committedGraphVersion").getAsLong());
+            assertEquals("mutation-after", response.get("graphRevision").getAsString());
+            assertTrue(response.get("committed").getAsBoolean());
+            assertFalse(response.get("resyncRequired").getAsBoolean());
+            assertEquals(1, mutations.mutateCalls);
+            assertEquals(1, mutations.inspectCalls);
+            assertEquals(2, mutations.lastHomeBankingId);
+            assertEquals(5, mutations.lastBotJobId);
+            assertEquals(active.workspaceEpoch(), mutations.lastWorkspaceEpoch);
+            assertEquals("variables-mutate-1", mutations.lastRequest.requestId());
+        } finally {
+            registry.close(5);
+        }
+    }
+
+    @Test
+    void mutationReturnsCommittedResyncSuccessWhenTransportRotatesAfterCommit() {
+        BotJobDetailsWorkspaceRegistry registry =
+                BotJobDetailsWorkspaceRegistry.getInstance();
+        BotJobLoadDTO botJob = new BotJobLoadDTO();
+        botJob.setId(5);
+        botJob.setName("Job Five");
+        botJob.setHomeBankingId(2);
+        BotJobDetailsWorkspaceRegistry.Snapshot active =
+                registry.activate(botJob, false);
+        try {
+            FakeWorkspaces exactWorkspaces = new FakeWorkspaces();
+            exactWorkspaces.add(new VariablesWorkspaceService.WorkspaceContext(
+                    active.workspaceEpoch(),
+                    5,
+                    2,
+                    "Job Five",
+                    "Bank"));
+            FakeMutations mutations = FakeMutations.ready();
+            mutations.commitResult = new CommitResult(
+                    OwnerKey.botJob(2, 5),
+                    active.workspaceEpoch(),
+                    "variables-resync",
+                    4L,
+                    5L,
+                    "mutation-after");
+            VariablesWorkspaceService mutableService =
+                    new VariablesWorkspaceService(
+                            exactWorkspaces,
+                            graphs,
+                            windows,
+                            new Gson(),
+                            tasks,
+                            mutations);
+            mutableService.openForBotJob(5);
+            Session original = openSession();
+            windows.register(original);
+            mutableService.connected(
+                    VariablesWorkspaceService.WORKSPACE_SESSION_ID,
+                    original);
+            JsonObject bootstrap = mutableService.bootstrap(
+                    new JsonObject(),
+                    VariablesWorkspaceService.WORKSPACE_SESSION_ID,
+                    original);
+
+            Session replacement = openSession();
+            mutations.afterMutate = () -> {
+                windows.register(replacement);
+                mutableService.connected(
+                        VariablesWorkspaceService.WORKSPACE_SESSION_ID,
+                        replacement);
+            };
+            InstructionGraphMutationV3.Request mutation =
+                    new InstructionGraphMutationV3.Request(
+                            InstructionGraphMutationV3.CONTRACT_VERSION,
+                            InstructionGraphMutationV3.MutationKind.ROW_MOVE,
+                            "variables-resync",
+                            4L,
+                            "mutation-five",
+                            active.workspaceEpoch(),
+                            new InstructionGraphMutationV3.OwnerAssertion(
+                                    InstructionGraphMutationV3.WorkspaceKind.BOT_JOB,
+                                    2,
+                                    5),
+                            100,
+                            List.of(
+                                    new LayoutRow(101, 10, 1, 1),
+                                    new LayoutRow(100, 10, 1, 2),
+                                    new LayoutRow(102, 10, 1, 3)),
+                            List.of(),
+                            List.of(),
+                            List.of());
+            JsonObject request =
+                    new Gson().toJsonTree(mutation).getAsJsonObject();
+            request.addProperty(
+                    "bindingEpoch",
+                    bootstrap.get("bindingEpoch").getAsString());
+
+            JsonObject response = mutableService.mutate(
+                    request,
+                    VariablesWorkspaceService.WORKSPACE_SESSION_ID,
+                    original);
+
+            assertTrue(response.get("ok").getAsBoolean(), response.toString());
+            assertTrue(response.get("committed").getAsBoolean());
+            assertTrue(response.get("resyncRequired").getAsBoolean());
+            assertFalse(response.has("preserveSnapshot"));
+            assertEquals(5, response.get("botJobId").getAsInt());
+            assertEquals(2, response.get("homeBankingId").getAsInt());
+            assertEquals(active.workspaceEpoch(), response.get("workspaceEpoch").getAsLong());
+            assertEquals(5L, response.get("committedGraphVersion").getAsLong());
+            assertEquals("mutation-after", response.get("graphRevision").getAsString());
+            assertEquals(1, mutations.mutateCalls);
+        } finally {
+            registry.close(5);
+        }
+    }
+
     private JsonObject graph(String revision) {
         JsonObject graph = new JsonObject();
         graph.addProperty("ok", true);
@@ -506,6 +831,102 @@ class VariablesWorkspaceServiceTest {
             List<Runnable> pending = new ArrayList<>(disconnects);
             disconnects.clear();
             pending.forEach(Runnable::run);
+        }
+    }
+
+    private static final class FakeMutations
+            implements VariablesWorkspaceService.MutationPort {
+        private GraphSnapshot snapshot;
+        private CommitResult commitResult;
+        private int inspectCalls;
+        private int mutateCalls;
+        private int lastHomeBankingId;
+        private int lastBotJobId;
+        private long lastWorkspaceEpoch;
+        private InstructionGraphMutationV3.Request lastRequest;
+        private Runnable afterMutate = () -> {};
+
+        private static FakeMutations ready() {
+            FakeMutations mutations = new FakeMutations();
+            mutations.snapshot = new GraphSnapshot(
+                    4L,
+                    "mutation-five",
+                    List.of(
+                            new LayoutRow(100, 10, 1, 1),
+                            new LayoutRow(101, 10, 1, 2),
+                            new LayoutRow(102, 10, 1, 3)),
+                    List.of(
+                            new GraphInstructionFact(
+                                    100,
+                                    10,
+                                    1,
+                                    1,
+                                    "GET",
+                                    null,
+                                    null,
+                                    7),
+                            new GraphInstructionFact(
+                                    101,
+                                    10,
+                                    1,
+                                    2,
+                                    "H",
+                                    null,
+                                    null,
+                                    null),
+                            new GraphInstructionFact(
+                                    102,
+                                    10,
+                                    1,
+                                    3,
+                                    "CK",
+                                    null,
+                                    null,
+                                    7)));
+            return mutations;
+        }
+
+        @Override
+        public GraphSnapshot inspect(
+                int homeBankingId,
+                int botJobId,
+                long workspaceEpoch)
+                throws SQLException {
+            inspectCalls++;
+            recordIdentity(homeBankingId, botJobId, workspaceEpoch);
+            return snapshot;
+        }
+
+        @Override
+        public CommitResult mutate(
+                int homeBankingId,
+                int botJobId,
+                long workspaceEpoch,
+                InstructionGraphMutationV3.Request request)
+                throws SQLException {
+            mutateCalls++;
+            recordIdentity(homeBankingId, botJobId, workspaceEpoch);
+            lastRequest = request;
+            if (commitResult == null) {
+                commitResult = new CommitResult(
+                        OwnerKey.botJob(homeBankingId, botJobId),
+                        workspaceEpoch,
+                        request.requestId(),
+                        request.baseGraphVersion(),
+                        request.baseGraphVersion() + 1L,
+                        "mutation-after");
+            }
+            afterMutate.run();
+            return commitResult;
+        }
+
+        private void recordIdentity(
+                int homeBankingId,
+                int botJobId,
+                long workspaceEpoch) {
+            lastHomeBankingId = homeBankingId;
+            lastBotJobId = botJobId;
+            lastWorkspaceEpoch = workspaceEpoch;
         }
     }
 

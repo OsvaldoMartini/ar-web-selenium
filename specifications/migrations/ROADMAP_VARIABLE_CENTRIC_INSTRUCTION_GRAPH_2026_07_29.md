@@ -737,6 +737,8 @@ Recommended independent capability flags:
 - `freeCrossBlockMoveV1`
 - `componentRowMoveContractV3`
 - `automaticVariableCreationV1`
+- Variables snapshot `mutationCapability` for the narrow
+  `variablesWorkspace.graphMutationV3` command-reorder route
 - `variablesWorkspaceActionsV1`
 - `conditionalDraftMoveV1`
 
@@ -757,7 +759,7 @@ Recommended independent capability flags:
 | P10 | Delete selected/direct/full explicit modes | High | Delete v3 flag |
 | P11 | Cross-Block and later conditional freedom | High | Separate flags |
 | P12 | Independent Components parity | High | Component-only flag |
-| P13 | Interactive Variables page | Medium | Variables actions flag |
+| P13 | Variables same-Block command reorder lane, then interactive repair actions | Medium | Private mutation capability, then Variables actions flag |
 | P14 | Historical repair and database constraints | High | Migration gate |
 | P15 | Legacy semantic-code retirement | Medium | Remove only after acceptance |
 | P16 | Runtime values and pause/edit/resume | Separate Engine project | Deferred |
@@ -1292,6 +1294,154 @@ Rollback:
 
 Goal: turn current diagnostics into safe repair entry points.
 
+#### P13A - Private same-Block variable-command reorder lane
+
+This is the first safe behavior-changing Variables-page slice. It is intentionally narrower than
+general Variables-page drag/drop and does not activate reconnect, disconnect, owner transfer, or
+cross-Block authoring.
+
+Scope lock:
+
+- [x] Add one Variables-owned execution-order lane for the selected variable. The lane is a view
+  of that variable's owner/commands projected onto the authoritative Bot Job instruction order,
+  not a complete Block renderer or a second ordering model.
+- [x] Keep its drag controller, source ID, drop intent, pending request, timeout, rollback, and
+  binding-epoch checks private to the detached Variables page. It may reuse pure stateless graph
+  and contract types, but it must not share live drag state with Bot Job Details, Components, or
+  Memory List.
+- [x] Allow exactly one eligible variable command to move to one exact before/after gap inside its
+  existing Block. GET, SET, E, CK, PDF CHECK, and CSV CHECK remain subject to the P1 command
+  matrix. The selected variable's visible owner/command rows are drop anchors only, not implicit
+  members of the move. Hidden ordinary rows keep their relative order; structural/navigation rows
+  are not rendered as lane anchors in this slice, and crossing one is refused.
+- [x] React calculates the complete final owner layout. Every non-selected instruction keeps its
+  relative order except for the mechanical renumbering required by insertion of the selected row.
+  The submitted `draggedInstructionId` identifies that one row only.
+- [x] Preserve `parentId`, `parentBlockId`, `variableId`, variable ownership, action, configured
+  `operation`, and all relationship targets byte-for-byte. The request carries no relationship,
+  variable-binding, variable-owner, delete, or operation patch.
+- [x] Refuse a source with an unresolved/invalid variable link, a cross-Block target, a drop across
+  a LOOP/IF/navigation boundary, or a layout that introduces a new parent/producer/consumer order
+  issue. This valid-only slice never persists a new broken draft.
+- [x] Never expand a parent, child, variable family, positional body, LOOP anchor, conditional
+  family, GOTO target, or nearby row into the move. Physical proximity is only the explicit
+  before/after insertion point.
+- [x] Do not expose rebind, reconnect, disconnect, variable-owner detach/transfer, command delete,
+  cross-Block move, or Component mutation from this lane.
+
+Capability and route:
+
+- [x] The Variables snapshot supplies a versioned `mutationCapability` from the authenticated
+  bound Bot Job when version-3 inspection succeeds. The envelope carries the exact
+  `VARIABLES_INDIVIDUAL_ROW_V1` profile, contract version,
+  authoritative owner assertion, workspace/binding epochs, graph version, content revision,
+  complete layout rows, raw persisted actions, and relationship IDs. React validates those facts,
+  derives LOOP/IF/GOTO/ordinary semantics through `instructionRelationshipPolicy`, and fails
+  closed to a visible read-only page when the capability is missing, disabled, contradictory, or
+  malformed.
+- [ ] Gate production advertisement on a proven reliable shared graph version across every
+  enabled legacy/v2 writer. The development route is implemented, but this activation condition
+  remains tied to the mixed-writer debt below.
+- [x] Use the private request route `variablesWorkspace.graphMutationV3` and correlated response
+  `variablesWorkspace.graphMutationV3Response` on the `variablesManager` session. The route reuses
+  `InstructionGraphMutationV3` with `mutationKind: "ROW_MOVE"`; it does not invent a second
+  persistence contract.
+- [x] Java derives the Bot Job owner from the authenticated detached binding and workspace
+  registry, compares any client owner assertion, validates the complete layout and expected
+  graph revision/version, performs database compare-and-set, persists exactly the submitted
+  layout atomically, verifies the result, and commits. Java does not choose drag eligibility,
+  expand a group, select a target, repair a relationship, or rewrite an operation. Its
+  transaction-scoped `VARIABLES_INDIVIDUAL_ROW_V1` safety profile proves that the submitted
+  request is one eligible same-Block reinsertion with no relationship/variable patches or
+  structural crossing. It evaluates the same authoritative snapshot used by the write, avoiding
+  a separate inspection/write race. The persistence validator may rederive a stored action's
+  relation kind only to verify that the React submission did not forge or silently mutate
+  persisted structural facts.
+- [ ] After commit, send one correlated response and publish authoritative Bot Job Grid/raw
+  variable/Variables snapshots with the same committed graph version and content revision.
+  Failed, stale, late, or wrong-epoch responses preserve the last valid Variables snapshot.
+- [x] Keep this narrow capability independent from `variablesWorkspaceActionsV1`; enabling command
+  reorder must not implicitly enable the later repair/delete actions.
+
+Required focused tests:
+
+- [x] `variablesInstructionMove.test.ts`: exact one-row same-Block before/after layouts; stable
+  hidden-row order; no patches; operation/relationship preservation; no-op, invalid source,
+  structural-boundary, unsafe-order, and cross-Block refusal.
+- [x] `useVariablesInstructionDrag.test.tsx` and `VariableExecutionLane.test.tsx`: page-private drag
+  state, exact gap intent, owner rows not draggable, exact transfer validation, end-of-Block gaps,
+  and authority-change cleanup.
+- [x] `useVariablesGraphMutation.test.tsx`, `variablesWorkspace.contract.test.ts`, and
+  `VariablesPage.test.tsx`: capability/profile fail-closed behavior, one correlated request,
+  non-advancing-success refusal, authority-change cancellation, page request timeout behavior,
+  and last-snapshot preservation after refresh failure.
+- [x] `VariablesWorkspaceServiceTest`, `VariablesWorkspaceAuthorizationTest`,
+  `InstructionGraphMutationContractValidatorTest`, `VariablesInstructionMutationProfileTest`,
+  `ScannerBotJobTasksPublisherTest`, and `BotJobGraphMutationTransactionTest`:
+  forged owner/binding/epoch refusal, complete-layout validation, stale revision/version refusal,
+  concurrent same-base CAS with exactly one commit, injected rollback, no group inference, and
+  exact committed layout.
+- [ ] WebSocket routing/publication coverage proves the response operation names, acknowledgement
+  before publication, and Grid/Variables convergence on one committed version.
+- [ ] Mixed-writer coverage proves an intervening v2/legacy writer advances the same graph version
+  and makes the stale Variables request fail before this capability is advertised.
+
+Implementation checkpoint (2026-07-29):
+
+- the Variables page owns a private `VariableExecutionLane`, native drag hook, pure movement
+  planner, and correlated mutation transport; no live drag state is shared with GridItem,
+  GridItemComp, or Memory List;
+- Java exposes the complete persisted layout plus raw action/relationship facts. React derives
+  action semantics through the shared TypeScript policy, calculates one complete exact layout,
+  and submits no relationship/variable/operation patches for this valid-only reorder;
+- Java remains the trust and persistence boundary: authenticated owner/binding checks, expected
+  revision/version validation, compare-and-set, atomic database writes, final-state verification,
+  and commit. A committed response carries `committed: true`; a post-commit transport rotation is
+  a committed resync response rather than a false refusal. The WebSocket route attempts the
+  correlated acknowledgement before invoking its publication hook and invokes that hook even if
+  the requester closed, but end-to-end Grid/Variables convergence is not yet claimed;
+- focused verification is green: 35 React tests across six Variables suites and 54 Java tests
+  across the mutation transaction/profile, contract validator, publication, Variables
+  authorization, and Variables service suites; the optimized React build also compiles and is
+  mirrored byte-for-byte into the backend resource build;
+- this checkpoint does not claim cross-Block movement, reconnect/detach, owner transfer, delete,
+  end-to-end publication convergence, or mixed legacy-writer activation.
+- the current application singleton advertises the capability whenever version-3 inspection
+  succeeds so this slice can undergo the requested runtime testing. This is explicitly
+  pre-production/pre-acceptance behavior, not proof that the production mixed-writer activation
+  gate below has passed; production release requires gating or completing that gate.
+
+Remaining activation debt:
+
+- [ ] Shared-version debt: every enabled v2/legacy graph writer listed in Section 6 must advance
+  the same `instruction_graph_state` owner version in its own transaction. Until the inventory,
+  mixed-writer tests, and production-dialect checks pass, `mutationCapability` must be absent or
+  disabled even if the version-3 transaction itself is available.
+- [ ] Operation-patch debt: version 3 does not yet carry explicit expected-old/new instruction
+  `operation` patches. This reorder is safe because it preserves `operation` exactly. Rebind,
+  variable rename/type propagation, owner transfer, or any action that requires an operation
+  rewrite remains disabled until React can submit an explicit operation patch (or an equally exact
+  reviewed contract) and Java can validate/persist it in the same CAS transaction without hidden
+  inference.
+- [ ] P4 hard execution gating and P5 authenticated CAS transport must be accepted before P13A
+  activation. P7/P8/P10/P11 and the broader P13 actions remain separate capabilities; P13A does
+  not satisfy or bypass them.
+
+Future P13A acceptance target (not yet claimed):
+
+- One drag commits exactly one same-Block variable command and no relationship or operation change.
+- Java can neither add a row nor infer a group/repair that React did not submit.
+- Grid and Variables snapshots converge on the same committed version; a refusal leaves both last
+  valid views intact.
+
+P13A rollback:
+
+- Withdraw/disable `mutationCapability` for the Variables session and retain the read-only page.
+  Accepted layouts require no data conversion because they are ordinary version-3 same-Block
+  layouts with unchanged relationships and operations.
+
+#### P13B - Repair and lifecycle actions
+
 Tasks:
 
 - [ ] Add owner/memory state badges.
@@ -1310,7 +1460,8 @@ Acceptance:
 
 Rollback:
 
-- Disable Variables actions; retain the current read-only page.
+- Disable `variablesWorkspaceActionsV1`; P13A command reorder may remain independently enabled
+  after its own acceptance, or withdraw `mutationCapability` to return the whole page to read-only.
 
 ### P14 - Historical repair and database constraints
 

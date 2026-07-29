@@ -1,6 +1,7 @@
 package com.allinweb.ch.socket;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -10,6 +11,8 @@ import com.allinweb.ch.model.BotJobDetailsRequest;
 import com.allinweb.ch.model.BotJobLoadDTO;
 import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import com.google.gson.JsonObject;
+import java.lang.reflect.Field;
+import java.util.Set;
 import javax.websocket.Session;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -66,6 +69,25 @@ class VariablesWorkspaceAuthorizationTest {
                 IllegalArgumentException.class,
                 () -> endpoint.requireVariablesWorkspaceOpenAuthority(
                         wrongJob, authoritative));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void detachedVariablesTransportAllowsOnlyItsExplicitWorkspaceRoutes()
+            throws Exception {
+        Field operationsField =
+                SimpleWebSocketServer.class.getDeclaredField(
+                        "DETACHED_VARIABLES_OPERATIONS");
+        operationsField.setAccessible(true);
+
+        assertEquals(
+                Set.of(
+                        "variablesWorkspace.bootstrap",
+                        "variablesWorkspace.refresh",
+                        "variablesWorkspace.graphMutationV3",
+                        "pagesOpen.open",
+                        "pagesOpen.summary"),
+                (Set<String>) operationsField.get(null));
     }
 
     private Session openSession() {

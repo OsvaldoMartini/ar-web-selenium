@@ -115,6 +115,7 @@ public class SimpleWebSocketServer {
     private static final Set<String> DETACHED_VARIABLES_OPERATIONS = Set.of(
             "variablesWorkspace.bootstrap",
             "variablesWorkspace.refresh",
+            "variablesWorkspace.graphMutationV3",
             "pagesOpen.open",
             "pagesOpen.summary");
     private static final ScannerPluginDownloadCommandService scannerPluginDownloadCommandService =
@@ -887,6 +888,23 @@ public class SimpleWebSocketServer {
                             "variablesWorkspace.refreshResponse",
                             variablesWorkspaceService.refresh(
                                     variablesBody, sessionId, session));
+                    break;
+                }
+                case "variablesWorkspace.graphMutationV3": {
+                    JsonObject variablesBody = extractBody(jsonObjMSG);
+                    JsonObject mutationResponse = variablesWorkspaceService.mutate(
+                            variablesBody, sessionId, session);
+                    try {
+                        sendCommandEditorResponse(
+                                homeBankingId,
+                                sessionId,
+                                "variablesWorkspace.graphMutationV3Response",
+                                mutationResponse);
+                    } finally {
+                        // A closed/replaced requester must not suppress publication of an
+                        // already committed database change.
+                        variablesWorkspaceService.publishCommittedMutation(mutationResponse);
+                    }
                     break;
                 }
                 case "commandEditor.select": {

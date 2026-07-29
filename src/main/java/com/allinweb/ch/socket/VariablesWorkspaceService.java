@@ -1,10 +1,18 @@
 package com.allinweb.ch.socket;
 
 import com.allinweb.ch.facade.BotJobDetailsWorkspaceRegistry;
+import com.allinweb.ch.facade.BotJobGraphMutationService;
+import com.allinweb.ch.facade.BotJobGraphMutationTransaction.CommitResult;
+import com.allinweb.ch.facade.BotJobGraphMutationTransaction.GraphSnapshot;
+import com.allinweb.ch.facade.BotJobGraphMutationTransaction.MutationRefusedException;
+import com.allinweb.ch.facade.ScannerBotJobTasksPublisher;
 import com.allinweb.ch.facade.VariableRelationshipService;
+import com.allinweb.ch.facade.VariablesInstructionMutationProfile;
 import com.allinweb.ch.model.DetachedWorkspaceSessions;
+import com.allinweb.ch.model.InstructionGraphMutationV3;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import java.sql.SQLException;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -33,13 +41,15 @@ public final class VariablesWorkspaceService {
                      VariableRelationshipService.getInstance()::load,
                      new DefaultWindowPort(),
                      new Gson(),
-                     DefaultTaskPort.INSTANCE);
+                     DefaultTaskPort.INSTANCE,
+                     DefaultMutationPort.INSTANCE);
 
     private final WorkspacePort workspaces;
     private final GraphPort graphs;
     private final WindowPort windows;
     private final Gson gson;
     private final TaskPort tasks;
+    private final MutationPort mutations;
     private final Object stateLock = new Object();
     private Binding binding;
     private Session managerTransport;
@@ -47,7 +57,13 @@ public final class VariablesWorkspaceService {
 
     VariablesWorkspaceService(
              WorkspacePort workspaces, GraphPort graphs, WindowPort windows, Gson gson) {
-        this(workspaces, graphs, windows, gson, DefaultTaskPort.INSTANCE);
+        this(
+                workspaces,
+                graphs,
+                windows,
+                gson,
+                DefaultTaskPort.INSTANCE,
+                UnavailableMutationPort.INSTANCE);
     }
 
     VariablesWorkspaceService(
@@ -56,11 +72,28 @@ public final class VariablesWorkspaceService {
             WindowPort windows,
             Gson gson,
             TaskPort tasks) {
+        this(
+                workspaces,
+                graphs,
+                windows,
+                gson,
+                tasks,
+                UnavailableMutationPort.INSTANCE);
+    }
+
+    VariablesWorkspaceService(
+            WorkspacePort workspaces,
+            GraphPort graphs,
+            WindowPort windows,
+            Gson gson,
+            TaskPort tasks,
+            MutationPort mutations) {
         this.workspaces = workspaces;
         this.graphs = graphs;
         this.windows = windows;
         this.gson = gson;
         this.tasks = tasks;
+        this.mutations = mutations;
     }
 
     public static VariablesWorkspaceService getInstance() {
@@ -170,6 +203,135 @@ public final class VariablesWorkspaceService {
                 requesterSessionId,
                 requesterTransport,
                 "Variable relationships refreshed.");
+    }
+
+    /**
+     * Persists one complete React-planned version-3 graph mutation.
+     *
+     * <p>The detached binding supplies the authoritative owner. Java does not expand the dragged
+     * row or choose a relationship target; it validates stale expected facts and commits exactly
+     * the submitted complete layout and patches.
+     */
+    public JsonObject mutate(
+            JsonObject body, String requesterSessionId, Session requesterTransport) {
+        JsonObject request = body == null ? new JsonObject() : body;
+        Binding current = null;
+        try {
+            requireManagerTransport(requesterSessionId, requesterTransport);
+            current = currentBinding();
+            if (current == null) {
+                throw new IllegalArgumentException(
+                        "No Bot Job is bound to the Variables workspace.");
+            }
+            String requestedBindingEpoch = text(request, "bindingEpoch");
+            if (requestedBindingEpoch.isBlank()
+                    || !requestedBindingEpoch.equals(current.bindingEpoch())) {
+                throw new IllegalArgumentException(
+                        "The Variables target changed. Reload the current Bot Job.");
+            }
+
+            WorkspaceContext workspace =
+                    workspaces.require(current.botJobId(), current.workspaceEpoch());
+            current = current.withWorkspace(workspace);
+            InstructionGraphMutationV3.Request mutationRequest;
+            try {
+                mutationRequest = gson.fromJson(
+                        request, InstructionGraphMutationV3.Request.class);
+            } catch (RuntimeException malformed) {
+                throw new IllegalArgumentException(
+                        "The Variables graph mutation request is malformed.");
+            }
+            if (mutationRequest == null) {
+                throw new IllegalArgumentException(
+                        "A Variables graph mutation request is required.");
+            }
+
+            Binding authorized = current;
+            CommitResult committed =
+                    BotJobDetailsWorkspaceRegistry.getInstance().commitWorkspaceMutation(
+                            authorized.botJobId(),
+                            authorized.workspaceEpoch(),
+                            () -> persistMutation(authorized, mutationRequest));
+            JsonObject response = mutationSuccess(request, authorized, committed);
+            if (!isCurrent(authorized) || !isManagerTransport(requesterTransport)) {
+                response.addProperty("resyncRequired", true);
+                response.addProperty(
+                        "message",
+                        "Instruction order saved, but the Variables target changed. "
+                                + "Refreshing authoritative workspaces.");
+            }
+            return response;
+        } catch (MutationPersistenceException persistenceFailure) {
+            Throwable cause = persistenceFailure.getCause();
+            if (cause instanceof MutationRefusedException refused) {
+                return mutationFailure(
+                        request, refused.code(), refused.getMessage(), current);
+            }
+            log.error("Unable to persist a Variables graph mutation", cause);
+            return mutationFailure(
+                    request,
+                    "PERSISTENCE_FAILED",
+                    "The Variables graph change was not saved.",
+                    current);
+        } catch (IllegalArgumentException | IllegalStateException invalidRequest) {
+            return mutationFailure(
+                    request,
+                    "REQUEST_REFUSED",
+                    invalidRequest.getMessage(),
+                    current == null ? currentBinding() : current);
+        } catch (RuntimeException failure) {
+            log.error("Unable to process a Variables graph mutation", failure);
+            return mutationFailure(
+                    request,
+                    "MUTATION_FAILED",
+                    "The Variables graph change was not completed.",
+                    current == null ? currentBinding() : current);
+        }
+    }
+
+    /**
+     * Publishes authoritative views after the correlated acknowledgement attempt.
+     *
+     * <p>A closed requester cannot undo the commit or suppress synchronization to surviving
+     * workspaces.
+     */
+    public void publishCommittedMutation(JsonObject response) {
+        if (response == null
+                || !response.has("ok")
+                || !response.get("ok").getAsBoolean()
+                || !response.has("committed")
+                || !response.get("committed").getAsBoolean()
+                || !response.has("botJobId")
+                || !response.has("homeBankingId")) {
+            return;
+        }
+        int botJobId = response.get("botJobId").getAsInt();
+        int homeBankingId = response.get("homeBankingId").getAsInt();
+        var gridError =
+                ScannerBotJobTasksPublisher.getInstance()
+                        .publishGridOnly(homeBankingId, botJobId);
+        if (gridError != null) {
+            log.warn(
+                    "Variables mutation committed for Bot Job {}, but Bot Job Details refresh "
+                    + "failed: {}",
+                    botJobId,
+                    gridError.getErrorMessage());
+        }
+        notifyMutation(botJobId);
+    }
+
+    private CommitResult persistMutation(
+            Binding authorized,
+            InstructionGraphMutationV3.Request request) {
+        try {
+            return mutations.mutate(
+                    authorized.homeBankingId(),
+                    authorized.botJobId(),
+                    authorized.workspaceEpoch(),
+                    request);
+        } catch (SQLException error) {
+            throw new MutationPersistenceException(error);
+        }
     }
 
     /**
@@ -413,6 +575,11 @@ public final class VariablesWorkspaceService {
         WorkspaceContext authoritative =
                 workspaces.require(current.botJobId(), current.workspaceEpoch());
         JsonObject response = graph.deepCopy();
+        String contentRevision = text(graph, "graphRevision");
+        if (!contentRevision.isBlank()) {
+            response.addProperty("contentRevision", contentRevision);
+        }
+        addMutationCapability(response, current);
         response.addProperty("message", message);
         response.addProperty("bindingEpoch", current.bindingEpoch());
         response.addProperty("workspaceEpoch", current.workspaceEpoch());
@@ -424,6 +591,43 @@ public final class VariablesWorkspaceService {
         response.add("botJob", botJob);
         correlate(request, response);
         return response;
+    }
+
+    private void addMutationCapability(JsonObject response, Binding current) {
+        JsonObject capability = new JsonObject();
+        try {
+            GraphSnapshot graph = mutations.inspect(
+                    current.homeBankingId(),
+                    current.botJobId(),
+                    current.workspaceEpoch());
+            capability.addProperty("enabled", true);
+            capability.addProperty(
+                    "contractVersion", InstructionGraphMutationV3.CONTRACT_VERSION);
+            capability.addProperty(
+                    "profile", VariablesInstructionMutationProfile.PROFILE_ID);
+            capability.addProperty("graphVersion", graph.graphVersion());
+            capability.addProperty("graphRevision", graph.graphRevision());
+            JsonObject owner = new JsonObject();
+            owner.addProperty(
+                    "workspaceKind",
+                    InstructionGraphMutationV3.WorkspaceKind.BOT_JOB.name());
+            owner.addProperty("homeBankingId", current.homeBankingId());
+            owner.addProperty("botJobId", current.botJobId());
+            capability.add("ownerAssertion", owner);
+            capability.add("layoutRows", gson.toJsonTree(graph.layoutRows()));
+            capability.add("instructionFacts", gson.toJsonTree(graph.instructionFacts()));
+            response.addProperty("graphVersion", graph.graphVersion());
+        } catch (SQLException | RuntimeException unavailable) {
+            capability.addProperty("enabled", false);
+            capability.addProperty(
+                    "message",
+                    "Variables drag and drop is temporarily unavailable.");
+            log.warn(
+                    "Unable to load Variables mutation capability for Bot Job {}: {}",
+                    current.botJobId(),
+                    unavailable.getMessage());
+        }
+        response.add("mutationCapability", capability);
     }
 
     private boolean publish(JsonObject response, Binding current) {
@@ -483,6 +687,64 @@ public final class VariablesWorkspaceService {
             response.addProperty("homeBankingId", current.homeBankingId());
         }
         correlate(request, response);
+        return response;
+    }
+
+    private JsonObject mutationSuccess(
+            JsonObject request,
+            Binding current,
+            CommitResult committed) {
+        JsonObject response = mutationResponseBase(request, current);
+        response.addProperty("ok", true);
+        response.addProperty("committed", true);
+        response.addProperty("resyncRequired", false);
+        response.addProperty("committedGraphVersion", committed.committedGraphVersion());
+        response.addProperty("graphRevision", committed.graphRevision());
+        response.addProperty(
+                "message",
+                "Instruction order saved. Refreshing Variables and Bot Job Details.");
+        return response;
+    }
+
+    private JsonObject mutationFailure(
+            JsonObject request,
+            String errorCode,
+            String message,
+            Binding current) {
+        JsonObject response = mutationResponseBase(request, current);
+        response.addProperty("ok", false);
+        response.addProperty("preserveSnapshot", true);
+        response.addProperty(
+                "errorCode",
+                errorCode == null || errorCode.isBlank()
+                        ? "MUTATION_REFUSED"
+                        : errorCode);
+        response.addProperty(
+                "message",
+                message == null || message.isBlank()
+                        ? "The Variables graph change was refused."
+                        : message);
+        return response;
+    }
+
+    private JsonObject mutationResponseBase(JsonObject request, Binding current) {
+        JsonObject response = new JsonObject();
+        response.addProperty(
+                "contractVersion", InstructionGraphMutationV3.CONTRACT_VERSION);
+        correlate(request, response);
+        if (current != null) {
+            response.addProperty("bindingEpoch", current.bindingEpoch());
+            response.addProperty("workspaceEpoch", current.workspaceEpoch());
+            response.addProperty("botJobId", current.botJobId());
+            response.addProperty("homeBankingId", current.homeBankingId());
+            JsonObject owner = new JsonObject();
+            owner.addProperty(
+                    "workspaceKind",
+                    InstructionGraphMutationV3.WorkspaceKind.BOT_JOB.name());
+            owner.addProperty("homeBankingId", current.homeBankingId());
+            owner.addProperty("botJobId", current.botJobId());
+            response.add("ownerAssertion", owner);
+        }
         return response;
     }
 
@@ -649,6 +911,21 @@ public final class VariablesWorkspaceService {
         void scheduleDisconnect(Runnable task, long delayMillis);
     }
 
+    interface MutationPort {
+        GraphSnapshot inspect(
+                int homeBankingId,
+                int botJobId,
+                long workspaceEpoch)
+                throws SQLException;
+
+        CommitResult mutate(
+                int homeBankingId,
+                int botJobId,
+                long workspaceEpoch,
+                InstructionGraphMutationV3.Request request)
+                throws SQLException;
+    }
+
     record WorkspaceContext(
             long workspaceEpoch,
             int botJobId,
@@ -698,6 +975,62 @@ public final class VariablesWorkspaceService {
                     workspace.botJobName(),
                     workspace.organizationName(),
                     graphRevision);
+        }
+    }
+
+    private static final class MutationPersistenceException extends RuntimeException {
+        private MutationPersistenceException(SQLException cause) {
+            super(cause);
+        }
+    }
+
+    private enum DefaultMutationPort implements MutationPort {
+        INSTANCE;
+
+        private final BotJobGraphMutationService service =
+                BotJobGraphMutationService.getInstance();
+
+        @Override
+        public GraphSnapshot inspect(
+                int homeBankingId,
+                int botJobId,
+                long workspaceEpoch)
+                throws SQLException {
+            return service.inspect(homeBankingId, botJobId, workspaceEpoch);
+        }
+
+        @Override
+        public CommitResult mutate(
+                int homeBankingId,
+                int botJobId,
+                long workspaceEpoch,
+                InstructionGraphMutationV3.Request request)
+                throws SQLException {
+            return service.mutateVariablesInstructionMove(
+                    homeBankingId, botJobId, workspaceEpoch, request);
+        }
+    }
+
+    private enum UnavailableMutationPort implements MutationPort {
+        INSTANCE;
+
+        @Override
+        public GraphSnapshot inspect(
+                int homeBankingId,
+                int botJobId,
+                long workspaceEpoch)
+                throws SQLException {
+            throw new SQLException("Variables graph mutation capability is unavailable.");
+        }
+
+        @Override
+        public CommitResult mutate(
+                int homeBankingId,
+                int botJobId,
+                long workspaceEpoch,
+                InstructionGraphMutationV3.Request request)
+                throws SQLException {
+            throw new SQLException("Variables graph mutation capability is unavailable.");
         }
     }
 

@@ -118,6 +118,27 @@ class ScannerBotJobTasksPublisherTest {
                 + ScannerWorkspaceOperations.UPDATE_INSTRUCTIONS, sender.sendCall);
     }
 
+    @Test
+    void returnsRefreshErrorWhenGridOnlySnapshotCannotBeDelivered() {
+        RecordingData data = new RecordingData();
+        data.jobs.add(new BotJobLoadDTO());
+        data.viewRows = List.of(InstructionLoad.builder().id(12).name("Login").build());
+        RecordingSender sender = new RecordingSender();
+        sender.deliverySuccessful = false;
+        ScannerBotJobTasksPublisher publisher =
+                new ScannerBotJobTasksPublisher(data, sender, new Gson());
+
+        ErrorMessage result = publisher.publishGridOnly(2, 5);
+
+        assertNotNull(result);
+        assertEquals("Bot Job Details Refresh", result.getErrorTitle());
+        assertEquals(
+                "The database was saved, but Bot Job Details could not be refreshed.",
+                result.getErrorHeader());
+        assertEquals("send:2:" + ScannerWorkspaceSessions.BOT_JOB_TASKS + ":"
+                + ScannerWorkspaceOperations.UPDATE_INSTRUCTIONS, sender.sendCall);
+    }
+
     private static final class RecordingData implements ScannerBotJobTasksPublisher.DataPort {
         private final List<String> calls = new ArrayList<>();
         private final List<BotJobLoadDTO> jobs = new ArrayList<>();
