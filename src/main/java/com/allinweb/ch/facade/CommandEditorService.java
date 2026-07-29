@@ -459,8 +459,7 @@ public final class CommandEditorService {
                         exception.getMessage());
             }
         }
-        JsonObject response = new JsonObject();
-        response.addProperty("ok", error == null);
+        JsonObject response = newMemoryCapabilitiesResponse(componentSession, error == null);
         JsonArray capabilities = new JsonArray();
         JsonArray blockCapabilities = new JsonArray();
         String currentGraphRevision = "";
@@ -532,7 +531,7 @@ public final class CommandEditorService {
             throws SQLException {
         String table = component ? "component_variable" : "variable";
         String ownerColumn = component ? "home_banking_id" : "bot_job_id";
-        String sql = "SELECT id, instruction_id FROM " + table
+        String sql = "SELECT id, instruction_id, type FROM " + table
                 + " WHERE " + ownerColumn + " = ? ORDER BY id";
         List<VariableLoadDTO> variables = new java.util.ArrayList<>();
         try (Connection connection = database.getConnection();
@@ -545,7 +544,7 @@ public final class CommandEditorService {
                             component ? ownerId : null,
                             component ? null : ownerId,
                             nullableResultInteger(result, "instruction_id"),
-                            null,
+                            result.getString("type"),
                             null,
                             null,
                             null,
@@ -565,9 +564,21 @@ public final class CommandEditorService {
             JsonObject link = new JsonObject();
             link.addProperty("id", variable.getId());
             link.addProperty("instructionId", variable.getInstructionId());
+            link.addProperty("type", variable.getType());
             links.add(link);
         }
         return links;
+    }
+
+    static JsonObject newMemoryCapabilitiesResponse(boolean componentSession, boolean ok) {
+        JsonObject response = new JsonObject();
+        response.addProperty("ok", ok);
+        JsonObject workspaceCapabilities = new JsonObject();
+        // P3 is intentionally Bot Job-only. Components share GridItem rendering but must keep
+        // their existing presentation until the dedicated Component phase is activated.
+        workspaceCapabilities.addProperty("relationshipChipsV1", !componentSession);
+        response.add("workspaceCapabilities", workspaceCapabilities);
+        return response;
     }
 
     private static Integer nullableResultInteger(ResultSet result, String column)

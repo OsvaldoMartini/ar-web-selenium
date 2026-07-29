@@ -1165,7 +1165,7 @@ public class SimpleWebSocketServer {
                                 session,
                                 homeBankingId,
                                 "instructionEditor.memoryCapabilitiesResponse",
-                                attachMemoryCapabilitiesCorrelation(
+                                attachInstructionRequestCorrelation(
                                         commandEditorFailure(
                                                 commandMemoryBody,
                                                 authorizationError.getMessage()),
@@ -6388,7 +6388,16 @@ public class SimpleWebSocketServer {
 
     static JsonObject attachMemoryCapabilitiesCorrelation(
             JsonObject response, JsonObject authorizedBody) {
-        return attachInstructionRequestCorrelation(response, authorizedBody);
+        JsonObject correlated =
+                attachInstructionRequestCorrelation(response, authorizedBody);
+        if (authorizedBody != null
+                && authorizedBody.has("workspaceEpoch")
+                && !authorizedBody.get("workspaceEpoch").isJsonNull()) {
+            correlated.add(
+                    "workspaceEpoch",
+                    authorizedBody.get("workspaceEpoch").deepCopy());
+        }
+        return correlated;
     }
 
     static JsonObject attachInstructionRequestCorrelation(

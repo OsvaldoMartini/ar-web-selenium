@@ -1,6 +1,7 @@
 package com.allinweb.ch.socket;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 import com.google.gson.JsonObject;
@@ -24,6 +25,7 @@ class SimpleWebSocketServerCommandEditorCorrelationTest {
         authorizedRequest.addProperty("targetSessionId", "botJobTasks");
         authorizedRequest.addProperty("homeBankingId", 17);
         authorizedRequest.addProperty("botJobId", 42);
+        authorizedRequest.addProperty("workspaceEpoch", 91);
 
         JsonObject correlated =
                 SimpleWebSocketServer.attachMemoryCapabilitiesCorrelation(
@@ -40,6 +42,7 @@ class SimpleWebSocketServerCommandEditorCorrelationTest {
                 correlated.get("targetSessionId").getAsString());
         assertEquals(17, correlated.get("homeBankingId").getAsInt());
         assertEquals(42, correlated.get("botJobId").getAsInt());
+        assertEquals(91, correlated.get("workspaceEpoch").getAsLong());
         assertEquals(
                 "revision-from-loaded-graph",
                 correlated.get("graphRevision").getAsString());
@@ -84,5 +87,23 @@ class SimpleWebSocketServerCommandEditorCorrelationTest {
         assertEquals("componentTasks", correlated.get("targetSessionId").getAsString());
         assertEquals(17, correlated.get("homeBankingId").getAsInt());
         assertEquals(42, correlated.get("botJobId").getAsInt());
+    }
+
+    @Test
+    void genericFailureCorrelationDoesNotTrustClientWorkspaceEpoch() {
+        JsonObject response = new JsonObject();
+        response.addProperty("ok", false);
+        JsonObject untrustedRequest = new JsonObject();
+        untrustedRequest.addProperty("requestId", "rejected-request");
+        untrustedRequest.addProperty("workspaceEpoch", 999);
+
+        JsonObject correlated =
+                SimpleWebSocketServer.attachInstructionRequestCorrelation(
+                        response, untrustedRequest);
+
+        assertEquals(
+                "rejected-request",
+                correlated.get("requestId").getAsString());
+        assertFalse(correlated.has("workspaceEpoch"));
     }
 }

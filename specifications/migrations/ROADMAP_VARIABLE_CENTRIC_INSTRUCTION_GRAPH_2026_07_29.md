@@ -1,7 +1,7 @@
 # Variable-Centric Instruction Graph Roadmap
 
 Date: 2026-07-29
-Status: active; P0, P1, and P2 complete, P3 is the next implementation phase
+Status: active; P0 through P3 complete, P4 is the next implementation phase
 Scope: Bot Job Details first, Components second, Variables workspace, Java persistence, and
 execution safety
 Canonical source notes:
@@ -12,6 +12,7 @@ Canonical source notes:
 - `ROADMAP_COMPONENT_MEMORY_VARIABLE_AND_MULTI_EXECUTION_2026_07_27.md`
 - `ACTIVE_BUGS_TO_FIX_2026_07_28.md`
 - `P2_REACT_RELATIONSHIP_CLASSIFIER_2026_07_29.md`
+- `P3_RELATIONSHIP_DETAILS_2026_07_29.md`
 
 This document merges the Codex and Claude investigations into one delivery plan. It supersedes
 their suggested implementation order where this roadmap explicitly makes a decision. It does not
@@ -840,12 +841,12 @@ Goal: stop hiding relationship problems before allowing mutation.
 
 Tasks:
 
-- [ ] Extract `InstructionRelationshipDetails`.
-- [ ] Replace invalid `renderOperations -> null` paths.
-- [ ] Render all states from Section 5.
-- [ ] Keep reconnect chips read-only in this phase.
-- [ ] Preserve the last valid grid during refresh/error.
-- [ ] Gate shared `GridItem` rendering by server-advertised workspace capability and add a
+- [x] Extract `InstructionRelationshipDetails`.
+- [x] Replace invalid `renderOperations -> null` paths.
+- [x] Render all states from Section 5.
+- [x] Keep reconnect chips read-only in this phase.
+- [x] Preserve the last valid grid during refresh/error.
+- [x] Gate shared `GridItem` rendering by server-advertised workspace capability and add a
   regression proving Components remain unchanged before P12.
 
 Acceptance:
