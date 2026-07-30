@@ -12,11 +12,11 @@ import java.util.Objects;
 import java.util.OptionalLong;
 
 /**
- * Shadow-mode observation of execution relationship readiness.
+ * Warning-only observation of execution relationship health.
  *
  * <p>The monitor intentionally never blocks execution. It records the exact owner, requested run
- * scope, loaded-content revision, and a bounded issue sample so existing production jobs can be
- * audited before the authoritative gate is enabled.
+ * scope, loaded-content revision, and a bounded issue sample. Variable diagnostics are reported as
+ * WARN; structural start failures retain the legacy WOULD_BLOCK observation name for compatibility.
  */
 public final class ScannerExecutionPreflightMonitor {
     private static final int ISSUE_LOG_LIMIT = 5;
@@ -98,7 +98,7 @@ public final class ScannerExecutionPreflightMonitor {
 
     private void record(Observation observation) {
         ExecutionPreflightResult result = observation.result();
-        String status = result.ready() ? "READY" : "WOULD_BLOCK";
+        String status = observation.status().name();
         String message =
                 "EXECUTION_PREFLIGHT_SHADOW stage={} status={} allowExecution=true"
                         + " homeBankingId={} botJobId={} runScope={} selectedBlockId={}"
@@ -119,7 +119,7 @@ public final class ScannerExecutionPreflightMonitor {
             result.reachableInstructionIds().size(),
             result.issues().size()
         };
-        if (result.ready()) {
+        if (result.clean()) {
             operations.info(message, values);
             return;
         }
@@ -129,11 +129,13 @@ public final class ScannerExecutionPreflightMonitor {
                 .limit(ISSUE_LOG_LIMIT)
                 .forEach(issue -> operations.warn(
                         "EXECUTION_PREFLIGHT_SHADOW_ISSUE stage={} code={} blockId={}"
-                                + " instructionId={} message={}",
+                                + " instructionId={} severity={} disposition={} message={}",
                         observation.stage(),
                         issue.code(),
                         issue.blockId(),
                         issue.instructionId(),
+                        issue.severity(),
+                        issue.disposition(),
                         issue.message()));
         if (result.issues().size() > ISSUE_LOG_LIMIT) {
             operations.warn(
@@ -164,7 +166,11 @@ public final class ScannerExecutionPreflightMonitor {
                 OptionalLong graphVersion,
                 ExecutionPreflightResult result) {
             return new Observation(
-                    result.ready() ? Status.READY : Status.WOULD_BLOCK,
+                    switch (result.status()) {
+                        case READY -> Status.READY;
+                        case WARN -> Status.WARN;
+                        case BLOCKED -> Status.WOULD_BLOCK;
+                    },
                     stage,
                     contentRevision,
                     graphVersion,
@@ -190,6 +196,7 @@ public final class ScannerExecutionPreflightMonitor {
 
     public enum Status {
         READY,
+        WARN,
         WOULD_BLOCK,
         UNAVAILABLE
     }

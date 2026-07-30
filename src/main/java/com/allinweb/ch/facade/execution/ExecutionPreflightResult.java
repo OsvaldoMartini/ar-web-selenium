@@ -21,17 +21,43 @@ public record ExecutionPreflightResult(
         reachableInstructionIds =
                 List.copyOf(Objects.requireNonNull(reachableInstructionIds, "reachableInstructionIds"));
         issues = List.copyOf(Objects.requireNonNull(issues, "issues"));
-        if ((status == Status.READY) != issues.isEmpty()) {
-            throw new IllegalArgumentException("READY requires no issues and BLOCKED requires at least one issue");
+        Status expectedStatus = statusFor(issues);
+        if (status != expectedStatus) {
+            throw new IllegalArgumentException(
+                    "Status " + status + " does not match issue severities; expected "
+                            + expectedStatus);
         }
     }
 
     public boolean ready() {
+        return status != Status.BLOCKED;
+    }
+
+    public boolean clean() {
         return status == Status.READY;
+    }
+
+    public boolean warningOnly() {
+        return status == Status.WARN;
+    }
+
+    public boolean blocked() {
+        return status == Status.BLOCKED;
+    }
+
+    public static Status statusFor(List<Issue> issues) {
+        Objects.requireNonNull(issues, "issues");
+        if (issues.isEmpty()) {
+            return Status.READY;
+        }
+        return issues.stream().anyMatch(Issue::blocking)
+                ? Status.BLOCKED
+                : Status.WARN;
     }
 
     public enum Status {
         READY,
+        WARN,
         BLOCKED
     }
 
@@ -44,6 +70,16 @@ public record ExecutionPreflightResult(
         BLOCK_TARGET,
         SNAPSHOT,
         RUN_SCOPE
+    }
+
+    public enum Severity {
+        WARNING,
+        BLOCKING
+    }
+
+    public enum IssueDisposition {
+        VARIABLE_DIAGNOSTIC,
+        STRUCTURAL_START_FAILURE
     }
 
     /** Stable machine-readable issue codes shared later by WebSocket responses and React UX. */
@@ -89,10 +125,13 @@ public record ExecutionPreflightResult(
     }
 
     /**
-     * One blocking relationship problem.
+     * One relationship diagnostic.
      *
      * <p>Relationship issues always carry the exact source instruction ID. Snapshot and run-scope
-     * issues may not have an instruction source, so their instruction ID is nullable.
+     * issues may not have an instruction source, so their instruction ID is nullable. Disposition
+     * and severity are derived centrally from the machine-readable code and relationship kind so
+     * variable-health diagnostics can never be accidentally promoted to structural blockers by an
+     * individual validator.
      */
     public record Issue(
             IssueCode code,
@@ -106,5 +145,32 @@ public record ExecutionPreflightResult(
             kind = Objects.requireNonNull(kind, "kind");
             message = Objects.requireNonNull(message, "message");
         }
+
+        public IssueDisposition disposition() {
+            return dispositionFor(code, kind);
+        }
+
+        public Severity severity() {
+            return disposition() == IssueDisposition.VARIABLE_DIAGNOSTIC
+                    ? Severity.WARNING
+                    : Severity.BLOCKING;
+        }
+
+        public boolean blocking() {
+            return severity() == Severity.BLOCKING;
+        }
+    }
+
+    public static IssueDisposition dispositionFor(
+            IssueCode code, RelationshipKind kind) {
+        Objects.requireNonNull(code, "code");
+        Objects.requireNonNull(kind, "kind");
+        if (code == IssueCode.DUPLICATE_VARIABLE_ID
+                || kind == RelationshipKind.ELEMENT_TARGET
+                || kind == RelationshipKind.VARIABLE_BINDING
+                || kind == RelationshipKind.VARIABLE_ORDER) {
+            return IssueDisposition.VARIABLE_DIAGNOSTIC;
+        }
+        return IssueDisposition.STRUCTURAL_START_FAILURE;
     }
 }

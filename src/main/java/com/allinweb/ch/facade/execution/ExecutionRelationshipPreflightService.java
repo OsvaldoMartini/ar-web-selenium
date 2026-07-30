@@ -4,7 +4,6 @@ import com.allinweb.ch.facade.CommandRegistry;
 import com.allinweb.ch.facade.execution.ExecutionPreflightResult.Issue;
 import com.allinweb.ch.facade.execution.ExecutionPreflightResult.IssueCode;
 import com.allinweb.ch.facade.execution.ExecutionPreflightResult.RelationshipKind;
-import com.allinweb.ch.facade.execution.ExecutionPreflightResult.Status;
 import com.allinweb.ch.facade.execution.ExecutionPreflightSnapshot.BlockFact;
 import com.allinweb.ch.facade.execution.ExecutionPreflightSnapshot.InstructionFact;
 import com.allinweb.ch.facade.execution.ExecutionPreflightSnapshot.VariableFact;
@@ -23,11 +22,12 @@ import java.util.Objects;
 import java.util.Set;
 
 /**
- * Pure runtime relationship gate over one immutable, owner-scoped execution snapshot.
+ * Pure runtime relationship diagnostic over one immutable, owner-scoped execution snapshot.
  *
  * <p>This service does not load or mutate data, infer reconnect patches, or change Active flags.
- * React remains responsible for authoring diagnostics. This independent Java rule is the
- * mandatory runtime defense that can later be called immediately before execution starts.
+ * React remains responsible for authoring diagnostics. Structural issues remain distinguishable
+ * from warning-only variable health so callers cannot turn variable diagnostics into an execution
+ * permission gate.
  */
 public final class ExecutionRelationshipPreflightService {
     private static final Set<String> ELEMENT_TARGET_ACTIONS =
@@ -76,7 +76,7 @@ public final class ExecutionRelationshipPreflightService {
         List<Issue> orderedIssues = issues.sorted(facts);
 
         return new ExecutionPreflightResult(
-                orderedIssues.isEmpty() ? Status.READY : Status.BLOCKED,
+                ExecutionPreflightResult.statusFor(orderedIssues),
                 snapshot.owner(),
                 runScope,
                 orderedReachableBlockIds,

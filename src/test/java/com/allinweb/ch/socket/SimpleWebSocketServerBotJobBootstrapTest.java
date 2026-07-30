@@ -278,6 +278,7 @@ class SimpleWebSocketServerBotJobBootstrapTest {
         JsonObject serializedReport = payload.getAsJsonObject("executionPreflight");
         assertEquals("WARN", serializedReport.get("enforcement").getAsString());
         assertEquals("WOULD_BLOCK", serializedReport.get("status").getAsString());
+        assertEquals("BLOCKED", serializedReport.get("outcome").getAsString());
         assertEquals(2, serializedReport.getAsJsonObject("owner")
                 .get("homeBankingId")
                 .getAsInt());
@@ -285,13 +286,17 @@ class SimpleWebSocketServerBotJobBootstrapTest {
                 .get("kind")
                 .getAsString());
         assertEquals(1, serializedReport.get("totalIssues").getAsInt());
+        assertEquals(0, serializedReport.get("variableDiagnosticCount").getAsInt());
+        assertEquals(1, serializedReport.get("structuralStartFailureCount").getAsInt());
+        JsonObject serializedIssue =
+                serializedReport.getAsJsonArray("issues").get(0).getAsJsonObject();
+        assertEquals("BLOCKING", serializedIssue.get("severity").getAsString());
+        assertEquals(
+                "STRUCTURAL_START_FAILURE",
+                serializedIssue.get("disposition").getAsString());
         assertEquals(
                 91,
-                serializedReport.getAsJsonArray("issues")
-                        .get(0)
-                        .getAsJsonObject()
-                        .get("instructionId")
-                        .getAsInt());
+                serializedIssue.get("instructionId").getAsInt());
         assertTrue(serializedReport.get("unavailableReason").isJsonNull());
     }
 

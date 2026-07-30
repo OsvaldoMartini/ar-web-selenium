@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.allinweb.ch.facade.execution.ExecutionPreflightContentRevisionService;
 import com.allinweb.ch.facade.execution.ExecutionPreflightReport;
+import com.allinweb.ch.facade.execution.ExecutionPreflightResult;
 import com.allinweb.ch.facade.execution.ExecutionPreflightSnapshot;
 import com.allinweb.ch.facade.execution.ExecutionPreflightSnapshot.BlockFact;
 import com.allinweb.ch.facade.execution.ExecutionPreflightSnapshot.InstructionFact;
@@ -42,6 +43,7 @@ class ScannerExecutionPreflightMonitorTest {
         ExecutionPreflightReport report = ExecutionPreflightReport.from(observation);
         assertEquals("WARN", report.enforcement());
         assertEquals("WOULD_BLOCK", report.status());
+        assertEquals("BLOCKED", report.outcome());
         assertEquals("TEST_RUN", report.stage());
         assertEquals(2, report.owner().homeBankingId());
         assertEquals(5, report.owner().botJobId());
@@ -49,14 +51,49 @@ class ScannerExecutionPreflightMonitorTest {
         assertNull(report.runScope().selectedBlockId());
         assertEquals(12L, report.graphVersion());
         assertEquals(7, report.totalIssues());
+        assertEquals(0, report.variableDiagnosticCount());
+        assertEquals(7, report.structuralStartFailureCount());
         assertEquals(7, report.issues().size());
         assertEquals("MISSING_LOOP_ANCHOR", report.issues().get(0).code());
+        assertEquals("BLOCKING", report.issues().get(0).severity());
+        assertEquals(
+                "STRUCTURAL_START_FAILURE",
+                report.issues().get(0).disposition());
         assertEquals(
                 7,
                 operations.warnings.size(),
                 "summary + five issues + one remainder line");
         assertTrue(operations.warnings.get(0).contains("allowExecution=true"));
         assertTrue(operations.warnings.get(6).contains("remainingIssues=2"));
+    }
+
+    @Test
+    void recordsVariableOnlyDiagnosticsAsWarnWithoutBlockingExecution() {
+        RecordingOperations operations = new RecordingOperations();
+        ScannerExecutionPreflightMonitor monitor = monitor(
+                owner -> new ExecutionPreflightSnapshotRepository.LoadedSnapshot(
+                        variableWarningSnapshot(owner),
+                        OptionalLong.of(13L)),
+                operations);
+
+        ScannerExecutionPreflightMonitor.Observation observation =
+                monitor.observe("LAUNCH", botJob(), RunScope.all());
+
+        assertEquals(ScannerExecutionPreflightMonitor.Status.WARN, observation.status());
+        assertTrue(observation.allowExecution());
+        assertEquals(ExecutionPreflightResult.Status.WARN, observation.result().status());
+        ExecutionPreflightReport report = ExecutionPreflightReport.from(observation);
+        assertEquals("WOULD_BLOCK", report.status(), "legacy status remains stable");
+        assertEquals("WARN", report.outcome());
+        assertEquals(2, report.totalIssues());
+        assertEquals(2, report.variableDiagnosticCount());
+        assertEquals(0, report.structuralStartFailureCount());
+        assertTrue(report.issues().stream()
+                .allMatch(issue -> "WARNING".equals(issue.severity())));
+        assertTrue(report.issues().stream()
+                .allMatch(issue -> "VARIABLE_DIAGNOSTIC".equals(issue.disposition())));
+        assertTrue(operations.warnings.get(0).contains("status=WARN"));
+        assertTrue(operations.warnings.get(0).contains("allowExecution=true"));
     }
 
     @Test
@@ -78,11 +115,14 @@ class ScannerExecutionPreflightMonitorTest {
         ExecutionPreflightReport report = ExecutionPreflightReport.from(observation);
         assertEquals("WARN", report.enforcement());
         assertEquals("UNAVAILABLE", report.status());
+        assertEquals("UNAVAILABLE", report.outcome());
         assertNull(report.owner());
         assertNull(report.runScope());
         assertNull(report.graphVersion());
         assertNull(report.contentRevision());
         assertEquals(0, report.totalIssues());
+        assertEquals(0, report.variableDiagnosticCount());
+        assertEquals(0, report.structuralStartFailureCount());
         assertTrue(report.issues().isEmpty());
         assertEquals("database unavailable", report.unavailableReason());
         assertEquals(1, operations.warnings.size());
@@ -102,6 +142,9 @@ class ScannerExecutionPreflightMonitorTest {
                 monitor.observe("TEST_RUN", botJob(), RunScope.one(10)));
 
         assertEquals(30, report.totalIssues());
+        assertEquals("BLOCKED", report.outcome());
+        assertEquals(0, report.variableDiagnosticCount());
+        assertEquals(30, report.structuralStartFailureCount());
         assertEquals(ExecutionPreflightReport.ISSUE_REPORT_LIMIT, report.issues().size());
         assertEquals("ONE", report.runScope().kind());
         assertEquals(10, report.runScope().selectedBlockId());
@@ -140,6 +183,23 @@ class ScannerExecutionPreflightMonitorTest {
                 owner,
                 List.of(new BlockFact(10, 1, true)),
                 rows,
+                List.of());
+    }
+
+    private ExecutionPreflightSnapshot variableWarningSnapshot(Owner owner) {
+        return new ExecutionPreflightSnapshot(
+                owner,
+                List.of(new BlockFact(10, 1, true)),
+                List.of(new InstructionFact(
+                        1,
+                        10,
+                        1,
+                        "GET",
+                        null,
+                        true,
+                        null,
+                        null,
+                        null)),
                 List.of());
     }
 

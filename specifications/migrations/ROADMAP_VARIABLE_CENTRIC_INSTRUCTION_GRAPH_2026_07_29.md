@@ -938,7 +938,7 @@ Tasks:
   response and never offer a second Continue/Run action.
 - [x] Permanently prohibit variable diagnostics from blocking any mapped Test Run/Launch entry
   point.
-- [ ] Split variable diagnostics from true structural start failures in the Java and TypeScript
+- [x] Split variable diagnostics from true structural start failures in the Java and TypeScript
   result models; remove `BLOCKED`/`WOULD_BLOCK` wording from variable-health presentation without
   breaking correlated transport compatibility.
 - [x] Add typed runtime `VOID | VALUE` semantics. Never use the literal `"VOID"` or a shared
@@ -968,6 +968,21 @@ Tasks:
 - [ ] Disable silent runtime `fixExcelGoto`; move legacy repair to an explicit migration/action.
 - [x] Make full Launch return immediately when definition load fails instead of reporting an error
   and continuing.
+
+Implementation checkpoint (2026-07-30):
+
+- Java and TypeScript classify variable-command element targets, variable bindings, variable
+  order, and duplicate-variable facts as `VARIABLE_DIAGNOSTIC`; warning-only results are
+  execution-ready and can never become a start gate through `ready()`.
+- Snapshot/run-scope identity, LOOP/conditional structure, and Block-navigation failures remain
+  separately classified as `STRUCTURAL_START_FAILURE`.
+- The WebSocket report preserves legacy `READY | WOULD_BLOCK | UNAVAILABLE` status values for old
+  detached clients and adds canonical `outcome`, disposition counts, and per-issue
+  severity/disposition fields. React consumes the canonical outcome and normalizes legacy
+  observations without displaying `WOULD_BLOCK` for variable health.
+- Focused verification is green: 20 Java tests across the evaluator/monitor/WebSocket transport
+  and 52 React tests across transport normalization, warning presentation, controller
+  exactly-once behavior, and the pure TypeScript relationship evaluator.
 
 Acceptance:
 

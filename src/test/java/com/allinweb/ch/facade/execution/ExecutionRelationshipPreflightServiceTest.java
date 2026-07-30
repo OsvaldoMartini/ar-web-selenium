@@ -36,6 +36,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.allinweb.ch.facade.execution.ExecutionPreflightResult.Issue;
 import com.allinweb.ch.facade.execution.ExecutionPreflightResult.IssueCode;
+import com.allinweb.ch.facade.execution.ExecutionPreflightResult.IssueDisposition;
+import com.allinweb.ch.facade.execution.ExecutionPreflightResult.Severity;
+import com.allinweb.ch.facade.execution.ExecutionPreflightResult.Status;
 import com.allinweb.ch.facade.execution.ExecutionPreflightSnapshot.BlockFact;
 import com.allinweb.ch.facade.execution.ExecutionPreflightSnapshot.InstructionFact;
 import com.allinweb.ch.facade.execution.ExecutionPreflightSnapshot.Owner;
@@ -75,6 +78,7 @@ class ExecutionRelationshipPreflightServiceTest {
         ExecutionPreflightResult result = service.preflight(snapshot, RunScope.all());
 
         assertTrue(result.ready());
+        assertEquals(Status.READY, result.status());
         assertEquals(OWNER, result.owner());
         assertEquals(List.of(10, 20), result.reachableBlockIds());
         assertEquals(
@@ -96,6 +100,7 @@ class ExecutionRelationshipPreflightServiceTest {
         ExecutionPreflightResult result = service.preflight(snapshot, RunScope.all());
 
         assertTrue(result.ready());
+        assertEquals(Status.READY, result.status());
         assertEquals(List.of(10), result.reachableBlockIds());
         assertEquals(List.of(1), result.reachableInstructionIds());
     }
@@ -122,7 +127,7 @@ class ExecutionRelationshipPreflightServiceTest {
 
         ExecutionPreflightResult result = service.preflight(snapshot, RunScope.all());
 
-        assertFalse(result.ready());
+        assertWarningOnly(result);
         assertIssue(result, 11, MISSING_ELEMENT_TARGET);
         assertIssue(result, 12, DANGLING_ELEMENT_TARGET);
         assertIssue(result, 13, ELEMENT_TARGET_WRONG_BLOCK);
@@ -152,6 +157,7 @@ class ExecutionRelationshipPreflightServiceTest {
 
         ExecutionPreflightResult result = service.preflight(snapshot, RunScope.all());
 
+        assertStructurallyBlocked(result);
         assertIssue(result, 11, MISSING_LOOP_ANCHOR);
         assertIssue(result, 12, DANGLING_LOOP_ANCHOR);
         assertIssue(result, 13, LOOP_ANCHOR_WRONG_BLOCK);
@@ -189,6 +195,7 @@ class ExecutionRelationshipPreflightServiceTest {
 
         ExecutionPreflightResult result = service.preflight(snapshot, RunScope.all());
 
+        assertStructurallyBlocked(result);
         assertIssue(result, 11, CONDITIONAL_ROOT_NOT_SELF);
         assertIssue(result, 21, ORPHAN_CONDITIONAL_BOUNDARY);
         assertIssue(result, 33, ELSEIF_AFTER_ELSE);
@@ -216,6 +223,7 @@ class ExecutionRelationshipPreflightServiceTest {
 
         ExecutionPreflightResult result = service.preflight(snapshot, RunScope.all());
 
+        assertStructurallyBlocked(result);
         assertIssue(result, 1, MISSING_BLOCK_TARGET);
         assertIssue(result, 2, DANGLING_BLOCK_TARGET);
         assertIssue(result, 3, BLOCK_TARGET_EQUALS_CONTAINING_BLOCK);
@@ -243,6 +251,7 @@ class ExecutionRelationshipPreflightServiceTest {
 
         ExecutionPreflightResult result = service.preflight(snapshot, RunScope.all());
 
+        assertWarningOnly(result);
         assertIssue(result, 2, MISSING_VARIABLE_BINDING);
         assertIssue(result, 3, DANGLING_VARIABLE_BINDING);
         assertIssue(result, 4, INCOMPATIBLE_VARIABLE_TYPE);
@@ -264,6 +273,7 @@ class ExecutionRelationshipPreflightServiceTest {
 
         ExecutionPreflightResult result = service.preflight(snapshot, RunScope.one(20));
 
+        assertWarningOnly(result);
         assertEquals(List.of(20), result.reachableBlockIds());
         assertIssue(result, 4, RUNTIME_VALUE_WRITER_OUTSIDE_SCOPE);
     }
@@ -286,17 +296,31 @@ class ExecutionRelationshipPreflightServiceTest {
         ExecutionPreflightResult all = service.preflight(snapshot, RunScope.all());
 
         assertTrue(one.ready());
+        assertEquals(Status.READY, one.status());
         assertEquals(List.of(20), one.reachableBlockIds());
         assertEquals(List.of(21), one.reachableInstructionIds());
 
-        assertFalse(from.ready());
+        assertStructurallyBlocked(from);
         assertEquals(List.of(20, 30), from.reachableBlockIds());
         assertIssue(from, 31, MISSING_LOOP_ANCHOR);
         assertNoIssue(from, 11);
 
-        assertFalse(all.ready());
+        assertEquals(Status.BLOCKED, all.status());
+        assertTrue(all.blocked());
         assertIssue(all, 11, MISSING_ELEMENT_TARGET);
         assertIssue(all, 31, MISSING_LOOP_ANCHOR);
+        assertIssueClassification(
+                all,
+                11,
+                MISSING_ELEMENT_TARGET,
+                Severity.WARNING,
+                IssueDisposition.VARIABLE_DIAGNOSTIC);
+        assertIssueClassification(
+                all,
+                31,
+                MISSING_LOOP_ANCHOR,
+                Severity.BLOCKING,
+                IssueDisposition.STRUCTURAL_START_FAILURE);
     }
 
     @Test
@@ -310,6 +334,7 @@ class ExecutionRelationshipPreflightServiceTest {
 
         ExecutionPreflightResult result = service.preflight(snapshot, RunScope.one(20));
 
+        assertWarningOnly(result);
         assertEquals(List.of(10, 20), result.reachableBlockIds());
         assertIssue(result, 11, MISSING_ELEMENT_TARGET);
         assertNoIssue(result, 21);
@@ -324,11 +349,30 @@ class ExecutionRelationshipPreflightServiceTest {
 
         ExecutionPreflightResult result = service.preflight(snapshot, RunScope.one(999));
 
-        assertFalse(result.ready());
+        assertStructurallyBlocked(result);
         assertEquals(List.of(), result.reachableBlockIds());
         assertEquals(Set.of(SELECTED_BLOCK_NOT_FOUND), codes(result));
         assertEquals(999, result.issues().get(0).blockId());
         assertEquals(null, result.issues().get(0).instructionId());
+    }
+
+    @Test
+    void treatsDuplicateVariableIdAsAWarningDespiteItsSnapshotKind() {
+        ExecutionPreflightSnapshot snapshot = snapshot(
+                List.of(block(10, 1, true)),
+                List.of(element(1, 10, 1, "button", true)),
+                List.of(
+                        variable(100, "$String", null),
+                        variable(100, "$String", null)));
+
+        ExecutionPreflightResult result = service.preflight(snapshot, RunScope.all());
+
+        assertWarningOnly(result);
+        assertEquals(1, result.issues().size());
+        assertEquals(IssueCode.DUPLICATE_VARIABLE_ID, result.issues().get(0).code());
+        assertEquals(
+                ExecutionPreflightResult.RelationshipKind.SNAPSHOT,
+                result.issues().get(0).kind());
     }
 
     @Test
@@ -409,6 +453,53 @@ class ExecutionRelationshipPreflightServiceTest {
                 .toList();
         assertTrue(found.isEmpty(), () -> "Unexpected issues for instruction #"
                 + instructionId + ": " + found);
+    }
+
+    private static void assertWarningOnly(ExecutionPreflightResult result) {
+        assertEquals(Status.WARN, result.status());
+        assertTrue(result.warningOnly());
+        assertTrue(result.ready());
+        assertFalse(result.clean());
+        assertFalse(result.blocked());
+        assertFalse(result.issues().isEmpty());
+        assertTrue(
+                result.issues().stream().allMatch(issue ->
+                        issue.severity() == Severity.WARNING
+                                && issue.disposition()
+                                        == IssueDisposition.VARIABLE_DIAGNOSTIC),
+                () -> "Expected only variable diagnostics; actual=" + result.issues());
+    }
+
+    private static void assertStructurallyBlocked(ExecutionPreflightResult result) {
+        assertEquals(Status.BLOCKED, result.status());
+        assertTrue(result.blocked());
+        assertFalse(result.ready());
+        assertFalse(result.warningOnly());
+        assertFalse(result.issues().isEmpty());
+        assertTrue(
+                result.issues().stream().allMatch(issue ->
+                        issue.severity() == Severity.BLOCKING
+                                && issue.disposition()
+                                        == IssueDisposition.STRUCTURAL_START_FAILURE),
+                () -> "Expected only structural start failures; actual=" + result.issues());
+    }
+
+    private static void assertIssueClassification(
+            ExecutionPreflightResult result,
+            int instructionId,
+            IssueCode code,
+            Severity severity,
+            IssueDisposition disposition) {
+        Issue issue = result.issues().stream()
+                .filter(candidate ->
+                        Integer.valueOf(instructionId).equals(candidate.instructionId())
+                                && candidate.code() == code)
+                .findFirst()
+                .orElseThrow(() -> new AssertionError(
+                        "Missing " + code + " for instruction #" + instructionId
+                                + "; actual=" + result.issues()));
+        assertEquals(severity, issue.severity());
+        assertEquals(disposition, issue.disposition());
     }
 
     private static Set<IssueCode> codes(ExecutionPreflightResult result) {
