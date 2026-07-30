@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.allinweb.ch.db.InstructionGraphStateRepository.OwnerKey;
@@ -13,11 +15,14 @@ import com.allinweb.ch.facade.BotJobDetailsWorkspaceRegistry;
 import com.allinweb.ch.facade.BotJobGraphMutationTransaction.CommitResult;
 import com.allinweb.ch.facade.BotJobGraphMutationTransaction.GraphInstructionFact;
 import com.allinweb.ch.facade.BotJobGraphMutationTransaction.GraphSnapshot;
+import com.allinweb.ch.facade.ScannerBotJobTasksPublisher;
+import com.allinweb.ch.facade.VariablesVariableDeleteTransaction.DeleteResult;
 import com.allinweb.ch.facade.actions.RuntimeVariableMemoryRegistry;
 import com.allinweb.ch.facade.actions.RuntimeVariableMemoryRegistry.BotJobKey;
 import com.allinweb.ch.model.BotJobLoadDTO;
 import com.allinweb.ch.model.InstructionGraphMutationV3;
 import com.allinweb.ch.model.InstructionGraphMutationV3.LayoutRow;
+import com.allinweb.ch.model.VariablesWorkspaceVariableDelete;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -34,6 +39,7 @@ import java.util.concurrent.TimeUnit;
 import javax.websocket.Session;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.MockedStatic;
 
 class VariablesWorkspaceServiceTest {
     private final FakeWorkspaces workspaces = new FakeWorkspaces();
@@ -424,6 +430,76 @@ class VariablesWorkspaceServiceTest {
     }
 
     @Test
+    void committedDeletionPublishesGridThenReconcilesRuntimeCatalogBeforeSnapshotQueue() {
+        service.openForBotJob(5);
+        Session manager = openSession();
+        windows.register(manager);
+        service.connected(
+                VariablesWorkspaceService.WORKSPACE_SESSION_ID, manager);
+        JsonObject bootstrap = service.bootstrap(
+                new JsonObject(),
+                VariablesWorkspaceService.WORKSPACE_SESSION_ID,
+                manager);
+        assertTrue(bootstrap.get("ok").getAsBoolean());
+
+        BotJobKey owner = new BotJobKey(2, 5);
+        RuntimeVariableMemoryRegistry registry =
+                RuntimeVariableMemoryRegistry.getInstance();
+        registry.reconcileDefinitions(
+                owner,
+                List.of(
+                        new RuntimeVariableMemoryRegistry.Definition(
+                                501, "Deleted", "$String"),
+                        new RuntimeVariableMemoryRegistry.Definition(
+                                502, "Retained", "$String")),
+                true);
+        registry.write(
+                owner,
+                501,
+                "temporary",
+                RuntimeVariableMemoryRegistry.ValueSource.MANUAL);
+        JsonObject afterDeletion = graph("revision-after-delete");
+        JsonObject retained = new JsonObject();
+        retained.addProperty("id", 502);
+        retained.addProperty("name", "Retained");
+        retained.addProperty("type", "$String");
+        afterDeletion.getAsJsonArray("rawVariables").add(retained);
+        graphs.responses.put(5, afterDeletion);
+
+        JsonObject committed = new JsonObject();
+        committed.addProperty("ok", true);
+        committed.addProperty("committed", true);
+        committed.addProperty("botJobId", 5);
+        committed.addProperty("homeBankingId", 2);
+        ScannerBotJobTasksPublisher grid =
+                mock(ScannerBotJobTasksPublisher.class);
+        try (MockedStatic<ScannerBotJobTasksPublisher> publishers =
+                mockStatic(ScannerBotJobTasksPublisher.class)) {
+            publishers.when(ScannerBotJobTasksPublisher::getInstance)
+                    .thenReturn(grid);
+            tasks.beforeMutationQueued =
+                    () -> verify(grid).publishGridOnly(2, 5);
+
+            service.publishCommittedMutation(committed);
+
+            verify(grid).publishGridOnly(2, 5);
+            assertFalse(registry.containsDefinition(owner, 501));
+            assertTrue(registry.containsDefinition(owner, 502));
+            assertEquals(1, tasks.mutations.size());
+            tasks.runMutations();
+            assertTrue(windows.sent.stream().anyMatch(
+                    sent -> VariablesWorkspaceService.SNAPSHOT_OPERATION.equals(
+                            sent.operationId())
+                            && "revision-after-delete".equals(
+                                    sent.body()
+                                            .get("graphRevision")
+                                            .getAsString())));
+        } finally {
+            registry.remove(owner);
+        }
+    }
+
+    @Test
     void registryLockAndVariablesStateCannotDeadlockEachOther() throws Exception {
         LockingWorkspaces lockingWorkspaces = new LockingWorkspaces();
         lockingWorkspaces.add(new VariablesWorkspaceService.WorkspaceContext(
@@ -707,6 +783,160 @@ class VariablesWorkspaceServiceTest {
                 IllegalArgumentException.class,
                 () -> VariablesWorkspaceService.normalizeMutationProfile(
                         "VARIABLES_FUTURE_PROFILE"));
+    }
+
+    @Test
+    void variableDeletionRefusesForgedTransportAndStaleBindingBeforePersistence() {
+        FakeMutations mutations = FakeMutations.ready();
+        FakeVariableDeletes deletes = new FakeVariableDeletes();
+        VariablesWorkspaceService mutableService =
+                new VariablesWorkspaceService(
+                        workspaces,
+                        graphs,
+                        windows,
+                        new Gson(),
+                        tasks,
+                        mutations,
+                        deletes);
+        mutableService.openForBotJob(5);
+        Session manager = openSession();
+        windows.register(manager);
+        mutableService.connected(
+                VariablesWorkspaceService.WORKSPACE_SESSION_ID, manager);
+        JsonObject bootstrap = mutableService.bootstrap(
+                new JsonObject(),
+                VariablesWorkspaceService.WORKSPACE_SESSION_ID,
+                manager);
+        String bindingEpoch = bootstrap.get("bindingEpoch").getAsString();
+
+        JsonObject forgedRequest = deleteRequest(
+                bindingEpoch, 10L, "delete-forged");
+        JsonObject forged = mutableService.deleteVariables(
+                forgedRequest,
+                VariablesWorkspaceService.WORKSPACE_SESSION_ID,
+                openSession());
+        assertFalse(forged.get("ok").getAsBoolean());
+        assertTrue(forged.get("preserveSnapshot").getAsBoolean());
+        assertEquals(
+                "VARIABLE_DELETE_REQUEST_REFUSED",
+                forged.get("errorCode").getAsString());
+
+        JsonObject staleRequest = deleteRequest(
+                "retired-binding", 10L, "delete-stale");
+        JsonObject stale = mutableService.deleteVariables(
+                staleRequest,
+                VariablesWorkspaceService.WORKSPACE_SESSION_ID,
+                manager);
+        assertFalse(stale.get("ok").getAsBoolean());
+        assertTrue(stale.get("preserveSnapshot").getAsBoolean());
+        assertEquals(
+                "VARIABLE_DELETE_REQUEST_REFUSED",
+                stale.get("errorCode").getAsString());
+        assertEquals(bindingEpoch, stale.get("bindingEpoch").getAsString());
+        assertEquals(0, deletes.calls);
+    }
+
+    @Test
+    void variableDeletionUsesBoundOwnerAndReturnsExactCommittedCounts() {
+        BotJobDetailsWorkspaceRegistry registry =
+                BotJobDetailsWorkspaceRegistry.getInstance();
+        BotJobLoadDTO botJob = new BotJobLoadDTO();
+        botJob.setId(5);
+        botJob.setName("Job Five");
+        botJob.setHomeBankingId(2);
+        BotJobDetailsWorkspaceRegistry.Snapshot active =
+                registry.activate(botJob, false);
+        try {
+            FakeWorkspaces exactWorkspaces = new FakeWorkspaces();
+            exactWorkspaces.add(new VariablesWorkspaceService.WorkspaceContext(
+                    active.workspaceEpoch(),
+                    5,
+                    2,
+                    "Job Five",
+                    "Bank"));
+            FakeMutations mutations = FakeMutations.ready();
+            FakeVariableDeletes deletes = new FakeVariableDeletes();
+            deletes.result = new DeleteResult(
+                    OwnerKey.botJob(2, 5),
+                    active.workspaceEpoch(),
+                    "delete-variable-501",
+                    VariablesWorkspaceVariableDelete.Mode.SINGLE,
+                    List.of(501),
+                    1,
+                    3,
+                    4L,
+                    5L,
+                    "revision-after-delete");
+            VariablesWorkspaceService mutableService =
+                    new VariablesWorkspaceService(
+                            exactWorkspaces,
+                            graphs,
+                            windows,
+                            new Gson(),
+                            tasks,
+                            mutations,
+                            deletes);
+            mutableService.openForBotJob(5);
+            Session manager = openSession();
+            windows.register(manager);
+            mutableService.connected(
+                    VariablesWorkspaceService.WORKSPACE_SESSION_ID, manager);
+            JsonObject bootstrap = mutableService.bootstrap(
+                    new JsonObject(),
+                    VariablesWorkspaceService.WORKSPACE_SESSION_ID,
+                    manager);
+            JsonObject request = deleteRequest(
+                    bootstrap.get("bindingEpoch").getAsString(),
+                    active.workspaceEpoch(),
+                    "delete-variable-501");
+            request.addProperty("homeBankingId", 999);
+            request.addProperty("botJobId", 999);
+
+            JsonObject response = mutableService.deleteVariables(
+                    request,
+                    VariablesWorkspaceService.WORKSPACE_SESSION_ID,
+                    manager);
+
+            assertTrue(response.get("ok").getAsBoolean(), response.toString());
+            assertTrue(response.get("committed").getAsBoolean());
+            assertFalse(response.get("resyncRequired").getAsBoolean());
+            assertEquals(1, response.get("deletedCount").getAsInt());
+            assertEquals(
+                    3, response.get("clearedInstructionCount").getAsInt());
+            assertEquals(
+                    4L, response.get("previousGraphVersion").getAsLong());
+            assertEquals(
+                    5L, response.get("committedGraphVersion").getAsLong());
+            assertEquals(
+                    "revision-after-delete",
+                    response.get("graphRevision").getAsString());
+            assertEquals(5, response.get("botJobId").getAsInt());
+            assertEquals(2, response.get("homeBankingId").getAsInt());
+            assertEquals(1, deletes.calls);
+            assertEquals(2, deletes.lastHomeBankingId);
+            assertEquals(5, deletes.lastBotJobId);
+            assertEquals(active.workspaceEpoch(), deletes.lastWorkspaceEpoch);
+            assertEquals(
+                    List.of(501), deletes.lastRequest.variableIds());
+        } finally {
+            registry.close(5);
+        }
+    }
+
+    private JsonObject deleteRequest(
+            String bindingEpoch, long workspaceEpoch, String requestId) {
+        VariablesWorkspaceVariableDelete.Request request =
+                new VariablesWorkspaceVariableDelete.Request(
+                        VariablesWorkspaceVariableDelete.CONTRACT_VERSION,
+                        requestId,
+                        4L,
+                        "mutation-five",
+                        workspaceEpoch,
+                        VariablesWorkspaceVariableDelete.Mode.SINGLE,
+                        List.of(501));
+        JsonObject json = new Gson().toJsonTree(request).getAsJsonObject();
+        json.addProperty("bindingEpoch", bindingEpoch);
+        return json;
     }
 
     @Test
@@ -1055,9 +1285,11 @@ class VariablesWorkspaceServiceTest {
     private static final class FakeTasks implements VariablesWorkspaceService.TaskPort {
         private final List<Runnable> mutations = new ArrayList<>();
         private final List<Runnable> disconnects = new ArrayList<>();
+        private Runnable beforeMutationQueued = () -> {};
 
         @Override
         public void executeMutation(Runnable task) {
+            beforeMutationQueued.run();
             mutations.add(task);
         }
 
@@ -1175,6 +1407,42 @@ class VariablesWorkspaceServiceTest {
             lastHomeBankingId = homeBankingId;
             lastBotJobId = botJobId;
             lastWorkspaceEpoch = workspaceEpoch;
+        }
+    }
+
+    private static final class FakeVariableDeletes
+            implements VariablesWorkspaceService.VariableDeletePort {
+        private DeleteResult result;
+        private int calls;
+        private int lastHomeBankingId;
+        private int lastBotJobId;
+        private long lastWorkspaceEpoch;
+        private VariablesWorkspaceVariableDelete.Request lastRequest;
+
+        @Override
+        public DeleteResult delete(
+                int homeBankingId,
+                int botJobId,
+                long workspaceEpoch,
+                VariablesWorkspaceVariableDelete.Request request)
+                throws SQLException {
+            calls++;
+            lastHomeBankingId = homeBankingId;
+            lastBotJobId = botJobId;
+            lastWorkspaceEpoch = workspaceEpoch;
+            lastRequest = request;
+            if (result != null) return result;
+            return new DeleteResult(
+                    OwnerKey.botJob(homeBankingId, botJobId),
+                    workspaceEpoch,
+                    request.requestId(),
+                    request.mode(),
+                    request.variableIds(),
+                    request.variableIds().size(),
+                    0,
+                    request.baseGraphVersion(),
+                    request.baseGraphVersion() + 1L,
+                    "deletion-after");
         }
     }
 

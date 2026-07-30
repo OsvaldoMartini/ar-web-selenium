@@ -10,6 +10,8 @@ import com.allinweb.ch.facade.VariableRelationshipService;
 import com.allinweb.ch.facade.VariablesCrossBlockInstructionMutationProfile;
 import com.allinweb.ch.facade.VariablesInstructionMutationProfile;
 import com.allinweb.ch.facade.VariablesReactAuthoredMutationProfile;
+import com.allinweb.ch.facade.VariablesVariableDeleteService;
+import com.allinweb.ch.facade.VariablesVariableDeleteTransaction.DeleteResult;
 import com.allinweb.ch.facade.actions.RuntimeVariableMemoryRegistry;
 import com.allinweb.ch.facade.actions.RuntimeVariableMemoryRegistry.BotJobKey;
 import com.allinweb.ch.facade.actions.RuntimeVariableMemoryRegistry.Definition;
@@ -18,6 +20,7 @@ import com.allinweb.ch.facade.actions.RuntimeVariableMemoryRegistry.ValueSource;
 import com.allinweb.ch.facade.actions.RuntimeVariableValue.VoidReason;
 import com.allinweb.ch.model.DetachedWorkspaceSessions;
 import com.allinweb.ch.model.InstructionGraphMutationV3;
+import com.allinweb.ch.model.VariablesWorkspaceVariableDelete;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -64,7 +67,8 @@ public final class VariablesWorkspaceService {
                      new DefaultWindowPort(),
                      new Gson(),
                      DefaultTaskPort.INSTANCE,
-                     DefaultMutationPort.INSTANCE);
+                     DefaultMutationPort.INSTANCE,
+                     DefaultVariableDeletePort.INSTANCE);
 
     static {
         RUNTIME_MEMORY.addChangeListener(
@@ -77,6 +81,7 @@ public final class VariablesWorkspaceService {
     private final Gson gson;
     private final TaskPort tasks;
     private final MutationPort mutations;
+    private final VariableDeletePort variableDeletes;
     private final Object stateLock = new Object();
     private final Map<BotJobKey, Long> pendingRuntimeMemoryRevisions =
             new ConcurrentHashMap<>();
@@ -94,7 +99,8 @@ public final class VariablesWorkspaceService {
                 windows,
                 gson,
                 DefaultTaskPort.INSTANCE,
-                UnavailableMutationPort.INSTANCE);
+                UnavailableMutationPort.INSTANCE,
+                UnavailableVariableDeletePort.INSTANCE);
     }
 
     VariablesWorkspaceService(
@@ -109,7 +115,8 @@ public final class VariablesWorkspaceService {
                 windows,
                 gson,
                 tasks,
-                UnavailableMutationPort.INSTANCE);
+                UnavailableMutationPort.INSTANCE,
+                UnavailableVariableDeletePort.INSTANCE);
     }
 
     VariablesWorkspaceService(
@@ -119,12 +126,31 @@ public final class VariablesWorkspaceService {
             Gson gson,
             TaskPort tasks,
             MutationPort mutations) {
+        this(
+                workspaces,
+                graphs,
+                windows,
+                gson,
+                tasks,
+                mutations,
+                UnavailableVariableDeletePort.INSTANCE);
+    }
+
+    VariablesWorkspaceService(
+            WorkspacePort workspaces,
+            GraphPort graphs,
+            WindowPort windows,
+            Gson gson,
+            TaskPort tasks,
+            MutationPort mutations,
+            VariableDeletePort variableDeletes) {
         this.workspaces = workspaces;
         this.graphs = graphs;
         this.windows = windows;
         this.gson = gson;
         this.tasks = tasks;
         this.mutations = mutations;
+        this.variableDeletes = variableDeletes;
     }
 
     public static VariablesWorkspaceService getInstance() {
@@ -446,6 +472,92 @@ public final class VariablesWorkspaceService {
     }
 
     /**
+     * Deletes exactly the variable IDs selected by React from the authoritative Variables page.
+     *
+     * <p>The request cannot choose its Bot Job owner. The active backend binding and registered
+     * singleton transport supply that identity, while the database transaction verifies graph
+     * version/revision and clears only matching instruction variable bindings.
+     */
+    public JsonObject deleteVariables(
+            JsonObject body, String requesterSessionId, Session requesterTransport) {
+        JsonObject request = body == null ? new JsonObject() : body;
+        Binding current = null;
+        try {
+            requireManagerTransport(requesterSessionId, requesterTransport);
+            current = currentBinding();
+            if (current == null) {
+                throw new IllegalArgumentException(
+                        "No Bot Job is bound to the Variables workspace.");
+            }
+            String requestedBindingEpoch = text(request, "bindingEpoch");
+            if (requestedBindingEpoch.isBlank()
+                    || !requestedBindingEpoch.equals(current.bindingEpoch())) {
+                throw new IllegalArgumentException(
+                        "The Variables target changed. Reload the current Bot Job.");
+            }
+
+            WorkspaceContext workspace =
+                    workspaces.require(current.botJobId(), current.workspaceEpoch());
+            current = current.withWorkspace(workspace);
+            VariablesWorkspaceVariableDelete.Request deleteRequest;
+            try {
+                deleteRequest = gson.fromJson(
+                        request, VariablesWorkspaceVariableDelete.Request.class);
+            } catch (RuntimeException malformed) {
+                throw new IllegalArgumentException(
+                        "The Variables deletion request is malformed.");
+            }
+            if (deleteRequest == null) {
+                throw new IllegalArgumentException(
+                        "A Variables deletion request is required.");
+            }
+
+            Binding authorized = current;
+            DeleteResult committed =
+                    BotJobDetailsWorkspaceRegistry.getInstance().commitWorkspaceMutation(
+                            authorized.botJobId(),
+                            authorized.workspaceEpoch(),
+                            () -> persistVariableDeletion(authorized, deleteRequest));
+            JsonObject response =
+                    variableDeleteSuccess(request, authorized, committed);
+            if (!isCurrent(authorized)
+                    || !isManagerTransport(requesterTransport)) {
+                response.addProperty("resyncRequired", true);
+                response.addProperty(
+                        "message",
+                        "Variables deleted, but the workspace target changed. "
+                                + "Refreshing authoritative workspaces.");
+            }
+            return response;
+        } catch (VariableDeletePersistenceException persistenceFailure) {
+            Throwable cause = persistenceFailure.getCause();
+            if (cause instanceof MutationRefusedException refused) {
+                return variableDeleteFailure(
+                        request, refused.code(), refused.getMessage(), current);
+            }
+            log.error("Unable to persist Variables deletion", cause);
+            return variableDeleteFailure(
+                    request,
+                    "VARIABLE_DELETE_PERSISTENCE_FAILED",
+                    "The selected variables were not deleted.",
+                    current);
+        } catch (IllegalArgumentException | IllegalStateException refused) {
+            return variableDeleteFailure(
+                    request,
+                    "VARIABLE_DELETE_REQUEST_REFUSED",
+                    refused.getMessage(),
+                    current == null ? currentBinding() : current);
+        } catch (RuntimeException failure) {
+            log.error("Unable to process Variables deletion", failure);
+            return variableDeleteFailure(
+                    request,
+                    "VARIABLE_DELETE_FAILED",
+                    "Variables deletion was not completed.",
+                    current == null ? currentBinding() : current);
+        }
+    }
+
+    /**
      * Publishes authoritative views after the correlated acknowledgement attempt.
      *
      * <p>A closed requester cannot undo the commit or suppress synchronization to surviving
@@ -473,6 +585,24 @@ public final class VariablesWorkspaceService {
                     botJobId,
                     gridError.getErrorMessage());
         }
+        try {
+            JsonObject graph = graphs.load(botJobId);
+            if (isSuccessful(graph)) {
+                reconcileRuntimeMemory(
+                        graph, new BotJobKey(homeBankingId, botJobId));
+            } else {
+                log.warn(
+                        "Variables mutation committed for Bot Job {}, but runtime variable "
+                                + "memory could not be reconciled",
+                        botJobId);
+            }
+        } catch (RuntimeException reconciliationFailure) {
+            log.warn(
+                    "Variables mutation committed for Bot Job {}, but runtime variable memory "
+                            + "reconciliation failed: {}",
+                    botJobId,
+                    reconciliationFailure.getMessage());
+        }
         notifyMutation(botJobId);
     }
 
@@ -489,6 +619,20 @@ public final class VariablesWorkspaceService {
                     mutationProfile);
         } catch (SQLException error) {
             throw new MutationPersistenceException(error);
+        }
+    }
+
+    private DeleteResult persistVariableDeletion(
+            Binding authorized,
+            VariablesWorkspaceVariableDelete.Request request) {
+        try {
+            return variableDeletes.delete(
+                    authorized.homeBankingId(),
+                    authorized.botJobId(),
+                    authorized.workspaceEpoch(),
+                    request);
+        } catch (SQLException error) {
+            throw new VariableDeletePersistenceException(error);
         }
     }
 
@@ -858,6 +1002,10 @@ public final class VariablesWorkspaceService {
     }
 
     private Snapshot reconcileRuntimeMemory(JsonObject graph, Binding current) {
+        return reconcileRuntimeMemory(graph, runtimeOwner(current));
+    }
+
+    private Snapshot reconcileRuntimeMemory(JsonObject graph, BotJobKey owner) {
         List<Definition> definitions = new ArrayList<>();
         JsonArray rows = graph != null
                         && graph.has("rawVariables")
@@ -875,7 +1023,7 @@ public final class VariablesWorkspaceService {
                     text(row, "type")));
         }
         return RUNTIME_MEMORY.reconcileDefinitions(
-                runtimeOwner(current), definitions, true);
+                owner, definitions, true);
     }
 
     private static BotJobKey runtimeOwner(Binding current) {
@@ -1018,6 +1166,64 @@ public final class VariablesWorkspaceService {
                 "message",
                 message == null || message.isBlank()
                         ? "The Variables graph change was refused."
+                        : message);
+        return response;
+    }
+
+    private JsonObject variableDeleteSuccess(
+            JsonObject request,
+            Binding current,
+            DeleteResult committed) {
+        JsonObject response = mutationResponseBase(request, current);
+        response.addProperty(
+                "contractVersion",
+                VariablesWorkspaceVariableDelete.CONTRACT_VERSION);
+        response.addProperty("ok", true);
+        response.addProperty("committed", true);
+        response.addProperty("resyncRequired", false);
+        response.addProperty("mode", committed.mode().name());
+        response.add("variableIds", gson.toJsonTree(committed.variableIds()));
+        response.addProperty("deletedCount", committed.deletedCount());
+        response.addProperty(
+                "clearedInstructionCount",
+                committed.clearedInstructionCount());
+        response.addProperty(
+                "previousGraphVersion",
+                committed.previousGraphVersion());
+        response.addProperty(
+                "committedGraphVersion",
+                committed.committedGraphVersion());
+        response.addProperty("graphRevision", committed.graphRevision());
+        response.addProperty(
+                "message",
+                committed.deletedCount() == 1
+                        ? "Variable deleted. Refreshing Variables and Bot Job Details."
+                        : committed.deletedCount()
+                                + " variables deleted. Refreshing Variables and Bot Job Details.");
+        return response;
+    }
+
+    private JsonObject variableDeleteFailure(
+            JsonObject request,
+            String errorCode,
+            String message,
+            Binding current) {
+        JsonObject response = mutationResponseBase(request, current);
+        response.addProperty(
+                "contractVersion",
+                VariablesWorkspaceVariableDelete.CONTRACT_VERSION);
+        response.addProperty("ok", false);
+        response.addProperty("committed", false);
+        response.addProperty("preserveSnapshot", true);
+        response.addProperty(
+                "errorCode",
+                errorCode == null || errorCode.isBlank()
+                        ? "VARIABLE_DELETE_REFUSED"
+                        : errorCode);
+        response.addProperty(
+                "message",
+                message == null || message.isBlank()
+                        ? "Variables deletion was refused."
                         : message);
         return response;
     }
@@ -1239,6 +1445,15 @@ public final class VariablesWorkspaceService {
                 throws SQLException;
     }
 
+    interface VariableDeletePort {
+        DeleteResult delete(
+                int homeBankingId,
+                int botJobId,
+                long workspaceEpoch,
+                VariablesWorkspaceVariableDelete.Request request)
+                throws SQLException;
+    }
+
     record WorkspaceContext(
             long workspaceEpoch,
             int botJobId,
@@ -1293,6 +1508,12 @@ public final class VariablesWorkspaceService {
 
     private static final class MutationPersistenceException extends RuntimeException {
         private MutationPersistenceException(SQLException cause) {
+            super(cause);
+        }
+    }
+
+    private static final class VariableDeletePersistenceException extends RuntimeException {
+        private VariableDeletePersistenceException(SQLException cause) {
             super(cause);
         }
     }
@@ -1356,6 +1577,39 @@ public final class VariablesWorkspaceService {
                 String mutationProfile)
                 throws SQLException {
             throw new SQLException("Variables graph mutation capability is unavailable.");
+        }
+    }
+
+    private enum DefaultVariableDeletePort implements VariableDeletePort {
+        INSTANCE;
+
+        private final VariablesVariableDeleteService service =
+                VariablesVariableDeleteService.getInstance();
+
+        @Override
+        public DeleteResult delete(
+                int homeBankingId,
+                int botJobId,
+                long workspaceEpoch,
+                VariablesWorkspaceVariableDelete.Request request)
+                throws SQLException {
+            return service.delete(
+                    homeBankingId, botJobId, workspaceEpoch, request);
+        }
+    }
+
+    private enum UnavailableVariableDeletePort implements VariableDeletePort {
+        INSTANCE;
+
+        @Override
+        public DeleteResult delete(
+                int homeBankingId,
+                int botJobId,
+                long workspaceEpoch,
+                VariablesWorkspaceVariableDelete.Request request)
+                throws SQLException {
+            throw new SQLException(
+                    "Variables deletion capability is unavailable.");
         }
     }
 

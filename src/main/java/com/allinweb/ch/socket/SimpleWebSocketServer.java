@@ -118,6 +118,7 @@ public class SimpleWebSocketServer {
             "variablesWorkspace.refresh",
             "variablesWorkspace.runtimeMemory.update",
             "variablesWorkspace.graphMutationV3",
+            "variablesWorkspace.variables.delete",
             "pagesOpen.open",
             "pagesOpen.summary");
     private static final ScannerPluginDownloadCommandService scannerPluginDownloadCommandService =
@@ -918,6 +919,25 @@ public class SimpleWebSocketServer {
                         // A closed/replaced requester must not suppress publication of an
                         // already committed database change.
                         variablesWorkspaceService.publishCommittedMutation(mutationResponse);
+                    }
+                    break;
+                }
+                case "variablesWorkspace.variables.delete": {
+                    JsonObject variablesBody = extractBody(jsonObjMSG);
+                    JsonObject deletionResponse =
+                            variablesWorkspaceService.deleteVariables(
+                                    variablesBody, sessionId, session);
+                    try {
+                        sendCommandEditorResponse(
+                                homeBankingId,
+                                sessionId,
+                                "variablesWorkspace.variables.deleteResponse",
+                                deletionResponse);
+                    } finally {
+                        // The database commit remains authoritative even if the requester closes
+                        // before its acknowledgement. Surviving workspaces still refresh in order.
+                        variablesWorkspaceService.publishCommittedMutation(
+                                deletionResponse);
                     }
                     break;
                 }
