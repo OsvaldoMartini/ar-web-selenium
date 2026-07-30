@@ -1275,6 +1275,12 @@ Implemented:
   behavior or repair targets.
 - [x] Lock the review dialog during reconnect/bootstrap/refresh changes, include the exact Bot Job
   owner in its authority key, and show the planned destination before the client confirms.
+- [x] Make every visible Variables execution row a real before/after drop surface. The pointer
+  midpoint selects the exact placement and an orange edge/glow shows the live target; the narrow
+  gap and explicit cross-Block Block-zone targets remain available.
+- [x] Keep the native drag source in the Variables-private controller as well as React render
+  state, and carry both the private MIME value and a plain-text fallback so a fast browser drop
+  cannot disappear while a state render is pending.
 
 Focused verification:
 
@@ -1292,6 +1298,9 @@ Still deferred:
 
 - [ ] Runtime/manual acceptance with production-shaped data, including refresh/reopen/restart
   persistence and Bot Job Details/Variables realtime convergence.
+- [ ] Reopen the detached Variables window after the deployed bundle changes, then manually prove
+  visible-row same-Block drops and eligible consumer-to-Block-zone drops. A stale already-open
+  browser document retains its old JavaScript even when its WebSocket reconnects.
 - [ ] `GET`/`SET` cross-Block semantics, variable-owner transfer, empty-Block policy, standalone
   reconnect repair action, structural movement, arbitrary destination gaps hidden from the
   variable lane, keyboard parity, and mixed legacy-writer activation proof.
