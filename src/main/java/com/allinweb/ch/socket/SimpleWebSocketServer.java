@@ -5527,9 +5527,6 @@ public class SimpleWebSocketServer {
                     synchronized (processedInstructionDeletes) {
                         if (processedInstructionDeletes.containsKey(deleteRequestId)) break;
                     }
-                    errorMessage = CommandEditorService.getInstance().validateDeleteRevision(splitDTO);
-                    if (errorMessage != null) break;
-
                     errorMessage = performDataBase.loadInstructions(whereId, -1, -1, instrTable);
                     if (errorMessage != null) break;
                     InstructionLoad storedDelete = findInstructionInMemory(instrTable, whereId, instructionId);
@@ -5669,8 +5666,6 @@ public class SimpleWebSocketServer {
                     synchronized (processedBlockDeletes) {
                         if (processedBlockDeletes.containsKey(blockDeleteRequestId)) break;
                     }
-                    errorMessage = CommandEditorService.getInstance().validateDeleteRevision(splitDTO);
-                    if (errorMessage != null) break;
                     errorMessage = performDataBase.deleteBlockGraphAtomic(blockTable, whereId, splitDTO.getBlockId());
                     if (errorMessage == null) errorMessage = performDataBase.loadInstructions(whereId, -1, -1, instrTable);
                     if (errorMessage == null) errorMessage = performDataBase.loadBlocks(whereId, "", blockTable);
@@ -6620,11 +6615,6 @@ public class SimpleWebSocketServer {
 
     private BlockDeleteBatchLedger.Outcome executeBlockDeleteBatch(
             SplitDTO split, String blockTable, int whereId) {
-        ErrorMessage revisionError =
-                CommandEditorService.getInstance().validateDeleteRevision(split);
-        if (revisionError != null) {
-            return BlockDeleteBatchLedger.Outcome.failure(revisionError);
-        }
         PerformDataBase.BlockDeleteBatchResult result =
                 performDataBase.deleteBlocksGraphAtomic(
                         blockTable,
@@ -6645,19 +6635,10 @@ public class SimpleWebSocketServer {
         payload.addProperty("contractVersion", 1);
         payload.addProperty("blockTable", blockTable);
         payload.addProperty("whereId", whereId);
-        payload.addProperty("graphRevision", split.getGraphRevision());
         payload.addProperty("deleteBlockIdsPresent", split.getDeleteBlockIds() != null);
-        payload.addProperty("expectedBlockIdsPresent", split.getExpectedBlockIds() != null);
         payload.add(
                 "deleteBlockIds",
                 gson.toJsonTree(normalizedBlockDeleteIds(split.getDeleteBlockIds())));
-        payload.add(
-                "expectedBlockIds",
-                gson.toJsonTree(
-                        split.getExpectedBlockIds() == null
-                                ? List.of()
-                                : split.getExpectedBlockIds()));
-        payload.add("retainBlockId", gson.toJsonTree(split.getRetainBlockId()));
         return payload;
     }
 

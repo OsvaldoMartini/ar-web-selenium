@@ -4539,24 +4539,15 @@ public class PerformDataBase {
             String blockTable,
             int whereId,
             List<Integer> deleteBlockIds,
-            List<Integer> expectedBlockIds,
-            Integer requestedRetainBlockId) {
+            List<Integer> ignoredExpectedBlockIds,
+            Integer ignoredRequestedRetainBlockId) {
         if (!"block".equals(blockTable) && !"component_block".equals(blockTable)) {
             return blockDeleteBatchFailure("Invalid block table: " + blockTable);
         }
         String deleteValidation = validateExactPositiveIds(deleteBlockIds, "deleteBlockIds");
         if (deleteValidation != null) return blockDeleteBatchFailure(deleteValidation);
-        String expectedValidation = validateExactPositiveIds(expectedBlockIds, "expectedBlockIds");
-        if (expectedValidation != null) return blockDeleteBatchFailure(expectedValidation);
-        if (requestedRetainBlockId != null && requestedRetainBlockId <= 0) {
-            return blockDeleteBatchFailure("retainBlockId must be a positive block ID.");
-        }
 
         LinkedHashSet<Integer> selectedIds = new LinkedHashSet<>(deleteBlockIds);
-        LinkedHashSet<Integer> expectedIds = new LinkedHashSet<>(expectedBlockIds);
-        if (!expectedIds.containsAll(selectedIds)) {
-            return blockDeleteBatchFailure("deleteBlockIds must be a subset of expectedBlockIds.");
-        }
 
         String ownerColumn = "block".equals(blockTable) ? "bot_job_id" : "home_banking_id";
         String instructionTable = "block".equals(blockTable) ? "instruction" : "component_instruction";
@@ -4579,24 +4570,13 @@ public class PerformDataBase {
                 }
             }
             LinkedHashSet<Integer> currentIds = new LinkedHashSet<>(currentBlockIds);
-            if (!currentBlockIds.equals(expectedBlockIds)) {
-                throw new SQLException("Blocks changed. Refresh the grid before deleting Blocks.");
-            }
             if (!currentIds.containsAll(selectedIds)) {
                 throw new SQLException("One or more selected Blocks do not belong to the active owner.");
             }
 
             boolean deletesCompleteOwnerSet = selectedIds.equals(currentIds);
-            Integer retainedBlockId = null;
-            if (deletesCompleteOwnerSet) {
-                retainedBlockId = currentBlockIds.get(0);
-                if (!Objects.equals(requestedRetainBlockId, retainedBlockId)) {
-                    throw new SQLException(
-                            "retainBlockId must identify the first current Block when every Block is selected.");
-                }
-            } else if (requestedRetainBlockId != null) {
-                throw new SQLException("retainBlockId is only allowed when every current Block is selected.");
-            }
+            Integer retainedBlockId =
+                    deletesCompleteOwnerSet ? currentBlockIds.get(0) : null;
 
             List<Integer> deletedBlockIds = new ArrayList<>();
             for (Integer selectedId : selectedIds) {
