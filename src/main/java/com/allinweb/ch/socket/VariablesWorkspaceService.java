@@ -8,6 +8,8 @@ import com.allinweb.ch.facade.BotJobGraphMutationTransaction.MutationRefusedExce
 import com.allinweb.ch.facade.ScannerBotJobTasksPublisher;
 import com.allinweb.ch.facade.VariableRelationshipService;
 import com.allinweb.ch.facade.VariablesCrossBlockInstructionMutationProfile;
+import com.allinweb.ch.facade.VariablesInstructionCopyService;
+import com.allinweb.ch.facade.VariablesInstructionCopyTransaction.CopyResult;
 import com.allinweb.ch.facade.VariablesInstructionMutationProfile;
 import com.allinweb.ch.facade.VariablesReactAuthoredMutationProfile;
 import com.allinweb.ch.facade.VariablesVariableDeleteService;
@@ -20,6 +22,7 @@ import com.allinweb.ch.facade.actions.RuntimeVariableMemoryRegistry.ValueSource;
 import com.allinweb.ch.facade.actions.RuntimeVariableValue.VoidReason;
 import com.allinweb.ch.model.DetachedWorkspaceSessions;
 import com.allinweb.ch.model.InstructionGraphMutationV3;
+import com.allinweb.ch.model.VariablesInstructionCopyV1;
 import com.allinweb.ch.model.VariablesWorkspaceVariableDelete;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
@@ -68,7 +71,8 @@ public final class VariablesWorkspaceService {
                      new Gson(),
                      DefaultTaskPort.INSTANCE,
                      DefaultMutationPort.INSTANCE,
-                     DefaultVariableDeletePort.INSTANCE);
+                     DefaultVariableDeletePort.INSTANCE,
+                     DefaultInstructionCopyPort.INSTANCE);
 
     static {
         RUNTIME_MEMORY.addChangeListener(
@@ -82,6 +86,7 @@ public final class VariablesWorkspaceService {
     private final TaskPort tasks;
     private final MutationPort mutations;
     private final VariableDeletePort variableDeletes;
+    private final InstructionCopyPort instructionCopies;
     private final Object stateLock = new Object();
     private final Map<BotJobKey, Long> pendingRuntimeMemoryRevisions =
             new ConcurrentHashMap<>();
@@ -100,7 +105,8 @@ public final class VariablesWorkspaceService {
                 gson,
                 DefaultTaskPort.INSTANCE,
                 UnavailableMutationPort.INSTANCE,
-                UnavailableVariableDeletePort.INSTANCE);
+                UnavailableVariableDeletePort.INSTANCE,
+                UnavailableInstructionCopyPort.INSTANCE);
     }
 
     VariablesWorkspaceService(
@@ -116,7 +122,8 @@ public final class VariablesWorkspaceService {
                 gson,
                 tasks,
                 UnavailableMutationPort.INSTANCE,
-                UnavailableVariableDeletePort.INSTANCE);
+                UnavailableVariableDeletePort.INSTANCE,
+                UnavailableInstructionCopyPort.INSTANCE);
     }
 
     VariablesWorkspaceService(
@@ -133,7 +140,8 @@ public final class VariablesWorkspaceService {
                 gson,
                 tasks,
                 mutations,
-                UnavailableVariableDeletePort.INSTANCE);
+                UnavailableVariableDeletePort.INSTANCE,
+                UnavailableInstructionCopyPort.INSTANCE);
     }
 
     VariablesWorkspaceService(
@@ -144,6 +152,26 @@ public final class VariablesWorkspaceService {
             TaskPort tasks,
             MutationPort mutations,
             VariableDeletePort variableDeletes) {
+        this(
+                workspaces,
+                graphs,
+                windows,
+                gson,
+                tasks,
+                mutations,
+                variableDeletes,
+                UnavailableInstructionCopyPort.INSTANCE);
+    }
+
+    VariablesWorkspaceService(
+            WorkspacePort workspaces,
+            GraphPort graphs,
+            WindowPort windows,
+            Gson gson,
+            TaskPort tasks,
+            MutationPort mutations,
+            VariableDeletePort variableDeletes,
+            InstructionCopyPort instructionCopies) {
         this.workspaces = workspaces;
         this.graphs = graphs;
         this.windows = windows;
@@ -151,6 +179,7 @@ public final class VariablesWorkspaceService {
         this.tasks = tasks;
         this.mutations = mutations;
         this.variableDeletes = variableDeletes;
+        this.instructionCopies = instructionCopies;
     }
 
     public static VariablesWorkspaceService getInstance() {
@@ -472,6 +501,91 @@ public final class VariablesWorkspaceService {
     }
 
     /**
+     * Copies exactly the React-submitted instruction IDs to one current Bot Job block.
+     *
+     * <p>The request cannot choose its owner. The active detached Variables binding supplies that
+     * identity, and the database transaction creates fresh IDs without changing source rows.
+     */
+    public JsonObject copyInstructions(
+            JsonObject body, String requesterSessionId, Session requesterTransport) {
+        JsonObject request = body == null ? new JsonObject() : body;
+        Binding current = null;
+        try {
+            requireManagerTransport(requesterSessionId, requesterTransport);
+            current = currentBinding();
+            if (current == null) {
+                throw new IllegalArgumentException(
+                        "No Bot Job is bound to the Variables workspace.");
+            }
+            String requestedBindingEpoch = text(request, "bindingEpoch");
+            if (requestedBindingEpoch.isBlank()
+                    || !requestedBindingEpoch.equals(current.bindingEpoch())) {
+                throw new IllegalArgumentException(
+                        "The Variables target changed. Reload the current Bot Job.");
+            }
+
+            WorkspaceContext workspace =
+                    workspaces.require(current.botJobId(), current.workspaceEpoch());
+            current = current.withWorkspace(workspace);
+            VariablesInstructionCopyV1.Request copyRequest;
+            try {
+                copyRequest =
+                        gson.fromJson(request, VariablesInstructionCopyV1.Request.class);
+            } catch (RuntimeException malformed) {
+                throw new IllegalArgumentException(
+                        "The Variables instruction-copy request is malformed.");
+            }
+            if (copyRequest == null) {
+                throw new IllegalArgumentException(
+                        "A Variables instruction-copy request is required.");
+            }
+
+            Binding authorized = current;
+            CopyResult committed =
+                    BotJobDetailsWorkspaceRegistry.getInstance().commitWorkspaceMutation(
+                            authorized.botJobId(),
+                            authorized.workspaceEpoch(),
+                            () -> persistInstructionCopy(authorized, copyRequest));
+            JsonObject response =
+                    instructionCopySuccess(request, authorized, committed);
+            if (!isCurrent(authorized)
+                    || !isManagerTransport(requesterTransport)) {
+                response.addProperty("resyncRequired", true);
+                response.addProperty(
+                        "message",
+                        "Instructions copied, but the workspace target changed. "
+                                + "Refreshing authoritative workspaces.");
+            }
+            return response;
+        } catch (InstructionCopyPersistenceException persistenceFailure) {
+            Throwable cause = persistenceFailure.getCause();
+            if (cause instanceof MutationRefusedException refused) {
+                return instructionCopyFailure(
+                        request, refused.code(), refused.getMessage(), current);
+            }
+            log.error("Unable to persist Variables instruction copy", cause);
+            return instructionCopyFailure(
+                    request,
+                    "VARIABLE_COPY_PERSISTENCE_FAILED",
+                    "The selected instructions were not copied.",
+                    current);
+        } catch (IllegalArgumentException | IllegalStateException refused) {
+            return instructionCopyFailure(
+                    request,
+                    "VARIABLE_COPY_REQUEST_REFUSED",
+                    refused.getMessage(),
+                    current == null ? currentBinding() : current);
+        } catch (RuntimeException failure) {
+            log.error("Unable to process Variables instruction copy", failure);
+            return instructionCopyFailure(
+                    request,
+                    "VARIABLE_COPY_FAILED",
+                    "Instruction copy was not completed.",
+                    current == null ? currentBinding() : current);
+        }
+    }
+
+    /**
      * Deletes exactly the variable IDs selected by React from the authoritative Variables page.
      *
      * <p>The request cannot choose its Bot Job owner. The active backend binding and registered
@@ -633,6 +747,20 @@ public final class VariablesWorkspaceService {
                     request);
         } catch (SQLException error) {
             throw new VariableDeletePersistenceException(error);
+        }
+    }
+
+    private CopyResult persistInstructionCopy(
+            Binding authorized,
+            VariablesInstructionCopyV1.Request request) {
+        try {
+            return instructionCopies.copy(
+                    authorized.homeBankingId(),
+                    authorized.botJobId(),
+                    authorized.workspaceEpoch(),
+                    request);
+        } catch (SQLException error) {
+            throw new InstructionCopyPersistenceException(error);
         }
     }
 
@@ -1170,6 +1298,80 @@ public final class VariablesWorkspaceService {
         return response;
     }
 
+    private JsonObject instructionCopySuccess(
+            JsonObject request,
+            Binding current,
+            CopyResult committed) {
+        JsonObject response = mutationResponseBase(request, current);
+        response.addProperty(
+                "contractVersion", VariablesInstructionCopyV1.CONTRACT_VERSION);
+        response.addProperty("ok", true);
+        response.addProperty("committed", true);
+        response.addProperty("duplicate", committed.duplicate());
+        response.addProperty("resyncRequired", false);
+        response.addProperty("scope", committed.scope().name());
+        response.addProperty(
+                "selectedInstructionId", committed.selectedInstructionId());
+        response.addProperty("targetBlockId", committed.targetBlockId());
+        response.add(
+                "sourceInstructionIds",
+                gson.toJsonTree(committed.sourceInstructionIds()));
+        response.add(
+                "generatedInstructionIds",
+                gson.toJsonTree(committed.generatedInstructionIds()));
+        response.add(
+                "createdInstructionIds",
+                gson.toJsonTree(
+                        committed.sourceInstructionIds().stream()
+                                .map(committed.generatedInstructionIds()::get)
+                                .toList()));
+        response.add(
+                "generatedVariableIds",
+                gson.toJsonTree(committed.generatedVariableIds()));
+        response.addProperty(
+                "appliedCount", committed.generatedInstructionIds().size());
+        response.addProperty(
+                "copiedReferenceCount", committed.copiedReferenceCount());
+        response.addProperty(
+                "previousGraphVersion", committed.previousGraphVersion());
+        response.addProperty(
+                "committedGraphVersion", committed.committedGraphVersion());
+        response.addProperty(
+                "graphVersion", committed.committedGraphVersion());
+        response.addProperty("graphRevision", committed.graphRevision());
+        response.addProperty(
+                "message",
+                committed.generatedInstructionIds().size() == 1
+                        ? "Instruction copied. Refreshing Variables and Bot Job Details."
+                        : committed.generatedInstructionIds().size()
+                                + " instructions copied. Refreshing Variables and Bot Job Details.");
+        return response;
+    }
+
+    private JsonObject instructionCopyFailure(
+            JsonObject request,
+            String errorCode,
+            String message,
+            Binding current) {
+        JsonObject response = mutationResponseBase(request, current);
+        response.addProperty(
+                "contractVersion", VariablesInstructionCopyV1.CONTRACT_VERSION);
+        response.addProperty("ok", false);
+        response.addProperty("committed", false);
+        response.addProperty("preserveSnapshot", true);
+        response.addProperty(
+                "errorCode",
+                errorCode == null || errorCode.isBlank()
+                        ? "VARIABLE_COPY_REFUSED"
+                        : errorCode);
+        response.addProperty(
+                "message",
+                message == null || message.isBlank()
+                        ? "Instruction copy was refused."
+                        : message);
+        return response;
+    }
+
     private JsonObject variableDeleteSuccess(
             JsonObject request,
             Binding current,
@@ -1454,6 +1656,15 @@ public final class VariablesWorkspaceService {
                 throws SQLException;
     }
 
+    interface InstructionCopyPort {
+        CopyResult copy(
+                int homeBankingId,
+                int botJobId,
+                long workspaceEpoch,
+                VariablesInstructionCopyV1.Request request)
+                throws SQLException;
+    }
+
     record WorkspaceContext(
             long workspaceEpoch,
             int botJobId,
@@ -1514,6 +1725,12 @@ public final class VariablesWorkspaceService {
 
     private static final class VariableDeletePersistenceException extends RuntimeException {
         private VariableDeletePersistenceException(SQLException cause) {
+            super(cause);
+        }
+    }
+
+    private static final class InstructionCopyPersistenceException extends RuntimeException {
+        private InstructionCopyPersistenceException(SQLException cause) {
             super(cause);
         }
     }
@@ -1610,6 +1827,39 @@ public final class VariablesWorkspaceService {
                 throws SQLException {
             throw new SQLException(
                     "Variables deletion capability is unavailable.");
+        }
+    }
+
+    private enum DefaultInstructionCopyPort implements InstructionCopyPort {
+        INSTANCE;
+
+        private final VariablesInstructionCopyService service =
+                VariablesInstructionCopyService.getInstance();
+
+        @Override
+        public CopyResult copy(
+                int homeBankingId,
+                int botJobId,
+                long workspaceEpoch,
+                VariablesInstructionCopyV1.Request request)
+                throws SQLException {
+            return service.copy(
+                    homeBankingId, botJobId, workspaceEpoch, request);
+        }
+    }
+
+    private enum UnavailableInstructionCopyPort implements InstructionCopyPort {
+        INSTANCE;
+
+        @Override
+        public CopyResult copy(
+                int homeBankingId,
+                int botJobId,
+                long workspaceEpoch,
+                VariablesInstructionCopyV1.Request request)
+                throws SQLException {
+            throw new SQLException(
+                    "Variables instruction-copy capability is unavailable.");
         }
     }
 

@@ -118,6 +118,7 @@ public class SimpleWebSocketServer {
             "variablesWorkspace.refresh",
             "variablesWorkspace.runtimeMemory.update",
             "variablesWorkspace.graphMutationV3",
+            "variablesWorkspace.instructions.copy",
             "variablesWorkspace.variables.delete",
             "pagesOpen.open",
             "pagesOpen.summary");
@@ -919,6 +920,24 @@ public class SimpleWebSocketServer {
                         // A closed/replaced requester must not suppress publication of an
                         // already committed database change.
                         variablesWorkspaceService.publishCommittedMutation(mutationResponse);
+                    }
+                    break;
+                }
+                case "variablesWorkspace.instructions.copy": {
+                    JsonObject variablesBody = extractBody(jsonObjMSG);
+                    JsonObject copyResponse =
+                            variablesWorkspaceService.copyInstructions(
+                                    variablesBody, sessionId, session);
+                    try {
+                        sendCommandEditorResponse(
+                                homeBankingId,
+                                sessionId,
+                                "variablesWorkspace.instructions.copyResponse",
+                                copyResponse);
+                    } finally {
+                        // An acknowledged commit remains authoritative even if the detached
+                        // requester closes before its response reaches React.
+                        variablesWorkspaceService.publishCommittedMutation(copyResponse);
                     }
                     break;
                 }

@@ -16,12 +16,14 @@ import com.allinweb.ch.facade.BotJobGraphMutationTransaction.CommitResult;
 import com.allinweb.ch.facade.BotJobGraphMutationTransaction.GraphInstructionFact;
 import com.allinweb.ch.facade.BotJobGraphMutationTransaction.GraphSnapshot;
 import com.allinweb.ch.facade.ScannerBotJobTasksPublisher;
+import com.allinweb.ch.facade.VariablesInstructionCopyTransaction.CopyResult;
 import com.allinweb.ch.facade.VariablesVariableDeleteTransaction.DeleteResult;
 import com.allinweb.ch.facade.actions.RuntimeVariableMemoryRegistry;
 import com.allinweb.ch.facade.actions.RuntimeVariableMemoryRegistry.BotJobKey;
 import com.allinweb.ch.model.BotJobLoadDTO;
 import com.allinweb.ch.model.InstructionGraphMutationV3;
 import com.allinweb.ch.model.InstructionGraphMutationV3.LayoutRow;
+import com.allinweb.ch.model.VariablesInstructionCopyV1;
 import com.allinweb.ch.model.VariablesWorkspaceVariableDelete;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
@@ -923,6 +925,165 @@ class VariablesWorkspaceServiceTest {
         }
     }
 
+    @Test
+    void instructionCopyRefusesForgedTransportAndStaleBindingBeforePersistence() {
+        FakeMutations mutations = FakeMutations.ready();
+        FakeVariableDeletes deletes = new FakeVariableDeletes();
+        FakeInstructionCopies copies = new FakeInstructionCopies();
+        VariablesWorkspaceService mutableService =
+                new VariablesWorkspaceService(
+                        workspaces,
+                        graphs,
+                        windows,
+                        new Gson(),
+                        tasks,
+                        mutations,
+                        deletes,
+                        copies);
+        mutableService.openForBotJob(5);
+        Session manager = openSession();
+        windows.register(manager);
+        mutableService.connected(
+                VariablesWorkspaceService.WORKSPACE_SESSION_ID, manager);
+        JsonObject bootstrap =
+                mutableService.bootstrap(
+                        new JsonObject(),
+                        VariablesWorkspaceService.WORKSPACE_SESSION_ID,
+                        manager);
+        String bindingEpoch = bootstrap.get("bindingEpoch").getAsString();
+
+        JsonObject forged =
+                mutableService.copyInstructions(
+                        copyRequest(bindingEpoch, 10L, "copy-forged"),
+                        VariablesWorkspaceService.WORKSPACE_SESSION_ID,
+                        openSession());
+        assertFalse(forged.get("ok").getAsBoolean());
+        assertTrue(forged.get("preserveSnapshot").getAsBoolean());
+        assertEquals(
+                "VARIABLE_COPY_REQUEST_REFUSED",
+                forged.get("errorCode").getAsString());
+
+        JsonObject stale =
+                mutableService.copyInstructions(
+                        copyRequest("retired-binding", 10L, "copy-stale"),
+                        VariablesWorkspaceService.WORKSPACE_SESSION_ID,
+                        manager);
+        assertFalse(stale.get("ok").getAsBoolean());
+        assertTrue(stale.get("preserveSnapshot").getAsBoolean());
+        assertEquals(
+                "VARIABLE_COPY_REQUEST_REFUSED",
+                stale.get("errorCode").getAsString());
+        assertEquals(bindingEpoch, stale.get("bindingEpoch").getAsString());
+        assertEquals(0, copies.calls);
+    }
+
+    @Test
+    void instructionCopyUsesBoundOwnerAndReturnsFreshIdsInExactSourceOrder() {
+        BotJobDetailsWorkspaceRegistry registry =
+                BotJobDetailsWorkspaceRegistry.getInstance();
+        BotJobLoadDTO botJob = new BotJobLoadDTO();
+        botJob.setId(5);
+        botJob.setName("Job Five");
+        botJob.setHomeBankingId(2);
+        BotJobDetailsWorkspaceRegistry.Snapshot active =
+                registry.activate(botJob, false);
+        try {
+            FakeWorkspaces exactWorkspaces = new FakeWorkspaces();
+            exactWorkspaces.add(
+                    new VariablesWorkspaceService.WorkspaceContext(
+                            active.workspaceEpoch(), 5, 2, "Job Five", "Bank"));
+            FakeInstructionCopies copies = new FakeInstructionCopies();
+            copies.result =
+                    new CopyResult(
+                            OwnerKey.botJob(2, 5),
+                            active.workspaceEpoch(),
+                            "copy-instructions-1",
+                            VariablesInstructionCopyV1.Scope.WITH_PARENTS,
+                            102,
+                            20,
+                            List.of(102, 100),
+                            new LinkedHashMap<>(Map.of(102, 901, 100, 902)),
+                            new LinkedHashMap<>(Map.of(7, 77)),
+                            2,
+                            4L,
+                            5L,
+                            "revision-after-copy",
+                            false);
+            VariablesWorkspaceService mutableService =
+                    new VariablesWorkspaceService(
+                            exactWorkspaces,
+                            graphs,
+                            windows,
+                            new Gson(),
+                            tasks,
+                            FakeMutations.ready(),
+                            new FakeVariableDeletes(),
+                            copies);
+            mutableService.openForBotJob(5);
+            Session manager = openSession();
+            windows.register(manager);
+            mutableService.connected(
+                    VariablesWorkspaceService.WORKSPACE_SESSION_ID, manager);
+            JsonObject bootstrap =
+                    mutableService.bootstrap(
+                            new JsonObject(),
+                            VariablesWorkspaceService.WORKSPACE_SESSION_ID,
+                            manager);
+            JsonObject request =
+                    copyRequest(
+                            bootstrap.get("bindingEpoch").getAsString(),
+                            active.workspaceEpoch(),
+                            "copy-instructions-1");
+            request.addProperty("homeBankingId", 999);
+            request.addProperty("botJobId", 999);
+
+            JsonObject response =
+                    mutableService.copyInstructions(
+                            request,
+                            VariablesWorkspaceService.WORKSPACE_SESSION_ID,
+                            manager);
+
+            assertTrue(response.get("ok").getAsBoolean(), response.toString());
+            assertTrue(response.get("committed").getAsBoolean());
+            assertEquals(
+                    List.of(901, 902),
+                    new Gson()
+                            .fromJson(
+                                    response.get("createdInstructionIds"),
+                                    new com.google.gson.reflect.TypeToken<List<Integer>>() {}
+                                            .getType()));
+            assertEquals(2, response.get("appliedCount").getAsInt());
+            assertEquals(2, response.get("copiedReferenceCount").getAsInt());
+            assertEquals(5L, response.get("committedGraphVersion").getAsLong());
+            assertEquals("revision-after-copy", response.get("graphRevision").getAsString());
+            assertEquals(5, response.get("botJobId").getAsInt());
+            assertEquals(2, response.get("homeBankingId").getAsInt());
+            assertEquals(1, copies.calls);
+            assertEquals(2, copies.lastHomeBankingId);
+            assertEquals(5, copies.lastBotJobId);
+            assertEquals(active.workspaceEpoch(), copies.lastWorkspaceEpoch);
+        } finally {
+            registry.close(5);
+        }
+    }
+
+    private JsonObject copyRequest(
+            String bindingEpoch, long workspaceEpoch, String requestId) {
+        VariablesInstructionCopyV1.Request request =
+                new VariablesInstructionCopyV1.Request(
+                        VariablesInstructionCopyV1.CONTRACT_VERSION,
+                        requestId,
+                        bindingEpoch,
+                        workspaceEpoch,
+                        4L,
+                        "mutation-five",
+                        20,
+                        102,
+                        VariablesInstructionCopyV1.Scope.WITH_PARENTS,
+                        List.of(102, 100));
+        return new Gson().toJsonTree(request).getAsJsonObject();
+    }
+
     private JsonObject deleteRequest(
             String bindingEpoch, long workspaceEpoch, String requestId) {
         VariablesWorkspaceVariableDelete.Request request =
@@ -1443,6 +1604,44 @@ class VariablesWorkspaceServiceTest {
                     request.baseGraphVersion(),
                     request.baseGraphVersion() + 1L,
                     "deletion-after");
+        }
+    }
+
+    private static final class FakeInstructionCopies
+            implements VariablesWorkspaceService.InstructionCopyPort {
+        private CopyResult result;
+        private int calls;
+        private int lastHomeBankingId;
+        private int lastBotJobId;
+        private long lastWorkspaceEpoch;
+
+        @Override
+        public CopyResult copy(
+                int homeBankingId,
+                int botJobId,
+                long workspaceEpoch,
+                VariablesInstructionCopyV1.Request request)
+                throws SQLException {
+            calls++;
+            lastHomeBankingId = homeBankingId;
+            lastBotJobId = botJobId;
+            lastWorkspaceEpoch = workspaceEpoch;
+            if (result != null) return result;
+            return new CopyResult(
+                    OwnerKey.botJob(homeBankingId, botJobId),
+                    workspaceEpoch,
+                    request.requestId(),
+                    request.scope(),
+                    request.selectedInstructionId(),
+                    request.targetBlockId(),
+                    request.sourceInstructionIds(),
+                    Map.of(request.selectedInstructionId(), 900),
+                    Map.of(),
+                    0,
+                    request.baseGraphVersion(),
+                    request.baseGraphVersion() + 1L,
+                    "copy-after",
+                    false);
         }
     }
 

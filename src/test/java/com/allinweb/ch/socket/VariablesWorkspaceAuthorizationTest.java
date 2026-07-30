@@ -86,6 +86,7 @@ class VariablesWorkspaceAuthorizationTest {
                         "variablesWorkspace.refresh",
                         "variablesWorkspace.runtimeMemory.update",
                         "variablesWorkspace.graphMutationV3",
+                        "variablesWorkspace.instructions.copy",
                         "variablesWorkspace.variables.delete",
                         "pagesOpen.open",
                         "pagesOpen.summary"),
