@@ -591,6 +591,63 @@ class BotJobGraphMutationTransactionTest {
         }
     }
 
+    @Test
+    void variablesCrossBlockProfileCommitsOneConsumerAndExplicitReconnect()
+            throws Exception {
+        try (Connection connection = database()) {
+            try (Statement statement = connection.createStatement()) {
+                statement.executeUpdate(
+                        "UPDATE instruction SET actions='CK' WHERE id=103");
+                statement.executeUpdate(
+                        "UPDATE instruction SET actions='H',parent_block_id=NULL WHERE id=102");
+                statement.executeUpdate(
+                        "INSERT INTO instruction VALUES"
+                                + "(200,5,30,1,'C',NULL,NULL,NULL,'click')");
+            }
+            InstructionGraphMutationV3.Request request = request(
+                    connection,
+                    InstructionGraphMutationV3.MutationKind.ROW_MOVE,
+                    103,
+                    List.of(
+                            row(100, 10, 1, 1),
+                            row(101, 10, 1, 2),
+                            row(104, 20, 2, 1),
+                            row(102, 20, 2, 2),
+                            row(200, 30, 3, 1),
+                            row(103, 30, 3, 2)),
+                    List.of(relationPatch(
+                            103,
+                            InstructionRelationKind.ELEMENT_TARGET,
+                            PatchOperation.SET,
+                            relation(104, 20),
+                            relation(200, 30))),
+                    List.of(),
+                    List.of());
+
+            BotJobGraphMutationTransaction.CommitResult committed =
+                    new BotJobGraphMutationTransaction()
+                            .executeVariablesInstructionCrossBlockMove(
+                                    connection, authenticatedOwner, request);
+
+            assertEquals(1L, committed.committedGraphVersion());
+            assertEquals(30, integerValue(
+                    connection, "SELECT block_id FROM instruction WHERE id=103"));
+            assertEquals(2, integerValue(
+                    connection,
+                    "SELECT instruction_order_number FROM instruction WHERE id=103"));
+            assertEquals(200, integerValue(
+                    connection, "SELECT parent_id FROM instruction WHERE id=103"));
+            assertEquals(30, integerValue(
+                    connection,
+                    "SELECT parent_block_id FROM instruction WHERE id=103"));
+            assertEquals(501, integerValue(
+                    connection, "SELECT variable_id FROM instruction WHERE id=103"));
+            assertEquals(100, integerValue(
+                    connection, "SELECT instruction_id FROM variable WHERE id=501"));
+            assertTrue(connection.getAutoCommit());
+        }
+    }
+
     private Connection database() throws Exception {
         return database("jdbc:sqlite::memory:");
     }

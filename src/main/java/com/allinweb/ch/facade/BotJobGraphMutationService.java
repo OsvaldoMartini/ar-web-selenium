@@ -74,6 +74,20 @@ public final class BotJobGraphMutationService {
         }
     }
 
+    public CommitResult mutateVariablesInstructionCrossBlockMove(
+            int homeBankingId,
+            int botJobId,
+            long workspaceEpoch,
+            InstructionGraphMutationV3.Request request)
+            throws SQLException {
+        AuthenticatedBotJob owner =
+                AuthenticatedBotJob.of(homeBankingId, botJobId, workspaceEpoch);
+        try (Connection connection = connections.open()) {
+            return transaction.executeVariablesInstructionCrossBlockMove(
+                    connection, owner, request);
+        }
+    }
+
     @FunctionalInterface
     interface ConnectionProvider {
         Connection open() throws SQLException;

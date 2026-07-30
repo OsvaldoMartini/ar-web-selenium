@@ -3,6 +3,7 @@ package com.allinweb.ch.socket;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -365,6 +366,9 @@ class VariablesWorkspaceServiceTest {
         assertEquals(
                 "VARIABLES_INDIVIDUAL_ROW_V1",
                 capability.get("profile").getAsString());
+        assertEquals(
+                "VARIABLES_INDIVIDUAL_CROSS_BLOCK_V1",
+                capability.get("crossBlockProfile").getAsString());
         assertEquals(4L, capability.get("graphVersion").getAsLong());
         assertEquals("mutation-five", capability.get("graphRevision").getAsString());
         assertEquals(
@@ -545,6 +549,108 @@ class VariablesWorkspaceServiceTest {
             assertEquals(5, mutations.lastBotJobId);
             assertEquals(active.workspaceEpoch(), mutations.lastWorkspaceEpoch);
             assertEquals("variables-mutate-1", mutations.lastRequest.requestId());
+            assertEquals(
+                    "VARIABLES_INDIVIDUAL_ROW_V1",
+                    mutations.lastMutationProfile);
+        } finally {
+            registry.close(5);
+        }
+    }
+
+    @Test
+    void mutationProfilesDefaultToV1AndRejectUnknownValues() {
+        assertEquals(
+                "VARIABLES_INDIVIDUAL_ROW_V1",
+                VariablesWorkspaceService.normalizeMutationProfile(""));
+        assertEquals(
+                "VARIABLES_INDIVIDUAL_CROSS_BLOCK_V1",
+                VariablesWorkspaceService.normalizeMutationProfile(
+                        " VARIABLES_INDIVIDUAL_CROSS_BLOCK_V1 "));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> VariablesWorkspaceService.normalizeMutationProfile(
+                        "VARIABLES_FUTURE_PROFILE"));
+    }
+
+    @Test
+    void mutationForwardsExplicitCrossBlockProfileOutsideCoreV3Request() {
+        BotJobDetailsWorkspaceRegistry registry =
+                BotJobDetailsWorkspaceRegistry.getInstance();
+        BotJobLoadDTO botJob = new BotJobLoadDTO();
+        botJob.setId(5);
+        botJob.setName("Job Five");
+        botJob.setHomeBankingId(2);
+        BotJobDetailsWorkspaceRegistry.Snapshot active =
+                registry.activate(botJob, false);
+        try {
+            FakeWorkspaces exactWorkspaces = new FakeWorkspaces();
+            exactWorkspaces.add(new VariablesWorkspaceService.WorkspaceContext(
+                    active.workspaceEpoch(),
+                    5,
+                    2,
+                    "Job Five",
+                    "Bank"));
+            FakeMutations mutations = FakeMutations.ready();
+            VariablesWorkspaceService mutableService =
+                    new VariablesWorkspaceService(
+                            exactWorkspaces,
+                            graphs,
+                            windows,
+                            new Gson(),
+                            tasks,
+                            mutations);
+            mutableService.openForBotJob(5);
+            Session manager = openSession();
+            windows.register(manager);
+            mutableService.connected(
+                    VariablesWorkspaceService.WORKSPACE_SESSION_ID,
+                    manager);
+            JsonObject bootstrap = mutableService.bootstrap(
+                    new JsonObject(),
+                    VariablesWorkspaceService.WORKSPACE_SESSION_ID,
+                    manager);
+
+            InstructionGraphMutationV3.Request mutation =
+                    new InstructionGraphMutationV3.Request(
+                            InstructionGraphMutationV3.CONTRACT_VERSION,
+                            InstructionGraphMutationV3.MutationKind.ROW_MOVE,
+                            "variables-cross-profile",
+                            4L,
+                            "mutation-five",
+                            active.workspaceEpoch(),
+                            new InstructionGraphMutationV3.OwnerAssertion(
+                                    InstructionGraphMutationV3.WorkspaceKind.BOT_JOB,
+                                    2,
+                                    5),
+                            102,
+                            List.of(
+                                    new LayoutRow(100, 10, 1, 1),
+                                    new LayoutRow(101, 10, 1, 2),
+                                    new LayoutRow(102, 11, 2, 1)),
+                            List.of(),
+                            List.of(),
+                            List.of());
+            JsonObject request = new Gson().toJsonTree(mutation).getAsJsonObject();
+            request.addProperty(
+                    "bindingEpoch",
+                    bootstrap.get("bindingEpoch").getAsString());
+            request.addProperty(
+                    "mutationProfile",
+                    "VARIABLES_INDIVIDUAL_CROSS_BLOCK_V1");
+
+            JsonObject response = mutableService.mutate(
+                    request,
+                    VariablesWorkspaceService.WORKSPACE_SESSION_ID,
+                    manager);
+
+            assertTrue(response.get("ok").getAsBoolean(), response.toString());
+            assertEquals(1, mutations.mutateCalls);
+            assertEquals(
+                    "VARIABLES_INDIVIDUAL_CROSS_BLOCK_V1",
+                    mutations.lastMutationProfile);
+            assertEquals(
+                    "variables-cross-profile",
+                    mutations.lastRequest.requestId());
         } finally {
             registry.close(5);
         }
@@ -844,6 +950,7 @@ class VariablesWorkspaceServiceTest {
         private int lastBotJobId;
         private long lastWorkspaceEpoch;
         private InstructionGraphMutationV3.Request lastRequest;
+        private String lastMutationProfile;
         private Runnable afterMutate = () -> {};
 
         private static FakeMutations ready() {
@@ -902,11 +1009,13 @@ class VariablesWorkspaceServiceTest {
                 int homeBankingId,
                 int botJobId,
                 long workspaceEpoch,
-                InstructionGraphMutationV3.Request request)
+                InstructionGraphMutationV3.Request request,
+                String mutationProfile)
                 throws SQLException {
             mutateCalls++;
             recordIdentity(homeBankingId, botJobId, workspaceEpoch);
             lastRequest = request;
+            lastMutationProfile = mutationProfile;
             if (commitResult == null) {
                 commitResult = new CommitResult(
                         OwnerKey.botJob(homeBankingId, botJobId),

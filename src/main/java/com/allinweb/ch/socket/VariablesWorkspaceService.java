@@ -7,6 +7,7 @@ import com.allinweb.ch.facade.BotJobGraphMutationTransaction.GraphSnapshot;
 import com.allinweb.ch.facade.BotJobGraphMutationTransaction.MutationRefusedException;
 import com.allinweb.ch.facade.ScannerBotJobTasksPublisher;
 import com.allinweb.ch.facade.VariableRelationshipService;
+import com.allinweb.ch.facade.VariablesCrossBlockInstructionMutationProfile;
 import com.allinweb.ch.facade.VariablesInstructionMutationProfile;
 import com.allinweb.ch.model.DetachedWorkspaceSessions;
 import com.allinweb.ch.model.InstructionGraphMutationV3;
@@ -247,11 +248,14 @@ public final class VariablesWorkspaceService {
             }
 
             Binding authorized = current;
+            String mutationProfile =
+                    normalizeMutationProfile(text(request, "mutationProfile"));
             CommitResult committed =
                     BotJobDetailsWorkspaceRegistry.getInstance().commitWorkspaceMutation(
                             authorized.botJobId(),
                             authorized.workspaceEpoch(),
-                            () -> persistMutation(authorized, mutationRequest));
+                            () -> persistMutation(
+                                    authorized, mutationRequest, mutationProfile));
             JsonObject response = mutationSuccess(request, authorized, committed);
             if (!isCurrent(authorized) || !isManagerTransport(requesterTransport)) {
                 response.addProperty("resyncRequired", true);
@@ -322,16 +326,31 @@ public final class VariablesWorkspaceService {
 
     private CommitResult persistMutation(
             Binding authorized,
-            InstructionGraphMutationV3.Request request) {
+            InstructionGraphMutationV3.Request request,
+            String mutationProfile) {
         try {
             return mutations.mutate(
                     authorized.homeBankingId(),
                     authorized.botJobId(),
                     authorized.workspaceEpoch(),
-                    request);
+                    request,
+                    mutationProfile);
         } catch (SQLException error) {
             throw new MutationPersistenceException(error);
         }
+    }
+
+    static String normalizeMutationProfile(String requestedProfile) {
+        String profile = requestedProfile == null ? "" : requestedProfile.trim();
+        if (profile.isBlank()
+                || VariablesInstructionMutationProfile.PROFILE_ID.equals(profile)) {
+            return VariablesInstructionMutationProfile.PROFILE_ID;
+        }
+        if (VariablesCrossBlockInstructionMutationProfile.PROFILE_ID.equals(profile)) {
+            return VariablesCrossBlockInstructionMutationProfile.PROFILE_ID;
+        }
+        throw new IllegalArgumentException(
+                "The requested Variables mutation profile is not supported.");
     }
 
     /**
@@ -605,6 +624,9 @@ public final class VariablesWorkspaceService {
                     "contractVersion", InstructionGraphMutationV3.CONTRACT_VERSION);
             capability.addProperty(
                     "profile", VariablesInstructionMutationProfile.PROFILE_ID);
+            capability.addProperty(
+                    "crossBlockProfile",
+                    VariablesCrossBlockInstructionMutationProfile.PROFILE_ID);
             capability.addProperty("graphVersion", graph.graphVersion());
             capability.addProperty("graphRevision", graph.graphRevision());
             JsonObject owner = new JsonObject();
@@ -922,7 +944,8 @@ public final class VariablesWorkspaceService {
                 int homeBankingId,
                 int botJobId,
                 long workspaceEpoch,
-                InstructionGraphMutationV3.Request request)
+                InstructionGraphMutationV3.Request request,
+                String mutationProfile)
                 throws SQLException;
     }
 
@@ -1004,8 +1027,14 @@ public final class VariablesWorkspaceService {
                 int homeBankingId,
                 int botJobId,
                 long workspaceEpoch,
-                InstructionGraphMutationV3.Request request)
+                InstructionGraphMutationV3.Request request,
+                String mutationProfile)
                 throws SQLException {
+            if (VariablesCrossBlockInstructionMutationProfile.PROFILE_ID.equals(
+                    mutationProfile)) {
+                return service.mutateVariablesInstructionCrossBlockMove(
+                        homeBankingId, botJobId, workspaceEpoch, request);
+            }
             return service.mutateVariablesInstructionMove(
                     homeBankingId, botJobId, workspaceEpoch, request);
         }
@@ -1028,7 +1057,8 @@ public final class VariablesWorkspaceService {
                 int homeBankingId,
                 int botJobId,
                 long workspaceEpoch,
-                InstructionGraphMutationV3.Request request)
+                InstructionGraphMutationV3.Request request,
+                String mutationProfile)
                 throws SQLException {
             throw new SQLException("Variables graph mutation capability is unavailable.");
         }

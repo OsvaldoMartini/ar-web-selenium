@@ -95,14 +95,32 @@ public final class BotJobGraphMutationTransaction {
                 connection,
                 owner,
                 request,
-                new VariablesInstructionMutationProfile());
+                new VariablesInstructionMutationProfile()::validate);
+    }
+
+    /**
+     * Persists one explicitly planned Variables consumer move between structurally flat blocks.
+     *
+     * <p>The separate profile prevents the broader cross-block contract from weakening the
+     * existing same-block release.
+     */
+    public CommitResult executeVariablesInstructionCrossBlockMove(
+            Connection connection,
+            AuthenticatedBotJob owner,
+            InstructionGraphMutationV3.Request request)
+            throws SQLException {
+        return execute(
+                connection,
+                owner,
+                request,
+                new VariablesCrossBlockInstructionMutationProfile()::validate);
     }
 
     private CommitResult execute(
             Connection connection,
             AuthenticatedBotJob owner,
             InstructionGraphMutationV3.Request request,
-            VariablesInstructionMutationProfile variablesProfile)
+            VariablesMutationProfile variablesProfile)
             throws SQLException {
         requireOpenConnection(connection);
         Objects.requireNonNull(owner, "owner");
@@ -614,6 +632,12 @@ public final class BotJobGraphMutationTransaction {
     @FunctionalInterface
     interface FaultInjector {
         void at(TransactionPhase phase) throws SQLException;
+    }
+
+    @FunctionalInterface
+    private interface VariablesMutationProfile {
+        void validate(InstructionGraphMutationV3.Request request, GraphSnapshot authoritative)
+                throws MutationRefusedException;
     }
 
     private record AuthoritativeSnapshot(

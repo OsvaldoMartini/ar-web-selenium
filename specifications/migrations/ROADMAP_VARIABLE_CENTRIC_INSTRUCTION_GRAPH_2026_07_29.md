@@ -1247,6 +1247,55 @@ Subphases:
 - [ ] P11D: empty-Block preservation/removal policy.
 - [ ] P11E: keyboard move parity with pointer drag.
 
+#### P11A-C1 - Variables consumer cross-Block checkpoint (2026-07-29)
+
+This is a separately advertised, rollback-safe subset of P11A. It does not mark general
+cross-Block movement complete.
+
+Implemented:
+
+- [x] Add the dedicated `VARIABLES_INDIVIDUAL_CROSS_BLOCK_V1` capability without weakening or
+  replacing `VARIABLES_INDIVIDUAL_ROW_V1`.
+- [x] Keep the movement planner, exact destination/insertion point, full final layout, variable
+  writer-order policy, compatible Web Element candidates, and explicit disconnect/reconnect
+  choice in React/TypeScript.
+- [x] Allow only `E`, `CK`, `PDF CHECK`, and `CSV CHECK` variable consumers to move between
+  non-empty, structurally flat Blocks. `GET`, `SET`, owner transfer, structural commands, empty
+  source Blocks, and rows with direct dependants remain refused.
+- [x] Never infer a new `parentId` from physical proximity. Before persistence the client must
+  choose either explicit `CLEAR` (`parentId`/`parentBlockId` become null) or exact `SET` to an
+  earlier compatible Web Element in the destination Block.
+- [x] Preserve `variableId`, variable owner, operation, every unrelated relationship, fixed Block
+  order, and the relative order of every non-selected instruction. A disconnected result remains
+  visible as `Reconnect parent`.
+- [x] Keep Java as the authenticated trust/persistence boundary only: exact capability dispatch,
+  owner/binding/revision/version checks, complete contiguous layout verification, one-row
+  cross-Block reinsert verification, explicit relation-patch verification, compare-and-set,
+  atomic persistence, final-state verification, and commit. Java does not choose authoring
+  behavior or repair targets.
+- [x] Lock the review dialog during reconnect/bootstrap/refresh changes, include the exact Bot Job
+  owner in its authority key, and show the planned destination before the client confirms.
+
+Focused verification:
+
+- [x] 54 React tests across eight Variables/relationship suites cover exact layout authorship,
+  explicit disconnect with zero candidates, exact reconnect, `GET`/`SET` refusal, source
+  relationship health, direct dependants, flat-Block restrictions, policy-correct writer order,
+  drop-zone anchors, disconnected-state rendering, profile transport, normalization, dialog
+  preview, and retained same-Block behavior.
+- [x] 63 Java tests across six mutation/profile/contract/Variables suites cover the separate
+  profile, complete and contiguous authoritative/submitted layouts, healthy stored parent,
+  source/destination restrictions, direct dependants, exact `CLEAR`/`SET`, preserved variable
+  binding/owner, transaction commit, capability advertisement, and envelope profile forwarding.
+
+Still deferred:
+
+- [ ] Runtime/manual acceptance with production-shaped data, including refresh/reopen/restart
+  persistence and Bot Job Details/Variables realtime convergence.
+- [ ] `GET`/`SET` cross-Block semantics, variable-owner transfer, empty-Block policy, standalone
+  reconnect repair action, structural movement, arbitrary destination gaps hidden from the
+  variable lane, keyboard parity, and mixed legacy-writer activation proof.
+
 Acceptance:
 
 - Every new unresolved state has a chip, reconnect path, and preflight rule before activation.
