@@ -45,15 +45,14 @@ class RuntimeVariableStoreTest {
     }
 
     @Test
-    void resetPreventsAValueLeakingIntoTheNextInputRow() {
+    void definitionRefreshRetainsTheCurrentBotJobValue() {
         RuntimeVariableStore store = new RuntimeVariableStore();
         store.reset(List.of(variable(7)), true);
         store.write(7, "row-one");
 
         store.reset(List.of(variable(7)), true);
 
-        assertTrue(store.read(7).isVoid());
-        assertEquals(VoidReason.NO_PRODUCER_YET, store.read(7).voidReason());
+        assertEquals("row-one", store.read(7).value());
     }
 
     @Test
@@ -71,6 +70,15 @@ class RuntimeVariableStoreTest {
         assertEquals(VoidReason.MISSING_BINDING, store.read(7).voidReason());
         assertTrue(store.write(7, "dangling-runtime-value"));
         assertEquals("dangling-runtime-value", store.read(7).value());
+    }
+
+    @Test
+    void incompleteLaunchIdentityFallsBackWithoutBlockingExecution() {
+        RuntimeVariableStore store = new RuntimeVariableStore(0, 0);
+        store.reset(List.of(variable(7)), true);
+
+        assertTrue(store.write(7, "fallback-value"));
+        assertEquals("fallback-value", store.read(7).value());
     }
 
     private VariableLoadDTO variable(int id) {

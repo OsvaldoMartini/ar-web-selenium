@@ -124,7 +124,8 @@ public final class VariableRelationshipService {
     private List<CommandRow> loadCommands(Connection connection, int botJobId)
             throws SQLException {
         String sql = "SELECT instruction.id, instruction.name, instruction.actions,"
-                + " instruction.operation, instruction.variable_id, instruction.parent_id,"
+                + " instruction.operation, instruction.tag_name, instruction.variable_id,"
+                + " instruction.parent_id,"
                 + " instruction.parent_block_id, instruction.block_id,"
                 + " instruction.instruction_order_number, instruction.active,"
                 + " block.id AS resolved_block_id, block.name AS block_name,"
@@ -132,7 +133,7 @@ public final class VariableRelationshipService {
                 + " FROM instruction"
                 + " LEFT JOIN block"
                 + " ON block.id=instruction.block_id AND block.bot_job_id=instruction.bot_job_id"
-                + " WHERE instruction.bot_job_id=? AND instruction.variable_id IS NOT NULL"
+                + " WHERE instruction.bot_job_id=?"
                 + " ORDER BY block.block_order_number, instruction.instruction_order_number,"
                 + " instruction.id";
         List<CommandRow> rows = new ArrayList<>();
@@ -145,7 +146,8 @@ public final class VariableRelationshipService {
                             result.getString("name"),
                             result.getString("actions"),
                             result.getString("operation"),
-                            result.getInt("variable_id"),
+                            result.getString("tag_name"),
+                            nullableInteger(result, "variable_id"),
                             nullableInteger(result, "parent_id"),
                             nullableInteger(result, "parent_block_id"),
                             nullableInteger(result, "block_id"),
@@ -229,7 +231,8 @@ public final class VariableRelationshipService {
         json.addProperty("instructionName", safe(row.name()));
         json.addProperty("action", safe(row.action()));
         json.addProperty("operation", safe(row.operation()));
-        json.addProperty("variableId", row.variableId());
+        json.addProperty("tagName", safe(row.tagName()));
+        nullable(json, "variableId", row.variableId());
         nullable(json, "parentId", row.parentId());
         nullable(json, "parentBlockId", row.parentBlockId());
         nullable(json, "blockId", row.blockId());
@@ -322,7 +325,8 @@ public final class VariableRelationshipService {
             String name,
             String action,
             String operation,
-            int variableId,
+            String tagName,
+            Integer variableId,
             Integer parentId,
             Integer parentBlockId,
             Integer blockId,

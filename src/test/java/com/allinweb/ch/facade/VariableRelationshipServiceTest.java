@@ -47,10 +47,10 @@ class VariableRelationshipServiceTest {
                 "INSERT INTO block VALUES (10,5,1,'Login',1)",
                 "INSERT INTO block VALUES (11,5,2,'Checks',1)",
                 "INSERT INTO instruction VALUES"
-                        + " (100,5,10,1,'Amount','CLICK','',1,NULL,NULL,1,1),"
-                        + " (101,5,10,2,'Reference','CLICK','',NULL,NULL,NULL,NULL,1),"
-                        + " (110,5,10,3,'Get amount','GET','Amount',1,100,10,1,1),"
-                        + " (113,5,11,3,'PDF amount','PDF CHECK','Amount:$Value',1,100,10,1,1)",
+                        + " (100,5,10,1,'Amount','CLICK','','input',1,NULL,NULL,1,1),"
+                        + " (101,5,10,2,'Reference','CLICK','','input',NULL,NULL,NULL,NULL,1),"
+                        + " (110,5,10,3,'Get amount','GET','Amount','',1,100,10,1,1),"
+                        + " (113,5,11,3,'PDF amount','PDF CHECK','Amount:$Value','',1,100,10,1,1)",
                 "INSERT INTO variable VALUES"
                         + " (1,5,100,'$String','Same name','$EMPTY','',''),"
                         + " (2,5,101,'$String','Same name','configured','','')");
@@ -61,8 +61,9 @@ class VariableRelationshipServiceTest {
         assertEquals("RAW_FACTS_V1", response.get("graphKind").getAsString());
         assertEquals(2, response.getAsJsonArray("blocks").size());
         assertEquals(2, response.getAsJsonArray("rawVariables").size());
-        // 100, 110, and 113 carry variable_id; 101 does not.
-        assertEquals(3, response.getAsJsonArray("rawCommands").size());
+        // Every command is present, including the disconnected row with no variable_id.
+        assertEquals(4, response.getAsJsonArray("rawCommands").size());
+        assertTrue(rawCommand(response, 101).get("variableId").isJsonNull());
 
         JsonObject declaration = rawVariable(response, 1);
         assertEquals(100, declaration.get("ownerInstructionId").getAsInt());
@@ -70,6 +71,7 @@ class VariableRelationshipServiceTest {
         assertEquals(10, declaration.get("ownerBlockId").getAsInt());
         assertEquals(10, declaration.get("resolvedOwnerBlockId").getAsInt());
         assertEquals("$EMPTY", declaration.get("configuredValue").getAsString());
+        assertEquals("input", rawCommand(response, 100).get("tagName").getAsString());
 
         JsonObject pdfCheck = rawCommand(response, 113);
         // Actions stay RAW — canonicalization and roles are React's job.
@@ -89,11 +91,11 @@ class VariableRelationshipServiceTest {
                 "INSERT INTO block VALUES (10,5,1,'Job 5',1)",
                 "INSERT INTO block VALUES (20,6,1,'Job 6 secret',1)",
                 "INSERT INTO instruction VALUES"
-                        + " (100,5,10,1,'Local owner','CLICK','',NULL,NULL,NULL,NULL,1),"
-                        + " (200,6,20,1,'Foreign owner secret','CLICK','',NULL,NULL,NULL,NULL,1),"
-                        + " (201,6,20,2,'Foreign command secret','GET','',1,200,20,1,1),"
-                        + " (120,5,10,2,'Dangling local','GET','',999,NULL,NULL,1,1),"
-                        + " (122,5,999,4,'Command without block','GET','',2,100,10,1,1)",
+                        + " (100,5,10,1,'Local owner','CLICK','','input',NULL,NULL,NULL,NULL,1),"
+                        + " (200,6,20,1,'Foreign owner secret','CLICK','','input',NULL,NULL,NULL,NULL,1),"
+                        + " (201,6,20,2,'Foreign command secret','GET','','',1,200,20,1,1),"
+                        + " (120,5,10,2,'Dangling local','GET','','',999,NULL,NULL,1,1),"
+                        + " (122,5,999,4,'Command without block','GET','','',2,100,10,1,1)",
                 "INSERT INTO variable VALUES"
                         + " (1,5,200,'$String','Cross owner','$EMPTY','',''),"
                         + " (2,5,100,'$String','Local','$EMPTY','','')");
@@ -120,7 +122,7 @@ class VariableRelationshipServiceTest {
         execute(
                 "INSERT INTO block VALUES (10,5,1,'Only',1)",
                 "INSERT INTO instruction VALUES"
-                        + " (100,5,10,1,'Owner','CLICK','',NULL,NULL,NULL,NULL,1)",
+                        + " (100,5,10,1,'Owner','CLICK','','input',NULL,NULL,NULL,NULL,1)",
                 "INSERT INTO variable VALUES"
                         + " (1,5,100,'$String','Value','$EMPTY','','')");
 
@@ -162,7 +164,7 @@ class VariableRelationshipServiceTest {
             statement.execute("CREATE TABLE instruction ("
                     + "id INTEGER PRIMARY KEY, bot_job_id INTEGER, block_id INTEGER,"
                     + "instruction_order_number INTEGER, name TEXT, actions TEXT,"
-                    + "operation TEXT, variable_id INTEGER, parent_id INTEGER,"
+                    + "operation TEXT, tag_name TEXT, variable_id INTEGER, parent_id INTEGER,"
                     + "parent_block_id INTEGER, executed INTEGER, active INTEGER)");
             statement.execute("CREATE TABLE variable ("
                     + "id INTEGER PRIMARY KEY, bot_job_id INTEGER, instruction_id INTEGER,"

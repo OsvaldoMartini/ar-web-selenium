@@ -1,5 +1,6 @@
 package com.allinweb.ch.facade;
 
+import com.allinweb.ch.facade.actions.RuntimeVariableMemoryRegistry;
 import com.allinweb.ch.model.BlockLoadDTO;
 import com.allinweb.ch.model.BotJobLoadDTO;
 import com.allinweb.ch.model.HomeBankingLoadDTO;
@@ -50,6 +51,7 @@ public class MainDashboardService {
         if (error != null) {
             return failure("Delete Bot Job Failed", error);
         }
+        RuntimeVariableMemoryRegistry.getInstance().removeBotJob(botJobId);
         error = reload();
         if (error != null) {
             return failure("Bot Job deleted but refresh failed", error);

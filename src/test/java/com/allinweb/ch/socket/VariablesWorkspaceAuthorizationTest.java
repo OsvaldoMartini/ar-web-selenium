@@ -84,6 +84,7 @@ class VariablesWorkspaceAuthorizationTest {
                 Set.of(
                         "variablesWorkspace.bootstrap",
                         "variablesWorkspace.refresh",
+                        "variablesWorkspace.runtimeMemory.update",
                         "variablesWorkspace.graphMutationV3",
                         "pagesOpen.open",
                         "pagesOpen.summary"),

@@ -3115,7 +3115,9 @@ public class ScannerRuntimeBackend
                 ? List.of()
                 : Collections.unmodifiableList(new ArrayList<>(variableDefinitions));
         final boolean runtimeVariableMetadataAvailable = variableMetadataAvailable;
-        RuntimeVariableStore runtimeVariables = new RuntimeVariableStore();
+        RuntimeVariableStore runtimeVariables = new RuntimeVariableStore(
+                this.currentBotJob.getHomeBankingId(),
+                this.currentBotJob.getId());
         //        Map<String, String> mapSavedLocators = new HashMap<>();
 
         Set<Integer> parentIdsForLoop = null;
@@ -3167,7 +3169,7 @@ public class ScannerRuntimeBackend
             int xExcelDataSize = extractedData.getNumberOfDataRows();
             int runtimeValueRow = 0;
             mapOperators.clear();
-            runtimeVariables.reset(
+            runtimeVariables.reconcileDefinitions(
                     runtimeVariableDefinitions,
                     runtimeVariableMetadataAvailable);
             currentColumnsCSV.clear();
@@ -3419,9 +3421,6 @@ public class ScannerRuntimeBackend
                     while (xExcelCurrentRow < extractedData.getNumberOfDataRows() && !stopAll) {
                         if (runtimeValueRow != xExcelCurrentRow) {
                             mapOperators.clear();
-                            runtimeVariables.reset(
-                                    runtimeVariableDefinitions,
-                                    runtimeVariableMetadataAvailable);
                             runtimeValueRow = xExcelCurrentRow;
                         }
                         failedMessage = "";

@@ -3,6 +3,7 @@ package com.allinweb.ch.facade;
 import com.allinweb.ch.component.pane.BotJobDetailsWorkspaceHost;
 import com.allinweb.ch.driver.ARPlaywrightDriver;
 import com.allinweb.ch.driver.ARWebDriver;
+import com.allinweb.ch.facade.actions.RuntimeVariableMemoryRegistry;
 import com.allinweb.ch.model.BotJobLoadDTO;
 import com.allinweb.ch.model.HomeBankingLoadDTO;
 import com.allinweb.ch.socket.WebSocketSessionManager;
@@ -179,6 +180,7 @@ public class ConfigService {
         } catch (SQLException error) {
             return failure("Database change failed: " + error.getMessage());
         }
+        RuntimeVariableMemoryRegistry.getInstance().clearAll();
 
         performLists.clearAllLists();
         ErrorMessage error = reloadLists();
@@ -293,6 +295,7 @@ public class ConfigService {
         if (error != null) {
             return failure("Restore failed", error);
         }
+        RuntimeVariableMemoryRegistry.getInstance().clearAll();
         performLists.clearAllLists();
         error = reloadLists();
         if (error != null) {
@@ -407,6 +410,7 @@ public class ConfigService {
         if (!performDataBase.deleteAllJobDetails(savedDb)) {
             return failure("Not possible to delete all job details");
         }
+        RuntimeVariableMemoryRegistry.getInstance().clearAll();
         performDataBase.loadQuickBotJobs();
         pushMainDashboard();
         return configResponse("All job details deleted");

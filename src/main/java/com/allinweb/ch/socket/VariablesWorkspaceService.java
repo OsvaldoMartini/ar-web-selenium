@@ -9,12 +9,27 @@ import com.allinweb.ch.facade.ScannerBotJobTasksPublisher;
 import com.allinweb.ch.facade.VariableRelationshipService;
 import com.allinweb.ch.facade.VariablesCrossBlockInstructionMutationProfile;
 import com.allinweb.ch.facade.VariablesInstructionMutationProfile;
+import com.allinweb.ch.facade.VariablesReactAuthoredMutationProfile;
+import com.allinweb.ch.facade.actions.RuntimeVariableMemoryRegistry;
+import com.allinweb.ch.facade.actions.RuntimeVariableMemoryRegistry.BotJobKey;
+import com.allinweb.ch.facade.actions.RuntimeVariableMemoryRegistry.Definition;
+import com.allinweb.ch.facade.actions.RuntimeVariableMemoryRegistry.Snapshot;
+import com.allinweb.ch.facade.actions.RuntimeVariableMemoryRegistry.ValueSource;
+import com.allinweb.ch.facade.actions.RuntimeVariableValue.VoidReason;
 import com.allinweb.ch.model.DetachedWorkspaceSessions;
 import com.allinweb.ch.model.InstructionGraphMutationV3;
 import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -34,7 +49,13 @@ public final class VariablesWorkspaceService {
     public static final String WORKSPACE_SESSION_ID =
             DetachedWorkspaceSessions.VARIABLES_MANAGER;
     public static final String SNAPSHOT_OPERATION = "variablesWorkspace.snapshot";
+    public static final String RUNTIME_MEMORY_SNAPSHOT_OPERATION =
+            "variablesWorkspace.runtimeMemory.snapshot";
     private static final long RELOAD_GRACE_MILLIS = 2_500L;
+    private static final long RUNTIME_MEMORY_PUBLICATION_DELAY_MILLIS = 25L;
+    private static final int MAX_RUNTIME_VALUE_CHARACTERS = 1_000_000;
+    private static final RuntimeVariableMemoryRegistry RUNTIME_MEMORY =
+            RuntimeVariableMemoryRegistry.getInstance();
 
     private static final VariablesWorkspaceService INSTANCE =
             new VariablesWorkspaceService(
@@ -45,6 +66,11 @@ public final class VariablesWorkspaceService {
                      DefaultTaskPort.INSTANCE,
                      DefaultMutationPort.INSTANCE);
 
+    static {
+        RUNTIME_MEMORY.addChangeListener(
+                INSTANCE::notifyRuntimeMemoryChanged);
+    }
+
     private final WorkspacePort workspaces;
     private final GraphPort graphs;
     private final WindowPort windows;
@@ -52,6 +78,10 @@ public final class VariablesWorkspaceService {
     private final TaskPort tasks;
     private final MutationPort mutations;
     private final Object stateLock = new Object();
+    private final Map<BotJobKey, Long> pendingRuntimeMemoryRevisions =
+            new ConcurrentHashMap<>();
+    private final Set<BotJobKey> scheduledRuntimeMemoryOwners =
+            ConcurrentHashMap.newKeySet();
     private Binding binding;
     private Session managerTransport;
     private long disconnectGeneration;
@@ -207,6 +237,128 @@ public final class VariablesWorkspaceService {
     }
 
     /**
+     * Updates one process-local runtime value from the exact authoritative Variables transport.
+     *
+     * <p>The Bot Job owner always comes from the backend binding. Client owner IDs are ignored,
+     * and a current definition reload proves that the requested numeric variable belongs to that
+     * Bot Job before any value is changed.
+     */
+    public JsonObject updateRuntimeMemory(
+            JsonObject body, String requesterSessionId, Session requesterTransport) {
+        JsonObject request = body == null ? new JsonObject() : body;
+        Binding current = null;
+        try {
+            requireManagerTransport(requesterSessionId, requesterTransport);
+            current = currentBinding();
+            if (current == null) {
+                throw new IllegalArgumentException(
+                        "No Bot Job is bound to the Variables workspace.");
+            }
+            String requestedBindingEpoch = text(request, "bindingEpoch");
+            if (requestedBindingEpoch.isBlank()
+                    || !requestedBindingEpoch.equals(current.bindingEpoch())) {
+                throw new IllegalArgumentException(
+                        "The Variables target changed. Reload the current Bot Job.");
+            }
+
+            WorkspaceContext workspace =
+                    workspaces.require(current.botJobId(), current.workspaceEpoch());
+            current = current.withWorkspace(workspace);
+            JsonObject graph = graphs.load(current.botJobId());
+            if (!isSuccessful(graph)) {
+                throw new IllegalStateException(
+                        "Runtime variable definitions could not be refreshed.");
+            }
+            Snapshot before = reconcileRuntimeMemory(graph, current);
+            BotJobKey owner = runtimeOwner(current);
+            int variableId = positiveInteger(request, "variableId");
+            if (variableId <= 0 || !RUNTIME_MEMORY.containsDefinition(owner, variableId)) {
+                throw new IllegalArgumentException(
+                        "The runtime variable does not belong to the current Bot Job.");
+            }
+            if (!isCurrent(current) || !isManagerTransport(requesterTransport)) {
+                throw new IllegalArgumentException(
+                        "The Variables target changed while runtime memory was loading.");
+            }
+            workspaces.require(current.botJobId(), current.workspaceEpoch());
+
+            String operation = text(request, "operation")
+                    .trim()
+                    .toUpperCase(Locale.ROOT);
+            if (operation.isBlank()) operation = "SET";
+            String replacementValue = null;
+            if ("SET".equals(operation)) {
+                if (!request.has("value") || request.get("value").isJsonNull()) {
+                    throw new IllegalArgumentException(
+                            "SET requires an explicit runtime variable value.");
+                }
+                try {
+                    replacementValue = request.get("value").getAsString();
+                } catch (RuntimeException invalidValue) {
+                    throw new IllegalArgumentException(
+                            "The runtime variable value is invalid.");
+                }
+                if (replacementValue.length() > MAX_RUNTIME_VALUE_CHARACTERS) {
+                    throw new IllegalArgumentException(
+                            "The runtime variable value is too large.");
+                }
+            } else if (!"CLEAR".equals(operation)) {
+                throw new IllegalArgumentException(
+                        "Runtime memory supports only SET or CLEAR.");
+            }
+
+            // Retarget and retirement both use stateLock. Holding it across the process-local
+            // replacement closes the final authorization/write race: a request for the prior
+            // binding can no longer update that prior Bot Job after the window is retargeted.
+            boolean updated;
+            synchronized (stateLock) {
+                if (binding == null
+                        || !binding.bindingEpoch().equals(current.bindingEpoch())
+                        || managerTransport != requesterTransport) {
+                    throw new IllegalArgumentException(
+                            "The Variables target changed before runtime memory was updated.");
+                }
+                updated = "SET".equals(operation)
+                        ? RUNTIME_MEMORY.write(
+                                owner,
+                                variableId,
+                                replacementValue,
+                                ValueSource.MANUAL)
+                        : RUNTIME_MEMORY.markVoid(
+                                owner,
+                                variableId,
+                                VoidReason.NO_PRODUCER_YET,
+                                ValueSource.MANUAL);
+            }
+            if (!updated) {
+                throw new IllegalArgumentException(
+                        "The runtime variable definition changed before it could be updated.");
+            }
+            Snapshot after = RUNTIME_MEMORY.snapshot(owner);
+            JsonObject response = success(
+                    request,
+                    current,
+                    after.revision() == before.revision()
+                            ? "Runtime variable already had that value."
+                            : "Runtime variable updated.");
+            response.addProperty("memoryRevision", after.revision());
+            response.add("runtimeMemory", gson.toJsonTree(after));
+            return response;
+        } catch (IllegalArgumentException | IllegalStateException refused) {
+            return failure(
+                    request,
+                    refused.getMessage(),
+                    current == null ? currentBinding() : current);
+        } catch (RuntimeException failure) {
+            log.error("Unable to update Variables runtime memory", failure);
+            return failure(
+                    request,
+                    "The runtime variable value could not be updated.",
+                    current == null ? currentBinding() : current);
+        }
+    }
+
+    /**
      * Persists one complete React-planned version-3 graph mutation.
      *
      * <p>The detached binding supplies the authoritative owner. Java does not expand the dragged
@@ -349,6 +501,9 @@ public final class VariablesWorkspaceService {
         if (VariablesCrossBlockInstructionMutationProfile.PROFILE_ID.equals(profile)) {
             return VariablesCrossBlockInstructionMutationProfile.PROFILE_ID;
         }
+        if (VariablesReactAuthoredMutationProfile.PROFILE_ID.equals(profile)) {
+            return VariablesReactAuthoredMutationProfile.PROFILE_ID;
+        }
         throw new IllegalArgumentException(
                 "The requested Variables mutation profile is not supported.");
     }
@@ -411,6 +566,92 @@ public final class VariablesWorkspaceService {
         tasks.executeMutation(() -> publishIfOpen(botJobId));
     }
 
+    void notifyRuntimeMemoryChanged(BotJobKey owner, long revision) {
+        if (!isRuntimeMemoryPublishTarget(owner)) return;
+        pendingRuntimeMemoryRevisions.merge(owner, revision, Math::max);
+        if (!scheduledRuntimeMemoryOwners.add(owner)) return;
+        tasks.scheduleRuntimePublication(
+                () -> drainRuntimeMemoryPublication(owner),
+                RUNTIME_MEMORY_PUBLICATION_DELAY_MILLIS);
+    }
+
+    private void drainRuntimeMemoryPublication(BotJobKey owner) {
+        try {
+            Long requestedRevision = pendingRuntimeMemoryRevisions.remove(owner);
+            if (requestedRevision == null || !isRuntimeMemoryPublishTarget(owner)) return;
+            publishRuntimeMemoryIfOpen(owner);
+        } finally {
+            scheduledRuntimeMemoryOwners.remove(owner);
+            // Close the add/remove race: a writer may have merged a newer revision after the
+            // first drain removed the prior value but before this owner left the scheduled set.
+            Long pending = pendingRuntimeMemoryRevisions.get(owner);
+            if (pending != null && isRuntimeMemoryPublishTarget(owner)) {
+                notifyRuntimeMemoryChanged(owner, pending);
+            } else if (!isRuntimeMemoryPublishTarget(owner)) {
+                pendingRuntimeMemoryRevisions.remove(owner);
+            }
+        }
+    }
+
+    private boolean isRuntimeMemoryPublishTarget(BotJobKey owner) {
+        synchronized (stateLock) {
+            return owner != null
+                    && binding != null
+                    && binding.botJobId() == owner.botJobId()
+                    && binding.homeBankingId() == owner.homeBankingId()
+                    && managerTransport != null
+                    && managerTransport.isOpen();
+        }
+    }
+
+    /**
+     * Publishes runtime memory without reloading or invalidating the persisted instruction graph.
+     */
+    boolean publishRuntimeMemoryIfOpen(BotJobKey owner) {
+        Binding current = currentBinding();
+        if (owner == null
+                || current == null
+                || current.botJobId() != owner.botJobId()
+                || current.homeBankingId() != owner.homeBankingId()
+                || !windows.isOpen(WORKSPACE_SESSION_ID)) {
+            return false;
+        }
+        try {
+            WorkspaceContext workspace =
+                    workspaces.require(current.botJobId(), current.workspaceEpoch());
+            current = current.withWorkspace(workspace);
+            Binding latest = currentBinding(current.bindingEpoch());
+            if (latest == null
+                    || latest.botJobId() != owner.botJobId()
+                    || latest.homeBankingId() != owner.homeBankingId()) {
+                return false;
+            }
+            current = latest.withWorkspace(workspace);
+            JsonObject payload = new JsonObject();
+            payload.addProperty("ok", true);
+            payload.addProperty("bindingEpoch", current.bindingEpoch());
+            payload.addProperty("workspaceEpoch", current.workspaceEpoch());
+            payload.addProperty("botJobId", current.botJobId());
+            payload.addProperty("homeBankingId", current.homeBankingId());
+            Snapshot snapshot = RUNTIME_MEMORY.snapshot(owner);
+            payload.addProperty("memoryRevision", snapshot.revision());
+            payload.add("runtimeMemory", gson.toJsonTree(snapshot));
+            return windows.send(
+                    current.homeBankingId(),
+                    WORKSPACE_SESSION_ID,
+                    RUNTIME_MEMORY_SNAPSHOT_OPERATION,
+                    payload);
+        } catch (IllegalArgumentException | IllegalStateException staleWorkspace) {
+            return false;
+        } catch (RuntimeException failure) {
+            log.warn(
+                    "Unable to publish runtime memory for Bot Job {}: {}",
+                    owner.botJobId(),
+                    failure.getMessage());
+            return false;
+        }
+    }
+
     /** Retires the binding and closes only this detached page. */
     public boolean retireForBotJob(int botJobId, String reason) {
         RetireResult result = retireForBotJobDetailed(botJobId, reason);
@@ -428,6 +669,8 @@ public final class VariablesWorkspaceService {
             managerTransport = null;
             disconnectGeneration++;
         }
+        BotJobKey retiredOwner = runtimeOwner(retired);
+        pendingRuntimeMemoryRevisions.remove(retiredOwner);
 
         String closeReason = reason == null || reason.isBlank()
                 ? "The Variables workspace was retired."
@@ -598,6 +841,8 @@ public final class VariablesWorkspaceService {
         if (!contentRevision.isBlank()) {
             response.addProperty("contentRevision", contentRevision);
         }
+        Snapshot runtimeMemory = reconcileRuntimeMemory(graph, current);
+        response.add("runtimeMemory", gson.toJsonTree(runtimeMemory));
         addMutationCapability(response, current);
         response.addProperty("message", message);
         response.addProperty("bindingEpoch", current.bindingEpoch());
@@ -610,6 +855,31 @@ public final class VariablesWorkspaceService {
         response.add("botJob", botJob);
         correlate(request, response);
         return response;
+    }
+
+    private Snapshot reconcileRuntimeMemory(JsonObject graph, Binding current) {
+        List<Definition> definitions = new ArrayList<>();
+        JsonArray rows = graph != null
+                        && graph.has("rawVariables")
+                        && graph.get("rawVariables").isJsonArray()
+                ? graph.getAsJsonArray("rawVariables")
+                : new JsonArray();
+        for (JsonElement item : rows) {
+            if (item == null || !item.isJsonObject()) continue;
+            JsonObject row = item.getAsJsonObject();
+            int variableId = positiveInteger(row, "id");
+            if (variableId <= 0) continue;
+            definitions.add(new Definition(
+                    variableId,
+                    text(row, "name"),
+                    text(row, "type")));
+        }
+        return RUNTIME_MEMORY.reconcileDefinitions(
+                runtimeOwner(current), definitions, true);
+    }
+
+    private static BotJobKey runtimeOwner(Binding current) {
+        return new BotJobKey(current.homeBankingId(), current.botJobId());
     }
 
     private void addMutationCapability(JsonObject response, Binding current) {
@@ -627,6 +897,9 @@ public final class VariablesWorkspaceService {
             capability.addProperty(
                     "crossBlockProfile",
                     VariablesCrossBlockInstructionMutationProfile.PROFILE_ID);
+            capability.addProperty(
+                    "reactAuthoredProfile",
+                    VariablesReactAuthoredMutationProfile.PROFILE_ID);
             capability.addProperty("graphVersion", graph.graphVersion());
             capability.addProperty("graphRevision", graph.graphRevision());
             JsonObject owner = new JsonObject();
@@ -892,6 +1165,19 @@ public final class VariablesWorkspaceService {
         }
     }
 
+    private static int positiveInteger(JsonObject source, String field) {
+        try {
+            int value = source != null
+                            && source.has(field)
+                            && !source.get(field).isJsonNull()
+                    ? source.get(field).getAsInt()
+                    : -1;
+            return value > 0 ? value : -1;
+        } catch (RuntimeException ignored) {
+            return -1;
+        }
+    }
+
     private static WorkspaceContext activeWorkspace(int botJobId, long workspaceEpoch) {
         BotJobDetailsWorkspaceRegistry.Snapshot snapshot = workspaceEpoch > 0
                 ? BotJobDetailsWorkspaceRegistry.getInstance()
@@ -931,6 +1217,10 @@ public final class VariablesWorkspaceService {
         void executeMutation(Runnable task);
 
         void scheduleDisconnect(Runnable task, long delayMillis);
+
+        default void scheduleRuntimePublication(Runnable task, long delayMillis) {
+            executeMutation(task);
+        }
     }
 
     interface MutationPort {
@@ -1030,6 +1320,11 @@ public final class VariablesWorkspaceService {
                 InstructionGraphMutationV3.Request request,
                 String mutationProfile)
                 throws SQLException {
+            if (VariablesReactAuthoredMutationProfile.PROFILE_ID.equals(
+                    mutationProfile)) {
+                return service.mutate(
+                        homeBankingId, botJobId, workspaceEpoch, request);
+            }
             if (VariablesCrossBlockInstructionMutationProfile.PROFILE_ID.equals(
                     mutationProfile)) {
                 return service.mutateVariablesInstructionCrossBlockMove(
@@ -1130,6 +1425,16 @@ public final class VariablesWorkspaceService {
             if (task != null) {
                 disconnectExecutor.schedule(
                         task, Math.max(0L, delayMillis), TimeUnit.MILLISECONDS);
+            }
+        }
+
+        @Override
+        public void scheduleRuntimePublication(Runnable task, long delayMillis) {
+            if (task != null) {
+                disconnectExecutor.schedule(
+                        () -> mutationExecutor.execute(task),
+                        Math.max(0L, delayMillis),
+                        TimeUnit.MILLISECONDS);
             }
         }
 

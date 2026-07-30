@@ -13,6 +13,8 @@ import com.allinweb.ch.facade.BotJobDetailsWorkspaceRegistry;
 import com.allinweb.ch.facade.BotJobGraphMutationTransaction.CommitResult;
 import com.allinweb.ch.facade.BotJobGraphMutationTransaction.GraphInstructionFact;
 import com.allinweb.ch.facade.BotJobGraphMutationTransaction.GraphSnapshot;
+import com.allinweb.ch.facade.actions.RuntimeVariableMemoryRegistry;
+import com.allinweb.ch.facade.actions.RuntimeVariableMemoryRegistry.BotJobKey;
 import com.allinweb.ch.model.BotJobLoadDTO;
 import com.allinweb.ch.model.InstructionGraphMutationV3;
 import com.allinweb.ch.model.InstructionGraphMutationV3.LayoutRow;
@@ -231,17 +233,107 @@ class VariablesWorkspaceServiceTest {
     }
 
     @Test
-    void retiresOnlyTheMatchingBotJob() {
+    void bootstrapsUpdatesAndPublishesPersistentRuntimeMemory() {
+        BotJobKey owner = new BotJobKey(2, 5);
+        JsonObject graph = graph("runtime-memory");
+        JsonArray rawVariables = new JsonArray();
+        JsonObject variable = new JsonObject();
+        variable.addProperty("id", 7);
+        variable.addProperty("name", "Amount");
+        variable.addProperty("type", "$String");
+        rawVariables.add(variable);
+        graph.add("rawVariables", rawVariables);
+        graph.add("rawCommands", new JsonArray());
+        graphs.responses.put(5, graph);
+
+        try {
+            service.openForBotJob(5);
+            Session manager = openSession();
+            windows.register(manager);
+            service.connected(VariablesWorkspaceService.WORKSPACE_SESSION_ID, manager);
+            JsonObject bootstrap = service.bootstrap(
+                    new JsonObject(),
+                    VariablesWorkspaceService.WORKSPACE_SESSION_ID,
+                    manager);
+
+            JsonObject initial = bootstrap.getAsJsonObject("runtimeMemory")
+                    .getAsJsonArray("variables")
+                    .get(0)
+                    .getAsJsonObject();
+            assertEquals("VOID", initial.get("state").getAsString());
+
+            JsonObject request = new JsonObject();
+            request.addProperty("requestId", "runtime-set");
+            request.addProperty(
+                    "bindingEpoch",
+                    bootstrap.get("bindingEpoch").getAsString());
+            request.addProperty("variableId", 7);
+            request.addProperty("operation", "SET");
+            request.addProperty("value", "");
+            JsonObject updated = service.updateRuntimeMemory(
+                    request,
+                    VariablesWorkspaceService.WORKSPACE_SESSION_ID,
+                    manager);
+
+            assertTrue(updated.get("ok").getAsBoolean(), updated.toString());
+            JsonObject current = updated.getAsJsonObject("runtimeMemory")
+                    .getAsJsonArray("variables")
+                    .get(0)
+                    .getAsJsonObject();
+            assertEquals("VALUE", current.get("state").getAsString());
+            assertEquals("", current.get("value").getAsString());
+            assertEquals("MANUAL", current.get("source").getAsString());
+
+            assertTrue(service.publishRuntimeMemoryIfOpen(owner));
+            Sent published = windows.sent.get(windows.sent.size() - 1);
+            assertEquals(
+                    VariablesWorkspaceService.RUNTIME_MEMORY_SNAPSHOT_OPERATION,
+                    published.operationId());
+            assertEquals(
+                    "",
+                    published.body()
+                            .getAsJsonObject("runtimeMemory")
+                            .getAsJsonArray("variables")
+                            .get(0)
+                            .getAsJsonObject()
+                            .get("value")
+                            .getAsString());
+        } finally {
+            RuntimeVariableMemoryRegistry.getInstance().remove(owner);
+        }
+    }
+
+    @Test
+    void retiresOnlyTheMatchingWorkspaceAndPreservesRuntimeMemory() {
+        BotJobKey owner = new BotJobKey(2, 5);
+        RuntimeVariableMemoryRegistry.getInstance().reconcileDefinitions(
+                owner,
+                List.of(new RuntimeVariableMemoryRegistry.Definition(
+                        7, "Amount", "$String")),
+                true);
         service.openForBotJob(5);
 
         assertFalse(service.retireForBotJob(6, "wrong job"));
+        assertEquals(
+                1,
+                RuntimeVariableMemoryRegistry.getInstance()
+                        .snapshot(owner)
+                        .variables()
+                        .size());
         assertEquals(0, windows.closes);
         assertTrue(service.retireForBotJob(5, "job closed"));
+        assertEquals(
+                1,
+                RuntimeVariableMemoryRegistry.getInstance()
+                        .snapshot(owner)
+                        .variables()
+                        .size());
         assertEquals(1, windows.closes);
         JsonObject tombstone = windows.sent.get(windows.sent.size() - 1).body();
         assertTrue(tombstone.get("retired").getAsBoolean());
         assertFalse(tombstone.get("preserveSnapshot").getAsBoolean());
         assertFalse(service.publishIfOpen(5));
+        RuntimeVariableMemoryRegistry.getInstance().remove(owner);
     }
 
     @Test
@@ -291,6 +383,44 @@ class VariablesWorkspaceServiceTest {
         assertEquals(1, tasks.mutations.size());
         tasks.runMutations();
         assertTrue(graphs.loads > loadsBefore);
+    }
+
+    @Test
+    void runtimeNotificationsAreScopedAndCoalescedPerOwner() {
+        BotJobKey owner = new BotJobKey(2, 5);
+        RuntimeVariableMemoryRegistry.getInstance().reconcileDefinitions(
+                owner,
+                List.of(new RuntimeVariableMemoryRegistry.Definition(
+                        7, "Amount", "$String")),
+                true);
+        try {
+            service.notifyRuntimeMemoryChanged(owner, 1L);
+            assertEquals(0, tasks.mutations.size());
+
+            service.openForBotJob(5);
+            Session manager = openSession();
+            windows.register(manager);
+            service.connected(
+                    VariablesWorkspaceService.WORKSPACE_SESSION_ID,
+                    manager);
+            service.notifyRuntimeMemoryChanged(owner, 2L);
+            service.notifyRuntimeMemoryChanged(owner, 3L);
+
+            assertEquals(1, tasks.mutations.size());
+            tasks.runMutations();
+            long publications = windows.sent.stream()
+                    .filter(item -> VariablesWorkspaceService
+                            .RUNTIME_MEMORY_SNAPSHOT_OPERATION
+                            .equals(item.operationId()))
+                    .count();
+            assertEquals(1L, publications);
+
+            service.openForBotJob(6);
+            service.notifyRuntimeMemoryChanged(owner, 4L);
+            assertEquals(0, tasks.mutations.size());
+        } finally {
+            RuntimeVariableMemoryRegistry.getInstance().remove(owner);
+        }
     }
 
     @Test
@@ -369,6 +499,9 @@ class VariablesWorkspaceServiceTest {
         assertEquals(
                 "VARIABLES_INDIVIDUAL_CROSS_BLOCK_V1",
                 capability.get("crossBlockProfile").getAsString());
+        assertEquals(
+                "VARIABLES_REACT_AUTHORED_V1",
+                capability.get("reactAuthoredProfile").getAsString());
         assertEquals(4L, capability.get("graphVersion").getAsLong());
         assertEquals("mutation-five", capability.get("graphRevision").getAsString());
         assertEquals(
@@ -566,6 +699,10 @@ class VariablesWorkspaceServiceTest {
                 "VARIABLES_INDIVIDUAL_CROSS_BLOCK_V1",
                 VariablesWorkspaceService.normalizeMutationProfile(
                         " VARIABLES_INDIVIDUAL_CROSS_BLOCK_V1 "));
+        assertEquals(
+                "VARIABLES_REACT_AUTHORED_V1",
+                VariablesWorkspaceService.normalizeMutationProfile(
+                        " VARIABLES_REACT_AUTHORED_V1 "));
         assertThrows(
                 IllegalArgumentException.class,
                 () -> VariablesWorkspaceService.normalizeMutationProfile(
@@ -768,6 +905,8 @@ class VariablesWorkspaceServiceTest {
         graph.add("summary", summary);
         graph.add("blocks", new JsonArray());
         graph.add("variables", new JsonArray());
+        graph.add("rawVariables", new JsonArray());
+        graph.add("rawCommands", new JsonArray());
         graph.add("edges", new JsonArray());
         graph.add("diagnostics", new JsonArray());
         return graph;

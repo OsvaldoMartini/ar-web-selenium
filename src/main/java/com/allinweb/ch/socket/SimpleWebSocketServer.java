@@ -116,6 +116,7 @@ public class SimpleWebSocketServer {
     private static final Set<String> DETACHED_VARIABLES_OPERATIONS = Set.of(
             "variablesWorkspace.bootstrap",
             "variablesWorkspace.refresh",
+            "variablesWorkspace.runtimeMemory.update",
             "variablesWorkspace.graphMutationV3",
             "pagesOpen.open",
             "pagesOpen.summary");
@@ -890,6 +891,16 @@ public class SimpleWebSocketServer {
                             sessionId,
                             "variablesWorkspace.refreshResponse",
                             variablesWorkspaceService.refresh(
+                                    variablesBody, sessionId, session));
+                    break;
+                }
+                case "variablesWorkspace.runtimeMemory.update": {
+                    JsonObject variablesBody = extractBody(jsonObjMSG);
+                    sendCommandEditorResponse(
+                            homeBankingId,
+                            sessionId,
+                            "variablesWorkspace.runtimeMemory.updateResponse",
+                            variablesWorkspaceService.updateRuntimeMemory(
                                     variablesBody, sessionId, session));
                     break;
                 }
