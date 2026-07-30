@@ -498,11 +498,9 @@ public final class CommandEditorService {
                                 && !block.getId().equals(row.getBlockId())
                                 && block.getId().equals(row.getParentBlockId()))
                         .toList();
-                String blockDeleteReason = blockRows.size() <= 1
-                        ? "A job must keep at least one block."
-                        : !externalReferences.isEmpty()
-                                ? "Commands in other blocks reference this block."
-                                : null;
+                String blockDeleteReason = !externalReferences.isEmpty()
+                        ? "Commands in other blocks reference this block."
+                        : null;
                 JsonObject blockCapability = new JsonObject();
                 blockCapability.addProperty("blockId", block.getId());
                 blockCapability.addProperty("blockName", block.getName());

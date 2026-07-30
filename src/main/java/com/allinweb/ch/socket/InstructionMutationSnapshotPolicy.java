@@ -23,6 +23,7 @@ final class InstructionMutationSnapshotPolicy {
             "COMPONENT_ROW_MOVE",
             "CREATE_BLOCK",
             "DELETE_BLOCK",
+            "DELETE_BLOCKS",
             "DELETE_INSTRUCTION",
             "EDIT_OPERATION",
             "FORCE_COORDINATES_UPDATE",

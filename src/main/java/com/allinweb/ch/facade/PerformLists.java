@@ -1290,6 +1290,49 @@ public class PerformLists {
         }
     }
 
+    public void updateMemoryRetainEmptyBlock(String tableName, Integer whereId, Integer blockId) {
+        try {
+            List<BlockLoadDTO> globalBlocks;
+            List<BotJobLoadDTO> jobs;
+            boolean botJobBlocks;
+
+            if ("block".equalsIgnoreCase(tableName)) {
+                globalBlocks = getListBlock();
+                jobs = getListBotJob();
+                botJobBlocks = true;
+            } else if ("component_block".equalsIgnoreCase(tableName)) {
+                globalBlocks = getListBlockComp();
+                jobs = getListBotJobComp();
+                botJobBlocks = false;
+            } else {
+                throw new IllegalArgumentException("Invalid tableName: " + tableName);
+            }
+
+            for (BlockLoadDTO block : globalBlocks) {
+                Integer blockOwner = botJobBlocks ? block.getBotJobId() : block.getHomeBankingId();
+                if (Objects.equals(blockOwner, whereId) && Objects.equals(block.getId(), blockId)) {
+                    block.setInstructionLoad(new ArrayList<>());
+                    block.setHasAnyInput(false);
+                    break;
+                }
+            }
+
+            for (BotJobLoadDTO job : jobs) {
+                Integer jobOwner = botJobBlocks ? job.getId() : job.getHomeBankingId();
+                if (!Objects.equals(jobOwner, whereId) || job.getBlockLoadDTOList() == null) continue;
+                for (BlockLoadDTO block : job.getBlockLoadDTOList()) {
+                    if (Objects.equals(block.getId(), blockId)) {
+                        block.setInstructionLoad(new ArrayList<>());
+                        block.setHasAnyInput(false);
+                        return;
+                    }
+                }
+            }
+        } catch (Exception error) {
+            log.error("Error: Memory Update failed for 'updateMemoryRetainEmptyBlock': " + error.getMessage());
+        }
+    }
+
     public void updateMemoryRollBackToOneBlock(String tableName, Integer whereId, List<Integer> restToDeleteIds) {
         try {
             if ("block".equalsIgnoreCase(tableName)) {

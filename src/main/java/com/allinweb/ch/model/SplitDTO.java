@@ -25,6 +25,12 @@ public class SplitDTO {
     private List<Integer> deleteInstructionIds;
     /** Explicit surviving rows whose deleted parent relationship must be cleared atomically. */
     private List<UpdatedRow> deleteParentRepairs;
+    /** Exact owner-scoped block IDs confirmed by the client for DELETE_BLOCKS. */
+    private List<Integer> deleteBlockIds;
+    /** Complete owner block set observed when the DELETE_BLOCKS confirmation was opened. */
+    private List<Integer> expectedBlockIds;
+    /** Deterministic block record retained when DELETE_BLOCKS selects the complete owner set. */
+    private Integer retainBlockId;
 
     private Integer homeBankingId;
     private Integer botJobId;

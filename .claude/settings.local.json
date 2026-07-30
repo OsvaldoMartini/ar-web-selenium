@@ -133,7 +133,30 @@
       "Bash(echo \"MVN_EXIT=$?\")",
       "PowerShell(Get-CimInstance *)",
       "PowerShell($cands = @\\(54525,54524,8080,3000,9090\\); foreach\\($p in $cands\\){ try { $r=Invoke-WebRequest -Uri \\(\"http://localhost:{0}/\" -f $p\\) -TimeoutSec 2 -UseBasicParsing -ErrorAction Stop; $isAR = $r.Content -match 'AR Web|memoryListManager|main\\\\.'; Write-Output \\(\"PORT {0}: HTTP {1}  ARWeb={2}\" -f $p, $r.StatusCode, $isAR\\) } catch { Write-Output \\(\"PORT {0}: no response\" -f $p\\) } })",
-      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/)"
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/)",
+      "Bash(sed -i \"/^import { DragDropContext } from 'react-beautiful-dnd'/d\" src/components/GridItem.tsx)",
+      "Bash(sed -i 's/\\\\r$//; s/$/\\\\r/' src/components/GridItem.tsx)",
+      "Bash(npm uninstall *)",
+      "Bash(set CI=true)",
+      "Bash(echo \"tsc exit: $?\")",
+      "Bash(tee /tmp/tsc.out)",
+      "Bash(npx eslint *)",
+      "Bash(rm -rf D:/Projects/AllinWeb/ar-web-selenium/src/main/resources/build/*)",
+      "Bash(cp -r D:/Projects/AllinWeb/abr-react-ts-grid/build/* D:/Projects/AllinWeb/ar-web-selenium/src/main/resources/build/)",
+      "PowerShell(Select-String -Path \"D:\\\\Projects\\\\ARWebBancaStato\\\\ARWeb\\\\Logs\\\\ar_web_scanner_backend-2026-07-28.10.log\" -Pattern \"delete|remove|DELETE|Refused|error|Exception\" | Select-Object -Last 30 | ForEach-Object { $_.Line })",
+      "PowerShell(Select-String -Path \"D:\\\\Projects\\\\ARWebBancaStato\\\\ARWeb\\\\Logs\\\\ar_web_scanner_backend-2026-07-28.8.log\" -Pattern \"11:53:1[6-9]|11:53:2[0-5]\" | ForEach-Object { $_.Line })",
+      "PowerShell(Select-String -Path \"D:\\\\Projects\\\\ARWebBancaStato\\\\ARWeb\\\\Logs\\\\ar_web_scanner_backend-2026-07-28.10.log\" -Pattern \"DELETE_INSTRUCTION|deleteResponse\" | ForEach-Object { $_.Line }; Select-String -Path \"D:\\\\Projects\\\\ARWebBancaStato\\\\ARWeb\\\\Logs\\\\ar_web_scanner_base-2026-07-28.10.log\",\"D:\\\\Projects\\\\ARWebBancaStato\\\\ARWeb\\\\Logs\\\\ar_web_scanner_base-2026-07-28.9.log\" -Pattern \"MISMATCH|WARN|ERROR\" | Select-Object -Last 15 | ForEach-Object { \"$\\($_.Filename\\): $\\($_.Line\\)\" })",
+      "PowerShell(Set-Location \"D:\\\\Projects\\\\AllinWeb\\\\abr-react-ts-grid\"; \\(Get-Content package.json | ConvertFrom-Json\\).scripts | Format-List | Out-String)",
+      "PowerShell(npm test *)",
+      "PowerShell(npm run *)",
+      "Bash(rm -rf \"/d/Projects/AllinWeb/ar-web-selenium/src/main/resources/build\"/*)",
+      "Bash(cp -r \"/d/Projects/AllinWeb/abr-react-ts-grid/build/.\" \"/d/Projects/AllinWeb/ar-web-selenium/src/main/resources/build/\")",
+      "PowerShell(git stash *)",
+      "PowerShell(Get-Content *)",
+      "PowerShell(\\(Get-Content \"D:\\\\Projects\\\\AllinWeb\\\\abr-react-ts-grid\\\\package.json\" | ConvertFrom-Json\\).dependencies | Format-List react, 'react-dom', 'lucide-react' | Out-String)",
+      "Bash(npm test *)",
+      "PowerShell($p = \"D:\\\\Projects\\\\AllinWeb\\\\ar-web-selenium-4.2\"; git -C $p rev-parse --is-inside-work-tree 2>&1; git -C $p remote -v 2>&1; git -C $p branch --show-current 2>&1; git -C $p log --oneline -3 2>&1; \\(git -C $p status --short 2>&1 | Measure-Object -Line\\).Lines)",
+      "PowerShell($p = \"D:\\\\Projects\\\\AllinWeb\\\\ar-web-selenium-4.2\"; git -C $p remote remove local 2>$null; git -C $p remote add local \"D:\\\\Projects\\\\AllinWeb\\\\ar-web-selenium\"; git -C $p fetch local refactor/perform-actions-decomposition 2>&1 | Select-Object -Last 2; git -C $p reset --hard FETCH_HEAD 2>&1 | Select-Object -Last 1; git -C $p log --oneline -3)"
     ]
   }
 }

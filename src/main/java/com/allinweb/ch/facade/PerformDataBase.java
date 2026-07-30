@@ -4432,15 +4432,23 @@ public class PerformDataBase {
             previousAutoCommit = connection.getAutoCommit();
             connection.setAutoCommit(false);
 
-            try (PreparedStatement count = connection.prepareStatement(
-                    "SELECT COUNT(*) FROM " + blockTable + " WHERE " + ownerColumn + "=?")) {
-                count.setInt(1, whereId);
-                try (ResultSet result = count.executeQuery()) {
-                    if (!result.next() || result.getInt(1) <= 1) {
-                        throw new SQLException("A job must keep at least one block.");
+            int ownerBlockCount = 0;
+            boolean targetBlockExists = false;
+            try (PreparedStatement blocks = connection.prepareStatement(
+                    "SELECT id FROM " + blockTable + " WHERE " + ownerColumn + "=?")) {
+                blocks.setInt(1, whereId);
+                try (ResultSet result = blocks.executeQuery()) {
+                    while (result.next()) {
+                        ownerBlockCount++;
+                        if (result.getInt(1) == blockId) targetBlockExists = true;
                     }
                 }
             }
+            if (!targetBlockExists) {
+                throw new SQLException("Block could not be deleted exactly once.");
+            }
+            boolean retainBlockRecord = ownerBlockCount == 1;
+
             try (PreparedStatement references = connection.prepareStatement(
                     "SELECT COUNT(*) FROM " + instructionTable + " WHERE " + ownerColumn
                             + "=? AND parent_block_id=? AND block_id<>?")) {
@@ -4476,28 +4484,35 @@ public class PerformDataBase {
                     }
                 }
             }
-            try (PreparedStatement deleteBlock = connection.prepareStatement(
-                    "DELETE FROM " + blockTable + " WHERE " + ownerColumn + "=? AND id=?")) {
-                deleteBlock.setInt(1, whereId);
-                deleteBlock.setInt(2, blockId);
-                if (deleteBlock.executeUpdate() != 1) throw new SQLException("Block could not be deleted exactly once.");
-            }
-
-            List<Integer> remainingIds = new ArrayList<>();
-            try (PreparedStatement select = connection.prepareStatement(
-                    "SELECT id FROM " + blockTable + " WHERE " + ownerColumn + "=? ORDER BY block_order_number,id")) {
-                select.setInt(1, whereId);
-                try (ResultSet result = select.executeQuery()) {
-                    while (result.next()) remainingIds.add(result.getInt(1));
+            if (!retainBlockRecord) {
+                try (PreparedStatement deleteBlock = connection.prepareStatement(
+                        "DELETE FROM " + blockTable + " WHERE " + ownerColumn + "=? AND id=?")) {
+                    deleteBlock.setInt(1, whereId);
+                    deleteBlock.setInt(2, blockId);
+                    if (deleteBlock.executeUpdate() != 1) {
+                        throw new SQLException("Block could not be deleted exactly once.");
+                    }
                 }
-            }
-            try (PreparedStatement reorder = connection.prepareStatement(
-                    "UPDATE " + blockTable + " SET block_order_number=? WHERE " + ownerColumn + "=? AND id=?")) {
-                for (int index = 0; index < remainingIds.size(); index++) {
-                    reorder.setInt(1, index + 1);
-                    reorder.setInt(2, whereId);
-                    reorder.setInt(3, remainingIds.get(index));
-                    if (reorder.executeUpdate() != 1) throw new SQLException("Block order normalization failed.");
+
+                List<Integer> remainingIds = new ArrayList<>();
+                try (PreparedStatement select = connection.prepareStatement(
+                        "SELECT id FROM " + blockTable + " WHERE " + ownerColumn
+                                + "=? ORDER BY block_order_number,id")) {
+                    select.setInt(1, whereId);
+                    try (ResultSet result = select.executeQuery()) {
+                        while (result.next()) remainingIds.add(result.getInt(1));
+                    }
+                }
+                try (PreparedStatement reorder = connection.prepareStatement(
+                        "UPDATE " + blockTable + " SET block_order_number=? WHERE " + ownerColumn + "=? AND id=?")) {
+                    for (int index = 0; index < remainingIds.size(); index++) {
+                        reorder.setInt(1, index + 1);
+                        reorder.setInt(2, whereId);
+                        reorder.setInt(3, remainingIds.get(index));
+                        if (reorder.executeUpdate() != 1) {
+                            throw new SQLException("Block order normalization failed.");
+                        }
+                    }
                 }
             }
             connection.commit();
@@ -4511,6 +4526,217 @@ public class PerformDataBase {
                 try { connection.close(); } catch (SQLException ignored) { }
             }
         }
+    }
+
+    public record BlockDeleteBatchResult(
+            ErrorMessage error, List<Integer> deletedBlockIds, Integer retainedBlockId) {
+        public BlockDeleteBatchResult {
+            deletedBlockIds = deletedBlockIds == null ? List.of() : List.copyOf(deletedBlockIds);
+        }
+    }
+
+    public BlockDeleteBatchResult deleteBlocksGraphAtomic(
+            String blockTable,
+            int whereId,
+            List<Integer> deleteBlockIds,
+            List<Integer> expectedBlockIds,
+            Integer requestedRetainBlockId) {
+        if (!"block".equals(blockTable) && !"component_block".equals(blockTable)) {
+            return blockDeleteBatchFailure("Invalid block table: " + blockTable);
+        }
+        String deleteValidation = validateExactPositiveIds(deleteBlockIds, "deleteBlockIds");
+        if (deleteValidation != null) return blockDeleteBatchFailure(deleteValidation);
+        String expectedValidation = validateExactPositiveIds(expectedBlockIds, "expectedBlockIds");
+        if (expectedValidation != null) return blockDeleteBatchFailure(expectedValidation);
+        if (requestedRetainBlockId != null && requestedRetainBlockId <= 0) {
+            return blockDeleteBatchFailure("retainBlockId must be a positive block ID.");
+        }
+
+        LinkedHashSet<Integer> selectedIds = new LinkedHashSet<>(deleteBlockIds);
+        LinkedHashSet<Integer> expectedIds = new LinkedHashSet<>(expectedBlockIds);
+        if (!expectedIds.containsAll(selectedIds)) {
+            return blockDeleteBatchFailure("deleteBlockIds must be a subset of expectedBlockIds.");
+        }
+
+        String ownerColumn = "block".equals(blockTable) ? "bot_job_id" : "home_banking_id";
+        String instructionTable = "block".equals(blockTable) ? "instruction" : "component_instruction";
+        String variableTable = "block".equals(blockTable) ? "variable" : "component_variable";
+        String referenceTable = "block".equals(blockTable) ? "reference" : "component_reference";
+        Connection connection = null;
+        Boolean previousAutoCommit = null;
+        try {
+            connection = getConnection();
+            previousAutoCommit = connection.getAutoCommit();
+            connection.setAutoCommit(false);
+
+            List<Integer> currentBlockIds = new ArrayList<>();
+            try (PreparedStatement currentBlocks = connection.prepareStatement(
+                    "SELECT id FROM " + blockTable + " WHERE " + ownerColumn
+                            + "=? ORDER BY block_order_number,id")) {
+                currentBlocks.setInt(1, whereId);
+                try (ResultSet result = currentBlocks.executeQuery()) {
+                    while (result.next()) currentBlockIds.add(result.getInt(1));
+                }
+            }
+            LinkedHashSet<Integer> currentIds = new LinkedHashSet<>(currentBlockIds);
+            if (!currentBlockIds.equals(expectedBlockIds)) {
+                throw new SQLException("Blocks changed. Refresh the grid before deleting Blocks.");
+            }
+            if (!currentIds.containsAll(selectedIds)) {
+                throw new SQLException("One or more selected Blocks do not belong to the active owner.");
+            }
+
+            boolean deletesCompleteOwnerSet = selectedIds.equals(currentIds);
+            Integer retainedBlockId = null;
+            if (deletesCompleteOwnerSet) {
+                retainedBlockId = currentBlockIds.get(0);
+                if (!Objects.equals(requestedRetainBlockId, retainedBlockId)) {
+                    throw new SQLException(
+                            "retainBlockId must identify the first current Block when every Block is selected.");
+                }
+            } else if (requestedRetainBlockId != null) {
+                throw new SQLException("retainBlockId is only allowed when every current Block is selected.");
+            }
+
+            List<Integer> deletedBlockIds = new ArrayList<>();
+            for (Integer selectedId : selectedIds) {
+                if (!Objects.equals(selectedId, retainedBlockId)) {
+                    deletedBlockIds.add(selectedId);
+                }
+            }
+            if (!deletedBlockIds.isEmpty()) {
+                String deletedPlaceholders =
+                        String.join(",", Collections.nCopies(deletedBlockIds.size(), "?"));
+                String selectedPlaceholders =
+                        String.join(",", Collections.nCopies(selectedIds.size(), "?"));
+                String externalReferenceSql = "SELECT COUNT(*) FROM " + instructionTable
+                        + " WHERE " + ownerColumn + "=? AND parent_block_id IN (" + deletedPlaceholders + ")"
+                        + " AND (block_id IS NULL OR block_id NOT IN (" + selectedPlaceholders + "))";
+                try (PreparedStatement references = connection.prepareStatement(externalReferenceSql)) {
+                    int parameter = 1;
+                    references.setInt(parameter++, whereId);
+                    for (Integer id : deletedBlockIds) references.setInt(parameter++, id);
+                    for (Integer id : selectedIds) references.setInt(parameter++, id);
+                    try (ResultSet result = references.executeQuery()) {
+                        if (result.next() && result.getInt(1) > 0) {
+                            throw new SQLException(
+                                    "Commands in surviving Blocks reference a Block selected for deletion.");
+                        }
+                    }
+                }
+            }
+
+            List<Integer> instructionIds = new ArrayList<>();
+            String selectedPlaceholders =
+                    String.join(",", Collections.nCopies(selectedIds.size(), "?"));
+            try (PreparedStatement instructions = connection.prepareStatement(
+                    "SELECT id FROM " + instructionTable + " WHERE " + ownerColumn
+                            + "=? AND block_id IN (" + selectedPlaceholders + ")")) {
+                instructions.setInt(1, whereId);
+                int parameter = 2;
+                for (Integer id : selectedIds) instructions.setInt(parameter++, id);
+                try (ResultSet result = instructions.executeQuery()) {
+                    while (result.next()) instructionIds.add(result.getInt(1));
+                }
+            }
+            if (!instructionIds.isEmpty()) {
+                String instructionPlaceholders =
+                        String.join(",", Collections.nCopies(instructionIds.size(), "?"));
+                deleteOwnedRows(
+                        connection,
+                        variableTable,
+                        ownerColumn,
+                        whereId,
+                        instructionIds,
+                        instructionPlaceholders);
+                deleteOwnedRows(
+                        connection,
+                        referenceTable,
+                        ownerColumn,
+                        whereId,
+                        instructionIds,
+                        instructionPlaceholders);
+                try (PreparedStatement deleteInstructions = connection.prepareStatement(
+                        "DELETE FROM " + instructionTable + " WHERE " + ownerColumn
+                                + "=? AND id IN (" + instructionPlaceholders + ")")) {
+                    bindOwnerAndIds(deleteInstructions, whereId, instructionIds);
+                    if (deleteInstructions.executeUpdate() != instructionIds.size()) {
+                        throw new SQLException("Not every selected Block instruction was deleted.");
+                    }
+                }
+            }
+
+            if (!deletedBlockIds.isEmpty()) {
+                String deletedPlaceholders =
+                        String.join(",", Collections.nCopies(deletedBlockIds.size(), "?"));
+                try (PreparedStatement deleteBlocks = connection.prepareStatement(
+                        "DELETE FROM " + blockTable + " WHERE " + ownerColumn
+                                + "=? AND id IN (" + deletedPlaceholders + ")")) {
+                    bindOwnerAndIds(deleteBlocks, whereId, deletedBlockIds);
+                    if (deleteBlocks.executeUpdate() != deletedBlockIds.size()) {
+                        throw new SQLException("Not every selected Block was deleted.");
+                    }
+                }
+            }
+
+            List<Integer> remainingIds = new ArrayList<>();
+            try (PreparedStatement remaining = connection.prepareStatement(
+                    "SELECT id FROM " + blockTable + " WHERE " + ownerColumn
+                            + "=? ORDER BY block_order_number,id")) {
+                remaining.setInt(1, whereId);
+                try (ResultSet result = remaining.executeQuery()) {
+                    while (result.next()) remainingIds.add(result.getInt(1));
+                }
+            }
+            try (PreparedStatement reorder = connection.prepareStatement(
+                    "UPDATE " + blockTable + " SET block_order_number=? WHERE " + ownerColumn + "=? AND id=?")) {
+                for (int index = 0; index < remainingIds.size(); index++) {
+                    reorder.setInt(1, index + 1);
+                    reorder.setInt(2, whereId);
+                    reorder.setInt(3, remainingIds.get(index));
+                    if (reorder.executeUpdate() != 1) {
+                        throw new SQLException("Block order normalization failed.");
+                    }
+                }
+            }
+
+            connection.commit();
+            return new BlockDeleteBatchResult(null, deletedBlockIds, retainedBlockId);
+        } catch (SQLException exception) {
+            if (connection != null) try {
+                connection.rollback();
+            } catch (SQLException ignored) {
+            }
+            return blockDeleteBatchFailure(exception.getMessage());
+        } finally {
+            if (connection != null) {
+                if (previousAutoCommit != null) try {
+                    connection.setAutoCommit(previousAutoCommit);
+                } catch (SQLException ignored) {
+                }
+                try {
+                    connection.close();
+                } catch (SQLException ignored) {
+                }
+            }
+        }
+    }
+
+    private BlockDeleteBatchResult blockDeleteBatchFailure(String detail) {
+        return new BlockDeleteBatchResult(
+                new ErrorMessage("Delete Blocks Error", "Atomic block deletion failed", detail),
+                List.of(),
+                null);
+    }
+
+    private String validateExactPositiveIds(List<Integer> ids, String fieldName) {
+        if (ids == null || ids.isEmpty()) return fieldName + " must contain at least one Block ID.";
+        LinkedHashSet<Integer> unique = new LinkedHashSet<>();
+        for (Integer id : ids) {
+            if (id == null || id <= 0) return fieldName + " must contain only positive Block IDs.";
+            if (!unique.add(id)) return fieldName + " must not contain duplicate Block IDs.";
+        }
+        return null;
     }
 
     private void deleteOwnedRows(Connection connection, String table, String ownerColumn, int whereId,

@@ -125,6 +125,8 @@ public class SimpleWebSocketServer {
     private static ActionExecutorClient actionExecutorClient = ActionExecutorClient.getInstance();
     private static final Map<String, Boolean> processedInstructionDeletes = new LinkedHashMap<>();
     private static final Map<String, Boolean> processedBlockDeletes = new LinkedHashMap<>();
+    private static final BlockDeleteBatchLedger blockDeleteBatchLedger =
+            BlockDeleteBatchLedger.getInstance();
     // ROW_MOVE idempotency + validation now live in facade.RowMoveService (one method per concern).
     // Dedicated backend request-traffic logger → ar_web_scanner_backend.log (see logback.xml)
     private static final org.slf4j.Logger logBackend = org.slf4j.LoggerFactory.getLogger("com.allinweb.backend");
@@ -4636,6 +4638,7 @@ public class SimpleWebSocketServer {
         boolean alreadySentMgsSocket = false;
         boolean authoritativeBotJobSnapshotPublished = false;
         ErrorMessage errorMessage = null;
+        BlockDeleteBatchLedger.Outcome blockDeleteBatchOutcome = null;
         SplitDTO splitDTO = parseSplitDTO(jsonEntry);
 
         if (sessionId.equals("engine-perform-bot-job")
@@ -4822,7 +4825,7 @@ public class SimpleWebSocketServer {
             errorMessage = performDataBase.loadInstructions(whereId, -1, -1, instrTable);
         }
         if (errorMessage != null && !"ROW_MOVE".equals(type) && !"DELETE_INSTRUCTION".equals(type)
-                && !"DELETE_BLOCK".equals(type)) {
+                && !"DELETE_BLOCK".equals(type) && !"DELETE_BLOCKS".equals(type)) {
             performMessage.errorMessageOperationFailed(errorMessage);
         }
 
@@ -4837,7 +4840,10 @@ public class SimpleWebSocketServer {
                 errorMessage = performDataBase.loadBlocks(whereId, botJobNameTask, blockTable);
             }
 
-            if (errorMessage == null && !"ROW_MOVE".equals(type) && !"COMPONENT_ROW_MOVE".equals(type)) {
+            if (errorMessage == null
+                    && !"ROW_MOVE".equals(type)
+                    && !"COMPONENT_ROW_MOVE".equals(type)
+                    && !"DELETE_BLOCKS".equals(type)) {
                 errorMessage = performDataBase.checkGapsBlockOrder(listBlocks, blockTable, whereId, botJobNameTask);
             }
 
@@ -5670,10 +5676,19 @@ public class SimpleWebSocketServer {
                     if (errorMessage == null) errorMessage = performDataBase.loadBlocks(whereId, "", blockTable);
                     // loadInstructions/loadBlocks refresh only the GLOBAL lists; the
                     // task-update snapshot pushed below is built from the NESTED
-                    // listBotJob.blockLoadDTOList (buildJsonViewData), so the deleted
-                    // block must be evicted there too or it reappears on the board.
+                    // listBotJob.blockLoadDTOList (buildJsonViewData). A removed block
+                    // must be evicted there too; an only block is retained and its
+                    // nested instruction graph must instead be cleared.
                     if (errorMessage == null) {
-                        performLists.updateMemoryRemoveBlockIds(blockTable, whereId, List.of(splitDTO.getBlockId()));
+                        BlockLoadDTO retainedBlock = performLists.getBlockLoadByBankId(
+                                blockTable, whereId, splitDTO.getBlockId());
+                        if (retainedBlock == null) {
+                            performLists.updateMemoryRemoveBlockIds(
+                                    blockTable, whereId, List.of(splitDTO.getBlockId()));
+                        } else {
+                            performLists.updateMemoryRetainEmptyBlock(
+                                    blockTable, whereId, splitDTO.getBlockId());
+                        }
                     }
                     if (errorMessage == null) rememberCompletedRequest(processedBlockDeletes, blockDeleteRequestId);
 
@@ -5685,6 +5700,37 @@ public class SimpleWebSocketServer {
 
                     alreadySentMgsSocket = false;
                     break;
+                case "DELETE_BLOCKS": {
+                    String requestId =
+                            splitDTO.getRequestId() == null ? "" : splitDTO.getRequestId().trim();
+                    if (requestId.isEmpty()) {
+                        errorMessage = new ErrorMessage(
+                                "Delete Blocks Refused",
+                                "Request ID is required",
+                                "Refresh the grid and try again.");
+                        blockDeleteBatchOutcome =
+                                BlockDeleteBatchLedger.Outcome.failure(errorMessage);
+                        break;
+                    }
+                    final String batchBlockTable = blockTable;
+                    final int batchWhereId = whereId;
+                    JsonObject fingerprint =
+                            blockDeleteBatchFingerprint(splitDTO, batchBlockTable, batchWhereId);
+                    String ledgerScope = sessionIdToSend
+                            + ":DELETE_BLOCKS:"
+                            + batchBlockTable
+                            + ':'
+                            + batchWhereId;
+                    blockDeleteBatchOutcome = blockDeleteBatchLedger.executeOnce(
+                            ledgerScope,
+                            requestId,
+                            fingerprint,
+                            () -> executeBlockDeleteBatch(
+                                    splitDTO, batchBlockTable, batchWhereId));
+                    errorMessage = blockDeleteBatchOutcome.error();
+                    if (blockDeleteBatchOutcome.replayed()) alreadySentMgsSocket = true;
+                    break;
+                }
                 case "BLOCK_ROLLBACK":
                     errorMessage =
                             CommandEditorService.getInstance()
@@ -5713,7 +5759,10 @@ public class SimpleWebSocketServer {
                     break;
             }
 
-            if (errorMessage == null && !"ROW_MOVE".equals(type) && !"COMPONENT_ROW_MOVE".equals(type)) {
+            if (errorMessage == null
+                    && !"ROW_MOVE".equals(type)
+                    && !"COMPONENT_ROW_MOVE".equals(type)
+                    && !"DELETE_BLOCKS".equals(type)) {
                 errorMessage = performDataBase.checkGapsBlockOrder(listBlocks, blockTable, whereId, botJobNameTask);
             }
         } catch (Exception error) {
@@ -5740,7 +5789,8 @@ public class SimpleWebSocketServer {
                 && !"ROW_MOVE".equals(type)
                 && !"COMPONENT_ROW_MOVE".equals(type)
                 && !"DELETE_INSTRUCTION".equals(type)
-                && !"DELETE_BLOCK".equals(type)) {
+                && !"DELETE_BLOCK".equals(type)
+                && !"DELETE_BLOCKS".equals(type)) {
             performMessage.errorMessageOperationFailed(errorMessage);
         }
 
@@ -5771,10 +5821,22 @@ public class SimpleWebSocketServer {
         if ("ROW_MOVE".equals(type)
                 || "COMPONENT_ROW_MOVE".equals(type)
                 || "DELETE_INSTRUCTION".equals(type)
-                || "DELETE_BLOCK".equals(type)) {
+                || "DELETE_BLOCK".equals(type)
+                || "DELETE_BLOCKS".equals(type)) {
             JsonObject mutationResponse = new JsonObject();
             mutationResponse.addProperty("ok", errorMessage == null);
             mutationResponse.addProperty("requestId", splitDTO.getRequestId());
+            if ("DELETE_BLOCKS".equals(type) && blockDeleteBatchOutcome != null) {
+                mutationResponse.add(
+                        "deletedBlockIds",
+                        gson.toJsonTree(blockDeleteBatchOutcome.deletedBlockIds()));
+                if (blockDeleteBatchOutcome.retainedBlockId() != null) {
+                    mutationResponse.addProperty(
+                            "retainedBlockId",
+                            blockDeleteBatchOutcome.retainedBlockId());
+                }
+                mutationResponse.addProperty("replayed", blockDeleteBatchOutcome.replayed());
+            }
             if (errorMessage != null) {
                 mutationResponse.addProperty("errorTitle", errorMessage.getErrorTitle());
                 mutationResponse.addProperty("errorHeader", errorMessage.getErrorHeader());
@@ -5782,7 +5844,7 @@ public class SimpleWebSocketServer {
             }
             String responseOperation = "ROW_MOVE".equals(type) || "COMPONENT_ROW_MOVE".equals(type)
                     ? "instructionEditor.rowMoveResponse"
-                    : "DELETE_BLOCK".equals(type)
+                    : "DELETE_BLOCK".equals(type) || "DELETE_BLOCKS".equals(type)
                             ? "instructionEditor.blockDeleteResponse"
                             : "instructionEditor.deleteResponse";
             instructionRealtimePublisher.publishResponse(
@@ -5795,12 +5857,16 @@ public class SimpleWebSocketServer {
                     errorMessage == null);
         }
 
-        boolean requiresAuthoritativeBotJobSnapshot = errorMessage == null
-                && isBotJobTasksSession(sessionIdToSend)
-                && ("ROW_MOVE".equals(type)
-                        || "BLOCK_CREATE".equals(type)
-                        || "CREATE_BLOCK".equals(type));
-        if (requiresAuthoritativeBotJobSnapshot) {
+        boolean replayedBlockBatch =
+                blockDeleteBatchOutcome != null && blockDeleteBatchOutcome.replayed();
+        boolean reloadAuthoritativeBotJobSnapshot = isBotJobTasksSession(sessionIdToSend)
+                && !replayedBlockBatch
+                && ("DELETE_BLOCKS".equals(type)
+                        || (errorMessage == null
+                                && ("ROW_MOVE".equals(type)
+                                        || "BLOCK_CREATE".equals(type)
+                                        || "CREATE_BLOCK".equals(type))));
+        if (reloadAuthoritativeBotJobSnapshot) {
             boolean blockCreated = "BLOCK_CREATE".equals(type) || "CREATE_BLOCK".equals(type);
             ErrorMessage snapshotError = publishBotJobTasksAuthoritativeSnapshot(
                     homeBankingId,
@@ -5825,7 +5891,8 @@ public class SimpleWebSocketServer {
                         isComponentInstructionWorkspaceSession(sessionIdToSend),
                         type);
         boolean reloadAuthoritativeComponentSnapshot =
-                InstructionMutationSnapshotPolicy.shouldReloadAuthoritativeComponentSnapshot(
+                !replayedBlockBatch
+                        && InstructionMutationSnapshotPolicy.shouldReloadAuthoritativeComponentSnapshot(
                         isComponentInstructionWorkspaceSession(sessionIdToSend),
                         type);
         if (reloadAuthoritativeComponentSnapshot) {
@@ -5900,7 +5967,8 @@ public class SimpleWebSocketServer {
                 if ("ROW_MOVE".equals(type)
                         || "COMPONENT_ROW_MOVE".equals(type)
                         || "DELETE_INSTRUCTION".equals(type)
-                        || "DELETE_BLOCK".equals(type)) {
+                        || "DELETE_BLOCK".equals(type)
+                        || "DELETE_BLOCKS".equals(type)) {
                     log.info(
                             "INSTRUCTION_MUTATION_REALTIME_UPDATE type={} requestId={} session={} operationId={} rows={}",
                             type,
@@ -6548,6 +6616,56 @@ public class SimpleWebSocketServer {
         } catch (RuntimeException invalidValue) {
             return "<invalid>";
         }
+    }
+
+    private BlockDeleteBatchLedger.Outcome executeBlockDeleteBatch(
+            SplitDTO split, String blockTable, int whereId) {
+        ErrorMessage revisionError =
+                CommandEditorService.getInstance().validateDeleteRevision(split);
+        if (revisionError != null) {
+            return BlockDeleteBatchLedger.Outcome.failure(revisionError);
+        }
+        PerformDataBase.BlockDeleteBatchResult result =
+                performDataBase.deleteBlocksGraphAtomic(
+                        blockTable,
+                        whereId,
+                        split.getDeleteBlockIds(),
+                        split.getExpectedBlockIds(),
+                        split.getRetainBlockId());
+        if (result.error() != null) {
+            return BlockDeleteBatchLedger.Outcome.failure(result.error());
+        }
+        return BlockDeleteBatchLedger.Outcome.success(
+                result.deletedBlockIds(), result.retainedBlockId());
+    }
+
+    private JsonObject blockDeleteBatchFingerprint(
+            SplitDTO split, String blockTable, int whereId) {
+        JsonObject payload = new JsonObject();
+        payload.addProperty("contractVersion", 1);
+        payload.addProperty("blockTable", blockTable);
+        payload.addProperty("whereId", whereId);
+        payload.addProperty("graphRevision", split.getGraphRevision());
+        payload.addProperty("deleteBlockIdsPresent", split.getDeleteBlockIds() != null);
+        payload.addProperty("expectedBlockIdsPresent", split.getExpectedBlockIds() != null);
+        payload.add(
+                "deleteBlockIds",
+                gson.toJsonTree(normalizedBlockDeleteIds(split.getDeleteBlockIds())));
+        payload.add(
+                "expectedBlockIds",
+                gson.toJsonTree(
+                        split.getExpectedBlockIds() == null
+                                ? List.of()
+                                : split.getExpectedBlockIds()));
+        payload.add("retainBlockId", gson.toJsonTree(split.getRetainBlockId()));
+        return payload;
+    }
+
+    private List<Integer> normalizedBlockDeleteIds(List<Integer> ids) {
+        if (ids == null) return List.of();
+        return ids.stream()
+                .sorted(Comparator.nullsLast(Integer::compareTo))
+                .toList();
     }
 
     private void rememberCompletedRequest(Map<String, Boolean> completedRequests, String requestId) {
