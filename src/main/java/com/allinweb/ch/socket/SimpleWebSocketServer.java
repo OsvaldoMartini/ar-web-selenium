@@ -2026,6 +2026,10 @@ public class SimpleWebSocketServer {
                         active.botJobId(),
                         refreshError.getErrorMessage());
             }
+            // The graph mutation is already committed even when a detached grid
+            // cannot receive its refresh. Notify the Variables workspace as a
+            // separate realtime consumer so both authoring surfaces converge.
+            VariablesWorkspaceService.getInstance().notifyMutation(active.botJobId());
         } catch (BotJobGraphMutationTransaction.MutationRefusedException refused) {
             botJobGraphMutationFailure(
                     response, body, refused.code(), refused.getMessage(), transportSession);
