@@ -6,6 +6,7 @@ import com.allinweb.ch.model.BlockLoadDTO;
 import com.allinweb.ch.model.BlockOrderDetailDTO;
 import com.allinweb.ch.model.DetailsDTO;
 import com.allinweb.ch.model.InstructionLoad;
+import com.allinweb.ch.model.InstructionGraphMutationV3;
 import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import com.allinweb.ch.model.SplitDTO;
 import com.allinweb.ch.model.UpdatedRow;
@@ -521,8 +522,44 @@ public final class CommandEditorService {
         response.add("capabilities", capabilities);
         response.add("blockCapabilities", blockCapabilities);
         response.add("variableLinks", variableLinks(variableRows));
-        if (error == null) response.addProperty("graphRevision", currentGraphRevision);
+        if (error == null) {
+            response.addProperty("graphRevision", currentGraphRevision);
+            if (!componentSession) {
+                addBotJobGraphMutationV3Capability(response, whereId);
+            }
+        }
         return response;
+    }
+
+    /**
+     * Advertises the exact authoritative version/epoch/revision the Bot Job graph hook must echo
+     * in its next v3 mutation. Components intentionally retain their existing capability surface.
+     */
+    private void addBotJobGraphMutationV3Capability(JsonObject response, int botJobId) {
+        try {
+            BotJobDetailsWorkspaceRegistry.Snapshot active =
+                    BotJobDetailsWorkspaceRegistry.getInstance().require(botJobId);
+            BotJobGraphMutationTransaction.GraphSnapshot graph =
+                    BotJobGraphMutationService.getInstance().inspect(
+                            active.homeBankingId(), active.botJobId(), active.workspaceEpoch());
+            JsonObject capability = new JsonObject();
+            capability.addProperty("enabled", true);
+            capability.addProperty(
+                    "contractVersion", InstructionGraphMutationV3.CONTRACT_VERSION);
+            capability.addProperty("workspaceEpoch", active.workspaceEpoch());
+            capability.addProperty("graphVersion", graph.graphVersion());
+            capability.addProperty("graphRevision", graph.graphRevision());
+            JsonObject owner = new JsonObject();
+            owner.addProperty("workspaceKind", InstructionGraphMutationV3.WorkspaceKind.BOT_JOB.name());
+            owner.addProperty("homeBankingId", active.homeBankingId());
+            owner.addProperty("botJobId", active.botJobId());
+            capability.add("ownerAssertion", owner);
+            response.getAsJsonObject("workspaceCapabilities")
+                    .add("botJobGraphMutationV3", capability);
+        } catch (Exception unavailable) {
+            log.warn("Bot Job graph mutation v3 capability is unavailable for Bot Job {}", botJobId,
+                    unavailable);
+        }
     }
 
     private List<VariableLoadDTO> loadDependencyVariables(boolean component, int ownerId)

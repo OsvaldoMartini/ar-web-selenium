@@ -12,6 +12,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import java.io.IOException;
+import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -1478,6 +1479,9 @@ public class SimpleWebSocketServer {
                 case "botJobDetails.environments.refresh":
                     handleBotJobDetailsEnvironmentRefresh(jsonObjMSG, session);
                     break;
+                case "BOT_JOB_GRAPH_MUTATION":
+                    handleBotJobGraphMutation(jsonObjMSG, session);
+                    break;
                 case "botJobExecution.pause.response":
                     handleBotJobExecutionPauseResponse(jsonObjMSG, session);
                     break;
@@ -1959,6 +1963,190 @@ public class SimpleWebSocketServer {
                     "botJobDetails.bootstrapResponse",
                     error.getMessage());
         }
+    }
+
+    /**
+     * Persists one complete, React-planned v3 Bot Job graph mutation from the authoritative grid.
+     *
+     * <p>The WebSocket transport and active workspace establish ownership; the client request is
+     * still required to carry the matching v3 owner/revision/epoch assertions so the transaction
+     * can reject stale or forged graph facts before writing anything.
+     */
+    private void handleBotJobGraphMutation(JsonObject envelope, Session transportSession) {
+        JsonObject body = botJobGraphMutationRequest(envelope);
+        JsonObject response = botJobGraphMutationResponseBase(body, null);
+        try {
+            if (!isAuthoritativeBotJobTransport(transportSession)) {
+                throw new IllegalArgumentException(
+                        "The Bot Job graph requester is not authoritative.");
+            }
+            InstructionGraphMutationV3.Request mutation =
+                    gson.fromJson(body, InstructionGraphMutationV3.Request.class);
+            if (mutation == null || mutation.ownerAssertion() == null
+                    || mutation.ownerAssertion().botJobId() == null
+                    || mutation.ownerAssertion().botJobId() <= 0) {
+                throw new IllegalArgumentException(
+                        "A Bot Job graph mutation requires a positive owner Bot Job ID.");
+            }
+
+            BotJobDetailsWorkspaceRegistry.Snapshot active =
+                    BotJobDetailsWorkspaceRegistry.getInstance()
+                            .require(mutation.ownerAssertion().botJobId());
+            response = botJobGraphMutationResponseBase(body, active);
+            BotJobGraphMutationTransaction.CommitResult committed =
+                    commitBotJobGraphMutation(active, mutation);
+
+            response.addProperty("ok", true);
+            response.addProperty("committed", true);
+            response.addProperty("previousGraphVersion", committed.previousGraphVersion());
+            response.addProperty("committedGraphVersion", committed.committedGraphVersion());
+            response.addProperty("graphRevision", committed.graphRevision());
+            sendCommandEditorResponse(
+                    active.homeBankingId(),
+                    ScannerWorkspaceSessions.BOT_JOB_TASKS,
+                    "botJobGraph.mutationResponse",
+                    response);
+
+            ErrorMessage refreshError = ScannerBotJobTasksPublisher.getInstance()
+                    .publishGridOnly(active.homeBankingId(), active.botJobId());
+            if (refreshError != null) {
+                log.warn(
+                        "Bot Job graph mutation committed for Bot Job {}, but grid refresh failed: {}",
+                        active.botJobId(),
+                        refreshError.getErrorMessage());
+            }
+        } catch (BotJobGraphMutationTransaction.MutationRefusedException refused) {
+            botJobGraphMutationFailure(
+                    response, body, refused.code(), refused.getMessage(), transportSession);
+        } catch (Exception failure) {
+            botJobGraphMutationFailure(
+                    response,
+                    body,
+                    "REQUEST_REFUSED",
+                    failure.getMessage(),
+                    transportSession);
+        }
+    }
+
+    private BotJobGraphMutationTransaction.CommitResult commitBotJobGraphMutation(
+            BotJobDetailsWorkspaceRegistry.Snapshot active,
+            InstructionGraphMutationV3.Request mutation)
+            throws SQLException {
+        try {
+            return BotJobDetailsWorkspaceRegistry.getInstance().commitWorkspaceMutation(
+                    active.botJobId(),
+                    active.workspaceEpoch(),
+                    () -> {
+                        try {
+                            return BotJobGraphMutationService.getInstance().mutate(
+                                    active.homeBankingId(),
+                                    active.botJobId(),
+                                    active.workspaceEpoch(),
+                                    mutation);
+                        } catch (SQLException persistenceFailure) {
+                            throw new BotJobGraphMutationPersistenceException(
+                                    persistenceFailure);
+                        }
+                    });
+        } catch (BotJobGraphMutationPersistenceException persistenceFailure) {
+            throw persistenceFailure.sqlCause();
+        }
+    }
+
+    private static final class BotJobGraphMutationPersistenceException
+            extends RuntimeException {
+        private BotJobGraphMutationPersistenceException(SQLException cause) {
+            super(cause);
+        }
+
+        private SQLException sqlCause() {
+            return (SQLException) getCause();
+        }
+    }
+
+    private void botJobGraphMutationFailure(
+            JsonObject response,
+            JsonObject request,
+            String code,
+            String message,
+            Session transportSession) {
+        response.addProperty("contractVersion", InstructionGraphMutationV3.CONTRACT_VERSION);
+        response.addProperty("ok", false);
+        response.addProperty("committed", false);
+        response.addProperty("errorCode", code == null || code.isBlank() ? "REQUEST_REFUSED" : code);
+        response.addProperty(
+                "message",
+                message == null || message.isBlank()
+                        ? "The Bot Job graph mutation was refused."
+                        : message);
+        if (request != null && request.has("requestId") && !request.get("requestId").isJsonNull()) {
+            response.add("requestId", request.get("requestId").deepCopy());
+        }
+        String sessionId = transportSessionId(transportSession);
+        int homeBankingId = -1;
+        try {
+            InstructionGraphMutationV3.OwnerAssertion owner = request == null
+                    ? null
+                    : gson.fromJson(request, InstructionGraphMutationV3.Request.class).ownerAssertion();
+            if (owner != null && owner.botJobId() != null && owner.botJobId() > 0) {
+                BotJobDetailsWorkspaceRegistry.Snapshot active =
+                        BotJobDetailsWorkspaceRegistry.getInstance().require(owner.botJobId());
+                response = botJobGraphMutationResponseBase(request, active);
+                response.addProperty("ok", false);
+                response.addProperty("committed", false);
+                response.addProperty(
+                        "errorCode", code == null || code.isBlank() ? "REQUEST_REFUSED" : code);
+                response.addProperty(
+                        "message",
+                        message == null || message.isBlank()
+                                ? "The Bot Job graph mutation was refused."
+                                : message);
+                homeBankingId = active.homeBankingId();
+            }
+        } catch (RuntimeException ignored) {
+            // A malformed request still receives a correlated refusal on its real transport.
+        }
+        sendCommandEditorResponse(homeBankingId, sessionId, "botJobGraph.mutationResponse", response);
+    }
+
+    /** The React hook sends this v3 request as top-level fields, unlike body-wrapped legacy verbs. */
+    private JsonObject botJobGraphMutationRequest(JsonObject envelope) {
+        JsonObject body = extractBody(envelope);
+        return body == null ? envelope : body;
+    }
+
+    private JsonObject botJobGraphMutationResponseBase(
+            JsonObject request, BotJobDetailsWorkspaceRegistry.Snapshot active) {
+        JsonObject response = new JsonObject();
+        response.addProperty("contractVersion", InstructionGraphMutationV3.CONTRACT_VERSION);
+        if (request != null && request.has("requestId") && !request.get("requestId").isJsonNull()) {
+            response.add("requestId", request.get("requestId").deepCopy());
+        }
+        if (active != null) {
+            response.addProperty("workspaceEpoch", active.workspaceEpoch());
+            JsonObject owner = new JsonObject();
+            owner.addProperty("workspaceKind", InstructionGraphMutationV3.WorkspaceKind.BOT_JOB.name());
+            owner.addProperty("homeBankingId", active.homeBankingId());
+            owner.addProperty("botJobId", active.botJobId());
+            response.add("ownerAssertion", owner);
+        } else if (request != null) {
+            // A stale/closed workspace can still receive an immediate correlated refusal.
+            // Echoing these asserted identity fields grants no authority; the React hook accepts
+            // them only when they exactly match its already-pending request.
+            if (request.has("workspaceEpoch")
+                    && !request.get("workspaceEpoch").isJsonNull()) {
+                response.add(
+                        "workspaceEpoch",
+                        request.get("workspaceEpoch").deepCopy());
+            }
+            if (request.has("ownerAssertion")
+                    && request.get("ownerAssertion").isJsonObject()) {
+                response.add(
+                        "ownerAssertion",
+                        request.getAsJsonObject("ownerAssertion").deepCopy());
+            }
+        }
+        return response;
     }
 
     void sendBotJobDetailsBootstrap(
