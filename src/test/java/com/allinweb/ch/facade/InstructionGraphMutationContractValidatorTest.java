@@ -60,6 +60,55 @@ class InstructionGraphMutationContractValidatorTest {
     }
 
     @Test
+    void acceptsLegacyInstructionTargetWithoutParentBlockProjection() {
+        OwnerGraph legacyGraph = graph(
+                List.of(
+                        stored(100, 10, 1, null, null, null, null),
+                        stored(
+                                LOOP_ID,
+                                10,
+                                2,
+                                InstructionRelationKind.LOOP_ANCHOR,
+                                100,
+                                null,
+                                null),
+                        stored(
+                                GOTO_ID,
+                                20,
+                                1,
+                                InstructionRelationKind.BLOCK_TARGET,
+                                null,
+                                10,
+                                null),
+                        stored(103, 20, 2, null, null, null, null),
+                        stored(104, 30, 1, null, null, null, null)),
+                List.of());
+
+        Validation kept = validator.validateAndNormalize(
+                request(defaultLayout(), List.of()),
+                legacyGraph);
+
+        assertTrue(kept.successful());
+        assertEquals(100, instruction(kept, LOOP_ID).parentId());
+        assertNull(instruction(kept, LOOP_ID).parentBlockId());
+
+        Validation cleared = validator.validateAndNormalize(
+                request(
+                        defaultLayout(),
+                        List.of(relationPatch(
+                                LOOP_ID,
+                                InstructionRelationKind.LOOP_ANCHOR,
+                                PatchOperation.CLEAR,
+                                relation(100, null),
+                                InstructionRelationState.disconnected()))),
+                legacyGraph);
+
+        assertTrue(cleared.successful());
+        assertNull(instruction(cleared, LOOP_ID).parentId());
+        assertNull(instruction(cleared, LOOP_ID).parentBlockId());
+    }
+
+    @Test
     void rejectsAnOmittedStateObjectInsteadOfInferringClear() {
         Validation validation = validator.validateAndNormalize(
                 request(

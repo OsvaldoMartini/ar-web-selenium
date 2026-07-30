@@ -513,11 +513,11 @@ public final class InstructionGraphMutationContractValidator {
                             "Connected instruction #" + instruction.id()
                                     + " requires an authoritative relationship kind.");
                 }
-                if (parentId == null || parentBlockId == null) {
+                if (parentId == null) {
                     return error(
                             ErrorCode.INVALID_FINAL_RELATION,
                             "Connected instruction #" + instruction.id()
-                                    + " requires both parentId and parentBlockId.");
+                                    + " requires parentId.");
                 }
                 if (!index.instructionsById().containsKey(parentId)) {
                     return error(
@@ -525,18 +525,25 @@ public final class InstructionGraphMutationContractValidator {
                             "Relationship target instruction #" + parentId
                                     + " is outside the authoritative owner.");
                 }
-                if (!index.blocksById().containsKey(parentBlockId)) {
-                    return error(
-                            ErrorCode.CROSS_OWNER_BLOCK_TARGET,
-                            "Relationship target block #" + parentBlockId
-                                    + " is outside the authoritative owner.");
-                }
-                LayoutRow parentRow = layoutByInstruction.get(parentId);
-                if (parentRow == null || !Objects.equals(parentRow.blockId(), parentBlockId)) {
-                    return error(
-                            ErrorCode.PARENT_BLOCK_PROJECTION_MISMATCH,
-                            "Instruction #" + instruction.id()
-                                    + " parentBlockId does not match its parent's final block.");
+                // Legacy Bot Jobs commonly persist a valid parent_id with no
+                // parent_block_id projection. The instruction ID remains the
+                // authoritative relationship; validate the optional block
+                // projection only when it is present. Explicit SET/reconnect
+                // patches still require both positive IDs.
+                if (parentBlockId != null) {
+                    if (!index.blocksById().containsKey(parentBlockId)) {
+                        return error(
+                                ErrorCode.CROSS_OWNER_BLOCK_TARGET,
+                                "Relationship target block #" + parentBlockId
+                                        + " is outside the authoritative owner.");
+                    }
+                    LayoutRow parentRow = layoutByInstruction.get(parentId);
+                    if (parentRow == null || !Objects.equals(parentRow.blockId(), parentBlockId)) {
+                        return error(
+                                ErrorCode.PARENT_BLOCK_PROJECTION_MISMATCH,
+                                "Instruction #" + instruction.id()
+                                        + " parentBlockId does not match its parent's final block.");
+                    }
                 }
             }
 
