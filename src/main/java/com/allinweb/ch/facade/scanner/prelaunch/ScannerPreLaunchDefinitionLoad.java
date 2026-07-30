@@ -18,6 +18,11 @@ public final class ScannerPreLaunchDefinitionLoad {
         ScannerPreLaunchPreparation.Result result = operations.loadDefinitions(currentBotJob);
         operations.setExcelDataGoto(result.excelDataGoto());
         operations.setBlocksLoaded(result.blocksLoaded());
+        if (result.variableLoadWarning() != null) {
+            operations.warn(
+                    "Variable definitions are unavailable. Execution will continue and affected "
+                            + "variable steps will be reported as VOID.");
+        }
         if (result.botJobMissing()) {
             operations.warn("I cannot find a Bot Job with this Organization ID: "
                     + currentBotJob.getHomeBankingId()

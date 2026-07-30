@@ -49,6 +49,9 @@ import com.allinweb.ch.facade.scanner.testrun.ScannerTestRunDefinitionValidation
 import com.allinweb.ch.facade.scanner.testrun.TestRunExecutionOutcomeTracker;
 import com.allinweb.ch.facade.scanner.validation.ScannerValidationEvaluator;
 import com.allinweb.ch.facade.actions.InstructionGraph;
+import com.allinweb.ch.facade.actions.RuntimeVariableStore;
+import com.allinweb.ch.facade.actions.RuntimeVariableValue;
+import com.allinweb.ch.facade.actions.RuntimeVariableValue.VoidReason;
 import com.allinweb.ch.facade.execution.ExecutionPreflightSnapshotRepository;
 import com.allinweb.ch.facade.execution.RunScope;
 import com.allinweb.ch.model.*;
@@ -78,7 +81,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BooleanSupplier;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -323,9 +325,9 @@ public class ScannerRuntimeBackend
     private String testActionsText = "0001";
     private String coordsText = "";
     private Map<String, String> mapOperators = new HashMap<>();
+    private volatile boolean variableMetadataAvailable = true;
     private List<String> currentColumnsCSV = new ArrayList<>(); // set once
     private Map<String, CsvTable> csvTables = new LinkedHashMap<>();
-    private List<VariableLoadDTO> variablesLoaded;
     private String[] defaultSearch;
     private boolean searchHiddenFields;
     private String sessionRowStatus;
@@ -1602,7 +1604,10 @@ public class ScannerRuntimeBackend
 
         @Override
         public ScannerPreLaunchPreparation.Result loadDefinitions(BotJobLoadDTO currentBotJob) {
-            return scannerPreLaunchPreparation.loadDefinitions(currentBotJob);
+            ScannerPreLaunchPreparation.Result result =
+                    scannerPreLaunchPreparation.loadDefinitions(currentBotJob);
+            variableMetadataAvailable = result.variableLoadWarning() == null;
+            return result;
         }
 
         @Override
@@ -2336,7 +2341,10 @@ public class ScannerRuntimeBackend
     private final class PaneTestRunDefinitionLoadOperations implements ScannerTestRunDefinitionLoad.Operations {
         @Override
         public ScannerPreLaunchPreparation.Result loadDefinitions(BotJobLoadDTO currentBotJob) {
-            return scannerPreLaunchPreparation.loadDefinitions(currentBotJob);
+            ScannerPreLaunchPreparation.Result result =
+                    scannerPreLaunchPreparation.loadDefinitions(currentBotJob);
+            variableMetadataAvailable = result.variableLoadWarning() == null;
+            return result;
         }
 
         @Override
@@ -2631,6 +2639,51 @@ public class ScannerRuntimeBackend
 
     private String finalLogMessage(String failedMessage, String resultActions) {
         return scannerValidationEvaluator.finalLogMessage(failedMessage, resultActions);
+    }
+
+    private String variableVoidDiagnostic(
+            String action,
+            InstructionLoad instruction,
+            Integer variableId,
+            String variableField,
+            RuntimeVariableValue value) {
+        String variable = variableId != null && variableId > 0
+                ? "Variable #" + variableId
+                : "Unbound variable";
+        if (variableField != null && !variableField.isBlank()) {
+            variable += " (" + variableField + ")";
+        }
+        return "IGNORED: "
+                + action
+                + " Instruction #"
+                + instruction.getId()
+                + " bypassed because "
+                + variable
+                + " is VOID ("
+                + value.voidReason()
+                + "). No producer value is available; execution continues.";
+    }
+
+    private static boolean isVariableRuntimeAction(String action) {
+        return ARConstantsEngine.GET_VALUE.equalsIgnoreCase(action)
+                || ARConstantsEngine.SET_VALUE.equalsIgnoreCase(action)
+                || ARConstantsEngine.CHECK_VALUE.equalsIgnoreCase(action)
+                || ARConstantsEngine.EXTRACT_FIELD.equalsIgnoreCase(action);
+    }
+
+    private static boolean isVariableProducerAction(String action) {
+        return ARConstantsEngine.GET_VALUE.equalsIgnoreCase(action)
+                || ARConstantsEngine.SET_VALUE.equalsIgnoreCase(action);
+    }
+
+    private static String safeThrowableMessage(Throwable error) {
+        if (error == null) {
+            return "Unknown runtime error";
+        }
+        String message = error.getMessage();
+        return Strings.isNullOrEmpty(message)
+                ? error.getClass().getSimpleName()
+                : message;
     }
 
     private final class PaneValidationEvaluatorOperations implements ScannerValidationEvaluator.Operations {
@@ -3009,6 +3062,7 @@ public class ScannerRuntimeBackend
     private boolean executeJob() {
         // Reset the first-call log flag so the first searchListAsync injection is logged
         performListElements.resetFirstCallLog();
+        rowStatus = new RowStatus();
 
         ensureWaitsInitialized();
 
@@ -3036,6 +3090,8 @@ public class ScannerRuntimeBackend
         boolean stopAll = false;
         boolean firstRound = true;
         boolean anyFailure = false;
+        boolean anyVariableVoid = false;
+        String previousInstructionCompletionColor = "green";
         boolean alreadyLogged = false;
         long botJobStartTime = System.nanoTime();
         long totalExecutionTime = 0;
@@ -3054,7 +3110,12 @@ public class ScannerRuntimeBackend
 
         sessionRowStatus = ScannerWorkspaceSessions.BOT_JOB_TASKS; // + botJobId;
 
-        variablesLoaded = performLists.getListVariable();
+        List<VariableLoadDTO> variableDefinitions = performLists.getListVariable();
+        final List<VariableLoadDTO> runtimeVariableDefinitions = variableDefinitions == null
+                ? List.of()
+                : Collections.unmodifiableList(new ArrayList<>(variableDefinitions));
+        final boolean runtimeVariableMetadataAvailable = variableMetadataAvailable;
+        RuntimeVariableStore runtimeVariables = new RuntimeVariableStore();
         //        Map<String, String> mapSavedLocators = new HashMap<>();
 
         Set<Integer> parentIdsForLoop = null;
@@ -3104,7 +3165,11 @@ public class ScannerRuntimeBackend
 
             int xExcelCurrentRow = 0;
             int xExcelDataSize = extractedData.getNumberOfDataRows();
+            int runtimeValueRow = 0;
             mapOperators.clear();
+            runtimeVariables.reset(
+                    runtimeVariableDefinitions,
+                    runtimeVariableMetadataAvailable);
             currentColumnsCSV.clear();
             csvTables.clear();
 
@@ -3352,6 +3417,13 @@ public class ScannerRuntimeBackend
                     boolean refreshOnly = false;
 
                     while (xExcelCurrentRow < extractedData.getNumberOfDataRows() && !stopAll) {
+                        if (runtimeValueRow != xExcelCurrentRow) {
+                            mapOperators.clear();
+                            runtimeVariables.reset(
+                                    runtimeVariableDefinitions,
+                                    runtimeVariableMetadataAvailable);
+                            runtimeValueRow = xExcelCurrentRow;
+                        }
                         failedMessage = "";
                         //                        tableCSV.clear();
 
@@ -3478,6 +3550,8 @@ public class ScannerRuntimeBackend
                             boolean nextEnter = false;
                             boolean swipeUp = false;
                             boolean swipeDown = false;
+                            boolean variableVoidBypass = false;
+                            boolean variableVoidObserved = false;
 
                             String xPathOperation = null;
                             String[] parentActions = null;
@@ -3488,6 +3562,7 @@ public class ScannerRuntimeBackend
                             //                            delimiterCSV = null;
                             String fieldName = null;
                             int parentId = InstructionGraph.executionParentId(currentInstruction);
+                            Integer variableId = currentInstruction.getVariableId();
 
                             if (mapIgnore.contains(currentInstruction.getId() + "-" + currentInstruction.getName())) {
                                 continue;
@@ -3505,12 +3580,12 @@ public class ScannerRuntimeBackend
                                         "yellow");
                             } else {
                                 // Previous
-                                rowStatus.setColor("green"); // #1d9c06 green
+                                rowStatus.setColor(previousInstructionCompletionColor);
                                 InstructionRealtimePublisher.getInstance().publishExecutionStatus(
                                         this.currentBotJob.getHomeBankingId(),
                                         sessionRowStatus,
                                         rowStatus.getInstructionId(),
-                                        "green");
+                                        previousInstructionCompletionColor);
                                 try {
                                     if (!pwOnly || navTime > 0) {
                                         Thread.sleep(300);
@@ -3860,12 +3935,12 @@ public class ScannerRuntimeBackend
 
                                 parentField = performActions.getInstructionParentField(currentInstruction, blockLoad);
                                 variableField =
-                                        performActions.getInstructionVariableField(currentInstruction, variablesLoaded);
+                                        performActions.getInstructionVariableField(
+                                                currentInstruction,
+                                                runtimeVariableDefinitions);
                                 localFormat = performActions.getInstructionVariableFormat(
-                                        currentInstruction, variablesLoaded);
-                                if (variableField == null) {
-                                    variableField = "Not Variable defined";
-                                }
+                                        currentInstruction,
+                                        runtimeVariableDefinitions);
 
                             } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.OUTPUT)) {
                                 execOutPut = true;
@@ -3874,39 +3949,35 @@ public class ScannerRuntimeBackend
                                 execCheckValue = true;
                                 parentField = performActions.getInstructionParentField(currentInstruction, blockLoad);
                                 variableField =
-                                        performActions.getInstructionVariableField(currentInstruction, variablesLoaded);
-                                if (variableField == null) {
-                                    variableField = "Not Variable defined";
-                                }
+                                        performActions.getInstructionVariableField(
+                                                currentInstruction,
+                                                runtimeVariableDefinitions);
                             } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.PDF_CHECK)) {
                                 execPDFCheck = true;
                                 parentField = performActions.getInstructionParentField(currentInstruction, blockLoad);
                                 variableField =
-                                        performActions.getInstructionVariableField(currentInstruction, variablesLoaded);
-                                if (variableField == null) {
-                                    variableField = "Not Variable defined";
-                                }
+                                        performActions.getInstructionVariableField(
+                                                currentInstruction,
+                                                runtimeVariableDefinitions);
                             } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.CSV_CHECK)) {
                                 execCSVCheck = true;
                                 parentField = performActions.getInstructionParentField(currentInstruction, blockLoad);
                                 variableField =
-                                        performActions.getInstructionVariableField(currentInstruction, variablesLoaded);
-                                if (variableField == null) {
-                                    variableField = "Not Variable defined";
-                                }
+                                        performActions.getInstructionVariableField(
+                                                currentInstruction,
+                                                runtimeVariableDefinitions);
                             } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.EXTRACT_FIELD)) {
                                 execExcellWrite = true;
                                 parentField = performActions.getInstructionParentField(currentInstruction, blockLoad);
                                 variableField =
-                                        performActions.getInstructionVariableField(currentInstruction, variablesLoaded);
+                                        performActions.getInstructionVariableField(
+                                                currentInstruction,
+                                                runtimeVariableDefinitions);
                                 //                                if (delimiterCSV == null) {
                                 //                                    delimiterCSV =
                                 // performActions.getInstructionVariableDelimiter(
                                 //                                            currentInstruction, variablesLoaded);
                                 //                                }
-                                if (variableField == null) {
-                                    variableField = "Not Variable defined";
-                                }
                             }
 
                             try {
@@ -4337,35 +4408,72 @@ public class ScannerRuntimeBackend
                                     if (parentField != null && parentId != 0) {
                                         parentField = parentId + "-" + parentField;
                                     }
-                                    // Mandatory for GET_VALUE
-                                    if (xPathOperation == null
+                                    boolean variableBindingAvailable =
+                                            variableId != null
+                                                    && variableId > 0;
+                                    InstructionLoad variableTargetInstruction =
+                                            blockLoad.getInstructionLoad().stream()
+                                                    .filter(candidate ->
+                                                            candidate.getId() != null
+                                                                    && candidate.getId() == parentId)
+                                                    .findFirst()
+                                                    .orElse(null);
+                                    if (!variableBindingAvailable
+                                            && actions[0].equalsIgnoreCase(
+                                                    ARConstantsEngine.GET_VALUE)) {
+                                        RuntimeVariableValue voidValue =
+                                                variableId != null && variableId > 0
+                                                        ? runtimeVariables.read(variableId)
+                                                        : RuntimeVariableValue.voidValue(
+                                                                VoidReason.MISSING_BINDING);
+                                        resultActions = variableVoidDiagnostic(
+                                                actions[0],
+                                                currentInstruction,
+                                                variableId,
+                                                variableField,
+                                                voidValue);
+                                        variableVoidBypass = true;
+                                        success = true;
+                                    } else if (!pwOnly
+                                            && xPathOperation == null
                                             && actions[0].equalsIgnoreCase(ARConstantsEngine.GET_VALUE)) {
-                                        failedMessage = "Parent Id in Wrong Block ";
-                                        msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
-                                        resultActions = performActions.parentIdWrongBlock(
-                                                currentInstruction, blockLoad, resultActions, currentCondition);
-                                        success = false;
+                                        runtimeVariables.markVoid(variableId, VoidReason.MISSING_PARENT);
+                                        resultActions = variableVoidDiagnostic(
+                                                actions[0],
+                                                currentInstruction,
+                                                variableId,
+                                                variableField,
+                                                runtimeVariables.read(variableId));
+                                        variableVoidBypass = true;
+                                        success = true;
                                     } else if (parentField == null) {
-                                        failedMessage = "Parent Id in Wrong Block ";
-                                        msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
-                                        resultActions = performActions.parentIdWrongBlock(
-                                                currentInstruction, blockLoad, resultActions, currentCondition);
-                                        success = false;
+                                        runtimeVariables.markVoid(variableId, VoidReason.MISSING_PARENT);
+                                        resultActions = variableVoidDiagnostic(
+                                                actions[0],
+                                                currentInstruction,
+                                                variableId,
+                                                variableField,
+                                                runtimeVariables.read(variableId));
+                                        variableVoidBypass = true;
+                                        success = true;
                                     } else {
+                                        // A producer attempt invalidates any earlier value before touching the page.
+                                        // A failed GET/SET can therefore never leak a stale value to later consumers.
+                                        if (variableBindingAvailable) {
+                                            runtimeVariables.markVoid(
+                                                    variableId,
+                                                    VoidReason.PRODUCER_FAILED);
+                                        }
 
                                         webElementFound = null;
-                                        if (isMobileApp) {
-                                            int index = IntStream.range(0, instructionIds.length)
-                                                    .filter(i -> instructionIds[i] == parentId)
-                                                    .findFirst()
-                                                    .orElse(-1);
-
-                                            InstructionLoad refInstruction = blockLoad
-                                                    .getInstructionLoad()
-                                                    .get(index);
-
-                                            SplitDTO.applyAttrDataFromReferences(splitDTO, refInstruction);
-                                            SplitDTO.applyInstructionToSplit(splitDTO, refInstruction);
+                                        if (isMobileApp
+                                                && variableTargetInstruction != null) {
+                                            SplitDTO.applyAttrDataFromReferences(
+                                                    splitDTO,
+                                                    variableTargetInstruction);
+                                            SplitDTO.applyInstructionToSplit(
+                                                    splitDTO,
+                                                    variableTargetInstruction);
 
                                             // webElementFound = androidDevice.searchElement(splitDTO, actions,
                                             // performLists.getListTargetElements());
@@ -4374,30 +4482,47 @@ public class ScannerRuntimeBackend
                                         resultActions = performActions.performOperatorActions(
                                                 byPassNotFound,
                                                 currentInstruction,
+                                                variableTargetInstruction,
                                                 xPathOperation,
                                                 parentActions,
                                                 actions[0],
                                                 operations,
                                                 parentField,
                                                 variableField,
+                                                variableId,
+                                                runtimeVariables,
                                                 mapOperators,
                                                 webElementFound);
 
-                                        if (resultActions.contains("FAIL")) {
-                                            failedMessage = "Failed: Operation (GetValue / SetValue) ";
-                                            msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
-                                            if (resultActions.contains("PASSED")) {
-                                                resultActions = resultActions.replaceAll("PASSED", "FAIL");
+                                        RuntimeVariableValue producedValue =
+                                                runtimeVariables.read(variableId);
+                                        if ((resultActions != null
+                                                        && resultActions.contains("FAIL"))
+                                                || producedValue.isVoid()) {
+                                            if (resultActions != null
+                                                    && resultActions.contains("FAIL")) {
+                                                runtimeVariables.markVoid(
+                                                        variableId,
+                                                        VoidReason.PRODUCER_FAILED);
+                                                producedValue =
+                                                        runtimeVariables.read(variableId);
                                             }
-                                            success = false;
+                                            resultActions = variableVoidDiagnostic(
+                                                    actions[0],
+                                                    currentInstruction,
+                                                    variableId,
+                                                    variableField,
+                                                    producedValue);
+                                            variableVoidBypass = true;
+                                            success = true;
                                         } else {
                                             failedMessage = "";
                                             success = true;
                                             if (!Strings.isNullOrEmpty(localFormat)) {
-                                                String valueTo = mapOperators.get(variableField);
+                                                String valueTo = producedValue.value();
                                                 valueTo = performActions.removeAllCurrencySymbols(valueTo);
                                                 valueTo = performActions.formatLocalNumber(valueTo, localFormat);
-                                                mapOperators.put(variableField, valueTo);
+                                                runtimeVariables.write(variableId, valueTo);
                                             }
                                         }
                                     }
@@ -4405,56 +4530,33 @@ public class ScannerRuntimeBackend
                                 } else if (execCheckValue) {
                                     // Check Validation Operator
 
-                                    if (!mapOperators.containsKey(variableField)) {
-                                        failedMessage = "Get Value Is Not Defined ";
-                                        msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
-                                        //                                        resultActions =
-                                        // performActions.getValueIsNotDefined(
-                                        //                                                actions[0],
-                                        //                                                currentInstruction,
-                                        //                                                resultActions,
-                                        //                                                ARExecution.ConditionStatus
-                                        //                                                        .NONE, // NOT
-                                        // currentCondition to Force Message,
-                                        //                                                parentField,
-                                        //                                                variableField);
-
-                                        String reason = performActions.buildGetVariableReason(
+                                    RuntimeVariableValue checkValue =
+                                            runtimeVariables.read(variableId);
+                                    if (checkValue.isVoid()) {
+                                        resultActions = variableVoidDiagnostic(
                                                 actions[0],
                                                 currentInstruction,
-                                                resultActions,
-                                                currentCondition,
-                                                parentField,
+                                                variableId,
                                                 variableField,
-                                                byPassNotFound, // or your bypass flag
-                                                blockName,
-                                                currentInstruction.getId(),
-                                                false);
-
-                                        appendLog("[TEST]" + reason, "error");
-                                        alreadyLogged = true;
-
-                                        logOperations.error("{}", reason);
-
-                                        success = false;
+                                                checkValue);
+                                        variableVoidBypass = true;
+                                        success = true;
                                     } else {
                                         //                                    fieldName = parentField;
 
                                         resultActions = "Check Value for " + String.join(" ", operations);
                                         boolean isOperationValid = false;
                                         String invalidValues = null;
+                                        String actualVariableValue = checkValue.value();
 
                                         if (operations[1].equalsIgnoreCase("=")) {
-                                            isOperationValid = mapOperators
-                                                    .get(variableField)
+                                            isOperationValid = actualVariableValue
                                                     .trim()
                                                     .equalsIgnoreCase(operations[2].trim());
 
                                         } else if (operations[1].equalsIgnoreCase(">")) {
                                             int resp = handleGreaterThan(
-                                                    mapOperators
-                                                            .get(variableField)
-                                                            .trim(),
+                                                    actualVariableValue.trim(),
                                                     operations[2].trim());
                                             if (resp == 1) {
                                                 isOperationValid = true;
@@ -4465,15 +4567,12 @@ public class ScannerRuntimeBackend
                                                 invalidValues = "Invalid Numbers";
                                             }
                                         } else if (operations[1].equalsIgnoreCase("!=")) {
-                                            isOperationValid = !mapOperators
-                                                    .get(variableField)
+                                            isOperationValid = !actualVariableValue
                                                     .trim()
                                                     .equalsIgnoreCase(operations[2].trim());
                                         } else if (operations[1].equalsIgnoreCase("<")) {
                                             int resp = handleLessThan(
-                                                    mapOperators
-                                                            .get(variableField)
-                                                            .trim(),
+                                                    actualVariableValue.trim(),
                                                     operations[2].trim());
                                             if (resp == 1) {
                                                 isOperationValid = true;
@@ -4486,8 +4585,7 @@ public class ScannerRuntimeBackend
                                         } else if (operations[1].equalsIgnoreCase("contains")) {
                                             // Case-insensitive substring match — consistent with "=" / "!="
                                             // which compare via equalsIgnoreCase above.
-                                            String actual = mapOperators
-                                                    .get(variableField)
+                                            String actual = actualVariableValue
                                                     .trim()
                                                     .toLowerCase();
                                             String expected =
@@ -4502,7 +4600,7 @@ public class ScannerRuntimeBackend
                                             resultActions = performActions.buildValidationReason(
                                                     invalidValues,
                                                     parentField,
-                                                    mapOperators.get(variableField), // actual/current web value
+                                                    actualVariableValue,
                                                     operations[2].trim(),
                                                     resultActions, // lastInstructionExecuted
                                                     operations,
@@ -4534,7 +4632,7 @@ public class ScannerRuntimeBackend
                                             resultActions = performActions.buildValidationReason(
                                                     invalidValues,
                                                     parentField,
-                                                    mapOperators.get(variableField), // actual/current web value
+                                                    actualVariableValue,
                                                     operations[2].trim(),
                                                     resultActions, // lastInstructionExecuted
                                                     operations,
@@ -4559,6 +4657,9 @@ public class ScannerRuntimeBackend
                                     if (execPDFCheck) {
                                         msgCSVPrefix = "PDF ";
                                     }
+                                    boolean validationEvaluated = false;
+                                    boolean validationSourceMissing = false;
+                                    List<String> missingValidationFields = new ArrayList<>();
 
                                     // If fieldsToValidate is null/empty => ignore (no log)
                                     Map<String, FieldsToValidate> fMap = splitDTO.getFieldsToValidate();
@@ -4590,56 +4691,20 @@ public class ScannerRuntimeBackend
                                                 }
 
                                                 if (foundKey == null) {
-                                                    // ignore
+                                                    validationSourceMissing = true;
+                                                    missingValidationFields.add(parentFieldCSV);
                                                 } else {
 
                                                     String actualValue = mapOperators.get(foundKey);
 
-                                                    // You still keep your "Get Value Is Not Defined" behavior
-                                                    if (actualValue == null
-                                                            || actualValue
-                                                                    .trim()
-                                                                    .isEmpty()) {
-                                                        failedMessage = "Get Value Is Not Defined ";
-                                                        msgInstruction =
-                                                                updateMSGInstruction(msgInstruction, failedMessage);
-
-                                                        //                                                resultActions
-                                                        // =
-                                                        // performActions.getValueIsNotDefined(
-                                                        //
-                                                        // actions[0],
-                                                        //
-                                                        // currentInstruction,
-                                                        //
-                                                        // resultActions,
-                                                        //
-                                                        // ARExecution.ConditionStatus.NONE,
-                                                        //
-                                                        // parentField,
-                                                        //
-                                                        // variableField);
-
-                                                        String reason = performActions.buildGetVariableReason(
-                                                                actions[0],
-                                                                currentInstruction,
-                                                                resultActions,
-                                                                currentCondition,
-                                                                parentField,
-                                                                variableField,
-                                                                byPassNotFound, // or your bypass flag
-                                                                blockName,
-                                                                currentInstruction.getId(),
-                                                                false);
-
-                                                        appendLog("[TEST]" + reason, "error");
-                                                        alreadyLogged = true;
-
-                                                        logOperations.error("{}", reason);
-
-                                                        success = false;
+                                                    // A produced empty String is valid Web data and can be
+                                                    // compared with an expected empty value. Only absence is VOID.
+                                                    if (actualValue == null) {
+                                                        validationSourceMissing = true;
+                                                        missingValidationFields.add(parentFieldCSV);
 
                                                     } else {
+                                                        validationEvaluated = true;
                                                         // actual/current value on the web/app side
 
                                                         // expected value comes from
@@ -4721,117 +4786,175 @@ public class ScannerRuntimeBackend
                                                 }
                                             }
                                         }
+                                        if (!validationEvaluated && validationSourceMissing) {
+                                            resultActions = variableVoidDiagnostic(
+                                                    actions[0],
+                                                    currentInstruction,
+                                                    variableId,
+                                                    variableField,
+                                                    RuntimeVariableValue.voidValue(
+                                                            VoidReason.NO_PRODUCER_YET));
+                                            variableVoidBypass = true;
+                                            success = true;
+                                        }
+                                        if (!missingValidationFields.isEmpty()) {
+                                            List<String> distinctMissingFields =
+                                                    missingValidationFields.stream()
+                                                            .distinct()
+                                                            .toList();
+                                            String visibleFields = distinctMissingFields.stream()
+                                                    .limit(5)
+                                                    .collect(Collectors.joining(", "));
+                                            String extraFields = distinctMissingFields.size() > 5
+                                                    ? " +" + (distinctMissingFields.size() - 5) + " more"
+                                                    : "";
+                                            String missingSourceDiagnostic = "IGNORED: "
+                                                    + actions[0]
+                                                    + " Instruction #"
+                                                    + currentInstruction.getId()
+                                                    + " has VOID source field(s): "
+                                                    + visibleFields
+                                                    + extraFields
+                                                    + ". Available fields were still evaluated; execution continues.";
+                                            logOperations.warn(missingSourceDiagnostic);
+                                            if (success) {
+                                                appendLog(
+                                                        "[TEST]" + missingSourceDiagnostic,
+                                                        "warn");
+                                            }
+                                            variableVoidObserved = true;
+                                        }
                                     }
                                 } else if (execExcellWrite) {
                                     // Excel Write Operator
 
                                     if (parentField == null) {
-                                        failedMessage = "Parent Id in Wrong Block ";
-                                        msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
-                                        resultActions = performActions.parentIdWrongBlock(
-                                                currentInstruction, blockLoad, resultActions, currentCondition);
-
-                                        success = false;
-
-                                    } else if (!mapOperators.containsKey(variableField)) {
-                                        failedMessage = "Get Value Is Not Defined ";
-                                        msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
-                                        //                                        resultActions =
-                                        // performActions.getValueIsNotDefined(
-                                        //                                                actions[0],
-                                        //                                                currentInstruction,
-                                        //                                                resultActions,
-                                        //                                                ARExecution.ConditionStatus
-                                        //                                                        .NONE, // NOT
-                                        // currentCondition to Force Message,
-                                        //                                                parentField,
-                                        //                                                variableField);
-
-                                        String reason = performActions.buildGetVariableReason(
+                                        RuntimeVariableValue voidValue = RuntimeVariableValue.voidValue(
+                                                VoidReason.MISSING_PARENT);
+                                        resultActions = variableVoidDiagnostic(
                                                 actions[0],
                                                 currentInstruction,
-                                                resultActions,
-                                                currentCondition,
-                                                parentField,
+                                                variableId,
                                                 variableField,
-                                                byPassNotFound, // or your bypass flag
-                                                blockName,
-                                                currentInstruction.getId(),
-                                                false);
-                                        updateRowStatusAndNotify("red"); // #FF3131 deep carmine red
-                                        appendLog("[TEST]" + reason, "error");
-                                        alreadyLogged = true;
-
-                                        logOperations.error("{}", reason);
-
-                                        success = false;
+                                                voidValue);
+                                        variableVoidBypass = true;
+                                        success = true;
                                     } else {
-
-                                        if (!Strings.isNullOrEmpty(newExcelFieldName)) {
-                                            // Only create Columns if Have a file to write
-                                            String webData = mapOperators
-                                                    .get(variableField)
-                                                    .trim();
-                                            webData = performActions.sanitizeValue(webData);
-
-                                            currentTableCSV.put(
-                                                    xExcelCurrentRow,
-                                                    parentField.trim(),
-                                                    webData); // may add new columns later too
-                                        }
-
-                                        resultActions = performActions.messageExcel(
-                                                "Excel Write",
-                                                currentInstruction,
-                                                parentField,
-                                                variableField,
-                                                mapOperators.get(variableField),
-                                                blockName,
-                                                currentInstruction.getId(),
-                                                (currentTableCSV != null));
-
-                                        performActions.onHoldForSeconds(null);
-
-                                        if (resultActions != null && resultActions.contains("PASSED")) {
-                                            currentInstruction.setExecuted(true);
-                                            failedMessage = "";
+                                        RuntimeVariableValue exportValue =
+                                                runtimeVariables.read(variableId);
+                                        if (exportValue.isVoid()) {
+                                            resultActions = variableVoidDiagnostic(
+                                                    actions[0],
+                                                    currentInstruction,
+                                                    variableId,
+                                                    variableField,
+                                                    exportValue);
+                                            variableVoidBypass = true;
                                             success = true;
                                         } else {
-                                            failedMessage = "Failed: Generate File -> Excel/CSV ";
-                                            msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
-                                            updateRowStatusAndNotify("red"); // #FF3131 deep carmine red
-                                            success = false;
+                                            String actualVariableValue = exportValue.value();
+
+                                            if (!Strings.isNullOrEmpty(newExcelFieldName)) {
+                                                // Only create Columns if Have a file to write
+                                                String webData = performActions.sanitizeValue(
+                                                        actualVariableValue.trim());
+
+                                                currentTableCSV.put(
+                                                        xExcelCurrentRow,
+                                                        parentField.trim(),
+                                                        webData); // may add new columns later too
+                                            }
+
+                                            resultActions = performActions.messageExcel(
+                                                    "Excel Write",
+                                                    currentInstruction,
+                                                    parentField,
+                                                    variableField,
+                                                    actualVariableValue,
+                                                    blockName,
+                                                    currentInstruction.getId(),
+                                                    (currentTableCSV != null));
+
+                                            performActions.onHoldForSeconds(null);
+
+                                            if (resultActions != null
+                                                    && resultActions.contains("PASSED")) {
+                                                currentInstruction.setExecuted(true);
+                                                failedMessage = "";
+                                                success = true;
+                                            } else {
+                                                failedMessage = "Failed: Generate File -> Excel/CSV ";
+                                                msgInstruction =
+                                                        updateMSGInstruction(msgInstruction, failedMessage);
+                                                updateRowStatusAndNotify("red"); // #FF3131 deep carmine red
+                                                success = false;
+                                            }
                                         }
                                     }
                                 }
 
                             } catch (Throwable t) {
-                                success = false;
-
-                                String[] lines = t.getMessage().split("\n");
-                                String msg1 = "";
-                                String msg2 = "";
-
-                                for (String line : lines) {
-                                    if (Strings.isNullOrEmpty(msg1)) {
-                                        msg1 = line;
-                                    } else if (Strings.isNullOrEmpty(msg2)) {
-                                        msg2 = line;
+                                String action = actions.length > 0 ? actions[0] : "";
+                                if (isVariableRuntimeAction(action)) {
+                                    RuntimeVariableValue voidValue =
+                                            RuntimeVariableValue.voidValue(VoidReason.EVALUATION_FAILED);
+                                    if (isVariableProducerAction(action)
+                                            && variableId != null
+                                            && variableId > 0) {
+                                        runtimeVariables.markVoid(
+                                                variableId,
+                                                VoidReason.PRODUCER_FAILED);
+                                        voidValue = runtimeVariables.read(variableId);
                                     }
-                                }
+                                    resultActions = variableVoidDiagnostic(
+                                            action,
+                                            currentInstruction,
+                                            variableId,
+                                            variableField,
+                                            voidValue);
+                                    variableVoidBypass = true;
+                                    success = true;
+                                    failedMessage = "";
+                                    logOperations.warn(
+                                            "VARIABLE_STEP_BYPASSED instructionId={} action={} "
+                                                    + "reason={} executionContinues=true",
+                                            currentInstruction.getId(),
+                                            action,
+                                            safeThrowableMessage(t));
+                                } else {
+                                    success = false;
 
-                                String msg3 = resultActions;
+                                    String[] lines = safeThrowableMessage(t).split("\n");
+                                    String msg1 = "";
+                                    String msg2 = "";
 
-                                if (Strings.isNullOrEmpty(failedMessage)) {
-                                    failedMessage = "Failed: General Execution ";
-                                    msgInstruction = updateMSGInstruction(msgInstruction, failedMessage);
+                                    for (String line : lines) {
+                                        if (Strings.isNullOrEmpty(msg1)) {
+                                            msg1 = line;
+                                        } else if (Strings.isNullOrEmpty(msg2)) {
+                                            msg2 = line;
+                                        }
+                                    }
+
+                                    String msg3 = resultActions;
+
+                                    if (Strings.isNullOrEmpty(failedMessage)) {
+                                        failedMessage = "Failed: General Execution ";
+                                        msgInstruction =
+                                                updateMSGInstruction(msgInstruction, failedMessage);
+                                    }
+                                    logOperations.error(
+                                            "Error: {} - {} - {} - {}",
+                                            resultActions,
+                                            msg1,
+                                            msg2,
+                                            msg3);
                                 }
-                                logOperations.error("Error: {} - {} - {} - {}", resultActions, msg1, msg2, msg3);
-                                //                                performMessage.errorMessage(resultActions, msg1, msg2,
-                                // msg3, null, 260);
-                                //                            throw new RuntimeException(t);
                             }
 
+                            if (variableVoidBypass) {
+                                variableVoidObserved = true;
+                            }
                             if (success && !alreadyLogged) {
                                 if (resultActions.contains("IGNORED")) {
                                     appendLog("[TEST]" + resultActions, "warn");
@@ -4842,14 +4965,34 @@ public class ScannerRuntimeBackend
                                 appendLog("[TEST]" + resultActions, "error");
                                 anyFailure = true;
                             }
+                            if (variableVoidObserved) {
+                                anyVariableVoid = true;
+                            }
+                            previousInstructionCompletionColor =
+                                    !success
+                                            ? "red"
+                                            : variableVoidObserved ? "yellow" : "green";
 
                             alreadyLogged = false;
 
-                            printLog(finalLogMessage(failedMessage, resultActions), success);
+                            if (variableVoidObserved) {
+                                logLaunch.warn(String.join(
+                                        ARConstants.FIELDS_SEPARATOR,
+                                        "VOID",
+                                        finalLogMessage(failedMessage, resultActions)));
+                            } else {
+                                printLog(finalLogMessage(failedMessage, resultActions), success);
+                            }
 
                             // Here mark the Status of a progress Condition Fail or Success at the end of each Kind
                             // of Execution
-                            if (!jumpGotoError
+                            if (variableVoidObserved
+                                    && !currentCondition.equals(ARExecution.ConditionStatus.NONE)) {
+                                // Unknown variable data is fail-closed for control flow: take the
+                                // FALSE/ELSE path, but keep the runtime step warning-only.
+                                progressCondition =
+                                        performActions.updateProgressSuccess(false, currentCondition);
+                            } else if (!jumpGotoError
                                     && !jumpLoopError
                                     && !currentCondition.equals(ARExecution.ConditionStatus.NONE)) {
                                 progressCondition = performActions.updateProgressSuccess(success, currentCondition);
@@ -4861,8 +5004,8 @@ public class ScannerRuntimeBackend
                             // Excel Report and Log
                             performActions.logAndReport(
                                     !byPassFlagLoop ? progressCondition : ARExecution.ConditionStatus.BY_PASS,
-                                    true,
-                                    true,
+                                    !variableVoidObserved,
+                                    !variableVoidObserved,
                                     currentInstructionStartTime,
                                     blockReportName,
                                     success,
@@ -5097,7 +5240,27 @@ public class ScannerRuntimeBackend
                                             currentIndex,
                                             true);
                                 }
+                                if (index < 0 && variableVoidBypass) {
+                                    // A VOID conditional is unknown, not fatal. With no ELSE branch,
+                                    // leave only this conditional family through its ENDIF.
+                                    index = performActions.searchMapConditional(
+                                            mapConditional,
+                                            parentBlockCondition,
+                                            ARExecution.ConditionStatus.ENDIF,
+                                            currentIndex,
+                                            true);
+                                }
                                 if (index < 0) {
+                                    if (variableVoidBypass) {
+                                        logOperations.warn(
+                                                "VARIABLE_CONDITION_BYPASSED instructionId={} "
+                                                        + "reason=missing conditional boundary "
+                                                        + "currentBlockSkipped=true executionContinues=true",
+                                                currentInstruction.getId());
+                                        currentCondition = ARExecution.ConditionStatus.NONE;
+                                        progressCondition = ARExecution.ConditionStatus.NONE;
+                                        continue blockLoop;
+                                    }
                                     stopAll = true;
                                     continue blockLoop;
                                 }
@@ -5203,6 +5366,19 @@ public class ScannerRuntimeBackend
                         false,
                         "OK",
                         null,
+                        300,
+                        25);
+            } else if (anyVariableVoid) {
+                updateRowStatusAndNotify("yellow"); // completed with non-blocking variable warnings
+                respModal = performMessage.showCustomModalDialogDragWin11Timer(
+                        "Bot-Job Finished with variable warnings",
+                        currentBotJobName,
+                        "Last Execution:",
+                        resultActions,
+                        "The Device Connection is going to close in",
+                        false,
+                        "Continue scan",
+                        "Close Connection",
                         300,
                         25);
             } else {

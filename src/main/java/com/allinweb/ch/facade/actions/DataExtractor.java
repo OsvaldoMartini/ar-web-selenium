@@ -155,10 +155,12 @@ public class DataExtractor {
         String finalTextNested = "";
         String textAttribute = "";
         String textContext = "";
+        boolean outputReadSucceeded = false;
 
         try {
             JavascriptExecutor js = (JavascriptExecutor) ctx.driver();
             textByhJS = (String) js.executeScript("return arguments[0].textContent;", element);
+            outputReadSucceeded = true;
         } catch (Exception ex) {
 
             logOperations.warn(
@@ -172,6 +174,7 @@ public class DataExtractor {
                 textByNested.append(child.getText()).append(" ");
             }
             finalTextNested = textByNested.toString().trim();
+            outputReadSucceeded = true;
         } catch (Exception ex) {
 
             logOperations.warn(
@@ -180,6 +183,7 @@ public class DataExtractor {
 
         try {
             textAttribute = element.getAttribute("value");
+            outputReadSucceeded = true;
         } catch (Exception ex) {
 
             logOperations.warn(String.format(
@@ -189,6 +193,7 @@ public class DataExtractor {
 
         try {
             textContext = element.getAttribute("textContent");
+            outputReadSucceeded = true;
         } catch (Exception ex) {
 
             logOperations.warn(String.format(
@@ -224,10 +229,19 @@ public class DataExtractor {
         } else if (textContext != null && !textContext.trim().isEmpty()) {
             finalText = textContext;
             mapOperators.put(fieldName.trim(), finalText.trim());
+        } else if (outputReadSucceeded) {
+            // The element can legitimately contain an empty value. Keep the produced empty String
+            // as data; never replace it with a fake failure sentence that a later check could
+            // mistake for page content.
+            mapOperators.put(fieldName.trim(), "");
+            logOperations.warn(String.format(
+                    "No non-empty text source was found for element \"%s\"; preserving an empty value",
+                    fieldName));
         } else {
-            mapOperators.put(fieldName.trim(), "Failed to Load teh Text");
-
-            logOperations.error(String.format("Failed to retrieve text from element for: %s", fieldName));
+            logOperations.warn(String.format(
+                    "No OUTPUT read strategy succeeded for element \"%s\"; value remains unavailable",
+                    fieldName));
+            return null;
         }
 
         return finalText;

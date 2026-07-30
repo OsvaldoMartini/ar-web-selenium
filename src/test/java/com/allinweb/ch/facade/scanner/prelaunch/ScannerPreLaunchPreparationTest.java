@@ -67,6 +67,54 @@ class ScannerPreLaunchPreparationTest {
     }
 
     @Test
+    void variableMetadataFailureIsWarningOnlyAndActionsStillLoad() {
+        RecordingEngine engine = new RecordingEngine();
+        ErrorMessage warning =
+                new ErrorMessage("Variables", "Load failed", "Cannot load variable metadata");
+        engine.variableLoadError = warning;
+        BlockLoadDTO block = new BlockLoadDTO();
+        ScannerPreLaunchPreparation preparation = new ScannerPreLaunchPreparation(
+                engine,
+                new RecordingLists(List.of(botJob(42, 2, List.of(block)))));
+
+        ScannerPreLaunchPreparation.Result result =
+                preparation.loadDefinitions(botJob(42, 2, List.of()));
+
+        assertNull(result.errorMessage());
+        assertEquals(warning, result.variableLoadWarning());
+        assertEquals(List.of(block), result.blocksLoaded());
+        assertEquals(
+                List.of(
+                        "loadHomeBanking",
+                        "loadHomeUrls:2",
+                        "loadExcelGotoBlock:42:instruction",
+                        "loadCompleteJobs:42",
+                        "loadAllVariables:variable:42",
+                        "loadAllActionsPerBlock:1"),
+                engine.calls);
+    }
+
+    @Test
+    void variableMetadataExceptionIsWarningOnlyAndActionsStillLoad() {
+        RecordingEngine engine = new RecordingEngine();
+        engine.variableLoadFailure = new IllegalStateException("Variables database unavailable");
+        BlockLoadDTO block = new BlockLoadDTO();
+        ScannerPreLaunchPreparation preparation = new ScannerPreLaunchPreparation(
+                engine,
+                new RecordingLists(List.of(botJob(42, 2, List.of(block)))));
+
+        ScannerPreLaunchPreparation.Result result =
+                preparation.loadDefinitions(botJob(42, 2, List.of()));
+
+        assertNull(result.errorMessage());
+        assertEquals(
+                "Variables database unavailable",
+                result.variableLoadWarning().getErrorMessage());
+        assertEquals(List.of(block), result.blocksLoaded());
+        assertTrue(engine.calls.contains("loadAllActionsPerBlock:1"));
+    }
+
+    @Test
     void loadCurrentBotJobAttachesHomeBankingAndHomeUrl() {
         BotJobLoadDTO loadedBotJob = botJob(42, 2, List.of());
         loadedBotJob.setName("Login Job");
@@ -176,6 +224,8 @@ class ScannerPreLaunchPreparationTest {
         private final List<String> calls = new ArrayList<>();
         private final List<List<InstructionLoad>> excelGotoLoads = new ArrayList<>();
         private ErrorMessage homeBankingError;
+        private ErrorMessage variableLoadError;
+        private RuntimeException variableLoadFailure;
         private String fixExcelGotoCall;
 
         @Override
@@ -214,7 +264,10 @@ class ScannerPreLaunchPreparationTest {
         @Override
         public ErrorMessage loadAllVariables(String varTable, int whereId) {
             calls.add("loadAllVariables:" + varTable + ":" + whereId);
-            return null;
+            if (variableLoadFailure != null) {
+                throw variableLoadFailure;
+            }
+            return variableLoadError;
         }
 
         @Override

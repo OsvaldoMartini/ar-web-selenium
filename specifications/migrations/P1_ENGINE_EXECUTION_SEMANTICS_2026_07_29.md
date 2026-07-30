@@ -7,7 +7,7 @@ Roadmap: `ROADMAP_VARIABLE_CENTRIC_INSTRUCTION_GRAPH_2026_07_29.md`
 ## 1. Scope and evidence boundary
 
 P1 freezes what the application actually executes before React relationship classification,
-reconnect, free movement, or an execution gate changes behavior.
+reconnect, free movement, or non-blocking relationship diagnostics change behavior.
 
 The audit covers:
 
@@ -21,7 +21,7 @@ P1 does **not**:
 
 - change command behavior;
 - repair production rows;
-- add a readiness gate;
+- block execution because variable relationships are incomplete;
 - change React rendering or persistence contracts;
 - rebuild, replace, or repair the installed external Engine.
 
@@ -91,8 +91,8 @@ There are two silent compatibility repairs:
 2. `ScannerPreLaunchPreparation.loadAndFixExcelGoto` can write a missing destination back to the
    database before execution.
 
-A strict execution gate must report this as an invalid relationship. It must not mutate the graph
-while deciding whether the graph is ready.
+Execution diagnostics must report this as an invalid relationship. They must not mutate the graph
+while evaluating readiness, and variable health must never block Test Run or Launch.
 
 ## 3. Audited command capability matrix
 
@@ -173,19 +173,20 @@ coordinator through two separate preparation flows.
   contract as the Bot Job toolbar.
 - `ScannerPreLaunchExecutionGate` is a concurrency guard. It is **not** a relationship-readiness
   validator.
-- Classic Pre-Launch currently reports a definition-load error and can continue. The strict gate
-  phase must hard-stop that path before Excel/browser work.
+- Classic Pre-Launch currently reports a definition-load error and can continue. Structural or
+  stale-owner failures may still refuse startup, but variable metadata/health remains warning-only.
 
-## 6. Exact future readiness insertion points
+## 6. Exact future diagnostic insertion points
 
-P4 must use the same non-mutating validator in all active execution paths:
+P4 must use the same non-mutating diagnostic evaluator in all active execution paths. Variable
+issues produce warnings/VOID and never refuse execution:
 
 1. `ScannerTestRunPreparationFlow.prepare`: after definitions are loaded and reported READY, before
    Bot Job/Excel/browser preparation.
 2. `ScannerPreLaunchStarter.start`: after definitions and the current Bot Job are loaded, before
    Excel load and execution recall. A failed definition load must return immediately.
-3. `ScannerPreLaunchExecutionCoordinator.recallJobExecutionId`: final defense-in-depth recheck
-   immediately before the concurrency gate reserves/submits the execution.
+3. `ScannerPreLaunchExecutionCoordinator.recallJobExecutionId`: final defense-in-depth diagnostic
+   refresh immediately before the concurrency gate reserves/submits the execution.
 4. External Engine: validate after its own authoritative database load and before WebDriver
    initialization. A manual BAT cannot be protected only by the AR Web UI process.
 5. Mobile receiver: enforce the same model at the receiving execution boundary.
@@ -301,7 +302,7 @@ Allowed terminal statuses are:
 
 - `READY_STARTED`;
 - `WARN_STARTED`;
-- `BLOCKED`;
+- `BLOCKED` (structural ownership/version failures only; never variable health);
 - `STALE`.
 
 Each issue carries a stable code, severity, relationship kind, Block/instruction IDs, message, and
@@ -329,8 +330,8 @@ Validation applies to the requested **reachable active plan**, not blindly to ev
 `ONE` must be characterized before it is described as “one physical Block”: current in-Block GOTO
 handling can transfer control before the usual single-Block stop.
 
-Inactive rows remain visible but do not block execution unless the runtime can still reach them.
-The gate must not rewrite the user's Active flags.
+Inactive rows remain visible. Reachable variable issues are diagnostics only and never block
+execution. Validation must not rewrite the user's Active flags.
 
 ## 10. P2 classifier locks
 

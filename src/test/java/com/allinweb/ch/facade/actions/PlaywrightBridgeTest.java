@@ -1,5 +1,6 @@
 package com.allinweb.ch.facade.actions;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -12,6 +13,8 @@ import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.model.FieldData;
 import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.util.ARConstantsEngine;
+import java.util.HashMap;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class PlaywrightBridgeTest {
@@ -29,7 +32,11 @@ class PlaywrightBridgeTest {
         when(activePage.click(instruction)).thenReturn(true);
 
         assertTrue(new PlaywrightBridge(context)
-                .tryPlaywrightWebAction(instruction, new FieldData("Test", ""), ARConstantsEngine.CLICK));
+                .tryPlaywrightWebAction(
+                        instruction,
+                        new FieldData("Test", ""),
+                        ARConstantsEngine.CLICK,
+                        new HashMap<>()));
 
         verify(activePage).click(instruction);
         verifyNoStartupPageMutation(runtime, activePage);
@@ -49,9 +56,40 @@ class PlaywrightBridgeTest {
         when(activePage.fill(instruction, input)).thenReturn(true);
 
         assertTrue(new PlaywrightBridge(context)
-                .tryPlaywrightWebAction(instruction, input, ARConstantsEngine.INSERT));
+                .tryPlaywrightWebAction(
+                        instruction,
+                        input,
+                        ARConstantsEngine.INSERT,
+                        new HashMap<>()));
 
         verify(activePage).fill(instruction, input);
+        verifyNoStartupPageMutation(runtime, activePage);
+    }
+
+    @Test
+    void emptyOutputIsSuccessfulAndStoredAsLegitimateWebData() {
+        ActionContext context = mock(ActionContext.class);
+        ARWebDriver runtime = mock(ARWebDriver.class);
+        ARPlaywrightDriver activePage = mock(ARPlaywrightDriver.class);
+        InstructionLoad instruction = new InstructionLoad();
+        instruction.setId(189);
+        instruction.setName("Amount");
+        Map<String, String> outputs = new HashMap<>();
+        when(context.arWebDriver()).thenReturn(runtime);
+        when(runtime.isPlaywrightEnabled()).thenReturn(true);
+        when(runtime.currentPlaywrightDriver()).thenReturn(activePage);
+        when(activePage.isOpen()).thenReturn(true);
+        when(activePage.text(instruction)).thenReturn("");
+
+        assertTrue(new PlaywrightBridge(context)
+                .tryPlaywrightWebAction(
+                        instruction,
+                        new FieldData("Amount", ""),
+                        ARConstantsEngine.OUTPUT,
+                        outputs));
+
+        assertEquals("", outputs.get("189-Amount"));
+        verify(activePage).text(instruction);
         verifyNoStartupPageMutation(runtime, activePage);
     }
 

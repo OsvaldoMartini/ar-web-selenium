@@ -6,6 +6,7 @@ import com.allinweb.ch.model.FieldData;
 import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.util.ARConstantsEngine;
 import com.google.common.base.Strings;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,7 +24,11 @@ public class PlaywrightBridge {
         this.ctx = ctx;
     }
 
-    public boolean tryPlaywrightWebAction(InstructionLoad instruction, FieldData data, String action) {
+    public boolean tryPlaywrightWebAction(
+            InstructionLoad instruction,
+            FieldData data,
+            String action,
+            Map<String, String> outputValues) {
         ARWebDriver runtime = ctx.arWebDriver();
         if (runtime == null || !runtime.isPlaywrightEnabled()) {
             return false;
@@ -49,20 +54,60 @@ public class PlaywrightBridge {
                     return healAndRetry(
                             instruction, activeDriver, healed -> activeDriver.fill(healed, data));
                 case ARConstantsEngine.OUTPUT:
-                    String value = activeDriver.text(instruction);
-                    if (!Strings.isNullOrEmpty(value)) {
+                    String value = readPlaywrightText(instruction);
+                    if (value != null) {
+                        if (outputValues != null) {
+                            outputValues.put(
+                                    instruction.getId() + "-" + instruction.getName(),
+                                    value);
+                        }
                         return true;
                     }
-                    return healAndRetry(
-                            instruction,
-                            activeDriver,
-                            healed -> !Strings.isNullOrEmpty(activeDriver.text(healed)));
+                    return false;
                 default:
                     return false;
             }
         } catch (Exception error) {
             logOperations.warn("Playwright action failed, falling back to Selenium: {}", error.getMessage());
             return false;
+        }
+    }
+
+    /**
+     * Reads one Web Element through the active Playwright page.
+     *
+     * <p>{@code ""} is a successful, legitimate empty Web value. {@code null} means that both the
+     * primary locator and the bounded self-healing fallback failed.
+     */
+    public String readPlaywrightText(InstructionLoad instruction) {
+        ARWebDriver runtime = ctx.arWebDriver();
+        if (runtime == null || !runtime.isPlaywrightEnabled()) {
+            return null;
+        }
+        ARPlaywrightDriver activeDriver = runtime.currentPlaywrightDriver();
+        if (activeDriver == null || !activeDriver.isOpen()) {
+            return null;
+        }
+        try {
+            String value = activeDriver.text(instruction);
+            if (value != null) {
+                return value;
+            }
+            String[] healedValue = new String[1];
+            boolean healed = healAndRetry(instruction, activeDriver, candidate -> {
+                String candidateValue = activeDriver.text(candidate);
+                if (candidateValue == null) {
+                    return false;
+                }
+                healedValue[0] = candidateValue;
+                return true;
+            });
+            return healed ? healedValue[0] : null;
+        } catch (Exception error) {
+            logOperations.warn(
+                    "Playwright text read failed; value remains VOID: {}",
+                    error.getMessage());
+            return null;
         }
     }
 

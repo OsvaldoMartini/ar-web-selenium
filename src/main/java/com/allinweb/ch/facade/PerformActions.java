@@ -12,6 +12,8 @@ import com.allinweb.ch.facade.actions.EngineDialogs;
 import com.allinweb.ch.facade.actions.ExecutionReporter;
 import com.allinweb.ch.facade.actions.InstructionGraph;
 import com.allinweb.ch.facade.actions.PlaywrightBridge;
+import com.allinweb.ch.facade.actions.RuntimeVariableStore;
+import com.allinweb.ch.facade.actions.RuntimeVariableValue;
 import com.allinweb.ch.facade.actions.ValidationMessageBuilder;
 import com.allinweb.ch.facade.actions.WaitSupport;
 import com.allinweb.ch.facade.actions.WebTextUtils;
@@ -309,7 +311,11 @@ public class PerformActions implements ActionContext {
             Boolean pressEnterAfter = flags.hasEnter();
 
             if (!ARConstantsEngine.VISUALIZE.equals(actions[0])
-                    && tryPlaywrightWebAction(currentInstruction, data, actions[0])) {
+                    && tryPlaywrightWebAction(
+                            currentInstruction,
+                            data,
+                            actions[0],
+                            mapOperators)) {
                 return true;
             }
 
@@ -356,7 +362,9 @@ public class PerformActions implements ActionContext {
                                 currentInstruction.getActions(),
                                 mapOperators);
 
-                        return !Strings.isNullOrEmpty(valueElem);
+                        // Empty text is legitimate Web data. Only null means that OUTPUT could not
+                        // be read.
+                        return valueElem != null;
                     case ARConstantsEngine.CLICK:
                     case ARConstantsEngine.OTHER:
                         if (isMobileApp) {
@@ -444,8 +452,16 @@ public class PerformActions implements ActionContext {
         }
     }
 
-    private boolean tryPlaywrightWebAction(InstructionLoad instruction, FieldData data, String action) {
-        return playwrightBridge.tryPlaywrightWebAction(instruction, data, action);
+    private boolean tryPlaywrightWebAction(
+            InstructionLoad instruction,
+            FieldData data,
+            String action,
+            Map<String, String> outputValues) {
+        return playwrightBridge.tryPlaywrightWebAction(
+                instruction,
+                data,
+                action,
+                outputValues);
     }
 
     private boolean isPlaywrightOnlyMode() {
@@ -504,14 +520,58 @@ public class PerformActions implements ActionContext {
     public String performOperatorActions(
             boolean byPassNotFound,
             InstructionLoad instruction,
+            InstructionLoad targetInstruction,
             String targetXPath,
             String[] parentOperations,
             String action,
             String[] operations,
             String parentField,
             String variableField,
-            Map<String, String> mapOperators,
+            Integer variableId,
+            RuntimeVariableStore runtimeVariables,
+            Map<String, String> outputValues,
             WebElement instructionElement) {
+
+        if (playwrightBridge.isPlaywrightOnlyMode()) {
+            String playwrightMessage = "Error performing GET or SET through Playwright";
+            boolean playwrightSuccess = false;
+            try {
+                if (targetInstruction != null
+                        && ARConstantsEngine.SET_VALUE.equalsIgnoreCase(action)) {
+                    playwrightMessage = "SET_VALUE to (Parent: " + parentField + ") Var:"
+                            + variableField + " <-- " + operations[1];
+                    playwrightSuccess = playwrightBridge.tryPlaywrightWebAction(
+                            targetInstruction,
+                            new FieldData(operations[0], operations[1]),
+                            ARConstantsEngine.INSERT,
+                            outputValues);
+                    if (playwrightSuccess) {
+                        runtimeVariables.write(variableId, operations[1].trim());
+                    }
+                } else if (targetInstruction != null
+                        && ARConstantsEngine.GET_VALUE.equalsIgnoreCase(action)) {
+                    playwrightMessage =
+                            "GET_VALUE from (Parent: " + parentField + ") Var" + variableField;
+                    String value = playwrightBridge.readPlaywrightText(targetInstruction);
+                    if (value != null) {
+                        if (!value.isEmpty()) {
+                            playwrightMessage += " <-- " + value;
+                        }
+                        playwrightSuccess = runtimeVariables.write(variableId, value.trim());
+                    }
+                }
+            } catch (RuntimeException error) {
+                logOperations.warn(
+                        "Playwright variable action '{}' failed; runtime value remains VOID: {}",
+                        action,
+                        error.getMessage());
+            }
+            return operatorActionResult(
+                    instruction,
+                    parentField,
+                    playwrightMessage,
+                    playwrightSuccess);
+        }
 
         try {
             Thread.sleep(100);
@@ -533,7 +593,9 @@ public class PerformActions implements ActionContext {
                         msgReturn = "SET_VALUE to (Parent: " + parentField + ") Var:" + variableField + " <-- "
                                 + operations[1];
                         insertTargetElement(byPassNotFound, instructionElement, operations[0], operations[1]);
-                        mapOperators.put(variableField.trim(), operations[1].trim());
+                        runtimeVariables.write(variableId, operations[1].trim());
+                        // Page interaction and variable memory are independent. Missing variable
+                        // metadata leaves the runtime value VOID, but SET still reaches the page.
                         success = true;
                         break;
 
@@ -546,22 +608,27 @@ public class PerformActions implements ActionContext {
                                     instructionElement,
                                     parentField,
                                     instruction.getActions(),
-                                    mapOperators);
+                                    outputValues);
                         } else {
                             valueElem = getValueInElement(byPassNotFound, instructionElement);
                         }
                         if (!Strings.isNullOrEmpty(valueElem)) {
                             msgReturn += " <-- " + valueElem;
                         }
-                        mapOperators.put(variableField.trim(), valueElem.trim());
-                        success = true;
+                        success = valueElem != null
+                                && runtimeVariables.write(variableId, valueElem.trim());
                         break;
 
                     case "CopyVar":
-                        String valueVar = mapOperators.getOrDefault(variableField, "");
-                        msgReturn =
-                                "COPY_VAR from (Parent: " + parentField + ") Var" + variableField + " <-- " + valueVar;
-                        success = true;
+                        RuntimeVariableValue copyValue = runtimeVariables.read(variableId);
+                        String valueVar = copyValue.isValue() ? copyValue.value() : "";
+                        msgReturn = "COPY_VAR from (Parent: "
+                                + parentField
+                                + ") Var"
+                                + variableField
+                                + " <-- "
+                                + valueVar;
+                        success = copyValue.isValue();
                         break;
                 }
                 onHoldForSeconds(null);
@@ -601,6 +668,38 @@ public class PerformActions implements ActionContext {
         String conditionText = msgReturn;
 
         return time + " | " + testName + " | " + desc + " | " + mainField + " | " + conditionText + " | " + result;
+    }
+
+    private String operatorActionResult(
+            InstructionLoad instruction,
+            String parentField,
+            String message,
+            boolean success) {
+        String time = new java.text.SimpleDateFormat("HH:mm:ss").format(new java.util.Date());
+        String testName = "";
+        String mainField = "";
+        if (parentField != null && parentField.contains("-")) {
+            int separator = parentField.indexOf('-');
+            testName = parentField.substring(0, separator).trim();
+            mainField = parentField.substring(separator + 1).trim();
+        } else if (parentField != null) {
+            mainField = parentField;
+        }
+        String description =
+                instruction != null && instruction.getName() != null
+                        ? instruction.getName()
+                        : "";
+        return time
+                + " | "
+                + testName
+                + " | "
+                + description
+                + " | "
+                + mainField
+                + " | "
+                + message
+                + " | "
+                + (success ? "PASSED" : "FAIL");
     }
 
     private WebElement locateTargetElement(boolean byPassNotFound, String targetXPath, Integer actionCustomMaxWaitSec) {

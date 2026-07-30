@@ -1,7 +1,7 @@
 # Variable-Centric Instruction Graph Roadmap
 
 Date: 2026-07-29
-Status: active; P0 through P3 complete, P4 shadow/warn implementation is in progress
+Status: active; P0 through P3 complete, P4 diagnostics/VOID runtime implementation is in progress
 Scope: Bot Job Details first, Components second, Variables workspace, Java persistence, and
 execution safety
 Canonical source notes:
@@ -34,7 +34,8 @@ The target model is:
 5. let the client explicitly reconnect a relationship;
 6. let React calculate the exact mutation intent;
 7. let Java validate the structural envelope and persist that exact intent atomically;
-8. refuse Test Run and Launch while active executable rows have unresolved required relationships;
+8. never refuse Test Run or Launch because of variable health; represent a missing runtime producer
+   as typed `VOID`, bypass only its dependent operation, and continue execution with diagnostics;
 9. leave the working `+` Memory List selection and copy behavior unchanged.
 
 The work is deliberately split into small phases. Every behavior-changing phase has a feature
@@ -196,11 +197,12 @@ release.
 
 - Same-Block ordinary rows and relationship-bearing commands become single-row moves first.
 - The first single-row phase accepts only moves that preserve every required relation. Persisting
-  a newly broken/detached relation activates only after reconnect is available and the execution
-  gate is hard-enabled.
+  a newly broken/detached relation activates only after reconnect and complete diagnostic UX are
+  available.
 - IF/ELSEIF/ELSE/ENDIF boundary movement stays constrained in the first release; ordinary rows
   can move into or out of the positional body.
-- Cross-Block movement comes only after reconnect and execution gates are accepted.
+- Cross-Block movement comes only after reconnect and exact mutation/diagnostic contracts are
+  accepted.
 - Cross-Block movement is an exact single-row mutation: it never carries parents, children,
   positional body rows, variable producers/consumers, LOOP anchors, or GOTO targets merely because
   they are related. React preserves relations that remain valid and requires an explicit
@@ -225,17 +227,28 @@ Traversal follows instruction-to-instruction attachment edges in the selected di
 variable or every unrelated command using it. Variable deletion is always a separate explicit
 action. Deleting an owner detaches and preserves its variable by default once delete-v3 is active.
 
-### D-010 - Execution is strict even when authoring is flexible
+### D-010 - Variable health is diagnostic and never an execution permission gate
 
-An unresolved draft may be saved. Test Run and Launch must refuse to start when an active
-instruction has a required unresolved relationship or invalid execution order.
+An unresolved draft may be saved. Variable health never refuses, pauses, cancels, or terminates a
+Test Run or Launch. Missing, dangling, incompatible, inactive, out-of-order, out-of-scope,
+duplicate, or ambiguous variable bindings/owners/producers are diagnostics. A variable-command
+Web Element target problem is also a variable diagnostic for execution disposition.
+
+`VOID` is typed run-scoped state, not the text `"VOID"` and not an empty string:
+
+- a variable with no successful runtime producer is `VOID(NO_PRODUCER_YET)`;
+- a successful writer produces `VALUE(value)`;
+- `VALUE("")` is a legitimate empty Web value and remains available to equality/empty checks;
+- a failed or absent producer leaves the variable `VOID`;
+- a consumer of `VOID` records a bounded non-modal diagnostic, bypasses only its
+  variable-dependent calculation/comparison/export, and execution continues;
+- a later successful writer may replace `VOID`, so later consumers execute normally;
+- `VOID` is never written to a Web Element, file, database variable value, or report as user data.
 
 The user-owned Active flag remains unchanged. The application reports the exact rows and offers a
-focus action; it does not silently deactivate them.
-
-The execution gate is a mandatory dependency after broken drafts are permitted. It cannot be
-disabled until all broken-authoring flags are disabled and an authoritative audit proves that no
-active unresolved row remains.
+focus/reconnect action; it does not silently deactivate them. Structural start failures such as an
+invalid owner/scope, failed definition load, missing selected Block, or duplicate/ambiguous Block
+or instruction identity remain separate from variable health.
 
 ### D-011 - React owns authoring semantics
 
@@ -266,16 +279,16 @@ Java persists exactly the submitted intent and broadcasts the authoritative resu
 expand a group, plan a disconnect, choose a relationship target, or silently repair/relink an
 authoring graph.
 
-### D-012 - Runtime safety remains defense in depth
+### D-012 - Runtime diagnostics remain defense in depth
 
-React supplies the full diagnostic UX. Java execution entry points still require a current graph
-revision and a valid execution-preflight result before invoking the Engine. This is not permission
-for Java to reintroduce drag grouping; it prevents stale or non-React callers from bypassing the
-execution gate.
+React supplies the full diagnostic UX. Java execution entry points observe a current authoritative
+graph snapshot immediately before invoking the Engine, but variable diagnostics never become an
+execution permission decision. This is not permission for Java to reintroduce drag grouping or
+semantic authoring rules.
 
-Runtime preflight is the only semantic safety decision retained in Java: it validates the
-authoritative execution snapshot immediately before Engine start. It must not be reused to plan or
-rewrite an authoring mutation.
+Runtime preflight records diagnostics and may separately validate the structural start envelope.
+It must not plan/rewrite an authoring mutation, and it must not convert variable health into a
+Test Run/Launch refusal.
 
 The final preflight transport design is locked by the completed Phase 1 audit and is implemented
 and activated in Phase 4.
@@ -349,7 +362,7 @@ exactly one variable; historical rows reach that invariant only after audited P1
 | SET (current mode) | Required metadata/runtime key | Required writable element | Literal and runtime-memory assignment | Single row | Target and variable resolve; configured literal is written |
 | E | Required | Preserve current required target | Runtime-memory read ordering | Single row | Target context exists and GET or SET has populated the key |
 | CK | Required | Preserve current required target | Runtime-memory read ordering | Single row | Target context exists and GET or SET has populated the key |
-| PDF CHECK/CSV CHECK | Persisted today, not actual-value source | Persisted command context | OUTPUT/validation-field source | Single row | Block until the audited Scanner/Engine validation defects are resolved |
+| PDF CHECK/CSV CHECK | Persisted today, not actual-value source | Persisted command context | OUTPUT/validation-field source | Single row | Validate when an OUTPUT source exists; otherwise report VOID and continue |
 | LOOP/REFRESH_LOOP | Not newly required | Required anchor in `parentId` | Positional body | Single LOOP row after Phase 6 | `parentId` anchor exists and precedes LOOP |
 | IF/ELSEIF/ELSE/ENDIF | None | None | Conditional root | Boundary constrained initially | Structurally valid family |
 | GOTO/EXCEL GOTO | None | None | Destination Block in `parentBlockId` | Single row | Destination Block exists in the same owner and differs from containing `blockId` |
@@ -368,7 +381,7 @@ Before P5 implementation, P1 must publish the exact rule for each variable-capab
 | SET literal | Runtime does not compare owner; authoring expects parent target and owner to agree when owned | Yes | Runtime can execute if writable `parentId` target and `variableId` resolve |
 | E | Runtime does not compare owner; `parentId` context and populated variable key are required | Yes | Runtime can execute after GET or SET if target context and key resolve |
 | CK | Runtime does not compare owner; `parentId` context and populated variable key are required | Yes | Runtime can execute after GET or SET if target context and key resolve |
-| PDF CHECK/CSV CHECK | Owner is not the actual-value source; current validation context is not execution-safe | Yes | Not eligible until Scanner/Engine validation behavior is repaired and tested |
+| PDF CHECK/CSV CHECK | Owner is not the actual-value source; current validation context is not execution-safe | Yes | Missing OUTPUT/validation data is warning-only VOID; valid sourced checks retain normal assertion semantics |
 | LOOP/REFRESH_LOOP | Not a variable-owner relation; uses `LOOP_ANCHOR` | Not applicable | No without anchor |
 
 No v3 relationship patch may silently make variable ownership an Engine requirement or remove an
@@ -717,9 +730,9 @@ invariant.
     required.
 13. Capabilities are server-advertised and bound to workspace epoch. If a capability changes while
     a request is in flight, ignore the late response and force authoritative refresh.
-14. Once any broken draft is persisted, the backend execution readiness gate remains mandatory
-    until broken-authoring capabilities are disabled and a full authoritative audit is clean.
-15. Activation order is fixed: harden P4 execution preflight first; land P5 version-3
+14. Once any broken draft is persisted, authoritative diagnostics and reconnect remain available;
+    variable health never becomes a backend execution gate.
+15. Activation order is fixed: harden P4 diagnostics/VOID semantics first; land P5 version-3
     transport/CAS second; activate P6 valid same-Block single-row movement third; activate P7
     modal reconnect and explicit broken-draft choices fourth; only then activate P11 cross-Block
     and later conditional freedom. Later code may be prepared behind disabled capabilities, but it
@@ -728,7 +741,9 @@ invariant.
 Recommended independent capability flags:
 
 - `relationshipChipsV1`
-- `executionRelationshipGateV1`
+- `executionRelationshipDiagnosticsV1`
+- `runtimeVariableVoidV1`
+- `executionStructuralGateV1` (non-variable structural start envelope only)
 - `rowMoveContractV3`
 - `freeSameBlockMoveV1`
 - `relationshipReconnectV1`
@@ -750,10 +765,10 @@ Recommended independent capability flags:
 | P1 | Engine and entry-point semantic audit | None | No behavior change |
 | P2 | Pure React relationship classifier | None | No UI change |
 | P3 | Relationship details and read-only chips | None | Frontend flag |
-| P4 | Execution preflight gate | Low | Shadow/warn, then mandatory |
+| P4 | Execution diagnostics, typed VOID, and structural start safety | Low | Warning-only for variable health |
 | P5 | Additive version-3 mutation contract | Low | Capability off |
 | P6 | Bot Job same-Block single-row drag that preserves relationships | Medium | Bot Job valid-only flag |
-| P7 | Chip-to-modal reconnect plus broken-draft activation | Medium | Reconnect + mandatory gate |
+| P7 | Chip-to-modal reconnect plus broken-draft activation | Medium | Reconnect + diagnostics |
 | P8 | Durable ownerless memory variables | High | Data flag + backup |
 | P9 | Owner uniqueness, then automatic variable creation for new Web Elements | High | Migration + creation flag |
 | P10 | Delete selected/direct/full explicit modes | High | Delete v3 flag |
@@ -822,8 +837,8 @@ Tasks:
   - Page Scanner/prelaunch;
   - external Engine launch;
   - any legacy/direct caller.
-- [x] Record that `ScannerPreLaunchExecutionGate` currently controls execution concurrency, not
-  graph readiness; do not mistake it for the new relationship gate.
+- [x] Record that `ScannerPreLaunchExecutionGate` controls execution concurrency, not variable
+  health; do not reuse it as a variable relationship gate.
 - [x] Identify the exact readiness insertion points in `ScannerPreLaunchStarter` and
   `ScannerTestRunPreparationFlow`, before browser/Engine work starts.
 - [x] Audit `ScannerPreLaunchPreparation.loadAndFixExcelGoto`; strict execution must not silently
@@ -838,7 +853,7 @@ Evidence and the locked capability/entry-point matrices are recorded in
 Acceptance:
 
 - No action semantics in the roadmap depend on an unverified assumption.
-- The execution gate covers every start path, not only one React button.
+- Warning-only variable diagnostics cover every start path, not only one React button.
 
 Rollback:
 
@@ -907,21 +922,31 @@ Rollback:
 
 - Turn off `relationshipChipsV1` or revert only the extracted renderer.
 
-### P4 - Execution relationship gate
+### P4 - Execution diagnostics, typed VOID, and structural start safety
 
-Goal: make flexible authoring safe before free movement can persist a broken graph.
+Goal: keep flexible authoring observable and make missing runtime variable values safe without
+turning variable health into an execution permission gate.
 
 Tasks:
 
-- [x] Add pure TypeScript execution eligibility output with exact row IDs and messages.
+- [x] Add pure TypeScript execution diagnostic output with exact row IDs and messages.
 - [x] Display a bounded modal/list with row focus actions. Bot Job Details can clear Find, expand,
   scroll, focus, and transiently highlight the affected row; detached Page Scanner displays the
   same authoritative bounded report without inventing unavailable local row data.
-- [x] Start in shadow/warn mode and record which existing jobs would be blocked. Accepted Test
+- [x] Start in shadow/warn mode and record which existing jobs have issues. Accepted Test
   Run/Launch requests still dispatch exactly once; warnings are displayed after the correlated
   response and never offer a second Continue/Run action.
-- [ ] After repair is available or P0 proves no blocking legacy issue, block all mapped Test
-  Run/Launch entry points for active unresolved rows.
+- [x] Permanently prohibit variable diagnostics from blocking any mapped Test Run/Launch entry
+  point.
+- [ ] Split variable diagnostics from true structural start failures in the Java and TypeScript
+  result models; remove `BLOCKED`/`WOULD_BLOCK` wording from variable-health presentation without
+  breaking correlated transport compatibility.
+- [x] Add typed runtime `VOID | VALUE` semantics. Never use the literal `"VOID"` or a shared
+  `"Not Variable defined"` map key as runtime state.
+- [x] Make missing/failed producers leave `VOID`, make `VALUE("")` a valid empty Web result, and
+  make VOID consumers bypass only the dependent operation with a bounded warning.
+- [x] Verify at the run-scoped store boundary that a later successful producer replaces VOID and
+  later consumers read the recovered value. Full browser-path integration coverage remains open.
 - [x] Preserve user Active flags; authoritative preflight reads them without rewriting them.
 - [ ] Bind preflight to exact authoritative owner, database graph version, content revision, and
   the actual requested run scope. Workspace epoch is additionally required for detached-workspace
@@ -946,17 +971,21 @@ Tasks:
 
 Acceptance:
 
-- No active unresolved required relationship can reach execution.
-- An ownerless variable alone is not an error; the command role determines eligibility.
-- Inactive rows remain visible but do not block execution unless current execution policy says
-  otherwise.
+- Every variable diagnostic permits exactly one requested Test Run/Launch dispatch.
+- No variable diagnostic refuses, pauses, cancels, or terminates an execution request.
+- An ownerless/missing-producer variable is visible as `VOID(NO_PRODUCER_YET)`.
+- `VALUE("")` remains distinct from VOID and can be validated as an expected empty value.
+- A VOID consumer is diagnostic/skipped, does not report PASS, and does not prevent later steps or
+  later writers from executing.
+- Inactive rows remain visible and do not block execution.
 
 Rollback:
 
-- Before broken drafts exist, shadow/UI behavior can be disabled without stored-data conversion.
-- After P7 enables broken drafts, the backend gate cannot be disabled until all broken-authoring
-  flags are off and an authoritative audit proves zero unresolved active rows.
-- Do not enable broken-draft movement until hard gate and reconnect are both accepted.
+- Diagnostic UI can be disabled without stored-data conversion; warning-only execution behavior
+  remains.
+- Typed VOID can roll back independently before its capability is enabled because it is run-scoped
+  and is never persisted as user data.
+- Do not enable broken-draft movement until reconnect and authoritative diagnostics are accepted.
 
 ### P5 - Additive version-3 mutation contract
 
@@ -1096,7 +1125,7 @@ Deliver in separate commits:
 
 #### P7D - Broken-draft activation
 
-- [ ] Hard-enable the authoritative execution gate.
+- [ ] Keep authoritative variable diagnostics warning-only on every execution entry point.
 - [ ] Enable `MOVE ONLY` with explicit clean `CLEAR`/`DETACH` patches.
 - [ ] Enable `MOVE + RECONNECT` with one atomic unchanged/full-layout plus relation transaction.
 - [ ] Ensure Bot Job capability checks prevent shared `GridItem` code from activating Component
@@ -1112,7 +1141,7 @@ Acceptance:
 Rollback:
 
 - Stop new broken-draft moves by disabling P7D, but retain null-safe DTOs, chips, reconnect, and
-  the mandatory backend execution gate for already-saved drafts.
+  authoritative diagnostics for already-saved drafts.
 - Reconnect UI can return to read-only only after an audit proves there are no unresolved rows that
   need it.
 
@@ -1144,9 +1173,10 @@ Tasks:
 Acceptance:
 
 - Explicit detach leaves one ownerless variable and all variable-linked commands.
-- `MEMORY_ONLY` is valid persisted data, but no current active command becomes executable
-  ownerless unless P1 explicitly proves that role.
-- GET/SET/E/CK/PDF/CSV follow P1 readiness rules; LOOP uses `LOOP_ANCHOR`, not variable ownership.
+- `MEMORY_ONLY` is valid persisted data. Active commands remain runnable; unresolved variable
+  relationships produce VOID diagnostics and never become an execution gate.
+- GET/SET/E/CK/PDF/CSV follow the P1 diagnostic-only runtime rules; LOOP uses `LOOP_ANCHOR`, not
+  variable ownership.
 - No variable disappears implicitly.
 - Destructive owner deletion stays disabled until P10.
 
@@ -1232,7 +1262,8 @@ Rollback:
 
 ### P11 - Cross-Block and conditional freedom
 
-Goal: extend accepted single-row semantics after reconnect and execution gates are proven.
+Goal: extend accepted single-row semantics after reconnect, diagnostics, and exact persistence are
+proven.
 
 Subphases:
 
@@ -1481,9 +1512,9 @@ Remaining activation debt:
   rewrite remains disabled until React can submit an explicit operation patch (or an equally exact
   reviewed contract) and Java can validate/persist it in the same CAS transaction without hidden
   inference.
-- [ ] P4 hard execution gating and P5 authenticated CAS transport must be accepted before P13A
-  activation. P7/P8/P10/P11 and the broader P13 actions remain separate capabilities; P13A does
-  not satisfy or bypass them.
+- [ ] P4 diagnostics/VOID semantics and P5 authenticated CAS transport must be accepted before
+  P13A activation. P7/P8/P10/P11 and the broader P13 actions remain separate capabilities; P13A
+  does not satisfy or bypass them.
 
 Future P13A acceptance target (not yet claimed):
 
@@ -1559,7 +1590,8 @@ Goal: complete the React-authoring/Java-persistence boundary.
 Tasks:
 
 - [ ] Remove version-3 calls to Java connected-group inference.
-- [ ] Retire Java semantic move checks only after TypeScript parity and execution gate acceptance.
+- [ ] Retire Java semantic move checks only after TypeScript parity, diagnostic coverage, and exact
+  persistence acceptance.
 - [ ] Keep structural owner/revision/permutation/expected-old-value validation.
 - [ ] Remove version 2 only after production acceptance and rollback window.
 - [ ] Remove expired feature flags in separate commits.
@@ -1634,7 +1666,8 @@ Extend/add:
 - `VariablesWorkspaceServiceTest`
 - `VariableUpdateTransactionTest`
 - `ComponentVariableCreationTransactionTest`
-- Test Run/Launch/prelaunch gate tests;
+- Test Run/Launch/prelaunch diagnostics and exactly-once dispatch tests;
+- typed VOID versus `VALUE("")`, early VOID consumer/later writer, and non-blocking runtime tests;
 - exact ONE/selected/full reachable-plan readiness tests;
 - concurrent v2/v3 graph-version CAS tests;
 - owner/block/bulk delete variable-detach tests;
@@ -1684,7 +1717,8 @@ User-facing errors distinguish:
 - expected-old relationship changed;
 - transaction rollback;
 - realtime refresh failure after commit;
-- execution preflight refusal.
+- execution structural-start refusal;
+- variable VOID/diagnostic bypass.
 
 If commit succeeds but refresh fails, report that persistence succeeded, keep the last valid grid,
 and offer an authoritative refresh. Do not retry the mutation automatically.
@@ -1698,7 +1732,7 @@ Accepted from both:
 - React semantic planning;
 - Java atomic persistence;
 - strict realtime correlation;
-- execution blocking for unresolved active rows;
+- non-blocking variable diagnostics and typed runtime VOID;
 - frozen Memory List `+`;
 - durable variables.
 
@@ -1724,7 +1758,7 @@ Rejected:
 - persisting dangling IDs;
 - deleting variables automatically with their owner;
 - moving/deleting innocent positional body rows;
-- activating free broken-state authoring before an execution gate exists;
+- hiding broken-state authoring without diagnostics/reconnect;
 - sharing live drag controllers between Bot Job, Component, and Memory List pages.
 
 ## 14. Definition of done
@@ -1737,7 +1771,9 @@ The redesign is complete only when:
 - [ ] variables survive owner deletion as legitimate memory;
 - [ ] new Web Elements receive one variable atomically;
 - [ ] delete selected/direct/full modes persist exactly what React confirmed;
-- [ ] Test Run and Launch refuse unresolved active graphs on every entry path;
+- [ ] Test Run and Launch never refuse because of variable health on any entry path;
+- [ ] missing producers become typed VOID, `VALUE("")` remains valid empty data, and VOID consumers
+  bypass safely with visible diagnostics;
 - [ ] Java v3 performs structural validation and exact persistence without semantic group
   expansion;
 - [ ] Components have independent parity;
@@ -1750,24 +1786,28 @@ The redesign is complete only when:
 
 ## 15. Immediate next task
 
-Finish P4 activation and the P5 shared-version boundary; do not advertise or consume the prepared
-v3 capability yet:
+Finish P4 typed VOID/diagnostic behavior and then the P5 shared-version boundary; do not advertise
+or consume the prepared v3 capability yet:
 
-1. wire the Java authoritative execution preflight plus immediate graph-version recheck into every
-   audited Test Run/Launch entry point;
-2. add the bounded React diagnostic modal and run P4 in shadow/warn mode against
-   sanitized/disposable fixtures;
-3. hard-enable `executionRelationshipGateV1` only after the P4 acceptance checks pass;
-4. inventory every remaining v2/legacy Bot Job graph writer and make each increment the same
+1. preserve the current exactly-once, warning-only Test Run/Launch dispatch on every audited entry
+   point; variable health must never be consulted as a permission gate;
+2. replace the shared `"Not Variable defined"` runtime key with typed `VOID | VALUE` state and
+   verify `VALUE("")` remains valid data;
+3. make GET/SET producer failure leave VOID and make CK/PDF/CSV/Excel/COPY consumers bypass only
+   their dependent operation with a bounded non-modal diagnostic;
+4. split variable diagnostics from true structural start failures in Java/TypeScript result
+   terminology and UX while retaining correlated transport compatibility;
+5. inventory every remaining v2/legacy Bot Job graph writer and make each increment the same
    `instruction_graph_state` version in its own transaction, or retire it behind the v3 route;
-5. add mixed-writer, rollback-failure, wrong-owner/epoch, idempotency, response/broadcast-order,
+6. add mixed-writer, rollback-failure, wrong-owner/epoch, idempotency, response/broadcast-order,
    and production-schema/dialect tests;
-6. add the correlated server-owned v3 WebSocket route and authoritative post-commit publication;
-7. advertise `rowMoveContractV3` only after the preceding checks pass, then activate P6
+7. add the correlated server-owned v3 WebSocket route and authoritative post-commit publication;
+8. advertise `rowMoveContractV3` only after the preceding checks pass, then activate P6
    same-Block valid-only movement;
-8. stop for review before wiring P7 reconnect or P11 cross-Block draft movement.
+9. stop for review before wiring P7 reconnect or P11 cross-Block draft movement.
 
-The approved activation sequence remains P4 gate -> P5 v3 -> P6 same-Block valid-only single-row
+The approved activation sequence is P4 diagnostics/VOID -> P5 v3 -> P6 same-Block single-row
 movement -> P7 chip-to-modal reconnect and explicit disconnect/reconnect -> P11 exact cross-Block
-single-row movement. Prepared P5/P7 modules stay inert until their prerequisite phase is accepted.
-Animated relationship arrows remain deferred.
+single-row movement. Variable health remains warning-only throughout this sequence. Prepared P5/P7
+modules stay inert until their prerequisite phase is accepted. Animated relationship arrows remain
+deferred.

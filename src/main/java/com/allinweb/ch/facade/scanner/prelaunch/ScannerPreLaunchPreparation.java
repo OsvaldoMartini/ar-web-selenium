@@ -9,10 +9,14 @@ import com.allinweb.ch.model.HomeUrlDTO;
 import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.util.ErrorMessage;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class ScannerPreLaunchPreparation {
     private static final String INSTRUCTION_TABLE = "instruction";
     private static final String VARIABLE_TABLE = "variable";
+    private static final Logger logOperations =
+            LoggerFactory.getLogger("com.allinweb.operations");
 
     private final EnginePort engine;
     private final ListsPort lists;
@@ -39,8 +43,24 @@ public final class ScannerPreLaunchPreparation {
         if (errorMessage == null) {
             errorMessage = engine.loadCompleteJobs(currentBotJob.getId());
         }
+        ErrorMessage variableLoadWarning = null;
         if (errorMessage == null) {
-            errorMessage = engine.loadAllVariables(VARIABLE_TABLE, currentBotJob.getId());
+            try {
+                variableLoadWarning =
+                        engine.loadAllVariables(VARIABLE_TABLE, currentBotJob.getId());
+            } catch (RuntimeException variableLoadFailure) {
+                variableLoadWarning = new ErrorMessage(
+                        "Variables",
+                        "Variable metadata unavailable",
+                        safeMessage(variableLoadFailure));
+            }
+            if (variableLoadWarning != null) {
+                logOperations.warn(
+                        "VARIABLE_METADATA_UNAVAILABLE botJobId={} executionContinues=true"
+                                + " runtimeState=VOID reason={}",
+                        currentBotJob.getId(),
+                        safeMessage(variableLoadWarning));
+            }
         }
 
         List<BlockLoadDTO> blocksLoaded = List.of();
@@ -48,7 +68,12 @@ public final class ScannerPreLaunchPreparation {
             blocksLoaded = lists.botJobs().get(0).getBlockLoadDTOList();
             errorMessage = engine.loadAllActionsPerBlock(blocksLoaded);
         }
-        return new Result(errorMessage, excelDataGoto, blocksLoaded, lists.botJobs().isEmpty());
+        return new Result(
+                errorMessage,
+                excelDataGoto,
+                blocksLoaded,
+                lists.botJobs().isEmpty(),
+                variableLoadWarning);
     }
 
     public BotJobSelection loadCurrentBotJob(BotJobLoadDTO currentBotJob, String excelBasePath) {
@@ -86,6 +111,20 @@ public final class ScannerPreLaunchPreparation {
         return value == null || value.isBlank();
     }
 
+    private String safeMessage(ErrorMessage error) {
+        if (error == null || isBlank(error.getErrorMessage())) {
+            return "Variable metadata could not be loaded";
+        }
+        return error.getErrorMessage();
+    }
+
+    private String safeMessage(RuntimeException error) {
+        if (error == null || isBlank(error.getMessage())) {
+            return "Variable metadata could not be loaded";
+        }
+        return error.getMessage();
+    }
+
     private List<InstructionLoad> loadAndFixExcelGoto(BotJobLoadDTO currentBotJob) {
         List<InstructionLoad> excelDataGoto = engine.loadExcelGotoBlock(currentBotJob.getId(), INSTRUCTION_TABLE);
         if (hasMissingParentBlock(excelDataGoto)) {
@@ -110,7 +149,16 @@ public final class ScannerPreLaunchPreparation {
             ErrorMessage errorMessage,
             List<InstructionLoad> excelDataGoto,
             List<BlockLoadDTO> blocksLoaded,
-            boolean botJobMissing) {}
+            boolean botJobMissing,
+            ErrorMessage variableLoadWarning) {
+        public Result(
+                ErrorMessage errorMessage,
+                List<InstructionLoad> excelDataGoto,
+                List<BlockLoadDTO> blocksLoaded,
+                boolean botJobMissing) {
+            this(errorMessage, excelDataGoto, blocksLoaded, botJobMissing, null);
+        }
+    }
 
     public record BotJobSelection(
             boolean loaded,
