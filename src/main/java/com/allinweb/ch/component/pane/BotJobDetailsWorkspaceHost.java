@@ -281,6 +281,9 @@ public class BotJobDetailsWorkspaceHost {
                 && previousBotJobId != null
                 && requestedBotJobId != null
                 && !previousBotJobId.equals(requestedBotJobId);
+        boolean preserveVariablesWorkspace = switchingBotJob
+                && VariablesWorkspaceService.getInstance()
+                        .isOpenForBotJob(previousBotJobId);
         if (switchingBotJob && !canCloseWorkspace()) {
             throw new IllegalStateException(
                     "Stop the active Bot Job operation before opening another Bot Job");
@@ -289,7 +292,8 @@ public class BotJobDetailsWorkspaceHost {
             // Keep the one detached Page Scanner native window alive. Its trusted old binding is
             // rejected after the registry epoch changes and PRE SCAN on the new Bot Job retargets
             // that same physical panel to a fresh logical scanner session.
-            suspendReactWorkspaceSurfaces(previousBotJobId, true);
+            suspendReactWorkspaceSurfaces(
+                    previousBotJobId, true, preserveVariablesWorkspace);
         }
         this.isEnabledLicence = isEnabledLicence;
         this.selectedBotJob = selectedBotJob;
@@ -361,6 +365,9 @@ public class BotJobDetailsWorkspaceHost {
         BotJobWorkspaceService.GridSnapshot initialGridSnapshot;
         reactSessionContext.activate(selectedBotJob);
         botJobDetailsWorkspaceRegistry.activate(selectedBotJob, isEnabledLicence);
+        if (preserveVariablesWorkspace) {
+            retargetVariablesWorkspace(previousBotJobId, selectedBotJob.getId());
+        }
         try {
             reactEnvironmentUrl = botJobDetailsService
                     .captureToolbarContext(selectedBotJob.getId())
@@ -1710,11 +1717,43 @@ public class BotJobDetailsWorkspaceHost {
                 reactContext(ScannerWorkspaceSessions.BOT_JOB_TASKS));
     }
 
+    private void retargetVariablesWorkspace(int previousBotJobId, int nextBotJobId) {
+        VariablesWorkspaceService service = VariablesWorkspaceService.getInstance();
+        JsonObject response = service.openForBotJob(nextBotJobId);
+        if (response != null
+                && response.has("ok")
+                && !response.get("ok").isJsonNull()
+                && response.get("ok").getAsBoolean()) {
+            return;
+        }
+
+        String reason = response != null
+                        && response.has("error")
+                        && !response.get("error").isJsonNull()
+                ? response.get("error").getAsString()
+                : "Variables could not follow the newly opened Bot Job.";
+        log.warn(
+                "Variables workspace retarget from Bot Job {} to {} failed: {}",
+                previousBotJobId,
+                nextBotJobId,
+                reason);
+        if (!service.retireForBotJobDetailed(nextBotJobId, reason).matched()) {
+            service.retireForBotJobDetailed(previousBotJobId, reason);
+        }
+    }
+
     private void suspendReactWorkspaceSurfaces(int botJobId) {
-        suspendReactWorkspaceSurfaces(botJobId, false);
+        suspendReactWorkspaceSurfaces(botJobId, false, false);
     }
 
     private void suspendReactWorkspaceSurfaces(int botJobId, boolean preserveDetachedPageScanner) {
+        suspendReactWorkspaceSurfaces(botJobId, preserveDetachedPageScanner, false);
+    }
+
+    private void suspendReactWorkspaceSurfaces(
+            int botJobId,
+            boolean preserveDetachedPageScanner,
+            boolean preserveVariablesWorkspace) {
         if (!preserveDetachedPageScanner) {
             // Closing Bot Job Details retires whichever single scanner panel is still alive.
             // This covers A -> B followed by closing B before the preserved A scanner has been
@@ -1724,19 +1763,21 @@ public class BotJobDetailsWorkspaceHost {
         CommandEditorWorkspaceService.getInstance().retireForBotJob(
                 botJobId,
                 "The active Bot Job Details workspace changed or closed.");
-        VariablesWorkspaceService.RetireResult variablesRetirement =
-                VariablesWorkspaceService.getInstance().retireForBotJobDetailed(
-                botJobId,
-                "The active Bot Job Details workspace changed or closed.");
-        if (variablesRetirement.matched() && !variablesRetirement.closed()) {
-            log.error(
-                    "Variables workspace could not be closed while retiring Bot Job {}",
-                    botJobId);
-        } else if (variablesRetirement.matched()
-                && !variablesRetirement.tombstoneDelivered()) {
-            log.warn(
-                    "Variables workspace retired for Bot Job {} without delivering its tombstone",
-                    botJobId);
+        if (!preserveVariablesWorkspace) {
+            VariablesWorkspaceService.RetireResult variablesRetirement =
+                    VariablesWorkspaceService.getInstance().retireForBotJobDetailed(
+                    botJobId,
+                    "The active Bot Job Details workspace changed or closed.");
+            if (variablesRetirement.matched() && !variablesRetirement.closed()) {
+                log.error(
+                        "Variables workspace could not be closed while retiring Bot Job {}",
+                        botJobId);
+            } else if (variablesRetirement.matched()
+                    && !variablesRetirement.tombstoneDelivered()) {
+                log.warn(
+                        "Variables workspace retired for Bot Job {} without delivering its tombstone",
+                        botJobId);
+            }
         }
         requestComponentsWorkspaceClose();
         reactSessionContext.deactivate(botJobId);

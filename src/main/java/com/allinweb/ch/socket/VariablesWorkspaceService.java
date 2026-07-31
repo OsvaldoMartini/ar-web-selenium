@@ -221,6 +221,15 @@ public final class VariablesWorkspaceService {
         return INSTANCE;
     }
 
+    /** True only while the singleton Variables page is open for this exact Bot Job. */
+    public boolean isOpenForBotJob(int botJobId) {
+        Binding current = currentBinding();
+        return botJobId > 0
+                && current != null
+                && current.botJobId() == botJobId
+                && windows.isOpen(WORKSPACE_SESSION_ID);
+    }
+
     /** Opens or retargets the single Variables page for an already-authorized Bot Job action. */
     public JsonObject openForBotJob(int botJobId) {
         JsonObject request = new JsonObject();
