@@ -167,6 +167,79 @@ class BotJobGraphMutationTransactionTest {
     }
 
     @Test
+    void atomicallyAppliesMultipleReactAuthoredRelationshipAndVariablePatches()
+            throws Exception {
+        try (Connection connection = database()) {
+            insertDisconnectedGet(connection);
+            InstructionGraphMutationV3.Request request =
+                    reactAuthoredBatchRequest(connection, NullableId.of(null));
+
+            BotJobGraphMutationTransaction.CommitResult committed =
+                    new BotJobGraphMutationTransaction()
+                            .execute(connection, authenticatedOwner, request);
+
+            assertEquals(1L, committed.committedGraphVersion());
+            assertNull(nullableIntegerValue(
+                    connection, "SELECT parent_id FROM instruction WHERE id=101"));
+            assertNull(nullableIntegerValue(
+                    connection, "SELECT parent_block_id FROM instruction WHERE id=101"));
+            assertNull(nullableIntegerValue(
+                    connection, "SELECT parent_id FROM instruction WHERE id=103"));
+            assertNull(nullableIntegerValue(
+                    connection, "SELECT parent_block_id FROM instruction WHERE id=103"));
+            assertNull(nullableIntegerValue(
+                    connection, "SELECT variable_id FROM instruction WHERE id=103"));
+            assertEquals(30, integerValue(
+                    connection, "SELECT parent_block_id FROM instruction WHERE id=102"));
+            assertEquals(104, integerValue(
+                    connection, "SELECT parent_id FROM instruction WHERE id=105"));
+            assertEquals(20, integerValue(
+                    connection, "SELECT parent_block_id FROM instruction WHERE id=105"));
+            assertEquals(502, integerValue(
+                    connection, "SELECT variable_id FROM instruction WHERE id=105"));
+            assertEquals(1L, currentVersion(connection));
+            assertTrue(connection.getAutoCommit());
+        }
+    }
+
+    @Test
+    void rejectsTheWholeReactAuthoredBatchWhenOneExpectedValueIsStale()
+            throws Exception {
+        try (Connection connection = database()) {
+            insertDisconnectedGet(connection);
+            InstructionGraphMutationV3.Request request =
+                    reactAuthoredBatchRequest(connection, NullableId.of(999));
+
+            MutationRefusedException refused = assertThrows(
+                    MutationRefusedException.class,
+                    () -> new BotJobGraphMutationTransaction()
+                            .execute(connection, authenticatedOwner, request));
+
+            assertEquals("EXPECTED_VARIABLE_BINDING_MISMATCH", refused.code());
+            assertEquals(100, integerValue(
+                    connection, "SELECT parent_id FROM instruction WHERE id=101"));
+            assertEquals(10, integerValue(
+                    connection, "SELECT parent_block_id FROM instruction WHERE id=101"));
+            assertEquals(104, integerValue(
+                    connection, "SELECT parent_id FROM instruction WHERE id=103"));
+            assertEquals(20, integerValue(
+                    connection, "SELECT parent_block_id FROM instruction WHERE id=103"));
+            assertEquals(501, integerValue(
+                    connection, "SELECT variable_id FROM instruction WHERE id=103"));
+            assertEquals(10, integerValue(
+                    connection, "SELECT parent_block_id FROM instruction WHERE id=102"));
+            assertNull(nullableIntegerValue(
+                    connection, "SELECT parent_id FROM instruction WHERE id=105"));
+            assertNull(nullableIntegerValue(
+                    connection, "SELECT parent_block_id FROM instruction WHERE id=105"));
+            assertNull(nullableIntegerValue(
+                    connection, "SELECT variable_id FROM instruction WHERE id=105"));
+            assertEquals(0L, currentVersion(connection));
+            assertTrue(connection.getAutoCommit());
+        }
+    }
+
+    @Test
     void refusesExpectedOldAndGraphVersionMismatchesWithoutWriting()
             throws Exception {
         try (Connection connection = database()) {
@@ -813,6 +886,68 @@ class BotJobGraphMutationTransactionTest {
                 row(101, 20, 2, 4));
     }
 
+    private void insertDisconnectedGet(Connection connection) throws SQLException {
+        try (Statement statement = connection.createStatement()) {
+            statement.executeUpdate(
+                    "INSERT INTO instruction VALUES"
+                            + "(105,5,20,4,'GET',NULL,NULL,NULL,'capture')");
+        }
+    }
+
+    private InstructionGraphMutationV3.Request reactAuthoredBatchRequest(
+            Connection connection,
+            NullableId expectedDisconnectedBinding)
+            throws Exception {
+        return request(
+                connection,
+                InstructionGraphMutationV3.MutationKind.RELATIONSHIP_UPDATE,
+                null,
+                List.of(
+                        row(100, 10, 1, 1),
+                        row(101, 10, 1, 2),
+                        row(104, 20, 2, 1),
+                        row(103, 20, 2, 2),
+                        row(102, 20, 2, 3),
+                        row(105, 20, 2, 4)),
+                List.of(
+                        relationPatch(
+                                101,
+                                InstructionRelationKind.LOOP_ANCHOR,
+                                PatchOperation.CLEAR,
+                                relation(100, 10),
+                                InstructionRelationState.disconnected()),
+                        relationPatch(
+                                103,
+                                InstructionRelationKind.ELEMENT_TARGET,
+                                PatchOperation.CLEAR,
+                                relation(104, 20),
+                                InstructionRelationState.disconnected()),
+                        relationPatch(
+                                102,
+                                InstructionRelationKind.BLOCK_TARGET,
+                                PatchOperation.SET,
+                                relation(null, 10),
+                                relation(null, 30)),
+                        relationPatch(
+                                105,
+                                InstructionRelationKind.ELEMENT_TARGET,
+                                PatchOperation.SET,
+                                InstructionRelationState.disconnected(),
+                                relation(104, 20))),
+                List.of(
+                        new VariableBindingPatch(
+                                103,
+                                PatchOperation.CLEAR,
+                                NullableId.of(501),
+                                NullableId.of(null)),
+                        new VariableBindingPatch(
+                                105,
+                                PatchOperation.SET,
+                                expectedDisconnectedBinding,
+                                NullableId.of(502))),
+                List.of());
+    }
+
     private LayoutRow row(
             int instructionId,
             int blockId,
@@ -912,6 +1047,16 @@ class BotJobGraphMutationTransactionTest {
                 ResultSet row = statement.executeQuery(sql)) {
             assertTrue(row.next());
             return row.getInt(1);
+        }
+    }
+
+    private Integer nullableIntegerValue(Connection connection, String sql)
+            throws Exception {
+        try (Statement statement = connection.createStatement();
+                ResultSet row = statement.executeQuery(sql)) {
+            assertTrue(row.next());
+            int value = row.getInt(1);
+            return row.wasNull() ? null : value;
         }
     }
 
