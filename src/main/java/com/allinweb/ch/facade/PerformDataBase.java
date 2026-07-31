@@ -1,5 +1,10 @@
 package com.allinweb.ch.facade;
 
+import com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableModels.DefinitionDraft;
+import com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableModels.MutationResult;
+import com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableModels.OwnerKey;
+import com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableModels.ValueState;
+import com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableService;
 import com.allinweb.ch.model.*;
 import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
@@ -38,6 +43,8 @@ public class PerformDataBase {
     public static final PerformMessage performMessage = PerformMessage.getInstance();
     public static final PerformInitializer performInitializer = PerformInitializer.getInstance();
     public static final PerformLists performLists = PerformLists.getInstance();
+    private static final BotJobRuntimeVariableService botJobRuntimeVariables =
+            new BotJobRuntimeVariableService();
     //    public static final MobileReturnServer mobileReturnServer = MobileReturnServer.getInstance();
 
     // Static final variable to hold the singleton instance
@@ -4342,8 +4349,8 @@ public class PerformDataBase {
                         "Parent repairs must contain unique surviving IDs and a null parentId.");
             }
         }
-        String ownerColumn = "instruction".equals(instructionTable) ? "bot_job_id" : "home_banking_id";
-        String variableTable = "instruction".equals(instructionTable) ? "variable" : "component_variable";
+        boolean componentWorkspace = "component_instruction".equals(instructionTable);
+        String ownerColumn = componentWorkspace ? "home_banking_id" : "bot_job_id";
         String referenceTable = "instruction".equals(instructionTable) ? "reference" : "component_reference";
         String placeholders = String.join(",", Collections.nCopies(deleteIds.size(), "?"));
         Connection connection = null;
@@ -4360,7 +4367,8 @@ public class PerformDataBase {
                     deleteIds,
                     repairs,
                     placeholders);
-            deleteOwnedRows(connection, variableTable, ownerColumn, whereId, deleteIds, placeholders);
+            deleteOwnedVariableRows(
+                    connection, componentWorkspace, whereId, deleteIds, placeholders);
             deleteOwnedRows(connection, referenceTable, ownerColumn, whereId, deleteIds, placeholders);
             String sql = "DELETE FROM " + instructionTable + " WHERE " + ownerColumn + "=? AND id IN (" + placeholders + ")";
             try (PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -4421,9 +4429,9 @@ public class PerformDataBase {
         if (!"block".equals(blockTable) && !"component_block".equals(blockTable)) {
             return new ErrorMessage("Delete Block Error", "Invalid block table", blockTable);
         }
-        String ownerColumn = "block".equals(blockTable) ? "bot_job_id" : "home_banking_id";
-        String instructionTable = "block".equals(blockTable) ? "instruction" : "component_instruction";
-        String variableTable = "block".equals(blockTable) ? "variable" : "component_variable";
+        boolean componentWorkspace = "component_block".equals(blockTable);
+        String ownerColumn = componentWorkspace ? "home_banking_id" : "bot_job_id";
+        String instructionTable = componentWorkspace ? "component_instruction" : "instruction";
         String referenceTable = "block".equals(blockTable) ? "reference" : "component_reference";
         Connection connection = null;
         Boolean previousAutoCommit = null;
@@ -4473,7 +4481,8 @@ public class PerformDataBase {
             }
             if (!instructionIds.isEmpty()) {
                 String placeholders = String.join(",", Collections.nCopies(instructionIds.size(), "?"));
-                deleteOwnedRows(connection, variableTable, ownerColumn, whereId, instructionIds, placeholders);
+                deleteOwnedVariableRows(
+                        connection, componentWorkspace, whereId, instructionIds, placeholders);
                 deleteOwnedRows(connection, referenceTable, ownerColumn, whereId, instructionIds, placeholders);
                 try (PreparedStatement deleteInstructions = connection.prepareStatement(
                         "DELETE FROM " + instructionTable + " WHERE " + ownerColumn + "=? AND id IN ("
@@ -4549,9 +4558,9 @@ public class PerformDataBase {
 
         LinkedHashSet<Integer> selectedIds = new LinkedHashSet<>(deleteBlockIds);
 
-        String ownerColumn = "block".equals(blockTable) ? "bot_job_id" : "home_banking_id";
-        String instructionTable = "block".equals(blockTable) ? "instruction" : "component_instruction";
-        String variableTable = "block".equals(blockTable) ? "variable" : "component_variable";
+        boolean componentWorkspace = "component_block".equals(blockTable);
+        String ownerColumn = componentWorkspace ? "home_banking_id" : "bot_job_id";
+        String instructionTable = componentWorkspace ? "component_instruction" : "instruction";
         String referenceTable = "block".equals(blockTable) ? "reference" : "component_reference";
         Connection connection = null;
         Boolean previousAutoCommit = null;
@@ -4622,10 +4631,9 @@ public class PerformDataBase {
             if (!instructionIds.isEmpty()) {
                 String instructionPlaceholders =
                         String.join(",", Collections.nCopies(instructionIds.size(), "?"));
-                deleteOwnedRows(
+                deleteOwnedVariableRows(
                         connection,
-                        variableTable,
-                        ownerColumn,
+                        componentWorkspace,
                         whereId,
                         instructionIds,
                         instructionPlaceholders);
@@ -4725,6 +4733,51 @@ public class PerformDataBase {
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             bindOwnerAndIds(statement, whereId, ids);
             statement.executeUpdate();
+        }
+    }
+
+    private void deleteOwnedVariableRows(
+            Connection connection,
+            boolean componentWorkspace,
+            int whereId,
+            List<Integer> instructionIds,
+            String placeholders)
+            throws SQLException {
+        if (componentWorkspace) {
+            deleteOwnedRows(
+                    connection,
+                    "component_variable",
+                    "home_banking_id",
+                    whereId,
+                    instructionIds,
+                    placeholders);
+            return;
+        }
+
+        OwnerKey owner = botJobVariableOwner(connection, whereId);
+        String selectSql = "SELECT id FROM bot_job_variable_definition"
+                + " WHERE home_banking_id=? AND bot_job_id=?"
+                + " AND producer_instruction_id IN (" + placeholders + ")";
+        List<Long> definitionIds = new ArrayList<>();
+        try (PreparedStatement statement = connection.prepareStatement(selectSql)) {
+            statement.setInt(1, owner.homeBankingId());
+            statement.setInt(2, owner.botJobId());
+            for (int index = 0; index < instructionIds.size(); index++) {
+                statement.setInt(index + 3, instructionIds.get(index));
+            }
+            try (ResultSet result = statement.executeQuery()) {
+                while (result.next()) {
+                    definitionIds.add(result.getLong(1));
+                }
+            }
+        }
+        if (definitionIds.isEmpty()) {
+            return;
+        }
+        MutationResult deleted =
+                botJobRuntimeVariables.deleteDefinitions(connection, owner, definitionIds, null);
+        if (!deleted.applied()) {
+            throw new SQLException(deleted.message());
         }
     }
 
@@ -5738,7 +5791,11 @@ public class PerformDataBase {
         String idsInstruction =
                 instructionMap.keySet().stream().map(String::valueOf).collect(Collectors.joining(","));
 
-        String checkExistsSQL = "SELECT * FROM variable " + "WHERE  bot_job_id = ? AND instruction_id IN ("
+        String checkExistsSQL = "SELECT id,variable_type AS type,name,"
+                + "configured_value AS value,local_format,delimiter,"
+                + "producer_instruction_id AS instruction_id"
+                + " FROM bot_job_variable_definition"
+                + " WHERE bot_job_id = ? AND producer_instruction_id IN ("
                 + idsInstruction + ") ORDER BY id";
 
         String selectComponentIdsSQL = "SELECT id FROM component_variable WHERE home_banking_id = "
@@ -6401,6 +6458,9 @@ public class PerformDataBase {
     }
 
     public ErrorMessage createInjectVariables(BlockDetailsDTO blockDetailsDTO) {
+        if (usesDurableBotJobVariables()) {
+            return createInjectVariablesDurable(blockDetailsDTO);
+        }
 
         final int BATCH_SIZE = 100;
 
@@ -6643,6 +6703,94 @@ public class PerformDataBase {
             logDB.error("Failed to update instruction");
             return new ErrorMessage("Failed to update instruction", "instruction Update Failure", error.getMessage());
         }
+    }
+
+    private ErrorMessage createInjectVariablesDurable(BlockDetailsDTO blockDetailsDTO) {
+        if (blockDetailsDTO == null
+                || blockDetailsDTO.getHomeBankingId() == null
+                || blockDetailsDTO.getBotJobId() == null) {
+            return new ErrorMessage(
+                    "Variable Insertion Error",
+                    "The durable Bot Job variable owner is required.",
+                    null);
+        }
+        String ids = instructionMap.keySet().stream()
+                .map(String::valueOf)
+                .collect(Collectors.joining(","));
+        if (ids.isBlank()) {
+            variableMap.clear();
+            return null;
+        }
+        String select = "SELECT id,type,name,value,local_format,delimiter,instruction_id"
+                + " FROM component_variable WHERE home_banking_id=?"
+                + " AND instruction_id IN (" + ids + ") ORDER BY id";
+        try (Connection connection = getConnection()) {
+            boolean previousAutoCommit = connection.getAutoCommit();
+            connection.setAutoCommit(false);
+            try (PreparedStatement statement = connection.prepareStatement(select)) {
+                statement.setInt(1, blockDetailsDTO.getHomeBankingId());
+                variableMap.clear();
+                try (ResultSet rows = statement.executeQuery()) {
+                    while (rows.next()) {
+                        Integer sourceInstructionId =
+                                nullableInt(rows, "instruction_id");
+                        Integer generatedInstructionId =
+                                sourceInstructionId == null
+                                        ? null
+                                        : instructionMap.get(sourceInstructionId);
+                        if (sourceInstructionId != null
+                                && generatedInstructionId == null) {
+                            continue;
+                        }
+                        MutationResult created = botJobRuntimeVariables.createDefinition(
+                                connection,
+                                new OwnerKey(
+                                        blockDetailsDTO.getHomeBankingId(),
+                                        blockDetailsDTO.getBotJobId()),
+                                new DefinitionDraft(
+                                        rows.getString("type"),
+                                        rows.getString("name"),
+                                        rows.getString("value"),
+                                        rows.getString("local_format"),
+                                        rows.getString("delimiter"),
+                                        generatedInstructionId == null
+                                                ? null
+                                                : generatedInstructionId.longValue(),
+                                        ValueState.VOID,
+                                        null),
+                                null);
+                        if (!created.applied() || created.definition() == null) {
+                            throw new SQLException(created.message());
+                        }
+                        variableMap.put(
+                                rows.getInt("id"),
+                                Math.toIntExact(created.definition().id()));
+                    }
+                }
+                connection.commit();
+                connection.setAutoCommit(previousAutoCommit);
+                return null;
+            } catch (SQLException | RuntimeException failure) {
+                connection.rollback();
+                connection.setAutoCommit(previousAutoCommit);
+                throw failure;
+            }
+        } catch (SQLException | RuntimeException failure) {
+            return new ErrorMessage(
+                    "Failed to create saved variable",
+                    "Durable variable insertion failure",
+                    failure.getMessage());
+        }
+    }
+
+    private static Integer nullableInt(ResultSet rows, String column)
+            throws SQLException {
+        int value = rows.getInt(column);
+        return rows.wasNull() ? null : value;
+    }
+
+    private static boolean usesDurableBotJobVariables() {
+        return true;
     }
 
     public ErrorMessage createInjectReferences(BlockDetailsDTO blockDetailsDTO) {
@@ -7150,6 +7298,9 @@ public class PerformDataBase {
     }
 
     public ErrorMessage cloneVariables(int previousBotJob) {
+        if (usesDurableBotJobVariables()) {
+            return cloneVariablesDurable(previousBotJob);
+        }
 
         final int BATCH_SIZE = 100;
 
@@ -7392,6 +7543,85 @@ public class PerformDataBase {
         }
     }
 
+    private ErrorMessage cloneVariablesDurable(int previousBotJob) {
+        Integer newBotJobId = botJobMap.get(previousBotJob);
+        if (previousBotJob <= 0 || newBotJobId == null || newBotJobId <= 0) {
+            return new ErrorMessage(
+                    "Failed to clone variable",
+                    "Durable variable owner mapping is unavailable",
+                    null);
+        }
+        String select = "SELECT id,variable_type,name,configured_value,local_format,"
+                + "delimiter,producer_instruction_id"
+                + " FROM bot_job_variable_definition"
+                + " WHERE home_banking_id=? AND bot_job_id=? ORDER BY id";
+        try (Connection connection = getConnection()) {
+            boolean previousAutoCommit = connection.getAutoCommit();
+            connection.setAutoCommit(false);
+            try {
+                OwnerKey sourceOwner =
+                        botJobVariableOwner(connection, previousBotJob);
+                OwnerKey destinationOwner =
+                        botJobVariableOwner(connection, newBotJobId);
+                variableMap.clear();
+                try (PreparedStatement statement = connection.prepareStatement(select)) {
+                    statement.setInt(1, sourceOwner.homeBankingId());
+                    statement.setInt(2, sourceOwner.botJobId());
+                    try (ResultSet rows = statement.executeQuery()) {
+                        while (rows.next()) {
+                            Integer sourceProducer =
+                                    nullableInt(rows, "producer_instruction_id");
+                            Integer destinationProducer =
+                                    sourceProducer == null
+                                            ? null
+                                            : instructionMap.get(sourceProducer);
+                            if (sourceProducer != null
+                                    && destinationProducer == null) {
+                                throw new SQLException(
+                                        "A cloned variable producer was not cloned.");
+                            }
+                            MutationResult created =
+                                    botJobRuntimeVariables.createDefinition(
+                                            connection,
+                                            destinationOwner,
+                                            new DefinitionDraft(
+                                                    rows.getString("variable_type"),
+                                                    rows.getString("name"),
+                                                    rows.getString("configured_value"),
+                                                    rows.getString("local_format"),
+                                                    rows.getString("delimiter"),
+                                                    destinationProducer == null
+                                                            ? null
+                                                            : destinationProducer.longValue(),
+                                                    ValueState.VOID,
+                                                    null),
+                                            null);
+                            if (!created.applied()
+                                    || created.definition() == null) {
+                                throw new SQLException(created.message());
+                            }
+                            variableMap.put(
+                                    rows.getInt("id"),
+                                    Math.toIntExact(created.definition().id()));
+                        }
+                    }
+                }
+                connection.commit();
+                connection.setAutoCommit(previousAutoCommit);
+                return null;
+            } catch (SQLException | RuntimeException failure) {
+                connection.rollback();
+                connection.setAutoCommit(previousAutoCommit);
+                throw failure;
+            }
+        } catch (SQLException | RuntimeException failure) {
+            return new ErrorMessage(
+                    "Failed to clone variable",
+                    "Durable variable insertion failure",
+                    failure.getMessage());
+        }
+    }
+
     public ErrorMessage cloneReferences(int previousBotJob) {
 
         final int BATCH_SIZE = 100;
@@ -7567,6 +7797,12 @@ public class PerformDataBase {
         try (Statement stmt = getConnection().createStatement()) {
 
             // Execute each statement individually
+            stmt.executeUpdate("DELETE FROM bot_job_runtime_variable_value;");
+            stmt.executeUpdate("DELETE FROM bot_job_variable_definition;");
+            stmt.executeUpdate("DELETE FROM bot_job_runtime_memory;");
+            stmt.executeUpdate("DELETE FROM bot_job_variable_migration_note;");
+            // Retained only as the backward-import source for installations that have not
+            // completed the durable definition migration.
             stmt.executeUpdate("DELETE FROM variable;");
             stmt.executeUpdate("DELETE FROM reference;");
             stmt.executeUpdate("DELETE FROM instruction;");
@@ -7652,7 +7888,9 @@ public class PerformDataBase {
         String joinTableVarId;
         String filterColumn;
 
-        if ("component_variable".equalsIgnoreCase(tableName)) {
+        boolean componentVariables =
+                "component_variable".equalsIgnoreCase(tableName);
+        if (componentVariables) {
             joinTable = "component_instruction";
             joinTableVarId = "variable_id"; // assuming the join column name in component_instruction is variable_id
             filterColumn = "home_banking_id";
@@ -7663,18 +7901,29 @@ public class PerformDataBase {
             filterColumn = "bot_job_id";
         }
 
+        String physicalTable =
+                componentVariables ? "component_variable" : "bot_job_variable_definition";
+        String typeColumn = componentVariables ? "type" : "variable_type";
+        String valueColumn = componentVariables ? "value" : "configured_value";
+        String producerColumn =
+                componentVariables ? "instruction_id" : "producer_instruction_id";
         StringBuilder selectSQL = new StringBuilder(
-                "SELECT vars.id, vars.type, vars.name, vars.value, vars.local_format, vars.delimiter, COUNT(blk."
+                "SELECT vars.id, vars." + typeColumn + " AS type, vars.name, vars."
+                        + valueColumn + " AS value, vars.local_format, vars.delimiter, COUNT(blk."
                         + joinTableVarId + ") AS UsedVars "
-                        + "FROM " + tableName + " vars "
+                        + "FROM " + physicalTable + " vars "
                         + "LEFT JOIN " + joinTable + " blk ON blk." + joinTableVarId + " = vars.id "
                         + "WHERE vars." + filterColumn + " = ? ");
 
         if (parentId != -1) {
-            selectSQL.append(" AND instruction_id = ? ");
+            selectSQL.append(" AND vars.").append(producerColumn).append(" = ? ");
         }
 
-        selectSQL.append(" GROUP BY vars.id, vars.type, vars.name, vars.value, vars.local_format, vars.delimiter ");
+        selectSQL.append(" GROUP BY vars.id, vars.")
+                .append(typeColumn)
+                .append(", vars.name, vars.")
+                .append(valueColumn)
+                .append(", vars.local_format, vars.delimiter ");
         selectSQL.append(" ORDER BY vars.id ");
 
         try (PreparedStatement pstmt = getConnection().prepareStatement(selectSQL.toString())) {
@@ -7742,8 +7991,9 @@ public class PerformDataBase {
         String tableName;
         String instructionTable;
         String ownerColumn;
-        if ("variable".equals(targetTable)) {
-            tableName = "variable";
+        if ("variable".equals(targetTable)
+                || "bot_job_variable_definition".equals(targetTable)) {
+            tableName = "bot_job_variable_definition";
             instructionTable = "instruction";
             ownerColumn = "bot_job_id";
         } else if ("component_variable".equals(targetTable)) {
@@ -7758,6 +8008,31 @@ public class PerformDataBase {
         }
 
         try (Connection conn = getConnection()) {
+            if ("bot_job_variable_definition".equals(tableName)) {
+                OwnerKey owner = botJobVariableOwner(conn, ownerId);
+                MutationResult created = botJobRuntimeVariables.createDefinition(
+                        conn,
+                        owner,
+                        new DefinitionDraft(
+                                user.getType(),
+                                user.getName(),
+                                user.getValue(),
+                                user.getLocalFormat(),
+                                user.getDelimiter(),
+                                user.getParentId().longValue(),
+                                ValueState.VOID,
+                                null),
+                        null);
+                if (!created.applied() || created.definition() == null) {
+                    return new ErrorMessage(
+                            "Variable Insertion Error",
+                            "Error inserting a new variable.",
+                            created.message());
+                }
+                idsVariableAfter.clear();
+                idsVariableAfter.add(Math.toIntExact(created.definition().id()));
+                return null;
+            }
             return createVariableTransaction(
                     conn,
                     tableName,
@@ -7924,15 +8199,19 @@ public class PerformDataBase {
 
     public ErrorMessage updateUserData(String tableName, int whereId, VariableUserDTO user) {
         // Determine foreign key column
-        String foreignKeyColumn = "variable".equalsIgnoreCase(tableName) ? "bot_job_id" : "home_banking_id";
+        boolean botJobVariable = "variable".equalsIgnoreCase(tableName)
+                || "bot_job_variable_definition".equalsIgnoreCase(tableName);
+        String foreignKeyColumn = botJobVariable ? "bot_job_id" : "home_banking_id";
+        String physicalTable =
+                botJobVariable ? "bot_job_variable_definition" : tableName;
 
-        String updateSQL = "UPDATE " + tableName + " SET "
-                + "name = ?, "
-                + "type = ?, "
-                + "value = ?, "
-                + "local_format = ?, "
-                + "delimiter = ? "
-                + "WHERE id = ? AND " + foreignKeyColumn + " = ?";
+        String updateSQL = botJobVariable
+                ? "UPDATE bot_job_variable_definition SET "
+                        + "name=?,variable_type=?,configured_value=?,local_format=?,delimiter=?,"
+                        + "updated_at=CURRENT_TIMESTAMP WHERE id=? AND bot_job_id=?"
+                : "UPDATE " + physicalTable + " SET "
+                        + "name=?,type=?,value=?,local_format=?,delimiter=? "
+                        + "WHERE id=? AND " + foreignKeyColumn + "=?";
 
         try (Connection conn = getConnection()) {
             conn.setAutoCommit(false); // start transaction
@@ -7953,12 +8232,12 @@ public class PerformDataBase {
 
                     logDB.info(String.format(
                             "Updated %d row(s) in %s where id = %d and %s = %d",
-                            rowsAffected, tableName, user.getId(), foreignKeyColumn, whereId));
+                            rowsAffected, physicalTable, user.getId(), foreignKeyColumn, whereId));
                 } else {
 
                     logDB.warn(String.format(
                             "No matching row found in %s where id = %d and %s = %d",
-                            tableName, user.getId(), foreignKeyColumn, whereId));
+                            physicalTable, user.getId(), foreignKeyColumn, whereId));
                 }
 
                 return null; // success
@@ -7966,11 +8245,11 @@ public class PerformDataBase {
 
                 logDB.error(String.format(
                         "Error updating row in %s where id = %d and %s = %d. Error: %s",
-                        tableName, user.getId(), foreignKeyColumn, whereId, e.getMessage()));
+                        physicalTable, user.getId(), foreignKeyColumn, whereId, e.getMessage()));
 
                 return new ErrorMessage(
                         "Update Error",
-                        "Failed to update row in " + tableName + " where id = " + user.getId() + " and "
+                        "Failed to update row in " + physicalTable + " where id = " + user.getId() + " and "
                                 + foreignKeyColumn + " = " + whereId,
                         e.getMessage());
             }
@@ -7978,7 +8257,7 @@ public class PerformDataBase {
 
             logDB.error(String.format(
                     "Connection error while updating row in %s where id = %d and %s = %d. Error: %s",
-                    tableName, user.getId(), foreignKeyColumn, whereId, ex.getMessage()));
+                    physicalTable, user.getId(), foreignKeyColumn, whereId, ex.getMessage()));
 
             return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
         }
@@ -8055,10 +8334,37 @@ public class PerformDataBase {
 
     public ErrorMessage deleteUserData(String tableName, int whereId, int variableId) {
         // Determine foreign key column
-        String foreignKeyColumn = "variable".equalsIgnoreCase(tableName) ? "bot_job_id" : "home_banking_id";
+        boolean botJobVariable = "variable".equalsIgnoreCase(tableName)
+                || "bot_job_variable_definition".equalsIgnoreCase(tableName);
+        String foreignKeyColumn = botJobVariable ? "bot_job_id" : "home_banking_id";
+        String physicalTable =
+                botJobVariable ? "bot_job_variable_definition" : tableName;
+
+        if (botJobVariable) {
+            try (Connection connection = getConnection()) {
+                MutationResult deleted = botJobRuntimeVariables.deleteDefinitions(
+                        connection,
+                        botJobVariableOwner(connection, whereId),
+                        Set.of((long) variableId),
+                        null);
+                if (deleted.applied()) {
+                    return null;
+                }
+                return new ErrorMessage(
+                        "Delete Error",
+                        "Failed to delete the Bot Job variable definition.",
+                        deleted.message());
+            } catch (SQLException exception) {
+                return new ErrorMessage(
+                        "Database Connection Error",
+                        "Could not delete the Bot Job variable definition",
+                        exception.getMessage());
+            }
+        }
 
         // Build SQL
-        String deleteSQL = "DELETE FROM " + tableName + " WHERE id = ? AND " + foreignKeyColumn + " = ?";
+        String deleteSQL =
+                "DELETE FROM " + physicalTable + " WHERE id = ? AND " + foreignKeyColumn + " = ?";
 
         try (Connection conn = getConnection()) {
             conn.setAutoCommit(false); // start transaction
@@ -8077,12 +8383,12 @@ public class PerformDataBase {
 
                     logDB.info(String.format(
                             "Deleted %d row(s) from %s where id = %d and %s = %d",
-                            rowsAffected, tableName, variableId, foreignKeyColumn, whereId));
+                            rowsAffected, physicalTable, variableId, foreignKeyColumn, whereId));
                 } else {
 
                     logDB.warn(String.format(
                             "No rows found to delete in %s where id = %d and %s = %d",
-                            tableName, variableId, foreignKeyColumn, whereId));
+                            physicalTable, variableId, foreignKeyColumn, whereId));
                 }
 
                 return null; // success
@@ -8090,11 +8396,11 @@ public class PerformDataBase {
 
                 logDB.error(String.format(
                         "Error deleting row in %s where id = %d and %s = %d. Error: %s",
-                        tableName, variableId, foreignKeyColumn, whereId, e.getMessage()));
+                        physicalTable, variableId, foreignKeyColumn, whereId, e.getMessage()));
 
                 return new ErrorMessage(
                         "Delete Error",
-                        "Failed to delete from " + tableName + " where id = " + variableId + " and " + foreignKeyColumn
+                        "Failed to delete from " + physicalTable + " where id = " + variableId + " and " + foreignKeyColumn
                                 + " = " + whereId,
                         e.getMessage());
             }
@@ -8102,9 +8408,27 @@ public class PerformDataBase {
 
             logDB.error(String.format(
                     "Connection error while deleting row in %s where id = %d and %s = %d. Error: %s",
-                    tableName, variableId, foreignKeyColumn, whereId, ex.getMessage()));
+                    physicalTable, variableId, foreignKeyColumn, whereId, ex.getMessage()));
 
             return new ErrorMessage("Database Connection Error", "Could not connect to database", ex.getMessage());
+        }
+    }
+
+    private static OwnerKey botJobVariableOwner(Connection connection, int botJobId)
+            throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT home_banking_id FROM bot_job WHERE id=?")) {
+            statement.setInt(1, botJobId);
+            try (ResultSet rows = statement.executeQuery()) {
+                if (!rows.next()) {
+                    throw new SQLException("The Bot Job variable owner was not found.");
+                }
+                int homeBankingId = rows.getInt("home_banking_id");
+                if (homeBankingId <= 0 || rows.next()) {
+                    throw new SQLException("The Bot Job variable owner is invalid.");
+                }
+                return new OwnerKey(homeBankingId, botJobId);
+            }
         }
     }
 

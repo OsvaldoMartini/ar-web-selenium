@@ -70,6 +70,63 @@ public final class RuntimeVariableMemoryRegistry {
         }
     }
 
+    /**
+     * Replaces one process-local execution cache from the committed durable snapshot.
+     *
+     * <p>This registry is deliberately only a fast execution cache. The database snapshot is the
+     * authority: definitions, exact raw values, VOID states, entry revisions, and the Bot Job-wide
+     * revision are copied without merging process-local values.
+     */
+    public Snapshot hydrateDurableSnapshot(
+            com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableModels.Snapshot durable) {
+        Objects.requireNonNull(durable, "durable");
+        BotJobKey owner = new BotJobKey(
+                durable.memory().owner().homeBankingId(),
+                durable.memory().owner().botJobId());
+        JobMemory memory = jobs.computeIfAbsent(owner, ignored -> new JobMemory());
+        Snapshot hydrated;
+        boolean changed;
+        synchronized (memory) {
+            Snapshot before = memory.snapshot(owner);
+            memory.definitions.clear();
+            memory.values.clear();
+            memory.entryRevisions.clear();
+            memory.sources.clear();
+            for (com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableModels.Definition
+                    definition : durable.definitions()) {
+                int variableId = Math.toIntExact(definition.id());
+                memory.definitions.put(
+                        variableId,
+                        new Definition(variableId, definition.name(), definition.type()));
+            }
+            for (com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableModels.RuntimeValue
+                    value : durable.values()) {
+                int variableId = Math.toIntExact(value.variableId());
+                if (!memory.definitions.containsKey(variableId)) {
+                    continue;
+                }
+                memory.values.put(variableId, runtimeValue(value));
+                memory.entryRevisions.put(variableId, value.entryRevision());
+                memory.sources.put(variableId, source(value.source()));
+            }
+            for (Integer variableId : memory.definitions.keySet()) {
+                memory.values.putIfAbsent(
+                        variableId,
+                        RuntimeVariableValue.voidValue(VoidReason.NO_PRODUCER_YET));
+                memory.entryRevisions.putIfAbsent(variableId, 0L);
+                memory.sources.putIfAbsent(variableId, ValueSource.SYSTEM);
+            }
+            memory.metadataAvailable = true;
+            memory.revision = durable.memory().runtimeRevision();
+            hydrated = memory.snapshot(owner);
+            changed = !hydrated.equals(before);
+        }
+        if (changed) {
+            notifyChanged(owner, hydrated.revision());
+        }
+        return hydrated;
+    }
+
     public boolean containsDefinition(BotJobKey owner, Integer variableId) {
         if (!validId(variableId)) return false;
         JobMemory memory = jobs.get(owner);
@@ -182,6 +239,38 @@ public final class RuntimeVariableMemoryRegistry {
 
     private static boolean validId(Integer variableId) {
         return variableId != null && variableId > 0;
+    }
+
+    private static RuntimeVariableValue runtimeValue(
+            com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableModels.RuntimeValue value) {
+        if (value.state()
+                == com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableModels.ValueState.VALUE) {
+            return RuntimeVariableValue.value(value.rawValue());
+        }
+        return RuntimeVariableValue.voidValue(voidReason(value.voidReason()));
+    }
+
+    private static VoidReason voidReason(
+            com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableModels.VoidReason reason) {
+        if (reason == null) return VoidReason.NO_PRODUCER_YET;
+        return switch (reason) {
+            case NO_PRODUCER_YET, CLIENT_RESET -> VoidReason.NO_PRODUCER_YET;
+            case MISSING_BINDING, DEFINITION_DELETED -> VoidReason.MISSING_BINDING;
+            case MISSING_PARENT -> VoidReason.MISSING_PARENT;
+            case PRODUCER_FAILED -> VoidReason.PRODUCER_FAILED;
+            case EVALUATION_FAILED -> VoidReason.EVALUATION_FAILED;
+            case METADATA_UNAVAILABLE -> VoidReason.METADATA_UNAVAILABLE;
+        };
+    }
+
+    private static ValueSource source(
+            com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableModels.ValueSource source) {
+        if (source == null) return ValueSource.SYSTEM;
+        return switch (source) {
+            case EXECUTION -> ValueSource.EXECUTION;
+            case MANUAL -> ValueSource.MANUAL;
+            case RESET, SYSTEM, MIGRATION -> ValueSource.SYSTEM;
+        };
     }
 
     @FunctionalInterface

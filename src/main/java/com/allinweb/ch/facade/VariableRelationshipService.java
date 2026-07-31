@@ -75,8 +75,9 @@ public final class VariableRelationshipService {
 
     private List<VariableRow> loadVariables(Connection connection, int botJobId)
             throws SQLException {
-        String sql = "SELECT v.id, v.type, v.name, v.value, v.local_format, v.delimiter,"
-                + " v.instruction_id AS owner_instruction_id,"
+        String sql = "SELECT v.id, v.variable_type AS type, v.name,"
+                + " v.configured_value AS value, v.local_format, v.delimiter,"
+                + " v.producer_instruction_id AS owner_instruction_id,"
                 + " owner.id AS resolved_owner_id,"
                 + " owner.name AS owner_name, owner.actions AS owner_action,"
                 + " owner.block_id AS owner_block_id,"
@@ -86,9 +87,9 @@ public final class VariableRelationshipService {
                 + " owner_block.name AS owner_block_name,"
                 + " owner_block.block_order_number AS owner_block_order,"
                 + " owner_block.active AS owner_block_active"
-                + " FROM variable v"
+                + " FROM bot_job_variable_definition v"
                 + " LEFT JOIN instruction owner"
-                + " ON owner.id=v.instruction_id AND owner.bot_job_id=v.bot_job_id"
+                + " ON owner.id=v.producer_instruction_id AND owner.bot_job_id=v.bot_job_id"
                 + " LEFT JOIN block owner_block"
                 + " ON owner_block.id=owner.block_id AND owner_block.bot_job_id=v.bot_job_id"
                 + " WHERE v.bot_job_id=? ORDER BY v.id";

@@ -275,8 +275,16 @@ class VariablesWorkspaceServiceTest {
             request.addProperty(
                     "bindingEpoch",
                     bootstrap.get("bindingEpoch").getAsString());
+            request.addProperty("workspaceEpoch", 10L);
+            request.addProperty("contractVersion", 1);
+            request.addProperty(
+                    "baseRuntimeRevision",
+                    bootstrap.getAsJsonObject("runtimeMemory")
+                            .get("revision")
+                            .getAsLong());
             request.addProperty("variableId", 7);
             request.addProperty("operation", "SET");
+            request.addProperty("expectedEntryRevision", 0L);
             request.addProperty("value", "");
             JsonObject updated = service.updateRuntimeMemory(
                     request,

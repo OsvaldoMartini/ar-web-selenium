@@ -7,7 +7,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.allinweb.ch.facade.actions.RuntimeVariableValue.State;
 import com.allinweb.ch.facade.actions.RuntimeVariableValue.VoidReason;
+import com.allinweb.ch.facade.actions.RuntimeVariableMemoryRegistry.BotJobKey;
+import com.allinweb.ch.facade.actions.RuntimeVariableMemoryRegistry.Definition;
+import com.allinweb.ch.facade.actions.RuntimeVariableMemoryRegistry.ValueSource;
+import com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableModels.OwnerKey;
+import com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableService;
 import com.allinweb.ch.model.VariableLoadDTO;
+import java.sql.SQLException;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -28,6 +34,26 @@ class RuntimeVariableStoreTest {
         assertTrue(empty.isEmptyValue());
         assertEquals("", empty.value());
         assertNull(empty.voidReason());
+    }
+
+    @Test
+    void preservesCanonicalBrowserTextWithoutLocaleNormalizationOrTrimming() {
+        RuntimeVariableStore store = new RuntimeVariableStore();
+        store.reset(List.of(variable(7)), true);
+
+        List<String> browserValues = List.of(
+                " 1.234,56 € ",
+                "CHF\u00a01'234.50",
+                "R$ 1.234,56",
+                "07/30/2026",
+                "2026-07-30",
+                "VOID",
+                "  ");
+
+        for (String browserValue : browserValues) {
+            assertTrue(store.write(7, browserValue));
+            assertEquals(browserValue, store.read(7).value());
+        }
     }
 
     @Test
@@ -79,6 +105,71 @@ class RuntimeVariableStoreTest {
 
         assertTrue(store.write(7, "fallback-value"));
         assertEquals("fallback-value", store.read(7).value());
+    }
+
+    @Test
+    void durableWriteFailureUsesExecutionLocalVoidWithoutPollutingCommittedCache() {
+        RuntimeVariableMemoryRegistry registry = RuntimeVariableMemoryRegistry.getInstance();
+        BotJobKey owner = new BotJobKey(2, 501);
+        registry.remove(owner);
+        registry.reconcileDefinitions(
+                owner,
+                List.of(new Definition(7, "Amount", "$String")),
+                true);
+        assertTrue(registry.write(owner, 7, "last-committed", ValueSource.EXECUTION));
+
+        try {
+            RuntimeVariableStore failingExecution = new RuntimeVariableStore(
+                    registry,
+                    owner,
+                    new BotJobRuntimeVariableService(),
+                    new OwnerKey(2, 501),
+                    () -> {
+                        throw new SQLException("database unavailable");
+                    });
+
+            assertFalse(failingExecution.write(7, "uncommitted"));
+            assertEquals(State.VOID, failingExecution.read(7).state());
+            assertEquals(
+                    VoidReason.PRODUCER_FAILED,
+                    failingExecution.read(7).voidReason());
+
+            RuntimeVariableStore separateExecution =
+                    new RuntimeVariableStore(registry, owner);
+            assertEquals("last-committed", separateExecution.read(7).value());
+        } finally {
+            registry.remove(owner);
+        }
+    }
+
+    @Test
+    void failedDurableClearUsesRequestedVoidReasonOnlyInCurrentExecution() {
+        RuntimeVariableMemoryRegistry registry = RuntimeVariableMemoryRegistry.getInstance();
+        BotJobKey owner = new BotJobKey(2, 502);
+        registry.remove(owner);
+        registry.reconcileDefinitions(
+                owner,
+                List.of(new Definition(7, "Amount", "$String")),
+                true);
+        assertTrue(registry.write(owner, 7, "last-committed", ValueSource.EXECUTION));
+
+        try {
+            RuntimeVariableStore failingExecution = new RuntimeVariableStore(
+                    registry,
+                    owner,
+                    new BotJobRuntimeVariableService(),
+                    new OwnerKey(2, 502),
+                    () -> {
+                        throw new SQLException("database unavailable");
+                    });
+
+            failingExecution.markVoid(7, VoidReason.MISSING_PARENT);
+            assertEquals(State.VOID, failingExecution.read(7).state());
+            assertEquals(VoidReason.MISSING_PARENT, failingExecution.read(7).voidReason());
+            assertEquals("last-committed", registry.read(owner, 7).value());
+        } finally {
+            registry.remove(owner);
+        }
     }
 
     private VariableLoadDTO variable(int id) {

@@ -63,7 +63,8 @@ public class MigrationRunner {
             new com.allinweb.ch.db.migrations.M20260710_HomeUrlName(),
             new com.allinweb.ch.db.migrations.M20260721_PageScannerProfile(),
             new com.allinweb.ch.db.migrations.M20260724_ScannedElementPageScope(),
-            new com.allinweb.ch.db.migrations.M20260729_InstructionGraphState());
+            new com.allinweb.ch.db.migrations.M20260729_InstructionGraphState(),
+            new com.allinweb.ch.db.migrations.M20260730_BotJobRuntimeVariables());
 
     private static volatile MigrationRunner instance;
 

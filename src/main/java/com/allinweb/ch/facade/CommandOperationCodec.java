@@ -140,7 +140,16 @@ public final class CommandOperationCodec {
         boolean component = ScannerWorkspaceSessions.COMPONENT_TASKS.equals(
                 string(body, "targetSessionId", ScannerWorkspaceSessions.BOT_JOB_TASKS));
         String instructionTable = component ? "component_instruction" : "instruction";
-        String variableTable = component ? "component_variable" : "variable";
+        String variableTable =
+                component ? "component_variable" : "bot_job_variable_definition";
+        String variableTypeColumn = component ? "type" : "variable_type";
+        String variableValueColumn =
+                component ? "value" : "configured_value";
+        String variableOwnerColumn =
+                component ? "home_banking_id" : "bot_job_id";
+        int variableOwnerId = component
+                ? integer(body, "homeBankingId", -1)
+                : integer(body, "botJobId", -1);
         String webFieldName = "";
         String variableName = "";
         String variableType = "$String";
@@ -159,8 +168,12 @@ public final class CommandOperationCodec {
         if (variableId != null) {
             try (Connection connection = database.getConnection();
                     PreparedStatement statement = connection
-                            .prepareStatement("SELECT type,name,value FROM " + variableTable + " WHERE id=?")) {
+                            .prepareStatement("SELECT " + variableTypeColumn
+                                    + " AS type,name," + variableValueColumn
+                                    + " AS value FROM " + variableTable
+                                    + " WHERE id=? AND " + variableOwnerColumn + "=?")) {
                 statement.setInt(1, variableId);
+                statement.setInt(2, variableOwnerId);
                 try (ResultSet result = statement.executeQuery()) {
                     if (result.next()) {
                         variableType = result.getString("type");
@@ -191,6 +204,16 @@ public final class CommandOperationCodec {
 
     private static String string(JsonObject body, String key, String fallback) {
         return body != null && body.has(key) && !body.get(key).isJsonNull() ? body.get(key).getAsString() : fallback;
+    }
+
+    private static int integer(JsonObject body, String key, int fallback) {
+        try {
+            return body != null && body.has(key) && !body.get(key).isJsonNull()
+                    ? body.get(key).getAsInt()
+                    : fallback;
+        } catch (RuntimeException ignored) {
+            return fallback;
+        }
     }
 
     private static Integer nullableInteger(JsonObject body, String key) {

@@ -291,7 +291,9 @@ public final class CommandEditorService {
         int whereId = componentSession
                 ? integer(body, "homeBankingId", -1)
                 : integer(body, "botJobId", -1);
-        String variableTable = componentSession ? "component_variable" : "variable";
+        String variableTable = componentSession
+                ? "component_variable"
+                : "bot_job_variable_definition";
         String blockTable = componentSession ? "component_block" : "block";
         int instructionId = integer(
                 body,
@@ -564,9 +566,14 @@ public final class CommandEditorService {
 
     private List<VariableLoadDTO> loadDependencyVariables(boolean component, int ownerId)
             throws SQLException {
-        String table = component ? "component_variable" : "variable";
+        String table =
+                component ? "component_variable" : "bot_job_variable_definition";
         String ownerColumn = component ? "home_banking_id" : "bot_job_id";
-        String sql = "SELECT id, instruction_id, type FROM " + table
+        String producerColumn =
+                component ? "instruction_id" : "producer_instruction_id";
+        String typeColumn = component ? "type" : "variable_type";
+        String sql = "SELECT id, " + producerColumn + " AS instruction_id,"
+                + typeColumn + " AS type FROM " + table
                 + " WHERE " + ownerColumn + " = ? ORDER BY id";
         List<VariableLoadDTO> variables = new java.util.ArrayList<>();
         try (Connection connection = database.getConnection();
@@ -760,12 +767,20 @@ public final class CommandEditorService {
 
     private JsonArray loadVariables(String table, int whereId) {
         JsonArray rows = new JsonArray();
-        String ownerColumn = "component_variable".equals(table) ? "home_banking_id" : "bot_job_id";
-        String instructionTable = "component_variable".equals(table) ? "component_instruction" : "instruction";
-        String sql = "SELECT v.id,v.type,v.name,v.value,v.local_format,v.delimiter,v.instruction_id,"
+        boolean component = "component_variable".equals(table);
+        String ownerColumn = component ? "home_banking_id" : "bot_job_id";
+        String instructionTable = component ? "component_instruction" : "instruction";
+        String typeColumn = component ? "type" : "variable_type";
+        String valueColumn = component ? "value" : "configured_value";
+        String producerColumn =
+                component ? "instruction_id" : "producer_instruction_id";
+        String sql = "SELECT v.id,v." + typeColumn + " AS type,v.name,v."
+                + valueColumn + " AS value,v.local_format,v.delimiter,v."
+                + producerColumn + " AS instruction_id,"
                 + "COUNT(i.variable_id) used_vars FROM " + table + " v LEFT JOIN " + instructionTable
                 + " i ON i.variable_id=v.id WHERE v." + ownerColumn + "=? "
-                + "GROUP BY v.id,v.type,v.name,v.value,v.local_format,v.delimiter,v.instruction_id ORDER BY v.id";
+                + "GROUP BY v.id,v." + typeColumn + ",v.name,v." + valueColumn
+                + ",v.local_format,v.delimiter,v." + producerColumn + " ORDER BY v.id";
         try (Connection connection = database.getConnection();
                 PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setInt(1, whereId);
@@ -793,10 +808,14 @@ public final class CommandEditorService {
 
     private String variableType(String sessionId, int variableId, int botJobId, int homeBankingId) {
         boolean componentSession = isComponentSession(sessionId);
-        String table = componentSession ? "component_variable" : "variable";
+        String table = componentSession
+                ? "component_variable"
+                : "bot_job_variable_definition";
         String ownerColumn = componentSession ? "home_banking_id" : "bot_job_id";
+        String typeColumn = componentSession ? "type" : "variable_type";
         int whereId = componentSession ? homeBankingId : botJobId;
-        String sql = "SELECT type FROM " + table + " WHERE id=? AND " + ownerColumn + "=?";
+        String sql = "SELECT " + typeColumn + " AS type FROM " + table
+                + " WHERE id=? AND " + ownerColumn + "=?";
         try (Connection connection = database.getConnection();
                 PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setInt(1, variableId);
@@ -1556,11 +1575,14 @@ public final class CommandEditorService {
     private boolean variableBelongsToWebField(
             String sessionId, int variableId, int webFieldId, int botJobId, int homeBankingId) {
         boolean component = isComponentSession(sessionId);
-        String table = component ? "component_variable" : "variable";
+        String table =
+                component ? "component_variable" : "bot_job_variable_definition";
         String ownerColumn = component ? "home_banking_id" : "bot_job_id";
+        String producerColumn =
+                component ? "instruction_id" : "producer_instruction_id";
         int ownerId = component ? homeBankingId : botJobId;
         String sql = "SELECT COUNT(*) FROM " + table
-                + " WHERE id=? AND instruction_id=? AND " + ownerColumn + "=?";
+                + " WHERE id=? AND " + producerColumn + "=? AND " + ownerColumn + "=?";
         try (Connection connection = database.getConnection();
                 PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setInt(1, variableId);

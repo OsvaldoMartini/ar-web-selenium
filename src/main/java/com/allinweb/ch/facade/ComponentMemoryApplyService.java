@@ -1,5 +1,10 @@
 package com.allinweb.ch.facade;
 
+import com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableModels.DefinitionDraft;
+import com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableModels.MutationResult;
+import com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableModels.OwnerKey;
+import com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableModels.ValueState;
+import com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableService;
 import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.model.ReferenceLoadDTO;
 import com.allinweb.ch.model.UpdatedRow;
@@ -34,6 +39,8 @@ import java.util.Set;
  * same connection, and the complete copy/insert is committed once.
  */
 public final class ComponentMemoryApplyService {
+    private static final BotJobRuntimeVariableService RUNTIME_VARIABLES =
+            new BotJobRuntimeVariableService();
 
     private static final int MAX_IDEMPOTENT_RESULTS = 512;
     private static final String COMPONENT_INSTRUCTION_SELECT = """
@@ -896,13 +903,18 @@ public final class ComponentMemoryApplyService {
     private List<VariableLoadDTO> loadDependencyVariables(
             Connection connection, boolean component, int ownerId, int homeBankingId)
             throws SQLException {
-        String table = component ? "component_variable" : "variable";
-        String ownerColumn = component ? "home_banking_id" : "bot_job_id";
-        String sql = "SELECT id, instruction_id FROM " + table
-                + " WHERE " + ownerColumn + " = ? ORDER BY id";
+        String sql = component
+                ? "SELECT id, instruction_id FROM component_variable"
+                        + " WHERE home_banking_id = ? ORDER BY id"
+                : "SELECT id, producer_instruction_id AS instruction_id"
+                        + " FROM bot_job_variable_definition"
+                        + " WHERE home_banking_id = ? AND bot_job_id = ? ORDER BY id";
         List<VariableLoadDTO> variables = new ArrayList<>();
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
-            statement.setInt(1, ownerId);
+            statement.setInt(1, homeBankingId);
+            if (!component) {
+                statement.setInt(2, ownerId);
+            }
             try (ResultSet result = statement.executeQuery()) {
                 while (result.next()) {
                     variables.add(new VariableLoadDTO(
@@ -1022,10 +1034,14 @@ public final class ComponentMemoryApplyService {
         if (selectedInstructionIds.isEmpty()) return;
 
         List<VariableCopyRow> sourceVariables = new ArrayList<>();
-        String select = "SELECT id, type, name, value, local_format, delimiter, instruction_id "
-                + "FROM variable WHERE bot_job_id = ? ORDER BY id";
+        String select = "SELECT id, variable_type AS type, name,"
+                + " configured_value AS value, local_format, delimiter,"
+                + " producer_instruction_id AS instruction_id"
+                + " FROM bot_job_variable_definition"
+                + " WHERE home_banking_id = ? AND bot_job_id = ? ORDER BY id";
         try (PreparedStatement statement = connection.prepareStatement(select)) {
-            statement.setInt(1, request.botJobId());
+            statement.setInt(1, request.homeBankingId());
+            statement.setInt(2, request.botJobId());
             try (ResultSet result = statement.executeQuery()) {
                 while (result.next()) {
                     Integer sourceInstructionId = nullableInteger(result, "instruction_id");
@@ -1045,33 +1061,25 @@ public final class ComponentMemoryApplyService {
             }
         }
 
-        String insert = "INSERT INTO variable "
-                + "(type, name, value, local_format, delimiter, instruction_id, bot_job_id) "
-                + "VALUES (?, ?, ?, ?, ?, ?, ?)";
         Map<Integer, Integer> generatedVariableIds = new LinkedHashMap<>();
-        try (PreparedStatement statement =
-                connection.prepareStatement(insert, Statement.RETURN_GENERATED_KEYS)) {
-            for (VariableCopyRow source : sourceVariables) {
-                Integer generatedOwnerId =
-                        generatedInstructionIds.get(source.instructionId());
-                if (generatedOwnerId == null) {
-                    throw new ApplyRefused(
-                            "A Bot Job variable owner was not copied with its connected group.");
-                }
-                statement.setObject(1, source.type());
-                statement.setObject(2, source.name());
-                statement.setObject(3, source.value());
-                statement.setObject(4, source.localFormat());
-                statement.setObject(5, source.delimiter());
-                statement.setInt(6, generatedOwnerId);
-                statement.setInt(7, request.botJobId());
-                if (statement.executeUpdate() != 1) {
-                    throw new SQLException(
-                            "Bot Job variable copy did not create exactly one row.");
-                }
-                generatedVariableIds.put(
-                        source.id(), generatedId(statement, "Bot Job variable"));
+        for (VariableCopyRow source : sourceVariables) {
+            Integer generatedOwnerId =
+                    generatedInstructionIds.get(source.instructionId());
+            if (generatedOwnerId == null) {
+                throw new ApplyRefused(
+                        "A Bot Job variable owner was not copied with its connected group.");
             }
+            generatedVariableIds.put(
+                    source.id(),
+                    createBotJobVariable(
+                            connection,
+                            request,
+                            source.type(),
+                            source.name(),
+                            source.value(),
+                            source.localFormat(),
+                            source.delimiter(),
+                            generatedOwnerId));
         }
 
         for (Map.Entry<Integer, Integer> generated :
@@ -1254,13 +1262,8 @@ public final class ComponentMemoryApplyService {
         if (selectedInstructionIds.isEmpty()) return;
         String select = "SELECT id, type, name, value, local_format, delimiter, instruction_id "
                 + "FROM component_variable WHERE home_banking_id = ? ORDER BY id";
-        String insert = "INSERT INTO variable "
-                + "(type, name, value, local_format, delimiter, instruction_id, bot_job_id) "
-                + "VALUES (?, ?, ?, ?, ?, ?, ?)";
         Map<Integer, Integer> variableIds = new HashMap<>();
-        try (PreparedStatement selectStatement = connection.prepareStatement(select);
-                PreparedStatement insertStatement =
-                        connection.prepareStatement(insert, Statement.RETURN_GENERATED_KEYS)) {
+        try (PreparedStatement selectStatement = connection.prepareStatement(select)) {
             selectStatement.setInt(1, request.homeBankingId());
             try (ResultSet result = selectStatement.executeQuery()) {
                 while (result.next()) {
@@ -1274,19 +1277,17 @@ public final class ComponentMemoryApplyService {
                         throw new ApplyRefused(
                                 "A component variable references an instruction that was not selected.");
                     }
-                    int insertParameter = 1;
-                    insertStatement.setObject(insertParameter++, result.getObject("type"));
-                    insertStatement.setObject(insertParameter++, result.getObject("name"));
-                    insertStatement.setObject(insertParameter++, result.getObject("value"));
-                    insertStatement.setObject(insertParameter++, result.getObject("local_format"));
-                    insertStatement.setObject(insertParameter++, result.getObject("delimiter"));
-                    insertStatement.setInt(insertParameter++, generatedInstructionId);
-                    insertStatement.setInt(insertParameter, request.botJobId());
-                    if (insertStatement.executeUpdate() != 1) {
-                        throw new SQLException(
-                                "Component variable insert did not create exactly one row.");
-                    }
-                    variableIds.put(result.getInt("id"), generatedId(insertStatement, "variable"));
+                    variableIds.put(
+                            result.getInt("id"),
+                            createBotJobVariable(
+                                    connection,
+                                    request,
+                                    result.getObject("type"),
+                                    result.getObject("name"),
+                                    result.getObject("value"),
+                                    result.getObject("local_format"),
+                                    result.getObject("delimiter"),
+                                    generatedInstructionId));
                 }
             }
         }
@@ -1300,6 +1301,39 @@ public final class ComponentMemoryApplyService {
             }
             insertedRows.set(index, row.withVariableId(generatedVariableId));
         }
+    }
+
+    private int createBotJobVariable(
+            Connection connection,
+            Request request,
+            Object type,
+            Object name,
+            Object configuredValue,
+            Object localFormat,
+            Object delimiter,
+            int producerInstructionId)
+            throws SQLException {
+        MutationResult created = RUNTIME_VARIABLES.createDefinition(
+                connection,
+                new OwnerKey(request.homeBankingId(), request.botJobId()),
+                new DefinitionDraft(
+                        text(type),
+                        text(name),
+                        text(configuredValue),
+                        text(localFormat),
+                        text(delimiter),
+                        (long) producerInstructionId,
+                        ValueState.VOID,
+                        null),
+                null);
+        if (!created.applied() || created.definition() == null) {
+            throw new SQLException(created.message());
+        }
+        return Math.toIntExact(created.definition().id());
+    }
+
+    private static String text(Object value) {
+        return value == null ? null : String.valueOf(value);
     }
 
     private void remapComponentRelationships(

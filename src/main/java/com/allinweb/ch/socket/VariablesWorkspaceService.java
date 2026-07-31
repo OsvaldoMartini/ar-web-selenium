@@ -14,12 +14,18 @@ import com.allinweb.ch.facade.VariablesInstructionMutationProfile;
 import com.allinweb.ch.facade.VariablesReactAuthoredMutationProfile;
 import com.allinweb.ch.facade.VariablesVariableDeleteService;
 import com.allinweb.ch.facade.VariablesVariableDeleteTransaction.DeleteResult;
+import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.actions.RuntimeVariableMemoryRegistry;
 import com.allinweb.ch.facade.actions.RuntimeVariableMemoryRegistry.BotJobKey;
 import com.allinweb.ch.facade.actions.RuntimeVariableMemoryRegistry.Definition;
 import com.allinweb.ch.facade.actions.RuntimeVariableMemoryRegistry.Snapshot;
 import com.allinweb.ch.facade.actions.RuntimeVariableMemoryRegistry.ValueSource;
 import com.allinweb.ch.facade.actions.RuntimeVariableValue.VoidReason;
+import com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableModels.DefinitionDraft;
+import com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableModels.MutationResult;
+import com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableModels.OwnerKey;
+import com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableModels.ValueState;
+import com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableService;
 import com.allinweb.ch.model.DetachedWorkspaceSessions;
 import com.allinweb.ch.model.InstructionGraphMutationV3;
 import com.allinweb.ch.model.VariablesInstructionCopyV1;
@@ -28,11 +34,13 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.HashMap;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -72,7 +80,8 @@ public final class VariablesWorkspaceService {
                      DefaultTaskPort.INSTANCE,
                      DefaultMutationPort.INSTANCE,
                      DefaultVariableDeletePort.INSTANCE,
-                     DefaultInstructionCopyPort.INSTANCE);
+                     DefaultInstructionCopyPort.INSTANCE,
+                     DurableRuntimeMemoryPort.INSTANCE);
 
     static {
         RUNTIME_MEMORY.addChangeListener(
@@ -87,6 +96,7 @@ public final class VariablesWorkspaceService {
     private final MutationPort mutations;
     private final VariableDeletePort variableDeletes;
     private final InstructionCopyPort instructionCopies;
+    private final RuntimeMemoryPort runtimeMemory;
     private final Object stateLock = new Object();
     private final Map<BotJobKey, Long> pendingRuntimeMemoryRevisions =
             new ConcurrentHashMap<>();
@@ -172,6 +182,28 @@ public final class VariablesWorkspaceService {
             MutationPort mutations,
             VariableDeletePort variableDeletes,
             InstructionCopyPort instructionCopies) {
+        this(
+                workspaces,
+                graphs,
+                windows,
+                gson,
+                tasks,
+                mutations,
+                variableDeletes,
+                instructionCopies,
+                LegacyRuntimeMemoryPort.INSTANCE);
+    }
+
+    VariablesWorkspaceService(
+            WorkspacePort workspaces,
+            GraphPort graphs,
+            WindowPort windows,
+            Gson gson,
+            TaskPort tasks,
+            MutationPort mutations,
+            VariableDeletePort variableDeletes,
+            InstructionCopyPort instructionCopies,
+            RuntimeMemoryPort runtimeMemory) {
         this.workspaces = workspaces;
         this.graphs = graphs;
         this.windows = windows;
@@ -180,6 +212,7 @@ public final class VariablesWorkspaceService {
         this.mutations = mutations;
         this.variableDeletes = variableDeletes;
         this.instructionCopies = instructionCopies;
+        this.runtimeMemory = runtimeMemory;
     }
 
     public static VariablesWorkspaceService getInstance() {
@@ -292,50 +325,25 @@ public final class VariablesWorkspaceService {
     }
 
     /**
-     * Updates one process-local runtime value from the exact authoritative Variables transport.
+     * Persists one exact runtime value from the authoritative Variables transport.
      *
-     * <p>The Bot Job owner always comes from the backend binding. Client owner IDs are ignored,
-     * and a current definition reload proves that the requested numeric variable belongs to that
-     * Bot Job before any value is changed.
+     * <p>The database transaction is the authority. Empty text remains {@code VALUE("")}; only an
+     * explicit CLEAR request produces VOID. Both the Bot Job-wide revision and the entry revision
+     * are checked by the same transaction before the committed snapshot is returned.
      */
     public JsonObject updateRuntimeMemory(
             JsonObject body, String requesterSessionId, Session requesterTransport) {
         JsonObject request = body == null ? new JsonObject() : body;
         Binding current = null;
         try {
-            requireManagerTransport(requesterSessionId, requesterTransport);
-            current = currentBinding();
-            if (current == null) {
-                throw new IllegalArgumentException(
-                        "No Bot Job is bound to the Variables workspace.");
-            }
-            String requestedBindingEpoch = text(request, "bindingEpoch");
-            if (requestedBindingEpoch.isBlank()
-                    || !requestedBindingEpoch.equals(current.bindingEpoch())) {
-                throw new IllegalArgumentException(
-                        "The Variables target changed. Reload the current Bot Job.");
-            }
-
-            WorkspaceContext workspace =
-                    workspaces.require(current.botJobId(), current.workspaceEpoch());
-            current = current.withWorkspace(workspace);
-            JsonObject graph = graphs.load(current.botJobId());
-            if (!isSuccessful(graph)) {
-                throw new IllegalStateException(
-                        "Runtime variable definitions could not be refreshed.");
-            }
-            Snapshot before = reconcileRuntimeMemory(graph, current);
-            BotJobKey owner = runtimeOwner(current);
-            int variableId = positiveInteger(request, "variableId");
-            if (variableId <= 0 || !RUNTIME_MEMORY.containsDefinition(owner, variableId)) {
-                throw new IllegalArgumentException(
-                        "The runtime variable does not belong to the current Bot Job.");
-            }
-            if (!isCurrent(current) || !isManagerTransport(requesterTransport)) {
-                throw new IllegalArgumentException(
-                        "The Variables target changed while runtime memory was loading.");
-            }
-            workspaces.require(current.botJobId(), current.workspaceEpoch());
+            current = authorizeRuntimeRequest(
+                    request, requesterSessionId, requesterTransport);
+            requireContractVersion(request);
+            long variableId = positiveLong(request, "variableId");
+            long baseRuntimeRevision = nonNegativeLong(
+                    request, "baseRuntimeRevision", true);
+            long expectedEntryRevision = nonNegativeLong(
+                    request, "expectedEntryRevision", true);
 
             String operation = text(request, "operation")
                     .trim()
@@ -362,43 +370,25 @@ public final class VariablesWorkspaceService {
                         "Runtime memory supports only SET or CLEAR.");
             }
 
-            // Retarget and retirement both use stateLock. Holding it across the process-local
-            // replacement closes the final authorization/write race: a request for the prior
-            // binding can no longer update that prior Bot Job after the window is retargeted.
-            boolean updated;
-            synchronized (stateLock) {
-                if (binding == null
-                        || !binding.bindingEpoch().equals(current.bindingEpoch())
-                        || managerTransport != requesterTransport) {
-                    throw new IllegalArgumentException(
-                            "The Variables target changed before runtime memory was updated.");
-                }
-                updated = "SET".equals(operation)
-                        ? RUNTIME_MEMORY.write(
-                                owner,
-                                variableId,
-                                replacementValue,
-                                ValueSource.MANUAL)
-                        : RUNTIME_MEMORY.markVoid(
-                                owner,
-                                variableId,
-                                VoidReason.NO_PRODUCER_YET,
-                                ValueSource.MANUAL);
-            }
-            if (!updated) {
-                throw new IllegalArgumentException(
-                        "The runtime variable definition changed before it could be updated.");
-            }
-            Snapshot after = RUNTIME_MEMORY.snapshot(owner);
-            JsonObject response = success(
-                    request,
-                    current,
-                    after.revision() == before.revision()
-                            ? "Runtime variable already had that value."
-                            : "Runtime variable updated.");
-            response.addProperty("memoryRevision", after.revision());
-            response.add("runtimeMemory", gson.toJsonTree(after));
-            return response;
+            final Binding authorized = current;
+            final String exactReplacementValue = replacementValue;
+            final String authorizedOperation = operation;
+            RuntimeMemoryMutation committed = commitAuthorizedRuntimeMutation(
+                    authorized,
+                    requesterTransport,
+                    () -> "SET".equals(authorizedOperation)
+                            ? runtimeMemory.setValue(
+                                    authorized,
+                                    variableId,
+                                    exactReplacementValue,
+                                    baseRuntimeRevision,
+                                    expectedEntryRevision)
+                            : runtimeMemory.clearValue(
+                                    authorized,
+                                    variableId,
+                                    baseRuntimeRevision,
+                                    expectedEntryRevision));
+            return runtimeMutationResponse(request, current, committed);
         } catch (IllegalArgumentException | IllegalStateException refused) {
             return failure(
                     request,
@@ -409,6 +399,88 @@ public final class VariablesWorkspaceService {
             return failure(
                     request,
                     "The runtime variable value could not be updated.",
+                    current == null ? currentBinding() : current);
+        }
+    }
+
+    /** Creates one independent Bot Job variable. It has no producer and defaults to VOID. */
+    public JsonObject createVariable(
+            JsonObject body, String requesterSessionId, Session requesterTransport) {
+        JsonObject request = body == null ? new JsonObject() : body;
+        Binding current = null;
+        try {
+            current = authorizeRuntimeRequest(
+                    request, requesterSessionId, requesterTransport);
+            requireContractVersion(request);
+            String name = text(request, "name").trim();
+            if (name.isBlank()) {
+                throw new IllegalArgumentException("Variable name is required.");
+            }
+            String requestedState = text(request, "initialState").trim();
+            if (!requestedState.isBlank()
+                    && !ValueState.VOID.name().equalsIgnoreCase(requestedState)) {
+                throw new IllegalArgumentException(
+                        "New independent variables must begin as VOID.");
+            }
+
+            final Binding authorized = current;
+            RuntimeMemoryMutation committed = commitAuthorizedRuntimeMutation(
+                    authorized,
+                    requesterTransport,
+                    () -> runtimeMemory.create(
+                            authorized, name, ValueState.VOID, null));
+            JsonObject response = runtimeMutationResponse(
+                    request, current, committed);
+            if (committed.variableId() != null) {
+                response.addProperty("variableId", committed.variableId());
+                response.addProperty("createdVariableId", committed.variableId());
+            }
+            if (committed.applied()) {
+                notifyMutation(current.botJobId());
+            }
+            return response;
+        } catch (IllegalArgumentException | IllegalStateException refused) {
+            return failure(
+                    request,
+                    refused.getMessage(),
+                    current == null ? currentBinding() : current);
+        } catch (RuntimeException failure) {
+            log.error("Unable to create Variables definition", failure);
+            return failure(
+                    request,
+                    "The variable definition could not be created.",
+                    current == null ? currentBinding() : current);
+        }
+    }
+
+    /** Atomically resets every current value to VOID without deleting definitions or links. */
+    public JsonObject clearAllRuntimeMemory(
+            JsonObject body, String requesterSessionId, Session requesterTransport) {
+        JsonObject request = body == null ? new JsonObject() : body;
+        Binding current = null;
+        try {
+            current = authorizeRuntimeRequest(
+                    request, requesterSessionId, requesterTransport);
+            requireContractVersion(request);
+            long baseRuntimeRevision = nonNegativeLong(
+                    request, "baseRuntimeRevision", true);
+            final Binding authorized = current;
+            RuntimeMemoryMutation committed = commitAuthorizedRuntimeMutation(
+                    authorized,
+                    requesterTransport,
+                    () -> runtimeMemory.clearAll(
+                            authorized, baseRuntimeRevision));
+            return runtimeMutationResponse(request, current, committed);
+        } catch (IllegalArgumentException | IllegalStateException refused) {
+            return failure(
+                    request,
+                    refused.getMessage(),
+                    current == null ? currentBinding() : current);
+        } catch (RuntimeException failure) {
+            log.error("Unable to clear Variables runtime memory", failure);
+            return failure(
+                    request,
+                    "Runtime values could not be cleared.",
                     current == null ? currentBinding() : current);
         }
     }
@@ -905,9 +977,11 @@ public final class VariablesWorkspaceService {
             payload.addProperty("workspaceEpoch", current.workspaceEpoch());
             payload.addProperty("botJobId", current.botJobId());
             payload.addProperty("homeBankingId", current.homeBankingId());
-            Snapshot snapshot = RUNTIME_MEMORY.snapshot(owner);
-            payload.addProperty("memoryRevision", snapshot.revision());
-            payload.add("runtimeMemory", gson.toJsonTree(snapshot));
+            JsonObject snapshot = runtimeMemory.hydrate(current, null);
+            payload.addProperty(
+                    "memoryRevision",
+                    nonNegativeLong(snapshot, "revision", true));
+            payload.add("runtimeMemory", snapshot);
             return windows.send(
                     current.homeBankingId(),
                     WORKSPACE_SESSION_ID,
@@ -1113,8 +1187,8 @@ public final class VariablesWorkspaceService {
         if (!contentRevision.isBlank()) {
             response.addProperty("contentRevision", contentRevision);
         }
-        Snapshot runtimeMemory = reconcileRuntimeMemory(graph, current);
-        response.add("runtimeMemory", gson.toJsonTree(runtimeMemory));
+        JsonObject durableRuntimeMemory = runtimeMemory.hydrate(current, graph);
+        response.add("runtimeMemory", durableRuntimeMemory);
         addMutationCapability(response, current);
         response.addProperty("message", message);
         response.addProperty("bindingEpoch", current.bindingEpoch());
@@ -1129,33 +1203,137 @@ public final class VariablesWorkspaceService {
         return response;
     }
 
-    private Snapshot reconcileRuntimeMemory(JsonObject graph, Binding current) {
-        return reconcileRuntimeMemory(graph, runtimeOwner(current));
+    private JsonObject reconcileRuntimeMemory(JsonObject graph, Binding current) {
+        return runtimeMemory.hydrate(current, graph);
     }
 
-    private Snapshot reconcileRuntimeMemory(JsonObject graph, BotJobKey owner) {
-        List<Definition> definitions = new ArrayList<>();
-        JsonArray rows = graph != null
-                        && graph.has("rawVariables")
-                        && graph.get("rawVariables").isJsonArray()
-                ? graph.getAsJsonArray("rawVariables")
-                : new JsonArray();
-        for (JsonElement item : rows) {
-            if (item == null || !item.isJsonObject()) continue;
-            JsonObject row = item.getAsJsonObject();
-            int variableId = positiveInteger(row, "id");
-            if (variableId <= 0) continue;
-            definitions.add(new Definition(
-                    variableId,
-                    text(row, "name"),
-                    text(row, "type")));
+    private JsonObject reconcileRuntimeMemory(JsonObject graph, BotJobKey owner) {
+        Binding current = currentBinding();
+        if (current == null
+                || current.homeBankingId() != owner.homeBankingId()
+                || current.botJobId() != owner.botJobId()) {
+            return new JsonObject();
         }
-        return RUNTIME_MEMORY.reconcileDefinitions(
-                owner, definitions, true);
+        return runtimeMemory.hydrate(current, graph);
     }
 
     private static BotJobKey runtimeOwner(Binding current) {
         return new BotJobKey(current.homeBankingId(), current.botJobId());
+    }
+
+    private Binding authorizeRuntimeRequest(
+            JsonObject request,
+            String requesterSessionId,
+            Session requesterTransport) {
+        requireManagerTransport(requesterSessionId, requesterTransport);
+        Binding current = currentBinding();
+        if (current == null) {
+            throw new IllegalArgumentException(
+                    "No Bot Job is bound to the Variables workspace.");
+        }
+        String requestedBindingEpoch = text(request, "bindingEpoch");
+        if (requestedBindingEpoch.isBlank()
+                || !requestedBindingEpoch.equals(current.bindingEpoch())) {
+            throw new IllegalArgumentException(
+                    "The Variables target changed. Reload the current Bot Job.");
+        }
+        long requestedWorkspaceEpoch = nonNegativeLong(
+                request, "workspaceEpoch", true);
+        if (requestedWorkspaceEpoch != current.workspaceEpoch()) {
+            throw new IllegalArgumentException(
+                    "The Variables workspace changed. Reload the current Bot Job.");
+        }
+        WorkspaceContext workspace =
+                workspaces.require(current.botJobId(), current.workspaceEpoch());
+        current = current.withWorkspace(workspace);
+        if (!isCurrent(current) || !isManagerTransport(requesterTransport)) {
+            throw new IllegalArgumentException(
+                    "The Variables target changed before the request was saved.");
+        }
+        return current;
+    }
+
+    private RuntimeMemoryMutation commitAuthorizedRuntimeMutation(
+            Binding authorized,
+            Session requesterTransport,
+            RuntimeMutationSupplier mutation) {
+        synchronized (stateLock) {
+            if (binding == null
+                    || !binding.bindingEpoch().equals(authorized.bindingEpoch())
+                    || binding.workspaceEpoch() != authorized.workspaceEpoch()
+                    || managerTransport != requesterTransport) {
+                throw new IllegalArgumentException(
+                        "The Variables target changed before the request was saved.");
+            }
+            return mutation.get();
+        }
+    }
+
+    private JsonObject runtimeMutationResponse(
+            JsonObject request,
+            Binding current,
+            RuntimeMemoryMutation committed) {
+        if (!committed.applied()) {
+            JsonObject refused = failure(request, committed.message(), current);
+            refused.addProperty("errorCode", committed.status());
+            if (committed.runtimeMemory() != null) {
+                refused.add("runtimeMemory", committed.runtimeMemory());
+            }
+            return refused;
+        }
+        JsonObject response = success(request, current, committed.message());
+        response.add("runtimeMemory", committed.runtimeMemory());
+        response.addProperty(
+                "memoryRevision",
+                nonNegativeLong(committed.runtimeMemory(), "revision", true));
+        return response;
+    }
+
+    private static void requireContractVersion(JsonObject request) {
+        if (positiveInteger(request, "contractVersion") != 1) {
+            throw new IllegalArgumentException(
+                    "Variables runtime-memory contract version 1 is required.");
+        }
+    }
+
+    private static String exactText(JsonObject source, String field) {
+        if (source == null || !source.has(field) || source.get(field).isJsonNull()) {
+            throw new IllegalArgumentException(field + " is required.");
+        }
+        try {
+            return source.get(field).getAsString();
+        } catch (RuntimeException invalid) {
+            throw new IllegalArgumentException(field + " must be text.");
+        }
+    }
+
+    private static long positiveLong(JsonObject source, String field) {
+        long value = nonNegativeLong(source, field, true);
+        if (value <= 0L) {
+            throw new IllegalArgumentException(field + " must be positive.");
+        }
+        return value;
+    }
+
+    private static long nonNegativeLong(
+            JsonObject source, String field, boolean required) {
+        try {
+            if (source == null || !source.has(field) || source.get(field).isJsonNull()) {
+                if (required) {
+                    throw new IllegalArgumentException(field + " is required.");
+                }
+                return 0L;
+            }
+            long value = source.get(field).getAsLong();
+            if (value < 0L) {
+                throw new IllegalArgumentException(field + " cannot be negative.");
+            }
+            return value;
+        } catch (IllegalArgumentException invalid) {
+            throw invalid;
+        } catch (RuntimeException invalid) {
+            throw new IllegalArgumentException(field + " is invalid.");
+        }
     }
 
     private void addMutationCapability(JsonObject response, Binding current) {
@@ -1665,6 +1843,45 @@ public final class VariablesWorkspaceService {
                 throws SQLException;
     }
 
+    interface RuntimeMemoryPort {
+        JsonObject hydrate(Binding owner, JsonObject graph);
+
+        RuntimeMemoryMutation setValue(
+                Binding owner,
+                long variableId,
+                String rawValue,
+                long baseRuntimeRevision,
+                long expectedEntryRevision);
+
+        RuntimeMemoryMutation clearValue(
+                Binding owner,
+                long variableId,
+                long baseRuntimeRevision,
+                long expectedEntryRevision);
+
+        RuntimeMemoryMutation create(
+                Binding owner,
+                String name,
+                ValueState initialState,
+                String rawValue);
+
+        RuntimeMemoryMutation clearAll(
+                Binding owner,
+                long baseRuntimeRevision);
+    }
+
+    @FunctionalInterface
+    interface RuntimeMutationSupplier {
+        RuntimeMemoryMutation get();
+    }
+
+    record RuntimeMemoryMutation(
+            boolean applied,
+            String status,
+            String message,
+            JsonObject runtimeMemory,
+            Long variableId) {}
+
     record WorkspaceContext(
             long workspaceEpoch,
             int botJobId,
@@ -1732,6 +1949,310 @@ public final class VariablesWorkspaceService {
     private static final class InstructionCopyPersistenceException extends RuntimeException {
         private InstructionCopyPersistenceException(SQLException cause) {
             super(cause);
+        }
+    }
+
+    private enum DurableRuntimeMemoryPort implements RuntimeMemoryPort {
+        INSTANCE;
+
+        private final BotJobRuntimeVariableService service =
+                new BotJobRuntimeVariableService();
+
+        @Override
+        public JsonObject hydrate(Binding owner, JsonObject graph) {
+            try (Connection connection =
+                    PerformDataBase.getInstance().getConnection()) {
+                var snapshot = service.hydrate(connection, durableOwner(owner));
+                RUNTIME_MEMORY.hydrateDurableSnapshot(snapshot);
+                return runtimeMemoryJson(snapshot);
+            } catch (SQLException failure) {
+                throw new IllegalStateException(
+                        "Durable runtime memory could not be loaded.", failure);
+            }
+        }
+
+        @Override
+        public RuntimeMemoryMutation setValue(
+                Binding owner,
+                long variableId,
+                String rawValue,
+                long baseRuntimeRevision,
+                long expectedEntryRevision) {
+            try (Connection connection =
+                    PerformDataBase.getInstance().getConnection()) {
+                return mutation(service.setValue(
+                        connection,
+                        durableOwner(owner),
+                        variableId,
+                        rawValue,
+                        com.allinweb.ch.facade.variables.runtime
+                                .BotJobRuntimeVariableModels.ValueSource.MANUAL,
+                        null,
+                        baseRuntimeRevision,
+                        expectedEntryRevision));
+            } catch (SQLException failure) {
+                throw new IllegalStateException(
+                        "Durable runtime value could not be saved.", failure);
+            }
+        }
+
+        @Override
+        public RuntimeMemoryMutation clearValue(
+                Binding owner,
+                long variableId,
+                long baseRuntimeRevision,
+                long expectedEntryRevision) {
+            try (Connection connection =
+                    PerformDataBase.getInstance().getConnection()) {
+                return mutation(service.clearValue(
+                        connection,
+                        durableOwner(owner),
+                        variableId,
+                        com.allinweb.ch.facade.variables.runtime
+                                .BotJobRuntimeVariableModels.VoidReason.NO_PRODUCER_YET,
+                        com.allinweb.ch.facade.variables.runtime
+                                .BotJobRuntimeVariableModels.ValueSource.MANUAL,
+                        null,
+                        baseRuntimeRevision,
+                        expectedEntryRevision));
+            } catch (SQLException failure) {
+                throw new IllegalStateException(
+                        "Durable runtime value could not be cleared.", failure);
+            }
+        }
+
+        @Override
+        public RuntimeMemoryMutation create(
+                Binding owner,
+                String name,
+                ValueState initialState,
+                String rawValue) {
+            DefinitionDraft draft = new DefinitionDraft(
+                    "$String",
+                    name,
+                    null,
+                    null,
+                    null,
+                    null,
+                    initialState,
+                    initialState == ValueState.VALUE ? rawValue : null);
+            try (Connection connection =
+                    PerformDataBase.getInstance().getConnection()) {
+                return mutation(service.createDefinition(
+                        connection, durableOwner(owner), draft, null));
+            } catch (SQLException failure) {
+                throw new IllegalStateException(
+                        "Durable variable definition could not be created.", failure);
+            }
+        }
+
+        @Override
+        public RuntimeMemoryMutation clearAll(
+                Binding owner,
+                long baseRuntimeRevision) {
+            try (Connection connection =
+                    PerformDataBase.getInstance().getConnection()) {
+                return mutation(service.clearAll(
+                        connection,
+                        durableOwner(owner),
+                        baseRuntimeRevision,
+                        com.allinweb.ch.facade.variables.runtime
+                                .BotJobRuntimeVariableModels.VoidReason.CLIENT_RESET,
+                        com.allinweb.ch.facade.variables.runtime
+                                .BotJobRuntimeVariableModels.ValueSource.RESET,
+                        null));
+            } catch (SQLException failure) {
+                throw new IllegalStateException(
+                        "Durable runtime values could not be cleared.", failure);
+            }
+        }
+
+        private static RuntimeMemoryMutation mutation(MutationResult result) {
+            if (result.snapshot() != null) {
+                // The database committed first. Only then is the execution cache replaced and its
+                // listener allowed to publish the committed revision.
+                RUNTIME_MEMORY.hydrateDurableSnapshot(result.snapshot());
+            }
+            JsonObject snapshot = result.snapshot() == null
+                    ? null
+                    : runtimeMemoryJson(result.snapshot());
+            return new RuntimeMemoryMutation(
+                    result.applied(),
+                    result.status().name(),
+                    result.message() == null ? "" : result.message(),
+                    snapshot,
+                    result.definition() == null ? null : result.definition().id());
+        }
+
+        private static OwnerKey durableOwner(Binding owner) {
+            return new OwnerKey(owner.homeBankingId(), owner.botJobId());
+        }
+
+        private static JsonObject runtimeMemoryJson(
+                com.allinweb.ch.facade.variables.runtime
+                        .BotJobRuntimeVariableModels.Snapshot snapshot) {
+            JsonObject json = new JsonObject();
+            json.addProperty("revision", snapshot.memory().runtimeRevision());
+            json.addProperty("resetGeneration", snapshot.memory().resetGeneration());
+            Map<Long, com.allinweb.ch.facade.variables.runtime
+                            .BotJobRuntimeVariableModels.RuntimeValue>
+                    values = new HashMap<>();
+            snapshot.values().forEach(value -> values.put(value.variableId(), value));
+            JsonArray rows = new JsonArray();
+            for (com.allinweb.ch.facade.variables.runtime
+                    .BotJobRuntimeVariableModels.Definition definition
+                    : snapshot.definitions()) {
+                var value = values.get(definition.id());
+                JsonObject row = new JsonObject();
+                row.addProperty("variableId", definition.id());
+                row.addProperty("name", definition.name());
+                row.addProperty(
+                        "type",
+                        definition.type() == null ? "" : definition.type());
+                if (value == null) {
+                    row.addProperty("state", ValueState.VOID.name());
+                    row.addProperty("value", "");
+                    row.addProperty("voidReason", "NO_PRODUCER_YET");
+                    row.addProperty("entryRevision", 0L);
+                    row.addProperty("source", "SYSTEM");
+                } else {
+                    row.addProperty("state", value.state().name());
+                    row.addProperty(
+                            "value",
+                            value.state() == ValueState.VALUE
+                                    ? value.rawValue()
+                                    : "");
+                    if (value.voidReason() == null) {
+                        row.add("voidReason", com.google.gson.JsonNull.INSTANCE);
+                    } else {
+                        row.addProperty("voidReason", value.voidReason().name());
+                    }
+                    row.addProperty("entryRevision", value.entryRevision());
+                    row.addProperty("source", value.source().name());
+                }
+                rows.add(row);
+            }
+            json.add("variables", rows);
+            return json;
+        }
+    }
+
+    /**
+     * Test-only compatibility adapter for package-private constructors. Production always uses the
+     * durable port above.
+     */
+    private enum LegacyRuntimeMemoryPort implements RuntimeMemoryPort {
+        INSTANCE;
+
+        @Override
+        public JsonObject hydrate(Binding owner, JsonObject graph) {
+            if (graph == null) {
+                return new Gson()
+                        .toJsonTree(RUNTIME_MEMORY.snapshot(runtimeOwner(owner)))
+                        .getAsJsonObject();
+            }
+            List<Definition> definitions = new ArrayList<>();
+            JsonArray rows = graph != null
+                            && graph.has("rawVariables")
+                            && graph.get("rawVariables").isJsonArray()
+                    ? graph.getAsJsonArray("rawVariables")
+                    : new JsonArray();
+            for (JsonElement item : rows) {
+                if (item == null || !item.isJsonObject()) continue;
+                JsonObject row = item.getAsJsonObject();
+                int variableId = positiveInteger(row, "id");
+                if (variableId <= 0) continue;
+                definitions.add(new Definition(
+                        variableId,
+                        text(row, "name"),
+                        text(row, "type")));
+            }
+            Snapshot snapshot = RUNTIME_MEMORY.reconcileDefinitions(
+                    runtimeOwner(owner), definitions, true);
+            return new Gson().toJsonTree(snapshot).getAsJsonObject();
+        }
+
+        @Override
+        public RuntimeMemoryMutation setValue(
+                Binding owner,
+                long variableId,
+                String rawValue,
+                long baseRuntimeRevision,
+                long expectedEntryRevision) {
+            BotJobKey key = runtimeOwner(owner);
+            Snapshot before = RUNTIME_MEMORY.snapshot(key);
+            if (before.revision() != baseRuntimeRevision
+                    || before.variables().stream()
+                            .filter(value -> value.variableId() == variableId)
+                            .noneMatch(value ->
+                                    value.entryRevision() == expectedEntryRevision)) {
+                return refused(before, "STALE_RUNTIME_REVISION");
+            }
+            boolean applied = RUNTIME_MEMORY.write(
+                    key, Math.toIntExact(variableId), rawValue, ValueSource.MANUAL);
+            return result(key, applied, "Runtime variable updated.");
+        }
+
+        @Override
+        public RuntimeMemoryMutation clearValue(
+                Binding owner,
+                long variableId,
+                long baseRuntimeRevision,
+                long expectedEntryRevision) {
+            BotJobKey key = runtimeOwner(owner);
+            Snapshot before = RUNTIME_MEMORY.snapshot(key);
+            if (before.revision() != baseRuntimeRevision
+                    || before.variables().stream()
+                            .filter(value -> value.variableId() == variableId)
+                            .noneMatch(value ->
+                                    value.entryRevision() == expectedEntryRevision)) {
+                return refused(before, "STALE_RUNTIME_REVISION");
+            }
+            boolean applied = RUNTIME_MEMORY.markVoid(
+                    key,
+                    Math.toIntExact(variableId),
+                    VoidReason.NO_PRODUCER_YET,
+                    ValueSource.MANUAL);
+            return result(key, applied, "Runtime variable cleared.");
+        }
+
+        @Override
+        public RuntimeMemoryMutation create(
+                Binding owner,
+                String name,
+                ValueState initialState,
+                String rawValue) {
+            throw new IllegalStateException(
+                    "Variable creation is unavailable in this test service.");
+        }
+
+        @Override
+        public RuntimeMemoryMutation clearAll(
+                Binding owner,
+                long baseRuntimeRevision) {
+            throw new IllegalStateException(
+                    "Clear All Values is unavailable in this test service.");
+        }
+
+        private static RuntimeMemoryMutation result(
+                BotJobKey owner, boolean applied, String message) {
+            Snapshot snapshot = RUNTIME_MEMORY.snapshot(owner);
+            return new RuntimeMemoryMutation(
+                    applied,
+                    applied ? "APPLIED" : "VARIABLE_NOT_FOUND",
+                    message,
+                    new Gson().toJsonTree(snapshot).getAsJsonObject(),
+                    null);
+        }
+
+        private static RuntimeMemoryMutation refused(
+                Snapshot snapshot, String status) {
+            return new RuntimeMemoryMutation(
+                    false,
+                    status,
+                    "Runtime memory revision changed.",
+                    new Gson().toJsonTree(snapshot).getAsJsonObject(),
+                    null);
         }
     }
 

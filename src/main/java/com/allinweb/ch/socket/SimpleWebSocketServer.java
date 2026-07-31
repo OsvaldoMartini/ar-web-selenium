@@ -117,6 +117,8 @@ public class SimpleWebSocketServer {
             "variablesWorkspace.bootstrap",
             "variablesWorkspace.refresh",
             "variablesWorkspace.runtimeMemory.update",
+            "variablesWorkspace.runtimeMemory.clearAll",
+            "variablesWorkspace.variables.create",
             "variablesWorkspace.graphMutationV3",
             "variablesWorkspace.instructions.copy",
             "variablesWorkspace.variables.delete",
@@ -903,6 +905,26 @@ public class SimpleWebSocketServer {
                             sessionId,
                             "variablesWorkspace.runtimeMemory.updateResponse",
                             variablesWorkspaceService.updateRuntimeMemory(
+                                    variablesBody, sessionId, session));
+                    break;
+                }
+                case "variablesWorkspace.runtimeMemory.clearAll": {
+                    JsonObject variablesBody = extractBody(jsonObjMSG);
+                    sendCommandEditorResponse(
+                            homeBankingId,
+                            sessionId,
+                            "variablesWorkspace.runtimeMemory.clearAllResponse",
+                            variablesWorkspaceService.clearAllRuntimeMemory(
+                                    variablesBody, sessionId, session));
+                    break;
+                }
+                case "variablesWorkspace.variables.create": {
+                    JsonObject variablesBody = extractBody(jsonObjMSG);
+                    sendCommandEditorResponse(
+                            homeBankingId,
+                            sessionId,
+                            "variablesWorkspace.variables.createResponse",
+                            variablesWorkspaceService.createVariable(
                                     variablesBody, sessionId, session));
                     break;
                 }

@@ -85,6 +85,8 @@ class VariablesWorkspaceAuthorizationTest {
                         "variablesWorkspace.bootstrap",
                         "variablesWorkspace.refresh",
                         "variablesWorkspace.runtimeMemory.update",
+                        "variablesWorkspace.runtimeMemory.clearAll",
+                        "variablesWorkspace.variables.create",
                         "variablesWorkspace.graphMutationV3",
                         "variablesWorkspace.instructions.copy",
                         "variablesWorkspace.variables.delete",

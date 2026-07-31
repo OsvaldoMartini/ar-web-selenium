@@ -132,11 +132,14 @@ public final class ExecutionPreflightSnapshotRepository {
     private List<VariableFact> loadVariables(Connection connection, Owner owner)
             throws SQLException {
         String sql =
-                "SELECT id, type, instruction_id"
-                        + " FROM variable WHERE bot_job_id = ? ORDER BY id";
+                "SELECT id, variable_type AS type,"
+                        + " producer_instruction_id AS instruction_id"
+                        + " FROM bot_job_variable_definition"
+                        + " WHERE home_banking_id = ? AND bot_job_id = ? ORDER BY id";
         List<VariableFact> result = new ArrayList<>();
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
-            statement.setInt(1, owner.botJobId());
+            statement.setInt(1, owner.homeBankingId());
+            statement.setInt(2, owner.botJobId());
             try (ResultSet rows = statement.executeQuery()) {
                 while (rows.next()) {
                     result.add(new VariableFact(

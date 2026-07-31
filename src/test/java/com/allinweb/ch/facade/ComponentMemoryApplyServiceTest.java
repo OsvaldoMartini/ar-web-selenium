@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.allinweb.ch.db.migrations.M20260730_BotJobRuntimeVariables;
 import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.model.ReferenceLoadDTO;
 import com.allinweb.ch.model.VariableLoadDTO;
@@ -53,7 +54,8 @@ class ComponentMemoryApplyServiceTest {
                     scalar(
                             statement,
                             "SELECT COUNT(*) FROM instruction WHERE bot_job_id=5"));
-            assertEquals(1, scalar(statement, "SELECT COUNT(*) FROM variable WHERE bot_job_id=5"));
+            assertEquals(1, scalar(statement,
+                    "SELECT COUNT(*) FROM bot_job_variable_definition WHERE bot_job_id=5"));
             assertEquals(1, scalar(statement, "SELECT COUNT(*) FROM reference WHERE bot_job_id=5"));
 
             try (ResultSet rows = statement.executeQuery(
@@ -275,7 +277,8 @@ class ComponentMemoryApplyServiceTest {
                             "SELECT COUNT(*) FROM instruction WHERE bot_job_id=5"));
             assertEquals(
                     0,
-                    scalar(statement, "SELECT COUNT(*) FROM variable WHERE bot_job_id=5"));
+                    scalar(statement,
+                            "SELECT COUNT(*) FROM bot_job_variable_definition WHERE bot_job_id=5"));
         }
     }
 
@@ -376,7 +379,8 @@ class ComponentMemoryApplyServiceTest {
                     scalar(
                             statement,
                             "SELECT COUNT(*) FROM instruction WHERE bot_job_id=5 AND block_id=10"));
-            assertEquals(1, scalar(statement, "SELECT COUNT(*) FROM variable WHERE bot_job_id=5"));
+            assertEquals(1, scalar(statement,
+                    "SELECT COUNT(*) FROM bot_job_variable_definition WHERE bot_job_id=5"));
             assertEquals(1, scalar(statement, "SELECT COUNT(*) FROM reference WHERE bot_job_id=5"));
             try (ResultSet rows = statement.executeQuery(
                     "SELECT id,name,parent_id,parent_block_id,variable_id "
@@ -800,10 +804,11 @@ class ComponentMemoryApplyServiceTest {
             int generatedVariableId;
             int generatedVariableOwner;
             try (ResultSet variable = statement.executeQuery(
-                    "SELECT id,instruction_id FROM variable WHERE bot_job_id=5")) {
+                    "SELECT id,producer_instruction_id FROM bot_job_variable_definition"
+                            + " WHERE bot_job_id=5")) {
                 assertTrue(variable.next());
                 generatedVariableId = variable.getInt("id");
-                generatedVariableOwner = variable.getInt("instruction_id");
+                generatedVariableOwner = variable.getInt("producer_instruction_id");
                 assertTrue(generatedVariableId != 201);
                 assertTrue(!variable.next());
             }
@@ -1036,7 +1041,8 @@ class ComponentMemoryApplyServiceTest {
                     scalar(
                             statement,
                             "SELECT COUNT(*) FROM instruction WHERE bot_job_id=5 AND block_id=11"));
-            assertEquals(2, scalar(statement, "SELECT COUNT(*) FROM variable WHERE bot_job_id=5"));
+            assertEquals(2, scalar(statement,
+                    "SELECT COUNT(*) FROM bot_job_variable_definition WHERE bot_job_id=5"));
             assertEquals(6, scalar(statement, "SELECT COUNT(*) FROM reference WHERE bot_job_id=5"));
 
             try (ResultSet source = statement.executeQuery(
@@ -1070,16 +1076,17 @@ class ComponentMemoryApplyServiceTest {
 
             int copiedVariableId;
             try (ResultSet variable = statement.executeQuery(
-                    "SELECT id,type,name,value,local_format,delimiter,instruction_id "
-                            + "FROM variable WHERE bot_job_id=5 AND id<>701")) {
+                    "SELECT id,variable_type,name,configured_value,local_format,delimiter,"
+                            + "producer_instruction_id FROM bot_job_variable_definition"
+                            + " WHERE bot_job_id=5 AND id<>701")) {
                 assertTrue(variable.next());
                 copiedVariableId = variable.getInt("id");
-                assertEquals("TEXT", variable.getString("type"));
+                assertEquals("TEXT", variable.getString("variable_type"));
                 assertEquals("balance", variable.getString("name"));
-                assertEquals("0", variable.getString("value"));
+                assertEquals("0", variable.getString("configured_value"));
                 assertEquals("CH", variable.getString("local_format"));
                 assertEquals(",", variable.getString("delimiter"));
-                assertEquals(copiedGetId, variable.getInt("instruction_id"));
+                assertEquals(copiedGetId, variable.getInt("producer_instruction_id"));
                 assertTrue(!variable.next());
             }
 
@@ -1148,7 +1155,8 @@ class ComponentMemoryApplyServiceTest {
         try (Connection connection = DriverManager.getConnection(url);
                 Statement statement = connection.createStatement()) {
             assertEquals(3, scalar(statement, "SELECT COUNT(*) FROM instruction WHERE bot_job_id=5"));
-            assertEquals(1, scalar(statement, "SELECT COUNT(*) FROM variable WHERE bot_job_id=5"));
+            assertEquals(1, scalar(statement,
+                    "SELECT COUNT(*) FROM bot_job_variable_definition WHERE bot_job_id=5"));
             assertEquals(3, scalar(statement, "SELECT COUNT(*) FROM reference WHERE bot_job_id=5"));
             assertEquals(
                     3,
@@ -1320,7 +1328,8 @@ class ComponentMemoryApplyServiceTest {
                     scalar(
                             statement,
                             "SELECT COUNT(*) FROM instruction WHERE bot_job_id=5 AND block_id=10"));
-            assertEquals(2, scalar(statement, "SELECT COUNT(*) FROM variable WHERE bot_job_id=5"));
+            assertEquals(2, scalar(statement,
+                    "SELECT COUNT(*) FROM bot_job_variable_definition WHERE bot_job_id=5"));
             assertEquals(6, scalar(statement, "SELECT COUNT(*) FROM reference WHERE bot_job_id=5"));
         }
     }
@@ -1371,7 +1380,8 @@ class ComponentMemoryApplyServiceTest {
                             "SELECT COUNT(*) FROM block WHERE bot_job_id=5"
                                     + " AND name='Must Roll Back'"));
             assertEquals(3, scalar(statement, "SELECT COUNT(*) FROM instruction WHERE bot_job_id=5"));
-            assertEquals(1, scalar(statement, "SELECT COUNT(*) FROM variable WHERE bot_job_id=5"));
+            assertEquals(1, scalar(statement,
+                    "SELECT COUNT(*) FROM bot_job_variable_definition WHERE bot_job_id=5"));
             assertEquals(3, scalar(statement, "SELECT COUNT(*) FROM reference WHERE bot_job_id=5"));
         }
     }
@@ -1549,7 +1559,8 @@ class ComponentMemoryApplyServiceTest {
                 Statement statement = connection.createStatement()) {
             assertEquals(2, scalar(statement, "SELECT COUNT(*) FROM block WHERE bot_job_id=5"));
             assertEquals(2, scalar(statement, "SELECT COUNT(*) FROM instruction WHERE bot_job_id=5"));
-            assertEquals(1, scalar(statement, "SELECT COUNT(*) FROM variable WHERE bot_job_id=5"));
+            assertEquals(1, scalar(statement,
+                    "SELECT COUNT(*) FROM bot_job_variable_definition WHERE bot_job_id=5"));
             assertEquals(1, scalar(statement, "SELECT COUNT(*) FROM reference WHERE bot_job_id=5"));
             assertEquals(
                     0,
@@ -1587,9 +1598,27 @@ class ComponentMemoryApplyServiceTest {
                             + "(503,3,'E','Extract Field',NULL,NULL,'Extract balance',NULL,"
                             + "1,10,701,10,501,5,NULL)");
             statement.execute(
+                    "INSERT INTO bot_job_variable_definition("
+                            + "home_banking_id,bot_job_id,id,variable_type,name,configured_value,"
+                            + "local_format,delimiter,producer_instruction_id,created_at,updated_at)"
+                            + " VALUES(2,5,701,'TEXT','balance','0','CH',',',502,"
+                            + "CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)");
+            // The graph-revision compatibility reader still consumes the retained legacy
+            // definition during this cutover. Keep the fixture mirrored until that reader is
+            // migrated; production copy/persistence assertions use the durable tables below.
+            statement.execute(
                     "INSERT INTO variable(id,type,name,value,local_format,delimiter,"
-                            + "instruction_id,bot_job_id) "
-                            + "VALUES(701,'TEXT','balance','0','CH',',',502,5)");
+                            + "instruction_id,bot_job_id)"
+                            + " VALUES(701,'TEXT','balance','0','CH',',',502,5)");
+            statement.execute(
+                    "INSERT INTO bot_job_runtime_variable_value("
+                            + "home_banking_id,bot_job_id,variable_id,value_state,raw_value,"
+                            + "void_reason,value_source,entry_revision,last_execution_id,updated_at)"
+                            + " VALUES(2,5,701,'VOID',NULL,'NO_PRODUCER_YET','SYSTEM',0,NULL,"
+                            + "CURRENT_TIMESTAMP)");
+            statement.execute(
+                    "UPDATE bot_job_runtime_memory SET next_variable_id=702"
+                            + " WHERE home_banking_id=2 AND bot_job_id=5");
             statement.execute(
                     "INSERT INTO reference(id,reference_type,value,instruction_id,bot_job_id) VALUES"
                             + "(801,'xpath','//input[@id=''balance'']',501,5),"
@@ -1663,6 +1692,7 @@ class ComponentMemoryApplyServiceTest {
             statement.execute(
                     "INSERT INTO component_reference(id,reference_type,value,instruction_id,"
                             + "home_banking_id) VALUES(301,'xpath','//button',101,2)");
+            new M20260730_BotJobRuntimeVariables().apply(connection, "TEXT");
         }
     }
 
@@ -1735,14 +1765,14 @@ class ComponentMemoryApplyServiceTest {
                 }
             }
             try (ResultSet result = statement.executeQuery(
-                    "SELECT id,instruction_id FROM variable "
+                    "SELECT id,producer_instruction_id FROM bot_job_variable_definition "
                             + "WHERE bot_job_id=5 ORDER BY id")) {
                 while (result.next()) {
                     variables.add(new VariableLoadDTO(
                             result.getInt("id"),
                             null,
                             5,
-                            (Integer) result.getObject("instruction_id"),
+                            (Integer) result.getObject("producer_instruction_id"),
                             null,
                             null,
                             null,

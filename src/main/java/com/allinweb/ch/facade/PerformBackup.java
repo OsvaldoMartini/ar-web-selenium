@@ -1,5 +1,10 @@
 package com.allinweb.ch.facade;
 
+import com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableModels.DefinitionDraft;
+import com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableModels.MutationResult;
+import com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableModels.OwnerKey;
+import com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableModels.ValueState;
+import com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableService;
 import com.allinweb.ch.util.ARConstants;
 import com.allinweb.ch.util.ErrorMessage;
 import com.google.common.base.Strings;
@@ -7,6 +12,7 @@ import java.io.*;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Proxy;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -14,8 +20,12 @@ import java.sql.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Base64;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import lombok.Getter;
 import lombok.Setter;
@@ -43,6 +53,8 @@ public class PerformBackup {
     private TreeMap<Integer, Integer> useCaseMap = new TreeMap<>();
     private TreeMap<Integer, Integer> flowMap = new TreeMap<>();
     private TreeMap<Integer, Integer> requirementMap = new TreeMap<>();
+    private final BotJobRuntimeVariableService botJobRuntimeVariables =
+            new BotJobRuntimeVariableService();
 
     // Private constructor to prevent instantiation
     private PerformBackup() {}
@@ -171,7 +183,6 @@ public class PerformBackup {
 
                 writer.write(insert + System.lineSeparator());
             }
-
             writer.flush();
 
             log.info("Home URL backup completed at: " + sqlFile.getAbsolutePath());
@@ -376,6 +387,10 @@ public class PerformBackup {
     }
 
     public ErrorMessage backupVariable(Connection conn, String backupFilePath, Integer botJobIdFilter) {
+        if (durableVariableDefinitionsEnabled()) {
+            return backupDurableVariableSnapshot(
+                    conn, backupFilePath, botJobIdFilter);
+        }
         String query =
                 """
                         SELECT id, type, name, value, instruction_id, bot_job_id, local_format, delimiter
@@ -434,6 +449,93 @@ public class PerformBackup {
             log.error("Error during variable backup: " + error.getMessage());
             return new ErrorMessage("Error in backup process", "Error during variable backup", error.getMessage());
         }
+    }
+
+    private ErrorMessage backupDurableVariableSnapshot(
+            Connection connection,
+            String backupFilePath,
+            Integer botJobIdFilter) {
+        BackupTableSpec definitions = new BackupTableSpec(
+                "bot_job_variable_definition",
+                List.of(
+                        "home_banking_id",
+                        "bot_job_id",
+                        "id",
+                        "variable_type",
+                        "name",
+                        "configured_value",
+                        "local_format",
+                        "delimiter",
+                        "producer_instruction_id",
+                        "created_at",
+                        "updated_at"),
+                "home_banking_id,bot_job_id,id");
+        BackupTableSpec memory = new BackupTableSpec(
+                "bot_job_runtime_memory",
+                List.of(
+                        "home_banking_id",
+                        "bot_job_id",
+                        "runtime_revision",
+                        "reset_generation",
+                        "next_variable_id",
+                        "created_at",
+                        "updated_at"),
+                "home_banking_id,bot_job_id");
+        try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(
+                new FileOutputStream(backupFilePath), Charset.forName("windows-1252")))) {
+            dumpDurableTableToWriter(
+                    connection, writer, definitions, botJobIdFilter);
+            dumpDurableTableToWriter(
+                    connection, writer, memory, botJobIdFilter);
+            dumpRuntimeValuesToWriter(
+                    connection, writer, botJobIdFilter);
+            return null;
+        } catch (Exception failure) {
+            return new ErrorMessage(
+                    "Error in backup process",
+                    "Durable Bot Job variable backup failed",
+                    failure.getMessage());
+        }
+    }
+
+    private long dumpDurableTableToWriter(
+            Connection connection,
+            BufferedWriter writer,
+            BackupTableSpec spec,
+            Integer botJobIdFilter)
+            throws Exception {
+        String select = "SELECT " + String.join(", ", spec.columns)
+                + " FROM " + spec.tableName
+                + (botJobIdFilter == null ? "" : " WHERE bot_job_id=?")
+                + " ORDER BY " + spec.orderBy;
+        String insertPrefix = "INSERT INTO " + spec.tableName + " ("
+                + String.join(", ", spec.columns) + ") VALUES (";
+        writer.write("-- TABLE: " + spec.tableName);
+        writer.write(System.lineSeparator());
+        long count = 0L;
+        try (PreparedStatement statement = connection.prepareStatement(select)) {
+            if (botJobIdFilter != null) {
+                statement.setInt(1, botJobIdFilter);
+            }
+            try (ResultSet rows = statement.executeQuery()) {
+                ResultSetMetaData metadata = rows.getMetaData();
+                while (rows.next()) {
+                    StringBuilder line = new StringBuilder(insertPrefix);
+                    for (int index = 0; index < spec.columns.size(); index++) {
+                        if (index > 0) {
+                            line.append(", ");
+                        }
+                        line.append(renderValueForBackup(
+                                rows, metadata, index + 1));
+                    }
+                    writer.write(line.append(");").toString());
+                    writer.write(System.lineSeparator());
+                    count++;
+                }
+            }
+        }
+        writer.write(System.lineSeparator());
+        return count;
     }
 
     public ErrorMessage backupReference(Connection conn, String backupFilePath, Integer botJobIdFilter) {
@@ -950,6 +1052,10 @@ public class PerformBackup {
             deleteStmt.executeUpdate("DELETE FROM component_block");
 
             deleteStmt.executeUpdate("DELETE FROM reference");
+            deleteStmt.executeUpdate("DELETE FROM bot_job_runtime_variable_value");
+            deleteStmt.executeUpdate("DELETE FROM bot_job_variable_definition");
+            deleteStmt.executeUpdate("DELETE FROM bot_job_runtime_memory");
+            deleteStmt.executeUpdate("DELETE FROM bot_job_variable_migration_note");
             deleteStmt.executeUpdate("DELETE FROM variable");
             deleteStmt.executeUpdate("DELETE FROM instruction");
             deleteStmt.executeUpdate("DELETE FROM block");
@@ -1819,6 +1925,10 @@ public class PerformBackup {
     }
 
     public ErrorMessage restoreVariable(Connection conn, String sqlFilePath, Integer botJobIdImported) {
+        if (durableVariableDefinitionsEnabled()) {
+            return restoreVariableBackupIntoDurableStorage(
+                    conn, sqlFilePath, botJobIdImported);
+        }
         String insertQuery =
                 """
                         INSERT INTO variable (
@@ -1975,6 +2085,463 @@ public class PerformBackup {
             return new ErrorMessage("Restore Failed", "Failed to load variable data", e.getMessage());
         }
     }
+
+    private ErrorMessage restoreVariableBackupIntoDurableStorage(
+            Connection connection, String sqlFilePath, Integer botJobIdImported) {
+        if (sqlFilePath == null || sqlFilePath.isBlank()) {
+            variableMap.clear();
+            return null;
+        }
+        Path tempDirectory = null;
+        try {
+            File backupFile = new File(sqlFilePath);
+            boolean durableSnapshot;
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(
+                    new FileInputStream(backupFile), Charset.forName("windows-1252")))) {
+                durableSnapshot = reader.lines().anyMatch(line ->
+                        line.trim().equalsIgnoreCase(
+                                "-- TABLE: bot_job_variable_definition"));
+            }
+            if (!durableSnapshot) {
+                return restoreLegacyVariableIntoDurableStorage(
+                        connection, sqlFilePath, botJobIdImported);
+            }
+            tempDirectory = Files.createTempDirectory("ar-variable-restore-");
+            Map<String, Path> sections =
+                    splitSingleFileByTable(backupFile, tempDirectory);
+            ErrorMessage error = restoreDurableVariableDefinitions(
+                    connection,
+                    pathOrEmpty(sections, "bot_job_variable_definition"),
+                    botJobIdImported);
+            if (error != null) {
+                return error;
+            }
+            error = restoreDurableRuntimeMemory(
+                    connection,
+                    pathOrEmpty(sections, "bot_job_runtime_memory"),
+                    botJobIdImported);
+            if (error != null) {
+                return error;
+            }
+            return restoreDurableRuntimeValues(
+                    connection,
+                    pathOrEmpty(sections, "bot_job_runtime_variable_value"),
+                    botJobIdImported);
+        } catch (Exception failure) {
+            return new ErrorMessage(
+                    "Restore Failed",
+                    "Failed to read durable variable backup",
+                    failure.getMessage());
+        } finally {
+            if (tempDirectory != null) {
+                deleteRecursively(tempDirectory);
+            }
+        }
+    }
+
+    private ErrorMessage restoreLegacyVariableIntoDurableStorage(
+            Connection connection, String sqlFilePath, Integer botJobIdImported) {
+        if (sqlFilePath == null || sqlFilePath.isBlank()) {
+            variableMap.clear();
+            return null;
+        }
+        try {
+            List<List<String>> rows = readBackupRows(sqlFilePath, 8);
+            variableMap.clear();
+            Map<String, Integer> retainedByProducer = new HashMap<>();
+            for (List<String> values : rows) {
+                int oldVariableId = requiredPositiveInt(values.get(0), "legacy variable id");
+                Integer oldBotJobId = botJobIdImported == null
+                        ? nullableInteger(values.get(5))
+                        : botJobIdImported;
+                RestoredOwner restored = resolveRestoredOwner(
+                        connection, oldBotJobId, botJobIdImported);
+                Integer oldProducer = nullableInteger(values.get(4));
+                Integer newProducer = oldProducer == null
+                        ? null
+                        : instructionMap.get(oldProducer);
+                if (oldProducer != null && newProducer == null) {
+                    log.warn(
+                            "Skipping legacy variable {} because producer {} was not restored",
+                            oldVariableId,
+                            oldProducer);
+                    continue;
+                }
+                String producerKey = restored.owner().homeBankingId()
+                        + ":" + restored.owner().botJobId() + ":" + newProducer;
+                if (newProducer != null && retainedByProducer.containsKey(producerKey)) {
+                    variableMap.put(oldVariableId, retainedByProducer.get(producerKey));
+                    continue;
+                }
+                String name = nullableBackupText(values.get(2));
+                if (name == null || name.isBlank()) {
+                    name = "Variable " + oldVariableId;
+                }
+                MutationResult created = botJobRuntimeVariables.createDefinition(
+                        connection,
+                        restored.owner(),
+                        new DefinitionDraft(
+                                nullableBackupText(values.get(1)),
+                                name,
+                                nullableBackupText(values.get(3)),
+                                nullableBackupText(values.get(6)),
+                                nullableBackupText(values.get(7)),
+                                newProducer == null ? null : newProducer.longValue(),
+                                ValueState.VOID,
+                                null),
+                        null);
+                if (!created.applied() || created.definition() == null) {
+                    throw new SQLException(created.message());
+                }
+                int newVariableId = Math.toIntExact(created.definition().id());
+                variableMap.put(oldVariableId, newVariableId);
+                if (newProducer != null) {
+                    retainedByProducer.put(producerKey, newVariableId);
+                }
+            }
+            return null;
+        } catch (Exception failure) {
+            return new ErrorMessage(
+                    "Restore Failed",
+                    "Failed to migrate legacy variable backup into durable storage",
+                    failure.getMessage());
+        }
+    }
+
+    private ErrorMessage restoreDurableVariableDefinitions(
+            Connection connection, String sqlFilePath, Integer botJobIdImported) {
+        if (sqlFilePath == null || sqlFilePath.isBlank()) {
+            variableMap.clear();
+            return null;
+        }
+        String insert = "INSERT INTO bot_job_variable_definition"
+                + " (home_banking_id,bot_job_id,id,variable_type,name,configured_value,"
+                + "local_format,delimiter,producer_instruction_id,created_at,updated_at)"
+                + " VALUES (?,?,?,?,?,?,?,?,?,?,?)";
+        try {
+            List<List<String>> rows = readBackupRows(sqlFilePath, 11);
+            variableMap.clear();
+            try (PreparedStatement statement = connection.prepareStatement(insert)) {
+                for (List<String> values : rows) {
+                    int oldVariableId =
+                            requiredPositiveInt(values.get(2), "variable definition id");
+                    Integer oldBotJobId = botJobIdImported == null
+                            ? nullableInteger(values.get(1))
+                            : botJobIdImported;
+                    RestoredOwner restored = resolveRestoredOwner(
+                            connection, oldBotJobId, botJobIdImported);
+                    Integer oldProducer = nullableInteger(values.get(8));
+                    Integer newProducer = oldProducer == null
+                            ? null
+                            : instructionMap.get(oldProducer);
+                    if (oldProducer != null && newProducer == null) {
+                        throw new SQLException(
+                                "Variable producer " + oldProducer + " was not restored.");
+                    }
+                    statement.setInt(1, restored.owner().homeBankingId());
+                    statement.setInt(2, restored.owner().botJobId());
+                    statement.setInt(3, oldVariableId);
+                    setBackupText(statement, 4, values.get(3));
+                    String name = nullableBackupText(values.get(4));
+                    statement.setString(
+                            5,
+                            name == null || name.isBlank()
+                                    ? "Variable " + oldVariableId
+                                    : name);
+                    setBackupText(statement, 6, values.get(5));
+                    setBackupText(statement, 7, values.get(6));
+                    setBackupText(statement, 8, values.get(7));
+                    if (newProducer == null) {
+                        statement.setNull(9, Types.BIGINT);
+                    } else {
+                        statement.setInt(9, newProducer);
+                    }
+                    setBackupTimestamp(statement, 10, values.get(9));
+                    setBackupTimestamp(statement, 11, values.get(10));
+                    if (statement.executeUpdate() != 1) {
+                        throw new SQLException(
+                                "Variable definition was not restored exactly once.");
+                    }
+                    variableMap.put(oldVariableId, oldVariableId);
+                }
+            }
+            return null;
+        } catch (Exception failure) {
+            return new ErrorMessage(
+                    "Restore Failed",
+                    "Failed to restore durable variable definitions",
+                    failure.getMessage());
+        }
+    }
+
+    private ErrorMessage restoreDurableRuntimeMemory(
+            Connection connection, String sqlFilePath, Integer botJobIdImported) {
+        if (sqlFilePath == null || sqlFilePath.isBlank()) {
+            return null;
+        }
+        String insert = "INSERT INTO bot_job_runtime_memory"
+                + " (home_banking_id,bot_job_id,runtime_revision,reset_generation,"
+                + "next_variable_id,created_at,updated_at) VALUES (?,?,?,?,?,?,?)";
+        try {
+            for (List<String> values : readBackupRows(sqlFilePath, 7)) {
+                Integer oldBotJobId = botJobIdImported == null
+                        ? nullableInteger(values.get(1))
+                        : botJobIdImported;
+                RestoredOwner restored = resolveRestoredOwner(
+                        connection, oldBotJobId, botJobIdImported);
+                long nextVariableId = Math.max(
+                        requiredNonNegativeLong(values.get(4), "next variable id"),
+                        maxRestoredVariableId(connection, restored.owner()) + 1L);
+                try (PreparedStatement statement = connection.prepareStatement(insert)) {
+                    statement.setInt(1, restored.owner().homeBankingId());
+                    statement.setInt(2, restored.owner().botJobId());
+                    statement.setLong(
+                            3,
+                            requiredNonNegativeLong(
+                                    values.get(2), "runtime revision"));
+                    statement.setLong(
+                            4,
+                            requiredNonNegativeLong(
+                                    values.get(3), "reset generation"));
+                    statement.setLong(5, Math.max(1L, nextVariableId));
+                    setBackupTimestamp(statement, 6, values.get(5));
+                    setBackupTimestamp(statement, 7, values.get(6));
+                    if (statement.executeUpdate() != 1) {
+                        throw new SQLException(
+                                "Runtime memory was not restored exactly once.");
+                    }
+                }
+            }
+            return null;
+        } catch (Exception failure) {
+            return new ErrorMessage(
+                    "Restore Failed",
+                    "Failed to restore durable runtime-memory metadata",
+                    failure.getMessage());
+        }
+    }
+
+    private ErrorMessage restoreDurableRuntimeValues(
+            Connection connection, String sqlFilePath, Integer botJobIdImported) {
+        if (sqlFilePath == null || sqlFilePath.isBlank()) {
+            return null;
+        }
+        String insert = "INSERT INTO bot_job_runtime_variable_value"
+                + " (home_banking_id,bot_job_id,variable_id,value_state,raw_value,"
+                + "void_reason,value_source,entry_revision,last_execution_id,updated_at)"
+                + " VALUES (?,?,?,?,?,?,?,?,?,?)";
+        try {
+            for (List<String> values : readBackupRows(sqlFilePath, 10)) {
+                Integer oldBotJobId = botJobIdImported == null
+                        ? nullableInteger(values.get(1))
+                        : botJobIdImported;
+                RestoredOwner restored = resolveRestoredOwner(
+                        connection, oldBotJobId, botJobIdImported);
+                int oldVariableId =
+                        requiredPositiveInt(values.get(2), "runtime variable id");
+                Integer newVariableId = variableMap.get(oldVariableId);
+                if (newVariableId == null) {
+                    throw new SQLException(
+                            "Runtime variable " + oldVariableId + " has no restored definition.");
+                }
+                String state = nullableBackupText(values.get(3));
+                String encodedRaw = nullableBackupText(values.get(4));
+                String rawValue = encodedRaw == null
+                        ? null
+                        : new String(
+                                Base64.getDecoder().decode(encodedRaw),
+                                StandardCharsets.UTF_8);
+                if ("VALUE".equals(state) && rawValue == null) {
+                    throw new SQLException("VALUE runtime state requires raw text.");
+                }
+                if ("VOID".equals(state) && rawValue != null) {
+                    throw new SQLException("VOID runtime state cannot carry raw text.");
+                }
+                try (PreparedStatement statement = connection.prepareStatement(insert)) {
+                    statement.setInt(1, restored.owner().homeBankingId());
+                    statement.setInt(2, restored.owner().botJobId());
+                    statement.setInt(3, newVariableId);
+                    statement.setString(4, state);
+                    statement.setString(5, rawValue);
+                    setBackupText(statement, 6, values.get(5));
+                    setBackupText(statement, 7, values.get(6));
+                    statement.setLong(
+                            8,
+                            requiredNonNegativeLong(
+                                    values.get(7), "entry revision"));
+                    Long executionId = nullableLong(values.get(8));
+                    if (executionId == null) {
+                        statement.setNull(9, Types.BIGINT);
+                    } else {
+                        statement.setLong(9, executionId);
+                    }
+                    setBackupTimestamp(statement, 10, values.get(9));
+                    if (statement.executeUpdate() != 1) {
+                        throw new SQLException(
+                                "Runtime value was not restored exactly once.");
+                    }
+                }
+            }
+            return null;
+        } catch (Exception failure) {
+            return new ErrorMessage(
+                    "Restore Failed",
+                    "Failed to restore durable runtime values",
+                    failure.getMessage());
+        }
+    }
+
+    private List<List<String>> readBackupRows(String sqlFilePath, int expectedValues)
+            throws IOException {
+        List<List<String>> rows = new ArrayList<>();
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(
+                new FileInputStream(sqlFilePath), Charset.forName("windows-1252")))) {
+            StringBuilder insert = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                String trimmed = line.trim();
+                if (trimmed.isEmpty() || trimmed.startsWith("--")) {
+                    continue;
+                }
+                insert.append(trimmed);
+                if (!trimmed.endsWith(";")) {
+                    continue;
+                }
+                List<String> values = extractValuesFromInsert(insert.toString());
+                if (values.size() != expectedValues) {
+                    throw new IOException(
+                            "Expected " + expectedValues + " values but found "
+                                    + values.size() + ": " + insert);
+                }
+                rows.add(List.copyOf(values));
+                insert.setLength(0);
+            }
+            if (!insert.isEmpty()) {
+                throw new IOException("Incomplete variable backup INSERT.");
+            }
+        }
+        return List.copyOf(rows);
+    }
+
+    private RestoredOwner resolveRestoredOwner(
+            Connection connection,
+            Integer oldBotJobId,
+            Integer botJobIdImported)
+            throws SQLException {
+        if (oldBotJobId == null) {
+            throw new SQLException("Variable backup is missing bot_job_id.");
+        }
+        Integer mappedBotJobId = botJobMap.get(
+                botJobIdImported == null ? oldBotJobId : botJobIdImported);
+        if (mappedBotJobId == null) {
+            mappedBotJobId = botJobMap.get(oldBotJobId);
+        }
+        if (mappedBotJobId == null) {
+            throw new SQLException(
+                    "Restored Bot Job mapping was not found for " + oldBotJobId + ".");
+        }
+        try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT home_banking_id FROM bot_job WHERE id=?")) {
+            statement.setInt(1, mappedBotJobId);
+            try (ResultSet result = statement.executeQuery()) {
+                if (!result.next()) {
+                    throw new SQLException(
+                            "Restored Bot Job " + mappedBotJobId + " was not found.");
+                }
+                return new RestoredOwner(
+                        new OwnerKey(result.getInt(1), mappedBotJobId));
+            }
+        }
+    }
+
+    private long maxRestoredVariableId(Connection connection, OwnerKey owner)
+            throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT MAX(id) FROM bot_job_variable_definition"
+                        + " WHERE home_banking_id=? AND bot_job_id=?")) {
+            statement.setInt(1, owner.homeBankingId());
+            statement.setInt(2, owner.botJobId());
+            try (ResultSet result = statement.executeQuery()) {
+                if (!result.next()) {
+                    return 0L;
+                }
+                long value = result.getLong(1);
+                return result.wasNull() ? 0L : value;
+            }
+        }
+    }
+
+    private void setBackupText(
+            PreparedStatement statement, int parameter, String value)
+            throws SQLException {
+        String text = nullableBackupText(value);
+        if (text == null) {
+            statement.setNull(parameter, Types.VARCHAR);
+        } else {
+            statement.setString(parameter, text);
+        }
+    }
+
+    private void setBackupTimestamp(
+            PreparedStatement statement, int parameter, String value)
+            throws SQLException {
+        String text = nullableBackupText(value);
+        if (text == null) {
+            statement.setNull(parameter, Types.TIMESTAMP);
+            return;
+        }
+        try {
+            statement.setTimestamp(parameter, Timestamp.valueOf(text));
+        } catch (IllegalArgumentException invalidJdbcTimestamp) {
+            try {
+                statement.setTimestamp(
+                        parameter, Timestamp.from(java.time.Instant.parse(text)));
+            } catch (RuntimeException invalidTimestamp) {
+                throw new SQLException("Invalid backup timestamp: " + text, invalidTimestamp);
+            }
+        }
+    }
+
+    private String nullableBackupText(String value) {
+        return value == null
+                        || value.equalsIgnoreCase("NULL")
+                        || value.equalsIgnoreCase("[null]")
+                ? null
+                : value;
+    }
+
+    private Integer nullableInteger(String value) {
+        Long number = nullableLong(value);
+        return number == null ? null : Math.toIntExact(number);
+    }
+
+    private Long nullableLong(String value) {
+        String text = nullableBackupText(value);
+        return text == null ? null : Long.parseLong(text.trim());
+    }
+
+    private int requiredPositiveInt(String value, String field) throws SQLException {
+        Long parsed = nullableLong(value);
+        if (parsed == null || parsed <= 0L || parsed > Integer.MAX_VALUE) {
+            throw new SQLException(field + " must be a positive integer.");
+        }
+        return parsed.intValue();
+    }
+
+    private long requiredNonNegativeLong(String value, String field)
+            throws SQLException {
+        Long parsed = nullableLong(value);
+        if (parsed == null || parsed < 0L) {
+            throw new SQLException(field + " must be non-negative.");
+        }
+        return parsed;
+    }
+
+    private static boolean durableVariableDefinitionsEnabled() {
+        return true;
+    }
+
+    private record RestoredOwner(OwnerKey owner) {}
 
     public ErrorMessage restoreUpdateInstruction(Connection conn, Integer botJobIdImported) {
         final int BATCH_SIZE = 100;
@@ -3060,6 +3627,15 @@ public class PerformBackup {
         return escapeSql(val);
     }
 
+    private String sqlQuotedOrNull(String value) {
+        return value == null ? "NULL" : "'" + escapeSql(value) + "'";
+    }
+
+    private String nullableLongSql(ResultSet rows, String column) throws SQLException {
+        long value = rows.getLong(column);
+        return rows.wasNull() ? "NULL" : Long.toString(value);
+    }
+
     private String defaultEnvironmentName(String name) {
         return name == null || name.trim().isEmpty() || name.equalsIgnoreCase("[null]") ? "TEST" : name.trim();
     }
@@ -3594,16 +4170,31 @@ public class PerformBackup {
                             "client_named")),
             new BackupTableSpec("reference", List.of("id", "reference_type", "value", "instruction_id", "bot_job_id")),
             new BackupTableSpec(
-                    "variable",
+                    "bot_job_variable_definition",
                     List.of(
-                            "id",
-                            "type",
-                            "name",
-                            "value",
-                            "instruction_id",
+                            "home_banking_id",
                             "bot_job_id",
+                            "id",
+                            "variable_type",
+                            "name",
+                            "configured_value",
                             "local_format",
-                            "delimiter")),
+                            "delimiter",
+                            "producer_instruction_id",
+                            "created_at",
+                            "updated_at"),
+                    "home_banking_id ASC, bot_job_id ASC, id ASC"),
+            new BackupTableSpec(
+                    "bot_job_runtime_memory",
+                    List.of(
+                            "home_banking_id",
+                            "bot_job_id",
+                            "runtime_revision",
+                            "reset_generation",
+                            "next_variable_id",
+                            "created_at",
+                            "updated_at"),
+                    "home_banking_id ASC, bot_job_id ASC"),
             // ─── component_* tables: these reference home_banking_id (not bot_job_id) ──
             new BackupTableSpec(
                     "component_block",
@@ -3747,6 +4338,13 @@ public class PerformBackup {
 
             for (BackupTableSpec spec : BACKUP_TABLES_IN_ORDER) {
                 long rows = dumpOneTableToWriter(conn, writer, spec);
+                if ("bot_job_runtime_memory".equals(spec.tableName)) {
+                    long runtimeRows =
+                            dumpRuntimeValuesToWriter(conn, writer, null);
+                    log.info(
+                            "dumpAllToSingleFile runtime-value section: {} row(s)",
+                            runtimeRows);
+                }
                 log.info("dumpAllToSingleFile — {}: {} row(s)", spec.tableName, rows);
             }
 
@@ -3783,6 +4381,122 @@ public class PerformBackup {
         }
         writer.write(System.lineSeparator());
         return count;
+    }
+
+    /**
+     * Writes current runtime values with canonical raw text encoded as UTF-8 Base64.
+     *
+     * <p>The virtual {@code raw_value_base64} field makes SQL NULL ({@code VOID}), the legitimate
+     * empty value {@code VALUE("")}, and literal text such as {@code NULL} unambiguous.
+     */
+    private long dumpRuntimeValuesToWriter(
+            Connection conn, BufferedWriter writer, Integer botJobIdFilter)
+            throws Exception {
+        return dumpRuntimeValuesToWriter(conn, writer, botJobIdFilter, true);
+    }
+
+    private long dumpRuntimeValuesToWriter(
+            Connection conn,
+            BufferedWriter writer,
+            Integer botJobIdFilter,
+            boolean writeSectionMarker)
+            throws Exception {
+        String query = "SELECT home_banking_id,bot_job_id,variable_id,value_state,raw_value,"
+                + "void_reason,value_source,entry_revision,last_execution_id,updated_at"
+                + " FROM bot_job_runtime_variable_value"
+                + (botJobIdFilter == null ? "" : " WHERE bot_job_id=?")
+                + " ORDER BY home_banking_id,bot_job_id,variable_id";
+        if (writeSectionMarker) {
+            writer.write("-- TABLE: bot_job_runtime_variable_value");
+            writer.write(System.lineSeparator());
+        }
+        long count = 0L;
+        try (PreparedStatement statement = conn.prepareStatement(query)) {
+            if (botJobIdFilter != null) {
+                statement.setInt(1, botJobIdFilter);
+            }
+            try (ResultSet rows = statement.executeQuery()) {
+                while (rows.next()) {
+                    String rawValue = rows.getString("raw_value");
+                    String encodedRaw = rawValue == null
+                            ? "NULL"
+                            : "'" + Base64.getEncoder().encodeToString(
+                                    rawValue.getBytes(StandardCharsets.UTF_8)) + "'";
+                    String line = "INSERT INTO bot_job_runtime_variable_value_backup "
+                            + "(home_banking_id,bot_job_id,variable_id,value_state,"
+                            + "raw_value_base64,void_reason,value_source,entry_revision,"
+                            + "last_execution_id,updated_at) VALUES ("
+                            + rows.getLong("home_banking_id") + ", "
+                            + rows.getLong("bot_job_id") + ", "
+                            + rows.getLong("variable_id") + ", "
+                            + sqlQuotedOrNull(rows.getString("value_state")) + ", "
+                            + encodedRaw + ", "
+                            + sqlQuotedOrNull(rows.getString("void_reason")) + ", "
+                            + sqlQuotedOrNull(rows.getString("value_source")) + ", "
+                            + rows.getLong("entry_revision") + ", "
+                            + nullableLongSql(rows, "last_execution_id") + ", "
+                            + sqlQuotedOrNull(rows.getString("updated_at")) + ");";
+                    writer.write(line);
+                    writer.write(System.lineSeparator());
+                    count++;
+                }
+            }
+        }
+        writer.write(System.lineSeparator());
+        return count;
+    }
+
+    private ErrorMessage backupDurableVariableTable(
+            Connection conn,
+            String backupFilePath,
+            BackupTableSpec spec,
+            int botJobId) {
+        String select = "SELECT " + String.join(", ", spec.columns)
+                + " FROM " + spec.tableName
+                + " WHERE bot_job_id=? ORDER BY " + spec.orderBy;
+        String insertPrefix = "INSERT INTO " + spec.tableName + " ("
+                + String.join(", ", spec.columns) + ") VALUES (";
+        File output = new File(backupFilePath);
+        try (PreparedStatement statement = conn.prepareStatement(select);
+                BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(
+                        new FileOutputStream(output), Charset.forName("windows-1252")))) {
+            statement.setInt(1, botJobId);
+            try (ResultSet rows = statement.executeQuery()) {
+                ResultSetMetaData metadata = rows.getMetaData();
+                while (rows.next()) {
+                    StringBuilder line = new StringBuilder(insertPrefix);
+                    for (int index = 0; index < spec.columns.size(); index++) {
+                        if (index > 0) {
+                            line.append(", ");
+                        }
+                        line.append(renderValueForBackup(rows, metadata, index + 1));
+                    }
+                    writer.write(line.append(");").toString());
+                    writer.write(System.lineSeparator());
+                }
+            }
+            return null;
+        } catch (Exception failure) {
+            return new ErrorMessage(
+                    "Error in backup process",
+                    "Durable variable backup failed for " + spec.tableName,
+                    failure.getMessage());
+        }
+    }
+
+    private ErrorMessage backupDurableRuntimeValues(
+            Connection conn, String backupFilePath, int botJobId) {
+        File output = new File(backupFilePath);
+        try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(
+                new FileOutputStream(output), Charset.forName("windows-1252")))) {
+            dumpRuntimeValuesToWriter(conn, writer, botJobId, false);
+            return null;
+        } catch (Exception failure) {
+            return new ErrorMessage(
+                    "Error in backup process",
+                    "Durable runtime-value backup failed",
+                    failure.getMessage());
+        }
     }
 
     /**
@@ -3880,7 +4594,7 @@ public class PerformBackup {
             error = restoreInstruction(conn, pathOrEmpty(perTableFiles, "instruction"), null);
             if (error != null) return error;
 
-            error = restoreVariable(conn, pathOrEmpty(perTableFiles, "variable"), null);
+            error = restoreVariableSections(conn, perTableFiles, null);
             if (error != null) return error;
 
             // Map-only pass: rewrites instruction.parent_id / variable_id to the
@@ -4062,6 +4776,36 @@ public class PerformBackup {
         return p == null ? "" : p.toAbsolutePath().toString();
     }
 
+    private ErrorMessage restoreVariableSections(
+            Connection connection,
+            Map<String, Path> perTableFiles,
+            Integer botJobIdImported) {
+        if (!perTableFiles.containsKey("bot_job_variable_definition")) {
+            return restoreVariable(
+                    connection,
+                    pathOrEmpty(perTableFiles, "variable"),
+                    botJobIdImported);
+        }
+        ErrorMessage error = restoreDurableVariableDefinitions(
+                connection,
+                pathOrEmpty(perTableFiles, "bot_job_variable_definition"),
+                botJobIdImported);
+        if (error != null) {
+            return error;
+        }
+        error = restoreDurableRuntimeMemory(
+                connection,
+                pathOrEmpty(perTableFiles, "bot_job_runtime_memory"),
+                botJobIdImported);
+        if (error != null) {
+            return error;
+        }
+        return restoreDurableRuntimeValues(
+                connection,
+                pathOrEmpty(perTableFiles, "bot_job_runtime_variable_value"),
+                botJobIdImported);
+    }
+
     private void deleteRecursively(Path root) {
         try {
             if (!Files.exists(root)) return;
@@ -4101,7 +4845,9 @@ public class PerformBackup {
             Path bj = tempDir.resolve("bot_job.sql");
             Path bl = tempDir.resolve("block.sql");
             Path in = tempDir.resolve("instruction.sql");
-            Path vr = tempDir.resolve("variable.sql");
+            Path variableDefinitions = tempDir.resolve("bot_job_variable_definition.sql");
+            Path runtimeMemory = tempDir.resolve("bot_job_runtime_memory.sql");
+            Path runtimeValues = tempDir.resolve("bot_job_runtime_variable_value.sql");
             Path rf = tempDir.resolve("reference.sql");
 
             ErrorMessage err = backupHomeBanking(conn, hb.toString(), homeBankingId);
@@ -4112,7 +4858,43 @@ public class PerformBackup {
             if (err != null) return err;
             err = backupInstruction(conn, in.toString(), botJobId);
             if (err != null) return err;
-            err = backupVariable(conn, vr.toString(), botJobId);
+            err = backupDurableVariableTable(
+                    conn,
+                    variableDefinitions.toString(),
+                    new BackupTableSpec(
+                            "bot_job_variable_definition",
+                            List.of(
+                                    "home_banking_id",
+                                    "bot_job_id",
+                                    "id",
+                                    "variable_type",
+                                    "name",
+                                    "configured_value",
+                                    "local_format",
+                                    "delimiter",
+                                    "producer_instruction_id",
+                                    "created_at",
+                                    "updated_at"),
+                            "home_banking_id,bot_job_id,id"),
+                    botJobId);
+            if (err != null) return err;
+            err = backupDurableVariableTable(
+                    conn,
+                    runtimeMemory.toString(),
+                    new BackupTableSpec(
+                            "bot_job_runtime_memory",
+                            List.of(
+                                    "home_banking_id",
+                                    "bot_job_id",
+                                    "runtime_revision",
+                                    "reset_generation",
+                                    "next_variable_id",
+                                    "created_at",
+                                    "updated_at"),
+                            "home_banking_id,bot_job_id"),
+                    botJobId);
+            if (err != null) return err;
+            err = backupDurableRuntimeValues(conn, runtimeValues.toString(), botJobId);
             if (err != null) return err;
             err = backupReference(conn, rf.toString(), botJobId);
             if (err != null) return err;
@@ -4122,7 +4904,9 @@ public class PerformBackup {
             sections.put("bot_job", bj);
             sections.put("block", bl);
             sections.put("instruction", in);
-            sections.put("variable", vr);
+            sections.put("bot_job_variable_definition", variableDefinitions);
+            sections.put("bot_job_runtime_memory", runtimeMemory);
+            sections.put("bot_job_runtime_variable_value", runtimeValues);
             sections.put("reference", rf);
 
             File outFile = new File(backupFilePath);
@@ -4368,7 +5152,8 @@ public class PerformBackup {
             error = restoreInstruction(conn, pathOrEmpty(perTableFiles, "instruction"), botJobIdImported);
             if (error != null) return error;
 
-            error = restoreVariable(conn, pathOrEmpty(perTableFiles, "variable"), botJobIdImported);
+            error = restoreVariableSections(
+                    conn, perTableFiles, botJobIdImported);
             if (error != null) return error;
 
             error = restoreUpdateInstruction(conn, botJobIdImported);

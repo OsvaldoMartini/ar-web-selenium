@@ -28,7 +28,7 @@ class RuntimeVariableMemoryRegistryTest {
     @Test
     void startsVoidAndPreservesAValueAcrossDefinitionRefreshAndStoreInstances() {
         RuntimeVariableStore first =
-                new RuntimeVariableStore(FIRST.homeBankingId(), FIRST.botJobId());
+                new RuntimeVariableStore(registry, FIRST);
         first.reconcileDefinitions(List.of(variable(7, "Amount")), true);
 
         assertTrue(first.read(7).isVoid());
@@ -36,7 +36,7 @@ class RuntimeVariableMemoryRegistryTest {
         assertTrue(first.write(7, "42.00"));
 
         RuntimeVariableStore replacement =
-                new RuntimeVariableStore(FIRST.homeBankingId(), FIRST.botJobId());
+                new RuntimeVariableStore(registry, FIRST);
         replacement.reconcileDefinitions(List.of(variable(7, "Renamed amount")), true);
 
         assertEquals("42.00", replacement.read(7).value());
@@ -55,9 +55,9 @@ class RuntimeVariableMemoryRegistryTest {
         registry.write(FIRST, 7, "", ValueSource.MANUAL);
 
         RuntimeVariableStore first =
-                new RuntimeVariableStore(FIRST.homeBankingId(), FIRST.botJobId());
+                new RuntimeVariableStore(registry, FIRST);
         RuntimeVariableStore second =
-                new RuntimeVariableStore(SECOND.homeBankingId(), SECOND.botJobId());
+                new RuntimeVariableStore(registry, SECOND);
         assertEquals("", first.read(7).value());
         assertTrue(second.read(7).isVoid());
         assertEquals(

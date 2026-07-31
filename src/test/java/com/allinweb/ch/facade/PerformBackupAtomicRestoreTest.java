@@ -1,13 +1,16 @@
 package com.allinweb.ch.facade;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.allinweb.ch.util.ErrorMessage;
+import java.lang.reflect.Field;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
@@ -15,6 +18,8 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Base64;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -166,6 +171,99 @@ class PerformBackupAtomicRestoreTest {
                 assertEquals(parentInstructionId, child.getInt("parent_id"));
                 assertEquals("Child Alias", child.getString("client_named"));
             }
+        }
+    }
+
+    @Test
+    void homeUrlBackupContainsOnlyHomeUrlRows() throws Exception {
+        Path snapshot = temporaryDirectory.resolve("home-url.sql");
+        try (Connection connection = DriverManager.getConnection("jdbc:sqlite::memory:");
+                Statement statement = connection.createStatement()) {
+            statement.execute("""
+                    CREATE TABLE home_url (
+                        id INTEGER PRIMARY KEY,
+                        name TEXT,
+                        url TEXT,
+                        home_banking_id INTEGER)
+                    """);
+            statement.execute("""
+                    INSERT INTO home_url(id, name, url, home_banking_id)
+                    VALUES (3, 'TEST', 'https://bank.example', 2)
+                    """);
+
+            assertNull(PerformBackup.getInstance()
+                    .backupHomeUrl(connection, snapshot.toString()));
+
+            String content =
+                    Files.readString(snapshot, Charset.forName("windows-1252"));
+            assertTrue(content.contains("INSERT INTO home_url"));
+            assertFalse(content.contains("bot_job_runtime_variable_value"));
+        }
+    }
+
+    @Test
+    void fullSnapshotWritesCanonicalBase64RuntimeValueSection() throws Exception {
+        Path snapshot = temporaryDirectory.resolve("full-runtime-values.sql");
+        try (Connection connection = DriverManager.getConnection("jdbc:sqlite::memory:");
+                Statement statement = connection.createStatement()) {
+            createEmptyFullBackupTables(statement);
+            statement.execute("""
+                    CREATE TABLE bot_job_runtime_variable_value (
+                        home_banking_id INTEGER,
+                        bot_job_id INTEGER,
+                        variable_id INTEGER,
+                        value_state TEXT,
+                        raw_value TEXT,
+                        void_reason TEXT,
+                        value_source TEXT,
+                        entry_revision INTEGER,
+                        last_execution_id INTEGER,
+                        updated_at TEXT)
+                    """);
+            statement.execute("""
+                    INSERT INTO bot_job_runtime_variable_value
+                    (home_banking_id, bot_job_id, variable_id, value_state,
+                     raw_value, void_reason, value_source, entry_revision,
+                     last_execution_id, updated_at)
+                    VALUES
+                    (2, 30, 1, 'VALUE', '', NULL, 'MANUAL', 4, NULL, '2026-07-30 10:00:00'),
+                    (2, 30, 2, 'VALUE', 'R$ 1.234,56 — café', NULL, 'EXECUTION', 5, 81, '2026-07-30 10:01:00'),
+                    (2, 30, 3, 'VOID', NULL, 'NO_PRODUCER_YET', 'RESET', 6, NULL, '2026-07-30 10:02:00')
+                    """);
+
+            assertNull(PerformBackup.getInstance()
+                    .dumpAllToSingleFile(connection, snapshot.toString()));
+
+            String content =
+                    Files.readString(snapshot, Charset.forName("windows-1252"));
+            String encodedUnicode = Base64.getEncoder().encodeToString(
+                    "R$ 1.234,56 — café".getBytes(StandardCharsets.UTF_8));
+            assertTrue(content.contains("-- TABLE: bot_job_runtime_variable_value"));
+            assertTrue(content.contains("'VALUE', '', NULL, 'MANUAL'"));
+            assertTrue(content.contains("'" + encodedUnicode + "'"));
+            assertTrue(content.contains("'VOID', NULL, 'NO_PRODUCER_YET', 'RESET'"));
+        }
+    }
+
+    private static void createEmptyFullBackupTables(Statement statement)
+            throws Exception {
+        Field specsField =
+                PerformBackup.class.getDeclaredField("BACKUP_TABLES_IN_ORDER");
+        specsField.setAccessible(true);
+        List<?> specs = (List<?>) specsField.get(null);
+        for (Object spec : specs) {
+            Field tableNameField = spec.getClass().getDeclaredField("tableName");
+            Field columnsField = spec.getClass().getDeclaredField("columns");
+            tableNameField.setAccessible(true);
+            columnsField.setAccessible(true);
+            String tableName = (String) tableNameField.get(spec);
+            @SuppressWarnings("unchecked")
+            List<String> columns = (List<String>) columnsField.get(spec);
+            String definitions = columns.stream()
+                    .map(column -> column + " TEXT")
+                    .reduce((left, right) -> left + ", " + right)
+                    .orElseThrow();
+            statement.execute("CREATE TABLE " + tableName + " (" + definitions + ")");
         }
     }
 

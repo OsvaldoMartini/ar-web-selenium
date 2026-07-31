@@ -29,6 +29,9 @@ import java.util.Set;
  * references, operations, and Component tables are never deleted or rewritten.
  */
 public final class VariablesVariableDeleteTransaction {
+    private static final com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableService
+            RUNTIME_VARIABLES =
+                    new com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableService();
 
     private static final FaultInjector NO_FAULTS = ignored -> {};
 
@@ -70,7 +73,7 @@ public final class VariablesVariableDeleteTransaction {
         try {
             requireOwnedBotJob(connection, owner.owner());
             GraphState graphState = stateRepository.loadOrCreate(connection, owner.owner());
-            AuthoritativeGraph before = loadGraph(connection, owner.owner().ownerId(), graphState);
+            AuthoritativeGraph before = loadGraph(connection, owner.owner(), graphState);
             DeletePlan plan = validateAndPlan(owner, request, before);
 
             int expectedBindings = countInstructionBindings(
@@ -87,7 +90,7 @@ public final class VariablesVariableDeleteTransaction {
             faultInjector.at(TransactionPhase.AFTER_BINDINGS_CLEARED);
 
             int deletedVariables = deleteVariables(
-                    connection, owner.owner().ownerId(), plan.variableIds());
+                    connection, owner.owner(), plan.variableIds());
             if (deletedVariables != plan.variableIds().size()) {
                 throw new SQLException(
                         "Variables were not deleted exactly once; expected="
@@ -109,7 +112,7 @@ public final class VariablesVariableDeleteTransaction {
             faultInjector.at(TransactionPhase.AFTER_VERSION_ADVANCE);
 
             AuthoritativeGraph after =
-                    loadGraph(connection, owner.owner().ownerId(), advance.state());
+                    loadGraph(connection, owner.owner(), advance.state());
             verifyFinalState(before, after, plan, expectedBindings);
             faultInjector.at(TransactionPhase.AFTER_FINAL_VERIFICATION);
 
@@ -215,8 +218,9 @@ public final class VariablesVariableDeleteTransaction {
     }
 
     private AuthoritativeGraph loadGraph(
-            Connection connection, int botJobId, GraphState state)
+            Connection connection, OwnerKey owner, GraphState state)
             throws SQLException {
+        int botJobId = owner.ownerId();
         List<InstructionLoad> instructions = new ArrayList<>();
         try (PreparedStatement statement = connection.prepareStatement(
                 "SELECT id,block_id,instruction_order_number,actions,parent_id,"
@@ -243,9 +247,11 @@ public final class VariablesVariableDeleteTransaction {
         List<VariableLoadDTO> variables = new ArrayList<>();
         List<Integer> variableIds = new ArrayList<>();
         try (PreparedStatement statement = connection.prepareStatement(
-                "SELECT id,instruction_id FROM variable"
-                        + " WHERE bot_job_id=? ORDER BY id")) {
-            statement.setInt(1, botJobId);
+                "SELECT id,producer_instruction_id AS instruction_id"
+                        + " FROM bot_job_variable_definition"
+                        + " WHERE home_banking_id=? AND bot_job_id=? ORDER BY id")) {
+            statement.setInt(1, owner.homeBankingId());
+            statement.setInt(2, botJobId);
             try (ResultSet rows = statement.executeQuery()) {
                 while (rows.next()) {
                     int id = rows.getInt("id");
@@ -327,16 +333,18 @@ public final class VariablesVariableDeleteTransaction {
     }
 
     private int deleteVariables(
-            Connection connection, int botJobId, Set<Integer> variableIds)
+            Connection connection, OwnerKey owner, Set<Integer> variableIds)
             throws SQLException {
-        try (PreparedStatement statement = connection.prepareStatement(
-                "DELETE FROM variable WHERE bot_job_id=? AND id IN ("
-                        + placeholders(variableIds.size())
-                        + ")")) {
-            statement.setInt(1, botJobId);
-            bindIds(statement, variableIds, 2);
-            return statement.executeUpdate();
+        var result = RUNTIME_VARIABLES.deleteDefinitions(
+                connection,
+                new com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableModels.OwnerKey(
+                        owner.homeBankingId(), owner.ownerId()),
+                variableIds.stream().map(Integer::longValue).toList(),
+                null);
+        if (!result.applied()) {
+            throw new SQLException(result.message());
         }
+        return variableIds.size();
     }
 
     private void verifyFinalState(

@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.allinweb.ch.db.InstructionGraphStateRepository;
 import com.allinweb.ch.db.InstructionGraphStateRepository.OwnerKey;
 import com.allinweb.ch.db.migrations.M20260729_InstructionGraphState;
+import com.allinweb.ch.db.migrations.M20260730_BotJobRuntimeVariables;
 import com.allinweb.ch.facade.BotJobGraphMutationTransaction.AuthenticatedBotJob;
 import com.allinweb.ch.facade.BotJobGraphMutationTransaction.GraphInstructionFact;
 import com.allinweb.ch.facade.BotJobGraphMutationTransaction.GraphSnapshot;
@@ -159,7 +160,8 @@ class BotJobGraphMutationTransactionTest {
                     "SELECT variable_id FROM instruction WHERE id=103"));
             assertEquals(103, integerValue(
                     connection,
-                    "SELECT instruction_id FROM variable WHERE id=502"));
+                    "SELECT producer_instruction_id FROM bot_job_variable_definition"
+                            + " WHERE id=502"));
             assertEquals(1L, currentVersion(connection));
         }
     }
@@ -643,7 +645,9 @@ class BotJobGraphMutationTransactionTest {
             assertEquals(501, integerValue(
                     connection, "SELECT variable_id FROM instruction WHERE id=103"));
             assertEquals(100, integerValue(
-                    connection, "SELECT instruction_id FROM variable WHERE id=501"));
+                    connection,
+                    "SELECT producer_instruction_id FROM bot_job_variable_definition"
+                            + " WHERE id=501"));
             assertTrue(connection.getAutoCommit());
         }
     }
@@ -656,6 +660,8 @@ class BotJobGraphMutationTransactionTest {
         Connection connection = DriverManager.getConnection(url);
         try (Statement statement = connection.createStatement()) {
             statement.execute("PRAGMA foreign_keys=ON");
+            statement.execute("CREATE TABLE home_banking("
+                    + "id INTEGER PRIMARY KEY)");
             statement.execute("CREATE TABLE bot_job("
                     + "id INTEGER PRIMARY KEY,home_banking_id INTEGER NOT NULL)");
             statement.execute("CREATE TABLE block("
@@ -668,7 +674,9 @@ class BotJobGraphMutationTransactionTest {
                     + "variable_id INTEGER,operation TEXT)");
             statement.execute("CREATE TABLE variable("
                     + "id INTEGER PRIMARY KEY,bot_job_id INTEGER NOT NULL,"
-                    + "instruction_id INTEGER)");
+                    + "instruction_id INTEGER,type TEXT,name TEXT,value TEXT,"
+                    + "local_format TEXT,delimiter TEXT)");
+            statement.executeUpdate("INSERT INTO home_banking VALUES (2)");
             statement.executeUpdate("INSERT INTO bot_job VALUES (5,2)");
             statement.executeUpdate("INSERT INTO block VALUES"
                     + "(10,5,1),(20,5,2),(30,5,3)");
@@ -678,9 +686,11 @@ class BotJobGraphMutationTransactionTest {
                     + "(104,5,20,1,'C',NULL,NULL,NULL,'click'),"
                     + "(103,5,20,2,'GET',104,20,501,'capture'),"
                     + "(102,5,20,3,'GOTO',NULL,10,NULL,'1')");
-            statement.executeUpdate("INSERT INTO variable VALUES"
+            statement.executeUpdate("INSERT INTO variable("
+                    + "id,bot_job_id,instruction_id) VALUES"
                     + "(501,5,100),(502,5,104)");
         }
+        new M20260730_BotJobRuntimeVariables().apply(connection, "TEXT");
         new M20260729_InstructionGraphState().apply(connection, "TEXT");
         stateRepository.loadOrCreate(connection, OwnerKey.botJob(HOME_BANKING_ID, BOT_JOB_ID));
         return connection;
@@ -859,7 +869,8 @@ class BotJobGraphMutationTransactionTest {
         List<VariableLoadDTO> variables = new ArrayList<>();
         try (Statement statement = connection.createStatement();
                 ResultSet rows = statement.executeQuery(
-                        "SELECT id,instruction_id FROM variable"
+                        "SELECT id,producer_instruction_id"
+                                + " AS instruction_id FROM bot_job_variable_definition"
                                 + " WHERE bot_job_id=5 ORDER BY id")) {
             while (rows.next()) {
                 variables.add(new VariableLoadDTO(

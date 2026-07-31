@@ -55,7 +55,8 @@ final class BlockRollbackTransaction {
         }
 
         String blockTable = componentTable ? "component_block" : "block";
-        String variableTable = componentTable ? "component_variable" : "variable";
+        String variableTable =
+                componentTable ? "component_variable" : "bot_job_variable_definition";
         String ownerColumn = componentTable ? "home_banking_id" : "bot_job_id";
         boolean previousAutoCommit = connection.getAutoCommit();
         if (!previousAutoCommit) {
@@ -384,7 +385,10 @@ final class BlockRollbackTransaction {
             int ownerId)
             throws SQLException {
         List<VariableLoadDTO> variables = new ArrayList<>();
-        String sql = "SELECT id, instruction_id FROM "
+        boolean component = "component_variable".equals(variableTable);
+        String producerColumn =
+                component ? "instruction_id" : "producer_instruction_id";
+        String sql = "SELECT id, " + producerColumn + " AS instruction_id FROM "
                 + variableTable
                 + " WHERE "
                 + ownerColumn
@@ -395,8 +399,8 @@ final class BlockRollbackTransaction {
                 while (rows.next()) {
                     variables.add(new VariableLoadDTO(
                             rows.getInt("id"),
-                            "component_variable".equals(variableTable) ? ownerId : null,
-                            "variable".equals(variableTable) ? ownerId : null,
+                            component ? ownerId : null,
+                            component ? null : ownerId,
                             nullableInteger(rows, "instruction_id"),
                             null,
                             null,

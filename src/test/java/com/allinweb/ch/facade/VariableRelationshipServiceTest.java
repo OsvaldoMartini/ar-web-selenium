@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.allinweb.ch.db.migrations.M20260730_BotJobRuntimeVariables;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import java.sql.Connection;
@@ -54,6 +55,7 @@ class VariableRelationshipServiceTest {
                 "INSERT INTO variable VALUES"
                         + " (1,5,100,'$String','Same name','$EMPTY','',''),"
                         + " (2,5,101,'$String','Same name','configured','','')");
+        migrateVariables();
 
         JsonObject response = service.load(5);
 
@@ -99,6 +101,7 @@ class VariableRelationshipServiceTest {
                 "INSERT INTO variable VALUES"
                         + " (1,5,200,'$String','Cross owner','$EMPTY','',''),"
                         + " (2,5,100,'$String','Local','$EMPTY','','')");
+        migrateVariables();
 
         JsonObject response = service.load(5);
 
@@ -125,10 +128,12 @@ class VariableRelationshipServiceTest {
                         + " (100,5,10,1,'Owner','CLICK','','input',NULL,NULL,NULL,NULL,1)",
                 "INSERT INTO variable VALUES"
                         + " (1,5,100,'$String','Value','$EMPTY','','')");
+        migrateVariables();
 
         String first = service.load(5).get("graphRevision").getAsString();
         String repeated = service.load(5).get("graphRevision").getAsString();
-        execute("UPDATE variable SET value='changed' WHERE id=1");
+        execute("UPDATE bot_job_variable_definition"
+                + " SET configured_value='changed' WHERE id=1");
         String changed = service.load(5).get("graphRevision").getAsString();
 
         assertEquals(64, first.length());
@@ -144,7 +149,8 @@ class VariableRelationshipServiceTest {
 
     @Test
     void sqlFailureDoesNotExposeDatabaseDetailsToTheClient() throws Exception {
-        execute("DROP TABLE variable");
+        migrateVariables();
+        execute("DROP TABLE bot_job_variable_definition");
 
         JsonObject failed = service.load(5);
 
@@ -158,6 +164,9 @@ class VariableRelationshipServiceTest {
 
     private void initialize(Connection connection) throws Exception {
         try (Statement statement = connection.createStatement()) {
+            statement.execute("CREATE TABLE home_banking (id INTEGER PRIMARY KEY)");
+            statement.execute("CREATE TABLE bot_job ("
+                    + "id INTEGER PRIMARY KEY, home_banking_id INTEGER)");
             statement.execute("CREATE TABLE block ("
                     + "id INTEGER PRIMARY KEY, bot_job_id INTEGER,"
                     + "block_order_number INTEGER, name TEXT, active INTEGER)");
@@ -169,6 +178,9 @@ class VariableRelationshipServiceTest {
             statement.execute("CREATE TABLE variable ("
                     + "id INTEGER PRIMARY KEY, bot_job_id INTEGER, instruction_id INTEGER,"
                     + "type TEXT, name TEXT, value TEXT, local_format TEXT, delimiter TEXT)");
+            statement.execute("INSERT INTO home_banking(id) VALUES(2),(3)");
+            statement.execute(
+                    "INSERT INTO bot_job(id,home_banking_id) VALUES(5,2),(6,3)");
         }
     }
 
@@ -176,6 +188,10 @@ class VariableRelationshipServiceTest {
         try (Statement statement = anchor.createStatement()) {
             for (String command : sql) statement.execute(command);
         }
+    }
+
+    private void migrateVariables() throws Exception {
+        new M20260730_BotJobRuntimeVariables().apply(anchor, "TEXT");
     }
 
     private JsonObject rawVariable(JsonObject response, int id) {

@@ -30,6 +30,11 @@ import com.allinweb.ch.facade.botjob.BotJobDetailsReactSessionContext;
 import com.allinweb.ch.facade.execution.ExecutionPreflightReport;
 import com.allinweb.ch.facade.execution.ExecutionPreflightSnapshotRepository;
 import com.allinweb.ch.facade.execution.RunScope;
+import com.allinweb.ch.facade.actions.RuntimeVariableMemoryRegistry;
+import com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableModels.MutationResult;
+import com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableModels.OwnerKey;
+import com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableModels.Snapshot;
+import com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableService;
 import com.allinweb.ch.facade.scanner.prelaunch.ScannerExecutionPreflightMonitor;
 import com.allinweb.ch.license.LicenceVal;
 import com.allinweb.ch.license.LicenseManager;
@@ -45,6 +50,8 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import java.io.File;
 import java.io.IOException;
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -71,6 +78,8 @@ public class BotJobDetailsWorkspaceHost {
     private static final BotJobToolbarConcurrencyGuard botJobToolbarGuard = new BotJobToolbarConcurrencyGuard();
     private static final ExecutionPauseCoordinator executionPauseCoordinator =
             ExecutionPauseCoordinator.getInstance();
+    private static final BotJobRuntimeVariableService runtimeVariableService =
+            new BotJobRuntimeVariableService();
     private static final BotJobNativeOperationService botJobNativeOperations =
             BotJobNativeOperationService.createDefault(arPropertyManager, botJobToolbarGuard);
     private static final BotJobWorkspaceCapabilityService workspaceCapabilities =
@@ -1373,6 +1382,7 @@ public class BotJobDetailsWorkspaceHost {
                 : "ONE".equals(mode)
                         ? RunScope.one(blockId)
                         : RunScope.fromBlock(blockId);
+        prepareRuntimeMemoryForExecution(context, body);
         ScannerExecutionPreflightMonitor.Observation preflightObservation =
                 executionPreflightMonitor.observe(
                         "BOT_JOB_DETAILS_TEST_RUN",
@@ -1407,6 +1417,7 @@ public class BotJobDetailsWorkspaceHost {
         if (!workbook.isFile()) {
             throw new IllegalStateException("Generate the Excel file before launching the Bot Job");
         }
+        prepareRuntimeMemoryForExecution(context, request.body());
         ScannerExecutionPreflightMonitor.Observation preflightObservation =
                 executionPreflightMonitor.observe(
                         "BOT_JOB_DETAILS_LAUNCH",
@@ -1429,6 +1440,47 @@ public class BotJobDetailsWorkspaceHost {
                         .withExecutionPreflight(
                                 ExecutionPreflightReport.from(preflightObservation))
                 : BotJobToolbarActionResult.failure(action, message));
+    }
+
+    /**
+     * Loads the committed runtime-variable snapshot before execution and applies an explicit RESET
+     * policy when requested.
+     *
+     * <p>Variables are optional execution support: a storage outage is reported to the log but
+     * never blocks navigation or a test run. The process-local registry is only a read cache and is
+     * replaced after the database transaction commits.
+     */
+    private void prepareRuntimeMemoryForExecution(
+            BotJobToolbarContext context, JsonObject body) {
+        RuntimeMemoryPolicy policy = RuntimeMemoryPolicy.parse(
+                body == null || !body.has("runtimeMemoryPolicy")
+                                || body.get("runtimeMemoryPolicy").isJsonNull()
+                        ? null
+                        : body.get("runtimeMemoryPolicy").getAsString());
+        OwnerKey owner = new OwnerKey(context.homeBankingId(), context.botJobId());
+        try (Connection connection = performDataBase.getConnection()) {
+            Snapshot snapshot;
+            if (policy == RuntimeMemoryPolicy.RESET) {
+                MutationResult reset =
+                        runtimeVariableService.resetForExecution(connection, owner, null);
+                snapshot = reset.snapshot();
+                if (!reset.applied() || snapshot == null) {
+                    log.warn(
+                            "Runtime memory RESET was not applied for Bot Job {}: {}",
+                            context.botJobId(),
+                            reset.message());
+                    snapshot = runtimeVariableService.hydrate(connection, owner);
+                }
+            } else {
+                snapshot = runtimeVariableService.hydrate(connection, owner);
+            }
+            RuntimeVariableMemoryRegistry.getInstance().hydrateDurableSnapshot(snapshot);
+        } catch (SQLException | RuntimeException unavailable) {
+            log.warn(
+                    "Runtime variable memory is unavailable for Bot Job {}; execution will continue with VOID/last committed cache: {}",
+                    context.botJobId(),
+                    unavailable.getMessage());
+        }
     }
 
     private void requireDesktopBrowserExecution(BotJobToolbarContext context) {

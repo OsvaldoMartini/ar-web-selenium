@@ -102,8 +102,42 @@ class ExecutionPreflightSnapshotRepositoryTest {
                             + " tag_name TEXT, active BOOLEAN NOT NULL, parent_id INTEGER,"
                             + " parent_block_id INTEGER, variable_id INTEGER)");
             statement.execute(
-                    "CREATE TABLE variable (id INTEGER PRIMARY KEY, bot_job_id INTEGER NOT NULL,"
-                            + " type TEXT, instruction_id INTEGER)");
+                    "CREATE TABLE bot_job_variable_definition ("
+                            + " home_banking_id INTEGER NOT NULL,"
+                            + " bot_job_id INTEGER NOT NULL,"
+                            + " id INTEGER NOT NULL,"
+                            + " variable_type TEXT,"
+                            + " name TEXT NOT NULL,"
+                            + " configured_value TEXT,"
+                            + " local_format TEXT,"
+                            + " delimiter TEXT,"
+                            + " producer_instruction_id INTEGER,"
+                            + " created_at TEXT NOT NULL,"
+                            + " updated_at TEXT NOT NULL,"
+                            + " PRIMARY KEY (home_banking_id, bot_job_id, id))");
+            statement.execute(
+                    "CREATE TABLE bot_job_runtime_memory ("
+                            + " home_banking_id INTEGER NOT NULL,"
+                            + " bot_job_id INTEGER NOT NULL,"
+                            + " runtime_revision INTEGER NOT NULL,"
+                            + " reset_generation INTEGER NOT NULL,"
+                            + " next_variable_id INTEGER NOT NULL,"
+                            + " created_at TEXT NOT NULL,"
+                            + " updated_at TEXT NOT NULL,"
+                            + " PRIMARY KEY (home_banking_id, bot_job_id))");
+            statement.execute(
+                    "CREATE TABLE bot_job_runtime_variable_value ("
+                            + " home_banking_id INTEGER NOT NULL,"
+                            + " bot_job_id INTEGER NOT NULL,"
+                            + " variable_id INTEGER NOT NULL,"
+                            + " value_state TEXT NOT NULL,"
+                            + " raw_value TEXT,"
+                            + " void_reason TEXT,"
+                            + " value_source TEXT NOT NULL,"
+                            + " entry_revision INTEGER NOT NULL,"
+                            + " last_execution_id TEXT,"
+                            + " updated_at TEXT NOT NULL,"
+                            + " PRIMARY KEY (home_banking_id, bot_job_id, variable_id))");
             if (includeGraphState) {
                 statement.execute(
                         "CREATE TABLE instruction_graph_state (workspace_kind TEXT NOT NULL,"
@@ -122,8 +156,25 @@ class ExecutionPreflightSnapshotRepositoryTest {
                             + " (103, 10, 3, 'EXCEL GOTO', NULL, 1, NULL, NULL, NULL),"
                             + " (999, 90, 1, 'FIELD', 'button', 1, NULL, NULL, NULL)");
             statement.execute(
-                    "INSERT INTO variable VALUES (501, 5, '$String', NULL),"
-                            + " (999, 6, '$String', 999)");
+                    "INSERT INTO bot_job_variable_definition"
+                            + " (home_banking_id, bot_job_id, id, variable_type, name,"
+                            + " producer_instruction_id, created_at, updated_at) VALUES"
+                            + " (2, 5, 501, '$String', 'Variable 501', NULL,"
+                            + " '2026-07-30T00:00:00Z', '2026-07-30T00:00:00Z'),"
+                            + " (3, 6, 999, '$String', 'Variable 999', 999,"
+                            + " '2026-07-30T00:00:00Z', '2026-07-30T00:00:00Z')");
+            statement.execute(
+                    "INSERT INTO bot_job_runtime_memory VALUES"
+                            + " (2, 5, 0, 0, 502, '2026-07-30T00:00:00Z',"
+                            + " '2026-07-30T00:00:00Z'),"
+                            + " (3, 6, 0, 0, 1000, '2026-07-30T00:00:00Z',"
+                            + " '2026-07-30T00:00:00Z')");
+            statement.execute(
+                    "INSERT INTO bot_job_runtime_variable_value VALUES"
+                            + " (2, 5, 501, 'VOID', NULL, 'NO_PRODUCER_YET',"
+                            + " 'SYSTEM', 0, NULL, '2026-07-30T00:00:00Z'),"
+                            + " (3, 6, 999, 'VOID', NULL, 'NO_PRODUCER_YET',"
+                            + " 'SYSTEM', 0, NULL, '2026-07-30T00:00:00Z')");
             if (includeGraphState) {
                 statement.execute(
                         "INSERT INTO instruction_graph_state VALUES ('BOT_JOB', 2, 5, 7)");

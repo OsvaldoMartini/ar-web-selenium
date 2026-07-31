@@ -546,7 +546,7 @@ public class PerformActions implements ActionContext {
                             ARConstantsEngine.INSERT,
                             outputValues);
                     if (playwrightSuccess) {
-                        runtimeVariables.write(variableId, operations[1].trim());
+                        runtimeVariables.write(variableId, operations[1]);
                     }
                 } else if (targetInstruction != null
                         && ARConstantsEngine.GET_VALUE.equalsIgnoreCase(action)) {
@@ -557,7 +557,16 @@ public class PerformActions implements ActionContext {
                         if (!value.isEmpty()) {
                             playwrightMessage += " <-- " + value;
                         }
-                        playwrightSuccess = runtimeVariables.write(variableId, value.trim());
+                        boolean persisted = runtimeVariables.write(variableId, value);
+                        if (!persisted) {
+                            logOperations.warn(
+                                    "GET_VALUE read succeeded, but variable {} could not be "
+                                            + "persisted; downstream commands will see VOID",
+                                    variableId);
+                        }
+                        // Reading the page and persisting runtime memory are independent. A
+                        // database outage must never fail TEST_RUN/LAUNCH or the page action.
+                        playwrightSuccess = true;
                     }
                 }
             } catch (RuntimeException error) {
@@ -593,7 +602,7 @@ public class PerformActions implements ActionContext {
                         msgReturn = "SET_VALUE to (Parent: " + parentField + ") Var:" + variableField + " <-- "
                                 + operations[1];
                         insertTargetElement(byPassNotFound, instructionElement, operations[0], operations[1]);
-                        runtimeVariables.write(variableId, operations[1].trim());
+                        runtimeVariables.write(variableId, operations[1]);
                         // Page interaction and variable memory are independent. Missing variable
                         // metadata leaves the runtime value VOID, but SET still reaches the page.
                         success = true;
@@ -615,8 +624,18 @@ public class PerformActions implements ActionContext {
                         if (!Strings.isNullOrEmpty(valueElem)) {
                             msgReturn += " <-- " + valueElem;
                         }
-                        success = valueElem != null
-                                && runtimeVariables.write(variableId, valueElem.trim());
+                        if (valueElem != null) {
+                            boolean persisted = runtimeVariables.write(variableId, valueElem);
+                            if (!persisted) {
+                                logOperations.warn(
+                                        "GET_VALUE read succeeded, but variable {} could not be "
+                                                + "persisted; downstream commands will see VOID",
+                                        variableId);
+                            }
+                            // Reading the page and persisting runtime memory are independent. A
+                            // database outage must never fail TEST_RUN/LAUNCH or the page action.
+                            success = true;
+                        }
                         break;
 
                     case "CopyVar":

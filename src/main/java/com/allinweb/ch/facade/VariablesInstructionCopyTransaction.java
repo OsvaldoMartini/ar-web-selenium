@@ -7,6 +7,10 @@ import com.allinweb.ch.db.InstructionGraphStateRepository.GraphState;
 import com.allinweb.ch.db.InstructionGraphStateRepository.OwnerKey;
 import com.allinweb.ch.facade.BotJobGraphMutationTransaction.AuthenticatedBotJob;
 import com.allinweb.ch.facade.BotJobGraphMutationTransaction.MutationRefusedException;
+import com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableModels.DefinitionDraft;
+import com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableModels.MutationResult;
+import com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableModels.ValueState;
+import com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableService;
 import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.model.VariableLoadDTO;
 import com.allinweb.ch.model.VariablesInstructionCopyV1;
@@ -33,6 +37,8 @@ import java.util.Set;
  * submitted order. Existing rows are never rewritten.
  */
 public final class VariablesInstructionCopyTransaction {
+    private static final BotJobRuntimeVariableService RUNTIME_VARIABLES =
+            new BotJobRuntimeVariableService();
 
     private static final String INSTRUCTION_SELECT = """
             SELECT id, instruction_order_number, actions, name, xpath, coordinates,
@@ -96,7 +102,7 @@ public final class VariablesInstructionCopyTransaction {
             requireOwnedBotJob(connection, owner.owner());
             GraphState graphState = stateRepository.loadOrCreate(connection, owner.owner());
             AuthoritativeGraph before =
-                    loadGraph(connection, owner.owner().ownerId(), graphState);
+                    loadGraph(connection, owner.owner(), graphState);
             CopyPlan plan = validateAndPlan(owner, request, before);
 
             int firstTargetOrder =
@@ -118,7 +124,7 @@ public final class VariablesInstructionCopyTransaction {
             LinkedHashMap<Integer, Integer> generatedVariableIds =
                     copyOwnedVariables(
                             connection,
-                            owner.owner().ownerId(),
+                            owner.owner(),
                             plan.variablesToClone(),
                             generatedInstructionIds);
             faultInjector.at(TransactionPhase.AFTER_VARIABLES_INSERTED);
@@ -152,7 +158,7 @@ public final class VariablesInstructionCopyTransaction {
             faultInjector.at(TransactionPhase.AFTER_VERSION_ADVANCE);
 
             AuthoritativeGraph after =
-                    loadGraph(connection, owner.owner().ownerId(), advance.state());
+                    loadGraph(connection, owner.owner(), advance.state());
             verifyFinalState(
                     before,
                     after,
@@ -389,39 +395,39 @@ public final class VariablesInstructionCopyTransaction {
 
     private LinkedHashMap<Integer, Integer> copyOwnedVariables(
             Connection connection,
-            int botJobId,
+            OwnerKey owner,
             Map<Integer, VariableRow> variablesToClone,
             Map<Integer, Integer> generatedInstructionIds)
             throws SQLException {
         LinkedHashMap<Integer, Integer> generatedVariableIds = new LinkedHashMap<>();
         if (variablesToClone.isEmpty()) return generatedVariableIds;
-        String insert = "INSERT INTO variable "
-                + "(type,name,value,local_format,delimiter,instruction_id,bot_job_id) "
-                + "VALUES (?,?,?,?,?,?,?)";
-        try (PreparedStatement statement =
-                connection.prepareStatement(insert, Statement.RETURN_GENERATED_KEYS)) {
-            for (VariableRow source : variablesToClone.values()) {
-                Integer generatedOwner =
-                        generatedInstructionIds.get(source.ownerInstructionId());
-                if (generatedOwner == null) {
-                    throw refused(
-                            "VARIABLE_COPY_OWNER_NOT_SELECTED",
-                            "A cloned variable owner was not included in the exact source list.");
-                }
-                statement.setObject(1, source.type());
-                statement.setObject(2, source.name());
-                statement.setObject(3, source.value());
-                statement.setObject(4, source.localFormat());
-                statement.setObject(5, source.delimiter());
-                statement.setInt(6, generatedOwner);
-                statement.setInt(7, botJobId);
-                if (statement.executeUpdate() != 1) {
-                    throw new SQLException(
-                            "Variable copy did not create exactly one fresh row.");
-                }
-                generatedVariableIds.put(
-                        source.id(), generatedId(statement, "Variables variable copy"));
+        for (VariableRow source : variablesToClone.values()) {
+            Integer generatedOwner =
+                    generatedInstructionIds.get(source.ownerInstructionId());
+            if (generatedOwner == null) {
+                throw refused(
+                        "VARIABLE_COPY_OWNER_NOT_SELECTED",
+                        "A cloned variable owner was not included in the exact source list.");
             }
+            MutationResult created = RUNTIME_VARIABLES.createDefinition(
+                    connection,
+                    new com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableModels.OwnerKey(
+                            owner.homeBankingId(), owner.ownerId()),
+                    new DefinitionDraft(
+                            text(source.type()),
+                            text(source.name()),
+                            text(source.value()),
+                            text(source.localFormat()),
+                            text(source.delimiter()),
+                            generatedOwner.longValue(),
+                            ValueState.VOID,
+                            null),
+                    null);
+            if (!created.applied() || created.definition() == null) {
+                throw new SQLException(created.message());
+            }
+            generatedVariableIds.put(
+                    source.id(), Math.toIntExact(created.definition().id()));
         }
         return generatedVariableIds;
     }
@@ -541,8 +547,9 @@ public final class VariablesInstructionCopyTransaction {
     }
 
     private AuthoritativeGraph loadGraph(
-            Connection connection, int botJobId, GraphState state)
+            Connection connection, OwnerKey owner, GraphState state)
             throws SQLException {
+        int botJobId = owner.ownerId();
         LinkedHashMap<Integer, BlockRow> blocks = new LinkedHashMap<>();
         try (PreparedStatement statement = connection.prepareStatement(
                 "SELECT id,block_order_number FROM block "
@@ -575,9 +582,12 @@ public final class VariablesInstructionCopyTransaction {
         LinkedHashMap<Integer, VariableRow> variables = new LinkedHashMap<>();
         List<VariableLoadDTO> revisionVariables = new ArrayList<>();
         try (PreparedStatement statement = connection.prepareStatement(
-                "SELECT id,type,name,value,local_format,delimiter,instruction_id "
-                        + "FROM variable WHERE bot_job_id=? ORDER BY id")) {
-            statement.setInt(1, botJobId);
+                "SELECT id,variable_type AS type,name,configured_value AS value,"
+                        + "local_format,delimiter,producer_instruction_id AS instruction_id "
+                        + "FROM bot_job_variable_definition"
+                        + " WHERE home_banking_id=? AND bot_job_id=? ORDER BY id")) {
+            statement.setInt(1, owner.homeBankingId());
+            statement.setInt(2, botJobId);
             try (ResultSet rows = statement.executeQuery()) {
                 while (rows.next()) {
                     VariableRow variable = VariableRow.from(rows);
@@ -800,6 +810,10 @@ public final class VariablesInstructionCopyTransaction {
             throws SQLException {
         Object value = rows.getObject(column);
         return value == null ? null : ((Number) value).intValue();
+    }
+
+    private static String text(Object value) {
+        return value == null ? null : String.valueOf(value);
     }
 
     private static void bindNullableInteger(

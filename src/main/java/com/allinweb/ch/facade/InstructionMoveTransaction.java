@@ -230,9 +230,12 @@ final class InstructionMoveTransaction {
         }
 
         boolean component = "component_instruction".equals(instructionTable);
-        String variableTable = component ? "component_variable" : "variable";
+        String variableTable =
+                component ? "component_variable" : "bot_job_variable_definition";
+        String producerColumn =
+                component ? "instruction_id" : "producer_instruction_id";
         List<VariableLoadDTO> variableOwnership = new ArrayList<>();
-        String variableQuery = "SELECT id,instruction_id FROM "
+        String variableQuery = "SELECT id," + producerColumn + " AS instruction_id FROM "
                 + variableTable
                 + " WHERE "
                 + ownerColumn

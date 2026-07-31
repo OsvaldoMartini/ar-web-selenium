@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.allinweb.ch.db.InstructionGraphStateRepository;
 import com.allinweb.ch.db.InstructionGraphStateRepository.OwnerKey;
 import com.allinweb.ch.db.migrations.M20260729_InstructionGraphState;
+import com.allinweb.ch.db.migrations.M20260730_BotJobRuntimeVariables;
 import com.allinweb.ch.facade.BotJobGraphMutationTransaction.AuthenticatedBotJob;
 import com.allinweb.ch.facade.BotJobGraphMutationTransaction.GraphSnapshot;
 import com.allinweb.ch.facade.BotJobGraphMutationTransaction.MutationRefusedException;
@@ -105,7 +106,18 @@ class VariablesInstructionCopyTransactionTest {
                             connection,
                             "reference",
                             "instruction_id=" + generatedInstructionId));
-            assertEquals(2, count(connection, "variable", "bot_job_id=5"));
+            assertEquals(
+                    2,
+                    count(
+                            connection,
+                            "bot_job_variable_definition",
+                            "bot_job_id=5"));
+            assertEquals(
+                    2,
+                    count(
+                            connection,
+                            "bot_job_runtime_variable_value",
+                            "bot_job_id=5"));
             assertEquals(7, count(connection, "instruction", "bot_job_id=5"));
             assertEquals(1L, currentVersion(connection));
             assertSourceFixtureUnchanged(connection);
@@ -178,13 +190,14 @@ class VariablesInstructionCopyTransactionTest {
                     copiedParentId,
                     integer(
                             connection,
-                            "SELECT instruction_id FROM variable WHERE id=?",
+                            "SELECT producer_instruction_id"
+                                    + " FROM bot_job_variable_definition WHERE id=?",
                             copiedVariableId));
             assertEquals(
                     "account_number",
                     value(
                             connection,
-                            "SELECT name FROM variable WHERE id=?",
+                            "SELECT name FROM bot_job_variable_definition WHERE id=?",
                             copiedVariableId));
             assertEquals(
                     2,
@@ -196,7 +209,21 @@ class VariablesInstructionCopyTransactionTest {
                                     + ","
                                     + copiedGetId
                                     + ")"));
-            assertEquals(3, count(connection, "variable", "bot_job_id=5"));
+            assertEquals(
+                    3,
+                    count(
+                            connection,
+                            "bot_job_variable_definition",
+                            "bot_job_id=5"));
+            assertEquals(
+                    1,
+                    count(
+                            connection,
+                            "bot_job_runtime_variable_value",
+                            "bot_job_id=5"
+                                    + " AND variable_id="
+                                    + copiedVariableId
+                                    + " AND value_state='VOID'"));
             assertEquals(9, count(connection, "instruction", "bot_job_id=5"));
             assertSourceFixtureUnchanged(connection);
         }
@@ -414,6 +441,9 @@ class VariablesInstructionCopyTransactionTest {
         try (Statement statement = connection.createStatement()) {
             statement.execute("PRAGMA foreign_keys=ON");
             statement.execute(
+                    "CREATE TABLE home_banking("
+                            + "id INTEGER PRIMARY KEY)");
+            statement.execute(
                     "CREATE TABLE bot_job("
                             + "id INTEGER PRIMARY KEY,"
                             + "home_banking_id INTEGER NOT NULL)");
@@ -472,6 +502,8 @@ class VariablesInstructionCopyTransactionTest {
                             + "bot_job_id INTEGER NOT NULL)");
 
             statement.executeUpdate(
+                    "INSERT INTO home_banking VALUES (2),(3)");
+            statement.executeUpdate(
                     "INSERT INTO bot_job VALUES (5,2),(6,3)");
             statement.executeUpdate(
                     "INSERT INTO block VALUES"
@@ -518,6 +550,7 @@ class VariablesInstructionCopyTransactionTest {
                             + "(700,'XPATH','//get-account',101,5),"
                             + "(701,'CSS','#write-account',102,5)");
         }
+        new M20260730_BotJobRuntimeVariables().apply(connection, "TEXT");
         new M20260729_InstructionGraphState().apply(connection, "TEXT");
         stateRepository.loadOrCreate(
                 connection,
@@ -553,7 +586,18 @@ class VariablesInstructionCopyTransactionTest {
 
     private void assertInitialState(Connection connection) throws Exception {
         assertEquals(6, count(connection, "instruction", "bot_job_id=5"));
-        assertEquals(2, count(connection, "variable", "bot_job_id=5"));
+        assertEquals(
+                2,
+                count(
+                        connection,
+                        "bot_job_variable_definition",
+                        "bot_job_id=5"));
+        assertEquals(
+                2,
+                count(
+                        connection,
+                        "bot_job_runtime_variable_value",
+                        "bot_job_id=5 AND value_state='VOID'"));
         assertEquals(2, count(connection, "reference", "bot_job_id=5"));
         assertEquals(0L, currentVersion(connection));
         assertSourceFixtureUnchanged(connection);
@@ -613,7 +657,8 @@ class VariablesInstructionCopyTransactionTest {
                 100,
                 integer(
                         connection,
-                        "SELECT instruction_id FROM variable WHERE id=?",
+                        "SELECT producer_instruction_id"
+                                + " FROM bot_job_variable_definition WHERE id=?",
                         501));
         assertEquals(
                 2,

@@ -299,9 +299,12 @@ public final class BotJobGraphMutationTransaction {
         List<StoredVariable> variables = new ArrayList<>();
         List<VariableLoadDTO> revisionVariables = new ArrayList<>();
         String variableSql =
-                "SELECT id,instruction_id FROM variable WHERE bot_job_id=? ORDER BY id";
+                "SELECT id,producer_instruction_id AS instruction_id"
+                        + " FROM bot_job_variable_definition"
+                        + " WHERE home_banking_id=? AND bot_job_id=? ORDER BY id";
         try (PreparedStatement statement = connection.prepareStatement(variableSql)) {
-            statement.setInt(1, owner.ownerId());
+            statement.setInt(1, owner.homeBankingId());
+            statement.setInt(2, owner.ownerId());
             try (ResultSet rows = statement.executeQuery()) {
                 while (rows.next()) {
                     int id = rows.getInt("id");
@@ -405,7 +408,9 @@ public final class BotJobGraphMutationTransaction {
             int botJobId,
             List<NormalizedVariable> variables)
             throws SQLException {
-        String sql = "UPDATE variable SET instruction_id=? WHERE id=? AND bot_job_id=?";
+        String sql = "UPDATE bot_job_variable_definition"
+                + " SET producer_instruction_id=?,updated_at=CURRENT_TIMESTAMP"
+                + " WHERE id=? AND bot_job_id=?";
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             for (NormalizedVariable variable : variables) {
                 setNullableInteger(statement, 1, variable.instructionId());

@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.allinweb.ch.db.InstructionGraphStateRepository;
 import com.allinweb.ch.db.InstructionGraphStateRepository.OwnerKey;
 import com.allinweb.ch.db.migrations.M20260729_InstructionGraphState;
+import com.allinweb.ch.db.migrations.M20260730_BotJobRuntimeVariables;
 import com.allinweb.ch.facade.BotJobGraphMutationTransaction.AuthenticatedBotJob;
 import com.allinweb.ch.facade.BotJobGraphMutationTransaction.GraphSnapshot;
 import com.allinweb.ch.facade.BotJobGraphMutationTransaction.MutationRefusedException;
@@ -57,8 +58,30 @@ class VariablesVariableDeleteTransactionTest {
             assertEquals(0L, result.previousGraphVersion());
             assertEquals(1L, result.committedGraphVersion());
             assertEquals(1L, currentVersion(connection));
-            assertEquals(0, count(connection, "variable", "id=501"));
-            assertEquals(1, count(connection, "variable", "id=502"));
+            assertEquals(
+                    0,
+                    count(
+                            connection,
+                            "bot_job_variable_definition",
+                            "id=501"));
+            assertEquals(
+                    1,
+                    count(
+                            connection,
+                            "bot_job_variable_definition",
+                            "id=502"));
+            assertEquals(
+                    0,
+                    count(
+                            connection,
+                            "bot_job_runtime_variable_value",
+                            "variable_id=501"));
+            assertEquals(
+                    1,
+                    count(
+                            connection,
+                            "bot_job_runtime_variable_value",
+                            "variable_id=502"));
             assertNull(value(
                     connection, "SELECT variable_id FROM instruction WHERE id=101"));
             assertNull(value(
@@ -101,7 +124,18 @@ class VariablesVariableDeleteTransactionTest {
 
             assertEquals(2, result.deletedCount());
             assertEquals(3, result.clearedInstructionCount());
-            assertEquals(0, count(connection, "variable", "bot_job_id=5"));
+            assertEquals(
+                    0,
+                    count(
+                            connection,
+                            "bot_job_variable_definition",
+                            "bot_job_id=5"));
+            assertEquals(
+                    0,
+                    count(
+                            connection,
+                            "bot_job_runtime_variable_value",
+                            "bot_job_id=5"));
             assertEquals(
                     0,
                     count(
@@ -285,6 +319,8 @@ class VariablesVariableDeleteTransactionTest {
         Connection connection = DriverManager.getConnection("jdbc:sqlite::memory:");
         try (Statement statement = connection.createStatement()) {
             statement.execute("PRAGMA foreign_keys=ON");
+            statement.execute("CREATE TABLE home_banking("
+                    + "id INTEGER PRIMARY KEY)");
             statement.execute("CREATE TABLE bot_job("
                     + "id INTEGER PRIMARY KEY,home_banking_id INTEGER NOT NULL)");
             statement.execute("CREATE TABLE block("
@@ -297,7 +333,8 @@ class VariablesVariableDeleteTransactionTest {
                     + "variable_id INTEGER,operation TEXT,name TEXT,xpath TEXT)");
             statement.execute("CREATE TABLE variable("
                     + "id INTEGER PRIMARY KEY,bot_job_id INTEGER NOT NULL,"
-                    + "instruction_id INTEGER,type TEXT,name TEXT,value TEXT)");
+                    + "instruction_id INTEGER,type TEXT,name TEXT,value TEXT,"
+                    + "local_format TEXT,delimiter TEXT)");
             statement.execute("CREATE TABLE reference("
                     + "id INTEGER PRIMARY KEY,instruction_id INTEGER,bot_job_id INTEGER,"
                     + "reference_type TEXT,value TEXT)");
@@ -308,6 +345,7 @@ class VariablesVariableDeleteTransactionTest {
                     + "id INTEGER PRIMARY KEY,home_banking_id INTEGER,instruction_id INTEGER,"
                     + "name TEXT)");
 
+            statement.executeUpdate("INSERT INTO home_banking VALUES (2),(3)");
             statement.executeUpdate("INSERT INTO bot_job VALUES (5,2),(6,3)");
             statement.executeUpdate("INSERT INTO block VALUES"
                     + "(10,5,1,'First'),(20,5,2,'Second')");
@@ -316,7 +354,8 @@ class VariablesVariableDeleteTransactionTest {
                     + "(101,5,10,2,'GET',100,10,501,'capture-one','Get',''),"
                     + "(102,5,10,3,'E',100,10,501,'write-one','Excel',''),"
                     + "(103,5,20,1,'CK',100,10,502,'check-two','Check','')");
-            statement.executeUpdate("INSERT INTO variable VALUES"
+            statement.executeUpdate("INSERT INTO variable("
+                    + "id,bot_job_id,instruction_id,type,name,value) VALUES"
                     + "(501,5,100,'$String','First','$EMPTY'),"
                     + "(502,5,103,'#Numeric','Second','0'),"
                     + "(601,6,NULL,'$String','Foreign','$EMPTY')");
@@ -327,6 +366,7 @@ class VariablesVariableDeleteTransactionTest {
             statement.executeUpdate("INSERT INTO component_variable VALUES"
                     + "(801,2,800,'component-variable')");
         }
+        new M20260730_BotJobRuntimeVariables().apply(connection, "TEXT");
         new M20260729_InstructionGraphState().apply(connection, "TEXT");
         stateRepository.loadOrCreate(
                 connection, OwnerKey.botJob(HOME_BANKING_ID, BOT_JOB_ID));
@@ -335,8 +375,30 @@ class VariablesVariableDeleteTransactionTest {
 
     private void assertUnchanged(Connection connection) throws Exception {
         assertEquals(0L, currentVersion(connection));
-        assertEquals(1, count(connection, "variable", "id=501"));
-        assertEquals(1, count(connection, "variable", "id=502"));
+        assertEquals(
+                1,
+                count(
+                        connection,
+                        "bot_job_variable_definition",
+                        "id=501"));
+        assertEquals(
+                1,
+                count(
+                        connection,
+                        "bot_job_variable_definition",
+                        "id=502"));
+        assertEquals(
+                1,
+                count(
+                        connection,
+                        "bot_job_runtime_variable_value",
+                        "variable_id=501"));
+        assertEquals(
+                1,
+                count(
+                        connection,
+                        "bot_job_runtime_variable_value",
+                        "variable_id=502"));
         assertEquals(
                 501,
                 value(connection, "SELECT variable_id FROM instruction WHERE id=101"));

@@ -3557,7 +3557,6 @@ public class ScannerRuntimeBackend
                             String parentField = null;
                             String parentFieldLoop = null;
                             String variableField = null;
-                            String localFormat = null;
                             //                            delimiterCSV = null;
                             String fieldName = null;
                             int parentId = InstructionGraph.executionParentId(currentInstruction);
@@ -3937,9 +3936,6 @@ public class ScannerRuntimeBackend
                                         performActions.getInstructionVariableField(
                                                 currentInstruction,
                                                 runtimeVariableDefinitions);
-                                localFormat = performActions.getInstructionVariableFormat(
-                                        currentInstruction,
-                                        runtimeVariableDefinitions);
 
                             } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.OUTPUT)) {
                                 execOutPut = true;
@@ -4515,14 +4511,14 @@ public class ScannerRuntimeBackend
                                             variableVoidBypass = true;
                                             success = true;
                                         } else {
+                                            // Runtime memory is the canonical browser value. Keep
+                                            // its exact raw text (including whitespace, currency
+                                            // symbols, separators, and an empty String). Locale
+                                            // conversion belongs only to a consumer performing an
+                                            // explicit comparison/calculation and must never
+                                            // overwrite the produced value.
                                             failedMessage = "";
                                             success = true;
-                                            if (!Strings.isNullOrEmpty(localFormat)) {
-                                                String valueTo = producedValue.value();
-                                                valueTo = performActions.removeAllCurrencySymbols(valueTo);
-                                                valueTo = performActions.formatLocalNumber(valueTo, localFormat);
-                                                runtimeVariables.write(variableId, valueTo);
-                                            }
                                         }
                                     }
 
