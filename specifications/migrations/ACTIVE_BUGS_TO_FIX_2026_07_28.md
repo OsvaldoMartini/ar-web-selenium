@@ -3,37 +3,6 @@
 This is the shared CODEX/Claude coordination list for the current Bot Job Details,
 Components, and Memory List stabilization work.
 
-## INCIDENT RESOLVED 2026-07-31 — Variables "total blockage" (CLAUDE root-cause + restore)
-
-**Symptom:** free instruction drag & drop and the "Reconnect Variable" / "Reconnect Web Element"
-buttons appeared completely blocked, with no notice, starting at Java `d2a3f517` (FE `17648f7`).
-Three CODEX enablement patches (`7925c34`, `cb31c67`, `5395f92`, `10f156e`) did not recover it.
-
-**Root cause (evidence-based):** the backend NEVER refused anything. The constant 517-byte
-`graphMutationV3Response` messages are the SUCCESS shape (byte-length reconstruction proves it), and
-`instruction_graph_state` advanced ~50 versions in step with the user's clicks — every gesture was
-COMMITTING invisibly. The regression is the FE gating layer of `17648f7` (+4,303 lines in one
-commit): silent `submit()` null-returns, all-or-nothing capability normalization, and per-action
-enablement rules swallow both the gestures and their outcomes. Database integrity was verified clean
-(orders, parents, variable owners, GOTO targets — zero corruption).
-
-**Fix applied (minimal):** FE variables surface restored exactly to `49f1ee0` (the last
-user-validated working state) in FE commit `0795468`; bundle `main.55a6c715.js` deployed
-(`resources/build`). Java stays at HEAD — `d2a3f517`'s `variableFacts` exposure is additive and the
-restored FE ignores it. `RulesCard` keeps its HEAD additive API. Nothing outside the variables
-surface changed.
-
-**Known inherited test debt at the restored state (NOT runtime regressions):** 4
-`variablesWorkspace.contract` fixture tests + 1 stale `variablesGraph` expectation fail identically
-with unchanged dependencies; runtime was user-validated.
-
-**Re-landing rule for the `17648f7` features (repair modal, execution-flow review, command badges):**
-one small commit at a time, each with user runtime acceptance, and NO silent gating — every refused
-gesture must display its reason (now codified in CLAUDE.md "UI gating rules").
-
-**Data note:** because the "blocked" clicks actually committed, the active job's layout may differ
-from what the user remembers; that is surfaced history, not new corruption.
-
 ## File ownership rule
 
 Before changing a bug, claim its files in this table. Work on a separate branch or
