@@ -34,6 +34,44 @@ gesture must display its reason (now codified in CLAUDE.md "UI gating rules").
 **Data note:** because the "blocked" clicks actually committed, the active job's layout may differ
 from what the user remembers; that is surfaced history, not new corruption.
 
+## DELIVERED 2026-07-31 (afternoon) — Relationship chip design system (CLAUDE, user-accepted)
+
+Runtime-accepted by the user on both surfaces (GridItem grid rows AND the Variables command
+board). FE commits `c12fa69` → `69f26e0` → `0f52397` → `52ee6c6`; latest deployed bundle
+`main.ad3bf0eb.js` (Java deploy `182bb6a2`).
+
+**The chip contract (standing design — apply to any future relationship UI):**
+
+1. **Broken = RED clickable chip, everywhere.** Every relationship a command carries via
+   `parent_id` / `parent_block_id` / `variable_id` shows a red RulesCard chip when broken, with a
+   kind-aware label: `Reconnect Parent`, `Reconnect Loop`, `Repair Conditional`,
+   `Reconnect Block`, `Reconnect Variable`. No orange/pale broken states.
+2. **Connected = styled chip that KEEPS its color and carries the target name:**
+   `Parent connected (id: 1646) <name>`, `Loop connected (id: 917) Pagina iniziale`,
+   `Block connected (id: N) <block name>`. Previously connected LOOP/Conditional/Block showed no
+   chip at all.
+3. **The chip is the SINGLE parent display.** The legacy operation-text fragments
+   (`Jump To Parent (N/A)Unknown`, GET/SET parent prefixes) were removed from GridItem — the
+   `(N/A)Unknown` text can never render again. Operation values (Time/Loop counts, checks) stay.
+4. **Every chip opens the shared reconnect dialog in BOTH states** (connect when broken;
+   change target / disconnect when connected). The GridItem mutation builder
+   (`instructionRelationshipMutation.ts`) now builds exact v3 patches for ALL kinds:
+   LOOP_ANCHOR / CONDITIONAL_ROOT (instruction target) and BLOCK_TARGET (parentBlockId only) —
+   previously only ELEMENT_TARGET / VARIABLE_BINDING, which caused
+   "LOOP_ANCHOR cannot be changed from this instruction badge".
+5. **State scoping:** structural kinds join the chip pathway only when CONNECTED or broken;
+   FIX_ORDER / SAVING / REFUSED keep their own dedicated chips (FIX_ORDER stays amber).
+6. **Removed as redundant:** the frontend-only `SOURCE DEFINED / VOID` badge on grid rows
+   (`InstructionVariableStateBadge` deleted; zero Java references). The Variables page runtime
+   panel wording is unchanged.
+
+**Housekeeping:** CODEX's in-progress, unwired ExecutionFlowReview files are preserved in
+`d1c4cf6` (nothing imports them; zero build impact).
+
+**Known pre-existing test baseline (NOT regressions, verified via stash runs):**
+`variablesGraph`, `variablesWorkspace.contract` (4 fixtures), `GridItemComp.memoryParity`
+(5 delete-plan fixtures), `instructionMove` fixtures, plus the older OCR/Activation/App suites.
+
 ## File ownership rule
 
 Before changing a bug, claim its files in this table. Work on a separate branch or

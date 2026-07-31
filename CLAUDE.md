@@ -116,3 +116,19 @@ Features that persist artifacts on pick events always write them under `PATH_DB`
 - When debugging "blocked" UI, check `instruction_graph_state.graph_version` and the backend
   `ar_web_scanner_backend.log` RES sizes first — a constant-size `graphMutationV3Response` (~517 bytes)
   is the SUCCESS shape; do not assume refusal.
+
+## Relationship chip contract (standing design — user-accepted 2026-07-31)
+
+Any UI that shows an instruction's `parent_id` / `parent_block_id` / `variable_id` relationship
+follows one contract (implemented in `InstructionRelationshipDetails.tsx` for the grid and
+`VariablesCommandBoard.tsx` for the Variables page):
+
+- **Broken = RED clickable chip** with a kind-aware label (Reconnect Parent / Loop / Block,
+  Repair Conditional, Reconnect Variable). Never orange/pale for a broken link.
+- **Connected = styled chip carrying the target NAME** (`Parent connected (id: N) <name>`). The
+  chip is the SINGLE parent display — never render `(N/A)Unknown` or duplicate parent text in the
+  operation column.
+- **Both states are clickable** and open the shared reconnect dialog (connect / change target /
+  disconnect). The grid's `instructionRelationshipMutation.ts` builds v3 patches for ALL kinds —
+  do not reintroduce a kind whitelist.
+- FIX_ORDER / SAVING / REFUSED are separate dedicated chips, not part of the reconnect pathway.
