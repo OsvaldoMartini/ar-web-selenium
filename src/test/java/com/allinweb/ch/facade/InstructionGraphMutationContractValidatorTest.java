@@ -369,6 +369,41 @@ class InstructionGraphMutationContractValidatorTest {
                 ErrorCode.CROSS_OWNER_VARIABLE_TARGET);
     }
 
+    @Test
+    void preservesAnUntouchedDanglingLegacyVariableOwnerDuringUnrelatedMutation() {
+        OwnerGraph danglingOwner = graph(
+                List.of(
+                        stored(100, 10, 1, null, null, null, null),
+                        stored(
+                                LOOP_ID,
+                                10,
+                                2,
+                                InstructionRelationKind.LOOP_ANCHOR,
+                                100,
+                                10,
+                                null),
+                        stored(
+                                GOTO_ID,
+                                20,
+                                1,
+                                InstructionRelationKind.BLOCK_TARGET,
+                                null,
+                                10,
+                                null),
+                        stored(103, 20, 2, null, null, null, null),
+                        stored(104, 30, 1, null, null, null, null)),
+                List.of(new StoredVariable(501, 999999)));
+
+        Validation validation = validator.validateAndNormalize(
+                request(defaultLayout(), List.of()),
+                danglingOwner);
+
+        assertTrue(validation.successful());
+        assertEquals(
+                999999,
+                validation.mutation().variables().get(0).instructionId());
+    }
+
     private InstructionGraphMutationV3.Request request(
             List<LayoutRow> layout,
             List<InstructionRelationPatch> relationPatches) {

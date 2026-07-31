@@ -4,6 +4,7 @@ import com.allinweb.ch.facade.BotJobDetailsWorkspaceRegistry;
 import com.allinweb.ch.facade.BotJobGraphMutationService;
 import com.allinweb.ch.facade.BotJobGraphMutationTransaction.CommitResult;
 import com.allinweb.ch.facade.BotJobGraphMutationTransaction.GraphSnapshot;
+import com.allinweb.ch.facade.BotJobGraphMutationTransaction.GraphVariableFact;
 import com.allinweb.ch.facade.BotJobGraphMutationTransaction.MutationRefusedException;
 import com.allinweb.ch.facade.ScannerBotJobTasksPublisher;
 import com.allinweb.ch.facade.VariableRelationshipService;
@@ -33,6 +34,7 @@ import com.allinweb.ch.model.VariablesWorkspaceVariableDelete;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -1365,6 +1367,7 @@ public final class VariablesWorkspaceService {
             capability.add("ownerAssertion", owner);
             capability.add("layoutRows", gson.toJsonTree(graph.layoutRows()));
             capability.add("instructionFacts", gson.toJsonTree(graph.instructionFacts()));
+            capability.add("variableFacts", variableFactsJson(graph.variableFacts()));
             response.addProperty("graphVersion", graph.graphVersion());
         } catch (SQLException | RuntimeException unavailable) {
             capability.addProperty("enabled", false);
@@ -1377,6 +1380,21 @@ public final class VariablesWorkspaceService {
                     unavailable.getMessage());
         }
         response.add("mutationCapability", capability);
+    }
+
+    private JsonArray variableFactsJson(List<GraphVariableFact> variableFacts) {
+        JsonArray result = new JsonArray();
+        variableFacts.forEach((fact) -> {
+            JsonObject item = new JsonObject();
+            item.addProperty("variableId", fact.variableId());
+            if (fact.ownerInstructionId() == null) {
+                item.add("ownerInstructionId", JsonNull.INSTANCE);
+            } else {
+                item.addProperty("ownerInstructionId", fact.ownerInstructionId());
+            }
+            result.add(item);
+        });
+        return result;
     }
 
     private boolean publish(JsonObject response, Binding current) {

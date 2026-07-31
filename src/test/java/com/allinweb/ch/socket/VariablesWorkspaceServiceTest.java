@@ -15,6 +15,7 @@ import com.allinweb.ch.facade.BotJobDetailsWorkspaceRegistry;
 import com.allinweb.ch.facade.BotJobGraphMutationTransaction.CommitResult;
 import com.allinweb.ch.facade.BotJobGraphMutationTransaction.GraphInstructionFact;
 import com.allinweb.ch.facade.BotJobGraphMutationTransaction.GraphSnapshot;
+import com.allinweb.ch.facade.BotJobGraphMutationTransaction.GraphVariableFact;
 import com.allinweb.ch.facade.ScannerBotJobTasksPublisher;
 import com.allinweb.ch.facade.VariablesInstructionCopyTransaction.CopyResult;
 import com.allinweb.ch.facade.VariablesVariableDeleteTransaction.DeleteResult;
@@ -603,6 +604,20 @@ class VariablesWorkspaceServiceTest {
                 .getAsInt());
         assertEquals(3, capability.getAsJsonArray("layoutRows").size());
         assertEquals(3, capability.getAsJsonArray("instructionFacts").size());
+        JsonArray variableFacts = capability.getAsJsonArray("variableFacts");
+        assertEquals(3, variableFacts.size());
+        assertEquals(7, variableFacts.get(0).getAsJsonObject()
+                .get("variableId").getAsInt());
+        assertEquals(100, variableFacts.get(0).getAsJsonObject()
+                .get("ownerInstructionId").getAsInt());
+        assertEquals(8, variableFacts.get(1).getAsJsonObject()
+                .get("variableId").getAsInt());
+        assertTrue(variableFacts.get(1).getAsJsonObject()
+                .get("ownerInstructionId").isJsonNull());
+        assertEquals(9, variableFacts.get(2).getAsJsonObject()
+                .get("variableId").getAsInt());
+        assertEquals(999999, variableFacts.get(2).getAsJsonObject()
+                .get("ownerInstructionId").getAsInt());
         assertEquals(1, mutations.inspectCalls);
         assertEquals(2, mutations.lastHomeBankingId);
         assertEquals(5, mutations.lastBotJobId);
@@ -1529,7 +1544,11 @@ class VariablesWorkspaceServiceTest {
                                     "CK",
                                     null,
                                     null,
-                                    7)));
+                                    7)),
+                    List.of(
+                            new GraphVariableFact(7, 100),
+                            new GraphVariableFact(8, null),
+                            new GraphVariableFact(9, 999999)));
             return mutations;
         }
 

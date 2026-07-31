@@ -557,8 +557,13 @@ public final class InstructionGraphMutationContractValidator {
 
         for (StoredVariable variable : index.variablesById().values()) {
             Integer ownerInstructionId = finalVariableOwners.get(variable.id());
+            // Preserve an untouched dangling legacy owner so it cannot
+            // deadlock an unrelated graph mutation. A client still cannot
+            // create a new dangling owner: validateVariableOwnerPatches
+            // requires every non-null replacement to resolve in this graph.
             if (ownerInstructionId != null
-                    && !index.instructionsById().containsKey(ownerInstructionId)) {
+                    && !index.instructionsById().containsKey(ownerInstructionId)
+                    && !Objects.equals(ownerInstructionId, variable.instructionId())) {
                 return error(
                         ErrorCode.CROSS_OWNER_INSTRUCTION_TARGET,
                         "Variable owner instruction #" + ownerInstructionId

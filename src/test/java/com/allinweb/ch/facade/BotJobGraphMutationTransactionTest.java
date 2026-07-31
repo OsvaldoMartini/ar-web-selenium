@@ -13,6 +13,7 @@ import com.allinweb.ch.db.migrations.M20260730_BotJobRuntimeVariables;
 import com.allinweb.ch.facade.BotJobGraphMutationTransaction.AuthenticatedBotJob;
 import com.allinweb.ch.facade.BotJobGraphMutationTransaction.GraphInstructionFact;
 import com.allinweb.ch.facade.BotJobGraphMutationTransaction.GraphSnapshot;
+import com.allinweb.ch.facade.BotJobGraphMutationTransaction.GraphVariableFact;
 import com.allinweb.ch.facade.BotJobGraphMutationTransaction.MutationRefusedException;
 import com.allinweb.ch.facade.BotJobGraphMutationTransaction.TransactionPhase;
 import com.allinweb.ch.model.InstructionGraphMutationV3;
@@ -577,6 +578,39 @@ class BotJobGraphMutationTransactionTest {
                                     10,
                                     null)),
                     snapshot.instructionFacts());
+            assertEquals(
+                    List.of(
+                            new GraphVariableFact(501, 100),
+                            new GraphVariableFact(502, 104)),
+                    snapshot.variableFacts());
+            assertEquals(0L, currentVersion(connection));
+            assertTrue(connection.getAutoCommit());
+            assertFalse(connection.isClosed());
+        }
+    }
+
+    @Test
+    void inspectPreservesNullAndDanglingVariableOwnersAsExactFacts()
+            throws Exception {
+        try (Connection connection = database()) {
+            try (Statement statement = connection.createStatement()) {
+                statement.executeUpdate(
+                        "UPDATE bot_job_variable_definition"
+                                + " SET producer_instruction_id=NULL WHERE id=501");
+                statement.executeUpdate(
+                        "UPDATE bot_job_variable_definition"
+                                + " SET producer_instruction_id=999999 WHERE id=502");
+            }
+
+            GraphSnapshot snapshot =
+                    new BotJobGraphMutationTransaction()
+                            .inspect(connection, authenticatedOwner);
+
+            assertEquals(
+                    List.of(
+                            new GraphVariableFact(501, null),
+                            new GraphVariableFact(502, 999999)),
+                    snapshot.variableFacts());
             assertEquals(0L, currentVersion(connection));
             assertTrue(connection.getAutoCommit());
             assertFalse(connection.isClosed());

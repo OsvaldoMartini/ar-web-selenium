@@ -239,11 +239,20 @@ public final class BotJobGraphMutationTransaction {
                                 instruction.blockOrderNumber(),
                                 instruction.instructionOrderNumber()))
                         .toList();
+        List<GraphVariableFact> variableFacts =
+                snapshot.ownerGraph().variables().stream()
+                        .map(variable -> new GraphVariableFact(
+                                variable.id(),
+                                variable.instructionId()))
+                        .sorted(java.util.Comparator.comparingInt(
+                                GraphVariableFact::variableId))
+                        .toList();
         return new GraphSnapshot(
                 snapshot.ownerGraph().scope().graphVersion(),
                 snapshot.revision(),
                 layoutRows,
-                instructionFacts);
+                instructionFacts,
+                variableFacts);
     }
 
     private AuthoritativeSnapshot loadAuthoritative(
@@ -603,15 +612,40 @@ public final class BotJobGraphMutationTransaction {
             Integer parentBlockId,
             Integer variableId) {}
 
+    /**
+     * Exact persisted ownership fact for one Bot Job variable definition.
+     *
+     * <p>{@code ownerInstructionId} intentionally remains nullable and is not resolved against
+     * the instruction catalog here. A null owner and a dangling positive owner are different
+     * authoritative states that React must be able to compare-and-set without Java repairing or
+     * hiding either one.
+     */
+    public record GraphVariableFact(
+            int variableId,
+            Integer ownerInstructionId) {}
+
     public record GraphSnapshot(
             long graphVersion,
             String graphRevision,
             List<InstructionGraphMutationV3.LayoutRow> layoutRows,
-            List<GraphInstructionFact> instructionFacts) {
+            List<GraphInstructionFact> instructionFacts,
+            List<GraphVariableFact> variableFacts) {
 
         public GraphSnapshot {
             layoutRows = List.copyOf(layoutRows);
             instructionFacts = List.copyOf(instructionFacts);
+            variableFacts = List.copyOf(variableFacts);
+        }
+
+        /**
+         * Compatibility constructor for callers that do not author variable-owner relationships.
+         */
+        public GraphSnapshot(
+                long graphVersion,
+                String graphRevision,
+                List<InstructionGraphMutationV3.LayoutRow> layoutRows,
+                List<GraphInstructionFact> instructionFacts) {
+            this(graphVersion, graphRevision, layoutRows, instructionFacts, List.of());
         }
     }
 
