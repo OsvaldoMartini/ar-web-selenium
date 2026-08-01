@@ -58,6 +58,53 @@ This roadmap supersedes only the previously deferred variable-operation semantic
 Older documents remain historical evidence and must not be rewritten to pretend this decision was
 already implemented.
 
+### 2.1 Relationship-contract correction recorded on 2026-08-01
+
+The migration must remove the legacy assumption that every variable command needs a Web Element
+parent. Relationship requirements are determined by the command's direction of data movement:
+
+| Command | Web Element relationship | Variable relationship | Data movement |
+|---|---|---|---|
+| GET | required readable parent | required destination | Web Element -> variable |
+| SET | required writable parent | required source | variable -> Web Element |
+| ExcelWrite (`E`) | forbidden/not applicable | required source | variable -> Excel/CSV output |
+
+For ExcelWrite, `variable_id` becomes the only runtime data-source relationship. Legacy
+`parent_id`/`parent_block_id` values are migration evidence, not execution authority, and must be
+cleared only by an audited migration transaction. The UI must therefore stop rendering or
+requesting **Reconnect Parent** for ExcelWrite while continuing to render **Reconnect Variable**.
+
+The correction applies consistently to:
+
+- TypeScript command policy and graph diagnostics;
+- Variables and GridItem relationship chips;
+- Resolve Connections candidate generation;
+- mutation construction and preflight validation;
+- Java structural persistence validation;
+- production execution and the planned smoke simulator.
+
+CheckValue and external check commands remain variable-only under the target V2 contract in
+Section 5. Commands not listed here retain their existing typed policies until separately audited.
+
+### 2.2 Resolver auto-selection rule
+
+The current TypeScript resolver has the correct fundamental selection rule:
+
+```text
+zero compatible targets   -> NO COMPATIBLE TARGET
+one compatible target     -> AUTO SELECTED
+multiple compatible       -> REVIEW REQUIRED / SELECT TARGET
+```
+
+It does not intentionally choose the first target when several compatible variables exist. If a
+bulk resolve connects many commands to the same variable, the migration audit must verify whether
+that variable was the only eligible candidate for every command. Candidate ordering is
+presentation only and must never authorize a silent first-item assignment.
+
+This is especially important for Bot Job 32, where legacy labels `$ORDER NUMBER` and `$SALDO`
+currently share variable ID 3. The migration must propose a split or require manual confirmation;
+it must not preserve that collision merely because variable 3 appears first.
+
 ## 3. Verified production evidence
 
 The read-only SQLite audit of Bot Job 32, Block 223 (`#1 NEW TEST`) found:
@@ -863,4 +910,3 @@ Implement P0 and P1 only:
 3. implement the pure read-only conflict/candidate analyzer;
 4. produce the expected ORDER_NUMBER/SALDO proposal;
 5. stop for review before creating schema, persistence, or execution changes.
-
