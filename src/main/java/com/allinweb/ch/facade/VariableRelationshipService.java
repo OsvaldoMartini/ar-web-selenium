@@ -126,6 +126,7 @@ public final class VariableRelationshipService {
             throws SQLException {
         String sql = "SELECT instruction.id, instruction.name, instruction.actions,"
                 + " instruction.operation, instruction.tag_name, instruction.variable_id,"
+                + " instruction.on_hold_seconds,"
                 + " instruction.parent_id,"
                 + " instruction.parent_block_id, instruction.block_id,"
                 + " instruction.instruction_order_number, instruction.active,"
@@ -149,6 +150,7 @@ public final class VariableRelationshipService {
                             result.getString("operation"),
                             result.getString("tag_name"),
                             nullableInteger(result, "variable_id"),
+                            nullableInteger(result, "on_hold_seconds"),
                             nullableInteger(result, "parent_id"),
                             nullableInteger(result, "parent_block_id"),
                             nullableInteger(result, "block_id"),
@@ -234,6 +236,7 @@ public final class VariableRelationshipService {
         json.addProperty("operation", safe(row.operation()));
         json.addProperty("tagName", safe(row.tagName()));
         nullable(json, "variableId", row.variableId());
+        nullable(json, "onHoldSeconds", row.onHoldSeconds());
         nullable(json, "parentId", row.parentId());
         nullable(json, "parentBlockId", row.parentBlockId());
         nullable(json, "blockId", row.blockId());
@@ -328,6 +331,7 @@ public final class VariableRelationshipService {
             String operation,
             String tagName,
             Integer variableId,
+            Integer onHoldSeconds,
             Integer parentId,
             Integer parentBlockId,
             Integer blockId,
