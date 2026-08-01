@@ -121,6 +121,7 @@ public class SimpleWebSocketServer {
             "variablesWorkspace.variables.create",
             "variablesWorkspace.graphMutationV3",
             "variablesWorkspace.instructions.copy",
+            "variablesWorkspace.commandEditor.update",
             "variablesWorkspace.variables.delete",
             "pagesOpen.open",
             "pagesOpen.summary");
@@ -960,6 +961,22 @@ public class SimpleWebSocketServer {
                         // An acknowledged commit remains authoritative even if the detached
                         // requester closes before its response reaches React.
                         variablesWorkspaceService.publishCommittedMutation(copyResponse);
+                    }
+                    break;
+                }
+                case "variablesWorkspace.commandEditor.update": {
+                    JsonObject variablesBody = extractBody(jsonObjMSG);
+                    JsonObject updateResponse =
+                            variablesWorkspaceService.updateCommand(
+                                    variablesBody, sessionId, session);
+                    try {
+                        sendCommandEditorResponse(
+                                homeBankingId,
+                                sessionId,
+                                "variablesWorkspace.commandEditor.updateResponse",
+                                updateResponse);
+                    } finally {
+                        variablesWorkspaceService.publishCommittedMutation(updateResponse);
                     }
                     break;
                 }
