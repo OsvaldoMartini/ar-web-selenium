@@ -35,6 +35,8 @@ public final class ExecutionRelationshipPreflightService {
     private static final Set<String> RUNTIME_READER_ACTIONS = Set.of("E", "CK");
     private static final Set<String> RUNTIME_WRITER_ACTIONS = Set.of("GET", "SET");
     private static final Set<String> LOOP_ACTIONS = Set.of("LOOP", "REFRESH_LOOP");
+    private static final Set<String> LOOP_COMMAND_ANCHOR_ACTIONS =
+            Set.of("GET", "SET", "E", "GOTO");
     private static final Set<String> CONDITIONAL_ACTIONS =
             Set.of("IF", "ELSEIF", "ELSE", "ENDIF");
     private static final Set<String> NAVIGATION_ACTIONS = Set.of("GOTO", "EXCEL GOTO");
@@ -395,7 +397,7 @@ public final class ExecutionRelationshipPreflightService {
                     IssueCode.MISSING_LOOP_ANCHOR,
                     RelationshipKind.LOOP_ANCHOR,
                     row,
-                    action + " has no Web Element anchor.");
+                    action + " has no compatible anchor.");
             return;
         }
         InstructionFact target = facts.instructionsById().get(parentId);
@@ -417,13 +419,13 @@ public final class ExecutionRelationshipPreflightService {
                     action + " anchor instruction #" + parentId + " is in another Block.");
             return;
         }
-        if (!isWebElement(target)) {
+        if (!isCompatibleLoopAnchor(target)) {
             relationshipIssue(
                     issues,
                     IssueCode.INCOMPATIBLE_LOOP_ANCHOR,
                     RelationshipKind.LOOP_ANCHOR,
                     row,
-                    action + " anchor instruction #" + parentId + " is not a Web Element.");
+                    action + " anchor instruction #" + parentId + " is not compatible.");
             return;
         }
         if (!isEffectivelyActive(target, facts.blocksById())) {
@@ -585,6 +587,10 @@ public final class ExecutionRelationshipPreflightService {
     private static boolean isWebElement(InstructionFact row) {
         String canonical = action(row);
         return !CommandRegistry.isSpecialAction(canonical) && !"BACK".equals(canonical);
+    }
+
+    private static boolean isCompatibleLoopAnchor(InstructionFact row) {
+        return isWebElement(row) || LOOP_COMMAND_ANCHOR_ACTIONS.contains(action(row));
     }
 
     private static boolean isEffectivelyActive(
