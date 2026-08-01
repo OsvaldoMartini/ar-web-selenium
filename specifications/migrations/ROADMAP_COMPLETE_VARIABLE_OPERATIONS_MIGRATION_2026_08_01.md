@@ -38,6 +38,11 @@ This roadmap extends:
 - `BOT_JOB_VARIABLE_RUNTIME_CUTOVER_2026_07_30.md`
 - `P1_ENGINE_EXECUTION_SEMANTICS_2026_07_29.md`
 - `INSTRUCTION_COMMAND_RULES_AUDIT.md`
+- `ROADMAP_VARIABLES_COMMAND_EDITOR_MODAL_2026_08_01.md`
+
+The Command Editor roadmap owns command-specific authoring, independent target-Block placement,
+same-ID UPDATE, and relationship-free COPY NEW. This Variable Operations roadmap remains
+authoritative for GET/SET/ExcelWrite/Check runtime semantics and typed variable persistence.
 
 The durable definition/runtime cutover remains authoritative:
 

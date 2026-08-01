@@ -5,6 +5,10 @@ Status: planned; investigation complete; implementation not started
 Primary surface: `REVIEW CONNECTIONS` page  
 Initial pilot: Home Banking 2, Bot Job 32
 
+Related authoring roadmap:
+`ROADMAP_VARIABLES_COMMAND_EDITOR_MODAL_2026_08_01.md`. Command Editor UPDATE/COPY NEW must
+publish an authoritative graph revision before a new frozen smoke-test run is created.
+
 ## 1. Purpose
 
 Add a right-side panel named **SMOKE TESTS** to the Review Connections page. The simulator will
@@ -269,4 +273,3 @@ The first implementation will not:
 - write physical Excel/CSV/PDF files;
 - replace production `executeJob()`;
 - infer an ambiguous variable or Web Element connection.
-
