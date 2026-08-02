@@ -586,9 +586,15 @@ public final class VariablesCommandEditorCopyTransaction {
             return left.toString().equals(right.toString());
         }
         private InstructionLoad asRevisionRow() {
+            // Revision parity: the hasher renders null as "null" and empty as "". The
+            // capability and UPDATE loaders feed RAW nullable values, so this loader must
+            // too — null-to-"" coercion here made every COPY refuse GRAPH_REVISION_STALE
+            // on jobs containing NULL operation rows.
             InstructionLoad row = new InstructionLoad(); row.setId(id);
-            row.setInstructionOrderNumber(order); row.setActions(actionsText());
-            row.setOperation(operationText()); row.setBlockId(blockId); row.setVariableId(variableId);
+            row.setInstructionOrderNumber(order);
+            row.setActions(actions == null ? null : actions.toString());
+            row.setOperation(operation == null ? null : operation.toString());
+            row.setBlockId(blockId); row.setVariableId(variableId);
             row.setParentBlockId(parentBlockId); row.setParentId(parentId); return row;
         }
     }
