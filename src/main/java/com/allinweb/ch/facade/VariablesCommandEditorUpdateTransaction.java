@@ -242,13 +242,7 @@ public final class VariablesCommandEditorUpdateTransaction {
             requireEditorInteger(configuration.iterations(), "Iterations");
         } else if (configuration.kind() == ConfigurationKind.CHECK_VALUE
                 || configuration.kind() == ConfigurationKind.EXTERNAL_CHECK) {
-            requireComparison(graph, configuration);
-            if (configuration.kind() == ConfigurationKind.EXTERNAL_CHECK
-                    && blank(configuration.externalSourceKey())) {
-                throw refused(
-                        "COMMAND_UPDATE_EXTERNAL_SOURCE_REQUIRED",
-                        "Select an external source key or file.");
-            }
+            requireVariableOnlyCheck(graph, configuration);
         } else if (configuration.kind() == ConfigurationKind.EXCEL_WRITE
                 && blank(configuration.outputKey())) {
             throw refused("COMMAND_UPDATE_OUTPUT_KEY_REQUIRED", "Enter an ExcelWrite output key.");
@@ -278,6 +272,9 @@ public final class VariablesCommandEditorUpdateTransaction {
                     plan.source().id(),
                     plan.targetAction(),
                     configuration);
+            if (isVariableOnlyCheck(configuration.kind())) {
+                persistVariableOnlyCheckConnections(connection, botJobId, plan);
+            }
             return;
         }
         String sql = configuration.kind() == ConfigurationKind.WAIT
@@ -312,7 +309,7 @@ public final class VariablesCommandEditorUpdateTransaction {
         Configuration configuration = plan.configuration();
         try (PreparedStatement statement = connection.prepareStatement(
                 "UPDATE instruction SET actions=?,name=?,operation=?,on_hold_seconds=?,"
-                        + "variable_id=NULL,parent_id=NULL,parent_block_id=NULL"
+                        + "variable_id=?,parent_id=NULL,parent_block_id=NULL"
                         + " WHERE id=? AND bot_job_id=?")) {
             statement.setString(1, plan.targetAction());
             statement.setString(2, CommandRegistry.transformedName(plan.targetAction()));
@@ -330,8 +327,13 @@ public final class VariablesCommandEditorUpdateTransaction {
             } else {
                 statement.setNull(4, java.sql.Types.INTEGER);
             }
-            statement.setInt(5, plan.source().id());
-            statement.setInt(6, botJobId);
+            if (isVariableOnlyCheck(configuration.kind())) {
+                statement.setInt(5, configuration.leftVariableId());
+            } else {
+                statement.setNull(5, java.sql.Types.INTEGER);
+            }
+            statement.setInt(6, plan.source().id());
+            statement.setInt(7, botJobId);
             if (statement.executeUpdate() != 1) {
                 throw refused("COMMAND_UPDATE_SOURCE_CHANGED", "The selected command changed before it could be transformed.");
             }
@@ -359,6 +361,22 @@ public final class VariablesCommandEditorUpdateTransaction {
                     plan.source().id(), plan.targetAction(), configuration);
         } else {
             commandConfigurations.delete(connection, homeBankingId, botJobId, plan.source().id());
+        }
+    }
+
+    private void persistVariableOnlyCheckConnections(
+            Connection connection, int botJobId, Plan plan) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(
+                "UPDATE instruction SET variable_id=?,parent_id=NULL,parent_block_id=NULL"
+                        + " WHERE id=? AND bot_job_id=?")) {
+            statement.setInt(1, plan.configuration().leftVariableId());
+            statement.setInt(2, plan.source().id());
+            statement.setInt(3, botJobId);
+            if (statement.executeUpdate() != 1) {
+                throw refused(
+                        "COMMAND_UPDATE_CHECK_CONNECTION_FAILED",
+                        "The variable-only Check connection could not be stored.");
+            }
         }
     }
 
@@ -465,8 +483,11 @@ public final class VariablesCommandEditorUpdateTransaction {
                         "COMMAND_UPDATE_VERIFICATION_FAILED",
                         "The transformed command name could not be verified.");
             }
+            Integer expectedVariableId = isVariableOnlyCheck(configuration.kind())
+                    ? configuration.leftVariableId()
+                    : null;
             if (updated.parentId() != null || updated.parentBlockId() != null
-                    || updated.variableId() != null) {
+                    || !Objects.equals(updated.variableId(), expectedVariableId)) {
                 throw refused(
                         "COMMAND_UPDATE_VERIFICATION_FAILED",
                         "The transformed command still carries previous connections.");
@@ -483,6 +504,14 @@ public final class VariablesCommandEditorUpdateTransaction {
                         "COMMAND_UPDATE_VERIFICATION_FAILED",
                         "The transformed command still carries the previous Wait value.");
             }
+        }
+        if (isVariableOnlyCheck(configuration.kind())
+                && (updated.parentId() != null
+                        || updated.parentBlockId() != null
+                        || !Objects.equals(updated.variableId(), configuration.leftVariableId()))) {
+            throw refused(
+                    "COMMAND_UPDATE_CHECK_CONNECTION_NOT_COMMITTED",
+                    "The variable-only Check connection could not be verified.");
         }
         if (configuration.kind() == ConfigurationKind.WAIT) {
             if (!Objects.equals(updated.onHoldSeconds(), configuration.waitSeconds())) {
@@ -621,6 +650,29 @@ public final class VariablesCommandEditorUpdateTransaction {
         }
     }
 
+    private static void requireVariableOnlyCheck(Graph graph, Configuration configuration)
+            throws MutationRefusedException {
+        Set<String> operators = Set.of(
+                "=", "!=", ">", "<", ">=", "<=", "contains", "startsWith",
+                "endsWith");
+        if (!operators.contains(configuration.comparisonOperator())) {
+            throw refused("COMMAND_UPDATE_OPERATOR_INVALID", "Select a supported comparison operator.");
+        }
+        if (configuration.leftVariableId() == null
+                || !graph.variableIds().contains(configuration.leftVariableId())) {
+            throw refused(
+                    "COMMAND_UPDATE_LEFT_VARIABLE_INVALID",
+                    "Select a current Bot Job variable as the first comparison value.");
+        }
+        if (!"VARIABLE".equals(configuration.operandKind())
+                || configuration.operandVariableId() == null
+                || !graph.variableIds().contains(configuration.operandVariableId())) {
+            throw refused(
+                    "COMMAND_UPDATE_OPERAND_VARIABLE_INVALID",
+                    "Select a current Bot Job variable as the second comparison value.");
+        }
+    }
+
     private static void requireComparison(Graph graph, Configuration configuration)
             throws MutationRefusedException {
         Set<String> operators = Set.of(
@@ -679,6 +731,11 @@ public final class VariablesCommandEditorUpdateTransaction {
                 || kind == ConfigurationKind.EXTERNAL_CHECK
                 || kind == ConfigurationKind.EXCEL_WRITE
                 || kind == ConfigurationKind.CONDITIONAL;
+    }
+
+    private static boolean isVariableOnlyCheck(ConfigurationKind kind) {
+        return kind == ConfigurationKind.CHECK_VALUE
+                || kind == ConfigurationKind.EXTERNAL_CHECK;
     }
 
     private void verifyTypedConfiguration(

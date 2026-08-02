@@ -128,9 +128,9 @@ public final class CommandRegistry {
         Map<String, Definition> definitions = new LinkedHashMap<>();
         addWithTags(definitions, "SET", "Set Value", "variable", List.of("input", "select", "textarea"), "webField", "variable");
         add(definitions, "GET", "Get Value", "variable", "webField", "variable");
-        add(definitions, "CK", "Check Value", "variable", "webField", "variable", "operator");
-        add(definitions, "PDF CHECK", "PDF Check", "variable", "webField", "variable", "operator");
-        add(definitions, "CSV CHECK", "CSV Check", "variable", "webField", "variable", "operator");
+        add(definitions, "CK", "Check Value", "variable", "variable", "operator");
+        add(definitions, "PDF CHECK", "PDF Check", "variable", "variable", "operator");
+        add(definitions, "CSV CHECK", "CSV Check", "variable", "variable", "operator");
         add(definitions, "E", "Extract Field", "variable", "webField", "variable");
         add(definitions, "IF", "IF", "none");
         add(definitions, "GOTO", "GOTO", "block", "block", "count");

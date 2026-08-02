@@ -241,13 +241,7 @@ public final class VariablesCommandEditorCopyTransaction {
             requireEditorInteger(configuration.iterations(), "Iterations");
         } else if (configuration.kind() == ConfigurationKind.CHECK_VALUE
                 || configuration.kind() == ConfigurationKind.EXTERNAL_CHECK) {
-            requireComparison(graph, configuration);
-            if (configuration.kind() == ConfigurationKind.EXTERNAL_CHECK
-                    && blank(configuration.externalSourceKey())) {
-                throw refused(
-                        "COMMAND_COPY_EXTERNAL_SOURCE_REQUIRED",
-                        "Select an external source key or file.");
-            }
+            requireVariableOnlyCheck(graph, configuration);
         } else if (configuration.kind() == ConfigurationKind.EXCEL_WRITE
                 && blank(configuration.outputKey())) {
             throw refused("COMMAND_COPY_OUTPUT_KEY_REQUIRED", "Enter an ExcelWrite output key.");
@@ -467,6 +461,29 @@ public final class VariablesCommandEditorCopyTransaction {
     private static void requireEditorInteger(Integer value, String label) throws MutationRefusedException {
         if (value == null || value < 1 || value > 9999) throw refused("COMMAND_COPY_VALUE_INVALID", label + " must be between 1 and 9999.");
     }
+    private static void requireVariableOnlyCheck(Graph graph, Configuration configuration)
+            throws MutationRefusedException {
+        Set<String> operators = Set.of(
+                "=", "!=", ">", "<", ">=", "<=", "contains", "startsWith",
+                "endsWith");
+        if (!operators.contains(configuration.comparisonOperator())) {
+            throw refused("COMMAND_COPY_OPERATOR_INVALID", "Select a supported comparison operator.");
+        }
+        if (configuration.leftVariableId() == null
+                || !graph.variableIds().contains(configuration.leftVariableId())) {
+            throw refused(
+                    "COMMAND_COPY_LEFT_VARIABLE_INVALID",
+                    "Select a current Bot Job variable as the first comparison value.");
+        }
+        if (!"VARIABLE".equals(configuration.operandKind())
+                || configuration.operandVariableId() == null
+                || !graph.variableIds().contains(configuration.operandVariableId())) {
+            throw refused(
+                    "COMMAND_COPY_OPERAND_VARIABLE_INVALID",
+                    "Select a current Bot Job variable as the second comparison value.");
+        }
+    }
+
     private static void requireComparison(Graph graph, Configuration configuration)
             throws MutationRefusedException {
         Set<String> operators = Set.of(

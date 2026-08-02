@@ -31,8 +31,11 @@ import java.util.Set;
  */
 public final class ExecutionRelationshipPreflightService {
     private static final Set<String> ELEMENT_TARGET_ACTIONS =
+            Set.of("GET", "SET", "E");
+    private static final Set<String> VARIABLE_BINDING_ACTIONS =
             Set.of("GET", "SET", "E", "CK", "PDF CHECK", "CSV CHECK");
-    private static final Set<String> RUNTIME_READER_ACTIONS = Set.of("E", "CK");
+    private static final Set<String> RUNTIME_READER_ACTIONS =
+            Set.of("E", "CK", "PDF CHECK", "CSV CHECK");
     private static final Set<String> RUNTIME_WRITER_ACTIONS = Set.of("GET", "SET");
     private static final Set<String> LOOP_ACTIONS = Set.of("LOOP", "REFRESH_LOOP");
     private static final Set<String> LOOP_COMMAND_ANCHOR_ACTIONS =
@@ -290,7 +293,7 @@ public final class ExecutionRelationshipPreflightService {
     private void validateVariableBinding(
             InstructionFact row, IndexedFacts facts, IssueCollector issues) {
         String action = action(row);
-        if (!ELEMENT_TARGET_ACTIONS.contains(action)) {
+        if (!VARIABLE_BINDING_ACTIONS.contains(action)) {
             return;
         }
         Integer variableId = row.variableId();
