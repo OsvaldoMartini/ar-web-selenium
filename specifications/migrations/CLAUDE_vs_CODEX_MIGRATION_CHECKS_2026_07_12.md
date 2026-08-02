@@ -6,10 +6,11 @@ This section is the current shared handoff and must remain at the top of this ca
 document. Update it in place; preserve every older roadmap, investigation, and review ledger below.
 
 - Active roadmap: `ROADMAP_VARIABLES_COMMAND_EDITOR_MODAL_2026_08_01.md`.
-- Progress: **CE-1 through CE-7 complete; CE-8 through CE-10 remain**.
-- Current stop point: CE-7 is committed, pushed, and React-deployed. Wait for the user's runtime or
-  Claude review before CE-8.
-- Next implementation when authorized: CE-8, covering typed GOTO and SWIPE editors.
+- Progress: **CE-1 through CE-8 complete; CE-9 and CE-10 remain**.
+- Current stop point: CE-8 is committed, pushed, and React-deployed. Wait for the user's runtime or
+  Claude review before CE-9.
+- Next implementation when authorized: CE-9, covering typed IF/ELSEIF editors only after expression
+  persistence is approved.
 - Smoke-test implementation remains a separate later roadmap in
   `Smoke_Test_Roadmap_2026_08_01.md`; it has not been started by CE-7.
 
@@ -25,6 +26,9 @@ document. Update it in place; preserve every older roadmap, investigation, and r
 | React CE-7 | `ed300a0` | Typed CheckValue, CSV/PDF Check, and ExcelWrite forms and snapshot hydration. |
 | Java CE-7 | `88628393` | New typed command configuration table/repository plus isolated UPDATE/COPY persistence. |
 | Java deployed resources | `f482756a` | Bundle generated from frontend `ed300a0`. |
+| React CE-8 | `1157f10` | Typed GOTO and SWIPE count editors. |
+| Java CE-8 | `c5ff63c5` | Isolated GOTO/SWIPE count validation and UPDATE/COPY persistence. |
+| Java deployed resources | `641bb887` | Bundle generated from frontend `1157f10`. |
 
 CODEX did modify database persistence. COPY NEW uses the new
 `VariablesCommandEditorCopyV1`, `VariablesCommandEditorCopyService`, and

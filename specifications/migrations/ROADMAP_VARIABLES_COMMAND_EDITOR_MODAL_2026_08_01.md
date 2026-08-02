@@ -1,12 +1,12 @@
 # Variables Command Editor Modal Roadmap
 
 Date: 2026-08-01  
-Status: **IN PROGRESS — CE-1 through CE-7 complete; CE-8 through CE-10 remain**
+Status: **IN PROGRESS — CE-1 through CE-8 complete; CE-9 and CE-10 remain**
 Primary entry point: green edit button in Variables > All Commands
 
 ## Current implementation handoff
 
-The active stop point is CE-7. Do not start CE-8 until the user returns with Claude's persistence
+The active stop point is CE-8. Do not start CE-9 until the user returns with Claude's persistence
 review or explicitly authorizes the next step.
 
 Completed and pushed:
@@ -18,6 +18,7 @@ Completed and pushed:
 - CE-5: atomic same-ID UPDATE persistence and authoritative publication;
 - CE-6: atomic fresh-ID, relationship-free COPY NEW persistence and authoritative publication;
 - CE-7: typed CheckValue, CSV/PDF Check, and ExcelWrite editors with shadow persistence.
+- CE-8: typed GOTO and SWIPE repetition editors using the existing intrinsic count storage.
 
 Persistence commits awaiting Claude review:
 
@@ -28,9 +29,12 @@ Persistence commits awaiting Claude review:
 - frontend CE-7: `ed300a0`;
 - backend CE-7: `88628393`;
 - deployed CE-7 bundle: `f482756a`.
+- frontend CE-8: `1157f10`;
+- backend CE-8: `c5ff63c5`;
+- deployed CE-8 bundle: `641bb887`.
 
 No Maven or backend tests were run for CE-6 or CE-7 by user instruction. The frontend production build
-passed with existing warnings. The next three roadmap steps are CE-8, CE-9, and CE-10.
+passed with existing warnings. The next two roadmap steps are CE-9 and CE-10.
 
 ## Adjacent Variables improvements — outside CE-7 through CE-10
 
@@ -360,8 +364,18 @@ CE-7 implementation evidence (2026-08-01):
 
 ### CE-8 - Navigation and gesture editors
 
-- Implement GOTO count.
-- Implement SWIPE counts.
+- [x] Implement GOTO count.
+- [x] Implement SWIPE counts.
+
+CE-8 implementation evidence (2026-08-01):
+
+- React commit `1157f10` adds isolated GOTO and SWIPE editor components.
+- Java commit `c5ff63c5` validates and atomically persists their positive count values through the
+  existing Variables Command Editor UPDATE/COPY transactions.
+- GOTO destination Block remains a separate reconnectable relationship and COPY NEW continues to
+  clear it. SWIPE direction remains fixed by the selected command.
+- Deployed bundle commit `641bb887` contains the successful frontend production build.
+- Maven/backend tests were not run at the user's request.
 
 ### CE-9 - Typed conditional editors
 
