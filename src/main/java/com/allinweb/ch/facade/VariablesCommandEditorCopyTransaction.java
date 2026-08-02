@@ -296,7 +296,9 @@ public final class VariablesCommandEditorCopyTransaction {
             statement.setObject(parameter++, source.blockMarked());
             statement.setObject(parameter++, source.defaultValue());
             statement.setObject(parameter++, source.actionCustomMaxWaitSec());
-            statement.setObject(parameter++, configuredHold(source, plan.configuration()));
+            statement.setObject(
+                    parameter++,
+                    configuredHold(source, plan.configuration(), plan.commandChanged()));
             statement.setObject(parameter++, source.codified());
             statement.setObject(parameter++, source.exportToAbr());
             statement.setObject(parameter++, source.active());
@@ -361,6 +363,11 @@ public final class VariablesCommandEditorCopyTransaction {
                 throw refused("COMMAND_COPY_VERIFICATION_FAILED", "The copied Wait value could not be verified.");
             }
         } else {
+            if (plan.commandChanged() && copy.onHoldSecondsInteger() != null) {
+                throw refused(
+                        "COMMAND_COPY_VERIFICATION_FAILED",
+                        "The transformed copy still carries the previous Wait value.");
+            }
             String expectedOperation = configuredOperation(
                     plan.source(), configuration, plan.commandChanged());
             if (!Objects.equals(
@@ -417,10 +424,7 @@ public final class VariablesCommandEditorCopyTransaction {
     /** A transformed copy is renamed like an in-place transform; plain copies keep the name. */
     private static Object copiedName(InstructionRow source, Plan plan) {
         if (!plan.commandChanged()) return source.name();
-        return CommandRegistry.transformedName(
-                source.name() == null ? null : source.name().toString(),
-                source.actionsText(),
-                plan.targetAction());
+        return CommandRegistry.transformedName(plan.targetAction());
     }
 
     private static String configuredOperation(
@@ -436,9 +440,12 @@ public final class VariablesCommandEditorCopyTransaction {
                 ? String.valueOf(configuration.count())
                 : configuration.intervalSeconds() + ":" + configuration.iterations();
     }
-    private static Object configuredHold(InstructionRow source, Configuration configuration) {
-        return configuration.kind() == ConfigurationKind.WAIT
-                ? configuration.waitSeconds() : source.onHoldSeconds();
+    private static Object configuredHold(
+            InstructionRow source, Configuration configuration, boolean commandChanged) {
+        if (configuration.kind() == ConfigurationKind.WAIT) {
+            return configuration.waitSeconds();
+        }
+        return commandChanged ? null : source.onHoldSeconds();
     }
     private static List<InstructionRow> rowsFor(Graph graph, int blockId) {
         return graph.instructions().values().stream().filter(row -> row.blockId() == blockId)

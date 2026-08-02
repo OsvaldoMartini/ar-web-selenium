@@ -23,8 +23,6 @@ public final class CommandRegistry {
     private static final Set<String> NO_EDITOR_CONFIGURATION = Set.of(
             "GET", "EXCEL GOTO", "REFRESH", "NEXT_ENTER", "PAUSE", "Q", "P");
     private static final Set<String> PRODUCES_VARIABLE_VALUE = Set.of("GET", "SET", "E");
-    private static final Set<String> PARENT_ANCHORS = Set.of("LOOP", "REFRESH_LOOP", "IF", "ELSEIF");
-
     private CommandRegistry() {}
 
     public static String canonicalize(String action) {
@@ -67,29 +65,15 @@ public final class CommandRegistry {
         return PRODUCES_VARIABLE_VALUE.contains(canonicalize(action));
     }
 
-    /** Commands that can anchor child instructions via parent_id (loops and conditionals). */
-    public static boolean isParentAnchor(String action) {
-        return PARENT_ANCHORS.contains(canonicalize(action));
-    }
-
     /** Client-facing label for a command code ("LOOP" -> "Loop"), or the canonical code itself. */
     public static String label(String action) {
         Definition definition = DEFINITIONS.get(canonicalize(action));
         return definition == null ? canonicalize(action) : definition.label();
     }
 
-    /**
-     * Name a transformed instruction should carry: auto-names matching the previous command's
-     * code or label are replaced with the new command's label; custom user names are kept.
-     */
-    public static String transformedName(String currentName, String sourceAction, String targetAction) {
-        String name = currentName == null ? "" : currentName.trim();
-        if (name.isEmpty()
-                || name.equalsIgnoreCase(canonicalize(sourceAction))
-                || name.equalsIgnoreCase(label(sourceAction))) {
-            return label(targetAction);
-        }
-        return currentName;
+    /** A transformed command always carries the canonical client-facing target label. */
+    public static String transformedName(String targetAction) {
+        return label(targetAction);
     }
 
     /**

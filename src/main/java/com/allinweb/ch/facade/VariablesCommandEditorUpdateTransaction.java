@@ -315,8 +315,7 @@ public final class VariablesCommandEditorUpdateTransaction {
                         + "variable_id=NULL,parent_id=NULL,parent_block_id=NULL"
                         + " WHERE id=? AND bot_job_id=?")) {
             statement.setString(1, plan.targetAction());
-            statement.setString(2, CommandRegistry.transformedName(
-                    plan.source().name(), plan.source().action(), plan.targetAction()));
+            statement.setString(2, CommandRegistry.transformedName(plan.targetAction()));
             String operation = configuration.kind() == ConfigurationKind.LOOP
                             || configuration.kind() == ConfigurationKind.REFRESH_LOOP
                     ? configuration.intervalSeconds() + ":" + configuration.iterations()
@@ -328,10 +327,8 @@ public final class VariablesCommandEditorUpdateTransaction {
             else statement.setString(3, operation);
             if (configuration.kind() == ConfigurationKind.WAIT) {
                 statement.setInt(4, configuration.waitSeconds());
-            } else if (plan.source().onHoldSeconds() == null) {
-                statement.setNull(4, java.sql.Types.INTEGER);
             } else {
-                statement.setInt(4, plan.source().onHoldSeconds());
+                statement.setNull(4, java.sql.Types.INTEGER);
             }
             statement.setInt(5, plan.source().id());
             statement.setInt(6, botJobId);
@@ -347,16 +344,14 @@ public final class VariablesCommandEditorUpdateTransaction {
             statement.setInt(3, plan.source().id());
             statement.executeUpdate();
         }
-        if (!CommandRegistry.isParentAnchor(plan.targetAction())) {
-            // The transformed command can no longer anchor children: release them to
-            // the RECONNECT chip pathway, matching the delete transaction's repair.
-            try (PreparedStatement statement = connection.prepareStatement(
-                    "UPDATE instruction SET parent_id=NULL,parent_block_id=NULL"
-                            + " WHERE bot_job_id=? AND parent_id=?")) {
-                statement.setInt(1, botJobId);
-                statement.setInt(2, plan.source().id());
-                statement.executeUpdate();
-            }
+        // A command-type transformation is a full relationship reset. Release every
+        // direct child so React can reconnect it explicitly under the target policy.
+        try (PreparedStatement statement = connection.prepareStatement(
+                "UPDATE instruction SET parent_id=NULL,parent_block_id=NULL"
+                        + " WHERE bot_job_id=? AND parent_id=?")) {
+            statement.setInt(1, botJobId);
+            statement.setInt(2, plan.source().id());
+            statement.executeUpdate();
         }
         if (isTypedVariableConfiguration(configuration.kind())) {
             commandConfigurations.upsert(
@@ -464,8 +459,7 @@ public final class VariablesCommandEditorUpdateTransaction {
                         "COMMAND_UPDATE_VERIFICATION_FAILED",
                         "The transformed command still carries the previous intrinsic values.");
             }
-            String expectedName = CommandRegistry.transformedName(
-                    plan.source().name(), plan.source().action(), plan.targetAction());
+            String expectedName = CommandRegistry.transformedName(plan.targetAction());
             if (!Objects.equals(expectedName, updated.name())) {
                 throw refused(
                         "COMMAND_UPDATE_VERIFICATION_FAILED",
@@ -477,12 +471,17 @@ public final class VariablesCommandEditorUpdateTransaction {
                         "COMMAND_UPDATE_VERIFICATION_FAILED",
                         "The transformed command still carries previous connections.");
             }
-            if (!CommandRegistry.isParentAnchor(plan.targetAction())
-                    && after.instructions().values().stream()
-                            .anyMatch(row -> Objects.equals(row.parentId(), plan.source().id()))) {
+            if (after.instructions().values().stream()
+                    .anyMatch(row -> Objects.equals(row.parentId(), plan.source().id()))) {
                 throw refused(
                         "COMMAND_UPDATE_VERIFICATION_FAILED",
                         "Children of the transformed command were not released.");
+            }
+            if (configuration.kind() != ConfigurationKind.WAIT
+                    && updated.onHoldSeconds() != null) {
+                throw refused(
+                        "COMMAND_UPDATE_VERIFICATION_FAILED",
+                        "The transformed command still carries the previous Wait value.");
             }
         }
         if (configuration.kind() == ConfigurationKind.WAIT) {
