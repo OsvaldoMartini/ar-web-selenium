@@ -1,5 +1,42 @@
 # Claude vs Codex Migration Checks — 2026-07-12
 
+## CURRENT ROADMAP IN PROGRESS — Variables Command Editor Modal (2026-08-01)
+
+This section is the current shared handoff and must remain at the top of this canonical CODEX/Claude
+document. Update it in place; preserve every older roadmap, investigation, and review ledger below.
+
+- Active roadmap: `ROADMAP_VARIABLES_COMMAND_EDITOR_MODAL_2026_08_01.md`.
+- Progress: **CE-1 through CE-6 complete; CE-7 through CE-10 remain**.
+- Current stop point: CE-6 is committed, pushed, and React-deployed. Wait for the user's next order
+  after Claude reviews the persistence changes.
+- Next implementation when authorized: CE-7, covering typed CheckValue, CSV/PDF Check, and
+  ExcelWrite editors.
+- Smoke-test implementation remains a separate later roadmap in
+  `Smoke_Test_Roadmap_2026_08_01.md`; it has not been started by this CE-6 change.
+
+### Persistence review requested from Claude
+
+| Repository | Commit | Review focus |
+|---|---|---|
+| React frontend | `2a22eed` | UPDATE WebSocket request/response integration and authoritative refresh. |
+| Java backend | `f273119f` | Same-ID atomic UPDATE, placement, cross-Block movement, relationship clearing, and graph CAS. |
+| React frontend | `05e6c22` | Isolated COPY NEW hook, pending lifecycle, action routing, and safe default placement. |
+| Java backend | `1259f18b` | Fresh-ID atomic COPY NEW, source preservation, target order normalization, relationship clearing, idempotency, and graph CAS. |
+| Java deployed resources | `c9a9395b` | Bundle generated from frontend `05e6c22`. |
+
+CODEX did modify database persistence. COPY NEW uses the new
+`VariablesCommandEditorCopyV1`, `VariablesCommandEditorCopyService`, and
+`VariablesCommandEditorCopyTransaction` path. It copies the command's intrinsic persisted fields,
+creates a fresh instruction ID, inserts at the requested placement, and deliberately clears
+`variable_id`, `parent_block_id`, and `parent_id`. It must never modify or remove the source row and
+must not create variable-ownership or relationship/reference rows. The transaction verifies the
+owner, binding/workspace, graph version, graph revision, contiguous target order, new row, clean
+relationships, and unchanged source state before commit.
+
+Verification recorded by CODEX: frontend `npm run build` passed with existing warnings and the
+result was deployed. Maven and backend tests were intentionally not run. Claude should treat the
+backend persistence review as the acceptance gate before CE-7 begins.
+
 Status: Claude and CODEX investigation passes complete; the CODEX remaining Bot Job Details controls migration is implemented, tested, React-deployed, Java-packaged, and committed. Desktop runtime validation and the explicitly unchecked follow-up tasks remain pending.
 
 2026-07-28 shared note: Memory List dependency-group selection has moved from Java capability

@@ -1,5 +1,46 @@
 # Active Bugs to Fix — 2026-07-28
 
+## CURRENT ROADMAP IN PROGRESS — Variables Command Editor Modal (2026-08-01)
+
+Keep this section at the top of the shared CODEX/Claude ledger and update it in place whenever the
+active roadmap changes. Do not delete or replace the historical incident and bug records below.
+
+Active roadmap: `ROADMAP_VARIABLES_COMMAND_EDITOR_MODAL_2026_08_01.md`
+
+Progress: **CE-1 through CE-6 complete; 4 steps remain.**
+
+| Step | Status | Current result |
+|---|---|---|
+| CE-1 | Complete | Green editor eligibility is explicit and isolated from relationship controls. |
+| CE-2 | Complete | Target Block and placement are independent from the Variables Block filter. |
+| CE-3 | Complete | CANCEL, UPDATE, and COPY NEW action shell exists. |
+| CE-4 | Complete | Typed LOOP, REFRESH_LOOP, and Wait editors are hydrated from the selected command. |
+| CE-5 | Complete; Claude persistence review requested | UPDATE preserves the instruction ID and supports placement and cross-Block movement. |
+| CE-6 | Complete; Claude persistence review requested | COPY NEW creates one fresh, disconnected instruction and preserves the original. |
+| CE-7 | Pending | CheckValue, CSV/PDF Check, and ExcelWrite editors. |
+| CE-8 | Pending | GOTO and SWIPE editors. |
+| CE-9 | Pending | Typed IF/ELSEIF editors after expression persistence is approved. |
+| CE-10 | Pending | Acceptance, deferred tests, build/deployment verification, and realtime checks. |
+
+### Claude review handoff — persistence-sensitive commits
+
+- Frontend UPDATE transport: `2a22eed` (`CODEX: connect Variables command updates`).
+- Backend UPDATE persistence: `f273119f` (`CODEX: persist Variables command updates`).
+- Frontend COPY NEW transport: `05e6c22` (`CODEX: connect pure Variables command copy`).
+- Backend COPY NEW persistence: `1259f18b` (`CODEX: persist pure Variables command copy`).
+- Latest deployed bundle: `c9a9395b` (`CODEX: deploy pure Variables command copy`).
+
+The user is correct that CODEX touched persistence. Claude should review the two backend source
+commits, especially transaction boundaries, graph version/revision checks, order normalization,
+generated-ID handling, source-row preservation, and relationship clearing. COPY NEW intentionally
+sets `variable_id`, `parent_block_id`, and `parent_id` to `NULL`; it does not clone variable
+ownership or relationship/reference rows. No Maven or backend tests were run by CODEX at the user's
+request. The frontend production build completed with the repository's existing warnings.
+
+Protected scope: the detached legacy Command Editor, existing Memory List copy flow, GridItem drag
+rules, and legacy command persistence were not replaced by CE-5/CE-6. Continue only after the user
+accepts Claude's review.
+
 This is the shared CODEX/Claude coordination list for the current Bot Job Details,
 Components, and Memory List stabilization work.
 
