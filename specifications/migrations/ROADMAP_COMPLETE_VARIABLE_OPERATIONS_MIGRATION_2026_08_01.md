@@ -709,6 +709,28 @@ Rollback: V2 capability remains disabled.
 - [ ] Publish committed values/revisions.
 - [ ] Preserve non-blocking VOID diagnostics.
 
+#### P7A - GET legacy operation de-authoritization (implemented 2026-08-02)
+
+- [x] Stop projecting `instruction.operation` as GET identity in Variables, Review/Smoke Test,
+      and GridItem relationship details.
+- [x] Build GET execution diagnostics from authoritative `parent_id` and `variable_id`.
+- [x] Publish GET `operation` as empty active configuration while retaining `legacyOperation`
+      only as audit/rollback evidence.
+- [x] Keep the database column untouched and keep SET/check operation semantics unchanged.
+- [ ] Introduce the owner-version activation gate before stopping legacy GET operation generation.
+- [ ] Audit and clear stale GET operation values only inside the accepted atomic migration.
+
+Bot Job 32 acceptance evidence:
+
+```text
+Instruction 1640
+parent_id:        1633 (Saldo)
+variable_id:      8 (Variable_1)
+legacy operation: Order Number:$ORDER NUMBER
+```
+
+The stale label must never override or visually contradict the two ID relationships.
+
 Rollback: keep target Bot Job in LEGACY.
 
 ### P8 - SET V2 executor

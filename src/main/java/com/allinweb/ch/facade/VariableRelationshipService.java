@@ -239,10 +239,17 @@ public final class VariableRelationshipService {
 
     private JsonObject rawCommand(CommandRow row, StoredConfiguration configuration) {
         JsonObject json = new JsonObject();
+        boolean getCommand = "GET".equals(CommandRegistry.canonicalize(row.action()));
         json.addProperty("instructionId", row.id());
         json.addProperty("instructionName", safe(row.name()));
         json.addProperty("action", safe(row.action()));
-        json.addProperty("operation", safe(row.operation()));
+        // GET execution is authored exclusively by parent_id + variable_id. Keep the
+        // historical column available for a later audit/rollback, but never publish it as
+        // the active Variables operation.
+        json.addProperty("operation", getCommand ? "" : safe(row.operation()));
+        if (getCommand && row.operation() != null && !row.operation().isBlank()) {
+            json.addProperty("legacyOperation", row.operation());
+        }
         json.addProperty("tagName", safe(row.tagName()));
         nullable(json, "variableId", row.variableId());
         nullable(json, "onHoldSeconds", row.onHoldSeconds());

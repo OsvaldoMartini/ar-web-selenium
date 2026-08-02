@@ -296,7 +296,19 @@ public class PerformMessage {
     }
     public String renderInstructionActions(InstructionLoad instruction) {
         // List of valid actions
-        List<String> validActions = Arrays.asList("SET", "GET", "CK", "E");
+        List<String> validActions = Arrays.asList("SET", "CK", "E");
+
+        // GET is identified by explicit relationships. The legacy operation label can be stale
+        // and must never be presented as the selected Web Element or runtime Variable.
+        if ("GET".equals(CommandRegistry.canonicalize(instruction.getActions()))) {
+            String parent = instruction.getParentId() == null
+                    ? "Missing parent"
+                    : "Parent ID " + instruction.getParentId();
+            String variable = instruction.getVariableId() == null
+                    ? "Missing variable"
+                    : "Variable ID " + instruction.getVariableId();
+            return parent + " -> " + variable;
+        }
 
         // Handle the "CK" action with special formatting for operation
         if ("CK".equals(instruction.getActions()) && instruction.getOperation() != null) {
@@ -313,7 +325,7 @@ public class PerformMessage {
             }
         }
 
-        // Handle operations for other actions (SET, GET)
+        // Handle operations for remaining legacy actions (SET)
         if (instruction.getOperation() != null && validActions.contains(instruction.getActions())) {
             String[] parts = instruction.getOperation().split(":");
             if (parts.length == 2) {

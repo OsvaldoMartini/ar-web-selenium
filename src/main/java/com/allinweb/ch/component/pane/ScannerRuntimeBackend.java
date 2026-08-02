@@ -3800,8 +3800,15 @@ public class ScannerRuntimeBackend
                                             + mapLoops.get(msgInstruction.getKey());
                                     msgInstruction = new FieldData(msgInstruction.getKey(), updMsg);
                                 }
-                            } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.SET_VALUE)
-                                    || (actions[0].equalsIgnoreCase(ARConstantsEngine.GET_VALUE))) {
+                            } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.GET_VALUE)) {
+                                // GET is relationship-authored. Its operation text is retained only
+                                // for rollback/audit and may describe an obsolete Web Element or
+                                // Variable, so execution diagnostics use the authoritative IDs.
+                                msgInstruction = new FieldData(
+                                        currentInstruction.getName(),
+                                        "(Parent ID " + parentId + ") -> Variable ID "
+                                                + (variableId == null ? "Missing" : variableId));
+                            } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.SET_VALUE)) {
                                 msgInstruction = new FieldData(
                                         currentInstruction.getName(),
                                         (currentInstruction.getOperation() != null
