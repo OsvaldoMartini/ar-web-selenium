@@ -11,6 +11,7 @@ import com.allinweb.ch.facade.VariableRelationshipService;
 import com.allinweb.ch.facade.VariablesCrossBlockInstructionMutationProfile;
 import com.allinweb.ch.facade.VariablesCommandEditorUpdateService;
 import com.allinweb.ch.facade.VariablesCommandEditorUpdateTransaction.UpdateResult;
+import com.allinweb.ch.facade.VariablesCommandEditorCopyService;
 import com.allinweb.ch.facade.VariablesInstructionCopyService;
 import com.allinweb.ch.facade.VariablesInstructionCopyTransaction.CopyResult;
 import com.allinweb.ch.facade.VariablesInstructionMutationProfile;
@@ -33,6 +34,7 @@ import com.allinweb.ch.model.DetachedWorkspaceSessions;
 import com.allinweb.ch.model.InstructionGraphMutationV3;
 import com.allinweb.ch.model.VariablesInstructionCopyV1;
 import com.allinweb.ch.model.VariablesCommandEditorUpdateV1;
+import com.allinweb.ch.model.VariablesCommandEditorCopyV1;
 import com.allinweb.ch.model.VariablesWorkspaceVariableDelete;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
@@ -77,6 +79,8 @@ public final class VariablesWorkspaceService {
             RuntimeVariableMemoryRegistry.getInstance();
     private static final VariablesCommandEditorUpdateService COMMAND_UPDATES =
             VariablesCommandEditorUpdateService.getInstance();
+    private static final VariablesCommandEditorCopyService COMMAND_COPIES =
+            VariablesCommandEditorCopyService.getInstance();
 
     private static final VariablesWorkspaceService INSTANCE =
             new VariablesWorkspaceService(
@@ -748,6 +752,72 @@ public final class VariablesWorkspaceService {
         }
     }
 
+    /** Persists pure fresh-ID COPY NEW from only the Variables Command Editor modal. */
+    public JsonObject copyCommand(
+            JsonObject body, String requesterSessionId, Session requesterTransport) {
+        JsonObject request = body == null ? new JsonObject() : body;
+        Binding current = null;
+        try {
+            requireManagerTransport(requesterSessionId, requesterTransport);
+            current = currentBinding();
+            if (current == null) throw new IllegalArgumentException(
+                    "No Bot Job is bound to the Variables workspace.");
+            String requestedBindingEpoch = text(request, "bindingEpoch");
+            if (requestedBindingEpoch.isBlank()
+                    || !requestedBindingEpoch.equals(current.bindingEpoch())) {
+                throw new IllegalArgumentException(
+                        "The Variables target changed. Reload the current Bot Job.");
+            }
+            WorkspaceContext workspace = workspaces.require(
+                    current.botJobId(), current.workspaceEpoch());
+            current = current.withWorkspace(workspace);
+            VariablesCommandEditorCopyV1.Request copyRequest;
+            try {
+                copyRequest = gson.fromJson(
+                        request, VariablesCommandEditorCopyV1.Request.class);
+            } catch (RuntimeException malformed) {
+                throw new IllegalArgumentException(
+                        "The Variables command-copy request is malformed.");
+            }
+            if (copyRequest == null) throw new IllegalArgumentException(
+                    "A command-copy request is required.");
+            Binding authorized = current;
+            com.allinweb.ch.facade.VariablesCommandEditorCopyTransaction.CopyResult committed =
+                    BotJobDetailsWorkspaceRegistry.getInstance().commitWorkspaceMutation(
+                            authorized.botJobId(), authorized.workspaceEpoch(),
+                            () -> persistCommandCopy(authorized, copyRequest));
+            JsonObject response = commandCopySuccess(request, authorized, committed);
+            if (!isCurrent(authorized) || !isManagerTransport(requesterTransport)) {
+                response.addProperty("resyncRequired", true);
+                response.addProperty(
+                        "message",
+                        "Command copied, but the workspace target changed. "
+                                + "Refreshing authoritative workspaces.");
+            }
+            return response;
+        } catch (CommandCopyPersistenceException persistenceFailure) {
+            Throwable cause = persistenceFailure.getCause();
+            if (cause instanceof MutationRefusedException refused) {
+                return commandCopyFailure(
+                        request, refused.code(), refused.getMessage(), current);
+            }
+            log.error("Unable to persist Variables command copy", cause);
+            return commandCopyFailure(
+                    request, "COMMAND_COPY_PERSISTENCE_FAILED",
+                    "The selected command was not copied.", current);
+        } catch (IllegalArgumentException | IllegalStateException refused) {
+            return commandCopyFailure(
+                    request, "COMMAND_COPY_REQUEST_REFUSED", refused.getMessage(),
+                    current == null ? currentBinding() : current);
+        } catch (RuntimeException failure) {
+            log.error("Unable to process Variables command copy", failure);
+            return commandCopyFailure(
+                    request, "COMMAND_COPY_FAILED",
+                    "The command copy was not completed.",
+                    current == null ? currentBinding() : current);
+        }
+    }
+
     /**
      * Deletes exactly the variable IDs selected by React from the authoritative Variables page.
      *
@@ -937,6 +1007,17 @@ public final class VariablesWorkspaceService {
                     request);
         } catch (SQLException error) {
             throw new CommandUpdatePersistenceException(error);
+        }
+    }
+
+    private com.allinweb.ch.facade.VariablesCommandEditorCopyTransaction.CopyResult persistCommandCopy(
+            Binding authorized, VariablesCommandEditorCopyV1.Request request) {
+        try {
+            return COMMAND_COPIES.copy(
+                    authorized.homeBankingId(), authorized.botJobId(),
+                    authorized.workspaceEpoch(), request);
+        } catch (SQLException error) {
+            throw new CommandCopyPersistenceException(error);
         }
     }
 
@@ -1690,6 +1771,52 @@ public final class VariablesWorkspaceService {
         return response;
     }
 
+    private JsonObject commandCopySuccess(
+            JsonObject request,
+            Binding current,
+            com.allinweb.ch.facade.VariablesCommandEditorCopyTransaction.CopyResult committed) {
+        JsonObject response = mutationResponseBase(request, current);
+        response.addProperty(
+                "contractVersion", VariablesCommandEditorCopyV1.CONTRACT_VERSION);
+        response.addProperty("ok", true);
+        response.addProperty("committed", true);
+        response.addProperty("duplicate", committed.duplicate());
+        response.addProperty("resyncRequired", false);
+        response.addProperty("sourceInstructionId", committed.sourceInstructionId());
+        response.addProperty("createdInstructionId", committed.createdInstructionId());
+        response.addProperty("targetBlockId", committed.targetBlockId());
+        response.addProperty(
+                "instructionOrderNumber", committed.instructionOrderNumber());
+        response.addProperty(
+                "previousGraphVersion", committed.previousGraphVersion());
+        response.addProperty(
+                "committedGraphVersion", committed.committedGraphVersion());
+        response.addProperty("graphRevision", committed.graphRevision());
+        response.addProperty(
+                "message",
+                "New disconnected command copy created. Refreshing Variables and Bot Job Details.");
+        return response;
+    }
+
+    private JsonObject commandCopyFailure(
+            JsonObject request, String errorCode, String message, Binding current) {
+        JsonObject response = mutationResponseBase(request, current);
+        response.addProperty(
+                "contractVersion", VariablesCommandEditorCopyV1.CONTRACT_VERSION);
+        response.addProperty("ok", false);
+        response.addProperty("committed", false);
+        response.addProperty("preserveSnapshot", true);
+        response.addProperty(
+                "errorCode",
+                errorCode == null || errorCode.isBlank()
+                        ? "COMMAND_COPY_REFUSED" : errorCode);
+        response.addProperty(
+                "message",
+                message == null || message.isBlank()
+                        ? "The command copy was refused." : message);
+        return response;
+    }
+
     private JsonObject instructionCopyFailure(
             JsonObject request,
             String errorCode,
@@ -2120,6 +2247,10 @@ public final class VariablesWorkspaceService {
         private CommandUpdatePersistenceException(SQLException cause) {
             super(cause);
         }
+    }
+
+    private static final class CommandCopyPersistenceException extends RuntimeException {
+        private CommandCopyPersistenceException(SQLException cause) { super(cause); }
     }
 
     private enum DurableRuntimeMemoryPort implements RuntimeMemoryPort {
