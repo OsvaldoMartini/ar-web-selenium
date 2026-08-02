@@ -28,6 +28,53 @@ Persistence commits awaiting Claude review:
 No Maven or backend tests were run for CE-6 by user instruction. The frontend production build
 passed with existing warnings. The next four roadmap steps are CE-7, CE-8, CE-9, and CE-10.
 
+## Adjacent Variables improvements — outside CE-7 through CE-10
+
+These improvements belong to the Variables workspace but are not Command Editor modal steps. They
+must be implemented and reviewed independently so they cannot delay or destabilize CE-7–CE-10.
+
+### AV-1 — Repeatable Add Variable modal
+
+Modal: `Add Variable — Define a producer-free Bot Job variable`.
+
+- On every open and after every successful creation, inspect the current Bot Job's variable names
+  case-insensitively and calculate the first free sequential name: `Variable_1`, `Variable_2`, and
+  so on.
+- Put that suggested name into the Variable name input as its actual editable value, not as a
+  placeholder.
+- A name such as `variable_1`, `VARIABLE_1`, or `Variable_1` occupies the same sequence number.
+- Put a small `ADD` button immediately to the right of the Variable name input.
+- `ADD` stages the current valid name in the modal and immediately prepares the next free suggested
+  name, allowing several variables to be assembled in one visit.
+- `CREATE VARIABLE` persists the staged names plus the current valid input using the authoritative
+  Variables creation path. Each created definition begins producer-free and `VOID` according to the
+  existing runtime-memory contract.
+- A successful `CREATE VARIABLE` must not close the modal. Keep it open, show the standard result
+  message, refresh the authoritative Variables snapshot, clear successfully created staged entries,
+  and prefill the next free `Variable_X` suggestion.
+- Only the user's explicit Close/Cancel action closes the modal.
+- Duplicate validation and backend persistence remain case-insensitive and authoritative; a stale
+  suggestion must never create a duplicate if another page creates the same name concurrently.
+
+### AV-2 — Block-scoped Release Connections modal
+
+- Add the same Block search/filter pattern already used by Resolve Connections and Review
+  Connections to the Release Connections modal.
+- Synchronize it bidirectionally with the Variables page's left-panel Block filter.
+- Empty Block selection means **all Blocks** and preserves the current release-all behavior.
+- Selecting one Block means the modal displays, counts, and releases only connections whose source
+  instructions belong to that Block.
+- Changing the Block inside Release Connections immediately updates both the modal scope and the
+  Variables page Block filter.
+- The submitted release mutation must be rebuilt from the currently selected Block scope; hidden
+  connections from other Blocks must not be released accidentally.
+- Always allow the Release Connections modal to open, including when the initial Block has zero
+  releasable connections. The user must be able to change the Block filter inside the modal.
+- A zero-connection scope is a valid review state. It performs no mutation and must not close or
+  block the modal with an unrelated error.
+- Preserve the existing rule that release removes relationships only; it does not delete commands,
+  Blocks, or variable definitions.
+
 ## 1. Purpose
 
 Replace the green square's former quick-reconnect behavior with an independent editor for commands

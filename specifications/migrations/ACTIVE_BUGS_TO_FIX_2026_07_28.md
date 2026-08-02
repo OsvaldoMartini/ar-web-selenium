@@ -41,6 +41,19 @@ Protected scope: the detached legacy Command Editor, existing Memory List copy f
 rules, and legacy command persistence were not replaced by CE-5/CE-6. Continue only after the user
 accepts Claude's review.
 
+### Adjacent requested improvements — recorded, not implemented
+
+- **AV-1 Add Variable:** prefill the next free case-insensitive `Variable_X` name as a real input
+  value; add a mini `ADD` staging action for multiple names; `CREATE VARIABLE` persists the batch,
+  refreshes the snapshot, advances the suggestion, and keeps the modal open until explicit Close.
+- **AV-2 Release Connections:** add the bidirectionally synchronized Block filter used by Resolve
+  and Review; empty selection releases all, one Block releases only that Block's source-instruction
+  connections, and the modal must open even when the initial scope contains zero connections.
+
+Full acceptance details are recorded under “Adjacent Variables improvements” in
+`ROADMAP_VARIABLES_COMMAND_EDITOR_MODAL_2026_08_01.md`. These tasks remain outside CE-7–CE-10 and
+must receive separate authorization before code changes.
+
 This is the shared CODEX/Claude coordination list for the current Bot Job Details,
 Components, and Memory List stabilization work.
 

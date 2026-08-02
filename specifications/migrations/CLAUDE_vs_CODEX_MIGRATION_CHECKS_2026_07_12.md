@@ -37,6 +37,21 @@ Verification recorded by CODEX: frontend `npm run build` passed with existing wa
 result was deployed. Maven and backend tests were intentionally not run. Claude should treat the
 backend persistence review as the acceptance gate before CE-7 begins.
 
+### Adjacent Variables requests — outside the Command Editor sequence
+
+Two additional tasks are recorded but are not part of CE-7–CE-10 and are not implemented yet:
+
+1. **AV-1 Repeatable Add Variable:** calculate and prefill the next free case-insensitive
+   `Variable_X`, support staging multiple names through a mini `ADD` button, persist them through
+   `CREATE VARIABLE`, and keep the modal open after success until the user closes it.
+2. **AV-2 Block-scoped Release Connections:** reuse the synchronized Block filter from Resolve and
+   Review, rebuild the release scope from the current selection, use all Blocks when empty, and
+   always open the modal even when the initial Block has zero releasable connections.
+
+The detailed behavior and safety constraints are in
+`ROADMAP_VARIABLES_COMMAND_EDITOR_MODAL_2026_08_01.md`. Do not mix either improvement into a CE
+commit; use small independent commits after explicit user authorization.
+
 Status: Claude and CODEX investigation passes complete; the CODEX remaining Bot Job Details controls migration is implemented, tested, React-deployed, Java-packaged, and committed. Desktop runtime validation and the explicitly unchecked follow-up tasks remain pending.
 
 2026-07-28 shared note: Memory List dependency-group selection has moved from Java capability
