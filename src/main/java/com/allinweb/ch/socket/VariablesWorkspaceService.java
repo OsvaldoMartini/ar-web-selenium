@@ -12,6 +12,7 @@ import com.allinweb.ch.facade.VariablesCrossBlockInstructionMutationProfile;
 import com.allinweb.ch.facade.VariablesCommandEditorUpdateService;
 import com.allinweb.ch.facade.VariablesCommandEditorUpdateTransaction.UpdateResult;
 import com.allinweb.ch.facade.VariablesCommandEditorCopyService;
+import com.allinweb.ch.facade.VariablesCommandDeleteService;
 import com.allinweb.ch.facade.VariablesInstructionCopyService;
 import com.allinweb.ch.facade.VariablesInstructionCopyTransaction.CopyResult;
 import com.allinweb.ch.facade.VariablesInstructionMutationProfile;
@@ -35,6 +36,7 @@ import com.allinweb.ch.model.InstructionGraphMutationV3;
 import com.allinweb.ch.model.VariablesInstructionCopyV1;
 import com.allinweb.ch.model.VariablesCommandEditorUpdateV1;
 import com.allinweb.ch.model.VariablesCommandEditorCopyV1;
+import com.allinweb.ch.model.VariablesWorkspaceCommandDelete;
 import com.allinweb.ch.model.VariablesWorkspaceVariableDelete;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
@@ -82,6 +84,8 @@ public final class VariablesWorkspaceService {
             VariablesCommandEditorUpdateService.getInstance();
     private static final VariablesCommandEditorCopyService COMMAND_COPIES =
             VariablesCommandEditorCopyService.getInstance();
+    private static final VariablesCommandDeleteService COMMAND_DELETES =
+            VariablesCommandDeleteService.getInstance();
 
     private static final VariablesWorkspaceService INSTANCE =
             new VariablesWorkspaceService(
@@ -905,6 +909,83 @@ public final class VariablesWorkspaceService {
         }
     }
 
+    /** Deletes one exact command and disconnects only the direct links submitted by React. */
+    public JsonObject deleteCommand(
+            JsonObject body, String requesterSessionId, Session requesterTransport) {
+        JsonObject request = body == null ? new JsonObject() : body;
+        Binding current = null;
+        try {
+            requireManagerTransport(requesterSessionId, requesterTransport);
+            current = currentBinding();
+            if (current == null) {
+                throw new IllegalArgumentException(
+                        "No Bot Job is bound to the Variables workspace.");
+            }
+            String requestedBindingEpoch = text(request, "bindingEpoch");
+            if (requestedBindingEpoch.isBlank()
+                    || !requestedBindingEpoch.equals(current.bindingEpoch())) {
+                throw new IllegalArgumentException(
+                        "The Variables target changed. Reload the current Bot Job.");
+            }
+            WorkspaceContext workspace =
+                    workspaces.require(current.botJobId(), current.workspaceEpoch());
+            current = current.withWorkspace(workspace);
+            VariablesWorkspaceCommandDelete.Request deleteRequest;
+            try {
+                deleteRequest = gson.fromJson(
+                        request, VariablesWorkspaceCommandDelete.Request.class);
+            } catch (RuntimeException malformed) {
+                throw new IllegalArgumentException(
+                        "The Variables command-delete request is malformed.");
+            }
+            if (deleteRequest == null) {
+                throw new IllegalArgumentException(
+                        "A Variables command-delete request is required.");
+            }
+
+            Binding authorized = current;
+            com.allinweb.ch.facade.VariablesCommandDeleteTransaction.DeleteResult committed =
+                    BotJobDetailsWorkspaceRegistry.getInstance().commitWorkspaceMutation(
+                            authorized.botJobId(),
+                            authorized.workspaceEpoch(),
+                            () -> persistCommandDeletion(authorized, deleteRequest));
+            JsonObject response = commandDeleteSuccess(request, authorized, committed);
+            if (!isCurrent(authorized) || !isManagerTransport(requesterTransport)) {
+                response.addProperty("resyncRequired", true);
+                response.addProperty(
+                        "message",
+                        "Command deleted, but the workspace target changed. "
+                                + "Refreshing authoritative workspaces.");
+            }
+            return response;
+        } catch (CommandDeletePersistenceException persistenceFailure) {
+            Throwable cause = persistenceFailure.getCause();
+            if (cause instanceof MutationRefusedException refused) {
+                return commandDeleteFailure(
+                        request, refused.code(), refused.getMessage(), current);
+            }
+            log.error("Unable to persist Variables command deletion", cause);
+            return commandDeleteFailure(
+                    request,
+                    "COMMAND_DELETE_PERSISTENCE_FAILED",
+                    "The selected command was not deleted.",
+                    current);
+        } catch (IllegalArgumentException | IllegalStateException refused) {
+            return commandDeleteFailure(
+                    request,
+                    "COMMAND_DELETE_REQUEST_REFUSED",
+                    refused.getMessage(),
+                    current == null ? currentBinding() : current);
+        } catch (RuntimeException failure) {
+            log.error("Unable to process Variables command deletion", failure);
+            return commandDeleteFailure(
+                    request,
+                    "COMMAND_DELETE_FAILED",
+                    "Command deletion was not completed.",
+                    current == null ? currentBinding() : current);
+        }
+    }
+
     /**
      * Publishes authoritative views after the correlated acknowledgement attempt.
      *
@@ -981,6 +1062,21 @@ public final class VariablesWorkspaceService {
                     request);
         } catch (SQLException error) {
             throw new VariableDeletePersistenceException(error);
+        }
+    }
+
+    private com.allinweb.ch.facade.VariablesCommandDeleteTransaction.DeleteResult
+            persistCommandDeletion(
+                    Binding authorized,
+                    VariablesWorkspaceCommandDelete.Request request) {
+        try {
+            return COMMAND_DELETES.delete(
+                    authorized.homeBankingId(),
+                    authorized.botJobId(),
+                    authorized.workspaceEpoch(),
+                    request);
+        } catch (SQLException error) {
+            throw new CommandDeletePersistenceException(error);
         }
     }
 
@@ -1900,6 +1996,59 @@ public final class VariablesWorkspaceService {
         return response;
     }
 
+    private JsonObject commandDeleteSuccess(
+            JsonObject request,
+            Binding current,
+            com.allinweb.ch.facade.VariablesCommandDeleteTransaction.DeleteResult committed) {
+        JsonObject response = mutationResponseBase(request, current);
+        response.addProperty(
+                "contractVersion", VariablesWorkspaceCommandDelete.CONTRACT_VERSION);
+        response.addProperty("ok", true);
+        response.addProperty("committed", true);
+        response.addProperty("resyncRequired", false);
+        response.addProperty("instructionId", committed.instructionId());
+        response.addProperty(
+                "disconnectedInstructionCount",
+                committed.disconnectedInstructionCount());
+        response.addProperty(
+                "disconnectedVariableCount",
+                committed.disconnectedVariableCount());
+        response.addProperty(
+                "previousGraphVersion", committed.previousGraphVersion());
+        response.addProperty(
+                "committedGraphVersion", committed.committedGraphVersion());
+        response.addProperty("graphRevision", committed.graphRevision());
+        response.addProperty(
+                "message",
+                "Command deleted. Directly connected commands and variable owners "
+                        + "were disconnected and preserved for reconnection.");
+        return response;
+    }
+
+    private JsonObject commandDeleteFailure(
+            JsonObject request,
+            String errorCode,
+            String message,
+            Binding current) {
+        JsonObject response = mutationResponseBase(request, current);
+        response.addProperty(
+                "contractVersion", VariablesWorkspaceCommandDelete.CONTRACT_VERSION);
+        response.addProperty("ok", false);
+        response.addProperty("committed", false);
+        response.addProperty("preserveSnapshot", true);
+        response.addProperty(
+                "errorCode",
+                errorCode == null || errorCode.isBlank()
+                        ? "COMMAND_DELETE_REFUSED"
+                        : errorCode);
+        response.addProperty(
+                "message",
+                message == null || message.isBlank()
+                        ? "Command deletion was refused."
+                        : message);
+        return response;
+    }
+
     private JsonObject mutationResponseBase(JsonObject request, Binding current) {
         JsonObject response = new JsonObject();
         response.addProperty(
@@ -2252,6 +2401,10 @@ public final class VariablesWorkspaceService {
 
     private static final class CommandCopyPersistenceException extends RuntimeException {
         private CommandCopyPersistenceException(SQLException cause) { super(cause); }
+    }
+
+    private static final class CommandDeletePersistenceException extends RuntimeException {
+        private CommandDeletePersistenceException(SQLException cause) { super(cause); }
     }
 
     private enum DurableRuntimeMemoryPort implements RuntimeMemoryPort {
