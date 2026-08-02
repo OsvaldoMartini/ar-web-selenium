@@ -2339,8 +2339,19 @@ public final class VariablesWorkspaceService {
                     initialState == ValueState.VALUE ? rawValue : null);
             try (Connection connection =
                     PerformDataBase.getInstance().getConnection()) {
+                var ownerKey = durableOwner(owner);
+                boolean duplicateName = service.hydrate(connection, ownerKey)
+                        .definitions().stream()
+                        .map(definition -> definition.name())
+                        .filter(Objects::nonNull)
+                        .map(String::trim)
+                        .anyMatch(existing -> existing.equalsIgnoreCase(name.trim()));
+                if (duplicateName) {
+                    throw new IllegalArgumentException(
+                            "A variable with this name already exists in the Bot Job.");
+                }
                 return mutation(service.createDefinition(
-                        connection, durableOwner(owner), draft, null));
+                        connection, ownerKey, draft, null));
             } catch (SQLException failure) {
                 throw new IllegalStateException(
                         "Durable variable definition could not be created.", failure);
