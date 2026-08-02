@@ -15,6 +15,8 @@ import com.allinweb.ch.facade.VariablesCommandEditorCopyService;
 import com.allinweb.ch.facade.VariablesCommandDeleteService;
 import com.allinweb.ch.facade.VariablesInstructionCopyService;
 import com.allinweb.ch.facade.VariablesInstructionCopyTransaction.CopyResult;
+import com.allinweb.ch.facade.VariablesInstructionStatusService;
+import com.allinweb.ch.facade.VariablesInstructionStatusTransaction.Result;
 import com.allinweb.ch.facade.VariablesInstructionMutationProfile;
 import com.allinweb.ch.facade.VariablesReactAuthoredMutationProfile;
 import com.allinweb.ch.facade.VariablesVariableDeleteService;
@@ -37,6 +39,7 @@ import com.allinweb.ch.model.VariablesInstructionCopyV1;
 import com.allinweb.ch.model.VariablesCommandEditorUpdateV1;
 import com.allinweb.ch.model.VariablesCommandEditorCopyV1;
 import com.allinweb.ch.model.VariablesWorkspaceCommandDelete;
+import com.allinweb.ch.model.VariablesWorkspaceInstructionStatus;
 import com.allinweb.ch.model.VariablesWorkspaceVariableDelete;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
@@ -86,6 +89,8 @@ public final class VariablesWorkspaceService {
             VariablesCommandEditorCopyService.getInstance();
     private static final VariablesCommandDeleteService COMMAND_DELETES =
             VariablesCommandDeleteService.getInstance();
+    private static final VariablesInstructionStatusService COMMAND_STATUSES =
+            VariablesInstructionStatusService.getInstance();
 
     private static final VariablesWorkspaceService INSTANCE =
             new VariablesWorkspaceService(
@@ -986,6 +991,83 @@ public final class VariablesWorkspaceService {
         }
     }
 
+    /** Activates or deactivates one command using the GridItem conditional-family semantics. */
+    public JsonObject updateInstructionStatus(
+            JsonObject body, String requesterSessionId, Session requesterTransport) {
+        JsonObject request = body == null ? new JsonObject() : body;
+        Binding current = null;
+        try {
+            requireManagerTransport(requesterSessionId, requesterTransport);
+            current = currentBinding();
+            if (current == null) {
+                throw new IllegalArgumentException(
+                        "No Bot Job is bound to the Variables workspace.");
+            }
+            String requestedBindingEpoch = text(request, "bindingEpoch");
+            if (requestedBindingEpoch.isBlank()
+                    || !requestedBindingEpoch.equals(current.bindingEpoch())) {
+                throw new IllegalArgumentException(
+                        "The Variables target changed. Reload the current Bot Job.");
+            }
+            WorkspaceContext workspace =
+                    workspaces.require(current.botJobId(), current.workspaceEpoch());
+            current = current.withWorkspace(workspace);
+            VariablesWorkspaceInstructionStatus.Request statusRequest;
+            try {
+                statusRequest = gson.fromJson(
+                        request, VariablesWorkspaceInstructionStatus.Request.class);
+            } catch (RuntimeException malformed) {
+                throw new IllegalArgumentException(
+                        "The Variables command-status request is malformed.");
+            }
+            if (statusRequest == null) {
+                throw new IllegalArgumentException(
+                        "A Variables command-status request is required.");
+            }
+
+            Binding authorized = current;
+            Result committed =
+                    BotJobDetailsWorkspaceRegistry.getInstance().commitWorkspaceMutation(
+                            authorized.botJobId(),
+                            authorized.workspaceEpoch(),
+                            () -> persistInstructionStatus(authorized, statusRequest));
+            JsonObject response = instructionStatusSuccess(request, authorized, committed);
+            if (!isCurrent(authorized) || !isManagerTransport(requesterTransport)) {
+                response.addProperty("resyncRequired", true);
+                response.addProperty(
+                        "message",
+                        "Command status saved, but the workspace target changed. "
+                                + "Refreshing authoritative workspaces.");
+            }
+            return response;
+        } catch (InstructionStatusPersistenceException persistenceFailure) {
+            Throwable cause = persistenceFailure.getCause();
+            if (cause instanceof MutationRefusedException refused) {
+                return instructionStatusFailure(
+                        request, refused.code(), refused.getMessage(), current);
+            }
+            log.error("Unable to persist Variables command status", cause);
+            return instructionStatusFailure(
+                    request,
+                    "COMMAND_STATUS_PERSISTENCE_FAILED",
+                    "The command status was not updated.",
+                    current);
+        } catch (IllegalArgumentException | IllegalStateException refused) {
+            return instructionStatusFailure(
+                    request,
+                    "COMMAND_STATUS_REQUEST_REFUSED",
+                    refused.getMessage(),
+                    current == null ? currentBinding() : current);
+        } catch (RuntimeException failure) {
+            log.error("Unable to process Variables command status", failure);
+            return instructionStatusFailure(
+                    request,
+                    "COMMAND_STATUS_FAILED",
+                    "The command status was not updated.",
+                    current == null ? currentBinding() : current);
+        }
+    }
+
     /**
      * Publishes authoritative views after the correlated acknowledgement attempt.
      *
@@ -1077,6 +1159,20 @@ public final class VariablesWorkspaceService {
                     request);
         } catch (SQLException error) {
             throw new CommandDeletePersistenceException(error);
+        }
+    }
+
+    private Result persistInstructionStatus(
+            Binding authorized,
+            VariablesWorkspaceInstructionStatus.Request request) {
+        try {
+            return COMMAND_STATUSES.update(
+                    authorized.homeBankingId(),
+                    authorized.botJobId(),
+                    authorized.workspaceEpoch(),
+                    request);
+        } catch (SQLException error) {
+            throw new InstructionStatusPersistenceException(error);
         }
     }
 
@@ -2049,6 +2145,46 @@ public final class VariablesWorkspaceService {
         return response;
     }
 
+    private JsonObject instructionStatusSuccess(
+            JsonObject request, Binding current, Result committed) {
+        JsonObject response = mutationResponseBase(request, current);
+        response.addProperty(
+                "contractVersion", VariablesWorkspaceInstructionStatus.CONTRACT_VERSION);
+        response.addProperty("ok", true);
+        response.addProperty("committed", true);
+        response.addProperty("resyncRequired", false);
+        response.addProperty("instructionId", committed.instructionId());
+        response.addProperty("active", committed.active());
+        response.addProperty("updatedCount", committed.updatedCount());
+        response.addProperty(
+                "message",
+                committed.active()
+                        ? "Command activated. Variables and Bot Job Details are synchronized."
+                        : "Command deactivated. Variables and Bot Job Details are synchronized.");
+        return response;
+    }
+
+    private JsonObject instructionStatusFailure(
+            JsonObject request, String errorCode, String message, Binding current) {
+        JsonObject response = mutationResponseBase(request, current);
+        response.addProperty(
+                "contractVersion", VariablesWorkspaceInstructionStatus.CONTRACT_VERSION);
+        response.addProperty("ok", false);
+        response.addProperty("committed", false);
+        response.addProperty("preserveSnapshot", true);
+        response.addProperty(
+                "errorCode",
+                errorCode == null || errorCode.isBlank()
+                        ? "COMMAND_STATUS_REFUSED"
+                        : errorCode);
+        response.addProperty(
+                "message",
+                message == null || message.isBlank()
+                        ? "The command status change was refused."
+                        : message);
+        return response;
+    }
+
     private JsonObject mutationResponseBase(JsonObject request, Binding current) {
         JsonObject response = new JsonObject();
         response.addProperty(
@@ -2405,6 +2541,10 @@ public final class VariablesWorkspaceService {
 
     private static final class CommandDeletePersistenceException extends RuntimeException {
         private CommandDeletePersistenceException(SQLException cause) { super(cause); }
+    }
+
+    private static final class InstructionStatusPersistenceException extends RuntimeException {
+        private InstructionStatusPersistenceException(SQLException cause) { super(cause); }
     }
 
     private enum DurableRuntimeMemoryPort implements RuntimeMemoryPort {

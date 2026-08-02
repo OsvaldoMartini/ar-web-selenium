@@ -124,6 +124,7 @@ public class SimpleWebSocketServer {
             "variablesWorkspace.commandEditor.update",
             "variablesWorkspace.commandEditor.copy",
             "variablesWorkspace.commands.delete",
+            "variablesWorkspace.commands.status",
             "variablesWorkspace.variables.delete",
             "pagesOpen.open",
             "pagesOpen.summary");
@@ -1009,6 +1010,21 @@ public class SimpleWebSocketServer {
                     } finally {
                         variablesWorkspaceService.publishCommittedMutation(
                                 deletionResponse);
+                    }
+                    break;
+                }
+                case "variablesWorkspace.commands.status": {
+                    JsonObject variablesBody = extractBody(jsonObjMSG);
+                    JsonObject statusResponse = variablesWorkspaceService.updateInstructionStatus(
+                            variablesBody, sessionId, session);
+                    try {
+                        sendCommandEditorResponse(
+                                homeBankingId,
+                                sessionId,
+                                "variablesWorkspace.commands.statusResponse",
+                                statusResponse);
+                    } finally {
+                        variablesWorkspaceService.publishCommittedMutation(statusResponse);
                     }
                     break;
                 }
