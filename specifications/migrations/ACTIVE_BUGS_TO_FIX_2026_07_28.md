@@ -7,7 +7,7 @@ active roadmap changes. Do not delete or replace the historical incident and bug
 
 Active roadmap: `ROADMAP_VARIABLES_COMMAND_EDITOR_MODAL_2026_08_01.md`
 
-Progress: **CE-1 through CE-6 complete; 4 steps remain.**
+Progress: **CE-1 through CE-7 complete; 3 steps remain.**
 
 | Step | Status | Current result |
 |---|---|---|
@@ -17,7 +17,7 @@ Progress: **CE-1 through CE-6 complete; 4 steps remain.**
 | CE-4 | Complete | Typed LOOP, REFRESH_LOOP, and Wait editors are hydrated from the selected command. |
 | CE-5 | Complete; Claude persistence review requested | UPDATE preserves the instruction ID and supports placement and cross-Block movement. |
 | CE-6 | Complete; Claude persistence review requested | COPY NEW creates one fresh, disconnected instruction and preserves the original. |
-| CE-7 | Pending | CheckValue, CSV/PDF Check, and ExcelWrite editors. |
+| CE-7 | Complete; runtime review pending | Typed CheckValue, CSV/PDF Check, and ExcelWrite editors use a new shadow configuration table while legacy execution fields remain unchanged. |
 | CE-8 | Pending | GOTO and SWIPE editors. |
 | CE-9 | Pending | Typed IF/ELSEIF editors after expression persistence is approved. |
 | CE-10 | Pending | Acceptance, deferred tests, build/deployment verification, and realtime checks. |
@@ -29,6 +29,9 @@ Progress: **CE-1 through CE-6 complete; 4 steps remain.**
 - Frontend COPY NEW transport: `05e6c22` (`CODEX: connect pure Variables command copy`).
 - Backend COPY NEW persistence: `1259f18b` (`CODEX: persist pure Variables command copy`).
 - Latest deployed bundle: `c9a9395b` (`CODEX: deploy pure Variables command copy`).
+- CE-7 frontend: `ed300a0` (`CODEX: add typed Variables check and output editors`).
+- CE-7 backend: `88628393` (`CODEX: persist typed Variables command configuration`).
+- CE-7 deployed bundle: `f482756a` (`CODEX: deploy Variables CE-7 editors`).
 
 The user is correct that CODEX touched persistence. Claude should review the two backend source
 commits, especially transaction boundaries, graph version/revision checks, order normalization,

@@ -6,13 +6,12 @@ This section is the current shared handoff and must remain at the top of this ca
 document. Update it in place; preserve every older roadmap, investigation, and review ledger below.
 
 - Active roadmap: `ROADMAP_VARIABLES_COMMAND_EDITOR_MODAL_2026_08_01.md`.
-- Progress: **CE-1 through CE-6 complete; CE-7 through CE-10 remain**.
-- Current stop point: CE-6 is committed, pushed, and React-deployed. Wait for the user's next order
-  after Claude reviews the persistence changes.
-- Next implementation when authorized: CE-7, covering typed CheckValue, CSV/PDF Check, and
-  ExcelWrite editors.
+- Progress: **CE-1 through CE-7 complete; CE-8 through CE-10 remain**.
+- Current stop point: CE-7 is committed, pushed, and React-deployed. Wait for the user's runtime or
+  Claude review before CE-8.
+- Next implementation when authorized: CE-8, covering typed GOTO and SWIPE editors.
 - Smoke-test implementation remains a separate later roadmap in
-  `Smoke_Test_Roadmap_2026_08_01.md`; it has not been started by this CE-6 change.
+  `Smoke_Test_Roadmap_2026_08_01.md`; it has not been started by CE-7.
 
 ### Persistence review requested from Claude
 
@@ -23,6 +22,9 @@ document. Update it in place; preserve every older roadmap, investigation, and r
 | React frontend | `05e6c22` | Isolated COPY NEW hook, pending lifecycle, action routing, and safe default placement. |
 | Java backend | `1259f18b` | Fresh-ID atomic COPY NEW, source preservation, target order normalization, relationship clearing, idempotency, and graph CAS. |
 | Java deployed resources | `c9a9395b` | Bundle generated from frontend `05e6c22`. |
+| React CE-7 | `ed300a0` | Typed CheckValue, CSV/PDF Check, and ExcelWrite forms and snapshot hydration. |
+| Java CE-7 | `88628393` | New typed command configuration table/repository plus isolated UPDATE/COPY persistence. |
+| Java deployed resources | `f482756a` | Bundle generated from frontend `ed300a0`. |
 
 CODEX did modify database persistence. COPY NEW uses the new
 `VariablesCommandEditorCopyV1`, `VariablesCommandEditorCopyService`, and
@@ -35,7 +37,20 @@ relationships, and unchanged source state before commit.
 
 Verification recorded by CODEX: frontend `npm run build` passed with existing warnings and the
 result was deployed. Maven and backend tests were intentionally not run. Claude should treat the
-backend persistence review as the acceptance gate before CE-7 begins.
+backend persistence review as the acceptance gate before CE-8 begins.
+
+### CE-7 persistence boundary
+
+CE-7 stores intrinsic Check/ExcelWrite settings in
+`instruction_variable_command_config`. React owns typed drafts and validation; Java owns the
+transaction, graph CAS, durable storage, and committed snapshot publication. The legacy detached
+Command Editor, GridItem drag rules, relationship repair rules, and V1 executors were not changed.
+For CheckValue, CSV/PDF Check, and ExcelWrite, CE-7 does not overwrite the legacy
+`instruction.operation`; the new table is a shadow contract until the complete Variables
+operations roadmap explicitly activates V2 execution. COPY NEW still creates a fresh instruction
+with command-level parent/Block/variable IDs cleared; a typed operand-variable reference is also
+cleared to `VOID` in the copied configuration. Java compilation/Maven and runtime migration
+acceptance remain pending at the user's request.
 
 ### Adjacent Variables requests — implemented outside the Command Editor sequence
 

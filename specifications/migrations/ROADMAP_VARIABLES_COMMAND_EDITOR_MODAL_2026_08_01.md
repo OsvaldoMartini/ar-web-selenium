@@ -1,12 +1,12 @@
 # Variables Command Editor Modal Roadmap
 
 Date: 2026-08-01  
-Status: **IN PROGRESS — CE-1 through CE-6 complete; CE-7 through CE-10 remain**
+Status: **IN PROGRESS — CE-1 through CE-7 complete; CE-8 through CE-10 remain**
 Primary entry point: green edit button in Variables > All Commands
 
 ## Current implementation handoff
 
-The active stop point is CE-6. Do not start CE-7 until the user returns with Claude's persistence
+The active stop point is CE-7. Do not start CE-8 until the user returns with Claude's persistence
 review or explicitly authorizes the next step.
 
 Completed and pushed:
@@ -16,7 +16,8 @@ Completed and pushed:
 - CE-3: CANCEL, UPDATE, and COPY NEW shell;
 - CE-4: typed LOOP, REFRESH_LOOP, and Wait editors;
 - CE-5: atomic same-ID UPDATE persistence and authoritative publication;
-- CE-6: atomic fresh-ID, relationship-free COPY NEW persistence and authoritative publication.
+- CE-6: atomic fresh-ID, relationship-free COPY NEW persistence and authoritative publication;
+- CE-7: typed CheckValue, CSV/PDF Check, and ExcelWrite editors with shadow persistence.
 
 Persistence commits awaiting Claude review:
 
@@ -24,9 +25,12 @@ Persistence commits awaiting Claude review:
 - backend COPY NEW: `1259f18b`;
 - frontend COPY NEW: `05e6c22`;
 - deployed bundle: `c9a9395b`.
+- frontend CE-7: `ed300a0`;
+- backend CE-7: `88628393`;
+- deployed CE-7 bundle: `f482756a`.
 
-No Maven or backend tests were run for CE-6 by user instruction. The frontend production build
-passed with existing warnings. The next four roadmap steps are CE-7, CE-8, CE-9, and CE-10.
+No Maven or backend tests were run for CE-6 or CE-7 by user instruction. The frontend production build
+passed with existing warnings. The next three roadmap steps are CE-8, CE-9, and CE-10.
 
 ## Adjacent Variables improvements — outside CE-7 through CE-10
 
@@ -338,9 +342,21 @@ and committed realtime publication.
 
 ### CE-7 - Check and output editors
 
-- Implement CheckValue with the new typed variable-operation contract.
-- Implement CSV/PDF Check editors.
-- Implement ExcelWrite output configuration.
+- [x] Implement CheckValue with the new typed variable-operation contract.
+- [x] Implement CSV/PDF Check editors.
+- [x] Implement ExcelWrite output configuration.
+
+CE-7 implementation evidence (2026-08-01):
+
+- React commit `ed300a0` adds isolated CheckValue, external CSV/PDF Check, and ExcelWrite editors.
+- Java commit `88628393` adds the typed shadow configuration migration/repository and extends only
+  the Variables Command Editor UPDATE/COPY transactions.
+- Deployed bundle commit `f482756a` contains the successful frontend production build.
+- CE-7 deliberately does not activate the V2 executors and does not overwrite legacy
+  `instruction.operation` for Check/ExcelWrite commands. This keeps current execution behavior
+  available while typed configuration is reviewed and migrated.
+- Maven/backend tests were not run at the user's request; Java compilation and runtime migration
+  acceptance remain pending.
 
 ### CE-8 - Navigation and gesture editors
 
