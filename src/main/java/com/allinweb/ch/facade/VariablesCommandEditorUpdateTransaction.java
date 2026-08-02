@@ -193,7 +193,8 @@ public final class VariablesCommandEditorUpdateTransaction {
         finalTargetRows.add(targetIndex, source);
         RelationshipImpact relationshipImpact = relationshipImpact(
                 source, request.targetBlockId(), finalTargetRows);
-        if (relationshipImpact.requiresDisconnect()
+        if (!commandChanged
+                && relationshipImpact.requiresDisconnect()
                 && !Boolean.TRUE.equals(request.allowRelationshipDisconnect())) {
             throw refused(
                     "COMMAND_UPDATE_RELATIONSHIP_CONFIRMATION_REQUIRED",
@@ -309,10 +310,13 @@ public final class VariablesCommandEditorUpdateTransaction {
             Connection connection, int homeBankingId, int botJobId, Plan plan)
             throws SQLException {
         Configuration configuration = plan.configuration();
-        boolean keepsVariableBinding = CommandRegistry.usesVariableBinding(plan.targetAction());
         try (PreparedStatement statement = connection.prepareStatement(
-                "UPDATE instruction SET actions=?,operation=?,on_hold_seconds=?,variable_id=? WHERE id=? AND bot_job_id=?")) {
+                "UPDATE instruction SET actions=?,name=?,operation=?,on_hold_seconds=?,"
+                        + "variable_id=NULL,parent_id=NULL,parent_block_id=NULL"
+                        + " WHERE id=? AND bot_job_id=?")) {
             statement.setString(1, plan.targetAction());
+            statement.setString(2, CommandRegistry.transformedName(
+                    plan.source().name(), plan.source().action(), plan.targetAction()));
             String operation = configuration.kind() == ConfigurationKind.LOOP
                             || configuration.kind() == ConfigurationKind.REFRESH_LOOP
                     ? configuration.intervalSeconds() + ":" + configuration.iterations()
@@ -320,19 +324,14 @@ public final class VariablesCommandEditorUpdateTransaction {
                                     || configuration.kind() == ConfigurationKind.SWIPE
                             ? String.valueOf(configuration.count())
                             : null;
-            if (operation == null) statement.setNull(2, java.sql.Types.VARCHAR);
-            else statement.setString(2, operation);
+            if (operation == null) statement.setNull(3, java.sql.Types.VARCHAR);
+            else statement.setString(3, operation);
             if (configuration.kind() == ConfigurationKind.WAIT) {
-                statement.setInt(3, configuration.waitSeconds());
+                statement.setInt(4, configuration.waitSeconds());
             } else if (plan.source().onHoldSeconds() == null) {
-                statement.setNull(3, java.sql.Types.INTEGER);
-            } else {
-                statement.setInt(3, plan.source().onHoldSeconds());
-            }
-            if (keepsVariableBinding && plan.source().variableId() != null) {
-                statement.setInt(4, plan.source().variableId());
-            } else {
                 statement.setNull(4, java.sql.Types.INTEGER);
+            } else {
+                statement.setInt(4, plan.source().onHoldSeconds());
             }
             statement.setInt(5, plan.source().id());
             statement.setInt(6, botJobId);
@@ -340,13 +339,22 @@ public final class VariablesCommandEditorUpdateTransaction {
                 throw refused("COMMAND_UPDATE_SOURCE_CHANGED", "The selected command changed before it could be transformed.");
             }
         }
-        if (!CommandRegistry.producesVariableValue(plan.targetAction())) {
+        try (PreparedStatement statement = connection.prepareStatement(
+                "UPDATE bot_job_variable_definition SET producer_instruction_id=NULL"
+                        + " WHERE home_banking_id=? AND bot_job_id=? AND producer_instruction_id=?")) {
+            statement.setInt(1, homeBankingId);
+            statement.setInt(2, botJobId);
+            statement.setInt(3, plan.source().id());
+            statement.executeUpdate();
+        }
+        if (!CommandRegistry.isParentAnchor(plan.targetAction())) {
+            // The transformed command can no longer anchor children: release them to
+            // the RECONNECT chip pathway, matching the delete transaction's repair.
             try (PreparedStatement statement = connection.prepareStatement(
-                    "UPDATE bot_job_variable_definition SET producer_instruction_id=NULL"
-                            + " WHERE home_banking_id=? AND bot_job_id=? AND producer_instruction_id=?")) {
-                statement.setInt(1, homeBankingId);
-                statement.setInt(2, botJobId);
-                statement.setInt(3, plan.source().id());
+                    "UPDATE instruction SET parent_id=NULL,parent_block_id=NULL"
+                            + " WHERE bot_job_id=? AND parent_id=?")) {
+                statement.setInt(1, botJobId);
+                statement.setInt(2, plan.source().id());
                 statement.executeUpdate();
             }
         }
@@ -456,6 +464,26 @@ public final class VariablesCommandEditorUpdateTransaction {
                         "COMMAND_UPDATE_VERIFICATION_FAILED",
                         "The transformed command still carries the previous intrinsic values.");
             }
+            String expectedName = CommandRegistry.transformedName(
+                    plan.source().name(), plan.source().action(), plan.targetAction());
+            if (!Objects.equals(expectedName, updated.name())) {
+                throw refused(
+                        "COMMAND_UPDATE_VERIFICATION_FAILED",
+                        "The transformed command name could not be verified.");
+            }
+            if (updated.parentId() != null || updated.parentBlockId() != null
+                    || updated.variableId() != null) {
+                throw refused(
+                        "COMMAND_UPDATE_VERIFICATION_FAILED",
+                        "The transformed command still carries previous connections.");
+            }
+            if (!CommandRegistry.isParentAnchor(plan.targetAction())
+                    && after.instructions().values().stream()
+                            .anyMatch(row -> Objects.equals(row.parentId(), plan.source().id()))) {
+                throw refused(
+                        "COMMAND_UPDATE_VERIFICATION_FAILED",
+                        "Children of the transformed command were not released.");
+            }
         }
         if (configuration.kind() == ConfigurationKind.WAIT) {
             if (!Objects.equals(updated.onHoldSeconds(), configuration.waitSeconds())) {
@@ -501,13 +529,14 @@ public final class VariablesCommandEditorUpdateTransaction {
         LinkedHashMap<Integer, InstructionRow> instructions = new LinkedHashMap<>();
         List<InstructionLoad> revisionRows = new ArrayList<>();
         try (PreparedStatement statement = connection.prepareStatement(
-                "SELECT id,instruction_order_number,actions,operation,on_hold_seconds,block_id,variable_id,parent_block_id,parent_id FROM instruction WHERE bot_job_id=? ORDER BY block_id,instruction_order_number,id")) {
+                "SELECT id,instruction_order_number,actions,name,operation,on_hold_seconds,block_id,variable_id,parent_block_id,parent_id FROM instruction WHERE bot_job_id=? ORDER BY block_id,instruction_order_number,id")) {
             statement.setInt(1, owner.ownerId());
             try (ResultSet rows = statement.executeQuery()) {
                 while (rows.next()) {
                     InstructionRow row = new InstructionRow(
                             rows.getInt("id"), rows.getInt("instruction_order_number"),
-                            rows.getString("actions"), rows.getString("operation"),
+                            rows.getString("actions"), rows.getString("name"),
+                            rows.getString("operation"),
                             nullableInteger(rows, "on_hold_seconds"), rows.getInt("block_id"),
                             nullableInteger(rows, "variable_id"),
                             nullableInteger(rows, "parent_block_id"),
@@ -704,7 +733,8 @@ public final class VariablesCommandEditorUpdateTransaction {
     }
 
     private record InstructionRow(
-            int id, int order, String action, String operation, Integer onHoldSeconds,
+            int id, int order, String action, String name, String operation,
+            Integer onHoldSeconds,
             int blockId, Integer variableId, Integer parentBlockId, Integer parentId) {
         private InstructionLoad asRevisionRow() {
             InstructionLoad row = new InstructionLoad();

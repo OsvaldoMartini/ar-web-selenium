@@ -279,7 +279,7 @@ public final class VariablesCommandEditorCopyTransaction {
             statement.setInt(parameter++, plan.finalOrder());
             statement.setObject(
                     parameter++, plan.commandChanged() ? plan.targetAction() : source.actions());
-            statement.setObject(parameter++, source.name());
+            statement.setObject(parameter++, copiedName(source, plan));
             statement.setObject(parameter++, source.xpath());
             statement.setObject(parameter++, source.coordinates());
             statement.setObject(parameter++, source.forceCoordinates());
@@ -348,7 +348,11 @@ public final class VariablesCommandEditorCopyTransaction {
         boolean identityCopied = plan.commandChanged()
                 ? plan.targetAction().equals(copy.actionsText())
                 : Objects.equals(copy.actions(), plan.source().actions());
-        if (!identityCopied || !Objects.equals(copy.name(), plan.source().name())) {
+        Object expectedName = copiedName(plan.source(), plan);
+        boolean nameCopied = expectedName == null
+                ? copy.name() == null
+                : copy.name() != null && expectedName.toString().equals(copy.name().toString());
+        if (!identityCopied || !nameCopied) {
             throw refused("COMMAND_COPY_VERIFICATION_FAILED", "The command identity was not copied exactly.");
         }
         Configuration configuration = plan.configuration();
@@ -408,6 +412,15 @@ public final class VariablesCommandEditorCopyTransaction {
         return new Graph(state, Set.copyOf(blockIds), Map.copyOf(instructions),
                 variables.stream().map(VariableLoadDTO::getId).collect(java.util.stream.Collectors.toUnmodifiableSet()),
                 revisionService.revision(revisionRows, variables));
+    }
+
+    /** A transformed copy is renamed like an in-place transform; plain copies keep the name. */
+    private static Object copiedName(InstructionRow source, Plan plan) {
+        if (!plan.commandChanged()) return source.name();
+        return CommandRegistry.transformedName(
+                source.name() == null ? null : source.name().toString(),
+                source.actionsText(),
+                plan.targetAction());
     }
 
     private static String configuredOperation(
