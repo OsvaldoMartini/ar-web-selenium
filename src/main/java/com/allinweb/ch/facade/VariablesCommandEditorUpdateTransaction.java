@@ -146,8 +146,18 @@ public final class VariablesCommandEditorUpdateTransaction {
         if (request.targetBlockId() == null || !graph.blockIds().contains(request.targetBlockId())) {
             throw refused("COMMAND_UPDATE_TARGET_BLOCK_INVALID", "Select a current target Block.");
         }
+        String sourceAction = CommandRegistry.canonicalize(source.action());
+        String targetAction = blank(request.targetAction())
+                ? sourceAction
+                : CommandRegistry.canonicalize(request.targetAction());
+        boolean commandChanged = !targetAction.equals(sourceAction);
+        if (commandChanged && !CommandRegistry.isEditorTargetable(targetAction)) {
+            throw refused(
+                    "COMMAND_UPDATE_TARGET_ACTION_INVALID",
+                    "The selected target command is not supported by the Command Editor.");
+        }
         Configuration configuration = requireConfiguration(
-                graph, source, request.configuration());
+                graph, targetAction, request.configuration());
         Placement placement = request.placement();
         if (placement == null || placement.kind() == null) {
             throw refused("COMMAND_UPDATE_PLACEMENT_REQUIRED", "Select a command placement.");
@@ -192,16 +202,23 @@ public final class VariablesCommandEditorUpdateTransaction {
         return new Plan(
                 source, request.targetBlockId(), configuration,
                 List.copyOf(sourceRows), List.copyOf(finalTargetRows), targetIndex + 1,
-                relationshipImpact);
+                relationshipImpact, targetAction, commandChanged);
     }
 
     private Configuration requireConfiguration(
-            Graph graph, InstructionRow source, Configuration configuration)
+            Graph graph, String action, Configuration configuration)
             throws MutationRefusedException {
         if (configuration == null || configuration.kind() == null) {
             throw refused("COMMAND_UPDATE_CONFIGURATION_REQUIRED", "A typed command configuration is required.");
         }
-        String action = CommandRegistry.canonicalize(source.action());
+        if (configuration.kind() == ConfigurationKind.NONE) {
+            if (!CommandRegistry.hasNoEditorConfiguration(action)) {
+                throw refused(
+                        "COMMAND_UPDATE_CONFIGURATION_MISMATCH",
+                        "The selected command requires its typed configuration.");
+            }
+            return configuration;
+        }
         if (configuration.kind() == ConfigurationKind.LOOP && !"LOOP".equals(action)
                 || configuration.kind() == ConfigurationKind.REFRESH_LOOP && !"REFRESH_LOOP".equals(action)
                 || configuration.kind() == ConfigurationKind.WAIT && !"H".equals(action)
@@ -247,13 +264,18 @@ public final class VariablesCommandEditorUpdateTransaction {
             Connection connection, int homeBankingId, int botJobId, Plan plan)
             throws SQLException {
         Configuration configuration = plan.configuration();
+        if (plan.commandChanged()) {
+            persistCommandChange(connection, homeBankingId, botJobId, plan);
+            return;
+        }
+        if (configuration.kind() == ConfigurationKind.NONE) return;
         if (isTypedVariableConfiguration(configuration.kind())) {
             commandConfigurations.upsert(
                     connection,
                     homeBankingId,
                     botJobId,
                     plan.source().id(),
-                    CommandRegistry.canonicalize(plan.source().action()),
+                    plan.targetAction(),
                     configuration);
             return;
         }
@@ -275,6 +297,65 @@ public final class VariablesCommandEditorUpdateTransaction {
             if (statement.executeUpdate() != 1) {
                 throw refused("COMMAND_UPDATE_SOURCE_CHANGED", "The selected command changed before it could be updated.");
             }
+        }
+    }
+
+    /**
+     * Rewrites the instruction into the selected target command: actions column, intrinsic
+     * values (operation / on_hold_seconds), variable binding, and the shadow configuration.
+     * Owned variables are released into memory (producer cleared), never deleted.
+     */
+    private void persistCommandChange(
+            Connection connection, int homeBankingId, int botJobId, Plan plan)
+            throws SQLException {
+        Configuration configuration = plan.configuration();
+        boolean keepsVariableBinding = CommandRegistry.usesVariableBinding(plan.targetAction());
+        try (PreparedStatement statement = connection.prepareStatement(
+                "UPDATE instruction SET actions=?,operation=?,on_hold_seconds=?,variable_id=? WHERE id=? AND bot_job_id=?")) {
+            statement.setString(1, plan.targetAction());
+            String operation = configuration.kind() == ConfigurationKind.LOOP
+                            || configuration.kind() == ConfigurationKind.REFRESH_LOOP
+                    ? configuration.intervalSeconds() + ":" + configuration.iterations()
+                    : configuration.kind() == ConfigurationKind.GOTO
+                                    || configuration.kind() == ConfigurationKind.SWIPE
+                            ? String.valueOf(configuration.count())
+                            : null;
+            if (operation == null) statement.setNull(2, java.sql.Types.VARCHAR);
+            else statement.setString(2, operation);
+            if (configuration.kind() == ConfigurationKind.WAIT) {
+                statement.setInt(3, configuration.waitSeconds());
+            } else if (plan.source().onHoldSeconds() == null) {
+                statement.setNull(3, java.sql.Types.INTEGER);
+            } else {
+                statement.setInt(3, plan.source().onHoldSeconds());
+            }
+            if (keepsVariableBinding && plan.source().variableId() != null) {
+                statement.setInt(4, plan.source().variableId());
+            } else {
+                statement.setNull(4, java.sql.Types.INTEGER);
+            }
+            statement.setInt(5, plan.source().id());
+            statement.setInt(6, botJobId);
+            if (statement.executeUpdate() != 1) {
+                throw refused("COMMAND_UPDATE_SOURCE_CHANGED", "The selected command changed before it could be transformed.");
+            }
+        }
+        if (!CommandRegistry.producesVariableValue(plan.targetAction())) {
+            try (PreparedStatement statement = connection.prepareStatement(
+                    "UPDATE bot_job_variable_definition SET producer_instruction_id=NULL"
+                            + " WHERE home_banking_id=? AND bot_job_id=? AND producer_instruction_id=?")) {
+                statement.setInt(1, homeBankingId);
+                statement.setInt(2, botJobId);
+                statement.setInt(3, plan.source().id());
+                statement.executeUpdate();
+            }
+        }
+        if (isTypedVariableConfiguration(configuration.kind())) {
+            commandConfigurations.upsert(
+                    connection, homeBankingId, botJobId,
+                    plan.source().id(), plan.targetAction(), configuration);
+        } else {
+            commandConfigurations.delete(connection, homeBankingId, botJobId, plan.source().id());
         }
     }
 
@@ -361,6 +442,21 @@ public final class VariablesCommandEditorUpdateTransaction {
                     "The invalid instruction connection was not cleared.");
         }
         Configuration configuration = plan.configuration();
+        if (plan.commandChanged()) {
+            if (!plan.targetAction().equals(CommandRegistry.canonicalize(updated.action()))) {
+                throw refused(
+                        "COMMAND_UPDATE_VERIFICATION_FAILED",
+                        "The committed command type could not be verified.");
+            }
+            boolean expectsNullOperation = configuration.kind() == ConfigurationKind.WAIT
+                    || configuration.kind() == ConfigurationKind.NONE
+                    || isTypedVariableConfiguration(configuration.kind());
+            if (expectsNullOperation && updated.operation() != null) {
+                throw refused(
+                        "COMMAND_UPDATE_VERIFICATION_FAILED",
+                        "The transformed command still carries the previous intrinsic values.");
+            }
+        }
         if (configuration.kind() == ConfigurationKind.WAIT) {
             if (!Objects.equals(updated.onHoldSeconds(), configuration.waitSeconds())) {
                 throw refused("COMMAND_UPDATE_VERIFICATION_FAILED", "The committed Wait value could not be verified.");
@@ -623,7 +719,8 @@ public final class VariablesCommandEditorUpdateTransaction {
                          Set<Integer> variableIds, String revision) {}
     private record Plan(InstructionRow source, int targetBlockId, Configuration configuration,
                         List<InstructionRow> sourceRows, List<InstructionRow> targetRows,
-                        int finalOrder, RelationshipImpact relationshipImpact) {}
+                        int finalOrder, RelationshipImpact relationshipImpact,
+                        String targetAction, boolean commandChanged) {}
 
     private record RelationshipImpact(boolean clearParentId, boolean clearParentBlockId) {
         private static final RelationshipImpact NONE = new RelationshipImpact(false, false);

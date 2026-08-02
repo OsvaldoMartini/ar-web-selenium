@@ -17,7 +17,9 @@ public final class VariablesCommandEditorUpdateV1 {
         EXCEL_WRITE,
         GOTO,
         SWIPE,
-        CONDITIONAL
+        CONDITIONAL,
+        /** Target commands with no intrinsic configuration (GET, REFRESH, PAUSE, ...). */
+        NONE
     }
 
     public record Placement(PlacementKind kind, Integer referenceInstructionId) {}
@@ -76,5 +78,6 @@ public final class VariablesCommandEditorUpdateV1 {
             Integer targetBlockId,
             Placement placement,
             Boolean allowRelationshipDisconnect,
-            Configuration configuration) {}
+            Configuration configuration,
+            String targetAction) {}
 }

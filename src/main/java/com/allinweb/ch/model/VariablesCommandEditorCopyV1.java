@@ -19,5 +19,6 @@ public final class VariablesCommandEditorCopyV1 {
             Integer sourceInstructionId,
             Integer targetBlockId,
             Placement placement,
-            Configuration configuration) {}
+            Configuration configuration,
+            String targetAction) {}
 }

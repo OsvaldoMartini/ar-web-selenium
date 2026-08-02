@@ -92,6 +92,20 @@ public final class InstructionVariableCommandConfigRepository {
         }
     }
 
+    /** Removes the shadow configuration when an instruction is transformed into an untyped command. */
+    public void delete(
+            Connection connection, int homeBankingId, int botJobId, int instructionId)
+            throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(
+                "DELETE FROM " + TABLE
+                        + " WHERE home_banking_id=? AND bot_job_id=? AND instruction_id=?")) {
+            statement.setInt(1, homeBankingId);
+            statement.setInt(2, botJobId);
+            statement.setInt(3, instructionId);
+            statement.executeUpdate();
+        }
+    }
+
     private static void bindConfiguration(
             PreparedStatement statement,
             String commandType,

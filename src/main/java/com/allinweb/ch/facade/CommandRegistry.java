@@ -17,6 +17,12 @@ public final class CommandRegistry {
             "QUIT", "Q");
     private static final Set<String> SPECIAL_ROWS = Set.of("ELSEIF", "ELSE", "ENDIF", "NEXT ROW");
     private static final Map<String, Definition> DEFINITIONS = definitions();
+    private static final Set<String> EDITOR_TARGETABLE = Set.of(
+            "GET", "CK", "PDF CHECK", "CSV CHECK", "E", "IF", "GOTO", "EXCEL GOTO", "LOOP",
+            "REFRESH_LOOP", "REFRESH", "NEXT_ENTER", "SWIPE_UP", "SWIPE_DOWN", "H", "PAUSE", "Q", "P");
+    private static final Set<String> NO_EDITOR_CONFIGURATION = Set.of(
+            "GET", "EXCEL GOTO", "REFRESH", "NEXT_ENTER", "PAUSE", "Q", "P");
+    private static final Set<String> PRODUCES_VARIABLE_VALUE = Set.of("GET", "SET", "E");
 
     private CommandRegistry() {}
 
@@ -38,6 +44,26 @@ public final class CommandRegistry {
     public static boolean isEditableCommand(String action) {
         String canonical = canonicalize(action);
         return DEFINITIONS.containsKey(canonical) && !"IF".equals(canonical);
+    }
+
+    /** Commands the Command Editor may transform an instruction into. */
+    public static boolean isEditorTargetable(String action) {
+        return EDITOR_TARGETABLE.contains(canonicalize(action));
+    }
+
+    /** Commands with no intrinsic editor configuration (NONE configuration kind on the wire). */
+    public static boolean hasNoEditorConfiguration(String action) {
+        return NO_EDITOR_CONFIGURATION.contains(canonicalize(action));
+    }
+
+    /** Commands whose instruction row carries a variable_id binding. */
+    public static boolean usesVariableBinding(String action) {
+        return requires(action, "variable");
+    }
+
+    /** Commands that produce a runtime variable value (variable producer_instruction_id owners). */
+    public static boolean producesVariableValue(String action) {
+        return PRODUCES_VARIABLE_VALUE.contains(canonicalize(action));
     }
 
     /**

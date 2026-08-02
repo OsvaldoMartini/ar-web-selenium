@@ -109,7 +109,7 @@ public final class VariablesCommandEditorCopyTransaction {
                         owner.owner().homeBankingId(),
                         owner.owner().ownerId(),
                         generatedId,
-                        CommandRegistry.canonicalize(plan.source().actionsText()),
+                        plan.targetAction(),
                         plan.configuration());
             }
             restoreTargetOrders(
@@ -172,8 +172,18 @@ public final class VariablesCommandEditorCopyTransaction {
         if (request.targetBlockId() == null || !graph.blockIds().contains(request.targetBlockId())) {
             throw refused("COMMAND_COPY_TARGET_BLOCK_INVALID", "Select a current target Block.");
         }
+        String sourceAction = CommandRegistry.canonicalize(source.actionsText());
+        String targetAction = blank(request.targetAction())
+                ? sourceAction
+                : CommandRegistry.canonicalize(request.targetAction());
+        boolean commandChanged = !targetAction.equals(sourceAction);
+        if (commandChanged && !CommandRegistry.isEditorTargetable(targetAction)) {
+            throw refused(
+                    "COMMAND_COPY_TARGET_ACTION_INVALID",
+                    "The selected target command is not supported by the Command Editor.");
+        }
         Configuration configuration = requireConfiguration(
-                graph, source, request.configuration());
+                graph, targetAction, request.configuration());
         Placement placement = request.placement();
         if (placement == null || placement.kind() == null || placement.kind() == PlacementKind.KEEP) {
             throw refused("COMMAND_COPY_PLACEMENT_REQUIRED", "Select Top, End, or After for COPY NEW.");
@@ -190,16 +200,25 @@ public final class VariablesCommandEditorCopyTransaction {
             index = targetRows.indexOf(reference) + 1;
             if (index <= 0) throw refused("COMMAND_COPY_REFERENCE_INVALID", "The placement reference is invalid.");
         }
-        return new Plan(source, request.targetBlockId(), configuration, targetRows, index, index + 1);
+        return new Plan(
+                source, request.targetBlockId(), configuration, targetRows, index, index + 1,
+                targetAction, commandChanged);
     }
 
     private Configuration requireConfiguration(
-            Graph graph, InstructionRow source, Configuration configuration)
+            Graph graph, String action, Configuration configuration)
             throws MutationRefusedException {
         if (configuration == null || configuration.kind() == null) {
             throw refused("COMMAND_COPY_CONFIGURATION_REQUIRED", "A typed command configuration is required.");
         }
-        String action = CommandRegistry.canonicalize(source.actionsText());
+        if (configuration.kind() == ConfigurationKind.NONE) {
+            if (!CommandRegistry.hasNoEditorConfiguration(action)) {
+                throw refused(
+                        "COMMAND_COPY_CONFIGURATION_MISMATCH",
+                        "The selected command requires its typed configuration.");
+            }
+            return configuration;
+        }
         if (configuration.kind() == ConfigurationKind.LOOP && !"LOOP".equals(action)
                 || configuration.kind() == ConfigurationKind.REFRESH_LOOP && !"REFRESH_LOOP".equals(action)
                 || configuration.kind() == ConfigurationKind.WAIT && !"H".equals(action)
@@ -258,7 +277,8 @@ public final class VariablesCommandEditorCopyTransaction {
                 INSERT_INSTRUCTION, Statement.RETURN_GENERATED_KEYS)) {
             int parameter = 1;
             statement.setInt(parameter++, plan.finalOrder());
-            statement.setObject(parameter++, source.actions());
+            statement.setObject(
+                    parameter++, plan.commandChanged() ? plan.targetAction() : source.actions());
             statement.setObject(parameter++, source.name());
             statement.setObject(parameter++, source.xpath());
             statement.setObject(parameter++, source.coordinates());
@@ -269,7 +289,9 @@ public final class VariablesCommandEditorCopyTransaction {
             statement.setObject(parameter++, source.shadowRoot());
             statement.setObject(parameter++, source.cssSelector());
             statement.setObject(parameter++, source.description());
-            statement.setObject(parameter++, configuredOperation(source, plan.configuration()));
+            statement.setObject(
+                    parameter++,
+                    configuredOperation(source, plan.configuration(), plan.commandChanged()));
             statement.setObject(parameter++, source.optional());
             statement.setObject(parameter++, source.blockMarked());
             statement.setObject(parameter++, source.defaultValue());
@@ -323,8 +345,10 @@ public final class VariablesCommandEditorCopyTransaction {
                 || copy.parentBlockId() != null) {
             throw refused("COMMAND_COPY_VERIFICATION_FAILED", "The disconnected command copy could not be verified.");
         }
-        if (!Objects.equals(copy.actions(), plan.source().actions())
-                || !Objects.equals(copy.name(), plan.source().name())) {
+        boolean identityCopied = plan.commandChanged()
+                ? plan.targetAction().equals(copy.actionsText())
+                : Objects.equals(copy.actions(), plan.source().actions());
+        if (!identityCopied || !Objects.equals(copy.name(), plan.source().name())) {
             throw refused("COMMAND_COPY_VERIFICATION_FAILED", "The command identity was not copied exactly.");
         }
         Configuration configuration = plan.configuration();
@@ -332,8 +356,13 @@ public final class VariablesCommandEditorCopyTransaction {
             if (!Objects.equals(copy.onHoldSecondsInteger(), configuration.waitSeconds())) {
                 throw refused("COMMAND_COPY_VERIFICATION_FAILED", "The copied Wait value could not be verified.");
             }
-        } else if (!configuredOperation(plan.source(), configuration).equals(copy.operationText())) {
-            throw refused("COMMAND_COPY_VERIFICATION_FAILED", "The copied loop values could not be verified.");
+        } else {
+            String expectedOperation = configuredOperation(
+                    plan.source(), configuration, plan.commandChanged());
+            if (!Objects.equals(
+                    expectedOperation == null ? "" : expectedOperation, copy.operationText())) {
+                throw refused("COMMAND_COPY_VERIFICATION_FAILED", "The copied intrinsic values could not be verified.");
+            }
         }
         List<InstructionRow> rows = rowsFor(after, plan.targetBlockId());
         for (int index = 0; index < rows.size(); index++) {
@@ -381,14 +410,18 @@ public final class VariablesCommandEditorCopyTransaction {
                 revisionService.revision(revisionRows, variables));
     }
 
-    private static String configuredOperation(InstructionRow source, Configuration configuration) {
-        return configuration.kind() == ConfigurationKind.WAIT
-                        || isTypedVariableConfiguration(configuration.kind())
-                ? source.operationText()
-                : configuration.kind() == ConfigurationKind.GOTO
-                                || configuration.kind() == ConfigurationKind.SWIPE
-                        ? String.valueOf(configuration.count())
-                        : configuration.intervalSeconds() + ":" + configuration.iterations();
+    private static String configuredOperation(
+            InstructionRow source, Configuration configuration, boolean commandChanged) {
+        if (configuration.kind() == ConfigurationKind.WAIT
+                || configuration.kind() == ConfigurationKind.NONE
+                || isTypedVariableConfiguration(configuration.kind())) {
+            // A transformed copy must not inherit the previous command's intrinsic values.
+            return commandChanged ? null : source.operationText();
+        }
+        return configuration.kind() == ConfigurationKind.GOTO
+                        || configuration.kind() == ConfigurationKind.SWIPE
+                ? String.valueOf(configuration.count())
+                : configuration.intervalSeconds() + ":" + configuration.iterations();
     }
     private static Object configuredHold(InstructionRow source, Configuration configuration) {
         return configuration.kind() == ConfigurationKind.WAIT
@@ -602,7 +635,8 @@ public final class VariablesCommandEditorCopyTransaction {
                          Map<Integer,InstructionRow> instructions,
                          Set<Integer> variableIds,String revision) {}
     private record Plan(InstructionRow source,int targetBlockId,Configuration configuration,
-                        List<InstructionRow> targetRows,int targetIndex,int finalOrder) {}
+                        List<InstructionRow> targetRows,int targetIndex,int finalOrder,
+                        String targetAction,boolean commandChanged) {}
     public record CopyResult(
             OwnerKey owner,long workspaceEpoch,String requestId,int sourceInstructionId,
             int createdInstructionId,int targetBlockId,int instructionOrderNumber,
