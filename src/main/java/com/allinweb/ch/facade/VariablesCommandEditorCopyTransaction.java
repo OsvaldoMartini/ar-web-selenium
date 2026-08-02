@@ -17,6 +17,7 @@ import com.allinweb.ch.model.VariablesCommandEditorUpdateV1.Configuration;
 import com.allinweb.ch.model.VariablesCommandEditorUpdateV1.ConfigurationKind;
 import com.allinweb.ch.model.VariablesCommandEditorUpdateV1.Placement;
 import com.allinweb.ch.model.VariablesCommandEditorUpdateV1.PlacementKind;
+import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -24,6 +25,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Types;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -542,20 +544,46 @@ public final class VariablesCommandEditorCopyTransaction {
         }
         private boolean sameSourceState(InstructionRow other) {
             return other != null && id == other.id && blockId == other.blockId
-                    && Objects.equals(actions, other.actions) && Objects.equals(name, other.name)
-                    && Objects.equals(xpath, other.xpath) && Objects.equals(coordinates, other.coordinates)
-                    && Objects.equals(forceCoordinates, other.forceCoordinates)
-                    && Objects.equals(iframeXPath, other.iframeXPath) && Objects.equals(tagName, other.tagName)
-                    && Objects.equals(shadowHost, other.shadowHost) && Objects.equals(shadowRoot, other.shadowRoot)
-                    && Objects.equals(cssSelector, other.cssSelector) && Objects.equals(description, other.description)
-                    && Objects.equals(operation, other.operation) && Objects.equals(optional, other.optional)
-                    && Objects.equals(blockMarked, other.blockMarked) && Objects.equals(defaultValue, other.defaultValue)
-                    && Objects.equals(actionCustomMaxWaitSec, other.actionCustomMaxWaitSec)
+                    && sameStoredValue(actions, other.actions)
+                    && sameStoredValue(name, other.name)
+                    && sameStoredValue(xpath, other.xpath)
+                    && sameStoredValue(coordinates, other.coordinates)
+                    && sameStoredValue(forceCoordinates, other.forceCoordinates)
+                    && sameStoredValue(iframeXPath, other.iframeXPath)
+                    && sameStoredValue(tagName, other.tagName)
+                    && sameStoredValue(shadowHost, other.shadowHost)
+                    && sameStoredValue(shadowRoot, other.shadowRoot)
+                    && sameStoredValue(cssSelector, other.cssSelector)
+                    && sameStoredValue(description, other.description)
+                    && sameStoredValue(operation, other.operation)
+                    && sameStoredValue(optional, other.optional)
+                    && sameStoredValue(blockMarked, other.blockMarked)
+                    && sameStoredValue(defaultValue, other.defaultValue)
+                    && sameStoredValue(actionCustomMaxWaitSec, other.actionCustomMaxWaitSec)
                     && Objects.equals(onHoldSecondsInteger(), other.onHoldSecondsInteger())
-                    && Objects.equals(codified, other.codified) && Objects.equals(exportToAbr, other.exportToAbr)
-                    && Objects.equals(active, other.active) && Objects.equals(variableId, other.variableId)
+                    && sameStoredValue(codified, other.codified)
+                    && sameStoredValue(exportToAbr, other.exportToAbr)
+                    && sameStoredValue(active, other.active)
+                    && Objects.equals(variableId, other.variableId)
                     && Objects.equals(parentBlockId, other.parentBlockId) && Objects.equals(parentId, other.parentId)
-                    && botJobId == other.botJobId && Objects.equals(clientNamed, other.clientNamed);
+                    && botJobId == other.botJobId
+                    && sameStoredValue(clientNamed, other.clientNamed);
+        }
+        private static boolean sameStoredValue(Object left, Object right) {
+            if (left == right) return true;
+            if (left == null || right == null) return false;
+            if (left instanceof byte[] leftBytes && right instanceof byte[] rightBytes) {
+                return Arrays.equals(leftBytes, rightBytes);
+            }
+            if (left instanceof Number leftNumber && right instanceof Number rightNumber) {
+                try {
+                    return new BigDecimal(leftNumber.toString())
+                            .compareTo(new BigDecimal(rightNumber.toString())) == 0;
+                } catch (NumberFormatException ignored) {
+                    return leftNumber.toString().equals(rightNumber.toString());
+                }
+            }
+            return left.toString().equals(right.toString());
         }
         private InstructionLoad asRevisionRow() {
             InstructionLoad row = new InstructionLoad(); row.setId(id);
