@@ -1,5 +1,7 @@
 package com.allinweb.ch.facade;
 
+import com.allinweb.ch.db.InstructionVariableCommandConfigRepository;
+import com.allinweb.ch.db.InstructionVariableCommandConfigRepository.StoredConfiguration;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -12,6 +14,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -25,6 +28,8 @@ public final class VariableRelationshipService {
 
     private final ConnectionProvider connections;
     private final Gson gson = new Gson();
+    private final InstructionVariableCommandConfigRepository commandConfigurations =
+            new InstructionVariableCommandConfigRepository();
 
     VariableRelationshipService(ConnectionProvider connections) {
         this.connections = connections;
@@ -44,7 +49,9 @@ public final class VariableRelationshipService {
             List<BlockRow> blocks = loadBlocks(connection, botJobId);
             List<VariableRow> variables = loadVariables(connection, botJobId);
             List<CommandRow> commands = loadCommands(connection, botJobId);
-            return graph(botJobId, blocks, variables, commands);
+            Map<Integer, StoredConfiguration> configurations =
+                    commandConfigurations.loadForBotJob(connection, botJobId);
+            return graph(botJobId, blocks, variables, commands, configurations);
         } catch (SQLException error) {
             log.warn(
                     "Variable relationship SQL failed for Bot Job {}: {}",
@@ -176,7 +183,8 @@ public final class VariableRelationshipService {
             int botJobId,
             List<BlockRow> blocks,
             List<VariableRow> variables,
-            List<CommandRow> commands) {
+            List<CommandRow> commands,
+            Map<Integer, StoredConfiguration> configurations) {
         JsonArray blockJson = new JsonArray();
         blocks.forEach(block -> blockJson.add(block(block)));
 
@@ -184,7 +192,8 @@ public final class VariableRelationshipService {
         variables.forEach(variable -> variableJson.add(rawVariable(variable)));
 
         JsonArray commandJson = new JsonArray();
-        commands.forEach(command -> commandJson.add(rawCommand(command)));
+        commands.forEach(command -> commandJson.add(rawCommand(
+                command, configurations.get(command.id()))));
 
         JsonObject response = new JsonObject();
         response.addProperty("ok", true);
@@ -228,7 +237,7 @@ public final class VariableRelationshipService {
         return json;
     }
 
-    private JsonObject rawCommand(CommandRow row) {
+    private JsonObject rawCommand(CommandRow row, StoredConfiguration configuration) {
         JsonObject json = new JsonObject();
         json.addProperty("instructionId", row.id());
         json.addProperty("instructionName", safe(row.name()));
@@ -246,6 +255,23 @@ public final class VariableRelationshipService {
         nullable(json, "instructionOrder", row.instructionOrder());
         nullable(json, "active", row.active());
         nullable(json, "blockActive", row.blockActive());
+        if (configuration == null) {
+            json.add("commandConfiguration", null);
+        } else {
+            JsonObject config = new JsonObject();
+            config.addProperty("commandType", safe(configuration.commandType()));
+            config.addProperty("operandKind", safe(configuration.operandKind()));
+            config.addProperty("comparisonOperator", safe(configuration.comparisonOperator()));
+            config.addProperty("operandRawValue", safe(configuration.operandRawValue()));
+            nullable(config, "operandVariableId", configuration.operandVariableId());
+            config.addProperty("outputKey", safe(configuration.outputKey()));
+            config.addProperty("outputColumn", safe(configuration.outputColumn()));
+            config.addProperty("outputFile", safe(configuration.outputFile()));
+            config.addProperty("externalSourceKey", safe(configuration.externalSourceKey()));
+            config.addProperty("formatPolicy", safe(configuration.formatPolicy()));
+            config.addProperty("configRevision", configuration.configRevision());
+            json.add("commandConfiguration", config);
+        }
         return json;
     }
 

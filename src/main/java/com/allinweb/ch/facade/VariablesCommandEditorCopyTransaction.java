@@ -1,6 +1,8 @@
 package com.allinweb.ch.facade;
 
 import com.allinweb.ch.db.InstructionGraphStateRepository;
+import com.allinweb.ch.db.InstructionVariableCommandConfigRepository;
+import com.allinweb.ch.db.InstructionVariableCommandConfigRepository.StoredConfiguration;
 import com.allinweb.ch.db.InstructionGraphStateRepository.AdvanceResult;
 import com.allinweb.ch.db.InstructionGraphStateRepository.AdvanceStatus;
 import com.allinweb.ch.db.InstructionGraphStateRepository.GraphState;
@@ -54,16 +56,29 @@ public final class VariablesCommandEditorCopyTransaction {
 
     private final InstructionGraphStateRepository stateRepository;
     private final InstructionGraphRevisionService revisionService;
+    private final InstructionVariableCommandConfigRepository commandConfigurations;
 
     public VariablesCommandEditorCopyTransaction() {
-        this(new InstructionGraphStateRepository(), new InstructionGraphRevisionService());
+        this(
+                new InstructionGraphStateRepository(),
+                new InstructionGraphRevisionService(),
+                new InstructionVariableCommandConfigRepository());
     }
 
     VariablesCommandEditorCopyTransaction(
             InstructionGraphStateRepository stateRepository,
             InstructionGraphRevisionService revisionService) {
+        this(stateRepository, revisionService, new InstructionVariableCommandConfigRepository());
+    }
+
+    VariablesCommandEditorCopyTransaction(
+            InstructionGraphStateRepository stateRepository,
+            InstructionGraphRevisionService revisionService,
+            InstructionVariableCommandConfigRepository commandConfigurations) {
         this.stateRepository = Objects.requireNonNull(stateRepository, "stateRepository");
         this.revisionService = Objects.requireNonNull(revisionService, "revisionService");
+        this.commandConfigurations = Objects.requireNonNull(
+                commandConfigurations, "commandConfigurations");
     }
 
     public CopyResult execute(
@@ -86,6 +101,15 @@ public final class VariablesCommandEditorCopyTransaction {
             offsetTargetOrders(connection, owner.owner().ownerId(), plan.targetBlockId());
             int generatedId = insertCopy(
                     connection, owner.owner().ownerId(), plan.source(), plan);
+            if (isTypedVariableConfiguration(plan.configuration().kind())) {
+                commandConfigurations.upsert(
+                        connection,
+                        owner.owner().homeBankingId(),
+                        owner.owner().ownerId(),
+                        generatedId,
+                        CommandRegistry.canonicalize(plan.source().actionsText()),
+                        plan.configuration());
+            }
             restoreTargetOrders(
                     connection, owner.owner().ownerId(), generatedId, plan);
 
@@ -100,6 +124,12 @@ public final class VariablesCommandEditorCopyTransaction {
             }
             Graph after = loadGraph(connection, owner.owner(), advance.state());
             verify(plan, generatedId, before, after);
+            verifyTypedConfiguration(
+                    connection,
+                    owner.owner().homeBankingId(),
+                    owner.owner().ownerId(),
+                    generatedId,
+                    plan.configuration());
             connection.commit();
             return new CopyResult(
                     owner.owner(), owner.workspaceEpoch(), request.requestId().trim(),
@@ -140,7 +170,8 @@ public final class VariablesCommandEditorCopyTransaction {
         if (request.targetBlockId() == null || !graph.blockIds().contains(request.targetBlockId())) {
             throw refused("COMMAND_COPY_TARGET_BLOCK_INVALID", "Select a current target Block.");
         }
-        Configuration configuration = requireConfiguration(source, request.configuration());
+        Configuration configuration = requireConfiguration(
+                graph, source, request.configuration());
         Placement placement = request.placement();
         if (placement == null || placement.kind() == null || placement.kind() == PlacementKind.KEEP) {
             throw refused("COMMAND_COPY_PLACEMENT_REQUIRED", "Select Top, End, or After for COPY NEW.");
@@ -160,7 +191,8 @@ public final class VariablesCommandEditorCopyTransaction {
         return new Plan(source, request.targetBlockId(), configuration, targetRows, index, index + 1);
     }
 
-    private Configuration requireConfiguration(InstructionRow source, Configuration configuration)
+    private Configuration requireConfiguration(
+            Graph graph, InstructionRow source, Configuration configuration)
             throws MutationRefusedException {
         if (configuration == null || configuration.kind() == null) {
             throw refused("COMMAND_COPY_CONFIGURATION_REQUIRED", "A typed command configuration is required.");
@@ -168,16 +200,32 @@ public final class VariablesCommandEditorCopyTransaction {
         String action = CommandRegistry.canonicalize(source.actionsText());
         if (configuration.kind() == ConfigurationKind.LOOP && !"LOOP".equals(action)
                 || configuration.kind() == ConfigurationKind.REFRESH_LOOP && !"REFRESH_LOOP".equals(action)
-                || configuration.kind() == ConfigurationKind.WAIT && !"H".equals(action)) {
+                || configuration.kind() == ConfigurationKind.WAIT && !"H".equals(action)
+                || configuration.kind() == ConfigurationKind.CHECK_VALUE && !"CK".equals(action)
+                || configuration.kind() == ConfigurationKind.EXTERNAL_CHECK
+                        && !Set.of("CSV CHECK", "PDF CHECK").contains(action)
+                || configuration.kind() == ConfigurationKind.EXCEL_WRITE && !"E".equals(action)) {
             throw refused("COMMAND_COPY_CONFIGURATION_MISMATCH", "The submitted configuration does not match the command.");
         }
         if (configuration.kind() == ConfigurationKind.WAIT) {
             requireEditorInteger(configuration.waitSeconds(), "Wait seconds");
-        } else {
+        } else if (configuration.kind() == ConfigurationKind.LOOP
+                || configuration.kind() == ConfigurationKind.REFRESH_LOOP) {
             requireEditorInteger(configuration.intervalSeconds(), "Interval seconds");
             requireEditorInteger(configuration.iterations(), "Iterations");
+        } else if (configuration.kind() == ConfigurationKind.CHECK_VALUE
+                || configuration.kind() == ConfigurationKind.EXTERNAL_CHECK) {
+            requireComparison(graph, configuration);
+            if (configuration.kind() == ConfigurationKind.EXTERNAL_CHECK
+                    && blank(configuration.externalSourceKey())) {
+                throw refused(
+                        "COMMAND_COPY_EXTERNAL_SOURCE_REQUIRED",
+                        "Select an external source key or file.");
+            }
+        } else if (blank(configuration.outputKey())) {
+            throw refused("COMMAND_COPY_OUTPUT_KEY_REQUIRED", "Enter an ExcelWrite output key.");
         }
-        return configuration;
+        return configuration.withoutVariableReferences();
     }
 
     private void offsetTargetOrders(Connection connection, int botJobId, int blockId)
@@ -316,11 +364,13 @@ public final class VariablesCommandEditorCopyTransaction {
             }
         }
         return new Graph(state, Set.copyOf(blockIds), Map.copyOf(instructions),
+                variables.stream().map(VariableLoadDTO::getId).collect(java.util.stream.Collectors.toUnmodifiableSet()),
                 revisionService.revision(revisionRows, variables));
     }
 
     private static String configuredOperation(InstructionRow source, Configuration configuration) {
         return configuration.kind() == ConfigurationKind.WAIT
+                        || isTypedVariableConfiguration(configuration.kind())
                 ? source.operationText()
                 : configuration.intervalSeconds() + ":" + configuration.iterations();
     }
@@ -347,6 +397,62 @@ public final class VariablesCommandEditorCopyTransaction {
     }
     private static void requireEditorInteger(Integer value, String label) throws MutationRefusedException {
         if (value == null || value < 1 || value > 9999) throw refused("COMMAND_COPY_VALUE_INVALID", label + " must be between 1 and 9999.");
+    }
+    private static void requireComparison(Graph graph, Configuration configuration)
+            throws MutationRefusedException {
+        Set<String> operators = Set.of(
+                "=", "!=", ">", "<", ">=", "<=", "contains", "startsWith",
+                "endsWith", "isEmpty", "isNotEmpty");
+        if (!operators.contains(configuration.comparisonOperator())) {
+            throw refused("COMMAND_COPY_OPERATOR_INVALID", "Select a supported comparison operator.");
+        }
+        String operandKind = configuration.operandKind();
+        if (operandKind == null
+                || !Set.of("LITERAL", "VARIABLE", "EMPTY", "VOID").contains(operandKind)) {
+            throw refused("COMMAND_COPY_OPERAND_KIND_INVALID", "Select a supported comparison operand.");
+        }
+        if ("VARIABLE".equals(operandKind)) {
+            if (configuration.operandVariableId() == null
+                    || !graph.variableIds().contains(configuration.operandVariableId())) {
+                throw refused(
+                        "COMMAND_COPY_OPERAND_VARIABLE_INVALID",
+                        "Select a current Bot Job variable as the comparison operand.");
+            }
+        } else if (configuration.operandVariableId() != null) {
+            throw refused(
+                    "COMMAND_COPY_OPERAND_VARIABLE_UNEXPECTED",
+                    "Only a VARIABLE operand can carry a variable ID.");
+        }
+    }
+    private static boolean isTypedVariableConfiguration(ConfigurationKind kind) {
+        return kind == ConfigurationKind.CHECK_VALUE
+                || kind == ConfigurationKind.EXTERNAL_CHECK
+                || kind == ConfigurationKind.EXCEL_WRITE;
+    }
+    private void verifyTypedConfiguration(
+            Connection connection,
+            int homeBankingId,
+            int botJobId,
+            int instructionId,
+            Configuration expected)
+            throws SQLException {
+        if (!isTypedVariableConfiguration(expected.kind())) return;
+        StoredConfiguration stored = commandConfigurations.load(
+                connection, homeBankingId, botJobId, instructionId);
+        if (stored == null
+                || !Objects.equals(stored.operandKind(), expected.operandKind())
+                || !Objects.equals(stored.comparisonOperator(), expected.comparisonOperator())
+                || !Objects.equals(stored.operandRawValue(), expected.operandRawValue())
+                || !Objects.equals(stored.operandVariableId(), expected.operandVariableId())
+                || !Objects.equals(stored.outputKey(), expected.outputKey())
+                || !Objects.equals(stored.outputColumn(), expected.outputColumn())
+                || !Objects.equals(stored.outputFile(), expected.outputFile())
+                || !Objects.equals(stored.externalSourceKey(), expected.externalSourceKey())
+                || !Objects.equals(stored.formatPolicy(), expected.formatPolicy())) {
+            throw refused(
+                    "COMMAND_COPY_CONFIGURATION_NOT_COMMITTED",
+                    "The copied typed command configuration could not be verified.");
+        }
     }
     private static boolean blank(String value) { return value == null || value.trim().isEmpty(); }
     private static Integer nullableInteger(ResultSet rows, String column) throws SQLException {
@@ -417,7 +523,8 @@ public final class VariablesCommandEditorCopyTransaction {
         }
     }
     private record Graph(GraphState state,Set<Integer> blockIds,
-                         Map<Integer,InstructionRow> instructions,String revision) {}
+                         Map<Integer,InstructionRow> instructions,
+                         Set<Integer> variableIds,String revision) {}
     private record Plan(InstructionRow source,int targetBlockId,Configuration configuration,
                         List<InstructionRow> targetRows,int targetIndex,int finalOrder) {}
     public record CopyResult(

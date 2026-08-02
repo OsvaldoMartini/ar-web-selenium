@@ -8,7 +8,14 @@ public final class VariablesCommandEditorUpdateV1 {
 
     public enum PlacementKind { KEEP, TOP, END, AFTER_INSTRUCTION }
 
-    public enum ConfigurationKind { LOOP, REFRESH_LOOP, WAIT }
+    public enum ConfigurationKind {
+        LOOP,
+        REFRESH_LOOP,
+        WAIT,
+        CHECK_VALUE,
+        EXTERNAL_CHECK,
+        EXCEL_WRITE
+    }
 
     public record Placement(PlacementKind kind, Integer referenceInstructionId) {}
 
@@ -16,7 +23,38 @@ public final class VariablesCommandEditorUpdateV1 {
             ConfigurationKind kind,
             Integer intervalSeconds,
             Integer iterations,
-            Integer waitSeconds) {}
+            Integer waitSeconds,
+            String operator,
+            String operandKind,
+            String operandRawValue,
+            Integer operandVariableId,
+            String outputKey,
+            String outputColumn,
+            String outputFile,
+            String externalSourceKey,
+            String formatPolicy) {
+        public String comparisonOperator() {
+            return operator;
+        }
+
+        public Configuration withoutVariableReferences() {
+            if (operandVariableId == null) return this;
+            return new Configuration(
+                    kind,
+                    intervalSeconds,
+                    iterations,
+                    waitSeconds,
+                    operator,
+                    "VOID",
+                    "",
+                    null,
+                    outputKey,
+                    outputColumn,
+                    outputFile,
+                    externalSourceKey,
+                    formatPolicy);
+        }
+    }
 
     public record Request(
             Integer contractVersion,
