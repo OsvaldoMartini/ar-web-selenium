@@ -7,7 +7,7 @@ active roadmap changes. Do not delete or replace the historical incident and bug
 
 Active roadmap: `ROADMAP_VARIABLES_COMMAND_EDITOR_MODAL_2026_08_01.md`
 
-Progress: **CE-1 through CE-8 complete; 2 steps remain.**
+Progress: **CE-1 through CE-9 complete; CE-10 remains.**
 
 | Step | Status | Current result |
 |---|---|---|
@@ -19,7 +19,7 @@ Progress: **CE-1 through CE-8 complete; 2 steps remain.**
 | CE-6 | Complete; Claude persistence review requested | COPY NEW creates one fresh, disconnected instruction and preserves the original. |
 | CE-7 | Complete; runtime review pending | Typed CheckValue, CSV/PDF Check, and ExcelWrite editors use a new shadow configuration table while legacy execution fields remain unchanged. |
 | CE-8 | Complete; runtime review pending | Typed GOTO and SWIPE repetition editors; GOTO target remains a separate relationship. |
-| CE-9 | Pending | Typed IF/ELSEIF editors after expression persistence is approved. |
+| CE-9 | Complete; runtime review pending | Typed IF/ELSEIF shadow configuration; current conditional execution remains unchanged. |
 | CE-10 | Pending | Acceptance, deferred tests, build/deployment verification, and realtime checks. |
 
 ### Claude review handoff — persistence-sensitive commits
@@ -35,6 +35,9 @@ Progress: **CE-1 through CE-8 complete; 2 steps remain.**
 - CE-8 frontend: `1157f10` (`CODEX: add typed Variables navigation editors`).
 - CE-8 backend: `c5ff63c5` (`CODEX: persist Variables navigation editor counts`).
 - CE-8 deployed bundle: `641bb887` (`CODEX: deploy Variables CE-8 editors`).
+- CE-9 frontend: `d545b71` (`CODEX: add typed Variables conditional editors`).
+- CE-9 backend: `f0e33ef0` (`CODEX: persist typed Variables conditional configuration`).
+- CE-9 deployed bundle: `56d1942f` (`CODEX: deploy Variables CE-9 editors`).
 
 The user is correct that CODEX touched persistence. Claude should review the two backend source
 commits, especially transaction boundaries, graph version/revision checks, order normalization,

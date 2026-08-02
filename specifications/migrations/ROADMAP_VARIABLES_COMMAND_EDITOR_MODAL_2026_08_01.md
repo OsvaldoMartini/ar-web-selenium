@@ -1,13 +1,13 @@
 # Variables Command Editor Modal Roadmap
 
 Date: 2026-08-01  
-Status: **IN PROGRESS — CE-1 through CE-8 complete; CE-9 and CE-10 remain**
+Status: **IN PROGRESS — CE-1 through CE-9 complete; CE-10 remains**
 Primary entry point: green edit button in Variables > All Commands
 
 ## Current implementation handoff
 
-The active stop point is CE-8. Do not start CE-9 until the user returns with Claude's persistence
-review or explicitly authorizes the next step.
+The active stop point is CE-9. CE-10 acceptance and deferred tests are next and require the user's
+runtime review.
 
 Completed and pushed:
 
@@ -19,6 +19,7 @@ Completed and pushed:
 - CE-6: atomic fresh-ID, relationship-free COPY NEW persistence and authoritative publication;
 - CE-7: typed CheckValue, CSV/PDF Check, and ExcelWrite editors with shadow persistence.
 - CE-8: typed GOTO and SWIPE repetition editors using the existing intrinsic count storage.
+- CE-9: typed IF/ELSEIF editors with shadow persistence; legacy conditional execution is unchanged.
 
 Persistence commits awaiting Claude review:
 
@@ -32,9 +33,12 @@ Persistence commits awaiting Claude review:
 - frontend CE-8: `1157f10`;
 - backend CE-8: `c5ff63c5`;
 - deployed CE-8 bundle: `641bb887`.
+- frontend CE-9: `d545b71`;
+- backend CE-9: `f0e33ef0`;
+- deployed CE-9 bundle: `56d1942f`.
 
 No Maven or backend tests were run for CE-6 or CE-7 by user instruction. The frontend production build
-passed with existing warnings. The next two roadmap steps are CE-9 and CE-10.
+passed with existing warnings. CE-10 is the remaining roadmap step.
 
 ## Adjacent Variables improvements — outside CE-7 through CE-10
 
@@ -379,8 +383,20 @@ CE-8 implementation evidence (2026-08-01):
 
 ### CE-9 - Typed conditional editors
 
-- Implement IF and ELSEIF only after conditional expression persistence is approved.
-- Keep ELSE and ENDIF structural and without green edit buttons.
+- [x] Implement IF and ELSEIF only after conditional expression persistence is approved.
+- [x] Keep ELSE and ENDIF structural and without green edit buttons.
+
+CE-9 implementation evidence (2026-08-01):
+
+- React commit `d545b71` adds the isolated typed conditional editor and limits eligibility to IF and
+  ELSEIF; ELSE and ENDIF remain structural.
+- Java commit `f0e33ef0` appends typed condition-source and left-variable persistence and extends only
+  the Variables Command Editor UPDATE/COPY boundary.
+- `PREVIOUS_RESULT` preserves current production execution. `VARIABLE_COMPARISON` is stored as a
+  typed shadow contract for later executor activation; CE-9 does not rewrite legacy operation data.
+- COPY NEW clears typed variable references and stores `PREVIOUS_RESULT` on the disconnected copy.
+- Deployed bundle commit `56d1942f` contains the successful frontend production build.
+- Maven/backend tests were not run at the user's request.
 
 ### CE-10 - Acceptance and deployment
 
