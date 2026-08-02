@@ -75,5 +75,6 @@ public final class VariablesCommandEditorUpdateV1 {
             Integer sourceInstructionId,
             Integer targetBlockId,
             Placement placement,
+            Boolean allowRelationshipDisconnect,
             Configuration configuration) {}
 }

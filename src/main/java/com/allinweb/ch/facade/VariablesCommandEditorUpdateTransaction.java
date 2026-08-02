@@ -181,9 +181,18 @@ public final class VariablesCommandEditorUpdateTransaction {
         }
         ArrayList<InstructionRow> finalTargetRows = new ArrayList<>(targetRows);
         finalTargetRows.add(targetIndex, source);
+        RelationshipImpact relationshipImpact = relationshipImpact(
+                source, request.targetBlockId(), finalTargetRows);
+        if (relationshipImpact.requiresDisconnect()
+                && !Boolean.TRUE.equals(request.allowRelationshipDisconnect())) {
+            throw refused(
+                    "COMMAND_UPDATE_RELATIONSHIP_CONFIRMATION_REQUIRED",
+                    "The selected placement breaks a parent or Block connection. Confirm the disconnection before continuing.");
+        }
         return new Plan(
                 source, request.targetBlockId(), configuration,
-                List.copyOf(sourceRows), List.copyOf(finalTargetRows), targetIndex + 1);
+                List.copyOf(sourceRows), List.copyOf(finalTargetRows), targetIndex + 1,
+                relationshipImpact);
     }
 
     private Configuration requireConfiguration(
@@ -295,8 +304,29 @@ public final class VariablesCommandEditorUpdateTransaction {
                 }
             }
             updateOrders(connection, botJobId, plan.sourceRows(), plan.source().id());
+        } else {
+            clearInvalidRelationships(connection, botJobId, plan);
         }
         updateOrders(connection, botJobId, plan.targetRows(), null);
+    }
+
+    private void clearInvalidRelationships(Connection connection, int botJobId, Plan plan)
+            throws SQLException {
+        RelationshipImpact impact = plan.relationshipImpact();
+        if (!impact.requiresDisconnect()) return;
+        String assignment = impact.clearParentId() && impact.clearParentBlockId()
+                ? "parent_id=NULL,parent_block_id=NULL"
+                : impact.clearParentId() ? "parent_id=NULL" : "parent_block_id=NULL";
+        try (PreparedStatement statement = connection.prepareStatement(
+                "UPDATE instruction SET " + assignment + " WHERE id=? AND bot_job_id=?")) {
+            statement.setInt(1, plan.source().id());
+            statement.setInt(2, botJobId);
+            if (statement.executeUpdate() != 1) {
+                throw refused(
+                        "COMMAND_UPDATE_RELATIONSHIP_CLEAR_FAILED",
+                        "The invalid instruction connection could not be cleared.");
+            }
+        }
     }
 
     private void updateOrders(
@@ -322,6 +352,13 @@ public final class VariablesCommandEditorUpdateTransaction {
         if (updated == null || updated.blockId() != plan.targetBlockId()
                 || updated.order() != plan.finalOrder()) {
             throw refused("COMMAND_UPDATE_VERIFICATION_FAILED", "The committed command position could not be verified.");
+        }
+        if ((plan.relationshipImpact().clearParentId() && updated.parentId() != null)
+                || (plan.relationshipImpact().clearParentBlockId()
+                        && updated.parentBlockId() != null)) {
+            throw refused(
+                    "COMMAND_UPDATE_RELATIONSHIP_NOT_CLEARED",
+                    "The invalid instruction connection was not cleared.");
         }
         Configuration configuration = plan.configuration();
         if (configuration.kind() == ConfigurationKind.WAIT) {
@@ -409,6 +446,32 @@ public final class VariablesCommandEditorUpdateTransaction {
                 .filter(row -> row.blockId() == blockId && row.id() != excludedId)
                 .sorted(Comparator.comparingInt(InstructionRow::order).thenComparingInt(InstructionRow::id))
                 .toList();
+    }
+
+    private static RelationshipImpact relationshipImpact(
+            InstructionRow source,
+            int targetBlockId,
+            List<InstructionRow> finalTargetRows) {
+        if (source.blockId() != targetBlockId) {
+            return new RelationshipImpact(
+                    source.parentId() != null,
+                    source.parentBlockId() != null);
+        }
+        if (source.parentId() == null || source.parentId() == source.id()) {
+            return RelationshipImpact.NONE;
+        }
+        int sourceIndex = -1;
+        int parentIndex = -1;
+        for (int index = 0; index < finalTargetRows.size(); index++) {
+            InstructionRow row = finalTargetRows.get(index);
+            if (row.id() == source.id()) sourceIndex = index;
+            if (row.id() == source.parentId()) parentIndex = index;
+        }
+        boolean parentBlockMismatch = source.parentBlockId() != null
+                && source.parentBlockId() != targetBlockId;
+        boolean parentWillNotPrecede = parentIndex < 0 || parentIndex >= sourceIndex;
+        if (!parentBlockMismatch && !parentWillNotPrecede) return RelationshipImpact.NONE;
+        return new RelationshipImpact(true, source.parentBlockId() != null);
     }
 
     private void requireOwner(Connection connection, OwnerKey owner) throws SQLException {
@@ -560,7 +623,12 @@ public final class VariablesCommandEditorUpdateTransaction {
                          Set<Integer> variableIds, String revision) {}
     private record Plan(InstructionRow source, int targetBlockId, Configuration configuration,
                         List<InstructionRow> sourceRows, List<InstructionRow> targetRows,
-                        int finalOrder) {}
+                        int finalOrder, RelationshipImpact relationshipImpact) {}
+
+    private record RelationshipImpact(boolean clearParentId, boolean clearParentBlockId) {
+        private static final RelationshipImpact NONE = new RelationshipImpact(false, false);
+        private boolean requiresDisconnect() { return clearParentId || clearParentBlockId; }
+    }
 
     public record UpdateResult(
             OwnerKey owner, long workspaceEpoch, String requestId, int instructionId,
