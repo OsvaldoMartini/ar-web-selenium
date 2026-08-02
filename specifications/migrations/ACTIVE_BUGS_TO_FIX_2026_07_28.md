@@ -9,6 +9,10 @@ Active roadmap: `ROADMAP_VARIABLES_COMMAND_EDITOR_MODAL_2026_08_01.md`
 
 Progress: **CE-1 through CE-9 complete; CE-10 remains.**
 
+Current handoff (2026-08-01): paused after the CE-9 build/deploy. The user will perform runtime
+acceptance tomorrow. No CE-10 implementation or typed-condition executor activation is authorized
+before that review.
+
 | Step | Status | Current result |
 |---|---|---|
 | CE-1 | Complete | Green editor eligibility is explicit and isolated from relationship controls. |

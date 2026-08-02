@@ -10,6 +10,8 @@ document. Update it in place; preserve every older roadmap, investigation, and r
 - Current stop point: CE-9 is committed, pushed, and React-deployed. Wait for the user's runtime or
   Claude review before CE-10.
 - Next implementation when authorized: CE-10 acceptance, deferred tests, and realtime verification.
+- Session handoff (2026-08-01): work is intentionally paused. The user will run CE-9 acceptance
+  tomorrow. Do not start CE-10 or activate typed conditional execution before that result.
 - Smoke-test implementation remains a separate later roadmap in
   `Smoke_Test_Roadmap_2026_08_01.md`; it has not been started by CE-7.
 
@@ -31,6 +33,17 @@ document. Update it in place; preserve every older roadmap, investigation, and r
 | React CE-9 | `d545b71` | Isolated IF/ELSEIF typed editor; ELSE/ENDIF remain structural. |
 | Java CE-9 | `f0e33ef0` | Typed conditional shadow persistence; legacy execution unchanged. |
 | Java deployed resources | `56d1942f` | Bundle generated from frontend `d545b71`. |
+
+### Runtime acceptance requested for the next session
+
+1. Open IF and ELSEIF through the Variables green editor; confirm ELSE and ENDIF have no editor.
+2. UPDATE `PREVIOUS_RESULT`, reopen the modal, and confirm it remains selected.
+3. UPDATE `VARIABLE_COMPARISON`, reopen, and confirm both variables, operator, operand, and format.
+4. COPY NEW and confirm a fresh ID, unchanged source, cleared variable references, and
+   `PREVIOUS_RESULT` on the copy.
+5. Check Top, End, and After placement, then verify Variables and Bot Job Details refresh in real time.
+6. Confirm existing production IF/ELSEIF execution is unchanged; typed comparison execution remains
+   deliberately inactive until the Variables Operations migration activates it.
 
 CODEX did modify database persistence. COPY NEW uses the new
 `VariablesCommandEditorCopyV1`, `VariablesCommandEditorCopyService`, and

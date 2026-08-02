@@ -9,6 +9,9 @@ Primary entry point: green edit button in Variables > All Commands
 The active stop point is CE-9. CE-10 acceptance and deferred tests are next and require the user's
 runtime review.
 
+Session handoff (2026-08-01): **PAUSED FOR USER ACCEPTANCE TOMORROW**. Do not start CE-10 and do not
+activate typed IF/ELSEIF execution until the user reports the CE-9 runtime results.
+
 Completed and pushed:
 
 - CE-1: explicit editor eligibility;
