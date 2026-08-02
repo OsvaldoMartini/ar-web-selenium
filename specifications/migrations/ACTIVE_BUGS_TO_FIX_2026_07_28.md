@@ -50,6 +50,24 @@ sets `variable_id`, `parent_block_id`, and `parent_id` to `NULL`; it does not cl
 ownership or relationship/reference rows. No Maven or backend tests were run by CODEX at the user's
 request. The frontend production build completed with the repository's existing warnings.
 
+### CLAUDE persistence review verdict — 2026-08-02
+
+- **CE-5 UPDATE (`f273119f`): APPROVED.** Transaction boundaries, owner authorization, epoch +
+  version + revision CAS, offset-renumber, pre-commit verification, and request-id idempotency are
+  all sound. Revision parity with the v3 capability verified field-by-field (the hasher sorts
+  internally, so the different SQL orderings are harmless). One forward-looking requirement: the
+  unconditional `parent_id/parent_block_id = NULL` on cross-Block UPDATE is correct for the
+  currently editable commands, but must become command-aware before GOTO editing ships (a GOTO's
+  destination `parent_block_id` is Bot-Job-scoped and must survive a move).
+- **CE-6 COPY NEW (`1259f18b`): DEFECT FOUND AND FIXED in `6e6b2e40`.** The copy transaction's
+  `asRevisionRow()` coerced NULL `actions`/`operation` to "" before hashing while the capability
+  and UPDATE loaders feed raw nulls (hashed as "null"). With 241 NULL-operation rows in each
+  active job, the copy-side revision could never match the frontend's `graphRevision`, so every
+  COPY NEW refused with `COMMAND_COPY_GRAPH_REVISION_STALE` (constant 403-byte responses).
+  `bbeacc50` had patched `sameSourceState` — a non-firing suspect. Everything else in CE-6
+  (fresh generated IDs, explicit FK NULLing, source-preservation verify, order contiguity) is
+  approved. Requires jar rebuild to take effect.
+
 Protected scope: the detached legacy Command Editor, existing Memory List copy flow, GridItem drag
 rules, and legacy command persistence were not replaced by CE-5/CE-6. Continue only after the user
 accepts Claude's review.
