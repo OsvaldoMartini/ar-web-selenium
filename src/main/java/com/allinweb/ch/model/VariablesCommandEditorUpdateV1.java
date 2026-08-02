@@ -14,7 +14,9 @@ public final class VariablesCommandEditorUpdateV1 {
         WAIT,
         CHECK_VALUE,
         EXTERNAL_CHECK,
-        EXCEL_WRITE
+        EXCEL_WRITE,
+        GOTO,
+        SWIPE
     }
 
     public record Placement(PlacementKind kind, Integer referenceInstructionId) {}
@@ -32,7 +34,8 @@ public final class VariablesCommandEditorUpdateV1 {
             String outputColumn,
             String outputFile,
             String externalSourceKey,
-            String formatPolicy) {
+            String formatPolicy,
+            Integer count) {
         public String comparisonOperator() {
             return operator;
         }
@@ -52,7 +55,8 @@ public final class VariablesCommandEditorUpdateV1 {
                     outputColumn,
                     outputFile,
                     externalSourceKey,
-                    formatPolicy);
+                    formatPolicy,
+                    count);
         }
     }
 

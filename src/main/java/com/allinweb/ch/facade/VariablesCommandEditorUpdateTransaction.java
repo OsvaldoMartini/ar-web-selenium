@@ -199,7 +199,10 @@ public final class VariablesCommandEditorUpdateTransaction {
                 || configuration.kind() == ConfigurationKind.CHECK_VALUE && !"CK".equals(action)
                 || configuration.kind() == ConfigurationKind.EXTERNAL_CHECK
                         && !Set.of("CSV CHECK", "PDF CHECK").contains(action)
-                || configuration.kind() == ConfigurationKind.EXCEL_WRITE && !"E".equals(action)) {
+                || configuration.kind() == ConfigurationKind.EXCEL_WRITE && !"E".equals(action)
+                || configuration.kind() == ConfigurationKind.GOTO && !"GOTO".equals(action)
+                || configuration.kind() == ConfigurationKind.SWIPE
+                        && !Set.of("SWIPE_UP", "SWIPE_DOWN").contains(action)) {
             throw refused("COMMAND_UPDATE_CONFIGURATION_MISMATCH", "The submitted configuration does not match the selected command.");
         }
         if (configuration.kind() == ConfigurationKind.WAIT) {
@@ -217,8 +220,12 @@ public final class VariablesCommandEditorUpdateTransaction {
                         "COMMAND_UPDATE_EXTERNAL_SOURCE_REQUIRED",
                         "Select an external source key or file.");
             }
-        } else if (blank(configuration.outputKey())) {
+        } else if (configuration.kind() == ConfigurationKind.EXCEL_WRITE
+                && blank(configuration.outputKey())) {
             throw refused("COMMAND_UPDATE_OUTPUT_KEY_REQUIRED", "Enter an ExcelWrite output key.");
+        } else if (configuration.kind() == ConfigurationKind.GOTO
+                || configuration.kind() == ConfigurationKind.SWIPE) {
+            requireEditorInteger(configuration.count(), "Repetition count");
         }
         return configuration;
     }
@@ -246,6 +253,9 @@ public final class VariablesCommandEditorUpdateTransaction {
             } else if (configuration.kind() == ConfigurationKind.LOOP
                     || configuration.kind() == ConfigurationKind.REFRESH_LOOP) {
                 statement.setString(1, configuration.intervalSeconds() + ":" + configuration.iterations());
+            } else if (configuration.kind() == ConfigurationKind.GOTO
+                    || configuration.kind() == ConfigurationKind.SWIPE) {
+                statement.setString(1, String.valueOf(configuration.count()));
             }
             statement.setInt(2, plan.source().id());
             statement.setInt(3, botJobId);
@@ -319,6 +329,13 @@ public final class VariablesCommandEditorUpdateTransaction {
             String expected = configuration.intervalSeconds() + ":" + configuration.iterations();
             if (!expected.equals(updated.operation())) {
                 throw refused("COMMAND_UPDATE_VERIFICATION_FAILED", "The committed loop values could not be verified.");
+            }
+        } else if (configuration.kind() == ConfigurationKind.GOTO
+                || configuration.kind() == ConfigurationKind.SWIPE) {
+            if (!String.valueOf(configuration.count()).equals(updated.operation())) {
+                throw refused(
+                        "COMMAND_UPDATE_VERIFICATION_FAILED",
+                        "The committed repetition count could not be verified.");
             }
         }
         LinkedHashSet<Integer> verifiedBlocks = new LinkedHashSet<>();

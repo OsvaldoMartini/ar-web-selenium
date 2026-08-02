@@ -204,7 +204,10 @@ public final class VariablesCommandEditorCopyTransaction {
                 || configuration.kind() == ConfigurationKind.CHECK_VALUE && !"CK".equals(action)
                 || configuration.kind() == ConfigurationKind.EXTERNAL_CHECK
                         && !Set.of("CSV CHECK", "PDF CHECK").contains(action)
-                || configuration.kind() == ConfigurationKind.EXCEL_WRITE && !"E".equals(action)) {
+                || configuration.kind() == ConfigurationKind.EXCEL_WRITE && !"E".equals(action)
+                || configuration.kind() == ConfigurationKind.GOTO && !"GOTO".equals(action)
+                || configuration.kind() == ConfigurationKind.SWIPE
+                        && !Set.of("SWIPE_UP", "SWIPE_DOWN").contains(action)) {
             throw refused("COMMAND_COPY_CONFIGURATION_MISMATCH", "The submitted configuration does not match the command.");
         }
         if (configuration.kind() == ConfigurationKind.WAIT) {
@@ -222,8 +225,12 @@ public final class VariablesCommandEditorCopyTransaction {
                         "COMMAND_COPY_EXTERNAL_SOURCE_REQUIRED",
                         "Select an external source key or file.");
             }
-        } else if (blank(configuration.outputKey())) {
+        } else if (configuration.kind() == ConfigurationKind.EXCEL_WRITE
+                && blank(configuration.outputKey())) {
             throw refused("COMMAND_COPY_OUTPUT_KEY_REQUIRED", "Enter an ExcelWrite output key.");
+        } else if (configuration.kind() == ConfigurationKind.GOTO
+                || configuration.kind() == ConfigurationKind.SWIPE) {
+            requireEditorInteger(configuration.count(), "Repetition count");
         }
         return configuration.withoutVariableReferences();
     }
@@ -372,7 +379,10 @@ public final class VariablesCommandEditorCopyTransaction {
         return configuration.kind() == ConfigurationKind.WAIT
                         || isTypedVariableConfiguration(configuration.kind())
                 ? source.operationText()
-                : configuration.intervalSeconds() + ":" + configuration.iterations();
+                : configuration.kind() == ConfigurationKind.GOTO
+                                || configuration.kind() == ConfigurationKind.SWIPE
+                        ? String.valueOf(configuration.count())
+                        : configuration.intervalSeconds() + ":" + configuration.iterations();
     }
     private static Object configuredHold(InstructionRow source, Configuration configuration) {
         return configuration.kind() == ConfigurationKind.WAIT
