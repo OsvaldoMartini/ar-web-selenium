@@ -202,7 +202,9 @@ public final class VariablesCommandEditorUpdateTransaction {
                 || configuration.kind() == ConfigurationKind.EXCEL_WRITE && !"E".equals(action)
                 || configuration.kind() == ConfigurationKind.GOTO && !"GOTO".equals(action)
                 || configuration.kind() == ConfigurationKind.SWIPE
-                        && !Set.of("SWIPE_UP", "SWIPE_DOWN").contains(action)) {
+                        && !Set.of("SWIPE_UP", "SWIPE_DOWN").contains(action)
+                || configuration.kind() == ConfigurationKind.CONDITIONAL
+                        && !Set.of("IF", "ELSEIF").contains(action)) {
             throw refused("COMMAND_UPDATE_CONFIGURATION_MISMATCH", "The submitted configuration does not match the selected command.");
         }
         if (configuration.kind() == ConfigurationKind.WAIT) {
@@ -226,6 +228,8 @@ public final class VariablesCommandEditorUpdateTransaction {
         } else if (configuration.kind() == ConfigurationKind.GOTO
                 || configuration.kind() == ConfigurationKind.SWIPE) {
             requireEditorInteger(configuration.count(), "Repetition count");
+        } else if (configuration.kind() == ConfigurationKind.CONDITIONAL) {
+            requireConditional(graph, configuration);
         }
         return configuration;
     }
@@ -457,10 +461,37 @@ public final class VariablesCommandEditorUpdateTransaction {
         }
     }
 
+    private static void requireConditional(Graph graph, Configuration configuration)
+            throws MutationRefusedException {
+        String source = configuration.conditionSource();
+        if ("PREVIOUS_RESULT".equals(source)) {
+            if (configuration.leftVariableId() != null
+                    || configuration.operandVariableId() != null) {
+                throw refused(
+                        "COMMAND_UPDATE_CONDITION_LEFT_UNEXPECTED",
+                        "Previous-result conditions cannot carry variable references.");
+            }
+            return;
+        }
+        if (!"VARIABLE_COMPARISON".equals(source)) {
+            throw refused(
+                    "COMMAND_UPDATE_CONDITION_SOURCE_INVALID",
+                    "Select a supported condition source.");
+        }
+        if (configuration.leftVariableId() == null
+                || !graph.variableIds().contains(configuration.leftVariableId())) {
+            throw refused(
+                    "COMMAND_UPDATE_CONDITION_LEFT_INVALID",
+                    "Select a current Bot Job variable for the left condition value.");
+        }
+        requireComparison(graph, configuration);
+    }
+
     private static boolean isTypedVariableConfiguration(ConfigurationKind kind) {
         return kind == ConfigurationKind.CHECK_VALUE
                 || kind == ConfigurationKind.EXTERNAL_CHECK
-                || kind == ConfigurationKind.EXCEL_WRITE;
+                || kind == ConfigurationKind.EXCEL_WRITE
+                || kind == ConfigurationKind.CONDITIONAL;
     }
 
     private void verifyTypedConfiguration(
@@ -475,6 +506,8 @@ public final class VariablesCommandEditorUpdateTransaction {
         Configuration expected = plan.configuration();
         if (stored == null
                 || !Objects.equals(stored.operandKind(), expected.operandKind())
+                || !Objects.equals(stored.conditionSource(), expected.conditionSource())
+                || !Objects.equals(stored.leftVariableId(), expected.leftVariableId())
                 || !Objects.equals(stored.comparisonOperator(), expected.comparisonOperator())
                 || !Objects.equals(stored.operandRawValue(), expected.operandRawValue())
                 || !Objects.equals(stored.operandVariableId(), expected.operandVariableId())

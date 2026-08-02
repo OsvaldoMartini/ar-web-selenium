@@ -260,6 +260,8 @@ public final class VariableRelationshipService {
         } else {
             JsonObject config = new JsonObject();
             config.addProperty("commandType", safe(configuration.commandType()));
+            config.addProperty("conditionSource", safe(configuration.conditionSource()));
+            nullable(config, "leftVariableId", configuration.leftVariableId());
             config.addProperty("operandKind", safe(configuration.operandKind()));
             config.addProperty("comparisonOperator", safe(configuration.comparisonOperator()));
             config.addProperty("operandRawValue", safe(configuration.operandRawValue()));

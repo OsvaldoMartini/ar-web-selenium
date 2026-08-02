@@ -16,7 +16,8 @@ public final class VariablesCommandEditorUpdateV1 {
         EXTERNAL_CHECK,
         EXCEL_WRITE,
         GOTO,
-        SWIPE
+        SWIPE,
+        CONDITIONAL
     }
 
     public record Placement(PlacementKind kind, Integer referenceInstructionId) {}
@@ -27,6 +28,8 @@ public final class VariablesCommandEditorUpdateV1 {
             Integer iterations,
             Integer waitSeconds,
             String operator,
+            String conditionSource,
+            Integer leftVariableId,
             String operandKind,
             String operandRawValue,
             Integer operandVariableId,
@@ -41,13 +44,15 @@ public final class VariablesCommandEditorUpdateV1 {
         }
 
         public Configuration withoutVariableReferences() {
-            if (operandVariableId == null) return this;
+            if (operandVariableId == null && leftVariableId == null) return this;
             return new Configuration(
                     kind,
                     intervalSeconds,
                     iterations,
                     waitSeconds,
                     operator,
+                    "PREVIOUS_RESULT",
+                    null,
                     "VOID",
                     "",
                     null,
