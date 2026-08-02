@@ -37,9 +37,10 @@ Verification recorded by CODEX: frontend `npm run build` passed with existing wa
 result was deployed. Maven and backend tests were intentionally not run. Claude should treat the
 backend persistence review as the acceptance gate before CE-7 begins.
 
-### Adjacent Variables requests — outside the Command Editor sequence
+### Adjacent Variables requests — implemented outside the Command Editor sequence
 
-Two additional tasks are recorded but are not part of CE-7–CE-10 and are not implemented yet:
+Two additional tasks are not part of CE-7–CE-10. Their implementation is complete and runtime
+acceptance is pending:
 
 1. **AV-1 Repeatable Add Variable:** calculate and prefill the next free case-insensitive
    `Variable_X`, support staging multiple names through a mini `ADD` button, persist them through
@@ -50,7 +51,9 @@ Two additional tasks are recorded but are not part of CE-7–CE-10 and are not i
 
 The detailed behavior and safety constraints are in
 `ROADMAP_VARIABLES_COMMAND_EDITOR_MODAL_2026_08_01.md`. Do not mix either improvement into a CE
-commit; use small independent commits after explicit user authorization.
+commit. Frontend behavior is isolated in `f92c3d5`; the Add Variable route's case-insensitive
+authoritative duplicate guard is isolated in backend commit `771a79d8`. The build passed with the
+existing warnings and was deployed; Maven/tests were not run.
 
 Status: Claude and CODEX investigation passes complete; the CODEX remaining Bot Job Details controls migration is implemented, tested, React-deployed, Java-packaged, and committed. Desktop runtime validation and the explicitly unchecked follow-up tasks remain pending.
 

@@ -37,6 +37,9 @@ must be implemented and reviewed independently so they cannot delay or destabili
 
 Modal: `Add Variable — Define a producer-free Bot Job variable`.
 
+Status: **implemented; runtime acceptance pending** (`f92c3d5` frontend,
+`771a79d8` backend).
+
 - On every open and after every successful creation, inspect the current Bot Job's variable names
   case-insensitively and calculate the first free sequential name: `Variable_1`, `Variable_2`, and
   so on.
@@ -56,7 +59,14 @@ Modal: `Add Variable — Define a producer-free Bot Job variable`.
 - Duplicate validation and backend persistence remain case-insensitive and authoritative; a stale
   suggestion must never create a duplicate if another page creates the same name concurrently.
 
+Implementation note: the modal stages all requested names and the existing authoritative
+single-variable WebSocket creation path commits them sequentially. A partial failure stops the
+remaining queue and reports how many definitions were already committed; it never falsely reports
+the complete batch as successful.
+
 ### AV-2 — Block-scoped Release Connections modal
+
+Status: **implemented; runtime acceptance pending** (`f92c3d5` frontend).
 
 - Add the same Block search/filter pattern already used by Resolve Connections and Review
   Connections to the Release Connections modal.
