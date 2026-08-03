@@ -833,21 +833,23 @@ public final class VariablesCommandEditorUpdateTransaction {
 
     private static void requireVariableOnlyCheck(Graph graph, Configuration configuration)
             throws MutationRefusedException {
-        Set<String> operators = Set.of(
-                "=", "!=", ">", "<", ">=", "<=", "contains", "startsWith",
-                "endsWith");
-        if (!operators.contains(configuration.comparisonOperator())) {
-            throw refused("COMMAND_UPDATE_OPERATOR_INVALID", "Select a supported comparison operator.");
-        }
-        if (configuration.leftVariableId() == null
-                || !graph.variableIds().contains(configuration.leftVariableId())) {
+        // PARKED 2026-08-03 (FE owns rules — user order): CHECKVALUE may exist and be
+        // updated WITHOUT variables; AUTO VARIABLES (rules 5+6) fills the operands later.
+        // Java keeps only persistence-grade referential checks on ids that ARE submitted.
+        // Set<String> operators = Set.of(
+        //         "=", "!=", ">", "<", ">=", "<=", "contains", "startsWith",
+        //         "endsWith");
+        // if (!operators.contains(configuration.comparisonOperator())) {
+        //     throw refused("COMMAND_UPDATE_OPERATOR_INVALID", "Select a supported comparison operator.");
+        // }
+        if (configuration.leftVariableId() != null
+                && !graph.variableIds().contains(configuration.leftVariableId())) {
             throw refused(
                     "COMMAND_UPDATE_LEFT_VARIABLE_INVALID",
                     "Select a current Bot Job variable as the first comparison value.");
         }
-        if (!"VARIABLE".equals(configuration.operandKind())
-                || configuration.operandVariableId() == null
-                || !graph.variableIds().contains(configuration.operandVariableId())) {
+        if (configuration.operandVariableId() != null
+                && !graph.variableIds().contains(configuration.operandVariableId())) {
             throw refused(
                     "COMMAND_UPDATE_OPERAND_VARIABLE_INVALID",
                     "Select a current Bot Job variable as the second comparison value.");
