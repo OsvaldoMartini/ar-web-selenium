@@ -1987,7 +1987,9 @@ public final class VariablesWorkspaceService {
         response.addProperty("graphRevision", committed.graphRevision());
         response.addProperty(
                 "message",
-                "New disconnected command copy created. Refreshing Variables and Bot Job Details.");
+                committed.sourceInstructionId() == 0
+                        ? "New disconnected command added. Refreshing Variables and Bot Job Details."
+                        : "New disconnected command copy created. Refreshing Variables and Bot Job Details.");
         return response;
     }
 

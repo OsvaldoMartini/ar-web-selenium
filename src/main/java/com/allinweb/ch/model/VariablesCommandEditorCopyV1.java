@@ -17,6 +17,7 @@ public final class VariablesCommandEditorCopyV1 {
             Long baseGraphVersion,
             String graphRevision,
             Integer sourceInstructionId,
+            Boolean createBlank,
             Integer targetBlockId,
             Placement placement,
             Configuration configuration,

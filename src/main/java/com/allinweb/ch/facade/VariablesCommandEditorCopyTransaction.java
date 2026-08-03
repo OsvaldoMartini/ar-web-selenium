@@ -101,8 +101,9 @@ public final class VariablesCommandEditorCopyTransaction {
             Graph before = loadGraph(connection, owner.owner(), state);
             Plan plan = validateAndPlan(owner, request, before);
             offsetTargetOrders(connection, owner.owner().ownerId(), plan.targetBlockId());
-            int generatedId = insertCopy(
-                    connection, owner.owner().ownerId(), plan.source(), plan);
+            int generatedId = plan.createBlank()
+                    ? insertBlankCommand(connection, owner.owner().ownerId(), plan)
+                    : insertCopy(connection, owner.owner().ownerId(), plan.source(), plan);
             if (isTypedVariableConfiguration(plan.configuration().kind())) {
                 commandConfigurations.upsert(
                         connection,
@@ -135,7 +136,8 @@ public final class VariablesCommandEditorCopyTransaction {
             connection.commit();
             return new CopyResult(
                     owner.owner(), owner.workspaceEpoch(), request.requestId().trim(),
-                    plan.source().id(), generatedId, plan.targetBlockId(), plan.finalOrder(),
+                    plan.source() == null ? 0 : plan.source().id(),
+                    generatedId, plan.targetBlockId(), plan.finalOrder(),
                     state.version(), advance.state().version(), after.revision(), false);
         } catch (SQLException | RuntimeException failure) {
             if (!rollback(connection, failure)) {
@@ -167,16 +169,23 @@ public final class VariablesCommandEditorCopyTransaction {
         if (blank(request.graphRevision()) || !request.graphRevision().trim().equals(graph.revision())) {
             throw refused("COMMAND_COPY_GRAPH_REVISION_STALE", "The Variables graph changed before command copy.");
         }
-        InstructionRow source = graph.instructions().get(request.sourceInstructionId());
-        if (source == null) throw refused("COMMAND_COPY_SOURCE_MISSING", "The selected command no longer exists.");
+        boolean createBlank = Boolean.TRUE.equals(request.createBlank());
+        InstructionRow source = createBlank
+                ? null
+                : graph.instructions().get(request.sourceInstructionId());
+        if (!createBlank && source == null) {
+            throw refused("COMMAND_COPY_SOURCE_MISSING", "The selected command no longer exists.");
+        }
         if (request.targetBlockId() == null || !graph.blockIds().contains(request.targetBlockId())) {
             throw refused("COMMAND_COPY_TARGET_BLOCK_INVALID", "Select a current target Block.");
         }
-        String sourceAction = CommandRegistry.canonicalize(source.actionsText());
+        String sourceAction = createBlank
+                ? ""
+                : CommandRegistry.canonicalize(source.actionsText());
         String targetAction = blank(request.targetAction())
                 ? sourceAction
                 : CommandRegistry.canonicalize(request.targetAction());
-        boolean commandChanged = !targetAction.equals(sourceAction);
+        boolean commandChanged = createBlank || !targetAction.equals(sourceAction);
         if (commandChanged && !CommandRegistry.isEditorTargetable(targetAction)) {
             throw refused(
                     "COMMAND_COPY_TARGET_ACTION_INVALID",
@@ -202,7 +211,7 @@ public final class VariablesCommandEditorCopyTransaction {
         }
         return new Plan(
                 source, request.targetBlockId(), configuration, targetRows, index, index + 1,
-                targetAction, commandChanged);
+                targetAction, commandChanged, createBlank);
     }
 
     private Configuration requireConfiguration(
@@ -310,6 +319,47 @@ public final class VariablesCommandEditorCopyTransaction {
         }
     }
 
+    private int insertBlankCommand(Connection connection, int botJobId, Plan plan)
+            throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(
+                INSERT_INSTRUCTION, Statement.RETURN_GENERATED_KEYS)) {
+            int parameter = 1;
+            statement.setInt(parameter++, plan.finalOrder());
+            statement.setString(parameter++, plan.targetAction());
+            statement.setString(
+                    parameter++, CommandRegistry.transformedName(plan.targetAction()));
+            for (int field = 0; field < 9; field++) {
+                statement.setNull(parameter++, Types.VARCHAR);
+            }
+            statement.setObject(
+                    parameter++, configuredOperationForBlank(plan.configuration()));
+            for (int field = 0; field < 4; field++) {
+                statement.setNull(parameter++, Types.VARCHAR);
+            }
+            statement.setNull(parameter++, Types.INTEGER);
+            statement.setObject(
+                    parameter++, configuredHoldForBlank(plan.configuration()));
+            statement.setNull(parameter++, Types.VARCHAR);
+            statement.setNull(parameter++, Types.BOOLEAN);
+            statement.setBoolean(parameter++, true);
+            statement.setInt(parameter++, plan.targetBlockId());
+            statement.setNull(parameter++, Types.INTEGER);
+            statement.setNull(parameter++, Types.INTEGER);
+            statement.setNull(parameter++, Types.INTEGER);
+            statement.setInt(parameter++, botJobId);
+            statement.setNull(parameter, Types.BOOLEAN);
+            if (statement.executeUpdate() != 1) {
+                throw new SQLException("ADD COMMAND did not insert exactly one instruction.");
+            }
+            try (ResultSet keys = statement.getGeneratedKeys()) {
+                if (!keys.next()) {
+                    throw new SQLException("ADD COMMAND returned no generated instruction ID.");
+                }
+                return keys.getInt(1);
+            }
+        }
+    }
+
     private void restoreTargetOrders(
             Connection connection, int botJobId, int generatedId, Plan plan) throws SQLException {
         ArrayList<Integer> orderedIds = new ArrayList<>();
@@ -329,10 +379,12 @@ public final class VariablesCommandEditorCopyTransaction {
 
     private void verify(Plan plan, int generatedId, Graph before, Graph after)
             throws MutationRefusedException {
-        InstructionRow originalBefore = before.instructions().get(plan.source().id());
-        InstructionRow originalAfter = after.instructions().get(plan.source().id());
-        if (originalBefore == null || !originalBefore.sameSourceState(originalAfter)) {
-            throw refused("COMMAND_COPY_SOURCE_CHANGED", "COPY NEW changed the original instruction.");
+        if (!plan.createBlank()) {
+            InstructionRow originalBefore = before.instructions().get(plan.source().id());
+            InstructionRow originalAfter = after.instructions().get(plan.source().id());
+            if (originalBefore == null || !originalBefore.sameSourceState(originalAfter)) {
+                throw refused("COMMAND_COPY_SOURCE_CHANGED", "COPY NEW changed the original instruction.");
+            }
         }
         InstructionRow copy = after.instructions().get(generatedId);
         if (copy == null || copy.blockId() != plan.targetBlockId()
@@ -341,10 +393,14 @@ public final class VariablesCommandEditorCopyTransaction {
                 || copy.parentBlockId() != null) {
             throw refused("COMMAND_COPY_VERIFICATION_FAILED", "The disconnected command copy could not be verified.");
         }
-        boolean identityCopied = plan.commandChanged()
+        boolean identityCopied = plan.createBlank()
+                ? plan.targetAction().equals(copy.actionsText())
+                : plan.commandChanged()
                 ? plan.targetAction().equals(copy.actionsText())
                 : Objects.equals(copy.actions(), plan.source().actions());
-        Object expectedName = copiedName(plan.source(), plan);
+        Object expectedName = plan.createBlank()
+                ? CommandRegistry.transformedName(plan.targetAction())
+                : copiedName(plan.source(), plan);
         boolean nameCopied = expectedName == null
                 ? copy.name() == null
                 : copy.name() != null && expectedName.toString().equals(copy.name().toString());
@@ -362,8 +418,10 @@ public final class VariablesCommandEditorCopyTransaction {
                         "COMMAND_COPY_VERIFICATION_FAILED",
                         "The transformed copy still carries the previous Wait value.");
             }
-            String expectedOperation = configuredOperation(
-                    plan.source(), configuration, plan.commandChanged());
+            String expectedOperation = plan.createBlank()
+                    ? configuredOperationForBlank(configuration)
+                    : configuredOperation(
+                            plan.source(), configuration, plan.commandChanged());
             if (!Objects.equals(
                     expectedOperation == null ? "" : expectedOperation, copy.operationText())) {
                 throw refused("COMMAND_COPY_VERIFICATION_FAILED", "The copied intrinsic values could not be verified.");
@@ -440,6 +498,22 @@ public final class VariablesCommandEditorCopyTransaction {
             return configuration.waitSeconds();
         }
         return commandChanged ? null : source.onHoldSeconds();
+    }
+    private static String configuredOperationForBlank(Configuration configuration) {
+        if (configuration.kind() == ConfigurationKind.WAIT
+                || configuration.kind() == ConfigurationKind.NONE
+                || isTypedVariableConfiguration(configuration.kind())) {
+            return null;
+        }
+        return configuration.kind() == ConfigurationKind.GOTO
+                        || configuration.kind() == ConfigurationKind.SWIPE
+                ? String.valueOf(configuration.count())
+                : configuration.intervalSeconds() + ":" + configuration.iterations();
+    }
+    private static Integer configuredHoldForBlank(Configuration configuration) {
+        return configuration.kind() == ConfigurationKind.WAIT
+                ? configuration.waitSeconds()
+                : null;
     }
     private static List<InstructionRow> rowsFor(Graph graph, int blockId) {
         return graph.instructions().values().stream().filter(row -> row.blockId() == blockId)
@@ -673,7 +747,7 @@ public final class VariablesCommandEditorCopyTransaction {
                          Set<Integer> variableIds,String revision) {}
     private record Plan(InstructionRow source,int targetBlockId,Configuration configuration,
                         List<InstructionRow> targetRows,int targetIndex,int finalOrder,
-                        String targetAction,boolean commandChanged) {}
+                        String targetAction,boolean commandChanged,boolean createBlank) {}
     public record CopyResult(
             OwnerKey owner,long workspaceEpoch,String requestId,int sourceInstructionId,
             int createdInstructionId,int targetBlockId,int instructionOrderNumber,
