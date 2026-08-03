@@ -105,6 +105,7 @@ public class SimpleWebSocketServer {
             "commandEditor.bootstrap",
             "commandEditor.select",
             "commandEditor.apply",
+            "commandEditor.checkOperand",
             "commandEditor.insertElseIf",
             "instructionGraph.previewSplit",
             "instructionEditor.memoryCapabilities",
@@ -1114,6 +1115,49 @@ public class SimpleWebSocketServer {
                                             .bootstrap(commandBootstrapBody),
                                     commandBootstrapBody,
                                     sessionId));
+                    break;
+                }
+                case "commandEditor.checkOperand": {
+                    JsonObject checkOperandBody = extractBody(jsonObjMSG);
+                    JsonObject checkOperandResponse;
+                    try {
+                        checkOperandBody = authorizeInstructionGridRequest(
+                                checkOperandBody, sessionId, session);
+                        checkOperandResponse =
+                                CommandEditorService.getInstance().checkOperand(checkOperandBody);
+                    } catch (Exception checkOperandError) {
+                        log.error(
+                                "COMMAND_EDITOR_CHECK_OPERAND_EXCEPTION requestId={}",
+                                commandLogValue(checkOperandBody, "requestId"),
+                                checkOperandError);
+                        checkOperandResponse = commandEditorFailure(
+                                checkOperandBody,
+                                checkOperandError.getMessage() == null
+                                        ? "The second comparison variable could not be saved."
+                                        : checkOperandError.getMessage());
+                    }
+                    sendCommandEditorResponse(
+                            commandEditorHomeBankingId(checkOperandBody, homeBankingId),
+                            sessionId,
+                            "commandEditor.checkOperandResponse",
+                            checkOperandResponse);
+                    if (checkOperandResponse.has("ok")
+                            && checkOperandResponse.get("ok").getAsBoolean()) {
+                        int checkOperandBotJobId = checkOperandBody != null
+                                        && checkOperandBody.has("botJobId")
+                                ? checkOperandBody.get("botJobId").getAsInt()
+                                : -1;
+                        ErrorMessage checkOperandRefresh = ScannerBotJobTasksPublisher.getInstance()
+                                .publishGridOnly(
+                                        commandEditorHomeBankingId(checkOperandBody, homeBankingId),
+                                        checkOperandBotJobId);
+                        if (checkOperandRefresh != null) {
+                            log.warn(
+                                    "Second comparison variable saved for Bot Job {}, but grid refresh failed: {}",
+                                    checkOperandBotJobId,
+                                    checkOperandRefresh.getErrorMessage());
+                        }
+                    }
                     break;
                 }
                 case "commandEditor.apply": {

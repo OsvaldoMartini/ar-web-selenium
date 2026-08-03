@@ -87,6 +87,8 @@ public final class VariablesVariableDeleteTransaction {
                                 + ", actual="
                                 + clearedBindings);
             }
+            clearConfigurationReferences(
+                    connection, owner.owner(), plan.variableIds());
             faultInjector.at(TransactionPhase.AFTER_BINDINGS_CLEARED);
 
             int deletedVariables = deleteVariables(
@@ -329,6 +331,43 @@ public final class VariablesVariableDeleteTransaction {
             statement.setInt(1, botJobId);
             bindIds(statement, variableIds, 2);
             return statement.executeUpdate();
+        }
+    }
+
+    /**
+     * Deleted variables must not leave dangling typed-configuration references:
+     * CHECKVALUE right operands fall back to VOID and conditional left values are
+     * cleared, so the affected commands surface reconnect states instead of
+     * pointing at variables that no longer exist.
+     */
+    private void clearConfigurationReferences(
+            Connection connection, OwnerKey owner, Set<Integer> variableIds)
+            throws SQLException {
+        java.sql.Timestamp now = java.sql.Timestamp.from(java.time.Instant.now());
+        try (PreparedStatement statement = connection.prepareStatement(
+                "UPDATE instruction_variable_command_config SET operand_kind='VOID',"
+                        + "operand_variable_id=NULL,operand_raw_value='',"
+                        + "config_revision=config_revision+1,updated_at=?"
+                        + " WHERE home_banking_id=? AND bot_job_id=? AND operand_variable_id IN ("
+                        + placeholders(variableIds.size())
+                        + ")")) {
+            statement.setTimestamp(1, now);
+            statement.setInt(2, owner.homeBankingId());
+            statement.setInt(3, owner.ownerId());
+            bindIds(statement, variableIds, 4);
+            statement.executeUpdate();
+        }
+        try (PreparedStatement statement = connection.prepareStatement(
+                "UPDATE instruction_variable_command_config SET left_variable_id=NULL,"
+                        + "config_revision=config_revision+1,updated_at=?"
+                        + " WHERE home_banking_id=? AND bot_job_id=? AND left_variable_id IN ("
+                        + placeholders(variableIds.size())
+                        + ")")) {
+            statement.setTimestamp(1, now);
+            statement.setInt(2, owner.homeBankingId());
+            statement.setInt(3, owner.ownerId());
+            bindIds(statement, variableIds, 4);
+            statement.executeUpdate();
         }
     }
 

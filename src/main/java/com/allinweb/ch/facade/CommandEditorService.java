@@ -2,6 +2,8 @@ package com.allinweb.ch.facade;
 
 import com.allinweb.ch.db.InstructionVariableCommandConfigRepository;
 import com.allinweb.ch.db.InstructionVariableCommandConfigRepository.StoredConfiguration;
+import com.allinweb.ch.model.VariablesCommandEditorUpdateV1.Configuration;
+import com.allinweb.ch.model.VariablesCommandEditorUpdateV1.ConfigurationKind;
 import com.allinweb.ch.model.BotJobLoadDTO;
 import com.allinweb.ch.model.BlockDetailsDTO;
 import com.allinweb.ch.model.BlockLoadDTO;
@@ -872,6 +874,123 @@ public final class CommandEditorService {
 
     private boolean isSpecialAction(String action) {
         return CommandRegistry.isSpecialAction(action);
+    }
+
+    /**
+     * Reconnects or disconnects a CHECKVALUE second comparison variable (the typed
+     * right operand). Validates against the durable bot_job_variable_definition
+     * table only and preserves every other stored configuration value.
+     */
+    public JsonObject checkOperand(JsonObject body) {
+        return correlateResponse(body, serializedMutation(body, () -> checkOperandOnce(body)));
+    }
+
+    private JsonObject checkOperandOnce(JsonObject body) {
+        String requestId = string(body, "requestId", "").trim();
+        JsonObject completed = completedRequest(requestId);
+        if (completed != null) return completed;
+        String targetSession = string(body, "targetSessionId", ScannerWorkspaceSessions.BOT_JOB_TASKS);
+        if (isComponentSession(targetSession)) {
+            return failure("The second comparison variable is a Bot Job feature.");
+        }
+        ErrorMessage loadError = reloadInstructions(body, targetSession);
+        if (loadError != null) return failure(loadError.getErrorMessage());
+        JsonObject stale = validateGraphRevision(body, targetSession);
+        if (stale != null) return stale;
+        int botJobId = integer(body, "botJobId", -1);
+        int homeBankingId = integer(body, "homeBankingId", -1);
+        int instructionId = integer(body, "instructionId", -1);
+        if (botJobId < 1 || homeBankingId < 1 || instructionId < 1) {
+            return failure("Bot Job, organization, and instruction are required.");
+        }
+        InstructionLoad instruction = null;
+        for (InstructionLoad row : instructions(targetSession)) {
+            if (row != null && Integer.valueOf(instructionId).equals(row.getId())) {
+                instruction = row;
+                break;
+            }
+        }
+        if (instruction == null) return failure("The selected command no longer exists.");
+        String action = CommandRegistry.canonicalize(instruction.getActions());
+        if (!"CK".equals(action) && !"PDF CHECK".equals(action) && !"CSV CHECK".equals(action)) {
+            return failure("Only CHECKVALUE commands carry a second comparison variable.");
+        }
+        Integer operandVariableId = nullableInteger(body, "operandVariableId");
+        try (Connection connection = database.getConnection()) {
+            connection.setAutoCommit(false);
+            try {
+                if (operandVariableId != null) {
+                    try (PreparedStatement statement = connection.prepareStatement(
+                            "SELECT 1 FROM bot_job_variable_definition"
+                                    + " WHERE home_banking_id=? AND bot_job_id=? AND id=?")) {
+                        statement.setInt(1, homeBankingId);
+                        statement.setInt(2, botJobId);
+                        statement.setInt(3, operandVariableId);
+                        try (ResultSet rows = statement.executeQuery()) {
+                            if (!rows.next()) {
+                                connection.rollback();
+                                return failure("Select a current Bot Job variable as the second comparison value.");
+                            }
+                        }
+                    }
+                }
+                StoredConfiguration stored = commandConfigurations.load(
+                        connection, homeBankingId, botJobId, instructionId);
+                Configuration configuration = new Configuration(
+                        "CK".equals(action)
+                                ? ConfigurationKind.CHECK_VALUE
+                                : ConfigurationKind.EXTERNAL_CHECK,
+                        null,
+                        null,
+                        null,
+                        stored != null
+                                        && stored.comparisonOperator() != null
+                                        && !stored.comparisonOperator().isBlank()
+                                ? stored.comparisonOperator()
+                                : "=",
+                        stored == null ? null : stored.conditionSource(),
+                        stored == null ? null : stored.leftVariableId(),
+                        operandVariableId == null ? "VOID" : "VARIABLE",
+                        "",
+                        operandVariableId,
+                        stored == null ? "" : stored.outputKey(),
+                        stored == null ? "" : stored.outputColumn(),
+                        stored == null ? "" : stored.outputFile(),
+                        stored == null ? "" : stored.externalSourceKey(),
+                        stored != null
+                                        && stored.formatPolicy() != null
+                                        && !stored.formatPolicy().isBlank()
+                                ? stored.formatPolicy()
+                                : "EXACT_TEXT",
+                        null);
+                commandConfigurations.upsert(
+                        connection, homeBankingId, botJobId, instructionId, action, configuration);
+                connection.commit();
+            } catch (SQLException persistError) {
+                connection.rollback();
+                throw persistError;
+            } finally {
+                connection.setAutoCommit(true);
+            }
+        } catch (SQLException error) {
+            log.error(
+                    "COMMAND_EDITOR_CHECK_OPERAND_FAILED requestId={} instructionId={}",
+                    requestId,
+                    instructionId,
+                    error);
+            return failure("The second comparison variable could not be saved.");
+        }
+        JsonObject response = new JsonObject();
+        response.addProperty("ok", true);
+        response.addProperty(
+                "message",
+                operandVariableId == null
+                        ? "Second comparison variable disconnected."
+                        : "Second comparison variable connected.");
+        response.addProperty("instructionId", instructionId);
+        if (body.has("requestId")) response.add("requestId", body.get("requestId"));
+        if (!requestId.isEmpty()) rememberCompleted(requestId, response);
+        return response;
     }
 
     public JsonObject apply(JsonObject body) {
