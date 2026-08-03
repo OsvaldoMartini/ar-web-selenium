@@ -573,7 +573,7 @@ public final class CommandEditorService {
                 component ? "instruction_id" : "producer_instruction_id";
         String typeColumn = component ? "type" : "variable_type";
         String sql = "SELECT id, " + producerColumn + " AS instruction_id,"
-                + typeColumn + " AS type FROM " + table
+                + typeColumn + " AS type, name FROM " + table
                 + " WHERE " + ownerColumn + " = ? ORDER BY id";
         List<VariableLoadDTO> variables = new java.util.ArrayList<>();
         try (Connection connection = database.getConnection();
@@ -587,7 +587,7 @@ public final class CommandEditorService {
                             component ? null : ownerId,
                             nullableResultInteger(result, "instruction_id"),
                             result.getString("type"),
-                            null,
+                            result.getString("name"),
                             null,
                             null,
                             null,
@@ -607,6 +607,7 @@ public final class CommandEditorService {
             link.addProperty("id", variable.getId());
             link.addProperty("instructionId", variable.getInstructionId());
             link.addProperty("type", variable.getType());
+            link.addProperty("name", variable.getName());
             links.add(link);
         }
         return links;
