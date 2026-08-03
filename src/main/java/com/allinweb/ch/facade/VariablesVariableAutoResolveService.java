@@ -63,19 +63,6 @@ public final class VariablesVariableAutoResolveService {
         return result;
     }
 
-    /** Automatic whole-job resolution used by the Variables workspace load path. */
-    public synchronized AutoResolveResult resolveAllAutomatic(
-            int homeBankingId, int botJobId, long workspaceEpoch) throws SQLException {
-        String requestId = "auto-" + homeBankingId + "-" + botJobId
-                + "-" + System.nanoTime();
-        try (Connection connection = connections.open()) {
-            return transaction.executeAutomatic(
-                    connection,
-                    AuthenticatedBotJob.of(homeBankingId, botJobId, workspaceEpoch),
-                    requestId);
-        }
-    }
-
     @FunctionalInterface interface ConnectionProvider { Connection open() throws SQLException; }
     private record CompletedRequest(String fingerprint, AutoResolveResult result) {}
 }
