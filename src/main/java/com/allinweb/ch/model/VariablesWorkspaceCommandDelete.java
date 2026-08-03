@@ -18,10 +18,14 @@ public final class VariablesWorkspaceCommandDelete {
             Integer instructionId,
             Integer expectedBlockId,
             Integer expectedInstructionOrder,
+            List<Integer> familyDeleteInstructionIds,
             List<Integer> parentRepairInstructionIds,
             List<Integer> variableOwnerIds) {
 
         public Request {
+            familyDeleteInstructionIds = familyDeleteInstructionIds == null
+                    ? List.of()
+                    : List.copyOf(familyDeleteInstructionIds);
             parentRepairInstructionIds = parentRepairInstructionIds == null
                     ? List.of()
                     : List.copyOf(parentRepairInstructionIds);

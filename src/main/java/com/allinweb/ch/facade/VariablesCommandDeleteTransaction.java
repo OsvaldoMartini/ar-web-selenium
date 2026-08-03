@@ -27,8 +27,10 @@ import java.util.Objects;
 import java.util.Set;
 
 /**
- * Deletes exactly one Variables-page command and disconnects only direct ID links.
- * Positional IF/LOOP rows and variable definitions are deliberately preserved.
+ * Deletes the React-authored Variables-page command scope and disconnects only direct ID links.
+ * Selecting an IF-family boundary sends the complete family via familyDeleteInstructionIds
+ * (FE owns the rule — 2026-08-03); Java persists the list atomically. Positional body commands
+ * and variable definitions are deliberately preserved.
  */
 public final class VariablesCommandDeleteTransaction {
     private final InstructionGraphStateRepository stateRepository =
@@ -59,9 +61,14 @@ public final class VariablesCommandDeleteTransaction {
                     connection, owner.owner().ownerId(), plan);
             int disconnectedVariables = clearVariableOwners(
                     connection, owner.owner(), plan);
-            deleteOwnedRows(connection, owner.owner(), plan.source().id());
-            deleteInstruction(connection, owner.owner().ownerId(), plan.source().id());
-            normalizeBlockOrder(connection, owner.owner().ownerId(), plan.source().blockId());
+            for (int index = plan.deleteInstructionIds().size() - 1; index >= 0; index--) {
+                int deleteId = plan.deleteInstructionIds().get(index);
+                deleteOwnedRows(connection, owner.owner(), deleteId);
+                deleteInstruction(connection, owner.owner().ownerId(), deleteId);
+            }
+            for (Integer blockId : plan.affectedBlockIds()) {
+                normalizeBlockOrder(connection, owner.owner().ownerId(), blockId);
+            }
 
             AdvanceResult advance = stateRepository.compareAndSetIncrement(
                     connection, owner.owner(), request.baseGraphVersion());
@@ -128,8 +135,28 @@ public final class VariablesCommandDeleteTransaction {
                     "The selected command moved before deletion. Review it and retry.");
         }
 
+        // FE owns the IF-family delete scope (2026-08-03): the complete boundary list arrives in
+        // familyDeleteInstructionIds. Persistence-grade sanitation only — drop nulls, non-positive
+        // ids, duplicates, and the source itself; a vanished row still refuses and rolls back.
+        LinkedHashSet<Integer> deleteIdSet = new LinkedHashSet<>();
+        deleteIdSet.add(source.id());
+        for (Integer familyId : request.familyDeleteInstructionIds()) {
+            if (familyId == null || familyId <= 0 || familyId == source.id()) continue;
+            if (graph.instructions().get(familyId) == null) {
+                throw refused("COMMAND_DELETE_SOURCE_CHANGED",
+                        "An IF-family boundary changed before deletion. Review it and retry.");
+            }
+            deleteIdSet.add(familyId);
+        }
+        List<Integer> deleteInstructionIds = List.copyOf(deleteIdSet);
+        LinkedHashSet<Integer> affectedBlockIds = new LinkedHashSet<>();
+        for (Integer deleteId : deleteInstructionIds) {
+            affectedBlockIds.add(graph.instructions().get(deleteId).blockId());
+        }
+
         List<Integer> expectedParentRepairs = graph.instructions().values().stream()
-                .filter(row -> Objects.equals(row.parentId(), source.id()))
+                .filter(row -> !deleteIdSet.contains(row.id()))
+                .filter(row -> row.parentId() != null && deleteIdSet.contains(row.parentId()))
                 .map(InstructionRow::id)
                 .sorted()
                 .toList();
@@ -141,7 +168,7 @@ public final class VariablesCommandDeleteTransaction {
         }
 
         List<Integer> expectedVariableOwners = graph.variables().entrySet().stream()
-                .filter(entry -> Objects.equals(entry.getValue(), source.id()))
+                .filter(entry -> entry.getValue() != null && deleteIdSet.contains(entry.getValue()))
                 .map(Map.Entry::getKey)
                 .sorted()
                 .toList();
@@ -151,7 +178,9 @@ public final class VariablesCommandDeleteTransaction {
             throw refused("COMMAND_DELETE_VARIABLE_PLAN_CHANGED",
                     "Variable owner connections changed before deletion. Review and retry.");
         }
-        return new Plan(source, submittedParentRepairs, submittedVariableOwners);
+        return new Plan(
+                source, deleteInstructionIds, List.copyOf(affectedBlockIds),
+                submittedParentRepairs, submittedVariableOwners);
     }
 
     private static List<Integer> exactIds(List<Integer> values, String label)
@@ -169,14 +198,19 @@ public final class VariablesCommandDeleteTransaction {
     private int clearParentLinks(Connection connection, int botJobId, Plan plan)
             throws SQLException {
         if (plan.parentRepairInstructionIds().isEmpty()) return 0;
+        String placeholders = String.join(
+                ",", Collections.nCopies(plan.deleteInstructionIds().size(), "?"));
         int updated = 0;
         try (PreparedStatement statement = connection.prepareStatement(
                 "UPDATE instruction SET parent_id=NULL,parent_block_id=NULL"
-                        + " WHERE bot_job_id=? AND id=? AND parent_id=?")) {
+                        + " WHERE bot_job_id=? AND id=? AND parent_id IN (" + placeholders + ")")) {
             for (Integer instructionId : plan.parentRepairInstructionIds()) {
                 statement.setInt(1, botJobId);
                 statement.setInt(2, instructionId);
-                statement.setInt(3, plan.source().id());
+                int position = 3;
+                for (Integer deleteId : plan.deleteInstructionIds()) {
+                    statement.setInt(position++, deleteId);
+                }
                 updated += statement.executeUpdate();
             }
         }
@@ -190,16 +224,21 @@ public final class VariablesCommandDeleteTransaction {
     private int clearVariableOwners(Connection connection, OwnerKey owner, Plan plan)
             throws SQLException {
         if (plan.variableOwnerIds().isEmpty()) return 0;
+        String placeholders = String.join(
+                ",", Collections.nCopies(plan.deleteInstructionIds().size(), "?"));
         int updated = 0;
         try (PreparedStatement statement = connection.prepareStatement(
                 "UPDATE bot_job_variable_definition SET producer_instruction_id=NULL,"
                         + "updated_at=CURRENT_TIMESTAMP WHERE home_banking_id=? AND bot_job_id=?"
-                        + " AND id=? AND producer_instruction_id=?")) {
+                        + " AND id=? AND producer_instruction_id IN (" + placeholders + ")")) {
             for (Integer variableId : plan.variableOwnerIds()) {
                 statement.setInt(1, owner.homeBankingId());
                 statement.setInt(2, owner.ownerId());
                 statement.setInt(3, variableId);
-                statement.setInt(4, plan.source().id());
+                int position = 4;
+                for (Integer deleteId : plan.deleteInstructionIds()) {
+                    statement.setInt(position++, deleteId);
+                }
                 updated += statement.executeUpdate();
             }
         }
@@ -283,13 +322,17 @@ public final class VariablesCommandDeleteTransaction {
             int disconnectedInstructions,
             int disconnectedVariables)
             throws MutationRefusedException {
-        if (after.instructions().containsKey(plan.source().id())) {
-            throw refused("COMMAND_DELETE_VERIFICATION_FAILED",
-                    "The selected command still exists after deletion.");
+        for (Integer deleteId : plan.deleteInstructionIds()) {
+            if (after.instructions().containsKey(deleteId)) {
+                throw refused("COMMAND_DELETE_VERIFICATION_FAILED",
+                        "A deleted command still exists after deletion.");
+            }
         }
+        Set<Integer> deleteIdSet = new LinkedHashSet<>(plan.deleteInstructionIds());
         if (disconnectedInstructions != plan.parentRepairInstructionIds().size()
                 || after.instructions().values().stream()
-                        .anyMatch(row -> Objects.equals(row.parentId(), plan.source().id()))
+                        .anyMatch(row -> row.parentId() != null
+                                && deleteIdSet.contains(row.parentId()))
                 || plan.parentRepairInstructionIds().stream()
                         .map(after.instructions()::get)
                         .filter(Objects::nonNull)
@@ -299,18 +342,20 @@ public final class VariablesCommandDeleteTransaction {
         }
         if (disconnectedVariables != plan.variableOwnerIds().size()
                 || after.variables().values().stream()
-                        .anyMatch(ownerId -> Objects.equals(ownerId, plan.source().id()))) {
+                        .anyMatch(ownerId -> ownerId != null && deleteIdSet.contains(ownerId))) {
             throw refused("COMMAND_DELETE_VARIABLE_VERIFICATION_FAILED",
                     "A variable owner connection was not disconnected.");
         }
-        List<InstructionRow> survivingBlock = after.instructions().values().stream()
-                .filter(row -> row.blockId() == plan.source().blockId())
-                .sorted(Comparator.comparingInt(InstructionRow::order))
-                .toList();
-        for (int index = 0; index < survivingBlock.size(); index++) {
-            if (survivingBlock.get(index).order() != index + 1) {
-                throw refused("COMMAND_DELETE_ORDER_VERIFICATION_FAILED",
-                        "The surviving command order is not contiguous.");
+        for (Integer blockId : plan.affectedBlockIds()) {
+            List<InstructionRow> survivingBlock = after.instructions().values().stream()
+                    .filter(row -> row.blockId() == blockId)
+                    .sorted(Comparator.comparingInt(InstructionRow::order))
+                    .toList();
+            for (int index = 0; index < survivingBlock.size(); index++) {
+                if (survivingBlock.get(index).order() != index + 1) {
+                    throw refused("COMMAND_DELETE_ORDER_VERIFICATION_FAILED",
+                            "The surviving command order is not contiguous.");
+                }
             }
         }
     }
@@ -433,6 +478,8 @@ public final class VariablesCommandDeleteTransaction {
 
     private record Plan(
             InstructionRow source,
+            List<Integer> deleteInstructionIds,
+            List<Integer> affectedBlockIds,
             List<Integer> parentRepairInstructionIds,
             List<Integer> variableOwnerIds) {}
 
