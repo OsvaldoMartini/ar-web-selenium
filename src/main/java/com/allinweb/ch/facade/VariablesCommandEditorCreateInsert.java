@@ -38,12 +38,14 @@ final class VariablesCommandEditorCreateInsert {
                 statement.setNull(parameter++, Types.VARCHAR);
             }
             statement.setObject(parameter++, configuredOperation(configuration));
-            for (int field = 0; field < 4; field++) {
-                statement.setNull(parameter++, Types.VARCHAR);
-            }
-            statement.setNull(parameter++, Types.INTEGER);
-            statement.setObject(parameter++, configuredHold(configuration));
+            statement.setNull(parameter++, Types.BOOLEAN);
+            statement.setNull(parameter++, Types.BOOLEAN);
             statement.setNull(parameter++, Types.VARCHAR);
+            statement.setNull(parameter++, Types.INTEGER);
+            Integer holdSeconds = configuredHold(configuration);
+            if (holdSeconds == null) statement.setNull(parameter++, Types.INTEGER);
+            else statement.setInt(parameter++, holdSeconds);
+            statement.setNull(parameter++, Types.BOOLEAN);
             statement.setNull(parameter++, Types.BOOLEAN);
             statement.setBoolean(parameter++, true);
             statement.setInt(parameter++, targetBlockId);
@@ -51,7 +53,7 @@ final class VariablesCommandEditorCreateInsert {
             statement.setNull(parameter++, Types.INTEGER);
             statement.setNull(parameter++, Types.INTEGER);
             statement.setInt(parameter++, botJobId);
-            statement.setNull(parameter, Types.BOOLEAN);
+            statement.setNull(parameter, Types.VARCHAR);
             if (statement.executeUpdate() != 1) {
                 throw new SQLException("ADD COMMAND did not insert exactly one instruction.");
             }
