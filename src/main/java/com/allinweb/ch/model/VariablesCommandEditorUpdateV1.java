@@ -1,5 +1,7 @@
 package com.allinweb.ch.model;
 
+import java.util.List;
+
 /** Typed UPDATE contract used only by the Variables Command Editor modal. */
 public final class VariablesCommandEditorUpdateV1 {
     public static final int CONTRACT_VERSION = 1;
@@ -78,6 +80,8 @@ public final class VariablesCommandEditorUpdateV1 {
             Integer targetBlockId,
             Placement placement,
             Boolean allowRelationshipDisconnect,
+            Boolean allowConditionalFamilyDissolve,
+            List<Integer> conditionalFamilyDeleteIds,
             Configuration configuration,
             String targetAction) {}
 }

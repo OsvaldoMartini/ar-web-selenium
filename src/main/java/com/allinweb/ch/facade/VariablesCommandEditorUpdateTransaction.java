@@ -33,9 +33,13 @@ import java.util.Set;
 /** Atomic persistence dedicated to UPDATE from the new Variables Command Editor modal. */
 public final class VariablesCommandEditorUpdateTransaction {
     private static final int ORDER_OFFSET = 1_000_000;
+    private static final Set<String> CONDITIONAL_BOUNDARIES =
+            Set.of("IF", "ELSEIF", "ELSE", "ENDIF");
     private final InstructionGraphStateRepository stateRepository;
     private final InstructionGraphRevisionService revisionService;
     private final InstructionVariableCommandConfigRepository commandConfigurations;
+    private final VariablesConditionalFamilyDissolvePersistence conditionalFamilyDissolve =
+            new VariablesConditionalFamilyDissolvePersistence();
 
     public VariablesCommandEditorUpdateTransaction() {
         this(
@@ -78,6 +82,10 @@ public final class VariablesCommandEditorUpdateTransaction {
             GraphState state = stateRepository.loadOrCreate(connection, owner.owner());
             Graph before = loadGraph(connection, owner.owner(), state);
             Plan plan = validateAndPlan(owner, request, before);
+            conditionalFamilyDissolve.deleteSiblings(
+                    connection,
+                    owner.owner(),
+                    plan.conditionalFamilyDeleteIds());
             persistConfiguration(
                     connection,
                     owner.owner().homeBankingId(),
@@ -156,14 +164,61 @@ public final class VariablesCommandEditorUpdateTransaction {
                     "COMMAND_UPDATE_TARGET_ACTION_INVALID",
                     "The selected target command is not supported by the Command Editor.");
         }
+        if (commandChanged && CONDITIONAL_BOUNDARIES.contains(targetAction)) {
+            throw refused(
+                    "COMMAND_UPDATE_CONDITIONAL_TARGET_REQUIRES_ADD",
+                    "Use ADD Command to create IF or ELSEIF so its complete family is generated.");
+        }
         Configuration configuration = requireConfiguration(
                 graph, targetAction, request.configuration());
         Placement placement = request.placement();
         if (placement == null || placement.kind() == null) {
             throw refused("COMMAND_UPDATE_PLACEMENT_REQUIRED", "Select a command placement.");
         }
+        if (!commandChanged && CONDITIONAL_BOUNDARIES.contains(sourceAction)
+                && (request.targetBlockId() != source.blockId()
+                        || placement.kind() != PlacementKind.KEEP)) {
+            throw refused(
+                    "COMMAND_UPDATE_CONDITIONAL_FAMILY_TRANSFER_REQUIRED",
+                    "Keep an IF-family boundary in its current position, or transfer the complete family together.");
+        }
 
-        List<InstructionRow> sourceRows = rowsFor(graph, source.blockId(), source.id());
+        List<Integer> expectedConditionalFamilyDeleteIds = commandChanged
+                && CONDITIONAL_BOUNDARIES.contains(sourceAction)
+                ? expectedConditionalFamilyDeleteIds(graph, source)
+                : List.of();
+        List<Integer> submittedConditionalFamilyDeleteIds =
+                submittedConditionalFamilyDeleteIds(request, graph, source);
+        boolean conditionalFamilyDissolve = commandChanged
+                && CONDITIONAL_BOUNDARIES.contains(sourceAction);
+        if (conditionalFamilyDissolve) {
+            if (!Boolean.TRUE.equals(request.allowConditionalFamilyDissolve())) {
+                throw refused(
+                        "COMMAND_UPDATE_CONDITIONAL_CONFIRMATION_REQUIRED",
+                        "Confirm removal of the remaining IF-family boundaries.");
+            }
+            if (submittedConditionalFamilyDeleteIds.size()
+                            != expectedConditionalFamilyDeleteIds.size()
+                    || !new LinkedHashSet<>(submittedConditionalFamilyDeleteIds)
+                            .equals(new LinkedHashSet<>(expectedConditionalFamilyDeleteIds))) {
+                throw refused(
+                        "COMMAND_UPDATE_CONDITIONAL_SCOPE_CHANGED",
+                        "The IF-family boundaries changed before the command update.");
+            }
+        } else if (Boolean.TRUE.equals(request.allowConditionalFamilyDissolve())
+                || !submittedConditionalFamilyDeleteIds.isEmpty()) {
+            throw refused(
+                    "COMMAND_UPDATE_CONDITIONAL_SCOPE_UNEXPECTED",
+                    "IF-family removal is not valid for this command update.");
+        }
+        List<Integer> conditionalFamilyDeleteIds = conditionalFamilyDissolve
+                ? expectedConditionalFamilyDeleteIds
+                : List.of();
+        LinkedHashSet<Integer> sourceExclusions =
+                new LinkedHashSet<>(conditionalFamilyDeleteIds);
+        sourceExclusions.add(source.id());
+        List<InstructionRow> sourceRows = rowsFor(
+                graph, source.blockId(), sourceExclusions);
         List<InstructionRow> targetRows = source.blockId() == request.targetBlockId()
                 ? sourceRows
                 : rowsFor(graph, request.targetBlockId(), source.id());
@@ -172,7 +227,9 @@ public final class VariablesCommandEditorUpdateTransaction {
             if (source.blockId() != request.targetBlockId()) {
                 throw refused("COMMAND_UPDATE_KEEP_CROSS_BLOCK", "Keep current position is available only in the current Block.");
             }
-            targetIndex = Math.max(0, Math.min(source.order() - 1, targetRows.size()));
+            targetIndex = (int) targetRows.stream()
+                    .filter(row -> row.order() < source.order())
+                    .count();
         } else if (placement.kind() == PlacementKind.TOP) {
             targetIndex = 0;
         } else if (placement.kind() == PlacementKind.END) {
@@ -203,7 +260,110 @@ public final class VariablesCommandEditorUpdateTransaction {
         return new Plan(
                 source, request.targetBlockId(), configuration,
                 List.copyOf(sourceRows), List.copyOf(finalTargetRows), targetIndex + 1,
-                relationshipImpact, targetAction, commandChanged);
+                relationshipImpact, targetAction, commandChanged,
+                conditionalFamilyDeleteIds);
+    }
+
+    private static List<Integer> expectedConditionalFamilyDeleteIds(
+            Graph graph,
+            InstructionRow source)
+            throws MutationRefusedException {
+        List<InstructionRow> boundaries = graph.instructions().values().stream()
+                .filter(row -> row.blockId() == source.blockId())
+                .filter(row -> CONDITIONAL_BOUNDARIES.contains(
+                        CommandRegistry.canonicalize(row.action())))
+                .sorted(Comparator.comparingInt(InstructionRow::order)
+                        .thenComparingInt(InstructionRow::id))
+                .toList();
+        List<InstructionRow> roots = boundaries.stream()
+                .filter(row -> "IF".equals(CommandRegistry.canonicalize(row.action())))
+                .toList();
+        List<InstructionRow> family;
+        if (roots.size() == 1) {
+            InstructionRow root = roots.get(0);
+            if (source.id() != root.id() && !Objects.equals(source.parentId(), root.id())) {
+                throw refused(
+                        "COMMAND_UPDATE_CONDITIONAL_FAMILY_AMBIGUOUS",
+                        "The selected boundary does not belong to the Block's IF root.");
+            }
+            family = boundaries.stream()
+                    .filter(row -> row.id() == root.id()
+                            || Objects.equals(row.parentId(), root.id()))
+                    .toList();
+            if (family.size() != boundaries.size()) {
+                throw refused(
+                        "COMMAND_UPDATE_CONDITIONAL_FAMILY_AMBIGUOUS",
+                        "Repair the IF-family links before changing a boundary into another command.");
+            }
+        } else if (roots.isEmpty()) {
+            LinkedHashSet<Integer> missingRootIds = boundaries.stream()
+                    .map(InstructionRow::parentId)
+                    .filter(Objects::nonNull)
+                    .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+            if (missingRootIds.size() > 1 || !isUnambiguousOrphanSuffix(boundaries)) {
+                throw refused(
+                        "COMMAND_UPDATE_CONDITIONAL_FAMILY_AMBIGUOUS",
+                        "The orphan IF-family boundaries are ambiguous and were not changed.");
+            }
+            family = boundaries;
+        } else {
+            throw refused(
+                    "COMMAND_UPDATE_CONDITIONAL_FAMILY_AMBIGUOUS",
+                    "A Block with more than one IF root must be repaired before changing a boundary.");
+        }
+        return family.stream()
+                .filter(row -> row.id() != source.id())
+                .map(InstructionRow::id)
+                .toList();
+    }
+
+    private static boolean isUnambiguousOrphanSuffix(List<InstructionRow> boundaries) {
+        boolean elseSeen = false;
+        boolean endifSeen = false;
+        for (InstructionRow row : boundaries) {
+            String action = CommandRegistry.canonicalize(row.action());
+            if ("ELSEIF".equals(action)) {
+                if (elseSeen || endifSeen) return false;
+            } else if ("ELSE".equals(action)) {
+                if (elseSeen || endifSeen) return false;
+                elseSeen = true;
+            } else if ("ENDIF".equals(action)) {
+                if (endifSeen) return false;
+                endifSeen = true;
+            } else {
+                return false;
+            }
+        }
+        return !boundaries.isEmpty();
+    }
+
+    private static List<Integer> submittedConditionalFamilyDeleteIds(
+            VariablesCommandEditorUpdateV1.Request request,
+            Graph graph,
+            InstructionRow source)
+            throws MutationRefusedException {
+        List<Integer> submitted = request.conditionalFamilyDeleteIds() == null
+                ? List.of()
+                : request.conditionalFamilyDeleteIds();
+        LinkedHashSet<Integer> unique = new LinkedHashSet<>();
+        for (Integer instructionId : submitted) {
+            InstructionRow boundary = instructionId == null
+                    ? null
+                    : graph.instructions().get(instructionId);
+            if (instructionId == null
+                    || instructionId <= 0
+                    || instructionId == source.id()
+                    || boundary == null
+                    || boundary.blockId() != source.blockId()
+                    || !CONDITIONAL_BOUNDARIES.contains(
+                            CommandRegistry.canonicalize(boundary.action()))
+                    || !unique.add(instructionId)) {
+                throw refused(
+                        "COMMAND_UPDATE_CONDITIONAL_SCOPE_INVALID",
+                        "Submit each current IF-family boundary exactly once.");
+            }
+        }
+        return List.copyOf(unique);
     }
 
     private Configuration requireConfiguration(
@@ -464,6 +624,16 @@ public final class VariablesCommandEditorUpdateTransaction {
         }
         Configuration configuration = plan.configuration();
         if (plan.commandChanged()) {
+            Set<Integer> deletedBoundaryIds =
+                    Set.copyOf(plan.conditionalFamilyDeleteIds());
+            if (deletedBoundaryIds.stream().anyMatch(after.instructions()::containsKey)
+                    || after.instructions().values().stream()
+                            .anyMatch(row -> row.parentId() != null
+                                    && deletedBoundaryIds.contains(row.parentId()))) {
+                throw refused(
+                        "COMMAND_UPDATE_CONDITIONAL_FAMILY_NOT_REMOVED",
+                        "The previous IF-family boundaries were not removed completely.");
+            }
             if (!plan.targetAction().equals(CommandRegistry.canonicalize(updated.action()))) {
                 throw refused(
                         "COMMAND_UPDATE_VERIFICATION_FAILED",
@@ -595,8 +765,15 @@ public final class VariablesCommandEditorUpdateTransaction {
     }
 
     private static List<InstructionRow> rowsFor(Graph graph, int blockId, int excludedId) {
+        return rowsFor(graph, blockId, Set.of(excludedId));
+    }
+
+    private static List<InstructionRow> rowsFor(
+            Graph graph,
+            int blockId,
+            Set<Integer> excludedIds) {
         return graph.instructions().values().stream()
-                .filter(row -> row.blockId() == blockId && row.id() != excludedId)
+                .filter(row -> row.blockId() == blockId && !excludedIds.contains(row.id()))
                 .sorted(Comparator.comparingInt(InstructionRow::order).thenComparingInt(InstructionRow::id))
                 .toList();
     }
@@ -806,7 +983,8 @@ public final class VariablesCommandEditorUpdateTransaction {
     private record Plan(InstructionRow source, int targetBlockId, Configuration configuration,
                         List<InstructionRow> sourceRows, List<InstructionRow> targetRows,
                         int finalOrder, RelationshipImpact relationshipImpact,
-                        String targetAction, boolean commandChanged) {}
+                        String targetAction, boolean commandChanged,
+                        List<Integer> conditionalFamilyDeleteIds) {}
 
     private record RelationshipImpact(boolean clearParentId, boolean clearParentBlockId) {
         private static final RelationshipImpact NONE = new RelationshipImpact(false, false);
