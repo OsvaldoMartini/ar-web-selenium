@@ -159,7 +159,16 @@
       "PowerShell($p = \"D:\\\\Projects\\\\AllinWeb\\\\ar-web-selenium-4.2\"; git -C $p remote remove local 2>$null; git -C $p remote add local \"D:\\\\Projects\\\\AllinWeb\\\\ar-web-selenium\"; git -C $p fetch local refactor/perform-actions-decomposition 2>&1 | Select-Object -Last 2; git -C $p reset --hard FETCH_HEAD 2>&1 | Select-Object -Last 1; git -C $p log --oneline -3)",
       "Read(//c/Users/osval/.claude/projects/D--Projects-AllinWeb-ar-web-selenium/memory/**)",
       "Bash(printf '\\\\n- [Command Editor command SearchBox]\\(project_command_editor_command_searchbox.md\\) - design phase shipped 2026-08-02 \\(FE 9e7746a\\); Phase 2 = persist changed command \\(FE payload + Java actions-column write\\) pending user design approval\\\\n')",
-      "Bash(cp -r build/. \"/d/Projects/AllinWeb/ar-web-selenium/src/main/resources/build/\")"
+      "Bash(cp -r build/. \"/d/Projects/AllinWeb/ar-web-selenium/src/main/resources/build/\")",
+      "Bash(echo \"grep-exit=$?\")",
+      "PowerShell(cd D:\\\\Projects\\\\AllinWeb\\\\abr-react-ts-grid; $env:CI='true'; npx react-scripts test --watchAll=false --testPathPattern \"\\(ifFamilyRules|variablesCommandDelete\\)\")",
+      "PowerShell(cd D:\\\\Projects\\\\AllinWeb\\\\abr-react-ts-grid; $env:CI='true'; npx react-scripts test --watchAll=false --testPathPattern=\"ifFamilyRules|variablesCommandDelete\")",
+      "PowerShell(cd D:\\\\Projects\\\\AllinWeb\\\\abr-react-ts-grid; $env:CI='true'; npx react-scripts test --watchAll=false --testPathPattern=ifFamilyRules)",
+      "PowerShell(cd D:\\\\Projects\\\\AllinWeb\\\\abr-react-ts-grid; $env:CI='true'; npx react-scripts test --watchAll=false --testPathPattern=variablesCommandDelete)",
+      "PowerShell(cd D:\\\\Projects\\\\AllinWeb\\\\abr-react-ts-grid; $env:CI='true'; npx react-scripts test --watchAll=false --testPathPattern=instructionFreeMove 2>&1 | Select-Object -Last 12)",
+      "PowerShell(cd D:\\\\Projects\\\\AllinWeb\\\\abr-react-ts-grid; $env:CI='true'; npx react-scripts test --watchAll=false --testPathPattern=ifFamilyAutoRepair 2>&1 | Select-Object -Last 15)",
+      "PowerShell(cd D:\\\\Projects\\\\AllinWeb\\\\abr-react-ts-grid; $env:CI='true'; npx react-scripts test --watchAll=false --testPathPattern=ifFamilyAutoRepair 2>&1 | Select-String -Pattern 'PASS|FAIL|Tests:|✓|✕|√|×' | Select-Object -First 15)",
+      "PowerShell(cd D:\\\\Projects\\\\AllinWeb\\\\abr-react-ts-grid; $env:CI='true'; npx react-scripts test --watchAll=false --testPathPattern=variables/domain 2>&1 | Select-String -Pattern 'PASS|FAIL|Tests:' | Select-Object -First 20)"
     ]
   }
 }
