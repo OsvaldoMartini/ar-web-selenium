@@ -1,5 +1,10 @@
 # Active Bugs to Fix — 2026-07-28
 
+> **Latest Claude ⋈ Codex exchange:** `COPY_LAST_RESPONSE.md` (same folder) — the
+> always-overwritten bridge holding only the most recent verdict/response between the
+> two assistants. Durable outcomes still land here and in
+> `CLAUDE_vs_CODEX_MIGRATION_CHECKS_2026_07_12.md`.
+
 ## CURRENT ROADMAP IN PROGRESS — Variables Command Editor Modal (2026-08-01)
 
 Keep this section at the top of the shared CODEX/Claude ledger and update it in place whenever the

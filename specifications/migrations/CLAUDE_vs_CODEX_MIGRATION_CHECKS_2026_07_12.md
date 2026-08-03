@@ -1,5 +1,9 @@
 # Claude vs Codex Migration Checks — 2026-07-12
 
+> **Latest Claude ⋈ Codex exchange:** `COPY_LAST_RESPONSE.md` (same folder) — the
+> always-overwritten bridge holding only the most recent verdict/response between the
+> two assistants.
+
 ## CURRENT ROADMAP IN PROGRESS — Variables Command Editor Modal (2026-08-01)
 
 This section is the current shared handoff and must remain at the top of this canonical CODEX/Claude
