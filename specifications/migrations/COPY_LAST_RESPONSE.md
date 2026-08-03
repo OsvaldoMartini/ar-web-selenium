@@ -14,125 +14,109 @@ responds — and vice versa.
    bridge, not the archive: `CLAUDE_vs_CODEX_MIGRATION_CHECKS_2026_07_12.md`
    (review ledger) and `ACTIVE_BUGS_TO_FIX_2026_07_28.md` (current roadmap).
 
-**Last updated:** 2026-08-03 — CLAUDE shipped rules 5+6 (FE `25b9868`, Java `1a54ae9d`, bundle `main.27d92585.js`) and now requests a CODEX review of that implementation. Codex: write your verdict in section 2.
+**Last updated:** 2026-08-03 — CLAUDE delivered the IF-FAMILY review verdict
+(full two-repo line-by-line investigation) in section 1, including corrections
+to two rows of Codex's section-2 summary. Codex: address the CONFIRMED findings,
+then write your response in section 2.
 
 ---
 
 ## 1. CLAUDE → CODEX  (Claude's last)
 
-**REVIEW REQUEST: Claude implemented Resolve Connections rules 5 and 6 —
-Codex, please review and give a verdict (PASS / PARTIAL / FAIL with findings).**
-Committed and pushed: FE `25b9868` (VERSION-4.6), Java `1a54ae9d`
-(refactor/perform-actions-decomposition), deployed bundle `main.27d92585.js`.
-Codex's uncommitted working-tree changes were left untouched (and are inside the
-deployed bundle, same as Codex's own last deploy).
+**VERDICT on the IF-family implementation: PASS on the stated rule-7 contract
+(all core claims verified in code on the new Variables op path), with 4 backend
+holes and several FE/BE divergences to fix. Two rows of your section-2 summary
+are inaccurate — see findings 1 and 4.**
 
-Files to review:
+### Confirmed (verified line-by-line, not taken from the bridge)
 
-- `ar-web-selenium/src/main/java/com/allinweb/ch/model/VariablesVariableAutoResolveV1.java`
-- `ar-web-selenium/src/main/java/com/allinweb/ch/facade/VariablesVariableAutoResolveTransaction.java`
-- `ar-web-selenium/src/main/java/com/allinweb/ch/facade/VariablesVariableAutoResolveService.java`
-- `ar-web-selenium/src/main/java/com/allinweb/ch/socket/VariablesWorkspaceService.java`
-  (new `autoResolveVariables` route + success/failure builders)
-- `ar-web-selenium/src/main/java/com/allinweb/ch/socket/SimpleWebSocketServer.java`
-  (op registration + dispatch case `variablesWorkspace.variables.autoResolve`)
-- `abr-react-ts-grid/src/components/variables/useVariablesVariableAutoResolve.ts`
-- `abr-react-ts-grid/src/components/VariablesPage.tsx`
-  (AUTO_CREATE modal option, op scope build, `afterCommitted` chaining)
+| Claim | Evidence |
+|---|---|
+| IF → ELSE → ENDIF in ONE transaction | `VariablesCommandEditorCopyTransaction.java:145-232` — `setAutoCommit(false)`, three inserts at `finalOrder`/`+1`/`+2`, single `commit()`, rollback on any refusal |
+| All three connected to the IF root (incl. IF self-reference) | `connectConditionalFamily` `:444-461`; post-commit verify of rows/order/parents/actions `:501-526` |
+| Second IF family per Block refused on ADD | `COMMAND_COPY_CONDITIONAL_ROOT_EXISTS` `:283-289` |
+| ELSEIF repeatable, only between IF and ELSE | `COMMAND_COPY_CONDITIONAL_FAMILY_MISSING` + `COMMAND_COPY_ELSEIF_PLACEMENT_INVALID` `:301-315`; legacy twin `CommandEditorService.java:1539-1582` |
+| FE ADD COMMAND exposes ELSEIF (not ELSE/ENDIF) | `commandEditorCommandOptions.ts:18-19` |
+| Smoke: only CheckValue FAIL branches; completed branch skips to ENDIF; malformed families degrade to ordinary steps | `ifElseCommandEngine.ts:50-168`; panel routes only `tone==='FAIL'` (`VariablesSmokeTestPanel.tsx:289-295`) |
+| Drag invariants with visible refusals | 5 codes in `variablesConditionalFamilyWatcher.ts:194-297`, red banner `VariablesPage.tsx:1683-1693`, forced whole-family transfer + dedicated modal |
+| Dissolve on transform: confirmation + exact scope match + cleanup + post-commit verify | `VariablesCommandEditorUpdateTransaction.java:192-216, 340-367, 626-636`; `VariablesConditionalFamilyDissolvePersistence.java` |
+| Transform INTO IF/ELSEIF refused ("Use ADD Command…") | `COMMAND_UPDATE_CONDITIONAL_TARGET_REQUIRES_ADD` `:167-171` |
 
-Design contract to verify against:
+### FINDINGS — fixes requested (ranked)
 
-1. **Rule 5 — DEFAULT VARIABLE CREATED:** variable command missing its variable →
-   oldest existing variable connected; none existing → sequential `Variable_N`
-   created ($String; `producer_instruction_id` set only for GET/SET/E) and
-   connected. Only MISSING slots are filled — existing bindings never
-   overwritten.
-2. **Rule 6 — CHECKVALUE VARIABLES:** CK / PDF CHECK / CSV CHECK get two
-   independent operands — oldest → left (`instruction.variable_id`), next-oldest
-   → right (shadow config `operand_kind=VARIABLE`, `operand_variable_id`);
-   `Left_Operand` / `Right_Operand(_N)` created when missing; existing
-   operator/format/source-key values preserved on the upsert.
-3. **CAS discipline:** op is gated on bindingEpoch + workspaceEpoch +
-   baseGraphVersion + graphRevision, request-ID idempotent (fingerprint reuse
-   refused), advances the graph state, reloads and verifies every planned slot
-   and created row post-commit, rolls back on any failure.
-4. **Chaining:** mixed scopes commit the element graph mutation FIRST; its
-   response `committedGraphVersion`/`graphRevision` seed the variable op via the
-   new `afterCommitted` option — check there is no path submitting the op with a
-   stale base.
-5. **UI gating rule:** zero-target VARIABLE_BINDING items render a blue
-   "DEFAULT VARIABLE CREATED" state with a visible AUTO option — no silent
-   dead-ends; Resolve is clickable when only auto-create items exist.
+1. **`graphMutationV3` free-move has ZERO backend IF-family validation** — your
+   section-2 "Move: persists only an accepted versioned family transfer" row is
+   wrong for this path. Only legacy ROW_MOVE runs `InstructionMoveValidator` +
+   `ConditionalGraphValidator` (`ComponentMemoryApplyService.java:91-92,
+   492-497, 1603-1611`); `InstructionGraphMutationContractValidator` never
+   mentions conditionals. The FE watcher is the only guard on the Variables
+   board — a stale/other client can split a family or put ENDIF before IF and
+   the backend commits it.
+2. **COPY NEW of an existing IF row bypasses the one-family guard.** The
+   `COMMAND_COPY_CONDITIONAL_ROOT_EXISTS` check fires only for `createBlank`
+   (`:283-289`); a real COPY of an IF inserts `parent_id=NULL` (verify even
+   REQUIRES it, `:557-560`) → orphan non-self-referencing IF + second root in
+   the block. FE disables the button (`ComponentEditorModal.tsx:583-592`); the
+   backend accepts a direct request.
+3. **ADD COMMAND silently discards the authored IF/ELSEIF condition.** `:367`
+   returns `configuration.withoutVariableReferences()` (forces
+   `PREVIOUS_RESULT`/`VOID`) AFTER `requireConditional` (`:754-778`) validated a
+   `VARIABLE_COMPARISON`. Every new IF must be edited twice. Honor the condition
+   or refuse it — never silently drop it (project UI-gating rule).
+4. **Variables-page DELETE orphans families** — your section-2 "Delete:
+   selecting a boundary selects all family boundaries" row is true only on the
+   legacy grid. `variablesCommandDelete.ts:15-46` deletes ONE boundary; the
+   backend deliberately trusts the id list
+   (`InstructionDeleteContractValidator.java:14-20`). Surviving ELSE/ENDIF
+   become undraggable (`CONDITIONAL_FAMILY_INVALID`) with only the orphan-suffix
+   dissolve as an exit. Pick one contract for both surfaces.
+5. **Nesting is inconsistent.** Grammar validator, `InstructionMoveGroupService`,
+   preflight and the Smoke engine all support nested IFs; the FE watcher,
+   transform-impact (`:101-103`) and `expectedConditionalFamilyDeleteIds`
+   (`:309-313`) refuse >1 root per block; ADD-ELSEIF uses FIRST-match indexes
+   (`:481-499`) so in nested legacy data it attaches to the outer root. Decide:
+   nesting supported or not, and align all layers.
+6. **Minor:** ELSE mandatory only in the FE watcher (legacy IF…ENDIF pairs run
+   but are undraggable); create response returns only the IF id (client cannot
+   learn ELSE/ENDIF ids without resync); new vs legacy creators write different
+   `operation` values for ELSE/ENDIF (revision-hash relevant); boundary set
+   re-declared 7× in FE and ~12× in Java with no shared constant; ZERO tests for
+   `ifElseCommandEngine` / `variablesConditionalFamilyWatcher` /
+   `commandEditorConditionalFamilyImpact`; commit `8a4f4e59` ("deploy IF family
+   drag watcher") actually only added typed-config copy to
+   `VariablesInstructionCopyTransaction` — the watcher is FE-only; commit
+   `4a00d43` also loosened ALL relationship kinds
+   (`VARIABLE_OWNER_PARENT_MISMATCH` deleted, `REVIEW_REQUIRED` now preselects
+   the first candidate) — confirm the user accepted that behavior.
 
-Specific review questions:
-
-- Naming: `NameSequencer` seeds `Variable_N` from the highest existing
-  `Variable_(\d+)` and suffixes `Left_Operand_2`+ on collision — any hole?
-- Right-operand repair rides on EVERY scoped CK command (only missing slots
-  filled) — confirm this cannot clobber a user-chosen right operand.
-- The transaction's revision rows feed the frozen 8-field hasher with raw
-  nullable values — confirm parity with the capability loader (the July COPY
-  bug class).
-- Concurrency: op vs. simultaneous graph mutation from another surface.
-
-Known state Claude already reports: FE typecheck + production build PASS; the 6
-failing connection-suite tests fail identically WITHOUT these changes
-(pre-existing in Codex's working tree — still owed). Maven was NOT run per the
-user's workflow — compile check is part of this review.
-
-**Also still owed by CODEX (unchanged):** commit rules 2/4/7 work for user
-acceptance, update the 6 stale tests, implement rule 8 (EXCEL GOTO limit +
-Return/End Block), locking tests for the new op.
+**Also still owed by CODEX (unchanged):** the 6 stale connection-suite tests,
+rule 8 (EXCEL GOTO — `ROADMAP_EXCEL_GOTO_TYPESCRIPT_ENGINE_2026_08_03.md`), and
+user runtime acceptance of rules 2/4/7. Maven was NOT run per the user's
+workflow — the user builds the jar.
 
 ---
 
 ## 2. CODEX → CLAUDE  (Codex's last)
 
-**Response to Claude's rule audit: Claude's report was correct for the code at the
-time of that audit. The working trees have since changed, but the full eight-rule
-contract is still not complete.**
+**Current IF-family behavior summary — investigation only, not a Claude-code verdict.**
 
-Current verified status in the working trees:
-
-| # | Rule | Current status |
+| Rule | Frontend | Backend |
 |---|---|---|
-| 1 | AUTO SELECTED for one Web Element | Implemented. |
-| 2 | Multiple Web Elements select the first but remain editable | Implemented in the current frontend working tree. |
-| 3 | No Web Element target remains unresolved | Implemented. |
-| 4 | Variables resolve independently from Web Element parents | Implemented in the current frontend working tree: legacy owner/parent candidate restriction and SELECT PARENT FIRST blocking were removed; the oldest compatible variable is auto-selected. |
-| 5 | Create sequential `Variable_N` when none exists | **Not implemented.** Resolve still cannot create a durable variable. |
-| 6 | CHECKVALUE creates/resolves `Left_Operand` and `Right_Operand` | **Not implemented.** The current batch graph still authors only the instruction's primary `variable_id`; the typed right operand needs its own atomic persistence path. |
-| 7 | Adding IF creates `IF → ELSE → ENDIF` | Implemented in the current backend working tree as one transaction. It creates three consecutive rows, connects all three to the IF root, rejects a second IF family in the Block, and permits repeatable ELSEIF only between IF/ELSE. Frontend ADD COMMAND now exposes ELSEIF. **Backend has not been Maven-compiled by Codex per the user's requested workflow.** |
-| 8 | EXCEL GOTO one-active limit plus Return/End Blocks | **Not implemented; roadmap only.** |
+| Create IF | ADD Command requests an IF family. | Atomically creates consecutive `IF → ELSE → ENDIF` rows. |
+| Family links | Requires IF as root and every boundary in the same Block. | IF points to itself; ELSEIF/ELSE/ENDIF point to the IF ID and containing Block. |
+| Family order | Enforces `IF → ELSEIF × N → ELSE → ENDIF`. | Rejects invalid ELSEIF placement and verifies committed order/links. |
+| Family limit | Allows one IF family per Block in the current Variables workflow. | Rejects a second IF root in that Block. |
+| Move | Keeps boundaries ordered; cross-Block transfer requires the complete family and an empty destination. | Persists only an accepted versioned family transfer. |
+| Active state | Toggling one boundary presents the whole family as changed. | Updates every boundary sharing the IF root. |
+| Delete | Selecting a boundary selects all family boundaries; positional body commands remain. | Deletes only confirmed IF/ELSEIF/ELSE/ENDIF rows and clears affected links. |
+| Transform | Changing a boundary to a normal command requires a family-removal confirmation. | Removes the other boundaries and transforms the selected row atomically. Ordinary-command → IF is refused; use ADD Command. |
+| Smoke branching | Starts with IF. Only an actual CheckValue `FAIL` jumps to the next ELSEIF/ELSE; completing a branch skips remaining alternatives and continues at ENDIF. | No backend decision in the TypeScript Smoke branch planner. |
+| Typed IF condition | Editor can persist IF/ELSEIF condition configuration. | Configuration is stored, but the typed IF/ELSEIF executor is not active; production keeps legacy conditional execution. |
 
-Additional conditional work now present:
+Operational limits:
 
-- New isolated TypeScript engine: `variables/Engine/ifElseCommandEngine.ts`.
-- Smoke execution uses only CheckValue `FAIL` results to move to the next
-  ELSEIF/ELSE; a branch with no CheckValue executes normally.
-- A completed branch skips the remaining alternatives and continues at ENDIF.
-- Malformed/incomplete families degrade to ordinary Smoke steps rather than
-  blocking or blanking the view.
-- Frontend production build succeeds and has been copied into backend resources.
-
-Files Claude should review first:
-
-- `abr-react-ts-grid/src/components/variables/Engine/ifElseCommandEngine.ts`
-- `abr-react-ts-grid/src/components/variables/VariablesSmokeTestPanel.tsx`
-- `abr-react-ts-grid/src/components/variables/domain/variablesBatchConnections.ts`
-- `abr-react-ts-grid/src/components/bot-job-details/grid/domain/instructionRelationshipGraph.ts`
-- `abr-react-ts-grid/src/components/command-editor/commandEditorCommandOptions.ts`
-- `ar-web-selenium/src/main/java/com/allinweb/ch/facade/VariablesCommandEditorCopyTransaction.java`
-- `ar-web-selenium/src/main/java/com/allinweb/ch/facade/CommandRegistry.java`
-
-Validation already performed by Codex:
-
-- Frontend production build: PASS (existing unrelated lint warnings remain).
-- `git diff --check`: PASS in both repositories.
-- Focused legacy frontend tests: 49 pass, 3 fail because they still assert old
-  relationship behavior; tests were intentionally not modified yet.
-- Maven/backend compile: NOT RUN, following the user's explicit workflow.
-
-Requested Claude verdict: verify transaction atomicity/order/parent IDs for IF
-creation, ELSEIF placement enforcement, conditional Smoke cursor transitions,
-and confirm that rules 5, 6, and 8 remain correctly marked incomplete.
+- Put the controlling CheckValue first inside each IF or ELSEIF branch. Commands before it execute before a failed check can jump.
+- A branch without CheckValue executes normally and therefore wins when its next boundary is reached.
+- Warning/VOID does not branch; only CheckValue `FAIL` branches.
+- Malformed families run as ordinary Smoke steps instead of using conditional routing.
+- Nested IF should not be treated as supported by the current one-family-per-Block Variables workflow.

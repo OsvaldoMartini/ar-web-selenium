@@ -280,13 +280,15 @@ public final class VariablesCommandEditorCopyTransaction {
             throw refused("COMMAND_COPY_PLACEMENT_REQUIRED", "Select Top, End, or After for COPY NEW.");
         }
         List<InstructionRow> targetRows = rowsFor(graph, request.targetBlockId());
-        if (createBlank && "IF".equals(targetAction)
-                && targetRows.stream().anyMatch(row -> "IF".equals(
-                        CommandRegistry.canonicalize(row.actionsText())))) {
-            throw refused(
-                    "COMMAND_COPY_CONDITIONAL_ROOT_EXISTS",
-                    "This Block already contains its IF family.");
-        }
+        // PARKED 2026-08-03 (FE owns IF-family rules — ifFamilyRules.ts): React refuses a second
+        // IF root per Block before submitting. Java persists what React submits.
+        // if (createBlank && "IF".equals(targetAction)
+        //         && targetRows.stream().anyMatch(row -> "IF".equals(
+        //                 CommandRegistry.canonicalize(row.actionsText())))) {
+        //     throw refused(
+        //             "COMMAND_COPY_CONDITIONAL_ROOT_EXISTS",
+        //             "This Block already contains its IF family.");
+        // }
         int index;
         if (placement.kind() == PlacementKind.TOP) index = 0;
         else if (placement.kind() == PlacementKind.END) index = targetRows.size();
@@ -298,21 +300,24 @@ public final class VariablesCommandEditorCopyTransaction {
             index = targetRows.indexOf(reference) + 1;
             if (index <= 0) throw refused("COMMAND_COPY_REFERENCE_INVALID", "The placement reference is invalid.");
         }
-        if (createBlank && "ELSEIF".equals(targetAction)) {
-            int rootIndex = firstActionIndex(targetRows, "IF");
-            int elseIndex = firstActionIndex(targetRows, "ELSE");
-            int endifIndex = firstActionIndex(targetRows, "ENDIF");
-            if (rootIndex < 0 || elseIndex < 0 || endifIndex < 0 || elseIndex >= endifIndex) {
-                throw refused(
-                        "COMMAND_COPY_CONDITIONAL_FAMILY_MISSING",
-                        "Add ELSEIF only to a complete IF, ELSE, and ENDIF family.");
-            }
-            if (index <= rootIndex || index > elseIndex) {
-                throw refused(
-                        "COMMAND_COPY_ELSEIF_PLACEMENT_INVALID",
-                        "Place ELSEIF after IF or another ELSEIF and before ELSE.");
-            }
-        }
+        // PARKED 2026-08-03 (FE owns IF-family rules — ifFamilyRules.ts): ELSEIF family-complete
+        // and placement rules are enforced by React before submitting. Persistence still needs an
+        // IF root to wire parent_id — conditionalRootId() below keeps that as its own failure.
+        // if (createBlank && "ELSEIF".equals(targetAction)) {
+        //     int rootIndex = firstActionIndex(targetRows, "IF");
+        //     int elseIndex = firstActionIndex(targetRows, "ELSE");
+        //     int endifIndex = firstActionIndex(targetRows, "ENDIF");
+        //     if (rootIndex < 0 || elseIndex < 0 || endifIndex < 0 || elseIndex >= endifIndex) {
+        //         throw refused(
+        //                 "COMMAND_COPY_CONDITIONAL_FAMILY_MISSING",
+        //                 "Add ELSEIF only to a complete IF, ELSE, and ENDIF family.");
+        //     }
+        //     if (index <= rootIndex || index > elseIndex) {
+        //         throw refused(
+        //                 "COMMAND_COPY_ELSEIF_PLACEMENT_INVALID",
+        //                 "Place ELSEIF after IF or another ELSEIF and before ELSE.");
+        //     }
+        // }
         return new Plan(
                 source, request.targetBlockId(), configuration, targetRows, index, index + 1,
                 targetAction, commandChanged, createBlank);
@@ -342,8 +347,11 @@ public final class VariablesCommandEditorCopyTransaction {
                 || configuration.kind() == ConfigurationKind.GOTO && !"GOTO".equals(action)
                 || configuration.kind() == ConfigurationKind.SWIPE
                         && !Set.of("SWIPE_UP", "SWIPE_DOWN").contains(action)
-                || configuration.kind() == ConfigurationKind.CONDITIONAL
-                        && !Set.of("IF", "ELSEIF").contains(action)) {
+                // PARKED 2026-08-03 (FE owns IF-family rules): CONDITIONAL kind/action match is
+                // authored by React.
+                // || configuration.kind() == ConfigurationKind.CONDITIONAL
+                //         && !Set.of("IF", "ELSEIF").contains(action)
+        ) {
             throw refused("COMMAND_COPY_CONFIGURATION_MISMATCH", "The submitted configuration does not match the command.");
         }
         if (configuration.kind() == ConfigurationKind.WAIT) {
@@ -361,9 +369,14 @@ public final class VariablesCommandEditorCopyTransaction {
         } else if (configuration.kind() == ConfigurationKind.GOTO
                 || configuration.kind() == ConfigurationKind.SWIPE) {
             requireEditorInteger(configuration.count(), "Repetition count");
-        } else if (configuration.kind() == ConfigurationKind.CONDITIONAL) {
-            requireConditional(graph, configuration);
         }
+        // PARKED 2026-08-03 (FE owns IF-family rules): the IF/ELSEIF condition content is
+        // validated by React; Java persists the authored configuration verbatim instead of
+        // stripping its variable references.
+        // else if (configuration.kind() == ConfigurationKind.CONDITIONAL) {
+        //     requireConditional(graph, configuration);
+        // }
+        if (configuration.kind() == ConfigurationKind.CONDITIONAL) return configuration;
         return configuration.withoutVariableReferences();
     }
 

@@ -164,55 +164,54 @@ public final class VariablesCommandEditorUpdateTransaction {
                     "COMMAND_UPDATE_TARGET_ACTION_INVALID",
                     "The selected target command is not supported by the Command Editor.");
         }
-        if (commandChanged && CONDITIONAL_BOUNDARIES.contains(targetAction)) {
-            throw refused(
-                    "COMMAND_UPDATE_CONDITIONAL_TARGET_REQUIRES_ADD",
-                    "Use ADD Command to create IF or ELSEIF so its complete family is generated.");
-        }
+        // PARKED 2026-08-03 (FE owns IF-family rules): React does not offer transforming a command
+        // into an IF-family boundary; the refusal moved to the client.
+        // if (commandChanged && CONDITIONAL_BOUNDARIES.contains(targetAction)) {
+        //     throw refused(
+        //             "COMMAND_UPDATE_CONDITIONAL_TARGET_REQUIRES_ADD",
+        //             "Use ADD Command to create IF or ELSEIF so its complete family is generated.");
+        // }
         Configuration configuration = requireConfiguration(
                 graph, targetAction, request.configuration());
         Placement placement = request.placement();
         if (placement == null || placement.kind() == null) {
             throw refused("COMMAND_UPDATE_PLACEMENT_REQUIRED", "Select a command placement.");
         }
-        if (!commandChanged && CONDITIONAL_BOUNDARIES.contains(sourceAction)
-                && (request.targetBlockId() != source.blockId()
-                        || placement.kind() != PlacementKind.KEEP)) {
-            throw refused(
-                    "COMMAND_UPDATE_CONDITIONAL_FAMILY_TRANSFER_REQUIRED",
-                    "Keep an IF-family boundary in its current position, or transfer the complete family together.");
-        }
+        // PARKED 2026-08-03 (FE owns IF-family rules): the Command Editor locks a boundary's
+        // placement to KEEP unless it is being transformed (ComponentEditorModal position lock).
+        // if (!commandChanged && CONDITIONAL_BOUNDARIES.contains(sourceAction)
+        //         && (request.targetBlockId() != source.blockId()
+        //                 || placement.kind() != PlacementKind.KEEP)) {
+        //     throw refused(
+        //             "COMMAND_UPDATE_CONDITIONAL_FAMILY_TRANSFER_REQUIRED",
+        //             "Keep an IF-family boundary in its current position, or transfer the complete family together.");
+        // }
 
-        List<Integer> expectedConditionalFamilyDeleteIds = commandChanged
-                && CONDITIONAL_BOUNDARIES.contains(sourceAction)
-                ? expectedConditionalFamilyDeleteIds(graph, source)
-                : List.of();
+        // PARKED 2026-08-03 (FE owns IF-family rules): the dissolve scope is authored and
+        // confirmed by React (commandEditorConditionalFamilyImpact.ts + warning modal). Java no
+        // longer recomputes or cross-checks it — it persists the submitted boundary list.
+        // Persistence still rolls back when a submitted row no longer exists
+        // (VariablesConditionalFamilyDissolvePersistence.deleteBoundary).
         List<Integer> submittedConditionalFamilyDeleteIds =
-                submittedConditionalFamilyDeleteIds(request, graph, source);
+                submittedConditionalFamilyDeleteIds(request, source);
         boolean conditionalFamilyDissolve = commandChanged
                 && CONDITIONAL_BOUNDARIES.contains(sourceAction);
-        if (conditionalFamilyDissolve) {
-            if (!Boolean.TRUE.equals(request.allowConditionalFamilyDissolve())) {
-                throw refused(
-                        "COMMAND_UPDATE_CONDITIONAL_CONFIRMATION_REQUIRED",
-                        "Confirm removal of the remaining IF-family boundaries.");
-            }
-            if (submittedConditionalFamilyDeleteIds.size()
-                            != expectedConditionalFamilyDeleteIds.size()
-                    || !new LinkedHashSet<>(submittedConditionalFamilyDeleteIds)
-                            .equals(new LinkedHashSet<>(expectedConditionalFamilyDeleteIds))) {
-                throw refused(
-                        "COMMAND_UPDATE_CONDITIONAL_SCOPE_CHANGED",
-                        "The IF-family boundaries changed before the command update.");
-            }
-        } else if (Boolean.TRUE.equals(request.allowConditionalFamilyDissolve())
-                || !submittedConditionalFamilyDeleteIds.isEmpty()) {
-            throw refused(
-                    "COMMAND_UPDATE_CONDITIONAL_SCOPE_UNEXPECTED",
-                    "IF-family removal is not valid for this command update.");
-        }
+        // if (conditionalFamilyDissolve) {
+        //     if (!Boolean.TRUE.equals(request.allowConditionalFamilyDissolve())) {
+        //         throw refused(
+        //                 "COMMAND_UPDATE_CONDITIONAL_CONFIRMATION_REQUIRED",
+        //                 "Confirm removal of the remaining IF-family boundaries.");
+        //     }
+        //     ... expected-vs-submitted scope comparison removed with the parked
+        //     expectedConditionalFamilyDeleteIds computation below ...
+        // } else if (Boolean.TRUE.equals(request.allowConditionalFamilyDissolve())
+        //         || !submittedConditionalFamilyDeleteIds.isEmpty()) {
+        //     throw refused(
+        //             "COMMAND_UPDATE_CONDITIONAL_SCOPE_UNEXPECTED",
+        //             "IF-family removal is not valid for this command update.");
+        // }
         List<Integer> conditionalFamilyDeleteIds = conditionalFamilyDissolve
-                ? expectedConditionalFamilyDeleteIds
+                ? submittedConditionalFamilyDeleteIds
                 : List.of();
         LinkedHashSet<Integer> sourceExclusions =
                 new LinkedHashSet<>(conditionalFamilyDeleteIds);
@@ -264,6 +263,12 @@ public final class VariablesCommandEditorUpdateTransaction {
                 conditionalFamilyDeleteIds);
     }
 
+    /**
+     * PARKED 2026-08-03 (FE owns IF-family rules): no longer called. React authors the dissolve
+     * scope (commandEditorConditionalFamilyImpact.ts) and Java persists it. Kept for reference
+     * until the FE-owned contract is user-accepted.
+     */
+    @SuppressWarnings("unused")
     private static List<Integer> expectedConditionalFamilyDeleteIds(
             Graph graph,
             InstructionRow source)
@@ -337,31 +342,24 @@ public final class VariablesCommandEditorUpdateTransaction {
         return !boundaries.isEmpty();
     }
 
+    /**
+     * PARKED 2026-08-03 (FE owns IF-family rules): the former per-id business validation
+     * (boundary action, same-block, exactly-once refusals) moved to React. Java keeps only
+     * persistence-grade sanitation — drop nulls, non-positive ids, duplicates, and the source
+     * row itself, then trust the authored list.
+     */
     private static List<Integer> submittedConditionalFamilyDeleteIds(
             VariablesCommandEditorUpdateV1.Request request,
-            Graph graph,
-            InstructionRow source)
-            throws MutationRefusedException {
+            InstructionRow source) {
         List<Integer> submitted = request.conditionalFamilyDeleteIds() == null
                 ? List.of()
                 : request.conditionalFamilyDeleteIds();
         LinkedHashSet<Integer> unique = new LinkedHashSet<>();
         for (Integer instructionId : submitted) {
-            InstructionRow boundary = instructionId == null
-                    ? null
-                    : graph.instructions().get(instructionId);
-            if (instructionId == null
-                    || instructionId <= 0
-                    || instructionId == source.id()
-                    || boundary == null
-                    || boundary.blockId() != source.blockId()
-                    || !CONDITIONAL_BOUNDARIES.contains(
-                            CommandRegistry.canonicalize(boundary.action()))
-                    || !unique.add(instructionId)) {
-                throw refused(
-                        "COMMAND_UPDATE_CONDITIONAL_SCOPE_INVALID",
-                        "Submit each current IF-family boundary exactly once.");
+            if (instructionId == null || instructionId <= 0 || instructionId == source.id()) {
+                continue;
             }
+            unique.add(instructionId);
         }
         return List.copyOf(unique);
     }
@@ -390,8 +388,11 @@ public final class VariablesCommandEditorUpdateTransaction {
                 || configuration.kind() == ConfigurationKind.GOTO && !"GOTO".equals(action)
                 || configuration.kind() == ConfigurationKind.SWIPE
                         && !Set.of("SWIPE_UP", "SWIPE_DOWN").contains(action)
-                || configuration.kind() == ConfigurationKind.CONDITIONAL
-                        && !Set.of("IF", "ELSEIF").contains(action)) {
+                // PARKED 2026-08-03 (FE owns IF-family rules): CONDITIONAL kind/action match is
+                // authored by React.
+                // || configuration.kind() == ConfigurationKind.CONDITIONAL
+                //         && !Set.of("IF", "ELSEIF").contains(action)
+        ) {
             throw refused("COMMAND_UPDATE_CONFIGURATION_MISMATCH", "The submitted configuration does not match the selected command.");
         }
         if (configuration.kind() == ConfigurationKind.WAIT) {
@@ -409,9 +410,12 @@ public final class VariablesCommandEditorUpdateTransaction {
         } else if (configuration.kind() == ConfigurationKind.GOTO
                 || configuration.kind() == ConfigurationKind.SWIPE) {
             requireEditorInteger(configuration.count(), "Repetition count");
-        } else if (configuration.kind() == ConfigurationKind.CONDITIONAL) {
-            requireConditional(graph, configuration);
         }
+        // PARKED 2026-08-03 (FE owns IF-family rules): the IF/ELSEIF condition content is
+        // validated by React; Java persists the authored configuration verbatim.
+        // else if (configuration.kind() == ConfigurationKind.CONDITIONAL) {
+        //     requireConditional(graph, configuration);
+        // }
         return configuration;
     }
 
