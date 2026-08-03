@@ -234,6 +234,28 @@ Memory List pattern), reusing the existing `onDragEnd(result)` and its preview-m
       (node_modules still physically holds rbd — npm ERESOLVE blocked the uninstall; harmless, pruned by
       a future `npm install`.) Build succeeds; grid + dragMessages 46/46.
 
+### 2026-08-03 — GridItem IF-family drag recovery anchor
+
+**Current user-reported recovery anchor: FE `0ea177e`**
+(`CODEX: restore GridItem IF drag ROW_MOVE transport`).
+
+The first GridItem IF-family free-move implementation (`0d1b609`) kept the correct React family
+ordering rules but routed accepted boundary moves through optional
+`botJobGraphMutationV3`. A runtime that did not advertise that capability blocked the gesture before
+sending a move — the same frontend-gating failure class previously removed by `e48e5df`.
+
+`0ea177e` keeps the IF-family planner (one selected boundary, body rows independent, same Block,
+`IF -> ELSEIF(s) -> ELSE -> ENDIF`) and restores the established version-2 `ROW_MOVE` transport.
+Focused regression coverage proves the IF move is sent when `botJobGraphMutationV3` is absent.
+Production bundle: `main.0a3f8bea.js`.
+
+If GridItem drag breaks again, do not reset the whole branch. Compare or restore only:
+
+- `src/components/bot-job-details/grid/hooks/useGridData.ts`
+- `src/components/GridItem.dragMessages.test.tsx`
+
+against FE `0ea177e`, then run the GridItem drag-message and instruction-free-move suites.
+
 ### Phase 8 — Block-level drag & drop + unified BLOCK_MOVE (2026-07-24)
 - [x] `BlockCard` block drag & drop (see Phase-5 entry): drag a block header, drop on another block.
 - [x] **Unified block reordering to ONE code path.** `handleMoveBlockUp`/`handleMoveBlockDown` (the
