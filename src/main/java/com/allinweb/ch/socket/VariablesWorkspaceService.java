@@ -102,6 +102,9 @@ public final class VariablesWorkspaceService {
             VariablesCommandDeleteService.getInstance();
     private static final VariablesInstructionStatusService COMMAND_STATUSES =
             VariablesInstructionStatusService.getInstance();
+    private static final com.allinweb.ch.facade.VariablesCheckOperandConnectService
+            CHECK_OPERAND_CONNECTS =
+                    com.allinweb.ch.facade.VariablesCheckOperandConnectService.getInstance();
 
     private static final VariablesWorkspaceService INSTANCE =
             new VariablesWorkspaceService(
@@ -1136,6 +1139,97 @@ public final class VariablesWorkspaceService {
                     "COMMAND_DELETE_FAILED",
                     "Command deletion was not completed.",
                     current == null ? currentBinding() : current);
+        }
+    }
+
+    /**
+     * NEW variable rules step 1 (2026-08-03): connects the React-authored
+     * Right_Operand variable into the RIGHT spot of the submitted CheckValue
+     * commands. Free spots only; occupied spots are skipped, never overwritten.
+     */
+    public JsonObject connectCheckOperand(
+            JsonObject body, String requesterSessionId, Session requesterTransport) {
+        JsonObject request = body == null ? new JsonObject() : body;
+        Binding current = null;
+        try {
+            requireManagerTransport(requesterSessionId, requesterTransport);
+            current = currentBinding();
+            if (current == null) {
+                throw new IllegalArgumentException(
+                        "No Bot Job is bound to the Variables workspace.");
+            }
+            String requestedBindingEpoch = text(request, "bindingEpoch");
+            if (requestedBindingEpoch.isBlank()
+                    || !requestedBindingEpoch.equals(current.bindingEpoch())) {
+                throw new IllegalArgumentException(
+                        "The Variables target changed. Reload the current Bot Job.");
+            }
+            WorkspaceContext workspace =
+                    workspaces.require(current.botJobId(), current.workspaceEpoch());
+            current = current.withWorkspace(workspace);
+            com.allinweb.ch.model.VariablesCheckOperandConnectV1.Request connectRequest;
+            try {
+                connectRequest = gson.fromJson(
+                        request, com.allinweb.ch.model.VariablesCheckOperandConnectV1.Request.class);
+            } catch (RuntimeException malformed) {
+                throw new IllegalArgumentException(
+                        "The CheckValue operand-connect request is malformed.");
+            }
+            if (connectRequest == null) {
+                throw new IllegalArgumentException(
+                        "A CheckValue operand-connect request is required.");
+            }
+            Binding authorized = current;
+            com.allinweb.ch.facade.VariablesCheckOperandConnectTransaction.ConnectResult committed =
+                    BotJobDetailsWorkspaceRegistry.getInstance().commitWorkspaceMutation(
+                            authorized.botJobId(),
+                            authorized.workspaceEpoch(),
+                            () -> persistCheckOperandConnect(authorized, connectRequest));
+            JsonObject response = mutationResponseBase(request, authorized);
+            response.addProperty("contractVersion",
+                    com.allinweb.ch.model.VariablesCheckOperandConnectV1.CONTRACT_VERSION);
+            response.addProperty("ok", true);
+            response.addProperty("committed", true);
+            response.addProperty("resyncRequired", false);
+            response.addProperty("rightVariableId", committed.rightVariableId());
+            response.addProperty("connectedCount", committed.connectedCount());
+            response.addProperty("skippedCount", committed.skippedCount());
+            response.addProperty("message", committed.connectedCount() > 0
+                    ? "Right operand connected to " + committed.connectedCount()
+                            + " CheckValue command(s)."
+                    : "Every CheckValue right spot was already occupied.");
+            return response;
+        } catch (CheckOperandPersistenceException persistenceFailure) {
+            Throwable cause = persistenceFailure.getCause();
+            if (cause instanceof MutationRefusedException refused) {
+                return mutationFailure(request, refused.code(), refused.getMessage(), current);
+            }
+            log.error("Unable to persist the CheckValue operand connection", cause);
+            return mutationFailure(request, "CHECK_OPERAND_PERSISTENCE_FAILED",
+                    "The right operand was not connected.", current);
+        } catch (IllegalArgumentException | IllegalStateException refused) {
+            return mutationFailure(request, "CHECK_OPERAND_REQUEST_REFUSED",
+                    refused.getMessage(), current == null ? currentBinding() : current);
+        } catch (RuntimeException failure) {
+            log.error("Unable to process the CheckValue operand connection", failure);
+            return mutationFailure(request, "CHECK_OPERAND_FAILED",
+                    "The operand connection was not completed.",
+                    current == null ? currentBinding() : current);
+        }
+    }
+
+    private com.allinweb.ch.facade.VariablesCheckOperandConnectTransaction.ConnectResult
+            persistCheckOperandConnect(
+                    Binding authorized,
+                    com.allinweb.ch.model.VariablesCheckOperandConnectV1.Request request) {
+        try {
+            return CHECK_OPERAND_CONNECTS.connect(
+                    authorized.homeBankingId(),
+                    authorized.botJobId(),
+                    authorized.workspaceEpoch(),
+                    request);
+        } catch (SQLException error) {
+            throw new CheckOperandPersistenceException(error);
         }
     }
 
@@ -2787,6 +2881,12 @@ public final class VariablesWorkspaceService {
 
     private static final class MutationPersistenceException extends RuntimeException {
         private MutationPersistenceException(SQLException cause) {
+            super(cause);
+        }
+    }
+
+    private static final class CheckOperandPersistenceException extends RuntimeException {
+        private CheckOperandPersistenceException(SQLException cause) {
             super(cause);
         }
     }

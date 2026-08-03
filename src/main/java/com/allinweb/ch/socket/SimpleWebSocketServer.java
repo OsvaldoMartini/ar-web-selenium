@@ -129,6 +129,7 @@ public class SimpleWebSocketServer {
             "variablesWorkspace.commands.delete",
             "variablesWorkspace.commands.status",
             "variablesWorkspace.variables.delete",
+            "variablesWorkspace.checkOperand.connect",
             "pagesOpen.open",
             "pagesOpen.summary");
     private static final ScannerPluginDownloadCommandService scannerPluginDownloadCommandService =
@@ -1043,6 +1044,21 @@ public class SimpleWebSocketServer {
                     } finally {
                         variablesWorkspaceService.publishCommittedMutation(
                                 deletionResponse);
+                    }
+                    break;
+                }
+                case "variablesWorkspace.checkOperand.connect": {
+                    JsonObject variablesBody = extractBody(jsonObjMSG);
+                    JsonObject connectResponse = variablesWorkspaceService.connectCheckOperand(
+                            variablesBody, sessionId, session);
+                    try {
+                        sendCommandEditorResponse(
+                                homeBankingId,
+                                sessionId,
+                                "variablesWorkspace.checkOperand.connectResponse",
+                                connectResponse);
+                    } finally {
+                        variablesWorkspaceService.publishCommittedMutation(connectResponse);
                     }
                     break;
                 }
