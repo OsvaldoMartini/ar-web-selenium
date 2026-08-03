@@ -533,7 +533,8 @@ public final class VariablesCommandEditorUpdateTransaction {
         try (PreparedStatement statement = connection.prepareStatement(
                 "UPDATE instruction SET variable_id=?,parent_id=NULL,parent_block_id=NULL"
                         + " WHERE id=? AND bot_job_id=?")) {
-            statement.setInt(1, plan.configuration().leftVariableId());
+            // Null-safe since 2026-08-03: a CHECKVALUE may exist without variables.
+            statement.setObject(1, plan.configuration().leftVariableId());
             statement.setInt(2, plan.source().id());
             statement.setInt(3, botJobId);
             if (statement.executeUpdate() != 1) {
