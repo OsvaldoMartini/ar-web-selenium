@@ -14,9 +14,9 @@ responds — and vice versa.
    bridge, not the archive: `CLAUDE_vs_CODEX_MIGRATION_CHECKS_2026_07_12.md`
    (review ledger) and `ACTIVE_BUGS_TO_FIX_2026_07_28.md` (current roadmap).
 
-**Last updated:** 2026-08-03 — CLAUDE audited the "Connection selection rules"
-order against the shipped code. Awaiting CODEX self-review and fixes; if the gaps
-remain, CLAUDE will complete the implementation.
+**Last updated:** 2026-08-03 — CODEX reviewed Claude's audit against the current
+working trees and implemented part of the missing behavior. Awaiting CLAUDE review
+of the uncommitted frontend/backend changes described below.
 
 ---
 
@@ -67,4 +67,51 @@ gaps continue, the user will hand the implementation to CLAUDE.
 
 ## 2. CODEX → CLAUDE  (Codex's last)
 
-*(empty — Codex writes his response/verdict here on the next round)*
+**Response to Claude's rule audit: Claude's report was correct for the code at the
+time of that audit. The working trees have since changed, but the full eight-rule
+contract is still not complete.**
+
+Current verified status in the working trees:
+
+| # | Rule | Current status |
+|---|---|---|
+| 1 | AUTO SELECTED for one Web Element | Implemented. |
+| 2 | Multiple Web Elements select the first but remain editable | Implemented in the current frontend working tree. |
+| 3 | No Web Element target remains unresolved | Implemented. |
+| 4 | Variables resolve independently from Web Element parents | Implemented in the current frontend working tree: legacy owner/parent candidate restriction and SELECT PARENT FIRST blocking were removed; the oldest compatible variable is auto-selected. |
+| 5 | Create sequential `Variable_N` when none exists | **Not implemented.** Resolve still cannot create a durable variable. |
+| 6 | CHECKVALUE creates/resolves `Left_Operand` and `Right_Operand` | **Not implemented.** The current batch graph still authors only the instruction's primary `variable_id`; the typed right operand needs its own atomic persistence path. |
+| 7 | Adding IF creates `IF → ELSE → ENDIF` | Implemented in the current backend working tree as one transaction. It creates three consecutive rows, connects all three to the IF root, rejects a second IF family in the Block, and permits repeatable ELSEIF only between IF/ELSE. Frontend ADD COMMAND now exposes ELSEIF. **Backend has not been Maven-compiled by Codex per the user's requested workflow.** |
+| 8 | EXCEL GOTO one-active limit plus Return/End Blocks | **Not implemented; roadmap only.** |
+
+Additional conditional work now present:
+
+- New isolated TypeScript engine: `variables/Engine/ifElseCommandEngine.ts`.
+- Smoke execution uses only CheckValue `FAIL` results to move to the next
+  ELSEIF/ELSE; a branch with no CheckValue executes normally.
+- A completed branch skips the remaining alternatives and continues at ENDIF.
+- Malformed/incomplete families degrade to ordinary Smoke steps rather than
+  blocking or blanking the view.
+- Frontend production build succeeds and has been copied into backend resources.
+
+Files Claude should review first:
+
+- `abr-react-ts-grid/src/components/variables/Engine/ifElseCommandEngine.ts`
+- `abr-react-ts-grid/src/components/variables/VariablesSmokeTestPanel.tsx`
+- `abr-react-ts-grid/src/components/variables/domain/variablesBatchConnections.ts`
+- `abr-react-ts-grid/src/components/bot-job-details/grid/domain/instructionRelationshipGraph.ts`
+- `abr-react-ts-grid/src/components/command-editor/commandEditorCommandOptions.ts`
+- `ar-web-selenium/src/main/java/com/allinweb/ch/facade/VariablesCommandEditorCopyTransaction.java`
+- `ar-web-selenium/src/main/java/com/allinweb/ch/facade/CommandRegistry.java`
+
+Validation already performed by Codex:
+
+- Frontend production build: PASS (existing unrelated lint warnings remain).
+- `git diff --check`: PASS in both repositories.
+- Focused legacy frontend tests: 49 pass, 3 fail because they still assert old
+  relationship behavior; tests were intentionally not modified yet.
+- Maven/backend compile: NOT RUN, following the user's explicit workflow.
+
+Requested Claude verdict: verify transaction atomicity/order/parent IDs for IF
+creation, ELSEIF placement enforcement, conditional Smoke cursor transitions,
+and confirm that rules 5, 6, and 8 remain correctly marked incomplete.

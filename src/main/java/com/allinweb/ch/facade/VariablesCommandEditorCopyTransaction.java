@@ -153,6 +153,9 @@ public final class VariablesCommandEditorCopyTransaction {
             Graph before = loadGraph(connection, owner.owner(), state);
             Plan plan = validateAndPlan(owner, request, before);
             offsetTargetOrders(connection, owner.owner().ownerId(), plan.targetBlockId());
+            boolean conditionalFamily = plan.createBlank() && "IF".equals(plan.targetAction());
+            boolean conditionalElseIf = plan.createBlank() && "ELSEIF".equals(plan.targetAction());
+            ArrayList<Integer> generatedIds = new ArrayList<>();
             int generatedId = plan.createBlank()
                     ? commandCreateInsert.insert(
                             connection,
@@ -162,6 +165,25 @@ public final class VariablesCommandEditorCopyTransaction {
                             plan.targetAction(),
                             plan.configuration())
                     : insertCopy(connection, owner.owner().ownerId(), plan.source(), plan);
+            generatedIds.add(generatedId);
+            if (conditionalElseIf) {
+                connectConditionalBoundary(
+                        connection, owner.owner().ownerId(), plan.targetBlockId(),
+                        generatedId, conditionalRootId(plan));
+            }
+            if (conditionalFamily) {
+                int elseId = commandCreateInsert.insert(
+                        connection, owner.owner().ownerId(), plan.targetBlockId(),
+                        plan.finalOrder() + 1, "ELSE", plan.configuration());
+                int endifId = commandCreateInsert.insert(
+                        connection, owner.owner().ownerId(), plan.targetBlockId(),
+                        plan.finalOrder() + 2, "ENDIF", plan.configuration());
+                generatedIds.add(elseId);
+                generatedIds.add(endifId);
+                connectConditionalFamily(
+                        connection, owner.owner().ownerId(), plan.targetBlockId(),
+                        generatedId, generatedIds);
+            }
             if (isTypedVariableConfiguration(plan.configuration().kind())) {
                 commandConfigurations.upsert(
                         connection,
@@ -172,7 +194,7 @@ public final class VariablesCommandEditorCopyTransaction {
                         plan.configuration());
             }
             restoreTargetOrders(
-                    connection, owner.owner().ownerId(), generatedId, plan);
+                    connection, owner.owner().ownerId(), generatedIds, plan);
 
             AdvanceResult advance = stateRepository.compareAndSetIncrement(
                     connection, owner.owner(), request.baseGraphVersion());
@@ -184,7 +206,9 @@ public final class VariablesCommandEditorCopyTransaction {
                         "The Variables graph changed before command copy completed.");
             }
             Graph after = loadGraph(connection, owner.owner(), advance.state());
-            verify(plan, generatedId, before, after);
+            if (conditionalFamily) verifyConditionalFamily(plan, generatedIds, after);
+            else if (conditionalElseIf) verifyConditionalElseIf(plan, generatedId, after);
+            else verify(plan, generatedId, before, after);
             verifyTypedConfiguration(
                     connection,
                     owner.owner().homeBankingId(),
@@ -256,6 +280,13 @@ public final class VariablesCommandEditorCopyTransaction {
             throw refused("COMMAND_COPY_PLACEMENT_REQUIRED", "Select Top, End, or After for COPY NEW.");
         }
         List<InstructionRow> targetRows = rowsFor(graph, request.targetBlockId());
+        if (createBlank && "IF".equals(targetAction)
+                && targetRows.stream().anyMatch(row -> "IF".equals(
+                        CommandRegistry.canonicalize(row.actionsText())))) {
+            throw refused(
+                    "COMMAND_COPY_CONDITIONAL_ROOT_EXISTS",
+                    "This Block already contains its IF family.");
+        }
         int index;
         if (placement.kind() == PlacementKind.TOP) index = 0;
         else if (placement.kind() == PlacementKind.END) index = targetRows.size();
@@ -266,6 +297,21 @@ public final class VariablesCommandEditorCopyTransaction {
             }
             index = targetRows.indexOf(reference) + 1;
             if (index <= 0) throw refused("COMMAND_COPY_REFERENCE_INVALID", "The placement reference is invalid.");
+        }
+        if (createBlank && "ELSEIF".equals(targetAction)) {
+            int rootIndex = firstActionIndex(targetRows, "IF");
+            int elseIndex = firstActionIndex(targetRows, "ELSE");
+            int endifIndex = firstActionIndex(targetRows, "ENDIF");
+            if (rootIndex < 0 || elseIndex < 0 || endifIndex < 0 || elseIndex >= endifIndex) {
+                throw refused(
+                        "COMMAND_COPY_CONDITIONAL_FAMILY_MISSING",
+                        "Add ELSEIF only to a complete IF, ELSE, and ENDIF family.");
+            }
+            if (index <= rootIndex || index > elseIndex) {
+                throw refused(
+                        "COMMAND_COPY_ELSEIF_PLACEMENT_INVALID",
+                        "Place ELSEIF after IF or another ELSEIF and before ELSE.");
+            }
         }
         return new Plan(
                 source, request.targetBlockId(), configuration, targetRows, index, index + 1,
@@ -378,10 +424,11 @@ public final class VariablesCommandEditorCopyTransaction {
     }
 
     private void restoreTargetOrders(
-            Connection connection, int botJobId, int generatedId, Plan plan) throws SQLException {
+            Connection connection, int botJobId, List<Integer> generatedIds, Plan plan)
+            throws SQLException {
         ArrayList<Integer> orderedIds = new ArrayList<>();
         for (InstructionRow row : plan.targetRows()) orderedIds.add(row.id());
-        orderedIds.add(plan.targetIndex(), generatedId);
+        orderedIds.addAll(plan.targetIndex(), generatedIds);
         try (PreparedStatement statement = connection.prepareStatement(
                 "UPDATE instruction SET instruction_order_number=? WHERE id=? AND bot_job_id=?")) {
             for (int index = 0; index < orderedIds.size(); index++) {
@@ -391,6 +438,109 @@ public final class VariablesCommandEditorCopyTransaction {
                 statement.addBatch();
             }
             statement.executeBatch();
+        }
+    }
+
+    private void connectConditionalFamily(
+            Connection connection,
+            int botJobId,
+            int targetBlockId,
+            int rootId,
+            List<Integer> generatedIds) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(
+                "UPDATE instruction SET parent_id=?,parent_block_id=? WHERE id=? AND bot_job_id=?")) {
+            for (Integer instructionId : generatedIds) {
+                statement.setInt(1, rootId);
+                statement.setInt(2, targetBlockId);
+                statement.setInt(3, instructionId);
+                statement.setInt(4, botJobId);
+                statement.addBatch();
+            }
+            statement.executeBatch();
+        }
+    }
+
+    private void connectConditionalBoundary(
+            Connection connection,
+            int botJobId,
+            int targetBlockId,
+            int instructionId,
+            int rootId) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(
+                "UPDATE instruction SET parent_id=?,parent_block_id=? WHERE id=? AND bot_job_id=?")) {
+            statement.setInt(1, rootId);
+            statement.setInt(2, targetBlockId);
+            statement.setInt(3, instructionId);
+            statement.setInt(4, botJobId);
+            if (statement.executeUpdate() != 1) {
+                throw new SQLException("ADD COMMAND could not connect ELSEIF to its IF root.");
+            }
+        }
+    }
+
+    private int conditionalRootId(Plan plan) throws MutationRefusedException {
+        for (InstructionRow row : plan.targetRows()) {
+            if ("IF".equals(CommandRegistry.canonicalize(row.actionsText()))) {
+                return row.id();
+            }
+        }
+        throw refused(
+                "COMMAND_COPY_CONDITIONAL_FAMILY_MISSING",
+                "The IF root is unavailable.");
+    }
+
+    private static int firstActionIndex(List<InstructionRow> rows, String action) {
+        for (int index = 0; index < rows.size(); index++) {
+            if (action.equals(CommandRegistry.canonicalize(rows.get(index).actionsText()))) {
+                return index;
+            }
+        }
+        return -1;
+    }
+
+    private void verifyConditionalFamily(
+            Plan plan,
+            List<Integer> generatedIds,
+            Graph after) throws MutationRefusedException {
+        if (generatedIds.size() != 3) {
+            throw refused(
+                    "COMMAND_COPY_VERIFICATION_FAILED",
+                    "The IF family was not created completely.");
+        }
+        String[] actions = {"IF", "ELSE", "ENDIF"};
+        int rootId = generatedIds.get(0);
+        for (int index = 0; index < generatedIds.size(); index++) {
+            InstructionRow row = after.instructions().get(generatedIds.get(index));
+            if (row == null
+                    || row.blockId() != plan.targetBlockId()
+                    || row.order() != plan.finalOrder() + index
+                    || !actions[index].equals(CommandRegistry.canonicalize(row.actionsText()))
+                    || !Objects.equals(row.parentId(), rootId)
+                    || !Objects.equals(row.parentBlockId(), plan.targetBlockId())
+                    || row.variableId() != null) {
+                throw refused(
+                        "COMMAND_COPY_VERIFICATION_FAILED",
+                        "The IF, ELSE, and ENDIF family could not be verified.");
+            }
+        }
+    }
+
+    private void verifyConditionalElseIf(
+            Plan plan,
+            int generatedId,
+            Graph after) throws MutationRefusedException {
+        InstructionRow row = after.instructions().get(generatedId);
+        int rootId = conditionalRootId(plan);
+        if (row == null
+                || row.blockId() != plan.targetBlockId()
+                || row.order() != plan.finalOrder()
+                || !"ELSEIF".equals(CommandRegistry.canonicalize(row.actionsText()))
+                || !Objects.equals(row.parentId(), rootId)
+                || !Objects.equals(row.parentBlockId(), plan.targetBlockId())
+                || row.variableId() != null) {
+            throw refused(
+                    "COMMAND_COPY_VERIFICATION_FAILED",
+                    "The ELSEIF command could not be connected to its IF root.");
         }
     }
 

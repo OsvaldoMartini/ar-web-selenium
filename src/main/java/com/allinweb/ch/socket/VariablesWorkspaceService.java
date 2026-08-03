@@ -10,6 +10,10 @@ import com.allinweb.ch.facade.ScannerBotJobTasksPublisher;
 import com.allinweb.ch.facade.VariableRelationshipService;
 import com.allinweb.ch.facade.VariablesCrossBlockInstructionMutationProfile;
 import com.allinweb.ch.facade.VariablesCommandEditorUpdateService;
+import com.allinweb.ch.facade.VariablesVariableAutoResolveService;
+import com.allinweb.ch.facade.VariablesVariableAutoResolveTransaction.AutoResolveResult;
+import com.allinweb.ch.facade.VariablesVariableAutoResolveTransaction.CreatedVariable;
+import com.allinweb.ch.model.VariablesVariableAutoResolveV1;
 import com.allinweb.ch.facade.VariablesCommandEditorUpdateTransaction.UpdateResult;
 import com.allinweb.ch.facade.VariablesCommandEditorCreateService;
 import com.allinweb.ch.facade.VariablesCommandEditorCreateTransaction.CreateResult;
@@ -88,6 +92,8 @@ public final class VariablesWorkspaceService {
             RuntimeVariableMemoryRegistry.getInstance();
     private static final VariablesCommandEditorUpdateService COMMAND_UPDATES =
             VariablesCommandEditorUpdateService.getInstance();
+    private static final VariablesVariableAutoResolveService VARIABLE_AUTO_RESOLVES =
+            VariablesVariableAutoResolveService.getInstance();
     private static final VariablesCommandEditorCreateService COMMAND_CREATES =
             VariablesCommandEditorCreateService.getInstance();
     private static final VariablesCommandEditorCopyService COMMAND_COPIES =
@@ -767,6 +773,77 @@ public final class VariablesWorkspaceService {
         }
     }
 
+    /** Auto-resolves variable connections: connect oldest existing or create defaults. */
+    public JsonObject autoResolveVariables(
+            JsonObject body, String requesterSessionId, Session requesterTransport) {
+        JsonObject request = body == null ? new JsonObject() : body;
+        Binding current = null;
+        try {
+            requireManagerTransport(requesterSessionId, requesterTransport);
+            current = currentBinding();
+            if (current == null) {
+                throw new IllegalArgumentException(
+                        "No Bot Job is bound to the Variables workspace.");
+            }
+            String requestedBindingEpoch = text(request, "bindingEpoch");
+            if (requestedBindingEpoch.isBlank()
+                    || !requestedBindingEpoch.equals(current.bindingEpoch())) {
+                throw new IllegalArgumentException(
+                        "The Variables target changed. Reload the current Bot Job.");
+            }
+            WorkspaceContext workspace =
+                    workspaces.require(current.botJobId(), current.workspaceEpoch());
+            current = current.withWorkspace(workspace);
+            VariablesVariableAutoResolveV1.Request resolveRequest;
+            try {
+                resolveRequest = gson.fromJson(
+                        request, VariablesVariableAutoResolveV1.Request.class);
+            } catch (RuntimeException malformed) {
+                throw new IllegalArgumentException(
+                        "The variable auto-resolve request is malformed.");
+            }
+            if (resolveRequest == null) {
+                throw new IllegalArgumentException("A variable auto-resolve request is required.");
+            }
+            Binding authorized = current;
+            AutoResolveResult committed =
+                    BotJobDetailsWorkspaceRegistry.getInstance().commitWorkspaceMutation(
+                            authorized.botJobId(),
+                            authorized.workspaceEpoch(),
+                            () -> persistVariableAutoResolve(authorized, resolveRequest));
+            JsonObject response = variableAutoResolveSuccess(request, authorized, committed);
+            if (!isCurrent(authorized) || !isManagerTransport(requesterTransport)) {
+                response.addProperty("resyncRequired", true);
+            }
+            return response;
+        } catch (VariableAutoResolvePersistenceException persistenceFailure) {
+            Throwable cause = persistenceFailure.getCause();
+            if (cause instanceof MutationRefusedException refused) {
+                return variableAutoResolveFailure(
+                        request, refused.code(), refused.getMessage(), current);
+            }
+            log.error("Unable to persist Variables variable auto-resolution", cause);
+            return variableAutoResolveFailure(
+                    request,
+                    "VARIABLE_AUTO_RESOLVE_PERSISTENCE_FAILED",
+                    "The variables were not resolved.",
+                    current);
+        } catch (IllegalArgumentException | IllegalStateException refused) {
+            return variableAutoResolveFailure(
+                    request,
+                    "VARIABLE_AUTO_RESOLVE_REQUEST_REFUSED",
+                    refused.getMessage(),
+                    current == null ? currentBinding() : current);
+        } catch (RuntimeException failure) {
+            log.error("Unable to process Variables variable auto-resolution", failure);
+            return variableAutoResolveFailure(
+                    request,
+                    "VARIABLE_AUTO_RESOLVE_FAILED",
+                    "The variable resolution was not completed.",
+                    current == null ? currentBinding() : current);
+        }
+    }
+
     /** Persists a new disconnected instruction from Variables ADD COMMAND only. */
     public JsonObject addCommand(
             JsonObject body, String requesterSessionId, Session requesterTransport) {
@@ -1271,6 +1348,19 @@ public final class VariablesWorkspaceService {
                     request);
         } catch (SQLException error) {
             throw new CommandUpdatePersistenceException(error);
+        }
+    }
+
+    private AutoResolveResult persistVariableAutoResolve(
+            Binding authorized, VariablesVariableAutoResolveV1.Request request) {
+        try {
+            return VARIABLE_AUTO_RESOLVES.resolve(
+                    authorized.homeBankingId(),
+                    authorized.botJobId(),
+                    authorized.workspaceEpoch(),
+                    request);
+        } catch (SQLException error) {
+            throw new VariableAutoResolvePersistenceException(error);
         }
     }
 
@@ -2046,6 +2136,63 @@ public final class VariablesWorkspaceService {
         return response;
     }
 
+    private JsonObject variableAutoResolveSuccess(
+            JsonObject request, Binding current, AutoResolveResult committed) {
+        JsonObject response = mutationResponseBase(request, current);
+        response.addProperty(
+                "contractVersion", VariablesVariableAutoResolveV1.CONTRACT_VERSION);
+        response.addProperty("ok", true);
+        response.addProperty("committed", true);
+        response.addProperty("duplicate", committed.duplicate());
+        response.addProperty("resyncRequired", false);
+        response.addProperty("connectedExisting", committed.connectedExisting());
+        com.google.gson.JsonArray created = new com.google.gson.JsonArray();
+        for (CreatedVariable variable : committed.createdVariables()) {
+            JsonObject entry = new JsonObject();
+            entry.addProperty("variableId", variable.variableId());
+            entry.addProperty("name", variable.name());
+            entry.addProperty("instructionId", variable.instructionId());
+            entry.addProperty("role", variable.role());
+            created.add(entry);
+        }
+        response.add("createdVariables", created);
+        response.addProperty(
+                "previousGraphVersion", committed.previousGraphVersion());
+        response.addProperty(
+                "committedGraphVersion", committed.committedGraphVersion());
+        response.addProperty("graphRevision", committed.graphRevision());
+        response.addProperty(
+                "message",
+                committed.createdVariables().isEmpty()
+                        ? committed.connectedExisting()
+                                + " variable connection(s) resolved."
+                        : committed.createdVariables().size()
+                                + " default variable(s) created and connected; "
+                                + committed.connectedExisting() + " connected to existing.");
+        return response;
+    }
+
+    private JsonObject variableAutoResolveFailure(
+            JsonObject request, String errorCode, String message, Binding current) {
+        JsonObject response = mutationResponseBase(request, current);
+        response.addProperty(
+                "contractVersion", VariablesVariableAutoResolveV1.CONTRACT_VERSION);
+        response.addProperty("ok", false);
+        response.addProperty("committed", false);
+        response.addProperty("preserveSnapshot", true);
+        response.addProperty(
+                "errorCode",
+                errorCode == null || errorCode.isBlank()
+                        ? "VARIABLE_AUTO_RESOLVE_REFUSED"
+                        : errorCode);
+        response.addProperty(
+                "message",
+                message == null || message.isBlank()
+                        ? "The variable resolution was refused."
+                        : message);
+        return response;
+    }
+
     private JsonObject commandCreateSuccess(
             JsonObject request,
             Binding current,
@@ -2658,6 +2805,12 @@ public final class VariablesWorkspaceService {
 
     private static final class CommandUpdatePersistenceException extends RuntimeException {
         private CommandUpdatePersistenceException(SQLException cause) {
+            super(cause);
+        }
+    }
+
+    private static final class VariableAutoResolvePersistenceException extends RuntimeException {
+        private VariableAutoResolvePersistenceException(SQLException cause) {
             super(cause);
         }
     }

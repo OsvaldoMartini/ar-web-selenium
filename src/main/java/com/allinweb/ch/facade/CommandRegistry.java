@@ -18,7 +18,7 @@ public final class CommandRegistry {
     private static final Set<String> SPECIAL_ROWS = Set.of("ELSEIF", "ELSE", "ENDIF", "NEXT ROW");
     private static final Map<String, Definition> DEFINITIONS = definitions();
     private static final Set<String> EDITOR_TARGETABLE = Set.of(
-            "GET", "CK", "PDF CHECK", "CSV CHECK", "E", "IF", "GOTO", "EXCEL GOTO", "LOOP",
+            "GET", "CK", "PDF CHECK", "CSV CHECK", "E", "IF", "ELSEIF", "GOTO", "EXCEL GOTO", "LOOP",
             "REFRESH_LOOP", "REFRESH", "NEXT_ENTER", "SWIPE_UP", "SWIPE_DOWN", "H", "PAUSE", "Q", "P");
     private static final Set<String> NO_EDITOR_CONFIGURATION = Set.of(
             "GET", "EXCEL GOTO", "REFRESH", "NEXT_ENTER", "PAUSE", "Q", "P");
