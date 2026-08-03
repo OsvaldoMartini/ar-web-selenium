@@ -1,5 +1,7 @@
 package com.allinweb.ch.facade;
 
+import com.allinweb.ch.db.InstructionVariableCommandConfigRepository;
+import com.allinweb.ch.db.InstructionVariableCommandConfigRepository.StoredConfiguration;
 import com.allinweb.ch.model.BotJobLoadDTO;
 import com.allinweb.ch.model.BlockDetailsDTO;
 import com.allinweb.ch.model.BlockLoadDTO;
@@ -47,6 +49,8 @@ public final class CommandEditorService {
     private final Map<String, Boolean> completedSplitRequests = new LinkedHashMap<>();
     private final InstructionSplitValidator splitValidator = new InstructionSplitValidator();
     private final InstructionGraphRevisionService revisionService = new InstructionGraphRevisionService();
+    private final InstructionVariableCommandConfigRepository commandConfigurations =
+            new InstructionVariableCommandConfigRepository();
 
     private CommandEditorService() {}
 
@@ -452,9 +456,16 @@ public final class CommandEditorService {
             error = database.loadBlocks(whereId, "", componentSession ? "component_block" : "block");
         }
         List<VariableLoadDTO> variableRows = List.of();
+        Map<Integer, StoredConfiguration> commandConfigurationRows = Map.of();
         if (error == null) {
             try {
                 variableRows = loadDependencyVariables(componentSession, whereId);
+                if (!componentSession) {
+                    try (Connection connection = database.getConnection()) {
+                        commandConfigurationRows =
+                                commandConfigurations.loadForBotJob(connection, whereId);
+                    }
+                }
             } catch (SQLException exception) {
                 error = new ErrorMessage(
                         "Memory List Dependencies Unavailable",
@@ -524,6 +535,9 @@ public final class CommandEditorService {
         response.add("capabilities", capabilities);
         response.add("blockCapabilities", blockCapabilities);
         response.add("variableLinks", variableLinks(variableRows));
+        response.add(
+                "commandConfigurations",
+                commandConfigurations(commandConfigurationRows));
         if (error == null) {
             response.addProperty("graphRevision", currentGraphRevision);
             if (!componentSession) {
@@ -611,6 +625,33 @@ public final class CommandEditorService {
             links.add(link);
         }
         return links;
+    }
+
+    static JsonArray commandConfigurations(
+            Map<Integer, StoredConfiguration> configurations) {
+        JsonArray rows = new JsonArray();
+        if (configurations == null) return rows;
+        configurations.values().stream()
+                .sorted(Comparator.comparingInt(StoredConfiguration::instructionId))
+                .forEach(configuration -> {
+                    JsonObject row = new JsonObject();
+                    row.addProperty("instructionId", configuration.instructionId());
+                    row.addProperty("commandType", configuration.commandType());
+                    row.addProperty("conditionSource", configuration.conditionSource());
+                    row.addProperty("leftVariableId", configuration.leftVariableId());
+                    row.addProperty("operandKind", configuration.operandKind());
+                    row.addProperty(
+                            "comparisonOperator", configuration.comparisonOperator());
+                    row.addProperty("operandRawValue", configuration.operandRawValue());
+                    row.addProperty("operandVariableId", configuration.operandVariableId());
+                    row.addProperty("outputKey", configuration.outputKey());
+                    row.addProperty("outputColumn", configuration.outputColumn());
+                    row.addProperty("outputFile", configuration.outputFile());
+                    row.addProperty("externalSourceKey", configuration.externalSourceKey());
+                    row.addProperty("formatPolicy", configuration.formatPolicy());
+                    rows.add(row);
+                });
+        return rows;
     }
 
     static JsonObject newMemoryCapabilitiesResponse(boolean componentSession, boolean ok) {
