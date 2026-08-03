@@ -12,6 +12,7 @@ import com.allinweb.ch.facade.BotJobGraphMutationTransaction.MutationRefusedExce
 import com.allinweb.ch.model.InstructionGraphMutationV3.WorkspaceKind;
 import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.model.VariableLoadDTO;
+import com.allinweb.ch.model.VariablesCommandEditorCreateV1;
 import com.allinweb.ch.model.VariablesCommandEditorCopyV1;
 import com.allinweb.ch.model.VariablesCommandEditorUpdateV1.Configuration;
 import com.allinweb.ch.model.VariablesCommandEditorUpdateV1.ConfigurationKind;
@@ -59,12 +60,14 @@ public final class VariablesCommandEditorCopyTransaction {
     private final InstructionGraphStateRepository stateRepository;
     private final InstructionGraphRevisionService revisionService;
     private final InstructionVariableCommandConfigRepository commandConfigurations;
+    private final VariablesCommandEditorCreateInsert commandCreateInsert;
 
     public VariablesCommandEditorCopyTransaction() {
         this(
                 new InstructionGraphStateRepository(),
                 new InstructionGraphRevisionService(),
-                new InstructionVariableCommandConfigRepository());
+                new InstructionVariableCommandConfigRepository(),
+                new VariablesCommandEditorCreateInsert());
     }
 
     VariablesCommandEditorCopyTransaction(
@@ -77,13 +80,62 @@ public final class VariablesCommandEditorCopyTransaction {
             InstructionGraphStateRepository stateRepository,
             InstructionGraphRevisionService revisionService,
             InstructionVariableCommandConfigRepository commandConfigurations) {
+        this(
+                stateRepository,
+                revisionService,
+                commandConfigurations,
+                new VariablesCommandEditorCreateInsert());
+    }
+
+    VariablesCommandEditorCopyTransaction(
+            InstructionGraphStateRepository stateRepository,
+            InstructionGraphRevisionService revisionService,
+            InstructionVariableCommandConfigRepository commandConfigurations,
+            VariablesCommandEditorCreateInsert commandCreateInsert) {
         this.stateRepository = Objects.requireNonNull(stateRepository, "stateRepository");
         this.revisionService = Objects.requireNonNull(revisionService, "revisionService");
         this.commandConfigurations = Objects.requireNonNull(
                 commandConfigurations, "commandConfigurations");
+        this.commandCreateInsert = Objects.requireNonNull(
+                commandCreateInsert, "commandCreateInsert");
     }
 
     public CopyResult execute(
+            Connection connection,
+            AuthenticatedBotJob owner,
+            VariablesCommandEditorCopyV1.Request request) throws SQLException {
+        if (request != null && Boolean.TRUE.equals(request.createBlank())) {
+            throw refused(
+                    "COMMAND_COPY_CREATE_NOT_ALLOWED",
+                    "COPY NEW cannot create a blank command. Use Add Command.");
+        }
+        return executeInternal(connection, owner, request);
+    }
+
+    CopyResult executeCreate(
+            Connection connection,
+            AuthenticatedBotJob owner,
+            VariablesCommandEditorCreateV1.Request request) throws SQLException {
+        Objects.requireNonNull(request, "request");
+        return executeInternal(
+                connection,
+                owner,
+                new VariablesCommandEditorCopyV1.Request(
+                        request.contractVersion(),
+                        request.requestId(),
+                        request.bindingEpoch(),
+                        request.workspaceEpoch(),
+                        request.baseGraphVersion(),
+                        request.graphRevision(),
+                        null,
+                        true,
+                        request.targetBlockId(),
+                        request.placement(),
+                        request.configuration(),
+                        request.targetAction()));
+    }
+
+    private CopyResult executeInternal(
             Connection connection,
             AuthenticatedBotJob owner,
             VariablesCommandEditorCopyV1.Request request) throws SQLException {
@@ -102,7 +154,13 @@ public final class VariablesCommandEditorCopyTransaction {
             Plan plan = validateAndPlan(owner, request, before);
             offsetTargetOrders(connection, owner.owner().ownerId(), plan.targetBlockId());
             int generatedId = plan.createBlank()
-                    ? insertBlankCommand(connection, owner.owner().ownerId(), plan)
+                    ? commandCreateInsert.insert(
+                            connection,
+                            owner.owner().ownerId(),
+                            plan.targetBlockId(),
+                            plan.finalOrder(),
+                            plan.targetAction(),
+                            plan.configuration())
                     : insertCopy(connection, owner.owner().ownerId(), plan.source(), plan);
             if (isTypedVariableConfiguration(plan.configuration().kind())) {
                 commandConfigurations.upsert(
@@ -314,47 +372,6 @@ public final class VariablesCommandEditorCopyTransaction {
             if (statement.executeUpdate() != 1) throw new SQLException("COPY NEW did not insert exactly one instruction.");
             try (ResultSet keys = statement.getGeneratedKeys()) {
                 if (!keys.next()) throw new SQLException("COPY NEW returned no generated instruction ID.");
-                return keys.getInt(1);
-            }
-        }
-    }
-
-    private int insertBlankCommand(Connection connection, int botJobId, Plan plan)
-            throws SQLException {
-        try (PreparedStatement statement = connection.prepareStatement(
-                INSERT_INSTRUCTION, Statement.RETURN_GENERATED_KEYS)) {
-            int parameter = 1;
-            statement.setInt(parameter++, plan.finalOrder());
-            statement.setString(parameter++, plan.targetAction());
-            statement.setString(
-                    parameter++, CommandRegistry.transformedName(plan.targetAction()));
-            for (int field = 0; field < 9; field++) {
-                statement.setNull(parameter++, Types.VARCHAR);
-            }
-            statement.setObject(
-                    parameter++, configuredOperationForBlank(plan.configuration()));
-            for (int field = 0; field < 4; field++) {
-                statement.setNull(parameter++, Types.VARCHAR);
-            }
-            statement.setNull(parameter++, Types.INTEGER);
-            statement.setObject(
-                    parameter++, configuredHoldForBlank(plan.configuration()));
-            statement.setNull(parameter++, Types.VARCHAR);
-            statement.setNull(parameter++, Types.BOOLEAN);
-            statement.setBoolean(parameter++, true);
-            statement.setInt(parameter++, plan.targetBlockId());
-            statement.setNull(parameter++, Types.INTEGER);
-            statement.setNull(parameter++, Types.INTEGER);
-            statement.setNull(parameter++, Types.INTEGER);
-            statement.setInt(parameter++, botJobId);
-            statement.setNull(parameter, Types.BOOLEAN);
-            if (statement.executeUpdate() != 1) {
-                throw new SQLException("ADD COMMAND did not insert exactly one instruction.");
-            }
-            try (ResultSet keys = statement.getGeneratedKeys()) {
-                if (!keys.next()) {
-                    throw new SQLException("ADD COMMAND returned no generated instruction ID.");
-                }
                 return keys.getInt(1);
             }
         }

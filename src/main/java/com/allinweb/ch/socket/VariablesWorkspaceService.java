@@ -11,6 +11,8 @@ import com.allinweb.ch.facade.VariableRelationshipService;
 import com.allinweb.ch.facade.VariablesCrossBlockInstructionMutationProfile;
 import com.allinweb.ch.facade.VariablesCommandEditorUpdateService;
 import com.allinweb.ch.facade.VariablesCommandEditorUpdateTransaction.UpdateResult;
+import com.allinweb.ch.facade.VariablesCommandEditorCreateService;
+import com.allinweb.ch.facade.VariablesCommandEditorCreateTransaction.CreateResult;
 import com.allinweb.ch.facade.VariablesCommandEditorCopyService;
 import com.allinweb.ch.facade.VariablesCommandDeleteService;
 import com.allinweb.ch.facade.VariablesInstructionCopyService;
@@ -37,6 +39,7 @@ import com.allinweb.ch.model.DetachedWorkspaceSessions;
 import com.allinweb.ch.model.InstructionGraphMutationV3;
 import com.allinweb.ch.model.VariablesInstructionCopyV1;
 import com.allinweb.ch.model.VariablesCommandEditorUpdateV1;
+import com.allinweb.ch.model.VariablesCommandEditorCreateV1;
 import com.allinweb.ch.model.VariablesCommandEditorCopyV1;
 import com.allinweb.ch.model.VariablesWorkspaceCommandDelete;
 import com.allinweb.ch.model.VariablesWorkspaceInstructionStatus;
@@ -85,6 +88,8 @@ public final class VariablesWorkspaceService {
             RuntimeVariableMemoryRegistry.getInstance();
     private static final VariablesCommandEditorUpdateService COMMAND_UPDATES =
             VariablesCommandEditorUpdateService.getInstance();
+    private static final VariablesCommandEditorCreateService COMMAND_CREATES =
+            VariablesCommandEditorCreateService.getInstance();
     private static final VariablesCommandEditorCopyService COMMAND_COPIES =
             VariablesCommandEditorCopyService.getInstance();
     private static final VariablesCommandDeleteService COMMAND_DELETES =
@@ -762,6 +767,72 @@ public final class VariablesWorkspaceService {
         }
     }
 
+    /** Persists a new disconnected instruction from Variables ADD COMMAND only. */
+    public JsonObject addCommand(
+            JsonObject body, String requesterSessionId, Session requesterTransport) {
+        JsonObject request = body == null ? new JsonObject() : body;
+        Binding current = null;
+        try {
+            requireManagerTransport(requesterSessionId, requesterTransport);
+            current = currentBinding();
+            if (current == null) throw new IllegalArgumentException(
+                    "No Bot Job is bound to the Variables workspace.");
+            String requestedBindingEpoch = text(request, "bindingEpoch");
+            if (requestedBindingEpoch.isBlank()
+                    || !requestedBindingEpoch.equals(current.bindingEpoch())) {
+                throw new IllegalArgumentException(
+                        "The Variables target changed. Reload the current Bot Job.");
+            }
+            WorkspaceContext workspace = workspaces.require(
+                    current.botJobId(), current.workspaceEpoch());
+            current = current.withWorkspace(workspace);
+            VariablesCommandEditorCreateV1.Request createRequest;
+            try {
+                createRequest = gson.fromJson(
+                        request, VariablesCommandEditorCreateV1.Request.class);
+            } catch (RuntimeException malformed) {
+                throw new IllegalArgumentException(
+                        "The Add Command request is malformed.");
+            }
+            if (createRequest == null) throw new IllegalArgumentException(
+                    "An Add Command request is required.");
+            Binding authorized = current;
+            CreateResult committed =
+                    BotJobDetailsWorkspaceRegistry.getInstance().commitWorkspaceMutation(
+                            authorized.botJobId(), authorized.workspaceEpoch(),
+                            () -> persistCommandCreate(authorized, createRequest));
+            JsonObject response = commandCreateSuccess(request, authorized, committed);
+            if (!isCurrent(authorized) || !isManagerTransport(requesterTransport)) {
+                response.addProperty("resyncRequired", true);
+                response.addProperty(
+                        "message",
+                        "Command added, but the workspace target changed. "
+                                + "Refreshing authoritative workspaces.");
+            }
+            return response;
+        } catch (CommandCreatePersistenceException persistenceFailure) {
+            Throwable cause = persistenceFailure.getCause();
+            if (cause instanceof MutationRefusedException refused) {
+                return commandCreateFailure(
+                        request, refused.code(), refused.getMessage(), current);
+            }
+            log.error("Unable to persist Add Command", cause);
+            return commandCreateFailure(
+                    request, "COMMAND_CREATE_PERSISTENCE_FAILED",
+                    "The new command was not added.", current);
+        } catch (IllegalArgumentException | IllegalStateException refused) {
+            return commandCreateFailure(
+                    request, "COMMAND_CREATE_REQUEST_REFUSED", refused.getMessage(),
+                    current == null ? currentBinding() : current);
+        } catch (RuntimeException failure) {
+            log.error("Unable to process Add Command", failure);
+            return commandCreateFailure(
+                    request, "COMMAND_CREATE_FAILED",
+                    "Add Command was not completed.",
+                    current == null ? currentBinding() : current);
+        }
+    }
+
     /** Persists pure fresh-ID COPY NEW from only the Variables Command Editor modal. */
     public JsonObject copyCommand(
             JsonObject body, String requesterSessionId, Session requesterTransport) {
@@ -1211,6 +1282,17 @@ public final class VariablesWorkspaceService {
                     authorized.workspaceEpoch(), request);
         } catch (SQLException error) {
             throw new CommandCopyPersistenceException(error);
+        }
+    }
+
+    private CreateResult persistCommandCreate(
+            Binding authorized, VariablesCommandEditorCreateV1.Request request) {
+        try {
+            return COMMAND_CREATES.create(
+                    authorized.homeBankingId(), authorized.botJobId(),
+                    authorized.workspaceEpoch(), request);
+        } catch (SQLException error) {
+            throw new CommandCreatePersistenceException(error);
         }
     }
 
@@ -1964,6 +2046,51 @@ public final class VariablesWorkspaceService {
         return response;
     }
 
+    private JsonObject commandCreateSuccess(
+            JsonObject request,
+            Binding current,
+            CreateResult committed) {
+        JsonObject response = mutationResponseBase(request, current);
+        response.addProperty(
+                "contractVersion", VariablesCommandEditorCreateV1.CONTRACT_VERSION);
+        response.addProperty("ok", true);
+        response.addProperty("committed", true);
+        response.addProperty("duplicate", committed.duplicate());
+        response.addProperty("resyncRequired", false);
+        response.addProperty("createdInstructionId", committed.createdInstructionId());
+        response.addProperty("targetBlockId", committed.targetBlockId());
+        response.addProperty(
+                "instructionOrderNumber", committed.instructionOrderNumber());
+        response.addProperty(
+                "previousGraphVersion", committed.previousGraphVersion());
+        response.addProperty(
+                "committedGraphVersion", committed.committedGraphVersion());
+        response.addProperty("graphRevision", committed.graphRevision());
+        response.addProperty(
+                "message",
+                "New disconnected command added. Refreshing Variables and Bot Job Details.");
+        return response;
+    }
+
+    private JsonObject commandCreateFailure(
+            JsonObject request, String errorCode, String message, Binding current) {
+        JsonObject response = mutationResponseBase(request, current);
+        response.addProperty(
+                "contractVersion", VariablesCommandEditorCreateV1.CONTRACT_VERSION);
+        response.addProperty("ok", false);
+        response.addProperty("committed", false);
+        response.addProperty("preserveSnapshot", true);
+        response.addProperty(
+                "errorCode",
+                errorCode == null || errorCode.isBlank()
+                        ? "COMMAND_CREATE_REFUSED" : errorCode);
+        response.addProperty(
+                "message",
+                message == null || message.isBlank()
+                        ? "Add Command was refused." : message);
+        return response;
+    }
+
     private JsonObject commandCopySuccess(
             JsonObject request,
             Binding current,
@@ -1987,9 +2114,7 @@ public final class VariablesWorkspaceService {
         response.addProperty("graphRevision", committed.graphRevision());
         response.addProperty(
                 "message",
-                committed.sourceInstructionId() == 0
-                        ? "New disconnected command added. Refreshing Variables and Bot Job Details."
-                        : "New disconnected command copy created. Refreshing Variables and Bot Job Details.");
+                "New disconnected command copy created. Refreshing Variables and Bot Job Details.");
         return response;
     }
 
@@ -2535,6 +2660,10 @@ public final class VariablesWorkspaceService {
         private CommandUpdatePersistenceException(SQLException cause) {
             super(cause);
         }
+    }
+
+    private static final class CommandCreatePersistenceException extends RuntimeException {
+        private CommandCreatePersistenceException(SQLException cause) { super(cause); }
     }
 
     private static final class CommandCopyPersistenceException extends RuntimeException {
