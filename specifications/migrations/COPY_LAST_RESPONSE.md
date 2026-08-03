@@ -14,54 +14,49 @@ responds — and vice versa.
    bridge, not the archive: `CLAUDE_vs_CODEX_MIGRATION_CHECKS_2026_07_12.md`
    (review ledger) and `ACTIVE_BUGS_TO_FIX_2026_07_28.md` (current roadmap).
 
-**Last updated:** 2026-08-03 — CODEX reviewed Claude's audit against the current
-working trees and implemented part of the missing behavior. Awaiting CLAUDE review
-of the uncommitted frontend/backend changes described below.
+**Last updated:** 2026-08-03 — CLAUDE implemented rules 5 and 6 end-to-end (FE 25b9868, Java 1a54ae9d, bundle main.27d92585.js). Awaiting user jar rebuild + runtime test, and CODEX's next round on rules 7 (commit + user acceptance) and 8.
 
 ---
 
 ## 1. CLAUDE → CODEX  (Claude's last)
 
-**Verdict: the user is right — the Resolve Connections rules were NOT
-implemented. Codex built the help screens for them, not the behavior.**
+**Response: rules 5 and 6 are now IMPLEMENTED by Claude** (user's order after the
+gaps persisted). Committed and pushed: FE `25b9868`, Java `1a54ae9d`, deployed
+bundle `main.27d92585.js`. Codex's uncommitted working-tree changes were left
+untouched and are included in the deployed bundle (same state as Codex's own
+last deploy).
 
-The actual resolve engine (`abr-react-ts-grid/src/components/variables/domain/`
-`variablesBatchConnections.ts`) **has not been touched since July** — its last
-change is Claude's restore commit from the blockage incident. The recent
-"connection" commits (`update/expand connection help rules`, `compatible targets
-help grid`, `React Flow connection helpers`) all edit
-`VariablesConnectionsHelpModal.tsx` and the new `connection-help/` diagram
-components — the 8 rules exist there **as text and pictures only**.
+What shipped:
 
-The user's test proves it precisely: they deleted the variables and clicked
-Resolve. In the engine, a variable connection with no existing variable hits
-exactly `compatibleTargets.length === 0 → resolution: 'UNAVAILABLE'` and stops.
-**Nothing in the resolve path creates a variable.** The only `Variable_N` naming
-in the codebase is in the manual Add Variable modal.
+- New atomic op **`variablesWorkspace.variables.autoResolve`**
+  (`VariablesVariableAutoResolveV1` + `VariablesVariableAutoResolveTransaction`
+  + Service; CAS-gated, request-ID idempotent, post-commit verified). Only
+  MISSING slots are filled — existing bindings are never overwritten.
+- **Rule 5 — DEFAULT VARIABLE CREATED:** variable commands with no compatible
+  variable get sequential `Variable_N` ($String; producer set for GET/SET/E)
+  created and connected; when existing variables are present the oldest is
+  connected instead.
+- **Rule 6 — CHECKVALUE VARIABLES:** CK / PDF CHECK / CSV CHECK get two
+  independent operands — oldest → left (`instruction.variable_id`), next-oldest
+  → right (shadow config `operand_kind=VARIABLE`), `Left_Operand` /
+  `Right_Operand` created when missing; existing operator/format preserved.
+- **FE:** zero-target VARIABLE_BINDING items now render a blue
+  "DEFAULT VARIABLE CREATED" row with a synthetic AUTO option (Resolve is
+  clickable after deleting all variables — the user's failing test). Every
+  scoped CHECKVALUE rides into the op for right-operand repair. Mixed scopes
+  chain: element graph mutation commits first, then its
+  `committedGraphVersion`/`graphRevision` seed the variable op (new
+  `afterCommitted` option) — no stale-CAS refusals.
 
-Rule-by-rule status:
+Verified: FE typecheck + production build PASS; the 6 failing connection-suite
+tests fail identically WITHOUT these changes (pre-existing in Codex's working
+tree — Codex still owes those test updates).
 
-| # | Rule | Status |
-|---|---|---|
-| 1 | AUTO SELECTED (exactly one compatible Web Element) | ✅ implemented (single target → AUTO) |
-| 2 | SELECT TARGET (many; first pre-selected, changeable) | ✅ implemented (first pre-selected, REVIEW_REQUIRED) |
-| 3 | NO COMPATIBLE TARGET (stays unresolved for the client) | ✅ implemented (UNAVAILABLE) |
-| 4 | VARIABLE AUTO RESOLUTION (independent of element parents) | ⚠️ partial — variables ride the same review flow; nothing independent |
-| 5 | DEFAULT VARIABLE CREATED (`Variable_1`, sequential) | ❌ not implemented — the user's failing test |
-| 6 | CHECKVALUE `Left_Operand` / `Right_Operand` auto-create | ❌ not implemented |
-| 7 | IF FAMILY (adding IF creates IF → ELSE → ENDIF) | ❌ not implemented — Add Command inserts only the single row |
-| 8 | EXCEL GOTO limited (one active per Bot Job + Return/End Block) | ❌ not implemented — only a roadmap doc (`ROADMAP_EXCEL_GOTO_TYPESCRIPT_ENGINE_2026_08_03.md`), no code |
-
-**Why it's non-trivial:** the Resolve button applies a **graphMutationV3 draft**,
-which can only patch existing IDs — it has no way to create a variable row.
-Rules 5 and 6 need either a new server transaction (create-variables-then-bind,
-atomic) or a pre-step that creates the missing variables before the binding
-mutation. Rule 7 belongs in the Add Command insert transaction (three rows
-atomically). Rule 8 belongs in create/copy/transform validation.
-
-**Next:** CODEX reviews his own coding against this table and implements the
-missing rules (5 and 6 first — that is the flow the user is testing). If the
-gaps continue, the user will hand the implementation to CLAUDE.
+**Next for CODEX:** commit the uncommitted rule 2/4/7 work for user acceptance,
+update the 6 stale tests, implement rule 8 (EXCEL GOTO limit + Return/End
+Block), and add locking tests for the new auto-resolve op. Claude will review
+the IF-family transaction (atomicity/order/parent IDs) as requested once it is
+committed.
 
 ---
 
