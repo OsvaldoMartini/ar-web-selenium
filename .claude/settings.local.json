@@ -156,7 +156,10 @@
       "PowerShell(\\(Get-Content \"D:\\\\Projects\\\\AllinWeb\\\\abr-react-ts-grid\\\\package.json\" | ConvertFrom-Json\\).dependencies | Format-List react, 'react-dom', 'lucide-react' | Out-String)",
       "Bash(npm test *)",
       "PowerShell($p = \"D:\\\\Projects\\\\AllinWeb\\\\ar-web-selenium-4.2\"; git -C $p rev-parse --is-inside-work-tree 2>&1; git -C $p remote -v 2>&1; git -C $p branch --show-current 2>&1; git -C $p log --oneline -3 2>&1; \\(git -C $p status --short 2>&1 | Measure-Object -Line\\).Lines)",
-      "PowerShell($p = \"D:\\\\Projects\\\\AllinWeb\\\\ar-web-selenium-4.2\"; git -C $p remote remove local 2>$null; git -C $p remote add local \"D:\\\\Projects\\\\AllinWeb\\\\ar-web-selenium\"; git -C $p fetch local refactor/perform-actions-decomposition 2>&1 | Select-Object -Last 2; git -C $p reset --hard FETCH_HEAD 2>&1 | Select-Object -Last 1; git -C $p log --oneline -3)"
+      "PowerShell($p = \"D:\\\\Projects\\\\AllinWeb\\\\ar-web-selenium-4.2\"; git -C $p remote remove local 2>$null; git -C $p remote add local \"D:\\\\Projects\\\\AllinWeb\\\\ar-web-selenium\"; git -C $p fetch local refactor/perform-actions-decomposition 2>&1 | Select-Object -Last 2; git -C $p reset --hard FETCH_HEAD 2>&1 | Select-Object -Last 1; git -C $p log --oneline -3)",
+      "Read(//c/Users/osval/.claude/projects/D--Projects-AllinWeb-ar-web-selenium/memory/**)",
+      "Bash(printf '\\\\n- [Command Editor command SearchBox]\\(project_command_editor_command_searchbox.md\\) - design phase shipped 2026-08-02 \\(FE 9e7746a\\); Phase 2 = persist changed command \\(FE payload + Java actions-column write\\) pending user design approval\\\\n')",
+      "Bash(cp -r build/. \"/d/Projects/AllinWeb/ar-web-selenium/src/main/resources/build/\")"
     ]
   }
 }
