@@ -19,7 +19,6 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.sql.Timestamp;
 import java.sql.Types;
 import java.time.Instant;
@@ -146,6 +145,89 @@ public final class VariablesVariableAutoResolveTransaction {
         }
     }
 
+    /**
+     * Automatic mode for the Variables workspace load/refresh path: resolves the whole
+     * Bot Job with a self-consistent CAS base (the state loaded in this transaction).
+     * Returns {@code null} when every variable command is already connected.
+     */
+    public AutoResolveResult executeAutomatic(
+            Connection connection, AuthenticatedBotJob owner, String requestId)
+            throws SQLException {
+        requireOpen(connection);
+        Objects.requireNonNull(owner, "owner");
+        if (!connection.getAutoCommit()) {
+            throw new SQLException("Variable auto-resolution requires an unbound connection.");
+        }
+        connection.setAutoCommit(false);
+        boolean restoreAutoCommit = true;
+        try {
+            requireOwner(connection, owner.owner());
+            GraphState state = stateRepository.loadOrCreate(connection, owner.owner());
+            Graph before = loadGraph(connection, owner.owner(), state);
+            if (before.instructions().isEmpty()) {
+                connection.rollback();
+                return null;
+            }
+            VariablesVariableAutoResolveV1.Request request =
+                    new VariablesVariableAutoResolveV1.Request(
+                            VariablesVariableAutoResolveV1.CONTRACT_VERSION,
+                            requestId,
+                            "internal-auto",
+                            owner.workspaceEpoch(),
+                            state.version(),
+                            before.revision(),
+                            new ArrayList<>(before.instructions().keySet()));
+            List<SlotPlan> plan = validateAndPlan(owner, request, before);
+            if (plan.isEmpty()) {
+                connection.rollback();
+                return null;
+            }
+            List<CreatedVariable> created = new ArrayList<>();
+            int connectedExisting = 0;
+            NameSequencer names = new NameSequencer(before.variableNames());
+            for (SlotPlan slot : plan) {
+                int variableId;
+                if (slot.existingVariableId() != null) {
+                    variableId = slot.existingVariableId();
+                    connectedExisting++;
+                } else {
+                    String name = names.next(slot.role());
+                    variableId = insertVariable(
+                            connection,
+                            owner.owner().homeBankingId(),
+                            owner.owner().ownerId(),
+                            name,
+                            slot.producerInstructionId());
+                    created.add(new CreatedVariable(
+                            variableId, name, slot.instructionId(), slot.role().name()));
+                }
+                connectSlot(connection, owner.owner(), slot, variableId);
+            }
+            AdvanceResult advance = stateRepository.compareAndSetIncrement(
+                    connection, owner.owner(), state.version());
+            if (!advance.advanced()) {
+                throw refused(
+                        "VARIABLE_AUTO_RESOLVE_GRAPH_VERSION_STALE",
+                        "The Variables graph changed during automatic variable resolution.");
+            }
+            Graph after = loadGraph(connection, owner.owner(), advance.state());
+            verify(plan, created, after);
+            connection.commit();
+            return new AutoResolveResult(
+                    owner.owner(), owner.workspaceEpoch(), requestId,
+                    List.copyOf(created), connectedExisting,
+                    state.version(), advance.state().version(), after.revision(), false);
+        } catch (SQLException | RuntimeException failure) {
+            if (!rollback(connection, failure)) {
+                restoreAutoCommit = false;
+                close(connection, failure);
+            }
+            throw failure;
+        } finally {
+            if (restoreAutoCommit) restoreAutoCommit(connection);
+        }
+    }
+
     private List<SlotPlan> validateAndPlan(
             AuthenticatedBotJob owner,
             VariablesVariableAutoResolveV1.Request request,
@@ -247,31 +329,42 @@ public final class VariablesVariableAutoResolveTransaction {
             String name,
             Integer producerInstructionId)
             throws SQLException {
+        // The table's primary key is (home_banking_id, bot_job_id, id): the variable id
+        // is allocated per Bot Job, exactly like BotJobVariableDefinitionRepository's
+        // callers do. Serialization via commitWorkspaceMutation makes MAX(id)+1 safe.
+        int variableId;
+        try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT COALESCE(MAX(id),0)+1 FROM bot_job_variable_definition"
+                        + " WHERE home_banking_id=? AND bot_job_id=?")) {
+            statement.setInt(1, homeBankingId);
+            statement.setInt(2, botJobId);
+            try (ResultSet rows = statement.executeQuery()) {
+                if (!rows.next()) {
+                    throw new SQLException("The next variable ID could not be allocated.");
+                }
+                variableId = rows.getInt(1);
+            }
+        }
         Timestamp now = Timestamp.from(Instant.now());
         try (PreparedStatement statement = connection.prepareStatement(
                 "INSERT INTO bot_job_variable_definition"
-                        + " (home_banking_id,bot_job_id,variable_type,name,configured_value,"
+                        + " (home_banking_id,bot_job_id,id,variable_type,name,configured_value,"
                         + "local_format,delimiter,producer_instruction_id,created_at,updated_at)"
-                        + " VALUES (?,?,?,?,NULL,NULL,NULL,?,?,?)",
-                Statement.RETURN_GENERATED_KEYS)) {
+                        + " VALUES (?,?,?,?,?,NULL,NULL,NULL,?,?,?)")) {
             statement.setInt(1, homeBankingId);
             statement.setInt(2, botJobId);
-            statement.setString(3, DEFAULT_VARIABLE_TYPE);
-            statement.setString(4, name);
-            if (producerInstructionId == null) statement.setNull(5, Types.INTEGER);
-            else statement.setInt(5, producerInstructionId);
-            statement.setTimestamp(6, now);
+            statement.setInt(3, variableId);
+            statement.setString(4, DEFAULT_VARIABLE_TYPE);
+            statement.setString(5, name);
+            if (producerInstructionId == null) statement.setNull(6, Types.INTEGER);
+            else statement.setInt(6, producerInstructionId);
             statement.setTimestamp(7, now);
+            statement.setTimestamp(8, now);
             if (statement.executeUpdate() != 1) {
                 throw new SQLException("Default variable insert did not create one row.");
             }
-            try (ResultSet keys = statement.getGeneratedKeys()) {
-                if (!keys.next()) {
-                    throw new SQLException("Default variable insert returned no ID.");
-                }
-                return keys.getInt(1);
-            }
         }
+        return variableId;
     }
 
     private void connectSlot(

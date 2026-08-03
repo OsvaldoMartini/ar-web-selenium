@@ -1351,6 +1351,44 @@ public final class VariablesWorkspaceService {
         }
     }
 
+    /**
+     * Connection selection rules applied "in a blink": every Variables workspace
+     * load/refresh first connects/creates missing variables (Variable_N,
+     * Left_Operand/Right_Operand for CHECKVALUE) so the snapshot the client sees is
+     * already resolved. Failures are logged loudly; unresolved commands stay flagged
+     * by the existing red reconnect chips and diagnostics - the UI is never gated.
+     */
+    private void applyVariableAutoResolution(Binding current) {
+        try {
+            AutoResolveResult committed =
+                    BotJobDetailsWorkspaceRegistry.getInstance().commitWorkspaceMutation(
+                            current.botJobId(),
+                            current.workspaceEpoch(),
+                            () -> {
+                                try {
+                                    return VARIABLE_AUTO_RESOLVES.resolveAllAutomatic(
+                                            current.homeBankingId(),
+                                            current.botJobId(),
+                                            current.workspaceEpoch());
+                                } catch (SQLException error) {
+                                    throw new VariableAutoResolvePersistenceException(error);
+                                }
+                            });
+            if (committed != null) {
+                log.info(
+                        "Automatic variable resolution for Bot Job {}: {} created, {} connected to existing.",
+                        current.botJobId(),
+                        committed.createdVariables().size(),
+                        committed.connectedExisting());
+            }
+        } catch (RuntimeException failure) {
+            log.error(
+                    "Automatic variable resolution failed for Bot Job {} - commands stay flagged for reconnection.",
+                    current.botJobId(),
+                    failure);
+        }
+    }
+
     private AutoResolveResult persistVariableAutoResolve(
             Binding authorized, VariablesVariableAutoResolveV1.Request request) {
         try {
@@ -1693,6 +1731,7 @@ public final class VariablesWorkspaceService {
             WorkspaceContext workspace =
                     workspaces.require(current.botJobId(), current.workspaceEpoch());
             current = current.withWorkspace(workspace);
+            applyVariableAutoResolution(current);
             JsonObject snapshot = loadSnapshot(current, request, message);
             if (!isCurrent(current)
                     || !isManagerTransport(requesterTransport)) {
