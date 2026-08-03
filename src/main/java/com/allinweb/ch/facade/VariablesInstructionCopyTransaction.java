@@ -1,5 +1,7 @@
 package com.allinweb.ch.facade;
 
+import com.allinweb.ch.db.InstructionVariableCommandConfigRepository;
+import com.allinweb.ch.db.InstructionVariableCommandConfigRepository.StoredConfiguration;
 import com.allinweb.ch.db.InstructionGraphStateRepository;
 import com.allinweb.ch.db.InstructionGraphStateRepository.AdvanceResult;
 import com.allinweb.ch.db.InstructionGraphStateRepository.AdvanceStatus;
@@ -13,6 +15,8 @@ import com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableModels.Valu
 import com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableService;
 import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.model.VariableLoadDTO;
+import com.allinweb.ch.model.VariablesCommandEditorUpdateV1.Configuration;
+import com.allinweb.ch.model.VariablesCommandEditorUpdateV1.ConfigurationKind;
 import com.allinweb.ch.model.VariablesInstructionCopyV1;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -37,8 +41,12 @@ import java.util.Set;
  * submitted order. Existing rows are never rewritten.
  */
 public final class VariablesInstructionCopyTransaction {
+    private static final String COMMAND_CONFIGURATION_TABLE =
+            "instruction_variable_command_config";
     private static final BotJobRuntimeVariableService RUNTIME_VARIABLES =
             new BotJobRuntimeVariableService();
+    private final InstructionVariableCommandConfigRepository commandConfigurations =
+            new InstructionVariableCommandConfigRepository();
 
     private static final String INSTRUCTION_SELECT = """
             SELECT id, instruction_order_number, actions, name, xpath, coordinates,
@@ -138,6 +146,11 @@ public final class VariablesInstructionCopyTransaction {
                             generatedInstructionIds,
                             generatedVariableIds,
                             firstTargetOrder);
+            copyTypedCommandConfigurations(
+                    connection,
+                    owner.owner(),
+                    generatedInstructionIds,
+                    generatedVariableIds);
             int copiedReferenceCount =
                     copyReferences(
                             connection,
@@ -167,6 +180,11 @@ public final class VariablesInstructionCopyTransaction {
                     generatedVariableIds,
                     expectedCopies,
                     copiedReferenceCount);
+            verifyCopiedTypedCommandConfigurations(
+                    connection,
+                    owner.owner(),
+                    generatedInstructionIds,
+                    generatedVariableIds);
             faultInjector.at(TransactionPhase.AFTER_FINAL_VERIFICATION);
 
             connection.commit();
@@ -194,6 +212,125 @@ public final class VariablesInstructionCopyTransaction {
         } finally {
             if (restoreAutoCommit) restoreAutoCommit(connection);
         }
+    }
+
+    private void copyTypedCommandConfigurations(
+            Connection connection,
+            OwnerKey owner,
+            Map<Integer, Integer> generatedInstructionIds,
+            Map<Integer, Integer> generatedVariableIds)
+            throws SQLException {
+        if (!commandConfigurationTableExists(connection)) return;
+        for (Map.Entry<Integer, Integer> generated : generatedInstructionIds.entrySet()) {
+            StoredConfiguration stored = commandConfigurations.load(
+                    connection,
+                    owner.homeBankingId(),
+                    owner.ownerId(),
+                    generated.getKey());
+            if (stored == null) continue;
+            Configuration copied = copiedConfiguration(stored, generatedVariableIds);
+            if (copied == null) continue;
+            commandConfigurations.upsert(
+                    connection,
+                    owner.homeBankingId(),
+                    owner.ownerId(),
+                    generated.getValue(),
+                    stored.commandType(),
+                    copied);
+        }
+    }
+
+    private static Configuration copiedConfiguration(
+            StoredConfiguration stored,
+            Map<Integer, Integer> generatedVariableIds) {
+        ConfigurationKind kind = switch (CommandRegistry.canonicalize(stored.commandType())) {
+            case "CK" -> ConfigurationKind.CHECK_VALUE;
+            case "PDF CHECK", "CSV CHECK" -> ConfigurationKind.EXTERNAL_CHECK;
+            case "E" -> ConfigurationKind.EXCEL_WRITE;
+            case "IF", "ELSEIF" -> ConfigurationKind.CONDITIONAL;
+            default -> null;
+        };
+        if (kind == null) return null;
+        return new Configuration(
+                kind,
+                null,
+                null,
+                null,
+                stored.comparisonOperator(),
+                stored.conditionSource(),
+                remappedVariableId(stored.leftVariableId(), generatedVariableIds),
+                stored.operandKind(),
+                stored.operandRawValue(),
+                remappedVariableId(stored.operandVariableId(), generatedVariableIds),
+                stored.outputKey(),
+                stored.outputColumn(),
+                stored.outputFile(),
+                stored.externalSourceKey(),
+                stored.formatPolicy(),
+                null);
+    }
+
+    private static Integer remappedVariableId(
+            Integer sourceVariableId,
+            Map<Integer, Integer> generatedVariableIds) {
+        return sourceVariableId == null
+                ? null
+                : generatedVariableIds.getOrDefault(sourceVariableId, sourceVariableId);
+    }
+
+    private void verifyCopiedTypedCommandConfigurations(
+            Connection connection,
+            OwnerKey owner,
+            Map<Integer, Integer> generatedInstructionIds,
+            Map<Integer, Integer> generatedVariableIds)
+            throws SQLException {
+        if (!commandConfigurationTableExists(connection)) return;
+        for (Map.Entry<Integer, Integer> generated : generatedInstructionIds.entrySet()) {
+            StoredConfiguration source = commandConfigurations.load(
+                    connection,
+                    owner.homeBankingId(),
+                    owner.ownerId(),
+                    generated.getKey());
+            if (source == null) continue;
+            Configuration expected = copiedConfiguration(source, generatedVariableIds);
+            if (expected == null) continue;
+            StoredConfiguration copied = commandConfigurations.load(
+                    connection,
+                    owner.homeBankingId(),
+                    owner.ownerId(),
+                    generated.getValue());
+            if (copied == null
+                    || !Objects.equals(copied.commandType(), source.commandType())
+                    || !Objects.equals(copied.conditionSource(), expected.conditionSource())
+                    || !Objects.equals(copied.leftVariableId(), expected.leftVariableId())
+                    || !Objects.equals(copied.operandKind(), expected.operandKind())
+                    || !Objects.equals(copied.comparisonOperator(), expected.comparisonOperator())
+                    || !Objects.equals(copied.operandRawValue(), expected.operandRawValue())
+                    || !Objects.equals(copied.operandVariableId(), expected.operandVariableId())
+                    || !Objects.equals(copied.outputKey(), expected.outputKey())
+                    || !Objects.equals(copied.outputColumn(), expected.outputColumn())
+                    || !Objects.equals(copied.outputFile(), expected.outputFile())
+                    || !Objects.equals(copied.externalSourceKey(), expected.externalSourceKey())
+                    || !Objects.equals(copied.formatPolicy(), expected.formatPolicy())) {
+                throw refused(
+                        "VARIABLES_COPY_CONFIGURATION_NOT_COMMITTED",
+                        "The copied command configuration could not be verified.");
+            }
+        }
+    }
+
+    private static boolean commandConfigurationTableExists(Connection connection)
+            throws SQLException {
+        try (ResultSet tables = connection.getMetaData().getTables(
+                null, null, null, new String[] {"TABLE"})) {
+            while (tables.next()) {
+                if (COMMAND_CONFIGURATION_TABLE.equalsIgnoreCase(
+                        tables.getString("TABLE_NAME"))) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private CopyPlan validateAndPlan(
