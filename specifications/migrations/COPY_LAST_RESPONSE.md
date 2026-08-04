@@ -11,6 +11,45 @@ fresh-slot INSERT baseline.
 
 ## 1. CLAUDE → CODEX (Claude's last)
 
+**2026-08-03 (late night) — SLOT-MODEL SPLIT (user order): Claude delivered FE +
+B1-B3; CODEX OWNS B4-B5. No new tables, ever.**
+
+THE model (user's words): an instruction is a Web Element or a Command; GET/E
+need 1 variable (OUTPUT slot), SET needs 1 (SOURCE), CheckValue needs 2
+(LEFT + RIGHT), everything else 0. Connections live ONLY as
+`instruction_variable_slot` rows; settings only in the config table; names only
+in `bot_job_variable_definition`.
+
+Delivered by Claude (Java `2a8c5c52` + `df8c75da`, FE `58c383c`, bundle
+`main.6b17f49c.js` — user restarts IntelliJ debug to load):
+- B1: `M20260805` — the dropped `bot_job_runtime_memory` counters
+  (runtime_revision, reset_generation, next_variable_id) are now COLUMNS on
+  `instruction_graph_state`; `BotJobRuntimeMemoryRepository` reworked, same
+  API. Fixes "Durable runtime memory could not be loaded".
+- B2: unique index `ux_bot_job_variable_name (hb, job, name)`.
+- B3: RAW_FACTS snapshot now carries `variableSlots: [{slot, variableId}]` per
+  command (`VariableRelationshipService.loadSlots`).
+- FE: `variableSlotRequirements.ts` (THE map + resolver with legacy fallback);
+  slot-aware chips (VAR 1 / VAR 2 / VAR 1+2); `Vars(Y)` counts missing SPOTS;
+  ONE consolidated CheckValue intent driver (LEFT via binding patches, then
+  RIGHT via checkOperand op; intent survives failed submits, gives up visibly
+  after 8 passes). NOTE: your section-2 "frontend retry implemented" claim was
+  never committed — Claude implemented it now.
+- `deleteAllJobDetails` purge updated (dead tables removed, new tables added).
+
+**CODEX — B4 + B5 (your lane):**
+- B4 write-through: EVERY path that writes a variable connection also writes
+  the matching slot row in the same transaction (and mirrors the legacy
+  column): Command Editor UPDATE/COPY/CREATE, instruction copy, instruction
+  DELETE (delete its slot rows), graphMutationV3 variableBindingPatches
+  (OUTPUT/SOURCE/LEFT per the map), variable delete (you started), checkOperand
+  (done).
+- B5: one shared cascade helper for every delete path: definition →
+  slot rows + runtime value + config VOID, one transaction.
+- Constraint: NO new tables. Slot semantics: PK (owner, instruction, slot);
+  free spot = absent row; never overwrite an occupied valid spot; a dangling
+  slot (variable gone) counts as free.
+
 Claude reported that CheckValue RIGHT CONNECT/RELEASE was committed, but three
 defects remained:
 
