@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * Persists the React-authored RIGHT-spot connections for CheckValue commands
@@ -30,6 +31,11 @@ import java.util.Objects;
  * (legacy mirror the Engine and current UI read).
  */
 public final class VariablesCheckOperandConnectTransaction {
+    /** Matches FE binaryComparisonOperators (CheckValueCommandEditor.tsx). */
+    private static final Set<String> BINARY_COMPARISON_OPERATORS = Set.of(
+            "=", "!=", ">", "<", ">=", "<=", "contains", "startsWith", "endsWith");
+    private static final Set<String> CHECK_ACTIONS =
+            Set.of("CK", "PDF CHECK", "CSV CHECK");
     private final InstructionGraphStateRepository stateRepository =
             new InstructionGraphStateRepository();
     private final InstructionGraphRevisionService revisionService =
@@ -54,6 +60,7 @@ public final class VariablesCheckOperandConnectTransaction {
             requireOwner(connection, owner.owner());
             validate(connection, owner, request);
             boolean release = request.isRelease();
+            boolean updateOperator = request.isUpdateOperator();
             int rightVariableId = request.rightVariableId() == null
                     ? 0
                     : request.rightVariableId();
@@ -69,6 +76,16 @@ public final class VariablesCheckOperandConnectTransaction {
                         connection, owner.owner().ownerId(), instructionId);
                 if (actions == null) {
                     skipped++;
+                    continue;
+                }
+                if (updateOperator) {
+                    boolean wrote = hasConfigTable
+                            && CHECK_ACTIONS.contains(CommandRegistry.canonicalize(actions))
+                            && updateComparisonOperator(
+                                    connection, owner.owner(), instructionId,
+                                    actions, request.comparisonOperator().trim(), now);
+                    if (wrote) connected++;
+                    else skipped++;
                     continue;
                 }
                 boolean wroteConfig;
@@ -144,12 +161,62 @@ public final class VariablesCheckOperandConnectTransaction {
             throw refused("CHECK_OPERAND_GRAPH_REVISION_STALE",
                     "The Variables graph changed before the operand connection.");
         }
+        if (request.isUpdateOperator()) {
+            String operator = request.comparisonOperator() == null
+                    ? "" : request.comparisonOperator().trim();
+            if (!BINARY_COMPARISON_OPERATORS.contains(operator)) {
+                throw refused("CHECK_OPERAND_OPERATOR_INVALID",
+                        "Select a supported comparison operator.");
+            }
+            return;
+        }
         if (!request.isRelease()
                 && (request.rightVariableId() == null
                         || request.rightVariableId() <= 0
                         || !variableExists(connection, owner.owner(), request.rightVariableId()))) {
             throw refused("CHECK_OPERAND_VARIABLE_INVALID",
                     "Select a current Bot Job variable for the second comparison value.");
+        }
+    }
+
+    /**
+     * Updates ONLY the stored comparison operator (2026-08-04 middle-shim dropdown).
+     * Never touches operand_kind/operand_variable_id - connectivity is left exactly as
+     * it was. Upserts because a CheckValue may not have a config row yet.
+     */
+    private static boolean updateComparisonOperator(
+            Connection connection,
+            OwnerKey owner,
+            int instructionId,
+            String actions,
+            String comparisonOperator,
+            Timestamp now)
+            throws SQLException {
+        try (PreparedStatement update = connection.prepareStatement(
+                "UPDATE instruction_variable_command_config SET comparison_operator=?,"
+                        + "config_revision=config_revision+1,updated_at=?"
+                        + " WHERE home_banking_id=? AND bot_job_id=? AND instruction_id=?")) {
+            update.setString(1, comparisonOperator);
+            update.setTimestamp(2, now);
+            update.setInt(3, owner.homeBankingId());
+            update.setInt(4, owner.ownerId());
+            update.setInt(5, instructionId);
+            if (update.executeUpdate() > 0) return true;
+        }
+        try (PreparedStatement insert = connection.prepareStatement(
+                "INSERT INTO instruction_variable_command_config"
+                        + " (home_banking_id,bot_job_id,instruction_id,command_type,"
+                        + "operand_kind,comparison_operator,config_revision,created_at,updated_at)"
+                        + " VALUES (?,?,?,?,'VOID',?,1,?,?)")) {
+            insert.setInt(1, owner.homeBankingId());
+            insert.setInt(2, owner.ownerId());
+            insert.setInt(3, instructionId);
+            insert.setString(4, CommandRegistry.canonicalize(actions));
+            insert.setString(5, comparisonOperator);
+            insert.setTimestamp(6, now);
+            insert.setTimestamp(7, now);
+            insert.executeUpdate();
+            return true;
         }
     }
 

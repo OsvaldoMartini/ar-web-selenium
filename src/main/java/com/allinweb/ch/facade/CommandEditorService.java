@@ -53,6 +53,9 @@ public final class CommandEditorService {
     private final InstructionGraphRevisionService revisionService = new InstructionGraphRevisionService();
     private final InstructionVariableCommandConfigRepository commandConfigurations =
             new InstructionVariableCommandConfigRepository();
+    /** Matches FE binaryComparisonOperators (CheckValueCommandEditor.tsx) - variable-only checks. */
+    private static final Set<String> BINARY_COMPARISON_OPERATORS = Set.of(
+            "=", "!=", ">", "<", ">=", "<=", "contains", "startsWith", "endsWith");
 
     private CommandEditorService() {}
 
@@ -915,11 +918,21 @@ public final class CommandEditorService {
         if (!"CK".equals(action) && !"PDF CHECK".equals(action) && !"CSV CHECK".equals(action)) {
             return failure("Only CHECKVALUE commands carry a second comparison variable.");
         }
-        Integer operandVariableId = nullableInteger(body, "operandVariableId");
+        // Operator-only mode (2026-08-04 middle-shim dropdown): the client sends only the
+        // new comparison operator and leaves operandVariableId untouched - it must NEVER
+        // be read from the body here, or an operator edit would silently disconnect the
+        // right operand.
+        boolean operatorOnly = body != null && body.has("operatorOnly")
+                && body.get("operatorOnly").getAsBoolean();
+        String requestedOperator = string(body, "comparisonOperator", "").trim();
+        if (operatorOnly && !BINARY_COMPARISON_OPERATORS.contains(requestedOperator)) {
+            return failure("Select a supported comparison operator.");
+        }
+        Integer operandVariableId = operatorOnly ? null : nullableInteger(body, "operandVariableId");
         try (Connection connection = database.getConnection()) {
             connection.setAutoCommit(false);
             try {
-                if (operandVariableId != null) {
+                if (!operatorOnly && operandVariableId != null) {
                     try (PreparedStatement statement = connection.prepareStatement(
                             "SELECT 1 FROM bot_job_variable_definition"
                                     + " WHERE home_banking_id=? AND bot_job_id=? AND id=?")) {
@@ -936,6 +949,21 @@ public final class CommandEditorService {
                 }
                 StoredConfiguration stored = commandConfigurations.load(
                         connection, homeBankingId, botJobId, instructionId);
+                String effectiveOperandKind = operatorOnly
+                        ? (stored != null && stored.operandKind() != null && !stored.operandKind().isBlank()
+                                ? stored.operandKind()
+                                : "VOID")
+                        : (operandVariableId == null ? "VOID" : "VARIABLE");
+                Integer effectiveOperandVariableId = operatorOnly
+                        ? (stored == null ? null : stored.operandVariableId())
+                        : operandVariableId;
+                String effectiveOperator = operatorOnly
+                        ? requestedOperator
+                        : (stored != null
+                                        && stored.comparisonOperator() != null
+                                        && !stored.comparisonOperator().isBlank()
+                                ? stored.comparisonOperator()
+                                : "=");
                 Configuration configuration = new Configuration(
                         "CK".equals(action)
                                 ? ConfigurationKind.CHECK_VALUE
@@ -943,16 +971,12 @@ public final class CommandEditorService {
                         null,
                         null,
                         null,
-                        stored != null
-                                        && stored.comparisonOperator() != null
-                                        && !stored.comparisonOperator().isBlank()
-                                ? stored.comparisonOperator()
-                                : "=",
+                        effectiveOperator,
                         stored == null ? null : stored.conditionSource(),
                         stored == null ? null : stored.leftVariableId(),
-                        operandVariableId == null ? "VOID" : "VARIABLE",
+                        effectiveOperandKind,
                         "",
-                        operandVariableId,
+                        effectiveOperandVariableId,
                         stored == null ? "" : stored.outputKey(),
                         stored == null ? "" : stored.outputColumn(),
                         stored == null ? "" : stored.outputFile(),
@@ -978,15 +1002,19 @@ public final class CommandEditorService {
                     requestId,
                     instructionId,
                     error);
-            return failure("The second comparison variable could not be saved.");
+            return failure(operatorOnly
+                    ? "The comparison operator could not be saved."
+                    : "The second comparison variable could not be saved.");
         }
         JsonObject response = new JsonObject();
         response.addProperty("ok", true);
         response.addProperty(
                 "message",
-                operandVariableId == null
-                        ? "Second comparison variable disconnected."
-                        : "Second comparison variable connected.");
+                operatorOnly
+                        ? "Comparison operator updated."
+                        : operandVariableId == null
+                                ? "Second comparison variable disconnected."
+                                : "Second comparison variable connected.");
         response.addProperty("instructionId", instructionId);
         if (body.has("requestId")) response.add("requestId", body.get("requestId"));
         if (!requestId.isEmpty()) rememberCompleted(requestId, response);

@@ -21,8 +21,13 @@ public final class VariablesCheckOperandConnectV1 {
             String graphRevision,
             Integer rightVariableId,
             List<Integer> instructionIds,
-            /** 'CONNECT' (default) fills free RIGHT spots; 'RELEASE' clears occupied ones. */
-            String operation) {
+            /**
+             * 'CONNECT' (default) fills free RIGHT spots; 'RELEASE' clears occupied ones;
+             * 'UPDATE_OPERATOR' (2026-08-04 middle-shim dropdown) changes only the stored
+             * comparison operator - the right operand connectivity is left untouched.
+             */
+            String operation,
+            String comparisonOperator) {
 
         public Request {
             instructionIds = instructionIds == null ? List.of() : List.copyOf(instructionIds);
@@ -30,6 +35,10 @@ public final class VariablesCheckOperandConnectV1 {
 
         public boolean isRelease() {
             return "RELEASE".equalsIgnoreCase(operation == null ? "" : operation.trim());
+        }
+
+        public boolean isUpdateOperator() {
+            return "UPDATE_OPERATOR".equalsIgnoreCase(operation == null ? "" : operation.trim());
         }
     }
 }
