@@ -159,9 +159,13 @@ class BotJobGraphMutationTransactionTest {
             new BotJobGraphMutationTransaction()
                     .execute(connection, authenticatedOwner, request);
 
-            assertEquals(502, integerValue(
+            assertEquals(501, integerValue(
                     connection,
                     "SELECT variable_id FROM instruction WHERE id=103"));
+            assertEquals(502, integerValue(
+                    connection,
+                    "SELECT variable_id FROM instruction_variable_slot"
+                            + " WHERE instruction_id=103 AND slot='GET_WRITE'"));
             assertEquals(103, integerValue(
                     connection,
                     "SELECT producer_instruction_id FROM bot_job_variable_definition"
@@ -176,7 +180,7 @@ class BotJobGraphMutationTransactionTest {
             new M20260803_InstructionVariableSlot().apply(connection, "TEXT");
             Map<Integer, String> actions = Map.of(103, "CK");
 
-            BotJobGraphMutationTransaction.synchronizeCheckValueLeftSlots(
+            BotJobGraphMutationTransaction.synchronizePrimaryVariableSlots(
                     connection,
                     OwnerKey.botJob(HOME_BANKING_ID, BOT_JOB_ID),
                     List.of(new NormalizedInstruction(
@@ -187,7 +191,7 @@ class BotJobGraphMutationTransactionTest {
                     "SELECT variable_id FROM instruction_variable_slot"
                             + " WHERE instruction_id=103 AND slot='LEFT'"));
 
-            BotJobGraphMutationTransaction.synchronizeCheckValueLeftSlots(
+            BotJobGraphMutationTransaction.synchronizePrimaryVariableSlots(
                     connection,
                     OwnerKey.botJob(HOME_BANKING_ID, BOT_JOB_ID),
                     List.of(new NormalizedInstruction(
@@ -201,7 +205,7 @@ class BotJobGraphMutationTransactionTest {
                     "SELECT slot_revision FROM instruction_variable_slot"
                             + " WHERE instruction_id=103 AND slot='LEFT'"));
 
-            BotJobGraphMutationTransaction.synchronizeCheckValueLeftSlots(
+            BotJobGraphMutationTransaction.synchronizePrimaryVariableSlots(
                     connection,
                     OwnerKey.botJob(HOME_BANKING_ID, BOT_JOB_ID),
                     List.of(new NormalizedInstruction(
@@ -235,16 +239,22 @@ class BotJobGraphMutationTransactionTest {
                     connection, "SELECT parent_id FROM instruction WHERE id=103"));
             assertNull(nullableIntegerValue(
                     connection, "SELECT parent_block_id FROM instruction WHERE id=103"));
-            assertNull(nullableIntegerValue(
+            assertEquals(501, integerValue(
                     connection, "SELECT variable_id FROM instruction WHERE id=103"));
+            assertEquals(0, integerValue(
+                    connection, "SELECT COUNT(*) FROM instruction_variable_slot"
+                            + " WHERE instruction_id=103 AND slot='GET_WRITE'"));
             assertEquals(30, integerValue(
                     connection, "SELECT parent_block_id FROM instruction WHERE id=102"));
             assertEquals(104, integerValue(
                     connection, "SELECT parent_id FROM instruction WHERE id=105"));
             assertEquals(20, integerValue(
                     connection, "SELECT parent_block_id FROM instruction WHERE id=105"));
-            assertEquals(502, integerValue(
+            assertNull(nullableIntegerValue(
                     connection, "SELECT variable_id FROM instruction WHERE id=105"));
+            assertEquals(502, integerValue(
+                    connection, "SELECT variable_id FROM instruction_variable_slot"
+                            + " WHERE instruction_id=105 AND slot='GET_WRITE'"));
             assertEquals(1L, currentVersion(connection));
             assertTrue(connection.getAutoCommit());
         }
@@ -755,6 +765,9 @@ class BotJobGraphMutationTransactionTest {
                 statement.executeUpdate(
                         "UPDATE instruction SET actions='CK' WHERE id=103");
                 statement.executeUpdate(
+                        "UPDATE instruction_variable_slot SET slot='LEFT'"
+                                + " WHERE instruction_id=103 AND slot='GET_WRITE'");
+                statement.executeUpdate(
                         "UPDATE instruction SET actions='H',parent_block_id=NULL WHERE id=102");
                 statement.executeUpdate(
                         "INSERT INTO instruction VALUES"
@@ -1063,6 +1076,19 @@ class BotJobGraphMutationTransactionTest {
     }
 
     private String revision(Connection connection) throws Exception {
+        Map<Integer, Map<String, Integer>> slots = new java.util.LinkedHashMap<>();
+        try (Statement statement = connection.createStatement();
+                ResultSet rows = statement.executeQuery(
+                        "SELECT instruction_id,slot,variable_id"
+                                + " FROM instruction_variable_slot"
+                                + " WHERE home_banking_id=2 AND bot_job_id=5")) {
+            while (rows.next()) {
+                slots.computeIfAbsent(
+                                rows.getInt("instruction_id"),
+                                ignored -> new java.util.LinkedHashMap<>())
+                        .put(rows.getString("slot"), rows.getInt("variable_id"));
+            }
+        }
         List<InstructionLoad> instructions = new ArrayList<>();
         try (Statement statement = connection.createStatement();
                 ResultSet rows = statement.executeQuery(
@@ -1078,7 +1104,17 @@ class BotJobGraphMutationTransactionTest {
                 row.setActions(rows.getString("actions"));
                 row.setParentId(nullableInteger(rows, "parent_id"));
                 row.setParentBlockId(nullableInteger(rows, "parent_block_id"));
-                row.setVariableId(nullableInteger(rows, "variable_id"));
+                String action = CommandRegistry.canonicalize(rows.getString("actions"));
+                String slot = switch (action) {
+                    case "CK", "CSV CHECK", "PDF CHECK" -> "LEFT";
+                    case "GET" -> "GET_WRITE";
+                    case "SET" -> "READ_SET";
+                    case "E" -> "READ";
+                    default -> null;
+                };
+                row.setVariableId(slot == null
+                        ? null
+                        : slots.getOrDefault(row.getId(), Map.of()).get(slot));
                 row.setOperation(rows.getString("operation"));
                 instructions.add(row);
             }

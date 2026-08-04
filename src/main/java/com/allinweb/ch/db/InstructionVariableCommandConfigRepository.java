@@ -18,8 +18,8 @@ public final class InstructionVariableCommandConfigRepository {
     public Map<Integer, StoredConfiguration> loadForBotJob(Connection connection, int botJobId)
             throws SQLException {
         LinkedHashMap<Integer, StoredConfiguration> result = new LinkedHashMap<>();
-        String sql = "SELECT instruction_id,command_type,condition_source,left_variable_id,operand_kind,comparison_operator,"
-                + "operand_raw_value,operand_variable_id,output_key,output_column,output_file,"
+        String sql = "SELECT instruction_id,command_type,condition_source,operand_kind,comparison_operator,"
+                + "operand_raw_value,output_key,output_column,output_file,"
                 + "external_source_key,format_policy,config_revision FROM " + TABLE
                 + " WHERE bot_job_id=? ORDER BY instruction_id";
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -37,8 +37,8 @@ public final class InstructionVariableCommandConfigRepository {
     public StoredConfiguration load(
             Connection connection, int homeBankingId, int botJobId, int instructionId)
             throws SQLException {
-        String sql = "SELECT instruction_id,command_type,condition_source,left_variable_id,operand_kind,comparison_operator,"
-                + "operand_raw_value,operand_variable_id,output_key,output_column,output_file,"
+        String sql = "SELECT instruction_id,command_type,condition_source,operand_kind,comparison_operator,"
+                + "operand_raw_value,output_key,output_column,output_file,"
                 + "external_source_key,format_policy,config_revision FROM " + TABLE
                 + " WHERE home_banking_id=? AND bot_job_id=? AND instruction_id=?";
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -60,32 +60,32 @@ public final class InstructionVariableCommandConfigRepository {
             Configuration configuration)
             throws SQLException {
         Timestamp now = Timestamp.from(Instant.now());
-        String update = "UPDATE " + TABLE + " SET command_type=?,condition_source=?,left_variable_id=?,operand_kind=?,"
-                + "comparison_operator=?,operand_raw_value=?,operand_variable_id=?,output_key=?,"
+        String update = "UPDATE " + TABLE + " SET command_type=?,condition_source=?,operand_kind=?,"
+                + "comparison_operator=?,operand_raw_value=?,output_key=?,"
                 + "output_column=?,output_file=?,external_source_key=?,format_policy=?,"
                 + "config_revision=config_revision+1,updated_at=?"
                 + " WHERE home_banking_id=? AND bot_job_id=? AND instruction_id=?";
         try (PreparedStatement statement = connection.prepareStatement(update)) {
             bindConfiguration(statement, commandType, configuration, 1);
-            statement.setTimestamp(13, now);
-            statement.setInt(14, homeBankingId);
-            statement.setInt(15, botJobId);
-            statement.setInt(16, instructionId);
+            statement.setTimestamp(11, now);
+            statement.setInt(12, homeBankingId);
+            statement.setInt(13, botJobId);
+            statement.setInt(14, instructionId);
             if (statement.executeUpdate() == 1) return;
         }
         String insert = "INSERT INTO " + TABLE + " (home_banking_id,bot_job_id,instruction_id,"
-                + "command_type,condition_source,left_variable_id,operand_kind,comparison_operator,operand_raw_value,"
-                + "operand_variable_id,output_key,output_column,output_file,external_source_key,"
+                + "command_type,condition_source,operand_kind,comparison_operator,operand_raw_value,"
+                + "output_key,output_column,output_file,external_source_key,"
                 + "format_policy,config_revision,created_at,updated_at)"
-                + " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+                + " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
         try (PreparedStatement statement = connection.prepareStatement(insert)) {
             statement.setInt(1, homeBankingId);
             statement.setInt(2, botJobId);
             statement.setInt(3, instructionId);
             bindConfiguration(statement, commandType, configuration, 4);
-            statement.setInt(16, 1);
-            statement.setTimestamp(17, now);
-            statement.setTimestamp(18, now);
+            statement.setInt(14, 1);
+            statement.setTimestamp(15, now);
+            statement.setTimestamp(16, now);
             if (statement.executeUpdate() != 1) {
                 throw new SQLException("Typed command configuration was not stored.");
             }
@@ -114,16 +114,14 @@ public final class InstructionVariableCommandConfigRepository {
             throws SQLException {
         statement.setString(offset, commandType);
         statement.setString(offset + 1, configuration.conditionSource());
-        statement.setObject(offset + 2, configuration.leftVariableId());
-        statement.setString(offset + 3, configuration.operandKind());
-        statement.setString(offset + 4, configuration.comparisonOperator());
-        statement.setString(offset + 5, configuration.operandRawValue());
-        statement.setObject(offset + 6, configuration.operandVariableId());
-        statement.setString(offset + 7, configuration.outputKey());
-        statement.setString(offset + 8, configuration.outputColumn());
-        statement.setString(offset + 9, configuration.outputFile());
-        statement.setString(offset + 10, configuration.externalSourceKey());
-        statement.setString(offset + 11, configuration.formatPolicy());
+        statement.setString(offset + 2, configuration.operandKind());
+        statement.setString(offset + 3, configuration.comparisonOperator());
+        statement.setString(offset + 4, configuration.operandRawValue());
+        statement.setString(offset + 5, configuration.outputKey());
+        statement.setString(offset + 6, configuration.outputColumn());
+        statement.setString(offset + 7, configuration.outputFile());
+        statement.setString(offset + 8, configuration.externalSourceKey());
+        statement.setString(offset + 9, configuration.formatPolicy());
     }
 
     private static StoredConfiguration from(ResultSet rows) throws SQLException {
@@ -131,11 +129,11 @@ public final class InstructionVariableCommandConfigRepository {
                 rows.getInt("instruction_id"),
                 rows.getString("command_type"),
                 rows.getString("condition_source"),
-                nullableInteger(rows, "left_variable_id"),
+                null,
                 rows.getString("operand_kind"),
                 rows.getString("comparison_operator"),
                 rows.getString("operand_raw_value"),
-                nullableInteger(rows, "operand_variable_id"),
+                null,
                 rows.getString("output_key"),
                 rows.getString("output_column"),
                 rows.getString("output_file"),

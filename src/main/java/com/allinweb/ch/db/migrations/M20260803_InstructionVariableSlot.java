@@ -15,8 +15,8 @@ import java.util.Locale;
  *
  * <p>Every variable connection of every Bot Job command is one row keyed by
  * {@code (home_banking_id, bot_job_id, instruction_id, slot)}. Slot meanings:
- * CK / CSV CHECK / PDF CHECK use {@code LEFT} + {@code RIGHT}; SET uses {@code SOURCE};
- * GET / E and every other variable-carrying command use {@code OUTPUT}. A free spot is
+ * CK / CSV CHECK / PDF CHECK use {@code LEFT} + {@code RIGHT}; GET uses
+ * {@code GET_WRITE}; SET uses {@code READ_SET}; E uses {@code READ}. A free spot is
  * simply an absent row; the primary key makes duplicates impossible.
  *
  * <p>This migration only creates and BACKFILLS the table from the legacy columns
@@ -30,8 +30,9 @@ public final class M20260803_InstructionVariableSlot implements Migration {
     public static final String TABLE = "instruction_variable_slot";
     public static final String SLOT_LEFT = "LEFT";
     public static final String SLOT_RIGHT = "RIGHT";
-    public static final String SLOT_OUTPUT = "OUTPUT";
-    public static final String SLOT_SOURCE = "SOURCE";
+    public static final String SLOT_GET_WRITE = "GET_WRITE";
+    public static final String SLOT_READ_SET = "READ_SET";
+    public static final String SLOT_READ = "READ";
     private static final String NAME = "2026-08-03__instruction_variable_slot";
 
     @Override
@@ -91,8 +92,10 @@ public final class M20260803_InstructionVariableSlot implements Migration {
         if ("CK".equals(canonical) || "CSV CHECK".equals(canonical) || "PDF CHECK".equals(canonical)) {
             return SLOT_LEFT;
         }
-        if ("SET".equals(canonical)) return SLOT_SOURCE;
-        return SLOT_OUTPUT;
+        if ("GET".equals(canonical)) return SLOT_GET_WRITE;
+        if ("SET".equals(canonical)) return SLOT_READ_SET;
+        if ("E".equals(canonical)) return SLOT_READ;
+        return null;
     }
 
     private static void backfill(Connection connection) throws SQLException {
@@ -107,8 +110,11 @@ public final class M20260803_InstructionVariableSlot implements Migration {
                                 + " WHERE i.variable_id IS NOT NULL")) {
             try (ResultSet rows = legacy.executeQuery()) {
                 while (rows.next()) {
-                    insertSlot(insert, rows.getInt(1), rows.getInt(2), rows.getInt(3),
-                            legacySlotFor(rows.getString(4)), rows.getInt(5), now);
+                    String slot = legacySlotFor(rows.getString(4));
+                    if (slot != null) {
+                        insertSlot(insert, rows.getInt(1), rows.getInt(2), rows.getInt(3),
+                                slot, rows.getInt(5), now);
+                    }
                 }
             }
             if (tableExists(connection, "instruction_variable_command_config")) {

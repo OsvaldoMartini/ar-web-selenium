@@ -1231,6 +1231,9 @@ public final class VariablesWorkspaceService {
             response.addProperty("rightVariableId", committed.rightVariableId());
             response.addProperty("connectedCount", committed.connectedCount());
             response.addProperty("skippedCount", committed.skippedCount());
+            if (committed.connectedCount() > 0) {
+                notifyMutation(authorized.botJobId());
+            }
             response.addProperty("message", connectRequest.isUpdateOperator()
                     ? (committed.connectedCount() > 0
                             ? "Comparison operator updated for " + committed.connectedCount()
@@ -1262,6 +1265,81 @@ public final class VariablesWorkspaceService {
             return mutationFailure(request, "CHECK_OPERAND_FAILED",
                     "The operand connection was not completed.",
                     current == null ? currentBinding() : current);
+        }
+    }
+
+    /**
+     * GridItem-owned RIGHT mutation. The WebSocket layer has already authorized and
+     * canonicalized the botJobTasks owner; this path deliberately does not depend on
+     * the Variables Manager binding or transport.
+     */
+    public JsonObject connectCheckOperandFromGrid(JsonObject body) {
+        JsonObject request = body == null ? new JsonObject() : body;
+        Binding authorized = null;
+        try {
+            int homeBankingId = positiveInteger(request, "homeBankingId");
+            int botJobId = positiveInteger(request, "botJobId");
+            long workspaceEpoch = positiveLong(request, "workspaceEpoch");
+            if (homeBankingId < 1 || botJobId < 1 || workspaceEpoch < 1L) {
+                throw new IllegalArgumentException(
+                        "The GridItem RIGHT mutation requires an active Bot Job owner.");
+            }
+            authorized = new Binding(
+                    "",
+                    workspaceEpoch,
+                    botJobId,
+                    homeBankingId,
+                    text(request, "botJobName"),
+                    "",
+                    text(request, "graphRevision"));
+            com.allinweb.ch.model.VariablesCheckOperandConnectV1.Request connectRequest;
+            try {
+                connectRequest = gson.fromJson(
+                        request, com.allinweb.ch.model.VariablesCheckOperandConnectV1.Request.class);
+            } catch (RuntimeException malformed) {
+                throw new IllegalArgumentException(
+                        "The GridItem RIGHT mutation request is malformed.");
+            }
+            if (connectRequest == null) {
+                throw new IllegalArgumentException(
+                        "A GridItem RIGHT mutation request is required.");
+            }
+            Binding owner = authorized;
+            com.allinweb.ch.facade.VariablesCheckOperandConnectTransaction.ConnectResult committed =
+                    BotJobDetailsWorkspaceRegistry.getInstance().commitWorkspaceMutation(
+                            owner.botJobId(),
+                            owner.workspaceEpoch(),
+                            () -> persistCheckOperandConnect(owner, connectRequest));
+            JsonObject response = mutationResponseBase(request, owner);
+            response.addProperty("contractVersion",
+                    com.allinweb.ch.model.VariablesCheckOperandConnectV1.CONTRACT_VERSION);
+            response.addProperty("ok", true);
+            response.addProperty("committed", true);
+            response.addProperty("resyncRequired", false);
+            response.addProperty("rightVariableId", committed.rightVariableId());
+            response.addProperty("connectedCount", committed.connectedCount());
+            response.addProperty("skippedCount", committed.skippedCount());
+            response.addProperty("message", connectRequest.isRelease()
+                    ? "GridItem RIGHT operand released."
+                    : "GridItem RIGHT operand connected.");
+            if (committed.connectedCount() > 0) notifyMutation(owner.botJobId());
+            return response;
+        } catch (CheckOperandPersistenceException persistenceFailure) {
+            Throwable cause = persistenceFailure.getCause();
+            if (cause instanceof MutationRefusedException refused) {
+                return mutationFailure(
+                        request, refused.code(), refused.getMessage(), authorized);
+            }
+            log.error("Unable to persist the GridItem RIGHT mutation", cause);
+            return mutationFailure(request, "CHECK_OPERAND_PERSISTENCE_FAILED",
+                    "The GridItem RIGHT operand was not changed.", authorized);
+        } catch (IllegalArgumentException | IllegalStateException refused) {
+            return mutationFailure(request, "CHECK_OPERAND_REQUEST_REFUSED",
+                    refused.getMessage(), authorized);
+        } catch (RuntimeException failure) {
+            log.error("Unable to process the GridItem RIGHT mutation", failure);
+            return mutationFailure(request, "CHECK_OPERAND_FAILED",
+                    "The GridItem RIGHT operand was not changed.", authorized);
         }
     }
 

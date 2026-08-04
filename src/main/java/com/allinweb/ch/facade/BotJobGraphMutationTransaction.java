@@ -146,7 +146,7 @@ public final class BotJobGraphMutationTransaction {
 
             NormalizedMutation mutation = validation.mutation();
             applyInstructions(connection, owner.owner().ownerId(), mutation.instructions());
-            synchronizeCheckValueLeftSlots(
+            synchronizePrimaryVariableSlots(
                     connection,
                     owner.owner(),
                     mutation.instructions(),
@@ -272,8 +272,10 @@ public final class BotJobGraphMutationTransaction {
         List<StoredInstruction> instructions = new ArrayList<>();
         List<InstructionLoad> revisionInstructions = new ArrayList<>();
         Map<Integer, String> actionsByInstruction = new LinkedHashMap<>();
+        Map<Integer, Map<String, Integer>> variableSlots =
+                loadInstructionVariableSlots(connection, owner);
         String instructionSql = "SELECT id,block_id,instruction_order_number,actions,parent_id,"
-                + "parent_block_id,variable_id,operation FROM instruction"
+                + "parent_block_id,operation FROM instruction"
                 + " WHERE bot_job_id=? ORDER BY id";
         try (PreparedStatement statement = connection.prepareStatement(instructionSql)) {
             statement.setInt(1, owner.ownerId());
@@ -286,7 +288,10 @@ public final class BotJobGraphMutationTransaction {
                     actionsByInstruction.put(id, action == null ? "" : action);
                     Integer parentId = nullableInteger(rows, "parent_id");
                     Integer parentBlockId = nullableInteger(rows, "parent_block_id");
-                    Integer variableId = nullableInteger(rows, "variable_id");
+                    String primarySlot = primaryVariableSlot(action);
+                    Integer variableId = primarySlot == null
+                            ? null
+                            : variableSlots.getOrDefault(id, Map.of()).get(primarySlot);
                     instructions.add(new StoredInstruction(
                             id,
                             blockId,
@@ -353,6 +358,27 @@ public final class BotJobGraphMutationTransaction {
                 actionsByInstruction);
     }
 
+    private Map<Integer, Map<String, Integer>> loadInstructionVariableSlots(
+            Connection connection,
+            OwnerKey owner)
+            throws SQLException {
+        Map<Integer, Map<String, Integer>> slotsByInstruction = new LinkedHashMap<>();
+        String sql = "SELECT instruction_id,slot,variable_id FROM instruction_variable_slot"
+                + " WHERE home_banking_id=? AND bot_job_id=?";
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setInt(1, owner.homeBankingId());
+            statement.setInt(2, owner.ownerId());
+            try (ResultSet rows = statement.executeQuery()) {
+                while (rows.next()) {
+                    slotsByInstruction
+                            .computeIfAbsent(rows.getInt("instruction_id"), ignored -> new LinkedHashMap<>())
+                            .put(rows.getString("slot"), rows.getInt("variable_id"));
+                }
+            }
+        }
+        return slotsByInstruction;
+    }
+
     private List<StoredBlock> loadBlocks(Connection connection, int botJobId)
             throws SQLException {
         List<StoredBlock> blocks = new ArrayList<>();
@@ -398,16 +424,15 @@ public final class BotJobGraphMutationTransaction {
             List<NormalizedInstruction> instructions)
             throws SQLException {
         String sql = "UPDATE instruction SET block_id=?,instruction_order_number=?,"
-                + "parent_id=?,parent_block_id=?,variable_id=? WHERE id=? AND bot_job_id=?";
+                + "parent_id=?,parent_block_id=? WHERE id=? AND bot_job_id=?";
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             for (NormalizedInstruction instruction : instructions) {
                 statement.setInt(1, instruction.blockId());
                 statement.setInt(2, instruction.instructionOrderNumber());
                 setNullableInteger(statement, 3, instruction.parentId());
                 setNullableInteger(statement, 4, instruction.parentBlockId());
-                setNullableInteger(statement, 5, instruction.variableId());
-                statement.setInt(6, instruction.instructionId());
-                statement.setInt(7, botJobId);
+                statement.setInt(5, instruction.instructionId());
+                statement.setInt(6, botJobId);
                 if (statement.executeUpdate() != 1) {
                     throw new SQLException(
                             "Instruction #" + instruction.instructionId()
@@ -440,45 +465,38 @@ public final class BotJobGraphMutationTransaction {
     }
 
     /**
-     * Keeps the new CheckValue LEFT slot authoritative while the execution engine still reads
-     * {@code instruction.variable_id}. Both writes run in this transaction, so they cannot drift.
+     * Persists directional primary relationships exclusively in instruction_variable_slot:
+     * GET_WRITE for GET, READ_SET for SET, READ for E, and LEFT for CheckValue.
      */
-    static void synchronizeCheckValueLeftSlots(
+    static void synchronizePrimaryVariableSlots(
             Connection connection,
             OwnerKey owner,
             List<NormalizedInstruction> instructions,
             Map<Integer, String> actionsByInstruction)
             throws SQLException {
-        List<NormalizedInstruction> checkValues = instructions.stream()
-                .filter(instruction -> {
-                    String action = CommandRegistry.canonicalize(
-                            actionsByInstruction.get(instruction.instructionId()));
-                    return "CK".equals(action)
-                            || "CSV CHECK".equals(action)
-                            || "PDF CHECK".equals(action);
-                })
-                .toList();
-        if (checkValues.isEmpty()) return;
-
         String selectSql = "SELECT variable_id FROM instruction_variable_slot"
-                + " WHERE home_banking_id=? AND bot_job_id=? AND instruction_id=? AND slot='LEFT'";
+                + " WHERE home_banking_id=? AND bot_job_id=? AND instruction_id=? AND slot=?";
         String insertSql = "INSERT INTO instruction_variable_slot"
                 + " (home_banking_id,bot_job_id,instruction_id,slot,variable_id,slot_revision,"
-                + "created_at,updated_at) VALUES (?,?,?,'LEFT',?,1,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)";
+                + "created_at,updated_at) VALUES (?,?,?,?,?,1,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)";
         String updateSql = "UPDATE instruction_variable_slot SET variable_id=?,"
                 + "slot_revision=slot_revision+1,updated_at=CURRENT_TIMESTAMP"
-                + " WHERE home_banking_id=? AND bot_job_id=? AND instruction_id=? AND slot='LEFT'";
+                + " WHERE home_banking_id=? AND bot_job_id=? AND instruction_id=? AND slot=?";
         String deleteSql = "DELETE FROM instruction_variable_slot"
-                + " WHERE home_banking_id=? AND bot_job_id=? AND instruction_id=? AND slot='LEFT'";
+                + " WHERE home_banking_id=? AND bot_job_id=? AND instruction_id=? AND slot=?";
         try (PreparedStatement select = connection.prepareStatement(selectSql);
                 PreparedStatement insert = connection.prepareStatement(insertSql);
                 PreparedStatement update = connection.prepareStatement(updateSql);
                 PreparedStatement delete = connection.prepareStatement(deleteSql)) {
-            for (NormalizedInstruction instruction : checkValues) {
+            for (NormalizedInstruction instruction : instructions) {
+                String slot = primaryVariableSlot(
+                        actionsByInstruction.get(instruction.instructionId()));
+                if (slot == null) continue;
                 Integer current = null;
                 select.setInt(1, owner.homeBankingId());
                 select.setInt(2, owner.ownerId());
                 select.setInt(3, instruction.instructionId());
+                select.setString(4, slot);
                 try (ResultSet rows = select.executeQuery()) {
                     if (rows.next()) current = rows.getInt("variable_id");
                 }
@@ -489,26 +507,40 @@ public final class BotJobGraphMutationTransaction {
                     delete.setInt(1, owner.homeBankingId());
                     delete.setInt(2, owner.ownerId());
                     delete.setInt(3, instruction.instructionId());
+                    delete.setString(4, slot);
                     delete.executeUpdate();
                 } else if (current == null) {
                     insert.setInt(1, owner.homeBankingId());
                     insert.setInt(2, owner.ownerId());
                     insert.setInt(3, instruction.instructionId());
-                    insert.setInt(4, desired);
+                    insert.setString(4, slot);
+                    insert.setInt(5, desired);
                     if (insert.executeUpdate() != 1) {
-                        throw new SQLException("CheckValue LEFT slot was not inserted exactly once.");
+                        throw new SQLException("Primary variable slot was not inserted exactly once.");
                     }
                 } else {
                     update.setInt(1, desired);
                     update.setInt(2, owner.homeBankingId());
                     update.setInt(3, owner.ownerId());
                     update.setInt(4, instruction.instructionId());
+                    update.setString(5, slot);
                     if (update.executeUpdate() != 1) {
-                        throw new SQLException("CheckValue LEFT slot was not updated exactly once.");
+                        throw new SQLException("Primary variable slot was not updated exactly once.");
                     }
                 }
             }
         }
+    }
+
+    private static String primaryVariableSlot(String actionValue) {
+        String action = CommandRegistry.canonicalize(actionValue);
+        if ("CK".equals(action) || "CSV CHECK".equals(action) || "PDF CHECK".equals(action)) {
+            return "LEFT";
+        }
+        if ("GET".equals(action)) return "GET_WRITE";
+        if ("SET".equals(action)) return "READ_SET";
+        if ("E".equals(action)) return "READ";
+        return null;
     }
 
     private void verifyFinalState(

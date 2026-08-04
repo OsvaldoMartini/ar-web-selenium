@@ -17,7 +17,7 @@ public final class InstructionGraphRevisionService {
     /**
      * Computes the revision of the instruction graph plus variable ownership.
      *
-     * <p>{@code instruction.variable_id} records which variable an instruction uses, while
+     * <p>The instruction variable value is loaded from its authoritative directional slot, while
      * {@code variable.instruction_id} records the instruction that owns/produces that variable.
      * Both directions affect dependency closure and therefore both must participate in stale-graph
      * detection.

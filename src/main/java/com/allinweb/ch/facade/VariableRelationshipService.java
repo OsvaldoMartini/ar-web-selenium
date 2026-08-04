@@ -243,7 +243,7 @@ public final class VariableRelationshipService {
 
     /**
      * Loads every slot connection of the Bot Job from instruction_variable_slot —
-     * the uniform link table (LEFT / RIGHT / OUTPUT / SOURCE). Absent table (older
+     * the uniform link table (LEFT / RIGHT / GET_WRITE / READ_SET / READ). Absent table (older
      * database) simply yields no slots; React falls back to the legacy columns.
      */
     private Map<Integer, List<SlotEntry>> loadSlots(Connection connection, int botJobId)

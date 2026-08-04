@@ -972,6 +972,13 @@ public class SimpleWebSocketServer {
                     break;
                 }
                 case "variablesWorkspace.graphMutationLeft": {
+                    if (ScannerWorkspaceSessions.BOT_JOB_TASKS.equals(sessionId)) {
+                        handleBotJobGraphMutation(
+                                jsonObjMSG,
+                                session,
+                                "variablesWorkspace.graphMutationLeftResponse");
+                        break;
+                    }
                     JsonObject variablesBody = extractBody(jsonObjMSG);
                     JsonObject mutationResponse = variablesWorkspaceService.mutate(
                             variablesBody, sessionId, session);
@@ -988,8 +995,23 @@ public class SimpleWebSocketServer {
                 }
                 case "variablesWorkspace.graphMutationRight": {
                     JsonObject variablesBody = extractBody(jsonObjMSG);
-                    JsonObject connectResponse = variablesWorkspaceService.connectCheckOperand(
-                            variablesBody, sessionId, session);
+                    boolean gridOwnedRight =
+                            ScannerWorkspaceSessions.BOT_JOB_TASKS.equals(sessionId);
+                    JsonObject connectResponse;
+                    if (gridOwnedRight) {
+                        try {
+                            variablesBody = authorizeInstructionGridRequest(
+                                    variablesBody, sessionId, session);
+                            connectResponse = variablesWorkspaceService
+                                    .connectCheckOperandFromGrid(variablesBody);
+                        } catch (Exception authorizationError) {
+                            connectResponse = commandEditorFailure(
+                                    variablesBody, authorizationError.getMessage());
+                        }
+                    } else {
+                        connectResponse = variablesWorkspaceService.connectCheckOperand(
+                                variablesBody, sessionId, session);
+                    }
                     try {
                         sendCommandEditorResponse(
                                 homeBankingId,
@@ -998,6 +1020,21 @@ public class SimpleWebSocketServer {
                                 connectResponse);
                     } finally {
                         variablesWorkspaceService.publishCommittedMutation(connectResponse);
+                    }
+                    if (gridOwnedRight
+                            && connectResponse.has("ok")
+                            && connectResponse.get("ok").getAsBoolean()) {
+                        int gridBotJobId = positiveJsonInt(variablesBody, "botJobId");
+                        int gridHomeBankingId = positiveJsonInt(
+                                variablesBody, "homeBankingId");
+                        ErrorMessage refreshError = ScannerBotJobTasksPublisher.getInstance()
+                                .publishGridOnly(gridHomeBankingId, gridBotJobId);
+                        if (refreshError != null) {
+                            log.warn(
+                                    "GridItem RIGHT mutation committed for Bot Job {}, but grid refresh failed: {}",
+                                    gridBotJobId,
+                                    refreshError.getErrorMessage());
+                        }
                     }
                     break;
                 }
@@ -1221,6 +1258,8 @@ public class SimpleWebSocketServer {
                                     checkOperandBotJobId,
                                     checkOperandRefresh.getErrorMessage());
                         }
+                        VariablesWorkspaceService.getInstance()
+                                .notifyMutation(checkOperandBotJobId);
                     }
                     break;
                 }
@@ -2250,6 +2289,16 @@ public class SimpleWebSocketServer {
      * can reject stale or forged graph facts before writing anything.
      */
     private void handleBotJobGraphMutation(JsonObject envelope, Session transportSession) {
+        handleBotJobGraphMutation(
+                envelope,
+                transportSession,
+                "botJobGraph.mutationResponse");
+    }
+
+    private void handleBotJobGraphMutation(
+            JsonObject envelope,
+            Session transportSession,
+            String responseOperationId) {
         JsonObject body = botJobGraphMutationRequest(envelope);
         JsonObject response = botJobGraphMutationResponseBase(body, null);
         try {
@@ -2281,7 +2330,7 @@ public class SimpleWebSocketServer {
             sendCommandEditorResponse(
                     active.homeBankingId(),
                     ScannerWorkspaceSessions.BOT_JOB_TASKS,
-                    "botJobGraph.mutationResponse",
+                    responseOperationId,
                     response);
 
             ErrorMessage refreshError = ScannerBotJobTasksPublisher.getInstance()
@@ -2298,14 +2347,16 @@ public class SimpleWebSocketServer {
             VariablesWorkspaceService.getInstance().notifyMutation(active.botJobId());
         } catch (BotJobGraphMutationTransaction.MutationRefusedException refused) {
             botJobGraphMutationFailure(
-                    response, body, refused.code(), refused.getMessage(), transportSession);
+                    response, body, refused.code(), refused.getMessage(), transportSession,
+                    responseOperationId);
         } catch (Exception failure) {
             botJobGraphMutationFailure(
                     response,
                     body,
                     "REQUEST_REFUSED",
                     failure.getMessage(),
-                    transportSession);
+                    transportSession,
+                    responseOperationId);
         }
     }
 
@@ -2350,7 +2401,8 @@ public class SimpleWebSocketServer {
             JsonObject request,
             String code,
             String message,
-            Session transportSession) {
+            Session transportSession,
+            String responseOperationId) {
         response.addProperty("contractVersion", InstructionGraphMutationV3.CONTRACT_VERSION);
         response.addProperty("ok", false);
         response.addProperty("committed", false);
@@ -2387,7 +2439,7 @@ public class SimpleWebSocketServer {
         } catch (RuntimeException ignored) {
             // A malformed request still receives a correlated refusal on its real transport.
         }
-        sendCommandEditorResponse(homeBankingId, sessionId, "botJobGraph.mutationResponse", response);
+        sendCommandEditorResponse(homeBankingId, sessionId, responseOperationId, response);
     }
 
     /** The React hook sends this v3 request as top-level fields, unlike body-wrapped legacy verbs. */
