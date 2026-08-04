@@ -10,6 +10,8 @@ import com.allinweb.ch.db.InstructionGraphStateRepository;
 import com.allinweb.ch.db.InstructionGraphStateRepository.OwnerKey;
 import com.allinweb.ch.db.migrations.M20260729_InstructionGraphState;
 import com.allinweb.ch.db.migrations.M20260730_BotJobRuntimeVariables;
+import com.allinweb.ch.db.migrations.M20260803_InstructionVariableSlot;
+import com.allinweb.ch.facade.InstructionGraphMutationContractValidator.NormalizedInstruction;
 import com.allinweb.ch.facade.BotJobGraphMutationTransaction.AuthenticatedBotJob;
 import com.allinweb.ch.facade.BotJobGraphMutationTransaction.GraphInstructionFact;
 import com.allinweb.ch.facade.BotJobGraphMutationTransaction.GraphSnapshot;
@@ -38,6 +40,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -164,6 +167,50 @@ class BotJobGraphMutationTransactionTest {
                     "SELECT producer_instruction_id FROM bot_job_variable_definition"
                             + " WHERE id=502"));
             assertEquals(1L, currentVersion(connection));
+        }
+    }
+
+    @Test
+    void synchronizesCheckValueLeftSlotAcrossConnectChangeAndRelease() throws Exception {
+        try (Connection connection = database()) {
+            new M20260803_InstructionVariableSlot().apply(connection, "TEXT");
+            Map<Integer, String> actions = Map.of(103, "CK");
+
+            BotJobGraphMutationTransaction.synchronizeCheckValueLeftSlots(
+                    connection,
+                    OwnerKey.botJob(HOME_BANKING_ID, BOT_JOB_ID),
+                    List.of(new NormalizedInstruction(
+                            103, 20, 2, 2, InstructionRelationKind.ELEMENT_TARGET,
+                            104, 20, 501)),
+                    actions);
+            assertEquals(501, integerValue(connection,
+                    "SELECT variable_id FROM instruction_variable_slot"
+                            + " WHERE instruction_id=103 AND slot='LEFT'"));
+
+            BotJobGraphMutationTransaction.synchronizeCheckValueLeftSlots(
+                    connection,
+                    OwnerKey.botJob(HOME_BANKING_ID, BOT_JOB_ID),
+                    List.of(new NormalizedInstruction(
+                            103, 20, 2, 2, InstructionRelationKind.ELEMENT_TARGET,
+                            104, 20, 502)),
+                    actions);
+            assertEquals(502, integerValue(connection,
+                    "SELECT variable_id FROM instruction_variable_slot"
+                            + " WHERE instruction_id=103 AND slot='LEFT'"));
+            assertEquals(2, integerValue(connection,
+                    "SELECT slot_revision FROM instruction_variable_slot"
+                            + " WHERE instruction_id=103 AND slot='LEFT'"));
+
+            BotJobGraphMutationTransaction.synchronizeCheckValueLeftSlots(
+                    connection,
+                    OwnerKey.botJob(HOME_BANKING_ID, BOT_JOB_ID),
+                    List.of(new NormalizedInstruction(
+                            103, 20, 2, 2, InstructionRelationKind.ELEMENT_TARGET,
+                            104, 20, null)),
+                    actions);
+            assertEquals(0, integerValue(connection,
+                    "SELECT COUNT(*) FROM instruction_variable_slot"
+                            + " WHERE instruction_id=103 AND slot='LEFT'"));
         }
     }
 
@@ -799,6 +846,7 @@ class BotJobGraphMutationTransactionTest {
         }
         new M20260730_BotJobRuntimeVariables().apply(connection, "TEXT");
         new M20260729_InstructionGraphState().apply(connection, "TEXT");
+        new M20260803_InstructionVariableSlot().apply(connection, "TEXT");
         stateRepository.loadOrCreate(connection, OwnerKey.botJob(HOME_BANKING_ID, BOT_JOB_ID));
         return connection;
     }

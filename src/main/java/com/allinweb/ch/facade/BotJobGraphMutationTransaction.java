@@ -146,6 +146,11 @@ public final class BotJobGraphMutationTransaction {
 
             NormalizedMutation mutation = validation.mutation();
             applyInstructions(connection, owner.owner().ownerId(), mutation.instructions());
+            synchronizeCheckValueLeftSlots(
+                    connection,
+                    owner.owner(),
+                    mutation.instructions(),
+                    before.actionsByInstruction());
             applyVariableOwners(connection, owner.owner().ownerId(), mutation.variables());
             faultInjector.at(TransactionPhase.AFTER_GRAPH_WRITES);
 
@@ -429,6 +434,78 @@ public final class BotJobGraphMutationTransaction {
                     throw new SQLException(
                             "Variable #" + variable.variableId()
                                     + " was not updated exactly once.");
+                }
+            }
+        }
+    }
+
+    /**
+     * Keeps the new CheckValue LEFT slot authoritative while the execution engine still reads
+     * {@code instruction.variable_id}. Both writes run in this transaction, so they cannot drift.
+     */
+    static void synchronizeCheckValueLeftSlots(
+            Connection connection,
+            OwnerKey owner,
+            List<NormalizedInstruction> instructions,
+            Map<Integer, String> actionsByInstruction)
+            throws SQLException {
+        List<NormalizedInstruction> checkValues = instructions.stream()
+                .filter(instruction -> {
+                    String action = CommandRegistry.canonicalize(
+                            actionsByInstruction.get(instruction.instructionId()));
+                    return "CK".equals(action)
+                            || "CSV CHECK".equals(action)
+                            || "PDF CHECK".equals(action);
+                })
+                .toList();
+        if (checkValues.isEmpty()) return;
+
+        String selectSql = "SELECT variable_id FROM instruction_variable_slot"
+                + " WHERE home_banking_id=? AND bot_job_id=? AND instruction_id=? AND slot='LEFT'";
+        String insertSql = "INSERT INTO instruction_variable_slot"
+                + " (home_banking_id,bot_job_id,instruction_id,slot,variable_id,slot_revision,"
+                + "created_at,updated_at) VALUES (?,?,?,'LEFT',?,1,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)";
+        String updateSql = "UPDATE instruction_variable_slot SET variable_id=?,"
+                + "slot_revision=slot_revision+1,updated_at=CURRENT_TIMESTAMP"
+                + " WHERE home_banking_id=? AND bot_job_id=? AND instruction_id=? AND slot='LEFT'";
+        String deleteSql = "DELETE FROM instruction_variable_slot"
+                + " WHERE home_banking_id=? AND bot_job_id=? AND instruction_id=? AND slot='LEFT'";
+        try (PreparedStatement select = connection.prepareStatement(selectSql);
+                PreparedStatement insert = connection.prepareStatement(insertSql);
+                PreparedStatement update = connection.prepareStatement(updateSql);
+                PreparedStatement delete = connection.prepareStatement(deleteSql)) {
+            for (NormalizedInstruction instruction : checkValues) {
+                Integer current = null;
+                select.setInt(1, owner.homeBankingId());
+                select.setInt(2, owner.ownerId());
+                select.setInt(3, instruction.instructionId());
+                try (ResultSet rows = select.executeQuery()) {
+                    if (rows.next()) current = rows.getInt("variable_id");
+                }
+
+                Integer desired = instruction.variableId();
+                if (Objects.equals(current, desired)) continue;
+                if (desired == null) {
+                    delete.setInt(1, owner.homeBankingId());
+                    delete.setInt(2, owner.ownerId());
+                    delete.setInt(3, instruction.instructionId());
+                    delete.executeUpdate();
+                } else if (current == null) {
+                    insert.setInt(1, owner.homeBankingId());
+                    insert.setInt(2, owner.ownerId());
+                    insert.setInt(3, instruction.instructionId());
+                    insert.setInt(4, desired);
+                    if (insert.executeUpdate() != 1) {
+                        throw new SQLException("CheckValue LEFT slot was not inserted exactly once.");
+                    }
+                } else {
+                    update.setInt(1, desired);
+                    update.setInt(2, owner.homeBankingId());
+                    update.setInt(3, owner.ownerId());
+                    update.setInt(4, instruction.instructionId());
+                    if (update.executeUpdate() != 1) {
+                        throw new SQLException("CheckValue LEFT slot was not updated exactly once.");
+                    }
                 }
             }
         }
