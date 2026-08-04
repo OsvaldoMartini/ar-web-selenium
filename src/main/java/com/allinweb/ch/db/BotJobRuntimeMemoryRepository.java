@@ -26,10 +26,19 @@ import java.util.Optional;
  * remain distinct database states.
  */
 public final class BotJobRuntimeMemoryRepository {
-    public static final String MEMORY_TABLE = "bot_job_runtime_memory";
+    /**
+     * Since 2026-08-03 (user decision: fewer tables, no new tables) the three runtime
+     * counters live as columns on the existing instruction_graph_state row instead of
+     * the dropped bot_job_runtime_memory table. NULL columns = memory not initialized.
+     */
+    public static final String STATE_TABLE = "instruction_graph_state";
     public static final String VALUE_TABLE = "bot_job_runtime_variable_value";
+    private static final String STATE_WHERE =
+            " WHERE workspace_kind = 'BOT_JOB' AND home_banking_id = ? AND owner_id = ?";
 
     private final Clock clock;
+    private final InstructionGraphStateRepository graphStates =
+            new InstructionGraphStateRepository();
 
     public BotJobRuntimeMemoryRepository() {
         this(Clock.systemUTC());
@@ -48,25 +57,19 @@ public final class BotJobRuntimeMemoryRepository {
             return current.get();
         }
 
+        graphStates.loadOrCreate(
+                connection,
+                InstructionGraphStateRepository.OwnerKey.botJob(
+                        owner.homeBankingId(), owner.botJobId()));
         long nextVariableId = loadNextDefinitionId(connection, owner);
-        Instant now = clock.instant();
-        String sql = "INSERT INTO " + MEMORY_TABLE
-                + " (home_banking_id, bot_job_id, runtime_revision, reset_generation,"
-                + " next_variable_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)";
-        try (PreparedStatement insert = connection.prepareStatement(sql)) {
-            bindOwner(insert, owner, 1);
-            insert.setLong(3, 0L);
-            insert.setLong(4, 0L);
-            insert.setLong(5, nextVariableId);
-            insert.setTimestamp(6, Timestamp.from(now));
-            insert.setTimestamp(7, Timestamp.from(now));
-            insert.executeUpdate();
-        } catch (SQLException insertError) {
-            Optional<MemoryState> winner = loadMemory(connection, owner);
-            if (winner.isPresent()) {
-                return winner.get();
-            }
-            throw insertError;
+        String sql = "UPDATE " + STATE_TABLE
+                + " SET runtime_revision = 0, reset_generation = 0, next_variable_id = ?,"
+                + " updated_at = ?" + STATE_WHERE + " AND next_variable_id IS NULL";
+        try (PreparedStatement initialize = connection.prepareStatement(sql)) {
+            initialize.setLong(1, nextVariableId);
+            initialize.setTimestamp(2, Timestamp.from(clock.instant()));
+            bindOwner(initialize, owner, 3);
+            initialize.executeUpdate();
         }
         return loadMemory(connection, owner)
                 .orElseThrow(() -> new SQLException("Runtime memory was not visible after insert"));
@@ -77,19 +80,22 @@ public final class BotJobRuntimeMemoryRepository {
         requireOpen(connection);
         Objects.requireNonNull(owner, "owner");
         String sql = "SELECT runtime_revision, reset_generation, next_variable_id,"
-                + " created_at, updated_at FROM " + MEMORY_TABLE
-                + " WHERE home_banking_id = ? AND bot_job_id = ?";
+                + " created_at, updated_at FROM " + STATE_TABLE + STATE_WHERE;
         try (PreparedStatement select = connection.prepareStatement(sql)) {
             bindOwner(select, owner, 1);
             try (ResultSet rows = select.executeQuery()) {
                 if (!rows.next()) {
                     return Optional.empty();
                 }
+                long nextVariableId = rows.getLong("next_variable_id");
+                if (rows.wasNull()) {
+                    return Optional.empty();
+                }
                 return Optional.of(new MemoryState(
                         owner,
                         rows.getLong("runtime_revision"),
                         rows.getLong("reset_generation"),
-                        rows.getLong("next_variable_id"),
+                        nextVariableId,
                         instant(rows, "created_at"),
                         instant(rows, "updated_at")));
             }
@@ -110,9 +116,9 @@ public final class BotJobRuntimeMemoryRepository {
         if (expectedNextVariableId <= 0L || expectedNextVariableId == Long.MAX_VALUE) {
             throw new IllegalArgumentException("Expected next variable ID is invalid");
         }
-        String sql = "UPDATE " + MEMORY_TABLE
+        String sql = "UPDATE " + STATE_TABLE
                 + " SET next_variable_id = ?, updated_at = ?"
-                + " WHERE home_banking_id = ? AND bot_job_id = ? AND next_variable_id = ?";
+                + STATE_WHERE + " AND next_variable_id = ?";
         try (PreparedStatement update = connection.prepareStatement(sql)) {
             update.setLong(1, expectedNextVariableId + 1L);
             update.setTimestamp(2, Timestamp.from(clock.instant()));
@@ -295,9 +301,9 @@ public final class BotJobRuntimeMemoryRepository {
         if (expectedRuntimeRevision < 0L || expectedRuntimeRevision == Long.MAX_VALUE) {
             throw new IllegalArgumentException("Expected runtime revision is invalid");
         }
-        String sql = "UPDATE " + MEMORY_TABLE
+        String sql = "UPDATE " + STATE_TABLE
                 + " SET runtime_revision = ?, reset_generation = reset_generation + ?,"
-                + " updated_at = ? WHERE home_banking_id = ? AND bot_job_id = ?"
+                + " updated_at = ?" + STATE_WHERE
                 + " AND runtime_revision = ?";
         try (PreparedStatement update = connection.prepareStatement(sql)) {
             update.setLong(1, expectedRuntimeRevision + 1L);
@@ -318,13 +324,15 @@ public final class BotJobRuntimeMemoryRepository {
         try (PreparedStatement deleteValues = connection.prepareStatement(
                         "DELETE FROM " + VALUE_TABLE
                                 + " WHERE home_banking_id = ? AND bot_job_id = ?");
-                PreparedStatement deleteMemory = connection.prepareStatement(
-                        "DELETE FROM " + MEMORY_TABLE
-                                + " WHERE home_banking_id = ? AND bot_job_id = ?")) {
+                PreparedStatement resetMemory = connection.prepareStatement(
+                        "UPDATE " + STATE_TABLE
+                                + " SET runtime_revision = NULL, reset_generation = NULL,"
+                                + " next_variable_id = NULL, updated_at = ?" + STATE_WHERE)) {
             bindOwner(deleteValues, owner, 1);
             int changed = deleteValues.executeUpdate();
-            bindOwner(deleteMemory, owner, 1);
-            changed += deleteMemory.executeUpdate();
+            resetMemory.setTimestamp(1, Timestamp.from(clock.instant()));
+            bindOwner(resetMemory, owner, 2);
+            changed += resetMemory.executeUpdate();
             return changed;
         }
     }

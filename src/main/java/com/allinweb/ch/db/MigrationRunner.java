@@ -67,7 +67,8 @@ public class MigrationRunner {
             new com.allinweb.ch.db.migrations.M20260730_BotJobRuntimeVariables(),
             new com.allinweb.ch.db.migrations.M20260801_InstructionVariableCommandConfig(),
             new com.allinweb.ch.db.migrations.M20260802_ConditionalCommandConfig(),
-            new com.allinweb.ch.db.migrations.M20260803_InstructionVariableSlot());
+            new com.allinweb.ch.db.migrations.M20260803_InstructionVariableSlot(),
+            new com.allinweb.ch.db.migrations.M20260805_RuntimeMemoryColumns());
 
     private static volatile MigrationRunner instance;
 

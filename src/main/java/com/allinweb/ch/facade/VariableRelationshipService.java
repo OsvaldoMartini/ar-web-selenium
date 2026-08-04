@@ -51,7 +51,8 @@ public final class VariableRelationshipService {
             List<CommandRow> commands = loadCommands(connection, botJobId);
             Map<Integer, StoredConfiguration> configurations =
                     commandConfigurations.loadForBotJob(connection, botJobId);
-            return graph(botJobId, blocks, variables, commands, configurations);
+            Map<Integer, List<SlotEntry>> slots = loadSlots(connection, botJobId);
+            return graph(botJobId, blocks, variables, commands, configurations, slots);
         } catch (SQLException error) {
             log.warn(
                     "Variable relationship SQL failed for Bot Job {}: {}",
@@ -184,7 +185,8 @@ public final class VariableRelationshipService {
             List<BlockRow> blocks,
             List<VariableRow> variables,
             List<CommandRow> commands,
-            Map<Integer, StoredConfiguration> configurations) {
+            Map<Integer, StoredConfiguration> configurations,
+            Map<Integer, List<SlotEntry>> slots) {
         JsonArray blockJson = new JsonArray();
         blocks.forEach(block -> blockJson.add(block(block)));
 
@@ -193,7 +195,9 @@ public final class VariableRelationshipService {
 
         JsonArray commandJson = new JsonArray();
         commands.forEach(command -> commandJson.add(rawCommand(
-                command, configurations.get(command.id()))));
+                command,
+                configurations.get(command.id()),
+                slots.getOrDefault(command.id(), List.of()))));
 
         JsonObject response = new JsonObject();
         response.addProperty("ok", true);
@@ -237,7 +241,46 @@ public final class VariableRelationshipService {
         return json;
     }
 
-    private JsonObject rawCommand(CommandRow row, StoredConfiguration configuration) {
+    /**
+     * Loads every slot connection of the Bot Job from instruction_variable_slot —
+     * the uniform link table (LEFT / RIGHT / OUTPUT / SOURCE). Absent table (older
+     * database) simply yields no slots; React falls back to the legacy columns.
+     */
+    private Map<Integer, List<SlotEntry>> loadSlots(Connection connection, int botJobId)
+            throws SQLException {
+        Map<Integer, List<SlotEntry>> slots = new java.util.LinkedHashMap<>();
+        try (ResultSet tables = connection.getMetaData()
+                .getTables(null, null, null, new String[] {"TABLE"})) {
+            boolean present = false;
+            while (tables.next()) {
+                if ("instruction_variable_slot".equalsIgnoreCase(tables.getString("TABLE_NAME"))) {
+                    present = true;
+                    break;
+                }
+            }
+            if (!present) return slots;
+        }
+        String sql = "SELECT instruction_id, slot, variable_id FROM instruction_variable_slot"
+                + " WHERE bot_job_id=? ORDER BY instruction_id, slot";
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setInt(1, botJobId);
+            try (ResultSet result = statement.executeQuery()) {
+                while (result.next()) {
+                    slots.computeIfAbsent(result.getInt("instruction_id"),
+                                    key -> new ArrayList<>())
+                            .add(new SlotEntry(
+                                    result.getString("slot"),
+                                    result.getInt("variable_id")));
+                }
+            }
+        }
+        return slots;
+    }
+
+    private record SlotEntry(String slot, int variableId) {}
+
+    private JsonObject rawCommand(
+            CommandRow row, StoredConfiguration configuration, List<SlotEntry> slots) {
         JsonObject json = new JsonObject();
         boolean getCommand = "GET".equals(CommandRegistry.canonicalize(row.action()));
         json.addProperty("instructionId", row.id());
@@ -262,6 +305,14 @@ public final class VariableRelationshipService {
         nullable(json, "instructionOrder", row.instructionOrder());
         nullable(json, "active", row.active());
         nullable(json, "blockActive", row.blockActive());
+        JsonArray slotJson = new JsonArray();
+        for (SlotEntry entry : slots) {
+            JsonObject slot = new JsonObject();
+            slot.addProperty("slot", safe(entry.slot()));
+            slot.addProperty("variableId", entry.variableId());
+            slotJson.add(slot);
+        }
+        json.add("variableSlots", slotJson);
         if (configuration == null) {
             json.add("commandConfiguration", null);
         } else {
