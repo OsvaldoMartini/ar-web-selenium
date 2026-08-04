@@ -121,6 +121,8 @@ public class SimpleWebSocketServer {
             "variablesWorkspace.runtimeMemory.clearAll",
             "variablesWorkspace.variables.create",
             "variablesWorkspace.graphMutationV3",
+            "variablesWorkspace.graphMutationLeft",
+            "variablesWorkspace.graphMutationRight",
             "variablesWorkspace.instructions.copy",
             "variablesWorkspace.commandEditor.update",
             "variablesWorkspace.variables.autoResolve",
@@ -950,6 +952,36 @@ public class SimpleWebSocketServer {
                         // A closed/replaced requester must not suppress publication of an
                         // already committed database change.
                         variablesWorkspaceService.publishCommittedMutation(mutationResponse);
+                    }
+                    break;
+                }
+                case "variablesWorkspace.graphMutationLeft": {
+                    JsonObject variablesBody = extractBody(jsonObjMSG);
+                    JsonObject mutationResponse = variablesWorkspaceService.mutate(
+                            variablesBody, sessionId, session);
+                    try {
+                        sendCommandEditorResponse(
+                                homeBankingId,
+                                sessionId,
+                                "variablesWorkspace.graphMutationLeftResponse",
+                                mutationResponse);
+                    } finally {
+                        variablesWorkspaceService.publishCommittedMutation(mutationResponse);
+                    }
+                    break;
+                }
+                case "variablesWorkspace.graphMutationRight": {
+                    JsonObject variablesBody = extractBody(jsonObjMSG);
+                    JsonObject connectResponse = variablesWorkspaceService.connectCheckOperand(
+                            variablesBody, sessionId, session);
+                    try {
+                        sendCommandEditorResponse(
+                                homeBankingId,
+                                sessionId,
+                                "variablesWorkspace.graphMutationRightResponse",
+                                connectResponse);
+                    } finally {
+                        variablesWorkspaceService.publishCommittedMutation(connectResponse);
                     }
                     break;
                 }
