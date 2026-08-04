@@ -538,6 +538,26 @@ public final class VariablesWorkspaceService {
      */
     public JsonObject mutate(
             JsonObject body, String requesterSessionId, Session requesterTransport) {
+        return mutate(body, requesterSessionId, requesterTransport, MutationLane.ANY);
+    }
+
+    /** Structural Variables mutation: direct command-variable patches are forbidden. */
+    public JsonObject mutateStructural(
+            JsonObject body, String requesterSessionId, Session requesterTransport) {
+        return mutate(body, requesterSessionId, requesterTransport, MutationLane.STRUCTURAL);
+    }
+
+    /** Direct command-variable mutation, separate from the structural parent/layout route. */
+    public JsonObject mutateCommandVariable(
+            JsonObject body, String requesterSessionId, Session requesterTransport) {
+        return mutate(body, requesterSessionId, requesterTransport, MutationLane.COMMAND_VARIABLE);
+    }
+
+    private JsonObject mutate(
+            JsonObject body,
+            String requesterSessionId,
+            Session requesterTransport,
+            MutationLane mutationLane) {
         JsonObject request = body == null ? new JsonObject() : body;
         Binding current = null;
         try {
@@ -568,6 +588,17 @@ public final class VariablesWorkspaceService {
             if (mutationRequest == null) {
                 throw new IllegalArgumentException(
                         "A Variables graph mutation request is required.");
+            }
+            boolean hasVariableBindingPatches =
+                    !mutationRequest.variableBindingPatches().isEmpty();
+            if (mutationLane == MutationLane.STRUCTURAL && hasVariableBindingPatches) {
+                throw new IllegalArgumentException(
+                        "Direct command-variable changes require graphMutationCommandVariable.");
+            }
+            if (mutationLane == MutationLane.COMMAND_VARIABLE
+                    && !hasVariableBindingPatches) {
+                throw new IllegalArgumentException(
+                        "graphMutationCommandVariable requires a command-variable patch.");
             }
 
             Binding authorized = current;
@@ -614,6 +645,12 @@ public final class VariablesWorkspaceService {
                     "The Variables graph change was not completed.",
                     current == null ? currentBinding() : current);
         }
+    }
+
+    private enum MutationLane {
+        ANY,
+        STRUCTURAL,
+        COMMAND_VARIABLE
     }
 
     /**

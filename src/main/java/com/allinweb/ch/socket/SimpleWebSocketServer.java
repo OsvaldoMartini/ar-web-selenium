@@ -120,9 +120,10 @@ public class SimpleWebSocketServer {
             "variablesWorkspace.runtimeMemory.update",
             "variablesWorkspace.runtimeMemory.clearAll",
             "variablesWorkspace.variables.create",
-            "variablesWorkspace.graphMutationV3",
+            "variablesWorkspace.graphMutationParent",
             "variablesWorkspace.graphMutationLeft",
             "variablesWorkspace.graphMutationRight",
+            "variablesWorkspace.graphMutationCommandVariable",
             "variablesWorkspace.instructions.copy",
             "variablesWorkspace.commandEditor.update",
             "variablesWorkspace.variables.autoResolve",
@@ -938,19 +939,34 @@ public class SimpleWebSocketServer {
                                     variablesBody, sessionId, session));
                     break;
                 }
-                case "variablesWorkspace.graphMutationV3": {
+                case "variablesWorkspace.graphMutationParent": {
                     JsonObject variablesBody = extractBody(jsonObjMSG);
-                    JsonObject mutationResponse = variablesWorkspaceService.mutate(
+                    JsonObject mutationResponse = variablesWorkspaceService.mutateStructural(
                             variablesBody, sessionId, session);
                     try {
                         sendCommandEditorResponse(
                                 homeBankingId,
                                 sessionId,
-                                "variablesWorkspace.graphMutationV3Response",
+                                "variablesWorkspace.graphMutationParentResponse",
                                 mutationResponse);
                     } finally {
                         // A closed/replaced requester must not suppress publication of an
                         // already committed database change.
+                        variablesWorkspaceService.publishCommittedMutation(mutationResponse);
+                    }
+                    break;
+                }
+                case "variablesWorkspace.graphMutationCommandVariable": {
+                    JsonObject variablesBody = extractBody(jsonObjMSG);
+                    JsonObject mutationResponse = variablesWorkspaceService.mutateCommandVariable(
+                            variablesBody, sessionId, session);
+                    try {
+                        sendCommandEditorResponse(
+                                homeBankingId,
+                                sessionId,
+                                "variablesWorkspace.graphMutationCommandVariableResponse",
+                                mutationResponse);
+                    } finally {
                         variablesWorkspaceService.publishCommittedMutation(mutationResponse);
                     }
                     break;
