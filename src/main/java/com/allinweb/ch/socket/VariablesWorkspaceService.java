@@ -1194,10 +1194,15 @@ public final class VariablesWorkspaceService {
             response.addProperty("rightVariableId", committed.rightVariableId());
             response.addProperty("connectedCount", committed.connectedCount());
             response.addProperty("skippedCount", committed.skippedCount());
-            response.addProperty("message", committed.connectedCount() > 0
-                    ? "Right operand connected to " + committed.connectedCount()
-                            + " CheckValue command(s)."
-                    : "Every CheckValue right spot was already occupied.");
+            response.addProperty("message", connectRequest.isRelease()
+                    ? (committed.connectedCount() > 0
+                            ? "Right operand released from " + committed.connectedCount()
+                                    + " CheckValue command(s)."
+                            : "No CheckValue right spot was connected.")
+                    : (committed.connectedCount() > 0
+                            ? "Right operand connected to " + committed.connectedCount()
+                                    + " CheckValue command(s)."
+                            : "Every CheckValue right spot was already occupied."));
             return response;
         } catch (CheckOperandPersistenceException persistenceFailure) {
             Throwable cause = persistenceFailure.getCause();

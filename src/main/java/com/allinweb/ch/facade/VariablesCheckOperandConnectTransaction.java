@@ -53,7 +53,10 @@ public final class VariablesCheckOperandConnectTransaction {
         try {
             requireOwner(connection, owner.owner());
             validate(connection, owner, request);
-            int rightVariableId = request.rightVariableId();
+            boolean release = request.isRelease();
+            int rightVariableId = request.rightVariableId() == null
+                    ? 0
+                    : request.rightVariableId();
             Timestamp now = new Timestamp(System.currentTimeMillis());
             boolean hasSlotTable = tableExists(
                     connection, M20260803_InstructionVariableSlot.TABLE);
@@ -68,14 +71,25 @@ public final class VariablesCheckOperandConnectTransaction {
                     skipped++;
                     continue;
                 }
-                boolean wroteConfig = hasConfigTable
-                        && fillConfigRightSpot(
-                                connection, owner.owner(), instructionId,
-                                actions, rightVariableId, now);
-                boolean wroteSlot = hasSlotTable
-                        && fillSlotRightSpot(
-                                connection, owner.owner(), instructionId,
-                                rightVariableId, now);
+                boolean wroteConfig;
+                boolean wroteSlot;
+                if (release) {
+                    wroteConfig = hasConfigTable
+                            && releaseConfigRightSpot(
+                                    connection, owner.owner(), instructionId, now);
+                    wroteSlot = hasSlotTable
+                            && releaseSlotRightSpot(
+                                    connection, owner.owner(), instructionId);
+                } else {
+                    wroteConfig = hasConfigTable
+                            && fillConfigRightSpot(
+                                    connection, owner.owner(), instructionId,
+                                    actions, rightVariableId, now);
+                    wroteSlot = hasSlotTable
+                            && fillSlotRightSpot(
+                                    connection, owner.owner(), instructionId,
+                                    rightVariableId, now);
+                }
                 if (wroteConfig || wroteSlot) connected++;
                 else skipped++;
             }
@@ -130,11 +144,44 @@ public final class VariablesCheckOperandConnectTransaction {
             throw refused("CHECK_OPERAND_GRAPH_REVISION_STALE",
                     "The Variables graph changed before the operand connection.");
         }
-        if (request.rightVariableId() == null
-                || request.rightVariableId() <= 0
-                || !variableExists(connection, owner.owner(), request.rightVariableId())) {
+        if (!request.isRelease()
+                && (request.rightVariableId() == null
+                        || request.rightVariableId() <= 0
+                        || !variableExists(connection, owner.owner(), request.rightVariableId()))) {
             throw refused("CHECK_OPERAND_VARIABLE_INVALID",
                     "Select a current Bot Job variable for the second comparison value.");
+        }
+    }
+
+    /** Clears an OCCUPIED config RIGHT spot (VARIABLE -> VOID); returns whether a write happened. */
+    private static boolean releaseConfigRightSpot(
+            Connection connection, OwnerKey owner, int instructionId, Timestamp now)
+            throws SQLException {
+        try (PreparedStatement update = connection.prepareStatement(
+                "UPDATE instruction_variable_command_config SET operand_kind='VOID',"
+                        + "operand_variable_id=NULL,config_revision=config_revision+1,updated_at=?"
+                        + " WHERE home_banking_id=? AND bot_job_id=? AND instruction_id=?"
+                        + " AND operand_kind='VARIABLE'")) {
+            update.setTimestamp(1, now);
+            update.setInt(2, owner.homeBankingId());
+            update.setInt(3, owner.ownerId());
+            update.setInt(4, instructionId);
+            return update.executeUpdate() > 0;
+        }
+    }
+
+    /** Deletes the RIGHT slot row when present; returns whether a write happened. */
+    private static boolean releaseSlotRightSpot(
+            Connection connection, OwnerKey owner, int instructionId) throws SQLException {
+        try (PreparedStatement delete = connection.prepareStatement(
+                "DELETE FROM " + M20260803_InstructionVariableSlot.TABLE
+                        + " WHERE home_banking_id=? AND bot_job_id=? AND instruction_id=?"
+                        + " AND slot=?")) {
+            delete.setInt(1, owner.homeBankingId());
+            delete.setInt(2, owner.ownerId());
+            delete.setInt(3, instructionId);
+            delete.setString(4, M20260803_InstructionVariableSlot.SLOT_RIGHT);
+            return delete.executeUpdate() > 0;
         }
     }
 

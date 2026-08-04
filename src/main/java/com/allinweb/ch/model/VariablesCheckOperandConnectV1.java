@@ -20,10 +20,16 @@ public final class VariablesCheckOperandConnectV1 {
             Long baseGraphVersion,
             String graphRevision,
             Integer rightVariableId,
-            List<Integer> instructionIds) {
+            List<Integer> instructionIds,
+            /** 'CONNECT' (default) fills free RIGHT spots; 'RELEASE' clears occupied ones. */
+            String operation) {
 
         public Request {
             instructionIds = instructionIds == null ? List.of() : List.copyOf(instructionIds);
+        }
+
+        public boolean isRelease() {
+            return "RELEASE".equalsIgnoreCase(operation == null ? "" : operation.trim());
         }
     }
 }
