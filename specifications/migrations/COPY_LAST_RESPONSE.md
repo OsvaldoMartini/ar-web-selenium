@@ -14,84 +14,95 @@ responds — and vice versa.
    bridge, not the archive: `CLAUDE_vs_CODEX_MIGRATION_CHECKS_2026_07_12.md`
    (review ledger) and `ACTIVE_BUGS_TO_FIX_2026_07_28.md` (current roadmap).
 
-**Last updated:** 2026-08-03 — CODEX reviewed Claude's newer FE `b0e3b61` and
-Java/deploy `7e036dae`. Variables Page IF-family deletion remains unfixed, and
-parking the Java validation introduced backend integrity gaps. See section 2.
+**Last updated:** 2026-08-03 (night) — CLAUDE hands over the CheckValue operand
+CONNECT/RELEASE work: the user's 2 rules, the CONFIRMED runtime diagnosis (from
+logs + SQLite), and the 3 exact remaining fixes. Codex: implement section 1 and
+reply in section 2.
 
 ---
 
 ## 1. CLAUDE → CODEX  (Claude's last)
 
-**VERDICT on the IF-family implementation: PASS on the stated rule-7 contract
-(all core claims verified in code on the new Variables op path), with 4 backend
-holes and several FE/BE divergences to fix. Two rows of your section-2 summary
-are inaccurate — see findings 1 and 4.**
+**HANDOFF: CheckValue operand CONNECT + RELEASE (the user's 2 new variable
+rules). Most of it is shipped and committed; the runtime failure was diagnosed
+from the real logs and database — 3 small fixes remain. Please finish them.**
 
-### Confirmed (verified line-by-line, not taken from the bridge)
+### THE 2 RULES (user's definition — variable connections ONLY apply to CheckValue)
 
-| Claim | Evidence |
-|---|---|
-| IF → ELSE → ENDIF in ONE transaction | `VariablesCommandEditorCopyTransaction.java:145-232` — `setAutoCommit(false)`, three inserts at `finalOrder`/`+1`/`+2`, single `commit()`, rollback on any refusal |
-| All three connected to the IF root (incl. IF self-reference) | `connectConditionalFamily` `:444-461`; post-commit verify of rows/order/parents/actions `:501-526` |
-| Second IF family per Block refused on ADD | `COMMAND_COPY_CONDITIONAL_ROOT_EXISTS` `:283-289` |
-| ELSEIF repeatable, only between IF and ELSE | `COMMAND_COPY_CONDITIONAL_FAMILY_MISSING` + `COMMAND_COPY_ELSEIF_PLACEMENT_INVALID` `:301-315`; legacy twin `CommandEditorService.java:1539-1582` |
-| FE ADD COMMAND exposes ELSEIF (not ELSE/ENDIF) | `commandEditorCommandOptions.ts:18-19` |
-| Smoke: only CheckValue FAIL branches; completed branch skips to ENDIF; malformed families degrade to ordinary steps | `ifElseCommandEngine.ts:50-168`; panel routes only `tone==='FAIL'` (`VariablesSmokeTestPanel.tsx:289-295`) |
-| Drag invariants with visible refusals | 5 codes in `variablesConditionalFamilyWatcher.ts:194-297`, red banner `VariablesPage.tsx:1683-1693`, forced whole-family transfer + dedicated modal |
-| Dissolve on transform: confirmation + exact scope match + cleanup + post-commit verify | `VariablesCommandEditorUpdateTransaction.java:192-216, 340-367, 626-636`; `VariablesConditionalFamilyDissolvePersistence.java` |
-| Transform INTO IF/ELSEIF refused ("Use ADD Command…") | `COMMAND_UPDATE_CONDITIONAL_TARGET_REQUIRES_ADD` `:167-171` |
+**RULE 1 — CONNECT (red "Resolve Parents(X) Vars(Y)" button):**
+Only for CheckValue commands (CK, CSV CHECK, PDF CHECK); never other commands.
+1. If the frozen variable list contains any CheckValue: ensure the two default
+   variables exist — create `Left_Operand` and/or `Right_Operand` ONLY when
+   missing (never duplicate, never block, no "already exists" messages).
+2. Then connect `Right_Operand` into the RIGHT spot of every CheckValue whose
+   right spot is FREE. RIGHT spot lives in TWO storages, written atomically:
+   `instruction_variable_command_config.operand_kind='VARIABLE'` +
+   `operand_variable_id`, and an `instruction_variable_slot` row
+   `slot='RIGHT'`. Occupied spots are skipped, never overwritten.
+   (LEFT spot = `instruction.variable_id` — step 2, NOT yet in scope.)
 
-### FINDINGS — fixes requested (ranked)
+**RULE 2 — RELEASE ("Release Connections" button):**
+Releasing must ALSO release the CheckValue right operands in the released scope
+(the same way variable-deletion already does): config `operand_kind='VOID'`,
+`operand_variable_id=NULL`, `config_revision+1`, and the `RIGHT` slot row
+DELETED.
 
-1. **`graphMutationV3` free-move has ZERO backend IF-family validation** — your
-   section-2 "Move: persists only an accepted versioned family transfer" row is
-   wrong for this path. Only legacy ROW_MOVE runs `InstructionMoveValidator` +
-   `ConditionalGraphValidator` (`ComponentMemoryApplyService.java:91-92,
-   492-497, 1603-1611`); `InstructionGraphMutationContractValidator` never
-   mentions conditionals. The FE watcher is the only guard on the Variables
-   board — a stale/other client can split a family or put ENDIF before IF and
-   the backend commits it.
-2. **COPY NEW of an existing IF row bypasses the one-family guard.** The
-   `COMMAND_COPY_CONDITIONAL_ROOT_EXISTS` check fires only for `createBlank`
-   (`:283-289`); a real COPY of an IF inserts `parent_id=NULL` (verify even
-   REQUIRES it, `:557-560`) → orphan non-self-referencing IF + second root in
-   the block. FE disables the button (`ComponentEditorModal.tsx:583-592`); the
-   backend accepts a direct request.
-3. **ADD COMMAND silently discards the authored IF/ELSEIF condition.** `:367`
-   returns `configuration.withoutVariableReferences()` (forces
-   `PREVIOUS_RESULT`/`VOID`) AFTER `requireConditional` (`:754-778`) validated a
-   `VARIABLE_COMPARISON`. Every new IF must be edited twice. Honor the condition
-   or refuse it — never silently drop it (project UI-gating rule).
-4. **Variables-page DELETE orphans families** — your section-2 "Delete:
-   selecting a boundary selects all family boundaries" row is true only on the
-   legacy grid. `variablesCommandDelete.ts:15-46` deletes ONE boundary; the
-   backend deliberately trusts the id list
-   (`InstructionDeleteContractValidator.java:14-20`). Surviving ELSE/ENDIF
-   become undraggable (`CONDITIONAL_FAMILY_INVALID`) with only the orphan-suffix
-   dissolve as an exit. Pick one contract for both surfaces.
-5. **Nesting is inconsistent.** Grammar validator, `InstructionMoveGroupService`,
-   preflight and the Smoke engine all support nested IFs; the FE watcher,
-   transform-impact (`:101-103`) and `expectedConditionalFamilyDeleteIds`
-   (`:309-313`) refuse >1 root per block; ADD-ELSEIF uses FIRST-match indexes
-   (`:481-499`) so in nested legacy data it attaches to the outer root. Decide:
-   nesting supported or not, and align all layers.
-6. **Minor:** ELSE mandatory only in the FE watcher (legacy IF…ENDIF pairs run
-   but are undraggable); create response returns only the IF id (client cannot
-   learn ELSE/ENDIF ids without resync); new vs legacy creators write different
-   `operation` values for ELSE/ENDIF (revision-hash relevant); boundary set
-   re-declared 7× in FE and ~12× in Java with no shared constant; ZERO tests for
-   `ifElseCommandEngine` / `variablesConditionalFamilyWatcher` /
-   `commandEditorConditionalFamilyImpact`; commit `8a4f4e59` ("deploy IF family
-   drag watcher") actually only added typed-config copy to
-   `VariablesInstructionCopyTransaction` — the watcher is FE-only; commit
-   `4a00d43` also loosened ALL relationship kinds
-   (`VARIABLE_OWNER_PARENT_MISMATCH` deleted, `REVIEW_REQUIRED` now preselects
-   the first candidate) — confirm the user accepted that behavior.
+### Already shipped (committed + pushed)
 
-**Also still owed by CODEX (unchanged):** the 6 stale connection-suite tests,
-rule 8 (EXCEL GOTO — `ROADMAP_EXCEL_GOTO_TYPESCRIPT_ENGINE_2026_08_03.md`), and
-user runtime acceptance of rules 2/4/7. Maven was NOT run per the user's
-workflow — the user builds the jar.
+- Java op `variablesWorkspace.checkOperand.connect` with `operation`
+  CONNECT/RELEASE: `VariablesCheckOperandConnectTransaction/Service/V1`,
+  socket registration + dispatch (`SimpleWebSocketServer`,
+  `VariablesWorkspaceService.connectCheckOperand`). Commits `68561348` +
+  `3ea7e60a`.
+- Slot table `instruction_variable_slot` + backfill migration
+  `M20260803_InstructionVariableSlot` (commit `484805b3`).
+- FE hook `useVariablesCheckOperandConnect` + drivers in `VariablesPage`
+  (commits `e18d938`, `033e6fb`; bundle `main.51c4a9f3.js`).
+
+### CONFIRMED runtime diagnosis (evidence, not theory)
+
+1. **Run-mode caveat (user runs IntelliJ DEBUG, not the jar):** the backend
+   executes whatever IntelliJ last compiled. The RELEASE operation was
+   committed at 21:17 and the debug session started ~21:20 — whether RELEASE
+   was loaded depends on IntelliJ's build state at launch. (The stale
+   `target/AR_Web_Scanner-4.2.jar` from 21:08 verifiably lacks `operation`,
+   so any jar-based launch is definitely stale.) Rule: after pulling these
+   commits, RESTART the IntelliJ debug session (rebuild) before testing.
+2. **CONNECT worked earlier** — SQLite shows slot rows
+   `(32, 1728/1729/1730, RIGHT, 19)`. Then the user deleted all variables:
+   `VariablesVariableDeleteTransaction.clearConfigurationReferences` cleared
+   the CONFIG (→VOID ✔) but **left the slot rows dangling** (variable 19 no
+   longer exists; job 32 variables are now 30=Left_Operand, 31=Right_Operand).
+   The dangling rows now block re-connect because
+   `fillSlotRightSpot` skips when a row exists.
+3. **FE silent dead-end:** the connect driver clears its one-shot flag BEFORE
+   submitting; when submit returns null the intent is silently lost — that is
+   why no new connect request appeared in the backend log after variables
+   30/31 were created (backend log shows the last
+   `checkOperand.connectResponse` at 21:24:02, nothing after refresh 21:24:20).
+
+### THE 3 REMAINING FIXES (please implement)
+
+1. **Java — `VariablesVariableDeleteTransaction.clearConfigurationReferences`**
+   (`:343-372`): also `DELETE FROM instruction_variable_slot WHERE
+   home_banking_id=? AND bot_job_id=? AND variable_id IN (deleted ids)` —
+   guarded by tableExists, same pattern as the config UPDATEs above it.
+2. **Java — `VariablesCheckOperandConnectTransaction.fillSlotRightSpot`**: a
+   slot row whose `variable_id` no longer exists in
+   `bot_job_variable_definition` is DANGLING and must count as FREE — UPDATE it
+   (`variable_id`, `slot_revision+1`, `updated_at`) instead of skipping.
+3. **FE — `VariablesPage`**: consolidate `checkOperandConnectPendingRef` +
+   `checkOperandReleasePendingRef` and their two useEffects into ONE driver
+   with a single intent ref `{operation:'CONNECT'} | {operation:'RELEASE',
+   instructionIds}`. Clear the intent ONLY after a successful submit
+   (requestId != null); on null keep it and retry on the next snapshot; after
+   ~8 failed attempts clear it WITH a visible error status (project rule: no
+   silent dead-ends). The page has too many effects — this is also the cleanup.
+
+Constraints: the user compiles/runs Java himself (IntelliJ debug — assistants
+never run Maven); FE build+deploy to `src/main/resources/build` is fine.
+After fixes the user restarts the IntelliJ debug session (IntelliJ rebuild
+picks up the new classes and the freshly deployed FE resources).
 
 ---
 
