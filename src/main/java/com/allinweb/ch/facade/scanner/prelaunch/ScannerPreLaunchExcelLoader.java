@@ -25,6 +25,7 @@ public final class ScannerPreLaunchExcelLoader {
 
     public ExtractedData load(String excelPath, PerformLists performLists) throws Exception {
         Path workbook = requireWorkbook(excelPath);
+        if (!datasets.isExecutionEnabled(workbook)) return new ExtractedData();
         if (Files.notExists(workbook)) {
             String workbookName = workbookName(workbook);
             File generated = new ExcelUtils().generateExcelFiles(null, workbookName, null, false);
@@ -54,6 +55,10 @@ public final class ScannerPreLaunchExcelLoader {
     /** Replaces the shared working dataset without writing the workbook to disk. */
     public ExtractedData replaceInMemory(String excelPath, ExtractedData data) {
         return datasets.replace(requireWorkbook(excelPath), data).data();
+    }
+
+    public void setExecutionEnabled(String excelPath, boolean enabled) {
+        datasets.setExecutionEnabled(requireWorkbook(excelPath), enabled);
     }
 
     private Path requireWorkbook(String excelPath) {

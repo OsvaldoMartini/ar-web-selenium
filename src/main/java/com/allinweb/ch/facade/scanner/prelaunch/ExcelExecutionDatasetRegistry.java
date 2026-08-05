@@ -21,6 +21,7 @@ public final class ExcelExecutionDatasetRegistry {
     private final int maximumEntries;
     private final LinkedHashMap<Path, Dataset> datasets =
             new LinkedHashMap<>(16, 0.75f, true);
+    private final Map<Path, Boolean> executionEnabled = new LinkedHashMap<>();
 
     ExcelExecutionDatasetRegistry(int maximumEntries) {
         if (maximumEntries < 1) throw new IllegalArgumentException("Maximum entries must be positive");
@@ -56,7 +57,16 @@ public final class ExcelExecutionDatasetRegistry {
     }
 
     public synchronized boolean close(Path workbook) {
+        executionEnabled.remove(normalize(workbook));
         return datasets.remove(normalize(workbook)) != null;
+    }
+
+    public synchronized void setExecutionEnabled(Path workbook, boolean enabled) {
+        executionEnabled.put(normalize(workbook), enabled);
+    }
+
+    public synchronized boolean isExecutionEnabled(Path workbook) {
+        return executionEnabled.getOrDefault(normalize(workbook), true);
     }
 
     public synchronized int size() {
@@ -65,6 +75,7 @@ public final class ExcelExecutionDatasetRegistry {
 
     synchronized void clear() {
         datasets.clear();
+        executionEnabled.clear();
     }
 
     private void evictOldestIfRequired() {

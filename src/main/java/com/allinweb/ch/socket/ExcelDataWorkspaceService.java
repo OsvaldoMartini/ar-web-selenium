@@ -220,6 +220,15 @@ public final class ExcelDataWorkspaceService {
                 .sendMessageJson(binding.homeBankingId(), SESSION_ID, event.toString(), "excelData.activeCell");
     }
 
+    public synchronized JsonObject applyExecutionMode(int botJobId) {
+        if (binding == null || binding.botJobId() != botJobId) {
+            return failure("Excel Data memory is not open for Bot Job " + botJobId + ".");
+        }
+        loader.setExecutionEnabled(binding.workbook().toString(), true);
+        JsonObject response = snapshot("Excel Data page memory selected for execution.");
+        return response;
+    }
+
     private ExtractedData syntheticData(ExtractedData template, int rowCount) {
         ExtractedData synthetic = new ExtractedData();
         for (String blockName : template.getBlocks()) {
