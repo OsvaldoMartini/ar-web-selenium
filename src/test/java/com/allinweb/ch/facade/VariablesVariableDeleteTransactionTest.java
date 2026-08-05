@@ -1,7 +1,6 @@
 package com.allinweb.ch.facade;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -9,6 +8,8 @@ import com.allinweb.ch.db.InstructionGraphStateRepository;
 import com.allinweb.ch.db.InstructionGraphStateRepository.OwnerKey;
 import com.allinweb.ch.db.migrations.M20260729_InstructionGraphState;
 import com.allinweb.ch.db.migrations.M20260730_BotJobRuntimeVariables;
+import com.allinweb.ch.db.migrations.M20260803_InstructionVariableSlot;
+import com.allinweb.ch.db.migrations.M20260805_RuntimeMemoryColumns;
 import com.allinweb.ch.facade.BotJobGraphMutationTransaction.AuthenticatedBotJob;
 import com.allinweb.ch.facade.BotJobGraphMutationTransaction.GraphSnapshot;
 import com.allinweb.ch.facade.BotJobGraphMutationTransaction.MutationRefusedException;
@@ -82,13 +83,12 @@ class VariablesVariableDeleteTransactionTest {
                             connection,
                             "bot_job_runtime_variable_value",
                             "variable_id=502"));
-            assertNull(value(
-                    connection, "SELECT variable_id FROM instruction WHERE id=101"));
-            assertNull(value(
-                    connection, "SELECT variable_id FROM instruction WHERE id=102"));
             assertEquals(
-                    502,
-                    value(connection, "SELECT variable_id FROM instruction WHERE id=103"));
+                    0,
+                    count(connection, "instruction_variable_slot", "variable_id=501"));
+            assertEquals(
+                    1,
+                    count(connection, "instruction_variable_slot", "variable_id=502"));
 
             assertEquals(
                     "capture-one",
@@ -109,14 +109,14 @@ class VariablesVariableDeleteTransactionTest {
     }
 
     @Test
-    void deletesAllOnlyWhenReactSubmitsTheCompleteCurrentCatalog()
+    void deletesAllWhenReactSubmitsTheCompactAllMode()
             throws Exception {
         try (Connection connection = database()) {
             VariablesWorkspaceVariableDelete.Request request =
                     request(
                             connection,
                             VariablesWorkspaceVariableDelete.Mode.ALL,
-                            List.of(501, 502));
+                            List.of());
 
             DeleteResult result =
                     new VariablesVariableDeleteTransaction()
@@ -138,10 +138,7 @@ class VariablesVariableDeleteTransactionTest {
                             "bot_job_id=5"));
             assertEquals(
                     0,
-                    count(
-                            connection,
-                            "instruction",
-                            "bot_job_id=5 AND variable_id IS NOT NULL"));
+                    count(connection, "instruction_variable_slot", "bot_job_id=5"));
             assertEquals(4, count(connection, "instruction", "bot_job_id=5"));
         }
     }
@@ -367,7 +364,9 @@ class VariablesVariableDeleteTransactionTest {
                     + "(801,2,800,'component-variable')");
         }
         new M20260730_BotJobRuntimeVariables().apply(connection, "TEXT");
+        new M20260803_InstructionVariableSlot().apply(connection, "TEXT");
         new M20260729_InstructionGraphState().apply(connection, "TEXT");
+        new M20260805_RuntimeMemoryColumns().apply(connection, "TEXT");
         stateRepository.loadOrCreate(
                 connection, OwnerKey.botJob(HOME_BANKING_ID, BOT_JOB_ID));
         return connection;

@@ -1183,7 +1183,7 @@ public class SimpleWebSocketServer {
                     break;
                 }
                 case "variablesWorkspace.variables.delete": {
-                    JsonObject variablesBody = extractBody(jsonObjMSG);
+                    JsonObject variablesBody = compactGraphMutationBody(jsonObjMSG);
                     JsonObject deletionResponse =
                             variablesWorkspaceService.deleteVariables(
                                     variablesBody, sessionId, session);

@@ -24,8 +24,8 @@ import java.util.Set;
  * Atomic Bot Job variable deletion selected entirely by the Variables React workspace.
  *
  * <p>This transaction has no dependency-discovery or cascade-planning logic. It clears
- * {@code instruction.variable_id} only for the submitted variable IDs and deletes exactly those
- * Bot Job-owned variable rows. Instructions, Web Elements, parent relationships, blocks,
+ * {@code instruction_variable_slot} rows only for the submitted variable IDs and deletes exactly
+ * those Bot Job-owned variable rows. Instructions, Web Elements, parent relationships, blocks,
  * references, operations, and Component tables are never deleted or rewritten.
  */
 public final class VariablesVariableDeleteTransaction {
@@ -189,6 +189,12 @@ public final class VariablesVariableDeleteTransaction {
                         "Variables deletion requires unique positive variable IDs.");
             }
         }
+        LinkedHashSet<Integer> authoritativeIds =
+                new LinkedHashSet<>(authoritative.variableIds());
+        if (request.mode() == VariablesWorkspaceVariableDelete.Mode.ALL
+                && requestedIds.isEmpty()) {
+            requestedIds.addAll(authoritativeIds);
+        }
         if (requestedIds.isEmpty()) {
             throw refused(
                     "VARIABLE_DELETE_IDS_REQUIRED",
@@ -201,8 +207,6 @@ public final class VariablesVariableDeleteTransaction {
                     "SINGLE deletion requires exactly one variable ID.");
         }
 
-        LinkedHashSet<Integer> authoritativeIds =
-                new LinkedHashSet<>(authoritative.variableIds());
         if (!authoritativeIds.containsAll(requestedIds)) {
             throw refused(
                     "VARIABLE_DELETE_NOT_OWNED",
@@ -224,9 +228,19 @@ public final class VariablesVariableDeleteTransaction {
         List<InstructionLoad> instructions = new ArrayList<>();
         try (PreparedStatement statement = connection.prepareStatement(
                 "SELECT id,block_id,instruction_order_number,actions,parent_id,"
-                        + "parent_block_id,variable_id,operation"
+                        + "parent_block_id,operation,"
+                        + "(SELECT ivs.variable_id FROM instruction_variable_slot ivs"
+                        + " WHERE ivs.home_banking_id=?"
+                        + " AND ivs.bot_job_id=instruction.bot_job_id"
+                        + " AND ivs.instruction_id=instruction.id"
+                        + " AND ivs.slot=CASE UPPER(TRIM(instruction.actions))"
+                        + " WHEN 'CK' THEN 'LEFT' WHEN 'CHECKVALUE' THEN 'LEFT'"
+                        + " WHEN 'CSV CHECK' THEN 'LEFT' WHEN 'PDF CHECK' THEN 'LEFT'"
+                        + " WHEN 'GET' THEN 'GET_WRITE' WHEN 'SET' THEN 'READ_SET'"
+                        + " WHEN 'E' THEN 'READ' ELSE NULL END LIMIT 1) AS variable_id"
                         + " FROM instruction WHERE bot_job_id=? ORDER BY id")) {
-            statement.setInt(1, botJobId);
+            statement.setInt(1, owner.homeBankingId());
+            statement.setInt(2, botJobId);
             try (ResultSet rows = statement.executeQuery()) {
                 while (rows.next()) {
                     InstructionLoad row = new InstructionLoad();
@@ -240,6 +254,23 @@ public final class VariablesVariableDeleteTransaction {
                     row.setVariableId(nullableInteger(rows, "variable_id"));
                     row.setOperation(rows.getString("operation"));
                     instructions.add(row);
+                }
+            }
+        }
+
+        List<SlotBinding> variableSlots = new ArrayList<>();
+        try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT instruction_id,slot,variable_id FROM instruction_variable_slot"
+                        + " WHERE home_banking_id=? AND bot_job_id=?"
+                        + " ORDER BY instruction_id,slot")) {
+            statement.setInt(1, owner.homeBankingId());
+            statement.setInt(2, botJobId);
+            try (ResultSet rows = statement.executeQuery()) {
+                while (rows.next()) {
+                    variableSlots.add(new SlotBinding(
+                            rows.getInt("instruction_id"),
+                            rows.getString("slot"),
+                            rows.getInt("variable_id")));
                 }
             }
         }
@@ -275,6 +306,7 @@ public final class VariablesVariableDeleteTransaction {
                 state,
                 List.copyOf(instructions),
                 List.copyOf(variableIds),
+                List.copyOf(variableSlots),
                 revisionService.revision(instructions, variables));
     }
 
@@ -375,7 +407,6 @@ public final class VariablesVariableDeleteTransaction {
                     "Variables outside the selected deletion set changed.");
         }
 
-        int actualClearedBindings = 0;
         if (before.instructions().size() != after.instructions().size()) {
             throw refused(
                     "VARIABLE_DELETE_INSTRUCTION_SET_CHANGED",
@@ -389,23 +420,17 @@ public final class VariablesVariableDeleteTransaction {
                         "VARIABLE_DELETE_INSTRUCTION_CHANGED",
                         "Variable deletion changed instruction #" + prior.getId() + ".");
             }
-            boolean selectedBinding =
-                    prior.getVariableId() != null
-                            && plan.variableIds().contains(prior.getVariableId());
-            if (selectedBinding) {
-                actualClearedBindings++;
-                if (current.getVariableId() != null) {
-                    throw refused(
-                            "VARIABLE_DELETE_BINDING_REMAINED",
-                            "Instruction #" + prior.getId()
-                                    + " still references a deleted variable.");
-                }
-            } else if (!Objects.equals(prior.getVariableId(), current.getVariableId())) {
-                throw refused(
-                        "VARIABLE_DELETE_UNRELATED_BINDING_CHANGED",
-                        "An unrelated instruction variable binding changed.");
-            }
         }
+        List<SlotBinding> expectedRemainingSlots = before.variableSlots().stream()
+                .filter(slot -> !plan.variableIds().contains(slot.variableId()))
+                .toList();
+        if (!expectedRemainingSlots.equals(after.variableSlots())) {
+            throw refused(
+                    "VARIABLE_DELETE_SLOT_STATE_MISMATCH",
+                    "Variable deletion changed an unrelated instruction slot or left a deleted slot.");
+        }
+        int actualClearedBindings =
+                before.variableSlots().size() - after.variableSlots().size();
         if (actualClearedBindings != expectedClearedBindings) {
             throw refused(
                     "VARIABLE_DELETE_BINDING_COUNT_MISMATCH",
@@ -519,5 +544,8 @@ public final class VariablesVariableDeleteTransaction {
             GraphState graphState,
             List<InstructionLoad> instructions,
             List<Integer> variableIds,
+            List<SlotBinding> variableSlots,
             String graphRevision) {}
+
+    private record SlotBinding(int instructionId, String slot, int variableId) {}
 }
