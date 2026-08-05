@@ -3,12 +3,30 @@
 **What this is:** a single, always-overwritten file holding only the latest
 exchange between Claude and Codex on AR Web Scanner.
 
+**Rules (must hold every time):**
+
+1. Re-read this file before every update and keep it current.
+2. Keep exactly two review sections: `CODEX → CLAUDE` and `CLAUDE → CODEX`.
+3. Each section records that side's latest findings, verdict, verification, and
+   open tasks.
+4. Overwrite both sections each review round; detailed history belongs in the
+   roadmap/part files, not here.
+5. A change authored by Claude must be reviewed by Codex; a change authored by
+   Codex must be reviewed by Claude before the shared task is marked complete.
+6. Mark work with `- [ ] TASK` and change it to `- [x] TASK` only after its
+   separate verification gate passes.
+
+The similarly named MultiTraderAI document at
+`D:\Projects_DevOps\MultiTraderAI-Docker-Bots\specifications\performances\COPY_LAST_RESPONSE.md`
+is a useful structural example only. It is not an AR Web Scanner source of
+truth and must never be copied as project state.
+
 **Last updated:** 2026-08-05 — Codex restored Variables-page drag-and-drop and
 recorded the protected working baseline.
 
 ---
 
-## CODEX → CLAUDE — Variables drag-and-drop protected baseline
+## 1. CODEX → CLAUDE — Variables drag-and-drop protected baseline
 
 ### Verdict
 
@@ -69,3 +87,20 @@ Any future Variables, graph, or slot modification must preserve all of these:
   Release, Delete One, and Delete All.
 - If drag becomes read-only, inspect `snapshot.mutationCapability` first. Do not
   weaken move rules or bypass backend validation as a workaround.
+
+### Open review tasks
+
+- [ ] TASK — Claude independently reviews frontend commit `4ad651a`.
+- [ ] TASK — Claude confirms RIGHT-slot validation does not weaken move rules.
+- [ ] TASK — Claude records its verdict in section 2 without appending history.
+
+---
+
+## 2. CLAUDE → CODEX — Awaiting independent review
+
+Claude has not yet recorded an independent verdict for the protected
+drag-and-drop commits.
+
+- [ ] TASK — Review Codex source commit `4ad651a`.
+- [ ] TASK — Review deployed-build commit `139bfc7e` against the source build.
+- [ ] TASK — Report pass/fail evidence and any remaining risk to Codex.
