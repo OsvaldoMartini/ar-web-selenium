@@ -437,7 +437,8 @@ public final class VariablesCommandEditorUpdateTransaction {
                     plan.targetAction(),
                     configuration);
             if (isVariableOnlyCheck(configuration.kind())) {
-                persistVariableOnlyCheckConnections(connection, botJobId, plan);
+                persistVariableOnlyCheckConnections(
+                        connection, homeBankingId, botJobId, plan);
             }
             return;
         }
@@ -473,7 +474,7 @@ public final class VariablesCommandEditorUpdateTransaction {
         Configuration configuration = plan.configuration();
         try (PreparedStatement statement = connection.prepareStatement(
                 "UPDATE instruction SET actions=?,name=?,operation=?,on_hold_seconds=?,"
-                        + "variable_id=?,parent_id=NULL,parent_block_id=NULL"
+                        + "parent_id=NULL,parent_block_id=NULL"
                         + " WHERE id=? AND bot_job_id=?")) {
             statement.setString(1, plan.targetAction());
             statement.setString(2, CommandRegistry.transformedName(plan.targetAction()));
@@ -491,16 +492,18 @@ public final class VariablesCommandEditorUpdateTransaction {
             } else {
                 statement.setNull(4, java.sql.Types.INTEGER);
             }
-            if (isVariableOnlyCheck(configuration.kind())) {
-                statement.setInt(5, configuration.leftVariableId());
-            } else {
-                statement.setNull(5, java.sql.Types.INTEGER);
-            }
-            statement.setInt(6, plan.source().id());
-            statement.setInt(7, botJobId);
+            statement.setInt(5, plan.source().id());
+            statement.setInt(6, botJobId);
             if (statement.executeUpdate() != 1) {
                 throw refused("COMMAND_UPDATE_SOURCE_CHANGED", "The selected command changed before it could be transformed.");
             }
+        }
+        clearVariableSlots(connection, homeBankingId, botJobId, plan.source().id());
+        if (isVariableOnlyCheck(configuration.kind())
+                && configuration.leftVariableId() != null) {
+            insertVariableSlot(
+                    connection, homeBankingId, botJobId,
+                    plan.source().id(), "LEFT", configuration.leftVariableId());
         }
         try (PreparedStatement statement = connection.prepareStatement(
                 "UPDATE bot_job_variable_definition SET producer_instruction_id=NULL"
@@ -529,19 +532,60 @@ public final class VariablesCommandEditorUpdateTransaction {
     }
 
     private void persistVariableOnlyCheckConnections(
-            Connection connection, int botJobId, Plan plan) throws SQLException {
+            Connection connection, int homeBankingId, int botJobId, Plan plan)
+            throws SQLException {
+        clearVariableSlot(
+                connection, homeBankingId, botJobId, plan.source().id(), "LEFT");
+        Integer leftVariableId = plan.configuration().leftVariableId();
+        if (leftVariableId != null) {
+            insertVariableSlot(
+                    connection, homeBankingId, botJobId,
+                    plan.source().id(), "LEFT", leftVariableId);
+        }
+    }
+
+    private static void clearVariableSlots(
+            Connection connection, int homeBankingId, int botJobId, int instructionId)
+            throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement(
-                "UPDATE instruction SET variable_id=?,parent_id=NULL,parent_block_id=NULL"
-                        + " WHERE id=? AND bot_job_id=?")) {
-            // Null-safe since 2026-08-03: a CHECKVALUE may exist without variables.
-            statement.setObject(1, plan.configuration().leftVariableId());
-            statement.setInt(2, plan.source().id());
-            statement.setInt(3, botJobId);
-            if (statement.executeUpdate() != 1) {
-                throw refused(
-                        "COMMAND_UPDATE_CHECK_CONNECTION_FAILED",
-                        "The variable-only Check connection could not be stored.");
-            }
+                "DELETE FROM instruction_variable_slot"
+                        + " WHERE home_banking_id=? AND bot_job_id=? AND instruction_id=?")) {
+            statement.setInt(1, homeBankingId);
+            statement.setInt(2, botJobId);
+            statement.setInt(3, instructionId);
+            statement.executeUpdate();
+        }
+    }
+
+    private static void clearVariableSlot(
+            Connection connection, int homeBankingId, int botJobId,
+            int instructionId, String slot) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(
+                "DELETE FROM instruction_variable_slot"
+                        + " WHERE home_banking_id=? AND bot_job_id=?"
+                        + " AND instruction_id=? AND slot=?")) {
+            statement.setInt(1, homeBankingId);
+            statement.setInt(2, botJobId);
+            statement.setInt(3, instructionId);
+            statement.setString(4, slot);
+            statement.executeUpdate();
+        }
+    }
+
+    private static void insertVariableSlot(
+            Connection connection, int homeBankingId, int botJobId,
+            int instructionId, String slot, int variableId) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(
+                "INSERT INTO instruction_variable_slot"
+                        + " (home_banking_id,bot_job_id,instruction_id,slot,variable_id,"
+                        + "slot_revision,created_at,updated_at)"
+                        + " VALUES (?,?,?,?,?,1,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)")) {
+            statement.setInt(1, homeBankingId);
+            statement.setInt(2, botJobId);
+            statement.setInt(3, instructionId);
+            statement.setString(4, slot);
+            statement.setInt(5, variableId);
+            statement.executeUpdate();
         }
     }
 
@@ -732,8 +776,20 @@ public final class VariablesCommandEditorUpdateTransaction {
         LinkedHashMap<Integer, InstructionRow> instructions = new LinkedHashMap<>();
         List<InstructionLoad> revisionRows = new ArrayList<>();
         try (PreparedStatement statement = connection.prepareStatement(
-                "SELECT id,instruction_order_number,actions,name,operation,on_hold_seconds,block_id,variable_id,parent_block_id,parent_id FROM instruction WHERE bot_job_id=? ORDER BY block_id,instruction_order_number,id")) {
-            statement.setInt(1, owner.ownerId());
+                "SELECT id,instruction_order_number,actions,name,operation,on_hold_seconds,"
+                        + "block_id,parent_block_id,parent_id,"
+                        + "(SELECT ivs.variable_id FROM instruction_variable_slot ivs"
+                        + " WHERE ivs.home_banking_id=? AND ivs.bot_job_id=instruction.bot_job_id"
+                        + " AND ivs.instruction_id=instruction.id"
+                        + " AND ivs.slot=CASE UPPER(TRIM(instruction.actions))"
+                        + " WHEN 'CK' THEN 'LEFT' WHEN 'CHECKVALUE' THEN 'LEFT'"
+                        + " WHEN 'CSV CHECK' THEN 'LEFT' WHEN 'PDF CHECK' THEN 'LEFT'"
+                        + " WHEN 'GET' THEN 'GET_WRITE' WHEN 'SET' THEN 'READ_SET'"
+                        + " WHEN 'E' THEN 'READ' ELSE NULL END LIMIT 1) AS variable_id"
+                        + " FROM instruction WHERE bot_job_id=?"
+                        + " ORDER BY block_id,instruction_order_number,id")) {
+            statement.setInt(1, owner.homeBankingId());
+            statement.setInt(2, owner.ownerId());
             try (ResultSet rows = statement.executeQuery()) {
                 while (rows.next()) {
                     InstructionRow row = new InstructionRow(
