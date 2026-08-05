@@ -51,6 +51,11 @@ public final class ScannerPreLaunchExcelLoader {
         return datasets.close(requireWorkbook(excelPath));
     }
 
+    /** Replaces the shared working dataset without writing the workbook to disk. */
+    public ExtractedData replaceInMemory(String excelPath, ExtractedData data) {
+        return datasets.replace(requireWorkbook(excelPath), data).data();
+    }
+
     private Path requireWorkbook(String excelPath) {
         if (excelPath == null || excelPath.isBlank()) {
             throw new IllegalArgumentException("Excel data file path is required");

@@ -58,6 +58,7 @@ import com.allinweb.ch.model.*;
 import com.allinweb.ch.readersAndWriters.ExcelWriter;
 import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.socket.InstructionRealtimePublisher;
+import com.allinweb.ch.socket.ExcelDataWorkspaceService;
 import com.allinweb.ch.util.*;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
@@ -3691,6 +3692,12 @@ public class ScannerRuntimeBackend
                                             extractedData.getBlocks(),
                                             extractedData.getExtractedFields(currentBlockName));
                                 }
+                                ExcelDataWorkspaceService.getInstance().publishActiveCell(
+                                        currentBotJob.getId(),
+                                        currentBlockName,
+                                        displayKey,
+                                        xExcelCurrentRow,
+                                        currentInstruction.getId());
                             }
 
                             FieldData msgInstruction = null;

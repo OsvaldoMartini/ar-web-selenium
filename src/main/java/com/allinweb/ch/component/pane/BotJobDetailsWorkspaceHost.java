@@ -1390,6 +1390,16 @@ public class BotJobDetailsWorkspaceHost {
                 : "ONE".equals(mode)
                         ? RunScope.one(blockId)
                         : RunScope.fromBlock(blockId);
+        JsonObject excelWorkspace = ExcelDataWorkspaceService.getInstance()
+                .openForBotJob(context.botJobId());
+        if (excelWorkspace == null
+                || !excelWorkspace.has("ok")
+                || !excelWorkspace.get("ok").getAsBoolean()) {
+            throw new IllegalStateException(
+                    excelWorkspace != null && excelWorkspace.has("error")
+                            ? excelWorkspace.get("error").getAsString()
+                            : "Excel Data memory could not be opened for TEST RUN");
+        }
         prepareRuntimeMemoryForExecution(context, body);
         ScannerExecutionPreflightMonitor.Observation preflightObservation =
                 executionPreflightMonitor.observe(

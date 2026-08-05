@@ -49,6 +49,19 @@ class ExcelExecutionDatasetRegistryTest {
         assertNotNull(registry.find(third));
     }
 
+    @Test
+    void replacesWorkingDatasetWithoutInvokingTheDiskLoader() throws Exception {
+        ExcelExecutionDatasetRegistry registry = new ExcelExecutionDatasetRegistry(2);
+        Path workbook = Path.of("Working.xlsx");
+        ExtractedData original = new ExtractedData();
+        ExtractedData replacement = new ExtractedData();
+        registry.load(workbook, () -> original);
+
+        registry.replace(workbook, replacement);
+
+        assertSame(replacement, registry.find(workbook).data());
+    }
+
     private ExtractedData data(AtomicInteger reads) {
         reads.incrementAndGet();
         ExtractedData data = new ExtractedData();

@@ -140,6 +140,10 @@ public class SimpleWebSocketServer {
             "pagesOpen.summary");
     private static final Set<String> DETACHED_EXCEL_DATA_OPERATIONS = Set.of(
             "excelData.bootstrap",
+            "excelData.generate",
+            "excelData.generateSynthetic",
+            "excelData.addRow",
+            "excelData.save",
             "excelData.close",
             "pagesOpen.open",
             "pagesOpen.summary");
@@ -937,6 +941,38 @@ public class SimpleWebSocketServer {
                             sessionId,
                             "excelData.closeResponse",
                             excelDataWorkspaceService.close(excelDataBody, sessionId, session));
+                    break;
+                }
+                case "excelData.generate":
+                case "excelData.generateSynthetic": {
+                    JsonObject excelDataBody = extractBody(jsonObjMSG);
+                    sendCommandEditorResponse(
+                            homeBankingId,
+                            sessionId,
+                            type + "Response",
+                            excelDataWorkspaceService.generate(
+                                    excelDataBody,
+                                    sessionId,
+                                    session,
+                                    "excelData.generateSynthetic".equals(type)));
+                    break;
+                }
+                case "excelData.addRow": {
+                    JsonObject excelDataBody = extractBody(jsonObjMSG);
+                    sendCommandEditorResponse(
+                            homeBankingId,
+                            sessionId,
+                            "excelData.addRowResponse",
+                            excelDataWorkspaceService.addRow(excelDataBody, sessionId, session));
+                    break;
+                }
+                case "excelData.save": {
+                    JsonObject excelDataBody = extractBody(jsonObjMSG);
+                    sendCommandEditorResponse(
+                            homeBankingId,
+                            sessionId,
+                            "excelData.saveResponse",
+                            excelDataWorkspaceService.save(excelDataBody, sessionId, session));
                     break;
                 }
                 case "variablesWorkspace.refresh": {

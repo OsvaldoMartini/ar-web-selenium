@@ -47,6 +47,14 @@ public final class ExcelExecutionDatasetRegistry {
         return datasets.get(normalize(workbook));
     }
 
+    public synchronized Dataset replace(Path workbook, ExtractedData data) {
+        Path key = normalize(workbook);
+        Dataset replacement = new Dataset(key, Objects.requireNonNull(data, "Excel dataset is required"), Instant.now());
+        datasets.put(key, replacement);
+        evictOldestIfRequired();
+        return replacement;
+    }
+
     public synchronized boolean close(Path workbook) {
         return datasets.remove(normalize(workbook)) != null;
     }
