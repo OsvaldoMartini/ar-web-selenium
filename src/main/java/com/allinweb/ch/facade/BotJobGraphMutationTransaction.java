@@ -433,12 +433,10 @@ public final class BotJobGraphMutationTransaction {
                 setNullableInteger(statement, 4, instruction.parentBlockId());
                 statement.setInt(5, instruction.instructionId());
                 statement.setInt(6, botJobId);
-                if (statement.executeUpdate() != 1) {
-                    throw new SQLException(
-                            "Instruction #" + instruction.instructionId()
-                                    + " was not updated exactly once.");
-                }
+                statement.addBatch();
             }
+            requireSuccessfulBatch(
+                    statement.executeBatch(), instructions.size(), "instruction graph update");
         }
     }
 
@@ -455,11 +453,21 @@ public final class BotJobGraphMutationTransaction {
                 setNullableInteger(statement, 1, variable.instructionId());
                 statement.setInt(2, variable.variableId());
                 statement.setInt(3, botJobId);
-                if (statement.executeUpdate() != 1) {
-                    throw new SQLException(
-                            "Variable #" + variable.variableId()
-                                    + " was not updated exactly once.");
-                }
+                statement.addBatch();
+            }
+            requireSuccessfulBatch(
+                    statement.executeBatch(), variables.size(), "variable owner update");
+        }
+    }
+
+    private static void requireSuccessfulBatch(
+            int[] results, int expected, String operation) throws SQLException {
+        if (results.length != expected) {
+            throw new SQLException(operation + " returned an incomplete JDBC batch result.");
+        }
+        for (int result : results) {
+            if (result == 0 || result == java.sql.Statement.EXECUTE_FAILED) {
+                throw new SQLException(operation + " did not persist every submitted row.");
             }
         }
     }

@@ -29,8 +29,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * Atomic variable auto-resolution for the Variables Resolve Connections flow.
@@ -50,7 +48,6 @@ import java.util.regex.Pattern;
  * Only MISSING slots are filled — existing bindings are never overwritten.
  */
 public final class VariablesVariableAutoResolveTransaction {
-    private static final Pattern DEFAULT_NAME = Pattern.compile("^Variable_(\\d+)$");
     private static final String DEFAULT_VARIABLE_TYPE = "$String";
 
     private final InstructionGraphStateRepository stateRepository;
@@ -92,27 +89,24 @@ public final class VariablesVariableAutoResolveTransaction {
             GraphState state = stateRepository.loadOrCreate(connection, owner.owner());
             Graph before = loadGraph(connection, owner.owner(), state);
             List<SlotPlan> plan = validateAndPlan(owner, request, before);
-            List<CreatedVariable> created = new ArrayList<>();
-            int connectedExisting = 0;
-            NameSequencer names = new NameSequencer(before.variableNames());
+            LinkedHashMap<String, Integer> variableIdsByName =
+                    new LinkedHashMap<>(before.variableIdsByName());
+            Set<String> existingNames = Set.copyOf(variableIdsByName.keySet());
+            List<VariableCreationPlan> creations = new ArrayList<>();
+            Set<String> plannedNames = new LinkedHashSet<>();
             for (SlotPlan slot : plan) {
-                int variableId;
-                if (slot.existingVariableId() != null) {
-                    variableId = slot.existingVariableId();
-                    connectedExisting++;
-                } else {
-                    String name = names.next(slot.role());
-                    variableId = insertVariable(
-                            connection,
-                            owner.owner().homeBankingId(),
-                            owner.owner().ownerId(),
-                            name,
-                            slot.producerInstructionId());
-                    created.add(new CreatedVariable(
-                            variableId, name, slot.instructionId(), slot.role().name()));
+                String key = normalizedName(slot.variableName());
+                if (!variableIdsByName.containsKey(key) && plannedNames.add(key)) {
+                    creations.add(new VariableCreationPlan(
+                            slot.variableName(), slot.instructionId(), slot.role()));
                 }
-                connectSlot(connection, owner.owner(), slot, variableId);
             }
+            List<CreatedVariable> created = insertVariables(
+                    connection, owner.owner(), creations, variableIdsByName);
+            int connectedExisting = (int) plan.stream()
+                    .filter(slot -> existingNames.contains(normalizedName(slot.variableName())))
+                    .count();
+            connectSlots(connection, owner.owner(), plan, variableIdsByName);
             if (created.isEmpty() && connectedExisting == 0) {
                 throw refused(
                         "VARIABLE_AUTO_RESOLVE_NO_CHANGES",
@@ -149,8 +143,9 @@ public final class VariablesVariableAutoResolveTransaction {
             AuthenticatedBotJob owner,
             VariablesVariableAutoResolveV1.Request request,
             Graph graph) throws MutationRefusedException {
-        if (!Objects.equals(
-                request.contractVersion(), VariablesVariableAutoResolveV1.CONTRACT_VERSION)) {
+        if (!Objects.equals(request.contractVersion(), VariablesVariableAutoResolveV1.CONTRACT_VERSION)
+                && !Objects.equals(
+                        request.contractVersion(), VariablesVariableAutoResolveV1.LEGACY_CONTRACT_VERSION)) {
             throw refused(
                     "VARIABLE_AUTO_RESOLVE_CONTRACT_UNSUPPORTED",
                     "The variable auto-resolve contract is not supported.");
@@ -194,31 +189,26 @@ public final class VariablesVariableAutoResolveTransaction {
             scope.add(instructionId);
         }
 
-        // Oldest-first existing variables (rule: oldest compatible auto-selected).
-        List<Integer> existingOldestFirst = new ArrayList<>(graph.variableIds());
         List<SlotPlan> plan = new ArrayList<>();
+        boolean distinct = "DISTINCT".equalsIgnoreCase(request.variableMode());
+        int checkIndex = 0;
+        int commandIndex = 0;
         for (InstructionRow row : graph.instructions().values()) {
             if (!scope.contains(row.id())) continue;
             String action = CommandRegistry.canonicalize(row.action());
             if (!CommandRegistry.usesVariableBinding(action)) continue;
             boolean check = isCheckCommand(action);
-            Integer leftExisting = null;
-            Integer rightExisting = null;
-            if (row.variableId() == null) {
-                leftExisting = existingOldestFirst.isEmpty() ? null : existingOldestFirst.get(0);
-            }
+            if (check) checkIndex++;
+            else commandIndex++;
+            int suffix = distinct ? (check ? checkIndex : commandIndex) : 1;
             if (check) {
                 Integer currentRight = graph.slots()
                         .getOrDefault(row.id(), Map.of())
                         .get("RIGHT");
                 if (currentRight == null) {
-                    Integer leftUsed = row.variableId() != null ? row.variableId() : leftExisting;
-                    rightExisting = existingOldestFirst.stream()
-                            .filter(candidate -> !Objects.equals(candidate, leftUsed))
-                            .findFirst()
-                            .orElse(null);
                     plan.add(new SlotPlan(
-                            row.id(), action, SlotRole.CHECK_RIGHT, rightExisting, null));
+                            row.id(), action, SlotRole.CHECK_RIGHT,
+                            "Right_Operand_" + suffix));
                 }
             }
             if (row.variableId() == null) {
@@ -226,73 +216,66 @@ public final class VariablesVariableAutoResolveTransaction {
                         row.id(),
                         action,
                         check ? SlotRole.CHECK_LEFT : SlotRole.PRIMARY,
-                        leftExisting,
-                        !check && CommandRegistry.producesVariableValue(action)
-                                ? row.id()
-                                : null));
+                        check ? "Left_Operand_" + suffix : "Variable_" + suffix));
             }
         }
         return plan;
     }
 
-    private int insertVariable(
+    private List<CreatedVariable> insertVariables(
             Connection connection,
-            int homeBankingId,
-            int botJobId,
-            String name,
-            Integer producerInstructionId)
+            OwnerKey owner,
+            List<VariableCreationPlan> creations,
+            Map<String, Integer> variableIdsByName)
             throws SQLException {
-        // The table's primary key is (home_banking_id, bot_job_id, id): the variable id
-        // is allocated per Bot Job, exactly like BotJobVariableDefinitionRepository's
-        // callers do. Serialization via commitWorkspaceMutation makes MAX(id)+1 safe.
-        int variableId;
+        if (creations.isEmpty()) return List.of();
+        int nextVariableId;
         try (PreparedStatement statement = connection.prepareStatement(
                 "SELECT COALESCE(MAX(id),0)+1 FROM bot_job_variable_definition"
                         + " WHERE home_banking_id=? AND bot_job_id=?")) {
-            statement.setInt(1, homeBankingId);
-            statement.setInt(2, botJobId);
+            statement.setInt(1, owner.homeBankingId());
+            statement.setInt(2, owner.ownerId());
             try (ResultSet rows = statement.executeQuery()) {
                 if (!rows.next()) {
                     throw new SQLException("The next variable ID could not be allocated.");
                 }
-                variableId = rows.getInt(1);
+                nextVariableId = rows.getInt(1);
             }
         }
         Timestamp now = Timestamp.from(Instant.now());
+        List<CreatedVariable> created = new ArrayList<>(creations.size());
         try (PreparedStatement statement = connection.prepareStatement(
                 "INSERT INTO bot_job_variable_definition"
                         + " (home_banking_id,bot_job_id,id,variable_type,name,configured_value,"
                         + "local_format,delimiter,producer_instruction_id,created_at,updated_at)"
                         + " VALUES (?,?,?,?,?,NULL,NULL,NULL,?,?,?)")) {
-            statement.setInt(1, homeBankingId);
-            statement.setInt(2, botJobId);
-            statement.setInt(3, variableId);
-            statement.setString(4, DEFAULT_VARIABLE_TYPE);
-            statement.setString(5, name);
-            if (producerInstructionId == null) statement.setNull(6, Types.INTEGER);
-            else statement.setInt(6, producerInstructionId);
-            statement.setTimestamp(7, now);
-            statement.setTimestamp(8, now);
-            if (statement.executeUpdate() != 1) {
-                throw new SQLException("Default variable insert did not create one row.");
+            for (VariableCreationPlan creation : creations) {
+                int variableId = nextVariableId++;
+                statement.setInt(1, owner.homeBankingId());
+                statement.setInt(2, owner.ownerId());
+                statement.setInt(3, variableId);
+                statement.setString(4, DEFAULT_VARIABLE_TYPE);
+                statement.setString(5, creation.name());
+                statement.setNull(6, Types.INTEGER);
+                statement.setTimestamp(7, now);
+                statement.setTimestamp(8, now);
+                statement.addBatch();
+                variableIdsByName.put(normalizedName(creation.name()), variableId);
+                created.add(new CreatedVariable(
+                        variableId, creation.name(), creation.instructionId(), creation.role().name()));
             }
+            requireBatchCount(statement.executeBatch(), creations.size(), "variable insert");
         }
-        return variableId;
+        return List.copyOf(created);
     }
 
-    private void connectSlot(
-            Connection connection, OwnerKey owner, SlotPlan slot, int variableId)
+    private void connectSlots(
+            Connection connection,
+            OwnerKey owner,
+            List<SlotPlan> plans,
+            Map<String, Integer> variableIdsByName)
             throws SQLException {
-        String slotName = slot.role() == SlotRole.CHECK_RIGHT
-                ? "RIGHT"
-                : slot.role() == SlotRole.CHECK_LEFT
-                        ? "LEFT"
-                        : primarySlot(slot.action());
-        if (slotName == null) {
-            throw refused(
-                    "VARIABLE_AUTO_RESOLVE_SLOT_UNSUPPORTED",
-                    "The command does not define a variable slot.");
-        }
+        if (plans.isEmpty()) return;
         try (PreparedStatement statement = connection.prepareStatement(
                 "INSERT INTO instruction_variable_slot"
                         + " (home_banking_id,bot_job_id,instruction_id,slot,variable_id,"
@@ -301,19 +284,39 @@ public final class VariablesVariableAutoResolveTransaction {
                         + " WHERE NOT EXISTS (SELECT 1 FROM instruction_variable_slot"
                         + " WHERE home_banking_id=? AND bot_job_id=?"
                         + " AND instruction_id=? AND slot=?)")) {
-            statement.setInt(1, owner.homeBankingId());
-            statement.setInt(2, owner.ownerId());
-            statement.setInt(3, slot.instructionId());
-            statement.setString(4, slotName);
-            statement.setInt(5, variableId);
-            statement.setInt(6, owner.homeBankingId());
-            statement.setInt(7, owner.ownerId());
-            statement.setInt(8, slot.instructionId());
-            statement.setString(9, slotName);
-            if (statement.executeUpdate() != 1) {
-                throw refused(
-                        "VARIABLE_AUTO_RESOLVE_SOURCE_CHANGED",
-                        "A selected command slot changed before its variable could be connected.");
+            for (SlotPlan slot : plans) {
+                String slotName = slot.role() == SlotRole.CHECK_RIGHT
+                        ? "RIGHT"
+                        : slot.role() == SlotRole.CHECK_LEFT ? "LEFT" : primarySlot(slot.action());
+                Integer variableId = variableIdsByName.get(normalizedName(slot.variableName()));
+                if (slotName == null || variableId == null) {
+                    throw refused(
+                            "VARIABLE_AUTO_RESOLVE_SLOT_UNSUPPORTED",
+                            "The command does not define a resolvable variable slot.");
+                }
+                statement.setInt(1, owner.homeBankingId());
+                statement.setInt(2, owner.ownerId());
+                statement.setInt(3, slot.instructionId());
+                statement.setString(4, slotName);
+                statement.setInt(5, variableId);
+                statement.setInt(6, owner.homeBankingId());
+                statement.setInt(7, owner.ownerId());
+                statement.setInt(8, slot.instructionId());
+                statement.setString(9, slotName);
+                statement.addBatch();
+            }
+            requireBatchCount(statement.executeBatch(), plans.size(), "variable slot insert");
+        }
+    }
+
+    private static void requireBatchCount(int[] results, int expected, String operation)
+            throws SQLException {
+        if (results.length != expected) {
+            throw new SQLException("The " + operation + " batch returned an incomplete result.");
+        }
+        for (int result : results) {
+            if (result == 0 || result == java.sql.Statement.EXECUTE_FAILED) {
+                throw new SQLException("The " + operation + " batch did not persist every row.");
             }
         }
     }
@@ -371,9 +374,11 @@ public final class VariablesVariableAutoResolveTransaction {
         List<InstructionLoad> revisionRows = new ArrayList<>();
         Map<Integer, Map<String, Integer>> slots = loadSlots(connection, owner);
         try (PreparedStatement statement = connection.prepareStatement(
-                "SELECT id,instruction_order_number,actions,operation,block_id,"
-                        + "parent_block_id,parent_id FROM instruction WHERE bot_job_id=?"
-                        + " ORDER BY block_id,instruction_order_number,id")) {
+                "SELECT i.id,i.instruction_order_number,i.actions,i.operation,i.block_id,"
+                        + "i.parent_block_id,i.parent_id FROM instruction i"
+                        + " JOIN block b ON b.id=i.block_id AND b.bot_job_id=i.bot_job_id"
+                        + " WHERE i.bot_job_id=?"
+                        + " ORDER BY b.block_order_number,i.instruction_order_number,i.id")) {
             statement.setInt(1, owner.ownerId());
             try (ResultSet rows = statement.executeQuery()) {
                 while (rows.next()) {
@@ -394,7 +399,7 @@ public final class VariablesVariableAutoResolveTransaction {
             }
         }
         List<Integer> variableIds = new ArrayList<>();
-        List<String> variableNames = new ArrayList<>();
+        LinkedHashMap<String, Integer> variableIdsByName = new LinkedHashMap<>();
         List<VariableLoadDTO> variables = new ArrayList<>();
         try (PreparedStatement statement = connection.prepareStatement(
                 "SELECT id,name,producer_instruction_id FROM bot_job_variable_definition"
@@ -404,7 +409,8 @@ public final class VariablesVariableAutoResolveTransaction {
             try (ResultSet rows = statement.executeQuery()) {
                 while (rows.next()) {
                     variableIds.add(rows.getInt("id"));
-                    variableNames.add(rows.getString("name"));
+                    variableIdsByName.put(
+                            normalizedName(rows.getString("name")), rows.getInt("id"));
                     variables.add(new VariableLoadDTO(
                             rows.getInt("id"), null, owner.ownerId(),
                             nullableInteger(rows, "producer_instruction_id"),
@@ -415,8 +421,12 @@ public final class VariablesVariableAutoResolveTransaction {
         Map<Integer, StoredConfiguration> configurations =
                 commandConfigurations.loadForBotJob(connection, owner.ownerId());
         return new Graph(
-                state, Map.copyOf(instructions), List.copyOf(variableIds),
-                List.copyOf(variableNames), configurations, slots,
+                state,
+                java.util.Collections.unmodifiableMap(new LinkedHashMap<>(instructions)),
+                List.copyOf(variableIds),
+                java.util.Collections.unmodifiableMap(new LinkedHashMap<>(variableIdsByName)),
+                configurations,
+                slots,
                 revisionService.revision(revisionRows, variables));
     }
 
@@ -464,43 +474,9 @@ public final class VariablesVariableAutoResolveTransaction {
         return "CK".equals(action) || "PDF CHECK".equals(action) || "CSV CHECK".equals(action);
     }
 
-    /** Sequential default names: Variable_N, Left_Operand(_N), Right_Operand(_N). */
-    private static final class NameSequencer {
-        private final Set<String> taken;
-        private int nextVariableNumber;
-
-        private NameSequencer(List<String> existingNames) {
-            this.taken = new java.util.HashSet<>();
-            int highest = 0;
-            for (String name : existingNames) {
-                if (name == null) continue;
-                taken.add(name);
-                Matcher matcher = DEFAULT_NAME.matcher(name.trim());
-                if (matcher.matches()) {
-                    highest = Math.max(highest, Integer.parseInt(matcher.group(1)));
-                }
-            }
-            this.nextVariableNumber = highest + 1;
-        }
-
-        private String next(SlotRole role) {
-            if (role == SlotRole.PRIMARY) {
-                String name;
-                do {
-                    name = "Variable_" + nextVariableNumber++;
-                } while (taken.contains(name));
-                taken.add(name);
-                return name;
-            }
-            String base = role == SlotRole.CHECK_LEFT ? "Left_Operand" : "Right_Operand";
-            String name = base;
-            int suffix = 2;
-            while (taken.contains(name)) name = base + "_" + suffix++;
-            taken.add(name);
-            return name;
-        }
+    private static String normalizedName(String value) {
+        return value == null ? "" : value.trim().toLowerCase(java.util.Locale.ROOT);
     }
-
     private static boolean blank(String value) { return value == null || value.trim().isEmpty(); }
     private static Integer nullableInteger(ResultSet rows, String column) throws SQLException {
         Object value = rows.getObject(column);
@@ -529,7 +505,10 @@ public final class VariablesVariableAutoResolveTransaction {
 
     private record SlotPlan(
             int instructionId, String action, SlotRole role,
-            Integer existingVariableId, Integer producerInstructionId) {}
+            String variableName) {}
+
+    private record VariableCreationPlan(
+            String name, int instructionId, SlotRole role) {}
 
     private record InstructionRow(
             int id, int order, String action, String operation, int blockId,
@@ -545,7 +524,7 @@ public final class VariablesVariableAutoResolveTransaction {
 
     private record Graph(
             GraphState state, Map<Integer, InstructionRow> instructions,
-            List<Integer> variableIds, List<String> variableNames,
+            List<Integer> variableIds, Map<String, Integer> variableIdsByName,
             Map<Integer, StoredConfiguration> configurations,
             Map<Integer, Map<String, Integer>> slots, String revision) {}
 
