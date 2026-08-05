@@ -16,9 +16,9 @@ final class VariablesCommandEditorCreateInsert {
                    instruction_order_number,actions,name,xpath,coordinates,force_coordinates,
                    iframe_xpath,tag_name,shadow_host,shadow_root,css_selector,description,
                    operation,optional,block_marked,default_value,action_custom_max_wait_sec,
-                   on_hold_seconds,codified,export_to_abr,active,block_id,variable_id,
+                   on_hold_seconds,codified,export_to_abr,active,block_id,
                    parent_block_id,parent_id,bot_job_id,client_named)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             """;
 
     int insert(
@@ -49,7 +49,6 @@ final class VariablesCommandEditorCreateInsert {
             statement.setNull(parameter++, Types.BOOLEAN);
             statement.setBoolean(parameter++, true);
             statement.setInt(parameter++, targetBlockId);
-            statement.setNull(parameter++, Types.INTEGER);
             statement.setNull(parameter++, Types.INTEGER);
             statement.setNull(parameter++, Types.INTEGER);
             statement.setInt(parameter++, botJobId);

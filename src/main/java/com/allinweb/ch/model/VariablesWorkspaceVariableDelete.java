@@ -5,12 +5,13 @@ import java.util.List;
 /**
  * Explicit Variables-workspace variable deletion contract.
  *
- * <p>React chooses the exact variable IDs. Java authenticates the detached workspace owner,
- * rejects stale graph facts, and persists only those submitted IDs.
+ * <p>Java authenticates the workspace owner and deletes volatile variable definitions without
+ * requiring graph-mutation authority. SINGLE is idempotent; ALL resolves the complete current
+ * catalog inside the transaction.
  */
 public final class VariablesWorkspaceVariableDelete {
 
-    public static final int CONTRACT_VERSION = 1;
+    public static final int CONTRACT_VERSION = 2;
 
     private VariablesWorkspaceVariableDelete() {}
 
@@ -22,8 +23,6 @@ public final class VariablesWorkspaceVariableDelete {
     public record Request(
             Integer contractVersion,
             String requestId,
-            Long baseGraphVersion,
-            String graphRevision,
             Long workspaceEpoch,
             Mode mode,
             List<Integer> variableIds) {

@@ -43,13 +43,14 @@ public class PerformInitializer {
         // Apply any pending schema migrations before anything else touches the DB.
         // Safe to call on every boot — idempotent by name.
         try (Connection conn = performDataBase.getConnection()) {
-            MigrationRunner.getInstance().runPending(conn);
+            // PARKED 2026-08-05: migrations are run only by explicit maintenance.
+            // MigrationRunner.getInstance().runPending(conn);
 
             // Safety net: re-run the scroll/enter-from-actions rewrite even if the
             // migration is already recorded as applied. Protects against the failure
             // mode where schema_migrations was written but the actual UPDATE was
             // silently dropped by a driver on a prior boot. No-op on a clean DB.
-            M20260426_ScrollFromActionsVarchar.selfHealIfLegacyRemains(conn);
+            // M20260426_ScrollFromActionsVarchar.selfHealIfLegacyRemains(conn);
         } catch (Exception e) {
             log.error("PerformInitializer — migration check failed: {}", e.getMessage());
         }

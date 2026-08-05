@@ -144,7 +144,7 @@ class VariablesVariableDeleteTransactionTest {
     }
 
     @Test
-    void refusesIncompleteAllAndForeignVariableIdsWithoutWriting()
+    void allAlwaysDeletesCompleteOwnedCatalogAndForeignSingleIsIdempotent()
             throws Exception {
         try (Connection connection = database()) {
             VariablesWorkspaceVariableDelete.Request incomplete =
@@ -152,72 +152,33 @@ class VariablesVariableDeleteTransactionTest {
                             connection,
                             VariablesWorkspaceVariableDelete.Mode.ALL,
                             List.of(501));
-            MutationRefusedException incompleteFailure = assertThrows(
-                    MutationRefusedException.class,
-                    () -> new VariablesVariableDeleteTransaction()
-                            .execute(connection, authenticatedOwner, incomplete));
-            assertEquals(
-                    "VARIABLE_DELETE_ALL_INCOMPLETE",
-                    incompleteFailure.code());
-            assertUnchanged(connection);
-
+            DeleteResult allResult = new VariablesVariableDeleteTransaction()
+                    .execute(connection, authenticatedOwner, incomplete);
+            assertEquals(2, allResult.deletedCount());
+        }
+        try (Connection connection = database()) {
             VariablesWorkspaceVariableDelete.Request foreign =
                     request(
                             connection,
                             VariablesWorkspaceVariableDelete.Mode.SINGLE,
                             List.of(601));
-            MutationRefusedException foreignFailure = assertThrows(
-                    MutationRefusedException.class,
-                    () -> new VariablesVariableDeleteTransaction()
-                            .execute(connection, authenticatedOwner, foreign));
-            assertEquals("VARIABLE_DELETE_NOT_OWNED", foreignFailure.code());
+            DeleteResult foreignResult = new VariablesVariableDeleteTransaction()
+                    .execute(connection, authenticatedOwner, foreign);
+            assertEquals(0, foreignResult.deletedCount());
             assertUnchanged(connection);
         }
     }
 
     @Test
-    void rejectsStaleRevisionAndVersionBeforeAnyWrite()
+    void ignoresGraphRevisionAndTreatsMissingVariableAsAlreadyDeleted()
             throws Exception {
         try (Connection connection = database()) {
-            VariablesWorkspaceVariableDelete.Request current =
-                    request(
-                            connection,
-                            VariablesWorkspaceVariableDelete.Mode.SINGLE,
-                            List.of(501));
-            VariablesWorkspaceVariableDelete.Request staleRevision =
-                    new VariablesWorkspaceVariableDelete.Request(
-                            current.contractVersion(),
-                            current.requestId(),
-                            current.baseGraphVersion(),
-                            "stale-revision",
-                            current.workspaceEpoch(),
-                            current.mode(),
-                            current.variableIds());
-            MutationRefusedException revisionFailure = assertThrows(
-                    MutationRefusedException.class,
-                    () -> new VariablesVariableDeleteTransaction()
-                            .execute(connection, authenticatedOwner, staleRevision));
-            assertEquals(
-                    "VARIABLE_DELETE_GRAPH_REVISION_STALE",
-                    revisionFailure.code());
-            assertUnchanged(connection);
-
-            VariablesWorkspaceVariableDelete.Request staleVersion =
-                    new VariablesWorkspaceVariableDelete.Request(
-                            current.contractVersion(),
-                            current.requestId(),
-                            current.baseGraphVersion() + 1L,
-                            current.graphRevision(),
-                            current.workspaceEpoch(),
-                            current.mode(),
-                            current.variableIds());
-            MutationRefusedException versionFailure = assertThrows(
-                    MutationRefusedException.class,
-                    () -> new VariablesVariableDeleteTransaction()
-                            .execute(connection, authenticatedOwner, staleVersion));
-            assertEquals(
-                    "VARIABLE_DELETE_GRAPH_VERSION_STALE",
-                    versionFailure.code());
+            VariablesWorkspaceVariableDelete.Request missing =
+                    request(connection, VariablesWorkspaceVariableDelete.Mode.SINGLE, List.of(999));
+            DeleteResult result = new VariablesVariableDeleteTransaction()
+                    .execute(connection, authenticatedOwner, missing);
+            assertEquals(0, result.deletedCount());
+            assertEquals(0, result.clearedInstructionCount());
             assertUnchanged(connection);
         }
     }
@@ -272,8 +233,6 @@ class VariablesVariableDeleteTransactionTest {
                     new VariablesWorkspaceVariableDelete.Request(
                             current.contractVersion(),
                             current.requestId(),
-                            current.baseGraphVersion(),
-                            current.graphRevision(),
                             current.workspaceEpoch() + 1L,
                             current.mode(),
                             current.variableIds());
@@ -300,13 +259,9 @@ class VariablesVariableDeleteTransactionTest {
             VariablesWorkspaceVariableDelete.Mode mode,
             List<Integer> ids)
             throws Exception {
-        GraphSnapshot graph = new BotJobGraphMutationTransaction()
-                .inspect(connection, authenticatedOwner);
         return new VariablesWorkspaceVariableDelete.Request(
                 VariablesWorkspaceVariableDelete.CONTRACT_VERSION,
                 "delete-" + mode + "-" + ids,
-                graph.graphVersion(),
-                graph.graphRevision(),
                 WORKSPACE_EPOCH,
                 mode,
                 ids);

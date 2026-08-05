@@ -76,6 +76,21 @@ public final class VariablesVariableDeleteTransaction {
             AuthoritativeGraph before = loadGraph(connection, owner.owner(), graphState);
             DeletePlan plan = validateAndPlan(owner, request, before);
 
+            if (plan.variableIds().isEmpty()) {
+                connection.commit();
+                return new DeleteResult(
+                        owner.owner(),
+                        owner.workspaceEpoch(),
+                        request.requestId().trim(),
+                        request.mode(),
+                        List.of(),
+                        0,
+                        0,
+                        graphState.version(),
+                        graphState.version(),
+                        before.graphRevision());
+            }
+
             int expectedBindings = countInstructionBindings(
                     connection, owner.owner(), plan.variableIds());
             int clearedBindings = clearInstructionBindings(
@@ -101,7 +116,7 @@ public final class VariablesVariableDeleteTransaction {
             faultInjector.at(TransactionPhase.AFTER_VARIABLES_DELETED);
 
             AdvanceResult advance = stateRepository.compareAndSetIncrement(
-                    connection, owner.owner(), request.baseGraphVersion());
+                    connection, owner.owner(), graphState.version());
             if (!advance.advanced()) {
                 throw new MutationRefusedException(
                         advance.status() == AdvanceStatus.MISSING
@@ -161,20 +176,6 @@ public final class VariablesVariableDeleteTransaction {
                     "VARIABLE_DELETE_WORKSPACE_CHANGED",
                     "The Bot Job workspace changed before variable deletion.");
         }
-        if (!Objects.equals(
-                request.baseGraphVersion(), authoritative.graphState().version())) {
-            throw refused(
-                    "VARIABLE_DELETE_GRAPH_VERSION_STALE",
-                    "The Variables graph version changed before deletion.");
-        }
-        String requestedRevision =
-                request.graphRevision() == null ? "" : request.graphRevision().trim();
-        if (requestedRevision.isEmpty()
-                || !requestedRevision.equals(authoritative.graphRevision())) {
-            throw refused(
-                    "VARIABLE_DELETE_GRAPH_REVISION_STALE",
-                    "The Variables graph changed before deletion.");
-        }
         if (request.mode() == null) {
             throw refused(
                     "VARIABLE_DELETE_MODE_REQUIRED",
@@ -191,14 +192,9 @@ public final class VariablesVariableDeleteTransaction {
         }
         LinkedHashSet<Integer> authoritativeIds =
                 new LinkedHashSet<>(authoritative.variableIds());
-        if (request.mode() == VariablesWorkspaceVariableDelete.Mode.ALL
-                && requestedIds.isEmpty()) {
+        if (request.mode() == VariablesWorkspaceVariableDelete.Mode.ALL) {
+            requestedIds.clear();
             requestedIds.addAll(authoritativeIds);
-        }
-        if (requestedIds.isEmpty()) {
-            throw refused(
-                    "VARIABLE_DELETE_IDS_REQUIRED",
-                    "Select at least one variable to delete.");
         }
         if (request.mode() == VariablesWorkspaceVariableDelete.Mode.SINGLE
                 && requestedIds.size() != 1) {
@@ -207,17 +203,7 @@ public final class VariablesVariableDeleteTransaction {
                     "SINGLE deletion requires exactly one variable ID.");
         }
 
-        if (!authoritativeIds.containsAll(requestedIds)) {
-            throw refused(
-                    "VARIABLE_DELETE_NOT_OWNED",
-                    "One or more selected variables do not belong to the current Bot Job.");
-        }
-        if (request.mode() == VariablesWorkspaceVariableDelete.Mode.ALL
-                && !requestedIds.equals(authoritativeIds)) {
-            throw refused(
-                    "VARIABLE_DELETE_ALL_INCOMPLETE",
-                    "ALL deletion must submit the complete current variable ID catalog.");
-        }
+        requestedIds.retainAll(authoritativeIds);
         return new DeletePlan(requestedIds);
     }
 

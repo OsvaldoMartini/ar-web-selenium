@@ -43,7 +43,16 @@ public final class VariablesCommandEditorCopyTransaction {
                    force_coordinates,iframe_xpath,tag_name,shadow_host,shadow_root,
                    css_selector,description,operation,optional,block_marked,default_value,
                    action_custom_max_wait_sec,on_hold_seconds,codified,export_to_abr,active,
-                   block_id,variable_id,parent_block_id,parent_id,bot_job_id,client_named
+                   block_id,
+                   (SELECT ivs.variable_id FROM instruction_variable_slot ivs
+                     WHERE ivs.home_banking_id=? AND ivs.bot_job_id=instruction.bot_job_id
+                       AND ivs.instruction_id=instruction.id
+                       AND ivs.slot=CASE UPPER(TRIM(instruction.actions))
+                         WHEN 'CK' THEN 'LEFT' WHEN 'CHECKVALUE' THEN 'LEFT'
+                         WHEN 'CSV CHECK' THEN 'LEFT' WHEN 'PDF CHECK' THEN 'LEFT'
+                         WHEN 'GET' THEN 'GET_WRITE' WHEN 'SET' THEN 'READ_SET'
+                         WHEN 'E' THEN 'READ' ELSE NULL END LIMIT 1) AS variable_id,
+                   parent_block_id,parent_id,bot_job_id,client_named
               FROM instruction WHERE bot_job_id=?
              ORDER BY block_id,instruction_order_number,id
             """;
@@ -52,9 +61,9 @@ public final class VariablesCommandEditorCopyTransaction {
                    instruction_order_number,actions,name,xpath,coordinates,force_coordinates,
                    iframe_xpath,tag_name,shadow_host,shadow_root,css_selector,description,
                    operation,optional,block_marked,default_value,action_custom_max_wait_sec,
-                   on_hold_seconds,codified,export_to_abr,active,block_id,variable_id,
+                   on_hold_seconds,codified,export_to_abr,active,block_id,
                    parent_block_id,parent_id,bot_job_id,client_named)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             """;
 
     private final InstructionGraphStateRepository stateRepository;
@@ -425,7 +434,6 @@ public final class VariablesCommandEditorCopyTransaction {
             statement.setInt(parameter++, plan.targetBlockId());
             statement.setNull(parameter++, Types.INTEGER);
             statement.setNull(parameter++, Types.INTEGER);
-            statement.setNull(parameter++, Types.INTEGER);
             statement.setInt(parameter++, botJobId);
             statement.setObject(parameter, source.clientNamed());
             if (statement.executeUpdate() != 1) throw new SQLException("COPY NEW did not insert exactly one instruction.");
@@ -627,7 +635,8 @@ public final class VariablesCommandEditorCopyTransaction {
         LinkedHashMap<Integer, InstructionRow> instructions = new LinkedHashMap<>();
         List<InstructionLoad> revisionRows = new ArrayList<>();
         try (PreparedStatement statement = connection.prepareStatement(SELECT_INSTRUCTIONS)) {
-            statement.setInt(1, owner.ownerId());
+            statement.setInt(1, owner.homeBankingId());
+            statement.setInt(2, owner.ownerId());
             try (ResultSet rows = statement.executeQuery()) {
                 while (rows.next()) {
                     InstructionRow row = InstructionRow.from(rows);

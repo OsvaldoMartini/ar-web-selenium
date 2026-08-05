@@ -1113,8 +1113,6 @@ class VariablesWorkspaceServiceTest {
                 new VariablesWorkspaceVariableDelete.Request(
                         VariablesWorkspaceVariableDelete.CONTRACT_VERSION,
                         requestId,
-                        4L,
-                        "mutation-five",
                         workspaceEpoch,
                         VariablesWorkspaceVariableDelete.Mode.SINGLE,
                         List.of(501));
@@ -1626,8 +1624,8 @@ class VariablesWorkspaceServiceTest {
                     request.variableIds(),
                     request.variableIds().size(),
                     0,
-                    request.baseGraphVersion(),
-                    request.baseGraphVersion() + 1L,
+                    4L,
+                    5L,
                     "deletion-after");
         }
     }

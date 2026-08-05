@@ -1094,6 +1094,18 @@ public class SimpleWebSocketServer {
                 }
                 case "variablesWorkspace.commandEditor.update": {
                     JsonObject variablesBody = extractBody(jsonObjMSG);
+                    JsonObject contractFailure = validateCommandEditorMutationContract(
+                            "variablesWorkspace.commandEditor.update",
+                            sessionId,
+                            variablesBody);
+                    if (contractFailure != null) {
+                        sendCommandEditorResponse(
+                                homeBankingId,
+                                sessionId,
+                                "variablesWorkspace.commandEditor.updateResponse",
+                                contractFailure);
+                        break;
+                    }
                     JsonObject updateResponse =
                             variablesWorkspaceService.updateCommand(
                                     variablesBody, sessionId, session);
@@ -1110,6 +1122,18 @@ public class SimpleWebSocketServer {
                 }
                 case "variablesWorkspace.commandEditor.copy": {
                     JsonObject variablesBody = extractBody(jsonObjMSG);
+                    JsonObject contractFailure = validateCommandEditorMutationContract(
+                            "variablesWorkspace.commandEditor.copy",
+                            sessionId,
+                            variablesBody);
+                    if (contractFailure != null) {
+                        sendCommandEditorResponse(
+                                homeBankingId,
+                                sessionId,
+                                "variablesWorkspace.commandEditor.copyResponse",
+                                contractFailure);
+                        break;
+                    }
                     JsonObject copyResponse = variablesWorkspaceService.copyCommand(
                             variablesBody, sessionId, session);
                     try {
@@ -1184,6 +1208,16 @@ public class SimpleWebSocketServer {
                 }
                 case "variablesWorkspace.variables.delete": {
                     JsonObject variablesBody = compactGraphMutationBody(jsonObjMSG);
+                    JsonObject contractFailure = validateVariableDeleteContract(
+                            sessionId, variablesBody);
+                    if (contractFailure != null) {
+                        sendCommandEditorResponse(
+                                homeBankingId,
+                                sessionId,
+                                "variablesWorkspace.variables.deleteResponse",
+                                contractFailure);
+                        break;
+                    }
                     JsonObject deletionResponse =
                             variablesWorkspaceService.deleteVariables(
                                     variablesBody, sessionId, session);
@@ -1196,7 +1230,7 @@ public class SimpleWebSocketServer {
                     } finally {
                         // The database commit remains authoritative even if the requester closes
                         // before its acknowledgement. Surviving workspaces still refresh in order.
-                        variablesWorkspaceService.publishCommittedMutation(
+                        variablesWorkspaceService.publishCommittedVariableDeletionAsync(
                                 deletionResponse);
                     }
                     break;
@@ -4893,6 +4927,159 @@ public class SimpleWebSocketServer {
             return bodyEl.getAsJsonObject();
         }
         return null;
+    }
+
+    /** Reject malformed Command Editor mutations before authorization or persistence. */
+    private JsonObject validateCommandEditorMutationContract(
+            String operation,
+            String sessionId,
+            JsonObject body) {
+        List<String> invalidFields = new ArrayList<>();
+        if (body == null) {
+            invalidFields.add("body");
+        } else {
+            if (intValue(body, "contractVersion", -1) != 1) {
+                invalidFields.add("contractVersion");
+            }
+            requireNonBlank(body, "requestId", invalidFields);
+            requirePositive(body, "workspaceEpoch", invalidFields);
+            requireNonNegative(body, "baseGraphVersion", invalidFields);
+            requireNonBlank(body, "graphRevision", invalidFields);
+            requirePositive(body, "sourceInstructionId", invalidFields);
+            requirePositive(body, "targetBlockId", invalidFields);
+            requireObject(body, "placement", invalidFields);
+            requireObject(body, "configuration", invalidFields);
+            if (body.has("placement") && body.get("placement").isJsonObject()) {
+                requireNonBlank(
+                        body.getAsJsonObject("placement"),
+                        "kind",
+                        invalidFields,
+                        "placement.kind");
+            }
+            if (body.has("configuration") && body.get("configuration").isJsonObject()) {
+                requireNonBlank(
+                        body.getAsJsonObject("configuration"),
+                        "kind",
+                        invalidFields,
+                        "configuration.kind");
+            }
+            requireNonBlank(body, "targetAction", invalidFields);
+            if (ScannerWorkspaceSessions.BOT_JOB_TASKS.equals(sessionId)) {
+                requirePositive(body, "homeBankingId", invalidFields);
+                requirePositive(body, "botJobId", invalidFields);
+            } else {
+                requireNonBlank(body, "bindingEpoch", invalidFields);
+            }
+        }
+        if (invalidFields.isEmpty()) return null;
+
+        String requestId = body == null ? "" : Objects.toString(
+                stringValue(body, "requestId"), "");
+        logBackend.warn(
+                "WEBSOCKET_CONTRACT_REFUSED type={} session={} requestId={} code={} fields={}",
+                operation,
+                Objects.toString(sessionId, ""),
+                requestId,
+                "WEBSOCKET_CONTRACT_INVALID",
+                invalidFields);
+
+        JsonObject response = new JsonObject();
+        response.addProperty("ok", false);
+        response.addProperty("committed", false);
+        response.addProperty("errorCode", "WEBSOCKET_CONTRACT_INVALID");
+        response.addProperty(
+                "error", "The Command Editor request contract is invalid.");
+        response.addProperty("requestId", requestId);
+        JsonArray fields = new JsonArray();
+        invalidFields.forEach(fields::add);
+        response.add("invalidFields", fields);
+        return response;
+    }
+
+    private JsonObject validateVariableDeleteContract(
+            String sessionId, JsonObject body) {
+        List<String> invalidFields = new ArrayList<>();
+        if (body == null) {
+            invalidFields.add("body");
+        } else {
+            if (intValue(body, "contractVersion", -1)
+                    != VariablesWorkspaceVariableDelete.CONTRACT_VERSION) {
+                invalidFields.add("contractVersion");
+            }
+            requireNonBlank(body, "requestId", invalidFields);
+            requirePositive(body, "workspaceEpoch", invalidFields);
+            requireNonBlank(body, "mode", invalidFields);
+            String mode = Objects.toString(stringValue(body, "mode"), "");
+            if (!Set.of("SINGLE", "ALL").contains(mode)) invalidFields.add("mode");
+            if (!body.has("variableIds") || !body.get("variableIds").isJsonArray()) {
+                invalidFields.add("variableIds");
+            } else if ("SINGLE".equals(mode)) {
+                JsonArray ids = body.getAsJsonArray("variableIds");
+                if (ids.size() != 1 || !isPositiveJsonInteger(ids.get(0))) {
+                    invalidFields.add("variableIds");
+                }
+            }
+            if (ScannerWorkspaceSessions.BOT_JOB_TASKS.equals(sessionId)) {
+                requirePositive(body, "homeBankingId", invalidFields);
+                requirePositive(body, "botJobId", invalidFields);
+            } else {
+                requireNonBlank(body, "bindingEpoch", invalidFields);
+            }
+        }
+        if (invalidFields.isEmpty()) return null;
+        String requestId = body == null ? "" : Objects.toString(
+                stringValue(body, "requestId"), "");
+        logBackend.warn(
+                "VARIABLE_DELETE_CONTRACT_REFUSED session={} requestId={} fields={}",
+                Objects.toString(sessionId, ""), requestId, invalidFields);
+        JsonObject response = new JsonObject();
+        response.addProperty("ok", false);
+        response.addProperty("committed", false);
+        response.addProperty("errorCode", "VARIABLE_DELETE_CONTRACT_INVALID");
+        response.addProperty("error", "The variable deletion request is invalid.");
+        response.addProperty("requestId", requestId);
+        JsonArray fields = new JsonArray();
+        invalidFields.forEach(fields::add);
+        response.add("invalidFields", fields);
+        return response;
+    }
+
+    private static boolean isPositiveJsonInteger(com.google.gson.JsonElement value) {
+        try {
+            return value != null && !value.isJsonNull() && value.getAsInt() > 0;
+        } catch (RuntimeException invalid) {
+            return false;
+        }
+    }
+
+    private static void requireNonBlank(
+            JsonObject body, String field, List<String> invalidFields) {
+        String value = stringValue(body, field);
+        if (value == null || value.isBlank()) invalidFields.add(field);
+    }
+
+    private static void requireNonBlank(
+            JsonObject body,
+            String field,
+            List<String> invalidFields,
+            String fieldLabel) {
+        String value = stringValue(body, field);
+        if (value == null || value.isBlank()) invalidFields.add(fieldLabel);
+    }
+
+    private static void requirePositive(
+            JsonObject body, String field, List<String> invalidFields) {
+        if (intValue(body, field, -1) <= 0) invalidFields.add(field);
+    }
+
+    private static void requireNonNegative(
+            JsonObject body, String field, List<String> invalidFields) {
+        if (intValue(body, field, -1) < 0) invalidFields.add(field);
+    }
+
+    private static void requireObject(
+            JsonObject body, String field, List<String> invalidFields) {
+        if (!body.has(field) || !body.get(field).isJsonObject()) invalidFields.add(field);
     }
 
     /** Accepts the compact Graph V3 fields either at envelope root or in body. */

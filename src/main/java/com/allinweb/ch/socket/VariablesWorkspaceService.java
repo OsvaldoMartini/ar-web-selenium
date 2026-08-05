@@ -699,7 +699,6 @@ public final class VariablesWorkspaceService {
                 throw new IllegalArgumentException(
                         "The Variables target changed. Reload the current Bot Job.");
             }
-
             WorkspaceContext workspace =
                     workspaces.require(current.botJobId(), current.workspaceEpoch());
             current = current.withWorkspace(workspace);
@@ -830,8 +829,7 @@ public final class VariablesWorkspaceService {
                             () -> persistInstructionCopy(authorized, copyRequest));
             JsonObject response =
                     instructionCopySuccess(request, authorized, committed);
-            if (!isCurrent(authorized)
-                    || !isManagerTransport(requesterTransport)) {
+            if (!isCurrent(authorized) || !isManagerTransport(requesterTransport)) {
                 response.addProperty("resyncRequired", true);
                 response.addProperty(
                         "message",
@@ -880,8 +878,15 @@ public final class VariablesWorkspaceService {
             throw new IllegalArgumentException(
                     "The GridItem Command Editor owner does not match the active Bot Job.");
         }
+        String gridBindingId = "grid:" + homeBankingId + ":" + botJobId
+                + ":" + workspace.workspaceEpoch();
+        request.addProperty("bindingEpoch", gridBindingId);
+        log.info(
+                "GRID_COMMAND_AUTHORIZED requestId={} botJobId={} homeBankingId={} workspaceEpoch={} bindingId={}",
+                text(request, "requestId"), botJobId, homeBankingId,
+                workspace.workspaceEpoch(), gridBindingId);
         return new Binding(
-                "", workspace.workspaceEpoch(), workspace.botJobId(),
+                gridBindingId, workspace.workspaceEpoch(), workspace.botJobId(),
                 workspace.homeBankingId(), workspace.botJobName(),
                 workspace.organizationName(), text(request, "graphRevision"));
     }
@@ -894,6 +899,11 @@ public final class VariablesWorkspaceService {
         try {
             boolean gridRequest = ScannerWorkspaceSessions.BOT_JOB_TASKS.equals(
                     requesterSessionId);
+            log.info(
+                    "COMMAND_UPDATE_RECEIVED requestId={} session={} sourceInstructionId={} targetAction={} gridRequest={}",
+                    text(request, "requestId"), requesterSessionId,
+                    text(request, "sourceInstructionId"),
+                    text(request, "targetAction"), gridRequest);
             if (gridRequest) {
                 current = authorizeGridCommandRequest(request);
             } else {
@@ -931,6 +941,11 @@ public final class VariablesWorkspaceService {
                             authorized.workspaceEpoch(),
                             () -> persistCommandUpdate(authorized, updateRequest));
             JsonObject response = commandUpdateSuccess(request, authorized, committed);
+            log.info(
+                    "COMMAND_UPDATE_COMMITTED requestId={} botJobId={} sourceInstructionId={} targetAction={}",
+                    text(request, "requestId"), authorized.botJobId(),
+                    text(request, "sourceInstructionId"),
+                    text(request, "targetAction"));
             if (!gridRequest
                     && (!isCurrent(authorized) || !isManagerTransport(requesterTransport))) {
                 response.addProperty("resyncRequired", true);
@@ -943,6 +958,9 @@ public final class VariablesWorkspaceService {
         } catch (CommandUpdatePersistenceException persistenceFailure) {
             Throwable cause = persistenceFailure.getCause();
             if (cause instanceof MutationRefusedException refused) {
+                log.warn(
+                        "COMMAND_UPDATE_REFUSED requestId={} code={} reason={}",
+                        text(request, "requestId"), refused.code(), refused.getMessage());
                 return commandUpdateFailure(
                         request, refused.code(), refused.getMessage(), current);
             }
@@ -953,6 +971,9 @@ public final class VariablesWorkspaceService {
                     "The selected command was not updated.",
                     current);
         } catch (IllegalArgumentException | IllegalStateException refused) {
+            log.warn(
+                    "COMMAND_UPDATE_REQUEST_REFUSED requestId={} session={} reason={}",
+                    text(request, "requestId"), requesterSessionId, refused.getMessage());
             return commandUpdateFailure(
                     request,
                     "COMMAND_UPDATE_REQUEST_REFUSED",
@@ -1113,6 +1134,11 @@ public final class VariablesWorkspaceService {
         try {
             boolean gridRequest = ScannerWorkspaceSessions.BOT_JOB_TASKS.equals(
                     requesterSessionId);
+            log.info(
+                    "COMMAND_COPY_RECEIVED requestId={} session={} sourceInstructionId={} targetAction={} gridRequest={}",
+                    text(request, "requestId"), requesterSessionId,
+                    text(request, "sourceInstructionId"),
+                    text(request, "targetAction"), gridRequest);
             if (gridRequest) {
                 current = authorizeGridCommandRequest(request);
             } else {
@@ -1146,6 +1172,11 @@ public final class VariablesWorkspaceService {
                             authorized.botJobId(), authorized.workspaceEpoch(),
                             () -> persistCommandCopy(authorized, copyRequest));
             JsonObject response = commandCopySuccess(request, authorized, committed);
+            log.info(
+                    "COMMAND_COPY_COMMITTED requestId={} botJobId={} sourceInstructionId={} targetAction={}",
+                    text(request, "requestId"), authorized.botJobId(),
+                    text(request, "sourceInstructionId"),
+                    text(request, "targetAction"));
             if (!gridRequest
                     && (!isCurrent(authorized) || !isManagerTransport(requesterTransport))) {
                 response.addProperty("resyncRequired", true);
@@ -1158,6 +1189,9 @@ public final class VariablesWorkspaceService {
         } catch (CommandCopyPersistenceException persistenceFailure) {
             Throwable cause = persistenceFailure.getCause();
             if (cause instanceof MutationRefusedException refused) {
+                log.warn(
+                        "COMMAND_COPY_REFUSED requestId={} code={} reason={}",
+                        text(request, "requestId"), refused.code(), refused.getMessage());
                 return commandCopyFailure(
                         request, refused.code(), refused.getMessage(), current);
             }
@@ -1166,6 +1200,9 @@ public final class VariablesWorkspaceService {
                     request, "COMMAND_COPY_PERSISTENCE_FAILED",
                     "The selected command was not copied.", current);
         } catch (IllegalArgumentException | IllegalStateException refused) {
+            log.warn(
+                    "COMMAND_COPY_REQUEST_REFUSED requestId={} session={} reason={}",
+                    text(request, "requestId"), requesterSessionId, refused.getMessage());
             return commandCopyFailure(
                     request, "COMMAND_COPY_REQUEST_REFUSED", refused.getMessage(),
                     current == null ? currentBinding() : current);
@@ -1190,22 +1227,27 @@ public final class VariablesWorkspaceService {
         JsonObject request = body == null ? new JsonObject() : body;
         Binding current = null;
         try {
-            requireManagerTransport(requesterSessionId, requesterTransport);
-            current = currentBinding();
-            if (current == null) {
-                throw new IllegalArgumentException(
-                        "No Bot Job is bound to the Variables workspace.");
+            boolean gridRequest = ScannerWorkspaceSessions.BOT_JOB_TASKS.equals(
+                    requesterSessionId);
+            if (gridRequest) {
+                current = authorizeGridCommandRequest(request);
+            } else {
+                requireManagerTransport(requesterSessionId, requesterTransport);
+                current = currentBinding();
+                if (current == null) {
+                    throw new IllegalArgumentException(
+                            "No Bot Job is bound to the Variables workspace.");
+                }
+                String requestedBindingEpoch = text(request, "bindingEpoch");
+                if (requestedBindingEpoch.isBlank()
+                        || !requestedBindingEpoch.equals(current.bindingEpoch())) {
+                    throw new IllegalArgumentException(
+                            "The Variables target changed. Reload the current Bot Job.");
+                }
+                WorkspaceContext workspace =
+                        workspaces.require(current.botJobId(), current.workspaceEpoch());
+                current = current.withWorkspace(workspace);
             }
-            String requestedBindingEpoch = text(request, "bindingEpoch");
-            if (requestedBindingEpoch.isBlank()
-                    || !requestedBindingEpoch.equals(current.bindingEpoch())) {
-                throw new IllegalArgumentException(
-                        "The Variables target changed. Reload the current Bot Job.");
-            }
-
-            WorkspaceContext workspace =
-                    workspaces.require(current.botJobId(), current.workspaceEpoch());
-            current = current.withWorkspace(workspace);
             VariablesWorkspaceVariableDelete.Request deleteRequest;
             try {
                 deleteRequest = gson.fromJson(
@@ -1227,8 +1269,8 @@ public final class VariablesWorkspaceService {
                             () -> persistVariableDeletion(authorized, deleteRequest));
             JsonObject response =
                     variableDeleteSuccess(request, authorized, committed);
-            if (!isCurrent(authorized)
-                    || !isManagerTransport(requesterTransport)) {
+            if (!gridRequest && (!isCurrent(authorized)
+                    || !isManagerTransport(requesterTransport))) {
                 response.addProperty("resyncRequired", true);
                 response.addProperty(
                         "message",
@@ -1239,6 +1281,9 @@ public final class VariablesWorkspaceService {
         } catch (VariableDeletePersistenceException persistenceFailure) {
             Throwable cause = persistenceFailure.getCause();
             if (cause instanceof MutationRefusedException refused) {
+                log.warn(
+                        "VARIABLE_DELETE_REFUSED requestId={} code={} reason={}",
+                        text(request, "requestId"), refused.code(), refused.getMessage());
                 return variableDeleteFailure(
                         request, refused.code(), refused.getMessage(), current);
             }
@@ -1249,6 +1294,9 @@ public final class VariablesWorkspaceService {
                     "The selected variables were not deleted.",
                     current);
         } catch (IllegalArgumentException | IllegalStateException refused) {
+            log.warn(
+                    "VARIABLE_DELETE_REQUEST_REFUSED requestId={} session={} reason={}",
+                    text(request, "requestId"), requesterSessionId, refused.getMessage());
             return variableDeleteFailure(
                     request,
                     "VARIABLE_DELETE_REQUEST_REFUSED",
@@ -1643,6 +1691,23 @@ public final class VariablesWorkspaceService {
                     reconciliationFailure.getMessage());
         }
         notifyMutation(botJobId);
+    }
+
+    /** Variable deletion is final before any graph/view refresh begins. */
+    public void publishCommittedVariableDeletionAsync(JsonObject response) {
+        if (response == null) return;
+        JsonObject committedResponse = response.deepCopy();
+        tasks.executeMutation(() -> {
+            try {
+                publishCommittedMutation(committedResponse);
+            } catch (RuntimeException refreshFailure) {
+                log.warn(
+                        "VARIABLE_DELETE_GRAPH_REFRESH_FAILED requestId={} botJobId={} reason={}",
+                        text(committedResponse, "requestId"),
+                        text(committedResponse, "botJobId"),
+                        refreshFailure.getMessage());
+            }
+        });
     }
 
     private CommitResult persistMutation(
