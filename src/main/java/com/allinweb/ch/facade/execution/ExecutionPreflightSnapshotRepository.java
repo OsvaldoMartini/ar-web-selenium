@@ -103,14 +103,24 @@ public final class ExecutionPreflightSnapshotRepository {
             throws SQLException {
         String sql =
                 "SELECT i.id, i.block_id, i.instruction_order_number, i.actions,"
-                        + " i.tag_name, i.active, i.parent_id, i.parent_block_id, i.variable_id"
+                        + " i.tag_name, i.active, i.parent_id, i.parent_block_id,"
+                        + " (SELECT ivs.variable_id FROM instruction_variable_slot ivs"
+                        + " WHERE ivs.home_banking_id=? AND ivs.bot_job_id=i.bot_job_id"
+                        + " AND ivs.instruction_id=i.id"
+                        + " AND ivs.slot=CASE UPPER(TRIM(i.actions))"
+                        + " WHEN 'CK' THEN 'LEFT' WHEN 'CHECKVALUE' THEN 'LEFT'"
+                        + " WHEN 'CSV CHECK' THEN 'LEFT' WHEN 'PDF CHECK' THEN 'LEFT'"
+                        + " WHEN 'GET' THEN 'GET_WRITE' WHEN 'SET' THEN 'READ_SET'"
+                        + " WHEN 'E' THEN 'READ' WHEN 'EXCELWRITE' THEN 'READ'"
+                        + " ELSE NULL END LIMIT 1) AS variable_id"
                         + " FROM instruction i"
                         + " JOIN block b ON b.id = i.block_id"
                         + " WHERE b.bot_job_id = ?"
                         + " ORDER BY b.block_order_number, i.instruction_order_number, i.id";
         List<InstructionFact> result = new ArrayList<>();
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
-            statement.setInt(1, owner.botJobId());
+            statement.setInt(1, owner.homeBankingId());
+            statement.setInt(2, owner.botJobId());
             try (ResultSet rows = statement.executeQuery()) {
                 while (rows.next()) {
                     result.add(new InstructionFact(

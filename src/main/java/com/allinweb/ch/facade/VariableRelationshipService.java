@@ -133,7 +133,7 @@ public final class VariableRelationshipService {
     private List<CommandRow> loadCommands(Connection connection, int botJobId)
             throws SQLException {
         String sql = "SELECT instruction.id, instruction.name, instruction.actions,"
-                + " instruction.operation, instruction.tag_name, instruction.variable_id,"
+                + " instruction.operation, instruction.tag_name,"
                 + " instruction.on_hold_seconds,"
                 + " instruction.parent_id,"
                 + " instruction.parent_block_id, instruction.block_id,"
@@ -157,7 +157,7 @@ public final class VariableRelationshipService {
                             result.getString("actions"),
                             result.getString("operation"),
                             result.getString("tag_name"),
-                            nullableInteger(result, "variable_id"),
+                            null,
                             nullableInteger(result, "on_hold_seconds"),
                             nullableInteger(result, "parent_id"),
                             nullableInteger(result, "parent_block_id"),
@@ -286,15 +286,14 @@ public final class VariableRelationshipService {
         json.addProperty("instructionId", row.id());
         json.addProperty("instructionName", safe(row.name()));
         json.addProperty("action", safe(row.action()));
-        // GET execution is authored exclusively by parent_id + variable_id. Keep the
-        // historical column available for a later audit/rollback, but never publish it as
-        // the active Variables operation.
+        // GET execution is authored by parent_id plus its GET_WRITE slot. The operation text
+        // remains independent of variable connectivity.
         json.addProperty("operation", getCommand ? "" : safe(row.operation()));
         if (getCommand && row.operation() != null && !row.operation().isBlank()) {
             json.addProperty("legacyOperation", row.operation());
         }
         json.addProperty("tagName", safe(row.tagName()));
-        nullable(json, "variableId", row.variableId());
+        nullable(json, "variableId", primarySlotVariableId(row.action(), slots));
         nullable(json, "onHoldSeconds", row.onHoldSeconds());
         nullable(json, "parentId", row.parentId());
         nullable(json, "parentBlockId", row.parentBlockId());
@@ -333,6 +332,23 @@ public final class VariableRelationshipService {
             json.add("commandConfiguration", config);
         }
         return json;
+    }
+
+    private static Integer primarySlotVariableId(String actionValue, List<SlotEntry> slots) {
+        String action = CommandRegistry.canonicalize(actionValue);
+        String requiredSlot = switch (action) {
+            case "CK", "CSV CHECK", "PDF CHECK" -> "LEFT";
+            case "GET" -> "GET_WRITE";
+            case "SET" -> "READ_SET";
+            case "E" -> "READ";
+            default -> null;
+        };
+        if (requiredSlot == null) return null;
+        return slots.stream()
+                .filter(entry -> requiredSlot.equalsIgnoreCase(entry.slot()))
+                .map(SlotEntry::variableId)
+                .findFirst()
+                .orElse(null);
     }
 
     private String revision(JsonObject graph) {

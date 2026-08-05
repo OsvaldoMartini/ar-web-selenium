@@ -7888,20 +7888,13 @@ public class PerformDataBase {
         performLists.getListVariablesUser().clear();
 
         // Determine related table and columns based on tableName
-        String joinTable;
-        String joinTableVarId;
         String filterColumn;
 
         boolean componentVariables =
                 "component_variable".equalsIgnoreCase(tableName);
         if (componentVariables) {
-            joinTable = "component_instruction";
-            joinTableVarId = "variable_id"; // assuming the join column name in component_instruction is variable_id
             filterColumn = "home_banking_id";
         } else {
-            // default to "variable"
-            joinTable = "instruction";
-            joinTableVarId = "variable_id";
             filterColumn = "bot_job_id";
         }
 
@@ -7911,12 +7904,18 @@ public class PerformDataBase {
         String valueColumn = componentVariables ? "value" : "configured_value";
         String producerColumn =
                 componentVariables ? "instruction_id" : "producer_instruction_id";
+        String usageJoin = componentVariables
+                ? "LEFT JOIN component_instruction blk ON blk.variable_id=vars.id "
+                : "LEFT JOIN instruction_variable_slot blk"
+                        + " ON blk.bot_job_id=vars.bot_job_id"
+                        + " AND blk.home_banking_id=vars.home_banking_id"
+                        + " AND blk.variable_id=vars.id ";
         StringBuilder selectSQL = new StringBuilder(
                 "SELECT vars.id, vars." + typeColumn + " AS type, vars.name, vars."
-                        + valueColumn + " AS value, vars.local_format, vars.delimiter, COUNT(blk."
-                        + joinTableVarId + ") AS UsedVars "
+                        + valueColumn + " AS value, vars.local_format, vars.delimiter,"
+                        + " COUNT(blk.variable_id) AS UsedVars "
                         + "FROM " + physicalTable + " vars "
-                        + "LEFT JOIN " + joinTable + " blk ON blk." + joinTableVarId + " = vars.id "
+                        + usageJoin
                         + "WHERE vars." + filterColumn + " = ? ");
 
         if (parentId != -1) {
@@ -9395,7 +9394,10 @@ public class PerformDataBase {
                 .append("i.description AS instruction_description, i.default_value, ")
                 .append("i.optional, i.action_custom_max_wait_sec, ")
                 .append("i.on_hold_seconds, i.codified, i.export_to_abr, i.active AS instruction_active, ")
-                .append("i.variable_id, i.parent_id, i.parent_block_id, ")
+                .append("instruction".equals(tableName)
+                        ? primaryVariableSlotProjection("i") + ", "
+                        : "i.variable_id, ")
+                .append("i.parent_id, i.parent_block_id, ")
                 .append("r.id AS reference_id, r.instruction_id AS ref_instruction_id, r.value AS reference_value, ")
                 .append("r.reference_type, r.")
                 .append(whereColumn)
@@ -9542,6 +9544,26 @@ public class PerformDataBase {
                     "Failed to load instructions from table: " + tableName,
                     error.getMessage());
         }
+    }
+
+    /**
+     * Projects the directional slot used by the legacy InstructionLoad.variableId DTO field.
+     * The DTO name remains for transport compatibility; instruction.variable_id is not read.
+     */
+    private static String primaryVariableSlotProjection(String instructionAlias) {
+        return "(SELECT ivs.variable_id FROM instruction_variable_slot ivs"
+                + " WHERE ivs.bot_job_id=" + instructionAlias + ".bot_job_id"
+                + " AND ivs.instruction_id=" + instructionAlias + ".id"
+                + " AND ivs.slot=CASE UPPER(TRIM(" + instructionAlias + ".actions))"
+                + " WHEN 'CK' THEN 'LEFT'"
+                + " WHEN 'CHECKVALUE' THEN 'LEFT'"
+                + " WHEN 'CSV CHECK' THEN 'LEFT'"
+                + " WHEN 'PDF CHECK' THEN 'LEFT'"
+                + " WHEN 'GET' THEN 'GET_WRITE'"
+                + " WHEN 'SET' THEN 'READ_SET'"
+                + " WHEN 'E' THEN 'READ'"
+                + " WHEN 'EXCELWRITE' THEN 'READ'"
+                + " ELSE NULL END LIMIT 1) AS variable_id";
     }
 
     public List<ReferenceLoadDTO> getReferencesList(int whereID, List<InstructionLoad> lstInstruc, String tableName) {

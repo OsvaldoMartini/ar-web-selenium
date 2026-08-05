@@ -189,9 +189,12 @@ public final class VariableEditorService {
     }
 
     private int currentUsageCount(Context context, int variableId) {
-        String ownerColumn = isComponentSession(context.sessionId) ? "home_banking_id" : "bot_job_id";
-        String sql = "SELECT COUNT(*) FROM " + context.instructionTable
-                + " WHERE variable_id=? AND " + ownerColumn + "=?";
+        boolean component = isComponentSession(context.sessionId);
+        String sql = component
+                ? "SELECT COUNT(*) FROM component_instruction"
+                        + " WHERE variable_id=? AND home_banking_id=?"
+                : "SELECT COUNT(*) FROM instruction_variable_slot"
+                        + " WHERE variable_id=? AND bot_job_id=?";
         try (Connection connection = database.getConnection();
                 PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setInt(1, variableId);

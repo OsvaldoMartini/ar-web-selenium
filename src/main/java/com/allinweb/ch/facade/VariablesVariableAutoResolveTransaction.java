@@ -208,13 +208,9 @@ public final class VariablesVariableAutoResolveTransaction {
                 leftExisting = existingOldestFirst.isEmpty() ? null : existingOldestFirst.get(0);
             }
             if (check) {
-                StoredConfiguration stored = graph.configurations().get(row.id());
-                Integer currentRight = stored != null
-                                && "VARIABLE".equals(stored.operandKind())
-                                && stored.operandVariableId() != null
-                                && graph.variableIds().contains(stored.operandVariableId())
-                        ? stored.operandVariableId()
-                        : null;
+                Integer currentRight = graph.slots()
+                        .getOrDefault(row.id(), Map.of())
+                        .get("RIGHT");
                 if (currentRight == null) {
                     Integer leftUsed = row.variableId() != null ? row.variableId() : leftExisting;
                     rightExisting = existingOldestFirst.stream()
@@ -287,57 +283,49 @@ public final class VariablesVariableAutoResolveTransaction {
     private void connectSlot(
             Connection connection, OwnerKey owner, SlotPlan slot, int variableId)
             throws SQLException {
-        if (slot.role() == SlotRole.CHECK_RIGHT) {
-            StoredConfiguration stored = commandConfigurations.load(
-                    connection, owner.homeBankingId(), owner.ownerId(), slot.instructionId());
-            commandConfigurations.upsert(
-                    connection,
-                    owner.homeBankingId(),
-                    owner.ownerId(),
-                    slot.instructionId(),
-                    slot.action(),
-                    rightOperandConfiguration(slot.action(), stored, variableId));
-            return;
+        String slotName = slot.role() == SlotRole.CHECK_RIGHT
+                ? "RIGHT"
+                : slot.role() == SlotRole.CHECK_LEFT
+                        ? "LEFT"
+                        : primarySlot(slot.action());
+        if (slotName == null) {
+            throw refused(
+                    "VARIABLE_AUTO_RESOLVE_SLOT_UNSUPPORTED",
+                    "The command does not define a variable slot.");
         }
         try (PreparedStatement statement = connection.prepareStatement(
-                "UPDATE instruction SET variable_id=? WHERE id=? AND bot_job_id=? AND variable_id IS NULL")) {
-            statement.setInt(1, variableId);
-            statement.setInt(2, slot.instructionId());
-            statement.setInt(3, owner.ownerId());
+                "INSERT INTO instruction_variable_slot"
+                        + " (home_banking_id,bot_job_id,instruction_id,slot,variable_id,"
+                        + "slot_revision,created_at,updated_at)"
+                        + " SELECT ?,?,?,?,?,1,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP"
+                        + " WHERE NOT EXISTS (SELECT 1 FROM instruction_variable_slot"
+                        + " WHERE home_banking_id=? AND bot_job_id=?"
+                        + " AND instruction_id=? AND slot=?)")) {
+            statement.setInt(1, owner.homeBankingId());
+            statement.setInt(2, owner.ownerId());
+            statement.setInt(3, slot.instructionId());
+            statement.setString(4, slotName);
+            statement.setInt(5, variableId);
+            statement.setInt(6, owner.homeBankingId());
+            statement.setInt(7, owner.ownerId());
+            statement.setInt(8, slot.instructionId());
+            statement.setString(9, slotName);
             if (statement.executeUpdate() != 1) {
                 throw refused(
                         "VARIABLE_AUTO_RESOLVE_SOURCE_CHANGED",
-                        "A selected command changed before its variable could be connected.");
+                        "A selected command slot changed before its variable could be connected.");
             }
         }
     }
 
-    private static Configuration rightOperandConfiguration(
-            String action, StoredConfiguration stored, int variableId) {
-        ConfigurationKind kind = "CK".equals(action)
-                ? ConfigurationKind.CHECK_VALUE
-                : ConfigurationKind.EXTERNAL_CHECK;
-        return new Configuration(
-                kind,
-                null,
-                null,
-                null,
-                stored != null && !blank(stored.comparisonOperator())
-                        ? stored.comparisonOperator()
-                        : "=",
-                stored == null ? null : stored.conditionSource(),
-                stored == null ? null : stored.leftVariableId(),
-                "VARIABLE",
-                "",
-                variableId,
-                stored == null ? "" : stored.outputKey(),
-                stored == null ? "" : stored.outputColumn(),
-                stored == null ? "" : stored.outputFile(),
-                stored == null ? "" : stored.externalSourceKey(),
-                stored != null && !blank(stored.formatPolicy())
-                        ? stored.formatPolicy()
-                        : "EXACT_TEXT",
-                null);
+    private static String primarySlot(String actionValue) {
+        return switch (CommandRegistry.canonicalize(actionValue)) {
+            case "CK", "CSV CHECK", "PDF CHECK" -> "LEFT";
+            case "GET" -> "GET_WRITE";
+            case "SET" -> "READ_SET";
+            case "E" -> "READ";
+            default -> null;
+        };
     }
 
     private void verify(
@@ -360,11 +348,10 @@ public final class VariablesVariableAutoResolveTransaction {
                         "A resolved command could not be verified.");
             }
             if (slot.role() == SlotRole.CHECK_RIGHT) {
-                StoredConfiguration stored = after.configurations().get(slot.instructionId());
-                if (stored == null
-                        || !"VARIABLE".equals(stored.operandKind())
-                        || stored.operandVariableId() == null
-                        || !variableIds.contains(stored.operandVariableId())) {
+                Integer rightVariableId = after.slots()
+                        .getOrDefault(slot.instructionId(), Map.of())
+                        .get("RIGHT");
+                if (rightVariableId == null || !variableIds.contains(rightVariableId)) {
                     throw refused(
                             "VARIABLE_AUTO_RESOLVE_VERIFICATION_FAILED",
                             "A CHECKVALUE right operand could not be verified.");
@@ -382,17 +369,23 @@ public final class VariablesVariableAutoResolveTransaction {
             throws SQLException {
         LinkedHashMap<Integer, InstructionRow> instructions = new LinkedHashMap<>();
         List<InstructionLoad> revisionRows = new ArrayList<>();
+        Map<Integer, Map<String, Integer>> slots = loadSlots(connection, owner);
         try (PreparedStatement statement = connection.prepareStatement(
-                "SELECT id,instruction_order_number,actions,operation,block_id,variable_id,"
+                "SELECT id,instruction_order_number,actions,operation,block_id,"
                         + "parent_block_id,parent_id FROM instruction WHERE bot_job_id=?"
                         + " ORDER BY block_id,instruction_order_number,id")) {
             statement.setInt(1, owner.ownerId());
             try (ResultSet rows = statement.executeQuery()) {
                 while (rows.next()) {
+                    String action = rows.getString("actions");
+                    String primarySlot = primarySlot(action);
+                    Integer variableId = primarySlot == null
+                            ? null
+                            : slots.getOrDefault(rows.getInt("id"), Map.of()).get(primarySlot);
                     InstructionRow row = new InstructionRow(
                             rows.getInt("id"), rows.getInt("instruction_order_number"),
-                            rows.getString("actions"), rows.getString("operation"),
-                            rows.getInt("block_id"), nullableInteger(rows, "variable_id"),
+                            action, rows.getString("operation"),
+                            rows.getInt("block_id"), variableId,
                             nullableInteger(rows, "parent_block_id"),
                             nullableInteger(rows, "parent_id"));
                     instructions.put(row.id(), row);
@@ -423,8 +416,28 @@ public final class VariablesVariableAutoResolveTransaction {
                 commandConfigurations.loadForBotJob(connection, owner.ownerId());
         return new Graph(
                 state, Map.copyOf(instructions), List.copyOf(variableIds),
-                List.copyOf(variableNames), configurations,
+                List.copyOf(variableNames), configurations, slots,
                 revisionService.revision(revisionRows, variables));
+    }
+
+    private Map<Integer, Map<String, Integer>> loadSlots(
+            Connection connection, OwnerKey owner) throws SQLException {
+        Map<Integer, Map<String, Integer>> slots = new LinkedHashMap<>();
+        try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT instruction_id,slot,variable_id FROM instruction_variable_slot"
+                        + " WHERE home_banking_id=? AND bot_job_id=?")) {
+            statement.setInt(1, owner.homeBankingId());
+            statement.setInt(2, owner.ownerId());
+            try (ResultSet rows = statement.executeQuery()) {
+                while (rows.next()) {
+                    slots.computeIfAbsent(rows.getInt("instruction_id"), ignored -> new LinkedHashMap<>())
+                            .put(rows.getString("slot"), rows.getInt("variable_id"));
+                }
+            }
+        }
+        Map<Integer, Map<String, Integer>> immutable = new LinkedHashMap<>();
+        slots.forEach((instructionId, values) -> immutable.put(instructionId, Map.copyOf(values)));
+        return Map.copyOf(immutable);
     }
 
     private void requireOwner(Connection connection, OwnerKey owner) throws SQLException {
@@ -533,7 +546,8 @@ public final class VariablesVariableAutoResolveTransaction {
     private record Graph(
             GraphState state, Map<Integer, InstructionRow> instructions,
             List<Integer> variableIds, List<String> variableNames,
-            Map<Integer, StoredConfiguration> configurations, String revision) {}
+            Map<Integer, StoredConfiguration> configurations,
+            Map<Integer, Map<String, Integer>> slots, String revision) {}
 
     public record CreatedVariable(
             int variableId, String name, int instructionId, String role) {}

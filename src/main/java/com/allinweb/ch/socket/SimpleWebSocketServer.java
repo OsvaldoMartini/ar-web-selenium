@@ -973,14 +973,34 @@ public class SimpleWebSocketServer {
                 }
                 case "variablesWorkspace.graphMutationLeft": {
                     if (ScannerWorkspaceSessions.BOT_JOB_TASKS.equals(sessionId)) {
-                        handleBotJobGraphMutation(
-                                jsonObjMSG,
-                                session,
-                                "variablesWorkspace.graphMutationLeftResponse");
+                        JsonObject leftBody = compactGraphMutationBody(jsonObjMSG);
+                        JsonObject leftResponse;
+                        try {
+                            leftBody = authorizeInstructionGridRequest(
+                                    leftBody, sessionId, session);
+                            leftResponse = variablesWorkspaceService
+                                    .connectCheckLeftFromGrid(leftBody);
+                        } catch (Exception authorizationError) {
+                            leftResponse = commandEditorFailure(
+                                    leftBody, authorizationError.getMessage());
+                        }
+                        try {
+                            sendCommandEditorResponse(
+                                    homeBankingId, sessionId,
+                                    "variablesWorkspace.graphMutationLeftResponse",
+                                    leftResponse);
+                        } finally {
+                            variablesWorkspaceService.publishCommittedMutation(leftResponse);
+                        }
+                        if (leftResponse.has("ok") && leftResponse.get("ok").getAsBoolean()) {
+                            ScannerBotJobTasksPublisher.getInstance().publishGridOnly(
+                                    positiveJsonInt(leftBody, "homeBankingId"),
+                                    positiveJsonInt(leftBody, "botJobId"));
+                        }
                         break;
                     }
-                    JsonObject variablesBody = extractBody(jsonObjMSG);
-                    JsonObject mutationResponse = variablesWorkspaceService.mutate(
+                    JsonObject variablesBody = compactGraphMutationBody(jsonObjMSG);
+                    JsonObject mutationResponse = variablesWorkspaceService.connectCheckLeft(
                             variablesBody, sessionId, session);
                     try {
                         sendCommandEditorResponse(
@@ -994,7 +1014,7 @@ public class SimpleWebSocketServer {
                     break;
                 }
                 case "variablesWorkspace.graphMutationRight": {
-                    JsonObject variablesBody = extractBody(jsonObjMSG);
+                    JsonObject variablesBody = compactGraphMutationBody(jsonObjMSG);
                     boolean gridOwnedRight =
                             ScannerWorkspaceSessions.BOT_JOB_TASKS.equals(sessionId);
                     JsonObject connectResponse;
@@ -4873,6 +4893,24 @@ public class SimpleWebSocketServer {
             return bodyEl.getAsJsonObject();
         }
         return null;
+    }
+
+    /** Accepts the compact Graph V3 fields either at envelope root or in body. */
+    private JsonObject compactGraphMutationBody(JsonObject envelope) {
+        JsonObject body = extractBody(envelope);
+        JsonObject compact = body == null
+                ? (envelope == null ? new JsonObject() : envelope.deepCopy())
+                : body;
+        if (compact.has("ownerAssertion") && compact.get("ownerAssertion").isJsonObject()) {
+            JsonObject owner = compact.getAsJsonObject("ownerAssertion");
+            if (!compact.has("homeBankingId") && owner.has("homeBankingId")) {
+                compact.add("homeBankingId", owner.get("homeBankingId").deepCopy());
+            }
+            if (!compact.has("botJobId") && owner.has("botJobId")) {
+                compact.add("botJobId", owner.get("botJobId").deepCopy());
+            }
+        }
+        return compact;
     }
 
     private boolean isActiveLicenseResponse(JsonObject response) {

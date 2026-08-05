@@ -204,12 +204,21 @@ final class InstructionMoveTransaction {
         if (expectedRevision == null || expectedRevision.isBlank()) return;
 
         List<InstructionLoad> instructionRows = new ArrayList<>();
-        String instructionQuery = "SELECT id,block_id,instruction_order_number,actions,parent_id,"
-                + "parent_block_id,variable_id,operation FROM "
-                + instructionTable
-                + " WHERE "
-                + ownerColumn
-                + "=? ORDER BY id";
+        boolean component = "component_instruction".equals(instructionTable);
+        String instructionQuery = component
+                ? "SELECT id,block_id,instruction_order_number,actions,parent_id,"
+                        + "parent_block_id,variable_id,operation FROM component_instruction"
+                        + " WHERE home_banking_id=? ORDER BY id"
+                : "SELECT i.id,i.block_id,i.instruction_order_number,i.actions,i.parent_id,"
+                        + "i.parent_block_id,"
+                        + "(SELECT ivs.variable_id FROM instruction_variable_slot ivs"
+                        + " WHERE ivs.bot_job_id=i.bot_job_id AND ivs.instruction_id=i.id"
+                        + " AND ivs.slot=CASE UPPER(TRIM(i.actions))"
+                        + " WHEN 'CK' THEN 'LEFT' WHEN 'CHECKVALUE' THEN 'LEFT'"
+                        + " WHEN 'CSV CHECK' THEN 'LEFT' WHEN 'PDF CHECK' THEN 'LEFT'"
+                        + " WHEN 'GET' THEN 'GET_WRITE' WHEN 'SET' THEN 'READ_SET'"
+                        + " WHEN 'E' THEN 'READ' ELSE NULL END LIMIT 1) AS variable_id,"
+                        + "i.operation FROM instruction i WHERE i.bot_job_id=? ORDER BY i.id";
         try (PreparedStatement statement = connection.prepareStatement(instructionQuery)) {
             statement.setInt(1, ownerId);
             try (ResultSet result = statement.executeQuery()) {
@@ -229,7 +238,6 @@ final class InstructionMoveTransaction {
             }
         }
 
-        boolean component = "component_instruction".equals(instructionTable);
         String variableTable =
                 component ? "component_variable" : "bot_job_variable_definition";
         String producerColumn =

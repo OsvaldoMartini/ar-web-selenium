@@ -105,6 +105,9 @@ public final class VariablesWorkspaceService {
     private static final com.allinweb.ch.facade.VariablesCheckOperandConnectService
             CHECK_OPERAND_CONNECTS =
                     com.allinweb.ch.facade.VariablesCheckOperandConnectService.getInstance();
+    private static final com.allinweb.ch.facade.VariablesCheckLeftOperandService
+            CHECK_LEFT_OPERANDS =
+                    com.allinweb.ch.facade.VariablesCheckLeftOperandService.getInstance();
 
     private static final VariablesWorkspaceService INSTANCE =
             new VariablesWorkspaceService(
@@ -366,6 +369,128 @@ public final class VariablesWorkspaceService {
                 requesterSessionId,
                 requesterTransport,
                 "Variable relationships refreshed.");
+    }
+
+    /** Compact Variables-page LEFT mutation. */
+    public JsonObject connectCheckLeft(
+            JsonObject body, String requesterSessionId, Session requesterTransport) {
+        JsonObject request = body == null ? new JsonObject() : body;
+        Binding current = null;
+        try {
+            requireManagerTransport(requesterSessionId, requesterTransport);
+            current = currentBinding();
+            if (current == null) {
+                throw new IllegalArgumentException("No Bot Job is bound to Variables.");
+            }
+            String requestedBindingEpoch = text(request, "bindingEpoch");
+            if (requestedBindingEpoch.isBlank()
+                    || !requestedBindingEpoch.equals(current.bindingEpoch())) {
+                throw new IllegalArgumentException(
+                        "The Variables target changed. Reload the current Bot Job.");
+            }
+            WorkspaceContext workspace =
+                    workspaces.require(current.botJobId(), current.workspaceEpoch());
+            current = current.withWorkspace(workspace);
+            com.allinweb.ch.model.VariablesCheckLeftOperandV1.Request leftRequest =
+                    gson.fromJson(
+                            request,
+                            com.allinweb.ch.model.VariablesCheckLeftOperandV1.Request.class);
+            Binding authorized = current;
+            com.allinweb.ch.facade.VariablesCheckLeftOperandTransaction.Result committed =
+                    BotJobDetailsWorkspaceRegistry.getInstance().commitWorkspaceMutation(
+                            authorized.botJobId(),
+                            authorized.workspaceEpoch(),
+                            () -> persistCheckLeft(authorized, leftRequest));
+            JsonObject response = compactLeftResponse(request, authorized, committed);
+            if (committed.changed()) notifyMutation(authorized.botJobId());
+            return response;
+        } catch (CheckLeftPersistenceException persistenceFailure) {
+            Throwable cause = persistenceFailure.getCause();
+            if (cause instanceof MutationRefusedException refused) {
+                return mutationFailure(request, refused.code(), refused.getMessage(), current);
+            }
+            log.error("Unable to persist the CheckValue LEFT connection", cause);
+            return mutationFailure(request, "CHECK_LEFT_PERSISTENCE_FAILED",
+                    "The CheckValue LEFT connection was not changed.", current);
+        } catch (IllegalArgumentException | IllegalStateException refused) {
+            return mutationFailure(request, "CHECK_LEFT_REQUEST_REFUSED",
+                    refused.getMessage(), current == null ? currentBinding() : current);
+        }
+    }
+
+    /** Compact GridItem LEFT mutation, independent from Graph V3. */
+    public JsonObject connectCheckLeftFromGrid(JsonObject body) {
+        JsonObject request = body == null ? new JsonObject() : body;
+        Binding authorized = null;
+        try {
+            int homeBankingId = positiveInteger(request, "homeBankingId");
+            int botJobId = positiveInteger(request, "botJobId");
+            long workspaceEpoch = positiveLong(request, "workspaceEpoch");
+            if (homeBankingId < 1 || botJobId < 1 || workspaceEpoch < 1L) {
+                throw new IllegalArgumentException(
+                        "The GridItem LEFT mutation requires an active Bot Job owner.");
+            }
+            authorized = new Binding(
+                    "", workspaceEpoch, botJobId, homeBankingId,
+                    text(request, "botJobName"), "", text(request, "graphRevision"));
+            com.allinweb.ch.model.VariablesCheckLeftOperandV1.Request leftRequest =
+                    gson.fromJson(
+                            request,
+                            com.allinweb.ch.model.VariablesCheckLeftOperandV1.Request.class);
+            Binding owner = authorized;
+            com.allinweb.ch.facade.VariablesCheckLeftOperandTransaction.Result committed =
+                    BotJobDetailsWorkspaceRegistry.getInstance().commitWorkspaceMutation(
+                            owner.botJobId(), owner.workspaceEpoch(),
+                            () -> persistCheckLeft(owner, leftRequest));
+            JsonObject response = compactLeftResponse(request, owner, committed);
+            if (committed.changed()) notifyMutation(owner.botJobId());
+            return response;
+        } catch (CheckLeftPersistenceException persistenceFailure) {
+            Throwable cause = persistenceFailure.getCause();
+            if (cause instanceof MutationRefusedException refused) {
+                return mutationFailure(request, refused.code(), refused.getMessage(), authorized);
+            }
+            log.error("Unable to persist the GridItem LEFT connection", cause);
+            return mutationFailure(request, "CHECK_LEFT_PERSISTENCE_FAILED",
+                    "The GridItem LEFT connection was not changed.", authorized);
+        } catch (IllegalArgumentException | IllegalStateException refused) {
+            return mutationFailure(
+                    request, "CHECK_LEFT_REQUEST_REFUSED", refused.getMessage(), authorized);
+        }
+    }
+
+    private com.allinweb.ch.facade.VariablesCheckLeftOperandTransaction.Result persistCheckLeft(
+            Binding authorized,
+            com.allinweb.ch.model.VariablesCheckLeftOperandV1.Request request) {
+        try {
+            return CHECK_LEFT_OPERANDS.mutate(
+                    authorized.homeBankingId(), authorized.botJobId(),
+                    authorized.workspaceEpoch(), request);
+        } catch (SQLException error) {
+            throw new CheckLeftPersistenceException(error);
+        }
+    }
+
+    private JsonObject compactLeftResponse(
+            JsonObject request,
+            Binding owner,
+            com.allinweb.ch.facade.VariablesCheckLeftOperandTransaction.Result committed) {
+        JsonObject response = mutationResponseBase(request, owner);
+        response.addProperty("contractVersion",
+                com.allinweb.ch.model.VariablesCheckLeftOperandV1.CONTRACT_VERSION);
+        response.addProperty("ok", true);
+        response.addProperty("committed", true);
+        response.addProperty("resyncRequired", false);
+        response.addProperty("instructionId", committed.instructionId());
+        if (committed.leftVariableId() == null) response.add("leftVariableId", JsonNull.INSTANCE);
+        else response.addProperty("leftVariableId", committed.leftVariableId());
+        response.addProperty("changed", committed.changed());
+        response.addProperty("committedGraphVersion", committed.committedGraphVersion());
+        response.addProperty("graphRevision", committed.graphRevision());
+        response.addProperty("message", committed.changed()
+                ? "CheckValue LEFT connection changed."
+                : "CheckValue LEFT connection was already clear.");
+        return response;
     }
 
     /**
@@ -1182,7 +1307,7 @@ public final class VariablesWorkspaceService {
     /**
      * NEW variable rules step 1 (2026-08-03): connects the React-authored
      * Right_Operand variable into the RIGHT spot of the submitted CheckValue
-     * commands. Free spots only; occupied spots are skipped, never overwritten.
+     * commands. CONNECT writes the RIGHT slot; DISCONNECT deletes it.
      */
     public JsonObject connectCheckOperand(
             JsonObject body, String requesterSessionId, Session requesterTransport) {
@@ -1231,15 +1356,12 @@ public final class VariablesWorkspaceService {
             response.addProperty("rightVariableId", committed.rightVariableId());
             response.addProperty("connectedCount", committed.connectedCount());
             response.addProperty("skippedCount", committed.skippedCount());
+            response.addProperty("committedGraphVersion", committed.committedGraphVersion());
+            response.addProperty("graphRevision", committed.graphRevision());
             if (committed.connectedCount() > 0) {
                 notifyMutation(authorized.botJobId());
             }
-            response.addProperty("message", connectRequest.isUpdateOperator()
-                    ? (committed.connectedCount() > 0
-                            ? "Comparison operator updated for " + committed.connectedCount()
-                                    + " CheckValue command(s)."
-                            : "The comparison operator could not be updated.")
-                    : connectRequest.isRelease()
+            response.addProperty("message", connectRequest.isDisconnect()
                             ? (committed.connectedCount() > 0
                                     ? "Right operand released from " + committed.connectedCount()
                                             + " CheckValue command(s)."
@@ -1247,7 +1369,7 @@ public final class VariablesWorkspaceService {
                             : (committed.connectedCount() > 0
                                     ? "Right operand connected to " + committed.connectedCount()
                                             + " CheckValue command(s)."
-                                    : "Every CheckValue right spot was already occupied."));
+                                    : "No CheckValue RIGHT connection was changed."));
             return response;
         } catch (CheckOperandPersistenceException persistenceFailure) {
             Throwable cause = persistenceFailure.getCause();
@@ -1319,7 +1441,9 @@ public final class VariablesWorkspaceService {
             response.addProperty("rightVariableId", committed.rightVariableId());
             response.addProperty("connectedCount", committed.connectedCount());
             response.addProperty("skippedCount", committed.skippedCount());
-            response.addProperty("message", connectRequest.isRelease()
+            response.addProperty("committedGraphVersion", committed.committedGraphVersion());
+            response.addProperty("graphRevision", committed.graphRevision());
+            response.addProperty("message", connectRequest.isDisconnect()
                     ? "GridItem RIGHT operand released."
                     : "GridItem RIGHT operand connected.");
             if (committed.connectedCount() > 0) notifyMutation(owner.botJobId());
@@ -3012,6 +3136,12 @@ public final class VariablesWorkspaceService {
 
     private static final class CheckOperandPersistenceException extends RuntimeException {
         private CheckOperandPersistenceException(SQLException cause) {
+            super(cause);
+        }
+    }
+
+    private static final class CheckLeftPersistenceException extends RuntimeException {
+        private CheckLeftPersistenceException(SQLException cause) {
             super(cause);
         }
     }

@@ -304,7 +304,14 @@ public class PerformDBEngine {
                 + "  b.export_file, "
                 + "  b.active as block_active, b.wait, "
                 + "  bli.active as instruction_active, "
-                + "  bli.variable_id, "
+                + "  (SELECT ivs.variable_id FROM instruction_variable_slot ivs"
+                + "   WHERE ivs.bot_job_id=bli.bot_job_id AND ivs.instruction_id=bli.id"
+                + "   AND ivs.slot=CASE UPPER(TRIM(bli.actions))"
+                + "    WHEN 'CK' THEN 'LEFT' WHEN 'CHECKVALUE' THEN 'LEFT'"
+                + "    WHEN 'CSV CHECK' THEN 'LEFT' WHEN 'PDF CHECK' THEN 'LEFT'"
+                + "    WHEN 'GET' THEN 'GET_WRITE' WHEN 'SET' THEN 'READ_SET'"
+                + "    WHEN 'E' THEN 'READ' WHEN 'EXCELWRITE' THEN 'READ'"
+                + "    ELSE NULL END LIMIT 1) AS variable_id, "
                 + "  bli.parent_block_id "
                 + " FROM bot_job bot "
                 + " LEFT JOIN block b ON b.bot_job_id = bot.id "
@@ -472,23 +479,29 @@ public class PerformDBEngine {
     public ErrorMessage loadAllVariables(String varTable, int whereId) {
         performLists.getListVariable().clear();
 
-        String instrTable = varTable.equals("variable") ? "instruction" : "component_instruction";
-        String whereColumn = varTable.equals("variable") ? "bot_job_id" : "home_banking_id";
-
-        String selectSQL = "SELECT " + "    vars.id, "
-                + "    vars.instruction_id, "
-                + "    vars.type, "
-                + "    vars.name, "
-                + "    vars.value, "
-                + "    vars.local_format, "
-                + "    vars.delimiter, "
-                + "    COUNT(blk.variable_id) AS UsedVars "
-                + "FROM " + varTable + " vars "
-                + "LEFT JOIN "
-                + instrTable + " blk ON blk.variable_id = vars.id " + "WHERE vars."
-                + whereColumn + " = ? "
-                + "GROUP BY vars.id, vars.instruction_id, vars.type, vars.name, vars.value, vars.local_format, vars.delimiter "
-                + "ORDER BY vars.id;";
+        boolean botJobVariables = "variable".equals(varTable);
+        String whereColumn = botJobVariables ? "bot_job_id" : "home_banking_id";
+        String selectSQL = botJobVariables
+                ? "SELECT vars.id,vars.producer_instruction_id AS instruction_id,"
+                        + "vars.variable_type AS type,vars.name,"
+                        + "vars.configured_value AS value,vars.local_format,vars.delimiter,"
+                        + "COUNT(slots.instruction_id) AS UsedVars"
+                        + " FROM bot_job_variable_definition vars"
+                        + " LEFT JOIN instruction_variable_slot slots"
+                        + " ON slots.home_banking_id=vars.home_banking_id"
+                        + " AND slots.bot_job_id=vars.bot_job_id"
+                        + " AND slots.variable_id=vars.id"
+                        + " WHERE vars.bot_job_id=?"
+                        + " GROUP BY vars.id,vars.producer_instruction_id,vars.variable_type,"
+                        + "vars.name,vars.configured_value,vars.local_format,vars.delimiter"
+                        + " ORDER BY vars.id"
+                : "SELECT vars.id,vars.instruction_id,vars.type,vars.name,vars.value,"
+                        + "vars.local_format,vars.delimiter,COUNT(blk.variable_id) AS UsedVars"
+                        + " FROM component_variable vars"
+                        + " LEFT JOIN component_instruction blk ON blk.variable_id=vars.id"
+                        + " WHERE vars.home_banking_id=?"
+                        + " GROUP BY vars.id,vars.instruction_id,vars.type,vars.name,vars.value,"
+                        + "vars.local_format,vars.delimiter ORDER BY vars.id";
 
         try (Connection conn = getConnection();
                 PreparedStatement stmt = conn.prepareStatement(selectSQL)) {
@@ -603,7 +616,9 @@ public class PerformDBEngine {
                     instructionLoad.setShadowRoot(rs.getString("shadow_root"));
                     instructionLoad.setCssSelector(rs.getString("css_selector"));
 
-                    instructionLoad.setVariableId(rs.getInt("variable_id"));
+                    instructionLoad.setVariableId("instruction".equalsIgnoreCase(tableName)
+                            ? null
+                            : PerformDataBase.readNullableInteger(rs, "variable_id"));
 
                     // parent_block_id can be NULL -> use getObject
                     Integer parentBlockId = (Integer) rs.getObject("parent_block_id");

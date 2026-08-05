@@ -495,11 +495,13 @@ public final class BotJobRuntimeVariableService {
         String placeholders = String.join(
                 ",",
                 java.util.Collections.nCopies(variableIds.size(), "?"));
-        String sql = "UPDATE instruction SET variable_id = NULL"
-                + " WHERE bot_job_id = ? AND variable_id IN (" + placeholders + ")";
+        String sql = "DELETE FROM instruction_variable_slot"
+                + " WHERE home_banking_id=? AND bot_job_id=?"
+                + " AND variable_id IN (" + placeholders + ")";
         try (PreparedStatement update = connection.prepareStatement(sql)) {
-            update.setInt(1, owner.botJobId());
-            int parameter = 2;
+            update.setInt(1, owner.homeBankingId());
+            update.setInt(2, owner.botJobId());
+            int parameter = 3;
             for (Long variableId : variableIds) {
                 update.setLong(parameter++, variableId);
             }

@@ -469,6 +469,8 @@ public final class CommandEditorService {
                     try (Connection connection = database.getConnection()) {
                         commandConfigurationRows =
                                 commandConfigurations.loadForBotJob(connection, whereId);
+                        commandConfigurationRows = withRightSlotConnections(
+                                connection, whereId, commandConfigurationRows);
                     }
                 }
             } catch (SQLException exception) {
@@ -659,6 +661,49 @@ public final class CommandEditorService {
         return rows;
     }
 
+    /**
+     * GridItem reads the CheckValue RIGHT badge from commandConfigurations for
+     * presentation compatibility, but RIGHT connectivity is owned exclusively by
+     * instruction_variable_slot. Overlay the authoritative RIGHT slot without
+     * writing or mirroring it into the command-configuration table.
+     */
+    private static Map<Integer, StoredConfiguration> withRightSlotConnections(
+            Connection connection,
+            int botJobId,
+            Map<Integer, StoredConfiguration> configurations)
+            throws SQLException {
+        Map<Integer, StoredConfiguration> projected = new LinkedHashMap<>();
+        if (configurations != null) projected.putAll(configurations);
+        try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT instruction_id,variable_id FROM instruction_variable_slot"
+                        + " WHERE bot_job_id=? AND slot='RIGHT'")) {
+            statement.setInt(1, botJobId);
+            try (ResultSet rows = statement.executeQuery()) {
+                while (rows.next()) {
+                    int instructionId = rows.getInt("instruction_id");
+                    int rightVariableId = rows.getInt("variable_id");
+                    StoredConfiguration current = projected.get(instructionId);
+                    projected.put(instructionId, new StoredConfiguration(
+                            instructionId,
+                            current == null ? "CK" : current.commandType(),
+                            current == null ? null : current.conditionSource(),
+                            current == null ? null : current.leftVariableId(),
+                            "VARIABLE",
+                            current == null ? "=" : current.comparisonOperator(),
+                            current == null ? null : current.operandRawValue(),
+                            rightVariableId,
+                            current == null ? null : current.outputKey(),
+                            current == null ? null : current.outputColumn(),
+                            current == null ? null : current.outputFile(),
+                            current == null ? null : current.externalSourceKey(),
+                            current == null ? null : current.formatPolicy(),
+                            current == null ? 0L : current.configRevision()));
+                }
+            }
+        }
+        return Map.copyOf(projected);
+    }
+
     static JsonObject newMemoryCapabilitiesResponse(boolean componentSession, boolean ok) {
         JsonObject response = new JsonObject();
         response.addProperty("ok", ok);
@@ -821,13 +866,26 @@ public final class CommandEditorService {
         String valueColumn = component ? "value" : "configured_value";
         String producerColumn =
                 component ? "instruction_id" : "producer_instruction_id";
-        String sql = "SELECT v.id,v." + typeColumn + " AS type,v.name,v."
-                + valueColumn + " AS value,v.local_format,v.delimiter,v."
-                + producerColumn + " AS instruction_id,"
-                + "COUNT(i.variable_id) used_vars FROM " + table + " v LEFT JOIN " + instructionTable
-                + " i ON i.variable_id=v.id WHERE v." + ownerColumn + "=? "
-                + "GROUP BY v.id,v." + typeColumn + ",v.name,v." + valueColumn
-                + ",v.local_format,v.delimiter,v." + producerColumn + " ORDER BY v.id";
+        String sql = component
+                ? "SELECT v.id,v." + typeColumn + " AS type,v.name,v."
+                        + valueColumn + " AS value,v.local_format,v.delimiter,v."
+                        + producerColumn + " AS instruction_id,"
+                        + "COUNT(i.variable_id) used_vars FROM " + table
+                        + " v LEFT JOIN " + instructionTable
+                        + " i ON i.variable_id=v.id WHERE v." + ownerColumn + "=? "
+                        + "GROUP BY v.id,v." + typeColumn + ",v.name,v." + valueColumn
+                        + ",v.local_format,v.delimiter,v." + producerColumn + " ORDER BY v.id"
+                : "SELECT v.id,v.variable_type AS type,v.name,"
+                        + "v.configured_value AS value,v.local_format,v.delimiter,"
+                        + "v.producer_instruction_id AS instruction_id,"
+                        + "COUNT(ivs.instruction_id) used_vars"
+                        + " FROM bot_job_variable_definition v"
+                        + " LEFT JOIN instruction_variable_slot ivs"
+                        + " ON ivs.home_banking_id=v.home_banking_id"
+                        + " AND ivs.bot_job_id=v.bot_job_id AND ivs.variable_id=v.id"
+                        + " WHERE v.bot_job_id=?"
+                        + " GROUP BY v.id,v.variable_type,v.name,v.configured_value,"
+                        + "v.local_format,v.delimiter,v.producer_instruction_id ORDER BY v.id";
         try (Connection connection = database.getConnection();
                 PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setInt(1, whereId);

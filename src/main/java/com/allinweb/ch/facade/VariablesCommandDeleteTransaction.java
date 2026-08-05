@@ -366,9 +366,18 @@ public final class VariablesCommandDeleteTransaction {
         List<InstructionLoad> revisionRows = new ArrayList<>();
         try (PreparedStatement statement = connection.prepareStatement(
                 "SELECT id,instruction_order_number,actions,operation,on_hold_seconds,block_id,"
-                        + "variable_id,parent_block_id,parent_id FROM instruction"
+                        + "(SELECT ivs.variable_id FROM instruction_variable_slot ivs"
+                        + " WHERE ivs.home_banking_id=? AND ivs.bot_job_id=instruction.bot_job_id"
+                        + " AND ivs.instruction_id=instruction.id"
+                        + " AND ivs.slot=CASE UPPER(TRIM(instruction.actions))"
+                        + " WHEN 'CK' THEN 'LEFT' WHEN 'CHECKVALUE' THEN 'LEFT'"
+                        + " WHEN 'CSV CHECK' THEN 'LEFT' WHEN 'PDF CHECK' THEN 'LEFT'"
+                        + " WHEN 'GET' THEN 'GET_WRITE' WHEN 'SET' THEN 'READ_SET'"
+                        + " WHEN 'E' THEN 'READ' ELSE NULL END LIMIT 1) AS variable_id,"
+                        + "parent_block_id,parent_id FROM instruction"
                         + " WHERE bot_job_id=? ORDER BY block_id,instruction_order_number,id")) {
-            statement.setInt(1, owner.ownerId());
+            statement.setInt(1, owner.homeBankingId());
+            statement.setInt(2, owner.ownerId());
             try (ResultSet rows = statement.executeQuery()) {
                 while (rows.next()) {
                     InstructionRow row = new InstructionRow(
