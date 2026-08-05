@@ -5,16 +5,73 @@ import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.readersAndWriters.ExcelReader;
 import com.allinweb.ch.util.ExcelUtils;
 import com.allinweb.ch.util.ExtractedData;
+import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public final class ScannerPreLaunchExcelLoader {
+    private final ExcelExecutionDatasetRegistry datasets;
+
+    public ScannerPreLaunchExcelLoader() {
+        this(ExcelExecutionDatasetRegistry.getInstance());
+    }
+
+    ScannerPreLaunchExcelLoader(ExcelExecutionDatasetRegistry datasets) {
+        this.datasets = datasets;
+    }
 
     public ExtractedData load(String excelPath, PerformLists performLists) throws Exception {
-        return new ExcelReader()
-                .extractData(
-                        excelPath,
-                        performLists.getAllActions(),
-                        ExcelUtils.buildAliasMap(performLists.getListBlock()));
+        Path workbook = requireWorkbook(excelPath);
+        if (Files.notExists(workbook)) {
+            String workbookName = workbookName(workbook);
+            File generated = new ExcelUtils().generateExcelFiles(null, workbookName, null, false);
+            Path generatedPath = generated.toPath().toAbsolutePath().normalize();
+            if (!generatedPath.equals(workbook)) {
+                throw new IllegalStateException(
+                        "Generated Excel data file does not match the active Bot Job: " + generatedPath);
+            }
+            log.info("Created missing Excel data file for active Bot Job: {}", generatedPath);
+        }
+        return datasets
+                .load(
+                        workbook,
+                        () -> new ExcelReader()
+                                .extractData(
+                                        workbook.toString(),
+                                        performLists.getAllActions(),
+                                        ExcelUtils.buildAliasMap(performLists.getListBlock())))
+                .data();
+    }
+
+    /** Releases the retained dataset only when its owning client explicitly closes it. */
+    public boolean close(String excelPath) {
+        return datasets.close(requireWorkbook(excelPath));
+    }
+
+    private Path requireWorkbook(String excelPath) {
+        if (excelPath == null || excelPath.isBlank()) {
+            throw new IllegalArgumentException("Excel data file path is required");
+        }
+        Path workbook = Path.of(excelPath).toAbsolutePath().normalize();
+        if (Files.exists(workbook) && !Files.isRegularFile(workbook)) {
+            throw new IllegalStateException("Excel data file path is not a file: " + workbook);
+        }
+        return workbook;
+    }
+
+    private String workbookName(Path workbook) {
+        String fileName = workbook.getFileName().toString();
+        if (!fileName.toLowerCase().endsWith(".xlsx")) {
+            throw new IllegalArgumentException("Excel data file must use the .xlsx extension: " + workbook);
+        }
+        String workbookName = fileName.substring(0, fileName.length() - ".xlsx".length()).trim();
+        if (workbookName.isEmpty()) {
+            throw new IllegalArgumentException("Excel data file must use the active Bot Job name");
+        }
+        return workbookName;
     }
 
     public ExtractedData ensureEmptyDataRow(ExtractedData extractedData) {

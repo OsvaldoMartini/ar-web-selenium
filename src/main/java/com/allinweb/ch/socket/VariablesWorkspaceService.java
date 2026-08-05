@@ -2302,7 +2302,16 @@ public final class VariablesWorkspaceService {
             if (!"SAME".equalsIgnoreCase(mode) && !"DISTINCT".equalsIgnoreCase(mode)) {
                 throw new IllegalArgumentException("Variable resolution mode must be SAME or DISTINCT.");
             }
-            PREFERENCES.saveVariableMode(current.homeBankingId(), current.botJobId(), mode);
+            JsonObject metadata = new JsonObject();
+            metadata.addProperty("source", "VARIABLES_WORKSPACE");
+            metadata.addProperty("contractVersion", 1);
+            metadata.addProperty("organizationName", current.organizationName());
+            metadata.addProperty("requestId", text(request, "requestId"));
+            PREFERENCES.saveVariableMode(
+                    current.homeBankingId(),
+                    current.botJobId(),
+                    mode,
+                    metadata.toString());
             JsonObject response = mutationResponseBase(request, current);
             response.addProperty("ok", true);
             response.addProperty("variableResolutionMode", mode.toUpperCase(Locale.ROOT));

@@ -42,6 +42,7 @@ import com.allinweb.ch.model.*;
 import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.socket.ARWebSocketServer;
 import com.allinweb.ch.socket.CommandEditorWorkspaceService;
+import com.allinweb.ch.socket.ExcelDataWorkspaceService;
 import com.allinweb.ch.socket.PagesOpenWorkspaceService;
 import com.allinweb.ch.socket.VariablesWorkspaceService;
 import com.allinweb.ch.util.*;
@@ -1685,6 +1686,7 @@ public class BotJobDetailsWorkspaceHost {
                     case SHOW_BOT_JOB, HIDE_COMPONENTS -> showBotJobWorkspace();
                     case SHOW_COMPONENTS -> showComponentsWorkspace();
                     case SHOW_VARIABLES -> showVariablesWorkspace();
+                    case SHOW_EXCEL_DATA -> showExcelDataWorkspace();
                     case SHOW_PRE_SCAN -> showPreScanWorkspace();
                     case OPEN_ORGANIZATIONS -> {
                         // Capability-gated organization presentation was completed above.
@@ -1822,6 +1824,15 @@ public class BotJobDetailsWorkspaceHost {
         }
     }
 
+    private void showExcelDataWorkspace() {
+        JsonObject response = ExcelDataWorkspaceService.getInstance().openForBotJob(selectedBotJob.getId());
+        if (response == null || !response.has("ok") || !response.get("ok").getAsBoolean()) {
+            throw new IllegalStateException(response != null && response.has("error")
+                    ? response.get("error").getAsString()
+                    : "The Excel Data workspace could not be opened");
+        }
+    }
+
     private void requestComponentsWorkspaceClose() {
         String sessionId = ScannerWorkspaceSessions.COMPONENT_TASKS;
         if (!WebSocketSessionManager.isSessionOpen(sessionId)) return;
@@ -1890,6 +1901,7 @@ public class BotJobDetailsWorkspaceHost {
             case SHOW_BOT_JOB -> "Bot Job workspace opened";
             case SHOW_COMPONENTS -> "Components workspace opened";
             case SHOW_VARIABLES -> "Variables workspace opened";
+            case SHOW_EXCEL_DATA -> "Excel Data workspace opened";
             case HIDE_COMPONENTS -> "Components workspace hidden";
             case SHOW_PRE_SCAN -> "Pre Scan workspace opened";
             case OPEN_ORGANIZATIONS -> "Organizations opened";

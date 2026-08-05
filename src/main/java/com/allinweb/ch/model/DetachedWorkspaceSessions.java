@@ -11,6 +11,7 @@ public final class DetachedWorkspaceSessions {
     public static final String COMPONENTS_MANAGER = ScannerWorkspaceSessions.COMPONENT_TASKS;
     public static final String COMMAND_EDITOR_MANAGER = "commandEditorManager";
     public static final String VARIABLES_MANAGER = "variablesManager";
+    public static final String EXCEL_DATA_MANAGER = "excelDataManager";
     public static final String MEMORY_LIST_MANAGER = "memoryListManager";
     public static final String PAGES_OPEN_MANAGER = "pagesOpenManager";
     public static final String ABOUT_PANEL = "aboutPanel";
@@ -25,6 +26,7 @@ public final class DetachedWorkspaceSessions {
             COMPONENTS_MANAGER,
             COMMAND_EDITOR_MANAGER,
             VARIABLES_MANAGER,
+            EXCEL_DATA_MANAGER,
             MEMORY_LIST_MANAGER,
             PAGES_OPEN_MANAGER,
             ABOUT_PANEL,

@@ -74,6 +74,8 @@ public class SimpleWebSocketServer {
             CommandEditorWorkspaceService.getInstance();
     private static final VariablesWorkspaceService variablesWorkspaceService =
             VariablesWorkspaceService.getInstance();
+    private static final ExcelDataWorkspaceService excelDataWorkspaceService =
+            ExcelDataWorkspaceService.getInstance();
     private static final int MAX_PAGE_SCANNER_BODY_CHARACTERS = 2_000_000;
     private static final int MAX_PAGE_SCANNER_ELEMENTS = 1_000;
     private static final int MAX_PAGE_SCANNER_SEARCH_TERMS = 8_192;
@@ -133,6 +135,12 @@ public class SimpleWebSocketServer {
             "variablesWorkspace.commands.status",
             "variablesWorkspace.variables.delete",
             "variablesWorkspace.checkOperand.connect",
+            "variablesWorkspace.preferences.update",
+            "pagesOpen.open",
+            "pagesOpen.summary");
+    private static final Set<String> DETACHED_EXCEL_DATA_OPERATIONS = Set.of(
+            "excelData.bootstrap",
+            "excelData.close",
             "pagesOpen.open",
             "pagesOpen.summary");
     private static final ScannerPluginDownloadCommandService scannerPluginDownloadCommandService =
@@ -489,6 +497,8 @@ public class SimpleWebSocketServer {
                     type.startsWith("variablesWorkspace.");
             boolean detachedVariablesTransport =
                     VariablesWorkspaceService.isWorkspaceSession(transportSessionId);
+            boolean detachedExcelDataTransport =
+                    ExcelDataWorkspaceService.SESSION_ID.equals(transportSessionId);
             String sessionId = ocrWorkspaceOperation
                             || detachedOcrTransport
                             || pageScannerOperation
@@ -500,6 +510,7 @@ public class SimpleWebSocketServer {
                              || detachedCommandEditorTransport
                              || variablesWorkspaceOperation
                              || detachedVariablesTransport
+                             || detachedExcelDataTransport
                     ? transportSessionId
                     : claimedSessionId;
             ReactReplyChannel.set(sessionId);
@@ -614,6 +625,17 @@ public class SimpleWebSocketServer {
                         variablesWorkspaceFailure(
                                 extractBody(jsonObjMSG),
                                 "Operation is not allowed from the detached Variables workspace."));
+                return;
+            }
+            if (detachedExcelDataTransport && !DETACHED_EXCEL_DATA_OPERATIONS.contains(type)) {
+                log.warn("Rejected operation {} from detached Excel Data transport {}", type, transportSessionId);
+                sendCommandEditorResponse(
+                        homeBankingId,
+                        transportSessionId,
+                        "excelData.errorResponse",
+                        commandEditorFailure(
+                                extractBody(jsonObjMSG),
+                                "Operation is not allowed from the detached Excel Data workspace."));
                 return;
             }
 
@@ -897,6 +919,24 @@ public class SimpleWebSocketServer {
                             "variablesWorkspace.bootstrapResponse",
                             variablesWorkspaceService.bootstrap(
                                     variablesBody, sessionId, session));
+                    break;
+                }
+                case "excelData.bootstrap": {
+                    JsonObject excelDataBody = extractBody(jsonObjMSG);
+                    sendCommandEditorResponse(
+                            homeBankingId,
+                            sessionId,
+                            "excelData.bootstrapResponse",
+                            excelDataWorkspaceService.bootstrap(excelDataBody, sessionId, session));
+                    break;
+                }
+                case "excelData.close": {
+                    JsonObject excelDataBody = extractBody(jsonObjMSG);
+                    sendCommandEditorResponse(
+                            homeBankingId,
+                            sessionId,
+                            "excelData.closeResponse",
+                            excelDataWorkspaceService.close(excelDataBody, sessionId, session));
                     break;
                 }
                 case "variablesWorkspace.refresh": {

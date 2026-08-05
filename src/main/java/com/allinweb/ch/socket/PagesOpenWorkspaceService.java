@@ -103,6 +103,9 @@ public final class PagesOpenWorkspaceService {
                             false,
                             true)),
             Map.entry(
+                    DetachedWorkspaceSessions.EXCEL_DATA_MANAGER,
+                    new PagePresentation("Excel Data", "EXCEL_DATA", "Retained Bot Job execution dataset", false, true)),
+            Map.entry(
                     DetachedWorkspaceSessions.MEMORY_LIST_MANAGER,
                     new PagePresentation("Memory List", "MEMORY_LIST", "Detached workspace", false, true)),
             Map.entry(
