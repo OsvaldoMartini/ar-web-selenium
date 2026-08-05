@@ -2689,7 +2689,9 @@ public final class VariablesWorkspaceService {
         response.addProperty("graphRevision", committed.graphRevision());
         response.addProperty(
                 "message",
-                committed.createdVariables().isEmpty()
+                "RELEASE".equalsIgnoreCase(text(request, "operation"))
+                        ? committed.connectedExisting() + " variable connection(s) released."
+                        : committed.createdVariables().isEmpty()
                         ? committed.connectedExisting()
                                 + " variable connection(s) resolved."
                         : committed.createdVariables().size()

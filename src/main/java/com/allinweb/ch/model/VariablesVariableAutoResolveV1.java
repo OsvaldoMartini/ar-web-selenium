@@ -21,5 +21,6 @@ public final class VariablesVariableAutoResolveV1 {
             Long baseGraphVersion,
             String graphRevision,
             List<Integer> instructionIds,
-            String variableMode) {}
+            String variableMode,
+            String operation) {}
 }

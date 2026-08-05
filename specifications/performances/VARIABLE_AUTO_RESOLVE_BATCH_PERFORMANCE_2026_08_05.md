@@ -43,6 +43,22 @@ AUTO click
 Resolve performs one parent mutation only when required, then invokes the same
 variable batch. Existing connections are never overwritten.
 
+Release uses the corresponding bounded path:
+
+```text
+Release Connections confirmation
+  -> one compact parent-clear mutation when parent links exist
+  -> one variablesWorkspace.variables.autoResolve v2 RELEASE request
+  -> one serialized SQLite transaction
+  -> one prepared-statement batch deleting every scoped variable slot
+  -> one graph-version compare/increment and verification read
+  -> one commit, response, and authoritative publication
+```
+
+The former LEFT, RIGHT, and regular-command instruction-by-instruction release
+loop is no longer executed. Variable definitions remain intact; only scoped
+`instruction_variable_slot` connections are removed.
+
 ## Why no thread pool
 
 SQLite serializes writers. Parallel write tasks add scheduling, connections,

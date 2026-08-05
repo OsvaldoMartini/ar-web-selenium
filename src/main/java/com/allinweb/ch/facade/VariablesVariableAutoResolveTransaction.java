@@ -88,7 +88,30 @@ public final class VariablesVariableAutoResolveTransaction {
             requireOwner(connection, owner.owner());
             GraphState state = stateRepository.loadOrCreate(connection, owner.owner());
             Graph before = loadGraph(connection, owner.owner(), state);
-            List<SlotPlan> plan = validateAndPlan(owner, request, before);
+            LinkedHashSet<Integer> scope = validateScope(owner, request, before);
+            if ("RELEASE".equalsIgnoreCase(request.operation())) {
+                int released = releaseSlots(connection, owner.owner(), scope);
+                if (released == 0) {
+                    throw refused(
+                            "VARIABLE_RELEASE_NO_CHANGES",
+                            "Every selected command already has its variable connections released.");
+                }
+                AdvanceResult advance = stateRepository.compareAndSetIncrement(
+                        connection, owner.owner(), request.baseGraphVersion());
+                if (!advance.advanced()) {
+                    throw refused(
+                            "VARIABLE_RELEASE_GRAPH_VERSION_STALE",
+                            "The Variables graph changed before release completed.");
+                }
+                Graph after = loadGraph(connection, owner.owner(), advance.state());
+                verifyReleased(scope, after);
+                connection.commit();
+                return new AutoResolveResult(
+                        owner.owner(), owner.workspaceEpoch(), request.requestId().trim(),
+                        List.of(), released, state.version(), advance.state().version(),
+                        after.revision(), false);
+            }
+            List<SlotPlan> plan = plan(request, before, scope);
             LinkedHashMap<String, Integer> variableIdsByName =
                     new LinkedHashMap<>(before.variableIdsByName());
             Set<String> existingNames = Set.copyOf(variableIdsByName.keySet());
@@ -139,7 +162,7 @@ public final class VariablesVariableAutoResolveTransaction {
         }
     }
 
-    private List<SlotPlan> validateAndPlan(
+    private LinkedHashSet<Integer> validateScope(
             AuthenticatedBotJob owner,
             VariablesVariableAutoResolveV1.Request request,
             Graph graph) throws MutationRefusedException {
@@ -188,7 +211,13 @@ public final class VariablesVariableAutoResolveTransaction {
             }
             scope.add(instructionId);
         }
+        return scope;
+    }
 
+    private List<SlotPlan> plan(
+            VariablesVariableAutoResolveV1.Request request,
+            Graph graph,
+            Set<Integer> scope) {
         List<SlotPlan> plan = new ArrayList<>();
         boolean distinct = "DISTINCT".equalsIgnoreCase(request.variableMode());
         int checkIndex = 0;
@@ -220,6 +249,40 @@ public final class VariablesVariableAutoResolveTransaction {
             }
         }
         return plan;
+    }
+
+    private int releaseSlots(
+            Connection connection, OwnerKey owner, Set<Integer> instructionIds)
+            throws SQLException {
+        int released = 0;
+        try (PreparedStatement statement = connection.prepareStatement(
+                "DELETE FROM instruction_variable_slot"
+                        + " WHERE home_banking_id=? AND bot_job_id=? AND instruction_id=?")) {
+            for (Integer instructionId : instructionIds) {
+                statement.setInt(1, owner.homeBankingId());
+                statement.setInt(2, owner.ownerId());
+                statement.setInt(3, instructionId);
+                statement.addBatch();
+            }
+            for (int result : statement.executeBatch()) {
+                if (result == java.sql.Statement.EXECUTE_FAILED) {
+                    throw new SQLException("The variable release batch failed.");
+                }
+                if (result > 0) released += result;
+            }
+        }
+        return released;
+    }
+
+    private void verifyReleased(Set<Integer> scope, Graph after)
+            throws MutationRefusedException {
+        for (Integer instructionId : scope) {
+            if (!after.slots().getOrDefault(instructionId, Map.of()).isEmpty()) {
+                throw refused(
+                        "VARIABLE_RELEASE_VERIFICATION_FAILED",
+                        "A selected command still has a variable connection.");
+            }
+        }
     }
 
     private List<CreatedVariable> insertVariables(
