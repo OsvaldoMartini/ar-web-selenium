@@ -940,7 +940,7 @@ public class SimpleWebSocketServer {
                     break;
                 }
                 case "variablesWorkspace.graphMutationParent": {
-                    JsonObject variablesBody = extractBody(jsonObjMSG);
+                    JsonObject variablesBody = compactGraphMutationBody(jsonObjMSG);
                     JsonObject mutationResponse = variablesWorkspaceService.mutateStructural(
                             variablesBody, sessionId, session);
                     try {
@@ -957,7 +957,7 @@ public class SimpleWebSocketServer {
                     break;
                 }
                 case "variablesWorkspace.graphMutationCommandVariable": {
-                    JsonObject variablesBody = extractBody(jsonObjMSG);
+                    JsonObject variablesBody = compactGraphMutationBody(jsonObjMSG);
                     JsonObject mutationResponse = variablesWorkspaceService.mutateCommandVariable(
                             variablesBody, sessionId, session);
                     try {

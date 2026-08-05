@@ -725,6 +725,9 @@ public final class VariablesWorkspaceService {
                 throw new IllegalArgumentException(
                         "graphMutationCommandVariable requires a command-variable patch.");
             }
+            if (mutationLane == MutationLane.COMMAND_VARIABLE) {
+                requireRegularCommandVariablePatch(request);
+            }
 
             Binding authorized = current;
             String mutationProfile =
@@ -1613,14 +1616,57 @@ public final class VariablesWorkspaceService {
             InstructionGraphMutationV3.Request request,
             String mutationProfile) {
         try {
+            InstructionGraphMutationV3.Request effectiveRequest = request;
+            if (request.mutationKind() == InstructionGraphMutationV3.MutationKind.RELATIONSHIP_UPDATE
+                    && request.layoutRows().isEmpty()) {
+                GraphSnapshot authoritative = mutations.inspect(
+                        authorized.homeBankingId(),
+                        authorized.botJobId(),
+                        authorized.workspaceEpoch());
+                effectiveRequest = new InstructionGraphMutationV3.Request(
+                        request.contractVersion(),
+                        request.mutationKind(),
+                        request.requestId(),
+                        request.baseGraphVersion(),
+                        request.graphRevision(),
+                        request.workspaceEpoch(),
+                        request.ownerAssertion(),
+                        request.draggedInstructionId(),
+                        authoritative.layoutRows(),
+                        request.instructionRelationPatches(),
+                        request.variableBindingPatches(),
+                        request.variableOwnerPatches());
+            }
             return mutations.mutate(
                     authorized.homeBankingId(),
                     authorized.botJobId(),
                     authorized.workspaceEpoch(),
-                    request,
+                    effectiveRequest,
                     mutationProfile);
         } catch (SQLException error) {
             throw new MutationPersistenceException(error);
+        }
+    }
+
+    private static void requireRegularCommandVariablePatch(JsonObject request) {
+        JsonArray patches = request.has("variableBindingPatches")
+                && request.get("variableBindingPatches").isJsonArray()
+                ? request.getAsJsonArray("variableBindingPatches")
+                : new JsonArray();
+        if (patches.size() == 0) {
+            throw new IllegalArgumentException(
+                    "graphMutationCommandVariable requires regular-command patches.");
+        }
+        for (JsonElement element : patches) {
+            if (!element.isJsonObject()) {
+                throw new IllegalArgumentException(
+                        "graphMutationCommandVariable contains a malformed patch.");
+            }
+            String slot = text(element.getAsJsonObject(), "slot").toUpperCase(Locale.ROOT);
+            if (!Set.of("GET_WRITE", "READ_SET", "READ").contains(slot)) {
+                throw new IllegalArgumentException(
+                        "graphMutationCommandVariable cannot update CheckValue LEFT or RIGHT slots.");
+            }
         }
     }
 
