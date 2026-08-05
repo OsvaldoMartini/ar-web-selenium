@@ -1617,12 +1617,20 @@ public final class VariablesWorkspaceService {
             String mutationProfile) {
         try {
             InstructionGraphMutationV3.Request effectiveRequest = request;
-            if (request.mutationKind() == InstructionGraphMutationV3.MutationKind.RELATIONSHIP_UPDATE
-                    && request.layoutRows().isEmpty()) {
+            boolean compactRelationship = request.mutationKind()
+                    == InstructionGraphMutationV3.MutationKind.RELATIONSHIP_UPDATE
+                    && request.layoutRows().isEmpty();
+            boolean compactRowMove = request.mutationKind()
+                    == InstructionGraphMutationV3.MutationKind.ROW_MOVE;
+            if (compactRelationship || compactRowMove) {
                 GraphSnapshot authoritative = mutations.inspect(
                         authorized.homeBankingId(),
                         authorized.botJobId(),
                         authorized.workspaceEpoch());
+                List<InstructionGraphMutationV3.LayoutRow> effectiveLayout = compactRowMove
+                        ? expandCompactMoveLayout(
+                                authoritative.layoutRows(), request.layoutRows())
+                        : authoritative.layoutRows();
                 effectiveRequest = new InstructionGraphMutationV3.Request(
                         request.contractVersion(),
                         request.mutationKind(),
@@ -1632,7 +1640,7 @@ public final class VariablesWorkspaceService {
                         request.workspaceEpoch(),
                         request.ownerAssertion(),
                         request.draggedInstructionId(),
-                        authoritative.layoutRows(),
+                        effectiveLayout,
                         request.instructionRelationPatches(),
                         request.variableBindingPatches(),
                         request.variableOwnerPatches());
@@ -1646,6 +1654,36 @@ public final class VariablesWorkspaceService {
         } catch (SQLException error) {
             throw new MutationPersistenceException(error);
         }
+    }
+
+    private static List<InstructionGraphMutationV3.LayoutRow> expandCompactMoveLayout(
+            List<InstructionGraphMutationV3.LayoutRow> authoritativeRows,
+            List<InstructionGraphMutationV3.LayoutRow> changedRows) {
+        if (changedRows.size() >= authoritativeRows.size()) {
+            return changedRows;
+        }
+        List<InstructionGraphMutationV3.LayoutRow> expanded =
+                new ArrayList<>(authoritativeRows);
+        Map<Integer, Integer> indexByInstruction = new HashMap<>();
+        for (int index = 0; index < authoritativeRows.size(); index++) {
+            indexByInstruction.put(authoritativeRows.get(index).instructionId(), index);
+        }
+        Set<Integer> submittedIds = new java.util.HashSet<>();
+        for (InstructionGraphMutationV3.LayoutRow changed : changedRows) {
+            if (changed == null
+                    || changed.instructionId() == null
+                    || !submittedIds.add(changed.instructionId())) {
+                throw new IllegalArgumentException(
+                        "Compact Variables move contains a malformed or duplicate row.");
+            }
+            Integer index = indexByInstruction.get(changed.instructionId());
+            if (index == null) {
+                expanded.add(changed);
+            } else {
+                expanded.set(index, changed);
+            }
+        }
+        return List.copyOf(expanded);
     }
 
     private static void requireRegularCommandVariablePatch(JsonObject request) {

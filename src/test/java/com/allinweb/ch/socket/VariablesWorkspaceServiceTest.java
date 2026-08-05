@@ -745,8 +745,7 @@ class VariablesWorkspaceServiceTest {
                             100,
                             List.of(
                                     new LayoutRow(101, 10, 1, 1),
-                                    new LayoutRow(100, 10, 1, 2),
-                                    new LayoutRow(102, 10, 1, 3)),
+                                    new LayoutRow(100, 10, 1, 2)),
                             List.of(),
                             List.of(),
                             List.of());
@@ -778,11 +777,12 @@ class VariablesWorkspaceServiceTest {
             assertTrue(response.get("committed").getAsBoolean());
             assertFalse(response.get("resyncRequired").getAsBoolean());
             assertEquals(1, mutations.mutateCalls);
-            assertEquals(1, mutations.inspectCalls);
+            assertEquals(2, mutations.inspectCalls);
             assertEquals(2, mutations.lastHomeBankingId);
             assertEquals(5, mutations.lastBotJobId);
             assertEquals(active.workspaceEpoch(), mutations.lastWorkspaceEpoch);
             assertEquals("variables-mutate-1", mutations.lastRequest.requestId());
+            assertEquals(3, mutations.lastRequest.layoutRows().size());
             assertEquals(
                     "VARIABLES_INDIVIDUAL_ROW_V1",
                     mutations.lastMutationProfile);
@@ -1174,10 +1174,7 @@ class VariablesWorkspaceServiceTest {
                                     2,
                                     5),
                             102,
-                            List.of(
-                                    new LayoutRow(100, 10, 1, 1),
-                                    new LayoutRow(101, 10, 1, 2),
-                                    new LayoutRow(102, 11, 2, 1)),
+                            List.of(new LayoutRow(102, 11, 2, 1)),
                             List.of(),
                             List.of(),
                             List.of());
@@ -1202,6 +1199,7 @@ class VariablesWorkspaceServiceTest {
             assertEquals(
                     "variables-cross-profile",
                     mutations.lastRequest.requestId());
+            assertEquals(3, mutations.lastRequest.layoutRows().size());
         } finally {
             registry.close(5);
         }
