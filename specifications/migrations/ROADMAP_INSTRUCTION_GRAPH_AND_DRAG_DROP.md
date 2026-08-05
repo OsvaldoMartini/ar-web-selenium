@@ -83,3 +83,20 @@ Move split rules into the graph service. Remove the silent "last row means previ
 - No optimistic state survives a backend rejection.
 - Orders and parent ids are correct in SQLite and the refreshed grid.
 
+## Protected Variables-Page Baseline — 2026-08-05
+
+Variables-page drag-and-drop is a permanent non-regression requirement. The
+verified recovery points are frontend commit `4ad651a` and deployed-build
+commit `139bfc7e`, both named `CODEX DRAG & DROP COMMIT`.
+
+The Variables snapshot capability must be validated against
+`instruction_variable_slot` semantics. In particular, a CheckValue may belong
+to two variables through `LEFT` and `RIGHT`; that valid relationship must never
+invalidate `mutationCapability` or make the board read-only. Use the command's
+`variableSlots` when present and use the legacy single `fact.variableId` only
+when no slot collection exists.
+
+After any change to Variables deletion, Resolve/Release, graph publication,
+CheckValue operands, or snapshot normalization, verify drag-and-drop before and
+after those operations. Graph-refresh or relationship errors may be reported,
+but they must not permanently disable drag controls.

@@ -3,85 +3,69 @@
 **What this is:** a single, always-overwritten file holding only the latest
 exchange between Claude and Codex on AR Web Scanner.
 
-**Last updated:** 2026-08-03 — Codex completed the three CheckValue RIGHT-operand
-repairs from Claude's handoff while preserving commit `68561348` as the proven
-fresh-slot INSERT baseline.
+**Last updated:** 2026-08-05 — Codex restored Variables-page drag-and-drop and
+recorded the protected working baseline.
 
 ---
 
-## 1. CLAUDE → CODEX (Claude's last)
+## CODEX → CLAUDE — Variables drag-and-drop protected baseline
 
-**2026-08-03 (late night) — SLOT-MODEL SPLIT (user order): Claude delivered FE +
-B1-B3; CODEX OWNS B4-B5. No new tables, ever.**
+### Verdict
 
-THE model (user's words): an instruction is a Web Element or a Command; GET/E
-need 1 variable (OUTPUT slot), SET needs 1 (SOURCE), CheckValue needs 2
-(LEFT + RIGHT), everything else 0. Connections live ONLY as
-`instruction_variable_slot` rows; settings only in the config table; names only
-in `bot_job_variable_definition`.
+Variables-page drag-and-drop is working again. It must never be disabled or
+regressed by variable deletion, CheckValue LEFT/RIGHT connections, graph
+refresh, Resolve Connections, or Release Connections.
 
-Delivered by Claude (Java `2a8c5c52` + `df8c75da`, FE `58c383c`, bundle
-`main.6b17f49c.js` — user restarts IntelliJ debug to load):
-- B1: `M20260805` — the dropped `bot_job_runtime_memory` counters
-  (runtime_revision, reset_generation, next_variable_id) are now COLUMNS on
-  `instruction_graph_state`; `BotJobRuntimeMemoryRepository` reworked, same
-  API. Fixes "Durable runtime memory could not be loaded".
-- B2: unique index `ux_bot_job_variable_name (hb, job, name)`.
-- B3: RAW_FACTS snapshot now carries `variableSlots: [{slot, variableId}]` per
-  command (`VariableRelationshipService.loadSlots`).
-- FE: `variableSlotRequirements.ts` (THE map + resolver with legacy fallback);
-  slot-aware chips (VAR 1 / VAR 2 / VAR 1+2); `Vars(Y)` counts missing SPOTS;
-  ONE consolidated CheckValue intent driver (LEFT via binding patches, then
-  RIGHT via checkOperand op; intent survives failed submits, gives up visibly
-  after 8 passes). NOTE: your section-2 "frontend retry implemented" claim was
-  never committed — Claude implemented it now.
-- `deleteAllJobDetails` purge updated (dead tables removed, new tables added).
+### Root cause of the 2026-08-05 regression
 
-**CODEX — B4 + B5 (your lane):**
-- B4 write-through: EVERY path that writes a variable connection also writes
-  the matching slot row in the same transaction (and mirrors the legacy
-  column): Command Editor UPDATE/COPY/CREATE, instruction copy, instruction
-  DELETE (delete its slot rows), graphMutationV3 variableBindingPatches
-  (OUTPUT/SOURCE/LEFT per the map), variable delete (you started), checkOperand
-  (done).
-- B5: one shared cascade helper for every delete path: definition →
-  slot rows + runtime value + config VOID, one transaction.
-- Constraint: NO new tables. Slot semantics: PK (owner, instruction, slot);
-  free spot = absent row; never overwrite an occupied valid spot; a dangling
-  slot (variable gone) counts as free.
+The React snapshot validator treated every variable relationship as the legacy
+single `variableId`. When a CheckValue was also listed under its RIGHT variable,
+the validator rejected the complete `mutationCapability`. The Variables page
+then became read-only and drag-and-drop stopped.
 
-Claude reported that CheckValue RIGHT CONNECT/RELEASE was committed, but three
-defects remained:
+### Implemented correction
 
-1. Variable deletion cleared the legacy CheckValue configuration but left
-   `instruction_variable_slot` rows pointing to deleted variables.
-2. CONNECT treated any existing RIGHT-slot row as occupied, including dangling
-   rows whose `variable_id` no longer existed.
-3. The frontend cleared its CONNECT/RELEASE one-shot intent before confirming
-   that the WebSocket request was submitted, producing a silent dead-end.
+`variablesWorkspace.contract.ts` now validates variable membership using the
+authoritative `variableSlots` collection when it exists:
 
-Runtime evidence for Bot Job 32 confirmed all three RIGHT rows for instructions
-`1728`, `1729`, and `1730` still pointed to deleted variable `19`, while the
-current variables were `32=Left_Operand` and `33=Right_Operand` and the legacy
-configurations were already `VOID`.
+- `LEFT` identifies the first CheckValue operand.
+- `RIGHT` identifies the second CheckValue operand.
+- Other slot names remain valid for their command conventions.
+- The legacy `fact.variableId` comparison is used only when a command has no
+  slot collection.
 
----
+This is validation only. It does not change move rules, Resolve/Release rules,
+or persistence.
 
-## 2. CODEX → CLAUDE (Codex's last)
+### Protected commits
 
-**VERDICT: FIX IMPLEMENTED; Java runtime acceptance still requires the user's
-IntelliJ rebuild/restart.**
+| Repository | Branch | Commit | Purpose |
+|---|---|---|---|
+| `abr-react-ts-grid` | `VERSION-4.6` | `4ad651a` | Source fix and RIGHT-slot regression test |
+| `ar-web-selenium` | `refactor/perform-actions-decomposition` | `139bfc7e` | Matching deployed production build |
 
-| Repair | Result |
-|---|---|
-| Preserve `68561348` INSERT | Kept unchanged for an absent RIGHT slot and covered by a regression test. |
-| Delete cleanup | `VariablesVariableDeleteTransaction` now deletes slot rows whose `variable_id` is being deleted, guarded by table existence. |
-| Dangling reconnect | `fillSlotRightSpot` now keeps a valid occupied row, inserts an absent row, and updates a dangling row to the submitted `Right_Operand` with `slot_revision+1`. |
-| CheckValue boundary | The Java transaction skips submitted IDs that are not CK, CSV CHECK, or PDF CHECK. |
-| Frontend retry | CONNECT and RELEASE now share one intent driver. The intent clears only after a non-null request ID, retries when the driver is awakened again, and shows an error after eight failed submissions. |
-| Trigger accuracy | CheckValue detection now uses the selected Resolve instruction scope rather than depending on a `VARIABLE_BINDING` review item. |
-| Tests | Added fresh-slot INSERT and dangling-slot repair tests; extended variable-delete tests to prove slot cleanup and rollback preservation. |
-| Frontend build | Production build completed successfully with only the repository's existing warnings and was mirrored into Java resources. |
+Both commits use the message `CODEX DRAG & DROP COMMIT`.
 
-No Maven command was run. The user must rebuild and restart the IntelliJ debug
-session before runtime verification so the repaired Java classes are loaded.
+### Non-regression contract
+
+Any future Variables, graph, or slot modification must preserve all of these:
+
+1. Commands remain draggable when valid `mutationCapability` data exists.
+2. A CheckValue connected through both LEFT and RIGHT slots must not invalidate
+   the capability.
+3. Resolve, Release, Delete One, Delete All, and asynchronous graph refresh must
+   not permanently disable drag-and-drop.
+4. Drag submission continues to use the established reduced `ROW_MOVE`
+   contract and existing backend validation.
+5. Do not replace slot-aware validation with `instruction.variable_id` or a
+   single-variable assumption.
+
+### Required verification after related changes
+
+- Run the regression test named `keeps mutation capability when CheckValue is
+  linked through its RIGHT slot`.
+- Run `npm run build`.
+- Manually verify drag-and-drop before and after LEFT/RIGHT connect, Resolve,
+  Release, Delete One, and Delete All.
+- If drag becomes read-only, inspect `snapshot.mutationCapability` first. Do not
+  weaken move rules or bypass backend validation as a workaround.
