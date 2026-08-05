@@ -41,6 +41,7 @@ import com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableModels.Valu
 import com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableService;
 import com.allinweb.ch.model.DetachedWorkspaceSessions;
 import com.allinweb.ch.model.InstructionGraphMutationV3;
+import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import com.allinweb.ch.model.VariablesInstructionCopyV1;
 import com.allinweb.ch.model.VariablesCommandEditorUpdateV1;
 import com.allinweb.ch.model.VariablesCommandEditorCreateV1;
@@ -866,27 +867,52 @@ public final class VariablesWorkspaceService {
         }
     }
 
-    /** Persists UPDATE from only the new Variables Command Editor modal. */
+    private Binding authorizeGridCommandRequest(JsonObject request) {
+        int homeBankingId = positiveInteger(request, "homeBankingId");
+        int botJobId = positiveInteger(request, "botJobId");
+        long workspaceEpoch = positiveLong(request, "workspaceEpoch");
+        if (homeBankingId < 1 || botJobId < 1 || workspaceEpoch < 1L) {
+            throw new IllegalArgumentException(
+                    "The GridItem Command Editor requires an active Bot Job owner.");
+        }
+        WorkspaceContext workspace = workspaces.require(botJobId, workspaceEpoch);
+        if (workspace.homeBankingId() != homeBankingId) {
+            throw new IllegalArgumentException(
+                    "The GridItem Command Editor owner does not match the active Bot Job.");
+        }
+        return new Binding(
+                "", workspace.workspaceEpoch(), workspace.botJobId(),
+                workspace.homeBankingId(), workspace.botJobName(),
+                workspace.organizationName(), text(request, "graphRevision"));
+    }
+
+    /** Persists UPDATE from the shared Variables/GridItem Command Editor modal. */
     public JsonObject updateCommand(
             JsonObject body, String requesterSessionId, Session requesterTransport) {
         JsonObject request = body == null ? new JsonObject() : body;
         Binding current = null;
         try {
-            requireManagerTransport(requesterSessionId, requesterTransport);
-            current = currentBinding();
-            if (current == null) {
-                throw new IllegalArgumentException(
-                        "No Bot Job is bound to the Variables workspace.");
+            boolean gridRequest = ScannerWorkspaceSessions.BOT_JOB_TASKS.equals(
+                    requesterSessionId);
+            if (gridRequest) {
+                current = authorizeGridCommandRequest(request);
+            } else {
+                requireManagerTransport(requesterSessionId, requesterTransport);
+                current = currentBinding();
+                if (current == null) {
+                    throw new IllegalArgumentException(
+                            "No Bot Job is bound to the Variables workspace.");
+                }
+                String requestedBindingEpoch = text(request, "bindingEpoch");
+                if (requestedBindingEpoch.isBlank()
+                        || !requestedBindingEpoch.equals(current.bindingEpoch())) {
+                    throw new IllegalArgumentException(
+                            "The Variables target changed. Reload the current Bot Job.");
+                }
+                WorkspaceContext workspace =
+                        workspaces.require(current.botJobId(), current.workspaceEpoch());
+                current = current.withWorkspace(workspace);
             }
-            String requestedBindingEpoch = text(request, "bindingEpoch");
-            if (requestedBindingEpoch.isBlank()
-                    || !requestedBindingEpoch.equals(current.bindingEpoch())) {
-                throw new IllegalArgumentException(
-                        "The Variables target changed. Reload the current Bot Job.");
-            }
-            WorkspaceContext workspace =
-                    workspaces.require(current.botJobId(), current.workspaceEpoch());
-            current = current.withWorkspace(workspace);
             VariablesCommandEditorUpdateV1.Request updateRequest;
             try {
                 updateRequest = gson.fromJson(
@@ -905,7 +931,8 @@ public final class VariablesWorkspaceService {
                             authorized.workspaceEpoch(),
                             () -> persistCommandUpdate(authorized, updateRequest));
             JsonObject response = commandUpdateSuccess(request, authorized, committed);
-            if (!isCurrent(authorized) || !isManagerTransport(requesterTransport)) {
+            if (!gridRequest
+                    && (!isCurrent(authorized) || !isManagerTransport(requesterTransport))) {
                 response.addProperty("resyncRequired", true);
                 response.addProperty(
                         "message",
@@ -1084,19 +1111,25 @@ public final class VariablesWorkspaceService {
         JsonObject request = body == null ? new JsonObject() : body;
         Binding current = null;
         try {
-            requireManagerTransport(requesterSessionId, requesterTransport);
-            current = currentBinding();
-            if (current == null) throw new IllegalArgumentException(
-                    "No Bot Job is bound to the Variables workspace.");
-            String requestedBindingEpoch = text(request, "bindingEpoch");
-            if (requestedBindingEpoch.isBlank()
-                    || !requestedBindingEpoch.equals(current.bindingEpoch())) {
-                throw new IllegalArgumentException(
-                        "The Variables target changed. Reload the current Bot Job.");
+            boolean gridRequest = ScannerWorkspaceSessions.BOT_JOB_TASKS.equals(
+                    requesterSessionId);
+            if (gridRequest) {
+                current = authorizeGridCommandRequest(request);
+            } else {
+                requireManagerTransport(requesterSessionId, requesterTransport);
+                current = currentBinding();
+                if (current == null) throw new IllegalArgumentException(
+                        "No Bot Job is bound to the Variables workspace.");
+                String requestedBindingEpoch = text(request, "bindingEpoch");
+                if (requestedBindingEpoch.isBlank()
+                        || !requestedBindingEpoch.equals(current.bindingEpoch())) {
+                    throw new IllegalArgumentException(
+                            "The Variables target changed. Reload the current Bot Job.");
+                }
+                WorkspaceContext workspace = workspaces.require(
+                        current.botJobId(), current.workspaceEpoch());
+                current = current.withWorkspace(workspace);
             }
-            WorkspaceContext workspace = workspaces.require(
-                    current.botJobId(), current.workspaceEpoch());
-            current = current.withWorkspace(workspace);
             VariablesCommandEditorCopyV1.Request copyRequest;
             try {
                 copyRequest = gson.fromJson(
@@ -1113,7 +1146,8 @@ public final class VariablesWorkspaceService {
                             authorized.botJobId(), authorized.workspaceEpoch(),
                             () -> persistCommandCopy(authorized, copyRequest));
             JsonObject response = commandCopySuccess(request, authorized, committed);
-            if (!isCurrent(authorized) || !isManagerTransport(requesterTransport)) {
+            if (!gridRequest
+                    && (!isCurrent(authorized) || !isManagerTransport(requesterTransport))) {
                 response.addProperty("resyncRequired", true);
                 response.addProperty(
                         "message",
