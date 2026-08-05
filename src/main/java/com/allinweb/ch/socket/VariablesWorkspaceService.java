@@ -11,6 +11,7 @@ import com.allinweb.ch.facade.VariableRelationshipService;
 import com.allinweb.ch.facade.VariablesCrossBlockInstructionMutationProfile;
 import com.allinweb.ch.facade.VariablesCommandEditorUpdateService;
 import com.allinweb.ch.facade.VariablesVariableAutoResolveService;
+import com.allinweb.ch.facade.VariablesWorkspacePreferenceStore;
 import com.allinweb.ch.facade.VariablesVariableAutoResolveTransaction.AutoResolveResult;
 import com.allinweb.ch.facade.VariablesVariableAutoResolveTransaction.CreatedVariable;
 import com.allinweb.ch.model.VariablesVariableAutoResolveV1;
@@ -95,6 +96,8 @@ public final class VariablesWorkspaceService {
             VariablesCommandEditorUpdateService.getInstance();
     private static final VariablesVariableAutoResolveService VARIABLE_AUTO_RESOLVES =
             VariablesVariableAutoResolveService.getInstance();
+    private static final VariablesWorkspacePreferenceStore PREFERENCES =
+            new VariablesWorkspacePreferenceStore();
     private static final VariablesCommandEditorCreateService COMMAND_CREATES =
             VariablesCommandEditorCreateService.getInstance();
     private static final VariablesCommandEditorCopyService COMMAND_COPIES =
@@ -2275,8 +2278,39 @@ public final class VariablesWorkspaceService {
         botJob.addProperty("homeBankingId", authoritative.homeBankingId());
         botJob.addProperty("organizationName", authoritative.organizationName());
         response.add("botJob", botJob);
+        try {
+            JsonObject preferences = new JsonObject();
+            preferences.addProperty("variableResolutionMode", PREFERENCES.loadVariableMode(
+                    authoritative.homeBankingId(), authoritative.botJobId()));
+            response.add("preferences", preferences);
+        } catch (SQLException preferenceFailure) {
+            log.warn("Unable to load Variables preferences for Bot Job {}", current.botJobId(), preferenceFailure);
+        }
         correlate(request, response);
         return response;
+    }
+
+    public JsonObject updatePreference(
+            JsonObject body, String requesterSessionId, Session requesterTransport) {
+        JsonObject request = body == null ? new JsonObject() : body;
+        Binding current = null;
+        try {
+            requireManagerTransport(requesterSessionId, requesterTransport);
+            current = currentBinding();
+            if (current == null) throw new IllegalArgumentException("No Bot Job is bound.");
+            String mode = text(request, "variableResolutionMode");
+            if (!"SAME".equalsIgnoreCase(mode) && !"DISTINCT".equalsIgnoreCase(mode)) {
+                throw new IllegalArgumentException("Variable resolution mode must be SAME or DISTINCT.");
+            }
+            PREFERENCES.saveVariableMode(current.homeBankingId(), current.botJobId(), mode);
+            JsonObject response = mutationResponseBase(request, current);
+            response.addProperty("ok", true);
+            response.addProperty("variableResolutionMode", mode.toUpperCase(Locale.ROOT));
+            response.addProperty("message", "Variables preference saved.");
+            return response;
+        } catch (Exception failure) {
+            return failure(request, failure.getMessage(), current);
+        }
     }
 
     private JsonObject reconcileRuntimeMemory(JsonObject graph, Binding current) {

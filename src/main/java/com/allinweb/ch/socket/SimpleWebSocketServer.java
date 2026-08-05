@@ -1092,6 +1092,16 @@ public class SimpleWebSocketServer {
                     }
                     break;
                 }
+                case "variablesWorkspace.preferences.update": {
+                    JsonObject variablesBody = extractBody(jsonObjMSG);
+                    sendCommandEditorResponse(
+                            homeBankingId,
+                            sessionId,
+                            "variablesWorkspace.preferences.updateResponse",
+                            variablesWorkspaceService.updatePreference(
+                                    variablesBody, sessionId, session));
+                    break;
+                }
                 case "variablesWorkspace.commandEditor.update": {
                     JsonObject variablesBody = extractBody(jsonObjMSG);
                     JsonObject contractFailure = validateCommandEditorMutationContract(

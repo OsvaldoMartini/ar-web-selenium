@@ -145,13 +145,17 @@ public final class BotJobGraphMutationTransaction {
             }
 
             NormalizedMutation mutation = validation.mutation();
-            applyInstructions(connection, owner.owner().ownerId(), mutation.instructions());
+            List<NormalizedInstruction> changedInstructions =
+                    changedInstructions(before, mutation.instructions());
+            applyInstructions(connection, owner.owner().ownerId(), changedInstructions);
             synchronizePrimaryVariableSlots(
                     connection,
                     owner.owner(),
-                    mutation.instructions(),
+                    changedInstructions,
                     before.actionsByInstruction());
-            applyVariableOwners(connection, owner.owner().ownerId(), mutation.variables());
+            List<NormalizedVariable> changedVariables =
+                    changedVariables(before, mutation.variables());
+            applyVariableOwners(connection, owner.owner().ownerId(), changedVariables);
             faultInjector.at(TransactionPhase.AFTER_GRAPH_WRITES);
 
             AdvanceResult advance = stateRepository.compareAndSetIncrement(
@@ -438,6 +442,35 @@ public final class BotJobGraphMutationTransaction {
             requireSuccessfulBatch(
                     statement.executeBatch(), instructions.size(), "instruction graph update");
         }
+    }
+
+    private static List<NormalizedInstruction> changedInstructions(
+            AuthoritativeSnapshot before,
+            List<NormalizedInstruction> desired) {
+        Map<Integer, StoredInstruction> current = new LinkedHashMap<>();
+        before.ownerGraph().instructions().forEach(row -> current.put(row.id(), row));
+        return desired.stream().filter(row -> {
+            StoredInstruction stored = current.get(row.instructionId());
+            return stored == null
+                    || stored.blockId() != row.blockId()
+                    || stored.order() != row.instructionOrderNumber()
+                    || !Objects.equals(stored.parentId(), row.parentId())
+                    || !Objects.equals(stored.parentBlockId(), row.parentBlockId())
+                    || !Objects.equals(stored.variableId(), row.variableId());
+        }).toList();
+    }
+
+    private static List<NormalizedVariable> changedVariables(
+            AuthoritativeSnapshot before,
+            List<NormalizedVariable> desired) {
+        Map<Integer, Integer> current = new LinkedHashMap<>();
+        before.ownerGraph().variables().forEach(
+                row -> current.put(row.id(), row.instructionId()));
+        return desired.stream()
+                .filter(row -> !current.containsKey(row.variableId())
+                        || !Objects.equals(
+                                current.get(row.variableId()), row.instructionId()))
+                .toList();
     }
 
     private void applyVariableOwners(
