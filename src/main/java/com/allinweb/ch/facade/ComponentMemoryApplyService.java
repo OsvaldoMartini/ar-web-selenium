@@ -28,6 +28,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Atomically applies the heterogeneous Memory List to one Bot Job.
@@ -38,6 +39,7 @@ import java.util.Set;
  * ownership and graph revision are checked in the transaction, generated keys are mapped on the
  * same connection, and the complete copy/insert is committed once.
  */
+@Slf4j
 public final class ComponentMemoryApplyService {
     private static final BotJobRuntimeVariableService RUNTIME_VARIABLES =
             new BotJobRuntimeVariableService();
@@ -55,15 +57,27 @@ public final class ComponentMemoryApplyService {
              ORDER BY block_id, instruction_order_number, id
             """;
     private static final String BOT_INSTRUCTION_SELECT = """
-            SELECT id, instruction_order_number, actions, name, xpath, coordinates,
+            SELECT i.id, i.instruction_order_number, i.actions, i.name, i.xpath, i.coordinates,
                    force_coordinates, iframe_xpath, tag_name, shadow_host, shadow_root,
                    css_selector, description, operation, optional, block_marked,
                    default_value, action_custom_max_wait_sec, on_hold_seconds, codified,
-                   export_to_abr, active, block_id, variable_id, parent_block_id, parent_id,
-                   bot_job_id, client_named
-              FROM instruction
-             WHERE bot_job_id = ?
-             ORDER BY block_id, instruction_order_number, id
+                   export_to_abr, active, block_id,
+                   (SELECT ivs.variable_id FROM instruction_variable_slot ivs
+                     WHERE ivs.bot_job_id = i.bot_job_id
+                       AND ivs.home_banking_id = (SELECT bj.home_banking_id
+                             FROM bot_job bj WHERE bj.id = i.bot_job_id)
+                       AND ivs.instruction_id = i.id
+                       AND ivs.slot = CASE UPPER(TRIM(i.actions))
+                           WHEN 'CK' THEN 'LEFT' WHEN 'CHECKVALUE' THEN 'LEFT'
+                           WHEN 'CSV CHECK' THEN 'LEFT' WHEN 'PDF CHECK' THEN 'LEFT'
+                           WHEN 'GET' THEN 'GET_WRITE' WHEN 'SET' THEN 'READ_SET'
+                           WHEN 'E' THEN 'READ' WHEN 'EXCELWRITE' THEN 'READ'
+                           ELSE NULL END
+                     LIMIT 1) AS variable_id,
+                   parent_block_id, parent_id, bot_job_id, client_named
+              FROM instruction i
+             WHERE i.bot_job_id = ?
+             ORDER BY i.block_id, i.instruction_order_number, i.id
             """;
     private static final String INSTRUCTION_INSERT = """
             INSERT INTO instruction (
@@ -71,9 +85,9 @@ public final class ComponentMemoryApplyService {
                    force_coordinates, iframe_xpath, tag_name, shadow_host, shadow_root,
                    css_selector, description, operation, optional, block_marked,
                    default_value, action_custom_max_wait_sec, on_hold_seconds, codified,
-                   export_to_abr, active, block_id, variable_id, parent_block_id, parent_id,
+                   export_to_abr, active, block_id, parent_block_id, parent_id,
                    bot_job_id, client_named)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """;
     private static final String BLOCK_INSERT = """
             INSERT INTO block (
@@ -394,9 +408,12 @@ public final class ComponentMemoryApplyService {
                 }
             }
 
+            VariableNameAllocator variableNames =
+                    loadVariableNameAllocator(connection, request);
             copyBotJobVariables(
                     connection,
                     request,
+                    variableNames,
                     selectedBotJobInstructionIds,
                     currentBotById,
                     generatedBotJobInstructionIds,
@@ -416,6 +433,7 @@ public final class ComponentMemoryApplyService {
             copyComponentVariables(
                     connection,
                     request,
+                    variableNames,
                     componentPlan.selectedInstructionIds(),
                     generatedComponentInstructionIds,
                     insertedRows);
@@ -525,6 +543,12 @@ public final class ComponentMemoryApplyService {
         } catch (SQLException | RuntimeException failure) {
             rollback(connection);
             restoreAutoCommit(connection, previousAutoCommit);
+            log.error(
+                    "Memory List apply transaction failed requestId={} homeBankingId={} botJobId={}",
+                    request.requestId(),
+                    request.homeBankingId(),
+                    request.botJobId(),
+                    failure);
             return Result.failed(error(
                     "Memory List Apply Failed",
                     "No Bot Job data was changed.",
@@ -743,7 +767,7 @@ public final class ComponentMemoryApplyService {
             }
         }
         validateSelectedVariableIntegrity(
-                selectedAll, byId, variables, "component");
+                selectedAll, byId, variables, "component", true);
 
         return new ComponentSelectionPlan(
                 Set.copyOf(selectedAll),
@@ -809,7 +833,7 @@ public final class ComponentMemoryApplyService {
                 }
             }
         }
-        validateSelectedVariableIntegrity(ids, currentBotById, variables, "Bot Job");
+        validateSelectedVariableIntegrity(ids, currentBotById, variables, "Bot Job", false);
         return Set.copyOf(ids);
     }
 
@@ -822,7 +846,8 @@ public final class ComponentMemoryApplyService {
             Set<Integer> selectedInstructionIds,
             Map<Integer, InstructionRow> instructionsById,
             List<VariableLoadDTO> variables,
-            String sourceLabel) {
+            String sourceLabel,
+            boolean requireSelectedProducer) {
         Map<Integer, VariableLoadDTO> variablesById = new HashMap<>();
         for (VariableLoadDTO variable : variables) {
             if (variable != null && variable.getId() != null) {
@@ -843,12 +868,14 @@ public final class ComponentMemoryApplyService {
                                     + " instruction references a variable that no longer exists.");
                 }
                 Integer ownerId = variable.getInstructionId();
-                if (ownerId == null || !selectedInstructionIds.contains(ownerId)) {
+                if (requireSelectedProducer
+                        && (ownerId == null || !selectedInstructionIds.contains(ownerId))) {
                     throw new ApplyRefused(
                             "A selected " + sourceLabel
                                     + " variable owner was not selected.");
                 }
             }
+            if (!requireSelectedProducer) continue;
             if (!VariableDefinitionPolicy.isConsumer(instruction.actions())) continue;
             if (instruction.variableId() == null) {
                 throw new ApplyRefused(
@@ -1007,7 +1034,6 @@ public final class ComponentMemoryApplyService {
         statement.setInt(parameter++, blockId);
         statement.setNull(parameter++, Types.INTEGER);
         statement.setNull(parameter++, Types.INTEGER);
-        statement.setNull(parameter++, Types.INTEGER);
         statement.setInt(parameter++, botJobId);
         statement.setObject(parameter, source.clientNamed());
         if (statement.executeUpdate() != 1) {
@@ -1026,6 +1052,7 @@ public final class ComponentMemoryApplyService {
     private void copyBotJobVariables(
             Connection connection,
             Request request,
+            VariableNameAllocator variableNames,
             Set<Integer> selectedInstructionIds,
             Map<Integer, InstructionRow> sourceInstructions,
             Map<Integer, Integer> generatedInstructionIds,
@@ -1033,7 +1060,30 @@ public final class ComponentMemoryApplyService {
             throws SQLException {
         if (selectedInstructionIds.isEmpty()) return;
 
-        List<VariableCopyRow> sourceVariables = new ArrayList<>();
+        List<VariableSlotCopyRow> sourceSlots = new ArrayList<>();
+        Set<Integer> referencedVariableIds = new LinkedHashSet<>();
+        String selectSlots = "SELECT instruction_id,slot,variable_id"
+                + " FROM instruction_variable_slot"
+                + " WHERE home_banking_id=? AND bot_job_id=? ORDER BY instruction_id,slot";
+        try (PreparedStatement statement = connection.prepareStatement(selectSlots)) {
+            statement.setInt(1, request.homeBankingId());
+            statement.setInt(2, request.botJobId());
+            try (ResultSet rows = statement.executeQuery()) {
+                while (rows.next()) {
+                    int sourceInstructionId = rows.getInt("instruction_id");
+                    if (!selectedInstructionIds.contains(sourceInstructionId)) continue;
+                    int sourceVariableId = rows.getInt("variable_id");
+                    sourceSlots.add(new VariableSlotCopyRow(
+                            sourceInstructionId,
+                            rows.getString("slot"),
+                            sourceVariableId));
+                    referencedVariableIds.add(sourceVariableId);
+                }
+            }
+        }
+        if (sourceSlots.isEmpty()) return;
+
+        Map<Integer, VariableCopyRow> sourceVariables = new LinkedHashMap<>();
         String select = "SELECT id, variable_type AS type, name,"
                 + " configured_value AS value, local_format, delimiter,"
                 + " producer_instruction_id AS instruction_id"
@@ -1044,13 +1094,11 @@ public final class ComponentMemoryApplyService {
             statement.setInt(2, request.botJobId());
             try (ResultSet result = statement.executeQuery()) {
                 while (result.next()) {
+                    int sourceVariableId = result.getInt("id");
+                    if (!referencedVariableIds.contains(sourceVariableId)) continue;
                     Integer sourceInstructionId = nullableInteger(result, "instruction_id");
-                    if (sourceInstructionId == null
-                            || !selectedInstructionIds.contains(sourceInstructionId)) {
-                        continue;
-                    }
-                    sourceVariables.add(new VariableCopyRow(
-                            result.getInt("id"),
+                    sourceVariables.put(sourceVariableId, new VariableCopyRow(
+                            sourceVariableId,
                             result.getObject("type"),
                             result.getObject("name"),
                             result.getObject("value"),
@@ -1060,20 +1108,22 @@ public final class ComponentMemoryApplyService {
                 }
             }
         }
+        if (!sourceVariables.keySet().containsAll(referencedVariableIds)) {
+            throw new ApplyRefused(
+                    "A copied Bot Job variable slot references a definition that no longer exists.");
+        }
 
         Map<Integer, Integer> generatedVariableIds = new LinkedHashMap<>();
-        for (VariableCopyRow source : sourceVariables) {
-            Integer generatedOwnerId =
-                    generatedInstructionIds.get(source.instructionId());
-            if (generatedOwnerId == null) {
-                throw new ApplyRefused(
-                        "A Bot Job variable owner was not copied with its connected group.");
-            }
+        for (VariableCopyRow source : sourceVariables.values()) {
+            Integer generatedOwnerId = source.instructionId() == null
+                    ? null
+                    : generatedInstructionIds.get(source.instructionId());
             generatedVariableIds.put(
                     source.id(),
                     createBotJobVariable(
                             connection,
                             request,
+                            variableNames,
                             source.type(),
                             source.name(),
                             source.value(),
@@ -1096,6 +1146,23 @@ public final class ComponentMemoryApplyService {
                     generated.getValue(),
                     row -> row.withVariableId(generatedVariableId));
         }
+
+        List<VariableSlotCopyRow> generatedSlots = new ArrayList<>();
+        for (VariableSlotCopyRow sourceSlot : sourceSlots) {
+            Integer generatedInstructionId =
+                    generatedInstructionIds.get(sourceSlot.instructionId());
+            Integer generatedVariableId =
+                    generatedVariableIds.get(sourceSlot.variableId());
+            if (generatedInstructionId == null || generatedVariableId == null) {
+                throw new ApplyRefused(
+                        "A copied Bot Job variable slot references data that was not copied.");
+            }
+            generatedSlots.add(new VariableSlotCopyRow(
+                    generatedInstructionId,
+                    sourceSlot.slot(),
+                    generatedVariableId));
+        }
+        insertVariableSlots(connection, request, generatedSlots);
     }
 
     private void remapBotJobRelationships(
@@ -1107,7 +1174,7 @@ public final class ComponentMemoryApplyService {
             List<InstructionRow> insertedRows)
             throws SQLException {
         String update = "UPDATE instruction "
-                + "SET variable_id = ?, parent_block_id = ?, parent_id = ? "
+                + "SET parent_block_id = ?, parent_id = ? "
                 + "WHERE id = ? AND bot_job_id = ?";
         try (PreparedStatement statement = connection.prepareStatement(update)) {
             for (Map.Entry<Integer, Integer> generated :
@@ -1159,11 +1226,10 @@ public final class ComponentMemoryApplyService {
                     }
                 }
 
-                bindNullableInteger(statement, 1, inserted.variableId());
-                bindNullableInteger(statement, 2, generatedParentBlockId);
-                bindNullableInteger(statement, 3, generatedParentId);
-                statement.setInt(4, inserted.id());
-                statement.setInt(5, botJobId);
+                bindNullableInteger(statement, 1, generatedParentBlockId);
+                bindNullableInteger(statement, 2, generatedParentId);
+                statement.setInt(3, inserted.id());
+                statement.setInt(4, botJobId);
                 if (statement.executeUpdate() != 1) {
                     throw new SQLException(
                             "Copied Bot Job instruction could not be relationship-remapped.");
@@ -1255,6 +1321,7 @@ public final class ComponentMemoryApplyService {
     private void copyComponentVariables(
             Connection connection,
             Request request,
+            VariableNameAllocator variableNames,
             Set<Integer> selectedInstructionIds,
             Map<Integer, Integer> instructionIds,
             List<InstructionRow> insertedRows)
@@ -1282,6 +1349,7 @@ public final class ComponentMemoryApplyService {
                             createBotJobVariable(
                                     connection,
                                     request,
+                                    variableNames,
                                     result.getObject("type"),
                                     result.getObject("name"),
                                     result.getObject("value"),
@@ -1291,6 +1359,7 @@ public final class ComponentMemoryApplyService {
                 }
             }
         }
+        List<VariableSlotCopyRow> generatedSlots = new ArrayList<>();
         for (int index = 0; index < insertedRows.size(); index++) {
             InstructionRow row = insertedRows.get(index);
             if (row.sourceComponentId() == null || row.variableId() == null) continue;
@@ -1299,30 +1368,92 @@ public final class ComponentMemoryApplyService {
                 throw new ApplyRefused(
                         "A selected component instruction references a variable that was not copied.");
             }
-            insertedRows.set(index, row.withVariableId(generatedVariableId));
+            String slot = primaryVariableSlot(row.actions());
+            InstructionRow remapped =
+                    row.withVariableId(slot == null ? null : generatedVariableId);
+            insertedRows.set(index, remapped);
+            if (slot != null) {
+                generatedSlots.add(
+                        new VariableSlotCopyRow(remapped.id(), slot, generatedVariableId));
+            }
         }
+        insertVariableSlots(connection, request, generatedSlots);
+    }
+
+    private void insertVariableSlots(
+            Connection connection, Request request, List<VariableSlotCopyRow> slots)
+            throws SQLException {
+        if (slots.isEmpty()) return;
+        String insert = "INSERT INTO instruction_variable_slot"
+                + " (home_banking_id,bot_job_id,instruction_id,slot,variable_id,slot_revision,"
+                + "created_at,updated_at) VALUES (?,?,?,?,?,1,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)";
+        try (PreparedStatement statement = connection.prepareStatement(insert)) {
+            for (VariableSlotCopyRow slot : slots) {
+                statement.setInt(1, request.homeBankingId());
+                statement.setInt(2, request.botJobId());
+                statement.setInt(3, slot.instructionId());
+                statement.setString(4, slot.slot());
+                statement.setInt(5, slot.variableId());
+                statement.addBatch();
+            }
+            for (int result : statement.executeBatch()) {
+                if (result == Statement.EXECUTE_FAILED || result == 0) {
+                    throw new SQLException(
+                            "Variable slot copy did not persist every submitted relationship.");
+                }
+            }
+        }
+    }
+
+    private static String primaryVariableSlot(String actionValue) {
+        String action = CommandRegistry.canonicalize(actionValue);
+        return switch (action) {
+            case "CK", "CHECKVALUE", "CSV CHECK", "PDF CHECK" -> "LEFT";
+            case "GET" -> "GET_WRITE";
+            case "SET" -> "READ_SET";
+            case "E", "EXCELWRITE" -> "READ";
+            default -> null;
+        };
+    }
+
+    private VariableNameAllocator loadVariableNameAllocator(
+            Connection connection, Request request) throws SQLException {
+        Set<String> existingNames = new LinkedHashSet<>();
+        String select = "SELECT name FROM bot_job_variable_definition"
+                + " WHERE home_banking_id=? AND bot_job_id=? ORDER BY id";
+        try (PreparedStatement statement = connection.prepareStatement(select)) {
+            statement.setInt(1, request.homeBankingId());
+            statement.setInt(2, request.botJobId());
+            try (ResultSet rows = statement.executeQuery()) {
+                while (rows.next()) existingNames.add(rows.getString("name"));
+            }
+        }
+        return new VariableNameAllocator(existingNames);
     }
 
     private int createBotJobVariable(
             Connection connection,
             Request request,
+            VariableNameAllocator variableNames,
             Object type,
             Object name,
             Object configuredValue,
             Object localFormat,
             Object delimiter,
-            int producerInstructionId)
+            Integer producerInstructionId)
             throws SQLException {
         MutationResult created = RUNTIME_VARIABLES.createDefinition(
                 connection,
                 new OwnerKey(request.homeBankingId(), request.botJobId()),
                 new DefinitionDraft(
                         text(type),
-                        text(name),
+                        variableNames.allocate(text(name)),
                         text(configuredValue),
                         text(localFormat),
                         text(delimiter),
-                        (long) producerInstructionId,
+                        producerInstructionId == null
+                                ? null
+                                : producerInstructionId.longValue(),
                         ValueState.VOID,
                         null),
                 null);
@@ -1350,7 +1481,7 @@ public final class ComponentMemoryApplyService {
             }
         }
         String update = "UPDATE instruction "
-                + "SET variable_id = ?, parent_block_id = ?, parent_id = ? "
+                + "SET parent_block_id = ?, parent_id = ? "
                 + "WHERE id = ? AND bot_job_id = ?";
         try (PreparedStatement statement = connection.prepareStatement(update)) {
             for (int index = 0; index < insertedRows.size(); index++) {
@@ -1385,11 +1516,10 @@ public final class ComponentMemoryApplyService {
                                 "A copied component instruction references a parent Block that was not copied.");
                     }
                 }
-                bindNullableInteger(statement, 1, row.variableId());
-                bindNullableInteger(statement, 2, parentBlockId);
-                bindNullableInteger(statement, 3, parentId);
-                statement.setInt(4, row.id());
-                statement.setInt(5, botJobId);
+                bindNullableInteger(statement, 1, parentBlockId);
+                bindNullableInteger(statement, 2, parentId);
+                statement.setInt(3, row.id());
+                statement.setInt(4, botJobId);
                 if (statement.executeUpdate() != 1) {
                     throw new SQLException(
                             "Copied component instruction could not be relationship-remapped.");
@@ -1877,7 +2007,49 @@ public final class ComponentMemoryApplyService {
             Object value,
             Object localFormat,
             Object delimiter,
-            int instructionId) {}
+            Integer instructionId) {}
+
+    private record VariableSlotCopyRow(int instructionId, String slot, int variableId) {}
+
+    private static final class VariableNameAllocator {
+        private final Set<String> reservedNames = new HashSet<>();
+
+        private VariableNameAllocator(Set<String> existingNames) {
+            existingNames.stream()
+                    .map(VariableNameAllocator::normalize)
+                    .forEach(reservedNames::add);
+        }
+
+        private String allocate(String requestedName) {
+            String base = requestedName == null || requestedName.isBlank()
+                    ? "Variable"
+                    : requestedName.trim();
+            if (reservedNames.add(normalize(base))) return base;
+
+            String stem = base;
+            int suffix = 1;
+            int separator = base.lastIndexOf('_');
+            if (separator > 0 && separator + 1 < base.length()) {
+                try {
+                    int current = Integer.parseInt(base.substring(separator + 1));
+                    if (current >= 0 && current < Integer.MAX_VALUE) {
+                        stem = base.substring(0, separator);
+                        suffix = current + 1;
+                    }
+                } catch (NumberFormatException ignored) {
+                    // A non-numeric suffix is part of the source name.
+                }
+            }
+            while (true) {
+                String candidate = stem + "_" + suffix++;
+                if (reservedNames.add(normalize(candidate))) return candidate;
+            }
+        }
+
+        private static String normalize(String value) {
+            return value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
+        }
+    }
 
     private record ReferenceCopyRow(
             Object referenceType, Object value, int instructionId) {}

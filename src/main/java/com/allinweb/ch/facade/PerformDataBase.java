@@ -4042,10 +4042,10 @@ public class PerformDataBase {
         String instructionSql = "INSERT INTO instruction ("
                 + "coordinates, iframe_xpath, tag_name, shadow_host, shadow_root, css_selector, xpath, "
                 + "action_custom_max_wait_sec, actions, default_value, description, instruction_order_number, "
-                + "name, client_named, on_hold_seconds, operation, parent_block_id, parent_id, variable_id, "
+                + "name, client_named, on_hold_seconds, operation, parent_block_id, parent_id, "
                 + "block_id, bot_job_id, block_marked, codified, export_to_abr, optional, active, "
                 + "force_coordinates) "
-                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         String referenceSql =
                 "INSERT INTO reference(reference_type, value, instruction_id, bot_job_id) VALUES (?, ?, ?, ?)";
         conn.setAutoCommit(false);
@@ -4113,7 +4113,6 @@ public class PerformDataBase {
         statement.setObject(parameter++, instruction.getOperation());
         statement.setObject(parameter++, instruction.getParentBlockId());
         statement.setObject(parameter++, instruction.getParentId());
-        statement.setObject(parameter++, instruction.getVariableId());
         statement.setInt(parameter++, blockId);
         statement.setInt(parameter++, botJobId);
         statement.setObject(parameter++, booleanValue(instruction.getBlockMarked()));

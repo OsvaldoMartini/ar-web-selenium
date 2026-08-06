@@ -6,7 +6,10 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.allinweb.ch.db.migrations.M20260729_InstructionGraphState;
 import com.allinweb.ch.db.migrations.M20260730_BotJobRuntimeVariables;
+import com.allinweb.ch.db.migrations.M20260803_InstructionVariableSlot;
+import com.allinweb.ch.db.migrations.M20260805_RuntimeMemoryColumns;
 import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.model.ReferenceLoadDTO;
 import com.allinweb.ch.model.VariableLoadDTO;
@@ -43,7 +46,13 @@ class ComponentMemoryApplyServiceTest {
                 List.of(ComponentMemoryApplyService.OrderedItem.componentBlock(
                         "COMPONENT:BLOCK:2:20", 20, revision))));
 
-        assertTrue(result.committed());
+        assertTrue(
+                result.committed(),
+                () -> result.error() == null
+                        ? "No failure detail"
+                        : result.error().getErrorTitle() + " | "
+                                + result.error().getErrorHeader() + " | "
+                                + result.error().getErrorMessage());
         assertFalse(result.duplicate());
         assertEquals(1, result.generatedBlockIds().size());
         try (Connection connection = DriverManager.getConnection(url);
@@ -58,14 +67,14 @@ class ComponentMemoryApplyServiceTest {
                     "SELECT COUNT(*) FROM bot_job_variable_definition WHERE bot_job_id=5"));
             assertEquals(1, scalar(statement, "SELECT COUNT(*) FROM reference WHERE bot_job_id=5"));
 
+            int generatedWebFieldId;
             try (ResultSet rows = statement.executeQuery(
-                    "SELECT id, name, parent_id, parent_block_id, variable_id, block_id "
+                    "SELECT id, name, parent_id, parent_block_id, block_id "
                             + "FROM instruction WHERE bot_job_id=5 ORDER BY instruction_order_number")) {
                 assertTrue(rows.next());
-                int generatedWebFieldId = rows.getInt("id");
+                generatedWebFieldId = rows.getInt("id");
                 int generatedBlockId = rows.getInt("block_id");
                 assertEquals("Field", rows.getString("name"));
-                assertNotNull(rows.getObject("variable_id"));
 
                 assertTrue(rows.next());
                 assertEquals("LOOP", rows.getString("name"));
@@ -73,6 +82,18 @@ class ComponentMemoryApplyServiceTest {
                 assertEquals(generatedBlockId, rows.getInt("block_id"));
                 assertEquals(generatedBlockId, rows.getInt("parent_block_id"));
             }
+            assertEquals(
+                    generatedWebFieldId,
+                    scalar(
+                            statement,
+                            "SELECT producer_instruction_id FROM bot_job_variable_definition"
+                                    + " WHERE bot_job_id=5"));
+            assertEquals(
+                    0,
+                    scalar(
+                            statement,
+                            "SELECT COUNT(*) FROM instruction_variable_slot"
+                                    + " WHERE bot_job_id=5"));
         }
     }
 
@@ -382,19 +403,31 @@ class ComponentMemoryApplyServiceTest {
             assertEquals(1, scalar(statement,
                     "SELECT COUNT(*) FROM bot_job_variable_definition WHERE bot_job_id=5"));
             assertEquals(1, scalar(statement, "SELECT COUNT(*) FROM reference WHERE bot_job_id=5"));
+            int generatedParentId;
             try (ResultSet rows = statement.executeQuery(
-                    "SELECT id,name,parent_id,parent_block_id,variable_id "
+                    "SELECT id,name,parent_id,parent_block_id "
                             + "FROM instruction WHERE bot_job_id=5 AND block_id=10 "
                             + "ORDER BY instruction_order_number")) {
                 assertTrue(rows.next());
-                int generatedParentId = rows.getInt("id");
+                generatedParentId = rows.getInt("id");
                 assertEquals("Field", rows.getString("name"));
-                assertNotNull(rows.getObject("variable_id"));
                 assertTrue(rows.next());
                 assertEquals("LOOP", rows.getString("name"));
                 assertEquals(generatedParentId, rows.getInt("parent_id"));
                 assertEquals(10, rows.getInt("parent_block_id"));
             }
+            assertEquals(
+                    generatedParentId,
+                    scalar(
+                            statement,
+                            "SELECT producer_instruction_id FROM bot_job_variable_definition"
+                                    + " WHERE bot_job_id=5"));
+            assertEquals(
+                    0,
+                    scalar(
+                            statement,
+                            "SELECT COUNT(*) FROM instruction_variable_slot"
+                                    + " WHERE bot_job_id=5"));
         }
     }
 
@@ -501,6 +534,13 @@ class ComponentMemoryApplyServiceTest {
                                     + generatedInstructionId + " AND bot_job_id=5"
                                     + " AND reference_type='currentXPath'"
                                     + " AND value='//button[@data-testid=''submit'']'"));
+            assertEquals(
+                    0,
+                    scalar(
+                            statement,
+                            "SELECT COUNT(*) FROM instruction_variable_slot"
+                                    + " WHERE home_banking_id=2 AND bot_job_id=5"
+                                    + " AND instruction_id=" + generatedInstructionId));
         }
     }
 
@@ -817,7 +857,7 @@ class ComponentMemoryApplyServiceTest {
             int generatedGetId = -1;
             int generatedExtractId = -1;
             try (ResultSet rows = statement.executeQuery(
-                    "SELECT id,name,parent_id,parent_block_id,variable_id "
+                    "SELECT id,name,parent_id,parent_block_id "
                             + "FROM instruction WHERE bot_job_id=5 AND block_id=10 "
                             + "ORDER BY instruction_order_number")) {
                 assertTrue(rows.next());
@@ -825,23 +865,27 @@ class ComponentMemoryApplyServiceTest {
                 assertEquals("Field", rows.getString("name"));
                 assertTrue(rows.getObject("parent_id") == null);
                 assertTrue(rows.getObject("parent_block_id") == null);
-                assertEquals(generatedVariableId, rows.getInt("variable_id"));
 
                 assertTrue(rows.next());
                 generatedGetId = rows.getInt("id");
                 assertEquals("Get Value", rows.getString("name"));
                 assertEquals(generatedFieldId, rows.getInt("parent_id"));
                 assertEquals(10, rows.getInt("parent_block_id"));
-                assertEquals(generatedVariableId, rows.getInt("variable_id"));
 
                 assertTrue(rows.next());
                 generatedExtractId = rows.getInt("id");
                 assertEquals("Extract Field", rows.getString("name"));
                 assertEquals(generatedFieldId, rows.getInt("parent_id"));
                 assertEquals(10, rows.getInt("parent_block_id"));
-                assertEquals(generatedVariableId, rows.getInt("variable_id"));
                 assertTrue(!rows.next());
             }
+            assertNull(slotVariableId(statement, generatedFieldId, "GET_WRITE"));
+            assertEquals(
+                    generatedVariableId,
+                    slotVariableId(statement, generatedGetId, "GET_WRITE"));
+            assertEquals(
+                    generatedVariableId,
+                    slotVariableId(statement, generatedExtractId, "READ"));
             assertEquals(generatedFieldId, generatedVariableOwner);
             assertTrue(generatedFieldId != 101);
             assertTrue(generatedGetId != 103);
@@ -1021,7 +1065,13 @@ class ComponentMemoryApplyServiceTest {
                                 ComponentMemoryApplyService.OrderedItem.botJob(
                                         "BOT_JOB:501", 501, botJobRevision(url)))));
 
-        assertTrue(result.committed());
+        assertTrue(
+                result.committed(),
+                () -> result.error() == null
+                        ? "No failure detail"
+                        : result.error().getErrorTitle() + " | "
+                                + result.error().getErrorHeader() + " | "
+                                + result.error().getErrorMessage());
         int copiedFieldId = result.generatedInstructionIds().get("BOT_JOB:501");
         int copiedGetId = result.generatedInstructionIds().get("BOT_JOB:502");
         int copiedExtractId = result.generatedInstructionIds().get("BOT_JOB:503");
@@ -1046,21 +1096,19 @@ class ComponentMemoryApplyServiceTest {
             assertEquals(6, scalar(statement, "SELECT COUNT(*) FROM reference WHERE bot_job_id=5"));
 
             try (ResultSet source = statement.executeQuery(
-                    "SELECT id,instruction_order_number,block_id,variable_id,parent_id,parent_block_id "
+                    "SELECT id,instruction_order_number,block_id,parent_id,parent_block_id "
                             + "FROM instruction WHERE id IN (501,502,503) "
                             + "ORDER BY instruction_order_number")) {
                 assertTrue(source.next());
                 assertEquals(501, source.getInt("id"));
                 assertEquals(1, source.getInt("instruction_order_number"));
                 assertEquals(10, source.getInt("block_id"));
-                assertEquals(701, source.getInt("variable_id"));
                 assertTrue(source.getObject("parent_id") == null);
 
                 assertTrue(source.next());
                 assertEquals(502, source.getInt("id"));
                 assertEquals(2, source.getInt("instruction_order_number"));
                 assertEquals(10, source.getInt("block_id"));
-                assertEquals(701, source.getInt("variable_id"));
                 assertEquals(501, source.getInt("parent_id"));
                 assertEquals(10, source.getInt("parent_block_id"));
 
@@ -1068,11 +1116,13 @@ class ComponentMemoryApplyServiceTest {
                 assertEquals(503, source.getInt("id"));
                 assertEquals(3, source.getInt("instruction_order_number"));
                 assertEquals(10, source.getInt("block_id"));
-                assertEquals(701, source.getInt("variable_id"));
                 assertEquals(501, source.getInt("parent_id"));
                 assertEquals(10, source.getInt("parent_block_id"));
                 assertTrue(!source.next());
             }
+            assertNull(slotVariableId(statement, 501, "GET_WRITE"));
+            assertEquals(701, slotVariableId(statement, 502, "GET_WRITE"));
+            assertEquals(701, slotVariableId(statement, 503, "READ"));
 
             int copiedVariableId;
             try (ResultSet variable = statement.executeQuery(
@@ -1082,7 +1132,7 @@ class ComponentMemoryApplyServiceTest {
                 assertTrue(variable.next());
                 copiedVariableId = variable.getInt("id");
                 assertEquals("TEXT", variable.getString("variable_type"));
-                assertEquals("balance", variable.getString("name"));
+                assertEquals("balance_1", variable.getString("name"));
                 assertEquals("0", variable.getString("configured_value"));
                 assertEquals("CH", variable.getString("local_format"));
                 assertEquals(",", variable.getString("delimiter"));
@@ -1091,30 +1141,34 @@ class ComponentMemoryApplyServiceTest {
             }
 
             try (ResultSet copied = statement.executeQuery(
-                    "SELECT id,name,instruction_order_number,variable_id,parent_id,parent_block_id "
+                    "SELECT id,name,instruction_order_number,parent_id,parent_block_id "
                             + "FROM instruction WHERE block_id=11 "
                             + "ORDER BY instruction_order_number")) {
                 assertTrue(copied.next());
                 assertEquals(copiedFieldId, copied.getInt("id"));
                 assertEquals("Web Field", copied.getString("name"));
-                assertEquals(copiedVariableId, copied.getInt("variable_id"));
                 assertTrue(copied.getObject("parent_id") == null);
 
                 assertTrue(copied.next());
                 assertEquals(copiedGetId, copied.getInt("id"));
                 assertEquals("Get Value", copied.getString("name"));
-                assertEquals(copiedVariableId, copied.getInt("variable_id"));
                 assertEquals(copiedFieldId, copied.getInt("parent_id"));
                 assertEquals(11, copied.getInt("parent_block_id"));
 
                 assertTrue(copied.next());
                 assertEquals(copiedExtractId, copied.getInt("id"));
                 assertEquals("Extract Field", copied.getString("name"));
-                assertEquals(copiedVariableId, copied.getInt("variable_id"));
                 assertEquals(copiedFieldId, copied.getInt("parent_id"));
                 assertEquals(11, copied.getInt("parent_block_id"));
                 assertTrue(!copied.next());
             }
+            assertNull(slotVariableId(statement, copiedFieldId, "GET_WRITE"));
+            assertEquals(
+                    copiedVariableId,
+                    slotVariableId(statement, copiedGetId, "GET_WRITE"));
+            assertEquals(
+                    copiedVariableId,
+                    slotVariableId(statement, copiedExtractId, "READ"));
             assertEquals(
                     3,
                     scalar(
@@ -1128,6 +1182,106 @@ class ComponentMemoryApplyServiceTest {
                             statement,
                             "SELECT COUNT(*) FROM reference WHERE bot_job_id=5"
                                     + " AND instruction_id IN (501,502,503)"));
+        }
+    }
+
+    @Test
+    void botJobCopyPersistsEveryDirectionalVariableSlot() throws Exception {
+        String url = databaseUrl("bot-job-all-variable-slots");
+        initializeDatabase(url);
+        seedBotJobWebFieldFamily(url);
+        try (Connection connection = DriverManager.getConnection(url);
+                Statement statement = connection.createStatement()) {
+            statement.execute(
+                    "UPDATE bot_job_variable_definition SET producer_instruction_id=NULL"
+                            + " WHERE home_banking_id=2 AND bot_job_id=5 AND id=701");
+            statement.execute(
+                    "INSERT INTO instruction("
+                            + "id,instruction_order_number,actions,name,active,block_id,"
+                            + "parent_block_id,parent_id,bot_job_id) VALUES"
+                            + "(504,4,'CK','Check balance',1,10,10,501,5),"
+                            + "(505,5,'SET','Set balance',1,10,10,501,5)");
+            statement.execute(
+                    "INSERT INTO instruction_variable_slot("
+                            + "home_banking_id,bot_job_id,instruction_id,slot,variable_id,"
+                            + "slot_revision,created_at,updated_at) VALUES"
+                            + "(2,5,504,'LEFT',701,1,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP),"
+                            + "(2,5,504,'RIGHT',701,1,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP),"
+                            + "(2,5,505,'READ_SET',701,1,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)");
+        }
+        String revision = botJobRevision(url);
+        ComponentMemoryApplyService service =
+                new ComponentMemoryApplyService(() -> DriverManager.getConnection(url));
+
+        ComponentMemoryApplyService.Result result = service.apply(
+                new ComponentMemoryApplyService.Request(
+                        "bot-job-all-variable-slots",
+                        5,
+                        2,
+                        11,
+                        List.of(
+                                ComponentMemoryApplyService.OrderedItem.botJob(
+                                        "BOT_JOB:501", 501, revision),
+                                ComponentMemoryApplyService.OrderedItem.botJob(
+                                        "BOT_JOB:502", 502, revision),
+                                ComponentMemoryApplyService.OrderedItem.botJob(
+                                        "BOT_JOB:503", 503, revision),
+                                ComponentMemoryApplyService.OrderedItem.botJob(
+                                        "BOT_JOB:504", 504, revision),
+                                ComponentMemoryApplyService.OrderedItem.botJob(
+                                        "BOT_JOB:505", 505, revision))));
+
+        assertTrue(
+                result.committed(),
+                () -> result.error() == null
+                        ? "No failure detail"
+                        : result.error().getErrorTitle() + " | "
+                                + result.error().getErrorHeader() + " | "
+                                + result.error().getErrorMessage());
+        try (Connection connection = DriverManager.getConnection(url);
+                Statement statement = connection.createStatement()) {
+            int copiedVariableId = scalar(
+                    statement,
+                    "SELECT id FROM bot_job_variable_definition"
+                            + " WHERE home_banking_id=2 AND bot_job_id=5 AND id<>701");
+            assertEquals(
+                    1,
+                    scalar(
+                            statement,
+                            "SELECT COUNT(*) FROM bot_job_variable_definition"
+                                    + " WHERE home_banking_id=2 AND bot_job_id=5"
+                                    + " AND id=" + copiedVariableId
+                                    + " AND producer_instruction_id IS NULL"));
+            assertEquals(
+                    copiedVariableId,
+                    slotVariableId(
+                            statement,
+                            result.generatedInstructionIds().get("BOT_JOB:502"),
+                            "GET_WRITE"));
+            assertEquals(
+                    copiedVariableId,
+                    slotVariableId(
+                            statement,
+                            result.generatedInstructionIds().get("BOT_JOB:503"),
+                            "READ"));
+            assertEquals(
+                    copiedVariableId,
+                    slotVariableId(
+                            statement,
+                            result.generatedInstructionIds().get("BOT_JOB:504"),
+                            "LEFT"));
+            assertEquals(
+                    copiedVariableId,
+                    slotVariableId(
+                            statement,
+                            result.generatedInstructionIds().get("BOT_JOB:504"),
+                            "RIGHT"));
+            assertEquals(
+                    copiedVariableId,
+                    slotVariableId(
+                            statement,
+                            result.generatedInstructionIds().get("BOT_JOB:505"),
+                            "READ_SET"));
         }
     }
 
@@ -1225,8 +1379,13 @@ class ComponentMemoryApplyServiceTest {
             statement.execute(
                     "INSERT INTO instruction("
                             + "id,instruction_order_number,actions,name,active,block_id,"
-                            + "variable_id,parent_block_id,parent_id,bot_job_id) VALUES"
-                            + "(504,4,'CK','Unrelated consumer',1,10,701,10,501,5)");
+                            + "parent_block_id,parent_id,bot_job_id) VALUES"
+                            + "(504,4,'CK','Unrelated consumer',1,10,10,501,5)");
+            statement.execute(
+                    "INSERT INTO instruction_variable_slot("
+                            + "home_banking_id,bot_job_id,instruction_id,slot,variable_id,"
+                            + "slot_revision,created_at,updated_at) VALUES"
+                            + "(2,5,504,'LEFT',701,1,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)");
         }
         String stagedRevision = botJobRevision(url);
         ComponentMemoryApplyService service =
@@ -1589,14 +1748,14 @@ class ComponentMemoryApplyServiceTest {
             statement.execute(
                     "INSERT INTO instruction("
                             + "id,instruction_order_number,actions,name,xpath,css_selector,"
-                            + "description,operation,active,block_id,variable_id,parent_block_id,"
+                            + "description,operation,active,block_id,parent_block_id,"
                             + "parent_id,bot_job_id,client_named) VALUES"
                             + "(501,1,'C','Web Field','//input[@id=''balance'']','#balance',"
-                            + "'Balance input','ET',1,10,701,NULL,NULL,5,'balanceField'),"
+                            + "'Balance input','ET',1,10,NULL,NULL,5,'balanceField'),"
                             + "(502,2,'GET','Get Value',NULL,NULL,'Read balance',NULL,"
-                            + "1,10,701,10,501,5,NULL),"
+                            + "1,10,10,501,5,NULL),"
                             + "(503,3,'E','Extract Field',NULL,NULL,'Extract balance',NULL,"
-                            + "1,10,701,10,501,5,NULL)");
+                            + "1,10,10,501,5,NULL)");
             statement.execute(
                     "INSERT INTO bot_job_variable_definition("
                             + "home_banking_id,bot_job_id,id,variable_type,name,configured_value,"
@@ -1617,8 +1776,11 @@ class ComponentMemoryApplyServiceTest {
                             + " VALUES(2,5,701,'VOID',NULL,'NO_PRODUCER_YET','SYSTEM',0,NULL,"
                             + "CURRENT_TIMESTAMP)");
             statement.execute(
-                    "UPDATE bot_job_runtime_memory SET next_variable_id=702"
-                            + " WHERE home_banking_id=2 AND bot_job_id=5");
+                    "INSERT INTO instruction_variable_slot("
+                            + "home_banking_id,bot_job_id,instruction_id,slot,variable_id,"
+                            + "slot_revision,created_at,updated_at) VALUES"
+                            + "(2,5,502,'GET_WRITE',701,1,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP),"
+                            + "(2,5,503,'READ',701,1,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)");
             statement.execute(
                     "INSERT INTO reference(id,reference_type,value,instruction_id,bot_job_id) VALUES"
                             + "(801,'xpath','//input[@id=''balance'']',501,5),"
@@ -1692,7 +1854,12 @@ class ComponentMemoryApplyServiceTest {
             statement.execute(
                     "INSERT INTO component_reference(id,reference_type,value,instruction_id,"
                             + "home_banking_id) VALUES(301,'xpath','//button',101,2)");
+            new M20260729_InstructionGraphState().apply(connection, "TEXT");
             new M20260730_BotJobRuntimeVariables().apply(connection, "TEXT");
+            new M20260803_InstructionVariableSlot().apply(connection, "TEXT");
+            new M20260805_RuntimeMemoryColumns().apply(connection, "TEXT");
+            // Migrations consume the historical source column. Runtime persistence must not.
+            statement.execute("ALTER TABLE instruction DROP COLUMN variable_id");
         }
     }
 
@@ -1747,9 +1914,16 @@ class ComponentMemoryApplyServiceTest {
         try (Connection connection = DriverManager.getConnection(url);
                 Statement statement = connection.createStatement()) {
             try (ResultSet result = statement.executeQuery(
-                    "SELECT id,block_id,instruction_order_number,actions,parent_id,"
-                            + "parent_block_id,variable_id,operation "
-                            + "FROM instruction WHERE bot_job_id=5 ORDER BY id")) {
+                    "SELECT i.id,i.block_id,i.instruction_order_number,i.actions,i.parent_id,"
+                            + "i.parent_block_id,(SELECT ivs.variable_id"
+                            + " FROM instruction_variable_slot ivs"
+                            + " WHERE ivs.home_banking_id=2 AND ivs.bot_job_id=i.bot_job_id"
+                            + " AND ivs.instruction_id=i.id AND ivs.slot=CASE UPPER(TRIM(i.actions))"
+                            + " WHEN 'CK' THEN 'LEFT' WHEN 'CHECKVALUE' THEN 'LEFT'"
+                            + " WHEN 'CSV CHECK' THEN 'LEFT' WHEN 'PDF CHECK' THEN 'LEFT'"
+                            + " WHEN 'GET' THEN 'GET_WRITE' WHEN 'SET' THEN 'READ_SET'"
+                            + " WHEN 'E' THEN 'READ' ELSE NULL END LIMIT 1) AS variable_id,"
+                            + "i.operation FROM instruction i WHERE i.bot_job_id=5 ORDER BY i.id")) {
                 while (result.next()) {
                     InstructionLoad row = new InstructionLoad();
                     row.setId(result.getInt("id"));
@@ -1865,6 +2039,20 @@ class ComponentMemoryApplyServiceTest {
         try (ResultSet result = statement.executeQuery(sql)) {
             assertTrue(result.next());
             return result.getInt(1);
+        }
+    }
+
+    private Integer slotVariableId(Statement statement, int instructionId, String slot)
+            throws Exception {
+        try (ResultSet result = statement.executeQuery(
+                "SELECT variable_id FROM instruction_variable_slot"
+                        + " WHERE home_banking_id=2 AND bot_job_id=5"
+                        + " AND instruction_id=" + instructionId
+                        + " AND slot='" + slot + "'")) {
+            if (!result.next()) return null;
+            Integer variableId = (Integer) result.getObject("variable_id");
+            assertTrue(!result.next());
+            return variableId;
         }
     }
 

@@ -72,7 +72,7 @@ class PerformDataBasePageScannerTransactionTest {
                       action_custom_max_wait_sec INTEGER, actions TEXT, default_value TEXT,
                       description TEXT, instruction_order_number INTEGER, name TEXT,
                       client_named TEXT, on_hold_seconds INTEGER, operation TEXT,
-                      parent_block_id INTEGER, parent_id INTEGER, variable_id INTEGER,
+                      parent_block_id INTEGER, parent_id INTEGER,
                       block_id INTEGER, bot_job_id INTEGER, block_marked INTEGER,
                       codified INTEGER, export_to_abr INTEGER, optional INTEGER, active INTEGER,
                       force_coordinates TEXT
