@@ -2058,38 +2058,62 @@ public final class VariablesWorkspaceService {
 
     private boolean isRuntimeMemoryPublishTarget(BotJobKey owner) {
         synchronized (stateLock) {
-            return owner != null
-                    && binding != null
-                    && binding.botJobId() == owner.botJobId()
-                    && binding.homeBankingId() == owner.homeBankingId()
-                    && managerTransport != null
-                    && managerTransport.isOpen();
+            return matchesRuntimeTarget(owner, binding, managerTransport)
+                    || matchesRuntimeTarget(owner, smokeTestBinding, smokeTestTransport);
         }
+    }
+
+    private static boolean matchesRuntimeTarget(
+            BotJobKey owner,
+            Binding candidate,
+            Session transport) {
+        return owner != null
+                && candidate != null
+                && candidate.botJobId() == owner.botJobId()
+                && candidate.homeBankingId() == owner.homeBankingId()
+                && transport != null
+                && transport.isOpen();
     }
 
     /**
      * Publishes runtime memory without reloading or invalidating the persisted instruction graph.
      */
     boolean publishRuntimeMemoryIfOpen(BotJobKey owner) {
-        Binding current = currentBinding();
-        if (owner == null
-                || current == null
-                || current.botJobId() != owner.botJobId()
-                || current.homeBankingId() != owner.homeBankingId()
-                || !windows.isOpen(WORKSPACE_SESSION_ID)) {
-            return false;
+        Binding variablesTarget;
+        Binding smokeTestTarget;
+        synchronized (stateLock) {
+            variablesTarget = matchesRuntimeTarget(owner, binding, managerTransport)
+                    ? binding : null;
+            smokeTestTarget = matchesRuntimeTarget(owner, smokeTestBinding, smokeTestTransport)
+                    ? smokeTestBinding : null;
         }
+        boolean variablesPublished = publishRuntimeMemoryToTarget(
+                owner, variablesTarget, WORKSPACE_SESSION_ID);
+        boolean smokeTestPublished = publishRuntimeMemoryToTarget(
+                owner, smokeTestTarget, DetachedWorkspaceSessions.SMOKE_TEST_MANAGER);
+        return variablesPublished || smokeTestPublished;
+    }
+
+    private boolean publishRuntimeMemoryToTarget(
+            BotJobKey owner,
+            Binding target,
+            String sessionId) {
+        if (owner == null || target == null || !windows.isOpen(sessionId)) return false;
         try {
             WorkspaceContext workspace =
-                    workspaces.require(current.botJobId(), current.workspaceEpoch());
-            current = current.withWorkspace(workspace);
-            Binding latest = currentBinding(current.bindingEpoch());
-            if (latest == null
-                    || latest.botJobId() != owner.botJobId()
-                    || latest.homeBankingId() != owner.homeBankingId()) {
-                return false;
+                    workspaces.require(target.botJobId(), target.workspaceEpoch());
+            Binding current = target.withWorkspace(workspace);
+            synchronized (stateLock) {
+                Binding registered = DetachedWorkspaceSessions.SMOKE_TEST_MANAGER.equals(sessionId)
+                        ? smokeTestBinding : binding;
+                if (registered == null
+                        || !registered.bindingEpoch().equals(target.bindingEpoch())
+                        || registered.botJobId() != owner.botJobId()
+                        || registered.homeBankingId() != owner.homeBankingId()) {
+                    return false;
+                }
+                current = registered.withWorkspace(workspace);
             }
-            current = latest.withWorkspace(workspace);
             JsonObject payload = new JsonObject();
             payload.addProperty("ok", true);
             payload.addProperty("bindingEpoch", current.bindingEpoch());
@@ -2103,7 +2127,7 @@ public final class VariablesWorkspaceService {
             payload.add("runtimeMemory", snapshot);
             return windows.send(
                     current.homeBankingId(),
-                    WORKSPACE_SESSION_ID,
+                    sessionId,
                     RUNTIME_MEMORY_SNAPSHOT_OPERATION,
                     payload);
         } catch (IllegalArgumentException | IllegalStateException staleWorkspace) {
