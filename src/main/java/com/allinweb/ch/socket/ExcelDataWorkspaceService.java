@@ -324,6 +324,25 @@ public final class ExcelDataWorkspaceService {
         return snapshot(binding.mode + " rows cleared from memory.");
     }
 
+    public synchronized JsonObject deleteRow(
+            JsonObject request, String sessionId, Session transport) {
+        JsonObject authorization = requireActiveTransport(sessionId, transport);
+        if (authorization != null) return authorization;
+        if (binding == null) return failure("No Bot Job Excel dataset is open.");
+        try {
+            int rowIndex = request.get("rowIndex").getAsInt();
+            if (!binding.data().removeRow(rowIndex)) {
+                return failure("The Excel memory row no longer exists.");
+            }
+            binding.setDirty(true);
+            binding.loadedAt = Instant.now();
+            selectExecutionData();
+            return snapshot("Row " + (rowIndex + 1) + " deleted from " + binding.mode + " memory.");
+        } catch (RuntimeException error) {
+            return failure("The Excel memory row deletion is invalid.");
+        }
+    }
+
     private void publishModeChanged() {
         if (binding == null) return;
         JsonObject event = new JsonObject();

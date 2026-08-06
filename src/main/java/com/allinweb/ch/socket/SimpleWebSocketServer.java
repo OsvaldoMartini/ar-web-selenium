@@ -147,6 +147,7 @@ public class SimpleWebSocketServer {
             "excelData.mode.update",
             "excelData.refresh",
             "excelData.cell.update",
+            "excelData.row.delete",
             "excelData.rows.clear",
             "excelData.close",
             "pagesOpen.open",
@@ -1008,6 +1009,15 @@ public class SimpleWebSocketServer {
                             sessionId,
                             "excelData.rows.clearResponse",
                             excelDataWorkspaceService.clearRows(excelDataBody, sessionId, session));
+                    break;
+                }
+                case "excelData.row.delete": {
+                    JsonObject excelDataBody = extractBody(jsonObjMSG);
+                    sendCommandEditorResponse(
+                            homeBankingId,
+                            sessionId,
+                            "excelData.row.deleteResponse",
+                            excelDataWorkspaceService.deleteRow(excelDataBody, sessionId, session));
                     break;
                 }
                 case "excelData.cell.update": {

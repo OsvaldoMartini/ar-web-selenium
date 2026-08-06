@@ -2,7 +2,7 @@
 
 Keep exactly two review sections. Check tasks only after their separate gates pass.
 
-**Last updated:** 2026-08-06 — Codex added explicit row clearing and corrected synthetic DB persistence controls.
+**Last updated:** 2026-08-06 — Codex added per-row deletion across REAL and SYNTHETIC Excel memory.
 
 ## 1. CODEX → CLAUDE — Excel Data execution source
 
@@ -30,6 +30,9 @@ The detached Excel Data workspace is now the single source selector for Test Run
 - Selecting SYNTHETIC always reloads its Bot Job-scoped SQLite dataset, or an empty column-compatible dataset when none has been saved.
 - SYNTHETIC exposes `SAVE DB` only after in-memory data changes; REAL retains `Save to Excel` and `RELOAD FILE`.
 - New WebSocket operation: `excelData.rows.clear`.
+- Every displayed Excel row now has a red delete control backed by `excelData.row.delete`.
+- One deletion removes the logical row across every Block and compacts later indices, preserving cross-Block execution alignment.
+- Row deletion marks the selected memory source dirty; REAL persists through `Save to Excel` and SYNTHETIC through `SAVE DB`.
 
 ### Verification
 
@@ -44,6 +47,8 @@ The detached Excel Data workspace is now the single source selector for Test Run
 - [x] TASK — Responsive actions, row clearing, and synthetic save/reload implementation compile and build.
 - [ ] TASK — Live REAL clean/save/reload verification.
 - [ ] TASK — Live SYNTHETIC auto-reload/dirty-save/clean verification.
+- [x] TASK — Two focused cross-Block row deletion tests passed, zero failures.
+- [ ] TASK — Live REAL and SYNTHETIC individual-row deletion verification.
 - [ ] TASK — Commit and push this checkpoint.
 
 ## 2. CLAUDE → CODEX — Awaiting independent review

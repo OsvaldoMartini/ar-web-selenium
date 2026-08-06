@@ -189,6 +189,31 @@ public class ExtractedData {
         return max;
     }
 
+    /**
+     * Removes one logical dataset row from every Block and compacts every later row index.
+     * Excel execution treats a row as one cross-Block record, so deleting it from only the
+     * Block where the client clicked would corrupt alignment between command inputs.
+     *
+     * @return {@code true} when the requested row existed and was removed.
+     */
+    public boolean removeRow(int rowIndex) {
+        int rowCount = getNumberOfDataRows();
+        if (rowIndex < 0 || rowIndex >= rowCount) return false;
+        for (Map<String, Map<Integer, String>> block : extractedData.values()) {
+            for (Map<Integer, String> field : block.values()) {
+                Map<Integer, String> compacted = new HashMap<>();
+                for (Map.Entry<Integer, String> value : field.entrySet()) {
+                    int current = value.getKey();
+                    if (current == rowIndex) continue;
+                    compacted.put(current > rowIndex ? current - 1 : current, value.getValue());
+                }
+                field.clear();
+                field.putAll(compacted);
+            }
+        }
+        return true;
+    }
+
     /** @return all field names across all blocks, deduped. */
     public Set<String> getExtractedFields() {
         Set<String> all = new LinkedHashSet<>();
