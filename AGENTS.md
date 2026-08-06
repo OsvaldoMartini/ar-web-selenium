@@ -195,6 +195,7 @@ The objective is not to produce the most code. The objective is to make the smal
 - Do not run `mvn clean package` as part of these checkpoints unless the user explicitly requests it.
 - Run Java compilation only when Java source code changed. Frontend-only or documentation-only changes do not require Java compilation.
 - Continue to run the relevant frontend build when requested or when needed to validate an active frontend implementation; a template-copy-only task does not require a rebuild unless requested.
+- After a successful production frontend build, mirror the generated frontend build into `src/main/resources/build`, verify the deployed asset hashes changed as expected, and commit/push the deployment assets unless the user explicitly places deployment copying on hold.
 
 ### 12. Component isolation and separation of concerns
 
