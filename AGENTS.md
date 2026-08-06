@@ -195,3 +195,12 @@ The objective is not to produce the most code. The objective is to make the smal
 - Do not run `mvn clean package` as part of these checkpoints unless the user explicitly requests it.
 - Run Java compilation only when Java source code changed. Frontend-only or documentation-only changes do not require Java compilation.
 - Continue to run the relevant frontend build when requested or when needed to validate an active frontend implementation; a template-copy-only task does not require a rebuild unless requested.
+
+### 12. Component isolation and separation of concerns
+
+- Build new pages and features from small, focused components with explicit ownership and narrow contracts.
+- Give each page or feature its own module stylesheet for feature-specific layout and presentation. Do not place feature-specific selectors in another established page's stylesheet.
+- Reuse stable shared primitives only when their contract is genuinely common; keep page-specific composition, state, and styling isolated.
+- Prefer established design patterns where they reduce coupling, clarify ownership, or prevent duplicated business logic. Do not introduce patterns only for ceremony.
+- Before modifying a shared component, hook, stylesheet, event, or service, identify all consumers and prove that the change cannot regress already working surfaces.
+- Favor composition and dependency boundaries over copying mutable logic. When a temporary copy is explicitly requested, isolate subsequent changes so the source page remains unchanged.
