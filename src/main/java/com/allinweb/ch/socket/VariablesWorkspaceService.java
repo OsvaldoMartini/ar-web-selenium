@@ -446,6 +446,39 @@ public final class VariablesWorkspaceService {
         }
     }
 
+    /** Opens/focuses Runtime Variables for the exact Bot Job bound to the requesting workspace. */
+    public JsonObject openRuntimeVariablesWorkspace(
+            JsonObject body, String requesterSessionId, Session requesterTransport) {
+        JsonObject request = body == null ? new JsonObject() : body;
+        Binding source;
+        synchronized (stateLock) {
+            if (DetachedWorkspaceSessions.SMOKE_TEST_MANAGER.equals(requesterSessionId)
+                    && smokeTestTransport == requesterTransport) {
+                source = smokeTestBinding;
+            } else if (WORKSPACE_SESSION_ID.equals(requesterSessionId)
+                    && managerTransport == requesterTransport) {
+                source = binding;
+            } else {
+                source = null;
+            }
+        }
+        if (source == null || !windows.isRegistered(requesterSessionId, requesterTransport)) {
+            return failure(
+                    request,
+                    "The Runtime Variables launch requester is not authoritative.",
+                    source);
+        }
+        boolean opened = PagesOpenWorkspaceService.getInstance().openOrFocusDetachedWorkspace(
+                DetachedWorkspaceSessions.RUNTIME_VARIABLES_MANAGER,
+                source.botJobId(),
+                "Runtime variable execution started.");
+        if (!opened) {
+            return failure(
+                    request, "The Runtime Variables workspace could not be opened.", source);
+        }
+        return success(request, source, "Runtime Variables opened.");
+    }
+
     /** Explicitly refreshes the graph while preserving the prior UI snapshot on failure. */
     public JsonObject refresh(
             JsonObject body, String requesterSessionId, Session requesterTransport) {

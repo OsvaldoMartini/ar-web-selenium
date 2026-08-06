@@ -1040,6 +1040,16 @@ public class SimpleWebSocketServer {
                                     variablesBody, sessionId, session));
                     break;
                 }
+                case "runtimeVariablesWorkspace.open": {
+                    JsonObject runtimeVariablesBody = extractBody(jsonObjMSG);
+                    sendCommandEditorResponse(
+                            homeBankingId,
+                            sessionId,
+                            "runtimeVariablesWorkspace.openResponse",
+                            variablesWorkspaceService.openRuntimeVariablesWorkspace(
+                                    runtimeVariablesBody, sessionId, session));
+                    break;
+                }
                 case "variablesWorkspace.variables.create": {
                     JsonObject variablesBody = extractBody(jsonObjMSG);
                     sendCommandEditorResponse(

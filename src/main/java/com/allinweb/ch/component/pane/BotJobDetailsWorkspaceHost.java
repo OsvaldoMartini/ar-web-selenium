@@ -1422,6 +1422,18 @@ public class BotJobDetailsWorkspaceHost {
                     blockName,
                     request.requestId());
         }
+        if (result.accepted()) {
+            boolean runtimeOpened = PagesOpenWorkspaceService.getInstance()
+                    .openOrFocusDetachedWorkspace(
+                            com.allinweb.ch.model.DetachedWorkspaceSessions.RUNTIME_VARIABLES_MANAGER,
+                            context.botJobId(),
+                            "TEST RUN started for this Bot Job.");
+            if (!runtimeOpened) {
+                log.warn(
+                        "Runtime Variables could not be opened for TEST RUN Bot Job {}",
+                        context.botJobId());
+            }
+        }
         completion.complete(result.accepted()
                 ? BotJobToolbarActionResult.success(action, result.message())
                         .withExecutionPreflight(
