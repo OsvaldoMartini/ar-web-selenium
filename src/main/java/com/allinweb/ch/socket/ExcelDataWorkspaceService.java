@@ -6,6 +6,7 @@ import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.BotJobNativeOperationService;
 import com.allinweb.ch.facade.BotJobToolbarConcurrencyGuard;
 import com.allinweb.ch.facade.ExcelSyntheticDatasetStore;
+import com.allinweb.ch.facade.VariablesWorkspacePreferenceStore;
 import com.allinweb.ch.facade.scanner.prelaunch.ScannerPreLaunchExcelLoader;
 import com.allinweb.ch.model.BotJobLoadDTO;
 import com.allinweb.ch.model.DetachedWorkspaceSessions;
@@ -35,6 +36,7 @@ public final class ExcelDataWorkspaceService {
     private final PerformDBEngine engine = PerformDBEngine.getInstance();
     private final ScannerPreLaunchExcelLoader loader = new ScannerPreLaunchExcelLoader();
     private final ExcelSyntheticDatasetStore syntheticStore = new ExcelSyntheticDatasetStore();
+    private final VariablesWorkspacePreferenceStore preferences = new VariablesWorkspacePreferenceStore();
     private final BotJobNativeOperationService nativeOperations =
             BotJobNativeOperationService.createDefault(
                     ARPropertyManager.getInstance(), new BotJobToolbarConcurrencyGuard());
@@ -77,7 +79,9 @@ public final class ExcelDataWorkspaceService {
                     .normalize();
             ExtractedData data = loader.load(workbook.toString(), lists);
             ExtractedData synthetic = syntheticStore.load(job.getHomeBankingId(), job.getId());
-            binding = new Binding(job.getId(), job.getHomeBankingId(), job.getName(), workbook, data, synthetic);
+            String syntheticContext = preferences.loadSyntheticContext(job.getHomeBankingId(), job.getId());
+            binding = new Binding(job.getId(), job.getHomeBankingId(), job.getName(), workbook, data, synthetic,
+                    syntheticContext);
             selectExecutionData();
             boolean opened = PagesOpenWorkspaceService.getInstance()
                     .openOrFocusDetachedWorkspace(SESSION_ID, botJobId, "Excel Data workspace requested.");
@@ -140,9 +144,12 @@ public final class ExcelDataWorkspaceService {
                 }
                 String context = request.has("context")
                         ? request.get("context").getAsString().trim()
-                        : "Financial";
-                ExtractedData syntheticRows = syntheticData(binding.data(), rowCount, context);
+                        : binding.syntheticContext;
+                ExtractedData syntheticRows = request.has("blocks")
+                        ? syntheticDataFromRequest(binding.realData, request.getAsJsonArray("blocks"), rowCount)
+                        : syntheticData(binding.data(), rowCount, context);
                 binding.syntheticData = syntheticRows;
+                binding.syntheticContext = context.isBlank() ? "Bank Account" : context;
                 binding.mode = Mode.SYNTHETIC;
                 binding.syntheticDirty = true;
                 binding.loadedAt = Instant.now();
@@ -343,6 +350,27 @@ public final class ExcelDataWorkspaceService {
         }
     }
 
+    public synchronized JsonObject updateSyntheticContext(
+            JsonObject request, String sessionId, Session transport) {
+        JsonObject authorization = requireActiveTransport(sessionId, transport);
+        if (authorization != null) return authorization;
+        if (binding == null) return failure("No Bot Job Excel dataset is open.");
+        try {
+            String context = request.get("context").getAsString().trim();
+            if (context.isBlank() || context.length() > 80) return failure("Select a valid synthetic context.");
+            JsonObject metadata = new JsonObject();
+            metadata.addProperty("source", "EXCEL_DATA_WORKSPACE");
+            metadata.addProperty("contractVersion", 1);
+            preferences.saveSyntheticContext(
+                    binding.homeBankingId(), binding.botJobId(), context, metadata.toString());
+            binding.syntheticContext = context;
+            return snapshot("Synthetic context saved.");
+        } catch (Exception error) {
+            log.error("Unable to save synthetic context for Bot Job {}", binding.botJobId(), error);
+            return failure("The synthetic context preference could not be saved.");
+        }
+    }
+
     private void publishModeChanged() {
         if (binding == null) return;
         JsonObject event = new JsonObject();
@@ -430,6 +458,26 @@ public final class ExcelDataWorkspaceService {
         return synthetic;
     }
 
+    private ExtractedData syntheticDataFromRequest(
+            ExtractedData template, JsonArray blocks, int rowCount) {
+        ExtractedData synthetic = emptyLike(template);
+        for (int blockIndex = 0; blockIndex < blocks.size(); blockIndex++) {
+            JsonObject block = blocks.get(blockIndex).getAsJsonObject();
+            String blockName = block.get("name").getAsString();
+            if (!template.getBlocks().contains(blockName)) continue;
+            JsonArray rows = block.getAsJsonArray("rows");
+            for (int rowIndex = 0; rowIndex < Math.min(rowCount, rows.size()); rowIndex++) {
+                JsonObject values = rows.get(rowIndex).getAsJsonObject();
+                for (String column : template.getExtractedFields(blockName)) {
+                    if (!values.has(column)) continue;
+                    synthetic.addFieldValue(blockName, column,
+                            values.get(column).isJsonNull() ? null : values.get(column).getAsString(), rowIndex);
+                }
+            }
+        }
+        return synthetic;
+    }
+
     private JsonObject excelFileFailure(Exception error, String fallback) {
         String detail = error.getMessage() == null ? "" : error.getMessage().toLowerCase();
         String type = error.getClass().getSimpleName().toLowerCase();
@@ -477,6 +525,7 @@ public final class ExcelDataWorkspaceService {
         response.addProperty("rowCount", data.getNumberOfDataRows());
         response.addProperty("dirty", binding.dirty());
         response.addProperty("mode", binding.mode.name());
+        response.addProperty("syntheticContext", binding.syntheticContext);
 
         JsonArray blocks = new JsonArray();
         for (String blockName : data.getBlocks()) {
@@ -538,15 +587,18 @@ public final class ExcelDataWorkspaceService {
         private Mode mode = Mode.REAL;
         private boolean realDirty;
         private boolean syntheticDirty;
+        private String syntheticContext;
 
         private Binding(int botJobId, int homeBankingId, String botJobName, Path workbook,
-                ExtractedData realData, ExtractedData syntheticData) {
+                ExtractedData realData, ExtractedData syntheticData, String syntheticContext) {
             this.botJobId = botJobId;
             this.homeBankingId = homeBankingId;
             this.botJobName = botJobName;
             this.workbook = workbook;
             this.realData = realData;
             this.syntheticData = syntheticData;
+            this.syntheticContext = syntheticContext == null || syntheticContext.isBlank()
+                    ? "Bank Account" : syntheticContext;
         }
         int botJobId() { return botJobId; }
         int homeBankingId() { return homeBankingId; }

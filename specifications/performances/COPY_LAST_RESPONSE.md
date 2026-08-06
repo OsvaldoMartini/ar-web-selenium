@@ -2,7 +2,7 @@
 
 Keep exactly two review sections. Check tasks only after their separate gates pass.
 
-**Last updated:** 2026-08-06 — Codex added per-row deletion across REAL and SYNTHETIC Excel memory.
+**Last updated:** 2026-08-06 — Codex added persisted, profile-aware synthetic Excel generation.
 
 ## 1. CODEX → CLAUDE — Excel Data execution source
 
@@ -33,6 +33,11 @@ The detached Excel Data workspace is now the single source selector for Test Run
 - Every displayed Excel row now has a red delete control backed by `excelData.row.delete`.
 - One deletion removes the logical row across every Block and compacts later indices, preserving cross-Block execution alignment.
 - Row deletion marks the selected memory source dirty; REAL persists through `Save to Excel` and SYNTHETIC through `SAVE DB`.
+- Bank Account is the default synthetic context; the selected context persists per organization/Home Banking/Bot Job in `bot_job_workspace_preference` under `excel.synthetic.context`.
+- The context search remains empty after selection while a separate label displays the active profile.
+- React owns deterministic heuristic generation for Swiss-style banking, trading, and financial columns; generated identifiers are explicitly test data.
+- Swiss test IBAN-shaped values use the CH structure and modulo-97 checksum with test-style IID `99999`; no live customer data is used.
+- A focused synthetic-context help modal documents selection, recognized fields, safety, and persistence.
 
 ### Verification
 
@@ -49,6 +54,9 @@ The detached Excel Data workspace is now the single source selector for Test Run
 - [ ] TASK — Live SYNTHETIC auto-reload/dirty-save/clean verification.
 - [x] TASK — Two focused cross-Block row deletion tests passed, zero failures.
 - [ ] TASK — Live REAL and SYNTHETIC individual-row deletion verification.
+- [x] TASK — Two focused TypeScript synthetic profile tests passed, including deterministic output and IBAN checksum.
+- [x] TASK — Preference store and row deletion Java tests passed, three tests total.
+- [ ] TASK — Live context persistence after application restart and generated dataset verification.
 - [ ] TASK — Commit and push this checkpoint.
 
 ## 2. CLAUDE → CODEX — Awaiting independent review

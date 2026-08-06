@@ -11,6 +11,7 @@ import java.util.Set;
 /** Bot Job-scoped durable preferences for the Variables workspace. */
 public final class VariablesWorkspacePreferenceStore {
     public static final String VARIABLE_MODE = "variables.resolve.variableMode";
+    public static final String EXCEL_SYNTHETIC_CONTEXT = "excel.synthetic.context";
     private static final Object SCHEMA_LOCK = new Object();
 
     public String loadVariableMode(int homeBankingId, int botJobId) throws SQLException {
@@ -34,6 +35,50 @@ public final class VariablesWorkspacePreferenceStore {
             }
         }
         return "DISTINCT";
+    }
+
+    public String loadSyntheticContext(int homeBankingId, int botJobId) throws SQLException {
+        try (Connection connection = PerformDataBase.getInstance().getConnection()) {
+            ensureTable(connection);
+            try (PreparedStatement statement = connection.prepareStatement(
+                    "SELECT preference_value FROM bot_job_workspace_preference"
+                            + " WHERE organization_id=? AND home_banking_id=?"
+                            + " AND bot_job_id=? AND preference_key=?")) {
+                statement.setInt(1, homeBankingId);
+                statement.setInt(2, homeBankingId);
+                statement.setInt(3, botJobId);
+                statement.setString(4, EXCEL_SYNTHETIC_CONTEXT);
+                try (ResultSet rows = statement.executeQuery()) {
+                    if (rows.next() && !rows.getString(1).isBlank()) return rows.getString(1);
+                }
+            }
+        }
+        return "Bank Account";
+    }
+
+    public void saveSyntheticContext(
+            int homeBankingId, int botJobId, String context, String metadataJson) throws SQLException {
+        String normalized = context == null || context.isBlank() ? "Bank Account" : context.trim();
+        String metadata = metadataJson == null || metadataJson.isBlank() ? "{}" : metadataJson;
+        try (Connection connection = PerformDataBase.getInstance().getConnection()) {
+            ensureTable(connection);
+            try (PreparedStatement statement = connection.prepareStatement(
+                    "INSERT INTO bot_job_workspace_preference"
+                            + " (organization_id,home_banking_id,bot_job_id,preference_key,"
+                            + "preference_value,metadata_json,created_at,updated_at)"
+                            + " VALUES (?,?,?,?,?,?,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)"
+                            + " ON CONFLICT(organization_id,home_banking_id,bot_job_id,preference_key)"
+                            + " DO UPDATE SET preference_value=excluded.preference_value,"
+                            + "metadata_json=excluded.metadata_json,updated_at=CURRENT_TIMESTAMP")) {
+                statement.setInt(1, homeBankingId);
+                statement.setInt(2, homeBankingId);
+                statement.setInt(3, botJobId);
+                statement.setString(4, EXCEL_SYNTHETIC_CONTEXT);
+                statement.setString(5, normalized);
+                statement.setString(6, metadata);
+                statement.executeUpdate();
+            }
+        }
     }
 
     public void saveVariableMode(

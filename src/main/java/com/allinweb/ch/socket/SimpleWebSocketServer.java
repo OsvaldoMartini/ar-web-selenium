@@ -145,6 +145,7 @@ public class SimpleWebSocketServer {
             "excelData.addRow",
             "excelData.save",
             "excelData.mode.update",
+            "excelData.context.update",
             "excelData.refresh",
             "excelData.cell.update",
             "excelData.row.delete",
@@ -993,6 +994,14 @@ public class SimpleWebSocketServer {
                     sendCommandEditorResponse(homeBankingId, sessionId,
                             "excelData.mode.updateResponse",
                             excelDataWorkspaceService.setMode(excelDataBody, sessionId, session));
+                    break;
+                }
+                case "excelData.context.update": {
+                    JsonObject excelDataBody = extractBody(jsonObjMSG);
+                    sendCommandEditorResponse(homeBankingId, sessionId,
+                            "excelData.context.updateResponse",
+                            excelDataWorkspaceService.updateSyntheticContext(
+                                    excelDataBody, sessionId, session));
                     break;
                 }
                 case "excelData.refresh": {
