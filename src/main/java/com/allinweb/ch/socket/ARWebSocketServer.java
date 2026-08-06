@@ -29,7 +29,7 @@ public class ARWebSocketServer {
     protected static volatile ARWebSocketServer instance;
     public static final String LOOPBACK_ADDRESS = "127.0.0.1";
     private static final int MEMORY_LIST_WINDOW_WIDTH = 310;
-    private static final int MEMORY_LIST_WINDOW_HEIGHT = 205;
+    private static final int MEMORY_LIST_WINDOW_HEIGHT = 125;
     private Server jettyServer;
     private ServerContainer wsContainer;
     private int boundPort;
