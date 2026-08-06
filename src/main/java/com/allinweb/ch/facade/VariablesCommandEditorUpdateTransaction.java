@@ -442,10 +442,6 @@ public final class VariablesCommandEditorUpdateTransaction {
                     plan.source().id(),
                     plan.targetAction(),
                     configuration);
-            if (isVariableOnlyCheck(configuration.kind())) {
-                persistVariableOnlyCheckConnections(
-                        connection, homeBankingId, botJobId, plan);
-            }
             return;
         }
         String sql = configuration.kind() == ConfigurationKind.WAIT
@@ -504,13 +500,11 @@ public final class VariablesCommandEditorUpdateTransaction {
                 throw refused("COMMAND_UPDATE_SOURCE_CHANGED", "The selected command changed before it could be transformed.");
             }
         }
+        // A command-type transformation disconnects the previous command relationships, but
+        // this transaction never chooses or creates replacement variable-slot connections.
+        // LEFT, RIGHT, GET_WRITE, READ_SET, and READ are authored only by their graph-mutation
+        // lanes after the transformed command has committed.
         clearVariableSlots(connection, homeBankingId, botJobId, plan.source().id());
-        if (isVariableOnlyCheck(configuration.kind())
-                && configuration.leftVariableId() != null) {
-            insertVariableSlot(
-                    connection, homeBankingId, botJobId,
-                    plan.source().id(), "LEFT", configuration.leftVariableId());
-        }
         try (PreparedStatement statement = connection.prepareStatement(
                 "UPDATE bot_job_variable_definition SET producer_instruction_id=NULL"
                         + " WHERE home_banking_id=? AND bot_job_id=? AND producer_instruction_id=?")) {
@@ -537,19 +531,6 @@ public final class VariablesCommandEditorUpdateTransaction {
         }
     }
 
-    private void persistVariableOnlyCheckConnections(
-            Connection connection, int homeBankingId, int botJobId, Plan plan)
-            throws SQLException {
-        clearVariableSlot(
-                connection, homeBankingId, botJobId, plan.source().id(), "LEFT");
-        Integer leftVariableId = plan.configuration().leftVariableId();
-        if (leftVariableId != null) {
-            insertVariableSlot(
-                    connection, homeBankingId, botJobId,
-                    plan.source().id(), "LEFT", leftVariableId);
-        }
-    }
-
     private static void clearVariableSlots(
             Connection connection, int homeBankingId, int botJobId, int instructionId)
             throws SQLException {
@@ -563,37 +544,6 @@ public final class VariablesCommandEditorUpdateTransaction {
         }
     }
 
-    private static void clearVariableSlot(
-            Connection connection, int homeBankingId, int botJobId,
-            int instructionId, String slot) throws SQLException {
-        try (PreparedStatement statement = connection.prepareStatement(
-                "DELETE FROM instruction_variable_slot"
-                        + " WHERE home_banking_id=? AND bot_job_id=?"
-                        + " AND instruction_id=? AND slot=?")) {
-            statement.setInt(1, homeBankingId);
-            statement.setInt(2, botJobId);
-            statement.setInt(3, instructionId);
-            statement.setString(4, slot);
-            statement.executeUpdate();
-        }
-    }
-
-    private static void insertVariableSlot(
-            Connection connection, int homeBankingId, int botJobId,
-            int instructionId, String slot, int variableId) throws SQLException {
-        try (PreparedStatement statement = connection.prepareStatement(
-                "INSERT INTO instruction_variable_slot"
-                        + " (home_banking_id,bot_job_id,instruction_id,slot,variable_id,"
-                        + "slot_revision,created_at,updated_at)"
-                        + " VALUES (?,?,?,?,?,1,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)")) {
-            statement.setInt(1, homeBankingId);
-            statement.setInt(2, botJobId);
-            statement.setInt(3, instructionId);
-            statement.setString(4, slot);
-            statement.setInt(5, variableId);
-            statement.executeUpdate();
-        }
-    }
 
     private void persistPlacement(Connection connection, int botJobId, Plan plan)
             throws SQLException {
@@ -733,11 +683,8 @@ public final class VariablesCommandEditorUpdateTransaction {
                         "COMMAND_UPDATE_VERIFICATION_FAILED",
                         "The transformed command name could not be verified.");
             }
-            Integer expectedVariableId = isVariableOnlyCheck(configuration.kind())
-                    ? configuration.leftVariableId()
-                    : null;
             if (updated.parentId() != null || updated.parentBlockId() != null
-                    || !Objects.equals(updated.variableId(), expectedVariableId)) {
+                    || updated.variableId() != null) {
                 throw refused(
                         "COMMAND_UPDATE_VERIFICATION_FAILED",
                         "The transformed command still carries previous connections.");
@@ -754,14 +701,6 @@ public final class VariablesCommandEditorUpdateTransaction {
                         "COMMAND_UPDATE_VERIFICATION_FAILED",
                         "The transformed command still carries the previous Wait value.");
             }
-        }
-        if (isVariableOnlyCheck(configuration.kind())
-                && (updated.parentId() != null
-                        || updated.parentBlockId() != null
-                        || !Objects.equals(updated.variableId(), configuration.leftVariableId()))) {
-            throw refused(
-                    "COMMAND_UPDATE_CHECK_CONNECTION_NOT_COMMITTED",
-                    "The variable-only Check connection could not be verified.");
         }
         if (configuration.kind() == ConfigurationKind.WAIT) {
             if (!Objects.equals(updated.onHoldSeconds(), configuration.waitSeconds())) {
@@ -1051,11 +990,6 @@ public final class VariablesCommandEditorUpdateTransaction {
                 || kind == ConfigurationKind.CONDITIONAL;
     }
 
-    private static boolean isVariableOnlyCheck(ConfigurationKind kind) {
-        return kind == ConfigurationKind.CHECK_VALUE
-                || kind == ConfigurationKind.EXTERNAL_CHECK;
-    }
-
     private void verifyTypedConfiguration(
             Connection connection,
             int homeBankingId,
@@ -1066,13 +1000,13 @@ public final class VariablesCommandEditorUpdateTransaction {
         StoredConfiguration stored = commandConfigurations.load(
                 connection, homeBankingId, botJobId, plan.source().id());
         Configuration expected = plan.configuration();
+        // Variable IDs are relationships owned by instruction_variable_slot. This repository
+        // verifies only intrinsic typed metadata stored in instruction_variable_command_config.
         if (stored == null
                 || !Objects.equals(stored.operandKind(), expected.operandKind())
                 || !Objects.equals(stored.conditionSource(), expected.conditionSource())
-                || !Objects.equals(stored.leftVariableId(), expected.leftVariableId())
                 || !Objects.equals(stored.comparisonOperator(), expected.comparisonOperator())
                 || !Objects.equals(stored.operandRawValue(), expected.operandRawValue())
-                || !Objects.equals(stored.operandVariableId(), expected.operandVariableId())
                 || !Objects.equals(stored.outputKey(), expected.outputKey())
                 || !Objects.equals(stored.outputColumn(), expected.outputColumn())
                 || !Objects.equals(stored.outputFile(), expected.outputFile())

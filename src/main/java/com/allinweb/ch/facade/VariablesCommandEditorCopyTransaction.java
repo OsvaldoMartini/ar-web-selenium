@@ -224,6 +224,11 @@ public final class VariablesCommandEditorCopyTransaction {
                     owner.owner().ownerId(),
                     generatedId,
                     plan.configuration());
+            verifyNoVariableSlots(
+                    connection,
+                    owner.owner().homeBankingId(),
+                    owner.owner().ownerId(),
+                    generatedIds);
             connection.commit();
             return new CopyResult(
                     owner.owner(), owner.workspaceEpoch(), request.requestId().trim(),
@@ -387,14 +392,13 @@ public final class VariablesCommandEditorCopyTransaction {
                 || configuration.kind() == ConfigurationKind.SWIPE) {
             requireEditorInteger(configuration.count(), "Repetition count");
         }
-        // PARKED 2026-08-03 (FE owns IF-family rules): the IF/ELSEIF condition content is
-        // validated by React; Java persists the authored configuration verbatim instead of
-        // stripping its variable references.
+        // Variable IDs in this DTO are relationship intent, not command-configuration columns.
+        // Preserve every intrinsic typed field; COPY NEW inserts no instruction_variable_slot
+        // rows, and the post-write verification below proves the fresh instruction is disconnected.
         // else if (configuration.kind() == ConfigurationKind.CONDITIONAL) {
         //     requireConditional(graph, configuration);
         // }
-        if (configuration.kind() == ConfigurationKind.CONDITIONAL) return configuration;
-        return configuration.withoutVariableReferences();
+        return configuration;
     }
 
     private void offsetTargetOrders(Connection connection, int botJobId, int blockId)
@@ -824,13 +828,13 @@ public final class VariablesCommandEditorCopyTransaction {
         if (!isTypedVariableConfiguration(expected.kind())) return;
         StoredConfiguration stored = commandConfigurations.load(
                 connection, homeBankingId, botJobId, instructionId);
+        // Variable IDs are relationships owned by instruction_variable_slot. This repository
+        // verifies only intrinsic typed metadata stored in instruction_variable_command_config.
         if (stored == null
                 || !Objects.equals(stored.conditionSource(), expected.conditionSource())
-                || !Objects.equals(stored.leftVariableId(), expected.leftVariableId())
                 || !Objects.equals(stored.operandKind(), expected.operandKind())
                 || !Objects.equals(stored.comparisonOperator(), expected.comparisonOperator())
                 || !Objects.equals(stored.operandRawValue(), expected.operandRawValue())
-                || !Objects.equals(stored.operandVariableId(), expected.operandVariableId())
                 || !Objects.equals(stored.outputKey(), expected.outputKey())
                 || !Objects.equals(stored.outputColumn(), expected.outputColumn())
                 || !Objects.equals(stored.outputFile(), expected.outputFile())
@@ -839,6 +843,30 @@ public final class VariablesCommandEditorCopyTransaction {
             throw refused(
                     "COMMAND_COPY_CONFIGURATION_NOT_COMMITTED",
                     "The copied typed command configuration could not be verified.");
+        }
+    }
+
+    private static void verifyNoVariableSlots(
+            Connection connection,
+            int homeBankingId,
+            int botJobId,
+            List<Integer> instructionIds)
+            throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT COUNT(*) FROM instruction_variable_slot"
+                        + " WHERE home_banking_id=? AND bot_job_id=? AND instruction_id=?")) {
+            for (Integer instructionId : instructionIds) {
+                statement.setInt(1, homeBankingId);
+                statement.setInt(2, botJobId);
+                statement.setInt(3, instructionId);
+                try (ResultSet rows = statement.executeQuery()) {
+                    if (!rows.next() || rows.getInt(1) != 0) {
+                        throw refused(
+                                "COMMAND_COPY_VARIABLE_CONNECTION_FOUND",
+                                "The copied command must not inherit variable connections.");
+                    }
+                }
+            }
         }
     }
     private static boolean blank(String value) { return value == null || value.trim().isEmpty(); }
