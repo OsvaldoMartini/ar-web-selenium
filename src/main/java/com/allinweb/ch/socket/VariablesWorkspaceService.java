@@ -1308,23 +1308,30 @@ public final class VariablesWorkspaceService {
 
     private DetachedCommandAuthorization detachedCommandAuthorization(
             JsonObject canonicalRequest) {
-        if (!CommandEditorWorkspaceService.isSupportedModernCommandMutationSource(
-                text(canonicalRequest, "targetSessionId"))) {
-            throw new IllegalArgumentException(
-                    "Modern Command Editor mutations are available only for Bot Job instructions.");
-        }
-        int botJobId = positiveInteger(canonicalRequest, "botJobId");
-        int homeBankingId = positiveInteger(canonicalRequest, "homeBankingId");
-        long workspaceEpoch = positiveLong(canonicalRequest, "workspaceEpoch");
+        DetachedCommandAuthorization authorization =
+                detachedBotJobAuthorization(canonicalRequest);
         int sourceInstructionId = positiveInteger(
-                canonicalRequest, "sourceInstructionId");
+                authorization.request(), "sourceInstructionId");
         int selectedInstructionId = positiveInteger(
-                canonicalRequest, "selectedInstructionId");
+                authorization.request(), "selectedInstructionId");
         if (sourceInstructionId < 1
                 || sourceInstructionId != selectedInstructionId) {
             throw new IllegalArgumentException(
                     "The Command Editor source instruction is no longer authoritative.");
         }
+        return authorization;
+    }
+
+    private DetachedCommandAuthorization detachedBotJobAuthorization(
+            JsonObject canonicalRequest) {
+        if (!CommandEditorWorkspaceService.isSupportedModernCommandMutationSource(
+                text(canonicalRequest, "targetSessionId"))) {
+            throw new IllegalArgumentException(
+                    "Modern Command Editor mutations are available only for Bot Jobs.");
+        }
+        int botJobId = positiveInteger(canonicalRequest, "botJobId");
+        int homeBankingId = positiveInteger(canonicalRequest, "homeBankingId");
+        long workspaceEpoch = positiveLong(canonicalRequest, "workspaceEpoch");
         WorkspaceContext workspace = workspaces.require(botJobId, workspaceEpoch);
         if (workspace.homeBankingId() != homeBankingId) {
             throw new IllegalArgumentException(
@@ -1359,6 +1366,31 @@ public final class VariablesWorkspaceService {
         UpdateResult committed = persistCommandUpdate(
                 authorization.binding(), updateRequest);
         return commandUpdateSuccess(
+                authorization.request(), authorization.binding(), committed);
+    }
+
+    private JsonObject persistDetachedCommandCreate(JsonObject canonicalRequest) {
+        DetachedCommandAuthorization authorization =
+                detachedBotJobAuthorization(canonicalRequest);
+        if (!"CREATE".equals(text(authorization.request(), "editorMode"))) {
+            throw new IllegalArgumentException(
+                    "Open the detached Command Editor in CREATE mode before adding a command.");
+        }
+        VariablesCommandEditorCreateV1.Request createRequest;
+        try {
+            createRequest = gson.fromJson(
+                    canonicalRequest, VariablesCommandEditorCreateV1.Request.class);
+        } catch (RuntimeException malformed) {
+            throw new IllegalArgumentException(
+                    "The Add Command request is malformed.");
+        }
+        if (createRequest == null) {
+            throw new IllegalArgumentException(
+                    "An Add Command request is required.");
+        }
+        CreateResult committed = persistCommandCreate(
+                authorization.binding(), createRequest);
+        return commandCreateSuccess(
                 authorization.request(), authorization.binding(), committed);
     }
 
@@ -1664,12 +1696,24 @@ public final class VariablesWorkspaceService {
         }
     }
 
-    /** Persists a new disconnected instruction from Variables ADD COMMAND only. */
+    /** Persists a new disconnected instruction from Variables or detached Command Editor CREATE. */
     public JsonObject addCommand(
             JsonObject body, String requesterSessionId, Session requesterTransport) {
         JsonObject request = body == null ? new JsonObject() : body;
         Binding current = null;
+        boolean detachedCommandEditorRequest =
+                CommandEditorWorkspaceService.isWorkspaceSession(
+                        requesterSessionId);
         try {
+            if (detachedCommandEditorRequest) {
+                CommandEditorWorkspaceService.AuthorizedMutation mutation =
+                        CommandEditorWorkspaceService.getInstance().executeMutation(
+                                request,
+                                requesterSessionId,
+                                requesterTransport,
+                                this::persistDetachedCommandCreate);
+                return mutation.response();
+            }
             requireManagerTransport(requesterSessionId, requesterTransport);
             current = currentBinding();
             if (current == null) throw new IllegalArgumentException(
@@ -1720,13 +1764,15 @@ public final class VariablesWorkspaceService {
         } catch (IllegalArgumentException | IllegalStateException refused) {
             return commandCreateFailure(
                     request, "COMMAND_CREATE_REQUEST_REFUSED", refused.getMessage(),
-                    current == null ? currentBinding() : current);
+                    commandFailureBinding(
+                            current, false, detachedCommandEditorRequest));
         } catch (RuntimeException failure) {
             log.error("Unable to process Add Command", failure);
             return commandCreateFailure(
                     request, "COMMAND_CREATE_FAILED",
                     "Add Command was not completed.",
-                    current == null ? currentBinding() : current);
+                    commandFailureBinding(
+                            current, false, detachedCommandEditorRequest));
         }
     }
 

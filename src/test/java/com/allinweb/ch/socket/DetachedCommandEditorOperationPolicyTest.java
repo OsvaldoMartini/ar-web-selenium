@@ -8,14 +8,14 @@ import org.junit.jupiter.api.Test;
 class DetachedCommandEditorOperationPolicyTest {
 
     @Test
-    void allowsOnlyTheTwoModernCommandMutationOperations() {
+    void allowsOnlyTheModernCommandMutationOperations() {
         assertTrue(SimpleWebSocketServer.isAllowedFromDetachedCommandEditorTransport(
                 "variablesWorkspace.commandEditor.update"));
         assertTrue(SimpleWebSocketServer.isAllowedFromDetachedCommandEditorTransport(
                 "variablesWorkspace.commandEditor.copy"));
-
-        assertFalse(SimpleWebSocketServer.isAllowedFromDetachedCommandEditorTransport(
+        assertTrue(SimpleWebSocketServer.isAllowedFromDetachedCommandEditorTransport(
                 "variablesWorkspace.commandEditor.create"));
+
         assertFalse(SimpleWebSocketServer.isAllowedFromDetachedCommandEditorTransport(
                 "variablesWorkspace.commands.delete"));
     }

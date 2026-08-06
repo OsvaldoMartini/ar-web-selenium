@@ -110,6 +110,7 @@ public class SimpleWebSocketServer {
             "commandEditor.checkOperand",
             "commandEditor.insertElseIf",
             "variablesWorkspace.commandEditor.update",
+            "variablesWorkspace.commandEditor.create",
             "variablesWorkspace.commandEditor.copy",
             "variablesWorkspace.graphMutationLeft",
             "variablesWorkspace.graphMutationRight",
@@ -1372,6 +1373,18 @@ public class SimpleWebSocketServer {
                 }
                 case "variablesWorkspace.commandEditor.create": {
                     JsonObject variablesBody = extractBody(jsonObjMSG);
+                    JsonObject contractFailure = validateCommandEditorMutationContract(
+                            "variablesWorkspace.commandEditor.create",
+                            sessionId,
+                            variablesBody);
+                    if (contractFailure != null) {
+                        sendCommandEditorResponse(
+                                homeBankingId,
+                                sessionId,
+                                "variablesWorkspace.commandEditor.createResponse",
+                                contractFailure);
+                        break;
+                    }
                     JsonObject createResponse = variablesWorkspaceService.addCommand(
                             variablesBody, sessionId, session);
                     try {
@@ -5176,6 +5189,8 @@ public class SimpleWebSocketServer {
             String sessionId,
             JsonObject body) {
         List<String> invalidFields = new ArrayList<>();
+        boolean createOperation =
+                "variablesWorkspace.commandEditor.create".equals(operation);
         if (body == null) {
             invalidFields.add("body");
         } else {
@@ -5186,8 +5201,10 @@ public class SimpleWebSocketServer {
             requirePositive(body, "workspaceEpoch", invalidFields);
             requireNonNegative(body, "baseGraphVersion", invalidFields);
             requireNonBlank(body, "graphRevision", invalidFields);
-            requirePositive(body, "sourceInstructionId", invalidFields);
-            requirePositive(body, "targetBlockId", invalidFields);
+            if (!createOperation) {
+                requirePositive(body, "sourceInstructionId", invalidFields);
+                requirePositive(body, "targetBlockId", invalidFields);
+            }
             requireObject(body, "placement", invalidFields);
             requireObject(body, "configuration", invalidFields);
             if (body.has("placement") && body.get("placement").isJsonObject()) {

@@ -123,6 +123,75 @@ public final class CommandEditorService {
     }
 
     /**
+     * Resolves the authoritative Bot Job Block used to bootstrap detached CREATE mode.
+     *
+     * <p>A newly created Bot Job may legitimately have neither Blocks nor instructions. That
+     * state is returned as a pending default Block so the create transaction can atomically
+     * insert both rows. Instructions without any owning Block are inconsistent and are refused.
+     */
+    public CreateTarget resolveCreateTarget(
+            String targetSessionId,
+            int botJobId,
+            int homeBankingId,
+            int requestedBlockId) {
+        InstructionTarget target =
+                instructionTarget(targetSessionId, botJobId, homeBankingId);
+        if (target.component()) {
+            throw new IllegalArgumentException(
+                    "Detached Command Editor CREATE is available only for Bot Jobs.");
+        }
+        if (target.ownerId() <= 0) {
+            throw new IllegalArgumentException("A valid Bot Job is required.");
+        }
+
+        ErrorMessage error =
+                database.loadBlocks(target.ownerId(), "", target.blockTable());
+        if (error == null) {
+            error = database.loadInstructions(
+                    target.ownerId(), -1, -1, target.instructionTable());
+        }
+        if (error != null) {
+            throw new IllegalArgumentException(error.getErrorMessage());
+        }
+
+        List<BlockLoadDTO> blocks =
+                orderedBlocks(ownerBlockCopies(targetSessionId, target.ownerId()));
+        if (blocks.isEmpty()) {
+            if (!ownerInstructionCopies(targetSessionId, target.ownerId()).isEmpty()) {
+                throw new IllegalArgumentException(
+                        "The Bot Job has instructions without an owning Block. Repair the Bot Job before adding a command.");
+            }
+            if (requestedBlockId > 0) {
+                throw new IllegalArgumentException(
+                        "The selected Block is no longer available. Refresh the Command Editor.");
+            }
+            return new CreateTarget(null, true);
+        }
+
+        BlockLoadDTO selected = requestedBlockId > 0
+                ? blocks.stream()
+                        .filter(row -> row != null
+                                && row.getId() != null
+                                && row.getId() == requestedBlockId)
+                        .findFirst()
+                        .orElseThrow(() -> new IllegalArgumentException(
+                                "The selected Block is no longer available. Refresh the Command Editor."))
+                : blocks.get(0);
+        if (!Objects.equals(selected.getBotJobId(), target.ownerId())) {
+            throw new IllegalArgumentException(
+                    "The selected Block does not belong to this Bot Job.");
+        }
+        if (homeBankingId > 0
+                && selected.getHomeBankingId() != null
+                && selected.getHomeBankingId() > 0
+                && selected.getHomeBankingId() != homeBankingId) {
+            throw new IllegalArgumentException(
+                    "The selected Block does not belong to this organization.");
+        }
+        return new CreateTarget(selected, false);
+    }
+
+    /**
      * Resolves an instruction and its Block as one owner-scoped Command Editor selection.
      *
      * <p>The detached page is allowed to change its selection, but it is never allowed to assert
@@ -292,6 +361,8 @@ public final class CommandEditorService {
             String instructionTable,
             String blockTable,
             String workspaceLabel) {}
+
+    public record CreateTarget(BlockLoadDTO block, boolean pendingDefaultBlock) {}
 
     public JsonObject bootstrap(JsonObject body) {
         JsonObject response = new JsonObject();

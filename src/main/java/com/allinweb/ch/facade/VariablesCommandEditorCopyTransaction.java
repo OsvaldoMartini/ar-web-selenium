@@ -160,7 +160,30 @@ public final class VariablesCommandEditorCopyTransaction {
             requireOwner(connection, owner.owner());
             GraphState state = stateRepository.loadOrCreate(connection, owner.owner());
             Graph before = loadGraph(connection, owner.owner(), state);
-            Plan plan = validateAndPlan(owner, request, before);
+            VariablesCommandEditorCopyV1.Request effectiveRequest = request;
+            if (Boolean.TRUE.equals(request.createBlank())
+                    && before.blockIds().isEmpty()) {
+                if (!before.instructions().isEmpty()) {
+                    throw refused(
+                            "COMMAND_COPY_GRAPH_INCONSISTENT",
+                            "The Bot Job has instructions without an owning Block.");
+                }
+                if (request.targetBlockId() == null
+                        || request.targetBlockId() <= 0) {
+                    BlockCreationService.InsertedBlock defaultBlock =
+                            BlockCreationService.insertBlockWithoutCommit(
+                                    connection,
+                                    owner.owner().ownerId(),
+                                    "Default Block",
+                                    BlockCreationService.Position.END,
+                                    null,
+                                    null);
+                    effectiveRequest = withTargetBlock(
+                            request, defaultBlock.blockId());
+                    before = loadGraph(connection, owner.owner(), state);
+                }
+            }
+            Plan plan = validateAndPlan(owner, effectiveRequest, before);
             offsetTargetOrders(connection, owner.owner().ownerId(), plan.targetBlockId());
             boolean conditionalFamily = plan.createBlank() && "IF".equals(plan.targetAction());
             boolean conditionalElseIf = plan.createBlank() && "ELSEIF".equals(plan.targetAction());
@@ -206,7 +229,7 @@ public final class VariablesCommandEditorCopyTransaction {
                     connection, owner.owner().ownerId(), generatedIds, plan);
 
             AdvanceResult advance = stateRepository.compareAndSetIncrement(
-                    connection, owner.owner(), request.baseGraphVersion());
+                    connection, owner.owner(), effectiveRequest.baseGraphVersion());
             if (!advance.advanced()) {
                 throw refused(
                         advance.status() == AdvanceStatus.MISSING
@@ -231,7 +254,7 @@ public final class VariablesCommandEditorCopyTransaction {
                     generatedIds);
             connection.commit();
             return new CopyResult(
-                    owner.owner(), owner.workspaceEpoch(), request.requestId().trim(),
+                    owner.owner(), owner.workspaceEpoch(), effectiveRequest.requestId().trim(),
                     plan.source() == null ? 0 : plan.source().id(),
                     generatedId, plan.targetBlockId(), plan.finalOrder(),
                     state.version(), advance.state().version(), after.revision(), false);
@@ -244,6 +267,23 @@ public final class VariablesCommandEditorCopyTransaction {
         } finally {
             if (restoreAutoCommit) restoreAutoCommit(connection);
         }
+    }
+
+    private static VariablesCommandEditorCopyV1.Request withTargetBlock(
+            VariablesCommandEditorCopyV1.Request request, int targetBlockId) {
+        return new VariablesCommandEditorCopyV1.Request(
+                request.contractVersion(),
+                request.requestId(),
+                request.bindingEpoch(),
+                request.workspaceEpoch(),
+                request.baseGraphVersion(),
+                request.graphRevision(),
+                request.sourceInstructionId(),
+                request.createBlank(),
+                targetBlockId,
+                request.placement(),
+                request.configuration(),
+                request.targetAction());
     }
 
     private Plan validateAndPlan(
