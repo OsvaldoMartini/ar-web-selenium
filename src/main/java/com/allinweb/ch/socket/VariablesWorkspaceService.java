@@ -1201,14 +1201,93 @@ public final class VariablesWorkspaceService {
                 workspace.organizationName(), text(request, "graphRevision"));
     }
 
+    private DetachedCommandAuthorization detachedCommandAuthorization(
+            JsonObject canonicalRequest) {
+        if (!CommandEditorWorkspaceService.isSupportedModernCommandMutationSource(
+                text(canonicalRequest, "targetSessionId"))) {
+            throw new IllegalArgumentException(
+                    "Modern Command Editor UPDATE and COPY are available only for Bot Job instructions.");
+        }
+        int botJobId = positiveInteger(canonicalRequest, "botJobId");
+        int homeBankingId = positiveInteger(canonicalRequest, "homeBankingId");
+        long workspaceEpoch = positiveLong(canonicalRequest, "workspaceEpoch");
+        int sourceInstructionId = positiveInteger(
+                canonicalRequest, "sourceInstructionId");
+        int selectedInstructionId = positiveInteger(
+                canonicalRequest, "selectedInstructionId");
+        if (sourceInstructionId < 1
+                || sourceInstructionId != selectedInstructionId) {
+            throw new IllegalArgumentException(
+                    "The Command Editor source instruction is no longer authoritative.");
+        }
+        WorkspaceContext workspace = workspaces.require(botJobId, workspaceEpoch);
+        if (workspace.homeBankingId() != homeBankingId) {
+            throw new IllegalArgumentException(
+                    "The Command Editor owner does not match the active Bot Job.");
+        }
+        return new DetachedCommandAuthorization(
+                canonicalRequest,
+                new Binding(
+                        text(canonicalRequest, "bindingEpoch"),
+                        workspace.workspaceEpoch(),
+                        workspace.botJobId(),
+                        workspace.homeBankingId(),
+                        workspace.botJobName(),
+                        workspace.organizationName(),
+                        text(canonicalRequest, "graphRevision")));
+    }
+
+    private JsonObject persistDetachedCommandUpdate(JsonObject canonicalRequest) {
+        DetachedCommandAuthorization authorization =
+                detachedCommandAuthorization(canonicalRequest);
+        VariablesCommandEditorUpdateV1.Request updateRequest;
+        try {
+            updateRequest = gson.fromJson(
+                    canonicalRequest, VariablesCommandEditorUpdateV1.Request.class);
+        } catch (RuntimeException malformed) {
+            throw new IllegalArgumentException(
+                    "The Variables command-update request is malformed.");
+        }
+        if (updateRequest == null) {
+            throw new IllegalArgumentException("A command-update request is required.");
+        }
+        UpdateResult committed = persistCommandUpdate(
+                authorization.binding(), updateRequest);
+        return commandUpdateSuccess(
+                authorization.request(), authorization.binding(), committed);
+    }
+
+    private JsonObject persistDetachedCommandCopy(JsonObject canonicalRequest) {
+        DetachedCommandAuthorization authorization =
+                detachedCommandAuthorization(canonicalRequest);
+        VariablesCommandEditorCopyV1.Request copyRequest;
+        try {
+            copyRequest = gson.fromJson(
+                    canonicalRequest, VariablesCommandEditorCopyV1.Request.class);
+        } catch (RuntimeException malformed) {
+            throw new IllegalArgumentException(
+                    "The Variables command-copy request is malformed.");
+        }
+        if (copyRequest == null) {
+            throw new IllegalArgumentException("A command-copy request is required.");
+        }
+        com.allinweb.ch.facade.VariablesCommandEditorCopyTransaction.CopyResult committed =
+                persistCommandCopy(authorization.binding(), copyRequest);
+        return commandCopySuccess(
+                authorization.request(), authorization.binding(), committed);
+    }
+
     /** Persists UPDATE from the shared Variables/GridItem Command Editor modal. */
     public JsonObject updateCommand(
             JsonObject body, String requesterSessionId, Session requesterTransport) {
         JsonObject request = body == null ? new JsonObject() : body;
         Binding current = null;
+        boolean gridRequest = ScannerWorkspaceSessions.BOT_JOB_TASKS.equals(
+                requesterSessionId);
+        boolean detachedCommandEditorRequest =
+                CommandEditorWorkspaceService.isWorkspaceSession(
+                        requesterSessionId);
         try {
-            boolean gridRequest = ScannerWorkspaceSessions.BOT_JOB_TASKS.equals(
-                    requesterSessionId);
             log.info(
                     "COMMAND_UPDATE_RECEIVED requestId={} session={} sourceInstructionId={} targetAction={} gridRequest={}",
                     text(request, "requestId"), requesterSessionId,
@@ -1216,6 +1295,21 @@ public final class VariablesWorkspaceService {
                     text(request, "targetAction"), gridRequest);
             if (gridRequest) {
                 current = authorizeGridCommandRequest(request);
+            } else if (detachedCommandEditorRequest) {
+                CommandEditorWorkspaceService.AuthorizedMutation mutation =
+                        CommandEditorWorkspaceService.getInstance().executeMutation(
+                                request,
+                                requesterSessionId,
+                                requesterTransport,
+                                this::persistDetachedCommandUpdate);
+                JsonObject response = mutation.response();
+                log.info(
+                        "COMMAND_UPDATE_COMMITTED requestId={} botJobId={} sourceInstructionId={} targetAction={}",
+                        text(response, "requestId"),
+                        positiveInteger(mutation.request().body(), "botJobId"),
+                        text(mutation.request().body(), "sourceInstructionId"),
+                        text(mutation.request().body(), "targetAction"));
+                return response;
             } else {
                 requireManagerTransport(requesterSessionId, requesterTransport);
                 current = currentBinding();
@@ -1257,6 +1351,7 @@ public final class VariablesWorkspaceService {
                     text(request, "sourceInstructionId"),
                     text(request, "targetAction"));
             if (!gridRequest
+                    && !detachedCommandEditorRequest
                     && (!isCurrent(authorized) || !isManagerTransport(requesterTransport))) {
                 response.addProperty("resyncRequired", true);
                 response.addProperty(
@@ -1288,14 +1383,16 @@ public final class VariablesWorkspaceService {
                     request,
                     "COMMAND_UPDATE_REQUEST_REFUSED",
                     refused.getMessage(),
-                    current == null ? currentBinding() : current);
+                    commandFailureBinding(
+                            current, gridRequest, detachedCommandEditorRequest));
         } catch (RuntimeException failure) {
             log.error("Unable to process Variables command update", failure);
             return commandUpdateFailure(
                     request,
                     "COMMAND_UPDATE_FAILED",
                     "The command update was not completed.",
-                    current == null ? currentBinding() : current);
+                    commandFailureBinding(
+                            current, gridRequest, detachedCommandEditorRequest));
         }
     }
 
@@ -1429,9 +1526,12 @@ public final class VariablesWorkspaceService {
             JsonObject body, String requesterSessionId, Session requesterTransport) {
         JsonObject request = body == null ? new JsonObject() : body;
         Binding current = null;
+        boolean gridRequest = ScannerWorkspaceSessions.BOT_JOB_TASKS.equals(
+                requesterSessionId);
+        boolean detachedCommandEditorRequest =
+                CommandEditorWorkspaceService.isWorkspaceSession(
+                        requesterSessionId);
         try {
-            boolean gridRequest = ScannerWorkspaceSessions.BOT_JOB_TASKS.equals(
-                    requesterSessionId);
             log.info(
                     "COMMAND_COPY_RECEIVED requestId={} session={} sourceInstructionId={} targetAction={} gridRequest={}",
                     text(request, "requestId"), requesterSessionId,
@@ -1439,6 +1539,21 @@ public final class VariablesWorkspaceService {
                     text(request, "targetAction"), gridRequest);
             if (gridRequest) {
                 current = authorizeGridCommandRequest(request);
+            } else if (detachedCommandEditorRequest) {
+                CommandEditorWorkspaceService.AuthorizedMutation mutation =
+                        CommandEditorWorkspaceService.getInstance().executeMutation(
+                                request,
+                                requesterSessionId,
+                                requesterTransport,
+                                this::persistDetachedCommandCopy);
+                JsonObject response = mutation.response();
+                log.info(
+                        "COMMAND_COPY_COMMITTED requestId={} botJobId={} sourceInstructionId={} targetAction={}",
+                        text(response, "requestId"),
+                        positiveInteger(mutation.request().body(), "botJobId"),
+                        text(mutation.request().body(), "sourceInstructionId"),
+                        text(mutation.request().body(), "targetAction"));
+                return response;
             } else {
                 requireManagerTransport(requesterSessionId, requesterTransport);
                 current = currentBinding();
@@ -1476,6 +1591,7 @@ public final class VariablesWorkspaceService {
                     text(request, "sourceInstructionId"),
                     text(request, "targetAction"));
             if (!gridRequest
+                    && !detachedCommandEditorRequest
                     && (!isCurrent(authorized) || !isManagerTransport(requesterTransport))) {
                 response.addProperty("resyncRequired", true);
                 response.addProperty(
@@ -1503,14 +1619,26 @@ public final class VariablesWorkspaceService {
                     text(request, "requestId"), requesterSessionId, refused.getMessage());
             return commandCopyFailure(
                     request, "COMMAND_COPY_REQUEST_REFUSED", refused.getMessage(),
-                    current == null ? currentBinding() : current);
+                    commandFailureBinding(
+                            current, gridRequest, detachedCommandEditorRequest));
         } catch (RuntimeException failure) {
             log.error("Unable to process Variables command copy", failure);
             return commandCopyFailure(
                     request, "COMMAND_COPY_FAILED",
                     "The command copy was not completed.",
-                    current == null ? currentBinding() : current);
+                    commandFailureBinding(
+                            current, gridRequest, detachedCommandEditorRequest));
         }
+    }
+
+    private Binding commandFailureBinding(
+            Binding current,
+            boolean gridRequest,
+            boolean detachedCommandEditorRequest) {
+        if (current != null || gridRequest || detachedCommandEditorRequest) {
+            return current;
+        }
+        return currentBinding();
     }
 
     /**
@@ -3869,6 +3997,9 @@ public final class VariablesWorkspaceService {
                     graphRevision);
         }
     }
+
+    private record DetachedCommandAuthorization(
+            JsonObject request, Binding binding) {}
 
     private static final class MutationPersistenceException extends RuntimeException {
         private MutationPersistenceException(SQLException cause) {

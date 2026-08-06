@@ -23,4 +23,14 @@ class CommandEditorWorkspaceSourcePolicyTest {
         assertFalse(CommandEditorWorkspaceService.isSupportedInstructionSource("pageScanner"));
         assertFalse(CommandEditorWorkspaceService.isSupportedInstructionSource(null));
     }
+
+    @Test
+    void modernCommandMutationsRemainBotJobOnly() {
+        assertTrue(CommandEditorWorkspaceService.isSupportedModernCommandMutationSource(
+                ScannerWorkspaceSessions.BOT_JOB_TASKS));
+        assertFalse(CommandEditorWorkspaceService.isSupportedModernCommandMutationSource(
+                ScannerWorkspaceSessions.COMPONENT_TASKS));
+        assertFalse(CommandEditorWorkspaceService.isSupportedModernCommandMutationSource(
+                CommandEditorWorkspaceService.WORKSPACE_SESSION_ID));
+    }
 }

@@ -9,6 +9,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -458,6 +459,10 @@ public final class CommandEditorWorkspaceService {
                 || ScannerWorkspaceSessions.COMPONENT_TASKS.equals(sessionId);
     }
 
+    static boolean isSupportedModernCommandMutationSource(String sessionId) {
+        return ScannerWorkspaceSessions.BOT_JOB_TASKS.equals(sessionId);
+    }
+
     private void requireManagerTransport(
             String requesterSessionId, Session requesterTransport) {
         if (!WORKSPACE_SESSION_ID.equals(requesterSessionId)) {
@@ -489,6 +494,7 @@ public final class CommandEditorWorkspaceService {
         canonical.addProperty("botJobName", current.botJobName());
         canonical.addProperty("instructionId", current.instructionId());
         canonical.addProperty("selectedInstructionId", current.instructionId());
+        canonical.addProperty("sourceInstructionId", current.instructionId());
         canonical.addProperty("instructionName", safe(instruction.getName()));
         canonical.addProperty("instructionActions", safe(instruction.getActions()));
         canonical.addProperty("blockId", value(instruction.getBlockId(), -1));
@@ -535,6 +541,13 @@ public final class CommandEditorWorkspaceService {
     }
 
     private JsonObject loadSnapshot(Binding current) {
+        return workspaceRegistry.commitWorkspaceMutation(
+                current.botJobId(),
+                current.botJobWorkspaceEpoch(),
+                () -> loadSnapshotUnderWorkspaceLock(current));
+    }
+
+    private JsonObject loadSnapshotUnderWorkspaceLock(Binding current) {
         BotJobDetailsWorkspaceRegistry.Snapshot before = workspaceRegistry.require(
                 current.botJobId(), current.botJobWorkspaceEpoch());
         if (before.homeBankingId() != current.homeBankingId()) {
@@ -542,8 +555,8 @@ public final class CommandEditorWorkspaceService {
                     "The active Bot Job organization changed. Reopen the Command Editor.");
         }
 
-        JsonObject snapshot = commandEditorService.bootstrap(
-                canonicalIdentity(new JsonObject(), current));
+        JsonObject canonicalRequest = canonicalIdentity(new JsonObject(), current);
+        JsonObject snapshot = commandEditorService.bootstrap(canonicalRequest);
         if (!snapshot.has("ok") || !snapshot.get("ok").getAsBoolean()) {
             String message = snapshot.has("error")
                     && !snapshot.get("error").isJsonNull()
@@ -551,6 +564,18 @@ public final class CommandEditorWorkspaceService {
                     : "The Command Editor workspace could not be loaded.";
             throw new IllegalArgumentException(message);
         }
+        JsonObject memoryCapabilities =
+                commandEditorService.memoryCapabilities(canonicalRequest);
+        if (!memoryCapabilities.has("ok")
+                || !memoryCapabilities.get("ok").getAsBoolean()) {
+            String message = memoryCapabilities.has("error")
+                            && !memoryCapabilities.get("error").isJsonNull()
+                    ? memoryCapabilities.get("error").getAsString()
+                    : "The Command Editor capabilities could not be loaded.";
+            throw new IllegalArgumentException(message);
+        }
+        requireMatchingGraphRevision(snapshot, memoryCapabilities);
+        mergeMemoryCapabilities(snapshot, memoryCapabilities);
         int selectedBlockId = integer(snapshot, "selectedBlockId", -1);
         int selectedInstructionId =
                 integer(snapshot, "selectedInstructionId", -1);
@@ -576,6 +601,37 @@ public final class CommandEditorWorkspaceService {
                     "The active Bot Job organization changed. Reopen the Command Editor.");
         }
         return snapshot;
+    }
+
+    private static void requireMatchingGraphRevision(
+            JsonObject snapshot, JsonObject memoryCapabilities) {
+        String snapshotRevision = string(snapshot, "graphRevision", "");
+        String capabilityRevision = string(memoryCapabilities, "graphRevision", "");
+        if (!snapshotRevision.isBlank()
+                && !capabilityRevision.isBlank()
+                && !snapshotRevision.equals(capabilityRevision)) {
+            throw new IllegalArgumentException(
+                    "The instruction graph changed while the Command Editor was loading. Refresh and try again.");
+        }
+    }
+
+    private static void mergeMemoryCapabilities(
+            JsonObject snapshot, JsonObject memoryCapabilities) {
+        for (String field : List.of(
+                "capabilities",
+                "blockCapabilities",
+                "variableLinks",
+                "commandConfigurations",
+                "workspaceCapabilities")) {
+            if (memoryCapabilities.has(field)) {
+                snapshot.add(field, memoryCapabilities.get(field).deepCopy());
+            }
+        }
+        if (memoryCapabilities.has("graphRevision")) {
+            snapshot.add(
+                    "graphRevision",
+                    memoryCapabilities.get("graphRevision").deepCopy());
+        }
     }
 
     private static boolean containsRowId(

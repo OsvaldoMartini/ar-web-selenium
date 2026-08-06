@@ -109,6 +109,8 @@ public class SimpleWebSocketServer {
             "commandEditor.apply",
             "commandEditor.checkOperand",
             "commandEditor.insertElseIf",
+            "variablesWorkspace.commandEditor.update",
+            "variablesWorkspace.commandEditor.copy",
             "instructionGraph.previewSplit",
             "instructionEditor.memoryCapabilities",
             "variableEditor.bootstrap",
