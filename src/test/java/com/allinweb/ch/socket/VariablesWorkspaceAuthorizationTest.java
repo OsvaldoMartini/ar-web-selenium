@@ -100,6 +100,7 @@ class VariablesWorkspaceAuthorizationTest {
                         "variablesWorkspace.commands.status",
                         "variablesWorkspace.variables.delete",
                         "variablesWorkspace.checkOperand.connect",
+                        "variablesWorkspace.preferences.update",
                         "pagesOpen.open",
                         "pagesOpen.summary"),
                 (Set<String>) operationsField.get(null));
