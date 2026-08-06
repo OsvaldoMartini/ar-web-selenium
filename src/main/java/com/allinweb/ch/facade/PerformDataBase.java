@@ -2086,22 +2086,20 @@ public class PerformDataBase {
     }
 
     public ErrorMessage deleteBotJobData(int botJobId) {
-        String deleteSQL = "DELETE FROM bot_job WHERE id = ?";
+        return deleteBotJobsData(List.of(botJobId));
+    }
 
+    /** Deletes the complete submitted Bot Job selection in one all-or-nothing transaction. */
+    public ErrorMessage deleteBotJobsData(Collection<Integer> botJobIds) {
         try (Connection conn = getConnection()) {
-            conn.setAutoCommit(false);
-
-            try (PreparedStatement ps = conn.prepareStatement(deleteSQL)) {
-                ps.setInt(1, botJobId);
-                ps.executeUpdate();
-                conn.commit();
-                return null; // success
-            } catch (SQLException error) {
-                return new ErrorMessage("Error deleting Bot Job", "I cannot delete the BotJob Now", error.getMessage());
-            }
-
+            new BotJobDeleteTransaction().execute(conn, botJobIds);
+            return null;
         } catch (SQLException error) {
-            return new ErrorMessage("Error deleting Bot Job", "I cannot delete the BotJob Now", error.getMessage());
+            logDB.error("Error deleting Bot Jobs: {}", error.getMessage());
+            return new ErrorMessage(
+                    "Error deleting Bot Job",
+                    "The selected Bot Jobs were not deleted",
+                    error.getMessage());
         }
     }
 

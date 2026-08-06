@@ -2029,6 +2029,9 @@ public class SimpleWebSocketServer {
                 case "mainDashboard.deleteBotJob":
                     handleMainDashboardDeleteBotJob(jsonObjMSG, sessionId);
                     break;
+                case "mainDashboard.deleteBotJobs":
+                    handleMainDashboardDeleteBotJobs(jsonObjMSG, sessionId);
+                    break;
                 case "mainDashboard.openConfig":
                     handleMainDashboardOpenConfig(sessionId);
                     break;
@@ -2285,6 +2288,13 @@ public class SimpleWebSocketServer {
     private void handleMainDashboardDeleteBotJob(JsonObject jsonObjMSG, String sessionId) {
         sendMainDashboardResponse(
                 sessionId, mainDashboardService.deleteBotJob(extractBody(jsonObjMSG)), "mainDashboard.actionResponse");
+    }
+
+    private void handleMainDashboardDeleteBotJobs(JsonObject jsonObjMSG, String sessionId) {
+        sendMainDashboardResponse(
+                sessionId,
+                mainDashboardService.deleteBotJobs(extractBody(jsonObjMSG)),
+                "mainDashboard.deleteBotJobsResponse");
     }
 
     private void handleMainDashboardOpenConfig(String sessionId) {

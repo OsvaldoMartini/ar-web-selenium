@@ -5,9 +5,11 @@ import com.allinweb.ch.model.BlockLoadDTO;
 import com.allinweb.ch.model.BotJobLoadDTO;
 import com.allinweb.ch.model.HomeBankingLoadDTO;
 import com.allinweb.ch.util.ErrorMessage;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
@@ -57,6 +59,57 @@ public class MainDashboardService {
             return failure("Bot Job deleted but refresh failed", error);
         }
         return success("Bot Job deleted");
+    }
+
+    /** Deletes one correlated dashboard selection as a single database transaction. */
+    public Map<String, Object> deleteBotJobs(JsonObject body) {
+        String requestId = textVal(body, "requestId");
+        if (intVal(body, "contractVersion") != 1) {
+            return bulkFailure(requestId, "Unsupported Bot Job deletion contract.");
+        }
+        if (requestId.isBlank() || requestId.length() > 200) {
+            return bulkFailure(requestId, "Bot Job deletion requires a valid request ID.");
+        }
+
+        final List<Integer> botJobIds;
+        try {
+            botJobIds = botJobIds(body);
+        } catch (IllegalArgumentException invalidRequest) {
+            return bulkFailure(requestId, invalidRequest.getMessage());
+        }
+
+        ErrorMessage error = performDataBase.deleteBotJobsData(botJobIds);
+        if (error != null) {
+            Map<String, Object> response = bulkFailure(
+                    requestId, "The selected Bot Jobs were not deleted.");
+            response.put("error", error);
+            return response;
+        }
+        for (Integer botJobId : botJobIds) {
+            RuntimeVariableMemoryRegistry.getInstance().removeBotJob(botJobId);
+        }
+        error = reload();
+        if (error != null) {
+            Map<String, Object> response = bulkFailure(
+                    requestId, "Bot Jobs were deleted but the dashboard refresh failed.");
+            response.remove("botJobs");
+            response.put("committed", true);
+            response.put("deletedBotJobIds", botJobIds);
+            response.put("deletedCount", botJobIds.size());
+            response.put("error", error);
+            return response;
+        }
+
+        Map<String, Object> response = bulkBase(requestId);
+        response.put("ok", true);
+        response.put("message", botJobIds.size() == 1
+                ? "1 Bot Job deleted"
+                : botJobIds.size() + " Bot Jobs deleted");
+        response.put("committed", true);
+        response.put("deletedBotJobIds", botJobIds);
+        response.put("deletedCount", botJobIds.size());
+        response.put("botJobs", dashboardRows());
+        return response;
     }
 
     public Map<String, Object> openOrganizations() {
@@ -167,6 +220,53 @@ public class MainDashboardService {
         return response;
     }
 
+    private Map<String, Object> bulkBase(String requestId) {
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("contractVersion", 1);
+        response.put("requestId", requestId == null ? "" : requestId);
+        return response;
+    }
+
+    private Map<String, Object> bulkFailure(String requestId, String message) {
+        Map<String, Object> response = bulkBase(requestId);
+        response.put("ok", false);
+        response.put("committed", false);
+        response.put("deletedBotJobIds", List.of());
+        response.put("deletedCount", 0);
+        response.put("message", message);
+        response.put("botJobs", dashboardRows());
+        return response;
+    }
+
+    private List<Integer> botJobIds(JsonObject body) {
+        if (body == null || !body.has("botJobIds") || !body.get("botJobIds").isJsonArray()) {
+            throw new IllegalArgumentException("Select at least one Bot Job to delete.");
+        }
+        if (body.getAsJsonArray("botJobIds").size() > 1000) {
+            throw new IllegalArgumentException("At most 1000 Bot Jobs may be deleted at once.");
+        }
+        LinkedHashSet<Integer> uniqueIds = new LinkedHashSet<>();
+        for (JsonElement value : body.getAsJsonArray("botJobIds")) {
+            if (!value.isJsonPrimitive() || !value.getAsJsonPrimitive().isNumber()) {
+                throw new IllegalArgumentException("Bot Job IDs must be positive integers.");
+            }
+            final int botJobId;
+            try {
+                botJobId = value.getAsBigDecimal().intValueExact();
+            } catch (ArithmeticException invalidNumber) {
+                throw new IllegalArgumentException("Bot Job IDs must be positive integers.");
+            }
+            if (botJobId <= 0) {
+                throw new IllegalArgumentException("Bot Job IDs must be positive integers.");
+            }
+            uniqueIds.add(botJobId);
+        }
+        if (uniqueIds.isEmpty()) {
+            throw new IllegalArgumentException("Select at least one Bot Job to delete.");
+        }
+        return List.copyOf(uniqueIds);
+    }
+
     public List<Map<String, Object>> dashboardRows() {
         List<Map<String, Object>> rows = new ArrayList<>();
         for (BotJobLoadDTO botJob : performLists.getQuickBotJobs()) {
@@ -221,6 +321,17 @@ public class MainDashboardService {
             return body.get(field).getAsInt();
         } catch (Exception ignore) {
             return 0;
+        }
+    }
+
+    private String textVal(JsonObject body, String field) {
+        try {
+            if (body == null || !body.has(field) || body.get(field).isJsonNull()) {
+                return "";
+            }
+            return body.get(field).getAsString().trim();
+        } catch (Exception ignore) {
+            return "";
         }
     }
 
