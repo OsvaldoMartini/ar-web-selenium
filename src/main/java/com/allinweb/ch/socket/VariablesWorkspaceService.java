@@ -729,6 +729,46 @@ public final class VariablesWorkspaceService {
         }
     }
 
+    /** Persists one LEFT patch from the authoritative detached Command Editor selection. */
+    public JsonObject connectCheckLeftFromCommandEditor(
+            JsonObject body, String requesterSessionId, Session requesterTransport) {
+        JsonObject request = body == null ? new JsonObject() : body;
+        try {
+            return CommandEditorWorkspaceService.getInstance()
+                    .executeMutation(
+                            request,
+                            requesterSessionId,
+                            requesterTransport,
+                            this::persistDetachedCheckLeft)
+                    .response();
+        } catch (CheckLeftPersistenceException persistenceFailure) {
+            Throwable cause = persistenceFailure.getCause();
+            if (cause instanceof MutationRefusedException refused) {
+                return mutationFailure(
+                        request, refused.code(), refused.getMessage(), null);
+            }
+            log.error("Unable to persist the detached Command Editor LEFT connection", cause);
+            return mutationFailure(
+                    request,
+                    "CHECK_LEFT_PERSISTENCE_FAILED",
+                    "The CheckValue LEFT connection was not changed.",
+                    null);
+        } catch (IllegalArgumentException | IllegalStateException refused) {
+            return mutationFailure(
+                    request,
+                    "CHECK_LEFT_REQUEST_REFUSED",
+                    refused.getMessage(),
+                    null);
+        } catch (RuntimeException failure) {
+            log.error("Unable to process the detached Command Editor LEFT connection", failure);
+            return mutationFailure(
+                    request,
+                    "CHECK_LEFT_FAILED",
+                    "The CheckValue LEFT connection was not changed.",
+                    null);
+        }
+    }
+
     /** Compact GridItem LEFT mutation, independent from Graph V3. */
     public JsonObject connectCheckLeftFromGrid(JsonObject body) {
         JsonObject request = body == null ? new JsonObject() : body;
@@ -801,6 +841,31 @@ public final class VariablesWorkspaceService {
         response.addProperty("message", committed.changed()
                 ? "CheckValue LEFT connection changed."
                 : "CheckValue LEFT connection was already clear.");
+        return response;
+    }
+
+    private JsonObject detachedCheckRightSuccess(
+            JsonObject request,
+            Binding owner,
+            com.allinweb.ch.model.VariablesCheckOperandConnectV1.Request rightRequest,
+            com.allinweb.ch.facade.VariablesCheckOperandConnectTransaction.ConnectResult committed) {
+        JsonObject response = mutationResponseBase(request, owner);
+        response.addProperty(
+                "contractVersion",
+                com.allinweb.ch.model.VariablesCheckOperandConnectV1.CONTRACT_VERSION);
+        response.addProperty("ok", true);
+        response.addProperty("committed", true);
+        response.addProperty("resyncRequired", false);
+        response.addProperty("rightVariableId", committed.rightVariableId());
+        response.addProperty("connectedCount", committed.connectedCount());
+        response.addProperty("skippedCount", committed.skippedCount());
+        response.addProperty("committedGraphVersion", committed.committedGraphVersion());
+        response.addProperty("graphRevision", committed.graphRevision());
+        response.addProperty(
+                "message",
+                rightRequest.isDisconnect()
+                        ? "CheckValue RIGHT connection released."
+                        : "CheckValue RIGHT connection changed.");
         return response;
     }
 
@@ -987,6 +1052,46 @@ public final class VariablesWorkspaceService {
     public JsonObject mutateCommandVariable(
             JsonObject body, String requesterSessionId, Session requesterTransport) {
         return mutate(body, requesterSessionId, requesterTransport, MutationLane.COMMAND_VARIABLE);
+    }
+
+    /** Persists one regular-command variable patch from the detached Command Editor selection. */
+    public JsonObject mutateCommandVariableFromCommandEditor(
+            JsonObject body, String requesterSessionId, Session requesterTransport) {
+        JsonObject request = body == null ? new JsonObject() : body;
+        try {
+            return CommandEditorWorkspaceService.getInstance()
+                    .executeMutation(
+                            request,
+                            requesterSessionId,
+                            requesterTransport,
+                            this::persistDetachedCommandVariable)
+                    .response();
+        } catch (MutationPersistenceException persistenceFailure) {
+            Throwable cause = persistenceFailure.getCause();
+            if (cause instanceof MutationRefusedException refused) {
+                return mutationFailure(
+                        request, refused.code(), refused.getMessage(), null);
+            }
+            log.error("Unable to persist a detached Command Editor variable connection", cause);
+            return mutationFailure(
+                    request,
+                    "PERSISTENCE_FAILED",
+                    "The command variable connection was not changed.",
+                    null);
+        } catch (IllegalArgumentException | IllegalStateException refused) {
+            return mutationFailure(
+                    request,
+                    "REQUEST_REFUSED",
+                    refused.getMessage(),
+                    null);
+        } catch (RuntimeException failure) {
+            log.error("Unable to process a detached Command Editor variable connection", failure);
+            return mutationFailure(
+                    request,
+                    "MUTATION_FAILED",
+                    "The command variable connection was not changed.",
+                    null);
+        }
     }
 
     private JsonObject mutate(
@@ -1206,7 +1311,7 @@ public final class VariablesWorkspaceService {
         if (!CommandEditorWorkspaceService.isSupportedModernCommandMutationSource(
                 text(canonicalRequest, "targetSessionId"))) {
             throw new IllegalArgumentException(
-                    "Modern Command Editor UPDATE and COPY are available only for Bot Job instructions.");
+                    "Modern Command Editor mutations are available only for Bot Job instructions.");
         }
         int botJobId = positiveInteger(canonicalRequest, "botJobId");
         int homeBankingId = positiveInteger(canonicalRequest, "homeBankingId");
@@ -1275,6 +1380,110 @@ public final class VariablesWorkspaceService {
                 persistCommandCopy(authorization.binding(), copyRequest);
         return commandCopySuccess(
                 authorization.request(), authorization.binding(), committed);
+    }
+
+    private JsonObject persistDetachedCheckLeft(JsonObject canonicalRequest) {
+        DetachedCommandAuthorization authorization =
+                detachedCommandAuthorization(canonicalRequest);
+        int selectedInstructionId = positiveInteger(
+                authorization.request(), "selectedInstructionId");
+        requireSelectedVariablePatch(
+                authorization.request(), selectedInstructionId, "LEFT");
+        requireDetachedVariablePatchOnlyShape(authorization.request());
+        com.allinweb.ch.model.VariablesCheckLeftOperandV1.Request leftRequest;
+        try {
+            leftRequest = gson.fromJson(
+                    authorization.request(),
+                    com.allinweb.ch.model.VariablesCheckLeftOperandV1.Request.class);
+        } catch (RuntimeException malformed) {
+            throw new IllegalArgumentException(
+                    "The detached Command Editor LEFT request is malformed.");
+        }
+        if (leftRequest == null) {
+            throw new IllegalArgumentException(
+                    "A detached Command Editor LEFT request is required.");
+        }
+        com.allinweb.ch.facade.VariablesCheckLeftOperandTransaction.Result committed =
+                persistCheckLeft(authorization.binding(), leftRequest);
+        return compactLeftResponse(
+                authorization.request(), authorization.binding(), committed);
+    }
+
+    private JsonObject persistDetachedCheckRight(JsonObject canonicalRequest) {
+        DetachedCommandAuthorization authorization =
+                detachedCommandAuthorization(canonicalRequest);
+        int selectedInstructionId = positiveInteger(
+                authorization.request(), "selectedInstructionId");
+        requireSelectedVariablePatch(
+                authorization.request(), selectedInstructionId, "RIGHT");
+        requireDetachedVariablePatchOnlyShape(authorization.request());
+        com.allinweb.ch.model.VariablesCheckOperandConnectV1.Request rightRequest;
+        try {
+            rightRequest = gson.fromJson(
+                    authorization.request(),
+                    com.allinweb.ch.model.VariablesCheckOperandConnectV1.Request.class);
+        } catch (RuntimeException malformed) {
+            throw new IllegalArgumentException(
+                    "The detached Command Editor RIGHT request is malformed.");
+        }
+        if (rightRequest == null) {
+            throw new IllegalArgumentException(
+                    "A detached Command Editor RIGHT request is required.");
+        }
+        com.allinweb.ch.facade.VariablesCheckOperandConnectTransaction.ConnectResult committed =
+                persistCheckOperandConnect(authorization.binding(), rightRequest);
+        return detachedCheckRightSuccess(
+                authorization.request(), authorization.binding(), rightRequest, committed);
+    }
+
+    private JsonObject persistDetachedCommandVariable(JsonObject canonicalRequest) {
+        DetachedCommandAuthorization authorization =
+                detachedCommandAuthorization(canonicalRequest);
+        JsonObject request = authorization.request();
+        int selectedInstructionId = positiveInteger(
+                request, "selectedInstructionId");
+        requireSelectedVariablePatch(request, selectedInstructionId, null);
+        requireDetachedVariablePatchOnlyShape(request);
+        requireRegularCommandVariablePatch(request);
+
+        String requestedProfile = text(request, "mutationProfile").trim();
+        if (!requestedProfile.isBlank()
+                && !VariablesReactAuthoredMutationProfile.PROFILE_ID.equals(
+                        requestedProfile)) {
+            throw new IllegalArgumentException(
+                    "The detached Command Editor command-variable profile is not supported.");
+        }
+        request.addProperty(
+                "mutationProfile", VariablesReactAuthoredMutationProfile.PROFILE_ID);
+        JsonObject owner = new JsonObject();
+        owner.addProperty(
+                "workspaceKind",
+                InstructionGraphMutationV3.WorkspaceKind.BOT_JOB.name());
+        owner.addProperty("homeBankingId", authorization.binding().homeBankingId());
+        owner.addProperty("botJobId", authorization.binding().botJobId());
+        request.add("ownerAssertion", owner);
+
+        InstructionGraphMutationV3.Request mutationRequest;
+        try {
+            mutationRequest = gson.fromJson(
+                    request, InstructionGraphMutationV3.Request.class);
+        } catch (RuntimeException malformed) {
+            throw new IllegalArgumentException(
+                    "The detached Command Editor command-variable request is malformed.");
+        }
+        if (mutationRequest == null
+                || mutationRequest.mutationKind()
+                        != InstructionGraphMutationV3.MutationKind.RELATIONSHIP_UPDATE
+                || mutationRequest.variableBindingPatches().size() != 1) {
+            throw new IllegalArgumentException(
+                    "The detached Command Editor requires one command-variable relationship update.");
+        }
+        CommitResult committed = persistMutation(
+                authorization.binding(),
+                mutationRequest,
+                VariablesReactAuthoredMutationProfile.PROFILE_ID);
+        return mutationSuccess(
+                request, authorization.binding(), committed);
     }
 
     /** Persists UPDATE from the shared Variables/GridItem Command Editor modal. */
@@ -1888,6 +2097,46 @@ public final class VariablesWorkspaceService {
         }
     }
 
+    /** Persists one RIGHT patch from the authoritative detached Command Editor selection. */
+    public JsonObject connectCheckOperandFromCommandEditor(
+            JsonObject body, String requesterSessionId, Session requesterTransport) {
+        JsonObject request = body == null ? new JsonObject() : body;
+        try {
+            return CommandEditorWorkspaceService.getInstance()
+                    .executeMutation(
+                            request,
+                            requesterSessionId,
+                            requesterTransport,
+                            this::persistDetachedCheckRight)
+                    .response();
+        } catch (CheckOperandPersistenceException persistenceFailure) {
+            Throwable cause = persistenceFailure.getCause();
+            if (cause instanceof MutationRefusedException refused) {
+                return mutationFailure(
+                        request, refused.code(), refused.getMessage(), null);
+            }
+            log.error("Unable to persist the detached Command Editor RIGHT connection", cause);
+            return mutationFailure(
+                    request,
+                    "CHECK_OPERAND_PERSISTENCE_FAILED",
+                    "The CheckValue RIGHT connection was not changed.",
+                    null);
+        } catch (IllegalArgumentException | IllegalStateException refused) {
+            return mutationFailure(
+                    request,
+                    "CHECK_OPERAND_REQUEST_REFUSED",
+                    refused.getMessage(),
+                    null);
+        } catch (RuntimeException failure) {
+            log.error("Unable to process the detached Command Editor RIGHT connection", failure);
+            return mutationFailure(
+                    request,
+                    "CHECK_OPERAND_FAILED",
+                    "The CheckValue RIGHT connection was not changed.",
+                    null);
+        }
+    }
+
     /**
      * GridItem-owned RIGHT mutation. The WebSocket layer has already authorized and
      * canonicalized the botJobTasks owner; this path deliberately does not depend on
@@ -2196,6 +2445,72 @@ public final class VariablesWorkspaceService {
             }
         }
         return List.copyOf(expanded);
+    }
+
+    private static JsonObject requireSelectedVariablePatch(
+            JsonObject request,
+            int selectedInstructionId,
+            String requiredSlot) {
+        if (selectedInstructionId < 1) {
+            throw new IllegalArgumentException(
+                    "The detached Command Editor has no authoritative instruction selection.");
+        }
+        if (request == null
+                || !request.has("variableBindingPatches")
+                || !request.get("variableBindingPatches").isJsonArray()) {
+            throw new IllegalArgumentException(
+                    "The detached Command Editor requires one variable patch.");
+        }
+        JsonArray patches = request.getAsJsonArray("variableBindingPatches");
+        if (patches.size() != 1 || !patches.get(0).isJsonObject()) {
+            throw new IllegalArgumentException(
+                    "The detached Command Editor accepts exactly one variable patch.");
+        }
+        JsonObject patch = patches.get(0).getAsJsonObject();
+        if (positiveInteger(patch, "instructionId") != selectedInstructionId) {
+            throw new IllegalArgumentException(
+                    "The variable patch does not match the selected Command Editor instruction.");
+        }
+        if (requiredSlot != null
+                && !requiredSlot.equalsIgnoreCase(text(patch, "slot").trim())) {
+            throw new IllegalArgumentException(
+                    "The detached Command Editor variable patch has the wrong slot.");
+        }
+        return patch;
+    }
+
+    private static void requireDetachedVariablePatchOnlyShape(JsonObject request) {
+        String mutationKind = text(request, "mutationKind").trim();
+        if (!mutationKind.isBlank()
+                && !InstructionGraphMutationV3.MutationKind.RELATIONSHIP_UPDATE
+                        .name()
+                        .equalsIgnoreCase(mutationKind)) {
+            throw new IllegalArgumentException(
+                    "The detached Command Editor accepts only relationship updates.");
+        }
+        requireEmptyMutationArray(request, "layoutRows");
+        requireEmptyMutationArray(request, "instructionRelationPatches");
+        requireEmptyMutationArray(request, "variableOwnerPatches");
+        if (request != null
+                && request.has("draggedInstructionId")
+                && !request.get("draggedInstructionId").isJsonNull()) {
+            throw new IllegalArgumentException(
+                    "A detached Command Editor variable update cannot move an instruction.");
+        }
+    }
+
+    private static void requireEmptyMutationArray(JsonObject request, String field) {
+        if (request == null
+                || !request.has(field)
+                || request.get(field).isJsonNull()) {
+            return;
+        }
+        if (!request.get(field).isJsonArray()
+                || request.getAsJsonArray(field).size() != 0) {
+            throw new IllegalArgumentException(
+                    "The detached Command Editor command-variable operation cannot include "
+                            + field + ".");
+        }
     }
 
     private static void requireRegularCommandVariablePatch(JsonObject request) {

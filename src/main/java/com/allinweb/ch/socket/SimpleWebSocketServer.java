@@ -111,6 +111,9 @@ public class SimpleWebSocketServer {
             "commandEditor.insertElseIf",
             "variablesWorkspace.commandEditor.update",
             "variablesWorkspace.commandEditor.copy",
+            "variablesWorkspace.graphMutationLeft",
+            "variablesWorkspace.graphMutationRight",
+            "variablesWorkspace.graphMutationCommandVariable",
             "instructionGraph.previewSplit",
             "instructionEditor.memoryCapabilities",
             "variableEditor.bootstrap",
@@ -1144,8 +1147,13 @@ public class SimpleWebSocketServer {
                 }
                 case "variablesWorkspace.graphMutationCommandVariable": {
                     JsonObject variablesBody = compactGraphMutationBody(jsonObjMSG);
-                    JsonObject mutationResponse = variablesWorkspaceService.mutateCommandVariable(
-                            variablesBody, sessionId, session);
+                    JsonObject mutationResponse =
+                            CommandEditorWorkspaceService.isWorkspaceSession(sessionId)
+                                    ? variablesWorkspaceService
+                                            .mutateCommandVariableFromCommandEditor(
+                                                    variablesBody, sessionId, session)
+                                    : variablesWorkspaceService.mutateCommandVariable(
+                                            variablesBody, sessionId, session);
                     try {
                         sendCommandEditorResponse(
                                 homeBankingId,
@@ -1158,6 +1166,22 @@ public class SimpleWebSocketServer {
                     break;
                 }
                 case "variablesWorkspace.graphMutationLeft": {
+                    if (CommandEditorWorkspaceService.isWorkspaceSession(sessionId)) {
+                        JsonObject leftBody = compactGraphMutationBody(jsonObjMSG);
+                        JsonObject leftResponse = variablesWorkspaceService
+                                .connectCheckLeftFromCommandEditor(
+                                        leftBody, sessionId, session);
+                        try {
+                            sendCommandEditorResponse(
+                                    homeBankingId,
+                                    sessionId,
+                                    "variablesWorkspace.graphMutationLeftResponse",
+                                    leftResponse);
+                        } finally {
+                            variablesWorkspaceService.publishCommittedMutation(leftResponse);
+                        }
+                        break;
+                    }
                     if (ScannerWorkspaceSessions.BOT_JOB_TASKS.equals(sessionId)) {
                         JsonObject leftBody = compactGraphMutationBody(jsonObjMSG);
                         JsonObject leftResponse;
@@ -1204,7 +1228,11 @@ public class SimpleWebSocketServer {
                     boolean gridOwnedRight =
                             ScannerWorkspaceSessions.BOT_JOB_TASKS.equals(sessionId);
                     JsonObject connectResponse;
-                    if (gridOwnedRight) {
+                    if (CommandEditorWorkspaceService.isWorkspaceSession(sessionId)) {
+                        connectResponse = variablesWorkspaceService
+                                .connectCheckOperandFromCommandEditor(
+                                        variablesBody, sessionId, session);
+                    } else if (gridOwnedRight) {
                         try {
                             variablesBody = authorizeInstructionGridRequest(
                                     variablesBody, sessionId, session);
