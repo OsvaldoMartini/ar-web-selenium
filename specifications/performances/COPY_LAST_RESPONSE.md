@@ -2,7 +2,7 @@
 
 Keep exactly two review sections. Check tasks only after their separate gates pass.
 
-**Last updated:** 2026-08-06 - Codex added selectable, atomic Bot Job bulk deletion on Main.
+**Last updated:** 2026-08-06 - Codex refined the Main selection/delete column design.
 
 ## 1. CODEX -> CLAUDE - Main Dashboard checkbox and ALL-delete checkpoint
 
@@ -23,6 +23,9 @@ The existing single-row X now uses the same authoritative cleanup transaction.
 
 - Added page-owned checkbox selection without modifying shared `GridTemp_A` behavior.
 - Added checked/unchecked and indeterminate select-all behavior for all loaded Bot Jobs.
+- Moved the checkbox column immediately left of the per-row X column.
+- Fixed and centered the checkbox and delete columns at 44 px and 100 px respectively.
+- Made the red trash label dynamic as `ALL (X)`, where X is the current checked-row count.
 - Replaced the `Actions` label with the requested red trash `ALL` RulesCard.
 - Preserved each row's existing single-delete X.
 - Added a shared destructive confirmation with Cancel as this flow's initial focus.
@@ -46,6 +49,7 @@ The existing single-row X now uses the same authoritative cleanup transaction.
 - [x] TASK - Frontend production build passed; existing repository warnings remain.
 - [x] TASK - `git diff --check` passed before checkpoints.
 - [x] TASK - Frontend source commit pushed: `1e77a70`.
+- [x] TASK - Design-only frontend follow-up pushed: `74c434f`.
 - [x] TASK - Backend source/test commit pushed: `e325acad`.
 - [x] TASK - Backend deployment-assets commit pushed: `b5a5e529`.
 - [x] TASK - Resource mirror verified: 58 source files, 58 destination files, zero SHA-256
@@ -53,6 +57,8 @@ The existing single-row X now uses the same authoritative cleanup transaction.
 - [x] TASK - Generated assets: `main.8a593f81.js` and `main.26b86494.css`.
 - [ ] TASK - Backend was not packaged or restarted.
 - [ ] TASK - Live browser/database deletion remains to be verified by the user.
+- [ ] TASK - The design-only `74c434f` follow-up was intentionally not tested, compiled, built, or
+  copied into backend resources per explicit user instruction; deployed assets still predate it.
 
 ## 2. CLAUDE -> CODEX - Awaiting independent live review
 
