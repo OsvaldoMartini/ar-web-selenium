@@ -48,28 +48,32 @@ final class DesktopAppBrowserLauncher {
     }
 
     boolean launch(String baseUrl) {
-        return launch(baseUrl, WINDOW_SIZE);
+        return launch(baseUrl, WINDOW_SIZE, false);
+    }
+
+    boolean launchMaximized(String baseUrl) {
+        return launch(baseUrl, null, true);
     }
 
     boolean launch(String baseUrl, int windowWidth, int windowHeight) {
         if (windowWidth <= 0 || windowHeight <= 0) {
             throw new IllegalArgumentException("Desktop shell dimensions must be positive");
         }
-        return launch(baseUrl, windowWidth + "," + windowHeight);
+        return launch(baseUrl, windowWidth + "," + windowHeight, false);
     }
 
-    private boolean launch(String baseUrl, String windowSize) {
+    private boolean launch(String baseUrl, String windowSize, boolean maximized) {
         String appUrl = withDesktopShellFlag(baseUrl);
         for (Path executable : browserCandidates()) {
             if (!executableExists.test(executable)) continue;
 
-            List<String> command = List.of(
-                    executable.toString(),
-                    "--app=" + appUrl,
-                    "--window-size=" + windowSize,
-                    "--new-window",
-                    "--no-first-run",
-                    "--no-default-browser-check");
+            List<String> command = new ArrayList<>();
+            command.add(executable.toString());
+            command.add("--app=" + appUrl);
+            command.add(maximized ? "--start-maximized" : "--window-size=" + windowSize);
+            command.add("--new-window");
+            command.add("--no-first-run");
+            command.add("--no-default-browser-check");
             try {
                 processStarter.start(command);
                 log.info("Opened AR Web Scanner desktop shell with {}", executable);

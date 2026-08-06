@@ -151,12 +151,12 @@ class DesktopAppBrowserLauncherTest {
                 command -> launchedCommand.set(List.copyOf(command)));
         String url = ARWebSocketServer.pageScannerDesktopUrl(53972, "page-scanner-window-42");
 
-        assertTrue(launcher.launch(url));
+        assertTrue(launcher.launchMaximized(url));
         assertEquals(
                 "--app=http://127.0.0.1:53972/"
                         + "?desktopShell=1&openPageScanner=preScan&pageScannerSession=page-scanner-window-42",
                 launchedCommand.get().get(1));
-        assertEquals("--window-size=1240,820", launchedCommand.get().get(2));
+        assertEquals("--start-maximized", launchedCommand.get().get(2));
         assertEquals("--new-window", launchedCommand.get().get(3));
         assertFalse(launchedCommand.get().contains("cmd"));
     }

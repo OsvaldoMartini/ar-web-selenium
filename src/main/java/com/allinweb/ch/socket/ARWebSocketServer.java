@@ -203,7 +203,7 @@ public class ARWebSocketServer {
 
     /** Opens one detached Page Scanner without falling back to a browser with an address bar. */
     public boolean openPageScannerDesktopShell(String sessionId) {
-        return desktopAppBrowserLauncher.launch(pageScannerDesktopUrl(boundPort, sessionId));
+        return desktopAppBrowserLauncher.launchMaximized(pageScannerDesktopUrl(boundPort, sessionId));
     }
 
     /** Opens one detached floating React workspace without falling back to a browser with an address bar. */
