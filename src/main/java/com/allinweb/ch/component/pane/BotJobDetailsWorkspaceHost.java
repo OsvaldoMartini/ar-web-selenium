@@ -1423,12 +1423,9 @@ public class BotJobDetailsWorkspaceHost {
                     request.requestId());
         }
         if (result.accepted()) {
-            boolean runtimeOpened = PagesOpenWorkspaceService.getInstance()
-                    .openOrFocusDetachedWorkspace(
-                            com.allinweb.ch.model.DetachedWorkspaceSessions.RUNTIME_VARIABLES_MANAGER,
-                            context.botJobId(),
-                            "TEST RUN started for this Bot Job.");
-            if (!runtimeOpened) {
+            JsonObject runtimeOpen = VariablesWorkspaceService.getInstance()
+                    .openRuntimeVariablesForBotJob(context.botJobId());
+            if (!runtimeOpen.has("ok") || !runtimeOpen.get("ok").getAsBoolean()) {
                 log.warn(
                         "Runtime Variables could not be opened for TEST RUN Bot Job {}",
                         context.botJobId());
@@ -1715,6 +1712,7 @@ public class BotJobDetailsWorkspaceHost {
                     case SHOW_VARIABLES -> showVariablesWorkspace();
                     case SHOW_EXCEL_DATA -> showExcelDataWorkspace();
                     case SHOW_SMOKE_TEST -> showSmokeTestWorkspace();
+                    case SHOW_RUNTIME_VARIABLES -> showRuntimeVariablesWorkspace();
                     case SHOW_PRE_SCAN -> showPreScanWorkspace();
                     case OPEN_ORGANIZATIONS -> {
                         // Capability-gated organization presentation was completed above.
@@ -1869,6 +1867,16 @@ public class BotJobDetailsWorkspaceHost {
         if (!opened) throw new IllegalStateException("The Smoke Test workspace could not be opened");
     }
 
+    private void showRuntimeVariablesWorkspace() {
+        JsonObject response = VariablesWorkspaceService.getInstance()
+                .openRuntimeVariablesForBotJob(selectedBotJob.getId());
+        if (response == null || !response.has("ok") || !response.get("ok").getAsBoolean()) {
+            throw new IllegalStateException(response != null && response.has("error")
+                    ? response.get("error").getAsString()
+                    : "The Runtime Variables workspace could not be opened");
+        }
+    }
+
     private void requestComponentsWorkspaceClose() {
         String sessionId = ScannerWorkspaceSessions.COMPONENT_TASKS;
         if (!WebSocketSessionManager.isSessionOpen(sessionId)) return;
@@ -1939,6 +1947,7 @@ public class BotJobDetailsWorkspaceHost {
             case SHOW_VARIABLES -> "Variables workspace opened";
             case SHOW_EXCEL_DATA -> "Excel Data workspace opened";
             case SHOW_SMOKE_TEST -> "Smoke Test workspace opened";
+            case SHOW_RUNTIME_VARIABLES -> "Runtime Variables workspace opened";
             case HIDE_COMPONENTS -> "Components workspace hidden";
             case SHOW_PRE_SCAN -> "Pre Scan workspace opened";
             case OPEN_ORGANIZATIONS -> "Organizations opened";

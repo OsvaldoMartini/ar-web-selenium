@@ -359,6 +359,75 @@ public final class VariablesWorkspaceService {
         }
     }
 
+    /** Opens, focuses, or retargets the singleton Runtime Variables page. */
+    public JsonObject openRuntimeVariablesForBotJob(int botJobId) {
+        JsonObject request = new JsonObject();
+        request.addProperty("botJobId", botJobId);
+        Binding previous = null;
+        Binding next = null;
+        try {
+            WorkspaceContext workspace = workspaces.require(botJobId, 0L);
+            next = new Binding(
+                    UUID.randomUUID().toString(),
+                    workspace.workspaceEpoch(),
+                    workspace.botJobId(),
+                    workspace.homeBankingId(),
+                    workspace.botJobName(),
+                    workspace.organizationName(),
+                    "");
+            synchronized (stateLock) {
+                previous = runtimeVariablesBinding;
+                runtimeVariablesBinding = next;
+            }
+            boolean alreadyOpen = windows.isOpen(
+                    DetachedWorkspaceSessions.RUNTIME_VARIABLES_MANAGER);
+            boolean opened = windows.openOrFocus(
+                    DetachedWorkspaceSessions.RUNTIME_VARIABLES_MANAGER,
+                    workspace.botJobId(),
+                    "Runtime Variables requested for this Bot Job.");
+            if (!opened) {
+                synchronized (stateLock) {
+                    if (runtimeVariablesBinding == next) runtimeVariablesBinding = previous;
+                }
+                return failure(
+                        request, "The Runtime Variables workspace could not be opened.", previous);
+            }
+            if (alreadyOpen) {
+                publishDetachedGraphSnapshotIfOpen(
+                        botJobId, DetachedWorkspaceSessions.RUNTIME_VARIABLES_MANAGER);
+            }
+            JsonObject response = success(
+                    request,
+                    next,
+                    alreadyOpen
+                            ? "Runtime Variables retargeted and brought to front."
+                            : "Runtime Variables opened.");
+            response.addProperty("alreadyOpen", alreadyOpen);
+            response.addProperty(
+                    "retargeted",
+                    alreadyOpen && (previous == null
+                            || previous.botJobId() != next.botJobId()
+                            || previous.workspaceEpoch() != next.workspaceEpoch()));
+            return response;
+        } catch (IllegalArgumentException | IllegalStateException refused) {
+            synchronized (stateLock) {
+                if (next != null && runtimeVariablesBinding == next) {
+                    runtimeVariablesBinding = previous;
+                }
+            }
+            return failure(request, refused.getMessage(), next);
+        } catch (RuntimeException failure) {
+            synchronized (stateLock) {
+                if (next != null && runtimeVariablesBinding == next) {
+                    runtimeVariablesBinding = previous;
+                }
+            }
+            log.error("Unable to open Runtime Variables", failure);
+            return failure(
+                    request, "The Runtime Variables workspace could not be opened.", next);
+        }
+    }
+
     /** Loads the page from the exact registered Variables transport. */
     public JsonObject bootstrap(
             JsonObject body, String requesterSessionId, Session requesterTransport) {
@@ -468,15 +537,9 @@ public final class VariablesWorkspaceService {
                     "The Runtime Variables launch requester is not authoritative.",
                     source);
         }
-        boolean opened = PagesOpenWorkspaceService.getInstance().openOrFocusDetachedWorkspace(
-                DetachedWorkspaceSessions.RUNTIME_VARIABLES_MANAGER,
-                source.botJobId(),
-                "Runtime variable execution started.");
-        if (!opened) {
-            return failure(
-                    request, "The Runtime Variables workspace could not be opened.", source);
-        }
-        return success(request, source, "Runtime Variables opened.");
+        JsonObject opened = openRuntimeVariablesForBotJob(source.botJobId());
+        correlate(request, opened);
+        return opened;
     }
 
     /** Explicitly refreshes the graph while preserving the prior UI snapshot on failure. */
