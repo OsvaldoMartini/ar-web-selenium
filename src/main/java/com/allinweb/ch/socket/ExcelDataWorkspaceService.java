@@ -46,6 +46,12 @@ public final class ExcelDataWorkspaceService {
         return INSTANCE;
     }
 
+    public synchronized boolean isOpenForBotJob(int botJobId) {
+        return binding != null
+                && binding.botJobId() == botJobId
+                && WebSocketSessionManager.isSessionOpen(SESSION_ID);
+    }
+
     public synchronized JsonObject openForBotJob(int botJobId) {
         try {
             ErrorMessage error = lists.getQuickBotJobs().isEmpty() ? database.loadQuickBotJobs() : null;
@@ -56,6 +62,7 @@ public final class ExcelDataWorkspaceService {
                 boolean opened = PagesOpenWorkspaceService.getInstance()
                         .openOrFocusDetachedWorkspace(
                                 SESSION_ID, botJobId, "Excel Data workspace requested for execution.");
+                if (opened) publishRetargetSnapshot();
                 return opened
                         ? snapshot("Retained Excel memory opened for execution.")
                         : failure("Excel Data workspace could not be opened.");
@@ -74,11 +81,19 @@ public final class ExcelDataWorkspaceService {
             selectExecutionData();
             boolean opened = PagesOpenWorkspaceService.getInstance()
                     .openOrFocusDetachedWorkspace(SESSION_ID, botJobId, "Excel Data workspace requested.");
+            if (opened) publishRetargetSnapshot();
             return opened ? snapshot("Excel Data workspace opened.") : failure("Excel Data workspace could not be opened.");
         } catch (Exception error) {
             log.error("Unable to open Excel Data workspace for Bot Job {}", botJobId, error);
             return failure(error.getMessage());
         }
+    }
+
+    private void publishRetargetSnapshot() {
+        if (binding == null || !WebSocketSessionManager.isSessionOpen(SESSION_ID)) return;
+        JsonObject current = snapshot("Excel Data reloaded for the selected Bot Job.");
+        WebSocketSessionManager.getInstance().sendMessageJson(
+                binding.homeBankingId(), SESSION_ID, current.toString(), "excelData.retarget");
     }
 
     public synchronized JsonObject bootstrap(JsonObject request, String sessionId, Session transport) {

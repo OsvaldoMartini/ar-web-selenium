@@ -285,6 +285,9 @@ public class BotJobDetailsWorkspaceHost {
         boolean preserveVariablesWorkspace = switchingBotJob
                 && VariablesWorkspaceService.getInstance()
                         .isOpenForBotJob(previousBotJobId);
+        boolean preserveExcelDataWorkspace = switchingBotJob
+                && ExcelDataWorkspaceService.getInstance()
+                        .isOpenForBotJob(previousBotJobId);
         if (switchingBotJob && !canCloseWorkspace()) {
             throw new IllegalStateException(
                     "Stop the active Bot Job operation before opening another Bot Job");
@@ -368,6 +371,9 @@ public class BotJobDetailsWorkspaceHost {
         botJobDetailsWorkspaceRegistry.activate(selectedBotJob, isEnabledLicence);
         if (preserveVariablesWorkspace) {
             retargetVariablesWorkspace(previousBotJobId, selectedBotJob.getId());
+        }
+        if (preserveExcelDataWorkspace) {
+            retargetExcelDataWorkspace(previousBotJobId, selectedBotJob.getId());
         }
         try {
             reactEnvironmentUrl = botJobDetailsService
@@ -1768,6 +1774,26 @@ public class BotJobDetailsWorkspaceHost {
         if (!service.retireForBotJobDetailed(nextBotJobId, reason).matched()) {
             service.retireForBotJobDetailed(previousBotJobId, reason);
         }
+    }
+
+    private void retargetExcelDataWorkspace(int previousBotJobId, int nextBotJobId) {
+        JsonObject response = ExcelDataWorkspaceService.getInstance().openForBotJob(nextBotJobId);
+        if (response != null
+                && response.has("ok")
+                && !response.get("ok").isJsonNull()
+                && response.get("ok").getAsBoolean()) {
+            return;
+        }
+        String reason = response != null
+                        && response.has("error")
+                        && !response.get("error").isJsonNull()
+                ? response.get("error").getAsString()
+                : "Excel Data could not follow the newly selected Bot Job.";
+        log.warn(
+                "Excel Data workspace retarget from Bot Job {} to {} failed: {}",
+                previousBotJobId,
+                nextBotJobId,
+                reason);
     }
 
     private void suspendReactWorkspaceSurfaces(int botJobId) {
