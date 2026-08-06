@@ -1050,6 +1050,16 @@ public class SimpleWebSocketServer {
                                     runtimeVariablesBody, sessionId, session));
                     break;
                 }
+                case "excelDataWorkspace.open": {
+                    JsonObject excelDataBody = extractBody(jsonObjMSG);
+                    sendCommandEditorResponse(
+                            homeBankingId,
+                            sessionId,
+                            "excelDataWorkspace.openResponse",
+                            variablesWorkspaceService.openExcelDataWorkspace(
+                                    excelDataBody, sessionId, session));
+                    break;
+                }
                 case "variablesWorkspace.variables.create": {
                     JsonObject variablesBody = extractBody(jsonObjMSG);
                     sendCommandEditorResponse(

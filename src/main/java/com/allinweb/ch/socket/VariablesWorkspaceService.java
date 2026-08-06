@@ -620,6 +620,28 @@ public final class VariablesWorkspaceService {
         return opened;
     }
 
+    /** Opens/focuses Excel Data for the exact Bot Job bound to the requesting workspace. */
+    public JsonObject openExcelDataWorkspace(
+            JsonObject body, String requesterSessionId, Session requesterTransport) {
+        JsonObject request = body == null ? new JsonObject() : body;
+        Binding source;
+        synchronized (stateLock) {
+            source = DetachedWorkspaceSessions.SMOKE_TEST_MANAGER.equals(requesterSessionId)
+                            && smokeTestTransport == requesterTransport
+                    ? smokeTestBinding
+                    : null;
+        }
+        if (source == null || !windows.isRegistered(requesterSessionId, requesterTransport)) {
+            return failure(
+                    request,
+                    "The Excel Data launch requester is not authoritative.",
+                    source);
+        }
+        JsonObject opened = ExcelDataWorkspaceService.getInstance().openForBotJob(source.botJobId());
+        correlate(request, opened);
+        return opened;
+    }
+
     /** Explicitly refreshes the graph while preserving the prior UI snapshot on failure. */
     public JsonObject refresh(
             JsonObject body, String requesterSessionId, Session requesterTransport) {
