@@ -44,6 +44,7 @@ public final class MemoryListWorkspaceService {
     public static final String SNAPSHOT_OPERATION = "memoryList.snapshot";
     public static final String FOCUS_OPERATION = "memoryList.focus";
     public static final String SOURCE_COMMAND_OPERATION = "memoryList.command";
+    public static final String SUMMARY_CHANGED_OPERATION = "memoryList.summaryChanged";
 
     private static final String BOT_JOB_SOURCE = "BOT_JOB";
     private static final String PAGE_SCANNER_SOURCE = "PAGE_SCANNER";
@@ -78,6 +79,7 @@ public final class MemoryListWorkspaceService {
     private final BlockCreationService blockCreationService = BlockCreationService.getInstance();
     private final ScannerBotJobTasksPublisher botJobTasksPublisher =
             ScannerBotJobTasksPublisher.getInstance();
+    private final Map<String, SummarySubscriber> summarySubscribers = new LinkedHashMap<>();
     private MemoryState current;
     private boolean launchPending;
     private long launchPendingSince;
@@ -141,6 +143,10 @@ public final class MemoryListWorkspaceService {
 
         if (alreadyOpen) {
             publishSnapshot(state);
+            PagesOpenWorkspaceService.getInstance()
+                    .focusSession(
+                            WORKSPACE_SESSION_ID,
+                            "Memory button requested the existing Memory List workspace.");
             publishFocus(state);
         }
         boolean pendingReuse = !alreadyOpen && !launchRequired;
@@ -154,6 +160,7 @@ public final class MemoryListWorkspaceService {
         copyRequestId(response, body);
         response.addProperty("alreadyOpen", alreadyOpen);
         response.addProperty("reused", alreadyOpen || pendingReuse);
+        publishSummaryChanged();
         return response;
     }
 
@@ -194,6 +201,7 @@ public final class MemoryListWorkspaceService {
                     "Components do not match the active Bot Job Details workspace.");
         }
         publishSnapshot(state);
+        publishSummaryChanged();
         JsonObject response = snapshotResponse(state, "Memory List synchronized.");
         copyRequestId(response, body);
         return response;
@@ -270,7 +278,57 @@ public final class MemoryListWorkspaceService {
             };
         }
         publishSnapshot(state);
+        if (booleanValue(response, "ok")) {
+            publishSummaryChanged();
+        }
         return response;
+    }
+
+    /**
+     * Registers one lightweight count subscriber for a Memory List producer surface.
+     *
+     * <p>The canonical mixed list stays backend-owned. Producers receive only the count and
+     * ownership revision for their exact Home Banking/Bot Job scope, never the full mixed payload.
+     */
+    public JsonObject summary(
+            JsonObject body, String transportSessionId, Session transportSession) {
+        JsonObject validation =
+                validateSummaryRequest(body, transportSessionId, transportSession);
+        if (validation != null) return validation;
+
+        SummarySubscriber subscriber;
+        try {
+            subscriber = new SummarySubscriber(
+                    sourceKind(transportSessionId),
+                    transportSessionId,
+                    transportSession,
+                    positiveInteger(body, "botJobId"),
+                    sourceHomeBankingId(body, transportSessionId));
+        } catch (IllegalArgumentException inactiveWorkspace) {
+            return failure(
+                    body,
+                    "Components do not match the active Bot Job Details workspace.");
+        }
+
+        synchronized (stateLock) {
+            pruneSummarySubscribers();
+            // There is one authoritative producer transport per source kind. A reconnect or
+            // Bot-Job retarget replaces the previous subscription instead of accumulating rows.
+            summarySubscribers.put(subscriber.kind, subscriber);
+            return summaryResponse(body, subscriber, current, "Memory List count loaded.");
+        }
+    }
+
+    /** Removes only the exact closed/taken-over producer transport. */
+    public void disconnected(String transportSessionId, Session transportSession) {
+        if (transportSessionId == null || transportSession == null) return;
+        synchronized (stateLock) {
+            summarySubscribers.entrySet().removeIf(entry -> {
+                SummarySubscriber subscriber = entry.getValue();
+                return subscriber.transport == transportSession
+                        && subscriber.sessionId.equals(transportSessionId);
+            });
+        }
     }
 
     private JsonObject reorder(MemoryState state, JsonObject payload, JsonObject request) {
@@ -1006,6 +1064,37 @@ public final class MemoryListWorkspaceService {
         return null;
     }
 
+    private JsonObject validateSummaryRequest(
+            JsonObject body, String transportSessionId, Session transportSession) {
+        String kind = sourceKind(transportSessionId);
+        if (kind.isEmpty()) {
+            return failure(
+                    body,
+                    "Only Bot Job Details, Page Scanner, or Components can read the Memory List count.");
+        }
+        if (!isRegisteredTransport(transportSessionId, transportSession)) {
+            return failure(body, "The Memory List count requester is not authoritative.");
+        }
+        if (body == null) return failure(null, "Memory List summary body is required.");
+        if (positiveInteger(body, "botJobId") <= 0) {
+            return failure(body, "A positive Bot Job ID is required.");
+        }
+        String requestId = string(body, "requestId");
+        if (requestId.length() > MAX_REQUEST_ID_CHARACTERS) {
+            return failure(body, "A valid Memory List request ID is required.");
+        }
+        try {
+            if (sourceHomeBankingId(body, transportSessionId) <= 0) {
+                return failure(body, "A positive Home Banking ID is required.");
+            }
+        } catch (IllegalArgumentException inactiveWorkspace) {
+            return failure(
+                    body,
+                    "Components do not match the active Bot Job Details workspace.");
+        }
+        return null;
+    }
+
     private JsonObject validateWorkspaceTransport(
             JsonObject body, String transportSessionId, Session transportSession) {
         if (!WORKSPACE_SESSION_ID.equals(transportSessionId)) {
@@ -1119,6 +1208,58 @@ public final class MemoryListWorkspaceService {
         }
     }
 
+    private void publishSummaryChanged() {
+        List<SummaryDelivery> deliveries = new ArrayList<>();
+        synchronized (stateLock) {
+            pruneSummarySubscribers();
+            for (SummarySubscriber subscriber : summarySubscribers.values()) {
+                deliveries.add(new SummaryDelivery(
+                        subscriber,
+                        summaryResponse(
+                                null,
+                                subscriber,
+                                current,
+                                "Memory List count updated.")));
+            }
+        }
+        for (SummaryDelivery delivery : deliveries) {
+            SummarySubscriber subscriber = delivery.subscriber;
+            if (!isRegisteredTransport(subscriber.sessionId, subscriber.transport)) continue;
+            WebSocketSessionManager.sendMessageJson(
+                    subscriber.homeBankingId,
+                    subscriber.transport,
+                    subscriber.sessionId,
+                    gson.toJson(delivery.payload),
+                    SUMMARY_CHANGED_OPERATION);
+        }
+    }
+
+    private void pruneSummarySubscribers() {
+        summarySubscribers.entrySet().removeIf(entry -> {
+            SummarySubscriber subscriber = entry.getValue();
+            return !isRegisteredTransport(subscriber.sessionId, subscriber.transport);
+        });
+    }
+
+    private JsonObject summaryResponse(
+            JsonObject request,
+            SummarySubscriber subscriber,
+            MemoryState state,
+            String message) {
+        boolean matches = state != null
+                && state.botJobId == subscriber.botJobId
+                && state.homeBankingId == subscriber.homeBankingId;
+        JsonObject response = baseResponse(request, true, message);
+        response.addProperty("sourceSessionId", subscriber.sessionId);
+        response.addProperty("sourceKind", subscriber.kind);
+        response.addProperty("botJobId", subscriber.botJobId);
+        response.addProperty("homeBankingId", subscriber.homeBankingId);
+        response.addProperty("itemCount", matches ? state.items.size() : 0);
+        response.addProperty("revision", matches ? state.revision : 0);
+        response.addProperty("ownerEpoch", matches ? state.ownerEpoch : "");
+        return response;
+    }
+
     private void publishFocus(MemoryState state) {
         synchronized (stateLock) {
             if (current != state || !WebSocketSessionManager.isSessionOpen(WORKSPACE_SESSION_ID)) {
@@ -1146,6 +1287,7 @@ public final class MemoryListWorkspaceService {
         response.addProperty("homeBankingId", state.homeBankingId);
         response.addProperty("ownerEpoch", state.ownerEpoch);
         response.addProperty("revision", state.revision);
+        response.addProperty("itemCount", state.items.size());
         for (var field : snapshot.entrySet()) {
             if (!response.has(field.getKey())) response.add(field.getKey(), field.getValue().deepCopy());
         }
@@ -1161,6 +1303,7 @@ public final class MemoryListWorkspaceService {
         snapshot.addProperty("homeBankingId", state.homeBankingId);
         snapshot.addProperty("botJobId", state.botJobId);
         snapshot.addProperty("botJobName", state.botJobName);
+        snapshot.addProperty("itemCount", state.items.size());
         JsonArray items = new JsonArray();
         for (String key : state.order) {
             AggregatedItem item = state.items.get(key);
@@ -1385,6 +1528,15 @@ public final class MemoryListWorkspaceService {
     }
 
     private record CompletedApplyResponse(String fingerprint, JsonObject response) {}
+
+    private record SummarySubscriber(
+            String kind,
+            String sessionId,
+            Session transport,
+            int botJobId,
+            int homeBankingId) {}
+
+    private record SummaryDelivery(SummarySubscriber subscriber, JsonObject payload) {}
 
     private static final class SourceState {
         private final String kind;

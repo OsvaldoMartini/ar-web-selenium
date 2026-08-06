@@ -329,6 +329,14 @@ public class SimpleWebSocketServer {
             Session previousSource = WebSocketSessionManager.getSession(sessionId);
             if (previousSource != null && previousSource != session) {
                 commandEditorWorkspaceService.disconnected(sessionId, previousSource);
+                memoryListWorkspaceService.disconnected(sessionId, previousSource);
+            }
+        }
+
+        if (ScannerWorkspaceSessions.isPageScannerSession(sessionId)) {
+            Session previousSource = WebSocketSessionManager.getSession(sessionId);
+            if (previousSource != null && previousSource != session) {
+                memoryListWorkspaceService.disconnected(sessionId, previousSource);
             }
         }
 
@@ -1996,6 +2004,9 @@ public class SimpleWebSocketServer {
                 case "memoryList.sync":
                     handleMemoryListSync(jsonObjMSG, transportSessionId, session);
                     break;
+                case "memoryList.summary":
+                    handleMemoryListSummary(jsonObjMSG, transportSessionId, session);
+                    break;
                 case "memoryList.bootstrap":
                     handleMemoryListBootstrap(jsonObjMSG, transportSessionId, session);
                     break;
@@ -2267,6 +2278,16 @@ public class SimpleWebSocketServer {
                 transportSessionId,
                 "memoryList.syncResponse",
                 memoryListWorkspaceService.sync(body, transportSessionId, transportSession));
+    }
+
+    private void handleMemoryListSummary(
+            JsonObject envelope, String transportSessionId, Session transportSession) {
+        JsonObject body = extractBody(envelope);
+        sendCommandEditorResponse(
+                memoryListHomeBankingId(envelope, body),
+                transportSessionId,
+                "memoryList.summaryResponse",
+                memoryListWorkspaceService.summary(body, transportSessionId, transportSession));
     }
 
     private void handleMemoryListBootstrap(
@@ -3573,6 +3594,7 @@ public class SimpleWebSocketServer {
                     notifyMainApplicationDisconnected(sessionId);
                     commandEditorWorkspaceService.disconnected(sessionId, session);
                     variablesWorkspaceService.disconnected(sessionId, session);
+                    memoryListWorkspaceService.disconnected(sessionId, session);
                     pagesOpenWorkspaceService.sessionRegistryChanged();
                 }
             }
@@ -4967,6 +4989,7 @@ public class SimpleWebSocketServer {
                 || "ocrWorkspace.open".equals(operation)
                 || "memoryList.open".equals(operation)
                 || "memoryList.sync".equals(operation)
+                || "memoryList.summary".equals(operation)
                 || "pagesOpen.open".equals(operation)
                 || "pagesOpen.summary".equals(operation)
                 || (operation != null && DETACHED_PAGE_SCANNER_BOT_JOB_OPERATIONS.contains(operation));
@@ -7032,6 +7055,7 @@ public class SimpleWebSocketServer {
                 notifyMainApplicationDisconnected(sessionId);
                 commandEditorWorkspaceService.disconnected(sessionId, session);
                 variablesWorkspaceService.disconnected(sessionId, session);
+                memoryListWorkspaceService.disconnected(sessionId, session);
                 pagesOpenWorkspaceService.sessionRegistryChanged();
             }
         } else {

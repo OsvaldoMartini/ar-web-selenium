@@ -277,6 +277,13 @@ public final class VariablesCommandEditorCopyTransaction {
                 ? sourceAction
                 : CommandRegistry.canonicalize(request.targetAction());
         boolean commandChanged = createBlank || !targetAction.equals(sourceAction);
+        if (!createBlank
+                && commandChanged
+                && CommandRegistry.isWebElementAction(sourceAction)) {
+            throw refused(
+                    "COMMAND_COPY_WEB_ELEMENT_TYPE_LOCKED",
+                    "Web Elements cannot be transformed into commands.");
+        }
         if (commandChanged && !CommandRegistry.isEditorTargetable(targetAction)) {
             throw refused(
                     "COMMAND_COPY_TARGET_ACTION_INVALID",
@@ -339,7 +346,8 @@ public final class VariablesCommandEditorCopyTransaction {
             throw refused("COMMAND_COPY_CONFIGURATION_REQUIRED", "A typed command configuration is required.");
         }
         if (configuration.kind() == ConfigurationKind.NONE) {
-            if (!CommandRegistry.hasNoEditorConfiguration(action)) {
+            if (!CommandRegistry.hasNoEditorConfiguration(action)
+                    && !CommandRegistry.isWebElementAction(action)) {
                 throw refused(
                         "COMMAND_COPY_CONFIGURATION_MISMATCH",
                         "The selected command requires its typed configuration.");

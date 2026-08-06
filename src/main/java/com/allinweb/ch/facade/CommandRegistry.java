@@ -36,6 +36,16 @@ public final class CommandRegistry {
         return DEFINITIONS.containsKey(canonical) || SPECIAL_ROWS.contains(canonical);
     }
 
+    /**
+     * Instructions whose action is not a registered command or structural row are Web Elements.
+     * BACK is an executable neutral command even though it is intentionally absent from the
+     * editor catalog.
+     */
+    public static boolean isWebElementAction(String action) {
+        String canonical = canonicalize(action);
+        return !isSpecialAction(canonical) && !"BACK".equals(canonical);
+    }
+
     public static boolean isCommand(String action) {
         return DEFINITIONS.containsKey(canonicalize(action));
     }

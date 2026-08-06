@@ -588,8 +588,7 @@ public final class ExecutionRelationshipPreflightService {
     }
 
     private static boolean isWebElement(InstructionFact row) {
-        String canonical = action(row);
-        return !CommandRegistry.isSpecialAction(canonical) && !"BACK".equals(canonical);
+        return CommandRegistry.isWebElementAction(action(row));
     }
 
     private static boolean isCompatibleLoopAnchor(InstructionFact row) {
