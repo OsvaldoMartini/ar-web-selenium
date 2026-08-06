@@ -288,6 +288,12 @@ public class BotJobDetailsWorkspaceHost {
         boolean preserveExcelDataWorkspace = switchingBotJob
                 && ExcelDataWorkspaceService.getInstance()
                         .isOpenForBotJob(previousBotJobId);
+        boolean preserveRuntimeVariablesWorkspace = switchingBotJob
+                && VariablesWorkspaceService.getInstance()
+                        .isRuntimeVariablesOpenForBotJob(previousBotJobId);
+        boolean preserveSmokeTestWorkspace = switchingBotJob
+                && VariablesWorkspaceService.getInstance()
+                        .isSmokeTestOpenForBotJob(previousBotJobId);
         if (switchingBotJob && !canCloseWorkspace()) {
             throw new IllegalStateException(
                     "Stop the active Bot Job operation before opening another Bot Job");
@@ -374,6 +380,12 @@ public class BotJobDetailsWorkspaceHost {
         }
         if (preserveExcelDataWorkspace) {
             retargetExcelDataWorkspace(previousBotJobId, selectedBotJob.getId());
+        }
+        if (preserveRuntimeVariablesWorkspace) {
+            retargetRuntimeVariablesWorkspace(previousBotJobId, selectedBotJob.getId());
+        }
+        if (preserveSmokeTestWorkspace) {
+            retargetSmokeTestWorkspace(previousBotJobId, selectedBotJob.getId());
         }
         try {
             reactEnvironmentUrl = botJobDetailsService
@@ -1796,6 +1808,31 @@ public class BotJobDetailsWorkspaceHost {
                 reason);
     }
 
+    private void retargetRuntimeVariablesWorkspace(int previousBotJobId, int nextBotJobId) {
+        JsonObject response = VariablesWorkspaceService.getInstance()
+                .openRuntimeVariablesForBotJob(nextBotJobId);
+        logDetachedRetargetFailure(
+                response, "Runtime Variables", previousBotJobId, nextBotJobId);
+    }
+
+    private void retargetSmokeTestWorkspace(int previousBotJobId, int nextBotJobId) {
+        JsonObject response = VariablesWorkspaceService.getInstance()
+                .openSmokeTestForBotJob(nextBotJobId);
+        logDetachedRetargetFailure(response, "Smoke Test", previousBotJobId, nextBotJobId);
+    }
+
+    private void logDetachedRetargetFailure(
+            JsonObject response, String workspaceName, int previousBotJobId, int nextBotJobId) {
+        if (response != null && response.has("ok") && !response.get("ok").isJsonNull()
+                && response.get("ok").getAsBoolean()) return;
+        String reason = response != null && response.has("error") && !response.get("error").isJsonNull()
+                ? response.get("error").getAsString()
+                : workspaceName + " could not follow the newly selected Bot Job.";
+        log.warn(
+                "{} workspace retarget from Bot Job {} to {} failed: {}",
+                workspaceName, previousBotJobId, nextBotJobId, reason);
+    }
+
     private void suspendReactWorkspaceSurfaces(int botJobId) {
         suspendReactWorkspaceSurfaces(botJobId, false, false);
     }
@@ -1886,11 +1923,13 @@ public class BotJobDetailsWorkspaceHost {
     }
 
     private void showSmokeTestWorkspace() {
-        boolean opened = PagesOpenWorkspaceService.getInstance().openOrFocusDetachedWorkspace(
-                com.allinweb.ch.model.DetachedWorkspaceSessions.SMOKE_TEST_MANAGER,
-                selectedBotJob.getId(),
-                "Bot Job Details requested the Smoke Test template.");
-        if (!opened) throw new IllegalStateException("The Smoke Test workspace could not be opened");
+        JsonObject response = VariablesWorkspaceService.getInstance()
+                .openSmokeTestForBotJob(selectedBotJob.getId());
+        if (response == null || !response.has("ok") || !response.get("ok").getAsBoolean()) {
+            throw new IllegalStateException(response != null && response.has("error")
+                    ? response.get("error").getAsString()
+                    : "The Smoke Test workspace could not be opened");
+        }
     }
 
     private void showRuntimeVariablesWorkspace() {

@@ -274,6 +274,24 @@ public final class VariablesWorkspaceService {
                 && windows.isOpen(WORKSPACE_SESSION_ID);
     }
 
+    public boolean isRuntimeVariablesOpenForBotJob(int botJobId) {
+        synchronized (stateLock) {
+            return botJobId > 0
+                    && runtimeVariablesBinding != null
+                    && runtimeVariablesBinding.botJobId() == botJobId
+                    && windows.isOpen(DetachedWorkspaceSessions.RUNTIME_VARIABLES_MANAGER);
+        }
+    }
+
+    public boolean isSmokeTestOpenForBotJob(int botJobId) {
+        synchronized (stateLock) {
+            return botJobId > 0
+                    && smokeTestBinding != null
+                    && smokeTestBinding.botJobId() == botJobId
+                    && windows.isOpen(DetachedWorkspaceSessions.SMOKE_TEST_MANAGER);
+        }
+    }
+
     /** Opens or retargets the single Variables page for an already-authorized Bot Job action. */
     public JsonObject openForBotJob(int botJobId) {
         JsonObject request = new JsonObject();
@@ -425,6 +443,66 @@ public final class VariablesWorkspaceService {
             log.error("Unable to open Runtime Variables", failure);
             return failure(
                     request, "The Runtime Variables workspace could not be opened.", next);
+        }
+    }
+
+    /** Opens, focuses, or retargets the singleton Smoke Test page. */
+    public JsonObject openSmokeTestForBotJob(int botJobId) {
+        JsonObject request = new JsonObject();
+        request.addProperty("botJobId", botJobId);
+        Binding previous = null;
+        Binding next = null;
+        try {
+            WorkspaceContext workspace = workspaces.require(botJobId, 0L);
+            next = new Binding(
+                    UUID.randomUUID().toString(),
+                    workspace.workspaceEpoch(),
+                    workspace.botJobId(),
+                    workspace.homeBankingId(),
+                    workspace.botJobName(),
+                    workspace.organizationName(),
+                    "");
+            synchronized (stateLock) {
+                previous = smokeTestBinding;
+                smokeTestBinding = next;
+            }
+            boolean alreadyOpen = windows.isOpen(DetachedWorkspaceSessions.SMOKE_TEST_MANAGER);
+            boolean opened = windows.openOrFocus(
+                    DetachedWorkspaceSessions.SMOKE_TEST_MANAGER,
+                    workspace.botJobId(),
+                    "Smoke Test requested for this Bot Job.");
+            if (!opened) {
+                synchronized (stateLock) {
+                    if (smokeTestBinding == next) smokeTestBinding = previous;
+                }
+                return failure(request, "The Smoke Test workspace could not be opened.", previous);
+            }
+            if (alreadyOpen) {
+                publishDetachedGraphSnapshotIfOpen(
+                        botJobId, DetachedWorkspaceSessions.SMOKE_TEST_MANAGER);
+            }
+            JsonObject response = success(
+                    request,
+                    next,
+                    alreadyOpen ? "Smoke Test retargeted and brought to front." : "Smoke Test opened.");
+            response.addProperty("alreadyOpen", alreadyOpen);
+            response.addProperty(
+                    "retargeted",
+                    alreadyOpen && (previous == null
+                            || previous.botJobId() != next.botJobId()
+                            || previous.workspaceEpoch() != next.workspaceEpoch()));
+            return response;
+        } catch (IllegalArgumentException | IllegalStateException refused) {
+            synchronized (stateLock) {
+                if (next != null && smokeTestBinding == next) smokeTestBinding = previous;
+            }
+            return failure(request, refused.getMessage(), next);
+        } catch (RuntimeException failure) {
+            synchronized (stateLock) {
+                if (next != null && smokeTestBinding == next) smokeTestBinding = previous;
+            }
+            log.error("Unable to open Smoke Test", failure);
+            return failure(request, "The Smoke Test workspace could not be opened.", next);
         }
     }
 
