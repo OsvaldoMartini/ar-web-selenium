@@ -3,6 +3,29 @@
 Date: 2026-07-24
 Status: Phase 0 complete; Phase 3 non-empty Block/Instruction selection slice implemented
 
+## Implementation Checkpoint - 2026-08-06 Variable-Slot Editing
+
+- [x] Kept `CheckValue` as the comparison command; the planned `Var Condition` command was
+  cancelled and no new command type was added.
+- [x] Added LEFT/RIGHT selectors for CheckValue/CSV CHECK/PDF CHECK and GET_WRITE/READ_SET/READ
+  selectors for GET/SET/ExcelWrite on both the detached Bot Job editor and Variables modal.
+- [x] Persisted intrinsic command configuration first and only changed slot relationships after
+  each correlated response, carrying committed graph authority between calls.
+- [x] Reused the dedicated LEFT, RIGHT, and regular-command variable mutation operations and
+  authorized those operations for only the selected detached Bot Job instruction.
+- [x] Made explicit `variableSlots` authoritative; detached compatibility values remain projections
+  read from `instruction_variable_slot`, not a second persistence source.
+- [x] Made UPDATE preserve same-action relationships and command transformation clear incompatible
+  slots. COPY NEW always creates and verifies a disconnected instruction.
+- [x] Removed the shared Command Editor modal from GridItem; Variables remains its only consumer.
+- [x] Added the legacy Web Element badge and `(instructionId) name` to the detached editor.
+- [x] Pushed frontend commits `169eb7f`, `4459346`, and `21e4b0d`; pushed backend commits
+  `7ecf78c9`, `7d87cabd`, and `0b2fa310`.
+- [x] Production React build passed and its 58-file output was hash-verified after mirroring.
+- [x] `mvn -DskipTests compile` passed for 521 Java sources.
+- [ ] Automated tests were deferred by explicit user instruction pending manual verification.
+- [ ] Live packaged-backend verification remains required.
+
 ## Implementation Checkpoint - 2026-08-06 Detached Modal-Parity Body
 
 - [x] Replaced the detached legacy selector/action body with an isolated page-owned copy of the
