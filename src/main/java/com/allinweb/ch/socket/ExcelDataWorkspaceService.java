@@ -257,9 +257,8 @@ public final class ExcelDataWorkspaceService {
         if (authorization != null) return authorization;
         String requested = request != null && request.has("mode") ? request.get("mode").getAsString() : "REAL";
         binding.mode = "SYNTHETIC".equalsIgnoreCase(requested) ? Mode.SYNTHETIC : Mode.REAL;
-        if (binding.mode == Mode.SYNTHETIC && binding.syntheticData == null) {
-            binding.syntheticData = emptyLike(binding.realData);
-        }
+        JsonObject reloadFailure = reloadSyntheticSelection();
+        if (reloadFailure != null) return reloadFailure;
         binding.loadedAt = Instant.now();
         selectExecutionData();
         JsonObject response = snapshot(binding.mode + " data selected.");
@@ -281,15 +280,48 @@ public final class ExcelDataWorkspaceService {
             if (!opened.has("ok") || !opened.get("ok").getAsBoolean()) return opened;
         }
         binding.mode = "SYNTHETIC".equalsIgnoreCase(requested) ? Mode.SYNTHETIC : Mode.REAL;
-        if (binding.mode == Mode.SYNTHETIC && binding.syntheticData == null) {
-            binding.syntheticData = emptyLike(binding.realData);
-        }
+        JsonObject reloadFailure = reloadSyntheticSelection();
+        if (reloadFailure != null) return reloadFailure;
         binding.loadedAt = Instant.now();
         selectExecutionData();
         JsonObject response = modeForBotJob(botJobId);
         response.addProperty("message", binding.mode + " data selected.");
         publishModeChanged();
         return response;
+    }
+
+    private JsonObject reloadSyntheticSelection() {
+        if (binding.mode != Mode.SYNTHETIC) return null;
+        try {
+            ExtractedData saved = syntheticStore.load(binding.homeBankingId(), binding.botJobId());
+            binding.syntheticData = saved == null ? emptyLike(binding.realData) : saved;
+            binding.syntheticDirty = false;
+            return null;
+        } catch (Exception error) {
+            log.error("Unable to reload synthetic Excel data for Bot Job {}", binding.botJobId(), error);
+            return failure("Synthetic data could not be loaded from the database.");
+        }
+    }
+
+    public synchronized JsonObject clearRows(
+            JsonObject request, String sessionId, Session transport) {
+        JsonObject authorization = requireActiveTransport(sessionId, transport);
+        if (authorization != null) return authorization;
+        if (binding == null) return failure("No Bot Job Excel dataset is open.");
+        if (request == null || !request.has("confirmed") || !request.get("confirmed").getAsBoolean()) {
+            return failure("Confirm clearing all in-memory Excel rows.");
+        }
+        if (binding.mode == Mode.REAL) {
+            binding.realData = emptyLike(binding.realData);
+        } else {
+            ExtractedData syntheticSource = binding.syntheticData == null
+                    ? binding.realData : binding.syntheticData;
+            binding.syntheticData = emptyLike(syntheticSource);
+        }
+        binding.setDirty(true);
+        binding.loadedAt = Instant.now();
+        selectExecutionData();
+        return snapshot(binding.mode + " rows cleared from memory.");
     }
 
     private void publishModeChanged() {
