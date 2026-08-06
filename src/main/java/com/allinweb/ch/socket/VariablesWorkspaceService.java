@@ -365,6 +365,40 @@ public final class VariablesWorkspaceService {
                 "Variables workspace loaded.");
     }
 
+    /** Loads the read-only graph used by the detached Smoke Test workspace. */
+    public JsonObject smokeTestBootstrap(
+            JsonObject body, String requesterSessionId, Session requesterTransport) {
+        JsonObject request = body == null ? new JsonObject() : body;
+        Binding smokeBinding = null;
+        try {
+            if (!DetachedWorkspaceSessions.SMOKE_TEST_MANAGER.equals(requesterSessionId)
+                    || !windows.isRegistered(requesterSessionId, requesterTransport)) {
+                throw new IllegalArgumentException(
+                        "The Smoke Test workspace requester is not authoritative.");
+            }
+            if (!request.has("botJobId") || request.get("botJobId").isJsonNull()) {
+                throw new IllegalArgumentException("Smoke Test requires a Bot Job ID.");
+            }
+            int botJobId = request.get("botJobId").getAsInt();
+            if (botJobId <= 0) {
+                throw new IllegalArgumentException("Smoke Test requires a valid Bot Job ID.");
+            }
+            WorkspaceContext workspace = workspaces.require(botJobId, 0L);
+            smokeBinding = new Binding(
+                    UUID.randomUUID().toString(),
+                    workspace.workspaceEpoch(),
+                    workspace.botJobId(),
+                    workspace.homeBankingId(),
+                    workspace.botJobName(),
+                    workspace.organizationName(),
+                    text(request, "graphRevision"));
+            return loadSnapshot(smokeBinding, request, "Smoke Test workspace loaded.");
+        } catch (Exception failure) {
+            log.warn("Unable to load Smoke Test workspace", failure);
+            return failure(request, failure.getMessage(), smokeBinding);
+        }
+    }
+
     /** Explicitly refreshes the graph while preserving the prior UI snapshot on failure. */
     public JsonObject refresh(
             JsonObject body, String requesterSessionId, Session requesterTransport) {

@@ -920,12 +920,17 @@ public class SimpleWebSocketServer {
                 }
                 case "variablesWorkspace.bootstrap": {
                     JsonObject variablesBody = extractBody(jsonObjMSG);
+                    JsonObject variablesResponse =
+                            DetachedWorkspaceSessions.SMOKE_TEST_MANAGER.equals(sessionId)
+                                    ? variablesWorkspaceService.smokeTestBootstrap(
+                                            variablesBody, sessionId, session)
+                                    : variablesWorkspaceService.bootstrap(
+                                            variablesBody, sessionId, session);
                     sendCommandEditorResponse(
                             homeBankingId,
                             sessionId,
                             "variablesWorkspace.bootstrapResponse",
-                            variablesWorkspaceService.bootstrap(
-                                    variablesBody, sessionId, session));
+                            variablesResponse);
                     break;
                 }
                 case "excelData.bootstrap": {
