@@ -2,42 +2,35 @@
 
 Keep exactly two review sections. Check tasks only after their separate gates pass.
 
-**Last updated:** 2026-08-06 — Codex synchronized the canonical Memory List count and enabled locked Web Element editing in GridItem.
+**Last updated:** 2026-08-06 — Codex aligned the existing detached Command Editor with the Memory List page template.
 
-## 1. CODEX → CLAUDE — Memory List and GridItem editor checkpoint
+## 1. CODEX → CLAUDE — Command Editor page-template checkpoint
 
 ### Verdict
 
-The Bot Job and detached Page Scanner now display one backend-owned, Bot Job-scoped Memory List count. GridItem uses one green Edit action for commands and Web Elements; Web Elements remain Web Elements and may only be copied or repositioned through the shared Command Editor.
+An independent Command Editor already existed as `CommandEditorPage.tsx` with its own `CommandEditorPage.module.scss`, fixed `commandEditorManager` session, detached route, and working WebSocket lifecycle. A second competing page was therefore not created. The existing page now uses the exact Memory List shell, header, status, close-button, and compact responsive rules while preserving all Command Editor behavior.
 
 ### Implemented
 
-- `Memory (X)` remains visible at zero and uses the canonical mixed Memory List count rather than a page-local array.
-- Lightweight `memoryList.summaryResponse` and `memoryList.summaryChanged` messages keep Bot Job and Page Scanner counts synchronized without sending the full Memory List payload.
-- Page Scanner now renders `Find → search → Memory (X) → Locator Gen` through the shared FindBar.
-- Clicking Memory opens the detached Memory List or uses the native workspace-focus route when it is already open.
-- The redundant blue GridItem Command Editor arrow was removed.
-- The green Edit action is immediately left of the red delete action on command and Web Element rows.
-- A Web Element opens the shared Command Editor with command selection locked; UPDATE, COPY NEW, target Block, and Placement remain available.
-- React warns before a Web Element placement invalidates its dependent parent links.
-- Java independently refuses Web Element-to-command transformations and transactionally clears only dependent links invalidated by the accepted placement.
-- SPLIT behavior was not modified.
-- Fresh React production assets were copied to backend resources.
+- Retained the existing `CommandEditorPage.tsx` and `commandEditorManager` ownership.
+- Retained workspace bootstrap, target selection, apply, ELSEIF, variable, and realtime message contracts unchanged.
+- Matched the Memory List page background, typography, full-height window, blue header, status treatments, Pages button alignment, and Close button styling.
+- Added the same compact small-window header behavior used by Memory List.
+- Kept all Command Editor-specific presentation inside `CommandEditorPage.module.scss` and the existing command-panel module.
+- No Java source, database schema, WebSocket contract, route, or session was changed.
+- Fresh React production assets were mirrored into backend resources.
 
 ### Verification
 
-- [x] TASK — Root cause and all Memory/editor contract consumers traced.
-- [x] TASK — Java compilation passed with `mvn -DskipTests compile`.
+- [x] TASK — Existing Command Editor page, session, route, roadmap, and consumers traced before modification.
 - [x] TASK — React production build passed with existing repository warnings.
+- [x] TASK — Generated JavaScript hash remained `main.cc47da3e.js`.
+- [x] TASK — Generated CSS changed to `main.2e4aa999.css` and was mirrored to backend resources.
 - [x] TASK — `git diff --check` passed in both repositories.
-- [x] TASK — No tests were created or run, per the explicit request.
-- [ ] TASK — Live Bot Job/Page Scanner canonical-count and native-focus verification.
-- [ ] TASK — Live Web Element UPDATE/COPY/Placement verification.
+- [ ] TASK — Live visual verification at compact and normal detached-window sizes.
 
 ## 2. CLAUDE → CODEX — Awaiting independent review
 
-- [ ] TASK — Verify Memory count remains exact after additions and removals from each producer surface.
-- [ ] TASK — Verify Page Scanner detached routing accepts the summary subscription and focuses the existing Memory List.
-- [ ] TASK — Verify Web Elements cannot change type in either React or Java.
-- [ ] TASK — Verify moving a Web Element preserves valid dependents and releases only invalid parent relationships.
-- [ ] TASK — Confirm SPLIT remains unchanged before its separate rules are supplied.
+- [ ] TASK — Verify the Command Editor header is visually identical to Memory List.
+- [ ] TASK — Verify Block/Instruction selection and all command actions are behaviorally unchanged.
+- [ ] TASK — Verify compact detached-window header alignment and clipping.
