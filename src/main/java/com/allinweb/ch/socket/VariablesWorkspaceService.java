@@ -2042,7 +2042,61 @@ public final class VariablesWorkspaceService {
      */
     public void notifyMutation(int botJobId) {
         if (botJobId <= 0) return;
-        tasks.executeMutation(() -> publishIfOpen(botJobId));
+        tasks.executeMutation(() -> {
+            publishIfOpen(botJobId);
+            publishDetachedGraphSnapshotIfOpen(
+                    botJobId, DetachedWorkspaceSessions.RUNTIME_VARIABLES_MANAGER);
+            publishDetachedGraphSnapshotIfOpen(
+                    botJobId, DetachedWorkspaceSessions.SMOKE_TEST_MANAGER);
+        });
+    }
+
+    private boolean publishDetachedGraphSnapshotIfOpen(int botJobId, String sessionId) {
+        Binding target;
+        Session transport;
+        synchronized (stateLock) {
+            if (DetachedWorkspaceSessions.RUNTIME_VARIABLES_MANAGER.equals(sessionId)) {
+                target = runtimeVariablesBinding;
+                transport = runtimeVariablesTransport;
+            } else if (DetachedWorkspaceSessions.SMOKE_TEST_MANAGER.equals(sessionId)) {
+                target = smokeTestBinding;
+                transport = smokeTestTransport;
+            } else {
+                return false;
+            }
+            if (target == null || target.botJobId() != botJobId
+                    || transport == null || !transport.isOpen()) {
+                return false;
+            }
+        }
+        if (!windows.isOpen(sessionId)) return false;
+        try {
+            WorkspaceContext workspace =
+                    workspaces.require(target.botJobId(), target.workspaceEpoch());
+            Binding current = target.withWorkspace(workspace);
+            JsonObject snapshot =
+                    loadSnapshot(current, null, "Variable relationships updated.");
+            synchronized (stateLock) {
+                Binding registered = DetachedWorkspaceSessions.RUNTIME_VARIABLES_MANAGER.equals(
+                        sessionId) ? runtimeVariablesBinding : smokeTestBinding;
+                Session registeredTransport =
+                        DetachedWorkspaceSessions.RUNTIME_VARIABLES_MANAGER.equals(sessionId)
+                                ? runtimeVariablesTransport : smokeTestTransport;
+                if (registered == null || registeredTransport != transport
+                        || !registered.bindingEpoch().equals(target.bindingEpoch())) {
+                    return false;
+                }
+            }
+            return windows.send(
+                    current.homeBankingId(), sessionId, SNAPSHOT_OPERATION, snapshot);
+        } catch (IllegalArgumentException | IllegalStateException staleWorkspace) {
+            return false;
+        } catch (RuntimeException failure) {
+            log.warn(
+                    "Unable to publish {} snapshot for Bot Job {}: {}",
+                    sessionId, botJobId, failure.getMessage());
+            return false;
+        }
     }
 
     void notifyRuntimeMemoryChanged(BotJobKey owner, long revision) {
@@ -2075,7 +2129,9 @@ public final class VariablesWorkspaceService {
     private boolean isRuntimeMemoryPublishTarget(BotJobKey owner) {
         synchronized (stateLock) {
             return matchesRuntimeTarget(owner, binding, managerTransport)
-                    || matchesRuntimeTarget(owner, smokeTestBinding, smokeTestTransport);
+                    || matchesRuntimeTarget(owner, smokeTestBinding, smokeTestTransport)
+                    || matchesRuntimeTarget(
+                            owner, runtimeVariablesBinding, runtimeVariablesTransport);
         }
     }
 
@@ -2097,17 +2153,25 @@ public final class VariablesWorkspaceService {
     boolean publishRuntimeMemoryIfOpen(BotJobKey owner) {
         Binding variablesTarget;
         Binding smokeTestTarget;
+        Binding runtimeVariablesTarget;
         synchronized (stateLock) {
             variablesTarget = matchesRuntimeTarget(owner, binding, managerTransport)
                     ? binding : null;
             smokeTestTarget = matchesRuntimeTarget(owner, smokeTestBinding, smokeTestTransport)
                     ? smokeTestBinding : null;
+            runtimeVariablesTarget = matchesRuntimeTarget(
+                    owner, runtimeVariablesBinding, runtimeVariablesTransport)
+                            ? runtimeVariablesBinding : null;
         }
         boolean variablesPublished = publishRuntimeMemoryToTarget(
                 owner, variablesTarget, WORKSPACE_SESSION_ID);
         boolean smokeTestPublished = publishRuntimeMemoryToTarget(
                 owner, smokeTestTarget, DetachedWorkspaceSessions.SMOKE_TEST_MANAGER);
-        return variablesPublished || smokeTestPublished;
+        boolean runtimeVariablesPublished = publishRuntimeMemoryToTarget(
+                owner,
+                runtimeVariablesTarget,
+                DetachedWorkspaceSessions.RUNTIME_VARIABLES_MANAGER);
+        return variablesPublished || smokeTestPublished || runtimeVariablesPublished;
     }
 
     private boolean publishRuntimeMemoryToTarget(
@@ -2121,7 +2185,10 @@ public final class VariablesWorkspaceService {
             Binding current = target.withWorkspace(workspace);
             synchronized (stateLock) {
                 Binding registered = DetachedWorkspaceSessions.SMOKE_TEST_MANAGER.equals(sessionId)
-                        ? smokeTestBinding : binding;
+                        ? smokeTestBinding
+                        : DetachedWorkspaceSessions.RUNTIME_VARIABLES_MANAGER.equals(sessionId)
+                                ? runtimeVariablesBinding
+                                : binding;
                 if (registered == null
                         || !registered.bindingEpoch().equals(target.bindingEpoch())
                         || registered.botJobId() != owner.botJobId()
