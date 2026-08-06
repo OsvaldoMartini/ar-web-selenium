@@ -50,15 +50,17 @@ The existing single-row X now uses the same authoritative cleanup transaction.
 - [x] TASK - `git diff --check` passed before checkpoints.
 - [x] TASK - Frontend source commit pushed: `1e77a70`.
 - [x] TASK - Design-only frontend follow-up pushed: `74c434f`.
+- [x] TASK - Fixed-width checkbox-centering follow-up pushed: `35d7383`.
 - [x] TASK - Backend source/test commit pushed: `e325acad`.
-- [x] TASK - Backend deployment-assets commit pushed: `b5a5e529`.
+- [x] TASK - Backend deployment-assets commits pushed: `b5a5e529`, `bee98c72`.
 - [x] TASK - Resource mirror verified: 58 source files, 58 destination files, zero SHA-256
   differences.
-- [x] TASK - Generated assets: `main.8a593f81.js` and `main.26b86494.css`.
+- [x] TASK - Latest generated assets: `main.6d86252d.js` and `main.22cf8b63.css`.
 - [ ] TASK - Backend was not packaged or restarted.
 - [ ] TASK - Live browser/database deletion remains to be verified by the user.
-- [ ] TASK - The design-only `74c434f` follow-up was intentionally not tested, compiled, built, or
-  copied into backend resources per explicit user instruction; deployed assets still predate it.
+- [x] TASK - The latest centered-column design was built and copied into backend resources; all 58
+  source/destination files match with zero SHA-256 differences.
+- [ ] TASK - Automated tests were not run for the design follow-ups per explicit user instruction.
 
 ## 2. CLAUDE -> CODEX - Awaiting independent live review
 
