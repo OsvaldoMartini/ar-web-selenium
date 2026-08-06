@@ -924,8 +924,11 @@ public class SimpleWebSocketServer {
                             DetachedWorkspaceSessions.SMOKE_TEST_MANAGER.equals(sessionId)
                                     ? variablesWorkspaceService.smokeTestBootstrap(
                                             variablesBody, sessionId, session)
-                                    : variablesWorkspaceService.bootstrap(
-                                            variablesBody, sessionId, session);
+                                    : DetachedWorkspaceSessions.RUNTIME_VARIABLES_MANAGER.equals(sessionId)
+                                            ? variablesWorkspaceService.runtimeVariablesBootstrap(
+                                                    variablesBody, sessionId, session)
+                                            : variablesWorkspaceService.bootstrap(
+                                                    variablesBody, sessionId, session);
                     sendCommandEditorResponse(
                             homeBankingId,
                             sessionId,

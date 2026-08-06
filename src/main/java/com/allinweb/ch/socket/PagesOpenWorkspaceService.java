@@ -109,6 +109,14 @@ public final class PagesOpenWorkspaceService {
                     DetachedWorkspaceSessions.SMOKE_TEST_MANAGER,
                     new PagePresentation("Smoke Test", "SMOKE_TEST", "Bot Job Smoke Test template", false, true)),
             Map.entry(
+                    DetachedWorkspaceSessions.RUNTIME_VARIABLES_MANAGER,
+                    new PagePresentation(
+                            "Runtime Variables",
+                            "RUNTIME_VARIABLES",
+                            "Live Bot Job runtime-variable memory",
+                            false,
+                            true)),
+            Map.entry(
                     DetachedWorkspaceSessions.MEMORY_LIST_MANAGER,
                     new PagePresentation("Memory List", "MEMORY_LIST", "Detached workspace", false, true)),
             Map.entry(

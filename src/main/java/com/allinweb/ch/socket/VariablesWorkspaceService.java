@@ -148,6 +148,8 @@ public final class VariablesWorkspaceService {
     private Session managerTransport;
     private Binding smokeTestBinding;
     private Session smokeTestTransport;
+    private Binding runtimeVariablesBinding;
+    private Session runtimeVariablesTransport;
     private long disconnectGeneration;
 
     VariablesWorkspaceService(
@@ -402,6 +404,45 @@ public final class VariablesWorkspaceService {
         } catch (Exception failure) {
             log.warn("Unable to load Smoke Test workspace", failure);
             return failure(request, failure.getMessage(), smokeBinding);
+        }
+    }
+
+    /** Binds the editable detached Runtime Variables page to one authoritative Bot Job. */
+    public JsonObject runtimeVariablesBootstrap(
+            JsonObject body, String requesterSessionId, Session requesterTransport) {
+        JsonObject request = body == null ? new JsonObject() : body;
+        Binding runtimeBinding = null;
+        try {
+            if (!DetachedWorkspaceSessions.RUNTIME_VARIABLES_MANAGER.equals(requesterSessionId)
+                    || !windows.isRegistered(requesterSessionId, requesterTransport)) {
+                throw new IllegalArgumentException(
+                        "The Runtime Variables workspace requester is not authoritative.");
+            }
+            if (!request.has("botJobId") || request.get("botJobId").isJsonNull()) {
+                throw new IllegalArgumentException("Runtime Variables requires a Bot Job ID.");
+            }
+            int botJobId = request.get("botJobId").getAsInt();
+            if (botJobId <= 0) {
+                throw new IllegalArgumentException("Runtime Variables requires a valid Bot Job ID.");
+            }
+            WorkspaceContext workspace = workspaces.require(botJobId, 0L);
+            runtimeBinding = new Binding(
+                    UUID.randomUUID().toString(),
+                    workspace.workspaceEpoch(),
+                    workspace.botJobId(),
+                    workspace.homeBankingId(),
+                    workspace.botJobName(),
+                    workspace.organizationName(),
+                    text(request, "graphRevision"));
+            synchronized (stateLock) {
+                runtimeVariablesBinding = runtimeBinding;
+                runtimeVariablesTransport = requesterTransport;
+            }
+            return loadSnapshot(
+                    runtimeBinding, request, "Runtime Variables workspace loaded.");
+        } catch (Exception failure) {
+            log.warn("Unable to load Runtime Variables workspace", failure);
+            return failure(request, failure.getMessage(), runtimeBinding);
         }
     }
 
@@ -2188,6 +2229,9 @@ public final class VariablesWorkspaceService {
      * shell that connected after its Bot Job binding had already retired.
      */
     public void connected(String sessionId, Session transport) {
+        if (DetachedWorkspaceSessions.RUNTIME_VARIABLES_MANAGER.equals(sessionId)) {
+            return;
+        }
         if (!isWorkspaceSession(sessionId)
                 || !windows.isRegistered(sessionId, transport)) {
             return;
@@ -2220,6 +2264,15 @@ public final class VariablesWorkspaceService {
      * socket opens. If no replacement connects, an explicit page close retires after the grace.
      */
     public void disconnected(String sessionId, Session transport) {
+        if (DetachedWorkspaceSessions.RUNTIME_VARIABLES_MANAGER.equals(sessionId)) {
+            synchronized (stateLock) {
+                if (runtimeVariablesTransport == transport) {
+                    runtimeVariablesTransport = null;
+                    runtimeVariablesBinding = null;
+                }
+            }
+            return;
+        }
         if (DetachedWorkspaceSessions.SMOKE_TEST_MANAGER.equals(sessionId)) {
             synchronized (stateLock) {
                 if (smokeTestTransport == transport) {
@@ -2268,7 +2321,8 @@ public final class VariablesWorkspaceService {
     }
 
     public static boolean isWorkspaceSession(String sessionId) {
-        return WORKSPACE_SESSION_ID.equals(sessionId);
+        return WORKSPACE_SESSION_ID.equals(sessionId)
+                || DetachedWorkspaceSessions.RUNTIME_VARIABLES_MANAGER.equals(sessionId);
     }
 
     private JsonObject loadForManager(
@@ -2417,6 +2471,40 @@ public final class VariablesWorkspaceService {
             JsonObject request,
             String requesterSessionId,
             Session requesterTransport) {
+        if (DetachedWorkspaceSessions.RUNTIME_VARIABLES_MANAGER.equals(requesterSessionId)) {
+            Binding currentRuntime;
+            synchronized (stateLock) {
+                if (runtimeVariablesBinding == null
+                        || runtimeVariablesTransport != requesterTransport
+                        || !windows.isRegistered(requesterSessionId, requesterTransport)) {
+                    throw new IllegalArgumentException(
+                            "The Runtime Variables target is not authoritative.");
+                }
+                String requestedBindingEpoch = text(request, "bindingEpoch");
+                long requestedWorkspaceEpoch = nonNegativeLong(
+                        request, "workspaceEpoch", true);
+                if (!runtimeVariablesBinding.bindingEpoch().equals(requestedBindingEpoch)
+                        || runtimeVariablesBinding.workspaceEpoch() != requestedWorkspaceEpoch) {
+                    throw new IllegalArgumentException(
+                            "The Runtime Variables target changed. Reload the current Bot Job.");
+                }
+                currentRuntime = runtimeVariablesBinding;
+            }
+            WorkspaceContext workspace = workspaces.require(
+                    currentRuntime.botJobId(), currentRuntime.workspaceEpoch());
+            Binding refreshed = currentRuntime.withWorkspace(workspace);
+            synchronized (stateLock) {
+                if (runtimeVariablesBinding == null
+                        || runtimeVariablesTransport != requesterTransport
+                        || !runtimeVariablesBinding.bindingEpoch().equals(
+                                currentRuntime.bindingEpoch())) {
+                    throw new IllegalArgumentException(
+                            "The Runtime Variables target changed before the request was saved.");
+                }
+                runtimeVariablesBinding = refreshed;
+                return refreshed;
+            }
+        }
         if (DetachedWorkspaceSessions.SMOKE_TEST_MANAGER.equals(requesterSessionId)) {
             Binding currentSmoke;
             synchronized (stateLock) {
@@ -2492,7 +2580,11 @@ public final class VariablesWorkspaceService {
                     && smokeTestBinding.bindingEpoch().equals(authorized.bindingEpoch())
                     && smokeTestBinding.workspaceEpoch() == authorized.workspaceEpoch()
                     && smokeTestTransport == requesterTransport;
-            if (!variablesAuthorized && !smokeTestAuthorized) {
+            boolean runtimeVariablesAuthorized = runtimeVariablesBinding != null
+                    && runtimeVariablesBinding.bindingEpoch().equals(authorized.bindingEpoch())
+                    && runtimeVariablesBinding.workspaceEpoch() == authorized.workspaceEpoch()
+                    && runtimeVariablesTransport == requesterTransport;
+            if (!variablesAuthorized && !smokeTestAuthorized && !runtimeVariablesAuthorized) {
                 throw new IllegalArgumentException(
                         "The runtime target changed before the request was saved.");
             }
