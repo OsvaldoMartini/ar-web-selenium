@@ -1702,6 +1702,7 @@ public class BotJobDetailsWorkspaceHost {
                     case SHOW_COMPONENTS -> showComponentsWorkspace();
                     case SHOW_VARIABLES -> showVariablesWorkspace();
                     case SHOW_EXCEL_DATA -> showExcelDataWorkspace();
+                    case SHOW_SMOKE_TEST -> showSmokeTestWorkspace();
                     case SHOW_PRE_SCAN -> showPreScanWorkspace();
                     case OPEN_ORGANIZATIONS -> {
                         // Capability-gated organization presentation was completed above.
@@ -1848,6 +1849,14 @@ public class BotJobDetailsWorkspaceHost {
         }
     }
 
+    private void showSmokeTestWorkspace() {
+        boolean opened = PagesOpenWorkspaceService.getInstance().openOrFocusDetachedWorkspace(
+                com.allinweb.ch.model.DetachedWorkspaceSessions.SMOKE_TEST_MANAGER,
+                selectedBotJob.getId(),
+                "Bot Job Details requested the Smoke Test template.");
+        if (!opened) throw new IllegalStateException("The Smoke Test workspace could not be opened");
+    }
+
     private void requestComponentsWorkspaceClose() {
         String sessionId = ScannerWorkspaceSessions.COMPONENT_TASKS;
         if (!WebSocketSessionManager.isSessionOpen(sessionId)) return;
@@ -1917,6 +1926,7 @@ public class BotJobDetailsWorkspaceHost {
             case SHOW_COMPONENTS -> "Components workspace opened";
             case SHOW_VARIABLES -> "Variables workspace opened";
             case SHOW_EXCEL_DATA -> "Excel Data workspace opened";
+            case SHOW_SMOKE_TEST -> "Smoke Test workspace opened";
             case HIDE_COMPONENTS -> "Components workspace hidden";
             case SHOW_PRE_SCAN -> "Pre Scan workspace opened";
             case OPEN_ORGANIZATIONS -> "Organizations opened";
