@@ -1,39 +1,52 @@
-# COPY_LAST_RESPONSE — Claude ↔ Codex bridge (LATEST exchange only)
+# COPY_LAST_RESPONSE - Claude <-> Codex bridge (LATEST exchange only)
 
 Keep exactly two review sections. Check tasks only after their separate gates pass.
 
-**Last updated:** 2026-08-06 — Codex redirected GridItem Command Editor actions to the detached Command Editor page.
+**Last updated:** 2026-08-06 - Codex duplicated the modern Command Editor modal body into the independent detached Command Editor page.
 
-## 1. CODEX → CLAUDE — GridItem detached Command Editor checkpoint
+## 1. CODEX -> CLAUDE - Detached Command Editor body checkpoint
 
 ### Verdict
 
-GridItem already had an authoritative `commandEditor.workspaceOpen` path, but its current Edit callback bypassed that path and opened the local `ComponentEditorModal`. GridItem now delegates its existing Command Editor triggers to the detached `commandEditorManager` workspace. The inline modal code remains parked, and the Variables page was not changed.
+The detached page no longer uses the legacy Block/Instruction selector and `commandEditor.apply` body. It now owns an isolated copy of the established modal's edit experience while preserving the detached header, title, window layout, and the original `ComponentEditorModal` unchanged.
 
 ### Implemented
 
-- Added the existing `handleOpenCommandEditor` handler to GridItem's composition-root destructuring.
-- Redirected the GridItem-local `openGridCommandEditor` wrapper to that detached workspace handler.
-- Preserved the WebSocket contract, backend workspace service, singleton open/focus behavior, and detached page route unchanged.
-- Preserved `ComponentEditorModal`, its state, submit path, and all non-GridItem consumers.
-- Added a focused regression that verifies Edit sends `commandEditor.workspaceOpen` with the selected Bot Job and instruction and does not render the inline modal.
-- No Java source, database schema, migration, or shared stylesheet was changed.
-- Fresh React production assets were mirrored into backend resources.
+- Added a page-owned `CommandEditorPageBody` and page-owned module stylesheet.
+- Duplicated Target Block, Placement, command search, selected-command summary, typed command editors, relationship warnings, conditional-family warnings, CANCEL, COPY NEW, and UPDATE.
+- Kept Web Element command selection locked while preserving legal placement, copy, and update actions.
+- Added an atomic snapshot adapter for Blocks, Instructions, variables, command configurations, graph capability, connections, and diagnostics.
+- Replaced detached legacy persistence with the same modern UPDATE/COPY transaction contracts used by the established modal.
+- Authorized only detached UPDATE/COPY, canonicalized the selected source instruction in Java, and kept component persistence fail-closed.
+- Serialized detached authorization through persistence with `CommandEditorWorkspaceService.executeMutation`, removing the retarget race.
+- Added 15-second mutation timeout/socket invalidation. A lost acknowledgement forces authoritative bootstrap before retry, preventing ambiguous duplicate COPY operations.
+- Preserved GridItem and Variables mutation paths and the existing realtime publication boundary.
+- Original `ComponentEditorModal.tsx`, its stylesheet, `CommandEditorPage.module.scss`, and detached header markup were not changed.
 
 ### Verification
 
-- [x] TASK — GridItem click, frontend WebSocket handler, backend dispatcher/service, detached route, focus lifecycle, and response consumer traced before modification.
-- [x] TASK — Focused GridItem detached-editor regression passed: 1 test passed.
-- [x] TASK — React production build passed with existing repository warnings.
-- [x] TASK — Generated JavaScript changed to `main.28ecd9fc.js`; CSS remained `main.2e4aa999.css`.
-- [x] TASK — Frontend source/test commit `fd3c935` pushed to `VERSION-4.6`.
-- [x] TASK — `git diff --check` passed before the frontend commit.
-- [ ] TASK — Full `GridItem.relationshipChips.test.tsx` suite: four older relationship-label assertions still fail because current UI text differs from their expected legacy wording; the new regression passes.
-- [ ] TASK — Live verification that command and Web Element GridItem Edit actions open/focus the detached page.
+- [x] TASK - Authoritative frontend -> WebSocket -> Java transaction -> response -> refresh path traced before modification.
+- [x] TASK - Focused detached page tests passed: 7/7.
+- [x] TASK - Broader affected frontend tests passed: 9/9.
+- [x] TASK - Focused ESLint passed for all changed TypeScript files.
+- [x] TASK - React production build passed; existing unrelated repository warnings remain.
+- [x] TASK - Generated assets: `main.43483eef.js` and `main.ee8f6010.css`.
+- [x] TASK - Mirrored frontend resources match the production build: 58 source files, 58 target files, 0 hash mismatches.
+- [x] TASK - Focused Java tests passed: 5/5.
+- [x] TASK - Broader Java authorization/service tests passed: 44/44.
+- [x] TASK - Java compiled 521 production and 290 test sources through the focused Maven test runs.
+- [x] TASK - Frontend source commit `02033ff` pushed to `VERSION-4.6`.
+- [x] TASK - Backend source/test commit `1fb59e4c` pushed to `refactor/perform-actions-decomposition`.
+- [x] TASK - `git diff --check` passed in both repositories.
+- [ ] TASK - Live verification against the packaged backend: normal command UPDATE, COPY NEW, CANCEL, Web Element type lock, cross-Block placement, and warning confirmation.
+- [ ] TASK - Proactive refresh of an already-open detached Command Editor after a mutation initiated by another surface remains a separate realtime enhancement.
 
-## 2. CLAUDE → CODEX — Awaiting independent review
+## 2. CLAUDE -> CODEX - Awaiting independent live review
 
-- [ ] TASK — Verify GridItem Edit opens or focuses one detached Command Editor window for a normal command.
-- [ ] TASK — Verify GridItem Edit opens the detached page for a Web Element without changing its type.
-- [ ] TASK — Verify Variables-page Command Editor modal behavior remains unchanged.
-- [ ] TASK — Review the four pre-existing relationship-label test failures independently from this launch-path change.
+- [ ] TASK - Verify the detached header/title/window layout is unchanged.
+- [ ] TASK - Verify the old Block/Instruction selector and Add-before/Add-after/Insert-ElseIf body is absent.
+- [ ] TASK - Verify normal commands expose the same editor fields and actions as the established modal.
+- [ ] TASK - Verify Web Elements cannot transform into commands but can be moved, updated, and copied.
+- [ ] TASK - Verify UPDATE and COPY NEW persist once and refresh the detached page plus Bot Job Details/Variables.
+- [ ] TASK - Verify CANCEL closes the detached page without persistence.
+- [ ] TASK - Verify the original Variables/GridItem modal remains available to its remaining consumers and behaves unchanged.

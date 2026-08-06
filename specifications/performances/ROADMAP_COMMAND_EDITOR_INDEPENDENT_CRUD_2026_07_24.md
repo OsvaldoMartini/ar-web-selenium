@@ -3,6 +3,27 @@
 Date: 2026-07-24
 Status: Phase 0 complete; Phase 3 non-empty Block/Instruction selection slice implemented
 
+## Implementation Checkpoint - 2026-08-06 Detached Modal-Parity Body
+
+- [x] Replaced the detached legacy selector/action body with an isolated page-owned copy of the
+  established Command Editor modal's EDIT experience.
+- [x] Preserved the detached header/title/window composition and left the original modal and its
+  stylesheet unchanged.
+- [x] Added Target Block, placement, command selection, all typed configuration editors, Web
+  Element type locking, relationship/conditional warnings, CANCEL, COPY NEW, and UPDATE.
+- [x] Hydrated command configurations and graph capability through one workspace-locked snapshot.
+- [x] Routed detached UPDATE/COPY through the existing atomic Variables transaction services with
+  backend-canonical source identity and Bot Job-only authorization.
+- [x] Kept authorization, binding stability, idempotency scope, and persistence in the existing
+  synchronized `CommandEditorWorkspaceService.executeMutation` boundary.
+- [x] Added timeout, socket replacement, stale-graph, and ambiguous-commit recovery before retry.
+- [x] Frontend commit `02033ff` and backend commit `1fb59e4c` were pushed.
+- [x] Frontend tests 9/9, Java tests 49/49, focused ESLint, production build, and resource hash
+  comparison passed.
+- [ ] Live packaged-backend verification remains required.
+- [ ] External mutations do not yet proactively push a refreshed snapshot into an already-open
+  detached editor; self-initiated UPDATE/COPY refreshes are implemented.
+
 ## Objective
 
 Turn the detached **Command Editor** into a complete, independent workspace for the active Bot Job.
