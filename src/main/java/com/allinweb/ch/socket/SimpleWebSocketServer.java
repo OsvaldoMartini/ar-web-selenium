@@ -4967,6 +4967,8 @@ public class SimpleWebSocketServer {
                 || "ocrWorkspace.open".equals(operation)
                 || "memoryList.open".equals(operation)
                 || "memoryList.sync".equals(operation)
+                || "pagesOpen.open".equals(operation)
+                || "pagesOpen.summary".equals(operation)
                 || (operation != null && DETACHED_PAGE_SCANNER_BOT_JOB_OPERATIONS.contains(operation));
     }
 
