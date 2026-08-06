@@ -2,64 +2,75 @@
 
 Keep exactly two review sections. Check tasks only after their separate gates pass.
 
-**Last updated:** 2026-08-06 - Codex kept Bot Job ADD available before graph capability loads.
+**Last updated:** 2026-08-06 - Codex added selectable, atomic Bot Job bulk deletion on Main.
 
-## 1. CODEX -> CLAUDE - Always-available empty Bot Job ADD checkpoint
+## 1. CODEX -> CLAUDE - Main Dashboard checkbox and ALL-delete checkpoint
 
 ### Verdict
 
-Bot Job Details and the Variables page can now start Add Command even when the Bot Job has no Web
-Elements or instructions. A completely new Bot Job with no Block opens the detached Command Editor
-in explicit CREATE mode; saving creates `Default Block` plus the new disconnected command in one
-SQLite transaction. Bot Job ADD no longer waits for unrelated graph-mutation capability; backend
-transport and active-Bot-Job authorization remain authoritative. Existing EDIT behavior and the
-Variables-page modal remain independent.
+The Main Dashboard now has one checkbox per Bot Job plus a tri-state header checkbox for all
+currently loaded Bot Jobs. The former `Actions` heading is the requested red trash `ALL` RulesCard.
+Checkbox selection is independent from ordinary row selection, so Clone/Open/Launch behavior is
+unchanged. `ALL` deletes only checked rows after a destructive confirmation and sends one
+correlated WebSocket mutation, not one request per row.
+
+The backend performs the complete selection in one SQLite transaction. It verifies every requested
+Bot Job before mutating, removes known Bot-Job-owned rows that lack database cascades, deletes the
+parents with JDBC batching, and rolls everything back if any requested ID or SQL operation fails.
+The existing single-row X now uses the same authoritative cleanup transaction.
 
 ### Implemented
 
-- Bot Job Details has an isolated green `ADD` control between Find and `Memory (X)`.
-- The ADD control always remains visually enabled and does not require graph-mutation capability,
-  a Web Element, an instruction, or an existing Block.
-- Its CREATE-open request carries only Bot Job/organization identity plus an optional target Block;
-  drag/drop and relationship mutations retain their graph-capability checks.
-- Empty graph capabilities are accepted and requested instead of being discarded at zero rows.
-- The Variables-page ADD control is independently enabled for an authoritative empty graph and
-  uses its existing Command Editor modal.
-- Detached CREATE has an explicit backend-owned mode and owner/transport/workspace authorization;
-  EDIT-bound transports cannot submit CREATE.
-- With no Block, Java atomically creates `Default Block`, inserts the disconnected command,
-  advances/verifies graph state, and commits or rolls the complete operation back.
-- A successful detached CREATE selects the returned instruction and transitions the page to EDIT.
-- Same-binding exact request replay is persistence-safe; a changed payload using the same request
-  ID is refused.
-- Memory List window height was reduced from 205 px to 125 px in backend commit `2cbdd44c`.
+- Added page-owned checkbox selection without modifying shared `GridTemp_A` behavior.
+- Added checked/unchecked and indeterminate select-all behavior for all loaded Bot Jobs.
+- Replaced the `Actions` label with the requested red trash `ALL` RulesCard.
+- Preserved each row's existing single-delete X.
+- Added a shared destructive confirmation with Cancel as this flow's initial focus.
+- Disabled every delete initiator while bulk deletion is pending.
+- Added a 30-second lost-response safeguard that requests an authoritative dashboard refresh.
+- Added `mainDashboard.deleteBotJobs` / `mainDashboard.deleteBotJobsResponse`, contract version 1,
+  request correlation, strict positive-ID validation, deduplication, and committed/deleted facts.
+- Added atomic cleanup for `instruction_variable_slot`,
+  `instruction_variable_command_config`, Bot-Job `instruction_graph_state`, `scanned_element`, and
+  `bot_job_variable_migration_note` before parent deletion when those tables exist.
+- Runtime variable memory is evicted only after the database transaction commits; dashboard rows
+  are reloaded once after the complete batch.
 
 ### Verification and checkpoints
 
-- [x] TASK - End-to-end ADD -> detached/modal editor -> WebSocket -> Java -> SQLite path traced.
-- [x] TASK - `git diff --check` passed before each source/asset checkpoint.
+- [x] TASK - Main UI -> WebSocket -> service -> transaction -> SQLite -> response path traced.
+- [x] TASK - Frontend focused suite passed: 3 tests, 0 failures.
+- [x] TASK - Backend focused suite passed: 4 tests, 0 failures.
+- [x] TASK - Java compilation passed during the focused Maven test: 522 source files; two existing
+  compiler warnings remain.
 - [x] TASK - Frontend production build passed; existing repository warnings remain.
-- [x] TASK - Generated assets: `main.b11d3dec.js` and `main.383d9cba.css`.
-- [x] TASK - Resource mirror verified: 58 source files, 58 destination files; manifest and index
-  content hashes match with zero differences.
-- [x] TASK - `mvn -DskipTests compile` passed: 521 source files; two existing compiler warnings.
-- [x] TASK - Frontend source commits pushed: `092518d`, `c9c1f47`.
-- [x] TASK - Backend source commit pushed: `03b3d47e`.
-- [x] TASK - Backend deployment-assets commits pushed: `69ff57bf`, `fc925bf0`.
-- [x] TASK - Java compile was not repeated for the availability correction; no Java source changed.
-- [ ] TASK - Automated tests were intentionally not run; user requested direct implementation.
-- [ ] TASK - Live packaged-backend verification remains required.
+- [x] TASK - `git diff --check` passed before checkpoints.
+- [x] TASK - Frontend source commit pushed: `1e77a70`.
+- [x] TASK - Backend source/test commit pushed: `e325acad`.
+- [x] TASK - Backend deployment-assets commit pushed: `b5a5e529`.
+- [x] TASK - Resource mirror verified: 58 source files, 58 destination files, zero SHA-256
+  differences.
+- [x] TASK - Generated assets: `main.8a593f81.js` and `main.26b86494.css`.
+- [ ] TASK - Backend was not packaged or restarted.
+- [ ] TASK - Live browser/database deletion remains to be verified by the user.
 
 ## 2. CLAUDE -> CODEX - Awaiting independent live review
 
-- [ ] TASK - Verify Bot Job Details ADD is enabled with zero Web Elements and an existing Block.
-- [ ] TASK - Verify Bot Job Details ADD is enabled for a completely new Bot Job with zero Blocks.
-- [ ] TASK - Verify first save creates exactly one `Default Block` and one disconnected command.
-- [ ] TASK - Verify Variables-page ADD is enabled with zero Web Elements/instructions/Blocks.
-- [ ] TASK - Verify failed persistence leaves neither a partial Block nor partial command.
-- [ ] TASK - Verify CREATE transitions to EDIT and both Variables/GridItem refresh in real time.
-- [ ] TASK - Track the known unknown-outcome retry risk: after a committed CREATE response is lost
-  across disconnect/reopen, an intentional retry cannot yet be distinguished from a duplicate.
-- [ ] TASK - Track backend IF-family hardening: React validates placement, while the corresponding
-  Java duplicate-IF/ELSEIF/conditional checks remain an existing fail-open seam.
-- [ ] TASK - After user authorization, run/add focused frontend/backend regression tests.
+- [ ] TASK - Verify one row can be checked/un-checked without selecting it for Open/Launch/Clone.
+- [ ] TASK - Verify the header checkbox checks all loaded rows and shows indeterminate state after
+  one row is unchecked.
+- [ ] TASK - Verify the red `ALL` button stays disabled with zero checks and opens confirmation with
+  the exact selected count/names when enabled.
+- [ ] TASK - Verify Cancel is initially focused and leaves all database rows unchanged.
+- [ ] TASK - Verify successful ALL deletion removes every selected Bot Job and owned relationship
+  row while preserving every unselected Bot Job.
+- [ ] TASK - Verify an injected SQL failure rolls back both child and parent deletions.
+- [ ] TASK - Verify the existing per-row X still deletes one Bot Job and now clears the same owned
+  non-cascading rows.
+- [ ] TASK - Confirm the intended policy that header select-all means all loaded Bot Jobs, including
+  rows temporarily hidden by Main's Find filter.
+- [ ] TASK - Track the existing Main Dashboard transport-authority seam before exposing this
+  destructive operation beyond the trusted desktop client; no shared WebSocket authorization was
+  broadened or changed in this checkpoint.
+- [ ] TASK - Consider a bounded backend replay ledger if external clients may retry the exact same
+  bulk-delete request ID after a lost response; the current UI reconciles instead of auto-retrying.
