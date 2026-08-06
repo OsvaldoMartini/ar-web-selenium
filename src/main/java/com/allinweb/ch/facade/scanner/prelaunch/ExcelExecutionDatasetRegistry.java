@@ -82,6 +82,7 @@ public final class ExcelExecutionDatasetRegistry {
         while (datasets.size() > maximumEntries) {
             Path oldest = datasets.entrySet().iterator().next().getKey();
             datasets.remove(oldest);
+            executionEnabled.remove(oldest);
         }
     }
 

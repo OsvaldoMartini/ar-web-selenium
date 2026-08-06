@@ -5,6 +5,7 @@ import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.facade.BotJobNativeOperationService;
 import com.allinweb.ch.facade.BotJobToolbarConcurrencyGuard;
+import com.allinweb.ch.facade.ExcelSyntheticDatasetStore;
 import com.allinweb.ch.facade.scanner.prelaunch.ScannerPreLaunchExcelLoader;
 import com.allinweb.ch.model.BotJobLoadDTO;
 import com.allinweb.ch.model.DetachedWorkspaceSessions;
@@ -33,6 +34,7 @@ public final class ExcelDataWorkspaceService {
     private final PerformDataBase database = PerformDataBase.getInstance();
     private final PerformDBEngine engine = PerformDBEngine.getInstance();
     private final ScannerPreLaunchExcelLoader loader = new ScannerPreLaunchExcelLoader();
+    private final ExcelSyntheticDatasetStore syntheticStore = new ExcelSyntheticDatasetStore();
     private final BotJobNativeOperationService nativeOperations =
             BotJobNativeOperationService.createDefault(
                     ARPropertyManager.getInstance(), new BotJobToolbarConcurrencyGuard());
@@ -67,7 +69,9 @@ public final class ExcelDataWorkspaceService {
                     .toAbsolutePath()
                     .normalize();
             ExtractedData data = loader.load(workbook.toString(), lists);
-            binding = new Binding(job.getId(), job.getHomeBankingId(), job.getName(), workbook, data, Instant.now(), false);
+            ExtractedData synthetic = syntheticStore.load(job.getHomeBankingId(), job.getId());
+            binding = new Binding(job.getId(), job.getHomeBankingId(), job.getName(), workbook, data, synthetic);
+            selectExecutionData();
             boolean opened = PagesOpenWorkspaceService.getInstance()
                     .openOrFocusDetachedWorkspace(SESSION_ID, botJobId, "Excel Data workspace requested.");
             return opened ? snapshot("Excel Data workspace opened.") : failure("Excel Data workspace could not be opened.");
@@ -116,16 +120,12 @@ public final class ExcelDataWorkspaceService {
 
             if (synthetic) {
                 ExtractedData syntheticRows = syntheticData(binding.data(), 3);
-                loader.replaceInMemory(binding.workbook().toString(), syntheticRows);
-                binding = new Binding(
-                        binding.botJobId(),
-                        binding.homeBankingId(),
-                        binding.botJobName(),
-                        binding.workbook(),
-                        syntheticRows,
-                        Instant.now(),
-                        true);
-                return snapshot("Synthetic rows generated in memory. Save to Excel to update the workbook.");
+                binding.syntheticData = syntheticRows;
+                binding.mode = Mode.SYNTHETIC;
+                binding.syntheticDirty = true;
+                binding.loadedAt = Instant.now();
+                selectExecutionData();
+                return snapshot("Synthetic rows generated in memory. Save Synthetic Data to keep them after restart.");
             }
 
             ExtractedData source = ExcelUtils.isFileExists(binding.botJobName(), lists.getAllActions());
@@ -138,14 +138,11 @@ public final class ExcelDataWorkspaceService {
             }
             loader.close(binding.workbook().toString());
             ExtractedData reloaded = loader.load(binding.workbook().toString(), lists);
-            binding = new Binding(
-                    binding.botJobId(),
-                    binding.homeBankingId(),
-                    binding.botJobName(),
-                    binding.workbook(),
-                    reloaded,
-                    Instant.now(),
-                    false);
+            binding.realData = reloaded;
+            binding.mode = Mode.REAL;
+            binding.realDirty = false;
+            binding.loadedAt = Instant.now();
+            selectExecutionData();
             nativeOperations.openFile(generated);
             return snapshot("Excel data file generated and loaded into memory.");
         } catch (Exception error) {
@@ -175,9 +172,8 @@ public final class ExcelDataWorkspaceService {
                         targetRow);
             }
         }
-        binding = new Binding(
-                binding.botJobId(), binding.homeBankingId(), binding.botJobName(), binding.workbook(),
-                binding.data(), Instant.now(), true);
+        binding.setDirty(true);
+        binding.loadedAt = Instant.now();
         return snapshot("Row " + (targetRow + 1) + " copied from row " + (sourceRow + 1) + " in memory.");
     }
 
@@ -192,14 +188,17 @@ public final class ExcelDataWorkspaceService {
             ErrorMessage error = database.loadBlocks(binding.botJobId(), binding.botJobName(), "block");
             if (error == null) error = engine.loadAllActionsPerBlock(lists.getListBlock());
             if (error != null) return failure(errorText(error));
+            if (binding.mode == Mode.SYNTHETIC) {
+                syntheticStore.save(binding.homeBankingId(), binding.botJobId(), binding.data());
+                binding.syntheticDirty = false;
+                return snapshot("Synthetic memory data saved to the database.");
+            }
             File saved = new ExcelUtils()
                     .generateExcelFiles(binding.data(), binding.botJobName().trim(), null, false);
             if (!saved.toPath().toAbsolutePath().normalize().equals(binding.workbook())) {
                 return failure("Excel save produced an unexpected file.");
             }
-            binding = new Binding(
-                    binding.botJobId(), binding.homeBankingId(), binding.botJobName(), binding.workbook(),
-                    binding.data(), Instant.now(), false);
+            binding.realDirty = false;
             return snapshot("In-memory Excel dataset saved atomically to the original workbook.");
         } catch (Exception error) {
             log.error("Unable to save in-memory Excel data for Bot Job {}", binding.botJobId(), error);
@@ -224,9 +223,81 @@ public final class ExcelDataWorkspaceService {
         if (binding == null || binding.botJobId() != botJobId) {
             return failure("Excel Data memory is not open for Bot Job " + botJobId + ".");
         }
+        selectExecutionData();
+        if (binding.mode == Mode.REAL && binding.realDirty) {
+            return failure("REAL Excel memory has unsaved changes. Save to Excel before execution.");
+        }
+        return snapshot(binding.mode + " memory selected for execution.");
+    }
+
+    public synchronized JsonObject setMode(JsonObject request, String sessionId, Session transport) {
+        JsonObject authorization = requireActiveTransport(sessionId, transport);
+        if (authorization != null) return authorization;
+        String requested = request != null && request.has("mode") ? request.get("mode").getAsString() : "REAL";
+        binding.mode = "SYNTHETIC".equalsIgnoreCase(requested) ? Mode.SYNTHETIC : Mode.REAL;
+        if (binding.mode == Mode.SYNTHETIC && binding.syntheticData == null) {
+            binding.syntheticData = emptyLike(binding.realData);
+        }
+        binding.loadedAt = Instant.now();
+        selectExecutionData();
+        return snapshot(binding.mode + " data selected.");
+    }
+
+    public synchronized JsonObject refresh(JsonObject request, String sessionId, Session transport) {
+        JsonObject authorization = requireActiveTransport(sessionId, transport);
+        if (authorization != null) return authorization;
+        try {
+            if (binding.mode == Mode.REAL) {
+                loader.close(binding.workbook().toString());
+                binding.realData = loader.load(binding.workbook().toString(), lists);
+                binding.realDirty = false;
+            } else {
+                ExtractedData saved = syntheticStore.load(binding.homeBankingId(), binding.botJobId());
+                binding.syntheticData = saved == null ? emptyLike(binding.realData) : saved;
+                binding.syntheticDirty = false;
+            }
+            binding.loadedAt = Instant.now();
+            selectExecutionData();
+            return snapshot(binding.mode + " data reloaded into memory.");
+        } catch (Exception error) {
+            log.error("Unable to refresh {} Excel memory for Bot Job {}", binding.mode, binding.botJobId(), error);
+            return failure(error.getMessage());
+        }
+    }
+
+    public synchronized JsonObject updateCell(JsonObject request, String sessionId, Session transport) {
+        JsonObject authorization = requireActiveTransport(sessionId, transport);
+        if (authorization != null) return authorization;
+        try {
+            String block = request.get("blockName").getAsString();
+            String column = request.get("column").getAsString();
+            int row = request.get("rowIndex").getAsInt();
+            if (row < 0 || !binding.data().getBlocks().contains(block)
+                    || !binding.data().getExtractedFields(block).contains(column)) {
+                return failure("The Excel memory cell no longer exists.");
+            }
+            String value = request.has("value") && !request.get("value").isJsonNull()
+                    ? request.get("value").getAsString() : null;
+            binding.data().addFieldValue(block, column, value, row);
+            binding.setDirty(true);
+            selectExecutionData();
+            return snapshot("Cell updated in " + binding.mode + " memory.");
+        } catch (RuntimeException error) {
+            return failure("The Excel memory cell update is invalid.");
+        }
+    }
+
+    private void selectExecutionData() {
+        loader.replaceInMemory(binding.workbook().toString(), binding.data());
         loader.setExecutionEnabled(binding.workbook().toString(), true);
-        JsonObject response = snapshot("Excel Data page memory selected for execution.");
-        return response;
+    }
+
+    private ExtractedData emptyLike(ExtractedData template) {
+        ExtractedData empty = new ExtractedData();
+        for (String block : template.getBlocks()) {
+            for (String column : template.getExtractedFields(block)) empty.addField(block, column);
+        }
+        return empty;
     }
 
     private ExtractedData syntheticData(ExtractedData template, int rowCount) {
@@ -272,6 +343,7 @@ public final class ExcelDataWorkspaceService {
         response.addProperty("loadedAt", binding.loadedAt().toString());
         response.addProperty("rowCount", data.getNumberOfDataRows());
         response.addProperty("dirty", binding.dirty());
+        response.addProperty("mode", binding.mode.name());
 
         JsonArray blocks = new JsonArray();
         for (String blockName : data.getBlocks()) {
@@ -320,12 +392,36 @@ public final class ExcelDataWorkspaceService {
         return error.getErrorTitle();
     }
 
-    private record Binding(
-            int botJobId,
-            int homeBankingId,
-            String botJobName,
-            Path workbook,
-            ExtractedData data,
-            Instant loadedAt,
-            boolean dirty) {}
+    private enum Mode { REAL, SYNTHETIC }
+
+    private static final class Binding {
+        private final int botJobId;
+        private final int homeBankingId;
+        private final String botJobName;
+        private final Path workbook;
+        private ExtractedData realData;
+        private ExtractedData syntheticData;
+        private Instant loadedAt = Instant.now();
+        private Mode mode = Mode.REAL;
+        private boolean realDirty;
+        private boolean syntheticDirty;
+
+        private Binding(int botJobId, int homeBankingId, String botJobName, Path workbook,
+                ExtractedData realData, ExtractedData syntheticData) {
+            this.botJobId = botJobId;
+            this.homeBankingId = homeBankingId;
+            this.botJobName = botJobName;
+            this.workbook = workbook;
+            this.realData = realData;
+            this.syntheticData = syntheticData;
+        }
+        int botJobId() { return botJobId; }
+        int homeBankingId() { return homeBankingId; }
+        String botJobName() { return botJobName; }
+        Path workbook() { return workbook; }
+        ExtractedData data() { return mode == Mode.REAL ? realData : syntheticData; }
+        Instant loadedAt() { return loadedAt; }
+        boolean dirty() { return mode == Mode.REAL ? realDirty : syntheticDirty; }
+        void setDirty(boolean dirty) { if (mode == Mode.REAL) realDirty = dirty; else syntheticDirty = dirty; }
+    }
 }

@@ -62,6 +62,24 @@ class ExcelExecutionDatasetRegistryTest {
         assertSame(replacement, registry.find(workbook).data());
     }
 
+    @Test
+    void executionSelectionDefaultsOnAndIsClearedWithDatasetLifecycle() throws Exception {
+        ExcelExecutionDatasetRegistry registry = new ExcelExecutionDatasetRegistry(1);
+        Path first = Path.of("First.xlsx");
+        Path second = Path.of("Second.xlsx");
+
+        assertTrue(registry.isExecutionEnabled(first));
+        registry.load(first, ExtractedData::new);
+        registry.setExecutionEnabled(first, false);
+        assertFalse(registry.isExecutionEnabled(first));
+
+        registry.load(second, ExtractedData::new);
+        assertTrue(registry.isExecutionEnabled(first));
+        registry.setExecutionEnabled(second, false);
+        registry.close(second);
+        assertTrue(registry.isExecutionEnabled(second));
+    }
+
     private ExtractedData data(AtomicInteger reads) {
         reads.incrementAndGet();
         ExtractedData data = new ExtractedData();

@@ -144,6 +144,9 @@ public class SimpleWebSocketServer {
             "excelData.generateSynthetic",
             "excelData.addRow",
             "excelData.save",
+            "excelData.mode.update",
+            "excelData.refresh",
+            "excelData.cell.update",
             "excelData.close",
             "pagesOpen.open",
             "pagesOpen.summary");
@@ -973,6 +976,27 @@ public class SimpleWebSocketServer {
                             sessionId,
                             "excelData.saveResponse",
                             excelDataWorkspaceService.save(excelDataBody, sessionId, session));
+                    break;
+                }
+                case "excelData.mode.update": {
+                    JsonObject excelDataBody = extractBody(jsonObjMSG);
+                    sendCommandEditorResponse(homeBankingId, sessionId,
+                            "excelData.mode.updateResponse",
+                            excelDataWorkspaceService.setMode(excelDataBody, sessionId, session));
+                    break;
+                }
+                case "excelData.refresh": {
+                    JsonObject excelDataBody = extractBody(jsonObjMSG);
+                    sendCommandEditorResponse(homeBankingId, sessionId,
+                            "excelData.refreshResponse",
+                            excelDataWorkspaceService.refresh(excelDataBody, sessionId, session));
+                    break;
+                }
+                case "excelData.cell.update": {
+                    JsonObject excelDataBody = extractBody(jsonObjMSG);
+                    sendCommandEditorResponse(homeBankingId, sessionId,
+                            "excelData.cell.updateResponse",
+                            excelDataWorkspaceService.updateCell(excelDataBody, sessionId, session));
                     break;
                 }
                 case "variablesWorkspace.refresh": {
