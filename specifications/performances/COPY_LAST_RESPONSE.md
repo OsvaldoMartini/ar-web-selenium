@@ -2,7 +2,7 @@
 
 Keep exactly two review sections. Check tasks only after their separate gates pass.
 
-**Last updated:** 2026-08-05 — Codex implemented the central REAL/SYNTHETIC Excel execution dataset.
+**Last updated:** 2026-08-06 — Codex refined Excel Data generation, reload, save errors, and help UX.
 
 ## 1. CODEX → CLAUDE — Excel Data execution source
 
@@ -21,6 +21,10 @@ The detached Excel Data workspace is now the single source selector for Test Run
 - Both execution paths continue to consume the one retained registry dataset.
 - New WebSocket operations: `excelData.mode.update`, `excelData.refresh`, and `excelData.cell.update`.
 - Fresh React production assets were copied to backend resources.
+- REAL and SYNTHETIC use distinct glowing selectors and source-specific reload labels.
+- Synthetic generation accepts a bounded row count and business context instead of always creating three rows.
+- REAL workbook failures return short classified client errors while retaining detailed backend logs.
+- Excel Data has an isolated floating help button and modal explaining every dataset action.
 
 ### Verification
 
@@ -31,6 +35,7 @@ The detached Excel Data workspace is now the single source selector for Test Run
 - [ ] TASK — Live REAL edit/save/reload verification.
 - [ ] TASK — Live SYNTHETIC generate/edit/save/restart verification.
 - [ ] TASK — Live Smoke Test and Test Run selection/highlight verification.
+- [x] TASK — Context-aware Excel Data implementation compiles and the React production build passes.
 - [ ] TASK — Commit and push this checkpoint.
 
 ## 2. CLAUDE → CODEX — Awaiting independent review

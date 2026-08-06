@@ -134,7 +134,14 @@ public final class ExcelDataWorkspaceService {
             if (error != null) return failure(errorText(error));
 
             if (synthetic) {
-                ExtractedData syntheticRows = syntheticData(binding.data(), 3);
+                int rowCount = request.has("rowCount") ? request.get("rowCount").getAsInt() : 1;
+                if (rowCount < 1 || rowCount > 1000) {
+                    return failure("Synthetic row count must be between 1 and 1000.");
+                }
+                String context = request.has("context")
+                        ? request.get("context").getAsString().trim()
+                        : "Financial";
+                ExtractedData syntheticRows = syntheticData(binding.data(), rowCount, context);
                 binding.syntheticData = syntheticRows;
                 binding.mode = Mode.SYNTHETIC;
                 binding.syntheticDirty = true;
@@ -166,7 +173,7 @@ public final class ExcelDataWorkspaceService {
                     synthetic ? "synthetic" : "standard",
                     binding.botJobId(),
                     error);
-            return failure(error.getMessage());
+            return excelFileFailure(error, "Excel data could not be generated.");
         }
     }
 
@@ -217,7 +224,7 @@ public final class ExcelDataWorkspaceService {
             return snapshot("In-memory Excel dataset saved atomically to the original workbook.");
         } catch (Exception error) {
             log.error("Unable to save in-memory Excel data for Bot Job {}", binding.botJobId(), error);
-            return failure(error.getMessage());
+            return excelFileFailure(error, "Excel data could not be saved.");
         }
     }
 
@@ -273,10 +280,10 @@ public final class ExcelDataWorkspaceService {
             }
             binding.loadedAt = Instant.now();
             selectExecutionData();
-            return snapshot(binding.mode + " data reloaded into memory.");
+            return snapshot(binding.mode + " data reloaded.");
         } catch (Exception error) {
             log.error("Unable to refresh {} Excel memory for Bot Job {}", binding.mode, binding.botJobId(), error);
-            return failure(error.getMessage());
+            return excelFileFailure(error, binding.mode + " data could not be reloaded.");
         }
     }
 
@@ -315,20 +322,41 @@ public final class ExcelDataWorkspaceService {
         return empty;
     }
 
-    private ExtractedData syntheticData(ExtractedData template, int rowCount) {
+    private ExtractedData syntheticData(ExtractedData template, int rowCount, String context) {
         ExtractedData synthetic = new ExtractedData();
+        String contextName = normalizeSyntheticName(context == null || context.isBlank()
+                ? "Financial" : context);
         for (String blockName : template.getBlocks()) {
             for (String column : template.getExtractedFields(blockName)) {
                 for (int row = 0; row < rowCount; row++) {
                     synthetic.addFieldValue(
                             blockName,
                             column,
-                            "SYNTHETIC_" + normalizeSyntheticName(column) + "_" + (row + 1),
+                            contextName + "_" + normalizeSyntheticName(column) + "_" + (row + 1),
                             row);
                 }
             }
         }
         return synthetic;
+    }
+
+    private JsonObject excelFileFailure(Exception error, String fallback) {
+        String detail = error.getMessage() == null ? "" : error.getMessage().toLowerCase();
+        String type = error.getClass().getSimpleName().toLowerCase();
+        JsonObject response;
+        if (detail.contains("being used") || detail.contains("another process")
+                || detail.contains("access is denied") || type.contains("accessdenied")) {
+            response = failure("Close the Excel file and try again.");
+            response.addProperty("errorCode", "EXCEL_FILE_IN_USE");
+        } else if (detail.contains("corrupt") || detail.contains("invalid")
+                || detail.contains("zip") || type.contains("format")) {
+            response = failure("The Excel file is damaged or has an invalid format.");
+            response.addProperty("errorCode", "EXCEL_FILE_CORRUPTED");
+        } else {
+            response = failure(fallback);
+            response.addProperty("errorCode", "EXCEL_FILE_OPERATION_FAILED");
+        }
+        return response;
     }
 
     private String normalizeSyntheticName(String column) {
