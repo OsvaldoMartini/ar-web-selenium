@@ -262,7 +262,46 @@ public final class ExcelDataWorkspaceService {
         }
         binding.loadedAt = Instant.now();
         selectExecutionData();
-        return snapshot(binding.mode + " data selected.");
+        JsonObject response = snapshot(binding.mode + " data selected.");
+        publishModeChanged();
+        return response;
+    }
+
+    public synchronized JsonObject modeForBotJob(int botJobId) {
+        JsonObject response = success("Excel execution data mode loaded.");
+        response.addProperty("botJobId", botJobId);
+        response.addProperty("mode", binding != null && binding.botJobId() == botJobId
+                ? binding.mode.name() : Mode.REAL.name());
+        return response;
+    }
+
+    public synchronized JsonObject setModeForBotJob(int botJobId, String requested) {
+        if (binding == null || binding.botJobId() != botJobId) {
+            JsonObject opened = openForBotJob(botJobId);
+            if (!opened.has("ok") || !opened.get("ok").getAsBoolean()) return opened;
+        }
+        binding.mode = "SYNTHETIC".equalsIgnoreCase(requested) ? Mode.SYNTHETIC : Mode.REAL;
+        if (binding.mode == Mode.SYNTHETIC && binding.syntheticData == null) {
+            binding.syntheticData = emptyLike(binding.realData);
+        }
+        binding.loadedAt = Instant.now();
+        selectExecutionData();
+        JsonObject response = modeForBotJob(botJobId);
+        response.addProperty("message", binding.mode + " data selected.");
+        publishModeChanged();
+        return response;
+    }
+
+    private void publishModeChanged() {
+        if (binding == null) return;
+        JsonObject event = new JsonObject();
+        event.addProperty("botJobId", binding.botJobId());
+        event.addProperty("mode", binding.mode.name());
+        WebSocketSessionManager.getInstance().sendMessageJson(
+                binding.homeBankingId(),
+                DetachedWorkspaceSessions.SMOKE_TEST_MANAGER,
+                event.toString(),
+                "excelData.mode.changed");
     }
 
     public synchronized JsonObject refresh(JsonObject request, String sessionId, Session transport) {

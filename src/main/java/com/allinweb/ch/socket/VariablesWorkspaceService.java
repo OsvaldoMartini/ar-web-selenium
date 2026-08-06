@@ -642,6 +642,36 @@ public final class VariablesWorkspaceService {
         return opened;
     }
 
+    public JsonObject readExcelDataMode(
+            JsonObject body, String requesterSessionId, Session requesterTransport) {
+        Binding source = smokeTestSource(requesterSessionId, requesterTransport);
+        if (source == null) return failure(body, "The Excel mode requester is not authoritative.", null);
+        return ExcelDataWorkspaceService.getInstance().modeForBotJob(source.botJobId());
+    }
+
+    public JsonObject updateExcelDataMode(
+            JsonObject body, String requesterSessionId, Session requesterTransport) {
+        JsonObject request = body == null ? new JsonObject() : body;
+        Binding source = smokeTestSource(requesterSessionId, requesterTransport);
+        if (source == null) return failure(request, "The Excel mode requester is not authoritative.", null);
+        String mode = request.has("mode") ? request.get("mode").getAsString() : "REAL";
+        JsonObject response = ExcelDataWorkspaceService.getInstance()
+                .setModeForBotJob(source.botJobId(), mode);
+        correlate(request, response);
+        return response;
+    }
+
+    private Binding smokeTestSource(String requesterSessionId, Session requesterTransport) {
+        Binding source;
+        synchronized (stateLock) {
+            if (!DetachedWorkspaceSessions.SMOKE_TEST_MANAGER.equals(requesterSessionId)
+                    || smokeTestTransport != requesterTransport) return null;
+            source = smokeTestBinding;
+        }
+        return source != null && windows.isRegistered(requesterSessionId, requesterTransport)
+                ? source : null;
+    }
+
     /** Explicitly refreshes the graph while preserving the prior UI snapshot on failure. */
     public JsonObject refresh(
             JsonObject body, String requesterSessionId, Session requesterTransport) {

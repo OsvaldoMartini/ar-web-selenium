@@ -1060,6 +1060,22 @@ public class SimpleWebSocketServer {
                                     excelDataBody, sessionId, session));
                     break;
                 }
+                case "excelDataWorkspace.mode.read": {
+                    JsonObject excelModeBody = extractBody(jsonObjMSG);
+                    sendCommandEditorResponse(homeBankingId, sessionId,
+                            "excelDataWorkspace.mode.readResponse",
+                            variablesWorkspaceService.readExcelDataMode(
+                                    excelModeBody, sessionId, session));
+                    break;
+                }
+                case "excelDataWorkspace.mode.update": {
+                    JsonObject excelModeBody = extractBody(jsonObjMSG);
+                    sendCommandEditorResponse(homeBankingId, sessionId,
+                            "excelDataWorkspace.mode.updateResponse",
+                            variablesWorkspaceService.updateExcelDataMode(
+                                    excelModeBody, sessionId, session));
+                    break;
+                }
                 case "variablesWorkspace.variables.create": {
                     JsonObject variablesBody = extractBody(jsonObjMSG);
                     sendCommandEditorResponse(
