@@ -1079,21 +1079,8 @@ public final class VariablesWorkspaceService {
         JsonObject request = body == null ? new JsonObject() : body;
         Binding current = null;
         try {
-            requireManagerTransport(requesterSessionId, requesterTransport);
-            current = currentBinding();
-            if (current == null) {
-                throw new IllegalArgumentException(
-                        "No Bot Job is bound to the Variables workspace.");
-            }
-            String requestedBindingEpoch = text(request, "bindingEpoch");
-            if (requestedBindingEpoch.isBlank()
-                    || !requestedBindingEpoch.equals(current.bindingEpoch())) {
-                throw new IllegalArgumentException(
-                        "The Variables target changed. Reload the current Bot Job.");
-            }
-            WorkspaceContext workspace =
-                    workspaces.require(current.botJobId(), current.workspaceEpoch());
-            current = current.withWorkspace(workspace);
+            current = authorizeDefinitionRequest(
+                    request, requesterSessionId, requesterTransport);
             VariablesVariableAutoResolveV1.Request resolveRequest;
             try {
                 resolveRequest = gson.fromJson(
@@ -1112,7 +1099,8 @@ public final class VariablesWorkspaceService {
                             authorized.workspaceEpoch(),
                             () -> persistVariableAutoResolve(authorized, resolveRequest));
             JsonObject response = variableAutoResolveSuccess(request, authorized, committed);
-            if (!isCurrent(authorized) || !isManagerTransport(requesterTransport)) {
+            if (!isAuthorizedDefinitionTransport(
+                    authorized, requesterSessionId, requesterTransport)) {
                 response.addProperty("resyncRequired", true);
             }
             return response;
@@ -1316,21 +1304,8 @@ public final class VariablesWorkspaceService {
             if (gridRequest) {
                 current = authorizeGridCommandRequest(request);
             } else {
-                requireManagerTransport(requesterSessionId, requesterTransport);
-                current = currentBinding();
-                if (current == null) {
-                    throw new IllegalArgumentException(
-                            "No Bot Job is bound to the Variables workspace.");
-                }
-                String requestedBindingEpoch = text(request, "bindingEpoch");
-                if (requestedBindingEpoch.isBlank()
-                        || !requestedBindingEpoch.equals(current.bindingEpoch())) {
-                    throw new IllegalArgumentException(
-                            "The Variables target changed. Reload the current Bot Job.");
-                }
-                WorkspaceContext workspace =
-                        workspaces.require(current.botJobId(), current.workspaceEpoch());
-                current = current.withWorkspace(workspace);
+                current = authorizeDefinitionRequest(
+                        request, requesterSessionId, requesterTransport);
             }
             VariablesWorkspaceVariableDelete.Request deleteRequest;
             try {
@@ -1353,8 +1328,8 @@ public final class VariablesWorkspaceService {
                             () -> persistVariableDeletion(authorized, deleteRequest));
             JsonObject response =
                     variableDeleteSuccess(request, authorized, committed);
-            if (!gridRequest && (!isCurrent(authorized)
-                    || !isManagerTransport(requesterTransport))) {
+            if (!gridRequest && !isAuthorizedDefinitionTransport(
+                    authorized, requesterSessionId, requesterTransport)) {
                 response.addProperty("resyncRequired", true);
                 response.addProperty(
                         "message",
@@ -2744,6 +2719,48 @@ public final class VariablesWorkspaceService {
                 || !isManagerTransport(transport)) {
             throw new IllegalArgumentException(
                     "The Variables workspace requester is not authoritative.");
+        }
+    }
+
+    private Binding authorizeDefinitionRequest(
+            JsonObject request,
+            String requesterSessionId,
+            Session requesterTransport) {
+        if (DetachedWorkspaceSessions.RUNTIME_VARIABLES_MANAGER.equals(requesterSessionId)) {
+            return authorizeRuntimeRequest(request, requesterSessionId, requesterTransport);
+        }
+        requireManagerTransport(requesterSessionId, requesterTransport);
+        Binding current = currentBinding();
+        if (current == null) {
+            throw new IllegalArgumentException(
+                    "No Bot Job is bound to the Variables workspace.");
+        }
+        String requestedBindingEpoch = text(request, "bindingEpoch");
+        if (requestedBindingEpoch.isBlank()
+                || !requestedBindingEpoch.equals(current.bindingEpoch())) {
+            throw new IllegalArgumentException(
+                    "The Variables target changed. Reload the current Bot Job.");
+        }
+        WorkspaceContext workspace =
+                workspaces.require(current.botJobId(), current.workspaceEpoch());
+        return current.withWorkspace(workspace);
+    }
+
+    private boolean isAuthorizedDefinitionTransport(
+            Binding authorized,
+            String requesterSessionId,
+            Session requesterTransport) {
+        synchronized (stateLock) {
+            if (DetachedWorkspaceSessions.RUNTIME_VARIABLES_MANAGER.equals(
+                    requesterSessionId)) {
+                return runtimeVariablesBinding != null
+                        && runtimeVariablesTransport == requesterTransport
+                        && runtimeVariablesBinding.bindingEpoch().equals(
+                                authorized.bindingEpoch());
+            }
+            return binding != null
+                    && managerTransport == requesterTransport
+                    && binding.bindingEpoch().equals(authorized.bindingEpoch());
         }
     }
 

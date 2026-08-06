@@ -1013,8 +1013,11 @@ public class SimpleWebSocketServer {
                             homeBankingId,
                             sessionId,
                             "variablesWorkspace.refreshResponse",
-                            variablesWorkspaceService.refresh(
-                                    variablesBody, sessionId, session));
+                            DetachedWorkspaceSessions.RUNTIME_VARIABLES_MANAGER.equals(sessionId)
+                                    ? variablesWorkspaceService.runtimeVariablesBootstrap(
+                                            variablesBody, sessionId, session)
+                                    : variablesWorkspaceService.refresh(
+                                            variablesBody, sessionId, session));
                     break;
                 }
                 case "variablesWorkspace.runtimeMemory.update": {
