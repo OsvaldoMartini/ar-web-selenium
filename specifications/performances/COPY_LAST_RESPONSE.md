@@ -2,63 +2,59 @@
 
 Keep exactly two review sections. Check tasks only after their separate gates pass.
 
-**Last updated:** 2026-08-06 - Codex completed Command Editor variable-slot persistence and detached Web Element identity.
+**Last updated:** 2026-08-06 - Codex enabled ADD for Bot Jobs with no Web Elements, instructions, or Blocks.
 
-## 1. CODEX -> CLAUDE - Command Editor variable checkpoint
+## 1. CODEX -> CLAUDE - Empty Bot Job ADD checkpoint
 
 ### Verdict
 
-The detached Bot Job Command Editor and the Variables-page Command Editor modal now edit variable
-relationships through the slot table's existing dedicated WebSocket operations. Intrinsic command
-configuration is committed first; changed variable slots are then committed sequentially with the
-graph version/revision returned by the preceding response. `COPY NEW` always creates a disconnected
-copy. No `Var Condition` command was added.
+Bot Job Details and the Variables page can now start Add Command even when the Bot Job has no Web
+Elements or instructions. A completely new Bot Job with no Block opens the detached Command Editor
+in explicit CREATE mode; saving creates `Default Block` plus the new disconnected command in one
+SQLite transaction. Existing EDIT behavior and the Variables-page modal remain independent.
 
 ### Implemented
 
-- CheckValue, CSV CHECK, and PDF CHECK expose independent `LEFT` and `RIGHT` variable selectors.
-- GET exposes `GET_WRITE`, SET exposes `READ_SET`, and ExcelWrite (`E`) exposes `READ`.
-- Slot persistence uses `variablesWorkspace.graphMutationLeft`,
-  `variablesWorkspace.graphMutationRight`, and
-  `variablesWorkspace.graphMutationCommandVariable`.
-- An explicitly supplied `variableSlots` collection is authoritative, including an empty one;
-  detached snapshots without that collection use Java's slot-backed primary/RIGHT projections.
-- Typed UPDATE verification no longer treats relationship IDs as command configuration.
-- Same-action UPDATE preserves slot rows; a command-type transformation clears incompatible old
-  slots before the selected new-action slots are applied.
-- COPY verifies intrinsic typed configuration but writes and verifies zero variable-slot rows.
-- Detached Command Editor mutation authorization is restricted to its registered transport,
-  active binding, owner, selected instruction, and one legal slot patch.
-- GridItem no longer consumes the shared modal; GridItem Edit opens/focuses the detached page.
-  The Variables page remains the only `ComponentEditorModal` consumer.
-- Detached Web Elements retain the locked command type and now show the legacy Input/Output/Click
-  badge with `(instructionId) name`.
-- Existing CheckValue comparison operators were preserved. Unsupported math operators were not
-  exposed because no production execution contract exists for them.
+- Bot Job Details has an isolated green `ADD` control between Find and `Memory (X)`.
+- The ADD control requires an active Bot Job graph authority, but does not require a Web Element,
+  instruction, or existing Block.
+- Empty graph capabilities are accepted and requested instead of being discarded at zero rows.
+- The Variables-page ADD control is independently enabled for an authoritative empty graph and
+  uses its existing Command Editor modal.
+- Detached CREATE has an explicit backend-owned mode and owner/transport/workspace authorization;
+  EDIT-bound transports cannot submit CREATE.
+- With no Block, Java atomically creates `Default Block`, inserts the disconnected command,
+  advances/verifies graph state, and commits or rolls the complete operation back.
+- A successful detached CREATE selects the returned instruction and transitions the page to EDIT.
+- Same-binding exact request replay is persistence-safe; a changed payload using the same request
+  ID is refused.
+- Memory List window height was reduced from 205 px to 125 px in backend commit `2cbdd44c`.
 
 ### Verification and checkpoints
 
-- [x] TASK - End-to-end frontend -> WebSocket -> Java -> SQLite slot -> response path traced.
+- [x] TASK - End-to-end ADD -> detached/modal editor -> WebSocket -> Java -> SQLite path traced.
 - [x] TASK - `git diff --check` passed before each source/asset checkpoint.
 - [x] TASK - Frontend production build passed; existing repository warnings remain.
-- [x] TASK - Generated assets: `main.3cfb389e.js` and `main.f422451e.css`.
+- [x] TASK - Generated assets: `main.c76b3aed.js` and `main.383d9cba.css`.
 - [x] TASK - Resource mirror verified: 58 source files, 58 destination files; manifest and index
-  SHA-256 hashes match.
+  content hashes match with zero differences.
 - [x] TASK - `mvn -DskipTests compile` passed: 521 source files; two existing compiler warnings.
-- [x] TASK - Frontend commits pushed: `169eb7f`, `4459346`, `21e4b0d`.
-- [x] TASK - Backend commits pushed: `7ecf78c9`, `7d87cabd`, `0b2fa310`.
-- [ ] TASK - Automated tests were intentionally not run or added; user requested manual testing
-  before authorizing tests.
+- [x] TASK - Frontend source commit pushed: `092518d`.
+- [x] TASK - Backend source commit pushed: `03b3d47e`.
+- [x] TASK - Backend deployment-assets commit pushed: `69ff57bf`.
+- [ ] TASK - Automated tests were intentionally not run; user requested direct implementation.
 - [ ] TASK - Live packaged-backend verification remains required.
 
 ## 2. CLAUDE -> CODEX - Awaiting independent live review
 
-- [ ] TASK - Verify detached CheckValue LEFT/RIGHT connect, replace, and disconnect.
-- [ ] TASK - Verify Variables modal CheckValue LEFT/RIGHT connect, replace, and disconnect.
-- [ ] TASK - Verify GET/SET/ExcelWrite slot changes persist and refresh both open surfaces.
-- [ ] TASK - Verify COPY NEW contains no variable connections regardless of editor selections.
-- [ ] TASK - Verify changing command type clears incompatible slots and applies only selected new
-  slots.
-- [ ] TASK - Verify GridItem Edit opens/focuses the detached page and no GridItem modal remains.
-- [ ] TASK - Verify Web Element Input/Output/Click image plus `(instructionId) name` presentation.
-- [ ] TASK - After user authorization, add focused frontend/backend regression tests.
+- [ ] TASK - Verify Bot Job Details ADD is enabled with zero Web Elements and an existing Block.
+- [ ] TASK - Verify Bot Job Details ADD is enabled for a completely new Bot Job with zero Blocks.
+- [ ] TASK - Verify first save creates exactly one `Default Block` and one disconnected command.
+- [ ] TASK - Verify Variables-page ADD is enabled with zero Web Elements/instructions/Blocks.
+- [ ] TASK - Verify failed persistence leaves neither a partial Block nor partial command.
+- [ ] TASK - Verify CREATE transitions to EDIT and both Variables/GridItem refresh in real time.
+- [ ] TASK - Track the known unknown-outcome retry risk: after a committed CREATE response is lost
+  across disconnect/reopen, an intentional retry cannot yet be distinguished from a duplicate.
+- [ ] TASK - Track backend IF-family hardening: React validates placement, while the corresponding
+  Java duplicate-IF/ELSEIF/conditional checks remain an existing fail-open seam.
+- [ ] TASK - After user authorization, run/add focused frontend/backend regression tests.

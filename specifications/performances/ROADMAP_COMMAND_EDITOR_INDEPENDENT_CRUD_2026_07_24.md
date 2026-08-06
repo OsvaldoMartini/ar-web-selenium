@@ -1,7 +1,37 @@
 # Independent Command Editor CRUD Roadmap
 
 Date: 2026-07-24
-Status: Phase 0 complete; Phase 3 non-empty Block/Instruction selection slice implemented
+Status: Phase 0 complete; Phase 3 selection and first-command empty-Bot-Job CREATE implemented
+
+## Implementation Checkpoint - 2026-08-06 Empty Bot Job ADD
+
+- [x] Added an isolated green ADD button between Find and `Memory (X)` on Bot Job Details.
+- [x] Kept the Variables-page ADD modal independently available when the authoritative Bot Job
+  graph contains no Web Elements, commands, or Blocks.
+- [x] Requested and accepted valid zero-row graph capabilities instead of treating an empty graph
+  as an unavailable graph.
+- [x] Added explicit detached CREATE mode without weakening existing detached EDIT ownership,
+  transport, workspace, binding, or graph-authority checks.
+- [x] For a Bot Job with no Block, atomically create `Default Block` and one disconnected command
+  inside the existing command-create transaction; rollback covers both rows and graph state.
+- [x] Correlate successful CREATE to the returned instruction and transition the detached editor
+  to EDIT without reopening a second editor.
+- [x] Protect exact same-binding retries from a second insert and refuse request-ID payload
+  collisions.
+- [x] Reduced the Memory List window height by 80 px (205 -> 125).
+- [x] Frontend production build passed with existing warnings; generated assets are
+  `main.c76b3aed.js` and `main.383d9cba.css`.
+- [x] Mirrored and hash-compared all 58 frontend build files with zero differences.
+- [x] `mvn -DskipTests compile` passed for 521 Java source files with two existing warnings.
+- [x] Pushed frontend source commit `092518d`, backend source commit `03b3d47e`, Memory List
+  checkpoint `2cbdd44c`, and backend assets commit `69ff57bf`.
+- [ ] Automated tests were intentionally not run by user instruction.
+- [ ] Live verification against a user-packaged/restarted backend remains required.
+- [ ] Unknown-outcome CREATE across disconnect/reopen remains a documented retry ambiguity: a
+  fresh intentional retry cannot be distinguished from an identical duplicate without durable
+  operation identity.
+- [ ] Backend IF-family placement/invariant validation remains an existing hardening item; normal
+  React creation validates it, but Java's equivalent checks are still fail-open.
 
 ## Implementation Checkpoint - 2026-08-06 Variable-Slot Editing
 
