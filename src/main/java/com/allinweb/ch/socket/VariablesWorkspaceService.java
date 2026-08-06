@@ -146,6 +146,8 @@ public final class VariablesWorkspaceService {
             ConcurrentHashMap.newKeySet();
     private Binding binding;
     private Session managerTransport;
+    private Binding smokeTestBinding;
+    private Session smokeTestTransport;
     private long disconnectGeneration;
 
     VariablesWorkspaceService(
@@ -392,6 +394,10 @@ public final class VariablesWorkspaceService {
                     workspace.botJobName(),
                     workspace.organizationName(),
                     text(request, "graphRevision"));
+            synchronized (stateLock) {
+                smokeTestBinding = smokeBinding;
+                smokeTestTransport = requesterTransport;
+            }
             return loadSnapshot(smokeBinding, request, "Smoke Test workspace loaded.");
         } catch (Exception failure) {
             log.warn("Unable to load Smoke Test workspace", failure);
@@ -2190,6 +2196,15 @@ public final class VariablesWorkspaceService {
      * socket opens. If no replacement connects, an explicit page close retires after the grace.
      */
     public void disconnected(String sessionId, Session transport) {
+        if (DetachedWorkspaceSessions.SMOKE_TEST_MANAGER.equals(sessionId)) {
+            synchronized (stateLock) {
+                if (smokeTestTransport == transport) {
+                    smokeTestTransport = null;
+                    smokeTestBinding = null;
+                }
+            }
+            return;
+        }
         Binding disconnectedBinding;
         long generation;
         synchronized (stateLock) {
@@ -2378,6 +2393,40 @@ public final class VariablesWorkspaceService {
             JsonObject request,
             String requesterSessionId,
             Session requesterTransport) {
+        if (DetachedWorkspaceSessions.SMOKE_TEST_MANAGER.equals(requesterSessionId)) {
+            Binding currentSmoke;
+            synchronized (stateLock) {
+                if (smokeTestBinding == null
+                        || smokeTestTransport != requesterTransport
+                        || !windows.isRegistered(requesterSessionId, requesterTransport)) {
+                    throw new IllegalArgumentException(
+                            "The Smoke Test runtime target is not authoritative.");
+                }
+                String requestedBindingEpoch = text(request, "bindingEpoch");
+                long requestedWorkspaceEpoch = nonNegativeLong(
+                        request, "workspaceEpoch", true);
+                if (!smokeTestBinding.bindingEpoch().equals(requestedBindingEpoch)
+                        || smokeTestBinding.workspaceEpoch() != requestedWorkspaceEpoch) {
+                    throw new IllegalArgumentException(
+                            "The Smoke Test target changed. Reload the current Bot Job.");
+                }
+                currentSmoke = smokeTestBinding;
+            }
+            WorkspaceContext workspace = workspaces.require(
+                    currentSmoke.botJobId(), currentSmoke.workspaceEpoch());
+            Binding refreshed = currentSmoke.withWorkspace(workspace);
+            synchronized (stateLock) {
+                if (smokeTestBinding == null
+                        || smokeTestTransport != requesterTransport
+                        || !smokeTestBinding.bindingEpoch().equals(
+                                currentSmoke.bindingEpoch())) {
+                    throw new IllegalArgumentException(
+                            "The Smoke Test target changed before the request was saved.");
+                }
+                smokeTestBinding = refreshed;
+                return refreshed;
+            }
+        }
         requireManagerTransport(requesterSessionId, requesterTransport);
         Binding current = currentBinding();
         if (current == null) {
@@ -2411,12 +2460,17 @@ public final class VariablesWorkspaceService {
             Session requesterTransport,
             RuntimeMutationSupplier mutation) {
         synchronized (stateLock) {
-            if (binding == null
-                    || !binding.bindingEpoch().equals(authorized.bindingEpoch())
-                    || binding.workspaceEpoch() != authorized.workspaceEpoch()
-                    || managerTransport != requesterTransport) {
+            boolean variablesAuthorized = binding != null
+                    && binding.bindingEpoch().equals(authorized.bindingEpoch())
+                    && binding.workspaceEpoch() == authorized.workspaceEpoch()
+                    && managerTransport == requesterTransport;
+            boolean smokeTestAuthorized = smokeTestBinding != null
+                    && smokeTestBinding.bindingEpoch().equals(authorized.bindingEpoch())
+                    && smokeTestBinding.workspaceEpoch() == authorized.workspaceEpoch()
+                    && smokeTestTransport == requesterTransport;
+            if (!variablesAuthorized && !smokeTestAuthorized) {
                 throw new IllegalArgumentException(
-                        "The Variables target changed before the request was saved.");
+                        "The runtime target changed before the request was saved.");
             }
             return mutation.get();
         }
