@@ -187,3 +187,11 @@ The final response must include:
 > Do not modify code until you trace the authoritative end-to-end path and identify every consumer of the contract being changed.
 
 The objective is not to produce the most code. The objective is to make the smallest correct change, prove that it works, preserve every unrelated system, and leave auditable evidence for the next engineer or AI assistant.
+
+### 11. Mandatory design checkpoints
+
+- After finishing each requested code modification, create a narrowly scoped `CODEX-` commit and push it to the current upstream branch.
+- Keep design changes in small checkpoints so an unwanted design can be rolled back without losing unrelated work.
+- Do not run `mvn clean package` as part of these checkpoints unless the user explicitly requests it.
+- Run Java compilation only when Java source code changed. Frontend-only or documentation-only changes do not require Java compilation.
+- Continue to run the relevant frontend build when requested or when needed to validate an active frontend implementation; a template-copy-only task does not require a rebuild unless requested.
