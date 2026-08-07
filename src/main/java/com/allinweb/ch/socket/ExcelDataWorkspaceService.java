@@ -19,9 +19,15 @@ import com.allinweb.ch.util.ExtractedData;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import java.io.File;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.security.MessageDigest;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HexFormat;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 import javax.websocket.Session;
 import lombok.extern.slf4j.Slf4j;
 
@@ -30,6 +36,7 @@ import lombok.extern.slf4j.Slf4j;
 public final class ExcelDataWorkspaceService {
     public static final String SESSION_ID = DetachedWorkspaceSessions.EXCEL_DATA_MANAGER;
     private static final ExcelDataWorkspaceService INSTANCE = new ExcelDataWorkspaceService();
+    private static final AtomicLong DATASET_EPOCHS = new AtomicLong();
 
     private final PerformLists lists = PerformLists.getInstance();
     private final PerformDataBase database = PerformDataBase.getInstance();
@@ -153,6 +160,7 @@ public final class ExcelDataWorkspaceService {
                 binding.mode = Mode.SYNTHETIC;
                 binding.syntheticDirty = true;
                 binding.loadedAt = Instant.now();
+                binding.changed();
                 selectExecutionData();
                 return snapshot("Synthetic rows generated in memory. Save Synthetic Data to keep them after restart.");
             }
@@ -171,6 +179,7 @@ public final class ExcelDataWorkspaceService {
             binding.mode = Mode.REAL;
             binding.realDirty = false;
             binding.loadedAt = Instant.now();
+            binding.changed();
             selectExecutionData();
             nativeOperations.openFile(generated);
             return snapshot("Excel data file generated and loaded into memory.");
@@ -203,6 +212,7 @@ public final class ExcelDataWorkspaceService {
         }
         binding.setDirty(true);
         binding.loadedAt = Instant.now();
+        binding.changed();
         return snapshot("Row " + (targetRow + 1) + " copied from row " + (sourceRow + 1) + " in memory.");
     }
 
@@ -259,6 +269,45 @@ public final class ExcelDataWorkspaceService {
         return snapshot(binding.mode + " memory selected for execution.");
     }
 
+    /**
+     * Freezes the exact retained REAL/SYNTHETIC dataset used by one Integration run.
+     *
+     * <p>The returned data is a deep copy. Later cell edits, row deletes, mode changes, or reloads
+     * in the detached Excel Data page therefore cannot alter an already-started browser run.
+     */
+    public synchronized IntegrationDataset freezeIntegrationData(
+            int botJobId, String expectedMode) {
+        if (binding == null || binding.botJobId() != botJobId) {
+            throw new IllegalStateException(
+                    "Excel Data memory is not open for Bot Job " + botJobId + ".");
+        }
+        Mode requested;
+        try {
+            requested = Mode.valueOf(expectedMode == null
+                    ? "" : expectedMode.trim().toUpperCase(java.util.Locale.ROOT));
+        } catch (IllegalArgumentException invalidMode) {
+            throw new IllegalArgumentException("Excel mode must be REAL or SYNTHETIC.");
+        }
+        if (binding.mode != requested) {
+            throw new IllegalStateException(
+                    "Excel Data mode changed. Reopen Smoke Test before Integration.");
+        }
+        if (binding.mode == Mode.REAL && binding.realDirty) {
+            throw new IllegalStateException(
+                    "REAL Excel memory has unsaved changes. Save to Excel before Integration.");
+        }
+        ExtractedData frozen = binding.data().deepCopy();
+        return new IntegrationDataset(
+                binding.botJobId(),
+                binding.homeBankingId(),
+                binding.mode.name(),
+                binding.datasetEpoch,
+                binding.datasetRevision,
+                datasetContentRevision(binding, frozen),
+                binding.loadedAt,
+                frozen);
+    }
+
     public synchronized JsonObject setMode(JsonObject request, String sessionId, Session transport) {
         JsonObject authorization = requireActiveTransport(sessionId, transport);
         if (authorization != null) return authorization;
@@ -267,6 +316,7 @@ public final class ExcelDataWorkspaceService {
         JsonObject reloadFailure = reloadSyntheticSelection();
         if (reloadFailure != null) return reloadFailure;
         binding.loadedAt = Instant.now();
+        binding.changed();
         selectExecutionData();
         JsonObject response = snapshot(binding.mode + " data selected.");
         publishModeChanged();
@@ -290,6 +340,7 @@ public final class ExcelDataWorkspaceService {
         JsonObject reloadFailure = reloadSyntheticSelection();
         if (reloadFailure != null) return reloadFailure;
         binding.loadedAt = Instant.now();
+        binding.changed();
         selectExecutionData();
         JsonObject response = modeForBotJob(botJobId);
         response.addProperty("message", binding.mode + " data selected.");
@@ -327,6 +378,7 @@ public final class ExcelDataWorkspaceService {
         }
         binding.setDirty(true);
         binding.loadedAt = Instant.now();
+        binding.changed();
         selectExecutionData();
         return snapshot(binding.mode + " rows cleared from memory.");
     }
@@ -343,6 +395,7 @@ public final class ExcelDataWorkspaceService {
             }
             binding.setDirty(true);
             binding.loadedAt = Instant.now();
+            binding.changed();
             selectExecutionData();
             return snapshot("Row " + (rowIndex + 1) + " deleted from " + binding.mode + " memory.");
         } catch (RuntimeException error) {
@@ -397,6 +450,7 @@ public final class ExcelDataWorkspaceService {
                 binding.syntheticDirty = false;
             }
             binding.loadedAt = Instant.now();
+            binding.changed();
             selectExecutionData();
             return snapshot(binding.mode + " data reloaded.");
         } catch (Exception error) {
@@ -420,6 +474,8 @@ public final class ExcelDataWorkspaceService {
                     ? request.get("value").getAsString() : null;
             binding.data().addFieldValue(block, column, value, row);
             binding.setDirty(true);
+            binding.loadedAt = Instant.now();
+            binding.changed();
             selectExecutionData();
             return snapshot("Cell updated in " + binding.mode + " memory.");
         } catch (RuntimeException error) {
@@ -522,6 +578,8 @@ public final class ExcelDataWorkspaceService {
         response.addProperty("fileName", binding.workbook().getFileName().toString());
         response.addProperty("filePath", binding.workbook().toString());
         response.addProperty("loadedAt", binding.loadedAt().toString());
+        response.addProperty("datasetEpoch", binding.datasetEpoch);
+        response.addProperty("datasetRevision", binding.datasetRevision);
         response.addProperty("rowCount", data.getNumberOfDataRows());
         response.addProperty("dirty", binding.dirty());
         response.addProperty("mode", binding.mode.name());
@@ -576,6 +634,55 @@ public final class ExcelDataWorkspaceService {
 
     private enum Mode { REAL, SYNTHETIC }
 
+    public record IntegrationDataset(
+            int botJobId,
+            int homeBankingId,
+            String mode,
+            long datasetEpoch,
+            long datasetRevision,
+            String contentRevision,
+            Instant loadedAt,
+            ExtractedData data) {}
+
+    private static String datasetContentRevision(Binding owner, ExtractedData data) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            digestPart(digest, Integer.toString(owner.botJobId));
+            digestPart(digest, Integer.toString(owner.homeBankingId));
+            digestPart(digest, owner.mode.name());
+            int rowCount = data.getNumberOfDataRows();
+            digestPart(digest, Integer.toString(rowCount));
+            List<String> blocks = new ArrayList<>(data.getBlocks());
+            blocks.sort(String.CASE_INSENSITIVE_ORDER.thenComparing(String::compareTo));
+            for (String block : blocks) {
+                digestPart(digest, block);
+                List<String> columns = new ArrayList<>(data.getExtractedFields(block));
+                columns.sort(String.CASE_INSENSITIVE_ORDER.thenComparing(String::compareTo));
+                for (String column : columns) {
+                    digestPart(digest, column);
+                    for (int row = 0; row < rowCount; row++) {
+                        digestPart(digest, Integer.toString(row));
+                        digestPart(digest, data.getFieldValue(block, column, row));
+                    }
+                }
+            }
+            return HexFormat.of().formatHex(digest.digest());
+        } catch (java.security.NoSuchAlgorithmException impossible) {
+            throw new IllegalStateException("SHA-256 is unavailable", impossible);
+        }
+    }
+
+    private static void digestPart(MessageDigest digest, String value) {
+        if (value == null) {
+            digest.update((byte) 0);
+            return;
+        }
+        byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
+        digest.update((byte) 1);
+        digest.update(java.nio.ByteBuffer.allocate(Integer.BYTES).putInt(bytes.length).array());
+        digest.update(bytes);
+    }
+
     private static final class Binding {
         private final int botJobId;
         private final int homeBankingId;
@@ -588,6 +695,8 @@ public final class ExcelDataWorkspaceService {
         private boolean realDirty;
         private boolean syntheticDirty;
         private String syntheticContext;
+        private final long datasetEpoch = DATASET_EPOCHS.incrementAndGet();
+        private long datasetRevision = 1L;
 
         private Binding(int botJobId, int homeBankingId, String botJobName, Path workbook,
                 ExtractedData realData, ExtractedData syntheticData, String syntheticContext) {
@@ -608,5 +717,6 @@ public final class ExcelDataWorkspaceService {
         Instant loadedAt() { return loadedAt; }
         boolean dirty() { return mode == Mode.REAL ? realDirty : syntheticDirty; }
         void setDirty(boolean dirty) { if (mode == Mode.REAL) realDirty = dirty; else syntheticDirty = dirty; }
+        void changed() { datasetRevision++; }
     }
 }

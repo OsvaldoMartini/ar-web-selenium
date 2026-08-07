@@ -1,0 +1,349 @@
+package com.allinweb.ch.socket;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+import com.allinweb.ch.facade.execution.SmokeTestIntegrationSnapshotRepository.Environment;
+import com.allinweb.ch.facade.execution.SmokeTestIntegrationSnapshotRepository.Owner;
+import com.allinweb.ch.facade.execution.SmokeTestIntegrationSnapshotRepository.Plan;
+import com.allinweb.ch.facade.execution.SmokeTestIntegrationStepExecutor.Outcome;
+import com.allinweb.ch.model.DetachedWorkspaceSessions;
+import com.allinweb.ch.model.SmokeTestIntegrationContracts;
+import com.allinweb.ch.model.SmokeTestIntegrationContracts.Scope;
+import com.allinweb.ch.model.SmokeTestIntegrationContracts.StepDisposition;
+import com.allinweb.ch.model.SmokeTestIntegrationContracts.StepStatus;
+import com.allinweb.ch.socket.ExcelDataWorkspaceService.IntegrationDataset;
+import com.allinweb.ch.socket.VariablesWorkspaceService.SmokeIntegrationAuthorization;
+import com.allinweb.ch.util.ExtractedData;
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import java.time.Instant;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import javax.websocket.Session;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+class SmokeTestIntegrationServiceTest {
+    private static final Owner OWNER = new Owner(2, 32);
+    private static final long WORKSPACE_EPOCH = 7L;
+    private static final String BINDING_EPOCH = "binding-epoch-7";
+    private static final String GRAPH_REVISION = "a".repeat(64);
+    private static final String PLAN_REVISION = "b".repeat(64);
+    private static final String DATA_REVISION = "c".repeat(64);
+    private static final int INSTRUCTION_ID = 1728;
+
+    private Session transport;
+    private ThreadPoolExecutor worker;
+    private RecordingResponses responses;
+    private RecordingBrowserOwnership browserOwnership;
+    private RecordingSteps steps;
+    private SmokeTestIntegrationService service;
+
+    @BeforeEach
+    void setUp() {
+        WebSocketSessionManager.clearSessions();
+        transport = mock(Session.class);
+        when(transport.isOpen()).thenReturn(true);
+        assertTrue(WebSocketSessionManager.addSession(
+                DetachedWorkspaceSessions.SMOKE_TEST_MANAGER, transport));
+
+        worker = new ThreadPoolExecutor(
+                1,
+                1,
+                0L,
+                TimeUnit.MILLISECONDS,
+                new LinkedBlockingQueue<>());
+        responses = new RecordingResponses();
+        browserOwnership = new RecordingBrowserOwnership();
+        steps = new RecordingSteps();
+
+        SmokeIntegrationAuthorization authorization = new SmokeIntegrationAuthorization(
+                BINDING_EPOCH,
+                WORKSPACE_EPOCH,
+                OWNER.botJobId(),
+                OWNER.homeBankingId(),
+                "Lifecycle Bot Job",
+                "Lifecycle Bank",
+                GRAPH_REVISION);
+        service = new SmokeTestIntegrationService(
+                new Gson(),
+                new SmokeTestIntegrationService.BindingPort() {
+                    @Override
+                    public SmokeIntegrationAuthorization authorize(
+                            JsonObject request, Session candidate) {
+                        return authorization;
+                    }
+
+                    @Override
+                    public boolean isCurrent(
+                            SmokeIntegrationAuthorization expected, Session candidate) {
+                        return expected.equals(authorization) && candidate == transport;
+                    }
+                },
+                (botJobId, mode) -> dataset(),
+                (owner, scope) -> plan(),
+                steps,
+                browserOwnership,
+                (botJobId, workspaceEpoch) -> "IDLE",
+                (browserType, url, optionsConfig) -> true,
+                responses,
+                worker);
+    }
+
+    @AfterEach
+    void tearDown() {
+        if (service != null) service.shutdown();
+        WebSocketSessionManager.clearSessions();
+    }
+
+    @Test
+    void startStepAndCorrelatedFinishReleaseTheBrowserLease() throws Exception {
+        JsonObject started = start("start-1");
+        String runId = started.get("runId").getAsString();
+
+        service.handle(
+                SmokeTestIntegrationContracts.STEP,
+                stepRequest("step-1", runId, 1L),
+                DetachedWorkspaceSessions.SMOKE_TEST_MANAGER,
+                transport);
+        Published stepped = responses.await(SmokeTestIntegrationContracts.STEP_RESPONSE);
+
+        assertTrue(stepped.body.get("ok").getAsBoolean());
+        assertEquals("step-1", stepped.body.get("requestId").getAsString());
+        assertEquals(runId, stepped.body.get("runId").getAsString());
+        assertEquals(1L, stepped.body.get("sequence").getAsLong());
+        assertEquals(INSTRUCTION_ID, stepped.body.get("instructionId").getAsInt());
+        assertEquals(1, steps.calls.get());
+
+        service.handle(
+                SmokeTestIntegrationContracts.FINISH,
+                finishRequest("finish-1", runId, 1L),
+                DetachedWorkspaceSessions.SMOKE_TEST_MANAGER,
+                transport);
+        Published finished = responses.await(SmokeTestIntegrationContracts.FINISH_RESPONSE);
+
+        assertTrue(finished.body.get("ok").getAsBoolean());
+        assertEquals("finish-1", finished.body.get("requestId").getAsString());
+        assertEquals(runId, finished.body.get("runId").getAsString());
+        assertEquals("FINISHED", finished.body.get("status").getAsString());
+        assertEquals(1L, finished.body.get("lastSequence").getAsLong());
+        assertTrue(browserOwnership.awaitClosed());
+        assertEquals(1, browserOwnership.closes.get());
+    }
+
+    @Test
+    void lastSequenceMismatchPreservesRunUntilStopAndReleasesExactlyOnce() throws Exception {
+        JsonObject started = start("start-2");
+        String runId = started.get("runId").getAsString();
+
+        service.handle(
+                SmokeTestIntegrationContracts.STEP,
+                stepRequest("step-2", runId, 1L),
+                DetachedWorkspaceSessions.SMOKE_TEST_MANAGER,
+                transport);
+        assertTrue(responses.await(SmokeTestIntegrationContracts.STEP_RESPONSE)
+                .body.get("ok").getAsBoolean());
+
+        service.handle(
+                SmokeTestIntegrationContracts.FINISH,
+                finishRequest("finish-mismatch", runId, 0L),
+                DetachedWorkspaceSessions.SMOKE_TEST_MANAGER,
+                transport);
+        Published refused = responses.await(SmokeTestIntegrationContracts.FINISH_RESPONSE);
+
+        assertFalse(refused.body.get("ok").getAsBoolean());
+        assertEquals("LAST_SEQUENCE_MISMATCH", refused.body.get("code").getAsString());
+        assertEquals(0, browserOwnership.closes.get(), "A refused finish must preserve the active run");
+
+        service.handle(
+                SmokeTestIntegrationContracts.STOP,
+                stopRequest("stop-after-refusal", runId),
+                DetachedWorkspaceSessions.SMOKE_TEST_MANAGER,
+                transport);
+        Published stopped = responses.await(SmokeTestIntegrationContracts.STOP_RESPONSE);
+
+        assertTrue(stopped.body.get("ok").getAsBoolean());
+        assertEquals("STOPPED", stopped.body.get("status").getAsString());
+        assertTrue(browserOwnership.awaitClosed());
+        assertEquals(1, browserOwnership.closes.get());
+
+        service.disconnected(DetachedWorkspaceSessions.SMOKE_TEST_MANAGER, transport);
+        worker.submit(() -> {}).get(5, TimeUnit.SECONDS);
+        assertEquals(1, browserOwnership.closes.get(), "The released lease must remain idempotent");
+    }
+
+    @Test
+    void disconnectReleasesTheActiveBrowserLeaseExactlyOnce() throws Exception {
+        start("start-3");
+
+        assertTrue(WebSocketSessionManager.removeSession(
+                DetachedWorkspaceSessions.SMOKE_TEST_MANAGER, transport));
+        service.disconnected(DetachedWorkspaceSessions.SMOKE_TEST_MANAGER, transport);
+
+        assertTrue(browserOwnership.awaitClosed());
+        service.disconnected(DetachedWorkspaceSessions.SMOKE_TEST_MANAGER, transport);
+        worker.submit(() -> {}).get(5, TimeUnit.SECONDS);
+        assertEquals(1, browserOwnership.closes.get());
+    }
+
+    private JsonObject start(String requestId) throws InterruptedException {
+        service.handle(
+                SmokeTestIntegrationContracts.START,
+                startRequest(requestId),
+                DetachedWorkspaceSessions.SMOKE_TEST_MANAGER,
+                transport);
+        Published response = responses.await(SmokeTestIntegrationContracts.START_RESPONSE);
+        assertTrue(response.body.get("ok").getAsBoolean());
+        assertEquals(requestId, response.body.get("requestId").getAsString());
+        assertEquals(OWNER.homeBankingId(), response.homeBankingId);
+        return response.body;
+    }
+
+    private static JsonObject startRequest(String requestId) {
+        JsonObject request = new JsonObject();
+        request.addProperty("contractVersion", SmokeTestIntegrationContracts.CONTRACT_VERSION);
+        request.addProperty("requestId", requestId);
+        request.addProperty("bindingEpoch", BINDING_EPOCH);
+        request.addProperty("workspaceEpoch", WORKSPACE_EPOCH);
+        request.addProperty("homeBankingId", OWNER.homeBankingId());
+        request.addProperty("botJobId", OWNER.botJobId());
+        request.addProperty("graphRevision", GRAPH_REVISION);
+        JsonObject scope = new JsonObject();
+        scope.addProperty("kind", "ALL");
+        request.add("scope", scope);
+        request.addProperty("excelMode", "REAL");
+        request.addProperty("pagePolicy", "PRESERVE_ACTIVE");
+        request.addProperty("durableRuntimeWrites", false);
+        return request;
+    }
+
+    private static JsonObject stepRequest(String requestId, String runId, long sequence) {
+        JsonObject request = new JsonObject();
+        request.addProperty("contractVersion", SmokeTestIntegrationContracts.CONTRACT_VERSION);
+        request.addProperty("requestId", requestId);
+        request.addProperty("runId", runId);
+        request.addProperty("sequence", sequence);
+        request.addProperty("instructionId", INSTRUCTION_ID);
+        request.addProperty("excelRowIndex", 0);
+        return request;
+    }
+
+    private static JsonObject finishRequest(String requestId, String runId, long lastSequence) {
+        JsonObject request = stopRequest(requestId, runId);
+        request.addProperty("lastSequence", lastSequence);
+        return request;
+    }
+
+    private static JsonObject stopRequest(String requestId, String runId) {
+        JsonObject request = new JsonObject();
+        request.addProperty("contractVersion", SmokeTestIntegrationContracts.CONTRACT_VERSION);
+        request.addProperty("requestId", requestId);
+        request.addProperty("runId", runId);
+        return request;
+    }
+
+    private static Plan plan() {
+        Environment environment = new Environment(
+                OWNER.homeBankingId(),
+                "Lifecycle Bank",
+                OWNER.botJobId(),
+                "Lifecycle Bot Job",
+                "",
+                1,
+                "TEST",
+                "https://example.test",
+                "",
+                "Chromium");
+        return new Plan(
+                OWNER,
+                environment,
+                Scope.all(),
+                List.of(),
+                List.of(),
+                PLAN_REVISION);
+    }
+
+    private static IntegrationDataset dataset() {
+        return new IntegrationDataset(
+                OWNER.botJobId(),
+                OWNER.homeBankingId(),
+                "REAL",
+                1L,
+                0L,
+                DATA_REVISION,
+                Instant.parse("2026-08-06T00:00:00Z"),
+                new ExtractedData());
+    }
+
+    private static final class RecordingSteps implements SmokeTestIntegrationService.StepPort {
+        private final AtomicInteger calls = new AtomicInteger();
+
+        @Override
+        public Outcome execute(
+                Plan plan,
+                IntegrationDataset dataset,
+                int instructionId,
+                int excelRowIndex,
+                com.allinweb.ch.facade.execution.SmokeTestIntegrationStepExecutor.RunVariables variables) {
+            calls.incrementAndGet();
+            return new Outcome(
+                    StepStatus.PASSED,
+                    StepDisposition.LOGICAL_ONLY,
+                    "STEP_ACCEPTED",
+                    "The correlated step completed.",
+                    null,
+                    null);
+        }
+    }
+
+    private static final class RecordingBrowserOwnership
+            implements SmokeTestIntegrationService.BrowserOwnershipPort {
+        private final AtomicInteger closes = new AtomicInteger();
+        private final CountDownLatch closed = new CountDownLatch(1);
+
+        @Override
+        public SmokeTestIntegrationService.BrowserLease reserve() {
+            return () -> {
+                closes.incrementAndGet();
+                closed.countDown();
+            };
+        }
+
+        private boolean awaitClosed() throws InterruptedException {
+            return closed.await(5, TimeUnit.SECONDS);
+        }
+    }
+
+    private static final class RecordingResponses implements SmokeTestIntegrationService.ResponsePort {
+        private final LinkedBlockingQueue<Published> published = new LinkedBlockingQueue<>();
+
+        @Override
+        public void publish(
+                Session candidate,
+                int homeBankingId,
+                String operation,
+                JsonObject response) {
+            published.add(new Published(
+                    candidate, homeBankingId, operation, response.deepCopy()));
+        }
+
+        private Published await(String expectedOperation) throws InterruptedException {
+            Published next = published.poll(5, TimeUnit.SECONDS);
+            assertTrue(next != null, "Timed out waiting for " + expectedOperation);
+            assertEquals(expectedOperation, next.operation);
+            return next;
+        }
+    }
+
+    private record Published(
+            Session transport, int homeBankingId, String operation, JsonObject body) {}
+}

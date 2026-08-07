@@ -76,18 +76,18 @@ public class ARWebDriver {
     }
 
     /**
-     * Starts a TEST RUN without changing an already-open Playwright page.
+     * Starts an owned TEST RUN or Smoke Test Integration without changing an already-open page.
      *
      * <p>The normal {@link #openBrowser(String, String, String)} contract intentionally navigates an
-     * existing page to the configured URL. TEST RUN is different: an open page may contain the
-     * user's authenticated session and current application state, so startup must adopt it exactly
-     * as-is. The configured URL is used only when no Playwright page is open yet.
+     * existing page to the configured URL. Owned execution is different: an open page may contain
+     * the user's authenticated session and current application state, so startup must adopt it
+     * exactly as-is. The configured URL is used only when no Playwright page is open yet.
      */
     public boolean openBrowserPreservingCurrentPage(String browserType, String url, String optionsConfig) {
         ARPlaywrightDriver existing = currentPlaywrightDriver();
         if (existing != null && existing.isOpen()) {
             existing.assertBrowserCompatible(browserType);
-            log.info("Reusing the current Playwright page for TEST RUN without navigation or reload");
+            log.info("Reusing the current Playwright page for owned execution without navigation or reload");
             this.currentDriver = null;
             return true;
         }

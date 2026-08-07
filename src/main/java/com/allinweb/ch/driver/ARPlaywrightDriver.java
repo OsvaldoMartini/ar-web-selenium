@@ -403,6 +403,12 @@ public class ARPlaywrightDriver {
         return call(() -> actionExecutor.text(requirePage(), instruction));
     }
 
+    /** Typed text read preserving VALUE("") separately from a missing locator/read failure. */
+    public com.allinweb.ch.facade.PlaywrightActionExecutor.TextResult textResult(
+            InstructionLoad instruction) {
+        return call(() -> actionExecutor.textResult(requirePage(), instruction));
+    }
+
     public boolean isOpen() {
         return call(() -> !openPages().isEmpty());
     }

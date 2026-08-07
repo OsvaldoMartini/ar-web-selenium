@@ -547,6 +547,8 @@ public final class VariablesWorkspaceService {
                 smokeTestBinding = smokeBinding;
                 smokeTestTransport = requesterTransport;
             }
+            SmokeTestIntegrationService.getInstance().bindingChanged(
+                    requesterTransport, smokeBinding.bindingEpoch());
             return loadSnapshot(smokeBinding, request, "Smoke Test workspace loaded.");
         } catch (Exception failure) {
             log.warn("Unable to load Smoke Test workspace", failure);
@@ -670,6 +672,115 @@ public final class VariablesWorkspaceService {
         }
         return source != null && windows.isRegistered(requesterSessionId, requesterTransport)
                 ? source : null;
+    }
+
+    /**
+     * Authorizes the start of one real-browser Smoke Test Integration run.
+     *
+     * <p>The detached page's physical transport and backend-created binding epoch are authority.
+     * Client-supplied Bot Job IDs and revisions are only assertions and must match both the live
+     * workspace owner and a freshly loaded relationship graph.
+     */
+    public SmokeIntegrationAuthorization authorizeSmokeIntegration(
+            JsonObject body, String requesterSessionId, Session requesterTransport) {
+        JsonObject request = body == null ? new JsonObject() : body;
+        Binding candidate;
+        synchronized (stateLock) {
+            if (!DetachedWorkspaceSessions.SMOKE_TEST_MANAGER.equals(requesterSessionId)
+                    || smokeTestBinding == null
+                    || smokeTestTransport != requesterTransport
+                    || !windows.isRegistered(requesterSessionId, requesterTransport)) {
+                throw new IllegalArgumentException(
+                        "The Smoke Test Integration requester is not authoritative.");
+            }
+            if (!smokeTestBinding.bindingEpoch().equals(text(request, "bindingEpoch"))) {
+                throw new IllegalArgumentException(
+                        "The Smoke Test target changed. Reload the current Bot Job.");
+            }
+            candidate = smokeTestBinding;
+        }
+
+        long requestedWorkspaceEpoch = nonNegativeLong(request, "workspaceEpoch", true);
+        int requestedBotJobId = positiveInteger(request, "botJobId");
+        int requestedHomeBankingId = positiveInteger(request, "homeBankingId");
+        String requestedGraphRevision = text(request, "graphRevision");
+        if (requestedWorkspaceEpoch != candidate.workspaceEpoch()
+                || requestedBotJobId != candidate.botJobId()
+                || requestedHomeBankingId != candidate.homeBankingId()) {
+            throw new IllegalArgumentException(
+                    "The Smoke Test Integration owner no longer matches the active workspace.");
+        }
+        if (requestedGraphRevision.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Smoke Test Integration requires the current graph revision.");
+        }
+
+        WorkspaceContext workspace = workspaces.require(
+                candidate.botJobId(), candidate.workspaceEpoch());
+        if (workspace.homeBankingId() != candidate.homeBankingId()) {
+            throw new IllegalArgumentException(
+                    "The Smoke Test Integration organization is no longer active.");
+        }
+        JsonObject graph = graphs.load(candidate.botJobId());
+        if (!isSuccessful(graph)) {
+            String message = text(graph, "error");
+            throw new IllegalStateException(message.isBlank()
+                    ? "Variable relationships could not be verified for Integration."
+                    : message);
+        }
+        String authoritativeRevision = text(graph, "graphRevision");
+        if (authoritativeRevision.isBlank()
+                || !authoritativeRevision.equals(requestedGraphRevision)) {
+            throw new IllegalArgumentException(
+                    "Smoke Test relationships changed. Refresh before starting Integration.");
+        }
+
+        Binding refreshed = candidate.withWorkspace(workspace)
+                .withGraphRevision(authoritativeRevision);
+        synchronized (stateLock) {
+            if (smokeTestBinding == null
+                    || smokeTestTransport != requesterTransport
+                    || !smokeTestBinding.bindingEpoch().equals(candidate.bindingEpoch())
+                    || !windows.isRegistered(requesterSessionId, requesterTransport)) {
+                throw new IllegalArgumentException(
+                        "The Smoke Test target changed before Integration could start.");
+            }
+            smokeTestBinding = refreshed;
+        }
+        return new SmokeIntegrationAuthorization(
+                refreshed.bindingEpoch(),
+                refreshed.workspaceEpoch(),
+                refreshed.botJobId(),
+                refreshed.homeBankingId(),
+                refreshed.botJobName(),
+                refreshed.organizationName(),
+                refreshed.graphRevision());
+    }
+
+    /** True only while the same physical Smoke Test page still owns this exact binding. */
+    public boolean isCurrentSmokeIntegrationBinding(
+            SmokeIntegrationAuthorization expected, Session requesterTransport) {
+        if (expected == null || requesterTransport == null) return false;
+        synchronized (stateLock) {
+            if (smokeTestBinding == null
+                    || smokeTestTransport != requesterTransport
+                    || !windows.isRegistered(
+                            DetachedWorkspaceSessions.SMOKE_TEST_MANAGER,
+                            requesterTransport)
+                    || !smokeTestBinding.bindingEpoch().equals(expected.bindingEpoch())
+                    || smokeTestBinding.workspaceEpoch() != expected.workspaceEpoch()
+                    || smokeTestBinding.botJobId() != expected.botJobId()
+                    || smokeTestBinding.homeBankingId() != expected.homeBankingId()) {
+                return false;
+            }
+        }
+        try {
+            WorkspaceContext workspace = workspaces.require(
+                    expected.botJobId(), expected.workspaceEpoch());
+            return workspace.homeBankingId() == expected.homeBankingId();
+        } catch (IllegalArgumentException | IllegalStateException retired) {
+            return false;
+        }
     }
 
     /** Explicitly refreshes the graph while preserving the prior UI snapshot on failure. */
@@ -4316,6 +4427,15 @@ public final class VariablesWorkspaceService {
 
     public record RetireResult(
             boolean matched, boolean closed, boolean tombstoneDelivered, boolean forceClosed) {}
+
+    public record SmokeIntegrationAuthorization(
+            String bindingEpoch,
+            long workspaceEpoch,
+            int botJobId,
+            int homeBankingId,
+            String botJobName,
+            String organizationName,
+            String graphRevision) {}
 
     private record Binding(
             String bindingEpoch,

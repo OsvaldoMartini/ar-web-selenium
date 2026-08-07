@@ -76,6 +76,8 @@ public class SimpleWebSocketServer {
             VariablesWorkspaceService.getInstance();
     private static final ExcelDataWorkspaceService excelDataWorkspaceService =
             ExcelDataWorkspaceService.getInstance();
+    private static final SmokeTestIntegrationService smokeTestIntegrationService =
+            SmokeTestIntegrationService.getInstance();
     private static final int MAX_PAGE_SCANNER_BODY_CHARACTERS = 2_000_000;
     private static final int MAX_PAGE_SCANNER_ELEMENTS = 1_000;
     private static final int MAX_PAGE_SCANNER_SEARCH_TERMS = 8_192;
@@ -159,6 +161,11 @@ public class SimpleWebSocketServer {
             "excelData.close",
             "pagesOpen.open",
             "pagesOpen.summary");
+    private static final Set<String> SMOKE_INTEGRATION_OPERATIONS = Set.of(
+            SmokeTestIntegrationContracts.START,
+            SmokeTestIntegrationContracts.STEP,
+            SmokeTestIntegrationContracts.STOP,
+            SmokeTestIntegrationContracts.FINISH);
     private static final ScannerPluginDownloadCommandService scannerPluginDownloadCommandService =
             ScannerPluginDownloadCommandService.getInstance();
     protected static volatile SimpleWebSocketServer instance;
@@ -523,6 +530,7 @@ public class SimpleWebSocketServer {
                     VariablesWorkspaceService.isWorkspaceSession(transportSessionId);
             boolean detachedExcelDataTransport =
                     ExcelDataWorkspaceService.SESSION_ID.equals(transportSessionId);
+            boolean smokeIntegrationOperation = SMOKE_INTEGRATION_OPERATIONS.contains(type);
             String sessionId = ocrWorkspaceOperation
                             || detachedOcrTransport
                             || pageScannerOperation
@@ -535,6 +543,7 @@ public class SimpleWebSocketServer {
                              || variablesWorkspaceOperation
                              || detachedVariablesTransport
                              || detachedExcelDataTransport
+                             || smokeIntegrationOperation
                     ? transportSessionId
                     : claimedSessionId;
             ReactReplyChannel.set(sessionId);
@@ -579,11 +588,19 @@ public class SimpleWebSocketServer {
                     && "STOP_TEST_RUN".equals(botJobDetailsToolbarAction(jsonObjMSG));
             boolean pauseResponseWithoutLicense = "botJobExecution.pause.response".equals(type);
             boolean pageScannerCloseWithoutLicense = "pageScanner.close".equals(type);
+            boolean smokeCleanupWithoutLicense = SmokeTestIntegrationContracts.STOP.equals(type)
+                    || SmokeTestIntegrationContracts.FINISH.equals(type);
             if (!LicenseService.getInstance().permits(type)
                     && !closeWithoutLicense
                     && !stopWithoutLicense
                     && !pauseResponseWithoutLicense
-                    && !pageScannerCloseWithoutLicense) {
+                    && !pageScannerCloseWithoutLicense
+                    && !smokeCleanupWithoutLicense) {
+                if (smokeIntegrationOperation) {
+                    smokeTestIntegrationService.rejectLicense(
+                            type, extractBody(jsonObjMSG), session);
+                    return;
+                }
                 if (type.startsWith("botJobDetails.")) {
                     sendBotJobDetailsLicenseFailure(jsonObjMSG, session, type);
                     return;
@@ -603,6 +620,16 @@ public class SimpleWebSocketServer {
                         homeBankingId,
                         "license.requiredResponse",
                         LicenseService.getInstance().startup());
+                return;
+            }
+
+            if (smokeIntegrationOperation
+                    && !DetachedWorkspaceSessions.SMOKE_TEST_MANAGER.equals(transportSessionId)) {
+                log.warn(
+                        "Rejected Smoke Test Integration operation {} from transport {}",
+                        type,
+                        transportSessionId);
+                smokeTestIntegrationService.rejectTransport(type, extractBody(jsonObjMSG), session);
                 return;
             }
 
@@ -665,6 +692,13 @@ public class SimpleWebSocketServer {
 
             // Process the message based on its type
             switch (type) {
+                case SmokeTestIntegrationContracts.START:
+                case SmokeTestIntegrationContracts.STEP:
+                case SmokeTestIntegrationContracts.STOP:
+                case SmokeTestIntegrationContracts.FINISH:
+                    smokeTestIntegrationService.handle(
+                            type, extractBody(jsonObjMSG), sessionId, session);
+                    break;
                 case "broadcast":
                     String broadcastMessage = jsonObjMSG.get("body").getAsString();
                     webSocketSessionManager.broadcastMessageToAll(homeBankingId, broadcastMessage);
@@ -7100,6 +7134,10 @@ public class SimpleWebSocketServer {
     public void onClose(Session session, CloseReason closeReason) {
         // Clean up session when it closes
         String sessionId = webSocketSessionManager.getSessionIdBySession(session);
+        // Integration ownership is the exact physical transport. A take-over removes the old
+        // transport's logical mapping before its close callback, so cleanup must not depend on a
+        // successful session-registry removal.
+        smokeTestIntegrationService.disconnected(sessionId, session);
         if (sessionId != null) {
             log.info("Connection closed: Session ID = " + sessionId + ", Reason: "
                     + closeReason.getReasonPhrase() + " (Code: "

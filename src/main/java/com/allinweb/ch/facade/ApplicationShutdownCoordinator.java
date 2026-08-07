@@ -5,6 +5,7 @@ import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.executors.AppExecutors;
 import com.allinweb.ch.socket.ARWebSocketServer;
 import com.allinweb.ch.socket.ARWebSocketServerIP;
+import com.allinweb.ch.socket.SmokeTestIntegrationService;
 import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.allinweb.ch.util.SingleInstance;
 import java.util.Objects;
@@ -117,6 +118,7 @@ public final class ApplicationShutdownCoordinator {
 
         @Override
         public void stopOwnedAutomation() {
+            SmokeTestIntegrationService.getInstance().shutdown();
             BotJobDetailsWorkspaceHost.getInstance().shutdownForApplication();
             ScannerRuntime.getInstance().shutdownForApplication();
             // Preserve the original terminal cleanup contract: close the Playwright object itself,

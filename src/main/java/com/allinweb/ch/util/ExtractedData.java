@@ -33,6 +33,29 @@ public class ExtractedData {
 
     public ExtractedData() {}
 
+    /**
+     * Returns a structurally independent snapshot of this dataset.
+     *
+     * <p>Excel Data remains editable while Smoke Test/Integration is running. Execution must not
+     * observe a mixture of rows from before and after an edit, so callers freeze a deep copy at
+     * run start instead of retaining this mutable workspace object.
+     */
+    public ExtractedData deepCopy() {
+        ExtractedData copy = new ExtractedData();
+        copy.errorTitle = errorTitle;
+        copy.errorMessage = errorMessage;
+        copy.missingFields = missingFields;
+        for (Map.Entry<String, Map<String, Map<Integer, String>>> block : extractedData.entrySet()) {
+            for (Map.Entry<String, Map<Integer, String>> field : block.getValue().entrySet()) {
+                copy.addField(block.getKey(), field.getKey());
+                for (Map.Entry<Integer, String> value : field.getValue().entrySet()) {
+                    copy.addFieldValue(block.getKey(), field.getKey(), value.getValue(), value.getKey());
+                }
+            }
+        }
+        return copy;
+    }
+
     public String getErrorTitle() {
         return errorTitle;
     }

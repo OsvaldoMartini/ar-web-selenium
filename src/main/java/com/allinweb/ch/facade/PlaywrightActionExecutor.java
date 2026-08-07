@@ -389,15 +389,48 @@ public class PlaywrightActionExecutor {
     }
 
     public String text(Page page, InstructionLoad instruction) {
+        TextResult result = textResult(page, instruction);
+        return result.found() ? result.value() : "";
+    }
+
+    /**
+     * Reads text without collapsing a legitimate empty string into locator/read failure.
+     * Existing callers keep the legacy {@link #text} compatibility behavior; new fail-closed
+     * execution paths should use this typed result.
+     */
+    public TextResult textResult(Page page, InstructionLoad instruction) {
         if (page == null || page.isClosed() || instruction == null) {
-            return "";
+            return TextResult.missing();
         }
 
         Locator locator = locate(page, instruction);
         if (locator == null || locator.count() == 0) {
-            return "";
+            return TextResult.missing();
         }
-        return locator.first().innerText();
+        try {
+            String value = locator.first().innerText();
+            return value == null ? TextResult.missing() : TextResult.found(value);
+        } catch (RuntimeException readFailure) {
+            log.debug("Playwright text read failed: {}", readFailure.getMessage());
+            return TextResult.missing();
+        }
+    }
+
+    public record TextResult(boolean found, String value) {
+        public TextResult {
+            if (found && value == null) {
+                throw new IllegalArgumentException("A found Playwright text value cannot be null");
+            }
+            if (!found) value = null;
+        }
+
+        public static TextResult found(String value) {
+            return new TextResult(true, value);
+        }
+
+        public static TextResult missing() {
+            return new TextResult(false, null);
+        }
     }
 
     private Locator locate(Page page, InstructionLoad instruction) {
