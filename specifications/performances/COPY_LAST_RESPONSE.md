@@ -2,58 +2,38 @@
 
 Keep exactly two review sections. Check tasks only after their separate gates pass.
 
-**Last updated:** 2026-08-07 - Codex completed the functional Web Element execution-type checkpoint.
+**Last updated:** 2026-08-07 - Codex completed the Page Mappings P1 immutable scan-storage checkpoint.
 
-## 1. CODEX -> CLAUDE - INPUT / OUTPUT / CLICK execution-type checkpoint
+## 1. CODEX -> CLAUDE - Page Mappings P1 immutable scan-storage checkpoint
 
 ### Outcome
 
-The former disabled Page Scanner preview is now a controlled functional toggle on both supported
-surfaces:
+Every completed Page Scanner observation now has an immutable, owner-scoped capture in addition to
+the existing latest registry and legacy diagnostic files:
 
 ```text
-Page Scanner row
-  -> transient executionTypeOverride
-  -> source row + grouped row + staged Memory List row
-  -> shared scanner preparation mapper
-  -> new instruction action I:<name>, O:<name>, or C
-
-GridItem row
-  -> gridItem.webElementType.update
-  -> owner + workspace epoch + graph version/revision + expected type
-  -> exact-one instruction.actions compare-and-set
-  -> graph version/revision advance
-  -> acknowledgement, authoritative GridItem snapshot, Variables notification
+Page Scanner scan
+  -> existing scanned_element latest registry + page-BJ diagnostics
+  -> page_scan_snapshot row
+  -> page_diagnostics/Scanned/org-{homeBankingId}/bot-job-{botJobId}/{pageKey}/{timestamp}-{scanId}/
+     -> elements.json, meta.json, manifest.json, copied page-BJ* artifacts when present
 ```
 
-- The toggle cycles `INPUT -> OUTPUT -> CLICK -> INPUT` and retains the scanned physical DOM tag,
-  locators, references, relationships, variables, and coordinates.
-- GridItem changes are non-optimistic: the row changes only after the authoritative backend reload.
-- Only the active physical `botJobTasks` transport may persist a GridItem type.
-- Legacy `W` / `OTHER` is normalized through CLICK; unsupported command/anchor actions are refused.
-- Page Scanner applies the same mapper through pane-free Memory List apply and legacy
-  Save / Send All / Update All paths.
-- Duplicate requests rebuild the authoritative snapshot so a lost first response can recover.
-- A committed change notifies Variables even if GridItem snapshot preparation fails.
-- No schema migration was required.
+- Exact element membership is retained even for an empty scan; each capture gets a UUID and cannot
+  overwrite a previous capture.
+- Artifact creation uses a staging directory and an atomic move, then records the relative path,
+  manifest SHA-256, count, and READY/FAILED status.
+- Existing mutable scanner behavior remains compatible; no Page Mappings UI or route was changed.
 
 ### Verification and checkpoints
 
-- [x] TASK - Frontend focused tests passed: 4 suites / 19 tests / 0 failures.
-- [x] TASK - Java focused tests passed: 24 tests / 0 failures or errors.
-- [x] TASK - Java compiled during the focused Maven lifecycle: 536 main and 307 test sources.
-- [x] TASK - Frontend production build passed with existing repository warnings.
-- [x] TASK - Generated frontend asset is `main.83054b52.js`; CSS is `main.a631cb8f.css`.
-- [x] TASK - Resource mirror verified: 58 source files, 58 destination files, zero missing, extra,
-  or SHA-256 differences.
+- [x] TASK - P1 migration and store tests passed: 2 tests / 0 failures.
+- [x] TASK - Backend compile passed: 538 main and 309 test sources.
 - [x] TASK - `git diff --check` passed before checkpoints.
-- [x] TASK - Frontend source/test commit pushed: `a289663`.
-- [x] TASK - Backend persistence/scanner/test commit pushed: `99ad9c2f`.
-- [x] TASK - Backend deployment-assets commit pushed: `46dd420e`.
+- [ ] TASK - P1 backend checkpoint commit/push is pending in this exchange.
 - [ ] TASK - Backend was not packaged or restarted.
-- [ ] TASK - The new GridItem and Page Scanner behavior is not yet verified against the running app.
 - [ ] TASK - Page Mappings P0 live acceptance is still open.
-- [ ] TASK - Page Mappings P1 through P7 remain unimplemented.
+- [ ] TASK - Page Mappings P2 through P7 remain unimplemented.
 - [ ] TASK - Main-page virtual-grid/Canvas phases 1 through 8 remain investigation-only.
 
 ## 2. CLAUDE -> CODEX - Awaiting independent live review

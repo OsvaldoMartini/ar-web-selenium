@@ -193,9 +193,10 @@ Every name-based lookup must:
 
 2. **P1 — Immutable scan storage**
 
-   - Add `page_scan_snapshot`.
-   - Implement atomic snapshot folder creation.
-   - Keep writing legacy `page-BJ.*` files temporarily for compatibility.
+   - [x] Add `page_scan_snapshot`.
+   - [x] Implement atomic owner-scoped snapshot folder creation.
+   - [x] Keep writing legacy `page-BJ.*` files temporarily for compatibility.
+   - [x] Persist exact `elements.json`, metadata, manifest checksums, and READY/FAILED status for every scan, including empty scans.
 
 3. **P2 — Isolated Page Mappings workspace**
 
@@ -246,7 +247,21 @@ Because screenshots may contain banking data, access must remain owner-scoped, f
 - Deployment-assets commit pushed: `2f18f48d`.
 - Duplicate-alias regression commit pushed: `8718ed63`.
 - No migration was required for P0. The backend was compiled/tested but was not packaged, restarted, or live-verified.
-- P1 through P7 remain planned and unimplemented. Existing unrelated untracked files were left untouched.
+- P1 is implemented in backend source/tests; P2 through P7 remain planned and unimplemented. Existing unrelated untracked files were left untouched.
+
+## P1 delivery evidence - 2026-08-07
+
+- Migration `2026-08-07__page_scan_snapshot` creates one owner-scoped scan-history table with page and capture indexes.
+- `PageScanSnapshotStore` writes a UUID-named staging directory, atomically moves it into
+  `page_diagnostics/Scanned/org-{homeBankingId}/bot-job-{botJobId}/{pageKey}/`, and records the
+  relative artifact path, manifest SHA-256, element count, and status.
+- Exact scan membership is preserved in `elements.json`; metadata and checksums are recorded in
+  `meta.json` and `manifest.json`. Existing `page-BJ*` diagnostics remain untouched and are copied
+  into the immutable capture when present.
+- Empty scans are captured as valid READY snapshots. A failed artifact write is recorded as FAILED
+  and does not silently masquerade as a successful capture.
+- Focused Java tests: 2 tests, 0 failures. Backend compile: 538 main sources, 309 test sources.
+- Packaging, restart, UI, and live acceptance remain open; no Page Mappings UI was changed.
 
 ## P0.5 Web Element execution-type checkpoint
 
@@ -272,4 +287,4 @@ Delivery evidence:
 - Frontend commit pushed: `a289663`.
 - Backend source/test commit pushed: `99ad9c2f`.
 - Backend deployment-assets commit pushed: `46dd420e`.
-- Packaging, restart, and live acceptance remain open; P1 through P7 are still unimplemented.
+- Packaging, restart, and live acceptance remain open; P2 through P7 are still unimplemented.

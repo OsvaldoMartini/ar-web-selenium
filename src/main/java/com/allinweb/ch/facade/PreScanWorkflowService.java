@@ -327,32 +327,52 @@ public final class PreScanWorkflowService {
         public void persist(
                 Context context, ScannedPageIdentity page, List<ElementDTO> elements)
                 throws Exception {
-            if (elements == null || elements.isEmpty()) return;
-            int[] registry = PerformDataBase.getInstance().upsertScannedElementsStrict(
-                    context.homeBankingId(),
-                    context.botJobId(),
-                    context.homeUrlId(),
-                    page.actualUrl(),
-                    elements);
-            log.info(
-                    "PRE SCAN scanned_element registry - inserted={} updated={} botJobId={} pageKey={}",
-                    registry[0],
-                    registry[1],
-                    context.botJobId(),
-                    page.pageKey());
+            List<ElementDTO> scanned = elements == null ? List.of() : elements;
+            if (!scanned.isEmpty()) {
+                int[] registry = PerformDataBase.getInstance().upsertScannedElementsStrict(
+                        context.homeBankingId(),
+                        context.botJobId(),
+                        context.homeUrlId(),
+                        page.actualUrl(),
+                        scanned);
+                log.info(
+                        "PRE SCAN scanned_element registry - inserted={} updated={} botJobId={} pageKey={}",
+                        registry[0], registry[1], context.botJobId(), page.pageKey());
+                try {
+                    ElementDTO[] values = scanned.toArray(new ElementDTO[0]);
+                    messages.outputJsonElementDTO(
+                            values, List.of("optional", "blockMarked", "editMode"), "elementDTO-PS-BJ", context.jsonPath());
+                    messages.outputJsonElementDTO(
+                            values,
+                            List.of("optional", "blockMarked", "editMode", "id", "attributeData", "typeElement",
+                                    "customXPath", "shadowRoot", "nestedShadow", "searchAttributeValue",
+                                    "attributeType", "attributeValue"),
+                            "AI-ElementDTO-PS-BJ", context.jsonPath());
+                } catch (Exception error) {
+                    log.warn("PRE SCAN - registry saved but diagnostic JSON failed: {}", error.getMessage());
+                }
+            }
+
+            // Keep the mutable latest registry and legacy diagnostics for compatibility, while
+            // recording this exact scan as an immutable, owner-scoped snapshot for Page Mappings.
             try {
-                ElementDTO[] values = elements.toArray(new ElementDTO[0]);
-                messages.outputJsonElementDTO(
-                        values, List.of("optional", "blockMarked", "editMode"), "elementDTO-PS-BJ", context.jsonPath());
-                messages.outputJsonElementDTO(
-                        values,
-                        List.of("optional", "blockMarked", "editMode", "id", "attributeData", "typeElement",
-                                "customXPath", "shadowRoot", "nestedShadow", "searchAttributeValue",
-                                "attributeType", "attributeValue"),
-                        "AI-ElementDTO-PS-BJ",
-                        context.jsonPath());
-            } catch (Exception error) {
-                log.warn("PRE SCAN - registry saved but diagnostic JSON failed: {}", error.getMessage());
+                try (java.sql.Connection connection = PerformDataBase.getInstance().getConnection()) {
+                    PageScanSnapshotStore.persist(
+                            connection,
+                            context.homeBankingId(),
+                            context.botJobId(),
+                            context.homeUrlId(),
+                            context.botJobName(),
+                            page,
+                            scanned,
+                            context.jsonPath());
+                }
+            } catch (Exception snapshotFailure) {
+                // Snapshot history is additive. A filesystem/DB issue must not turn a
+                // successful legacy scan into a failed Page Scanner operation; the store
+                // already records FAILED when it can reach the snapshot table.
+                log.warn("PRE SCAN - immutable snapshot unavailable (legacy scan preserved): {}",
+                        snapshotFailure.getMessage());
             }
         }
     }
