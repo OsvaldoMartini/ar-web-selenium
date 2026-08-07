@@ -91,6 +91,22 @@ class ScannedElementResolverTest {
     }
 
     @Test
+    void duplicateClientAliasesRemainBelowTheExecutionConfidenceThreshold() {
+        ScannedElement first = se("//main//button", "main button", null, null, null);
+        first.setClientNamed("continue_order");
+        ScannedElement second = se("//aside//button", "aside button", null, null, null);
+        second.setClientNamed("continue_order");
+
+        var result = ScannedElementResolver.resolve(
+                List.of(first, second),
+                ins("//stale", null, "continue_order", null));
+
+        assertEquals(ScannedElementResolver.Strategy.NAME_AMBIGUOUS, result.strategy());
+        assertTrue(result.confidence() < 0.75,
+                "PlaywrightBridge must refuse an alias that does not identify one executable row");
+    }
+
+    @Test
     void sameNameDisambiguatedByNearestCoordinates() {
         List<ScannedElement> reg = List.of(
                 se("//header//button", "header button", "cerca", "Cerca", "100,50"),
