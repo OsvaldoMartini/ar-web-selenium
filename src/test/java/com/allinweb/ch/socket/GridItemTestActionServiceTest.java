@@ -1,6 +1,7 @@
 package com.allinweb.ch.socket;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -77,18 +78,26 @@ class GridItemTestActionServiceTest {
     }
 
     @Test
-    void validatesTheExactPersistedClickOrInputAction() {
-        GridItemTestActionService.validateStoredAction(instruction("C"), Action.CLICK);
-        GridItemTestActionService.validateStoredAction(instruction("I"), Action.INPUT);
+    void permitsBothTestsForEveryPersistedWebElementAndRejectsCommands() {
+        for (String storedAction : List.of(
+                "I:Account", "O:Balance", "C", "A:Terms", "W:Custom")) {
+            assertDoesNotThrow(() -> GridItemTestActionService.validateStoredAction(
+                    instruction(storedAction), Action.INPUT));
+            assertDoesNotThrow(() -> GridItemTestActionService.validateStoredAction(
+                    instruction(storedAction), Action.CLICK));
+        }
 
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> GridItemTestActionService.validateStoredAction(
-                        instruction("I"), Action.CLICK));
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> GridItemTestActionService.validateStoredAction(
-                        instruction("C"), Action.INPUT));
+        for (String storedAction : List.of(
+                "GET", "SET", "CK", "E", "IF", "NEXT ROW", "BACK", "UNKNOWN")) {
+            assertThrows(
+                    IllegalArgumentException.class,
+                    () -> GridItemTestActionService.validateStoredAction(
+                            instruction(storedAction), Action.INPUT));
+            assertThrows(
+                    IllegalArgumentException.class,
+                    () -> GridItemTestActionService.validateStoredAction(
+                            instruction(storedAction), Action.CLICK));
+        }
     }
 
     @Test

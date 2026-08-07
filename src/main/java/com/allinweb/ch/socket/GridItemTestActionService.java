@@ -18,6 +18,7 @@ import java.sql.SQLException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -29,6 +30,8 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public final class GridItemTestActionService {
     private static final int MAX_LEDGER_ENTRIES = 256;
+    private static final Set<String> TESTABLE_WEB_ELEMENT_ACTIONS = Set.of(
+            "I", "INPUT", "O", "OUTPUT", "C", "CLICK", "A", "ANCHOR", "W", "OTHER");
     private static final GridItemTestActionService INSTANCE = new GridItemTestActionService();
 
     private final BotJobDetailsWorkspaceRegistry workspaces;
@@ -199,10 +202,9 @@ public final class GridItemTestActionService {
     static void validateStoredAction(
             InstructionSnapshot instruction, Action requestedAction) {
         String stored = CommandRegistry.canonicalize(instruction.storedAction());
-        String expected = requestedAction == Action.CLICK ? "C" : "I";
-        if (!expected.equals(stored)) {
+        if (requestedAction == null || !TESTABLE_WEB_ELEMENT_ACTIONS.contains(stored)) {
             throw new IllegalArgumentException(
-                    "The GridItem action changed. Refresh before running this test.");
+                    "The selected GridItem row is not a testable Web Element. Refresh before running this test.");
         }
     }
 
