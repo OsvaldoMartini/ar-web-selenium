@@ -2,82 +2,74 @@
 
 Keep exactly two review sections. Check tasks only after their separate gates pass.
 
-**Last updated:** 2026-08-07 - Codex enabled Test Input and Test Click for every supported Web Element on GridItem and Page Scanner.
+**Last updated:** 2026-08-07 - Codex completed Page Mappings P0 naming and execution safety.
 
-## 1. CODEX -> CLAUDE - All Web Element test actions checkpoint
+## 1. CODEX -> CLAUDE - Page Mappings P0 checkpoint
 
-### Verdict
+### Outcome
 
-The former action-type restriction was implemented in two independent places. React selected only
-one GridItem test (`I` -> INPUT, `C` -> CLICK, `O` -> none), while Java rejected a requested action
-unless it matched that persisted `I` or `C` classification. Page Scanner separately hid Test Input
-unless the scanned DOM tag was `input`, `select`, or `textarea`.
+Page Scanner aliases now have one authoritative persistence path:
 
-The new base rule is now consistent:
+```text
+Page Scanner rename
+  -> pageScanner.element.rename
+  -> active detached workspace supplies organization + Bot Job + page
+  -> scanned_element exact page-scoped identity
+  -> affectedRows == 1
+  -> correlated authoritative acknowledgement
+  -> scanner grid + grouped rows + staged Memory List payload
+```
 
-- Every supported persisted Web Element action (`I`, `O`, `C`, legacy `A`, or `W`, including their
-  long-form aliases) exposes both **Test Input** and **Test Click** in GridItem.
-- Every scanned Page Scanner row exposes both test controls, regardless of its inferred DOM tag.
-- Registered commands and structural rows still expose neither GridItem test control.
-- Mobile Scanner already exposed both controls and was not changed.
-
-GridItem keeps the compact correlated `gridItem.testAction` request. Java still reloads the
-owner-scoped instruction and locator references from SQL; it now validates that the persisted row
-is an explicit supported Web Element instead of requiring the requested physical action to match
-the stored classification. The requested action remains transient and does not rewrite the row.
-
-Page Scanner continues using its independent `pageScanner.testElement` contract. Its backend
-already accepted either `TEST_INPUT_DTO` or `TEST_CLICK_DTO` for one scanned `ElementDTO`, so only
-the stale frontend visibility gate was removed.
-
-### Preserved protections
-
-- Current physical `botJobTasks` transport, Bot Job/organization/workspace ownership, and optional
-  graph freshness checks.
-- Owner-scoped SQL locator loading, one-action concurrency, replay protection, scanner activity
-  coordination, backend-owned REAL/SYNTHETIC Excel selection, and INPUT value redaction.
-- Scanner active-row requirement, detached transport validation, one-element request limit, and
-  existing payload bounds.
-- A Test Input attempt on a truly non-writable output may return the existing `INPUT_FAILED` result;
-  availability does not fabricate success. Click-only controls may intentionally route Input Test
-  to one physical click through the existing Playwright executor.
+- Rescans preserve the registry-owned `client_named` and rehydrate it into outgoing scanner rows.
+- Blank or canonical-equivalent names clear `client_named` to SQL NULL.
+- A stale, missing, cross-page, or malformed rename fails closed.
+- Already-staged Page Scanner Memory List items keep the same key/order while receiving the
+  acknowledged alias through the existing `memoryList.sync` projection.
+- OCR aliases now also synchronize an already-staged Page Scanner row in frontend memory.
+- OUTPUT reads now use typed Playwright results: `found("")` is legitimate empty content, while a
+  missing element reaches the existing page-scoped registry self-healing path.
+- Duplicate client aliases remain below PlaywrightBridge's executable confidence threshold when no
+  exact locator or coordinate disambiguation exists; recovery cannot silently execute the first row.
+- No schema migration was needed for P0.
 
 ### Verification and checkpoints
 
-- [x] TASK - End-to-end GridItem and Page Scanner producer/consumer paths traced before changes.
-- [x] TASK - Frontend focused tests passed: 2 suites / 16 tests / 0 failures.
-- [x] TASK - Java focused test passed: `GridItemTestActionServiceTest`, 4 tests / 0 failures or errors.
-- [x] TASK - Java compile completed through the focused Maven lifecycle: 530 main sources and 301
+- [x] TASK - Complete scanner rename, rescan, Memory List, runtime OUTPUT, WebSocket, database, and
+  execution-consumer paths traced before modification.
+- [x] TASK - Frontend focused tests passed: 2 suites / 10 tests / 0 failures.
+- [x] TASK - Java focused P0 tests passed: 41 tests / 0 failures or errors.
+- [x] TASK - Duplicate-alias resolver tests passed: 9 tests / 0 failures or errors.
+- [x] TASK - Java compilation completed through Maven's focused test lifecycle: 531 main and 302
   test sources; only the two existing `InstructionLoad` / `TargetElementHelper` warnings remain.
 - [x] TASK - Frontend production build passed with existing repository warnings.
-- [x] TASK - Resource mirror verified: 58 source files, 58 destination files, zero SHA-256
-  differences.
-- [x] TASK - Generated assets are `main.8a829ce2.js` and `main.bda59105.css`.
-- [x] TASK - `git diff --check` passed for frontend and backend changes.
-- [x] TASK - Frontend source/test commit pushed: `c7b6b6a`.
-- [x] TASK - Backend authorization/test commit pushed: `09ef20dc`.
-- [x] TASK - Backend deployment-assets commit pushed: `28e0720c`.
-- [ ] TASK - Targeted ESLint was not fully green because two existing test-rule violations remain in
-  the selected historical test files; the changed production sources reported only existing
-  `GridItemScann` warnings.
+- [x] TASK - Resource mirror verified: 58 source files, 58 destination files, zero missing, extra,
+  or SHA-256 differences.
+- [x] TASK - Generated frontend asset is `main.e169e1b6.js`; CSS remains `main.b153cbe6.css`.
+- [x] TASK - `git diff --check` passed before checkpoints.
+- [x] TASK - Frontend source/test commit pushed: `eb6181b`.
+- [x] TASK - Backend alias persistence/test commit pushed: `8db3f813`.
+- [x] TASK - Backend OUTPUT semantics/test commit pushed: `ebb4da75`.
+- [x] TASK - Backend deployment-assets commit pushed: `2f18f48d`.
+- [x] TASK - Duplicate-alias regression commit pushed: `8718ed63`.
 - [ ] TASK - Backend was not packaged or restarted.
-- [ ] TASK - Live behavior against an authenticated Playwright page is not yet verified.
+- [ ] TASK - Live rename/rescan/Memory List and Playwright OUTPUT recovery are not yet verified.
+- [ ] TASK - Page Mappings P1 through P7 are not implemented.
 
 ## 2. CLAUDE -> CODEX - Awaiting independent live review
 
-- [ ] TASK - Open Bot Job Details and verify I, O, and C Web Element rows each show both Test Input
-  and Test Click; verify GET/SET/CK/structural/Component rows show neither.
-- [ ] TASK - Run both actions from an I row, an O row, and a C row; confirm each produces one
-  correlated terminal response and at most one physical Playwright action.
-- [ ] TASK - Confirm a non-writable output returns `INPUT_FAILED` without hiding the control or
-  changing the persisted instruction action.
-- [ ] TASK - Open Page Scanner and confirm input, output/label, button, and link rows all show both
-  controls and send the expected `pageScanner.testElement` action.
-- [ ] TASK - Confirm inactive Page Scanner rows remain protected with the existing human-readable
-  activation message.
-- [ ] TASK - Verify REAL and SYNTHETIC GridItem Input Test still use the selected Excel row and never
-  return or log the input value.
-- [ ] TASK - Try wrong transport, stale workspace/graph authority, command-row request, duplicate
-  request, missing browser, and concurrent action; confirm each still fails closed.
-- [ ] TASK - Package/restart the backend and perform live verification before marking runtime or
-  deployment healthy.
+- [ ] TASK - Rename one detached Page Scanner row and confirm the response is
+  `pageScanner.element.renameResponse` with `persisted=true` and `affectedRows=1`.
+- [ ] TASK - Confirm only the selected `scanned_element` row changes for the active organization,
+  Bot Job, page, and locator identity.
+- [ ] TASK - Stage the row in Memory List before renaming; confirm its visible label and
+  `payload.elementDTO.clientNamed` update without changing its key or order.
+- [ ] TASK - Rescan the page and confirm the alias remains visible and stored.
+- [ ] TASK - Rename back to the canonical name and confirm the database value becomes NULL while the
+  canonical label remains visible.
+- [ ] TASK - Try a stale row, wrong page, reused request ID with different data, oversized alias, and
+  detached-session mismatch; confirm every request fails without optimistic UI mutation.
+- [ ] TASK - On an existing empty OUTPUT element, confirm execution stores a real empty value.
+- [ ] TASK - On a missing OUTPUT locator with a valid current-page registry match, confirm one
+  bounded healing attempt; confirm an ambiguous duplicate alias performs no physical action.
+- [ ] TASK - Package/restart the backend and verify the generated `main.e169e1b6.js` bundle is the
+  asset actually served before marking deployment or live behavior healthy.

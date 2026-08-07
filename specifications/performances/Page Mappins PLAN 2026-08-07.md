@@ -14,12 +14,12 @@ Do not directly rename the current OCR Results implementation. Create an isolate
 | Screenshots | Files such as `page-BJ.png` and related JSON are globally overwritten after each scan. |
 | OCR Results | It selects the newest global diagnostic files by timestamp, not by Bot Job/page. A simple rename could display another Bot Job’s scan. |
 | GridItem rename | Correctly writes only `instruction.client_named`; canonical name and locators remain unchanged. |
-| Page Scanner rename | Only changes React state. It is not persisted to `scanned_element.client_named`. |
-| Memory List rename | No rename editor exists, and Page Scanner items already staged there can retain an old alias. |
-| Rescan | Can overwrite a stored `scanned_element.client_named` with an empty scanner value. |
+| Page Scanner rename | **P0 complete:** typed `pageScanner.element.rename` persistence updates exactly one owner/page-scoped `scanned_element.client_named` row and returns an authoritative acknowledgement. |
+| Memory List rename | **P0 complete for Page Scanner-owned rows:** an acknowledged alias change updates the already-staged payload through the existing `memoryList.sync` projection. A standalone Memory List rename editor remains outside P0. |
+| Rescan | **P0 complete:** existing registry aliases are authoritative, survive rescans, and are rehydrated into the outgoing scanner DTO. |
 | Execution fallback | Uses the current page’s repository, but starts from canonical `instruction.name`; the instruction’s own `clientNamed` is not an alternate lookup name. |
 | Live name lookup | Does not currently exist. The fallback finds a registry row and retries its saved locator. |
-| OUTPUT recovery | Missing Web Elements can be collapsed into an empty string, preventing the OUTPUT path from reaching self-healing. |
+| OUTPUT recovery | **P0 complete:** typed Playwright text results preserve legitimate empty text while missing elements reach page-scoped self-healing. |
 
 Relevant implementations include [ScannedElementRepository.java](/D:/Projects/AllinWeb/ar-web-selenium/src/main/java/com/allinweb/ch/db/ScannedElementRepository.java:89), [OcrTestService.java](/D:/Projects/AllinWeb/ar-web-selenium/src/main/java/com/allinweb/ch/facade/OcrTestService.java:43), [useGridData.ts](/D:/Projects/AllinWeb/abr-react-ts-grid/src/components/bot-job-details/grid/hooks/useGridData.ts:3286), and [GridItemScann.tsx](/D:/Projects/AllinWeb/abr-react-ts-grid/src/components/GridItemScann.tsx:2718).
 
@@ -183,13 +183,13 @@ Every name-based lookup must:
 
 ## Implementation checkpoints
 
-1. **P0 — Naming and execution safety**
+1. **P0 — Naming and execution safety — COMPLETE IN SOURCE**
 
-   - Preserve scanner aliases during rescans.
-   - Add typed, owner-scoped rename acknowledgements with `affectedRows == 1`.
-   - Synchronize staged Memory List aliases.
-   - Fix OUTPUT missing-versus-empty handling.
-   - Add rename and duplicate-alias regression tests.
+   - [x] Preserve scanner aliases during rescans.
+   - [x] Add typed, owner-scoped rename acknowledgements with `affectedRows == 1`.
+   - [x] Synchronize staged Memory List aliases.
+   - [x] Fix OUTPUT missing-versus-empty handling.
+   - [x] Add rename and duplicate-alias regression tests.
 
 2. **P1 — Immutable scan storage**
 
@@ -233,4 +233,17 @@ Every name-based lookup must:
 
 Because screenshots may contain banking data, access must remain owner-scoped, files need private Windows permissions, URLs/query values should be redacted in UI/logs, and retention should require an explicit configured policy.
 
-No code, database, documentation, tests, build, commit, or push was performed during the investigation. Existing untracked files were left untouched.
+## P0 delivery evidence
+
+- Frontend focused tests: 2 suites, 10 tests, 0 failures.
+- Java focused P0 tests: 41 tests, 0 failures or errors.
+- Duplicate-alias execution-confidence regression: 9 tests, 0 failures or errors.
+- Frontend production build passed with pre-existing repository warnings.
+- Generated resource mirror: 58 source files, 58 backend files, zero missing, extra, or SHA-256 differences.
+- Frontend commit pushed: `eb6181b`.
+- Backend alias persistence commit pushed: `8db3f813`.
+- OUTPUT semantics commit pushed: `ebb4da75`.
+- Deployment-assets commit pushed: `2f18f48d`.
+- Duplicate-alias regression commit pushed: `8718ed63`.
+- No migration was required for P0. The backend was compiled/tested but was not packaged, restarted, or live-verified.
+- P1 through P7 remain planned and unimplemented. Existing unrelated untracked files were left untouched.
