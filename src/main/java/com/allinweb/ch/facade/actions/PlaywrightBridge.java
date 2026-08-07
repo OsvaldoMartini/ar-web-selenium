@@ -2,6 +2,7 @@ package com.allinweb.ch.facade.actions;
 
 import com.allinweb.ch.driver.ARPlaywrightDriver;
 import com.allinweb.ch.driver.ARWebDriver;
+import com.allinweb.ch.facade.PlaywrightActionExecutor.TextResult;
 import com.allinweb.ch.model.FieldData;
 import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.util.ARConstantsEngine;
@@ -89,17 +90,17 @@ public class PlaywrightBridge {
             return null;
         }
         try {
-            String value = activeDriver.text(instruction);
-            if (value != null) {
-                return value;
+            TextResult result = activeDriver.textResult(instruction);
+            if (result != null && result.found()) {
+                return result.value();
             }
             String[] healedValue = new String[1];
             boolean healed = healAndRetry(instruction, activeDriver, candidate -> {
-                String candidateValue = activeDriver.text(candidate);
-                if (candidateValue == null) {
+                TextResult candidateResult = activeDriver.textResult(candidate);
+                if (candidateResult == null || !candidateResult.found()) {
                     return false;
                 }
-                healedValue[0] = candidateValue;
+                healedValue[0] = candidateResult.value();
                 return true;
             });
             return healed ? healedValue[0] : null;
