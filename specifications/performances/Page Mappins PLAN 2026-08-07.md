@@ -208,7 +208,7 @@ Every name-based lookup must:
 
    - [x] Bot Job and Page Scanner launch buttons.
    - [x] Capture history and selected-capture statuses/metadata.
-   - [ ] Image overlays.
+   - [x] Image overlays with selectable immutable element rectangles.
    - [x] Immutable artifact loading and frontend element search.
 
 5. **P4 — Memory List integration**
@@ -259,7 +259,7 @@ Because screenshots may contain banking data, access must remain owner-scoped, f
   mutate scanner state.
 - The page provides capture history, selected-capture metadata, status, element count, artifact
   path, and manifest checksum. Image/element artifact loading, OCR compatibility, launch buttons,
-  and Memory List actions remain deliberately deferred to P3/P4.
+  and Memory List actions remain deliberately deferred to P4.
 - Frontend build passed with existing lint warnings; bundle was mirrored into backend source resources.
 - Frontend commit: `f4f40a3`. Backend code commit: `80116a01`.
 - Backend compile passed after the P2 handler change. Packaging, restart, and live acceptance remain open.
@@ -270,8 +270,10 @@ Because screenshots may contain banking data, access must remain owner-scoped, f
   detached-window focus mechanism.
 - Page Scanner exposes the same launcher and uses the reduced `pageMappings.open` request; the
   detached Page Mappings session accepts only its bootstrap/read operations.
-- Capture history/status metadata is already visible in the isolated page. Screenshot overlays,
-  rectangle overlays remain the next P3 slice; artifact payload loading and element search are now available.
+- Capture history/status metadata, immutable artifact loading, frontend element search, and selectable
+  rectangle overlays are now visible in the isolated page. Memory List actions remain deferred to P4.
+
+- [x] TASK - Page Mappings capture image and element overlays delivered in frontend commit `0d5b5a0`.
 - Frontend launcher commit: `2a6ba3e`. Backend launcher commit: `38a17612`.
 - Bundle mirror commit: `4a2ec036`; bundle is `main.727f368f.js`.
 - Artifact/search frontend commit: `3a86be9`; backend artifact contract commit: `c2bff462`.

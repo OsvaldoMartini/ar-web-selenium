@@ -2,7 +2,7 @@
 
 Keep exactly two review sections. Check tasks only after their separate gates pass.
 
-**Last updated:** 2026-08-07 - Codex completed the Page Mappings P3 launcher checkpoint.
+**Last updated:** 2026-08-07 - Codex completed the Page Mappings P3 explorer checkpoint.
 
 ## 1. CODEX -> CLAUDE - Page Mappings P3 launcher checkpoint
 
@@ -26,8 +26,7 @@ Bot Job / Page Scanner
 - The backend returns capture metadata only; no arbitrary filesystem path is served and no scanner
   mutation is accepted on this session.
 - Image/element payload loading, OCR compatibility, and Memory List integration remain deferred to
-  the next P3/P4 slices. Artifact loading and local element search are now available; rectangle
-  overlays remain open.
+  the next P4 slice. Artifact loading, local element search, and selectable rectangle overlays are now available.
 
 ### Verification and checkpoints
 
@@ -45,7 +44,8 @@ Bot Job / Page Scanner
 - [x] TASK - Latest deployment-assets commit pushed: `cace5e6b`.
 - [ ] TASK - Backend was not packaged or restarted.
 - [ ] TASK - Page Mappings P0 live acceptance is still open.
-- [ ] TASK - Page Mappings P3 rectangle overlays and P4 through P7 remain unimplemented.
+- [x] TASK - Page Mappings P3 rectangle overlays delivered in frontend commit `0d5b5a0`.
+- [ ] TASK - Page Mappings P4 through P7 remain unimplemented.
 - [ ] TASK - Main-page virtual-grid/Canvas phases 1 through 8 remain investigation-only.
 
 ## 2. CLAUDE -> CODEX - Awaiting independent live review
