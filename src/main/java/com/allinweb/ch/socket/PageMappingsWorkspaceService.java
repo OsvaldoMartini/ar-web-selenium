@@ -18,6 +18,26 @@ public final class PageMappingsWorkspaceService {
 
     private PageMappingsWorkspaceService() {}
 
+    public JsonObject openForBotJob(int botJobId) {
+        JsonObject response = new JsonObject();
+        response.addProperty("botJobId", botJobId);
+        try {
+            boolean opened = PagesOpenWorkspaceService.getInstance().openOrFocusDetachedWorkspace(
+                    com.allinweb.ch.model.DetachedWorkspaceSessions.PAGE_MAPPINGS_MANAGER,
+                    botJobId,
+                    "Page Mappings requested for this Bot Job.");
+            response.addProperty("ok", opened);
+            response.addProperty("alreadyOpen", WebSocketSessionManager.isSessionOpen(
+                    com.allinweb.ch.model.DetachedWorkspaceSessions.PAGE_MAPPINGS_MANAGER));
+            response.addProperty("message", opened ? "Page Mappings workspace opened." : "Page Mappings workspace could not be opened.");
+        } catch (RuntimeException failure) {
+            response.addProperty("ok", false);
+            response.addProperty("message", failure.getMessage() == null
+                    ? "Page Mappings workspace could not be opened." : failure.getMessage());
+        }
+        return response;
+    }
+
     public JsonObject bootstrap(JsonObject body, String sessionId, Connection connection) {
         JsonObject response = new JsonObject();
         response.addProperty("ok", true);

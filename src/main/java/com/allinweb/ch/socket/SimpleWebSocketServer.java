@@ -131,6 +131,7 @@ public class SimpleWebSocketServer {
             "pagesOpen.summary");
     private static final Set<String> DETACHED_PAGE_MAPPINGS_OPERATIONS = Set.of(
             "pageMappings.bootstrap",
+            "pageMappings.open",
             "pagesOpen.open",
             "pagesOpen.summary");
     private static final Set<String> DETACHED_VARIABLES_OPERATIONS = Set.of(
@@ -1064,6 +1065,16 @@ public class SimpleWebSocketServer {
                         sendCommandEditorResponse(
                                 homeBankingId, sessionId, "pageMappings.bootstrapResponse", response);
                     }
+                    break;
+                }
+                case "pageMappings.open": {
+                    JsonObject mappingsBody = extractBody(jsonObjMSG);
+                    int requestedBotJobId = positiveJsonInteger(mappingsBody, "botJobId");
+                    sendCommandEditorResponse(
+                            homeBankingId,
+                            sessionId,
+                            "pageMappings.openResponse",
+                            pageMappingsWorkspaceService.openForBotJob(requestedBotJobId));
                     break;
                 }
                 case "excelData.close": {
@@ -5230,6 +5241,7 @@ public class SimpleWebSocketServer {
                 || "memoryList.open".equals(operation)
                 || "memoryList.sync".equals(operation)
                 || "memoryList.summary".equals(operation)
+                || "pageMappings.open".equals(operation)
                 || "pagesOpen.open".equals(operation)
                 || "pagesOpen.summary".equals(operation)
                 || (operation != null && DETACHED_PAGE_SCANNER_BOT_JOB_OPERATIONS.contains(operation));

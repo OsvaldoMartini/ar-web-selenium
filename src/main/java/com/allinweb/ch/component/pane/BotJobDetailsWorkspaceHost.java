@@ -1731,6 +1731,7 @@ public class BotJobDetailsWorkspaceHost {
                     case SHOW_EXCEL_DATA -> showExcelDataWorkspace();
                     case SHOW_SMOKE_TEST -> showSmokeTestWorkspace();
                     case SHOW_RUNTIME_VARIABLES -> showRuntimeVariablesWorkspace();
+                    case SHOW_PAGE_MAPPINGS -> showPageMappingsWorkspace();
                     case SHOW_PRE_SCAN -> showPreScanWorkspace();
                     case OPEN_ORGANIZATIONS -> {
                         // Capability-gated organization presentation was completed above.
@@ -1942,6 +1943,16 @@ public class BotJobDetailsWorkspaceHost {
         }
     }
 
+    private void showPageMappingsWorkspace() {
+        JsonObject response = com.allinweb.ch.socket.PageMappingsWorkspaceService.getInstance()
+                .openForBotJob(selectedBotJob.getId());
+        if (response == null || !response.has("ok") || !response.get("ok").getAsBoolean()) {
+            throw new IllegalStateException(response != null && response.has("message")
+                    ? response.get("message").getAsString()
+                    : "The Page Mappings workspace could not be opened");
+        }
+    }
+
     private void requestComponentsWorkspaceClose() {
         String sessionId = ScannerWorkspaceSessions.COMPONENT_TASKS;
         if (!WebSocketSessionManager.isSessionOpen(sessionId)) return;
@@ -2013,6 +2024,7 @@ public class BotJobDetailsWorkspaceHost {
             case SHOW_EXCEL_DATA -> "Excel Data workspace opened";
             case SHOW_SMOKE_TEST -> "Smoke Test workspace opened";
             case SHOW_RUNTIME_VARIABLES -> "Runtime Variables workspace opened";
+            case SHOW_PAGE_MAPPINGS -> "Page Mappings workspace opened";
             case HIDE_COMPONENTS -> "Components workspace hidden";
             case SHOW_PRE_SCAN -> "Pre Scan workspace opened";
             case OPEN_ORGANIZATIONS -> "Organizations opened";
