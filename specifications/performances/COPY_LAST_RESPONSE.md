@@ -2,93 +2,82 @@
 
 Keep exactly two review sections. Check tasks only after their separate gates pass.
 
-**Last updated:** 2026-08-07 - Codex completed isolated GridItem CLICK/INPUT tests and authoritative Excel row selection.
+**Last updated:** 2026-08-07 - Codex enabled Test Input and Test Click for every supported Web Element on GridItem and Page Scanner.
 
-## 1. CODEX -> CLAUDE - GridItem test action and selected Excel row checkpoint
+## 1. CODEX -> CLAUDE - All Web Element test actions checkpoint
 
 ### Verdict
 
-GridItem no longer fabricates a locator-empty `ElementDTO` or sends the legacy fire-and-forget
-`TEST_CLICK_DTO` to the scanner pane. Bot Job Web Element rows now use one isolated, correlated
-`gridItem.testAction` WebSocket contract:
+The former action-type restriction was implemented in two independent places. React selected only
+one GridItem test (`I` -> INPUT, `C` -> CLICK, `O` -> none), while Java rejected a requested action
+unless it matched that persisted `I` or `C` classification. Page Scanner separately hid Test Input
+unless the scanned DOM tag was `input`, `select`, or `textarea`.
 
-- `C` / `CLICK` executes exactly one Playwright click.
-- `I` / `INPUT` executes exactly one Playwright fill.
-- Output, command, unsupported, and Component-workspace rows expose no test action.
+The new base rule is now consistent:
 
-The backend authorizes the physical `botJobTasks` transport and active Bot Job owner, loads the
-instruction and all persisted locator references directly from SQL, then uses the already-open
-Playwright page. It does not invoke `executeJob()`, `PerformLists`, scanner runtime state, or the
-legacy TEST DTO handlers.
+- Every supported persisted Web Element action (`I`, `O`, `C`, legacy `A`, or `W`, including their
+  long-form aliases) exposes both **Test Input** and **Test Click** in GridItem.
+- Every scanned Page Scanner row exposes both test controls, regardless of its inferred DOM tag.
+- Registered commands and structural rows still expose neither GridItem test control.
+- Mobile Scanner already exposed both controls and was not changed.
 
-GridItem INPUT reads the backend-owned REAL/SYNTHETIC Excel memory mode. The Excel Data page now
-has one authoritative selected logical row, shown in every Block. The user can select it or drag it
-to a new execution position; a move reorders the same logical row across every Block and column.
-INPUT uses that selected row. An explicit empty string remains valid data; `ABC` is used only when
-the retained dataset, matching column, selected row, or value is absent.
+GridItem keeps the compact correlated `gridItem.testAction` request. Java still reloads the
+owner-scoped instruction and locator references from SQL; it now validates that the persisted row
+is an explicit supported Web Element instead of requiring the requested physical action to match
+the stored classification. The requested action remains transient and does not rewrite the row.
 
-### Implemented
+Page Scanner continues using its independent `pageScanner.testElement` contract. Its backend
+already accepted either `TEST_INPUT_DTO` or `TEST_CLICK_DTO` for one scanned `ElementDTO`, so only
+the stale frontend visibility gate was removed.
 
-- Added versioned request/response parsing, correlation, a 25-second client timeout, one physical
-  action at a time, bounded replay protection, and human-readable refusal responses.
-- Added exact `C` versus `I` database-action validation and owner-scoped direct SQL loading of the
-  instruction, Block, Bot Job, XPath/CSS/iframe/coordinates, and reference rows.
-- Added protected INPUT execution that never returns or logs the cell value, including redacted
-  Playwright/decryption failure handling.
-- Added execution coordination through `beginScannerActivity`, so a manual GridItem test cannot
-  race TEST RUN or Integration ownership of the shared Playwright page.
-- Added `excelData.row.select` and `excelData.row.move` on the active detached Excel Data transport.
-- Added a focused `ExcelDataRowControl` component and module stylesheet: per-Block selected-row
-  indicators, keyboard-accessible radio controls, drag handles, cross-Block highlighting, and
-  server-response-only reordering.
-- Row movement preserves cross-Block alignment, nulls, and empty strings. It marks only the active
-  REAL/SYNTHETIC memory dirty so Save to Excel / Save DB remains the explicit durability boundary.
-- Selection follows its logical row across moves, adjusts across deletes, clamps on reload/mode
-  changes, resets for replacement datasets, and becomes null when memory has no rows.
-- Renamed the Main heading to `Main Bot Jobs - Automation Test`.
+### Preserved protections
+
+- Current physical `botJobTasks` transport, Bot Job/organization/workspace ownership, and optional
+  graph freshness checks.
+- Owner-scoped SQL locator loading, one-action concurrency, replay protection, scanner activity
+  coordination, backend-owned REAL/SYNTHETIC Excel selection, and INPUT value redaction.
+- Scanner active-row requirement, detached transport validation, one-element request limit, and
+  existing payload bounds.
+- A Test Input attempt on a truly non-writable output may return the existing `INPUT_FAILED` result;
+  availability does not fabricate success. Click-only controls may intentionally route Input Test
+  to one physical click through the existing Playwright executor.
 
 ### Verification and checkpoints
 
-- [x] TASK - End-to-end GridItem -> WebSocket -> owner/workspace validation -> SQL locator load ->
-  selected Excel memory -> one-shot Playwright -> correlated response path traced.
-- [x] TASK - Initial backend focused suite passed: 15 tests / 0 failures.
-- [x] TASK - Final backend selected-row suite passed: 23 tests / 0 failures or errors.
-- [x] TASK - Java compilation passed after the final backend changes: 530 sources; only two existing
-  `InstructionLoad` / `TargetElementHelper` warnings remain.
-- [x] TASK - Final frontend focused run passed: 2 suites / 11 tests / 0 failures.
-- [x] TASK - Targeted frontend ESLint passed for the selected-row components.
-- [x] TASK - Frontend production build passed; existing repository lint, dependency, and bundle-size
-  warnings remain.
-- [x] TASK - `git diff --check` passed at every source and asset checkpoint.
-- [x] TASK - Main title frontend commit pushed: `ac18b94`.
-- [x] TASK - GridItem frontend source/test commit pushed: `95c6dda`.
-- [x] TASK - GridItem backend source/test commit pushed: `7cb86c19`.
-- [x] TASK - Excel selected-row frontend commit pushed: `de1ce48`.
-- [x] TASK - Excel selected-row backend commit pushed: `ebfa3c49`.
-- [x] TASK - Backend deployment-assets commit pushed: `39caf51c`.
-- [x] TASK - Generated assets are `main.094ee1c1.js` and `main.bda59105.css`.
+- [x] TASK - End-to-end GridItem and Page Scanner producer/consumer paths traced before changes.
+- [x] TASK - Frontend focused tests passed: 2 suites / 16 tests / 0 failures.
+- [x] TASK - Java focused test passed: `GridItemTestActionServiceTest`, 4 tests / 0 failures or errors.
+- [x] TASK - Java compile completed through the focused Maven lifecycle: 530 main sources and 301
+  test sources; only the two existing `InstructionLoad` / `TargetElementHelper` warnings remain.
+- [x] TASK - Frontend production build passed with existing repository warnings.
 - [x] TASK - Resource mirror verified: 58 source files, 58 destination files, zero SHA-256
   differences.
+- [x] TASK - Generated assets are `main.8a829ce2.js` and `main.bda59105.css`.
+- [x] TASK - `git diff --check` passed for frontend and backend changes.
+- [x] TASK - Frontend source/test commit pushed: `c7b6b6a`.
+- [x] TASK - Backend authorization/test commit pushed: `09ef20dc`.
+- [x] TASK - Backend deployment-assets commit pushed: `28e0720c`.
+- [ ] TASK - Targeted ESLint was not fully green because two existing test-rule violations remain in
+  the selected historical test files; the changed production sources reported only existing
+  `GridItemScann` warnings.
 - [ ] TASK - Backend was not packaged or restarted.
-- [ ] TASK - Live CLICK/INPUT execution remains to be verified against an open authenticated page.
+- [ ] TASK - Live behavior against an authenticated Playwright page is not yet verified.
 
 ## 2. CLAUDE -> CODEX - Awaiting independent live review
 
-- [ ] TASK - Open Bot Job Details and confirm only `C` rows show Test Click and only `I` rows show
-  Test Input; Output/commands/Component rows must show no test icon.
-- [ ] TASK - Confirm one click produces one physical browser click and one correlated terminal
-  response, including refusal while another test action is active.
-- [ ] TASK - With REAL memory selected, choose a non-first Excel row and confirm GridItem INPUT uses
-  that row without returning or logging its value.
-- [ ] TASK - Repeat with SYNTHETIC memory and verify the response reports SYNTHETIC mode and the
-  authoritative selected row.
-- [ ] TASK - Store an explicit empty string and verify INPUT preserves it; remove the matching cell
-  and verify only that absent case uses `ABC`.
-- [ ] TASK - Drag a row forward and backward, verify every Block remains aligned, selection follows
-  the logical row, dirty state is set, and Save to Excel / Save DB persists the new order.
-- [ ] TASK - Delete the selected row and confirm selection moves to the next valid row or becomes
-  empty when no rows remain.
-- [ ] TASK - Try stale graph/workspace authority, wrong transport, missing browser, duplicate request,
-  and a database action changed from `C`/`I`; confirm each fails closed with no physical action.
+- [ ] TASK - Open Bot Job Details and verify I, O, and C Web Element rows each show both Test Input
+  and Test Click; verify GET/SET/CK/structural/Component rows show neither.
+- [ ] TASK - Run both actions from an I row, an O row, and a C row; confirm each produces one
+  correlated terminal response and at most one physical Playwright action.
+- [ ] TASK - Confirm a non-writable output returns `INPUT_FAILED` without hiding the control or
+  changing the persisted instruction action.
+- [ ] TASK - Open Page Scanner and confirm input, output/label, button, and link rows all show both
+  controls and send the expected `pageScanner.testElement` action.
+- [ ] TASK - Confirm inactive Page Scanner rows remain protected with the existing human-readable
+  activation message.
+- [ ] TASK - Verify REAL and SYNTHETIC GridItem Input Test still use the selected Excel row and never
+  return or log the input value.
+- [ ] TASK - Try wrong transport, stale workspace/graph authority, command-row request, duplicate
+  request, missing browser, and concurrent action; confirm each still fails closed.
 - [ ] TASK - Package/restart the backend and perform live verification before marking runtime or
   deployment healthy.
