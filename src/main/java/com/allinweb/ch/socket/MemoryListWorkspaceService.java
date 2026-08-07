@@ -48,6 +48,7 @@ public final class MemoryListWorkspaceService {
 
     private static final String BOT_JOB_SOURCE = "BOT_JOB";
     private static final String PAGE_SCANNER_SOURCE = "PAGE_SCANNER";
+    private static final String PAGE_MAPPINGS_SOURCE = "PAGE_MAPPINGS";
     private static final String COMPONENT_SOURCE = "COMPONENT";
     private static final String MIXED_SOURCE = "MIXED";
     private static final int MAX_SNAPSHOT_CHARACTERS = 1_000_000;
@@ -647,7 +648,7 @@ public final class MemoryListWorkspaceService {
         List<AggregatedItem> applicable = state.order.stream()
                 .map(state.items::get)
                 .filter(Objects::nonNull)
-                .filter(item -> !PAGE_SCANNER_SOURCE.equals(item.sourceKind)
+                .filter(item -> !isElementSource(item.sourceKind)
                         || !item.presentation.has("active")
                         || item.presentation.get("active").isJsonNull()
                         || item.presentation.get("active").getAsBoolean())
@@ -668,7 +669,7 @@ public final class MemoryListWorkspaceService {
                                 item.globalKey, instructionId, sourceRevision));
                 continue;
             }
-            if (PAGE_SCANNER_SOURCE.equals(item.sourceKind)) {
+            if (isElementSource(item.sourceKind)) {
                 JsonObject elementObject = object(item.payload, "elementDTO");
                 if (elementObject == null) {
                     return failure(request, "A Page Scanner row has no element data. Add it again.");
@@ -1119,10 +1120,17 @@ public final class MemoryListWorkspaceService {
         if (ScannerWorkspaceSessions.isOcrSourceScannerSession(transportSessionId)) {
             return PAGE_SCANNER_SOURCE;
         }
+        if (DetachedWorkspaceSessions.PAGE_MAPPINGS_MANAGER.equals(transportSessionId)) {
+            return PAGE_MAPPINGS_SOURCE;
+        }
         if (ScannerWorkspaceSessions.COMPONENT_TASKS.equals(transportSessionId)) {
             return COMPONENT_SOURCE;
         }
         return "";
+    }
+
+    private boolean isElementSource(String sourceKind) {
+        return PAGE_SCANNER_SOURCE.equals(sourceKind) || PAGE_MAPPINGS_SOURCE.equals(sourceKind);
     }
 
     private int sourceHomeBankingId(JsonObject body, String transportSessionId) {

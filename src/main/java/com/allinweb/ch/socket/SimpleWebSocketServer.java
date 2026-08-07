@@ -133,6 +133,9 @@ public class SimpleWebSocketServer {
             "pageMappings.bootstrap",
             "pageMappings.capture",
             "pageMappings.open",
+            "memoryList.open",
+            "memoryList.sync",
+            "memoryList.summary",
             "pagesOpen.open",
             "pagesOpen.summary");
     private static final Set<String> DETACHED_VARIABLES_OPERATIONS = Set.of(
