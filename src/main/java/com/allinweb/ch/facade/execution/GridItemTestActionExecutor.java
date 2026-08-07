@@ -68,7 +68,13 @@ public final class GridItemTestActionExecutor {
                             null);
         }
 
-        ResolvedInput input = resolveInput(instruction, excelRowIndex, dataset);
+        Integer effectiveRowIndex;
+        if (dataset.isPresent()) {
+            effectiveRowIndex = dataset.get().selectedRowIndex();
+        } else {
+            effectiveRowIndex = Integer.valueOf(excelRowIndex);
+        }
+        ResolvedInput input = resolveInput(instruction, effectiveRowIndex, dataset);
         if (input.failureCode() != null) {
             return Outcome.failed(
                     input.failureCode(),
@@ -76,17 +82,19 @@ public final class GridItemTestActionExecutor {
                     input.valueSource(),
                     input.datasetMode(),
                     input.column(),
-                    excelRowIndex,
+                    effectiveRowIndex,
                     input.datasetEpoch(),
                     input.datasetRevision());
         }
         boolean passed = browser.fillOnce(target, new FieldData(input.column(), input.value()));
-        if (passed && !"ABC_FALLBACK".equals(input.valueSource())) {
+        if (passed
+                && effectiveRowIndex != null
+                && !"ABC_FALLBACK".equals(input.valueSource())) {
             activeCells.publish(
                     instruction.botJobId(),
                     instruction.blockName(),
                     input.column(),
-                    excelRowIndex,
+                    effectiveRowIndex,
                     instruction.id());
         }
         return passed
@@ -96,7 +104,7 @@ public final class GridItemTestActionExecutor {
                         input.valueSource(),
                         input.datasetMode(),
                         input.column(),
-                        excelRowIndex,
+                        effectiveRowIndex,
                         input.datasetEpoch(),
                         input.datasetRevision())
                 : Outcome.failed(
@@ -105,14 +113,14 @@ public final class GridItemTestActionExecutor {
                         input.valueSource(),
                         input.datasetMode(),
                         input.column(),
-                        excelRowIndex,
+                        effectiveRowIndex,
                         input.datasetEpoch(),
                         input.datasetRevision());
     }
 
     private ResolvedInput resolveInput(
             InstructionSnapshot instruction,
-            int rowIndex,
+            Integer rowIndex,
             Optional<GridItemDataset> selectedDataset) {
         String expectedColumn = instruction.displayKey();
         if (expectedColumn == null || expectedColumn.isBlank()) expectedColumn = instruction.name();
@@ -122,7 +130,10 @@ public final class GridItemTestActionExecutor {
         }
         ExtractedData data = dataset.data();
         String column = resolveColumn(data, instruction);
-        String value = column == null || rowIndex >= data.getNumberOfDataRows()
+        String value = column == null
+                        || rowIndex == null
+                        || rowIndex < 0
+                        || rowIndex >= data.getNumberOfDataRows()
                 ? null
                 : data.getFieldValue(instruction.blockName(), column, rowIndex);
         if (column == null || value == null) {
@@ -183,7 +194,7 @@ public final class GridItemTestActionExecutor {
             String valueSource,
             String datasetMode,
             String column,
-            int excelRowIndex,
+            Integer excelRowIndex,
             Long datasetEpoch,
             Long datasetRevision) {
         static Outcome passed(
@@ -192,7 +203,7 @@ public final class GridItemTestActionExecutor {
                 String valueSource,
                 String datasetMode,
                 String column,
-                int row,
+                Integer row,
                 Long epoch,
                 Long revision) {
             return new Outcome(
@@ -205,7 +216,7 @@ public final class GridItemTestActionExecutor {
                 String valueSource,
                 String datasetMode,
                 String column,
-                int row,
+                Integer row,
                 Long epoch,
                 Long revision) {
             return new Outcome(

@@ -280,7 +280,7 @@ public final class GridItemTestActionService {
         response.addProperty("message", outcome.message());
         response.addProperty("valueSource", outcome.valueSource());
         addNullable(response, "datasetMode", outcome.datasetMode());
-        response.addProperty("excelRowIndex", outcome.excelRowIndex());
+        addNullable(response, "excelRowIndex", outcome.excelRowIndex());
         addNullable(response, "column", outcome.column());
         addNullable(response, "datasetEpoch", outcome.datasetEpoch());
         addNullable(response, "datasetRevision", outcome.datasetRevision());
@@ -379,6 +379,11 @@ public final class GridItemTestActionService {
     }
 
     private static void addNullable(JsonObject target, String name, Long value) {
+        if (value == null) target.add(name, null);
+        else target.addProperty(name, value);
+    }
+
+    private static void addNullable(JsonObject target, String name, Integer value) {
         if (value == null) target.add(name, null);
         else target.addProperty(name, value);
     }

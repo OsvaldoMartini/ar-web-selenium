@@ -162,6 +162,7 @@ public final class ExcelDataWorkspaceService {
                 binding.syntheticDirty = true;
                 binding.loadedAt = Instant.now();
                 binding.changed();
+                binding.resetSelectedRow();
                 selectExecutionData();
                 return snapshot("Synthetic rows generated in memory. Save Synthetic Data to keep them after restart.");
             }
@@ -181,6 +182,7 @@ public final class ExcelDataWorkspaceService {
             binding.realDirty = false;
             binding.loadedAt = Instant.now();
             binding.changed();
+            binding.resetSelectedRow();
             selectExecutionData();
             nativeOperations.openFile(generated);
             return snapshot("Excel data file generated and loaded into memory.");
@@ -214,6 +216,7 @@ public final class ExcelDataWorkspaceService {
         binding.setDirty(true);
         binding.loadedAt = Instant.now();
         binding.changed();
+        binding.reconcileSelectedRow();
         return snapshot("Row " + (targetRow + 1) + " copied from row " + (sourceRow + 1) + " in memory.");
     }
 
@@ -331,6 +334,7 @@ public final class ExcelDataWorkspaceService {
                 binding.mode.name(),
                 binding.datasetEpoch,
                 binding.datasetRevision,
+                binding.selectedRowIndex(),
                 binding.loadedAt,
                 frozen));
     }
@@ -420,6 +424,7 @@ public final class ExcelDataWorkspaceService {
             if (!binding.data().removeRow(rowIndex)) {
                 return failure("The Excel memory row no longer exists.");
             }
+            binding.rowDeleted(rowIndex);
             binding.setDirty(true);
             binding.loadedAt = Instant.now();
             binding.changed();
@@ -427,6 +432,58 @@ public final class ExcelDataWorkspaceService {
             return snapshot("Row " + (rowIndex + 1) + " deleted from " + binding.mode + " memory.");
         } catch (RuntimeException error) {
             return failure("The Excel memory row deletion is invalid.");
+        }
+    }
+
+    public synchronized JsonObject selectRow(
+            JsonObject request, String sessionId, Session transport) {
+        JsonObject authorization = requireActiveTransport(sessionId, transport);
+        if (authorization != null) return authorization;
+        if (binding == null) return failure("No Bot Job Excel dataset is open.");
+        try {
+            int rowIndex = request.get("rowIndex").getAsInt();
+            int rowCount = binding.data().getNumberOfDataRows();
+            if (rowIndex < 0 || rowIndex >= rowCount) {
+                return failure("The Excel memory row no longer exists.");
+            }
+            binding.selectRow(rowIndex);
+            return snapshot("Row " + (rowIndex + 1) + " selected for GridItem input tests.");
+        } catch (RuntimeException invalid) {
+            return failure("Select a valid Excel memory row.");
+        }
+    }
+
+    public synchronized JsonObject moveRow(
+            JsonObject request, String sessionId, Session transport) {
+        JsonObject authorization = requireActiveTransport(sessionId, transport);
+        if (authorization != null) return authorization;
+        if (binding == null) return failure("No Bot Job Excel dataset is open.");
+        try {
+            int fromIndex = request.get("fromIndex").getAsInt();
+            int toIndex = request.get("toIndex").getAsInt();
+            int rowCount = binding.data().getNumberOfDataRows();
+            if (fromIndex < 0
+                    || toIndex < 0
+                    || fromIndex >= rowCount
+                    || toIndex >= rowCount) {
+                return failure("The Excel memory row move is outside the active dataset.");
+            }
+            if (fromIndex == toIndex) {
+                return snapshot("The Excel memory row is already in that position.");
+            }
+            if (!binding.data().moveRow(fromIndex, toIndex)) {
+                return failure("The Excel memory row could not be moved.");
+            }
+            binding.rowMoved(fromIndex, toIndex);
+            binding.setDirty(true);
+            binding.loadedAt = Instant.now();
+            binding.changed();
+            selectExecutionData();
+            return snapshot(
+                    "Row " + (fromIndex + 1) + " moved to " + (toIndex + 1)
+                            + " in " + binding.mode + " memory.");
+        } catch (RuntimeException invalid) {
+            return failure("The Excel memory row move is invalid.");
         }
     }
 
@@ -511,6 +568,7 @@ public final class ExcelDataWorkspaceService {
     }
 
     private void selectExecutionData() {
+        binding.reconcileSelectedRow();
         loader.replaceInMemory(binding.workbook().toString(), binding.data());
         loader.setExecutionEnabled(binding.workbook().toString(), true);
     }
@@ -608,6 +666,8 @@ public final class ExcelDataWorkspaceService {
         response.addProperty("datasetEpoch", binding.datasetEpoch);
         response.addProperty("datasetRevision", binding.datasetRevision);
         response.addProperty("rowCount", data.getNumberOfDataRows());
+        if (binding.selectedRowIndex() == null) response.add("selectedRowIndex", null);
+        else response.addProperty("selectedRowIndex", binding.selectedRowIndex());
         response.addProperty("dirty", binding.dirty());
         response.addProperty("mode", binding.mode.name());
         response.addProperty("syntheticContext", binding.syntheticContext);
@@ -678,8 +738,38 @@ public final class ExcelDataWorkspaceService {
             String mode,
             long datasetEpoch,
             long datasetRevision,
+            Integer selectedRowIndex,
             Instant loadedAt,
             ExtractedData data) {}
+
+    static Integer clampSelectedRow(Integer selectedRowIndex, int rowCount) {
+        if (rowCount <= 0) return null;
+        if (selectedRowIndex == null) return 0;
+        return Math.max(0, Math.min(selectedRowIndex, rowCount - 1));
+    }
+
+    static Integer selectedRowAfterDelete(
+            Integer selectedRowIndex, int deletedRowIndex, int remainingRowCount) {
+        if (remainingRowCount <= 0) return null;
+        if (selectedRowIndex == null) return 0;
+        int adjusted = selectedRowIndex > deletedRowIndex
+                ? selectedRowIndex - 1 : selectedRowIndex;
+        return clampSelectedRow(adjusted, remainingRowCount);
+    }
+
+    static Integer selectedRowAfterMove(
+            Integer selectedRowIndex, int fromIndex, int toIndex, int rowCount) {
+        Integer selected = clampSelectedRow(selectedRowIndex, rowCount);
+        if (selected == null || fromIndex == toIndex) return selected;
+        if (selected == fromIndex) return toIndex;
+        if (fromIndex < toIndex && selected > fromIndex && selected <= toIndex) {
+            return selected - 1;
+        }
+        if (fromIndex > toIndex && selected >= toIndex && selected < fromIndex) {
+            return selected + 1;
+        }
+        return selected;
+    }
 
     private static String datasetContentRevision(Binding owner, ExtractedData data) {
         try {
@@ -732,6 +822,7 @@ public final class ExcelDataWorkspaceService {
         private boolean realDirty;
         private boolean syntheticDirty;
         private String syntheticContext;
+        private Integer selectedRowIndex;
         private final long datasetEpoch = DATASET_EPOCHS.incrementAndGet();
         private long datasetRevision = 1L;
 
@@ -745,6 +836,7 @@ public final class ExcelDataWorkspaceService {
             this.syntheticData = syntheticData;
             this.syntheticContext = syntheticContext == null || syntheticContext.isBlank()
                     ? "Bank Account" : syntheticContext;
+            resetSelectedRow();
         }
         int botJobId() { return botJobId; }
         int homeBankingId() { return homeBankingId; }
@@ -754,6 +846,24 @@ public final class ExcelDataWorkspaceService {
         Instant loadedAt() { return loadedAt; }
         boolean dirty() { return mode == Mode.REAL ? realDirty : syntheticDirty; }
         void setDirty(boolean dirty) { if (mode == Mode.REAL) realDirty = dirty; else syntheticDirty = dirty; }
+        Integer selectedRowIndex() { return selectedRowIndex; }
+        void resetSelectedRow() {
+            selectedRowIndex = clampSelectedRow(null, data().getNumberOfDataRows());
+        }
+        void reconcileSelectedRow() {
+            selectedRowIndex = clampSelectedRow(selectedRowIndex, data().getNumberOfDataRows());
+        }
+        void selectRow(int rowIndex) {
+            selectedRowIndex = clampSelectedRow(rowIndex, data().getNumberOfDataRows());
+        }
+        void rowDeleted(int rowIndex) {
+            selectedRowIndex = selectedRowAfterDelete(
+                    selectedRowIndex, rowIndex, data().getNumberOfDataRows());
+        }
+        void rowMoved(int fromIndex, int toIndex) {
+            selectedRowIndex = selectedRowAfterMove(
+                    selectedRowIndex, fromIndex, toIndex, data().getNumberOfDataRows());
+        }
         void changed() { datasetRevision++; }
     }
 }

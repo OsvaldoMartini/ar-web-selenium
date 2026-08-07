@@ -158,6 +158,8 @@ public class SimpleWebSocketServer {
             "excelData.context.update",
             "excelData.refresh",
             "excelData.cell.update",
+            "excelData.row.select",
+            "excelData.row.move",
             "excelData.row.delete",
             "excelData.rows.clear",
             "excelData.close",
@@ -1083,6 +1085,26 @@ public class SimpleWebSocketServer {
                             sessionId,
                             "excelData.row.deleteResponse",
                             excelDataWorkspaceService.deleteRow(excelDataBody, sessionId, session));
+                    break;
+                }
+                case "excelData.row.select": {
+                    JsonObject excelDataBody = extractBody(jsonObjMSG);
+                    sendCommandEditorResponse(
+                            homeBankingId,
+                            sessionId,
+                            "excelData.row.selectResponse",
+                            excelDataWorkspaceService.selectRow(
+                                    excelDataBody, sessionId, session));
+                    break;
+                }
+                case "excelData.row.move": {
+                    JsonObject excelDataBody = extractBody(jsonObjMSG);
+                    sendCommandEditorResponse(
+                            homeBankingId,
+                            sessionId,
+                            "excelData.row.moveResponse",
+                            excelDataWorkspaceService.moveRow(
+                                    excelDataBody, sessionId, session));
                     break;
                 }
                 case "excelData.cell.update": {

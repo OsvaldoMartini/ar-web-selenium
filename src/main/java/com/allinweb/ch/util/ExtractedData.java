@@ -237,6 +237,51 @@ public class ExtractedData {
         return true;
     }
 
+    /**
+     * Moves one logical dataset row across every Block and column.
+     *
+     * <p>The destination is the row's final index. Rows between the source and destination are
+     * shifted by one position, matching list move semantics. A cell that is absent from a sparse
+     * column remains absent, while explicit {@code null} and empty-string values remain stored.
+     * This keeps every Block aligned as one logical Excel record.
+     *
+     * @return {@code false} when either index is outside the dataset; {@code true} for a valid
+     *     move, including an already-positioned row where {@code fromIndex == toIndex}.
+     */
+    public boolean moveRow(int fromIndex, int toIndex) {
+        int rowCount = getNumberOfDataRows();
+        if (fromIndex < 0 || fromIndex >= rowCount || toIndex < 0 || toIndex >= rowCount) {
+            return false;
+        }
+        if (fromIndex == toIndex) return true;
+
+        for (Map<String, Map<Integer, String>> block : extractedData.values()) {
+            for (Map<Integer, String> field : block.values()) {
+                Map<Integer, String> reordered = new HashMap<>(field.size());
+                for (Map.Entry<Integer, String> value : field.entrySet()) {
+                    Integer current = value.getKey();
+                    if (current == null) {
+                        reordered.put(null, value.getValue());
+                        continue;
+                    }
+
+                    int destination = current;
+                    if (current == fromIndex) {
+                        destination = toIndex;
+                    } else if (fromIndex < toIndex && current > fromIndex && current <= toIndex) {
+                        destination = current - 1;
+                    } else if (fromIndex > toIndex && current >= toIndex && current < fromIndex) {
+                        destination = current + 1;
+                    }
+                    reordered.put(destination, value.getValue());
+                }
+                field.clear();
+                field.putAll(reordered);
+            }
+        }
+        return true;
+    }
+
     /** @return all field names across all blocks, deduped. */
     public Set<String> getExtractedFields() {
         Set<String> all = new LinkedHashSet<>();

@@ -2,6 +2,7 @@ package com.allinweb.ch.facade.execution;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.allinweb.ch.facade.execution.GridItemTestActionExecutor.Outcome;
@@ -32,11 +33,12 @@ class GridItemTestActionExecutorTest {
                     new GridItemTestActionExecutor(browser, cells, value -> value);
 
             Outcome result = executor.execute(
-                    instruction("I", false), Action.INPUT, 0, Optional.of(dataset(mode, data)));
+                    instruction("I", false), Action.INPUT, 9, Optional.of(dataset(mode, data, 0)));
 
             assertTrue(result.passed());
             assertEquals("EXCEL_MEMORY", result.valueSource());
             assertEquals(mode, result.datasetMode());
+            assertEquals(0, result.excelRowIndex());
             assertEquals(List.of(mode + "-value"), browser.filledValues);
             assertEquals(List.of(new ActiveCell(29, BLOCK, COLUMN, 0, 101)), cells.events);
         }
@@ -52,7 +54,7 @@ class GridItemTestActionExecutorTest {
                 new GridItemTestActionExecutor(browser, cells, value -> value);
 
         Outcome result = executor.execute(
-                instruction("I", false), Action.INPUT, 0, Optional.of(dataset("REAL", data)));
+                instruction("I", false), Action.INPUT, 9, Optional.of(dataset("REAL", data, 0)));
 
         assertTrue(result.passed());
         assertEquals("EXCEL_MEMORY", result.valueSource());
@@ -68,23 +70,24 @@ class GridItemTestActionExecutorTest {
                 new GridItemTestActionExecutor(browser, cells, value -> value);
 
         Outcome withoutDataset = executor.execute(
-                instruction("I", false), Action.INPUT, 0, Optional.empty());
+                instruction("I", false), Action.INPUT, 3, Optional.empty());
         ExtractedData wrongColumn = new ExtractedData();
         wrongColumn.addFieldValue(BLOCK, "Other", "not selected", 0);
         Outcome withoutCell = executor.execute(
                 instruction("I", false),
                 Action.INPUT,
                 0,
-                Optional.of(dataset("SYNTHETIC", wrongColumn)));
+                Optional.of(dataset("SYNTHETIC", wrongColumn, 0)));
 
         assertEquals("ABC_FALLBACK", withoutDataset.valueSource());
+        assertEquals(3, withoutDataset.excelRowIndex());
         assertEquals("ABC_FALLBACK", withoutCell.valueSource());
         assertEquals(List.of("ABC", "ABC"), browser.filledValues);
         assertTrue(cells.events.isEmpty(), "Fallback values must not highlight an Excel cell");
     }
 
     @Test
-    void resolvesTheRequestedRowAndFallsBackToTheCanonicalColumn() {
+    void resolvesTheBackendSelectedRowAndIgnoresTheRequestFallback() {
         ExtractedData data = new ExtractedData();
         data.addFieldValue(BLOCK, "Customer", "row zero", 0);
         data.addFieldValue(BLOCK, "Customer", "row one", 1);
@@ -93,12 +96,30 @@ class GridItemTestActionExecutorTest {
                 browser, (job, block, column, row, instruction) -> {}, value -> value);
 
         Outcome result = executor.execute(
-                instruction("I", false), Action.INPUT, 1, Optional.of(dataset("REAL", data)));
+                instruction("I", false), Action.INPUT, 0, Optional.of(dataset("REAL", data, 1)));
 
         assertTrue(result.passed());
         assertEquals("Customer", result.column());
         assertEquals(1, result.excelRowIndex());
         assertEquals(List.of("row one"), browser.filledValues);
+    }
+
+    @Test
+    void retainedEmptyMemoryDoesNotUseTheRequestRowAsASelection() {
+        RecordingBrowser browser = new RecordingBrowser();
+        GridItemTestActionExecutor executor = new GridItemTestActionExecutor(
+                browser, (job, block, column, row, instruction) -> {}, value -> value);
+
+        Outcome result = executor.execute(
+                instruction("I", false),
+                Action.INPUT,
+                7,
+                Optional.of(dataset("REAL", new ExtractedData(), null)));
+
+        assertTrue(result.passed());
+        assertEquals("ABC_FALLBACK", result.valueSource());
+        assertNull(result.excelRowIndex());
+        assertEquals(List.of("ABC"), browser.filledValues);
     }
 
     @Test
@@ -112,7 +133,7 @@ class GridItemTestActionExecutorTest {
                 value -> { throw new IllegalArgumentException("sensitive protected value"); });
 
         Outcome result = executor.execute(
-                instruction("I", true), Action.INPUT, 0, Optional.of(dataset("REAL", data)));
+                instruction("I", true), Action.INPUT, 0, Optional.of(dataset("REAL", data, 0)));
 
         assertFalse(result.passed());
         assertEquals("INPUT_VALUE_DECRYPT_FAILED", result.code());
@@ -133,9 +154,17 @@ class GridItemTestActionExecutorTest {
         assertTrue(browser.filledValues.isEmpty());
     }
 
-    private static GridItemDataset dataset(String mode, ExtractedData data) {
+    private static GridItemDataset dataset(
+            String mode, ExtractedData data, Integer selectedRowIndex) {
         return new GridItemDataset(
-                29, 2, mode, 4L, 7L, Instant.parse("2026-08-07T00:00:00Z"), data);
+                29,
+                2,
+                mode,
+                4L,
+                7L,
+                selectedRowIndex,
+                Instant.parse("2026-08-07T00:00:00Z"),
+                data);
     }
 
     private static InstructionSnapshot instruction(String action, boolean codified) {
