@@ -45,6 +45,7 @@ class SimpleWebSocketServerSessionLifecycleTest {
         assertTrue(SimpleWebSocketServer.isSupportedPageScannerOperation("pageScanner.scan"));
         assertTrue(SimpleWebSocketServer.isSupportedPageScannerOperation("pageScanner.locator.generate"));
         assertTrue(SimpleWebSocketServer.isSupportedPageScannerOperation("pageScanner.locator.apply"));
+        assertTrue(SimpleWebSocketServer.isSupportedPageScannerOperation("pageScanner.element.rename"));
         assertTrue(SimpleWebSocketServer.isSupportedPageScannerOperation("pageScannerProfile.list"));
         assertTrue(SimpleWebSocketServer.isSupportedPageScannerOperation("pageScannerProfile.save"));
         assertTrue(SimpleWebSocketServer.isSupportedPageScannerOperation("pageScannerProfile.delete"));
@@ -62,6 +63,7 @@ class SimpleWebSocketServerSessionLifecycleTest {
         assertTrue(SimpleWebSocketServer.isAllowedFromDetachedPageScannerTransport("pageScanner.scan"));
         assertTrue(SimpleWebSocketServer.isAllowedFromDetachedPageScannerTransport("pageScanner.locator.generate"));
         assertTrue(SimpleWebSocketServer.isAllowedFromDetachedPageScannerTransport("pageScanner.locator.apply"));
+        assertTrue(SimpleWebSocketServer.isAllowedFromDetachedPageScannerTransport("pageScanner.element.rename"));
         assertTrue(SimpleWebSocketServer.isAllowedFromDetachedPageScannerTransport("ocrWorkspace.open"));
         assertTrue(SimpleWebSocketServer.isAllowedFromDetachedPageScannerTransport("botJobDetails.bootstrap"));
         assertTrue(SimpleWebSocketServer.isAllowedFromDetachedPageScannerTransport("botJobDetails.toolbar.action"));

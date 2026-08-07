@@ -231,4 +231,77 @@ class ScannedElementRepositoryTest {
             assertNull(untouched.getCustomXPath());
         }
     }
+
+    @Test
+    void clientAliasMutationIsExactAndSurvivesRawRescan() throws Exception {
+        try (Connection conn = freshDb()) {
+            ElementDTO accounts = el("//main//button[1]", null, "Continue");
+            ElementDTO sibling = el("//aside//button[1]", null, "Continue");
+            ElementDTO payments = el("//main//button[1]", null, "Continue");
+            ElementDTO otherOrganization = el("//main//button[1]", null, "Continue");
+            ScannedElementRepository.upsert(conn, 2, 5, 3, ACCOUNTS_PAGE, List.of(accounts, sibling));
+            ScannedElementRepository.upsert(conn, 2, 5, 3, PAYMENTS_PAGE, List.of(payments));
+            ScannedElementRepository.upsert(conn, 3, 5, 3, ACCOUNTS_PAGE, List.of(otherOrganization));
+
+            ScannedElementRepository.ClientNamedMutationResult renamed =
+                    ScannedElementRepository.updateClientNamed(
+                            conn, 2, 5, ACCOUNTS_PAGE, accounts, " Primary account ");
+            assertEquals(1, renamed.affectedRows());
+            assertEquals("Primary account", renamed.element().getClientNamed());
+
+            ElementDTO rawRescan = el("//main//button[1]", null, "Continue");
+            rawRescan.setClientNamed("stale client value");
+            ScannedElementRepository.upsert(conn, 2, 5, 3, ACCOUNTS_PAGE, List.of(rawRescan));
+            assertEquals("Primary account", rawRescan.getClientNamed(),
+                    "the outgoing scan DTO must be rehydrated from the registry alias");
+
+            List<ScannedElement> accountRows =
+                    ScannedElementRepository.loadByBotJobAndPage(conn, 5, ACCOUNTS_PAGE);
+            assertEquals(
+                    "Primary account",
+                    accountRows.stream()
+                            .filter(row -> accounts.getXPath().equals(row.getXPath()))
+                            .findFirst()
+                            .orElseThrow()
+                            .getClientNamed());
+            assertNull(accountRows.stream()
+                    .filter(row -> sibling.getXPath().equals(row.getXPath()))
+                    .findFirst()
+                    .orElseThrow()
+                    .getClientNamed());
+            assertNull(ScannedElementRepository.loadByBotJobAndPage(conn, 5, PAYMENTS_PAGE)
+                    .get(0)
+                    .getClientNamed());
+            assertNull(ScannedElementRepository.load(conn, 3, 5).get(0).getClientNamed());
+
+            ElementDTO stale = el("//footer//button[1]", null, "Continue");
+            assertEquals(
+                    0,
+                    ScannedElementRepository.updateClientNamed(
+                                    conn, 2, 5, ACCOUNTS_PAGE, stale, "Forged")
+                            .affectedRows());
+        }
+    }
+
+    @Test
+    void canonicalClientAliasClearsToSqlNull() throws Exception {
+        try (Connection conn = freshDb()) {
+            ElementDTO target = el("//button[@test-id='continue']", "continue", "Continue");
+            ScannedElementRepository.upsert(conn, 2, 5, 3, ACCOUNTS_PAGE, List.of(target));
+            assertEquals(
+                    1,
+                    ScannedElementRepository.updateClientNamed(
+                                    conn, 2, 5, ACCOUNTS_PAGE, target, "Custom Continue")
+                            .affectedRows());
+
+            ScannedElementRepository.ClientNamedMutationResult cleared =
+                    ScannedElementRepository.updateClientNamed(
+                            conn, 2, 5, ACCOUNTS_PAGE, target, "Continue");
+            assertEquals(1, cleared.affectedRows());
+            assertNull(cleared.element().getClientNamed());
+            assertNull(ScannedElementRepository.loadByBotJobAndPage(conn, 5, ACCOUNTS_PAGE)
+                    .get(0)
+                    .getClientNamed());
+        }
+    }
 }

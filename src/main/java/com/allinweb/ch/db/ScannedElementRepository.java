@@ -100,7 +100,7 @@ public final class ScannedElementRepository {
 
         requireScope(homeBankingId, botJobId);
         ScannedPageIdentity page = ScannedPageIdentity.fromLiveUrl(pageUrl);
-        String selectSql = "SELECT id, custom_x_path FROM scanned_element"
+        String selectSql = "SELECT id, custom_x_path, client_named FROM scanned_element"
                 + " WHERE home_banking_id = ? AND bot_job_id = ? AND page_key = ? AND element_hash = ?";
         String insertSql = "INSERT INTO scanned_element ("
                 + "home_banking_id, bot_job_id, home_url_id, page_url, page_key, element_hash, tag_name,"
@@ -129,6 +129,7 @@ public final class ScannedElementRepository {
 
                 Long existingId = null;
                 String existingCustomXPath = null;
+                String existingClientNamed = null;
                 sel.setObject(1, homeBankingId);
                 sel.setObject(2, botJobId);
                 sel.setString(3, page.pageKey());
@@ -137,6 +138,7 @@ public final class ScannedElementRepository {
                     if (rs.next()) {
                         existingId = rs.getLong(1);
                         existingCustomXPath = rs.getString(2);
+                        existingClientNamed = rs.getString(3);
                     }
                 }
 
@@ -165,8 +167,7 @@ public final class ScannedElementRepository {
                     ins.setString(i++, e.getShadowHost());
                     ins.setString(i++, e.getShadowRoot());
                     ins.setString(i++, attrJson);
-                    ins.executeUpdate();
-                    inserted++;
+                    inserted += ins.executeUpdate();
                 } else {
                     int i = 1;
                     upd.setObject(i++, homeUrlId);
@@ -175,7 +176,11 @@ public final class ScannedElementRepository {
                     upd.setString(i++, e.getTagName());
                     upd.setString(i++, e.getTypeElement());
                     upd.setString(i++, e.getDefinedName());
-                    upd.setString(i++, e.getClientNamed());
+                    // The registry owns a client-authored alias after the first scan. A raw or
+                    // stale scanner DTO must never erase, restore, or replace that alias during a
+                    // re-scan; only the explicit owner-scoped rename mutation may change it.
+                    e.setClientNamed(existingClientNamed);
+                    upd.setString(i++, existingClientNamed);
                     upd.setString(i++, e.getSomeText());
                     upd.setString(i++, e.getXPath());
                     // A normal re-scan does not know about a client-authored override. Preserve the
@@ -201,8 +206,7 @@ public final class ScannedElementRepository {
                     upd.setString(i++, e.getShadowRoot());
                     upd.setString(i++, attrJson);
                     upd.setLong(i++, existingId);
-                    upd.executeUpdate();
-                    updated++;
+                    updated += upd.executeUpdate();
                 }
             }
             conn.commit();
@@ -253,6 +257,74 @@ public final class ScannedElementRepository {
             statement.setString(4, page.pageKey());
             statement.setString(5, pageScopedHash(page.pageKey(), element));
             return statement.executeUpdate();
+        }
+    }
+
+    /** Result of one exact, owner- and page-scoped client alias mutation. */
+    public record ClientNamedMutationResult(int affectedRows, ScannedElement element) {}
+
+    /**
+     * Rename one authoritative scanner row without changing its locator identity or scan count.
+     * The current database row supplies the immutable canonical names used to normalize a cleared
+     * override. No matching row is inserted, and a stale/cross-page identity affects zero rows.
+     */
+    public static ClientNamedMutationResult updateClientNamed(
+            Connection conn,
+            Integer homeBankingId,
+            Integer botJobId,
+            String pageUrl,
+            ElementDTO identity,
+            String requestedClientNamed)
+            throws SQLException {
+        if (identity == null) return new ClientNamedMutationResult(0, null);
+        requireScope(homeBankingId, botJobId);
+        ScannedPageIdentity page = ScannedPageIdentity.fromLiveUrl(pageUrl);
+        String elementHash = pageScopedHash(page.pageKey(), identity);
+        String selectSql = "SELECT * FROM scanned_element"
+                + " WHERE home_banking_id = ? AND bot_job_id = ? AND page_key = ? AND element_hash = ?";
+        String updateSql = "UPDATE scanned_element SET client_named = ?"
+                + " WHERE id = ? AND home_banking_id = ? AND bot_job_id = ? AND page_key = ?";
+
+        boolean previousAutoCommit = conn.getAutoCommit();
+        conn.setAutoCommit(false);
+        try {
+            ScannedElement existing = null;
+            try (PreparedStatement select = conn.prepareStatement(selectSql)) {
+                select.setObject(1, homeBankingId);
+                select.setObject(2, botJobId);
+                select.setString(3, page.pageKey());
+                select.setString(4, elementHash);
+                try (ResultSet rows = select.executeQuery()) {
+                    if (rows.next()) existing = map(rows);
+                }
+            }
+            if (existing == null) {
+                conn.rollback();
+                return new ClientNamedMutationResult(0, null);
+            }
+
+            String normalized = normalizeClientNamed(requestedClientNamed, existing);
+            int affectedRows;
+            try (PreparedStatement update = conn.prepareStatement(updateSql)) {
+                update.setString(1, normalized);
+                update.setLong(2, existing.getId());
+                update.setObject(3, homeBankingId);
+                update.setObject(4, botJobId);
+                update.setString(5, page.pageKey());
+                affectedRows = update.executeUpdate();
+            }
+            if (affectedRows != 1) {
+                conn.rollback();
+                return new ClientNamedMutationResult(affectedRows, null);
+            }
+            existing.setClientNamed(normalized);
+            conn.commit();
+            return new ClientNamedMutationResult(affectedRows, existing);
+        } catch (SQLException failure) {
+            conn.rollback();
+            throw failure;
+        } finally {
+            conn.setAutoCommit(previousAutoCommit);
         }
     }
 
@@ -350,6 +422,17 @@ public final class ScannedElementRepository {
 
     private static String nz(String s) {
         return s == null ? "" : s;
+    }
+
+    private static String normalizeClientNamed(String requested, ScannedElement existing) {
+        String normalized = requested == null ? "" : requested.trim();
+        if (normalized.isEmpty()
+                || normalized.equals(existing.getDefinedName())
+                || normalized.equals(existing.getSomeText())
+                || normalized.equals(existing.getTagName())) {
+            return null;
+        }
+        return normalized;
     }
 
     private static void requireScope(Integer homeBankingId, Integer botJobId) {

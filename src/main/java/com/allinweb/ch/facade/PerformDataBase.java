@@ -209,6 +209,21 @@ public class PerformDataBase {
         }
     }
 
+    /** Strict owner/page-scoped alias update used only by detached Page Scanner rename. */
+    public com.allinweb.ch.db.ScannedElementRepository.ClientNamedMutationResult
+            updateScannedElementClientNamedStrict(
+                    Integer homeBankingId,
+                    Integer botJobId,
+                    String pageUrl,
+                    com.allinweb.ch.model.ElementDTO identity,
+                    String clientNamed)
+                    throws SQLException {
+        try (Connection conn = getConnection()) {
+            return com.allinweb.ch.db.ScannedElementRepository.updateClientNamed(
+                    conn, homeBankingId, botJobId, pageUrl, identity, clientNamed);
+        }
+    }
+
     /**
      * Self-healing lookup: load the scanned_element registry for a scope and resolve the best match
      * for an instruction (validate/re-resolve when its stored xPath drifts or a name collides).

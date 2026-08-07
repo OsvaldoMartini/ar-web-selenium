@@ -94,6 +94,7 @@ public class SimpleWebSocketServer {
             "pageScanner.apply",
             "pageScanner.locator.generate",
             "pageScanner.locator.apply",
+            "pageScanner.element.rename",
             "pageScanner.createBlock",
             "pageScannerProfile.list",
             "pageScannerProfile.save",
@@ -884,6 +885,14 @@ public class SimpleWebSocketServer {
                     break;
                 case "pageScanner.locator.apply":
                     handlePageScannerLocatorApply(
+                            jsonObjMSG,
+                            homeBankingId,
+                            claimedSessionId,
+                            transportSessionId,
+                            session);
+                    break;
+                case "pageScanner.element.rename":
+                    handlePageScannerElementRename(
                             jsonObjMSG,
                             homeBankingId,
                             claimedSessionId,
@@ -4672,6 +4681,69 @@ public class SimpleWebSocketServer {
                     transport,
                     responseOperation,
                     "Unable to apply the generated XPath to the selected element.");
+        }
+    }
+
+    private void handlePageScannerElementRename(
+            JsonObject envelope,
+            int envelopeHomeBankingId,
+            String claimedSessionId,
+            String transportSessionId,
+            Session transport) {
+        JsonObject body = bodyOrEmpty(envelope);
+        String responseOperation = "pageScanner.element.renameResponse";
+        if (!validatePageScannerTransport(
+                body,
+                envelopeHomeBankingId,
+                claimedSessionId,
+                transportSessionId,
+                transport,
+                responseOperation)) {
+            return;
+        }
+
+        try {
+            String requestId = requirePageScannerRequestId(body);
+            PageScannerWorkspaceCoordinator.BootstrapContext workspace =
+                    requireActivePageScannerWorkspace(transportSessionId);
+            JsonObject response = BotJobDetailsWorkspaceRegistry.getInstance().commitWorkspaceMutation(
+                    workspace.context().botJobId(),
+                    workspace.context().workspaceEpoch(),
+                    () -> pageScannerMutationLedger.executeOnce(
+                            transportSessionId,
+                            requestId,
+                            "pageScanner.element.rename",
+                            body,
+                            () -> PageScannerElementRenameService.getInstance().rename(
+                                    body,
+                                    workspace.context().homeBankingId(),
+                                    workspace.context().botJobId(),
+                                    BotJobDetailsWorkspaceHost.getInstance()
+                                            .currentPageScannerUrl())));
+            copyBoundedPageScannerString(body, response, "elementKey", 2_048);
+            sendPageScannerResponse(
+                    workspace.context().homeBankingId(),
+                    transportSessionId,
+                    transport,
+                    responseOperation,
+                    response);
+        } catch (IllegalArgumentException | IllegalStateException invalidRequest) {
+            sendPageScannerFailure(
+                    body,
+                    envelopeHomeBankingId,
+                    transportSessionId,
+                    transport,
+                    responseOperation,
+                    invalidRequest.getMessage());
+        } catch (RuntimeException failure) {
+            log.error("Unable to rename a detached Page Scanner element", failure);
+            sendPageScannerFailure(
+                    body,
+                    envelopeHomeBankingId,
+                    transportSessionId,
+                    transport,
+                    responseOperation,
+                    "Unable to save the Page Scanner name.");
         }
     }
 
