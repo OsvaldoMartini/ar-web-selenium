@@ -112,7 +112,8 @@ public final class MemoryListWorkspaceService {
                     current.homeBankingId = homeBankingId;
                 }
                 upsertSource(current, body, transportSessionId, transportSession);
-                if (COMPONENT_SOURCE.equals(sourceKind(transportSessionId))) {
+                if (COMPONENT_SOURCE.equals(sourceKind(transportSessionId))
+                        || PAGE_MAPPINGS_SOURCE.equals(sourceKind(transportSessionId))) {
                     reloadBlocks(current);
                 }
                 state = current;
@@ -192,7 +193,8 @@ public final class MemoryListWorkspaceService {
                     return failure(body, "Memory List source ownership changed. Open it again.");
                 }
                 upsertSource(state, body, transportSessionId, transportSession);
-                if (COMPONENT_SOURCE.equals(sourceKind(transportSessionId))) {
+                if (COMPONENT_SOURCE.equals(sourceKind(transportSessionId))
+                        || PAGE_MAPPINGS_SOURCE.equals(sourceKind(transportSessionId))) {
                     reloadBlocks(state);
                 }
             }
