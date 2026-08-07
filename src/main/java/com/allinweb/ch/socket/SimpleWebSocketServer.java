@@ -131,6 +131,7 @@ public class SimpleWebSocketServer {
             "pagesOpen.summary");
     private static final Set<String> DETACHED_PAGE_MAPPINGS_OPERATIONS = Set.of(
             "pageMappings.bootstrap",
+            "pageMappings.capture",
             "pageMappings.open",
             "pagesOpen.open",
             "pagesOpen.summary");
@@ -1064,6 +1065,17 @@ public class SimpleWebSocketServer {
                                 mappingsBody, "Page Mappings history is unavailable.");
                         sendCommandEditorResponse(
                                 homeBankingId, sessionId, "pageMappings.bootstrapResponse", response);
+                    }
+                    break;
+                }
+                case "pageMappings.capture": {
+                    JsonObject mappingsBody = extractBody(jsonObjMSG);
+                    try (java.sql.Connection connection = performDataBase.getConnection()) {
+                        sendCommandEditorResponse(homeBankingId, sessionId, "pageMappings.captureResponse",
+                                pageMappingsWorkspaceService.capture(mappingsBody, connection));
+                    } catch (Exception failure) {
+                        sendCommandEditorResponse(homeBankingId, sessionId, "pageMappings.captureResponse",
+                                commandEditorFailure(mappingsBody, "The selected scan artifact could not be loaded."));
                     }
                     break;
                 }
