@@ -25,6 +25,10 @@ public final class ScannerUpdatePreparationService {
         }
         for (ElementDTO elementDTO : elements) {
             TargetElement target = targetExtractor.extractPickClone(elementDTO);
+            if (ScannerExecutionTypeOverride.apply(elementDTO, target)
+                    == ScannerExecutionTypeOverride.Status.INVALID) {
+                continue;
+            }
             pane.prepareToInsertElementDTO(instructionList, blockId, nextOrder, target, true);
             nextOrder++;
         }

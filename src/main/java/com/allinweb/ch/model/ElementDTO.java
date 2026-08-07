@@ -11,6 +11,10 @@ import lombok.NoArgsConstructor;
 public class ElementDTO {
     private Integer id;
     private String typeElement;
+    // Transient Page Scanner execution override. This deliberately does not replace
+    // typeElement/tagName: those fields describe scanner classification and the real DOM.
+    // When present, scanner insert/update preparation maps it to the staged instruction action.
+    private String executionTypeOverride;
     private String tagName;
     private String nameLabel;
     private String nameField;
@@ -60,6 +64,7 @@ public class ElementDTO {
     public ElementDTO(ElementDTO other) {
         this.id = other.id;
         this.typeElement = other.typeElement;
+        this.executionTypeOverride = other.executionTypeOverride;
         this.tagName = other.tagName;
         this.nameLabel = other.nameLabel;
         this.nameField = other.nameField;
@@ -106,6 +111,7 @@ public class ElementDTO {
         copy.setId(this.id);
         copy.setSomeText(this.someText);
         copy.setTypeElement(this.typeElement);
+        copy.setExecutionTypeOverride(this.executionTypeOverride);
         copy.setTagName(this.tagName);
         copy.setNameLabel(this.nameLabel);
         copy.setNameField(this.nameField);

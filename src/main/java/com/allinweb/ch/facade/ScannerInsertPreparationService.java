@@ -27,6 +27,10 @@ public final class ScannerInsertPreparationService {
         }
         for (ElementDTO elementDTO : elements) {
             TargetElement target = targetExtractor.extractPickClone(elementDTO);
+            if (ScannerExecutionTypeOverride.apply(elementDTO, target)
+                    == ScannerExecutionTypeOverride.Status.INVALID) {
+                continue;
+            }
             actions.defineSavedReferenced(target);
 
             if (!Strings.isNullOrEmpty(elementDTO.getForceCoordinates())) {

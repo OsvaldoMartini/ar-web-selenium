@@ -80,6 +80,8 @@ public class SimpleWebSocketServer {
             SmokeTestIntegrationService.getInstance();
     private static final GridItemTestActionService gridItemTestActionService =
             GridItemTestActionService.getInstance();
+    private static final GridItemWebElementTypeService gridItemWebElementTypeService =
+            GridItemWebElementTypeService.getInstance();
     private static final int MAX_PAGE_SCANNER_BODY_CHARACTERS = 2_000_000;
     private static final int MAX_PAGE_SCANNER_ELEMENTS = 1_000;
     private static final int MAX_PAGE_SCANNER_SEARCH_TERMS = 8_192;
@@ -537,6 +539,8 @@ public class SimpleWebSocketServer {
                     ExcelDataWorkspaceService.SESSION_ID.equals(transportSessionId);
             boolean smokeIntegrationOperation = SMOKE_INTEGRATION_OPERATIONS.contains(type);
             boolean gridItemTestActionOperation = GridItemTestActionContracts.REQUEST.equals(type);
+            boolean gridItemWebElementTypeOperation =
+                    GridItemWebElementTypeContracts.REQUEST.equals(type);
             String sessionId = ocrWorkspaceOperation
                             || detachedOcrTransport
                             || pageScannerOperation
@@ -551,6 +555,7 @@ public class SimpleWebSocketServer {
                              || detachedExcelDataTransport
                              || smokeIntegrationOperation
                              || gridItemTestActionOperation
+                             || gridItemWebElementTypeOperation
                     ? transportSessionId
                     : claimedSessionId;
             ReactReplyChannel.set(sessionId);
@@ -603,6 +608,11 @@ public class SimpleWebSocketServer {
                     && !pauseResponseWithoutLicense
                     && !pageScannerCloseWithoutLicense
                     && !smokeCleanupWithoutLicense) {
+                if (gridItemWebElementTypeOperation) {
+                    gridItemWebElementTypeService.rejectLicense(
+                            extractBody(jsonObjMSG), session);
+                    return;
+                }
                 if (smokeIntegrationOperation) {
                     smokeTestIntegrationService.rejectLicense(
                             type, extractBody(jsonObjMSG), session);
@@ -699,6 +709,10 @@ public class SimpleWebSocketServer {
 
             // Process the message based on its type
             switch (type) {
+                case GridItemWebElementTypeContracts.REQUEST:
+                    gridItemWebElementTypeService.handle(
+                            extractBody(jsonObjMSG), sessionId, session);
+                    return;
                 case GridItemTestActionContracts.REQUEST:
                     gridItemTestActionService.handle(
                             extractBody(jsonObjMSG), sessionId, session);

@@ -13,7 +13,6 @@ import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
@@ -165,15 +164,26 @@ public final class PreScanApplyService {
             return null;
         }
 
+        ScannerExecutionTypeOverride.Status executionTypeOverride =
+                ScannerExecutionTypeOverride.apply(elementDTO, target);
+        if (executionTypeOverride == ScannerExecutionTypeOverride.Status.INVALID) {
+            log.warn(
+                    "PRE SCAN Apply - rejected invalid execution type override '{}'",
+                    elementDTO.getExecutionTypeOverride());
+            return null;
+        }
+
         // Per-element S/N/T/E/F badge flags from the dashboard win over the composed defaults.
         if (!Strings.isNullOrEmpty(elementDTO.getForceCoordinates())) {
             target.setForceCoordinates(elementDTO.getForceCoordinates());
         }
         // The pane derives this from its click checkbox; here the scanner's decided
         // category is the source of truth.
-        target.setClickElement("button"
-                .equalsIgnoreCase(
-                        Objects.toString(elementDTO.getTypeElement(), "").toLowerCase(Locale.ROOT)));
+        if (executionTypeOverride == ScannerExecutionTypeOverride.Status.ABSENT) {
+            target.setClickElement("button"
+                    .equalsIgnoreCase(
+                            Objects.toString(elementDTO.getTypeElement(), "")));
+        }
 
         if (target.getXPath() == null) {
             target.setXPath(target.getSavedReferences().get("currentXPath"));

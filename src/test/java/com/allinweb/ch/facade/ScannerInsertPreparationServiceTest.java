@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.allinweb.ch.builder.WebElementTagNameEnum;
 import com.allinweb.ch.model.ElementDTO;
 import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.model.TargetElement;
@@ -44,6 +45,54 @@ class ScannerInsertPreparationServiceTest {
         assertEquals(1, rows.size());
         assertEquals(1, pane.selectedTargets.size());
         assertSame(pane.preparedTargets.get(0), pane.selectedTargets.get(0));
+    }
+
+    @Test
+    void appliesExecutionOverrideToLegacyInsertWithoutReplacingPhysicalTag() {
+        ScannerInsertPreparationService service = new ScannerInsertPreparationService();
+        RecordingPane pane = new RecordingPane();
+        List<InstructionLoad> rows = new ArrayList<>();
+        ElementDTO element = elements("")[0];
+        element.setExecutionTypeOverride("CLICK");
+        element.setTagName("span");
+
+        service.prepare(
+                new RecordingActions(),
+                new RecordingExtractor(),
+                pane,
+                rows,
+                new ElementDTO[] {element},
+                7,
+                1,
+                false);
+
+        assertEquals(1, rows.size());
+        TargetElement target = pane.preparedTargets.get(0);
+        assertEquals(WebElementTagNameEnum.BUTTON, target.getTagType());
+        assertTrue(target.getClickElement());
+        assertEquals("span", target.getTagName());
+    }
+
+    @Test
+    void rejectsInvalidExecutionOverrideFromLegacyInsert() {
+        ScannerInsertPreparationService service = new ScannerInsertPreparationService();
+        RecordingPane pane = new RecordingPane();
+        List<InstructionLoad> rows = new ArrayList<>();
+        ElementDTO element = elements("")[0];
+        element.setExecutionTypeOverride("SCRIPT");
+
+        service.prepare(
+                new RecordingActions(),
+                new RecordingExtractor(),
+                pane,
+                rows,
+                new ElementDTO[] {element},
+                7,
+                1,
+                false);
+
+        assertTrue(rows.isEmpty());
+        assertTrue(pane.preparedTargets.isEmpty());
     }
 
     private static ElementDTO[] elements(String... forceCoordinates) {
