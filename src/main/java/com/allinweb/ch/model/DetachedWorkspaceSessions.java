@@ -15,6 +15,7 @@ public final class DetachedWorkspaceSessions {
     public static final String SMOKE_TEST_MANAGER = "smokeTestManager";
     public static final String RUNTIME_VARIABLES_MANAGER = "runtimeVariablesManager";
     public static final String MEMORY_LIST_MANAGER = "memoryListManager";
+    public static final String PAGE_MAPPINGS_MANAGER = "pageMappingsManager";
     public static final String PAGES_OPEN_MANAGER = "pagesOpenManager";
     public static final String ABOUT_PANEL = "aboutPanel";
     public static final String LICENSE_MANAGER = "licenseManager";
@@ -32,6 +33,7 @@ public final class DetachedWorkspaceSessions {
             SMOKE_TEST_MANAGER,
             RUNTIME_VARIABLES_MANAGER,
             MEMORY_LIST_MANAGER,
+            PAGE_MAPPINGS_MANAGER,
             PAGES_OPEN_MANAGER,
             ABOUT_PANEL,
             LICENSE_MANAGER);

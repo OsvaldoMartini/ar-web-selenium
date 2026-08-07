@@ -129,6 +129,10 @@ public class SimpleWebSocketServer {
             "variableEditor.delete",
             "pagesOpen.open",
             "pagesOpen.summary");
+    private static final Set<String> DETACHED_PAGE_MAPPINGS_OPERATIONS = Set.of(
+            "pageMappings.bootstrap",
+            "pagesOpen.open",
+            "pagesOpen.summary");
     private static final Set<String> DETACHED_VARIABLES_OPERATIONS = Set.of(
             "variablesWorkspace.bootstrap",
             "variablesWorkspace.refresh",
@@ -187,6 +191,8 @@ public class SimpleWebSocketServer {
     private static final org.slf4j.Logger logBackend = org.slf4j.LoggerFactory.getLogger("com.allinweb.backend");
     private static final Gson EXECUTION_PREFLIGHT_GSON =
             new GsonBuilder().serializeNulls().create();
+    private static final PageMappingsWorkspaceService pageMappingsWorkspaceService =
+            PageMappingsWorkspaceService.getInstance();
     private final Gson gson = new Gson();
     private final BotJobWorkspaceCapabilityService botJobWorkspaceCapabilityService =
             BotJobWorkspaceCapabilityService.getInstance();
@@ -537,6 +543,9 @@ public class SimpleWebSocketServer {
                     VariablesWorkspaceService.isWorkspaceSession(transportSessionId);
             boolean detachedExcelDataTransport =
                     ExcelDataWorkspaceService.SESSION_ID.equals(transportSessionId);
+            boolean pageMappingsOperation = type.startsWith("pageMappings.");
+            boolean detachedPageMappingsTransport =
+                    DetachedWorkspaceSessions.PAGE_MAPPINGS_MANAGER.equals(transportSessionId);
             boolean smokeIntegrationOperation = SMOKE_INTEGRATION_OPERATIONS.contains(type);
             boolean gridItemTestActionOperation = GridItemTestActionContracts.REQUEST.equals(type);
             boolean gridItemWebElementTypeOperation =
@@ -553,6 +562,8 @@ public class SimpleWebSocketServer {
                              || variablesWorkspaceOperation
                              || detachedVariablesTransport
                              || detachedExcelDataTransport
+                             || pageMappingsOperation
+                             || detachedPageMappingsTransport
                              || smokeIntegrationOperation
                              || gridItemTestActionOperation
                              || gridItemWebElementTypeOperation
@@ -704,6 +715,16 @@ public class SimpleWebSocketServer {
                         commandEditorFailure(
                                 extractBody(jsonObjMSG),
                                 "Operation is not allowed from the detached Excel Data workspace."));
+                return;
+            }
+            if (detachedPageMappingsTransport && !DETACHED_PAGE_MAPPINGS_OPERATIONS.contains(type)) {
+                sendCommandEditorResponse(
+                        homeBankingId,
+                        transportSessionId,
+                        "pageMappings.errorResponse",
+                        commandEditorFailure(
+                                extractBody(jsonObjMSG),
+                                "Operation is not allowed from the detached Page Mappings workspace."));
                 return;
             }
 
@@ -1027,6 +1048,22 @@ public class SimpleWebSocketServer {
                             sessionId,
                             "excelData.bootstrapResponse",
                             excelDataWorkspaceService.bootstrap(excelDataBody, sessionId, session));
+                    break;
+                }
+                case "pageMappings.bootstrap": {
+                    JsonObject mappingsBody = extractBody(jsonObjMSG);
+                    try (java.sql.Connection connection = performDataBase.getConnection()) {
+                        sendCommandEditorResponse(
+                                homeBankingId,
+                                sessionId,
+                                "pageMappings.bootstrapResponse",
+                                pageMappingsWorkspaceService.bootstrap(mappingsBody, sessionId, connection));
+                    } catch (Exception failure) {
+                        JsonObject response = commandEditorFailure(
+                                mappingsBody, "Page Mappings history is unavailable.");
+                        sendCommandEditorResponse(
+                                homeBankingId, sessionId, "pageMappings.bootstrapResponse", response);
+                    }
                     break;
                 }
                 case "excelData.close": {
