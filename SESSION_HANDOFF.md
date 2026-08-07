@@ -1,5 +1,23 @@
 # Session Handoff
 
+## Current checkpoint - 2026-08-07
+
+The dated 2026-07-15 scanner-removal notes below remain historical backlog. The current delivery
+checkpoint is:
+
+- Page Mappings P0 is committed and pushed; its running-app acceptance checklist remains open.
+- The functional Page Scanner/GridItem `INPUT -> OUTPUT -> CLICK` toggle is committed and pushed.
+- Frontend focused verification passed: 4 suites / 19 tests.
+- Java focused verification passed: 24 tests; Maven compiled 536 main and 307 test sources.
+- Frontend bundle `main.83054b52.js` is mirrored into backend source resources with 58/58 files and
+  zero SHA-256 differences.
+- Frontend commit: `a289663`; backend source/test commit: `99ad9c2f`; asset commit: `46dd420e`.
+- The backend has not been packaged or restarted, so live verification is still pending.
+- Page Mappings P1-P7 and Main-page virtual-grid/Canvas implementation remain unstarted.
+
+Read `specifications/performances/COPY_LAST_RESPONSE.md` and
+`specifications/performances/Page Mappins PLAN 2026-08-07.md` before continuing.
+
 Date: 2026-07-15
 
 ## Current Goal

@@ -247,3 +247,29 @@ Because screenshots may contain banking data, access must remain owner-scoped, f
 - Duplicate-alias regression commit pushed: `8718ed63`.
 - No migration was required for P0. The backend was compiled/tested but was not packaged, restarted, or live-verified.
 - P1 through P7 remain planned and unimplemented. Existing unrelated untracked files were left untouched.
+
+## P0.5 Web Element execution-type checkpoint
+
+The Page Scanner and persisted GridItem now expose the same controlled `INPUT -> OUTPUT -> CLICK`
+choice without changing locator identity:
+
+- Page Scanner stores a transient `executionTypeOverride` in its source, grouped, and staged Memory
+  List projections.
+- Pane-free apply and the legacy Save / Send All / Update All preparations use one shared Java
+  mapper and preserve the physical DOM tag.
+- GridItem persists only `instruction.actions` through the reduced
+  `gridItem.webElementType.update` contract with owner, workspace, graph-version, revision, expected
+  value, exact-one write, idempotency, and authoritative reload checks.
+- Relationships, variable slots, parents, locators, references, coordinates, and `scanned_element`
+  identity remain unchanged.
+
+Delivery evidence:
+
+- Frontend focused tests: 4 suites, 19 tests, 0 failures.
+- Java focused tests: 24 tests, 0 failures or errors.
+- Frontend production build: passed with existing repository warnings.
+- Generated bundle: `main.83054b52.js`; resource mirror 58/58 with zero hash differences.
+- Frontend commit pushed: `a289663`.
+- Backend source/test commit pushed: `99ad9c2f`.
+- Backend deployment-assets commit pushed: `46dd420e`.
+- Packaging, restart, and live acceptance remain open; P1 through P7 are still unimplemented.

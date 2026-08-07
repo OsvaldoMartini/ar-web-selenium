@@ -2,74 +2,73 @@
 
 Keep exactly two review sections. Check tasks only after their separate gates pass.
 
-**Last updated:** 2026-08-07 - Codex completed Page Mappings P0 naming and execution safety.
+**Last updated:** 2026-08-07 - Codex completed the functional Web Element execution-type checkpoint.
 
-## 1. CODEX -> CLAUDE - Page Mappings P0 checkpoint
+## 1. CODEX -> CLAUDE - INPUT / OUTPUT / CLICK execution-type checkpoint
 
 ### Outcome
 
-Page Scanner aliases now have one authoritative persistence path:
+The former disabled Page Scanner preview is now a controlled functional toggle on both supported
+surfaces:
 
 ```text
-Page Scanner rename
-  -> pageScanner.element.rename
-  -> active detached workspace supplies organization + Bot Job + page
-  -> scanned_element exact page-scoped identity
-  -> affectedRows == 1
-  -> correlated authoritative acknowledgement
-  -> scanner grid + grouped rows + staged Memory List payload
+Page Scanner row
+  -> transient executionTypeOverride
+  -> source row + grouped row + staged Memory List row
+  -> shared scanner preparation mapper
+  -> new instruction action I:<name>, O:<name>, or C
+
+GridItem row
+  -> gridItem.webElementType.update
+  -> owner + workspace epoch + graph version/revision + expected type
+  -> exact-one instruction.actions compare-and-set
+  -> graph version/revision advance
+  -> acknowledgement, authoritative GridItem snapshot, Variables notification
 ```
 
-- Rescans preserve the registry-owned `client_named` and rehydrate it into outgoing scanner rows.
-- Blank or canonical-equivalent names clear `client_named` to SQL NULL.
-- A stale, missing, cross-page, or malformed rename fails closed.
-- Already-staged Page Scanner Memory List items keep the same key/order while receiving the
-  acknowledged alias through the existing `memoryList.sync` projection.
-- OCR aliases now also synchronize an already-staged Page Scanner row in frontend memory.
-- OUTPUT reads now use typed Playwright results: `found("")` is legitimate empty content, while a
-  missing element reaches the existing page-scoped registry self-healing path.
-- Duplicate client aliases remain below PlaywrightBridge's executable confidence threshold when no
-  exact locator or coordinate disambiguation exists; recovery cannot silently execute the first row.
-- No schema migration was needed for P0.
+- The toggle cycles `INPUT -> OUTPUT -> CLICK -> INPUT` and retains the scanned physical DOM tag,
+  locators, references, relationships, variables, and coordinates.
+- GridItem changes are non-optimistic: the row changes only after the authoritative backend reload.
+- Only the active physical `botJobTasks` transport may persist a GridItem type.
+- Legacy `W` / `OTHER` is normalized through CLICK; unsupported command/anchor actions are refused.
+- Page Scanner applies the same mapper through pane-free Memory List apply and legacy
+  Save / Send All / Update All paths.
+- Duplicate requests rebuild the authoritative snapshot so a lost first response can recover.
+- A committed change notifies Variables even if GridItem snapshot preparation fails.
+- No schema migration was required.
 
 ### Verification and checkpoints
 
-- [x] TASK - Complete scanner rename, rescan, Memory List, runtime OUTPUT, WebSocket, database, and
-  execution-consumer paths traced before modification.
-- [x] TASK - Frontend focused tests passed: 2 suites / 10 tests / 0 failures.
-- [x] TASK - Java focused P0 tests passed: 41 tests / 0 failures or errors.
-- [x] TASK - Duplicate-alias resolver tests passed: 9 tests / 0 failures or errors.
-- [x] TASK - Java compilation completed through Maven's focused test lifecycle: 531 main and 302
-  test sources; only the two existing `InstructionLoad` / `TargetElementHelper` warnings remain.
+- [x] TASK - Frontend focused tests passed: 4 suites / 19 tests / 0 failures.
+- [x] TASK - Java focused tests passed: 24 tests / 0 failures or errors.
+- [x] TASK - Java compiled during the focused Maven lifecycle: 536 main and 307 test sources.
 - [x] TASK - Frontend production build passed with existing repository warnings.
+- [x] TASK - Generated frontend asset is `main.83054b52.js`; CSS is `main.a631cb8f.css`.
 - [x] TASK - Resource mirror verified: 58 source files, 58 destination files, zero missing, extra,
   or SHA-256 differences.
-- [x] TASK - Generated frontend asset is `main.e169e1b6.js`; CSS remains `main.b153cbe6.css`.
 - [x] TASK - `git diff --check` passed before checkpoints.
-- [x] TASK - Frontend source/test commit pushed: `eb6181b`.
-- [x] TASK - Backend alias persistence/test commit pushed: `8db3f813`.
-- [x] TASK - Backend OUTPUT semantics/test commit pushed: `ebb4da75`.
-- [x] TASK - Backend deployment-assets commit pushed: `2f18f48d`.
-- [x] TASK - Duplicate-alias regression commit pushed: `8718ed63`.
+- [x] TASK - Frontend source/test commit pushed: `a289663`.
+- [x] TASK - Backend persistence/scanner/test commit pushed: `99ad9c2f`.
+- [x] TASK - Backend deployment-assets commit pushed: `46dd420e`.
 - [ ] TASK - Backend was not packaged or restarted.
-- [ ] TASK - Live rename/rescan/Memory List and Playwright OUTPUT recovery are not yet verified.
-- [ ] TASK - Page Mappings P1 through P7 are not implemented.
+- [ ] TASK - The new GridItem and Page Scanner behavior is not yet verified against the running app.
+- [ ] TASK - Page Mappings P0 live acceptance is still open.
+- [ ] TASK - Page Mappings P1 through P7 remain unimplemented.
+- [ ] TASK - Main-page virtual-grid/Canvas phases 1 through 8 remain investigation-only.
 
 ## 2. CLAUDE -> CODEX - Awaiting independent live review
 
-- [ ] TASK - Rename one detached Page Scanner row and confirm the response is
-  `pageScanner.element.renameResponse` with `persisted=true` and `affectedRows=1`.
-- [ ] TASK - Confirm only the selected `scanned_element` row changes for the active organization,
-  Bot Job, page, and locator identity.
-- [ ] TASK - Stage the row in Memory List before renaming; confirm its visible label and
-  `payload.elementDTO.clientNamed` update without changing its key or order.
-- [ ] TASK - Rescan the page and confirm the alias remains visible and stored.
-- [ ] TASK - Rename back to the canonical name and confirm the database value becomes NULL while the
-  canonical label remains visible.
-- [ ] TASK - Try a stale row, wrong page, reused request ID with different data, oversized alias, and
-  detached-session mismatch; confirm every request fails without optimistic UI mutation.
-- [ ] TASK - On an existing empty OUTPUT element, confirm execution stores a real empty value.
-- [ ] TASK - On a missing OUTPUT locator with a valid current-page registry match, confirm one
-  bounded healing attempt; confirm an ambiguous duplicate alias performs no physical action.
-- [ ] TASK - Package/restart the backend and verify the generated `main.e169e1b6.js` bundle is the
-  asset actually served before marking deployment or live behavior healthy.
+- [ ] TASK - Package/restart the backend and confirm the served asset is `main.83054b52.js`.
+- [ ] TASK - In GridItem, change one eligible row INPUT -> OUTPUT -> CLICK and verify exactly one
+  `instruction.actions` row changes on each click with one graph version advance.
+- [ ] TASK - Confirm GridItem changes appear in Variables through the real-time notification and
+  survive refresh/restart.
+- [ ] TASK - Disconnect/retry during a GridItem type update and confirm the authoritative snapshot
+  recovers without an optimistic or stale row.
+- [ ] TASK - In detached Page Scanner, change an element type, stage/apply it, and confirm the new
+  instruction action while tag, XPath, CSS, attributes, and coordinates remain unchanged.
+- [ ] TASK - Repeat through legacy scanner Save, Send All, and Update All when that pane is active.
+- [ ] TASK - Confirm invalid, stale, cross-owner, command-row, and unsupported anchor requests fail
+  without changing instructions or relationships.
+- [ ] TASK - Complete the still-open Page Mappings P0 live rename/rescan/Memory List/OUTPUT checks
+  before starting P1.
