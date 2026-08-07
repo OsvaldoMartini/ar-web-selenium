@@ -208,7 +208,8 @@ Every name-based lookup must:
 
    - [x] Bot Job and Page Scanner launch buttons.
    - [x] Capture history and selected-capture statuses/metadata.
-   - [ ] Image overlays and element search.
+   - [ ] Image overlays.
+   - [x] Immutable artifact loading and frontend element search.
 
 5. **P4 — Memory List integration**
 
@@ -270,9 +271,11 @@ Because screenshots may contain banking data, access must remain owner-scoped, f
 - Page Scanner exposes the same launcher and uses the reduced `pageMappings.open` request; the
   detached Page Mappings session accepts only its bootstrap/read operations.
 - Capture history/status metadata is already visible in the isolated page. Screenshot overlays,
-  element search, and artifact payload loading remain the next P3 slice.
+  rectangle overlays remain the next P3 slice; artifact payload loading and element search are now available.
 - Frontend launcher commit: `2a6ba3e`. Backend launcher commit: `38a17612`.
 - Bundle mirror commit: `4a2ec036`; bundle is `main.727f368f.js`.
+- Artifact/search frontend commit: `3a86be9`; backend artifact contract commit: `c2bff462`.
+- Latest bundle mirror commit: `cace5e6b`; bundle is `main.8b8a7868.js`.
 - Frontend build and backend compile passed with existing warnings. Packaging/restart/live launcher verification remain open.
 
 ## P1 delivery evidence - 2026-08-07

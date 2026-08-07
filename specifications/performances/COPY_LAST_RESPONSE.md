@@ -26,7 +26,8 @@ Bot Job / Page Scanner
 - The backend returns capture metadata only; no arbitrary filesystem path is served and no scanner
   mutation is accepted on this session.
 - Image/element payload loading, OCR compatibility, and Memory List integration remain deferred to
-  the next P3/P4 slices.
+  the next P3/P4 slices. Artifact loading and local element search are now available; rectangle
+  overlays remain open.
 
 ### Verification and checkpoints
 
@@ -39,9 +40,12 @@ Bot Job / Page Scanner
 - [x] TASK - Frontend P3 launcher commit pushed: `2a6ba3e`.
 - [x] TASK - Backend P3 launcher commit pushed: `38a17612`.
 - [x] TASK - Backend deployment-assets commit pushed: `4a2ec036`.
+- [x] TASK - Artifact/search frontend commit pushed: `3a86be9`.
+- [x] TASK - Artifact WebSocket backend commit pushed: `c2bff462`.
+- [x] TASK - Latest deployment-assets commit pushed: `cace5e6b`.
 - [ ] TASK - Backend was not packaged or restarted.
 - [ ] TASK - Page Mappings P0 live acceptance is still open.
-- [ ] TASK - Page Mappings remaining P3 overlay/search and P4 through P7 remain unimplemented.
+- [ ] TASK - Page Mappings P3 rectangle overlays and P4 through P7 remain unimplemented.
 - [ ] TASK - Main-page virtual-grid/Canvas phases 1 through 8 remain investigation-only.
 
 ## 2. CLAUDE -> CODEX - Awaiting independent live review

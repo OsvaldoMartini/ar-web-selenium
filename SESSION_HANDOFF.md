@@ -10,7 +10,7 @@ checkpoint is:
 - Page Mappings P2 is partially implemented: detached read-only history page and `pageMappings.bootstrap`
   metadata contract are committed; artifact/image loading, launchers, and Memory List integration remain open.
 - Page Mappings P3 launchers are now committed for Bot Job Details and Page Scanner. Image overlays,
-  element search, and full artifact loading remain the next P3 slice.
+  rectangle overlays remain open; artifact loading and frontend element search are now committed.
 - The functional Page Scanner/GridItem `INPUT -> OUTPUT -> CLICK` toggle is committed and pushed.
 - Frontend focused verification passed: 4 suites / 19 tests.
 - Java focused verification passed: 24 tests; Maven compiled 536 main and 307 test sources.
