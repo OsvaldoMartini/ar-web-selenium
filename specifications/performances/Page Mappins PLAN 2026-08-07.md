@@ -206,8 +206,9 @@ Every name-based lookup must:
 
 4. **P3 — Mappings launchers and explorer**
 
-   - Bot Job and Page Scanner buttons.
-   - Capture history, image overlays, element search and statuses.
+   - [x] Bot Job and Page Scanner launch buttons.
+   - [x] Capture history and selected-capture statuses/metadata.
+   - [ ] Image overlays and element search.
 
 5. **P4 — Memory List integration**
 
@@ -261,6 +262,18 @@ Because screenshots may contain banking data, access must remain owner-scoped, f
 - Frontend build passed with existing lint warnings; bundle was mirrored into backend source resources.
 - Frontend commit: `f4f40a3`. Backend code commit: `80116a01`.
 - Backend compile passed after the P2 handler change. Packaging, restart, and live acceptance remain open.
+
+## P3 delivery checkpoint - 2026-08-07
+
+- Bot Job Details now exposes a MAPPINGS launcher backed by `SHOW_PAGE_MAPPINGS` and the existing
+  detached-window focus mechanism.
+- Page Scanner exposes the same launcher and uses the reduced `pageMappings.open` request; the
+  detached Page Mappings session accepts only its bootstrap/read operations.
+- Capture history/status metadata is already visible in the isolated page. Screenshot overlays,
+  element search, and artifact payload loading remain the next P3 slice.
+- Frontend launcher commit: `2a6ba3e`. Backend launcher commit: `38a17612`.
+- Bundle mirror commit: `4a2ec036`; bundle is `main.727f368f.js`.
+- Frontend build and backend compile passed with existing warnings. Packaging/restart/live launcher verification remain open.
 
 ## P1 delivery evidence - 2026-08-07
 

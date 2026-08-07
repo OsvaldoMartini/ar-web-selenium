@@ -2,9 +2,9 @@
 
 Keep exactly two review sections. Check tasks only after their separate gates pass.
 
-**Last updated:** 2026-08-07 - Codex completed the Page Mappings P2 detached-history checkpoint.
+**Last updated:** 2026-08-07 - Codex completed the Page Mappings P3 launcher checkpoint.
 
-## 1. CODEX -> CLAUDE - Page Mappings P2 detached-history checkpoint
+## 1. CODEX -> CLAUDE - Page Mappings P3 launcher checkpoint
 
 ### Outcome
 
@@ -16,26 +16,32 @@ Page Mappings page
   -> pageMappings.bootstrap
   -> owner-scoped page_scan_snapshot metadata
   -> capture history + selected-capture details
+
+Bot Job / Page Scanner
+  -> SHOW_PAGE_MAPPINGS or pageMappings.open
+  -> detached Page Mappings window focus/open
 ```
 
 - The page is read-only and isolated from Variables, Scanner, and OCR Results state.
 - The backend returns capture metadata only; no arbitrary filesystem path is served and no scanner
   mutation is accepted on this session.
-- Image/element payload loading, OCR compatibility, launchers, and Memory List integration remain
-  deferred to P3/P4.
+- Image/element payload loading, OCR compatibility, and Memory List integration remain deferred to
+  the next P3/P4 slices.
 
 ### Verification and checkpoints
 
 - [x] TASK - P1 migration/store tests remained green: 2 tests / 0 failures.
 - [x] TASK - Frontend production build passed with existing lint warnings.
-- [x] TASK - Backend compile passed: 539 main sources after P2.
+- [x] TASK - Backend compile passed: 539 main sources after P3.
 - [x] TASK - `git diff --check` passed before checkpoints.
 - [x] TASK - Frontend P2 commit pushed: `f4f40a3`.
 - [x] TASK - Backend P2 code commit pushed: `80116a01`.
-- [ ] TASK - Backend deployment-assets commit/push is pending in this exchange.
+- [x] TASK - Frontend P3 launcher commit pushed: `2a6ba3e`.
+- [x] TASK - Backend P3 launcher commit pushed: `38a17612`.
+- [x] TASK - Backend deployment-assets commit pushed: `4a2ec036`.
 - [ ] TASK - Backend was not packaged or restarted.
 - [ ] TASK - Page Mappings P0 live acceptance is still open.
-- [ ] TASK - Page Mappings P3 through P7 remain unimplemented.
+- [ ] TASK - Page Mappings remaining P3 overlay/search and P4 through P7 remain unimplemented.
 - [ ] TASK - Main-page virtual-grid/Canvas phases 1 through 8 remain investigation-only.
 
 ## 2. CLAUDE -> CODEX - Awaiting independent live review
