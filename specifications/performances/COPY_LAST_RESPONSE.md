@@ -2,83 +2,89 @@
 
 Keep exactly two review sections. Check tasks only after their separate gates pass.
 
-**Last updated:** 2026-08-06 - Codex refined the Main selection/delete column design.
+**Last updated:** 2026-08-06 - Codex added the isolated Smoke Test Playwright Integration path.
 
-## 1. CODEX -> CLAUDE - Main Dashboard checkbox and ALL-delete checkpoint
+## 1. CODEX -> CLAUDE - Smoke Test Playwright Integration checkpoint
 
 ### Verdict
 
-The Main Dashboard now has one checkbox per Bot Job plus a tri-state header checkbox for all
-currently loaded Bot Jobs. The former `Actions` heading is the requested red trash `ALL` RulesCard.
-Checkbox selection is independent from ordinary row selection, so Clone/Open/Launch behavior is
-unchanged. `ALL` deletes only checked rows after a destructive confirmation and sends one
-correlated WebSocket mutation, not one request per row.
+The detached Smoke Test page now has a cyan `Smoke Test / Integration` mode selector. Integration
+uses four new, versioned WebSocket operations and never invokes Java `executeJob()`,
+`TestRunLauncher`, or `PerformLists`:
 
-The backend performs the complete selection in one SQLite transaction. It verifies every requested
-Bot Job before mutating, removes known Bot-Job-owned rows that lack database cascades, deletes the
-parents with JDBC batching, and rolls everything back if any requested ID or SQL operation fails.
-The existing single-row X now uses the same authoritative cleanup transaction.
+- `smokeTest.integration.start`
+- `smokeTest.integration.step`
+- `smokeTest.integration.stop`
+- `smokeTest.integration.finish`
+
+React remains the program-counter owner for CheckValue, IF/ELSEIF/ELSE/ENDIF, LOOP, GOTO, waits,
+and the visible execution trace. Each active instruction is submitted sequentially by database ID.
+Java independently authorizes the physical `smokeTestManager` transport, freezes the database
+plan, selected REAL/SYNTHETIC Excel memory, graph identity, and runtime-variable values, then
+executes the authoritative browser step through Playwright and returns one correlated result.
 
 ### Implemented
 
-- Added page-owned checkbox selection without modifying shared `GridTemp_A` behavior.
-- Added checked/unchecked and indeterminate select-all behavior for all loaded Bot Jobs.
-- Moved the checkbox column immediately left of the per-row X column.
-- Fixed and centered the checkbox and delete columns at 44 px and 100 px respectively.
-- Made the red trash label dynamic as `ALL (X)`, where X is the current checked-row count.
-- Replaced the `Actions` label with the requested red trash `ALL` RulesCard.
-- Preserved each row's existing single-delete X.
-- Added a shared destructive confirmation with Cancel as this flow's initial focus.
-- Disabled every delete initiator while bulk deletion is pending.
-- Added a 30-second lost-response safeguard that requests an authoritative dashboard refresh.
-- Added `mainDashboard.deleteBotJobs` / `mainDashboard.deleteBotJobsResponse`, contract version 1,
-  request correlation, strict positive-ID validation, deduplication, and committed/deleted facts.
-- Added atomic cleanup for `instruction_variable_slot`,
-  `instruction_variable_command_config`, Bot-Job `instruction_graph_state`, `scanned_element`, and
-  `bot_job_variable_migration_note` before parent deletion when those tables exist.
-- Runtime variable memory is evicted only after the database transaction commits; dashboard rows
-  are reloaded once after the complete batch.
+- Added a feature-isolated Integration contract, controller hook, tests, and module-scoped toggle.
+- Added strict request/response correlation, contract version 1, backend-created run ID and epoch,
+  one in-flight step, ordered sequence enforcement, bounded replay ledgers, and fail-closed parsing.
+- Added explicit START, STEP, STOP, and FINISH lifecycle ownership without calling `executeJob()`.
+- Preserved the already-open authenticated Playwright page instead of navigating or reloading it at
+  Integration start.
+- Added exclusive execution leasing so TEST RUN and Integration cannot own Playwright together.
+- Added cleanup on Stop, Finish, detached-window retarget/disconnect, and application shutdown; the
+  browser page itself remains open after normal Stop/Finish.
+- Added owner-scoped direct-SQL plan loading from current tables, including
+  `instruction_variable_slot`; no legacy `instruction.variable_id` is read.
+- Added immutable Excel-data snapshots with dataset epoch, revision, and SHA-256 content revision.
+- Added an immutable backend runtime snapshot to START. React replaces its pre-start values from
+  this exact snapshot before the first CheckValue/IF decision, so React branching and Java SET use
+  the same frozen values. Empty `VALUE("")` remains distinct from `VOID`.
+- Added physical Playwright execution for Web Element Click/Input/Output, GET, SET, and page refresh
+  actions. React-owned control-flow actions receive an explicit `LOGICAL_ONLY` acknowledgement.
+  Unsupported actions fail explicitly and are never reported as simulated physical success.
+- Added cleanup recovery: a refused/timed-out Stop or Finish retains the run identity and exposes
+  Stop for another cleanup attempt. A synchronous WebSocket send failure clears the pending slot.
+- Existing Variables-page Smoke behavior remains the default and does not acquire Playwright.
 
 ### Verification and checkpoints
 
-- [x] TASK - Main UI -> WebSocket -> service -> transaction -> SQLite -> response path traced.
-- [x] TASK - Frontend focused suite passed: 3 tests, 0 failures.
-- [x] TASK - Backend focused suite passed: 4 tests, 0 failures.
-- [x] TASK - Java compilation passed during the focused Maven test: 522 source files; two existing
-  compiler warnings remain.
-- [x] TASK - Frontend production build passed; existing repository warnings remain.
-- [x] TASK - `git diff --check` passed before checkpoints.
-- [x] TASK - Frontend source commit pushed: `1e77a70`.
-- [x] TASK - Design-only frontend follow-up pushed: `74c434f`.
-- [x] TASK - Fixed-width checkbox-centering follow-up pushed: `35d7383`.
-- [x] TASK - Backend source/test commit pushed: `e325acad`.
-- [x] TASK - Backend deployment-assets commits pushed: `b5a5e529`, `bee98c72`.
+- [x] TASK - Complete React -> WebSocket -> authorization -> SQL/Excel/runtime freeze -> Playwright
+  -> correlated response path traced.
+- [x] TASK - Frontend focused suite passed: 3 suites / 8 tests / 0 failures.
+- [x] TASK - Java focused suite passed: 4 suites / 24 tests / 0 failures.
+- [x] TASK - Java compilation passed during the focused Maven suite: 526 main and 295 test sources;
+  two existing compiler warnings remain.
+- [x] TASK - Service lifecycle tests prove Finish, refused-Finish-then-Stop, and disconnect release
+  the browser lease exactly once.
+- [x] TASK - Frontend production build passed; existing repository ESLint/bundle warnings remain.
+- [x] TASK - `git diff --check` passed before every checkpoint.
+- [x] TASK - Frontend source commit pushed: `4f37cf2`.
+- [x] TASK - Backend source/test commit pushed: `59bbb27a`.
+- [x] TASK - Backend deployment-assets commit pushed: `16646f0c`.
+- [x] TASK - Generated assets are `main.dec39e59.js` and `main.9d6caa47.css`.
 - [x] TASK - Resource mirror verified: 58 source files, 58 destination files, zero SHA-256
   differences.
-- [x] TASK - Latest generated assets: `main.6d86252d.js` and `main.22cf8b63.css`.
 - [ ] TASK - Backend was not packaged or restarted.
-- [ ] TASK - Live browser/database deletion remains to be verified by the user.
-- [x] TASK - The latest centered-column design was built and copied into backend resources; all 58
-  source/destination files match with zero SHA-256 differences.
-- [ ] TASK - Automated tests were not run for the design follow-ups per explicit user instruction.
+- [ ] TASK - Live Playwright execution remains to be verified by the user against Lloyds Bot Job 29.
+- [ ] TASK - Integration currently executes Excel memory row index 0. Multi-row/NEXT ROW cursor
+  ownership remains a separate follow-up and is not claimed complete.
 
 ## 2. CLAUDE -> CODEX - Awaiting independent live review
 
-- [ ] TASK - Verify one row can be checked/un-checked without selecting it for Open/Launch/Clone.
-- [ ] TASK - Verify the header checkbox checks all loaded rows and shows indeterminate state after
-  one row is unchecked.
-- [ ] TASK - Verify the red `ALL` button stays disabled with zero checks and opens confirmation with
-  the exact selected count/names when enabled.
-- [ ] TASK - Verify Cancel is initially focused and leaves all database rows unchanged.
-- [ ] TASK - Verify successful ALL deletion removes every selected Bot Job and owned relationship
-  row while preserving every unselected Bot Job.
-- [ ] TASK - Verify an injected SQL failure rolls back both child and parent deletions.
-- [ ] TASK - Verify the existing per-row X still deletes one Bot Job and now clears the same owned
-  non-cascading rows.
-- [ ] TASK - Confirm the intended policy that header select-all means all loaded Bot Jobs, including
-  rows temporarily hidden by Main's Find filter.
-- [ ] TASK - Track the existing Main Dashboard transport-authority seam before exposing this
-  destructive operation beyond the trusted desktop client; no shared WebSocket authorization was
-  broadened or changed in this checkpoint.
-- [ ] TASK - Consider a bounded backend replay ledger if external clients may retry the exact same
-  bulk-delete request ID after a lost response; the current UI reconciles instead of auto-retrying.
+- [ ] TASK - Confirm the Smoke Test page offers `Smoke Test / Integration` before Refresh and that
+  ordinary Smoke mode remains browser-free.
+- [ ] TASK - With Lloyds Bot Job 29 and REAL data selected, verify Input uses the first frozen Excel
+  row and the active Excel cell highlight is published.
+- [ ] TASK - Repeat with SYNTHETIC data and verify the frozen dataset mode/revision in START.
+- [ ] TASK - Verify Click, Output, GET, SET, and Refresh produce one correlated STEP response each.
+- [ ] TASK - Verify GET broadcasts the exact runtime value and preserves an empty string as VALUE.
+- [ ] TASK - Verify CheckValue and IF-family branching uses the START-frozen runtime snapshot.
+- [ ] TASK - Verify Stop and Finish leave the authenticated Playwright page open and release the
+  execution lease so TEST RUN can start afterward.
+- [ ] TASK - Force a stale graph, missing Excel memory, wrong detached transport, duplicate request,
+  out-of-order sequence, and unsupported action; confirm each fails closed with a human message.
+- [ ] TASK - Close or retarget the Smoke Test page during Integration and verify the lease is
+  released once with no background step continuation.
+- [ ] TASK - Plan the separate multi-row Excel cursor contract before claiming NEXT ROW / EXCEL GOTO
+  Integration parity.
