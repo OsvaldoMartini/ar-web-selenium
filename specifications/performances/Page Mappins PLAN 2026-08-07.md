@@ -213,8 +213,9 @@ Every name-based lookup must:
 
 5. **P4 — Memory List integration**
 
-   - Add an explicitly authorized `PAGE_MAPPINGS` source.
-   - Implement `+`, drag/drop, target Block and idempotent staging.
+   - [x] Add an explicitly authorized `PAGE_MAPPINGS` source.
+   - [x] Implement `+`, drag/drop, target Block and idempotent staging.
+   - [x] Reuse the existing Memory List WebSocket and transactional Apply path.
 
 6. **P5 — Cache-first scanning**
 

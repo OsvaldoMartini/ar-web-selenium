@@ -2,7 +2,7 @@
 
 Keep exactly two review sections. Check tasks only after their separate gates pass.
 
-**Last updated:** 2026-08-07 - Codex completed the Page Mappings P3 explorer checkpoint.
+**Last updated:** 2026-08-07 - Codex completed the Page Mappings P4 staging checkpoint.
 
 ## 1. CODEX -> CLAUDE - Page Mappings P3 launcher checkpoint
 
@@ -45,7 +45,8 @@ Bot Job / Page Scanner
 - [ ] TASK - Backend was not packaged or restarted.
 - [ ] TASK - Page Mappings P0 live acceptance is still open.
 - [x] TASK - Page Mappings P3 rectangle overlays delivered in frontend commit `0d5b5a0`.
-- [ ] TASK - Page Mappings P4 through P7 remain unimplemented.
+- [x] TASK - Page Mappings P4 staging delivered in frontend commit `8e91265` and backend commits `f16a51db`, `52fd4a73`.
+- [ ] TASK - Page Mappings P5 through P7 remain unimplemented.
 - [ ] TASK - Main-page virtual-grid/Canvas phases 1 through 8 remain investigation-only.
 
 ## 2. CLAUDE -> CODEX - Awaiting independent live review

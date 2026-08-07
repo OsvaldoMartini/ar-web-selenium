@@ -18,7 +18,9 @@ checkpoint is:
   zero SHA-256 differences.
 - Frontend commit: `a289663`; backend source/test commit: `99ad9c2f`; asset commit: `46dd420e`.
 - The backend has not been packaged or restarted, so live verification is still pending.
-- Page Mappings P4-P7 and Main-page virtual-grid/Canvas implementation remain unstarted; P3 is complete.
+- Page Mappings P4 staging is committed: selected capture elements can be added or dragged into
+  Memory List through the explicit PAGE_MAPPINGS source and existing WebSocket Apply path.
+  P5-P7 and Main-page virtual-grid/Canvas implementation remain unstarted.
 
 Read `specifications/performances/COPY_LAST_RESPONSE.md` and
 `specifications/performances/Page Mappins PLAN 2026-08-07.md` before continuing.
