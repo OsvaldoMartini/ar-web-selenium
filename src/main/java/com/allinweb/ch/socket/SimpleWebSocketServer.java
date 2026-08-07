@@ -78,6 +78,8 @@ public class SimpleWebSocketServer {
             ExcelDataWorkspaceService.getInstance();
     private static final SmokeTestIntegrationService smokeTestIntegrationService =
             SmokeTestIntegrationService.getInstance();
+    private static final GridItemTestActionService gridItemTestActionService =
+            GridItemTestActionService.getInstance();
     private static final int MAX_PAGE_SCANNER_BODY_CHARACTERS = 2_000_000;
     private static final int MAX_PAGE_SCANNER_ELEMENTS = 1_000;
     private static final int MAX_PAGE_SCANNER_SEARCH_TERMS = 8_192;
@@ -531,6 +533,7 @@ public class SimpleWebSocketServer {
             boolean detachedExcelDataTransport =
                     ExcelDataWorkspaceService.SESSION_ID.equals(transportSessionId);
             boolean smokeIntegrationOperation = SMOKE_INTEGRATION_OPERATIONS.contains(type);
+            boolean gridItemTestActionOperation = GridItemTestActionContracts.REQUEST.equals(type);
             String sessionId = ocrWorkspaceOperation
                             || detachedOcrTransport
                             || pageScannerOperation
@@ -544,6 +547,7 @@ public class SimpleWebSocketServer {
                              || detachedVariablesTransport
                              || detachedExcelDataTransport
                              || smokeIntegrationOperation
+                             || gridItemTestActionOperation
                     ? transportSessionId
                     : claimedSessionId;
             ReactReplyChannel.set(sessionId);
@@ -692,6 +696,10 @@ public class SimpleWebSocketServer {
 
             // Process the message based on its type
             switch (type) {
+                case GridItemTestActionContracts.REQUEST:
+                    gridItemTestActionService.handle(
+                            extractBody(jsonObjMSG), sessionId, session);
+                    break;
                 case SmokeTestIntegrationContracts.START:
                 case SmokeTestIntegrationContracts.STEP:
                 case SmokeTestIntegrationContracts.STOP:

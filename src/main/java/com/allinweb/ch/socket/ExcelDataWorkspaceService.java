@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.websocket.Session;
 import lombok.extern.slf4j.Slf4j;
@@ -306,6 +307,32 @@ public final class ExcelDataWorkspaceService {
                 datasetContentRevision(binding, frozen),
                 binding.loadedAt,
                 frozen);
+    }
+
+    /**
+     * Freezes the currently selected REAL or SYNTHETIC memory for one manual GridItem action.
+     *
+     * <p>The selected mode is backend-owned; callers cannot select it through the test request.
+     * Unsaved in-memory edits are intentionally included because this is a manual one-row test,
+     * not an Integration run. A mismatched owner is reported as unavailable and never exposes the
+     * dataset retained for another Bot Job or organization.
+     */
+    public synchronized Optional<GridItemDataset> freezeSelectedGridItemData(
+            int homeBankingId, int botJobId) {
+        if (binding == null
+                || binding.homeBankingId() != homeBankingId
+                || binding.botJobId() != botJobId) {
+            return Optional.empty();
+        }
+        ExtractedData frozen = binding.data().deepCopy();
+        return Optional.of(new GridItemDataset(
+                binding.botJobId(),
+                binding.homeBankingId(),
+                binding.mode.name(),
+                binding.datasetEpoch,
+                binding.datasetRevision,
+                binding.loadedAt,
+                frozen));
     }
 
     public synchronized JsonObject setMode(JsonObject request, String sessionId, Session transport) {
@@ -641,6 +668,16 @@ public final class ExcelDataWorkspaceService {
             long datasetEpoch,
             long datasetRevision,
             String contentRevision,
+            Instant loadedAt,
+            ExtractedData data) {}
+
+    /** Immutable current-mode snapshot consumed by one GridItem CLICK/INPUT request. */
+    public record GridItemDataset(
+            int botJobId,
+            int homeBankingId,
+            String mode,
+            long datasetEpoch,
+            long datasetRevision,
             Instant loadedAt,
             ExtractedData data) {}
 

@@ -334,6 +334,20 @@ public class PlaywrightActionExecutor {
      * one Playwright action only.
      */
     public boolean fillOnce(Page page, InstructionLoad instruction, FieldData data) {
+        return fillOnce(page, instruction, data, false);
+    }
+
+    /**
+     * Single-shot fill for protected runtime values. Failure details are deliberately redacted
+     * because Playwright exception messages can include the attempted text.
+     */
+    public boolean fillOnceWithoutValueLogging(
+            Page page, InstructionLoad instruction, FieldData data) {
+        return fillOnce(page, instruction, data, true);
+    }
+
+    private boolean fillOnce(
+            Page page, InstructionLoad instruction, FieldData data, boolean redactFailureDetails) {
         if (page == null || page.isClosed() || instruction == null) {
             return false;
         }
@@ -347,20 +361,31 @@ public class PlaywrightActionExecutor {
 
         Locator locator = locateWritable(page, instruction);
         if (locator == null || locator.count() == 0) {
-            return runCoordinateFill(page, instruction, data == null ? "" : data.getValue());
+            return redactFailureDetails
+                    ? runCoordinateFillWithoutValueLogging(
+                            page, instruction, data == null ? "" : data.getValue())
+                    : runCoordinateFill(page, instruction, data == null ? "" : data.getValue());
         }
 
         Locator first = locator.first();
         try {
             first.scrollIntoViewIfNeeded(new Locator.ScrollIntoViewIfNeededOptions().setTimeout(ACTION_TIMEOUT_MS));
         } catch (Exception scroll) {
-            log.debug("Playwright single-shot scroll failed before fill: {}", scroll.getMessage());
+            if (redactFailureDetails) {
+                log.debug("Playwright protected single-shot scroll failed before fill");
+            } else {
+                log.debug("Playwright single-shot scroll failed before fill: {}", scroll.getMessage());
+            }
         }
         try {
             first.fill(data == null ? "" : data.getValue(), new Locator.FillOptions().setTimeout(ACTION_TIMEOUT_MS));
             return pressPostInputKeys(page, instruction);
         } catch (Exception fill) {
-            log.debug("Playwright single-shot fill failed; no second fill/click will be attempted: {}", fill.getMessage());
+            if (redactFailureDetails) {
+                log.debug("Playwright protected single-shot fill failed; no second action will be attempted");
+            } else {
+                log.debug("Playwright single-shot fill failed; no second fill/click will be attempted: {}", fill.getMessage());
+            }
             return false;
         }
     }
@@ -680,6 +705,16 @@ public class PlaywrightActionExecutor {
             return fillCoordinates(page, instruction, value);
         } catch (Exception error) {
             log.debug("Playwright coordinate fill failed: {}", error.getMessage());
+            return false;
+        }
+    }
+
+    private static boolean runCoordinateFillWithoutValueLogging(
+            Page page, InstructionLoad instruction, String value) {
+        try {
+            return fillCoordinates(page, instruction, value);
+        } catch (Exception error) {
+            log.debug("Playwright protected coordinate fill failed");
             return false;
         }
     }

@@ -399,6 +399,10 @@ public class ARPlaywrightDriver {
         return call(() -> actionExecutor.fillOnce(requirePage(), instruction, data));
     }
 
+    public boolean fillOnceWithoutValueLogging(InstructionLoad instruction, FieldData data) {
+        return call(() -> actionExecutor.fillOnceWithoutValueLogging(requirePage(), instruction, data));
+    }
+
     public String text(InstructionLoad instruction) {
         return call(() -> actionExecutor.text(requirePage(), instruction));
     }
