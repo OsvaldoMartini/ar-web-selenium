@@ -7,6 +7,8 @@ checkpoint is:
 
 - Page Mappings P0 is committed and pushed; its running-app acceptance checklist remains open.
 - Page Mappings P1 immutable scan storage is now implemented in backend source/tests; P2-P7 remain planned.
+- Page Mappings P2 is partially implemented: detached read-only history page and `pageMappings.bootstrap`
+  metadata contract are committed; artifact/image loading, launchers, and Memory List integration remain open.
 - The functional Page Scanner/GridItem `INPUT -> OUTPUT -> CLICK` toggle is committed and pushed.
 - Frontend focused verification passed: 4 suites / 19 tests.
 - Java focused verification passed: 24 tests; Maven compiled 536 main and 307 test sources.
@@ -14,7 +16,7 @@ checkpoint is:
   zero SHA-256 differences.
 - Frontend commit: `a289663`; backend source/test commit: `99ad9c2f`; asset commit: `46dd420e`.
 - The backend has not been packaged or restarted, so live verification is still pending.
-- Page Mappings P2-P7 and Main-page virtual-grid/Canvas implementation remain unstarted.
+- Page Mappings P3-P7 and Main-page virtual-grid/Canvas implementation remain unstarted.
 
 Read `specifications/performances/COPY_LAST_RESPONSE.md` and
 `specifications/performances/Page Mappins PLAN 2026-08-07.md` before continuing.

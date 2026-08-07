@@ -2,38 +2,40 @@
 
 Keep exactly two review sections. Check tasks only after their separate gates pass.
 
-**Last updated:** 2026-08-07 - Codex completed the Page Mappings P1 immutable scan-storage checkpoint.
+**Last updated:** 2026-08-07 - Codex completed the Page Mappings P2 detached-history checkpoint.
 
-## 1. CODEX -> CLAUDE - Page Mappings P1 immutable scan-storage checkpoint
+## 1. CODEX -> CLAUDE - Page Mappings P2 detached-history checkpoint
 
 ### Outcome
 
-Every completed Page Scanner observation now has an immutable, owner-scoped capture in addition to
-the existing latest registry and legacy diagnostic files:
+The P1 captures are now inspectable through an isolated detached Page Mappings page:
 
 ```text
-Page Scanner scan
-  -> existing scanned_element latest registry + page-BJ diagnostics
-  -> page_scan_snapshot row
-  -> page_diagnostics/Scanned/org-{homeBankingId}/bot-job-{botJobId}/{pageKey}/{timestamp}-{scanId}/
-     -> elements.json, meta.json, manifest.json, copied page-BJ* artifacts when present
+Page Mappings page
+  -> pageMappingsManager session
+  -> pageMappings.bootstrap
+  -> owner-scoped page_scan_snapshot metadata
+  -> capture history + selected-capture details
 ```
 
-- Exact element membership is retained even for an empty scan; each capture gets a UUID and cannot
-  overwrite a previous capture.
-- Artifact creation uses a staging directory and an atomic move, then records the relative path,
-  manifest SHA-256, count, and READY/FAILED status.
-- Existing mutable scanner behavior remains compatible; no Page Mappings UI or route was changed.
+- The page is read-only and isolated from Variables, Scanner, and OCR Results state.
+- The backend returns capture metadata only; no arbitrary filesystem path is served and no scanner
+  mutation is accepted on this session.
+- Image/element payload loading, OCR compatibility, launchers, and Memory List integration remain
+  deferred to P3/P4.
 
 ### Verification and checkpoints
 
-- [x] TASK - P1 migration and store tests passed: 2 tests / 0 failures.
-- [x] TASK - Backend compile passed: 538 main and 309 test sources.
+- [x] TASK - P1 migration/store tests remained green: 2 tests / 0 failures.
+- [x] TASK - Frontend production build passed with existing lint warnings.
+- [x] TASK - Backend compile passed: 539 main sources after P2.
 - [x] TASK - `git diff --check` passed before checkpoints.
-- [ ] TASK - P1 backend checkpoint commit/push is pending in this exchange.
+- [x] TASK - Frontend P2 commit pushed: `f4f40a3`.
+- [x] TASK - Backend P2 code commit pushed: `80116a01`.
+- [ ] TASK - Backend deployment-assets commit/push is pending in this exchange.
 - [ ] TASK - Backend was not packaged or restarted.
 - [ ] TASK - Page Mappings P0 live acceptance is still open.
-- [ ] TASK - Page Mappings P2 through P7 remain unimplemented.
+- [ ] TASK - Page Mappings P3 through P7 remain unimplemented.
 - [ ] TASK - Main-page virtual-grid/Canvas phases 1 through 8 remain investigation-only.
 
 ## 2. CLAUDE -> CODEX - Awaiting independent live review

@@ -200,9 +200,9 @@ Every name-based lookup must:
 
 3. **P2 — Isolated Page Mappings workspace**
 
-   - New `PageMappingsPage`, module stylesheet, route, session and WebSocket coordinator.
-   - Lazy-load images and full element payloads.
-   - Keep old OCR route as a temporary compatibility adapter.
+   - [x] New `PageMappingsPage`, dedicated module stylesheet, detached route/session, and WebSocket bootstrap.
+   - [ ] Lazy-load images and full element payloads.
+   - [ ] Keep old OCR route as a temporary compatibility adapter.
 
 4. **P3 — Mappings launchers and explorer**
 
@@ -248,6 +248,19 @@ Because screenshots may contain banking data, access must remain owner-scoped, f
 - Duplicate-alias regression commit pushed: `8718ed63`.
 - No migration was required for P0. The backend was compiled/tested but was not packaged, restarted, or live-verified.
 - P1 is implemented in backend source/tests; P2 through P7 remain planned and unimplemented. Existing unrelated untracked files were left untouched.
+
+## P2 delivery checkpoint - 2026-08-07
+
+- Added detached `pageMappingsManager` routing with an isolated `PageMappingsPage.module.scss`.
+- Added the read-only `pageMappings.bootstrap` WebSocket contract. It returns only owner-scoped
+  snapshot metadata from `page_scan_snapshot`; it does not expose arbitrary filesystem paths or
+  mutate scanner state.
+- The page provides capture history, selected-capture metadata, status, element count, artifact
+  path, and manifest checksum. Image/element artifact loading, OCR compatibility, launch buttons,
+  and Memory List actions remain deliberately deferred to P3/P4.
+- Frontend build passed with existing lint warnings; bundle was mirrored into backend source resources.
+- Frontend commit: `f4f40a3`. Backend code commit: `80116a01`.
+- Backend compile passed after the P2 handler change. Packaging, restart, and live acceptance remain open.
 
 ## P1 delivery evidence - 2026-08-07
 
