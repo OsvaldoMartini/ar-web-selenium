@@ -2,6 +2,10 @@ package com.allinweb.ch.driver;
 
 import com.allinweb.ch.facade.PlaywrightActionExecutor;
 import com.allinweb.ch.facade.PlaywrightElementScanner;
+import com.allinweb.ch.facade.PlaywrightRuntimeHealingExecutor;
+import com.allinweb.ch.facade.PlaywrightRuntimeHealingExecutor.Action;
+import com.allinweb.ch.facade.PlaywrightRuntimeHealingExecutor.Result;
+import com.allinweb.ch.facade.RuntimeElementHealingService.Preparation;
 import com.allinweb.ch.model.ElementDTO;
 import com.allinweb.ch.model.FieldData;
 import com.allinweb.ch.model.InstructionLoad;
@@ -46,6 +50,8 @@ public class ARPlaywrightDriver {
     private Page page;
     private final Set<Page> diagnosedPages = Collections.newSetFromMap(new IdentityHashMap<>());
     private final PlaywrightActionExecutor actionExecutor = new PlaywrightActionExecutor();
+    private final PlaywrightRuntimeHealingExecutor runtimeHealingExecutor =
+            new PlaywrightRuntimeHealingExecutor();
     private final PlaywrightElementScanner elementScanner = new PlaywrightElementScanner();
 
     public void open(String browserType, String url, String optionsConfig) {
@@ -411,6 +417,38 @@ public class ARPlaywrightDriver {
     public com.allinweb.ch.facade.PlaywrightActionExecutor.TextResult textResult(
             InstructionLoad instruction) {
         return call(() -> actionExecutor.textResult(requirePage(), instruction));
+    }
+
+    /**
+     * Executes one production runtime click through the fail-closed healing resolver.
+     *
+     * <p>Resolution and the physical action run together on the serialized Playwright thread.
+     * Existing scanner and Grid test APIs deliberately remain on their original executors.
+     */
+    public Result runtimeClick(InstructionLoad instruction, Preparation preparation) {
+        return call(() -> {
+            Page actionPage = requirePage();
+            List<Page> pagesBefore = openPages();
+            Result result = runtimeHealingExecutor.execute(
+                    actionPage, instruction, null, Action.CLICK, preparation);
+            if (result.succeeded()) {
+                adoptPageOpenedByAction(actionPage, pagesBefore, 2000);
+            }
+            return result;
+        });
+    }
+
+    /** Executes one production runtime input through the fail-closed healing resolver. */
+    public Result runtimeInput(
+            InstructionLoad instruction, FieldData data, Preparation preparation) {
+        return call(() -> runtimeHealingExecutor.execute(
+                requirePage(), instruction, data, Action.INPUT, preparation));
+    }
+
+    /** Executes one production runtime output read through the fail-closed healing resolver. */
+    public Result runtimeOutput(InstructionLoad instruction, Preparation preparation) {
+        return call(() -> runtimeHealingExecutor.execute(
+                requirePage(), instruction, null, Action.OUTPUT, preparation));
     }
 
     public boolean isOpen() {

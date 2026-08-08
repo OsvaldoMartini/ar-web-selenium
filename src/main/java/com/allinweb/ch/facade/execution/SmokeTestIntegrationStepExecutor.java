@@ -4,6 +4,9 @@ import com.allinweb.ch.driver.ARPlaywrightDriver;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.CommandRegistry;
 import com.allinweb.ch.facade.PlaywrightActionExecutor.TextResult;
+import com.allinweb.ch.facade.PlaywrightRuntimeHealingExecutor.Result;
+import com.allinweb.ch.facade.RuntimeElementHealingService;
+import com.allinweb.ch.facade.RuntimeElementHealingService.Preparation;
 import com.allinweb.ch.facade.actions.RuntimeVariableMemoryRegistry;
 import com.allinweb.ch.facade.actions.RuntimeVariableMemoryRegistry.BotJobKey;
 import com.allinweb.ch.facade.actions.RuntimeVariableStore;
@@ -27,9 +30,12 @@ import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Executes exactly one backend-authoritative instruction for a React-owned Integration run. */
 public final class SmokeTestIntegrationStepExecutor {
+    private static final Logger logOperations = LoggerFactory.getLogger("com.allinweb.operations");
     private static final java.util.Set<String> LOGICAL_ONLY = java.util.Set.of(
             "CK",
             "IF",
@@ -440,6 +446,9 @@ public final class SmokeTestIntegrationStepExecutor {
     }
 
     private static final class DefaultBrowserPort implements BrowserPort {
+        private final RuntimeElementHealingService healingService =
+                RuntimeElementHealingService.getInstance();
+
         private ARPlaywrightDriver driver() {
             ARPlaywrightDriver driver = ARWebDriver.getInstance().currentPlaywrightDriver();
             if (driver == null || !driver.isOpen()) {
@@ -450,22 +459,74 @@ public final class SmokeTestIntegrationStepExecutor {
 
         @Override
         public boolean clickOnce(InstructionSnapshot instruction) {
-            return driver().clickOnce(instruction.toInstructionLoad());
+            ARPlaywrightDriver activeDriver = driver();
+            com.allinweb.ch.model.InstructionLoad target = instruction.toInstructionLoad();
+            Result result = activeDriver.runtimeClick(
+                    target, prepare(activeDriver, instruction, target));
+            logResult("CLICK", instruction, result);
+            return result.succeeded();
         }
 
         @Override
         public boolean fillOnce(InstructionSnapshot instruction, FieldData data) {
-            return driver().fillOnce(instruction.toInstructionLoad(), data);
+            ARPlaywrightDriver activeDriver = driver();
+            com.allinweb.ch.model.InstructionLoad target = instruction.toInstructionLoad();
+            Result result = activeDriver.runtimeInput(
+                    target, data, prepare(activeDriver, instruction, target));
+            logResult("INPUT", instruction, result);
+            return result.succeeded();
         }
 
         @Override
         public TextResult text(InstructionSnapshot instruction) {
-            return driver().textResult(instruction.toInstructionLoad());
+            ARPlaywrightDriver activeDriver = driver();
+            com.allinweb.ch.model.InstructionLoad target = instruction.toInstructionLoad();
+            Result result = activeDriver.runtimeOutput(
+                    target, prepare(activeDriver, instruction, target));
+            logResult("OUTPUT", instruction, result);
+            return result.succeeded() && result.found()
+                    ? TextResult.found(result.value())
+                    : TextResult.missing();
         }
 
         @Override
         public void reload() {
             driver().reload();
+        }
+
+        private Preparation prepare(
+                ARPlaywrightDriver activeDriver,
+                InstructionSnapshot instruction,
+                com.allinweb.ch.model.InstructionLoad target) {
+            return healingService.prepare(
+                    instruction.owner().homeBankingId(),
+                    instruction.owner().botJobId(),
+                    activeDriver.currentUrl(),
+                    target);
+        }
+
+        private static void logResult(
+                String action, InstructionSnapshot instruction, Result result) {
+            if (result == null) {
+                logOperations.warn(
+                        "smoke-runtime result missing action={} instructionId={}",
+                        action,
+                        instruction.id());
+                return;
+            }
+            if (result.succeeded()) {
+                logOperations.debug(
+                        "smoke-runtime completed action={} instructionId={} diagnostic={}",
+                        action,
+                        instruction.id(),
+                        result.diagnostic());
+            } else {
+                logOperations.warn(
+                        "smoke-runtime refused action={} instructionId={} diagnostic={}",
+                        action,
+                        instruction.id(),
+                        result.diagnostic());
+            }
         }
     }
 }

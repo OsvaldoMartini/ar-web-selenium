@@ -2,11 +2,12 @@ package com.allinweb.ch.facade.actions;
 
 import com.allinweb.ch.driver.ARPlaywrightDriver;
 import com.allinweb.ch.driver.ARWebDriver;
-import com.allinweb.ch.facade.PlaywrightActionExecutor.TextResult;
+import com.allinweb.ch.facade.PlaywrightRuntimeHealingExecutor.Result;
+import com.allinweb.ch.facade.RuntimeElementHealingService;
+import com.allinweb.ch.facade.RuntimeElementHealingService.Preparation;
 import com.allinweb.ch.model.FieldData;
 import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.util.ARConstantsEngine;
-import com.google.common.base.Strings;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,9 +21,11 @@ public class PlaywrightBridge {
     private static final Logger logOperations = LoggerFactory.getLogger("com.allinweb.operations");
 
     private final ActionContext ctx;
+    private final RuntimeElementHealingService healingService;
 
     public PlaywrightBridge(ActionContext ctx) {
         this.ctx = ctx;
+        this.healingService = RuntimeElementHealingService.getInstance();
     }
 
     public boolean tryPlaywrightWebAction(
@@ -44,23 +47,26 @@ public class PlaywrightBridge {
             switch (action) {
                 case ARConstantsEngine.CLICK:
                 case ARConstantsEngine.OTHER:
-                    if (activeDriver.click(instruction)) {
-                        return true;
-                    }
-                    return healAndRetry(instruction, activeDriver, activeDriver::click);
+                    return completed(
+                            action,
+                            instruction,
+                            activeDriver.runtimeClick(
+                                    instruction, prepare(instruction, activeDriver)));
                 case ARConstantsEngine.INSERT:
-                    if (activeDriver.fill(instruction, data)) {
-                        return true;
-                    }
-                    return healAndRetry(
-                            instruction, activeDriver, healed -> activeDriver.fill(healed, data));
+                    return completed(
+                            action,
+                            instruction,
+                            activeDriver.runtimeInput(
+                                    instruction, data, prepare(instruction, activeDriver)));
                 case ARConstantsEngine.OUTPUT:
-                    String value = readPlaywrightText(instruction);
-                    if (value != null) {
+                    Result output = activeDriver.runtimeOutput(
+                            instruction, prepare(instruction, activeDriver));
+                    logResult(action, instruction, output);
+                    if (output != null && output.succeeded() && output.found()) {
                         if (outputValues != null) {
                             outputValues.put(
                                     instruction.getId() + "-" + instruction.getName(),
-                                    value);
+                                    output.value());
                         }
                         return true;
                     }
@@ -69,7 +75,11 @@ public class PlaywrightBridge {
                     return false;
             }
         } catch (Exception error) {
-            logOperations.warn("Playwright action failed, falling back to Selenium: {}", error.getMessage());
+            logOperations.warn(
+                    "runtime-action exception action={} instructionId={} failureType={}",
+                    safeAction(action),
+                    instruction == null ? null : instruction.getId(),
+                    error.getClass().getSimpleName());
             return false;
         }
     }
@@ -77,8 +87,8 @@ public class PlaywrightBridge {
     /**
      * Reads one Web Element through the active Playwright page.
      *
-     * <p>{@code ""} is a successful, legitimate empty Web value. {@code null} means that both the
-     * primary locator and the bounded self-healing fallback failed.
+     * <p>{@code ""} is a successful, legitimate empty Web value. {@code null} means the bounded,
+     * fail-closed runtime resolver did not complete the read.
      */
     public String readPlaywrightText(InstructionLoad instruction) {
         ARWebDriver runtime = ctx.arWebDriver();
@@ -90,68 +100,75 @@ public class PlaywrightBridge {
             return null;
         }
         try {
-            TextResult result = activeDriver.textResult(instruction);
-            if (result != null && result.found()) {
-                return result.value();
-            }
-            String[] healedValue = new String[1];
-            boolean healed = healAndRetry(instruction, activeDriver, candidate -> {
-                TextResult candidateResult = activeDriver.textResult(candidate);
-                if (candidateResult == null || !candidateResult.found()) {
-                    return false;
-                }
-                healedValue[0] = candidateResult.value();
-                return true;
-            });
-            return healed ? healedValue[0] : null;
+            Result result = activeDriver.runtimeOutput(
+                    instruction, prepare(instruction, activeDriver));
+            logResult(ARConstantsEngine.OUTPUT, instruction, result);
+            return result != null && result.succeeded() && result.found()
+                    ? result.value()
+                    : null;
         } catch (Exception error) {
             logOperations.warn(
-                    "Playwright text read failed; value remains VOID: {}",
-                    error.getMessage());
+                    "runtime-action exception action={} instructionId={} failureType={}",
+                    ARConstantsEngine.OUTPUT,
+                    instruction == null ? null : instruction.getId(),
+                    error.getClass().getSimpleName());
             return null;
         }
     }
 
-    /**
-     * Self-healing fallback: the primary Playwright locate failed, so consult the scanned_element
-     * source-of-truth registry (scoped by the running bot job) for a confident match and retry the
-     * action with the registry's current locator. Only fires on failure and only for high-confidence
-     * matches — a pure improvement over "action failed".
-     */
-    private boolean healAndRetry(
-            InstructionLoad instruction,
-            ARPlaywrightDriver activeDriver,
-            java.util.function.Predicate<InstructionLoad> retry) {
-        Integer botJobId = ctx.priorities() == null ? null : ctx.priorities().getJobId();
-        if (botJobId == null) {
-            return false;
+    /** Builds one server-owned, current-page registry preparation before browser resolution. */
+    private Preparation prepare(InstructionLoad instruction, ARPlaywrightDriver activeDriver) {
+        Integer currentBotJobId =
+                ctx.priorities() == null ? null : ctx.priorities().getJobId();
+        Integer botJobId = instruction != null
+                        && currentBotJobId != null
+                        && currentBotJobId.equals(instruction.getBotJobId())
+                ? instruction.getBotJobId()
+                : currentBotJobId;
+        Integer assertedHomeBankingId = instruction == null
+                ? null
+                : instruction.getHomeBankingId();
+        return healingService.prepare(
+                assertedHomeBankingId,
+                botJobId,
+                activeDriver.currentUrl(),
+                instruction);
+    }
+
+    private boolean completed(String action, InstructionLoad instruction, Result result) {
+        logResult(action, instruction, result);
+        return result != null && result.succeeded();
+    }
+
+    /** Logs only the executor's structured, redacted diagnostic; never its value. */
+    private void logResult(String action, InstructionLoad instruction, Result result) {
+        if (result == null) {
+            logOperations.warn(
+                    "runtime-action result missing action={} instructionId={}",
+                    safeAction(action),
+                    instruction == null ? null : instruction.getId());
+            return;
         }
-        String currentPageUrl = activeDriver.currentUrl();
-        com.allinweb.ch.facade.ScannedElementResolver.Result r = com.allinweb.ch.facade.PerformDataBase.getInstance()
-                .resolveScannedElementByBotJobAndPage(botJobId, currentPageUrl, instruction);
-        if (!r.matched() || r.confidence() < 0.75) {
-            return false;
+        if (result.succeeded()) {
+            logOperations.debug(
+                    "runtime-action completed action={} instructionId={} diagnostic={}",
+                    safeAction(action),
+                    instruction == null ? null : instruction.getId(),
+                    result.diagnostic());
+        } else {
+            logOperations.warn(
+                    "runtime-action refused action={} instructionId={} diagnostic={}",
+                    safeAction(action),
+                    instruction == null ? null : instruction.getId(),
+                    result.diagnostic());
         }
-        com.allinweb.ch.model.ScannedElement s = r.element();
-        InstructionLoad healed = new InstructionLoad();
-        healed.setName(instruction.getName());
-        healed.setActions(instruction.getActions());
-        healed.setForceCoordinates(instruction.getForceCoordinates());
-        healed.setXpath(Strings.isNullOrEmpty(s.getCustomXPath()) ? s.getXPath() : s.getCustomXPath());
-        healed.setCssSelector(s.getCssSelector());
-        healed.setCoordinates(s.getCoordinates());
-        healed.setIFrameXPath(s.getIFrameXPath());
-        logOperations.info(
-                "self-heal: '{}' re-resolved via registry (strategy={}, conf={}) -> xpath={}",
-                instruction.getName(),
-                r.strategy(),
-                r.confidence(),
-                s.getXPath());
-        return retry.test(healed);
+    }
+
+    private static String safeAction(String action) {
+        return action == null ? "" : action;
     }
 
     public boolean isPlaywrightOnlyMode() {
         return ctx.arWebDriver() != null;
     }
-
 }

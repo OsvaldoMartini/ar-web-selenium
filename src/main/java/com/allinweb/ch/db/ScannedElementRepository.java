@@ -388,6 +388,38 @@ public final class ScannedElementRepository {
     }
 
     /**
+     * Load observations for one server-verified owner and the exact active browser page.
+     *
+     * <p>This is the runtime-healing read seam. Unlike the legacy Bot-Job-only helper, every
+     * ownership dimension is part of the query so a stale or spoofed caller cannot borrow locator
+     * history from another organization.
+     */
+    public static List<ScannedElement> loadByOwnerAndPage(
+            Connection conn,
+            Integer homeBankingId,
+            Integer botJobId,
+            String pageUrl)
+            throws SQLException {
+        requireScope(homeBankingId, botJobId);
+        ScannedPageIdentity page = ScannedPageIdentity.fromLiveUrl(pageUrl);
+        String sql = "SELECT * FROM scanned_element"
+                + " WHERE home_banking_id = ? AND bot_job_id = ? AND page_key = ?"
+                + " ORDER BY last_scanned_at DESC, id ASC";
+        List<ScannedElement> out = new ArrayList<>();
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setObject(1, homeBankingId);
+            ps.setObject(2, botJobId);
+            ps.setString(3, page.pageKey());
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    out.add(map(rs));
+                }
+            }
+        }
+        return out;
+    }
+
+    /**
      * Reload one exact Page Mapping registry row inside the caller's transaction.
      *
      * <p>Every scope dimension is required deliberately. A detached Page Mappings payload is only
