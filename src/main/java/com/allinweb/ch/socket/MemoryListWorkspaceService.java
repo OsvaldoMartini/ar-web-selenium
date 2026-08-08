@@ -2080,9 +2080,13 @@ public final class MemoryListWorkspaceService {
     }
 
     private JsonObject failure(JsonObject request, String message) {
-        return baseResponse(request, false, message == null || message.isBlank()
-                ? "Memory List operation failed."
-                : message);
+        return MemoryListFailureResponse.create(
+                request,
+                WORKSPACE_SESSION_ID,
+                MAX_REQUEST_ID_CHARACTERS,
+                message == null || message.isBlank()
+                        ? "Memory List operation failed."
+                        : message);
     }
 
     private JsonObject baseResponse(JsonObject request, boolean ok, String message) {
