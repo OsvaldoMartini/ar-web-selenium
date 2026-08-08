@@ -12,6 +12,8 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -122,6 +124,44 @@ class BotJobDeleteTransactionTest {
 
             assertEquals(0, count(connection, "bot_job", "id=1"));
             assertTrue(connection.getAutoCommit());
+        }
+    }
+
+    @Test
+    void committedObserverRunsAfterDatabaseCommitAndBeforeArtifactPurge()
+            throws Exception {
+        try (Connection connection = database("commit-observer.db")) {
+            createCompleteSchema(connection);
+            seedTwoBotJobs(connection);
+            seedArtifacts(1);
+            AtomicInteger notifications = new AtomicInteger();
+            AtomicBoolean databaseCommitted = new AtomicBoolean();
+            AtomicBoolean artifactStillStaged = new AtomicBoolean();
+
+            List<Integer> deleted = transaction().execute(
+                    connection,
+                    List.of(1),
+                    committed -> {
+                        notifications.incrementAndGet();
+                        assertEquals(List.of(1), committed);
+                        try {
+                            databaseCommitted.set(
+                                    count(connection, "bot_job", "id=1") == 0);
+                            try (var pending = Files.walk(
+                                    snapshotRoot().resolve(".delete-pending"))) {
+                                artifactStillStaged.set(pending.anyMatch(
+                                        path -> path.endsWith("elements.json")));
+                            }
+                        } catch (Exception failure) {
+                            throw new IllegalStateException(failure);
+                        }
+                    });
+
+            assertEquals(List.of(1), deleted);
+            assertEquals(1, notifications.get());
+            assertTrue(databaseCommitted.get());
+            assertTrue(artifactStillStaged.get());
+            assertTrue(Files.notExists(artifactRoot(1)));
         }
     }
 

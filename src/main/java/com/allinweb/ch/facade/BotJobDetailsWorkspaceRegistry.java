@@ -271,9 +271,14 @@ public final class BotJobDetailsWorkspaceRegistry {
     }
 
     public synchronized void close(int botJobId) {
+        retire(botJobId);
+    }
+
+    /** Retires the matching active owner and reports whether a live context was revoked. */
+    public synchronized boolean retire(int botJobId) {
         Snapshot current = active.get();
         if (current == null || current.botJobId() != botJobId || !current.open()) {
-            return;
+            return false;
         }
         active.set(new Snapshot(
                 revisions.incrementAndGet(),
@@ -292,6 +297,15 @@ public final class BotJobDetailsWorkspaceRegistry {
                 current.componentsVisible(),
                 current.executionState(),
                 current.executionAttemptId()));
+        return true;
+    }
+
+    /** Retires whichever Bot Job owner is active after a committed full database replacement. */
+    public synchronized void closeActive() {
+        Snapshot current = active.get();
+        if (current != null && current.open()) {
+            close(current.botJobId());
+        }
     }
 
     private Snapshot copyWithRevision(Snapshot current, long revision) {

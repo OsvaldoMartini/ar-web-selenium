@@ -213,6 +213,12 @@ public class ARWebSocketServer {
 
     /** Opens one detached floating React workspace without falling back to a browser with an address bar. */
     public boolean openDetachedWorkspaceDesktopShell(String sessionId, int sourceBotJobId) {
+        return openDetachedWorkspaceDesktopShell(sessionId, sourceBotJobId, null);
+    }
+
+    /** Opens one detached workspace with an optional server-issued launch capability. */
+    public boolean openDetachedWorkspaceDesktopShell(
+            String sessionId, int sourceBotJobId, String windowCapability) {
         if (!DetachedWorkspaceSessions.isDetachedWorkspaceSession(sessionId)) {
             throw new IllegalArgumentException("A valid detached workspace session is required");
         }
@@ -220,7 +226,8 @@ public class ARWebSocketServer {
             log.info("Detached workspace {} is already open; reusing the existing session", sessionId);
             return true;
         }
-        String desktopUrl = detachedWorkspaceDesktopUrl(boundPort, sessionId, sourceBotJobId);
+        String desktopUrl = detachedWorkspaceDesktopUrl(
+                boundPort, sessionId, sourceBotJobId, windowCapability);
         if (DetachedWorkspaceSessions.MEMORY_LIST_MANAGER.equals(sessionId)) {
             return desktopAppBrowserLauncher.launch(
                     desktopUrl, MEMORY_LIST_WINDOW_WIDTH, MEMORY_LIST_WINDOW_HEIGHT);
@@ -292,6 +299,11 @@ public class ARWebSocketServer {
     }
 
     static String detachedWorkspaceDesktopUrl(int port, String sessionId, int sourceBotJobId) {
+        return detachedWorkspaceDesktopUrl(port, sessionId, sourceBotJobId, null);
+    }
+
+    static String detachedWorkspaceDesktopUrl(
+            int port, String sessionId, int sourceBotJobId, String windowCapability) {
         if (port < 1 || port > 65535) {
             throw new IllegalArgumentException("A valid AR Web port is required");
         }
@@ -302,6 +314,9 @@ public class ARWebSocketServer {
                 + "/?desktopShell=1&openWorkspace=" + encodeQueryParameter(sessionId);
         if (sourceBotJobId > 0) {
             url += "&sourceBotJobId=" + sourceBotJobId;
+        }
+        if (windowCapability != null && !windowCapability.isBlank()) {
+            url += "&windowCapability=" + encodeQueryParameter(windowCapability);
         }
         return url;
     }

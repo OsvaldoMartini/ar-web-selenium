@@ -43,6 +43,11 @@ final class AllJobDetailsDeleteTransaction {
     }
 
     void execute(Connection connection) throws SQLException {
+        execute(connection, () -> {});
+    }
+
+    void execute(Connection connection, Runnable committedReplacementObserver)
+            throws SQLException {
         if (connection == null) throw new SQLException("Job cleanup requires a database connection.");
         boolean previousAutoCommit = connection.getAutoCommit();
         PageScanSnapshotArtifactLifecycle.Plan artifactPlan =
@@ -61,6 +66,7 @@ final class AllJobDetailsDeleteTransaction {
             }
             connection.commit();
             committed = true;
+            notifyCommittedReplacement(committedReplacementObserver);
         } catch (SQLException | IOException failure) {
             try {
                 connection.rollback();
@@ -85,6 +91,18 @@ final class AllJobDetailsDeleteTransaction {
                                 + "removed: {}",
                         cleanupFailure.getMessage(), cleanupFailure);
             }
+        }
+    }
+
+    private static void notifyCommittedReplacement(Runnable observer) {
+        if (observer == null) return;
+        try {
+            observer.run();
+        } catch (RuntimeException lifecycleFailure) {
+            // The database commit is final. Continue safe artifact purge and report the failure.
+            log.warn(
+                    "Job cleanup committed, but workspace invalidation failed",
+                    lifecycleFailure);
         }
     }
 

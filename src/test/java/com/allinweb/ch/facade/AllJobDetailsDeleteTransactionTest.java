@@ -11,6 +11,8 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -64,6 +66,39 @@ class AllJobDetailsDeleteTransactionTest {
             assertEquals(1, count(connection, "component_block"));
             assertTrue(Files.exists(artifact));
             assertTrue(connection.getAutoCommit());
+        }
+    }
+
+    @Test
+    void replacementObserverRunsAfterCommitAndBeforeArtifactPurge()
+            throws Exception {
+        try (Connection connection = database("all-commit-observer.db")) {
+            createSchema(connection);
+            seed(connection);
+            Path artifact = artifactRoot().resolve("org-2/bot-job-1/page/elements.json");
+            write(artifact);
+            AtomicInteger notifications = new AtomicInteger();
+            AtomicBoolean databaseCommitted = new AtomicBoolean();
+            AtomicBoolean artifactStillStaged = new AtomicBoolean();
+
+            transaction().execute(connection, () -> {
+                notifications.incrementAndGet();
+                try {
+                    databaseCommitted.set(count(connection, "bot_job") == 0);
+                    try (var pending = Files.walk(
+                            artifactRoot().resolve(".delete-pending"))) {
+                        artifactStillStaged.set(pending.anyMatch(
+                                path -> path.endsWith("elements.json")));
+                    }
+                } catch (Exception failure) {
+                    throw new IllegalStateException(failure);
+                }
+            });
+
+            assertEquals(1, notifications.get());
+            assertTrue(databaseCommitted.get());
+            assertTrue(artifactStillStaged.get());
+            assertTrue(Files.notExists(artifact));
         }
     }
 

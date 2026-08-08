@@ -1026,6 +1026,11 @@ public class PerformBackup {
 
     // RESTORE
     public ErrorMessage restoreHomeBanking(Connection conn, String sqlFilePath) {
+        return restoreHomeBanking(conn, sqlFilePath, () -> {});
+    }
+
+    public ErrorMessage restoreHomeBanking(
+            Connection conn, String sqlFilePath, Runnable destructiveCommitObserver) {
         String insertQuery =
                 """
                         INSERT INTO home_banking (
@@ -1080,6 +1085,7 @@ public class PerformBackup {
             deleteStmt.executeUpdate("DELETE FROM home_banking");
             conn.commit();
             destructiveCommitCompleted = true;
+            notifyDestructiveCommit(destructiveCommitObserver);
             try {
                 snapshotArtifacts.purge(artifactPlan);
             } catch (IOException cleanupFailure) {
@@ -1193,6 +1199,19 @@ public class PerformBackup {
                 }
             }
             return new ErrorMessage("Restore Failed", "Failed to load home_banking data", error.getMessage());
+        }
+    }
+
+    private static void notifyDestructiveCommit(Runnable observer) {
+        if (observer == null) return;
+        try {
+            observer.run();
+        } catch (RuntimeException notificationFailure) {
+            // The database replacement is already committed and cannot be rolled back here.
+            // Keep the restore moving while making the lifecycle failure operationally visible.
+            log.error(
+                    "The database replacement committed, but detached workspace invalidation failed",
+                    notificationFailure);
         }
     }
 
@@ -4605,6 +4624,11 @@ public class PerformBackup {
      * @return {@code null} on success, {@link ErrorMessage} on any failure
      */
     public ErrorMessage restoreWithRemap(Connection conn, String sqlFilePath) {
+        return restoreWithRemap(conn, sqlFilePath, () -> {});
+    }
+
+    public ErrorMessage restoreWithRemap(
+            Connection conn, String sqlFilePath, Runnable destructiveCommitObserver) {
         File sqlFile = new File(sqlFilePath);
         if (!sqlFile.exists()) {
             return new ErrorMessage(
@@ -4623,7 +4647,10 @@ public class PerformBackup {
             // order runLegacyPerTableRestore uses. Every method populates its
             // remap TreeMap (homeBankMap, botJobMap, ...) which the later calls
             // consult when rewriting FK columns on their own rows.
-            ErrorMessage error = restoreHomeBanking(conn, pathOrEmpty(perTableFiles, "home_banking"));
+            ErrorMessage error = restoreHomeBanking(
+                    conn,
+                    pathOrEmpty(perTableFiles, "home_banking"),
+                    destructiveCommitObserver);
             if (error != null) return error;
 
             error = restoreHomeUrl(conn, pathOrEmpty(perTableFiles, "home_url"));

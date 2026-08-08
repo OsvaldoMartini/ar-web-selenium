@@ -12,6 +12,9 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Supplier;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -44,25 +47,72 @@ public class MainDashboardService {
     }
 
     public Map<String, Object> deleteBotJob(JsonObject body) {
+        return deleteBotJob(body, ignored -> {});
+    }
+
+    /** Deletes one Bot Job and observes the committed IDs before any post-commit refresh work. */
+    public Map<String, Object> deleteBotJob(
+            JsonObject body, Consumer<List<Integer>> committedDeletionObserver) {
+        return deleteBotJob(
+                body,
+                ignored -> {},
+                id -> performDataBase.deleteBotJobData(
+                        id, committedDeletionObserver),
+                this::reload);
+    }
+
+    Map<String, Object> deleteBotJob(
+            JsonObject body,
+            Consumer<List<Integer>> committedDeletionObserver,
+            Function<Integer, ErrorMessage> deleteOperation,
+            Supplier<ErrorMessage> reloadOperation) {
         int botJobId = intVal(body, "botJobId");
         if (botJobId <= 0) {
             return failure("Select a Bot Job first");
         }
 
-        ErrorMessage error = performDataBase.deleteBotJobData(botJobId);
+        ErrorMessage error = deleteOperation.apply(botJobId);
         if (error != null) {
             return failure("Delete Bot Job Failed", error);
         }
+        notifyCommittedDeletion(committedDeletionObserver, List.of(botJobId));
         RuntimeVariableMemoryRegistry.getInstance().removeBotJob(botJobId);
-        error = reload();
+        error = reloadOperation.get();
         if (error != null) {
-            return failure("Bot Job deleted but refresh failed", error);
+            Map<String, Object> response = failure("Bot Job deleted but refresh failed", error);
+            response.put("committed", true);
+            response.put("deletedBotJobIds", List.of(botJobId));
+            response.put("deletedCount", 1);
+            return response;
         }
-        return success("Bot Job deleted");
+        Map<String, Object> response = success("Bot Job deleted");
+        response.put("committed", true);
+        response.put("deletedBotJobIds", List.of(botJobId));
+        response.put("deletedCount", 1);
+        return response;
     }
 
     /** Deletes one correlated dashboard selection as a single database transaction. */
     public Map<String, Object> deleteBotJobs(JsonObject body) {
+        return deleteBotJobs(body, ignored -> {});
+    }
+
+    /** Deletes selected Bot Jobs and observes the commit before cleanup/dashboard reload. */
+    public Map<String, Object> deleteBotJobs(
+            JsonObject body, Consumer<List<Integer>> committedDeletionObserver) {
+        return deleteBotJobs(
+                body,
+                ignored -> {},
+                ids -> performDataBase.deleteBotJobsData(
+                        ids, committedDeletionObserver),
+                this::reload);
+    }
+
+    Map<String, Object> deleteBotJobs(
+            JsonObject body,
+            Consumer<List<Integer>> committedDeletionObserver,
+            Function<List<Integer>, ErrorMessage> deleteOperation,
+            Supplier<ErrorMessage> reloadOperation) {
         String requestId = textVal(body, "requestId");
         if (intVal(body, "contractVersion") != 1) {
             return bulkFailure(requestId, "Unsupported Bot Job deletion contract.");
@@ -78,17 +128,18 @@ public class MainDashboardService {
             return bulkFailure(requestId, invalidRequest.getMessage());
         }
 
-        ErrorMessage error = performDataBase.deleteBotJobsData(botJobIds);
+        ErrorMessage error = deleteOperation.apply(botJobIds);
         if (error != null) {
             Map<String, Object> response = bulkFailure(
                     requestId, "The selected Bot Jobs were not deleted.");
             response.put("error", error);
             return response;
         }
+        notifyCommittedDeletion(committedDeletionObserver, botJobIds);
         for (Integer botJobId : botJobIds) {
             RuntimeVariableMemoryRegistry.getInstance().removeBotJob(botJobId);
         }
-        error = reload();
+        error = reloadOperation.get();
         if (error != null) {
             Map<String, Object> response = bulkFailure(
                     requestId, "Bot Jobs were deleted but the dashboard refresh failed.");
@@ -110,6 +161,21 @@ public class MainDashboardService {
         response.put("deletedCount", botJobIds.size());
         response.put("botJobs", dashboardRows());
         return response;
+    }
+
+    static void notifyCommittedDeletion(
+            Consumer<List<Integer>> observer, List<Integer> botJobIds) {
+        if (observer == null || botJobIds == null || botJobIds.isEmpty()) return;
+        try {
+            observer.accept(List.copyOf(botJobIds));
+        } catch (RuntimeException lifecycleFailure) {
+            // The database commit is already final. Keep response generation available while
+            // retaining a detailed operational record for the failed lifecycle cleanup.
+            log.warn(
+                    "Bot Job deletion committed, but workspace invalidation failed for {}",
+                    botJobIds,
+                    lifecycleFailure);
+        }
     }
 
     public Map<String, Object> openOrganizations() {

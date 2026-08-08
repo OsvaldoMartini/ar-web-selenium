@@ -8,6 +8,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.allinweb.ch.util.ErrorMessage;
+import com.allinweb.ch.util.ARPropertyEnum;
+import com.allinweb.ch.util.ARPropertyManager;
 import java.lang.reflect.Field;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -20,6 +22,8 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Base64;
 import java.util.List;
+import java.util.Properties;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -242,6 +246,61 @@ class PerformBackupAtomicRestoreTest {
             assertTrue(content.contains("'VALUE', '', NULL, 'MANUAL'"));
             assertTrue(content.contains("'" + encodedUnicode + "'"));
             assertTrue(content.contains("'VOID', NULL, 'NO_PRODUCER_YET', 'RESET'"));
+        }
+    }
+
+    @Test
+    void destructiveRestoreNotifiesImmediatelyAfterCommitEvenWhenParsingLaterFails()
+            throws Exception {
+        Path snapshot = temporaryDirectory.resolve("malformed-full-restore.sql");
+        Files.writeString(
+                snapshot,
+                "INSERT INTO home_banking (id) VALUES (1);",
+                Charset.forName("windows-1252"));
+        Path isolatedDbRoot = Files.createDirectories(
+                temporaryDirectory.resolve("isolated-db-root"));
+        ARPropertyManager propertyManager = ARPropertyManager.getInstance();
+        Properties original = propertyManager.getProperties();
+        Properties isolated = new Properties();
+        isolated.putAll(original);
+        isolated.setProperty(ARPropertyEnum.PATH_DB.getValue(), isolatedDbRoot.toString());
+        AtomicInteger committedNotifications = new AtomicInteger();
+
+        synchronized (propertyManager) {
+            propertyManager.setProperties(isolated);
+            try (Connection connection = DriverManager.getConnection("jdbc:sqlite::memory:");
+                    Statement statement = connection.createStatement()) {
+                createEmptyFullBackupTables(statement);
+                for (String optionalRuntimeTable : List.of(
+                        "bot_job_runtime_variable_value",
+                        "bot_job_variable_definition",
+                        "bot_job_runtime_memory",
+                        "bot_job_variable_migration_note",
+                        "variable")) {
+                    statement.execute(
+                            "CREATE TABLE IF NOT EXISTS " + optionalRuntimeTable + " (id TEXT)");
+                }
+                statement.executeUpdate(
+                        "INSERT INTO home_banking (id, name) VALUES ('99', 'stale owner')");
+
+                ErrorMessage error = PerformBackup.getInstance().restoreHomeBanking(
+                        connection,
+                        snapshot.toString(),
+                        committedNotifications::incrementAndGet);
+
+                assertNotNull(error);
+                assertEquals(
+                        1,
+                        committedNotifications.get(),
+                        error.getErrorTitle()
+                                + " | "
+                                + error.getErrorHeader()
+                                + " | "
+                                + error.getErrorMessage());
+                assertEquals(0, countRows(connection, "home_banking"));
+            } finally {
+                propertyManager.setProperties(original);
+            }
         }
     }
 

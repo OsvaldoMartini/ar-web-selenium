@@ -12,6 +12,7 @@ import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Consumer;
 import lombok.extern.slf4j.Slf4j;
 
 /** Atomically removes Bot Jobs and every Bot-Job-owned row that has no database cascade. */
@@ -38,6 +39,14 @@ final class BotJobDeleteTransaction {
 
     List<Integer> execute(Connection connection, Collection<Integer> submittedIds)
             throws SQLException {
+        return execute(connection, submittedIds, ignored -> {});
+    }
+
+    List<Integer> execute(
+            Connection connection,
+            Collection<Integer> submittedIds,
+            Consumer<List<Integer>> committedDeletionObserver)
+            throws SQLException {
         if (connection == null) {
             throw new SQLException("Bot Job deletion requires a database connection.");
         }
@@ -59,6 +68,7 @@ final class BotJobDeleteTransaction {
             deleteBotJobs(connection, botJobIds);
             connection.commit();
             committed = true;
+            notifyCommittedDeletion(committedDeletionObserver, botJobIds);
         } catch (SQLException | IOException failure) {
             try {
                 connection.rollback();
@@ -87,6 +97,20 @@ final class BotJobDeleteTransaction {
             }
         }
         return List.copyOf(botJobIds);
+    }
+
+    private static void notifyCommittedDeletion(
+            Consumer<List<Integer>> observer, List<Integer> botJobIds) {
+        if (observer == null) return;
+        try {
+            observer.accept(List.copyOf(botJobIds));
+        } catch (RuntimeException lifecycleFailure) {
+            // The database commit is already final. Artifact purge remains safe to continue.
+            log.warn(
+                    "Bot Job deletion committed, but workspace invalidation failed for {}",
+                    botJobIds,
+                    lifecycleFailure);
+        }
     }
 
     private List<Integer> canonicalIds(Collection<Integer> submittedIds) throws SQLException {

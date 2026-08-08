@@ -12,6 +12,7 @@ import java.io.File;
 import java.sql.*;
 import java.util.*;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.Setter;
@@ -2104,10 +2105,22 @@ public class PerformDataBase {
         return deleteBotJobsData(List.of(botJobId));
     }
 
+    public ErrorMessage deleteBotJobData(
+            int botJobId, Consumer<List<Integer>> committedDeletionObserver) {
+        return deleteBotJobsData(List.of(botJobId), committedDeletionObserver);
+    }
+
     /** Deletes the complete submitted Bot Job selection in one all-or-nothing transaction. */
     public ErrorMessage deleteBotJobsData(Collection<Integer> botJobIds) {
+        return deleteBotJobsData(botJobIds, ignored -> {});
+    }
+
+    public ErrorMessage deleteBotJobsData(
+            Collection<Integer> botJobIds,
+            Consumer<List<Integer>> committedDeletionObserver) {
         try (Connection conn = getConnection()) {
-            new BotJobDeleteTransaction().execute(conn, botJobIds);
+            new BotJobDeleteTransaction().execute(
+                    conn, botJobIds, committedDeletionObserver);
             return null;
         } catch (SQLException error) {
             logDB.error("Error deleting Bot Jobs: {}", error.getMessage());
@@ -7805,8 +7818,14 @@ public class PerformDataBase {
     }
 
     public boolean deleteAllJobDetails(String dataBaseType) {
+        return deleteAllJobDetails(dataBaseType, () -> {});
+    }
+
+    public boolean deleteAllJobDetails(
+            String dataBaseType, Runnable committedReplacementObserver) {
         try (Connection connection = getConnection()) {
-            new AllJobDetailsDeleteTransaction().execute(connection);
+            new AllJobDetailsDeleteTransaction().execute(
+                    connection, committedReplacementObserver);
 
             // Drop sequences if they exist
             //            if (!dataBaseType.equalsIgnoreCase("ACCESS")) {

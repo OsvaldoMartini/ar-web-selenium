@@ -159,6 +159,23 @@ public final class PagesOpenWorkspaceService {
         return FIXED_PRESENTATIONS.containsKey(sessionId);
     }
 
+    synchronized boolean isDetachedWorkspaceLaunchPending(String sessionId) {
+        Long pendingSince = fixedWorkspaceLaunchPendingSince.get(sessionId);
+        if (pendingSince == null) return false;
+        if (System.nanoTime() - pendingSince >= FIXED_WORKSPACE_LAUNCH_PENDING_NANOS) {
+            fixedWorkspaceLaunchPendingSince.remove(sessionId);
+            return false;
+        }
+        return !WebSocketSessionManager.isSessionOpen(sessionId);
+    }
+
+    /** Revokes a fixed workspace's pending-launch marker after an explicit invalidation. */
+    synchronized void clearDetachedWorkspaceLaunchPending(String sessionId) {
+        if (sessionId != null) {
+            fixedWorkspaceLaunchPendingSince.remove(sessionId);
+        }
+    }
+
     /**
      * Opens one fixed detached workspace once, or raises its exact existing native window.
      *
@@ -167,6 +184,15 @@ public final class PagesOpenWorkspaceService {
      */
     public synchronized boolean openOrFocusDetachedWorkspace(
             String sessionId, int sourceBotJobId, String reason) {
+        return openOrFocusDetachedWorkspace(sessionId, sourceBotJobId, reason, null);
+    }
+
+    /** Opens/focuses a fixed workspace with an optional server-issued window capability. */
+    public synchronized boolean openOrFocusDetachedWorkspace(
+            String sessionId,
+            int sourceBotJobId,
+            String reason,
+            String windowCapability) {
         if (!DetachedWorkspaceSessions.isDetachedWorkspaceSession(sessionId)
                 || !FIXED_PRESENTATIONS.containsKey(sessionId)) {
             throw new IllegalArgumentException("A fixed detached workspace session is required.");
@@ -187,7 +213,8 @@ public final class PagesOpenWorkspaceService {
 
         fixedWorkspaceLaunchPendingSince.put(sessionId, now);
         boolean launched = ARWebSocketServer.getInstance()
-                .openDetachedWorkspaceDesktopShell(sessionId, sourceBotJobId);
+                .openDetachedWorkspaceDesktopShell(
+                        sessionId, sourceBotJobId, windowCapability);
         if (!launched) {
             fixedWorkspaceLaunchPendingSince.remove(sessionId);
         }

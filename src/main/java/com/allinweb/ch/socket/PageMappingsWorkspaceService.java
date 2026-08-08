@@ -15,16 +15,19 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.security.MessageDigest;
+import java.security.SecureRandom;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -33,6 +36,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import javax.websocket.Session;
 import lombok.extern.slf4j.Slf4j;
 
@@ -41,8 +46,12 @@ import lombok.extern.slf4j.Slf4j;
 public final class PageMappingsWorkspaceService {
 
     static final String RETARGET_OPERATION = "pageMappings.retarget";
+    static final String INVALIDATED_OPERATION = "pageMappings.invalidated";
     private static final String SESSION_ID = DetachedWorkspaceSessions.PAGE_MAPPINGS_MANAGER;
     private static final Gson JSON = new Gson();
+    private static final SecureRandom WINDOW_CAPABILITY_RANDOM = new SecureRandom();
+    private static final int WINDOW_CAPABILITY_BYTES = 32;
+    private static final long DELIVERY_TIMEOUT_SECONDS = 5L;
     private static final long MAX_MANIFEST_BYTES = 1_000_000L;
     private static final long MAX_METADATA_BYTES = 1_000_000L;
     private static final long MAX_JSON_ARTIFACT_BYTES = 16_000_000L;
@@ -68,7 +77,7 @@ public final class PageMappingsWorkspaceService {
     private PageMappingsWorkspaceService() {
         this(
                 PageMappingsWorkspaceService::resolveBotJobOwner,
-                PageMappingsWorkspaceService::resolvePageScannerOwner,
+                authoritativePageScannerOwnerResolver(),
                 new WindowAccess() {
                     @Override
                     public boolean isOpen() {
@@ -76,11 +85,36 @@ public final class PageMappingsWorkspaceService {
                     }
 
                     @Override
+                    public boolean isLaunchPending() {
+                        return PagesOpenWorkspaceService.getInstance()
+                                .isDetachedWorkspaceLaunchPending(SESSION_ID);
+                    }
+
+                    @Override
                     public boolean openOrFocus(int botJobId) {
+                        return openOrFocus(botJobId, null);
+                    }
+
+                    @Override
+                    public boolean openOrFocus(int botJobId, String windowCapability) {
                         return PagesOpenWorkspaceService.getInstance().openOrFocusDetachedWorkspace(
                                 SESSION_ID,
                                 botJobId,
-                                "Page Mappings requested for this Bot Job.");
+                                "Page Mappings requested for this Bot Job.",
+                                windowCapability);
+                    }
+
+                    @Override
+                    public void invalidate(
+                            Binding retired, Binding alternate, String reason) {
+                        PagesOpenWorkspaceService.getInstance()
+                                .clearDetachedWorkspaceLaunchPending(SESSION_ID);
+                        publishInvalidated(retired, alternate, reason);
+                        PagesOpenWorkspaceService.getInstance()
+                                .closeDetachedWorkspaceSession(SESSION_ID, reason);
+                        // Explicit invalidation always retires server authority immediately. The
+                        // client close message is advisory and cannot be trusted to complete.
+                        WebSocketSessionManager.closeSession(SESSION_ID);
                     }
                 },
                 PageMappingsWorkspaceService::publishRetarget,
@@ -127,7 +161,9 @@ public final class PageMappingsWorkspaceService {
     /** Opens Page Mappings for the active, server-owned Bot Job Details workspace. */
     public JsonObject openForBotJob(int botJobId) {
         try {
-            return open(botJobOwnerResolver.resolve(botJobId), null);
+            synchronized (bindingLock) {
+                return open(botJobOwnerResolver.resolve(botJobId), null);
+            }
         } catch (IllegalArgumentException unauthorized) {
             return failure(null, unauthorized.getMessage());
         } catch (RuntimeException failure) {
@@ -140,10 +176,17 @@ public final class PageMappingsWorkspaceService {
     public JsonObject openFromPageScanner(
             JsonObject body, String requesterSessionId, Session requesterTransport) {
         try {
-            requireExactPageScannerTransport(requesterSessionId, requesterTransport);
-            OwnerTarget target = pageScannerOwnerResolver.resolve(requesterSessionId);
-            validateOwnerAssertions(body, target, null);
-            return open(target, body);
+            synchronized (bindingLock) {
+                requireExactPageScannerTransport(requesterSessionId, requesterTransport);
+                return pageScannerOwnerResolver.withResolvedOwner(
+                        requesterSessionId,
+                        target -> {
+                            requireExactPageScannerTransport(
+                                    requesterSessionId, requesterTransport);
+                            validateOwnerAssertions(body, target, null);
+                            return open(target, body);
+                        });
+            }
         } catch (IllegalArgumentException unauthorized) {
             return failure(body, unauthorized.getMessage());
         } catch (RuntimeException failure) {
@@ -160,7 +203,8 @@ public final class PageMappingsWorkspaceService {
             Connection connection) {
         Binding authorized;
         try {
-            authorized = authorizeDetachedRequest(body, requesterSessionId, requesterTransport);
+            authorized = authorizeDetachedRequest(
+                    body, requesterSessionId, requesterTransport, false);
         } catch (IllegalArgumentException unauthorized) {
             return failure(body, unauthorized.getMessage());
         }
@@ -170,7 +214,7 @@ public final class PageMappingsWorkspaceService {
         response.addProperty("sessionId", SESSION_ID);
         JsonArray snapshots = new JsonArray();
         String sql = "SELECT scan_id, home_url_id, page_key, page_url, captured_at, element_count, "
-                + "artifact_path, manifest_sha256, status, pinned "
+                + "manifest_sha256, status, pinned "
                 + "FROM page_scan_snapshot WHERE home_banking_id = ? AND bot_job_id = ? "
                 + "ORDER BY captured_at DESC";
         try (PreparedStatement statement = Objects.requireNonNull(connection).prepareStatement(sql)) {
@@ -188,7 +232,6 @@ public final class PageMappingsWorkspaceService {
                             "pageUrl", PageScanUrlRedactor.redact(rows.getString("page_url")));
                     snapshot.addProperty("capturedAt", rows.getString("captured_at"));
                     snapshot.addProperty("elementCount", rows.getInt("element_count"));
-                    snapshot.addProperty("artifactPath", rows.getString("artifact_path"));
                     snapshot.addProperty("manifestSha256", rows.getString("manifest_sha256"));
                     snapshot.addProperty("status", rows.getString("status"));
                     snapshot.addProperty("pinned", rows.getInt("pinned") != 0);
@@ -216,7 +259,8 @@ public final class PageMappingsWorkspaceService {
             Connection connection) {
         Binding authorized;
         try {
-            authorized = authorizeDetachedRequest(body, requesterSessionId, requesterTransport);
+            authorized = authorizeDetachedRequest(
+                    body, requesterSessionId, requesterTransport, true);
         } catch (IllegalArgumentException unauthorized) {
             return failure(body, unauthorized.getMessage());
         }
@@ -716,7 +760,131 @@ public final class PageMappingsWorkspaceService {
      */
     Binding authorizeMemoryListSource(
             JsonObject body, String requesterSessionId, Session requesterTransport) {
-        return authorizeDetachedRequest(body, requesterSessionId, requesterTransport);
+        return authorizeDetachedRequest(body, requesterSessionId, requesterTransport, true);
+    }
+
+    /**
+     * Runs one Page Mappings Memory operation while the exact owner binding remains authoritative.
+     *
+     * <p>The callback deliberately remains inside {@code bindingLock}. Memory List mutations take
+     * their own state lock only after this lock, so a committed delete or retarget cannot clear an
+     * owner and then have an already-authorized stale request recreate it.
+     */
+    <T> T withAuthorizedMemoryListSource(
+            JsonObject body,
+            String requesterSessionId,
+            Session requesterTransport,
+            Function<Binding, T> operation) {
+        Objects.requireNonNull(operation, "operation");
+        synchronized (bindingLock) {
+            Binding authorized = authorizeDetachedRequest(
+                    body, requesterSessionId, requesterTransport, true);
+            return operation.apply(authorized);
+        }
+    }
+
+    /** Validates the unguessable capability before Page Mappings registration or takeover. */
+    boolean authorizeWindowTransport(Session requesterTransport) {
+        String assertedCapability = requestParameter(requesterTransport, "windowCapability");
+        if (assertedCapability.isBlank() || assertedCapability.length() > 256) return false;
+        synchronized (bindingLock) {
+            return binding != null
+                    && constantTimeEquals(
+                            binding.windowCapability(), assertedCapability);
+        }
+    }
+
+    /**
+     * Validates and registers the exact Page Mappings transport as one atomic ownership action.
+     *
+     * <p>A fresh launch can rotate the capability concurrently with a browser reconnect. Keeping
+     * the verification and exact-session takeover under the same binding lock prevents a stale
+     * transport from passing validation and then evicting the current window.
+     */
+    boolean authorizeAndTakeOverWindowTransport(Session requesterTransport) {
+        String assertedCapability = requestParameter(requesterTransport, "windowCapability");
+        if (assertedCapability.isBlank() || assertedCapability.length() > 256) return false;
+        synchronized (bindingLock) {
+            if (binding == null
+                    || !constantTimeEquals(binding.windowCapability(), assertedCapability)) {
+                return false;
+            }
+            WebSocketSessionManager.takeOverSession(SESSION_ID, requesterTransport);
+            return true;
+        }
+    }
+
+    /** Invalidates the detached owner only after one or more Bot Jobs were committed deleted. */
+    public boolean botJobsDeleted(Collection<Integer> botJobIds) {
+        if (botJobIds == null || botJobIds.isEmpty()) return false;
+        synchronized (bindingLock) {
+            botJobIds.stream()
+                    .filter(Objects::nonNull)
+                    .filter(id -> id > 0)
+                    .forEach(id -> {
+                        try {
+                            if (BotJobDetailsWorkspaceRegistry.getInstance().retire(id)) {
+                                closeMemoryProducerTransports();
+                            }
+                        } catch (RuntimeException registryFailure) {
+                            log.warn("Unable to retire deleted Bot Job {} workspace", id, registryFailure);
+                        }
+                        try {
+                            PageScannerWorkspaceCoordinator.getInstance()
+                                    .activeSessionIdForBotJob(id)
+                                    .ifPresent(PageScannerWorkspaceCoordinator.getInstance()::close);
+                        } catch (RuntimeException scannerFailure) {
+                            log.warn("Unable to retire deleted Bot Job {} Page Scanner", id, scannerFailure);
+                        }
+                    });
+            try {
+                // Retire every server-owned source context before the final Memory clear. An
+                // in-flight source then either finishes before this point and is removed here, or
+                // resolves afterward and fails against the retired context.
+                MemoryListWorkspaceService.getInstance().botJobsDeleted(botJobIds);
+            } catch (RuntimeException cleanupFailure) {
+                log.warn("Unable to clear deleted Bot Job Memory List state", cleanupFailure);
+            }
+            if (binding == null || !botJobIds.contains(binding.botJobId())) return false;
+            invalidateLocked(
+                    binding,
+                    binding,
+                    binding,
+                    "The Page Mappings Bot Job was deleted.");
+            return true;
+        }
+    }
+
+    /** Invalidates every detached owner after a committed full database replacement. */
+    public boolean allBotJobsReplaced() {
+        synchronized (bindingLock) {
+            try {
+                BotJobDetailsWorkspaceRegistry.getInstance().closeActive();
+            } catch (RuntimeException registryFailure) {
+                log.warn("Unable to retire the replaced Bot Job workspace", registryFailure);
+            }
+            closeMemoryProducerTransports();
+            try {
+                PageScannerWorkspaceCoordinator.getInstance().closeActive();
+            } catch (RuntimeException scannerFailure) {
+                log.warn("Unable to retire the replaced Page Scanner workspace", scannerFailure);
+            }
+            try {
+                MemoryListWorkspaceService.getInstance().allBotJobsReplaced();
+            } catch (RuntimeException cleanupFailure) {
+                log.warn("Unable to clear replaced Bot Job Memory List state", cleanupFailure);
+            }
+            if (binding == null) {
+                clearInvalidatedMemory(null, null);
+                return false;
+            }
+            invalidateLocked(
+                    binding,
+                    binding,
+                    binding,
+                    "Page Mappings was closed because the Bot Job database was replaced.");
+            return true;
+        }
     }
 
     private JsonObject open(OwnerTarget target, JsonObject request) {
@@ -726,20 +894,34 @@ public final class PageMappingsWorkspaceService {
 
         synchronized (bindingLock) {
             Binding previous = binding;
+            boolean alreadyOpen = windowAccess.isOpen();
+            boolean launchPending = !alreadyOpen && windowAccess.isLaunchPending();
+            if (alreadyOpen && previous == null) {
+                windowAccess.invalidate(
+                        null,
+                        null,
+                        "Page Mappings had no authoritative launch capability.");
+                return failure(request, "Page Mappings was reset. Open it again.");
+            }
             boolean changed = previous == null || !previous.matches(target);
-            Binding candidate = changed
+            boolean freshLaunch = !alreadyOpen && !launchPending;
+            String windowCapability = previous == null || freshLaunch
+                    ? newWindowCapability()
+                    : previous.windowCapability();
+            Binding candidate = changed || freshLaunch
                     ? new Binding(
                             UUID.randomUUID().toString(),
+                            windowCapability,
                             target.workspaceEpoch(),
                             target.homeBankingId(),
                             target.botJobId(),
                             target.botJobName())
                     : previous;
-            boolean alreadyOpen = windowAccess.isOpen();
             binding = candidate;
             final boolean opened;
             try {
-                opened = windowAccess.openOrFocus(candidate.botJobId());
+                opened = windowAccess.openOrFocus(
+                        candidate.botJobId(), candidate.windowCapability());
             } catch (RuntimeException launchFailure) {
                 binding = previous;
                 throw launchFailure;
@@ -749,22 +931,27 @@ public final class PageMappingsWorkspaceService {
                 return failure(request, "Page Mappings workspace could not be opened.");
             }
 
-            boolean retargetPublished = changed && (alreadyOpen || windowAccess.isOpen());
+            boolean retargetPublished = changed && alreadyOpen;
             if (retargetPublished && !retargetPublisher.publish(candidate)) {
-                binding = previous;
+                invalidateLocked(
+                        previous,
+                        candidate,
+                        previous,
+                        "Page Mappings owner synchronization failed.");
                 return failure(request, "The existing Page Mappings page could not be retargeted.");
             }
-            if (changed) {
+            if (changed || freshLaunch) {
                 try {
                     retargetObserver.retargeted(previous, candidate);
                 } catch (RuntimeException cleanupFailure) {
-                    binding = previous;
                     log.warn("Unable to clear the previous Page Mappings Memory List owner", cleanupFailure);
-                    if (retargetPublished
-                            && previous != null
-                            && !retargetPublisher.publish(previous)) {
-                        log.error("Unable to publish the Page Mappings retarget rollback");
-                    }
+                    invalidateLocked(
+                            previous,
+                            candidate,
+                            candidate,
+                            freshLaunch
+                                    ? "Page Mappings launch ownership could not be established."
+                                    : "Page Mappings owner cleanup failed.");
                     return failure(request, "Page Mappings owner could not be changed safely.");
                 }
             }
@@ -786,12 +973,20 @@ public final class PageMappingsWorkspaceService {
 
     private Binding authorizeDetachedRequest(
             JsonObject body, String requesterSessionId, Session requesterTransport) {
-        if (!SESSION_ID.equals(requesterSessionId)
-                || !transportAuthorizer.isExact(requesterSessionId, requesterTransport)) {
-            throw new IllegalArgumentException(
-                    "The detached Page Mappings transport is not authoritative.");
-        }
+        return authorizeDetachedRequest(body, requesterSessionId, requesterTransport, false);
+    }
+
+    private Binding authorizeDetachedRequest(
+            JsonObject body,
+            String requesterSessionId,
+            Session requesterTransport,
+            boolean requireBindingEpoch) {
         synchronized (bindingLock) {
+            if (!SESSION_ID.equals(requesterSessionId)
+                    || !transportAuthorizer.isExact(requesterSessionId, requesterTransport)) {
+                throw new IllegalArgumentException(
+                        "The detached Page Mappings transport is not authoritative.");
+            }
             if (binding == null) {
                 throw new IllegalArgumentException("Page Mappings has no active Bot Job owner.");
             }
@@ -799,6 +994,9 @@ public final class PageMappingsWorkspaceService {
             JsonObject nested = object(body, "snapshot");
             if (nested != null) {
                 validateOwnerAssertions(nested, binding.asTarget(), binding.bindingEpoch());
+            }
+            if (requireBindingEpoch) {
+                requireCurrentBindingEpoch(body, nested, binding.bindingEpoch());
             }
             return binding;
         }
@@ -854,6 +1052,29 @@ public final class PageMappingsWorkspaceService {
         }
     }
 
+    private static void requireCurrentBindingEpoch(
+            JsonObject body, JsonObject nested, String expected) {
+        boolean supplied = hasEpoch(body, "bindingEpoch")
+                || hasEpoch(body, "sourceBindingEpoch")
+                || hasEpoch(nested, "bindingEpoch")
+                || hasEpoch(nested, "sourceBindingEpoch");
+        if (!supplied) {
+            throw new IllegalArgumentException(
+                    "Page Mappings owner changed. Refresh this page.");
+        }
+        assertEpoch(body, "bindingEpoch", expected);
+        assertEpoch(body, "sourceBindingEpoch", expected);
+        assertEpoch(nested, "bindingEpoch", expected);
+        assertEpoch(nested, "sourceBindingEpoch", expected);
+    }
+
+    private static boolean hasEpoch(JsonObject body, String field) {
+        return body != null
+                && body.has(field)
+                && !body.get(field).isJsonNull()
+                && !string(body, field).isBlank();
+    }
+
     private static OwnerTarget resolveBotJobOwner(int botJobId) {
         BotJobDetailsWorkspaceRegistry.Snapshot active =
                 BotJobDetailsWorkspaceRegistry.getInstance().require(botJobId);
@@ -873,6 +1094,28 @@ public final class PageMappingsWorkspaceService {
                 context.botJobId(),
                 context.workspaceEpoch(),
                 context.botJobName());
+    }
+
+    private static PageScannerOwnerResolver authoritativePageScannerOwnerResolver() {
+        return new PageScannerOwnerResolver() {
+            @Override
+            public OwnerTarget resolve(String requesterSessionId) {
+                return resolvePageScannerOwner(requesterSessionId);
+            }
+
+            @Override
+            public <T> T withResolvedOwner(
+                    String requesterSessionId, Function<OwnerTarget, T> action) {
+                return PageScannerWorkspaceCoordinator.getInstance()
+                        .withAuthoritativeContext(
+                                requesterSessionId,
+                                context -> action.apply(new OwnerTarget(
+                                        context.homeBankingId(),
+                                        context.botJobId(),
+                                        context.workspaceEpoch(),
+                                        context.botJobName())));
+            }
+        };
     }
 
     private static boolean isExactRegisteredTransport(String sessionId, Session transport) {
@@ -895,11 +1138,162 @@ public final class PageMappingsWorkspaceService {
         envelope.addProperty("operationId", RETARGET_OPERATION);
         envelope.addProperty("body", body.toString());
         try {
-            WebSocketSessionManager.sendText(transport, envelope.toString());
+            WebSocketSessionManager.sendTextAcknowledged(transport, envelope.toString())
+                    .get(DELIVERY_TIMEOUT_SECONDS, TimeUnit.SECONDS);
             return true;
-        } catch (IOException | RuntimeException sendFailure) {
+        } catch (Exception sendFailure) {
+            if (sendFailure instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
             log.warn("Unable to publish Page Mappings retarget", sendFailure);
             return false;
+        }
+    }
+
+    private static boolean publishInvalidated(
+            Binding retired, Binding alternate, String reason) {
+        if (retired == null) return false;
+        Session transport = WebSocketSessionManager.getSession(SESSION_ID);
+        if (!isExactRegisteredTransport(SESSION_ID, transport)) return false;
+
+        JsonObject body = invalidationBody(retired, alternate, reason);
+        JsonObject envelope = new JsonObject();
+        envelope.addProperty("homeBankingId", retired.homeBankingId());
+        envelope.addProperty("sessionId", SESSION_ID);
+        envelope.addProperty("operationId", INVALIDATED_OPERATION);
+        envelope.addProperty("body", body.toString());
+        try {
+            WebSocketSessionManager.sendTextAcknowledged(transport, envelope.toString())
+                    .get(DELIVERY_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            return true;
+        } catch (Exception sendFailure) {
+            if (sendFailure instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
+            log.warn("Unable to publish Page Mappings invalidation", sendFailure);
+            return false;
+        }
+    }
+
+    static JsonObject invalidationBody(Binding retired, String reason) {
+        return invalidationBody(retired, null, reason);
+    }
+
+    static JsonObject invalidationBody(
+            Binding retired, Binding alternate, String reason) {
+        JsonObject body = baseResponse(null, Objects.requireNonNull(retired));
+        if (alternate != null && !alternate.bindingEpoch().equals(retired.bindingEpoch())) {
+            body.addProperty("alternateBindingEpoch", alternate.bindingEpoch());
+            body.addProperty("alternateWorkspaceEpoch", alternate.workspaceEpoch());
+            body.addProperty("alternateHomeBankingId", alternate.homeBankingId());
+            body.addProperty("alternateBotJobId", alternate.botJobId());
+        }
+        body.addProperty("ok", false);
+        body.addProperty("invalidated", true);
+        body.addProperty(
+                "message",
+                reason == null || reason.isBlank()
+                        ? "Page Mappings owner is no longer available."
+                        : reason);
+        return body;
+    }
+
+    private void invalidateLocked(
+            Binding previousMemoryOwner,
+            Binding candidateMemoryOwner,
+            Binding retiredForClient,
+            String reason) {
+        binding = null;
+        clearInvalidatedMemory(previousMemoryOwner, candidateMemoryOwner);
+        Binding alternate = alternateBinding(
+                retiredForClient, previousMemoryOwner, candidateMemoryOwner);
+        try {
+            windowAccess.invalidate(retiredForClient, alternate, reason);
+        } catch (RuntimeException closeFailure) {
+            log.warn("Unable to close invalidated Page Mappings workspace", closeFailure);
+            WebSocketSessionManager.closeSession(SESSION_ID);
+        }
+    }
+
+    private void clearInvalidatedMemory(Binding previous, Binding candidate) {
+        RuntimeException firstFailure = null;
+        for (Binding owner : distinctBindings(previous, candidate)) {
+            try {
+                retargetObserver.retargeted(owner, null);
+            } catch (RuntimeException cleanupFailure) {
+                if (firstFailure == null) firstFailure = cleanupFailure;
+                log.warn(
+                        "Unable to clear invalidated Page Mappings Memory List owner {}",
+                        owner == null ? "ALL" : owner.bindingEpoch(),
+                        cleanupFailure);
+            }
+        }
+        if (previous == null && candidate == null) {
+            try {
+                retargetObserver.retargeted(null, null);
+            } catch (RuntimeException cleanupFailure) {
+                firstFailure = cleanupFailure;
+                log.warn("Unable to clear all Page Mappings Memory List state", cleanupFailure);
+            }
+        }
+        if (firstFailure != null) {
+            log.debug("Page Mappings invalidation continued after Memory cleanup failure");
+        }
+    }
+
+    private static List<Binding> distinctBindings(Binding first, Binding second) {
+        if (first == null) return second == null ? List.of() : List.of(second);
+        if (second == null || first.bindingEpoch().equals(second.bindingEpoch())) {
+            return List.of(first);
+        }
+        return List.of(first, second);
+    }
+
+    private static void closeMemoryProducerTransports() {
+        for (String sessionId : List.of(
+                ScannerWorkspaceSessions.BOT_JOB_TASKS,
+                ScannerWorkspaceSessions.COMPONENT_TASKS,
+                ScannerWorkspaceSessions.SCANNER_GRID,
+                ScannerWorkspaceSessions.PRE_SCANNER_GRID)) {
+            try {
+                WebSocketSessionManager.closeSession(sessionId);
+            } catch (RuntimeException closeFailure) {
+                log.warn("Unable to retire stale Memory source transport {}", sessionId, closeFailure);
+            }
+        }
+    }
+
+    private static Binding alternateBinding(
+            Binding retired, Binding previous, Binding candidate) {
+        for (Binding owner : distinctBindings(previous, candidate)) {
+            if (retired == null || !owner.bindingEpoch().equals(retired.bindingEpoch())) {
+                return owner;
+            }
+        }
+        return null;
+    }
+
+    private static String newWindowCapability() {
+        byte[] capability = new byte[WINDOW_CAPABILITY_BYTES];
+        WINDOW_CAPABILITY_RANDOM.nextBytes(capability);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(capability);
+    }
+
+    private static boolean constantTimeEquals(String expected, String asserted) {
+        return MessageDigest.isEqual(
+                expected.getBytes(StandardCharsets.UTF_8),
+                asserted.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private static String requestParameter(Session session, String field) {
+        if (session == null || field == null) return "";
+        try {
+            List<String> values = session.getRequestParameterMap().get(field);
+            return values == null || values.isEmpty() || values.get(0) == null
+                    ? ""
+                    : values.get(0).trim();
+        } catch (RuntimeException invalidRequest) {
+            return "";
         }
     }
 
@@ -975,12 +1369,14 @@ public final class PageMappingsWorkspaceService {
 
     record Binding(
             String bindingEpoch,
+            String windowCapability,
             long workspaceEpoch,
             int homeBankingId,
             int botJobId,
             String botJobName) {
         Binding {
             bindingEpoch = Objects.requireNonNull(bindingEpoch);
+            windowCapability = Objects.requireNonNull(windowCapability);
             botJobName = botJobName == null ? "" : botJobName;
         }
 
@@ -1003,12 +1399,31 @@ public final class PageMappingsWorkspaceService {
     @FunctionalInterface
     interface PageScannerOwnerResolver {
         OwnerTarget resolve(String requesterSessionId);
+
+        default <T> T withResolvedOwner(
+                String requesterSessionId, Function<OwnerTarget, T> action) {
+            return action.apply(resolve(requesterSessionId));
+        }
     }
 
     interface WindowAccess {
         boolean isOpen();
 
+        default boolean isLaunchPending() {
+            return false;
+        }
+
         boolean openOrFocus(int botJobId);
+
+        default boolean openOrFocus(int botJobId, String windowCapability) {
+            return openOrFocus(botJobId);
+        }
+
+        default void invalidate(Binding retired, String reason) {}
+
+        default void invalidate(Binding retired, Binding alternate, String reason) {
+            invalidate(retired, reason);
+        }
     }
 
     @FunctionalInterface

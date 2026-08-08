@@ -195,8 +195,7 @@ public class SimpleWebSocketServer {
     private static final org.slf4j.Logger logBackend = org.slf4j.LoggerFactory.getLogger("com.allinweb.backend");
     private static final Gson EXECUTION_PREFLIGHT_GSON =
             new GsonBuilder().serializeNulls().create();
-    private static final PageMappingsWorkspaceService pageMappingsWorkspaceService =
-            PageMappingsWorkspaceService.getInstance();
+    private final PageMappingsWorkspaceService pageMappingsWorkspaceService;
     private final Gson gson = new Gson();
     private final BotJobWorkspaceCapabilityService botJobWorkspaceCapabilityService =
             BotJobWorkspaceCapabilityService.getInstance();
@@ -208,8 +207,13 @@ public class SimpleWebSocketServer {
             new ScannerWorkspaceSessionClassifier();
     private PayloadJson payloadEmpty;
     private RowStatus rowStatus = new RowStatus();
-    // Private constructor to prevent instantiation
-    public SimpleWebSocketServer() {}
+    public SimpleWebSocketServer() {
+        this(PageMappingsWorkspaceService.getInstance());
+    }
+
+    SimpleWebSocketServer(PageMappingsWorkspaceService pageMappingsWorkspaceService) {
+        this.pageMappingsWorkspaceService = Objects.requireNonNull(pageMappingsWorkspaceService);
+    }
 
     private static boolean sessionIdContains(String sessionId, String expectedSessionId) {
         return sessionId != null && sessionId.contains(expectedSessionId);
@@ -346,6 +350,23 @@ public class SimpleWebSocketServer {
             return;
         }
 
+        boolean pageMappingsTransport =
+                DetachedWorkspaceSessions.PAGE_MAPPINGS_MANAGER.equals(sessionId);
+        boolean memoryListTransport =
+                DetachedWorkspaceSessions.MEMORY_LIST_MANAGER.equals(sessionId);
+        if (pageMappingsTransport
+                && !pageMappingsWorkspaceService.authorizeAndTakeOverWindowTransport(session)) {
+            log.warn("Rejected Page Mappings connection without its active window capability");
+            closeRejectedSession(session, "Page Mappings window capability is invalid");
+            return;
+        }
+        if (memoryListTransport
+                && !memoryListWorkspaceService.authorizeAndTakeOverWindowTransport(session)) {
+            log.warn("Rejected Memory List connection without its active owner capability");
+            closeRejectedSession(session, "Memory List window capability is invalid");
+            return;
+        }
+
         boolean botJobWindowControl = BotJobDetailsWindowCoordinator.isControlSessionId(sessionId);
         boolean mainApplicationControl = MainApplicationControlLifecycle.isControlSessionId(sessionId);
         if (botJobWindowControl
@@ -370,7 +391,9 @@ public class SimpleWebSocketServer {
             }
         }
 
-        if (ScannerWorkspaceSessions.BOT_JOB_TASKS.equals(sessionId)
+        if (pageMappingsTransport || memoryListTransport) {
+            // Capability validation and exact-session takeover were performed atomically above.
+        } else if (ScannerWorkspaceSessions.BOT_JOB_TASKS.equals(sessionId)
                 || mainApplicationControl
                 || botJobWindowControl
                 || OcrWorkspaceCoordinator.isWorkspaceSessionId(sessionId)
@@ -2457,14 +2480,22 @@ public class SimpleWebSocketServer {
     }
 
     private void handleMainDashboardDeleteBotJob(JsonObject jsonObjMSG, String sessionId) {
+        Map<String, Object> response =
+                mainDashboardService.deleteBotJob(
+                        extractBody(jsonObjMSG),
+                        pageMappingsWorkspaceService::botJobsDeleted);
         sendMainDashboardResponse(
-                sessionId, mainDashboardService.deleteBotJob(extractBody(jsonObjMSG)), "mainDashboard.actionResponse");
+                sessionId, response, "mainDashboard.actionResponse");
     }
 
     private void handleMainDashboardDeleteBotJobs(JsonObject jsonObjMSG, String sessionId) {
+        Map<String, Object> response =
+                mainDashboardService.deleteBotJobs(
+                        extractBody(jsonObjMSG),
+                        pageMappingsWorkspaceService::botJobsDeleted);
         sendMainDashboardResponse(
                 sessionId,
-                mainDashboardService.deleteBotJobs(extractBody(jsonObjMSG)),
+                response,
                 "mainDashboard.deleteBotJobsResponse");
     }
 
@@ -3717,7 +3748,9 @@ public class SimpleWebSocketServer {
                     "config.restoreResponse");
             return;
         }
-        Map<String, Object> response = configService.restore(extractBody(jsonObjMSG));
+        Map<String, Object> response = configService.restore(
+                extractBody(jsonObjMSG),
+                pageMappingsWorkspaceService::allBotJobsReplaced);
         closePagesAfterSuccessfulConfigReload(sessionId, transport, response);
         sendConfigResponse(transport, sessionId, response, "config.restoreResponse");
     }
@@ -3766,7 +3799,11 @@ public class SimpleWebSocketServer {
     }
 
     private void handleConfigDeleteAllJobs(JsonObject jsonObjMSG, String sessionId) {
-        sendConfigResponse(sessionId, configService.deleteAllJobs(extractBody(jsonObjMSG)), "config.deleteResponse");
+        Map<String, Object> response =
+                configService.deleteAllJobs(
+                        extractBody(jsonObjMSG),
+                        pageMappingsWorkspaceService::allBotJobsReplaced);
+        sendConfigResponse(sessionId, response, "config.deleteResponse");
     }
 
     private void handleConfigOpenOrganizations(String sessionId) {

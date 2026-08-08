@@ -14,6 +14,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+import java.util.function.Function;
 import lombok.extern.slf4j.Slf4j;
 
 /** Owns the trusted context and lifecycle of detached Page Scanner workspaces. */
@@ -257,6 +258,19 @@ final class PageScannerWorkspaceCoordinator {
     synchronized WorkspaceContext authoritativeContext(String transportSessionId) {
         purgeExpiredEntries();
         return requireActiveWorkspace(transportSessionId).context();
+    }
+
+    /**
+     * Executes an owner-sensitive action while the exact Page Scanner generation remains fixed.
+     *
+     * <p>This prevents a detached transport from being retargeted between reading its context and
+     * committing a downstream owner binding.
+     */
+    synchronized <T> T withAuthoritativeContext(
+            String transportSessionId, Function<WorkspaceContext, T> action) {
+        Objects.requireNonNull(action, "action");
+        purgeExpiredEntries();
+        return action.apply(requireActiveWorkspace(transportSessionId).context());
     }
 
     synchronized boolean close(String transportSessionId) {

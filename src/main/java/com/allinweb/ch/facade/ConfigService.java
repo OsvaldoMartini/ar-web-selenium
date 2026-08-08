@@ -247,6 +247,11 @@ public class ConfigService {
     }
 
     public Map<String, Object> restore(JsonObject body) {
+        return restore(body, () -> {});
+    }
+
+    public Map<String, Object> restore(
+            JsonObject body, Runnable destructiveCommitObserver) {
         String selectedDb = str(body, "databaseType");
         String savedDb = arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE);
         if (!dbMatches(savedDb, selectedDb)) {
@@ -285,9 +290,13 @@ public class ConfigService {
         try (Connection conn = performDataBase.getConnection()) {
             performBackup.initialize(conn);
             if (useSingle) {
-                error = performBackup.restoreWithRemap(conn, restoreFile.getAbsolutePath());
+                error = performBackup.restoreWithRemap(
+                        conn,
+                        restoreFile.getAbsolutePath(),
+                        destructiveCommitObserver);
             } else {
-                error = runLegacyPerTableRestore(conn, folder, date);
+                error = runLegacyPerTableRestore(
+                        conn, folder, date, destructiveCommitObserver);
             }
         } catch (SQLException ex) {
             return failure("Restore failed: " + ex.getMessage());
@@ -397,6 +406,12 @@ public class ConfigService {
     }
 
     public Map<String, Object> deleteAllJobs(JsonObject body) {
+        return deleteAllJobs(body, () -> {});
+    }
+
+    /** Deletes all jobs and observes the commit before any cache or presentation refresh. */
+    public Map<String, Object> deleteAllJobs(
+            JsonObject body, Runnable committedReplacementObserver) {
         String selectedDb = str(body, "databaseType");
         String savedDb = arPropertyManager.getProperty(ARPropertyEnum.DATABASE_TYPE);
         if (!dbMatches(savedDb, selectedDb)) {
@@ -407,7 +422,8 @@ public class ConfigService {
         } catch (SQLException error) {
             return failure("Database connection failed: " + error.getMessage());
         }
-        if (!performDataBase.deleteAllJobDetails(savedDb)) {
+        if (!performDataBase.deleteAllJobDetails(
+                savedDb, committedReplacementObserver)) {
             return failure("Not possible to delete all job details");
         }
         RuntimeVariableMemoryRegistry.getInstance().clearAll();
@@ -528,8 +544,15 @@ public class ConfigService {
         return error;
     }
 
-    private ErrorMessage runLegacyPerTableRestore(Connection conn, String folder, String date) {
-        ErrorMessage error = performBackup.restoreHomeBanking(conn, folder + File.separator + "backup_home_banking_" + date + ".sql");
+    private ErrorMessage runLegacyPerTableRestore(
+            Connection conn,
+            String folder,
+            String date,
+            Runnable destructiveCommitObserver) {
+        ErrorMessage error = performBackup.restoreHomeBanking(
+                conn,
+                folder + File.separator + "backup_home_banking_" + date + ".sql",
+                destructiveCommitObserver);
         if (error == null) error = performBackup.restoreHomeUrl(conn, folder + File.separator + "backup_home_url_" + date + ".sql");
         if (error == null) error = performBackup.restoreBotJob(conn, folder + File.separator + "backup_bot_job_" + date + ".sql", null, null, null);
         if (error == null) error = performBackup.restoreBlock(conn, folder + File.separator + "backup_block_" + date + ".sql", null);

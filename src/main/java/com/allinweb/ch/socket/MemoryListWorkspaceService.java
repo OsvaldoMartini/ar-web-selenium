@@ -19,7 +19,11 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.SecureRandom;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -29,6 +33,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
 import javax.websocket.Session;
 
 /**
@@ -60,6 +65,8 @@ public final class MemoryListWorkspaceService {
     private static final int PENDING_NEW_BLOCK_PLACEHOLDER_ID = 1;
     private static final long LAUNCH_PENDING_NANOS =
             java.util.concurrent.TimeUnit.SECONDS.toNanos(15);
+    private static final SecureRandom WINDOW_CAPABILITY_RANDOM = new SecureRandom();
+    private static final int WINDOW_CAPABILITY_BYTES = 32;
     private static final Set<String> COMMANDS = Set.of(
             "REMOVE",
             "CLEAR",
@@ -88,12 +95,30 @@ public final class MemoryListWorkspaceService {
     private final BlockCreationService blockCreationService = BlockCreationService.getInstance();
     private final ScannerBotJobTasksPublisher botJobTasksPublisher =
             ScannerBotJobTasksPublisher.getInstance();
+    private final DetachedWindowLauncher detachedWindowLauncher;
+    private final PageScannerWorkspaceCoordinator pageScannerWorkspaceCoordinator;
     private final Map<String, SummarySubscriber> summarySubscribers = new LinkedHashMap<>();
     private MemoryState current;
     private boolean launchPending;
     private long launchPendingSince;
 
-    private MemoryListWorkspaceService() {}
+    private MemoryListWorkspaceService() {
+        this(
+                (botJobId, windowCapability) -> ARWebSocketServer.getInstance()
+                        .openDetachedWorkspaceDesktopShell(
+                                WORKSPACE_SESSION_ID, botJobId, windowCapability),
+                PageScannerWorkspaceCoordinator.getInstance());
+    }
+
+    MemoryListWorkspaceService(
+            DetachedWindowLauncher detachedWindowLauncher,
+            PageScannerWorkspaceCoordinator pageScannerWorkspaceCoordinator) {
+        this.detachedWindowLauncher = Objects.requireNonNull(
+                detachedWindowLauncher, "Memory List window launcher is required");
+        this.pageScannerWorkspaceCoordinator = Objects.requireNonNull(
+                pageScannerWorkspaceCoordinator,
+                "Page Scanner workspace coordinator is required");
+    }
 
     public static MemoryListWorkspaceService getInstance() {
         return INSTANCE;
@@ -101,22 +126,68 @@ public final class MemoryListWorkspaceService {
 
     /** Adds or updates one source contribution and opens/focuses the fixed detached window. */
     public JsonObject open(JsonObject body, String transportSessionId, Session transportSession) {
-        JsonObject validation = validateSourceRequest(body, transportSessionId, transportSession);
+        if (PAGE_MAPPINGS_SOURCE.equals(sourceKind(transportSessionId))) {
+            return withAuthorizedPageMappingsSource(
+                    body,
+                    transportSessionId,
+                    transportSession,
+                    sourceOwner -> openAuthorized(
+                            body, transportSessionId, transportSession, sourceOwner));
+        }
+        if (ScannerWorkspaceSessions.isPageScannerSession(transportSessionId)) {
+            return withAuthorizedDetachedPageScannerSource(
+                    body,
+                    transportSessionId,
+                    transportSession,
+                    sourceOwner -> openAuthorized(
+                            body, transportSessionId, transportSession, sourceOwner));
+        }
+        return openAuthorized(body, transportSessionId, transportSession, null);
+    }
+
+    private JsonObject openAuthorized(
+            JsonObject body,
+            String transportSessionId,
+            Session transportSession,
+            SourceOwner authorizedSourceOwner) {
+        JsonObject validation = validateSourceRequest(
+                body, transportSessionId, transportSession);
         if (validation != null) return validation;
 
         MemoryState state;
-        boolean alreadyOpen = WebSocketSessionManager.isSessionOpen(WORKSPACE_SESSION_ID);
+        boolean alreadyOpen;
         boolean launchRequired;
-        long now = System.nanoTime();
+        String launchCapability;
         try {
-            SourceOwner sourceOwner = sourceOwner(body, transportSessionId, transportSession);
             synchronized (stateLock) {
+                long now = System.nanoTime();
+                // Connection/takeover uses this same lock. Reading the live-session state here
+                // prevents a just-connected pending window from being mistaken for a closed one,
+                // having its capability rotated, and being replaced by a duplicate launch.
+                alreadyOpen = WebSocketSessionManager.isSessionOpen(WORKSPACE_SESSION_ID);
+                SourceOwner sourceOwner = resolveSourceOwner(
+                        authorizedSourceOwner, body, transportSessionId, transportSession);
+                requireUsableSourceOwner(sourceOwner);
                 int botJobId = sourceOwner.botJobId;
                 int homeBankingId = sourceOwner.homeBankingId;
-                if (current == null || current.botJobId != botJobId) {
+                MemoryState previousOwner = current;
+                boolean validPending = launchPending
+                        && now - launchPendingSince < LAUNCH_PENDING_NANOS;
+                if (current == null
+                        || current.botJobId != botJobId
+                        || (homeBankingId > 0 && current.homeBankingId != homeBankingId)
+                        || (sourceOwner.workspaceEpoch > 0
+                                && current.workspaceEpoch != sourceOwner.workspaceEpoch)) {
                     current =
                             new MemoryState(
-                                    botJobId, homeBankingId, UUID.randomUUID().toString());
+                                    botJobId,
+                                    homeBankingId,
+                                    sourceOwner.workspaceEpoch,
+                                    UUID.randomUUID().toString());
+                    current.windowCapability = windowCapabilityForOwnerTransition(
+                            previousOwner == null ? null : previousOwner.windowCapability,
+                            alreadyOpen,
+                            validPending);
                 } else if (homeBankingId > 0) {
                     current.homeBankingId = homeBankingId;
                 }
@@ -134,13 +205,15 @@ public final class MemoryListWorkspaceService {
                 if (alreadyOpen) {
                     launchPending = false;
                     launchRequired = false;
-                } else if (launchPending && now - launchPendingSince < LAUNCH_PENDING_NANOS) {
+                } else if (validPending) {
                     launchRequired = false;
                 } else {
                     launchPending = true;
                     launchPendingSince = now;
+                    current.windowCapability = newWindowCapability();
                     launchRequired = true;
                 }
+                launchCapability = current.windowCapability;
             }
         } catch (IllegalArgumentException inactiveWorkspace) {
             return failure(
@@ -150,47 +223,91 @@ public final class MemoryListWorkspaceService {
                             "The Memory List source no longer matches its active workspace."));
         }
 
-        boolean launched = !launchRequired || ARWebSocketServer.getInstance()
-                .openDetachedWorkspaceDesktopShell(WORKSPACE_SESSION_ID, state.botJobId);
+        boolean launched = !launchRequired
+                || detachedWindowLauncher.open(state.botJobId, launchCapability);
         if (!launched) {
             synchronized (stateLock) {
+                if (!matchesOwnerGeneration(state, launchCapability)) {
+                    return failure(
+                            body,
+                            "Memory List ownership changed while the workspace was opening.");
+                }
                 launchPending = false;
             }
             return failure(body, "Memory List workspace could not be opened.");
         }
 
+        synchronized (stateLock) {
+            if (!matchesOwnerGeneration(state, launchCapability)) {
+                return failure(
+                        body,
+                        "Memory List ownership changed while the workspace was opening.");
+            }
+        }
+
         if (alreadyOpen) {
-            publishSnapshot(state);
-            PagesOpenWorkspaceService.getInstance()
-                    .focusSession(
-                            WORKSPACE_SESSION_ID,
-                            "Memory button requested the existing Memory List workspace.");
-            publishFocus(state);
+            publishAndFocusCurrent(state, launchCapability);
         }
         boolean pendingReuse = !alreadyOpen && !launchRequired;
-        JsonObject response = snapshotResponse(
-                state,
-                alreadyOpen
-                        ? "Memory List workspace already open."
-                        : pendingReuse
-                                ? "Memory List workspace is opening."
-                                : "Memory List workspace opened.");
+        JsonObject response;
+        synchronized (stateLock) {
+            if (!matchesOwnerGeneration(state, launchCapability)) {
+                return failure(
+                        body,
+                        "Memory List ownership changed while the workspace was opening.");
+            }
+            response = snapshotResponse(
+                    state,
+                    alreadyOpen
+                            ? "Memory List workspace already open."
+                            : pendingReuse
+                                    ? "Memory List workspace is opening."
+                                    : "Memory List workspace opened.");
+        }
         copyRequestId(response, body);
         response.addProperty("alreadyOpen", alreadyOpen);
         response.addProperty("reused", alreadyOpen || pendingReuse);
-        publishSummaryChanged();
+        publishSummaryChanged(state);
         return response;
     }
 
     /** Upserts only the calling source; rows from the other source remain in the global list. */
     public JsonObject sync(JsonObject body, String transportSessionId, Session transportSession) {
-        JsonObject validation = validateSourceRequest(body, transportSessionId, transportSession);
+        if (PAGE_MAPPINGS_SOURCE.equals(sourceKind(transportSessionId))) {
+            return withAuthorizedPageMappingsSource(
+                    body,
+                    transportSessionId,
+                    transportSession,
+                    sourceOwner -> syncAuthorized(
+                            body, transportSessionId, transportSession, sourceOwner));
+        }
+        if (ScannerWorkspaceSessions.isPageScannerSession(transportSessionId)) {
+            return withAuthorizedDetachedPageScannerSource(
+                    body,
+                    transportSessionId,
+                    transportSession,
+                    sourceOwner -> syncAuthorized(
+                            body, transportSessionId, transportSession, sourceOwner));
+        }
+        return syncAuthorized(body, transportSessionId, transportSession, null);
+    }
+
+    private JsonObject syncAuthorized(
+            JsonObject body,
+            String transportSessionId,
+            Session transportSession,
+            SourceOwner authorizedSourceOwner) {
+        JsonObject validation = validateSourceRequest(
+                body, transportSessionId, transportSession);
         if (validation != null) return validation;
 
         MemoryState state;
+        JsonObject response;
         try {
-            SourceOwner sourceOwner = sourceOwner(body, transportSessionId, transportSession);
             synchronized (stateLock) {
+                SourceOwner sourceOwner = resolveSourceOwner(
+                        authorizedSourceOwner, body, transportSessionId, transportSession);
+                requireUsableSourceOwner(sourceOwner);
                 state = current;
                 if (state == null) {
                     return failure(body, "Open the Memory List before synchronizing it.");
@@ -219,6 +336,7 @@ public final class MemoryListWorkspaceService {
                         || PAGE_MAPPINGS_SOURCE.equals(sourceKind(transportSessionId))) {
                     reloadBlocks(state);
                 }
+                response = snapshotResponse(state, "Memory List synchronized.");
             }
         } catch (IllegalArgumentException inactiveWorkspace) {
             return failure(
@@ -228,8 +346,7 @@ public final class MemoryListWorkspaceService {
                             "The Memory List source no longer matches its active workspace."));
         }
         publishSnapshot(state);
-        publishSummaryChanged();
-        JsonObject response = snapshotResponse(state, "Memory List synchronized.");
+        publishSummaryChanged(state);
         copyRequestId(response, body);
         return response;
     }
@@ -242,6 +359,9 @@ public final class MemoryListWorkspaceService {
 
         MemoryState state;
         synchronized (stateLock) {
+            validation = validateWorkspaceTransport(
+                    body, transportSessionId, transportSession);
+            if (validation != null) return validation;
             launchPending = false;
             state = current;
         }
@@ -283,6 +403,9 @@ public final class MemoryListWorkspaceService {
         JsonObject response;
         MemoryState state;
         synchronized (stateLock) {
+            validation = validateWorkspaceTransport(
+                    body, transportSessionId, transportSession);
+            if (validation != null) return validation;
             state = current;
             if (state == null) return failure(body, "No Memory List source is available.");
             String ownerEpoch = string(body, "ownerEpoch");
@@ -306,7 +429,7 @@ public final class MemoryListWorkspaceService {
         }
         publishSnapshot(state);
         if (booleanValue(response, "ok")) {
-            publishSummaryChanged();
+            publishSummaryChanged(state);
         }
         return response;
     }
@@ -319,33 +442,58 @@ public final class MemoryListWorkspaceService {
      */
     public JsonObject summary(
             JsonObject body, String transportSessionId, Session transportSession) {
-        JsonObject validation =
-                validateSummaryRequest(body, transportSessionId, transportSession);
-        if (validation != null) return validation;
-
-        SummarySubscriber subscriber;
-        try {
-            SourceOwner sourceOwner = sourceOwner(body, transportSessionId, transportSession);
-            subscriber = new SummarySubscriber(
-                    sourceKind(transportSessionId),
+        if (PAGE_MAPPINGS_SOURCE.equals(sourceKind(transportSessionId))) {
+            return withAuthorizedPageMappingsSource(
+                    body,
                     transportSessionId,
                     transportSession,
-                    sourceOwner.botJobId,
-                    sourceOwner.homeBankingId);
+                    sourceOwner -> summaryAuthorized(
+                            body, transportSessionId, transportSession, sourceOwner));
+        }
+        if (ScannerWorkspaceSessions.isPageScannerSession(transportSessionId)) {
+            return withAuthorizedDetachedPageScannerSource(
+                    body,
+                    transportSessionId,
+                    transportSession,
+                    sourceOwner -> summaryAuthorized(
+                            body, transportSessionId, transportSession, sourceOwner));
+        }
+        return summaryAuthorized(body, transportSessionId, transportSession, null);
+    }
+
+    private JsonObject summaryAuthorized(
+            JsonObject body,
+            String transportSessionId,
+            Session transportSession,
+            SourceOwner authorizedSourceOwner) {
+        JsonObject validation = validateSummaryRequest(
+                body, transportSessionId, transportSession);
+        if (validation != null) return validation;
+
+        try {
+            synchronized (stateLock) {
+                SourceOwner sourceOwner = resolveSourceOwner(
+                        authorizedSourceOwner, body, transportSessionId, transportSession);
+                requireUsableSourceOwner(sourceOwner);
+                SummarySubscriber subscriber = new SummarySubscriber(
+                        sourceKind(transportSessionId),
+                        transportSessionId,
+                        transportSession,
+                        sourceOwner.botJobId,
+                        sourceOwner.homeBankingId,
+                        sourceOwner.workspaceEpoch);
+                pruneSummarySubscribers();
+                // There is one authoritative producer transport per source kind. A reconnect or
+                // Bot-Job retarget replaces the previous subscription instead of accumulating rows.
+                summarySubscribers.put(subscriber.kind, subscriber);
+                return summaryResponse(body, subscriber, current, "Memory List count loaded.");
+            }
         } catch (IllegalArgumentException inactiveWorkspace) {
             return failure(
                     body,
                     firstNonBlank(
                             inactiveWorkspace.getMessage(),
                             "The Memory List source no longer matches its active workspace."));
-        }
-
-        synchronized (stateLock) {
-            pruneSummarySubscribers();
-            // There is one authoritative producer transport per source kind. A reconnect or
-            // Bot-Job retarget replaces the previous subscription instead of accumulating rows.
-            summarySubscribers.put(subscriber.kind, subscriber);
-            return summaryResponse(body, subscriber, current, "Memory List count loaded.");
         }
     }
 
@@ -362,6 +510,29 @@ public final class MemoryListWorkspaceService {
     }
 
     /**
+     * Atomically validates the current Memory owner generation before registration/takeover.
+     *
+     * <p>A detached browser process can connect after its Bot Job was deleted. The capability is
+     * bound to the current in-memory owner and is revoked by clearing or replacing that owner, so a
+     * delayed process cannot reclaim the fixed logical session or attach to a reused numeric ID.
+     */
+    boolean authorizeAndTakeOverWindowTransport(Session requesterTransport) {
+        String assertedCapability = requestParameter(requesterTransport, "windowCapability");
+        if (assertedCapability.isBlank() || assertedCapability.length() > 256) return false;
+        synchronized (stateLock) {
+            if (current == null
+                    || !constantTimeEquals(
+                            current.windowCapability, assertedCapability)) {
+                return false;
+            }
+            WebSocketSessionManager.takeOverSession(
+                    WORKSPACE_SESSION_ID, requesterTransport);
+            launchPending = false;
+            return true;
+        }
+    }
+
+    /**
      * Removes only the Page Mappings contribution owned by the previous binding.
      *
      * <p>A detached Page Mappings window is reused across Bot Jobs. Its staged rows must not
@@ -370,30 +541,145 @@ public final class MemoryListWorkspaceService {
     void pageMappingsRetargeted(
             PageMappingsWorkspaceService.Binding previous,
             PageMappingsWorkspaceService.Binding currentBinding) {
-        if (previous == null || currentBinding == null) return;
         MemoryState changedState = null;
+        boolean stateCleared = false;
+        Session retiredWorkspace = null;
+        String retirementReason =
+                "Memory List was closed because its Bot Job owner is no longer available.";
         synchronized (stateLock) {
             summarySubscribers.remove(PAGE_MAPPINGS_SOURCE);
-            if (current == null) return;
-            SourceState source = current.sources.get(PAGE_MAPPINGS_SOURCE);
-            if (source == null
-                    || !previous.bindingEpoch().equals(
-                            string(source.snapshot, "bindingEpoch"))) {
-                return;
+            if (currentBinding == null) {
+                boolean clearEveryOwner = previous == null;
+                if (clearEveryOwner) {
+                    summarySubscribers.clear();
+                } else {
+                    summarySubscribers.entrySet().removeIf(entry -> {
+                        SummarySubscriber subscriber = entry.getValue();
+                        return subscriber.botJobId == previous.botJobId()
+                                && subscriber.homeBankingId == previous.homeBankingId();
+                    });
+                }
+                if (current != null
+                        && (clearEveryOwner
+                                || (current.botJobId == previous.botJobId()
+                                        && current.homeBankingId == previous.homeBankingId()))) {
+                    // A committed delete/full replacement must retire the complete owner state,
+                    // including ownerEpoch, completed-request ledger, other stale sources, and
+                    // row ordering. Keeping only a source-level cleanup permits Bot Job ID reuse
+                    // to inherit authority from the deleted owner.
+                    current = null;
+                    launchPending = false;
+                    stateCleared = true;
+                    retiredWorkspace = retireWorkspaceTransportLocked(retirementReason);
+                }
+                if (!stateCleared) return;
+            } else {
+                if (previous == null || current == null) return;
+                SourceState source = current.sources.get(PAGE_MAPPINGS_SOURCE);
+                if (source == null
+                        || !previous.bindingEpoch().equals(
+                                string(source.snapshot, "bindingEpoch"))) {
+                    return;
+                }
+                current.sources.remove(PAGE_MAPPINGS_SOURCE);
+                for (String itemKey : source.itemKeys) {
+                    current.items.remove(itemKey);
+                    current.order.remove(itemKey);
+                    current.suppressedKeys.remove(itemKey);
+                }
+                rebuildBlocks(current);
+                current.revision++;
+                changedState = current;
             }
-            current.sources.remove(PAGE_MAPPINGS_SOURCE);
-            for (String itemKey : source.itemKeys) {
-                current.items.remove(itemKey);
-                current.order.remove(itemKey);
-                current.suppressedKeys.remove(itemKey);
-            }
-            rebuildBlocks(current);
-            current.revision++;
-            changedState = current;
         }
         if (changedState != null) {
             publishSnapshot(changedState);
-            publishSummaryChanged();
+        }
+        if (changedState != null || stateCleared) publishSummaryChanged();
+        if (stateCleared) {
+            closeRetiredWorkspace(retiredWorkspace);
+        }
+    }
+
+    /** Retires the complete Memory owner for any Bot Job that was committed deleted. */
+    void botJobsDeleted(java.util.Collection<Integer> botJobIds) {
+        if (botJobIds == null || botJobIds.isEmpty()) return;
+        Set<Integer> deleted = botJobIds.stream()
+                .filter(Objects::nonNull)
+                .filter(id -> id > 0)
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
+        if (deleted.isEmpty()) return;
+        boolean changed;
+        boolean ownerStateCleared = false;
+        Session retiredWorkspace = null;
+        String retirementReason = "Memory List was closed because its Bot Job was deleted.";
+        synchronized (stateLock) {
+            changed = summarySubscribers.entrySet().removeIf(
+                    entry -> deleted.contains(entry.getValue().botJobId));
+            if (current != null && deleted.contains(current.botJobId)) {
+                current = null;
+                launchPending = false;
+                changed = true;
+                ownerStateCleared = true;
+                retiredWorkspace = retireWorkspaceTransportLocked(retirementReason);
+            }
+        }
+        if (changed) publishSummaryChanged();
+        if (ownerStateCleared) {
+            closeRetiredWorkspace(retiredWorkspace);
+        }
+    }
+
+    /** Retires every Memory owner after a committed full database replacement. */
+    void allBotJobsReplaced() {
+        boolean changed;
+        boolean hadOwner;
+        Session retiredWorkspace;
+        String retirementReason =
+                "Memory List was closed because the Bot Job database was replaced.";
+        synchronized (stateLock) {
+            changed = current != null
+                    || !summarySubscribers.isEmpty()
+                    || launchPending
+                    || WebSocketSessionManager.getSession(WORKSPACE_SESSION_ID) != null;
+            hadOwner = current != null;
+            current = null;
+            summarySubscribers.clear();
+            launchPending = false;
+            retiredWorkspace = retireWorkspaceTransportLocked(retirementReason);
+        }
+        if (changed) publishSummaryChanged();
+        if (hadOwner || retiredWorkspace != null) {
+            closeRetiredWorkspace(retiredWorkspace);
+        }
+    }
+
+    /**
+     * Retires only the exact physical transport present when its owner is invalidated.
+     *
+     * <p>This runs under {@code stateLock}, the same lock used by capability takeover and new
+     * owner creation. A replacement transport therefore cannot register between clearing the old
+     * owner and removing its socket, and a delayed close can never kill the replacement.
+     */
+    private Session retireWorkspaceTransportLocked(String reason) {
+        Session retired = WebSocketSessionManager.getSession(WORKSPACE_SESSION_ID);
+        if (retired == null) return null;
+        try {
+            PagesOpenWorkspaceService.getInstance()
+                    .closeDetachedWorkspaceSession(WORKSPACE_SESSION_ID, reason);
+        } catch (RuntimeException closeMessageFailure) {
+            // Exact server-side retirement below remains authoritative.
+        }
+        WebSocketSessionManager.removeSession(WORKSPACE_SESSION_ID, retired);
+        return retired;
+    }
+
+    private static void closeRetiredWorkspace(Session retired) {
+        if (retired == null) return;
+        try {
+            if (retired.isOpen()) retired.close();
+        } catch (java.io.IOException | RuntimeException ignored) {
+            // The exact registry pair was already retired under stateLock.
         }
     }
 
@@ -948,6 +1234,8 @@ public final class MemoryListWorkspaceService {
         forwarded.addProperty("homeBankingId", state.homeBankingId);
         forwarded.addProperty("memoryListSessionId", WORKSPACE_SESSION_ID);
         forwarded.addProperty("ownerEpoch", state.ownerEpoch);
+        addSourceCorrelation(
+                forwarded, sourceKind, source.snapshot, state.workspaceEpoch);
         forwarded.add("payload", payload.deepCopy());
         WebSocketSessionManager.sendMessageJson(
                 state.homeBankingId,
@@ -955,6 +1243,20 @@ public final class MemoryListWorkspaceService {
                 source.sessionId,
                 gson.toJson(forwarded),
                 SOURCE_COMMAND_OPERATION);
+    }
+
+    static void addSourceCorrelation(
+            JsonObject forwarded,
+            String sourceKind,
+            JsonObject sourceSnapshot,
+            long workspaceEpoch) {
+        if (forwarded == null) return;
+        forwarded.addProperty("workspaceEpoch", workspaceEpoch);
+        if (!PAGE_MAPPINGS_SOURCE.equals(sourceKind)) return;
+        String bindingEpoch = string(sourceSnapshot, "bindingEpoch");
+        if (!bindingEpoch.isBlank()) {
+            forwarded.addProperty("sourceBindingEpoch", bindingEpoch);
+        }
     }
 
     private void upsertSource(
@@ -1102,7 +1404,9 @@ public final class MemoryListWorkspaceService {
     }
 
     private JsonObject validateSourceRequest(
-            JsonObject body, String transportSessionId, Session transportSession) {
+            JsonObject body,
+            String transportSessionId,
+            Session transportSession) {
         String sourceKind = sourceKind(transportSessionId);
         if (sourceKind.isEmpty()) {
             return failure(
@@ -1116,18 +1420,6 @@ public final class MemoryListWorkspaceService {
         if (!PAGE_MAPPINGS_SOURCE.equals(sourceKind)
                 && positiveInteger(body, "botJobId") <= 0) {
             return failure(body, "A positive Bot Job ID is required.");
-        }
-        try {
-            SourceOwner owner = sourceOwner(body, transportSessionId, transportSession);
-            if (owner.homeBankingId <= 0 || owner.botJobId <= 0) {
-                return failure(body, "The Memory List source has no authoritative owner.");
-            }
-        } catch (IllegalArgumentException inactive) {
-            return failure(
-                    body,
-                    firstNonBlank(
-                            inactive.getMessage(),
-                            "The Memory List source no longer matches its active workspace."));
         }
         JsonObject snapshot = snapshot(body);
         if (snapshot == null) return failure(body, "A Memory List snapshot is required.");
@@ -1225,7 +1517,9 @@ public final class MemoryListWorkspaceService {
     }
 
     private JsonObject validateSummaryRequest(
-            JsonObject body, String transportSessionId, Session transportSession) {
+            JsonObject body,
+            String transportSessionId,
+            Session transportSession) {
         String kind = sourceKind(transportSessionId);
         if (kind.isEmpty()) {
             return failure(
@@ -1243,18 +1537,6 @@ public final class MemoryListWorkspaceService {
         String requestId = string(body, "requestId");
         if (requestId.length() > MAX_REQUEST_ID_CHARACTERS) {
             return failure(body, "A valid Memory List request ID is required.");
-        }
-        try {
-            SourceOwner owner = sourceOwner(body, transportSessionId, transportSession);
-            if (owner.homeBankingId <= 0 || owner.botJobId <= 0) {
-                return failure(body, "A positive Home Banking ID is required.");
-            }
-        } catch (IllegalArgumentException inactiveWorkspace) {
-            return failure(
-                    body,
-                    firstNonBlank(
-                            inactiveWorkspace.getMessage(),
-                            "The Memory List source no longer matches its active workspace."));
         }
         return null;
     }
@@ -1296,42 +1578,175 @@ public final class MemoryListWorkspaceService {
         return PAGE_SCANNER_SOURCE.equals(sourceKind) || PAGE_MAPPINGS_SOURCE.equals(sourceKind);
     }
 
+    private JsonObject withAuthorizedPageMappingsSource(
+            JsonObject body,
+            String transportSessionId,
+            Session transportSession,
+            Function<SourceOwner, JsonObject> operation) {
+        try {
+            return PageMappingsWorkspaceService.getInstance()
+                    .withAuthorizedMemoryListSource(
+                            body,
+                            transportSessionId,
+                            transportSession,
+                            binding -> operation.apply(sourceOwner(binding)));
+        } catch (IllegalArgumentException inactiveWorkspace) {
+            return failure(
+                    body,
+                    firstNonBlank(
+                            inactiveWorkspace.getMessage(),
+                            "The Memory List source no longer matches its active workspace."));
+        }
+    }
+
+    /**
+     * Runs one detached Page Scanner Memory operation while its generation remains authoritative.
+     *
+     * <p>The coordinator monitor is deliberately acquired before {@code stateLock}. Page Mappings
+     * retargeting uses the same coordinator-to-Memory order, so a scanner request cannot deadlock
+     * with a retarget while each waits for the other's lifecycle lock.
+     */
+    private JsonObject withAuthorizedDetachedPageScannerSource(
+            JsonObject body,
+            String transportSessionId,
+            Session transportSession,
+            Function<SourceOwner, JsonObject> operation) {
+        try {
+            return pageScannerWorkspaceCoordinator.withAuthoritativeContext(
+                    transportSessionId,
+                    context -> {
+                        if (!isRegisteredTransport(transportSessionId, transportSession)) {
+                            throw new IllegalArgumentException(
+                                    "The Page Scanner Memory transport is not authoritative.");
+                        }
+                        SourceOwner sourceOwner = new SourceOwner(
+                                context.homeBankingId(),
+                                context.botJobId(),
+                                context.workspaceEpoch(),
+                                "",
+                                context.botJobName());
+                        assertSourceOwnerAssertions(body, sourceOwner);
+                        return operation.apply(sourceOwner);
+                    });
+        } catch (IllegalArgumentException inactiveWorkspace) {
+            return failure(
+                    body,
+                    firstNonBlank(
+                            inactiveWorkspace.getMessage(),
+                            "The Memory List source no longer matches its active workspace."));
+        }
+    }
+
+    private static SourceOwner sourceOwner(PageMappingsWorkspaceService.Binding owner) {
+        return new SourceOwner(
+                owner.homeBankingId(),
+                owner.botJobId(),
+                owner.workspaceEpoch(),
+                owner.bindingEpoch(),
+                owner.botJobName());
+    }
+
+    private static void requireUsableSourceOwner(SourceOwner owner) {
+        if (owner == null || owner.homeBankingId <= 0 || owner.botJobId <= 0) {
+            throw new IllegalArgumentException(
+                    "The Memory List source has no authoritative owner.");
+        }
+    }
+
+    private SourceOwner resolveSourceOwner(
+            SourceOwner authorizedSourceOwner,
+            JsonObject body,
+            String transportSessionId,
+            Session transportSession) {
+        if (authorizedSourceOwner != null) return authorizedSourceOwner;
+        if (PAGE_MAPPINGS_SOURCE.equals(sourceKind(transportSessionId))) {
+            // Page Mappings must always arrive through bindingLock -> stateLock. Reauthorizing
+            // here would invert that order and permit a delete/retarget deadlock.
+            throw new IllegalArgumentException(
+                    "The Page Mappings Memory owner is not authoritative.");
+        }
+        if (PAGE_SCANNER_SOURCE.equals(sourceKind(transportSessionId))
+                && ScannerWorkspaceSessions.isPageScannerSession(transportSessionId)) {
+            // Detached Page Scanner operations must enter through coordinator -> stateLock.
+            // Resolving the coordinator here would invert that order and permit a retarget
+            // deadlock.
+            throw new IllegalArgumentException(
+                    "The detached Page Scanner Memory owner is not authoritative.");
+        }
+        return sourceOwner(body, transportSessionId, transportSession);
+    }
+
     private SourceOwner sourceOwner(
             JsonObject body, String transportSessionId, Session transportSession) {
+        if (!isRegisteredTransport(transportSessionId, transportSession)) {
+            throw new IllegalArgumentException(
+                    "The Memory List source transport is no longer authoritative.");
+        }
         String kind = sourceKind(transportSessionId);
-        if (PAGE_MAPPINGS_SOURCE.equals(kind)) {
-            PageMappingsWorkspaceService.Binding owner =
-                    PageMappingsWorkspaceService.getInstance()
-                            .authorizeMemoryListSource(
-                                    body, transportSessionId, transportSession);
-            return new SourceOwner(
-                    owner.homeBankingId(),
-                    owner.botJobId(),
-                    owner.workspaceEpoch(),
-                    owner.bindingEpoch(),
-                    owner.botJobName());
-        }
-        if (COMPONENT_SOURCE.equals(kind)) {
-            BotJobDetailsWorkspaceRegistry.Snapshot owner =
-                    BotJobDetailsWorkspaceRegistry.getInstance()
-                            .require(positiveInteger(body, "botJobId"));
-            return new SourceOwner(
-                    owner.homeBankingId(),
-                    owner.botJobId(),
-                    owner.workspaceEpoch(),
+        if (BOT_JOB_SOURCE.equals(kind)
+                || COMPONENT_SOURCE.equals(kind)
+                || PAGE_SCANNER_SOURCE.equals(kind)) {
+            int claimedBotJobId = positiveInteger(body, "botJobId");
+            if (claimedBotJobId <= 0) {
+                claimedBotJobId = positiveInteger(snapshot(body), "botJobId");
+            }
+            BotJobDetailsWorkspaceRegistry.Snapshot context =
+                    BotJobDetailsWorkspaceRegistry.getInstance().require(claimedBotJobId);
+            SourceOwner owner = new SourceOwner(
+                    context.homeBankingId(),
+                    context.botJobId(),
+                    context.workspaceEpoch(),
                     "",
-                    owner.name());
+                    context.name());
+            assertSourceOwnerAssertions(body, owner);
+            requireExactStaticSourceEpoch(body, owner);
+            return owner;
         }
-        int homeBankingId = positiveInteger(body, "homeBankingId");
-        if (homeBankingId <= 0) {
-            homeBankingId = positiveInteger(snapshot(body), "homeBankingId");
+        throw new IllegalArgumentException(
+                "The Memory List source has no authoritative owner.");
+    }
+
+    private static void assertSourceOwnerAssertions(JsonObject body, SourceOwner owner) {
+        assertSourceOwnerAssertion(body, owner);
+        assertSourceOwnerAssertion(snapshotOrNull(body), owner);
+    }
+
+    private static void assertSourceOwnerAssertion(JsonObject assertion, SourceOwner owner) {
+        if (assertion == null) return;
+        int botJobId = positiveInteger(assertion, "botJobId");
+        int homeBankingId = positiveInteger(assertion, "homeBankingId");
+        long workspaceEpoch = positiveLong(assertion, "workspaceEpoch");
+        if ((botJobId > 0 && botJobId != owner.botJobId)
+                || (homeBankingId > 0 && homeBankingId != owner.homeBankingId)
+                || (workspaceEpoch > 0 && workspaceEpoch != owner.workspaceEpoch)) {
+            throw new IllegalArgumentException(
+                    "The Memory List source owner changed. Refresh this page.");
         }
-        return new SourceOwner(
-                homeBankingId,
-                positiveInteger(body, "botJobId"),
-                0,
-                "",
-                string(snapshot(body), "botJobName"));
+    }
+
+    private static void requireExactStaticSourceEpoch(JsonObject body, SourceOwner owner) {
+        JsonObject nested = snapshotOrNull(body);
+        boolean bodyHasEpoch = body != null && body.has("workspaceEpoch");
+        boolean snapshotHasEpoch = nested != null && nested.has("workspaceEpoch");
+        long bodyEpoch = positiveLong(body, "workspaceEpoch");
+        long snapshotEpoch = positiveLong(nested, "workspaceEpoch");
+        if ((bodyHasEpoch && bodyEpoch <= 0)
+                || (snapshotHasEpoch && snapshotEpoch <= 0)
+                || (!bodyHasEpoch && !snapshotHasEpoch)) {
+            throw new IllegalArgumentException(
+                    "The Memory List source workspace epoch is required.");
+        }
+        if ((bodyEpoch > 0 && bodyEpoch != owner.workspaceEpoch)
+                || (snapshotEpoch > 0 && snapshotEpoch != owner.workspaceEpoch)) {
+            throw new IllegalArgumentException(
+                    "The Memory List source owner changed. Refresh this page.");
+        }
+    }
+
+    private static JsonObject snapshotOrNull(JsonObject body) {
+        if (body == null) return null;
+        JsonElement nested = body.get("snapshot");
+        return nested != null && nested.isJsonObject() ? nested.getAsJsonObject() : null;
     }
 
     private JsonObject validateComponentSnapshot(JsonObject request, JsonObject submittedSnapshot) {
@@ -1406,28 +1821,27 @@ public final class MemoryListWorkspaceService {
     }
 
     private void publishSummaryChanged() {
-        List<SummaryDelivery> deliveries = new ArrayList<>();
+        publishSummaryChanged(null);
+    }
+
+    /** Publishes only while an optional captured owner remains the current generation. */
+    private void publishSummaryChanged(MemoryState expectedState) {
         synchronized (stateLock) {
+            if (expectedState != null && current != expectedState) return;
             pruneSummarySubscribers();
             for (SummarySubscriber subscriber : summarySubscribers.values()) {
-                deliveries.add(new SummaryDelivery(
-                        subscriber,
-                        summaryResponse(
+                if (!isRegisteredTransport(subscriber.sessionId, subscriber.transport)) continue;
+                WebSocketSessionManager.sendMessageJson(
+                        subscriber.homeBankingId,
+                        subscriber.transport,
+                        subscriber.sessionId,
+                        gson.toJson(summaryResponse(
                                 null,
                                 subscriber,
                                 current,
-                                "Memory List count updated.")));
+                                "Memory List count updated.")),
+                        SUMMARY_CHANGED_OPERATION);
             }
-        }
-        for (SummaryDelivery delivery : deliveries) {
-            SummarySubscriber subscriber = delivery.subscriber;
-            if (!isRegisteredTransport(subscriber.sessionId, subscriber.transport)) continue;
-            WebSocketSessionManager.sendMessageJson(
-                    subscriber.homeBankingId,
-                    subscriber.transport,
-                    subscriber.sessionId,
-                    gson.toJson(delivery.payload),
-                    SUMMARY_CHANGED_OPERATION);
         }
     }
 
@@ -1445,12 +1859,14 @@ public final class MemoryListWorkspaceService {
             String message) {
         boolean matches = state != null
                 && state.botJobId == subscriber.botJobId
-                && state.homeBankingId == subscriber.homeBankingId;
+                && state.homeBankingId == subscriber.homeBankingId
+                && state.workspaceEpoch == subscriber.workspaceEpoch;
         JsonObject response = baseResponse(request, true, message);
         response.addProperty("sourceSessionId", subscriber.sessionId);
         response.addProperty("sourceKind", subscriber.kind);
         response.addProperty("botJobId", subscriber.botJobId);
         response.addProperty("homeBankingId", subscriber.homeBankingId);
+        response.addProperty("workspaceEpoch", subscriber.workspaceEpoch);
         response.addProperty("itemCount", matches ? state.items.size() : 0);
         response.addProperty("revision", matches ? state.revision : 0);
         response.addProperty("ownerEpoch", matches ? state.ownerEpoch : "");
@@ -1473,6 +1889,27 @@ public final class MemoryListWorkspaceService {
         }
     }
 
+    private void publishAndFocusCurrent(MemoryState state, String capability) {
+        synchronized (stateLock) {
+            if (!matchesOwnerGeneration(state, capability)
+                    || !WebSocketSessionManager.isSessionOpen(WORKSPACE_SESSION_ID)) {
+                return;
+            }
+            publishSnapshot(state);
+            PagesOpenWorkspaceService.getInstance()
+                    .focusSession(
+                            WORKSPACE_SESSION_ID,
+                            "Memory button requested the existing Memory List workspace.");
+            publishFocus(state);
+        }
+    }
+
+    private boolean matchesOwnerGeneration(MemoryState state, String capability) {
+        return current == state
+                && capability != null
+                && constantTimeEquals(state.windowCapability, capability);
+    }
+
     private JsonObject snapshotResponse(MemoryState state, String message) {
         JsonObject snapshot = combinedSnapshot(state);
         JsonObject response = new JsonObject();
@@ -1482,6 +1919,7 @@ public final class MemoryListWorkspaceService {
         response.addProperty("sourceSessionId", sourceLabel(state));
         response.addProperty("botJobId", state.botJobId);
         response.addProperty("homeBankingId", state.homeBankingId);
+        response.addProperty("workspaceEpoch", state.workspaceEpoch);
         response.addProperty("ownerEpoch", state.ownerEpoch);
         response.addProperty("revision", state.revision);
         response.addProperty("itemCount", state.items.size());
@@ -1499,6 +1937,7 @@ public final class MemoryListWorkspaceService {
         snapshot.addProperty("sourceKind", sourceLabel(state));
         snapshot.addProperty("homeBankingId", state.homeBankingId);
         snapshot.addProperty("botJobId", state.botJobId);
+        snapshot.addProperty("workspaceEpoch", state.workspaceEpoch);
         snapshot.addProperty("botJobName", state.botJobName);
         snapshot.addProperty("itemCount", state.items.size());
         JsonArray items = new JsonArray();
@@ -1557,6 +1996,7 @@ public final class MemoryListWorkspaceService {
         JsonObject response = baseResponse(request, true, message);
         response.addProperty("botJobId", state.botJobId);
         response.addProperty("homeBankingId", state.homeBankingId);
+        response.addProperty("workspaceEpoch", state.workspaceEpoch);
         response.addProperty("ownerEpoch", state.ownerEpoch);
         response.addProperty("revision", state.revision);
         return response;
@@ -1711,10 +2151,47 @@ public final class MemoryListWorkspaceService {
         }
     }
 
+    private static String newWindowCapability() {
+        byte[] capability = new byte[WINDOW_CAPABILITY_BYTES];
+        WINDOW_CAPABILITY_RANDOM.nextBytes(capability);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(capability);
+    }
+
+    static String windowCapabilityForOwnerTransition(
+            String previousCapability, boolean alreadyOpen, boolean validPending) {
+        if (previousCapability != null
+                && !previousCapability.isBlank()
+                && (alreadyOpen || validPending)) {
+            return previousCapability;
+        }
+        return newWindowCapability();
+    }
+
+    private static boolean constantTimeEquals(String expected, String asserted) {
+        return expected != null
+                && MessageDigest.isEqual(
+                        expected.getBytes(StandardCharsets.UTF_8),
+                        asserted.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private static String requestParameter(Session session, String field) {
+        if (session == null || field == null) return "";
+        try {
+            List<String> values = session.getRequestParameterMap().get(field);
+            return values == null || values.isEmpty() || values.get(0) == null
+                    ? ""
+                    : values.get(0).trim();
+        } catch (RuntimeException invalidRequest) {
+            return "";
+        }
+    }
+
     private static final class MemoryState {
         private final int botJobId;
         private int homeBankingId;
+        private final long workspaceEpoch;
         private final String ownerEpoch;
+        private String windowCapability;
         private long revision;
         private String botJobName = "";
         private Integer targetBlockId;
@@ -1728,9 +2205,19 @@ public final class MemoryListWorkspaceService {
                 new LinkedHashMap<>(16, 0.75f, true);
 
         private MemoryState(int botJobId, int homeBankingId, String ownerEpoch) {
+            this(botJobId, homeBankingId, 0, ownerEpoch);
+        }
+
+        private MemoryState(
+                int botJobId,
+                int homeBankingId,
+                long workspaceEpoch,
+                String ownerEpoch) {
             this.botJobId = botJobId;
             this.homeBankingId = homeBankingId;
+            this.workspaceEpoch = workspaceEpoch;
             this.ownerEpoch = ownerEpoch;
+            this.windowCapability = newWindowCapability();
         }
     }
 
@@ -1741,9 +2228,8 @@ public final class MemoryListWorkspaceService {
             String sessionId,
             Session transport,
             int botJobId,
-            int homeBankingId) {}
-
-    private record SummaryDelivery(SummarySubscriber subscriber, JsonObject payload) {}
+            int homeBankingId,
+            long workspaceEpoch) {}
 
     private record SourceOwner(
             int homeBankingId,
@@ -1751,6 +2237,11 @@ public final class MemoryListWorkspaceService {
             long workspaceEpoch,
             String bindingEpoch,
             String botJobName) {}
+
+    @FunctionalInterface
+    interface DetachedWindowLauncher {
+        boolean open(int botJobId, String windowCapability);
+    }
 
     private static final class SourceState {
         private final String kind;

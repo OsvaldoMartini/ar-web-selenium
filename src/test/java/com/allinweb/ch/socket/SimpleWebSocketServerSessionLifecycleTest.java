@@ -3,6 +3,7 @@ package com.allinweb.ch.socket;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -16,15 +17,19 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.io.IOException;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
 import java.util.Collections;
 import java.util.concurrent.CompletionException;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import com.allinweb.ch.facade.BotJobTransferPathRegistry;
 import com.allinweb.ch.facade.BotJobDetailsWorkspaceRegistry;
 import com.allinweb.ch.model.BotJobLoadDTO;
+import com.allinweb.ch.model.DetachedWorkspaceSessions;
 import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import com.google.gson.JsonObject;
 import javax.websocket.CloseReason;
@@ -97,6 +102,18 @@ class SimpleWebSocketServerSessionLifecycleTest {
         assertFalse(SimpleWebSocketServer.isAllowedFromDetachedPageMappingsTransport(
                 "pageMappings.open"));
         assertFalse(SimpleWebSocketServer.isAllowedFromDetachedPageMappingsTransport(null));
+    }
+
+    @Test
+    void detachedPageMappingsUrlCarriesTheEncodedServerCapability() {
+        String url = ARWebSocketServer.detachedWorkspaceDesktopUrl(
+                54525,
+                DetachedWorkspaceSessions.PAGE_MAPPINGS_MANAGER,
+                42,
+                "capability+/=");
+
+        assertTrue(url.contains("sourceBotJobId=42"));
+        assertTrue(url.contains("windowCapability=capability%2B%2F%3D"));
     }
 
     @Test
@@ -218,12 +235,14 @@ class SimpleWebSocketServerSessionLifecycleTest {
     private final SimpleWebSocketServer endpoint = new SimpleWebSocketServer();
 
     @BeforeEach
-    void startWithEmptyRegistry() {
+    void startWithEmptyRegistry() throws Exception {
+        MemoryListWorkspaceService.getInstance().allBotJobsReplaced();
         WebSocketSessionManager.clearSessions();
     }
 
     @AfterEach
-    void clearRegistry() {
+    void clearRegistry() throws Exception {
+        MemoryListWorkspaceService.getInstance().allBotJobsReplaced();
         WebSocketSessionManager.clearSessions();
     }
 
@@ -239,6 +258,177 @@ class SimpleWebSocketServerSessionLifecycleTest {
         verify(original)
                 .close(argThat(reason -> CloseReason.CloseCodes.NORMAL_CLOSURE.equals(reason.getCloseCode())));
         verify(replacement, never()).close(any(CloseReason.class));
+    }
+
+    @Test
+    void pageMappingsCapabilityIsCheckedBeforeRegistrationAndCannotEvictTheOwner()
+            throws Exception {
+        AtomicReference<String> capability = new AtomicReference<>();
+        SimpleWebSocketServer pageMappingsEndpoint = pageMappingsEndpoint(capability);
+        Session owner = pageMappingsSession(capability.get(), true);
+        pageMappingsEndpoint.onOpen(owner);
+        assertSame(
+                owner,
+                WebSocketSessionManager.getSession(
+                        DetachedWorkspaceSessions.PAGE_MAPPINGS_MANAGER));
+
+        Session wrong = pageMappingsSession("wrong-capability", true);
+        pageMappingsEndpoint.onOpen(wrong);
+        assertSame(
+                owner,
+                WebSocketSessionManager.getSession(
+                        DetachedWorkspaceSessions.PAGE_MAPPINGS_MANAGER));
+        verify(wrong).close(argThat(
+                reason -> CloseReason.CloseCodes.VIOLATED_POLICY.equals(reason.getCloseCode())));
+        verify(owner, never()).close(any(CloseReason.class));
+
+        Session missing = sessionWithId(
+                DetachedWorkspaceSessions.PAGE_MAPPINGS_MANAGER, true);
+        pageMappingsEndpoint.onOpen(missing);
+        assertSame(
+                owner,
+                WebSocketSessionManager.getSession(
+                        DetachedWorkspaceSessions.PAGE_MAPPINGS_MANAGER));
+        verify(missing).close(argThat(
+                reason -> CloseReason.CloseCodes.VIOLATED_POLICY.equals(reason.getCloseCode())));
+        verify(owner, never()).close(any(CloseReason.class));
+    }
+
+    @Test
+    void pageMappingsOldFirstDisconnectReconnectRetainsTheCapability() throws Exception {
+        AtomicReference<String> capability = new AtomicReference<>();
+        SimpleWebSocketServer pageMappingsEndpoint = pageMappingsEndpoint(capability);
+        Session original = pageMappingsSession(capability.get(), true);
+        pageMappingsEndpoint.onOpen(original);
+
+        pageMappingsEndpoint.onClose(
+                original,
+                new CloseReason(CloseReason.CloseCodes.NORMAL_CLOSURE, "reload"));
+        assertNull(WebSocketSessionManager.getSession(
+                DetachedWorkspaceSessions.PAGE_MAPPINGS_MANAGER));
+
+        Session replacement = pageMappingsSession(capability.get(), true);
+        pageMappingsEndpoint.onOpen(replacement);
+
+        assertSame(
+                replacement,
+                WebSocketSessionManager.getSession(
+                        DetachedWorkspaceSessions.PAGE_MAPPINGS_MANAGER));
+        verify(replacement, never()).close(any(CloseReason.class));
+    }
+
+    @Test
+    void pageMappingsNewFirstTakeoverIgnoresTheDelayedOldClose() throws Exception {
+        AtomicReference<String> capability = new AtomicReference<>();
+        SimpleWebSocketServer pageMappingsEndpoint = pageMappingsEndpoint(capability);
+        Session original = pageMappingsSession(capability.get(), true);
+        Session replacement = pageMappingsSession(capability.get(), true);
+
+        pageMappingsEndpoint.onOpen(original);
+        pageMappingsEndpoint.onOpen(replacement);
+        assertSame(
+                replacement,
+                WebSocketSessionManager.getSession(
+                        DetachedWorkspaceSessions.PAGE_MAPPINGS_MANAGER));
+        verify(original).close(argThat(
+                reason -> CloseReason.CloseCodes.NORMAL_CLOSURE.equals(reason.getCloseCode())));
+
+        pageMappingsEndpoint.onClose(
+                original,
+                new CloseReason(CloseReason.CloseCodes.NORMAL_CLOSURE, "delayed old close"));
+
+        assertSame(
+                replacement,
+                WebSocketSessionManager.getSession(
+                        DetachedWorkspaceSessions.PAGE_MAPPINGS_MANAGER));
+        verify(replacement, never()).close(any(CloseReason.class));
+    }
+
+    @Test
+    void delayedMemoryListLaunchCannotConnectAfterDeleteOrSameIdReuse()
+            throws Exception {
+        MemoryListWorkspaceService memoryService = MemoryListWorkspaceService.getInstance();
+        Object firstOwner = seedMemoryOwner(42, 7, "owner-first");
+        String firstCapability = memoryCapability(firstOwner);
+        Session delayedFirstWindow = memoryListSession(firstCapability, true);
+
+        memoryService.botJobsDeleted(List.of(42));
+        endpoint.onOpen(delayedFirstWindow);
+
+        assertNull(WebSocketSessionManager.getSession(
+                DetachedWorkspaceSessions.MEMORY_LIST_MANAGER));
+        verify(delayedFirstWindow).close(argThat(
+                reason -> CloseReason.CloseCodes.VIOLATED_POLICY.equals(reason.getCloseCode())));
+
+        Object reusedOwner = seedMemoryOwner(42, 7, "owner-reused");
+        String reusedCapability = memoryCapability(reusedOwner);
+        assertNotEquals(firstCapability, reusedCapability);
+        Session currentWindow = memoryListSession(reusedCapability, true);
+        endpoint.onOpen(currentWindow);
+        assertSame(
+                currentWindow,
+                WebSocketSessionManager.getSession(
+                        DetachedWorkspaceSessions.MEMORY_LIST_MANAGER));
+
+        Session staleReclaim = memoryListSession(firstCapability, true);
+        endpoint.onOpen(staleReclaim);
+        assertSame(
+                currentWindow,
+                WebSocketSessionManager.getSession(
+                        DetachedWorkspaceSessions.MEMORY_LIST_MANAGER));
+        verify(staleReclaim).close(argThat(
+                reason -> CloseReason.CloseCodes.VIOLATED_POLICY.equals(reason.getCloseCode())));
+        verify(currentWindow, never()).close(any(CloseReason.class));
+
+        Session missingCapability = sessionWithId(
+                DetachedWorkspaceSessions.MEMORY_LIST_MANAGER, true);
+        endpoint.onOpen(missingCapability);
+        assertSame(
+                currentWindow,
+                WebSocketSessionManager.getSession(
+                        DetachedWorkspaceSessions.MEMORY_LIST_MANAGER));
+        verify(missingCapability).close(argThat(
+                reason -> CloseReason.CloseCodes.VIOLATED_POLICY.equals(reason.getCloseCode())));
+    }
+
+    @Test
+    void memoryCapabilitySurvivesLiveOwnerRetargetButRotatesForFreshLaunch()
+            throws Exception {
+        Object ownerA = seedMemoryOwner(42, 7, "owner-a");
+        String originalCapability = memoryCapability(ownerA);
+
+        Object ownerB = seedMemoryOwner(43, 7, "owner-b");
+        String retargetCapability = MemoryListWorkspaceService.windowCapabilityForOwnerTransition(
+                originalCapability, true, false);
+        setMemoryCapability(ownerB, retargetCapability);
+        assertEquals(originalCapability, retargetCapability);
+
+        Session reloadedRetargetedWindow = memoryListSession(originalCapability, true);
+        endpoint.onOpen(reloadedRetargetedWindow);
+        assertSame(
+                reloadedRetargetedWindow,
+                WebSocketSessionManager.getSession(
+                        DetachedWorkspaceSessions.MEMORY_LIST_MANAGER));
+
+        WebSocketSessionManager.clearSessions();
+        String freshCapability = MemoryListWorkspaceService.windowCapabilityForOwnerTransition(
+                originalCapability, false, false);
+        setMemoryCapability(ownerB, freshCapability);
+        assertNotEquals(originalCapability, freshCapability);
+
+        Session staleWindow = memoryListSession(originalCapability, true);
+        endpoint.onOpen(staleWindow);
+        assertNull(WebSocketSessionManager.getSession(
+                DetachedWorkspaceSessions.MEMORY_LIST_MANAGER));
+        verify(staleWindow).close(argThat(
+                reason -> CloseReason.CloseCodes.VIOLATED_POLICY.equals(reason.getCloseCode())));
+
+        Session freshWindow = memoryListSession(freshCapability, true);
+        endpoint.onOpen(freshWindow);
+        assertSame(
+                freshWindow,
+                WebSocketSessionManager.getSession(
+                        DetachedWorkspaceSessions.MEMORY_LIST_MANAGER));
     }
 
     @Test
@@ -489,6 +679,81 @@ class SimpleWebSocketServerSessionLifecycleTest {
 
     private Session sessionWithId(String sessionId, boolean open) {
         return sessionWithParameters(Map.of("sessionId", List.of(sessionId)), open);
+    }
+
+    private SimpleWebSocketServer pageMappingsEndpoint(
+            AtomicReference<String> capability) {
+        PageMappingsWorkspaceService service = new PageMappingsWorkspaceService(
+                id -> new PageMappingsWorkspaceService.OwnerTarget(7, id, 21, "Payments"),
+                sessionId -> new PageMappingsWorkspaceService.OwnerTarget(7, 42, 21, "Payments"),
+                new PageMappingsWorkspaceService.WindowAccess() {
+                    @Override
+                    public boolean isOpen() {
+                        return false;
+                    }
+
+                    @Override
+                    public boolean openOrFocus(int botJobId) {
+                        return true;
+                    }
+
+                    @Override
+                    public boolean openOrFocus(int botJobId, String windowCapability) {
+                        capability.set(windowCapability);
+                        return true;
+                    }
+                },
+                binding -> true,
+                (previous, current) -> {},
+                (sessionId, transport) -> true);
+        assertTrue(service.openForBotJob(42).get("ok").getAsBoolean());
+        return new SimpleWebSocketServer(service);
+    }
+
+    private Session pageMappingsSession(String capability, boolean open) {
+        return sessionWithParameters(
+                Map.of(
+                        "sessionId",
+                        List.of(DetachedWorkspaceSessions.PAGE_MAPPINGS_MANAGER),
+                        "windowCapability",
+                        List.of(capability)),
+                open);
+    }
+
+    private Session memoryListSession(String capability, boolean open) {
+        return sessionWithParameters(
+                Map.of(
+                        "sessionId",
+                        List.of(DetachedWorkspaceSessions.MEMORY_LIST_MANAGER),
+                        "windowCapability",
+                        List.of(capability)),
+                open);
+    }
+
+    private static Object seedMemoryOwner(
+            int botJobId, int homeBankingId, String ownerEpoch) throws Exception {
+        Class<?> stateClass = Class.forName(
+                MemoryListWorkspaceService.class.getName() + "$MemoryState");
+        Constructor<?> constructor =
+                stateClass.getDeclaredConstructor(int.class, int.class, String.class);
+        constructor.setAccessible(true);
+        Object owner = constructor.newInstance(botJobId, homeBankingId, ownerEpoch);
+        Field current = MemoryListWorkspaceService.class.getDeclaredField("current");
+        current.setAccessible(true);
+        current.set(MemoryListWorkspaceService.getInstance(), owner);
+        return owner;
+    }
+
+    private static String memoryCapability(Object owner) throws Exception {
+        Field capability = owner.getClass().getDeclaredField("windowCapability");
+        capability.setAccessible(true);
+        return (String) capability.get(owner);
+    }
+
+    private static void setMemoryCapability(Object owner, String value) throws Exception {
+        Field capability = owner.getClass().getDeclaredField("windowCapability");
+        capability.setAccessible(true);
+        capability.set(owner, value);
     }
 
     private Session sessionWithParameters(Map<String, List<String>> parameters, boolean open) {
