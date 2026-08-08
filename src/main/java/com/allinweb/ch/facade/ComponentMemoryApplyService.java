@@ -97,9 +97,12 @@ public final class ComponentMemoryApplyService {
             """;
 
     private static final ComponentMemoryApplyService INSTANCE =
-            new ComponentMemoryApplyService(() -> PerformDataBase.getInstance().getConnection());
+            new ComponentMemoryApplyService(
+                    () -> PerformDataBase.getInstance().getConnection(),
+                    PageMappingApplyResolver.configured());
 
     private final ConnectionProvider connectionProvider;
+    private final PageMappingApplyResolver pageMappingResolver;
     private final InstructionGraphRevisionService revisionService =
             new InstructionGraphRevisionService();
     private final InstructionMoveValidator moveValidator = new InstructionMoveValidator();
@@ -109,7 +112,13 @@ public final class ComponentMemoryApplyService {
             new LinkedHashMap<>(32, 0.75f, true);
 
     ComponentMemoryApplyService(ConnectionProvider connectionProvider) {
+        this(connectionProvider, PageMappingApplyResolver.configured());
+    }
+
+    ComponentMemoryApplyService(
+            ConnectionProvider connectionProvider, PageMappingApplyResolver pageMappingResolver) {
         this.connectionProvider = Objects.requireNonNull(connectionProvider);
+        this.pageMappingResolver = Objects.requireNonNull(pageMappingResolver);
     }
 
     public static ComponentMemoryApplyService getInstance() {
@@ -194,6 +203,27 @@ public final class ComponentMemoryApplyService {
 
         try {
             validateBotJobOwner(connection, request.botJobId(), request.homeBankingId());
+
+            // Resolve every detached Page Mapping against authoritative DB + immutable artifact
+            // state before the transaction creates a block or inserts any instruction. A mixed
+            // request therefore remains all-or-nothing when one staged capture is stale.
+            Map<String, InstructionLoad> resolvedPageMappings = new LinkedHashMap<>();
+            for (OrderedItem item : request.orderedItems()) {
+                if (item.kind() != ItemKind.PAGE_MAPPING_INSTRUCTION) continue;
+                try {
+                    resolvedPageMappings.put(
+                            item.itemKey(),
+                            pageMappingResolver.resolve(
+                                    connection,
+                                    request.homeBankingId(),
+                                    request.botJobId(),
+                                    1,
+                                    1,
+                                    item.pageMappingReference()));
+                } catch (PageMappingApplyResolver.Refused refused) {
+                    throw new ApplyRefused(refused.getMessage());
+                }
+            }
 
             List<InstructionRow> currentBotRows =
                     loadInstructionRows(connection, BOT_INSTRUCTION_SELECT, request.botJobId(), false);
@@ -327,6 +357,7 @@ public final class ComponentMemoryApplyService {
             Map<String, Integer> generatedBotJobInstructionsByItem = new LinkedHashMap<>();
             Map<String, Integer> generatedInstructionsByItem = new LinkedHashMap<>();
             Map<String, Integer> generatedScannerInstructionsByItem = new LinkedHashMap<>();
+            Map<String, Integer> generatedPageMappingInstructionsByItem = new LinkedHashMap<>();
             List<InstructionRow> insertedRows = new ArrayList<>();
 
             try (PreparedStatement insertInstruction =
@@ -404,6 +435,25 @@ public final class ComponentMemoryApplyService {
                                         generatedId,
                                         resolvedTargetBlockId,
                                         nextTargetOrder - 1));
+                    } else if (item.kind() == ItemKind.PAGE_MAPPING_INSTRUCTION) {
+                        InstructionLoad resolved = resolvedPageMappings.get(item.itemKey());
+                        if (resolved == null) {
+                            throw new ApplyRefused(
+                                    "A Page Mapping row was not resolved from authoritative state.");
+                        }
+                        InstructionRow source = InstructionRow.fromScanner(resolved);
+                        int generatedId = insertInstruction(
+                                insertInstruction,
+                                source,
+                                nextTargetOrder++,
+                                resolvedTargetBlockId,
+                                request.botJobId());
+                        generatedPageMappingInstructionsByItem.put(item.itemKey(), generatedId);
+                        insertedRows.add(
+                                source.asInserted(
+                                        generatedId,
+                                        resolvedTargetBlockId,
+                                        nextTargetOrder - 1));
                     }
                 }
             }
@@ -452,6 +502,11 @@ public final class ComponentMemoryApplyService {
                     connection,
                     request,
                     generatedScannerInstructionsByItem);
+            copyPageMappingReferences(
+                    connection,
+                    request,
+                    resolvedPageMappings,
+                    generatedPageMappingInstructionsByItem);
 
             // A row covered by a selected block maps to that block's generated instruction and is
             // not duplicated into the target block.
@@ -480,6 +535,13 @@ public final class ComponentMemoryApplyService {
                     case PAGE_SCANNER_INSTRUCTION -> {
                         Integer generated =
                                 generatedScannerInstructionsByItem.get(item.itemKey());
+                        if (generated != null && appendedTargetIds.add(generated)) {
+                            orderedTargetIds.add(generated);
+                        }
+                    }
+                    case PAGE_MAPPING_INSTRUCTION -> {
+                        Integer generated =
+                                generatedPageMappingInstructionsByItem.get(item.itemKey());
                         if (generated != null && appendedTargetIds.add(generated)) {
                             orderedTargetIds.add(generated);
                         }
@@ -524,6 +586,7 @@ public final class ComponentMemoryApplyService {
             generatedByItem.putAll(generatedBotJobInstructionsByItem);
             generatedByItem.putAll(generatedInstructionsByItem);
             generatedByItem.putAll(generatedScannerInstructionsByItem);
+            generatedByItem.putAll(generatedPageMappingInstructionsByItem);
             return new Result(
                     null,
                     true,
@@ -654,6 +717,14 @@ public final class ComponentMemoryApplyService {
                             "A Page Scanner row contains unsupported command relationships.",
                             item.itemKey());
                 }
+            }
+            if (item.kind() == ItemKind.PAGE_MAPPING_INSTRUCTION
+                    && (item.pageMappingReference() == null
+                            || !item.pageMappingReference().valid())) {
+                return error(
+                        "Memory List Apply Refused",
+                        "A Page Mapping row has an invalid revision reference.",
+                        item.itemKey());
             }
         }
         return null;
@@ -1602,6 +1673,43 @@ public final class ComponentMemoryApplyService {
         }
     }
 
+    /** Persists references from instructions reloaded by {@link PageMappingApplyResolver}. */
+    private void copyPageMappingReferences(
+            Connection connection,
+            Request request,
+            Map<String, InstructionLoad> resolvedByItem,
+            Map<String, Integer> generatedByItem)
+            throws SQLException {
+        String insert = "INSERT INTO reference "
+                + "(reference_type, value, instruction_id, bot_job_id) VALUES (?, ?, ?, ?)";
+        try (PreparedStatement statement = connection.prepareStatement(insert)) {
+            for (OrderedItem item : request.orderedItems()) {
+                if (item.kind() != ItemKind.PAGE_MAPPING_INSTRUCTION) continue;
+                InstructionLoad resolved = resolvedByItem.get(item.itemKey());
+                Integer generatedId = generatedByItem.get(item.itemKey());
+                if (resolved == null || generatedId == null) {
+                    throw new ApplyRefused(
+                            "A Page Mapping instruction was not resolved before reference persistence.");
+                }
+                if (resolved.getReferenceLoadDTOList() == null) continue;
+                for (ReferenceLoadDTO reference : resolved.getReferenceLoadDTOList()) {
+                    if (reference == null
+                            || "customXPath".equalsIgnoreCase(reference.getReferenceType())) {
+                        continue;
+                    }
+                    statement.setObject(1, reference.getReferenceType());
+                    statement.setObject(2, reference.getValue());
+                    statement.setInt(3, generatedId);
+                    statement.setInt(4, request.botJobId());
+                    if (statement.executeUpdate() != 1) {
+                        throw new SQLException(
+                                "Page Mapping reference insert did not create exactly one row.");
+                    }
+                }
+            }
+        }
+    }
+
     private List<UpdatedRow> finalLayout(
             List<InstructionRow> rows, int targetBlockId, List<Integer> orderedSelectedIds) {
         Set<Integer> selected = new HashSet<>(orderedSelectedIds);
@@ -1860,6 +1968,7 @@ public final class ComponentMemoryApplyService {
     public enum ItemKind {
         BOT_JOB_INSTRUCTION,
         PAGE_SCANNER_INSTRUCTION,
+        PAGE_MAPPING_INSTRUCTION,
         COMPONENT_INSTRUCTION,
         COMPONENT_BLOCK;
 
@@ -1881,7 +1990,8 @@ public final class ComponentMemoryApplyService {
             int componentInstructionId,
             int componentBlockId,
             String sourceRevision,
-            InstructionLoad scannerInstruction) {
+            InstructionLoad scannerInstruction,
+            PageMappingInstructionReference pageMappingReference) {
 
         public static OrderedItem botJob(
                 String itemKey, int instructionId, String sourceRevision) {
@@ -1892,6 +2002,7 @@ public final class ComponentMemoryApplyService {
                     -1,
                     -1,
                     sourceRevision,
+                    null,
                     null);
         }
 
@@ -1903,7 +2014,21 @@ public final class ComponentMemoryApplyService {
                     -1,
                     -1,
                     "",
-                    instruction);
+                    instruction,
+                    null);
+        }
+
+        public static OrderedItem pageMapping(
+                String itemKey, PageMappingInstructionReference reference) {
+            return new OrderedItem(
+                    itemKey,
+                    ItemKind.PAGE_MAPPING_INSTRUCTION,
+                    -1,
+                    -1,
+                    -1,
+                    "",
+                    null,
+                    reference);
         }
 
         public static OrderedItem componentInstruction(
@@ -1918,6 +2043,7 @@ public final class ComponentMemoryApplyService {
                     instructionId,
                     blockId,
                     sourceRevision,
+                    null,
                     null);
         }
 
@@ -1930,6 +2056,7 @@ public final class ComponentMemoryApplyService {
                     -1,
                     blockId,
                     sourceRevision,
+                    null,
                     null);
         }
     }

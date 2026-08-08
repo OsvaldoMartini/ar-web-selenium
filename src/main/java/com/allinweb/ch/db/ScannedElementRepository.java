@@ -11,6 +11,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -384,6 +385,42 @@ public final class ScannedElementRepository {
             }
         }
         return out;
+    }
+
+    /**
+     * Reload one exact Page Mapping registry row inside the caller's transaction.
+     *
+     * <p>Every scope dimension is required deliberately. A detached Page Mappings payload is only
+     * a revision reference; it must never be allowed to select a row by its globally generated id
+     * alone.
+     */
+    public static Optional<ScannedElement> loadExact(
+            Connection conn,
+            int homeBankingId,
+            int botJobId,
+            String pageKey,
+            long scannedElementId)
+            throws SQLException {
+        requireScope(homeBankingId, botJobId);
+        if (pageKey == null || pageKey.isBlank() || scannedElementId <= 0) {
+            return Optional.empty();
+        }
+        String sql = "SELECT * FROM scanned_element"
+                + " WHERE id = ? AND home_banking_id = ? AND bot_job_id = ? AND page_key = ?";
+        try (PreparedStatement statement = conn.prepareStatement(sql)) {
+            statement.setLong(1, scannedElementId);
+            statement.setInt(2, homeBankingId);
+            statement.setInt(3, botJobId);
+            statement.setString(4, pageKey);
+            try (ResultSet rows = statement.executeQuery()) {
+                if (!rows.next()) return Optional.empty();
+                ScannedElement element = map(rows);
+                if (rows.next()) {
+                    throw new SQLException("Duplicate owner-scoped scanned element identity");
+                }
+                return Optional.of(element);
+            }
+        }
     }
 
     private static ScannedElement map(ResultSet rs) throws SQLException {

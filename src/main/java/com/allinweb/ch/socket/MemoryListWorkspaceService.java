@@ -5,6 +5,7 @@ import com.allinweb.ch.facade.BotJobDetailsWorkspaceRegistry;
 import com.allinweb.ch.facade.ComponentMemoryApplyService;
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.PerformLists;
+import com.allinweb.ch.facade.PageMappingInstructionReference;
 import com.allinweb.ch.facade.PreScanApplyService;
 import com.allinweb.ch.facade.ScannerBotJobTasksPublisher;
 import com.allinweb.ch.model.BlockLoadDTO;
@@ -67,6 +68,13 @@ public final class MemoryListWorkspaceService {
             "CREATE_BLOCK",
             "CREATE_BLOCK_AND_APPLY",
             "REORDER");
+    private static final Set<String> PAGE_MAPPING_REFERENCE_FIELDS = Set.of(
+            "captureId",
+            "pageKey",
+            "scannedElementId",
+            "elementHash",
+            "expectedLastScannedAt",
+            "expectedScanCount");
 
     private static final MemoryListWorkspaceService INSTANCE = new MemoryListWorkspaceService();
 
@@ -726,7 +734,19 @@ public final class MemoryListWorkspaceService {
                                 item.globalKey, instructionId, sourceRevision));
                 continue;
             }
-            if (isElementSource(item.sourceKind)) {
+            if (PAGE_MAPPINGS_SOURCE.equals(item.sourceKind)) {
+                PageMappingInstructionReference reference = pageMappingReference(item.payload);
+                if (reference == null || !reference.valid()) {
+                    return failure(
+                            request,
+                            "A Page Mapping row is stale or incomplete. Reload Page Mappings and add it again.");
+                }
+                orderedItems.add(
+                        ComponentMemoryApplyService.OrderedItem.pageMapping(
+                                item.globalKey, reference));
+                continue;
+            }
+            if (PAGE_SCANNER_SOURCE.equals(item.sourceKind)) {
                 JsonObject elementObject = object(item.payload, "elementDTO");
                 if (elementObject == null) {
                     return failure(request, "A Page Scanner row has no element data. Add it again.");
@@ -985,6 +1005,12 @@ public final class MemoryListWorkspaceService {
                 presentation.addProperty("sourceItemKey", rawKey);
                 JsonObject payload = object(presentation, "payload");
                 if (payload == null) payload = new JsonObject();
+                if (PAGE_MAPPINGS_SOURCE.equals(kind)) {
+                    PageMappingInstructionReference reference = pageMappingReference(payload);
+                    payload = pageMappingPayload(reference);
+                    presentation = pageMappingPresentation(
+                            item, globalKey, rawKey, payload);
+                }
                 if (BOT_JOB_SOURCE.equals(kind)
                         && positiveInteger(payload, "instructionId") <= 0) {
                     try {
@@ -1121,7 +1147,81 @@ public final class MemoryListWorkspaceService {
             JsonObject componentValidation = validateComponentSnapshot(body, snapshot);
             if (componentValidation != null) return componentValidation;
         }
+        if (PAGE_MAPPINGS_SOURCE.equals(sourceKind)) {
+            JsonObject mappingValidation = validatePageMappingsSnapshot(body, snapshot);
+            if (mappingValidation != null) return mappingValidation;
+        }
         return null;
+    }
+
+    private JsonObject validatePageMappingsSnapshot(
+            JsonObject request, JsonObject submittedSnapshot) {
+        JsonArray items = array(submittedSnapshot, "items");
+        if (items == null) return null;
+        Set<String> keys = new HashSet<>();
+        for (JsonElement value : items) {
+            if (value == null || !value.isJsonObject()) {
+                return failure(request, "A Page Mapping Memory List row is invalid.");
+            }
+            JsonObject item = value.getAsJsonObject();
+            String sourceItemKey = string(item, "sourceItemKey");
+            if (sourceItemKey.isBlank() || !keys.add(sourceItemKey)) {
+                return failure(
+                        request,
+                        "Page Mapping Memory List rows require unique stable source keys.");
+            }
+            PageMappingInstructionReference reference =
+                    pageMappingReference(object(item, "payload"));
+            if (reference == null || !reference.valid()) {
+                return failure(
+                        request,
+                        "A Page Mapping row is stale or incomplete. Reload Page Mappings and add it again.");
+            }
+        }
+        return null;
+    }
+
+    /** Whitelists the only six values that may survive Page Mappings staging. */
+    static JsonObject pageMappingPayload(PageMappingInstructionReference reference) {
+        JsonObject payload = new JsonObject();
+        if (reference == null) return payload;
+        payload.addProperty("captureId", reference.captureId());
+        payload.addProperty("pageKey", reference.pageKey());
+        payload.addProperty("scannedElementId", reference.scannedElementId());
+        payload.addProperty("elementHash", reference.elementHash());
+        payload.addProperty("expectedLastScannedAt", reference.expectedLastScannedAt());
+        payload.addProperty("expectedScanCount", reference.expectedScanCount());
+        return payload;
+    }
+
+    static PageMappingInstructionReference pageMappingReference(JsonObject payload) {
+        if (payload == null || !payload.keySet().equals(PAGE_MAPPING_REFERENCE_FIELDS)) return null;
+        return new PageMappingInstructionReference(
+                string(payload, "captureId"),
+                string(payload, "pageKey"),
+                positiveLong(payload, "scannedElementId"),
+                string(payload, "elementHash"),
+                string(payload, "expectedLastScannedAt"),
+                positiveInteger(payload, "expectedScanCount"));
+    }
+
+    private static JsonObject pageMappingPresentation(
+            JsonObject submitted,
+            String globalKey,
+            String sourceItemKey,
+            JsonObject payload) {
+        JsonObject presentation = new JsonObject();
+        presentation.addProperty("key", globalKey);
+        presentation.addProperty("sourceKind", PAGE_MAPPINGS_SOURCE);
+        presentation.addProperty("sourceItemKey", sourceItemKey);
+        for (String field : List.of("label", "detail", "icon", "active")) {
+            JsonElement value = submitted.get(field);
+            if (value != null && value.isJsonPrimitive()) {
+                presentation.add(field, value.deepCopy());
+            }
+        }
+        presentation.add("payload", payload);
+        return presentation;
     }
 
     private JsonObject validateSummaryRequest(
@@ -1589,6 +1689,16 @@ public final class MemoryListWorkspaceService {
             return value > 0 ? value : -1;
         } catch (RuntimeException ignored) {
             return -1;
+        }
+    }
+
+    private static long positiveLong(JsonObject source, String name) {
+        if (source == null || !source.has(name) || source.get(name).isJsonNull()) return -1L;
+        try {
+            long value = source.get(name).getAsLong();
+            return value > 0 ? value : -1L;
+        } catch (RuntimeException ignored) {
+            return -1L;
         }
     }
 

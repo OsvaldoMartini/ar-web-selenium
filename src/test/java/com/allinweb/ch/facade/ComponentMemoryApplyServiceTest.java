@@ -6,20 +6,29 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.allinweb.ch.db.ScannedElementRepository;
 import com.allinweb.ch.db.migrations.M20260729_InstructionGraphState;
 import com.allinweb.ch.db.migrations.M20260730_BotJobRuntimeVariables;
 import com.allinweb.ch.db.migrations.M20260803_InstructionVariableSlot;
 import com.allinweb.ch.db.migrations.M20260805_RuntimeMemoryColumns;
+import com.allinweb.ch.model.ElementDTO;
 import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.model.ReferenceLoadDTO;
 import com.allinweb.ch.model.VariableLoadDTO;
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.MessageDigest;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -541,6 +550,121 @@ class ComponentMemoryApplyServiceTest {
                             "SELECT COUNT(*) FROM instruction_variable_slot"
                                     + " WHERE home_banking_id=2 AND bot_job_id=5"
                                     + " AND instruction_id=" + generatedInstructionId));
+        }
+    }
+
+    @Test
+    void pageMappingApplyReloadsAuthoritativeRowAndRetryRemainsIdempotent()
+            throws Exception {
+        String url = databaseUrl("page-mapping-authoritative");
+        initializeDatabase(url);
+        PageMappingFixture fixture = seedPageMapping(
+                url,
+                "10000000-0000-0000-0000-000000000001",
+                "2026-08-07T12:00:00Z");
+        ComponentMemoryApplyService service = new ComponentMemoryApplyService(
+                () -> DriverManager.getConnection(url),
+                new PageMappingApplyResolver(fixture.snapshotRoot()));
+        ComponentMemoryApplyService.Request request =
+                new ComponentMemoryApplyService.Request(
+                        "page-mapping-authoritative-apply",
+                        5,
+                        2,
+                        10,
+                        List.of(ComponentMemoryApplyService.OrderedItem.pageMapping(
+                                "PAGE_MAPPINGS:map-41", fixture.reference())));
+
+        ComponentMemoryApplyService.Result first = service.apply(request);
+        ComponentMemoryApplyService.Result retry = service.apply(request);
+
+        assertTrue(
+                first.committed(),
+                () -> first.error() == null
+                        ? "No failure detail"
+                        : first.error().getErrorHeader() + " | "
+                                + first.error().getErrorMessage());
+        assertFalse(first.duplicate());
+        assertTrue(retry.committed());
+        assertTrue(retry.duplicate());
+        assertEquals(first.generatedInstructionIds(), retry.generatedInstructionIds());
+        int generated = first.generatedInstructionIds().get("PAGE_MAPPINGS:map-41");
+        try (Connection connection = DriverManager.getConnection(url);
+                Statement statement = connection.createStatement()) {
+            assertEquals(
+                    1,
+                    scalar(
+                            statement,
+                            "SELECT COUNT(*) FROM instruction WHERE id=" + generated
+                                    + " AND bot_job_id=5 AND block_id=10"
+                                    + " AND name='authoritative_mapping_name'"
+                                    + " AND xpath='//button[@id=''mapping-continue'']'"));
+            assertTrue(
+                    scalar(
+                                    statement,
+                                    "SELECT COUNT(*) FROM reference WHERE instruction_id="
+                                            + generated + " AND bot_job_id=5")
+                            > 0);
+            assertEquals(
+                    1,
+                    scalar(
+                            statement,
+                            "SELECT COUNT(*) FROM instruction WHERE bot_job_id=5"));
+        }
+    }
+
+    @Test
+    void stalePageMappingInMixedRequestRollsBackScannerAndNewBlock()
+            throws Exception {
+        String url = databaseUrl("page-mapping-mixed-rollback");
+        initializeDatabase(url);
+        PageMappingFixture fixture = seedPageMapping(
+                url,
+                "10000000-0000-0000-0000-000000000002",
+                "2026-08-07T12:01:00Z");
+        try (Connection connection = DriverManager.getConnection(url);
+                Statement statement = connection.createStatement()) {
+            statement.executeUpdate("DELETE FROM scanned_element WHERE id=41");
+        }
+        InstructionLoad scanner = new InstructionLoad();
+        scanner.setInstructionOrderNumber(1);
+        scanner.setActions("C");
+        scanner.setName("Must not persist");
+        scanner.setTagName("button");
+        scanner.setXpath("//button[@id='scanner']");
+        scanner.setInstructionActive(true);
+        ComponentMemoryApplyService service = new ComponentMemoryApplyService(
+                () -> DriverManager.getConnection(url),
+                new PageMappingApplyResolver(fixture.snapshotRoot()));
+
+        ComponentMemoryApplyService.Result result = service.apply(
+                new ComponentMemoryApplyService.Request(
+                        "page-mapping-mixed-rollback",
+                        5,
+                        2,
+                        -1,
+                        List.of(
+                                ComponentMemoryApplyService.OrderedItem.scanner(
+                                        "PAGE_SCANNER:valid", scanner),
+                                ComponentMemoryApplyService.OrderedItem.pageMapping(
+                                        "PAGE_MAPPINGS:stale", fixture.reference())),
+                        new ComponentMemoryApplyService.NewTargetBlock(
+                                "Must Roll Back Mapping",
+                                BlockCreationService.Position.END,
+                                null,
+                                null)));
+
+        assertFalse(result.committed());
+        assertNotNull(result.error());
+        try (Connection connection = DriverManager.getConnection(url);
+                Statement statement = connection.createStatement()) {
+            assertEquals(1, scalar(statement, "SELECT COUNT(*) FROM block WHERE bot_job_id=5"));
+            assertEquals(0, scalar(statement, "SELECT COUNT(*) FROM instruction WHERE bot_job_id=5"));
+            assertEquals(
+                    0,
+                    scalar(
+                            statement,
+                            "SELECT COUNT(*) FROM block WHERE name='Must Roll Back Mapping'"));
+            assertEquals(0, scalar(statement, "SELECT COUNT(*) FROM reference WHERE bot_job_id=5"));
         }
     }
 
@@ -1830,6 +1954,20 @@ class ComponentMemoryApplyServiceTest {
                     "CREATE TABLE component_variable (id INTEGER PRIMARY KEY AUTOINCREMENT, "
                             + "type TEXT, name TEXT, value TEXT, local_format TEXT, delimiter TEXT, "
                             + "instruction_id INTEGER, home_banking_id INTEGER)");
+            statement.execute("CREATE TABLE scanned_element ("
+                    + "id INTEGER PRIMARY KEY,home_banking_id INTEGER,bot_job_id INTEGER,"
+                    + "home_url_id INTEGER,page_url TEXT,page_key TEXT,element_hash TEXT,"
+                    + "tag_name TEXT,type_element TEXT,defined_name TEXT,client_named TEXT,"
+                    + "some_text TEXT,x_path TEXT,custom_x_path TEXT,css_selector TEXT,"
+                    + "attrib_id TEXT,attrib_name TEXT,coordinates TEXT,iframe_xpath TEXT,"
+                    + "shadow_host TEXT,shadow_root TEXT,attribute_data TEXT,ocr_text TEXT,"
+                    + "ocr_match_quality TEXT,ocr_confidence REAL,scan_count INTEGER,"
+                    + "first_scanned_at TEXT,last_scanned_at TEXT)");
+            statement.execute("CREATE TABLE page_scan_snapshot ("
+                    + "scan_id TEXT PRIMARY KEY,home_banking_id INTEGER,bot_job_id INTEGER,"
+                    + "home_url_id INTEGER,page_key TEXT,page_url TEXT,captured_at TEXT,"
+                    + "element_count INTEGER,artifact_path TEXT,manifest_sha256 TEXT,"
+                    + "status TEXT,pinned INTEGER DEFAULT 0)");
 
             statement.execute("INSERT INTO home_banking(id,name) VALUES(2,'Bank')");
             statement.execute(
@@ -2055,6 +2193,109 @@ class ComponentMemoryApplyServiceTest {
             return variableId;
         }
     }
+
+    private PageMappingFixture seedPageMapping(
+            String databaseUrl, String scanId, String capturedAt) throws Exception {
+        String pageKey = "component-test-page";
+        String lastScannedAt = "2026-08-07T11:59:00Z";
+        ElementDTO artifact = new ElementDTO();
+        artifact.setTagName("button");
+        artifact.setTypeElement("button");
+        artifact.setXPath("//button[@id='mapping-continue']");
+        artifact.setCssSelector("#mapping-continue");
+        artifact.setSomeText("Continue artifact");
+        artifact.setDefinedName("untrusted_artifact_name");
+        String elementHash = ScannedElementRepository.pageScopedHash(pageKey, artifact);
+
+        try (Connection connection = DriverManager.getConnection(databaseUrl);
+                PreparedStatement statement = connection.prepareStatement(
+                        "INSERT INTO scanned_element ("
+                                + "id,home_banking_id,bot_job_id,page_url,page_key,element_hash,"
+                                + "tag_name,type_element,defined_name,some_text,x_path,css_selector,"
+                                + "scan_count,first_scanned_at,last_scanned_at)"
+                                + " VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")) {
+            int index = 1;
+            statement.setLong(index++, 41L);
+            statement.setInt(index++, 2);
+            statement.setInt(index++, 5);
+            statement.setString(index++, "https://example.invalid/component-test");
+            statement.setString(index++, pageKey);
+            statement.setString(index++, elementHash);
+            statement.setString(index++, "button");
+            statement.setString(index++, "button");
+            statement.setString(index++, "authoritative_mapping_name");
+            statement.setString(index++, "Continue registry");
+            statement.setString(index++, artifact.getXPath());
+            statement.setString(index++, artifact.getCssSelector());
+            statement.setInt(index++, 3);
+            statement.setString(index++, "2026-08-07T11:00:00Z");
+            statement.setString(index, lastScannedAt);
+            statement.executeUpdate();
+        }
+
+        Path root = temporaryDirectory.resolve("component-page-mapping-snapshots");
+        Path folder = root
+                .resolve("org-2")
+                .resolve("bot-job-5")
+                .resolve(pageKey)
+                .resolve("capture-" + scanId);
+        Files.createDirectories(folder);
+        Gson json = new Gson();
+        byte[] elementsBytes = json.toJson(List.of(artifact)).getBytes(StandardCharsets.UTF_8);
+        Files.write(folder.resolve("elements.json"), elementsBytes);
+        JsonObject manifest = new JsonObject();
+        manifest.addProperty("format", "page-scan-snapshot-v1");
+        manifest.addProperty("scanId", scanId);
+        manifest.addProperty("capturedAt", capturedAt);
+        JsonObject owner = new JsonObject();
+        owner.addProperty("homeBankingId", 2);
+        owner.addProperty("botJobId", 5);
+        manifest.add("owner", owner);
+        JsonObject page = new JsonObject();
+        page.addProperty("pageKey", pageKey);
+        manifest.add("page", page);
+        manifest.addProperty("elementCount", 1);
+        JsonObject files = new JsonObject();
+        files.addProperty("elements.json", digest(elementsBytes));
+        manifest.add("files", files);
+        byte[] manifestBytes = json.toJson(manifest).getBytes(StandardCharsets.UTF_8);
+        Files.write(folder.resolve("manifest.json"), manifestBytes);
+
+        try (Connection connection = DriverManager.getConnection(databaseUrl);
+                PreparedStatement statement = connection.prepareStatement(
+                        "INSERT INTO page_scan_snapshot ("
+                                + "scan_id,home_banking_id,bot_job_id,page_key,captured_at,"
+                                + "element_count,artifact_path,manifest_sha256,status)"
+                                + " VALUES(?,?,?,?,?,?,?,?,?)")) {
+            statement.setString(1, scanId);
+            statement.setInt(2, 2);
+            statement.setInt(3, 5);
+            statement.setString(4, pageKey);
+            statement.setString(5, capturedAt);
+            statement.setInt(6, 1);
+            statement.setString(7, root.relativize(folder).toString().replace('\\', '/'));
+            statement.setString(8, digest(manifestBytes));
+            statement.setString(9, "READY");
+            statement.executeUpdate();
+        }
+
+        return new PageMappingFixture(
+                root,
+                new PageMappingInstructionReference(
+                        scanId, pageKey, 41L, elementHash, lastScannedAt, 3));
+    }
+
+    private static String digest(byte[] content) throws Exception {
+        byte[] hash = MessageDigest.getInstance("SHA-256").digest(content);
+        StringBuilder output = new StringBuilder(64);
+        for (byte value : hash) {
+            output.append(String.format(Locale.ROOT, "%02x", value & 0xff));
+        }
+        return output.toString();
+    }
+
+    private record PageMappingFixture(
+            Path snapshotRoot, PageMappingInstructionReference reference) {}
 
     private String nullable(Integer value) {
         return value == null ? "NULL" : value.toString();
