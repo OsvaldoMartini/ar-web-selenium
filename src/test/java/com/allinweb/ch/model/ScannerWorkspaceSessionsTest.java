@@ -31,7 +31,7 @@ class ScannerWorkspaceSessionsTest {
         assertFalse(ScannerWorkspaceSessions.isPageScannerSession(null));
         assertFalse(ScannerWorkspaceSessions.isPageScannerSession("page-scanner-"));
         assertFalse(ScannerWorkspaceSessions.isPageScannerSession("page-scanner-window/42"));
-        assertFalse(ScannerWorkspaceSessions.isPageScannerSession("ocr-results-window-42"));
+        assertFalse(ScannerWorkspaceSessions.isPageScannerSession("ocr-config-window-42"));
         assertFalse(ScannerWorkspaceSessions.isOcrSourceScannerSession(ScannerWorkspaceSessions.BOT_JOB_TASKS));
     }
 }

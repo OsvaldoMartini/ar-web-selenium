@@ -8,7 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -31,7 +30,6 @@ class OcrWorkspaceCoordinatorTest {
                 (kind, sessionId) -> true,
                 () -> "ocr-window-from-page-scanner",
                 Clock.fixed(Instant.parse("2026-07-20T12:00:00Z"), ZoneOffset.UTC),
-                (homeBankingId, sourceScannerSessionId, suggestions) -> true,
                 sessionId -> {
                     resolvedSession.set(sessionId);
                     return new OcrWorkspaceCoordinator.PageScannerContext(7, 42, 11);
@@ -67,8 +65,7 @@ class OcrWorkspaceCoordinatorTest {
                     return true;
                 },
                 () -> "config-id",
-                clock,
-                (homeBankingId, sourceSessionId, suggestions) -> true);
+                clock);
 
         OcrWorkspaceCoordinator.OpenResult opened = coordinator.open(new OcrWorkspaceCoordinator.OpenRequest(
                 OcrWorkspaceCoordinator.Kind.CONFIG,
@@ -94,106 +91,11 @@ class OcrWorkspaceCoordinatorTest {
     }
 
     @Test
-    void configCanOpenResultsWithInheritedScannerScopeAndDefensiveParameterCopies() {
-        ArrayDeque<String> ids = new ArrayDeque<>(List.of("config", "results"));
+    void rejectsUnknownSessionsAndUntrustedSources() {
+        ArrayDeque<String> ids = new ArrayDeque<>(List.of("config"));
         OcrWorkspaceCoordinator coordinator = coordinator(ids, (kind, sessionId) -> true);
-        OcrWorkspaceCoordinator.OpenResult config = coordinator.open(new OcrWorkspaceCoordinator.OpenRequest(
-                OcrWorkspaceCoordinator.Kind.CONFIG,
-                ScannerWorkspaceSessions.SCANNER_GRID,
-                9,
-                88,
-                12,
-                new JsonArray()));
 
-        JsonArray parameters = parameters("300");
-        OcrWorkspaceCoordinator.OpenResult results = coordinator.open(new OcrWorkspaceCoordinator.OpenRequest(
-                OcrWorkspaceCoordinator.Kind.RESULTS,
-                config.sessionId(),
-                999,
-                999,
-                999,
-                parameters));
-        parameters.get(0).getAsJsonObject().addProperty("value", "72");
-
-        OcrWorkspaceCoordinator.BootstrapContext first = coordinator.bootstrap(results.sessionId());
-        assertEquals(OcrWorkspaceCoordinator.Kind.RESULTS, first.kind());
-        assertEquals(ScannerWorkspaceSessions.SCANNER_GRID, first.sourceScannerSessionId());
-        assertEquals(9, first.homeBankingId());
-        assertEquals(88, first.botJobId());
-        assertEquals(12, first.homeUrlId());
-        assertEquals("300", first.parameters().get(0).getAsJsonObject().get("value").getAsString());
-
-        first.parameters().get(0).getAsJsonObject().addProperty("value", "96");
-        assertEquals(
-                "300",
-                coordinator
-                        .bootstrap(results.sessionId())
-                        .parameters()
-                        .get(0)
-                        .getAsJsonObject()
-                        .get("value")
-                        .getAsString());
-    }
-
-    @Test
-    void applySuggestionsPublishesValidatedRowsOnlyToTheBoundScanner() {
-        AtomicReference<Integer> publishedHomeBankingId = new AtomicReference<>();
-        AtomicReference<String> publishedSession = new AtomicReference<>();
-        AtomicReference<List<OcrWorkspaceCoordinator.Suggestion>> publishedSuggestions = new AtomicReference<>();
-        OcrWorkspaceCoordinator coordinator = new OcrWorkspaceCoordinator(
-                (kind, sessionId) -> true,
-                () -> "results",
-                Clock.fixed(Instant.parse("2026-07-18T12:00:00Z"), ZoneOffset.UTC),
-                (homeBankingId, sourceSessionId, suggestions) -> {
-                    publishedHomeBankingId.set(homeBankingId);
-                    publishedSession.set(sourceSessionId);
-                    publishedSuggestions.set(List.copyOf(suggestions));
-                    return true;
-                });
-        OcrWorkspaceCoordinator.OpenResult results = coordinator.open(new OcrWorkspaceCoordinator.OpenRequest(
-                OcrWorkspaceCoordinator.Kind.RESULTS,
-                ScannerWorkspaceSessions.PRE_SCANNER_GRID,
-                7,
-                42,
-                null,
-                new JsonArray()));
-
-        OcrWorkspaceCoordinator.ApplyResult applied = coordinator.applySuggestions(
-                results.sessionId(),
-                List.of(
-                        new OcrWorkspaceCoordinator.Suggestion(" /html/body/button ", " Login "),
-                        new OcrWorkspaceCoordinator.Suggestion("/html/body/button", "Sign in"),
-                        new OcrWorkspaceCoordinator.Suggestion("/html/body/input", "User name")));
-
-        assertTrue(applied.published());
-        assertEquals(ScannerWorkspaceSessions.PRE_SCANNER_GRID, applied.sourceScannerSessionId());
-        assertEquals(2, applied.suggestionCount());
-        assertEquals(7, publishedHomeBankingId.get());
-        assertEquals(ScannerWorkspaceSessions.PRE_SCANNER_GRID, publishedSession.get());
-        assertEquals(
-                List.of(
-                        new OcrWorkspaceCoordinator.Suggestion("/html/body/button", "Sign in"),
-                        new OcrWorkspaceCoordinator.Suggestion("/html/body/input", "User name")),
-                publishedSuggestions.get());
-    }
-
-    @Test
-    void rejectsWrongWorkspaceKindsUnknownSessionsAndUntrustedSources() {
-        ArrayDeque<String> ids = new ArrayDeque<>(List.of("config", "results"));
-        OcrWorkspaceCoordinator coordinator = coordinator(ids, (kind, sessionId) -> true);
-        OcrWorkspaceCoordinator.OpenResult config = coordinator.open(new OcrWorkspaceCoordinator.OpenRequest(
-                OcrWorkspaceCoordinator.Kind.CONFIG,
-                ScannerWorkspaceSessions.SCANNER_GRID,
-                1,
-                2,
-                null,
-                new JsonArray()));
-
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> coordinator.applySuggestions(
-                        config.sessionId(), List.of(new OcrWorkspaceCoordinator.Suggestion("/html", "Page"))));
-        assertThrows(IllegalArgumentException.class, () -> coordinator.bootstrap("ocr-results-missing"));
+        assertThrows(IllegalArgumentException.class, () -> coordinator.bootstrap("ocr-config-missing"));
         assertThrows(
                 IllegalArgumentException.class,
                 () -> coordinator.open(new OcrWorkspaceCoordinator.OpenRequest(
@@ -203,7 +105,7 @@ class OcrWorkspaceCoordinatorTest {
                         2,
                         null,
                         new JsonArray())));
-        assertFalse(OcrWorkspaceCoordinator.isWorkspaceSessionId("ocr-results-"));
+        assertFalse(OcrWorkspaceCoordinator.isWorkspaceSessionId("ocr-config-"));
         assertFalse(OcrWorkspaceCoordinator.isWorkspaceSessionId("preScannerGrid"));
     }
 
@@ -320,60 +222,6 @@ class OcrWorkspaceCoordinatorTest {
     }
 
     @Test
-    void configAndResultsEachOwnExactlyOneIndependentPhysicalWindow() {
-        AtomicInteger configLaunches = new AtomicInteger();
-        AtomicInteger resultsLaunches = new AtomicInteger();
-        OcrWorkspaceCoordinator coordinator = singletonCoordinator(
-                new ArrayDeque<>(List.of("config", "results", "config-next", "results-next")),
-                (kind, sessionId) -> {
-                    (kind == OcrWorkspaceCoordinator.Kind.CONFIG ? configLaunches : resultsLaunches)
-                            .incrementAndGet();
-                    return true;
-                },
-                sessionId -> true,
-                (previous, current) -> true);
-
-        OcrWorkspaceCoordinator.OpenResult config = coordinator.open(new OcrWorkspaceCoordinator.OpenRequest(
-                OcrWorkspaceCoordinator.Kind.CONFIG,
-                ScannerWorkspaceSessions.SCANNER_GRID,
-                7,
-                42,
-                11,
-                new JsonArray()));
-        OcrWorkspaceCoordinator.OpenResult results = coordinator.open(new OcrWorkspaceCoordinator.OpenRequest(
-                OcrWorkspaceCoordinator.Kind.RESULTS,
-                config.sessionId(),
-                -1,
-                -1,
-                null,
-                parameters("300")));
-        OcrWorkspaceCoordinator.OpenResult nextConfig = coordinator.open(new OcrWorkspaceCoordinator.OpenRequest(
-                OcrWorkspaceCoordinator.Kind.CONFIG,
-                ScannerWorkspaceSessions.PRE_SCANNER_GRID,
-                9,
-                88,
-                12,
-                new JsonArray()));
-        OcrWorkspaceCoordinator.OpenResult nextResults = coordinator.open(new OcrWorkspaceCoordinator.OpenRequest(
-                OcrWorkspaceCoordinator.Kind.RESULTS,
-                nextConfig.sessionId(),
-                -1,
-                -1,
-                null,
-                parameters("600")));
-
-        assertNotEquals(config.sessionId(), nextConfig.sessionId());
-        assertNotEquals(results.sessionId(), nextResults.sessionId());
-        assertEquals(1, configLaunches.get());
-        assertEquals(1, resultsLaunches.get());
-        assertEquals(1, coordinator.activeWindowCount(OcrWorkspaceCoordinator.Kind.CONFIG));
-        assertEquals(1, coordinator.activeWindowCount(OcrWorkspaceCoordinator.Kind.RESULTS));
-        assertEquals(2, coordinator.activeWorkspaceCount());
-        assertEquals("600", coordinator.bootstrap(nextResults.sessionId())
-                .parameters().get(0).getAsJsonObject().get("value").getAsString());
-    }
-
-    @Test
     void requestDuringInitialLaunchRebindsPendingWindowWithoutSecondLaunchOrSession() {
         MutableClock clock = new MutableClock(Instant.parse("2026-07-20T12:00:00Z"));
         AtomicInteger launches = new AtomicInteger();
@@ -386,7 +234,6 @@ class OcrWorkspaceCoordinatorTest {
                 },
                 ids::remove,
                 clock,
-                (homeBankingId, sourceSessionId, suggestions) -> true,
                 sessionId -> new OcrWorkspaceCoordinator.PageScannerContext(1, 2, null),
                 sessionId -> false,
                 (previous, current) -> {
@@ -425,7 +272,6 @@ class OcrWorkspaceCoordinatorTest {
                 },
                 ids::remove,
                 clock,
-                (homeBankingId, sourceSessionId, suggestions) -> true,
                 sessionId -> new OcrWorkspaceCoordinator.PageScannerContext(1, 2, null),
                 sessionId -> connected.get(),
                 (previous, current) -> allowRetarget.get(),
@@ -483,7 +329,6 @@ class OcrWorkspaceCoordinatorTest {
                 },
                 ids::remove,
                 clock,
-                (homeBankingId, sourceSessionId, suggestions) -> true,
                 sessionId -> new OcrWorkspaceCoordinator.PageScannerContext(1, 2, null),
                 sessionId -> connected.get(),
                 (previous, current) -> {
@@ -523,43 +368,29 @@ class OcrWorkspaceCoordinatorTest {
     void expiryIsExactAndFailedLaunchRollsBackTheProvisionalContext() {
         Instant now = Instant.parse("2026-07-18T12:00:00Z");
         MutableClock clock = new MutableClock(now);
-        ArrayDeque<String> ids = new ArrayDeque<>(List.of("open", "failed", "throws"));
-        List<String> launches = new ArrayList<>();
+        ArrayDeque<String> ids = new ArrayDeque<>(List.of("failed", "throws", "open"));
         OcrWorkspaceCoordinator coordinator = new OcrWorkspaceCoordinator(
                 (kind, sessionId) -> {
-                    launches.add(sessionId);
                     if (sessionId.endsWith("throws")) throw new IllegalStateException("Browser launch failed");
                     return !sessionId.endsWith("failed");
                 },
                 ids::remove,
-                clock,
-                (homeBankingId, sourceSessionId, suggestions) -> true);
-        OcrWorkspaceCoordinator.OpenResult opened = coordinator.open(new OcrWorkspaceCoordinator.OpenRequest(
-                OcrWorkspaceCoordinator.Kind.RESULTS,
-                ScannerWorkspaceSessions.SCANNER_GRID,
-                1,
-                2,
-                null,
-                new JsonArray()));
-        OcrWorkspaceCoordinator.OpenResult failed = coordinator.open(new OcrWorkspaceCoordinator.OpenRequest(
-                OcrWorkspaceCoordinator.Kind.CONFIG,
-                ScannerWorkspaceSessions.PRE_SCANNER_GRID,
-                3,
-                4,
-                null,
-                new JsonArray()));
+                clock);
+        OcrWorkspaceCoordinator.OpenResult failed = coordinator.open(configRequest(
+                ScannerWorkspaceSessions.SCANNER_GRID, 1, 2));
 
         assertFalse(failed.ok());
         assertEquals("", failed.sessionId());
+        assertEquals(0, coordinator.activeWorkspaceCount());
         assertThrows(
                 IllegalStateException.class,
-                () -> coordinator.open(new OcrWorkspaceCoordinator.OpenRequest(
-                        OcrWorkspaceCoordinator.Kind.CONFIG,
-                        ScannerWorkspaceSessions.PRE_SCANNER_GRID,
-                        3,
-                        4,
-                        null,
-                        new JsonArray())));
+                () -> coordinator.open(configRequest(
+                        ScannerWorkspaceSessions.SCANNER_GRID, 1, 2)));
+        assertEquals(0, coordinator.activeWorkspaceCount());
+
+        OcrWorkspaceCoordinator.OpenResult opened = coordinator.open(configRequest(
+                ScannerWorkspaceSessions.SCANNER_GRID, 1, 2));
+        assertTrue(opened.ok());
         assertEquals(1, coordinator.activeWorkspaceCount());
         clock.advance(Duration.ofHours(4).minusMillis(1));
         assertEquals(opened.sessionId(), coordinator.bootstrap(opened.sessionId()).sessionId());
@@ -573,8 +404,7 @@ class OcrWorkspaceCoordinatorTest {
         return new OcrWorkspaceCoordinator(
                 launcher,
                 ids::remove,
-                Clock.fixed(Instant.parse("2026-07-18T12:00:00Z"), ZoneOffset.UTC),
-                (homeBankingId, sourceSessionId, suggestions) -> true);
+                Clock.fixed(Instant.parse("2026-07-18T12:00:00Z"), ZoneOffset.UTC));
     }
 
     private static OcrWorkspaceCoordinator singletonCoordinator(
@@ -586,7 +416,6 @@ class OcrWorkspaceCoordinatorTest {
                 launcher,
                 ids::remove,
                 Clock.fixed(Instant.parse("2026-07-20T12:00:00Z"), ZoneOffset.UTC),
-                (homeBankingId, sourceSessionId, suggestions) -> true,
                 sessionId -> new OcrWorkspaceCoordinator.PageScannerContext(1, 2, null),
                 connectionProbe,
                 retargetNotifier,
@@ -602,17 +431,6 @@ class OcrWorkspaceCoordinatorTest {
                 botJobId,
                 null,
                 new JsonArray());
-    }
-
-    private static JsonArray parameters(String value) {
-        JsonObject parameter = new JsonObject();
-        parameter.addProperty("category", "engine");
-        parameter.addProperty("name", "user_defined_dpi");
-        parameter.addProperty("valueType", "integer");
-        parameter.addProperty("value", value);
-        JsonArray parameters = new JsonArray();
-        parameters.add(parameter);
-        return parameters;
     }
 
     private record Retarget(

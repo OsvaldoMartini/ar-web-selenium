@@ -633,12 +633,9 @@ public final class PagesOpenWorkspaceService {
         OcrWorkspaceCoordinator.Kind ocrKind =
                 OcrWorkspaceCoordinator.Kind.fromSessionId(sessionId);
         if (ocrKind != null) {
-            String title = ocrKind == OcrWorkspaceCoordinator.Kind.CONFIG
-                    ? "OCR Config"
-                    : "OCR Results";
             return new PagePresentation(
-                    title,
-                    ocrKind == OcrWorkspaceCoordinator.Kind.CONFIG ? "OCR_CONFIG" : "OCR_RESULTS",
+                    "OCR Config",
+                    "OCR_CONFIG",
                     "Detached OCR workspace",
                     false,
                     true);

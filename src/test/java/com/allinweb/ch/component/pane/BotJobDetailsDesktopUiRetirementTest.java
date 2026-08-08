@@ -399,7 +399,8 @@ class BotJobDetailsDesktopUiRetirementTest {
         String annotatedRenderer = Files.readString(SOURCE_ROOT.resolve("vision/AnnotatedImageRenderer.java"));
         String webScreenshotCapture = Files.readString(SOURCE_ROOT.resolve("util/WebScreenshotCapture.java"));
         String rasterImageIo = Files.readString(SOURCE_ROOT.resolve("vision/RasterImageIO.java"));
-        String ocrTestService = Files.readString(SOURCE_ROOT.resolve("facade/OcrTestService.java"));
+        String pageMappingsOcrReviewService =
+                Files.readString(SOURCE_ROOT.resolve("facade/PageMappingsOcrReviewService.java"));
         String pageOcrDumper = Files.readString(SOURCE_ROOT.resolve("util/PageOcrDumper.java"));
 
         assertFalse(ocrWord.contains("java.awt.Rectangle"));
@@ -420,7 +421,7 @@ class BotJobDetailsDesktopUiRetirementTest {
         assertFalse(annotatedRenderer.contains("BufferedImage"));
         assertFalse(webPageOcrService.contains("BufferedImage"));
         assertFalse(buttonDetectionService.contains("BufferedImage"));
-        assertFalse(ocrTestService.contains("BufferedImage"));
+        assertFalse(pageMappingsOcrReviewService.contains("BufferedImage"));
         assertFalse(pageOcrDumper.contains("BufferedImage"));
         assertFalse(ocrBridgeService.contains("BufferedImage"));
         assertFalse(rasterImageIo.contains("BufferedImage"));

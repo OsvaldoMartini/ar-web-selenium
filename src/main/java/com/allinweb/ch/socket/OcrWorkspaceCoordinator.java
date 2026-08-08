@@ -1,7 +1,6 @@
 package com.allinweb.ch.socket;
 
 import com.allinweb.ch.model.ScannerWorkspaceSessions;
-import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import java.time.Clock;
@@ -19,7 +18,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import lombok.extern.slf4j.Slf4j;
 
-/** Coordinates one detached OCR Chromium window per OCR kind. */
+/** Coordinates the one detached OCR Configuration Chromium window. */
 @Slf4j
 final class OcrWorkspaceCoordinator {
 
@@ -28,15 +27,10 @@ final class OcrWorkspaceCoordinator {
     static final Duration RECONNECT_GRACE = Duration.ofSeconds(2);
     static final String WINDOW_RETARGET_OPERATION = "ocrWorkspace.windowRetarget";
     private static final int MAX_ID_ATTEMPTS = 16;
-    private static final int MAX_SUGGESTIONS = 10_000;
-    private static final int MAX_XPATH_LENGTH = 8_192;
-    private static final int MAX_CLIENT_NAME_LENGTH = 1_024;
-    private static final Gson GSON = new Gson();
 
     private final WorkspaceLauncher launcher;
     private final Supplier<String> idSupplier;
     private final Clock clock;
-    private final SuggestionsPublisher suggestionsPublisher;
     private final PageScannerContextResolver pageScannerContextResolver;
     private final WorkspaceConnectionProbe connectionProbe;
     private final WorkspaceRetargetNotifier retargetNotifier;
@@ -52,7 +46,6 @@ final class OcrWorkspaceCoordinator {
                         .openOcrWorkspaceDesktopShell(kind, sessionId),
                 () -> UUID.randomUUID().toString(),
                 Clock.systemUTC(),
-                OcrWorkspaceCoordinator::publishSuggestions,
                 OcrWorkspaceCoordinator::resolvePageScannerContext,
                 WebSocketSessionManager::isSessionOpen,
                 OcrWorkspaceCoordinator::publishWindowRetarget,
@@ -66,13 +59,11 @@ final class OcrWorkspaceCoordinator {
     OcrWorkspaceCoordinator(
             WorkspaceLauncher launcher,
             Supplier<String> idSupplier,
-            Clock clock,
-            SuggestionsPublisher suggestionsPublisher) {
+            Clock clock) {
         this(
                 launcher,
                 idSupplier,
                 clock,
-                suggestionsPublisher,
                 OcrWorkspaceCoordinator::resolvePageScannerContext,
                 sessionId -> true,
                 (previous, current) -> true,
@@ -85,13 +76,11 @@ final class OcrWorkspaceCoordinator {
             WorkspaceLauncher launcher,
             Supplier<String> idSupplier,
             Clock clock,
-            SuggestionsPublisher suggestionsPublisher,
             PageScannerContextResolver pageScannerContextResolver) {
         this(
                 launcher,
                 idSupplier,
                 clock,
-                suggestionsPublisher,
                 pageScannerContextResolver,
                 sessionId -> true,
                 (previous, current) -> true,
@@ -104,7 +93,6 @@ final class OcrWorkspaceCoordinator {
             WorkspaceLauncher launcher,
             Supplier<String> idSupplier,
             Clock clock,
-            SuggestionsPublisher suggestionsPublisher,
             PageScannerContextResolver pageScannerContextResolver,
             WorkspaceConnectionProbe connectionProbe,
             WorkspaceRetargetNotifier retargetNotifier,
@@ -113,7 +101,6 @@ final class OcrWorkspaceCoordinator {
                 launcher,
                 idSupplier,
                 clock,
-                suggestionsPublisher,
                 pageScannerContextResolver,
                 connectionProbe,
                 retargetNotifier,
@@ -126,7 +113,6 @@ final class OcrWorkspaceCoordinator {
             WorkspaceLauncher launcher,
             Supplier<String> idSupplier,
             Clock clock,
-            SuggestionsPublisher suggestionsPublisher,
             PageScannerContextResolver pageScannerContextResolver,
             WorkspaceConnectionProbe connectionProbe,
             WorkspaceRetargetNotifier retargetNotifier,
@@ -136,8 +122,6 @@ final class OcrWorkspaceCoordinator {
         this.launcher = Objects.requireNonNull(launcher, "OCR workspace launcher is required");
         this.idSupplier = Objects.requireNonNull(idSupplier, "OCR workspace ID supplier is required");
         this.clock = Objects.requireNonNull(clock, "OCR workspace clock is required");
-        this.suggestionsPublisher =
-                Objects.requireNonNull(suggestionsPublisher, "OCR suggestions publisher is required");
         this.pageScannerContextResolver = Objects.requireNonNull(
                 pageScannerContextResolver, "Page Scanner context resolver is required");
         this.connectionProbe = Objects.requireNonNull(
@@ -194,14 +178,6 @@ final class OcrWorkspaceCoordinator {
                     pageScannerContext.botJobId(),
                     pageScannerContext.homeUrlId(),
                     request.parameters());
-        } else if (request.kind() == Kind.RESULTS) {
-            WorkspaceEntry sourceConfig = requireActiveWorkspace(request.transportSessionId(), Kind.CONFIG);
-            return new WorkspaceTarget(
-                    sourceConfig.sourceScannerSessionId(),
-                    sourceConfig.homeBankingId(),
-                    sourceConfig.botJobId(),
-                    sourceConfig.homeUrlId(),
-                    request.parameters());
         } else {
             throw new IllegalArgumentException(
                     "OCR Config can only be opened from a scanner workspace transport");
@@ -236,8 +212,8 @@ final class OcrWorkspaceCoordinator {
 
     /**
      * Reuses the one physical window for this kind while assigning a fresh logical session.
-     * The fresh identity prevents late OCR results or suggestion callbacks from an old scanner
-     * binding from being accepted after a Bot Job/Page Scanner switch.
+     * The fresh identity prevents late configuration responses from an old scanner binding from
+     * being accepted after a Bot Job/Page Scanner switch.
      */
     private OpenResult retarget(WorkspaceEntry previous, WorkspaceTarget target) {
         Instant now = clock.instant();
@@ -442,18 +418,6 @@ final class OcrWorkspaceCoordinator {
         return entry.bootstrapContext();
     }
 
-    synchronized ApplyResult applySuggestions(String transportSessionId, List<Suggestion> suggestions) {
-        purgeExpiredEntries();
-        WorkspaceEntry entry = requireActiveWorkspace(transportSessionId, Kind.RESULTS);
-        List<Suggestion> normalized = normalizeSuggestions(suggestions);
-        boolean published = suggestionsPublisher.publish(
-                entry.homeBankingId(), entry.sourceScannerSessionId(), normalized);
-        String message = published
-                ? "OCR suggestions sent to the scanner workspace."
-                : "The originating scanner workspace is not connected.";
-        return new ApplyResult(published, entry.sourceScannerSessionId(), normalized.size(), message);
-    }
-
     synchronized void purgeExpired() {
         purgeExpiredEntries();
     }
@@ -467,7 +431,7 @@ final class OcrWorkspaceCoordinator {
         return workspaces.size();
     }
 
-    /** Retires both application-owned OCR windows during terminal application shutdown. */
+    /** Retires the application-owned OCR Configuration window during terminal shutdown. */
     synchronized void closeAll() {
         workspaces.clear();
         activeSessionByKind.clear();
@@ -585,39 +549,6 @@ final class OcrWorkspaceCoordinator {
         throw new IllegalStateException("Unable to allocate a unique OCR workspace session");
     }
 
-    private static List<Suggestion> normalizeSuggestions(List<Suggestion> suggestions) {
-        if (suggestions == null || suggestions.isEmpty()) {
-            throw new IllegalArgumentException("At least one OCR suggestion is required");
-        }
-        if (suggestions.size() > MAX_SUGGESTIONS) {
-            throw new IllegalArgumentException("Too many OCR suggestions");
-        }
-
-        Map<String, Suggestion> byXPath = new LinkedHashMap<>();
-        for (Suggestion suggestion : suggestions) {
-            if (suggestion == null) throw new IllegalArgumentException("OCR suggestions cannot contain null entries");
-            String xPath = requireBounded(
-                    suggestion.xPath(), "OCR suggestion XPath is required", MAX_XPATH_LENGTH);
-            String clientNamed = requireBounded(
-                    suggestion.clientNamed(), "OCR suggestion client name is required", MAX_CLIENT_NAME_LENGTH);
-            byXPath.put(xPath, new Suggestion(xPath, clientNamed));
-        }
-        return List.copyOf(byXPath.values());
-    }
-
-    private static boolean publishSuggestions(
-            int homeBankingId, String sourceScannerSessionId, List<Suggestion> suggestions) {
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("suggestions", suggestions);
-        return WebSocketSessionManager.getInstance()
-                        .sendMessageJson(
-                                homeBankingId,
-                                sourceScannerSessionId,
-                                GSON.toJson(payload),
-                                "applyOcrSuggestions")
-                != null;
-    }
-
     static boolean publishWindowRetarget(BootstrapContext previous, BootstrapContext current) {
         JsonObject payload = new JsonObject();
         payload.addProperty("kind", current.kind().routeValue());
@@ -666,12 +597,6 @@ final class OcrWorkspaceCoordinator {
         return normalized;
     }
 
-    private static String requireBounded(String value, String errorMessage, int maximumLength) {
-        String normalized = requireNonBlank(value, errorMessage);
-        if (normalized.length() > maximumLength) throw new IllegalArgumentException(errorMessage);
-        return normalized;
-    }
-
     private static String requireNonBlank(String value, String errorMessage) {
         if (value == null || value.isBlank()) throw new IllegalArgumentException(errorMessage);
         return value.trim();
@@ -682,8 +607,7 @@ final class OcrWorkspaceCoordinator {
     }
 
     enum Kind {
-        CONFIG("config", "ocr-config-"),
-        RESULTS("results", "ocr-results-");
+        CONFIG("config", "ocr-config-");
 
         private final String routeValue;
         private final String sessionPrefix;
@@ -765,18 +689,9 @@ final class OcrWorkspaceCoordinator {
         }
     }
 
-    record Suggestion(String xPath, String clientNamed) {}
-
-    record ApplyResult(boolean published, String sourceScannerSessionId, int suggestionCount, String message) {}
-
     @FunctionalInterface
     interface WorkspaceLauncher {
         boolean launch(Kind kind, String sessionId);
-    }
-
-    @FunctionalInterface
-    interface SuggestionsPublisher {
-        boolean publish(int homeBankingId, String sourceScannerSessionId, List<Suggestion> suggestions);
     }
 
     @FunctionalInterface

@@ -62,10 +62,6 @@ class BotJobDetailsToolbarPlaywrightTest {
             "ocr-config-423e4567-e89b-42d3-a456-426614174000";
     private static final String OCR_CONFIG_RETARGET_SESSION_ID =
             "ocr-config-523e4567-e89b-42d3-a456-426614174000";
-    private static final String OCR_RESULTS_SESSION_ID =
-            "ocr-results-623e4567-e89b-42d3-a456-426614174000";
-    private static final String OCR_RESULTS_RETARGET_SESSION_ID =
-            "ocr-results-723e4567-e89b-42d3-a456-426614174000";
     private static final String SELECTED_TRANSFER_PATH =
             "D:\\Projects\\ARWebBancaStato\\ARWeb\\Export";
     private static final String SELECTED_EXCEL_EXPORT_DIRECTORY =
@@ -84,9 +80,7 @@ class BotJobDetailsToolbarPlaywrightTest {
               window.__arBotJobWindowSession = '%4$s';
               window.__arOcrConfigSession = '%5$s';
               window.__arRetargetOcrConfigSession = '%6$s';
-              window.__arOcrResultsSession = '%7$s';
-              window.__arRetargetOcrResultsSession = '%8$s';
-              window.__arSelectedExcelExportDirectory = '%10$s';
+              window.__arSelectedExcelExportDirectory = '%8$s';
               window.__arMockSockets = [];
               window.__arBotJobState = {
                 revision: 1,
@@ -339,9 +333,8 @@ class BotJobDetailsToolbarPlaywrightTest {
                   }
 
                   if (envelope.type === 'ocrWorkspace.bootstrap') {
-                    const kind = this.sessionId.startsWith('ocr-config-') ? 'config' : 'results';
-                    const retargeted = this.sessionId === window.__arRetargetOcrConfigSession
-                      || this.sessionId === window.__arRetargetOcrResultsSession;
+                    const kind = 'config';
+                    const retargeted = this.sessionId === window.__arRetargetOcrConfigSession;
                     emit(this, 'ocrWorkspace.bootstrapResponse', {
                       ok: true,
                       requestId: body.requestId,
@@ -361,17 +354,6 @@ class BotJobDetailsToolbarPlaywrightTest {
                       profiles: [],
                       categories: [],
                       parameters: []
-                    });
-                    return;
-                  }
-
-                  if (envelope.type === 'ocrTest.run') {
-                    emit(this, 'ocrTest.runResponse', {
-                      ok: true,
-                      source: 'Deterministic OCR result',
-                      wordCount: 0,
-                      counts: {},
-                      rows: []
                     });
                     return;
                   }
@@ -413,10 +395,10 @@ class BotJobDetailsToolbarPlaywrightTest {
                     botJobId: 42
                   };
                   if (action === 'CHOOSE_TRANSFER_PATH') {
-                    response.selectedPath = '%9$s';
+                    response.selectedPath = '%7$s';
                   } else if (action === 'CREATE_BAT') {
                     response.message = 'BAT file created';
-                    response.selectedPath = '%11$s';
+                    response.selectedPath = '%9$s';
                   }
                   emit(this, 'botJobDetails.toolbar.actionResponse', response);
 
@@ -470,8 +452,6 @@ class BotJobDetailsToolbarPlaywrightTest {
                     BOT_JOB_WINDOW_SESSION_ID,
                     OCR_CONFIG_SESSION_ID,
                     OCR_CONFIG_RETARGET_SESSION_ID,
-                    OCR_RESULTS_SESSION_ID,
-                    OCR_RESULTS_RETARGET_SESSION_ID,
                     SELECTED_TRANSFER_PATH.replace("\\", "\\\\"),
                     SELECTED_EXCEL_EXPORT_DIRECTORY.replace("\\", "\\\\"),
                     CREATED_BAT_PATH.replace("\\", "\\\\"));
@@ -930,7 +910,7 @@ class BotJobDetailsToolbarPlaywrightTest {
             assertTrue(bootstrapBody.has("requestId"));
 
             for (String control : List.of(
-                    "Page Scanner", "OCR Config", "OCR Results", "Refresh Web Page",
+                    "Page Scanner", "OCR Config", "Mappings", "Refresh Web Page",
                     "Clear Grid", "Search")) {
                 assertTrue(button(scannerWorkspace, control).isVisible(), control + " must be visible");
             }
@@ -962,7 +942,7 @@ class BotJobDetailsToolbarPlaywrightTest {
                     scannerPage, button(scannerWorkspace, "Clear Grid"), "pageScanner.clear");
             assertTrue(clearBody.has("requestId"));
 
-            coverOcrDetachedLaunchRequests(scannerPage, scannerWorkspace, pageErrors);
+            coverOcrConfigDetachedLaunchRequest(scannerPage, scannerWorkspace, pageErrors);
             coverPageScannerRetarget(scannerPage, initialPageCount + 1);
         } finally {
             if (!scannerPage.isClosed()) scannerPage.close();
@@ -1031,89 +1011,69 @@ class BotJobDetailsToolbarPlaywrightTest {
         assertEquals(originalPageCount, scannerPage.context().pages().size());
     }
 
-    private void coverOcrDetachedLaunchRequests(
+    private void coverOcrConfigDetachedLaunchRequest(
             Page page, Locator scannerWorkspace, List<String> pageErrors) {
         String initialUrl = page.url();
         int initialPageCount = page.context().pages().size();
 
-        button(scannerWorkspace, "OCR Results").click();
         button(scannerWorkspace, "OCR Config").click();
         page.waitForFunction(
                 """
-                () => ['config', 'results'].every(kind => window.__arToolbarRequests.some(request => {
+                () => window.__arToolbarRequests.some(request => {
                   if (request.type !== 'ocrWorkspace.open') return false;
                   const body = typeof request.body === 'string' ? JSON.parse(request.body) : request.body;
-                  return body.kind === kind;
-                }))
+                  return body.kind === 'config';
+                })
                 """);
 
-        for (String kind : List.of("config", "results")) {
-            String requestJson = (String) page.evaluate(
-                    """
-                    kind => JSON.stringify(window.__arToolbarRequests.filter(request => {
-                      if (request.type !== 'ocrWorkspace.open') return false;
-                      const body = typeof request.body === 'string' ? JSON.parse(request.body) : request.body;
-                      return body.kind === kind;
-                    }).at(-1))
-                    """,
-                    kind);
-            JsonObject request = JsonParser.parseString(requestJson).getAsJsonObject();
-            JsonObject body = JsonParser.parseString(request.get("body").getAsString()).getAsJsonObject();
-            assertEquals(PAGE_SCANNER_SESSION_ID, request.get("sessionId").getAsString());
-            assertEquals(BOT_JOB_ID, body.get("botJobId").getAsInt());
-            assertEquals(7, body.get("homeBankingId").getAsInt());
-            assertEquals(kind, body.get("kind").getAsString());
-            assertTrue(body.has("requestId"));
-            assertTrue(body.get("parameters").isJsonArray());
-        }
+        String requestJson = (String) page.evaluate(
+                """
+                () => JSON.stringify(window.__arToolbarRequests.filter(request => {
+                  if (request.type !== 'ocrWorkspace.open') return false;
+                  const body = typeof request.body === 'string' ? JSON.parse(request.body) : request.body;
+                  return body.kind === 'config';
+                }).at(-1))
+                """);
+        JsonObject request = JsonParser.parseString(requestJson).getAsJsonObject();
+        JsonObject body = JsonParser.parseString(request.get("body").getAsString()).getAsJsonObject();
+        assertEquals(PAGE_SCANNER_SESSION_ID, request.get("sessionId").getAsString());
+        assertEquals(BOT_JOB_ID, body.get("botJobId").getAsInt());
+        assertEquals(7, body.get("homeBankingId").getAsInt());
+        assertEquals("config", body.get("kind").getAsString());
+        assertTrue(body.has("requestId"));
+        assertTrue(body.get("parameters").isJsonArray());
 
         assertEquals(0, page.locator("[data-testid='ocr-config-workspace']").count());
-        assertEquals(0, page.locator("[data-testid='ocr-results-workspace']").count());
         assertTrue(scannerWorkspace.isVisible());
 
         assertEquals(initialUrl, page.url());
         assertEquals(initialPageCount, page.context().pages().size());
 
         Page configPage = page.context().newPage();
-        Page resultsPage = page.context().newPage();
         configPage.setDefaultTimeout(10_000);
-        resultsPage.setDefaultTimeout(10_000);
         configPage.onPageError(pageErrors::add);
-        resultsPage.onPageError(pageErrors::add);
         try {
             configPage.navigate(baseUrl + "/?desktopShell=1&openOcr=config&ocrSession="
                     + OCR_CONFIG_SESSION_ID);
-            resultsPage.navigate(baseUrl + "/?desktopShell=1&openOcr=results&ocrSession="
-                    + OCR_RESULTS_SESSION_ID);
 
             configPage.locator("[data-testid='ocr-config-workspace']").waitFor();
-            resultsPage.locator("[data-testid='ocr-results-workspace']").waitFor();
             awaitOcrBootstrap(configPage, OCR_CONFIG_SESSION_ID);
-            awaitOcrBootstrap(resultsPage, OCR_RESULTS_SESSION_ID);
 
-            int oneWindowPerKindPageCount = initialPageCount + 2;
-            assertEquals(oneWindowPerKindPageCount, page.context().pages().size());
+            int configWindowPageCount = initialPageCount + 1;
+            assertEquals(configWindowPageCount, page.context().pages().size());
             coverOcrWorkspaceRetarget(
                     configPage,
                     "config",
                     "ocr-config-workspace",
                     OCR_CONFIG_SESSION_ID,
                     OCR_CONFIG_RETARGET_SESSION_ID,
-                    oneWindowPerKindPageCount);
-            coverOcrWorkspaceRetarget(
-                    resultsPage,
-                    "results",
-                    "ocr-results-workspace",
-                    OCR_RESULTS_SESSION_ID,
-                    OCR_RESULTS_RETARGET_SESSION_ID,
-                    oneWindowPerKindPageCount);
+                    configWindowPageCount);
         } finally {
             if (!configPage.isClosed()) configPage.close();
-            if (!resultsPage.isClosed()) resultsPage.close();
         }
 
         assertEquals(initialPageCount, page.context().pages().size());
-        assertTrue(scannerWorkspace.isVisible(), "OCR windows must remain detached from Page Scanner");
+        assertTrue(scannerWorkspace.isVisible(), "OCR Config must remain detached from Page Scanner");
     }
 
     private void coverOcrWorkspaceRetarget(
@@ -1384,9 +1344,8 @@ class BotJobDetailsToolbarPlaywrightTest {
                 "Generate Excel file?", "excelExport.chooseDirectory", "Choose destination folder",
                 "bot-job-details-workspace", "detached-page-scanner-workspace",
                 "pageScannerWorkspace.open", "pageScannerWorkspace.bootstrap", "pageScanner.scan",
-                "Search Hidden Fields",
-                "ocrWorkspace.open", "ocr-config-window", "ocr-config-header",
-                "ocr-results-window", "ocr-results-header")) {
+                "Search Hidden Fields", "Mappings",
+                "ocrWorkspace.open", "ocr-config-window", "ocr-config-header")) {
             assertTrue(
                     bundle.contains(marker),
                     "The deployed React build is stale (missing '" + marker

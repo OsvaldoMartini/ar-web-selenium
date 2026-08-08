@@ -60,7 +60,6 @@ public class SimpleWebSocketServer {
     private static final ExcelExportService excelExportService = ExcelExportService.getInstance();
     private static final SaveComponentService saveComponentService = SaveComponentService.getInstance();
     private static final OcrManagerService ocrManagerService = OcrManagerService.getInstance();
-    private static final OcrTestService ocrTestService = OcrTestService.getInstance();
     private static final OcrWorkspaceCoordinator ocrWorkspaceCoordinator =
             OcrWorkspaceCoordinator.getInstance();
     private static final PageScannerWorkspaceCoordinator pageScannerWorkspaceCoordinator =
@@ -917,14 +916,6 @@ public class SimpleWebSocketServer {
                             transportSessionId,
                             session);
                     break;
-                case "ocrWorkspace.applySuggestions":
-                    handleOcrWorkspaceApplySuggestions(
-                            jsonObjMSG,
-                            homeBankingId,
-                            claimedSessionId,
-                            transportSessionId,
-                            session);
-                    break;
                 case "pageScannerWorkspace.open":
                     handlePageScannerWorkspaceOpen(
                             jsonObjMSG,
@@ -1042,10 +1033,6 @@ public class SimpleWebSocketServer {
                 case "ocrConfig.cleanupApply":
                     sendCommandEditorResponse(homeBankingId, sessionId, "ocrConfig.cleanupApplyResponse",
                             ocrManagerService.applyCleanup(extractBody(jsonObjMSG)));
-                    break;
-                case "ocrTest.run":
-                    sendCommandEditorResponse(homeBankingId, sessionId, "ocrTest.runResponse",
-                            ocrTestService.run(extractBody(jsonObjMSG)));
                     break;
                 case "scanner.plugin.download":
                     sendCommandEditorResponse(
@@ -4298,70 +4285,6 @@ public class SimpleWebSocketServer {
                     transport,
                     "ocrWorkspace.bootstrapResponse",
                     "Unable to load the OCR workspace.");
-        }
-    }
-
-    private void handleOcrWorkspaceApplySuggestions(
-            JsonObject envelope,
-            int envelopeHomeBankingId,
-            String claimedSessionId,
-            String transportSessionId,
-            Session transport) {
-        JsonObject body = bodyOrEmpty(envelope);
-        if (!validateOcrWorkspaceTransport(
-                body,
-                envelopeHomeBankingId,
-                claimedSessionId,
-                transportSessionId,
-                transport,
-                "ocrWorkspace.applySuggestionsResponse")) {
-            return;
-        }
-
-        try {
-            List<OcrWorkspaceCoordinator.Suggestion> suggestions = new ArrayList<>();
-            if (body.has("suggestions") && body.get("suggestions").isJsonArray()) {
-                for (var value : body.getAsJsonArray("suggestions")) {
-                    if (!value.isJsonObject()) {
-                        throw new IllegalArgumentException("OCR suggestions must be JSON objects");
-                    }
-                    JsonObject suggestion = value.getAsJsonObject();
-                    suggestions.add(new OcrWorkspaceCoordinator.Suggestion(
-                            stringValue(suggestion, "xPath"),
-                            stringValue(suggestion, "clientNamed")));
-                }
-            }
-
-            OcrWorkspaceCoordinator.ApplyResult result =
-                    ocrWorkspaceCoordinator.applySuggestions(transportSessionId, suggestions);
-            JsonObject response = responseWithRequestId(body);
-            response.addProperty("ok", result.published());
-            response.addProperty("published", result.published());
-            response.addProperty("suggestionCount", result.suggestionCount());
-            response.addProperty("message", result.message());
-            sendOcrWorkspaceResponse(
-                    envelopeHomeBankingId,
-                    transportSessionId,
-                    transport,
-                    "ocrWorkspace.applySuggestionsResponse",
-                    response);
-        } catch (IllegalArgumentException | IllegalStateException invalidRequest) {
-            sendOcrWorkspaceFailure(
-                    body,
-                    envelopeHomeBankingId,
-                    transportSessionId,
-                    transport,
-                    "ocrWorkspace.applySuggestionsResponse",
-                    invalidRequest.getMessage());
-        } catch (RuntimeException failure) {
-            log.error("Unable to apply detached OCR suggestions", failure);
-            sendOcrWorkspaceFailure(
-                    body,
-                    envelopeHomeBankingId,
-                    transportSessionId,
-                    transport,
-                    "ocrWorkspace.applySuggestionsResponse",
-                    "Unable to apply the OCR suggestions.");
         }
     }
 
