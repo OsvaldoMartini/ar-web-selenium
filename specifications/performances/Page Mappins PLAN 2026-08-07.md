@@ -195,13 +195,14 @@ Every name-based lookup must:
 
    - [x] Add `page_scan_snapshot`.
    - [x] Implement atomic owner-scoped snapshot folder creation.
-   - [x] Keep writing legacy `page-BJ.*` files temporarily for compatibility.
+   - [x] Write snapshot-owned screenshot/rectangle artifacts directly; never copy mutable
+     `page-BJ.*` files into an immutable capture.
    - [x] Persist exact `elements.json`, metadata, manifest checksums, and READY/FAILED status for every scan, including empty scans.
 
 3. **P2 — Isolated Page Mappings workspace**
 
    - [x] New `PageMappingsPage`, dedicated module stylesheet, detached route/session, and WebSocket bootstrap.
-   - [ ] Lazy-load images and full element payloads.
+   - [x] Load integrity-verified images, rectangles, metadata, and exact element payloads for the selected READY capture.
    - [ ] Keep old OCR route as a temporary compatibility adapter.
 
 4. **P3 — Mappings launchers and explorer**
@@ -319,4 +320,36 @@ Delivery evidence:
 - Frontend commit pushed: `a289663`.
 - Backend source/test commit pushed: `99ad9c2f`.
 - Backend deployment-assets commit pushed: `46dd420e`.
-- Packaging, restart, and live acceptance remain open; P2 through P7 are still unimplemented.
+- Packaging, restart, and live acceptance remain open; the P2 core plus P3 and P4 are delivered in
+  source, the temporary OCR compatibility adapter remains open, and P5 through P7 remain planned.
+
+## Page Mappings review remediation checkpoint — 2026-08-08
+
+The 12 findings recorded in `Page Mappings REVIEW FIXES 2026-08-07.md` are fixed in source and
+pushed. This includes fixed-presentation registration, server-owned owner binding, authoritative
+retargeting, scan-owned immutable artifacts, verified capture geometry, selected-capture response
+correlation, authoritative Apply reload, SQL Server-safe bounded schema repair, deletion lifecycle,
+URL redaction, finalized-artifact cleanup, and FAILED-history recording.
+
+### Frontend risks currently known
+
+| Severity | Status | Risk |
+|---|---|---|
+| Critical | Fixed | Missing-epoch Memory OPEN and SYNC failures now settle through exact typed request correlation before success-only epoch checks. |
+| Critical | Open | Detached `MemoryList` page commands are not yet generation-bound across owner retarget; a late prior-owner response can affect the new owner's pending UI state. |
+| High | Deployment gate | New backend static-source epoch enforcement and the matching frontend must deploy together. The build is mirrored in Git but is not packaged/restarted. |
+| Medium | Open verification | Detached-window reconnect/retarget/delete/same-ID reuse behavior still needs live desktop acceptance. |
+| Medium | Open verification | The latest failure-correlation correction has compile/build and independent review evidence but no targeted test, by explicit instruction. |
+| Low | Existing | Production build warnings and bundle-size warnings remain. |
+
+Checkpoint commits:
+
+- Backend lifecycle: `ea68268e`; isolated failure contract: `209d24d7`.
+- Frontend workspace generation: `7774aeb`; isolated response correlation: `ce6a56f`.
+- Latest mirrored frontend assets: `dc773421`, `main.23344ef8.js`.
+- Backend selected regression suite before the final failure correction: 206/206 passed.
+- Java compile and frontend production build after the correction: passed; no tests were run for the
+  final correction.
+
+Operational gates remain separate: migration application, real SQL Server inspection, backend
+package/restart, deployed health, and live behavior are not complete.
