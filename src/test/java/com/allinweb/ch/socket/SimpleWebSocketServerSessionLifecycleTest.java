@@ -69,6 +69,7 @@ class SimpleWebSocketServerSessionLifecycleTest {
         assertTrue(SimpleWebSocketServer.isAllowedFromDetachedPageScannerTransport("botJobDetails.toolbar.action"));
         assertTrue(SimpleWebSocketServer.isAllowedFromDetachedPageScannerTransport("pagesOpen.open"));
         assertTrue(SimpleWebSocketServer.isAllowedFromDetachedPageScannerTransport("pagesOpen.summary"));
+        assertTrue(SimpleWebSocketServer.isAllowedFromDetachedPageScannerTransport("pageMappings.open"));
 
         assertTrue(SimpleWebSocketServer.isAllowedDetachedPageScannerToolbarAction("TEST_RUN"));
         assertTrue(SimpleWebSocketServer.isAllowedDetachedPageScannerToolbarAction("STOP_TEST_RUN"));
@@ -83,6 +84,19 @@ class SimpleWebSocketServerSessionLifecycleTest {
         assertFalse(SimpleWebSocketServer.isAllowedFromDetachedPageScannerTransport("pagesOpen.closePage"));
         assertFalse(SimpleWebSocketServer.isAllowedFromDetachedPageScannerTransport("pagesOpen.focusPage"));
         assertFalse(SimpleWebSocketServer.isAllowedFromDetachedPageScannerTransport(null));
+    }
+
+    @Test
+    void detachedPageMappingsAllowsOwnedReadsButCannotRetargetItself() {
+        assertTrue(SimpleWebSocketServer.isAllowedFromDetachedPageMappingsTransport(
+                "pageMappings.bootstrap"));
+        assertTrue(SimpleWebSocketServer.isAllowedFromDetachedPageMappingsTransport(
+                "pageMappings.capture"));
+        assertTrue(SimpleWebSocketServer.isAllowedFromDetachedPageMappingsTransport(
+                "memoryList.open"));
+        assertFalse(SimpleWebSocketServer.isAllowedFromDetachedPageMappingsTransport(
+                "pageMappings.open"));
+        assertFalse(SimpleWebSocketServer.isAllowedFromDetachedPageMappingsTransport(null));
     }
 
     @Test

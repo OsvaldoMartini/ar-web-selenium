@@ -117,6 +117,14 @@ public final class PagesOpenWorkspaceService {
                             false,
                             true)),
             Map.entry(
+                    DetachedWorkspaceSessions.PAGE_MAPPINGS_MANAGER,
+                    new PagePresentation(
+                            "Page Mappings",
+                            "PAGE_MAPPINGS",
+                            "Owner-scoped Page Scanner history",
+                            false,
+                            true)),
+            Map.entry(
                     DetachedWorkspaceSessions.MEMORY_LIST_MANAGER,
                     new PagePresentation("Memory List", "MEMORY_LIST", "Detached workspace", false, true)),
             Map.entry(
@@ -145,6 +153,10 @@ public final class PagesOpenWorkspaceService {
 
     public static PagesOpenWorkspaceService getInstance() {
         return INSTANCE;
+    }
+
+    static boolean isFixedPresentationSession(String sessionId) {
+        return FIXED_PRESENTATIONS.containsKey(sessionId);
     }
 
     /**

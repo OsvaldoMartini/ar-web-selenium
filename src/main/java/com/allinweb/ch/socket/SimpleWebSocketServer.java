@@ -132,7 +132,6 @@ public class SimpleWebSocketServer {
     private static final Set<String> DETACHED_PAGE_MAPPINGS_OPERATIONS = Set.of(
             "pageMappings.bootstrap",
             "pageMappings.capture",
-            "pageMappings.open",
             "memoryList.open",
             "memoryList.sync",
             "memoryList.summary",
@@ -722,7 +721,8 @@ public class SimpleWebSocketServer {
                                 "Operation is not allowed from the detached Excel Data workspace."));
                 return;
             }
-            if (detachedPageMappingsTransport && !DETACHED_PAGE_MAPPINGS_OPERATIONS.contains(type)) {
+            if (detachedPageMappingsTransport
+                    && !isAllowedFromDetachedPageMappingsTransport(type)) {
                 sendCommandEditorResponse(
                         homeBankingId,
                         transportSessionId,
@@ -1058,38 +1058,59 @@ public class SimpleWebSocketServer {
                 case "pageMappings.bootstrap": {
                     JsonObject mappingsBody = extractBody(jsonObjMSG);
                     try (java.sql.Connection connection = performDataBase.getConnection()) {
-                        sendCommandEditorResponse(
+                        JsonObject response = pageMappingsWorkspaceService.bootstrap(
+                                mappingsBody, sessionId, session, connection);
+                        sendPageMappingsResponse(
                                 homeBankingId,
                                 sessionId,
+                                session,
                                 "pageMappings.bootstrapResponse",
-                                pageMappingsWorkspaceService.bootstrap(mappingsBody, sessionId, connection));
+                                response);
                     } catch (Exception failure) {
                         JsonObject response = commandEditorFailure(
                                 mappingsBody, "Page Mappings history is unavailable.");
-                        sendCommandEditorResponse(
-                                homeBankingId, sessionId, "pageMappings.bootstrapResponse", response);
+                        sendPageMappingsResponse(
+                                homeBankingId,
+                                sessionId,
+                                session,
+                                "pageMappings.bootstrapResponse",
+                                response);
                     }
                     break;
                 }
                 case "pageMappings.capture": {
                     JsonObject mappingsBody = extractBody(jsonObjMSG);
                     try (java.sql.Connection connection = performDataBase.getConnection()) {
-                        sendCommandEditorResponse(homeBankingId, sessionId, "pageMappings.captureResponse",
-                                pageMappingsWorkspaceService.capture(mappingsBody, connection));
+                        JsonObject response = pageMappingsWorkspaceService.capture(
+                                mappingsBody, sessionId, session, connection);
+                        sendPageMappingsResponse(
+                                homeBankingId,
+                                sessionId,
+                                session,
+                                "pageMappings.captureResponse",
+                                response);
                     } catch (Exception failure) {
-                        sendCommandEditorResponse(homeBankingId, sessionId, "pageMappings.captureResponse",
-                                commandEditorFailure(mappingsBody, "The selected scan artifact could not be loaded."));
+                        sendPageMappingsResponse(
+                                homeBankingId,
+                                sessionId,
+                                session,
+                                "pageMappings.captureResponse",
+                                commandEditorFailure(
+                                        mappingsBody,
+                                        "The selected scan artifact could not be loaded."));
                     }
                     break;
                 }
                 case "pageMappings.open": {
                     JsonObject mappingsBody = extractBody(jsonObjMSG);
-                    int requestedBotJobId = positiveJsonInteger(mappingsBody, "botJobId");
-                    sendCommandEditorResponse(
+                    JsonObject response = pageMappingsWorkspaceService.openFromPageScanner(
+                            mappingsBody, sessionId, session);
+                    sendPageMappingsResponse(
                             homeBankingId,
                             sessionId,
+                            session,
                             "pageMappings.openResponse",
-                            pageMappingsWorkspaceService.openForBotJob(requestedBotJobId));
+                            response);
                     break;
                 }
                 case "excelData.close": {
@@ -5262,6 +5283,10 @@ public class SimpleWebSocketServer {
                 || (operation != null && DETACHED_PAGE_SCANNER_BOT_JOB_OPERATIONS.contains(operation));
     }
 
+    static boolean isAllowedFromDetachedPageMappingsTransport(String operation) {
+        return operation != null && DETACHED_PAGE_MAPPINGS_OPERATIONS.contains(operation);
+    }
+
     static boolean isAllowedFromDetachedCommandEditorTransport(String operation) {
         return operation != null && DETACHED_COMMAND_EDITOR_OPERATIONS.contains(operation);
     }
@@ -7813,6 +7838,29 @@ public class SimpleWebSocketServer {
     private void sendCommandEditorResponse(
             int homeBankId, String sessionId, String operationId, Object response) {
         webSocketSessionManager.sendMessageJson(homeBankId, sessionId, gson.toJson(response), operationId);
+    }
+
+    private void sendPageMappingsResponse(
+            int fallbackHomeBankingId,
+            String sessionId,
+            Session requesterTransport,
+            String operationId,
+            JsonObject response) {
+        if (requesterTransport == null
+                || !requesterTransport.isOpen()
+                || WebSocketSessionManager.getSession(sessionId) != requesterTransport) {
+            log.warn(
+                    "Dropped {} response because Page Mappings requester {} no longer owns its transport",
+                    operationId,
+                    sessionId);
+            return;
+        }
+        WebSocketSessionManager.sendMessageJson(
+                commandEditorHomeBankingId(response, fallbackHomeBankingId),
+                requesterTransport,
+                sessionId,
+                gson.toJson(response),
+                operationId);
     }
 
     private boolean isMobileReturnSession(String sessionId) {

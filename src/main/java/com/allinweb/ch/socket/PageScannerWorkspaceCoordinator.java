@@ -247,6 +247,18 @@ final class PageScannerWorkspaceCoordinator {
                 && workspaces.containsKey(transportSessionId);
     }
 
+    /**
+     * Returns the server-owned context for one active detached Page Scanner transport.
+     *
+     * <p>Unlike {@link #bootstrap(String)}, this read-only authorization lookup does not mark a
+     * newly launched workspace as connected. Callers must still prove ownership of the exact
+     * registered WebSocket transport before using the returned context.
+     */
+    synchronized WorkspaceContext authoritativeContext(String transportSessionId) {
+        purgeExpiredEntries();
+        return requireActiveWorkspace(transportSessionId).context();
+    }
+
     synchronized boolean close(String transportSessionId) {
         purgeExpiredEntries();
         WorkspaceEntry entry = requireActiveWorkspace(transportSessionId);

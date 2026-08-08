@@ -66,6 +66,23 @@ class PageScannerWorkspaceCoordinatorTest {
     }
 
     @Test
+    void authoritativeContextReadsServerOwnerWithoutMarkingScannerConnected() {
+        PageScannerWorkspaceCoordinator coordinator = coordinator(
+                new ArrayDeque<>(List.of("owner-read")),
+                sessionId -> true);
+        PageScannerWorkspaceCoordinator.WorkspaceContext expected =
+                context(7, 42, "Payments");
+        PageScannerWorkspaceCoordinator.OpenResult opened =
+                coordinator.open(request(expected));
+
+        PageScannerWorkspaceCoordinator.WorkspaceContext authorized =
+                coordinator.authoritativeContext(opened.sessionId());
+
+        assertEquals(expected, authorized);
+        assertFalse(coordinator.disconnected(opened.sessionId()));
+    }
+
+    @Test
     void repeatedOpenForTheSameBotJobReturnsExistingWorkspaceWithoutRelaunching() {
         AtomicInteger launchCount = new AtomicInteger();
         ArrayDeque<String> ids = new ArrayDeque<>(List.of("first", "unused"));

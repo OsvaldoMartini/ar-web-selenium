@@ -101,9 +101,10 @@ public final class MemoryListWorkspaceService {
         boolean launchRequired;
         long now = System.nanoTime();
         try {
+            SourceOwner sourceOwner = sourceOwner(body, transportSessionId, transportSession);
             synchronized (stateLock) {
-                int botJobId = positiveInteger(body, "botJobId");
-                int homeBankingId = sourceHomeBankingId(body, transportSessionId);
+                int botJobId = sourceOwner.botJobId;
+                int homeBankingId = sourceOwner.homeBankingId;
                 if (current == null || current.botJobId != botJobId) {
                     current =
                             new MemoryState(
@@ -111,7 +112,12 @@ public final class MemoryListWorkspaceService {
                 } else if (homeBankingId > 0) {
                     current.homeBankingId = homeBankingId;
                 }
-                upsertSource(current, body, transportSessionId, transportSession);
+                upsertSource(
+                        current,
+                        body,
+                        transportSessionId,
+                        transportSession,
+                        sourceOwner);
                 if (COMPONENT_SOURCE.equals(sourceKind(transportSessionId))
                         || PAGE_MAPPINGS_SOURCE.equals(sourceKind(transportSessionId))) {
                     reloadBlocks(current);
@@ -131,7 +137,9 @@ public final class MemoryListWorkspaceService {
         } catch (IllegalArgumentException inactiveWorkspace) {
             return failure(
                     body,
-                    "Components do not match the active Bot Job Details workspace.");
+                    firstNonBlank(
+                            inactiveWorkspace.getMessage(),
+                            "The Memory List source no longer matches its active workspace."));
         }
 
         boolean launched = !launchRequired || ARWebSocketServer.getInstance()
@@ -173,13 +181,14 @@ public final class MemoryListWorkspaceService {
 
         MemoryState state;
         try {
+            SourceOwner sourceOwner = sourceOwner(body, transportSessionId, transportSession);
             synchronized (stateLock) {
                 state = current;
                 if (state == null) {
                     return failure(body, "Open the Memory List before synchronizing it.");
                 }
                 String ownerEpoch = string(body, "ownerEpoch");
-                if (state.botJobId != positiveInteger(body, "botJobId")
+                if (state.botJobId != sourceOwner.botJobId
                         || ownerEpoch.isEmpty()
                         || !state.ownerEpoch.equals(ownerEpoch)) {
                     return failure(
@@ -192,7 +201,12 @@ public final class MemoryListWorkspaceService {
                         || !source.sessionId.equals(transportSessionId)) {
                     return failure(body, "Memory List source ownership changed. Open it again.");
                 }
-                upsertSource(state, body, transportSessionId, transportSession);
+                upsertSource(
+                        state,
+                        body,
+                        transportSessionId,
+                        transportSession,
+                        sourceOwner);
                 if (COMPONENT_SOURCE.equals(sourceKind(transportSessionId))
                         || PAGE_MAPPINGS_SOURCE.equals(sourceKind(transportSessionId))) {
                     reloadBlocks(state);
@@ -201,7 +215,9 @@ public final class MemoryListWorkspaceService {
         } catch (IllegalArgumentException inactiveWorkspace) {
             return failure(
                     body,
-                    "Components do not match the active Bot Job Details workspace.");
+                    firstNonBlank(
+                            inactiveWorkspace.getMessage(),
+                            "The Memory List source no longer matches its active workspace."));
         }
         publishSnapshot(state);
         publishSummaryChanged();
@@ -301,16 +317,19 @@ public final class MemoryListWorkspaceService {
 
         SummarySubscriber subscriber;
         try {
+            SourceOwner sourceOwner = sourceOwner(body, transportSessionId, transportSession);
             subscriber = new SummarySubscriber(
                     sourceKind(transportSessionId),
                     transportSessionId,
                     transportSession,
-                    positiveInteger(body, "botJobId"),
-                    sourceHomeBankingId(body, transportSessionId));
+                    sourceOwner.botJobId,
+                    sourceOwner.homeBankingId);
         } catch (IllegalArgumentException inactiveWorkspace) {
             return failure(
                     body,
-                    "Components do not match the active Bot Job Details workspace.");
+                    firstNonBlank(
+                            inactiveWorkspace.getMessage(),
+                            "The Memory List source no longer matches its active workspace."));
         }
 
         synchronized (stateLock) {
@@ -331,6 +350,42 @@ public final class MemoryListWorkspaceService {
                 return subscriber.transport == transportSession
                         && subscriber.sessionId.equals(transportSessionId);
             });
+        }
+    }
+
+    /**
+     * Removes only the Page Mappings contribution owned by the previous binding.
+     *
+     * <p>A detached Page Mappings window is reused across Bot Jobs. Its staged rows must not
+     * survive that retarget and later be applied to the new owner.
+     */
+    void pageMappingsRetargeted(
+            PageMappingsWorkspaceService.Binding previous,
+            PageMappingsWorkspaceService.Binding currentBinding) {
+        if (previous == null || currentBinding == null) return;
+        MemoryState changedState = null;
+        synchronized (stateLock) {
+            summarySubscribers.remove(PAGE_MAPPINGS_SOURCE);
+            if (current == null) return;
+            SourceState source = current.sources.get(PAGE_MAPPINGS_SOURCE);
+            if (source == null
+                    || !previous.bindingEpoch().equals(
+                            string(source.snapshot, "bindingEpoch"))) {
+                return;
+            }
+            current.sources.remove(PAGE_MAPPINGS_SOURCE);
+            for (String itemKey : source.itemKeys) {
+                current.items.remove(itemKey);
+                current.order.remove(itemKey);
+                current.suppressedKeys.remove(itemKey);
+            }
+            rebuildBlocks(current);
+            current.revision++;
+            changedState = current;
+        }
+        if (changedState != null) {
+            publishSnapshot(changedState);
+            publishSummaryChanged();
         }
     }
 
@@ -886,17 +941,22 @@ public final class MemoryListWorkspaceService {
             MemoryState state,
             JsonObject body,
             String transportSessionId,
-            Session transportSession) {
+            Session transportSession,
+            SourceOwner sourceOwner) {
         JsonObject submittedSnapshot = snapshot(body).deepCopy();
         String kind = sourceKind(transportSessionId);
         if (COMPONENT_SOURCE.equals(kind)) {
-            BotJobDetailsWorkspaceRegistry.Snapshot active =
-                    BotJobDetailsWorkspaceRegistry.getInstance().require(state.botJobId);
-            submittedSnapshot.addProperty("botJobId", active.botJobId());
-            submittedSnapshot.addProperty("botJobName", active.name());
-            submittedSnapshot.addProperty("homeBankingId", active.homeBankingId());
+            submittedSnapshot.addProperty("botJobId", sourceOwner.botJobId);
+            submittedSnapshot.addProperty("botJobName", sourceOwner.botJobName);
+            submittedSnapshot.addProperty("homeBankingId", sourceOwner.homeBankingId);
             submittedSnapshot.add("blocks", new JsonArray());
             submittedSnapshot.remove("targetBlockId");
+        } else if (PAGE_MAPPINGS_SOURCE.equals(kind)) {
+            submittedSnapshot.addProperty("botJobId", sourceOwner.botJobId);
+            submittedSnapshot.addProperty("botJobName", sourceOwner.botJobName);
+            submittedSnapshot.addProperty("homeBankingId", sourceOwner.homeBankingId);
+            submittedSnapshot.addProperty("workspaceEpoch", sourceOwner.workspaceEpoch);
+            submittedSnapshot.addProperty("bindingEpoch", sourceOwner.bindingEpoch);
         }
         SourceState previous = state.sources.get(kind);
         Set<String> previousKeys =
@@ -1027,24 +1087,21 @@ public final class MemoryListWorkspaceService {
             return failure(body, "The Memory List source is not authoritative.");
         }
         if (body == null) return failure(null, "Memory List body is required.");
-        if (positiveInteger(body, "botJobId") <= 0) {
+        if (!PAGE_MAPPINGS_SOURCE.equals(sourceKind)
+                && positiveInteger(body, "botJobId") <= 0) {
             return failure(body, "A positive Bot Job ID is required.");
         }
-        if (COMPONENT_SOURCE.equals(sourceKind)) {
-            try {
-                BotJobDetailsWorkspaceRegistry.Snapshot active =
-                        BotJobDetailsWorkspaceRegistry.getInstance()
-                                .require(positiveInteger(body, "botJobId"));
-                if (active.homeBankingId() <= 0) {
-                    return failure(
-                            body,
-                            "The active Bot Job has no authoritative organization for Components.");
-                }
-            } catch (IllegalArgumentException inactive) {
-                return failure(
-                        body,
-                        "Components do not match the active Bot Job Details workspace.");
+        try {
+            SourceOwner owner = sourceOwner(body, transportSessionId, transportSession);
+            if (owner.homeBankingId <= 0 || owner.botJobId <= 0) {
+                return failure(body, "The Memory List source has no authoritative owner.");
             }
+        } catch (IllegalArgumentException inactive) {
+            return failure(
+                    body,
+                    firstNonBlank(
+                            inactive.getMessage(),
+                            "The Memory List source no longer matches its active workspace."));
         }
         JsonObject snapshot = snapshot(body);
         if (snapshot == null) return failure(body, "A Memory List snapshot is required.");
@@ -1079,7 +1136,8 @@ public final class MemoryListWorkspaceService {
             return failure(body, "The Memory List count requester is not authoritative.");
         }
         if (body == null) return failure(null, "Memory List summary body is required.");
-        if (positiveInteger(body, "botJobId") <= 0) {
+        if (!PAGE_MAPPINGS_SOURCE.equals(kind)
+                && positiveInteger(body, "botJobId") <= 0) {
             return failure(body, "A positive Bot Job ID is required.");
         }
         String requestId = string(body, "requestId");
@@ -1087,13 +1145,16 @@ public final class MemoryListWorkspaceService {
             return failure(body, "A valid Memory List request ID is required.");
         }
         try {
-            if (sourceHomeBankingId(body, transportSessionId) <= 0) {
+            SourceOwner owner = sourceOwner(body, transportSessionId, transportSession);
+            if (owner.homeBankingId <= 0 || owner.botJobId <= 0) {
                 return failure(body, "A positive Home Banking ID is required.");
             }
         } catch (IllegalArgumentException inactiveWorkspace) {
             return failure(
                     body,
-                    "Components do not match the active Bot Job Details workspace.");
+                    firstNonBlank(
+                            inactiveWorkspace.getMessage(),
+                            "The Memory List source no longer matches its active workspace."));
         }
         return null;
     }
@@ -1135,16 +1196,42 @@ public final class MemoryListWorkspaceService {
         return PAGE_SCANNER_SOURCE.equals(sourceKind) || PAGE_MAPPINGS_SOURCE.equals(sourceKind);
     }
 
-    private int sourceHomeBankingId(JsonObject body, String transportSessionId) {
-        if (COMPONENT_SOURCE.equals(sourceKind(transportSessionId))) {
-            return BotJobDetailsWorkspaceRegistry.getInstance()
-                    .require(positiveInteger(body, "botJobId"))
-                    .homeBankingId();
+    private SourceOwner sourceOwner(
+            JsonObject body, String transportSessionId, Session transportSession) {
+        String kind = sourceKind(transportSessionId);
+        if (PAGE_MAPPINGS_SOURCE.equals(kind)) {
+            PageMappingsWorkspaceService.Binding owner =
+                    PageMappingsWorkspaceService.getInstance()
+                            .authorizeMemoryListSource(
+                                    body, transportSessionId, transportSession);
+            return new SourceOwner(
+                    owner.homeBankingId(),
+                    owner.botJobId(),
+                    owner.workspaceEpoch(),
+                    owner.bindingEpoch(),
+                    owner.botJobName());
         }
-        int value = positiveInteger(body, "homeBankingId");
-        if (value > 0) return value;
-        JsonObject nested = snapshot(body);
-        return positiveInteger(nested, "homeBankingId");
+        if (COMPONENT_SOURCE.equals(kind)) {
+            BotJobDetailsWorkspaceRegistry.Snapshot owner =
+                    BotJobDetailsWorkspaceRegistry.getInstance()
+                            .require(positiveInteger(body, "botJobId"));
+            return new SourceOwner(
+                    owner.homeBankingId(),
+                    owner.botJobId(),
+                    owner.workspaceEpoch(),
+                    "",
+                    owner.name());
+        }
+        int homeBankingId = positiveInteger(body, "homeBankingId");
+        if (homeBankingId <= 0) {
+            homeBankingId = positiveInteger(snapshot(body), "homeBankingId");
+        }
+        return new SourceOwner(
+                homeBankingId,
+                positiveInteger(body, "botJobId"),
+                0,
+                "",
+                string(snapshot(body), "botJobName"));
     }
 
     private JsonObject validateComponentSnapshot(JsonObject request, JsonObject submittedSnapshot) {
@@ -1547,6 +1634,13 @@ public final class MemoryListWorkspaceService {
             int homeBankingId) {}
 
     private record SummaryDelivery(SummarySubscriber subscriber, JsonObject payload) {}
+
+    private record SourceOwner(
+            int homeBankingId,
+            int botJobId,
+            long workspaceEpoch,
+            String bindingEpoch,
+            String botJobName) {}
 
     private static final class SourceState {
         private final String kind;
