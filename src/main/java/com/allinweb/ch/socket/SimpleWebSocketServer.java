@@ -2518,9 +2518,10 @@ public class SimpleWebSocketServer {
     private void handleMemoryListOpen(
             JsonObject envelope, String transportSessionId, Session transportSession) {
         JsonObject body = extractBody(envelope);
-        sendCommandEditorResponse(
+        sendMemoryListResponse(
                 memoryListHomeBankingId(envelope, body),
                 transportSessionId,
+                transportSession,
                 "memoryList.openResponse",
                 memoryListWorkspaceService.open(body, transportSessionId, transportSession));
     }
@@ -2528,9 +2529,10 @@ public class SimpleWebSocketServer {
     private void handleMemoryListSync(
             JsonObject envelope, String transportSessionId, Session transportSession) {
         JsonObject body = extractBody(envelope);
-        sendCommandEditorResponse(
+        sendMemoryListResponse(
                 memoryListHomeBankingId(envelope, body),
                 transportSessionId,
+                transportSession,
                 "memoryList.syncResponse",
                 memoryListWorkspaceService.sync(body, transportSessionId, transportSession));
     }
@@ -2538,9 +2540,10 @@ public class SimpleWebSocketServer {
     private void handleMemoryListSummary(
             JsonObject envelope, String transportSessionId, Session transportSession) {
         JsonObject body = extractBody(envelope);
-        sendCommandEditorResponse(
+        sendMemoryListResponse(
                 memoryListHomeBankingId(envelope, body),
                 transportSessionId,
+                transportSession,
                 "memoryList.summaryResponse",
                 memoryListWorkspaceService.summary(body, transportSessionId, transportSession));
     }
@@ -2548,9 +2551,10 @@ public class SimpleWebSocketServer {
     private void handleMemoryListBootstrap(
             JsonObject envelope, String transportSessionId, Session transportSession) {
         JsonObject body = extractBody(envelope);
-        sendCommandEditorResponse(
+        sendMemoryListResponse(
                 memoryListHomeBankingId(envelope, body),
                 transportSessionId,
+                transportSession,
                 "memoryList.bootstrapResponse",
                 memoryListWorkspaceService.bootstrap(body, transportSessionId, transportSession));
     }
@@ -2558,9 +2562,10 @@ public class SimpleWebSocketServer {
     private void handleMemoryListCommand(
             JsonObject envelope, String transportSessionId, Session transportSession) {
         JsonObject body = extractBody(envelope);
-        sendCommandEditorResponse(
+        sendMemoryListResponse(
                 memoryListHomeBankingId(envelope, body),
                 transportSessionId,
+                transportSession,
                 "memoryList.commandResponse",
                 memoryListWorkspaceService.command(body, transportSessionId, transportSession));
     }
@@ -7875,6 +7880,29 @@ public class SimpleWebSocketServer {
     private void sendCommandEditorResponse(
             int homeBankId, String sessionId, String operationId, Object response) {
         webSocketSessionManager.sendMessageJson(homeBankId, sessionId, gson.toJson(response), operationId);
+    }
+
+    private void sendMemoryListResponse(
+            int fallbackHomeBankingId,
+            String sessionId,
+            Session requesterTransport,
+            String operationId,
+            JsonObject response) {
+        if (requesterTransport == null
+                || !requesterTransport.isOpen()
+                || WebSocketSessionManager.getSession(sessionId) != requesterTransport) {
+            log.warn(
+                    "Dropped {} response because Memory List requester {} no longer owns its transport",
+                    operationId,
+                    sessionId);
+            return;
+        }
+        WebSocketSessionManager.sendMessageJson(
+                commandEditorHomeBankingId(response, fallbackHomeBankingId),
+                requesterTransport,
+                sessionId,
+                gson.toJson(response),
+                operationId);
     }
 
     private void sendPageMappingsResponse(
