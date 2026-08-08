@@ -22,6 +22,15 @@ public final class M20260807_PageScanSnapshot implements Migration {
 
     @Override
     public void apply(Connection conn, String dialect) throws SQLException {
+        reconcileSchema(conn, dialect);
+    }
+
+    /**
+     * Reconciles the snapshot table and its indexes without depending on migration-history state.
+     * This remains idempotent so a later, uniquely named repair migration can safely reuse the
+     * authoritative schema logic for installations that already recorded this migration's name.
+     */
+    static void reconcileSchema(Connection conn, String dialect) throws SQLException {
         if (!tableExists(conn, TABLE)) {
             try (Statement statement = conn.createStatement()) {
                 statement.executeUpdate(createTableSql(dialect));
