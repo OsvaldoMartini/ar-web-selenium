@@ -202,7 +202,8 @@ class PreScanWorkflowServiceTest {
         public void persist(
                 PreScanWorkflowService.Context context,
                 ScannedPageIdentity page,
-                List<ElementDTO> elements) {
+                List<ElementDTO> elements,
+                PreScanWorkflowService.BrowserPort browser) {
             persistedPage = page;
             persistedCount = elements == null ? 0 : elements.size();
         }

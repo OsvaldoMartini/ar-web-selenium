@@ -8,7 +8,6 @@ import com.google.gson.GsonBuilder;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.AtomicMoveNotSupportedException;
-import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -19,7 +18,6 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -36,7 +34,7 @@ public final class PageScanSnapshotStore {
 
     private PageScanSnapshotStore() {}
 
-    public static Snapshot persist(
+    static Snapshot persist(
             Connection connection,
             int homeBankingId,
             int botJobId,
@@ -44,22 +42,44 @@ public final class PageScanSnapshotStore {
             String botJobName,
             ScannedPageIdentity page,
             List<ElementDTO> elements,
-            String diagnosticPath)
+            String diagnosticPath,
+            ArtifactWriter artifactWriter)
             throws Exception {
         Objects.requireNonNull(connection, "connection");
         Objects.requireNonNull(page, "page");
-        Path root = safeRoot(diagnosticPath);
+        Objects.requireNonNull(artifactWriter, "artifactWriter");
         String scanId = UUID.randomUUID().toString();
         String capturedAt = DateTimeFormatter.ISO_INSTANT.format(Instant.now());
-        String safeOwner = "org-" + positive(homeBankingId) + "/bot-job-" + positive(botJobId);
-        String finalName = capturedAt.replace(':', '-') + "-" + scanId;
-        Path ownerRoot = root.resolve(safeOwner).resolve(safePageName(page.pageKey()));
-        Files.createDirectories(ownerRoot);
-        Path staging = ownerRoot.resolve("." + finalName + ".staging");
-        Path target = ownerRoot.resolve(finalName);
-        Files.createDirectories(staging);
+        ElementDTO[] values = elements == null ? new ElementDTO[0] : elements.toArray(new ElementDTO[0]);
+        String redactedActualUrl = PageScanUrlRedactor.redact(page.actualUrl());
+        String redactedNormalizedUrl = PageScanUrlRedactor.redact(page.normalizedUrl());
+        boolean stagedRecorded = false;
+        Path staging = null;
+        Path target = null;
         try {
-            ElementDTO[] values = elements == null ? new ElementDTO[0] : elements.toArray(new ElementDTO[0]);
+            insertStaged(
+                    connection,
+                    scanId,
+                    homeBankingId,
+                    botJobId,
+                    homeUrlId,
+                    page.pageKey(),
+                    redactedActualUrl,
+                    capturedAt,
+                    values.length);
+            stagedRecorded = true;
+
+            Path root = safeRoot(diagnosticPath);
+            String safeOwner = "org-" + positive(homeBankingId) + "/bot-job-" + positive(botJobId);
+            String finalName = capturedAt.replace(':', '-') + "-" + scanId;
+            Path ownerRoot = root.resolve(safeOwner).resolve(safePageName(page.pageKey()));
+            staging = ownerRoot.resolve("." + finalName + ".staging");
+            target = ownerRoot.resolve(finalName);
+            Files.createDirectories(ownerRoot);
+            Files.createDirectory(staging);
+
+            CaptureMetadata capture = Objects.requireNonNullElseGet(
+                    artifactWriter.write(staging), CaptureMetadata::unavailable);
             write(staging.resolve("elements.json"), JSON.toJson(values));
             Map<String, Object> metadata = new LinkedHashMap<>();
             metadata.put("scanId", scanId);
@@ -68,12 +88,12 @@ public final class PageScanSnapshotStore {
             metadata.put("botJobName", value(botJobName));
             metadata.put("homeUrlId", homeUrlId);
             metadata.put("pageKey", page.pageKey());
-            metadata.put("pageUrl", page.actualUrl());
-            metadata.put("normalizedUrl", page.normalizedUrl());
+            metadata.put("pageUrl", redactedActualUrl);
+            metadata.put("normalizedUrl", redactedNormalizedUrl);
             metadata.put("capturedAt", capturedAt);
             metadata.put("elementCount", values.length);
+            metadata.put("capture", capture.asMap());
             write(staging.resolve("meta.json"), JSON.toJson(metadata));
-            copyLegacyArtifacts(root.getParent(), staging);
 
             Map<String, String> checksums = checksums(staging);
             Map<String, Object> manifest = new LinkedHashMap<>();
@@ -81,25 +101,35 @@ public final class PageScanSnapshotStore {
             manifest.put("scanId", scanId);
             manifest.put("capturedAt", capturedAt);
             manifest.put("owner", Map.of("homeBankingId", homeBankingId, "botJobId", botJobId));
-            manifest.put("page", Map.of("pageKey", page.pageKey(), "url", page.actualUrl()));
+            manifest.put("page", Map.of("pageKey", page.pageKey(), "url", redactedActualUrl));
+            manifest.put("capture", capture.asMap());
             manifest.put("elementCount", values.length);
             manifest.put("files", checksums);
             write(staging.resolve("manifest.json"), JSON.toJson(manifest));
             String manifestHash = sha256(Files.readAllBytes(staging.resolve("manifest.json")));
             moveIntoPlace(staging, target);
             String relative = root.relativize(target).toString().replace('\\', '/');
-            insert(connection, scanId, homeBankingId, botJobId, homeUrlId, page, capturedAt,
-                    values.length, relative, manifestHash, "READY");
+            markReady(
+                    connection,
+                    scanId,
+                    homeBankingId,
+                    botJobId,
+                    values.length,
+                    relative,
+                    manifestHash);
             return new Snapshot(scanId, relative, values.length, manifestHash, "READY");
         } catch (Exception failure) {
-            deleteTree(staging);
+            cleanup(staging, failure);
+            cleanup(target, failure);
             log.error("Page scan snapshot failed for botJobId={} pageKey={}: {}",
                     botJobId, page.pageKey(), failure.getMessage(), failure);
-            try {
-                insert(connection, scanId, homeBankingId, botJobId, homeUrlId, page, capturedAt,
-                        elements == null ? 0 : elements.size(), "", "", "FAILED");
-            } catch (SQLException recordFailure) {
-                log.error("Could not record failed page scan snapshot {}: {}", scanId, recordFailure.getMessage());
+            if (stagedRecorded) {
+                try {
+                    markFailed(connection, scanId, homeBankingId, botJobId);
+                } catch (SQLException recordFailure) {
+                    failure.addSuppressed(recordFailure);
+                    log.error("Could not record failed page scan snapshot {}: {}", scanId, recordFailure.getMessage());
+                }
             }
             throw failure;
         }
@@ -122,17 +152,6 @@ public final class PageScanSnapshotStore {
 
     private static int positive(int value) {
         return Math.max(0, value);
-    }
-
-    private static void copyLegacyArtifacts(Path diagnosticsRoot, Path staging) throws IOException {
-        if (diagnosticsRoot == null || !Files.isDirectory(diagnosticsRoot)) return;
-        try (DirectoryStream<Path> files = Files.newDirectoryStream(diagnosticsRoot, "page-BJ*")) {
-            for (Path source : files) {
-                if (Files.isRegularFile(source)) {
-                    Files.copy(source, staging.resolve(source.getFileName().toString()), StandardCopyOption.COPY_ATTRIBUTES);
-                }
-            }
-        }
     }
 
     private static Map<String, String> checksums(Path folder) throws IOException {
@@ -163,9 +182,17 @@ public final class PageScanSnapshotStore {
         }
     }
 
-    private static void insert(Connection connection, String scanId, int homeBankingId, int botJobId,
-            Integer homeUrlId, ScannedPageIdentity page, String capturedAt, int elementCount,
-            String artifactPath, String manifestHash, String status) throws SQLException {
+    private static void insertStaged(
+            Connection connection,
+            String scanId,
+            int homeBankingId,
+            int botJobId,
+            Integer homeUrlId,
+            String pageKey,
+            String pageUrl,
+            String capturedAt,
+            int elementCount)
+            throws SQLException {
         String sql = "INSERT INTO page_scan_snapshot "
                 + "(scan_id, home_banking_id, bot_job_id, home_url_id, page_key, page_url, captured_at, "
                 + "element_count, artifact_path, manifest_sha256, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
@@ -174,14 +201,56 @@ public final class PageScanSnapshotStore {
             statement.setInt(2, homeBankingId);
             statement.setInt(3, botJobId);
             if (homeUrlId == null) statement.setNull(4, java.sql.Types.INTEGER); else statement.setInt(4, homeUrlId);
-            statement.setString(5, page.pageKey());
-            statement.setString(6, page.actualUrl());
+            statement.setString(5, pageKey);
+            statement.setString(6, pageUrl);
             statement.setString(7, capturedAt);
             statement.setInt(8, elementCount);
-            statement.setString(9, artifactPath);
-            statement.setString(10, manifestHash);
-            statement.setString(11, status);
-            statement.executeUpdate();
+            statement.setString(9, "");
+            statement.setString(10, "");
+            statement.setString(11, "STAGED");
+            requireOne(statement.executeUpdate(), "create STAGED page scan snapshot");
+        }
+    }
+
+    private static void markReady(
+            Connection connection,
+            String scanId,
+            int homeBankingId,
+            int botJobId,
+            int elementCount,
+            String artifactPath,
+            String manifestHash)
+            throws SQLException {
+        String sql = "UPDATE page_scan_snapshot SET element_count = ?, artifact_path = ?, "
+                + "manifest_sha256 = ?, status = 'READY' "
+                + "WHERE scan_id = ? AND home_banking_id = ? AND bot_job_id = ? AND status = 'STAGED'";
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setInt(1, elementCount);
+            statement.setString(2, artifactPath);
+            statement.setString(3, manifestHash);
+            statement.setString(4, scanId);
+            statement.setInt(5, homeBankingId);
+            statement.setInt(6, botJobId);
+            requireOne(statement.executeUpdate(), "finalize READY page scan snapshot");
+        }
+    }
+
+    private static void markFailed(
+            Connection connection, String scanId, int homeBankingId, int botJobId)
+            throws SQLException {
+        String sql = "UPDATE page_scan_snapshot SET artifact_path = '', manifest_sha256 = '', status = 'FAILED' "
+                + "WHERE scan_id = ? AND home_banking_id = ? AND bot_job_id = ? AND status = 'STAGED'";
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, scanId);
+            statement.setInt(2, homeBankingId);
+            statement.setInt(3, botJobId);
+            requireOne(statement.executeUpdate(), "record FAILED page scan snapshot");
+        }
+    }
+
+    private static void requireOne(int affected, String action) throws SQLException {
+        if (affected != 1) {
+            throw new SQLException("Could not " + action + "; affected rows=" + affected);
         }
     }
 
@@ -198,16 +267,58 @@ public final class PageScanSnapshotStore {
 
     private static String value(String input) { return input == null ? "" : input; }
 
-    private static void deleteTree(Path root) {
+    private static void cleanup(Path root, Exception originalFailure) {
+        if (root == null || !Files.exists(root)) return;
+        try {
+            deleteTree(root);
+        } catch (IOException cleanupFailure) {
+            originalFailure.addSuppressed(cleanupFailure);
+            log.error("Could not remove failed page scan artifact {}: {}", root, cleanupFailure.getMessage());
+        }
+    }
+
+    private static void deleteTree(Path root) throws IOException {
         if (root == null || !Files.exists(root)) return;
         try (var files = Files.walk(root)) {
-            files.sorted((a, b) -> b.compareTo(a)).forEach(path -> {
-                try { Files.deleteIfExists(path); } catch (IOException ignored) { }
-            });
-        } catch (IOException ignored) { }
+            List<Path> paths = files.sorted((a, b) -> b.compareTo(a)).toList();
+            for (Path path : paths) Files.deleteIfExists(path);
+        }
     }
 
     public record Snapshot(String scanId, String artifactPath, int elementCount, String manifestSha256, String status) {}
+
+    @FunctionalInterface
+    interface ArtifactWriter {
+        CaptureMetadata write(Path staging) throws Exception;
+    }
+
+    record CaptureMetadata(
+            String screenshotScope,
+            double devicePixelRatio,
+            double cssWidth,
+            double cssHeight,
+            int pixelWidth,
+            int pixelHeight,
+            double scrollX,
+            double scrollY) {
+
+        static CaptureMetadata unavailable() {
+            return new CaptureMetadata("unavailable", 1.0d, 0.0d, 0.0d, 0, 0, 0.0d, 0.0d);
+        }
+
+        Map<String, Object> asMap() {
+            Map<String, Object> values = new LinkedHashMap<>();
+            values.put("screenshotScope", value(screenshotScope));
+            values.put("devicePixelRatio", devicePixelRatio);
+            values.put("cssWidth", cssWidth);
+            values.put("cssHeight", cssHeight);
+            values.put("pixelWidth", pixelWidth);
+            values.put("pixelHeight", pixelHeight);
+            values.put("scrollX", scrollX);
+            values.put("scrollY", scrollY);
+            return values;
+        }
+    }
 
     private static final class SnapshotIOException extends RuntimeException {
         private final IOException cause;

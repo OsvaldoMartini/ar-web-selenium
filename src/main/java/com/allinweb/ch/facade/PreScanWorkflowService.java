@@ -87,7 +87,7 @@ public final class PreScanWorkflowService {
                 throw new IllegalStateException(
                         "The browser page changed during Page Scanner. Scan the current page again.");
             }
-            diagnostics.persist(context, scannedPage, elements);
+            diagnostics.persist(context, scannedPage, elements, browser);
             sink.elements(elements);
             int count = elements == null ? 0 : elements.size();
             sink.status(
@@ -255,7 +255,11 @@ public final class PreScanWorkflowService {
 
     interface DiagnosticsPort {
         void resolveNames(Context context, BrowserPort browser, List<ElementDTO> elements, Sink sink);
-        void persist(Context context, ScannedPageIdentity page, List<ElementDTO> elements)
+        void persist(
+                Context context,
+                ScannedPageIdentity page,
+                List<ElementDTO> elements,
+                BrowserPort browser)
                 throws Exception;
     }
 
@@ -325,7 +329,10 @@ public final class PreScanWorkflowService {
 
         @Override
         public void persist(
-                Context context, ScannedPageIdentity page, List<ElementDTO> elements)
+                Context context,
+                ScannedPageIdentity page,
+                List<ElementDTO> elements,
+                BrowserPort browser)
                 throws Exception {
             List<ElementDTO> scanned = elements == null ? List.of() : elements;
             if (!scanned.isEmpty()) {
@@ -353,8 +360,9 @@ public final class PreScanWorkflowService {
                 }
             }
 
-            // Keep the mutable latest registry and legacy diagnostics for compatibility, while
-            // recording this exact scan as an immutable, owner-scoped snapshot for Page Mappings.
+            // Keep the mutable latest registry and legacy diagnostics for compatibility. Immutable
+            // Page Mappings artifacts are captured directly from this scan's active page into its
+            // own UUID staging directory; mutable page-BJ files are never copied into history.
             try {
                 try (java.sql.Connection connection = PerformDataBase.getInstance().getConnection()) {
                     PageScanSnapshotStore.persist(
@@ -365,7 +373,16 @@ public final class PreScanWorkflowService {
                             context.botJobName(),
                             page,
                             scanned,
-                            context.jsonPath());
+                            context.jsonPath(),
+                            staging -> {
+                                OcrConfig artifactConfig = OcrConfigService.getInstance()
+                                        .resolveFor(context.homeBankingId(), context.homeUrlId());
+                                String screenshotScope = artifactConfig == null
+                                        ? "viewport"
+                                        : artifactConfig.getString("screenshot", "scope", "viewport");
+                                return PageScanArtifactCapture.capture(
+                                        browser.playwrightDriver(), scanned, staging, screenshotScope);
+                            });
                 }
             } catch (Exception snapshotFailure) {
                 // Snapshot history is additive. A filesystem/DB issue must not turn a
