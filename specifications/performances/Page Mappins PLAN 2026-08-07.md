@@ -21,7 +21,7 @@ Do not directly rename the current OCR Results implementation. Create an isolate
 | Live name lookup | Does not currently exist. The fallback finds a registry row and retries its saved locator. |
 | OUTPUT recovery | **P0 complete:** typed Playwright text results preserve legitimate empty text while missing elements reach page-scoped self-healing. |
 
-Relevant implementations include [ScannedElementRepository.java](/D:/Projects/AllinWeb/ar-web-selenium/src/main/java/com/allinweb/ch/db/ScannedElementRepository.java:89), [OcrTestService.java](/D:/Projects/AllinWeb/ar-web-selenium/src/main/java/com/allinweb/ch/facade/OcrTestService.java:43), [useGridData.ts](/D:/Projects/AllinWeb/abr-react-ts-grid/src/components/bot-job-details/grid/hooks/useGridData.ts:3286), and [GridItemScann.tsx](/D:/Projects/AllinWeb/abr-react-ts-grid/src/components/GridItemScann.tsx:2718).
+Relevant implementations include [ScannedElementRepository.java](/D:/Projects/AllinWeb/ar-web-selenium/src/main/java/com/allinweb/ch/db/ScannedElementRepository.java), [PageMappingsOcrReviewService.java](/D:/Projects/AllinWeb/ar-web-selenium/src/main/java/com/allinweb/ch/facade/PageMappingsOcrReviewService.java), [PageMappingsWorkspaceService.java](/D:/Projects/AllinWeb/ar-web-selenium/src/main/java/com/allinweb/ch/socket/PageMappingsWorkspaceService.java), and [PageMappingsPage.tsx](/D:/Projects/AllinWeb/abr-react-ts-grid/src/components/PageMappingsPage.tsx).
 
 ## Recommended architecture
 
@@ -203,7 +203,7 @@ Every name-based lookup must:
 
    - [x] New `PageMappingsPage`, dedicated module stylesheet, detached route/session, and WebSocket bootstrap.
    - [x] Load integrity-verified images, rectangles, metadata, and exact element payloads for the selected READY capture.
-   - [x] Preserve the old OCR route as a temporary compatibility path while OCR Review moves into Page Mappings.
+   - [x] Preserve the old OCR route temporarily while OCR Review moves into Page Mappings, then retire it after the new source path is complete.
 
 4. **P3 — Mappings launchers and explorer**
 
@@ -230,21 +230,18 @@ Every name-based lookup must:
    - [x] Unique visible/actionable candidate and page/frame/tag/action enforcement.
    - [x] One-action guarantee, pinned Playwright target, and structured safe diagnostics.
 
-8. **P7 — OCR Review consolidation core — COMPLETE; LEGACY RETIREMENT PARKED**
+8. **P7 — OCR Review consolidation — COMPLETE IN SOURCE**
 
    - [x] Add isolated public `PageMappingsOcrReview*` components and reduced typed contracts.
    - [x] Move selected immutable-capture OCR comparison and atomic alias Apply into Page Mappings.
-   - [ ] Replace/remove the legacy `OCR Results` launcher in `GridItemScann` after the concurrent
-     Grid work is clear.
-   - [ ] Retire the old `ocr-results-*` route/session/components after route/session parity tests
-     are authorized and pass. Both items remain intentionally parked under the user's
-     no-Grid/no-test constraint.
+   - [x] Replace the legacy `OCR Results` launcher in `GridItemScann` with the existing MAPPINGS path.
+   - [x] Retire the old `ocr-results-*` production route/session/components and Results-only backend operations.
 
 Because screenshots may contain banking data:
 
 - [x] Keep capture access owner-scoped and redact URL/query values in persisted/displayed metadata.
-- [ ] Apply explicit private Windows ACLs to capture folders.
-- [ ] Implement an explicit configured retention/pin/purge policy.
+- [x] Apply explicit private Windows ACLs to capture folders in the snapshot write/read/delete/restore lifecycle.
+- [x] Implement configured retention, pin/unpin, bounded purge, journal recovery, and Page Mappings controls.
 
 ## P0 delivery evidence
 
@@ -259,8 +256,8 @@ Because screenshots may contain banking data:
 - Deployment-assets commit pushed: `2f18f48d`.
 - Duplicate-alias regression commit pushed: `8718ed63`.
 - No migration was required for P0. The backend was compiled/tested but was not packaged, restarted, or live-verified.
-- This paragraph records the earlier P0 checkpoint. Later checkpoints below deliver P1-P6 and the
-  P7 OCR Review core; legacy OCR route retirement remains intentionally open.
+- This paragraph records the earlier P0 checkpoint. Later checkpoints below deliver P1-P7 and the
+  subsequent legacy OCR retirement plus snapshot privacy/retention work.
 
 ## P2 delivery checkpoint - 2026-08-07
 
@@ -298,8 +295,8 @@ Because screenshots may contain banking data:
   `page_diagnostics/Scanned/org-{homeBankingId}/bot-job-{botJobId}/{pageKey}/`, and records the
   relative artifact path, manifest SHA-256, element count, and status.
 - Exact scan membership is preserved in `elements.json`; metadata and checksums are recorded in
-  `meta.json` and `manifest.json`. Existing `page-BJ*` diagnostics remain untouched and are copied
-  into the immutable capture when present.
+  `meta.json` and `manifest.json`. Current source writes scan-owned screenshot and rectangle files
+  directly and never copies mutable `page-BJ*` artifacts into an immutable capture.
 - Empty scans are captured as valid READY snapshots. A failed artifact write is recorded as FAILED
   and does not silently masquerade as a successful capture.
 - Focused Java tests: 2 tests, 0 failures. Backend compile: 538 main sources, 309 test sources.
@@ -329,8 +326,8 @@ Delivery evidence:
 - Frontend commit pushed: `a289663`.
 - Backend source/test commit pushed: `99ad9c2f`.
 - Backend deployment-assets commit pushed: `46dd420e`.
-- Packaging, restart, and live acceptance remain open. P5, P6, and the P7 OCR Review core were
-  delivered in the later 2026-08-08 checkpoint; legacy OCR launcher/session retirement remains open.
+- Packaging, restart, and live acceptance remain open. P5, P6, P7, and the subsequent legacy OCR
+  retirement were delivered in later 2026-08-08 checkpoints.
 
 ## Page Mappings review remediation checkpoint — 2026-08-08
 
@@ -386,7 +383,7 @@ package/restart, deployed health, and live behavior are not complete.
   action compatibility, pinned DOM handles, one physical operation, and structured non-secret
   diagnostics. Existing Grid/manual test APIs remain unchanged.
 
-### P7 — Page Mappings OCR Review core
+### P7 — Page Mappings OCR Review and legacy retirement
 
 - Backend commit `89bbce24` adds selected immutable-capture OCR review, full capture checksum and
   owner/revision validation, an isolated OCR worker, retarget-safe response delivery, and
@@ -394,18 +391,34 @@ package/restart, deployed health, and live behavior are not complete.
 - Frontend commit `4dc51aa` adds isolated `PageMappingsOcrReview*` types, grid, panel, styles, exact
   success correlation, safe failure settlement, visible-row-only Apply, and authoritative updates
   to loaded capture and staged Memory List projections.
-- `GridItem` and `GridItemScann` were not modified or staged. The old `OCR Results` launcher/session
-  remains as a compatibility route; its final visible rename and retirement are parked until the
-  concurrent Grid work is complete and route/session parity tests are allowed.
+- The OCR Review core commits did not modify either Grid. The later isolated frontend retirement
+  commit `b2d8a59` removed only the legacy OCR Results producer/handler/button from `GridItemScann`;
+  unrelated concurrent Grid changes were left unstaged. Backend retirement is `07f3fd47`.
+- The `ocr-results-*` production route/session/components, Results-only socket operations, and dead
+  legacy OCR service are retired. OCR Config and Page Mappings OCR Review remain.
+
+### Snapshot privacy and retention checkpoint
+
+- Backend commit `478a51b2` adds protected Windows ACLs (process user, LocalSystem, and Administrators),
+  POSIX-private permissions, no-link path validation, and privacy checks across snapshot writes,
+  reads, deletion/retention journals, restore, and startup reconciliation.
+- The same commit adds owner-scoped retention settings, pin/unpin, bounded purge batches, shared
+  snapshot mutation locking, request idempotency, ambiguous-commit journal recovery, and SQLite-
+  compatible JDBC behavior. Cleanup runs after successful scans or by explicit Purge Eligible; it
+  is not a time scheduler.
+- Frontend commit `dfd4836` adds the isolated Page Mappings retention panel and correlated pin,
+  policy-save, purge, reload-required, and missing-storage states.
+- No migration or DDL was applied. By explicit user direction, migration activation and other-
+  database rollout remain parked for a later authorized maintenance window.
 
 ### Verification and separate completion gates
 
-- `mvn compile`: BUILD SUCCESS, 555 main Java sources, 2026-08-08.
+- Final `mvn compile`: BUILD SUCCESS, 558 main Java sources, 2026-08-08.
 - Focused frontend lint for the Page Mappings OCR files: 0 errors; one existing
   `captureElements` hook-dependency warning remains.
 - Per explicit instruction, no tests were created or run, no frontend production build was run,
   and the backend was not packaged.
 - The frontend bundle was not mirrored because concurrent uncommitted Grid work must not be mixed
   into this checkpoint.
-- Migration application, real SQL Server inspection, package/restart, deployed health, and live
-  desktop/browser behavior remain open operational gates.
+- Migration application is intentionally deferred. Frontend build/mirror, package/restart, live
+  Windows ACL inspection, deployed health, and live desktop/browser behavior remain open gates.

@@ -2,7 +2,7 @@
 
 Keep exactly two review sections. Check tasks only after their separate gates pass.
 
-**Last updated:** 2026-08-08 - Codex completed Page Mappings P5, P6, and the P7 OCR Review core. Legacy OCR launcher/session retirement and operational acceptance remain open. Claude independent review requested.
+**Last updated:** 2026-08-08 - Page Mappings is source-complete through P7, legacy OCR Results is retired in production source, and private snapshot ACL plus retention/pin/purge are pushed. Migration, build/deployment, and live acceptance remain open. Claude independent review requested.
 
 ## 1. CODEX -> CLAUDE - Page Mappings and Memory lifecycle review handoff
 
@@ -31,14 +31,17 @@ memoryList.command
   -> Java replies only to the captured requester while it still owns the transport
 ```
 
-The Page Mappings roadmap is now source-complete through P6, and the P7 OCR Review core is source-complete:
+The Page Mappings roadmap is now source-complete through P7:
 
 - P5 cache-first scanning: backend `c8e722cd` plus correction `823ab2dc`; frontend `14b7832`.
 - P6 safe runtime healing: backend `668a7acb`.
 - P7 selected-capture OCR Review and atomic alias Apply: backend `89bbce24`; frontend `4dc51aa`.
-- `GridItem` and `GridItemScann` were not modified or staged by these P5-P7 commits.
-- The legacy `GridItemScann` OCR Results launcher and `ocr-results-*` route/session retirement remain
-  parked until the concurrent Grid work is complete and parity verification is allowed.
+- P7 legacy OCR Results retirement: backend `07f3fd47`; frontend `b2d8a59`.
+- Snapshot private ACL and retention/pin/purge: backend `478a51b2`; frontend `dfd4836`.
+- The retirement commit changed only OCR Results concerns in `GridItemScann`; Claude's unrelated
+  rollback-name Grid work remains unstaged and uncommitted.
+- No migration or DDL was applied. Existing SQLite-compatible persistence is used only when the
+  `page_scan_snapshot` table already exists; initialization remains user-controlled.
 
 ### Frontend risks currently known
 
@@ -47,7 +50,7 @@ The Page Mappings roadmap is now source-complete through P6, and the P7 OCR Revi
 | Critical | Fixed in `209d24d7` / `ce6a56f` / `fb87aa0` | Failed Memory `open` responses without `workspaceEpoch` could be discarded and leave opening stuck. Exact failures now correlate by typed request/current context and validate every supplied authority field. |
 | Critical | Fixed in `209d24d7` / `ce6a56f` / `fb87aa0` | Failed Memory `sync` responses lacked pending request correlation and could disappear silently. OPEN and SYNC now use typed pending records and collision-resistant sequenced request IDs. |
 | Critical | Fixed in `fb87aa0` / `b147de41` | Detached Memory commands, timers, dialogs, status, and drag state are bound to the exact owner/workspace generation; late prior-owner responses are ignored and backend responses stay on the captured requester transport. |
-| High | Deployment gate | Backend static Memory sources now require exact `workspaceEpoch`; cached old frontend assets must not run against the new backend. Git source/assets are aligned, but no package/restart occurred. |
+| High | Deployment gate | Backend static Memory sources require the matching frontend generation contract. The new retention/OCR-retirement frontend source is pushed, but its production bundle has not been built or mirrored and the backend has not been packaged/restarted. |
 | Medium | Open verification | Live detached-window reload, takeover, retarget, deletion, same-ID reuse, and multi-page WebSocket behavior remain unverified. |
 | Medium | Open verification | The complete frontend test suite was not run. The affected-path suite passed 25/25; a nearby selected run passed 27/35, with eight existing stale `GridItemComp.memoryParity` conditional-delete/rollback expectations still failing outside this change. |
 | Low | Existing | Production build lint/dependency/bundle-size warnings remain. |
@@ -73,16 +76,16 @@ The Page Mappings roadmap is now source-complete through P6, and the P7 OCR Revi
 - [x] TASK - P5 cache-first scanning pushed: backend `c8e722cd` / `823ab2dc`; frontend `14b7832`.
 - [x] TASK - P6 safe runtime healing pushed: backend `668a7acb`.
 - [x] TASK - P7 OCR Review core pushed: backend `89bbce24`; frontend `4dc51aa`.
-- [x] TASK - Final authorized Java compile passed: 555 main sources.
+- [x] TASK - Earlier P5-P7 core Java compile passed: 555 main sources.
 - [x] TASK - Focused Page Mappings OCR frontend lint passed with 0 errors and one existing hook warning.
-- [ ] TASK - Migration `2026-08-08__page_scan_snapshot_sqlserver_key_repair` is created but not applied; migration startup remains parked.
-- [ ] TASK - Legacy `GridItemScann` OCR Results launcher replacement and old `ocr-results-*` route/session/component retirement remain parked pending Grid parity verification.
-- [ ] TASK - Explicit private Windows capture-folder ACL enforcement remains open.
-- [ ] TASK - Configured snapshot retention/pin/purge behavior remains open.
+- [x] TASK - Legacy OCR Results production launcher/route/session/components retired: backend `07f3fd47`; frontend `b2d8a59`.
+- [x] TASK - Private snapshot ACL and retention/pin/purge lifecycle pushed: backend `478a51b2`; frontend `dfd4836`.
+- [x] TASK - Final Java compile after the lifecycle work passed: 558 main sources.
+- [ ] TASK - Migration application is explicitly deferred by the user; no migration or DDL was run.
 - [ ] TASK - No tests were created or run for P5-P7 under the explicit user pause.
-- [ ] TASK - The P5-P7 frontend production bundle was not built or mirrored because concurrent uncommitted Grid work must not be mixed into this checkpoint.
+- [ ] TASK - The latest frontend production bundle was not built or mirrored because concurrent uncommitted Grid work must not be mixed into this checkpoint.
 - [ ] TASK - Backend was not packaged or restarted.
-- [ ] TASK - No live desktop or SQL Server acceptance was performed.
+- [ ] TASK - No live desktop, Windows ACL, SQLite history-table, or SQL Server acceptance was performed.
 
 ## 2. CLAUDE -> CODEX - Independent review requested
 
@@ -90,8 +93,9 @@ The Page Mappings roadmap is now source-complete through P6, and the P7 OCR Revi
 - [ ] TASK - Review P6 backend commit `668a7acb`; confirm owner/Bot Job/page isolation, pinned unique candidates, one physical action, page/frame/shadow safeguards, and no regression to the untouched Grid/manual-test paths.
 - [ ] TASK - Review P7 backend commit `89bbce24`; confirm selected READY-capture checksum verification, owner/revision membership, bounded OCR work, duplicate/retarget handling, and SERIALIZABLE all-or-nothing alias Apply.
 - [ ] TASK - Review P7 frontend commit `4dc51aa`; confirm exact success correlation, safe failure settlement, explicit nullable aliases, pending-Apply navigation guards, visible-row-only Apply, and staged Memory projection refresh.
-- [ ] TASK - Confirm the P5-P7 commits do not modify `GridItem` or `GridItemScann`, and that legacy OCR launcher/session retirement remains explicitly parked rather than silently removed.
-- [ ] TASK - Confirm private Windows capture-folder ACL enforcement and configured retention/pin/purge remain open security/lifecycle work.
-- [ ] TASK - Confirm migration, production bundle/mirror, package/restart, SQL Server inspection, and live acceptance remain open and are not inferred from source or compile evidence.
+- [ ] TASK - Review backend legacy OCR retirement `07f3fd47` and frontend `b2d8a59`; confirm Config and Page Mappings OCR Review remain, Results-only production routes are gone, and unrelated Grid work was excluded.
+- [ ] TASK - Review backend snapshot ACL/retention commit `478a51b2`; confirm exact private ACLs, no-link containment, lifecycle locking, bounded/idempotent purge, pin protection, journal recovery, SQLite compatibility, and that no migration/DDL executes.
+- [ ] TASK - Review frontend retention commit `dfd4836`; confirm exact response correlation, unknown-outcome reload gate, pin/save/purge busy isolation, and missing-storage fallback to the legacy scanner.
+- [ ] TASK - Confirm migration application, frontend build/mirror, package/restart, live ACL inspection, database inspection, and live acceptance remain open and are not inferred from source or compile evidence.
 - [ ] TASK - Record any concrete blocker with producer, consumer, exact interleaving, and smallest
   authoritative fix. Do not mark deployment or live behavior complete from source/build evidence.

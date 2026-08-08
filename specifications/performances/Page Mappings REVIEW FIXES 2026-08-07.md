@@ -1,9 +1,9 @@
 # Page Mappings Review Fixes — 2026-08-07
 
-Status: all 12 original review findings are fixed in source and pushed. Independent backend review
-found no remaining lifecycle blocker. The migration is created but deliberately not applied; backend
-packaging, restart, real SQL Server verification, and live desktop acceptance remain separate open
-gates.
+Status: all 12 original review findings and the later P5-P7/source-lifecycle checkpoints are fixed
+in source and pushed. Independent backend reviews found no remaining concrete source blocker. No
+migration was applied, by explicit user direction; build/deployment/live acceptance remain separate
+open gates.
 
 ## 2026-08-08 Codex remediation checkpoint
 
@@ -41,6 +41,18 @@ Verification evidence:
 | Medium | Open verification | Real detached-window reload, takeover, retarget, deletion, same-ID reuse, and multi-page WebSocket behavior have not been live-verified. |
 | Medium | Open verification | The complete frontend suite was not run. The affected-path suite passed 25/25; eight stale expectations in a nearby `GridItemComp.memoryParity` suite remain outside this change. |
 | Low | Existing | The production build completes with existing repository lint/dependency/bundle-size warnings. |
+
+### Post-remediation completion checkpoint — 2026-08-08
+
+- P5 cache-first scanning: backend `c8e722cd` / `823ab2dc`; frontend `14b7832`.
+- P6 safe runtime healing: backend `668a7acb`.
+- P7 immutable-capture OCR Review: backend `89bbce24`; frontend `4dc51aa`.
+- Legacy OCR Results production retirement: backend `07f3fd47`; frontend `b2d8a59`.
+- Private snapshot ACLs plus retention/pin/purge lifecycle: backend `478a51b2`; frontend `dfd4836`.
+- Final Java compile passed with 558 main sources. Per explicit instruction, no tests were created or
+  run for these final checkpoints, and no frontend production build was run.
+- No migration or DDL was applied. Frontend build/mirror, backend package/restart, live ACL and
+  desktop verification, and later database migration activation remain open operational gates.
 
 ## Original review summary (pre-remediation)
 
@@ -132,11 +144,14 @@ Normal Page Mappings launch is blocked, valid owner context is never established
 - [ ] Launch, focus, and retarget behavior verified end to end.
 - [x] Immutable artifact correlation and rectangle data fixed in source and focused tests.
 - [x] Memory List Apply reloads authoritative repository data.
-- [ ] SQLite and SQL Server migration behavior verified.
+- [ ] Migration activation and live SQLite/SQL Server verification intentionally deferred; no migration applied.
 - [x] Bot Job deletion removes database rows and safely removes owned artifacts in source/tests.
 - [x] Sensitive URLs are redacted in storage, responses, UI, and logs in source/tests.
 - [x] Failure cleanup and FAILED-history behavior verified by focused tests.
 - [x] Focused Memory request/command/retarget/drag tests and the production frontend build pass.
+- [x] P5 cache-first scanning, P6 runtime healing, and P7 OCR Review are complete in source.
+- [x] Legacy OCR Results production launcher/route/session/components are retired in source.
+- [x] Private snapshot ACL and configured retention/pin/purge behavior are complete in source.
 - [ ] All nearby frontend suites are clean; `GridItemComp.memoryParity` still has eight stale conditional-delete/rollback expectations.
 - [ ] Backend packaged/restarted only when explicitly authorized.
 - [ ] Live behavior verified and evidence recorded.
