@@ -1,21 +1,37 @@
 package com.allinweb.ch.socket;
 
+import com.allinweb.ch.db.ScannedElementRepository;
 import com.allinweb.ch.facade.BotJobDetailsWorkspaceRegistry;
+import com.allinweb.ch.facade.PageScanUrlRedactor;
+import com.allinweb.ch.model.ElementDTO;
 import com.allinweb.ch.model.DetachedWorkspaceSessions;
 import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
+import com.google.gson.Gson;
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
+import java.security.MessageDigest;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import javax.websocket.Session;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +42,13 @@ public final class PageMappingsWorkspaceService {
 
     static final String RETARGET_OPERATION = "pageMappings.retarget";
     private static final String SESSION_ID = DetachedWorkspaceSessions.PAGE_MAPPINGS_MANAGER;
+    private static final Gson JSON = new Gson();
+    private static final long MAX_MANIFEST_BYTES = 1_000_000L;
+    private static final long MAX_METADATA_BYTES = 1_000_000L;
+    private static final long MAX_JSON_ARTIFACT_BYTES = 16_000_000L;
+    private static final long MAX_SCREENSHOT_BYTES = 8_000_000L;
+    private static final Set<String> CAPTURE_FILES = Set.of(
+            "elements.json", "rects.json", "meta.json", "screenshot.png");
     private static final PageMappingsWorkspaceService INSTANCE = new PageMappingsWorkspaceService();
 
     private final Object bindingLock = new Object();
@@ -35,6 +58,7 @@ public final class PageMappingsWorkspaceService {
     private final RetargetPublisher retargetPublisher;
     private final RetargetObserver retargetObserver;
     private final ExactTransportAuthorizer transportAuthorizer;
+    private final SnapshotRootResolver snapshotRootResolver;
     private Binding binding;
 
     public static PageMappingsWorkspaceService getInstance() {
@@ -62,7 +86,8 @@ public final class PageMappingsWorkspaceService {
                 PageMappingsWorkspaceService::publishRetarget,
                 (previous, current) -> MemoryListWorkspaceService.getInstance()
                         .pageMappingsRetargeted(previous, current),
-                PageMappingsWorkspaceService::isExactRegisteredTransport);
+                PageMappingsWorkspaceService::isExactRegisteredTransport,
+                PageMappingsWorkspaceService::configuredSnapshotRoot);
     }
 
     PageMappingsWorkspaceService(
@@ -72,12 +97,31 @@ public final class PageMappingsWorkspaceService {
             RetargetPublisher retargetPublisher,
             RetargetObserver retargetObserver,
             ExactTransportAuthorizer transportAuthorizer) {
+        this(
+                botJobOwnerResolver,
+                pageScannerOwnerResolver,
+                windowAccess,
+                retargetPublisher,
+                retargetObserver,
+                transportAuthorizer,
+                PageMappingsWorkspaceService::configuredSnapshotRoot);
+    }
+
+    PageMappingsWorkspaceService(
+            BotJobOwnerResolver botJobOwnerResolver,
+            PageScannerOwnerResolver pageScannerOwnerResolver,
+            WindowAccess windowAccess,
+            RetargetPublisher retargetPublisher,
+            RetargetObserver retargetObserver,
+            ExactTransportAuthorizer transportAuthorizer,
+            SnapshotRootResolver snapshotRootResolver) {
         this.botJobOwnerResolver = Objects.requireNonNull(botJobOwnerResolver);
         this.pageScannerOwnerResolver = Objects.requireNonNull(pageScannerOwnerResolver);
         this.windowAccess = Objects.requireNonNull(windowAccess);
         this.retargetPublisher = Objects.requireNonNull(retargetPublisher);
         this.retargetObserver = Objects.requireNonNull(retargetObserver);
         this.transportAuthorizer = Objects.requireNonNull(transportAuthorizer);
+        this.snapshotRootResolver = Objects.requireNonNull(snapshotRootResolver);
     }
 
     /** Opens Page Mappings for the active, server-owned Bot Job Details workspace. */
@@ -140,7 +184,8 @@ public final class PageMappingsWorkspaceService {
                         snapshot.addProperty("homeUrlId", rows.getInt("home_url_id"));
                     }
                     snapshot.addProperty("pageKey", rows.getString("page_key"));
-                    snapshot.addProperty("pageUrl", rows.getString("page_url"));
+                    snapshot.addProperty(
+                            "pageUrl", PageScanUrlRedactor.redact(rows.getString("page_url")));
                     snapshot.addProperty("capturedAt", rows.getString("captured_at"));
                     snapshot.addProperty("elementCount", rows.getInt("element_count"));
                     snapshot.addProperty("artifactPath", rows.getString("artifact_path"));
@@ -180,50 +225,488 @@ public final class PageMappingsWorkspaceService {
         if (scanId.isBlank()) {
             return failure(body, "A valid scan ID is required.", authorized);
         }
-        String artifactPath;
+        CaptureRow selected;
         try (PreparedStatement statement = Objects.requireNonNull(connection).prepareStatement(
-                "SELECT artifact_path FROM page_scan_snapshot "
-                        + "WHERE scan_id = ? AND home_banking_id = ? AND bot_job_id = ?")) {
+                "SELECT scan_id, page_key, page_url, captured_at, element_count, artifact_path, manifest_sha256 "
+                        + "FROM page_scan_snapshot "
+                        + "WHERE scan_id = ? AND home_banking_id = ? AND bot_job_id = ? "
+                        + "AND status = 'READY'")) {
             statement.setString(1, scanId);
             statement.setInt(2, authorized.homeBankingId());
             statement.setInt(3, authorized.botJobId());
             try (ResultSet rows = statement.executeQuery()) {
                 if (!rows.next()) {
-                    return failure(body, "The selected scan capture was not found.", authorized);
+                    return captureFailure(
+                            body, "The selected scan capture was not found.", authorized, scanId);
                 }
-                artifactPath = rows.getString(1);
+                selected = new CaptureRow(
+                        rows.getString("scan_id"),
+                        rows.getString("page_key"),
+                        rows.getString("page_url"),
+                        rows.getString("captured_at"),
+                        rows.getInt("element_count"),
+                        rows.getString("artifact_path"),
+                        rows.getString("manifest_sha256"));
             }
         } catch (Exception failure) {
-            return failure(body, "The selected scan capture was not found.", authorized);
+            return captureFailure(
+                    body, "The selected scan capture was not found.", authorized, scanId);
         }
 
         JsonObject response = baseResponse(body, authorized);
         try {
-            String configuredRoot = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.PATH_DB);
-            Path root = Path.of(configuredRoot)
-                    .toAbsolutePath()
-                    .normalize()
-                    .resolve("page_diagnostics")
-                    .resolve("Scanned")
-                    .normalize();
-            Path folder = root.resolve(artifactPath == null ? "" : artifactPath).normalize();
-            if (!folder.startsWith(root) || !Files.isDirectory(folder)) {
-                return failure(body, "The capture artifact is unavailable.", authorized);
-            }
+            VerifiedCapture capture = verifyCapture(
+                    snapshotRootResolver.resolve(), selected, authorized, connection);
             response.addProperty("ok", true);
-            response.add("elements", JsonParser.parseString(Files.readString(folder.resolve("elements.json"))));
-            Path screenshot = folder.resolve("page-BJ.png");
-            if (Files.isRegularFile(screenshot) && Files.size(screenshot) <= 8_000_000) {
-                response.addProperty(
-                        "screenshotBase64",
-                        Base64.getEncoder().encodeToString(Files.readAllBytes(screenshot)));
-                response.addProperty("screenshotMime", "image/png");
-            }
+            response.addProperty("scanId", selected.scanId());
+            response.addProperty("pageKey", selected.pageKey());
+            response.addProperty("capturedAt", selected.capturedAt());
+            response.addProperty("manifestSha256", selected.manifestSha256());
+            response.add("elements", capture.elements());
+            response.add("rectangles", capture.rectangles());
+            response.add("viewport", capture.viewport());
+            response.addProperty(
+                    "screenshotBase64", Base64.getEncoder().encodeToString(capture.screenshot()));
+            response.addProperty("screenshotMime", "image/png");
             return response;
         } catch (Exception failure) {
             log.warn("Unable to load Page Mappings capture {}", scanId, failure);
-            return failure(
-                    body, "The selected scan artifact could not be loaded.", authorized);
+            return captureFailure(
+                    body, "The selected scan artifact could not be loaded.", authorized, scanId);
+        }
+    }
+
+    private static VerifiedCapture verifyCapture(
+            Path configuredRoot,
+            CaptureRow selected,
+            Binding owner,
+            Connection connection)
+            throws Exception {
+        requireText(selected.scanId(), "scan ID");
+        requireText(selected.pageKey(), "page key");
+        requireText(selected.capturedAt(), "capture timestamp");
+        requireSha256(selected.manifestSha256(), "stored manifest checksum");
+        if (selected.elementCount() < 0) {
+            throw new IOException("The capture element count is invalid");
+        }
+
+        Path folder = resolveCaptureFolder(configuredRoot, selected.artifactPath(), owner);
+        if (folder.getFileName() == null
+                || !folder.getFileName().toString().endsWith(selected.scanId())) {
+            throw new IOException("The capture artifact folder does not match its scan ID");
+        }
+        Path manifestFile = captureFile(folder, "manifest.json");
+        byte[] manifestBytes = readLimited(manifestFile, MAX_MANIFEST_BYTES);
+        if (!selected.manifestSha256().equalsIgnoreCase(sha256(manifestBytes))) {
+            throw new IOException("The capture manifest checksum does not match its registry row");
+        }
+        JsonObject manifest = parseObject(manifestBytes, "capture manifest");
+        requireEquals(text(manifest, "format"), "page-scan-snapshot-v1", "manifest format");
+        requireEquals(text(manifest, "scanId"), selected.scanId(), "manifest scan ID");
+        requireEquals(text(manifest, "capturedAt"), selected.capturedAt(), "manifest timestamp");
+        requireInteger(manifest, "elementCount", selected.elementCount(), "manifest element count");
+        JsonObject manifestOwner = requiredObject(manifest, "owner", "manifest owner");
+        requireInteger(
+                manifestOwner,
+                "homeBankingId",
+                owner.homeBankingId(),
+                "manifest organization owner");
+        requireInteger(
+                manifestOwner, "botJobId", owner.botJobId(), "manifest Bot Job owner");
+        JsonObject manifestPage = requiredObject(manifest, "page", "manifest page");
+        requireEquals(text(manifestPage, "pageKey"), selected.pageKey(), "manifest page key");
+        requireEquals(
+                PageScanUrlRedactor.redact(text(manifestPage, "url")),
+                PageScanUrlRedactor.redact(selected.pageUrl()),
+                "manifest redacted page URL");
+
+        JsonObject manifestFiles = requiredObject(manifest, "files", "manifest files");
+        if (!manifestFiles.keySet().equals(CAPTURE_FILES)) {
+            throw new IOException("The capture manifest file set is invalid");
+        }
+        Map<String, byte[]> verifiedFiles = new HashMap<>();
+        for (String fileName : CAPTURE_FILES) {
+            String expectedHash = text(manifestFiles, fileName);
+            requireSha256(expectedHash, "manifest checksum for " + fileName);
+            Path file = captureFile(folder, fileName);
+            long maximum = maximumArtifactBytes(fileName);
+            byte[] verifiedBytes = readLimited(file, maximum);
+            if (!expectedHash.equalsIgnoreCase(sha256(verifiedBytes))) {
+                throw new IOException("The capture file checksum is invalid: " + fileName);
+            }
+            verifiedFiles.put(fileName, verifiedBytes);
+        }
+
+        JsonArray elements = parseArray(
+                verifiedFiles.get("elements.json"),
+                "capture elements");
+        if (elements.size() != selected.elementCount()) {
+            throw new IOException("The capture element membership is incomplete");
+        }
+        JsonArray sourceRectangles = parseArray(
+                verifiedFiles.get("rects.json"),
+                "capture rectangles");
+        JsonObject metadata = parseObject(
+                verifiedFiles.get("meta.json"),
+                "capture metadata");
+        requireEquals(text(metadata, "scanId"), selected.scanId(), "metadata scan ID");
+        requireEquals(text(metadata, "pageKey"), selected.pageKey(), "metadata page key");
+        requireEquals(text(metadata, "capturedAt"), selected.capturedAt(), "metadata timestamp");
+        requireInteger(
+                metadata,
+                "homeBankingId",
+                owner.homeBankingId(),
+                "metadata organization owner");
+        requireInteger(metadata, "botJobId", owner.botJobId(), "metadata Bot Job owner");
+        requireInteger(metadata, "elementCount", selected.elementCount(), "metadata element count");
+        JsonObject manifestCapture = requiredObject(manifest, "capture", "manifest capture geometry");
+        JsonObject metadataCapture = requiredObject(metadata, "capture", "metadata capture geometry");
+        if (!manifestCapture.equals(metadataCapture)) {
+            throw new IOException("The capture geometry metadata is inconsistent");
+        }
+
+        JsonObject viewport = viewport(metadataCapture);
+        JsonArray enrichedElements = enrichElements(
+                connection,
+                owner.homeBankingId(),
+                owner.botJobId(),
+                selected.pageKey(),
+                elements);
+        JsonArray rectangles = rectangles(
+                sourceRectangles,
+                enrichedElements,
+                "FULL_PAGE".equals(text(viewport, "screenshotScope")));
+        byte[] screenshot = verifiedFiles.get("screenshot.png");
+        if (screenshot.length == 0) {
+            throw new IOException("The capture screenshot is empty");
+        }
+        return new VerifiedCapture(enrichedElements, rectangles, viewport, screenshot);
+    }
+
+    private static Path configuredSnapshotRoot() throws IOException {
+        String configured = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.PATH_DB);
+        if (configured == null || configured.isBlank()) {
+            throw new IOException("The Page Scanner artifact root is not configured");
+        }
+        return Path.of(configured)
+                .toAbsolutePath()
+                .normalize()
+                .resolve("page_diagnostics")
+                .resolve("Scanned")
+                .normalize();
+    }
+
+    private static Path resolveCaptureFolder(
+            Path configuredRoot, String artifactPath, Binding owner) throws IOException {
+        if (configuredRoot == null
+                || !Files.isDirectory(configuredRoot, LinkOption.NOFOLLOW_LINKS)
+                || Files.isSymbolicLink(configuredRoot)) {
+            throw new IOException("The Page Scanner artifact root is unavailable");
+        }
+        String storedPath = requireText(artifactPath, "artifact path");
+        Path relative;
+        try {
+            relative = Path.of(storedPath).normalize();
+        } catch (RuntimeException invalidPath) {
+            throw new IOException("The capture artifact path is invalid", invalidPath);
+        }
+        if (relative.isAbsolute()
+                || relative.getNameCount() < 3
+                || "..".equals(relative.getName(0).toString())) {
+            throw new IOException("The capture artifact path is outside its owner root");
+        }
+        Path expectedOwner = Path.of(
+                "org-" + owner.homeBankingId(), "bot-job-" + owner.botJobId());
+        if (!relative.startsWith(expectedOwner)) {
+            throw new IOException("The capture artifact path does not match its owner");
+        }
+
+        Path root = configuredRoot.toRealPath();
+        Path cursor = root;
+        for (Path segment : relative) {
+            cursor = cursor.resolve(segment);
+            if (Files.isSymbolicLink(cursor)
+                    || !Files.isDirectory(cursor, LinkOption.NOFOLLOW_LINKS)) {
+                throw new IOException("Linked capture artifact paths are not allowed");
+            }
+        }
+        Path folder = root.resolve(relative).normalize();
+        if (!folder.startsWith(root)
+                || !Files.isDirectory(folder, LinkOption.NOFOLLOW_LINKS)) {
+            throw new IOException("The capture artifact folder is unavailable");
+        }
+        Path realFolder = folder.toRealPath();
+        if (!realFolder.startsWith(root)) {
+            throw new IOException("The capture artifact folder escaped its root");
+        }
+        return realFolder;
+    }
+
+    private static Path captureFile(Path folder, String fileName) throws IOException {
+        if (folder == null || fileName == null || fileName.isBlank()) {
+            throw new IOException("A required capture file is unavailable");
+        }
+        Path file = folder.resolve(fileName).normalize();
+        if (!folder.equals(file.getParent())
+                || Files.isSymbolicLink(file)
+                || !Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS)) {
+            throw new IOException("A required capture file is unavailable: " + fileName);
+        }
+        return file;
+    }
+
+    private static JsonArray enrichElements(
+            Connection connection,
+            int homeBankingId,
+            int botJobId,
+            String pageKey,
+            JsonArray elements)
+            throws Exception {
+        List<String> hashes = new ArrayList<>(elements.size());
+        for (JsonElement value : elements) {
+            if (value == null || value.isJsonNull() || !value.isJsonObject()) {
+                hashes.add("");
+                continue;
+            }
+            JsonObject element = value.getAsJsonObject();
+            element.addProperty("pageKey", pageKey);
+            ElementDTO dto = JSON.fromJson(element, ElementDTO.class);
+            hashes.add(ScannedElementRepository.pageScopedHash(pageKey, dto));
+        }
+
+        Map<String, RegistryIdentity> registry = new HashMap<>();
+        String sql = "SELECT id, element_hash, last_scanned_at, scan_count FROM scanned_element "
+                + "WHERE home_banking_id = ? AND bot_job_id = ? AND page_key = ?";
+        try (PreparedStatement statement = Objects.requireNonNull(connection).prepareStatement(sql)) {
+            statement.setInt(1, homeBankingId);
+            statement.setInt(2, botJobId);
+            statement.setString(3, pageKey);
+            try (ResultSet rows = statement.executeQuery()) {
+                while (rows.next()) {
+                    RegistryIdentity identity = new RegistryIdentity(
+                            rows.getLong("id"),
+                            rows.getString("element_hash"),
+                            rows.getString("last_scanned_at"),
+                            rows.getInt("scan_count"));
+                    requireRegistryIdentity(identity);
+                    if (registry.putIfAbsent(identity.elementHash(), identity) != null) {
+                        throw new IOException("The scanned element registry contains duplicate identities");
+                    }
+                }
+            }
+        }
+
+        for (int index = 0; index < elements.size(); index++) {
+            JsonElement value = elements.get(index);
+            if (value == null || value.isJsonNull() || !value.isJsonObject()) continue;
+            RegistryIdentity identity = registry.get(hashes.get(index));
+            if (identity == null) continue;
+            JsonObject element = value.getAsJsonObject();
+            element.addProperty("scannedElementId", identity.scannedElementId());
+            element.addProperty("elementHash", identity.elementHash());
+            element.addProperty("lastScannedAt", identity.lastScannedAt());
+            element.addProperty("scanCount", identity.scanCount());
+        }
+        return elements;
+    }
+
+    private static void requireRegistryIdentity(RegistryIdentity identity) throws IOException {
+        if (identity.scannedElementId() <= 0
+                || identity.scanCount() <= 0
+                || identity.lastScannedAt() == null
+                || identity.lastScannedAt().isBlank()) {
+            throw new IOException("The scanned element registry identity is incomplete");
+        }
+        requireSha256(identity.elementHash(), "scanned element identity");
+    }
+
+    private static JsonObject viewport(JsonObject capture) throws IOException {
+        double cssWidth = requiredPositiveNumber(capture, "cssWidth");
+        double cssHeight = requiredPositiveNumber(capture, "cssHeight");
+        double devicePixelRatio = requiredPositiveNumber(capture, "devicePixelRatio");
+        String storedScope = text(capture, "screenshotScope").trim().toLowerCase(Locale.ROOT);
+        String responseScope;
+        if ("viewport".equals(storedScope)) responseScope = "VIEWPORT";
+        else if ("full_page".equals(storedScope)) responseScope = "FULL_PAGE";
+        else throw new IOException("The capture screenshot scope is invalid");
+
+        JsonObject viewport = new JsonObject();
+        viewport.addProperty("cssWidth", cssWidth);
+        viewport.addProperty("cssHeight", cssHeight);
+        viewport.addProperty("devicePixelRatio", devicePixelRatio);
+        viewport.addProperty("screenshotScope", responseScope);
+        return viewport;
+    }
+
+    private static JsonArray rectangles(
+            JsonArray source, JsonArray elements, boolean fullPage) throws IOException {
+        JsonArray result = new JsonArray();
+        Set<Integer> correlated = new HashSet<>();
+        for (JsonElement value : source) {
+            if (value == null || !value.isJsonObject()) {
+                throw new IOException("The capture rectangle entry is invalid");
+            }
+            JsonObject rectangle = value.getAsJsonObject();
+            int elementIndex = requiredNonNegativeInteger(rectangle, "elementIndex");
+            if (elementIndex >= elements.size() || !correlated.add(elementIndex)) {
+                throw new IOException("The capture rectangle correlation is invalid");
+            }
+            if (!requiredBoolean(rectangle, "found")) continue;
+            JsonObject bounds = requiredObject(rectangle, "bounds", "capture rectangle bounds");
+            double x = requiredFiniteNumber(bounds, fullPage ? "pageX" : "x");
+            double y = requiredFiniteNumber(bounds, fullPage ? "pageY" : "y");
+            double width = requiredPositiveNumber(bounds, "width");
+            double height = requiredPositiveNumber(bounds, "height");
+
+            JsonObject output = new JsonObject();
+            output.addProperty("elementIndex", elementIndex);
+            output.addProperty("x", x);
+            output.addProperty("y", y);
+            output.addProperty("width", width);
+            output.addProperty("height", height);
+            JsonElement element = elements.get(elementIndex);
+            if (element != null && element.isJsonObject()) {
+                JsonObject object = element.getAsJsonObject();
+                if (object.has("scannedElementId")) {
+                    output.add("scannedElementId", object.get("scannedElementId"));
+                }
+                if (object.has("elementHash")) {
+                    output.add("elementHash", object.get("elementHash"));
+                }
+            }
+            result.add(output);
+        }
+        return result;
+    }
+
+    private static byte[] readLimited(Path file, long maximumBytes) throws IOException {
+        if (maximumBytes < 0 || maximumBytes >= Integer.MAX_VALUE) {
+            throw new IOException("The capture file size limit is invalid");
+        }
+        try (InputStream input = Files.newInputStream(
+                file, StandardOpenOption.READ, LinkOption.NOFOLLOW_LINKS)) {
+            byte[] bytes = input.readNBytes((int) maximumBytes + 1);
+            if (bytes.length > maximumBytes) {
+                throw new IOException("The capture file exceeds its safe size");
+            }
+            return bytes;
+        } catch (UnsupportedOperationException noFollowUnsupported) {
+            throw new IOException("The capture file cannot be opened safely", noFollowUnsupported);
+        }
+    }
+
+    private static JsonObject parseObject(byte[] bytes, String label) throws IOException {
+        try {
+            JsonElement parsed = JsonParser.parseString(
+                    new String(bytes, java.nio.charset.StandardCharsets.UTF_8));
+            if (!parsed.isJsonObject()) throw new IOException("The " + label + " is not an object");
+            return parsed.getAsJsonObject();
+        } catch (RuntimeException invalidJson) {
+            throw new IOException("The " + label + " is invalid", invalidJson);
+        }
+    }
+
+    private static JsonArray parseArray(byte[] bytes, String label) throws IOException {
+        try {
+            JsonElement parsed = JsonParser.parseString(
+                    new String(bytes, java.nio.charset.StandardCharsets.UTF_8));
+            if (!parsed.isJsonArray()) throw new IOException("The " + label + " is not an array");
+            return parsed.getAsJsonArray();
+        } catch (RuntimeException invalidJson) {
+            throw new IOException("The " + label + " is invalid", invalidJson);
+        }
+    }
+
+    private static long maximumArtifactBytes(String fileName) {
+        return switch (fileName) {
+            case "meta.json" -> MAX_METADATA_BYTES;
+            case "screenshot.png" -> MAX_SCREENSHOT_BYTES;
+            default -> MAX_JSON_ARTIFACT_BYTES;
+        };
+    }
+
+    private static String sha256(byte[] bytes) throws Exception {
+        return hex(MessageDigest.getInstance("SHA-256").digest(bytes));
+    }
+
+    private static String hex(byte[] bytes) {
+        StringBuilder result = new StringBuilder(bytes.length * 2);
+        for (byte value : bytes) {
+            result.append(Character.forDigit((value >> 4) & 0x0f, 16));
+            result.append(Character.forDigit(value & 0x0f, 16));
+        }
+        return result.toString();
+    }
+
+    private static String requireText(String value, String label) throws IOException {
+        if (value == null || value.isBlank()) throw new IOException("The " + label + " is missing");
+        return value;
+    }
+
+    private static void requireEquals(String actual, String expected, String label)
+            throws IOException {
+        if (!Objects.equals(actual, expected)) {
+            throw new IOException("The " + label + " does not match");
+        }
+    }
+
+    private static void requireSha256(String value, String label) throws IOException {
+        if (value == null || !value.matches("(?i)[0-9a-f]{64}")) {
+            throw new IOException("The " + label + " is invalid");
+        }
+    }
+
+    private static JsonObject requiredObject(JsonObject parent, String field, String label)
+            throws IOException {
+        if (parent == null || !parent.has(field) || !parent.get(field).isJsonObject()) {
+            throw new IOException("The " + label + " is missing");
+        }
+        return parent.getAsJsonObject(field);
+    }
+
+    private static void requireInteger(
+            JsonObject object, String field, int expected, String label) throws IOException {
+        if (requiredNonNegativeInteger(object, field) != expected) {
+            throw new IOException("The " + label + " does not match");
+        }
+    }
+
+    private static int requiredNonNegativeInteger(JsonObject object, String field)
+            throws IOException {
+        double value = requiredFiniteNumber(object, field);
+        if (value < 0 || value > Integer.MAX_VALUE || value != Math.rint(value)) {
+            throw new IOException("The capture integer field is invalid: " + field);
+        }
+        return (int) value;
+    }
+
+    private static boolean requiredBoolean(JsonObject object, String field) throws IOException {
+        if (object == null
+                || !object.has(field)
+                || !object.get(field).isJsonPrimitive()
+                || !object.get(field).getAsJsonPrimitive().isBoolean()) {
+            throw new IOException("The capture boolean field is invalid: " + field);
+        }
+        return object.get(field).getAsBoolean();
+    }
+
+    private static double requiredPositiveNumber(JsonObject object, String field)
+            throws IOException {
+        double value = requiredFiniteNumber(object, field);
+        if (value <= 0) throw new IOException("The capture number is invalid: " + field);
+        return value;
+    }
+
+    private static double requiredFiniteNumber(JsonObject object, String field) throws IOException {
+        if (object == null || !object.has(field) || object.get(field).isJsonNull()) {
+            throw new IOException("The capture number is missing: " + field);
+        }
+        try {
+            double value = object.get(field).getAsDouble();
+            if (!Double.isFinite(value)) throw new IOException("The capture number is invalid: " + field);
+            return value;
+        } catch (RuntimeException invalidNumber) {
+            throw new IOException("The capture number is invalid: " + field, invalidNumber);
         }
     }
 
@@ -450,6 +933,13 @@ public final class PageMappingsWorkspaceService {
         return response;
     }
 
+    private static JsonObject captureFailure(
+            JsonObject request, String message, Binding owner, String scanId) {
+        JsonObject response = failure(request, message, owner);
+        if (scanId != null && !scanId.isBlank()) response.addProperty("scanId", scanId);
+        return response;
+    }
+
     private static void copyRequestId(JsonObject target, JsonObject source) {
         String requestId = string(source, "requestId");
         if (!requestId.isBlank()) target.addProperty("requestId", requestId);
@@ -462,6 +952,10 @@ public final class PageMappingsWorkspaceService {
         } catch (RuntimeException ignored) {
             return "";
         }
+    }
+
+    private static String text(JsonObject body, String field) {
+        return string(body, field);
     }
 
     private static JsonObject object(JsonObject body, String field) {
@@ -531,4 +1025,24 @@ public final class PageMappingsWorkspaceService {
     interface ExactTransportAuthorizer {
         boolean isExact(String sessionId, Session transport);
     }
+
+    @FunctionalInterface
+    interface SnapshotRootResolver {
+        Path resolve() throws IOException;
+    }
+
+    private record CaptureRow(
+            String scanId,
+            String pageKey,
+            String pageUrl,
+            String capturedAt,
+            int elementCount,
+            String artifactPath,
+            String manifestSha256) {}
+
+    private record RegistryIdentity(
+            long scannedElementId, String elementHash, String lastScannedAt, int scanCount) {}
+
+    private record VerifiedCapture(
+            JsonArray elements, JsonArray rectangles, JsonObject viewport, byte[] screenshot) {}
 }

@@ -5,13 +5,13 @@ import java.net.URI;
 import java.util.Locale;
 
 /** Removes credentials and request-specific values before a page URL enters scan history. */
-final class PageScanUrlRedactor {
+public final class PageScanUrlRedactor {
 
     private static final String REDACTED_PAGE = "arweb://redacted-page";
 
     private PageScanUrlRedactor() {}
 
-    static String redact(String input) {
+    public static String redact(String input) {
         if (input == null || input.isBlank()) return REDACTED_PAGE;
         try {
             URI uri = URI.create(input.trim());
