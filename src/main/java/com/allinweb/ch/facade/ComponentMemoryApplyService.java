@@ -191,10 +191,29 @@ public final class ComponentMemoryApplyService {
     /** Package-visible transaction seam used by focused database tests. */
     Result applyTransaction(Connection connection, Request request) {
         boolean previousAutoCommit;
+        int previousIsolation;
         try {
             previousAutoCommit = connection.getAutoCommit();
+            previousIsolation = connection.getTransactionIsolation();
+        } catch (SQLException failure) {
+            return Result.failed(error(
+                    "Memory List Apply Failed",
+                    "The database transaction could not be inspected.",
+                    failure.getMessage()));
+        }
+
+        boolean serializable = request.orderedItems().stream()
+                .anyMatch(item -> item.kind() == ItemKind.PAGE_MAPPING_INSTRUCTION);
+        boolean isolationSet = false;
+        try {
+            if (serializable) {
+                connection.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
+                isolationSet = true;
+            }
             connection.setAutoCommit(false);
         } catch (SQLException failure) {
+            restoreIsolation(connection, previousIsolation, isolationSet);
+            restoreAutoCommit(connection, previousAutoCommit);
             return Result.failed(error(
                     "Memory List Apply Failed",
                     "The database transaction could not be started.",
@@ -581,6 +600,7 @@ public final class ComponentMemoryApplyService {
             persistLayout(connection, request.botJobId(), completeRows, finalLayout);
 
             connection.commit();
+            restoreIsolation(connection, previousIsolation, isolationSet);
             restoreAutoCommit(connection, previousAutoCommit);
             Map<String, Integer> generatedByItem = new LinkedHashMap<>();
             generatedByItem.putAll(generatedBotJobInstructionsByItem);
@@ -598,6 +618,7 @@ public final class ComponentMemoryApplyService {
                     createdTargetBlockOrderNumber);
         } catch (ApplyRefused refused) {
             rollback(connection);
+            restoreIsolation(connection, previousIsolation, isolationSet);
             restoreAutoCommit(connection, previousAutoCommit);
             return Result.failed(error(
                     "Memory List Apply Refused",
@@ -605,6 +626,7 @@ public final class ComponentMemoryApplyService {
                     "No Bot Job data was changed."));
         } catch (SQLException | RuntimeException failure) {
             rollback(connection);
+            restoreIsolation(connection, previousIsolation, isolationSet);
             restoreAutoCommit(connection, previousAutoCommit);
             log.error(
                     "Memory List apply transaction failed requestId={} homeBankingId={} botJobId={}",
@@ -1951,6 +1973,16 @@ public final class ComponentMemoryApplyService {
     private static void restoreAutoCommit(Connection connection, boolean autoCommit) {
         try {
             connection.setAutoCommit(autoCommit);
+        } catch (SQLException ignored) {
+            // The connection is immediately closed by the production caller.
+        }
+    }
+
+    private static void restoreIsolation(
+            Connection connection, int transactionIsolation, boolean isolationSet) {
+        if (!isolationSet) return;
+        try {
+            connection.setTransactionIsolation(transactionIsolation);
         } catch (SQLException ignored) {
             // The connection is immediately closed by the production caller.
         }

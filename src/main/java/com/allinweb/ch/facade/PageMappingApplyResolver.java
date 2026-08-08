@@ -24,6 +24,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Instant;
 import java.util.Objects;
 
 /**
@@ -159,22 +160,41 @@ public final class PageMappingApplyResolver {
         String sql = "SELECT scan_id, page_key, captured_at, element_count, artifact_path,"
                 + " manifest_sha256 FROM page_scan_snapshot"
                 + " WHERE home_banking_id = ? AND bot_job_id = ? AND page_key = ?"
-                + " AND status = 'READY' ORDER BY captured_at DESC, scan_id DESC";
+                + " AND status = 'READY'";
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setInt(1, homeBankingId);
             statement.setInt(2, botJobId);
             statement.setString(3, pageKey);
             try (ResultSet rows = statement.executeQuery()) {
-                if (!rows.next()) {
+                Capture newest = null;
+                Instant newestAt = null;
+                while (rows.next()) {
+                    Capture candidate = new Capture(
+                            rows.getString("scan_id"),
+                            rows.getString("page_key"),
+                            rows.getString("captured_at"),
+                            rows.getInt("element_count"),
+                            rows.getString("artifact_path"),
+                            rows.getString("manifest_sha256"));
+                    final Instant candidateAt;
+                    try {
+                        candidateAt = Instant.parse(candidate.capturedAt());
+                    } catch (RuntimeException malformedTimestamp) {
+                        throw new Refused(
+                                "A READY Page Mapping capture has an invalid timestamp.");
+                    }
+                    if (newest == null
+                            || candidateAt.isAfter(newestAt)
+                            || (candidateAt.equals(newestAt)
+                                    && candidate.scanId().compareTo(newest.scanId()) > 0)) {
+                        newest = candidate;
+                        newestAt = candidateAt;
+                    }
+                }
+                if (newest == null) {
                     throw new Refused("No current Page Mapping capture exists for this page.");
                 }
-                return new Capture(
-                        rows.getString("scan_id"),
-                        rows.getString("page_key"),
-                        rows.getString("captured_at"),
-                        rows.getInt("element_count"),
-                        rows.getString("artifact_path"),
-                        rows.getString("manifest_sha256"));
+                return newest;
             }
         }
     }

@@ -17,6 +17,8 @@ import com.allinweb.ch.model.ReferenceLoadDTO;
 import com.allinweb.ch.model.VariableLoadDTO;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -609,6 +611,47 @@ class ComponentMemoryApplyServiceTest {
                     scalar(
                             statement,
                             "SELECT COUNT(*) FROM instruction WHERE bot_job_id=5"));
+        }
+    }
+
+    @Test
+    void pageMappingApplyUsesSerializableIsolationAndRestoresConnectionState()
+            throws Exception {
+        String url = databaseUrl("page-mapping-serializable");
+        initializeDatabase(url);
+        PageMappingFixture fixture = seedPageMapping(
+                url,
+                "10000000-0000-0000-0000-000000000003",
+                "2026-08-07T12:02:00Z");
+        ComponentMemoryApplyService service = new ComponentMemoryApplyService(
+                () -> DriverManager.getConnection(url),
+                new PageMappingApplyResolver(fixture.snapshotRoot()));
+        ComponentMemoryApplyService.Request request =
+                new ComponentMemoryApplyService.Request(
+                        "page-mapping-serializable-apply",
+                        5,
+                        2,
+                        10,
+                        List.of(ComponentMemoryApplyService.OrderedItem.pageMapping(
+                                "PAGE_MAPPINGS:map-41", fixture.reference())));
+
+        List<Integer> isolationChanges = new ArrayList<>();
+        try (Connection delegate = DriverManager.getConnection(url)) {
+            int previousIsolation = delegate.getTransactionIsolation();
+            Connection tracked = trackIsolation(delegate, isolationChanges);
+            ComponentMemoryApplyService.Result result = service.applyTransaction(tracked, request);
+
+            assertTrue(
+                    result.committed(),
+                    () -> result.error() == null
+                            ? "No failure detail"
+                            : result.error().getErrorHeader() + " | "
+                                    + result.error().getErrorMessage());
+            assertEquals(
+                    List.of(Connection.TRANSACTION_SERIALIZABLE, previousIsolation),
+                    isolationChanges);
+            assertEquals(previousIsolation, delegate.getTransactionIsolation());
+            assertTrue(delegate.getAutoCommit());
         }
     }
 
@@ -2292,6 +2335,23 @@ class ComponentMemoryApplyServiceTest {
             output.append(String.format(Locale.ROOT, "%02x", value & 0xff));
         }
         return output.toString();
+    }
+
+    private static Connection trackIsolation(
+            Connection delegate, List<Integer> isolationChanges) {
+        return (Connection) Proxy.newProxyInstance(
+                Connection.class.getClassLoader(),
+                new Class<?>[] {Connection.class},
+                (proxy, method, arguments) -> {
+                    if ("setTransactionIsolation".equals(method.getName())) {
+                        isolationChanges.add((Integer) arguments[0]);
+                    }
+                    try {
+                        return method.invoke(delegate, arguments);
+                    } catch (InvocationTargetException invocationFailure) {
+                        throw invocationFailure.getCause();
+                    }
+                });
     }
 
     private record PageMappingFixture(

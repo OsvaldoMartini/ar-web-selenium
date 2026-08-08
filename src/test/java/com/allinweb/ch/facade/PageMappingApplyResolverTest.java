@@ -191,6 +191,43 @@ class PageMappingApplyResolverTest {
     }
 
     @Test
+    void choosesNewestReadyCaptureByInstantInsteadOfLexicalTimestampOrder()
+            throws Exception {
+        Fixture fixture = seedCurrentCapture();
+        rewriteCapture(
+                SCAN_ID,
+                "2026-08-07T10:00:01.1Z",
+                fixture.artifactElement());
+        writeCapture(
+                "00000000-0000-0000-0000-000000000002",
+                "2026-08-07T10:00:01.12Z",
+                element("//button[@id='replacement']", "replacement"));
+
+        try (Connection connection = DriverManager.getConnection(databaseUrl)) {
+            assertThrows(
+                    PageMappingApplyResolver.Refused.class,
+                    () -> new PageMappingApplyResolver(snapshotRoot)
+                            .resolve(connection, 2, 5, 10, 1, fixture.reference()));
+        }
+    }
+
+    @Test
+    void failsClosedWhenAnyReadyCaptureHasMalformedTimestamp() throws Exception {
+        Fixture fixture = seedCurrentCapture();
+        writeCapture(
+                "00000000-0000-0000-0000-000000000002",
+                "not-an-instant",
+                fixture.artifactElement());
+
+        try (Connection connection = DriverManager.getConnection(databaseUrl)) {
+            assertThrows(
+                    PageMappingApplyResolver.Refused.class,
+                    () -> new PageMappingApplyResolver(snapshotRoot)
+                            .resolve(connection, 2, 5, 10, 1, fixture.reference()));
+        }
+    }
+
+    @Test
     void rejectsHashThatDoesNotBelongToTheSelectedCapture() throws Exception {
         Fixture fixture = seedCurrentCapture();
         ElementDTO different = element("//button[@id='different']", "different_artifact");
