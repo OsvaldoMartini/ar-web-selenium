@@ -1035,6 +1035,11 @@ public class PerformBackup {
                         """;
 
         String selectHomeBankingIdsSQL = "SELECT id FROM home_banking ORDER BY id";
+        PageScanSnapshotArtifactLifecycle snapshotArtifacts =
+                PageScanSnapshotArtifactLifecycle.configured();
+        PageScanSnapshotArtifactLifecycle.Plan artifactPlan =
+                PageScanSnapshotArtifactLifecycle.Plan.none();
+        boolean destructiveCommitCompleted = false;
 
         try (BufferedReader reader = new BufferedReader(
                         new InputStreamReader(new FileInputStream(sqlFilePath), Charset.forName("windows-1252")));
@@ -1043,6 +1048,8 @@ public class PerformBackup {
                 Statement idStmtAfter = conn.createStatement();
                 Statement deleteStmt = conn.createStatement()) {
             conn.setAutoCommit(false);
+            snapshotArtifacts.reconcile(conn);
+            artifactPlan = snapshotArtifacts.stageAll();
 
             // 🔹 Step 0: Delete in correct order
             //            deleteStmt.execute("PRAGMA foreign_keys = ON");
@@ -1052,6 +1059,8 @@ public class PerformBackup {
             deleteStmt.executeUpdate("DELETE FROM component_block");
 
             deleteStmt.executeUpdate("DELETE FROM reference");
+            deleteIfTableExists(conn, deleteStmt, "page_scan_snapshot");
+            deleteIfTableExists(conn, deleteStmt, "scanned_element");
             deleteStmt.executeUpdate("DELETE FROM bot_job_runtime_variable_value");
             deleteStmt.executeUpdate("DELETE FROM bot_job_variable_definition");
             deleteStmt.executeUpdate("DELETE FROM bot_job_runtime_memory");
@@ -1070,6 +1079,16 @@ public class PerformBackup {
             deleteStmt.executeUpdate("DELETE FROM home_url");
             deleteStmt.executeUpdate("DELETE FROM home_banking");
             conn.commit();
+            destructiveCommitCompleted = true;
+            try {
+                snapshotArtifacts.purge(artifactPlan);
+            } catch (IOException cleanupFailure) {
+                // Active owner paths are already gone. Startup reconciliation retries the
+                // journal without changing the completed database restore transaction.
+                log.error("Home Banking restore committed its cleanup, but pending Page Scanner "
+                                + "artifacts could not be removed: {}",
+                        cleanupFailure.getMessage(), cleanupFailure);
+            }
 
             // Step 1: Get current home_banking IDs before insert
             List<Integer> idsBefore = new ArrayList<>();
@@ -1161,7 +1180,32 @@ public class PerformBackup {
             return null;
 
         } catch (Exception error) {
+            if (!destructiveCommitCompleted) {
+                try {
+                    conn.rollback();
+                } catch (SQLException rollbackFailure) {
+                    error.addSuppressed(rollbackFailure);
+                }
+                try {
+                    snapshotArtifacts.restore(artifactPlan);
+                } catch (IOException restoreFailure) {
+                    error.addSuppressed(restoreFailure);
+                }
+            }
             return new ErrorMessage("Restore Failed", "Failed to load home_banking data", error.getMessage());
+        }
+    }
+
+    private void deleteIfTableExists(Connection connection, Statement statement, String table)
+            throws SQLException {
+        try (ResultSet tables = connection.getMetaData()
+                .getTables(null, null, null, new String[] {"TABLE"})) {
+            while (tables.next()) {
+                if (table.equalsIgnoreCase(tables.getString("TABLE_NAME"))) {
+                    statement.executeUpdate("DELETE FROM " + table);
+                    return;
+                }
+            }
         }
     }
 

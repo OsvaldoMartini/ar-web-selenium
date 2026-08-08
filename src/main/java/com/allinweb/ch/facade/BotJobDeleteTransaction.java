@@ -1,5 +1,6 @@
 package com.allinweb.ch.facade;
 
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
@@ -11,8 +12,10 @@ import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import lombok.extern.slf4j.Slf4j;
 
 /** Atomically removes Bot Jobs and every Bot-Job-owned row that has no database cascade. */
+@Slf4j
 final class BotJobDeleteTransaction {
 
     private static final List<OwnedTable> OWNED_TABLES = List.of(
@@ -20,7 +23,18 @@ final class BotJobDeleteTransaction {
             new OwnedTable("instruction_variable_command_config", "bot_job_id", null),
             new OwnedTable("instruction_graph_state", "owner_id", "workspace_kind='BOT_JOB'"),
             new OwnedTable("scanned_element", "bot_job_id", null),
+            new OwnedTable("page_scan_snapshot", "bot_job_id", null),
             new OwnedTable("bot_job_variable_migration_note", "bot_job_id", null));
+
+    private final PageScanSnapshotArtifactLifecycle snapshotArtifacts;
+
+    BotJobDeleteTransaction() {
+        this(PageScanSnapshotArtifactLifecycle.configured());
+    }
+
+    BotJobDeleteTransaction(PageScanSnapshotArtifactLifecycle snapshotArtifacts) {
+        this.snapshotArtifacts = snapshotArtifacts;
+    }
 
     List<Integer> execute(Connection connection, Collection<Integer> submittedIds)
             throws SQLException {
@@ -29,9 +43,14 @@ final class BotJobDeleteTransaction {
         }
         List<Integer> botJobIds = canonicalIds(submittedIds);
         boolean previousAutoCommit = connection.getAutoCommit();
+        PageScanSnapshotArtifactLifecycle.Plan artifactPlan =
+                PageScanSnapshotArtifactLifecycle.Plan.none();
+        boolean committed = false;
         connection.setAutoCommit(false);
         try {
             requireExistingBotJobs(connection, botJobIds);
+            snapshotArtifacts.reconcile(connection);
+            artifactPlan = snapshotArtifacts.stage(botJobIds);
             for (OwnedTable table : OWNED_TABLES) {
                 if (tableExists(connection, table.name())) {
                     deleteOwnedRows(connection, table, botJobIds);
@@ -39,17 +58,35 @@ final class BotJobDeleteTransaction {
             }
             deleteBotJobs(connection, botJobIds);
             connection.commit();
-            return List.copyOf(botJobIds);
-        } catch (SQLException failure) {
+            committed = true;
+        } catch (SQLException | IOException failure) {
             try {
                 connection.rollback();
             } catch (SQLException rollbackFailure) {
                 failure.addSuppressed(rollbackFailure);
             }
-            throw failure;
+            try {
+                snapshotArtifacts.restore(artifactPlan);
+            } catch (IOException restoreFailure) {
+                failure.addSuppressed(restoreFailure);
+            }
+            if (failure instanceof SQLException sqlFailure) throw sqlFailure;
+            throw new SQLException("Bot Job deletion could not stage Page Scanner artifacts.", failure);
         } finally {
             restoreAutoCommit(connection, previousAutoCommit);
         }
+        if (committed) {
+            try {
+                snapshotArtifacts.purge(artifactPlan);
+            } catch (IOException cleanupFailure) {
+                // The database commit is final and the artifacts are no longer visible at their
+                // active owner path. A later deletion or startup reconciliation retries cleanup.
+                log.error("Bot Job deletion committed, but pending Page Scanner artifacts could not "
+                                + "be removed: {}",
+                        cleanupFailure.getMessage(), cleanupFailure);
+            }
+        }
+        return List.copyOf(botJobIds);
     }
 
     private List<Integer> canonicalIds(Collection<Integer> submittedIds) throws SQLException {

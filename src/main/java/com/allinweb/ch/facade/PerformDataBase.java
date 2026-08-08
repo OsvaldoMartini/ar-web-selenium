@@ -7805,30 +7805,8 @@ public class PerformDataBase {
     }
 
     public boolean deleteAllJobDetails(String dataBaseType) {
-        // Build the SQL delete statement
-        try (Statement stmt = getConnection().createStatement()) {
-
-            // Execute each statement individually
-            stmt.executeUpdate("DELETE FROM bot_job_runtime_variable_value;");
-            stmt.executeUpdate("DELETE FROM bot_job_variable_definition;");
-            // 2026-08-03 consolidation: bot_job_runtime_memory and
-            // bot_job_variable_migration_note no longer exist; runtime counters live on
-            // instruction_graph_state, and the new connection/config tables join the purge.
-            stmt.executeUpdate("DELETE FROM instruction_variable_slot;");
-            stmt.executeUpdate("DELETE FROM instruction_variable_command_config;");
-            stmt.executeUpdate("DELETE FROM instruction_graph_state;");
-            // Retained only as the backward-import source for installations that have not
-            // completed the durable definition migration.
-            stmt.executeUpdate("DELETE FROM variable;");
-            stmt.executeUpdate("DELETE FROM reference;");
-            stmt.executeUpdate("DELETE FROM instruction;");
-            stmt.executeUpdate("DELETE FROM block;");
-            stmt.executeUpdate("DELETE FROM bot_job;");
-
-            stmt.executeUpdate("DELETE FROM component_variable;");
-            stmt.executeUpdate("DELETE FROM component_reference;");
-            stmt.executeUpdate("DELETE FROM component_instruction;");
-            stmt.executeUpdate("DELETE FROM component_block;");
+        try (Connection connection = getConnection()) {
+            new AllJobDetailsDeleteTransaction().execute(connection);
 
             // Drop sequences if they exist
             //            if (!dataBaseType.equalsIgnoreCase("ACCESS")) {

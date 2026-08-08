@@ -51,6 +51,10 @@ public class PerformInitializer {
             // mode where schema_migrations was written but the actual UPDATE was
             // silently dropped by a driver on a prior boot. No-op on a clean DB.
             // M20260426_ScrollFromActionsVarchar.selfHealIfLegacyRemains(conn);
+
+            // This is filesystem/database recovery, not a schema migration. Resolve any
+            // crash-left Page Scanner deletion journal from the authoritative bot_job rows.
+            PageScanSnapshotArtifactLifecycle.configured().reconcile(conn);
         } catch (Exception e) {
             log.error("PerformInitializer — migration check failed: {}", e.getMessage());
         }
