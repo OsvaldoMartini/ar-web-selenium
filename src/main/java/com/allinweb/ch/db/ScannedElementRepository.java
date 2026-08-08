@@ -9,6 +9,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Types;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -455,6 +456,57 @@ public final class ScannedElementRepository {
         }
     }
 
+    /**
+     * Update only the client-authored alias when the complete owner, page, identity and scanner
+     * revision still match the values verified by the caller.
+     *
+     * <p>This is deliberately a transaction-neutral compare-and-set seam. The Page Mappings OCR
+     * Review service owns the surrounding SERIALIZABLE batch transaction, so a stale row makes
+     * the complete batch roll back instead of partially applying aliases.
+     */
+    public static int updateClientNamedExact(
+            Connection conn,
+            int homeBankingId,
+            int botJobId,
+            String pageKey,
+            long scannedElementId,
+            String expectedElementHash,
+            String expectedLastScannedAt,
+            int expectedScanCount,
+            String expectedClientNamed,
+            String replacementClientNamed)
+            throws SQLException {
+        requireScope(homeBankingId, botJobId);
+        if (pageKey == null
+                || pageKey.isBlank()
+                || scannedElementId <= 0
+                || expectedElementHash == null
+                || expectedElementHash.isBlank()
+                || expectedLastScannedAt == null
+                || expectedLastScannedAt.isBlank()
+                || expectedScanCount <= 0) {
+            return 0;
+        }
+
+        String sql = "UPDATE scanned_element SET client_named = ?"
+                + " WHERE id = ? AND home_banking_id = ? AND bot_job_id = ? AND page_key = ?"
+                + " AND element_hash = ? AND last_scanned_at = ? AND scan_count = ?"
+                + " AND ((client_named = ?) OR (client_named IS NULL AND ? IS NULL))";
+        try (PreparedStatement statement = conn.prepareStatement(sql)) {
+            bindNullableString(statement, 1, replacementClientNamed);
+            statement.setLong(2, scannedElementId);
+            statement.setInt(3, homeBankingId);
+            statement.setInt(4, botJobId);
+            statement.setString(5, pageKey);
+            statement.setString(6, expectedElementHash);
+            statement.setString(7, expectedLastScannedAt);
+            statement.setInt(8, expectedScanCount);
+            bindNullableString(statement, 9, expectedClientNamed);
+            bindNullableString(statement, 10, expectedClientNamed);
+            return statement.executeUpdate();
+        }
+    }
+
     private static ScannedElement map(ResultSet rs) throws SQLException {
         ScannedElement s = new ScannedElement();
         s.setId(rs.getLong("id"));
@@ -491,6 +543,12 @@ public final class ScannedElementRepository {
 
     private static String nz(String s) {
         return s == null ? "" : s;
+    }
+
+    private static void bindNullableString(
+            PreparedStatement statement, int parameter, String value) throws SQLException {
+        if (value == null) statement.setNull(parameter, Types.VARCHAR);
+        else statement.setString(parameter, value);
     }
 
     private static String normalizeClientNamed(String requested, ScannedElement existing) {

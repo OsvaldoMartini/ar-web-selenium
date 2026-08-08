@@ -4,8 +4,11 @@ import com.allinweb.ch.db.ScannedElementRepository;
 import com.allinweb.ch.facade.BotJobDetailsWorkspaceRegistry;
 import com.allinweb.ch.facade.BotJobWorkspaceController;
 import com.allinweb.ch.facade.PageMappingsCacheService;
+import com.allinweb.ch.facade.PageMappingsOcrAliasService;
+import com.allinweb.ch.facade.PageMappingsOcrReviewService;
 import com.allinweb.ch.facade.PageScanUrlRedactor;
 import com.allinweb.ch.facade.PreScanWorkflowService;
+import com.allinweb.ch.facade.OcrConfigService;
 import com.allinweb.ch.model.ElementDTO;
 import com.allinweb.ch.model.DetachedWorkspaceSessions;
 import com.allinweb.ch.model.ScannerWorkspaceSessions;
@@ -63,6 +66,19 @@ public final class PageMappingsWorkspaceService {
     private static final long MAX_SCREENSHOT_BYTES = 8_000_000L;
     private static final Set<String> CAPTURE_FILES = Set.of(
             "elements.json", "rects.json", "meta.json", "screenshot.png");
+    private static final int OCR_REVIEW_CONTRACT_VERSION = 1;
+    private static final int MAX_OCR_ALIAS_CHANGES = 1_000;
+    private static final Set<String> OCR_ALIAS_FIELDS = Set.of(
+            "scannedElementId",
+            "elementHash",
+            "expectedLastScannedAt",
+            "expectedScanCount",
+            "expectedClientNamed",
+            "clientNamed");
+    private static final PageMappingsOcrReviewService OCR_REVIEW =
+            new PageMappingsOcrReviewService();
+    private static final PageMappingsOcrAliasService OCR_ALIASES =
+            PageMappingsOcrAliasService.getInstance();
     private static final PageMappingsWorkspaceService INSTANCE = new PageMappingsWorkspaceService();
 
     private final Object bindingLock = new Object();
@@ -495,6 +511,305 @@ public final class PageMappingsWorkspaceService {
         }
     }
 
+    /** Runs OCR only against one exact, integrity-verified immutable Page Mappings capture. */
+    public JsonObject ocrReview(
+            JsonObject body,
+            String requesterSessionId,
+            Session requesterTransport,
+            Connection connection) {
+        Binding authorized;
+        try {
+            authorized = authorizeDetachedRequest(
+                    body, requesterSessionId, requesterTransport, true);
+        } catch (IllegalArgumentException unauthorized) {
+            return failure(body, unauthorized.getMessage());
+        }
+
+        String scanId = string(body, "scanId").trim();
+        try {
+            requireOcrContract(body, authorized);
+            OcrCapture selected = loadOcrCapture(connection, authorized, scanId);
+            requireCaptureAssertions(body, selected.capture());
+            VerifiedCapture verified = verifyCapture(
+                    snapshotRootResolver.resolve(), selected.capture(), authorized, connection);
+            PageMappingsOcrReviewService.ReviewResult review = OCR_REVIEW.review(
+                    reviewInput(selected, verified, authorized.homeBankingId()));
+
+            // OCR can take long enough for the detached window to be retargeted. Never return an
+            // old owner's result as current after that boundary changes.
+            Binding current = authorizeDetachedRequest(
+                    body, requesterSessionId, requesterTransport, true);
+            if (!current.bindingEpoch().equals(authorized.bindingEpoch())) {
+                return failure(body, "Page Mappings owner changed. Refresh OCR Review.", authorized);
+            }
+
+            JsonObject response = baseResponse(body, current);
+            response.addProperty("ok", true);
+            addCaptureIdentity(response, selected.capture());
+            response.addProperty("source", review.source());
+            response.addProperty("wordCount", review.wordCount());
+            response.add("counts", JSON.toJsonTree(review.counts()));
+            response.add("rows", JSON.toJsonTree(review.rows()));
+            response.add("words", JSON.toJsonTree(review.words()));
+            response.addProperty("message", "OCR Review completed for the selected capture.");
+            return response;
+        } catch (IllegalArgumentException invalid) {
+            return failure(body, invalid.getMessage(), authorized);
+        } catch (Exception unavailable) {
+            log.warn("Unable to run Page Mappings OCR Review for scan {}", scanId, unavailable);
+            return failure(
+                    body,
+                    "OCR Review could not process the selected capture.",
+                    authorized);
+        }
+    }
+
+    /** Atomically persists selected OCR aliases for one exact immutable capture membership. */
+    public JsonObject ocrReviewApply(
+            JsonObject body,
+            String requesterSessionId,
+            Session requesterTransport,
+            Connection connection) {
+        synchronized (bindingLock) {
+            Binding authorized;
+            try {
+                authorized = authorizeDetachedRequest(
+                        body, requesterSessionId, requesterTransport, true);
+            } catch (IllegalArgumentException unauthorizedRequest) {
+                return failure(body, unauthorizedRequest.getMessage());
+            }
+
+            String scanId = string(body, "scanId").trim();
+            try {
+                requireOcrContract(body, authorized);
+                OcrCapture selected = loadOcrCapture(connection, authorized, scanId);
+                requireCaptureAssertions(body, selected.capture());
+                VerifiedCapture verified = verifyCapture(
+                        snapshotRootResolver.resolve(), selected.capture(), authorized, connection);
+                List<PageMappingsOcrAliasService.AliasChange> changes =
+                        parseAliasChanges(body, verified.elements());
+                PageMappingsOcrAliasService.ApplyResult applied = OCR_ALIASES.apply(
+                        authorized.homeBankingId(),
+                        authorized.botJobId(),
+                        selected.capture().pageKey(),
+                        changes);
+
+                JsonObject response = baseResponse(body, authorized);
+                response.addProperty("ok", true);
+                addCaptureIdentity(response, selected.capture());
+                response.addProperty("changedCount", applied.changedCount());
+                response.add("aliases", JSON.toJsonTree(applied.aliases()));
+                response.addProperty(
+                        "message",
+                        applied.changedCount() == 1
+                                ? "One Page Mapping name was saved."
+                                : applied.changedCount() + " Page Mapping names were saved.");
+                return response;
+            } catch (PageMappingsOcrAliasService.AliasApplyRefusedException refused) {
+                JsonObject response = failure(body, refused.getMessage(), authorized);
+                response.addProperty("errorCode", refused.code());
+                return response;
+            } catch (IllegalArgumentException invalid) {
+                return failure(body, invalid.getMessage(), authorized);
+            } catch (Exception unavailable) {
+                log.warn(
+                        "Unable to apply Page Mappings OCR aliases for scan {}",
+                        scanId,
+                        unavailable);
+                return failure(
+                        body,
+                        "OCR Review names could not be saved.",
+                        authorized);
+            }
+        }
+    }
+
+    private static OcrCapture loadOcrCapture(
+            Connection connection, Binding owner, String scanId) throws Exception {
+        if (scanId == null || scanId.isBlank() || scanId.length() > 80) {
+            throw new IllegalArgumentException("A valid OCR Review scan ID is required.");
+        }
+        String sql = "SELECT scan_id, home_url_id, page_key, page_url, captured_at, "
+                + "element_count, artifact_path, manifest_sha256 FROM page_scan_snapshot "
+                + "WHERE scan_id = ? AND home_banking_id = ? AND bot_job_id = ? "
+                + "AND status = 'READY'";
+        try (PreparedStatement statement = Objects.requireNonNull(connection).prepareStatement(sql)) {
+            statement.setString(1, scanId);
+            statement.setInt(2, owner.homeBankingId());
+            statement.setInt(3, owner.botJobId());
+            try (ResultSet rows = statement.executeQuery()) {
+                if (!rows.next()) {
+                    throw new IllegalArgumentException(
+                            "The selected OCR Review capture is no longer available.");
+                }
+                Object storedHomeUrlId = rows.getObject("home_url_id");
+                Integer homeUrlId = storedHomeUrlId == null ? null : rows.getInt("home_url_id");
+                CaptureRow capture = new CaptureRow(
+                        rows.getString("scan_id"),
+                        rows.getString("page_key"),
+                        rows.getString("page_url"),
+                        rows.getString("captured_at"),
+                        rows.getInt("element_count"),
+                        rows.getString("artifact_path"),
+                        rows.getString("manifest_sha256"));
+                if (rows.next()) {
+                    throw new IOException("The selected OCR Review capture identity is ambiguous");
+                }
+                return new OcrCapture(capture, homeUrlId);
+            }
+        }
+    }
+
+    private static PageMappingsOcrReviewService.ReviewInput reviewInput(
+            OcrCapture selected, VerifiedCapture verified, int homeBankingId) throws IOException {
+        List<PageMappingsOcrReviewService.ReviewElement> elements =
+                new ArrayList<>(verified.elements().size());
+        for (JsonElement value : verified.elements()) {
+            if (value == null || !value.isJsonObject()) {
+                throw new IOException("The OCR Review element membership is invalid");
+            }
+            JsonObject element = value.getAsJsonObject();
+            elements.add(new PageMappingsOcrReviewService.ReviewElement(
+                    optionalPositiveLong(element, "scannedElementId"),
+                    text(element, "elementHash"),
+                    text(element, "lastScannedAt"),
+                    optionalPositiveInteger(element, "scanCount"),
+                    text(element, "definedName"),
+                    nullableText(element, "clientNamed"),
+                    text(element, "tagName"),
+                    text(element, "someText"),
+                    text(element, "xPath"),
+                    text(element, "iFrameXPath")));
+        }
+
+        List<PageMappingsOcrReviewService.CaptureRectangle> rectangles =
+                new ArrayList<>(verified.rectangles().size());
+        for (JsonElement value : verified.rectangles()) {
+            if (value == null || !value.isJsonObject()) {
+                throw new IOException("The OCR Review capture geometry is invalid");
+            }
+            JsonObject rectangle = value.getAsJsonObject();
+            rectangles.add(new PageMappingsOcrReviewService.CaptureRectangle(
+                    requiredNonNegativeInteger(rectangle, "elementIndex"),
+                    requiredFiniteNumber(rectangle, "x"),
+                    requiredFiniteNumber(rectangle, "y"),
+                    requiredPositiveNumber(rectangle, "width"),
+                    requiredPositiveNumber(rectangle, "height")));
+        }
+        return new PageMappingsOcrReviewService.ReviewInput(
+                verified.screenshot(),
+                elements,
+                rectangles,
+                requiredPositiveNumber(verified.viewport(), "devicePixelRatio"),
+                OcrConfigService.getInstance().resolveFor(
+                        homeBankingId, selected.homeUrlId()),
+                selected.capture().scanId());
+    }
+
+    private static List<PageMappingsOcrAliasService.AliasChange> parseAliasChanges(
+            JsonObject body, JsonArray verifiedElements) throws IOException {
+        if (body == null || !body.has("changes") || !body.get("changes").isJsonArray()) {
+            throw new IllegalArgumentException("Select at least one OCR name to save.");
+        }
+        JsonArray requested = body.getAsJsonArray("changes");
+        if (requested.size() == 0 || requested.size() > MAX_OCR_ALIAS_CHANGES) {
+            throw new IllegalArgumentException("The OCR Review selection size is invalid.");
+        }
+        Map<Long, JsonObject> membership = new HashMap<>();
+        for (JsonElement value : verifiedElements) {
+            if (value == null || !value.isJsonObject()) continue;
+            JsonObject element = value.getAsJsonObject();
+            long scannedElementId = optionalPositiveLong(element, "scannedElementId");
+            if (scannedElementId > 0 && membership.put(scannedElementId, element) != null) {
+                throw new IOException("The OCR Review capture membership is ambiguous");
+            }
+        }
+
+        List<PageMappingsOcrAliasService.AliasChange> changes =
+                new ArrayList<>(requested.size());
+        Set<Long> selectedIds = new HashSet<>();
+        for (JsonElement value : requested) {
+            if (value == null || !value.isJsonObject()) {
+                throw new IllegalArgumentException("An OCR Review name is invalid.");
+            }
+            JsonObject change = value.getAsJsonObject();
+            if (!change.keySet().equals(OCR_ALIAS_FIELDS)) {
+                throw new IllegalArgumentException("The OCR Review name contract is invalid.");
+            }
+            long scannedElementId = requiredPositiveLong(change, "scannedElementId");
+            if (!selectedIds.add(scannedElementId)) {
+                throw new IllegalArgumentException(
+                        "The same OCR Review row cannot be saved twice.");
+            }
+            String elementHash = text(change, "elementHash").trim();
+            String expectedLastScannedAt = text(change, "expectedLastScannedAt").trim();
+            int expectedScanCount = requiredPositiveInteger(change, "expectedScanCount");
+            String expectedClientNamed = requiredNullableText(change, "expectedClientNamed");
+            String clientNamed = requiredNullableText(change, "clientNamed");
+
+            JsonObject member = membership.get(scannedElementId);
+            if (member == null
+                    || !elementHash.equalsIgnoreCase(text(member, "elementHash"))
+                    || !expectedLastScannedAt.equals(text(member, "lastScannedAt"))
+                    || expectedScanCount != optionalPositiveInteger(member, "scanCount")
+                    || !Objects.equals(expectedClientNamed, nullableText(member, "clientNamed"))) {
+                throw new IllegalArgumentException(
+                        "An OCR Review row changed. Reload the selected capture.");
+            }
+            changes.add(new PageMappingsOcrAliasService.AliasChange(
+                    scannedElementId,
+                    elementHash,
+                    expectedLastScannedAt,
+                    expectedScanCount,
+                    expectedClientNamed,
+                    clientNamed));
+        }
+        return List.copyOf(changes);
+    }
+
+    private static void requireOcrContract(JsonObject body, Binding owner) throws IOException {
+        if (requiredNonNegativeInteger(body, "contractVersion")
+                != OCR_REVIEW_CONTRACT_VERSION) {
+            throw new IllegalArgumentException("The OCR Review contract is not supported.");
+        }
+        String requestId = string(body, "requestId").trim();
+        String bindingEpoch = string(body, "bindingEpoch").trim();
+        if (requestId.isEmpty()
+                || requestId.length() > 200
+                || bindingEpoch.isEmpty()
+                || bindingEpoch.length() > 200
+                || !bindingEpoch.equals(owner.bindingEpoch())
+                || requiredPositiveLong(body, "workspaceEpoch") != owner.workspaceEpoch()
+                || requiredPositiveInteger(body, "homeBankingId") != owner.homeBankingId()
+                || requiredPositiveInteger(body, "botJobId") != owner.botJobId()) {
+            throw new IllegalArgumentException(
+                    "Page Mappings ownership changed. Reload OCR Review.");
+        }
+    }
+
+    private static void requireCaptureAssertions(JsonObject body, CaptureRow selected)
+            throws IOException {
+        requireEquals(string(body, "scanId").trim(), selected.scanId(), "OCR Review scan ID");
+        requireEquals(string(body, "pageKey").trim(), selected.pageKey(), "OCR Review page key");
+        requireEquals(
+                string(body, "capturedAt").trim(),
+                selected.capturedAt(),
+                "OCR Review capture timestamp");
+        String assertedManifest = string(body, "manifestSha256").trim();
+        requireSha256(assertedManifest, "OCR Review manifest checksum");
+        if (!assertedManifest.equalsIgnoreCase(selected.manifestSha256())) {
+            throw new IOException("The OCR Review manifest checksum does not match");
+        }
+    }
+
+    private static void addCaptureIdentity(JsonObject response, CaptureRow capture) {
+        response.addProperty("contractVersion", OCR_REVIEW_CONTRACT_VERSION);
+        response.addProperty("scanId", capture.scanId());
+        response.addProperty("pageKey", capture.pageKey());
+        response.addProperty("capturedAt", capture.capturedAt());
+        response.addProperty("manifestSha256", capture.manifestSha256());
+    }
+
     private static VerifiedCapture verifyCapture(
             Path configuredRoot,
             CaptureRow selected,
@@ -699,7 +1014,8 @@ public final class PageMappingsWorkspaceService {
         }
 
         Map<String, RegistryIdentity> registry = new HashMap<>();
-        String sql = "SELECT id, element_hash, last_scanned_at, scan_count FROM scanned_element "
+        String sql = "SELECT id, element_hash, last_scanned_at, scan_count, "
+                + "defined_name, client_named FROM scanned_element "
                 + "WHERE home_banking_id = ? AND bot_job_id = ? AND page_key = ?";
         try (PreparedStatement statement = Objects.requireNonNull(connection).prepareStatement(sql)) {
             statement.setInt(1, homeBankingId);
@@ -711,7 +1027,9 @@ public final class PageMappingsWorkspaceService {
                             rows.getLong("id"),
                             rows.getString("element_hash"),
                             rows.getString("last_scanned_at"),
-                            rows.getInt("scan_count"));
+                            rows.getInt("scan_count"),
+                            rows.getString("defined_name"),
+                            rows.getString("client_named"));
                     requireRegistryIdentity(identity);
                     if (registry.putIfAbsent(identity.elementHash(), identity) != null) {
                         throw new IOException("The scanned element registry contains duplicate identities");
@@ -730,6 +1048,8 @@ public final class PageMappingsWorkspaceService {
             element.addProperty("elementHash", identity.elementHash());
             element.addProperty("lastScannedAt", identity.lastScannedAt());
             element.addProperty("scanCount", identity.scanCount());
+            element.addProperty("definedName", identity.definedName());
+            element.addProperty("clientNamed", identity.clientNamed());
         }
         return elements;
     }
@@ -934,6 +1254,59 @@ public final class PageMappingsWorkspaceService {
         }
     }
 
+    private static int requiredPositiveInteger(JsonObject object, String field)
+            throws IOException {
+        int value = requiredNonNegativeInteger(object, field);
+        if (value <= 0) throw new IOException("The positive integer field is invalid: " + field);
+        return value;
+    }
+
+    private static long requiredPositiveLong(JsonObject object, String field) throws IOException {
+        if (object == null || !object.has(field) || object.get(field).isJsonNull()) {
+            throw new IOException("The positive integer field is missing: " + field);
+        }
+        try {
+            JsonElement input = object.get(field);
+            if (!input.isJsonPrimitive() || !input.getAsJsonPrimitive().isNumber()) {
+                throw new NumberFormatException("not a JSON number");
+            }
+            long value = new java.math.BigDecimal(input.getAsString()).longValueExact();
+            if (value <= 0) {
+                throw new IOException("The positive integer field is invalid: " + field);
+            }
+            return value;
+        } catch (RuntimeException invalidNumber) {
+            throw new IOException("The positive integer field is invalid: " + field, invalidNumber);
+        }
+    }
+
+    private static long optionalPositiveLong(JsonObject object, String field) throws IOException {
+        if (object == null || !object.has(field) || object.get(field).isJsonNull()) return 0L;
+        return requiredPositiveLong(object, field);
+    }
+
+    private static int optionalPositiveInteger(JsonObject object, String field) throws IOException {
+        if (object == null || !object.has(field) || object.get(field).isJsonNull()) return 0;
+        return requiredPositiveInteger(object, field);
+    }
+
+    private static String nullableText(JsonObject object, String field) throws IOException {
+        if (object == null || !object.has(field) || object.get(field).isJsonNull()) return null;
+        JsonElement value = object.get(field);
+        if (!value.isJsonPrimitive() || !value.getAsJsonPrimitive().isString()) {
+            throw new IOException("The text field is invalid: " + field);
+        }
+        return value.getAsString();
+    }
+
+    private static String requiredNullableText(JsonObject object, String field)
+            throws IOException {
+        if (object == null || !object.has(field)) {
+            throw new IOException("The text field is missing: " + field);
+        }
+        return nullableText(object, field);
+    }
+
     /**
      * Authorizes a Page Mappings Memory List contribution against the current owner and epoch.
      * Client owner fields remain assertions only and never choose the server-side scope.
@@ -941,6 +1314,28 @@ public final class PageMappingsWorkspaceService {
     Binding authorizeMemoryListSource(
             JsonObject body, String requesterSessionId, Session requesterTransport) {
         return authorizeDetachedRequest(body, requesterSessionId, requesterTransport, true);
+    }
+
+    /**
+     * Linearizes one OCR response with retarget/invalidation so old-owner capture data is never
+     * delivered to a transport after it has become authoritative for another Bot Job.
+     */
+    boolean deliverOcrIfCurrent(
+            JsonObject request,
+            String requesterSessionId,
+            Session requesterTransport,
+            Runnable delivery) {
+        Objects.requireNonNull(delivery, "OCR response delivery is required");
+        synchronized (bindingLock) {
+            try {
+                authorizeDetachedRequest(
+                        request, requesterSessionId, requesterTransport, true);
+            } catch (IllegalArgumentException stale) {
+                return false;
+            }
+            delivery.run();
+            return true;
+        }
     }
 
     /**
@@ -1635,8 +2030,15 @@ public final class PageMappingsWorkspaceService {
             String artifactPath,
             String manifestSha256) {}
 
+    private record OcrCapture(CaptureRow capture, Integer homeUrlId) {}
+
     private record RegistryIdentity(
-            long scannedElementId, String elementHash, String lastScannedAt, int scanCount) {}
+            long scannedElementId,
+            String elementHash,
+            String lastScannedAt,
+            int scanCount,
+            String definedName,
+            String clientNamed) {}
 
     private record VerifiedCapture(
             JsonArray elements,

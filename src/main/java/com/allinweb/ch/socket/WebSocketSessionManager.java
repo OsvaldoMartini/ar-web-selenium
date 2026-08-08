@@ -12,6 +12,7 @@ import java.util.WeakHashMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import javax.websocket.CloseReason;
@@ -454,6 +455,66 @@ public class WebSocketSessionManager {
             if (released.compareAndSet(false, true)) {
                 gate.release();
             }
+        };
+        try {
+            session.getAsyncRemote().sendText(message, result -> {
+                releaseGate.run();
+                if (result.isOK()) {
+                    completion.complete(null);
+                } else {
+                    Throwable failure = result.getException();
+                    completion.completeExceptionally(failure == null
+                            ? new IOException("Unable to send WebSocket message")
+                            : failure);
+                }
+            });
+        } catch (RuntimeException sendFailure) {
+            releaseGate.run();
+            completion.completeExceptionally(sendFailure);
+        }
+        return completion;
+    }
+
+    /**
+     * Bounded variant for owner-transition responses that must preserve outbound ordering without
+     * holding their workspace authority lock indefinitely behind a stalled transport writer.
+     */
+    static CompletableFuture<Void> sendTextAcknowledged(
+            Session session, String message, long timeout, TimeUnit unit) {
+        CompletableFuture<Void> completion = new CompletableFuture<>();
+        if (session == null || !session.isOpen()) {
+            completion.completeExceptionally(new IOException("WebSocket session is unavailable"));
+            return completion;
+        }
+        if (timeout <= 0L || unit == null) {
+            completion.completeExceptionally(
+                    new IllegalArgumentException("A positive WebSocket send timeout is required"));
+            return completion;
+        }
+
+        Semaphore gate = outboundGate(session);
+        try {
+            if (!gate.tryAcquire(timeout, unit)) {
+                completion.completeExceptionally(
+                        new IOException("Timed out waiting to send a WebSocket message"));
+                return completion;
+            }
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            completion.completeExceptionally(
+                    new IOException("Interrupted while waiting to send a WebSocket message", interrupted));
+            return completion;
+        }
+
+        if (!session.isOpen()) {
+            gate.release();
+            completion.completeExceptionally(new IOException("WebSocket session is closed"));
+            return completion;
+        }
+
+        AtomicBoolean released = new AtomicBoolean();
+        Runnable releaseGate = () -> {
+            if (released.compareAndSet(false, true)) gate.release();
         };
         try {
             session.getAsyncRemote().sendText(message, result -> {

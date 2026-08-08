@@ -15,6 +15,9 @@ import java.io.IOException;
 import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.websocket.*;
@@ -82,6 +85,14 @@ public class SimpleWebSocketServer {
             GridItemTestActionService.getInstance();
     private static final GridItemWebElementTypeService gridItemWebElementTypeService =
             GridItemWebElementTypeService.getInstance();
+    private static final ThreadPoolExecutor pageMappingsOcrWorker =
+            newPageMappingsOcrWorker();
+    private static final Object pageMappingsOcrRequestLock = new Object();
+    private static final int MAX_COMPLETED_OCR_APPLIES = 64;
+    private static final LinkedHashMap<String, CompletedPageMappingsOcrResponse>
+            completedPageMappingsOcrApplies = new LinkedHashMap<>();
+    private static String activePageMappingsOcrKey = "";
+    private static String activePageMappingsOcrPayload = "";
     private static final int MAX_PAGE_SCANNER_BODY_CHARACTERS = 2_000_000;
     private static final int MAX_PAGE_SCANNER_ELEMENTS = 1_000;
     private static final int MAX_PAGE_SCANNER_SEARCH_TERMS = 8_192;
@@ -134,6 +145,8 @@ public class SimpleWebSocketServer {
             "pageMappings.capture",
             "pageMappings.cacheState",
             "pageMappings.rescan",
+            "pageMappings.ocrReview",
+            "pageMappings.ocrReviewApply",
             "memoryList.open",
             "memoryList.sync",
             "memoryList.summary",
@@ -672,6 +685,21 @@ public class SimpleWebSocketServer {
                             "An active license is required for this Page Scanner operation");
                     return;
                 }
+                if ("pageMappings.ocrReview".equals(type)
+                        || "pageMappings.ocrReviewApply".equals(type)) {
+                    JsonObject mappingsBody = extractBody(jsonObjMSG);
+                    sendPageMappingsResponse(
+                            homeBankingId,
+                            sessionId,
+                            session,
+                            "pageMappings.ocrReviewApply".equals(type)
+                                    ? "pageMappings.ocrReviewApplyResponse"
+                                    : "pageMappings.ocrReviewResponse",
+                            commandEditorFailure(
+                                    mappingsBody,
+                                    "An active license is required for OCR Review."));
+                    return;
+                }
                 sendCommandEditorFailureToTransport(
                         session,
                         homeBankingId,
@@ -1162,6 +1190,40 @@ public class SimpleWebSocketServer {
                             session,
                             "pageMappings.rescanResponse",
                             response);
+                    break;
+                }
+                case "pageMappings.ocrReview": {
+                    JsonObject mappingsBody = extractBody(jsonObjMSG);
+                    submitPageMappingsOcr(
+                            homeBankingId,
+                            sessionId,
+                            session,
+                            "pageMappings.ocrReviewResponse",
+                            mappingsBody,
+                            "OCR Review could not process the selected capture.",
+                            () -> {
+                                try (java.sql.Connection connection = performDataBase.getConnection()) {
+                                    return pageMappingsWorkspaceService.ocrReview(
+                                            mappingsBody, sessionId, session, connection);
+                                }
+                            });
+                    break;
+                }
+                case "pageMappings.ocrReviewApply": {
+                    JsonObject mappingsBody = extractBody(jsonObjMSG);
+                    submitPageMappingsOcr(
+                            homeBankingId,
+                            sessionId,
+                            session,
+                            "pageMappings.ocrReviewApplyResponse",
+                            mappingsBody,
+                            "OCR Review names could not be saved.",
+                            () -> {
+                                try (java.sql.Connection connection = performDataBase.getConnection()) {
+                                    return pageMappingsWorkspaceService.ocrReviewApply(
+                                            mappingsBody, sessionId, session, connection);
+                                }
+                            });
                     break;
                 }
                 case "pageMappings.open": {
@@ -7967,6 +8029,222 @@ public class SimpleWebSocketServer {
                 gson.toJson(response),
                 operationId);
     }
+
+    private void submitPageMappingsOcr(
+            int fallbackHomeBankingId,
+            String sessionId,
+            Session requesterTransport,
+            String responseOperation,
+            JsonObject request,
+            String failureMessage,
+            PageMappingsOcrTask task) {
+        String requestKey = pageMappingsOcrRequestKey(responseOperation, request);
+        String requestPayload = request == null ? "" : request.toString();
+        JsonObject immediate = null;
+        boolean duplicateInFlight = false;
+        synchronized (pageMappingsOcrRequestLock) {
+            CompletedPageMappingsOcrResponse completed =
+                    completedPageMappingsOcrApplies.get(requestKey);
+            if (completed != null) {
+                immediate = completed.payload().equals(requestPayload)
+                        ? completed.response().deepCopy()
+                        : commandEditorFailure(
+                                request, "This OCR Review request ID was already used.");
+            } else if (activePageMappingsOcrKey.equals(requestKey)) {
+                // The accepted task owns the only terminal response for this request ID. Sending
+                // a second busy/conflict response would let React settle before a committed Apply.
+                duplicateInFlight = true;
+            } else if (!activePageMappingsOcrKey.isBlank()) {
+                immediate = commandEditorFailure(
+                        request, "Another Page Mappings OCR operation is still running.");
+            } else {
+                activePageMappingsOcrKey = requestKey;
+                activePageMappingsOcrPayload = requestPayload;
+            }
+        }
+        if (duplicateInFlight) return;
+        if (immediate != null) {
+            deliverPageMappingsOcrResponse(
+                    fallbackHomeBankingId,
+                    sessionId,
+                    requesterTransport,
+                    responseOperation,
+                    request,
+                    immediate);
+            return;
+        }
+
+        try {
+            pageMappingsOcrWorker.execute(() -> {
+                JsonObject response;
+                try {
+                    response = task.run();
+                } catch (Exception failure) {
+                    log.warn("{} failed", responseOperation, failure);
+                    response = commandEditorFailure(request, failureMessage);
+                }
+                try {
+                    deliverPageMappingsOcrResponse(
+                            fallbackHomeBankingId,
+                            sessionId,
+                            requesterTransport,
+                            responseOperation,
+                            request,
+                            response);
+                } finally {
+                    completePageMappingsOcrRequest(
+                            requestKey,
+                            requestPayload,
+                            responseOperation,
+                            response);
+                }
+            });
+        } catch (RejectedExecutionException busy) {
+            releasePageMappingsOcrRequest(requestKey);
+            deliverPageMappingsOcrResponse(
+                    fallbackHomeBankingId,
+                    sessionId,
+                    requesterTransport,
+                    responseOperation,
+                    request,
+                    commandEditorFailure(
+                            request, "Another Page Mappings OCR operation is still running."));
+        }
+    }
+
+    private void deliverPageMappingsOcrResponse(
+            int fallbackHomeBankingId,
+            String sessionId,
+            Session requesterTransport,
+            String responseOperation,
+            JsonObject request,
+            JsonObject response) {
+        boolean delivered = pageMappingsWorkspaceService.deliverOcrIfCurrent(
+                request,
+                sessionId,
+                requesterTransport,
+                () -> sendPageMappingsOcrResponseAcknowledged(
+                        fallbackHomeBankingId,
+                        sessionId,
+                        requesterTransport,
+                        responseOperation,
+                        response));
+        if (!delivered) {
+            log.debug(
+                    "Dropped {} because its Page Mappings owner is no longer current",
+                    responseOperation);
+        }
+    }
+
+    private void sendPageMappingsOcrResponseAcknowledged(
+            int fallbackHomeBankingId,
+            String sessionId,
+            Session requesterTransport,
+            String responseOperation,
+            JsonObject response) {
+        if (requesterTransport == null
+                || !requesterTransport.isOpen()
+                || WebSocketSessionManager.getSession(sessionId) != requesterTransport) {
+            return;
+        }
+        JsonObject envelope = new JsonObject();
+        envelope.addProperty(
+                "homeBankingId",
+                commandEditorHomeBankingId(response, fallbackHomeBankingId));
+        envelope.addProperty("sessionId", sessionId);
+        envelope.addProperty("body", gson.toJson(response));
+        envelope.addProperty("operationId", responseOperation);
+        try {
+            WebSocketSessionManager.sendTextAcknowledged(
+                            requesterTransport, envelope.toString(), 2L, TimeUnit.SECONDS)
+                    .get(5L, TimeUnit.SECONDS);
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            log.warn("{} response acknowledgement was interrupted", responseOperation);
+        } catch (Exception deliveryFailure) {
+            log.warn("{} response could not be acknowledged", responseOperation, deliveryFailure);
+        }
+    }
+
+    private static void completePageMappingsOcrRequest(
+            String requestKey,
+            String requestPayload,
+            String responseOperation,
+            JsonObject response) {
+        synchronized (pageMappingsOcrRequestLock) {
+            if (!activePageMappingsOcrKey.equals(requestKey)
+                    || !activePageMappingsOcrPayload.equals(requestPayload)) {
+                return;
+            }
+            if ("pageMappings.ocrReviewApplyResponse".equals(responseOperation)
+                    && response != null
+                    && response.has("ok")
+                    && response.get("ok").isJsonPrimitive()
+                    && response.get("ok").getAsBoolean()) {
+                completedPageMappingsOcrApplies.put(
+                        requestKey,
+                        new CompletedPageMappingsOcrResponse(
+                                requestPayload,
+                                response == null ? new JsonObject() : response.deepCopy()));
+                while (completedPageMappingsOcrApplies.size() > MAX_COMPLETED_OCR_APPLIES) {
+                    Iterator<String> oldest = completedPageMappingsOcrApplies.keySet().iterator();
+                    if (!oldest.hasNext()) break;
+                    oldest.next();
+                    oldest.remove();
+                }
+            }
+            activePageMappingsOcrKey = "";
+            activePageMappingsOcrPayload = "";
+        }
+    }
+
+    private static void releasePageMappingsOcrRequest(String requestKey) {
+        synchronized (pageMappingsOcrRequestLock) {
+            if (!activePageMappingsOcrKey.equals(requestKey)) return;
+            activePageMappingsOcrKey = "";
+            activePageMappingsOcrPayload = "";
+        }
+    }
+
+    private static String pageMappingsOcrRequestKey(
+            String responseOperation, JsonObject request) {
+        return responseOperation
+                + '\u0000'
+                + pageMappingsOcrText(request, "bindingEpoch")
+                + '\u0000'
+                + pageMappingsOcrText(request, "requestId");
+    }
+
+    private static String pageMappingsOcrText(JsonObject body, String field) {
+        if (body == null || !body.has(field) || body.get(field).isJsonNull()) return "";
+        try {
+            return body.get(field).getAsString().trim();
+        } catch (RuntimeException invalid) {
+            return "";
+        }
+    }
+
+    private static ThreadPoolExecutor newPageMappingsOcrWorker() {
+        return new ThreadPoolExecutor(
+                1,
+                1,
+                0L,
+                TimeUnit.MILLISECONDS,
+                new SynchronousQueue<>(),
+                operation -> {
+                    Thread thread = new Thread(operation, "page-mappings-ocr-review");
+                    thread.setDaemon(true);
+                    return thread;
+                },
+                new ThreadPoolExecutor.AbortPolicy());
+    }
+
+    @FunctionalInterface
+    private interface PageMappingsOcrTask {
+        JsonObject run() throws Exception;
+    }
+
+    private record CompletedPageMappingsOcrResponse(String payload, JsonObject response) {}
 
     private boolean isMobileReturnSession(String sessionId) {
         return scannerMobileTestRoute.returnSessionId().equals(sessionId);
