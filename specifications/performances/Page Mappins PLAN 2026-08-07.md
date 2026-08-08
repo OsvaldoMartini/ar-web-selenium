@@ -335,21 +335,25 @@ URL redaction, finalized-artifact cleanup, and FAILED-history recording.
 
 | Severity | Status | Risk |
 |---|---|---|
-| Critical | Fixed | Missing-epoch Memory OPEN and SYNC failures now settle through exact typed request correlation before success-only epoch checks. |
-| Critical | Open | Detached `MemoryList` page commands are not yet generation-bound across owner retarget; a late prior-owner response can affect the new owner's pending UI state. |
+| Critical | Fixed | Missing-epoch Memory OPEN and SYNC failures settle through exact typed request correlation; any authority fields supplied on a failure must match, and producer request IDs include a monotonic sequence. |
+| Critical | Fixed | Detached `MemoryList` commands, timers, dialogs, status, and drag state are bound to the complete owner/workspace generation and retired synchronously across retarget. Backend responses remain on the captured exact requester transport. |
 | High | Deployment gate | New backend static-source epoch enforcement and the matching frontend must deploy together. The build is mirrored in Git but is not packaged/restarted. |
 | Medium | Open verification | Detached-window reconnect/retarget/delete/same-ID reuse behavior still needs live desktop acceptance. |
-| Medium | Open verification | The latest failure-correlation correction has compile/build and independent review evidence but no targeted test, by explicit instruction. |
+| Medium | Open verification | The affected-path frontend suite passed 25/25 and the production build passed. The complete frontend suite was not run; eight stale `GridItemComp.memoryParity` expectations remain in a nearby selected run. |
 | Low | Existing | Production build warnings and bundle-size warnings remain. |
 
 Checkpoint commits:
 
-- Backend lifecycle: `ea68268e`; isolated failure contract: `209d24d7`.
-- Frontend workspace generation: `7774aeb`; isolated response correlation: `ce6a56f`.
-- Latest mirrored frontend assets: `dc773421`, `main.23344ef8.js`.
+- Backend lifecycle: `ea68268e`; isolated failure contract: `209d24d7`; exact requester
+  response routing: `b147de41`.
+- Frontend workspace generation: `7774aeb`; request correlation: `ce6a56f`; detached command and
+  drag generation binding: `fb87aa0`.
+- Latest mirrored frontend assets: `9a9dc6db`, `main.16e24f7b.js`, SHA-256
+  `ED8C10BCA7B21661C19EA67613DE04884EC27CA5920C06D6A65A1E469A112004`.
 - Backend selected regression suite before the final failure correction: 206/206 passed.
-- Java compile and frontend production build after the correction: passed; no tests were run for the
-  final correction.
+- Frontend affected-path suite: 25/25 passed. Frontend production build passed with existing
+  warnings. Java compilation was not rerun for the requester-routing checkpoint under the repository
+  no-Maven directive.
 
 Operational gates remain separate: migration application, real SQL Server inspection, backend
 package/restart, deployed health, and live behavior are not complete.

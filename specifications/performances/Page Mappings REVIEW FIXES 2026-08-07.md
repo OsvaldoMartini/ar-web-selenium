@@ -8,10 +8,11 @@ gates.
 ## 2026-08-08 Codex remediation checkpoint
 
 Primary backend commits: `9436d81a`, `ec779ed5`, `6c429598`, `2712b32a`, `230939cf`,
-`74a0b487`, `537dea47`, `4667a386`, `ea68268e`, and `209d24d7`.
+`74a0b487`, `537dea47`, `4667a386`, `ea68268e`, `209d24d7`, and `b147de41`.
 
-Primary frontend commits: `cfa1607`, `df5cc1b`, `2c15f6c`, `5dc60d0`, `7774aeb`, and
-`ce6a56f`. Latest mirrored frontend assets: `dc773421`, bundle `main.23344ef8.js`.
+Primary frontend commits: `cfa1607`, `df5cc1b`, `2c15f6c`, `5dc60d0`, `7774aeb`,
+`ce6a56f`, and `fb87aa0`. Latest mirrored frontend assets: `9a9dc6db`, bundle
+`main.16e24f7b.js`.
 
 Verification evidence:
 
@@ -19,22 +20,26 @@ Verification evidence:
 - Final lifecycle-focused backend checkpoint: 85 tests, 0 failures/errors/skips.
 - Frontend focused checkpoint before the failure-correlation correction: 22 tests passed plus the
   affected Component parity test.
-- The final failure-correlation correction was not tested by explicit user instruction; no existing
-  targeted open/sync missing-epoch regression test exists.
+- The final Memory request/command correlation suite passed 25 tests with no failures. It covers
+  missing-epoch OPEN/SYNC failures, supplied generation mismatches, sequenced IDs, owner retarget,
+  late responses in the same message batch, invalid success tuples, and cross-owner drag retirement.
+- A nearby selected frontend run passed 27 of 35 tests. Eight existing stale
+  `GridItemComp.memoryParity` conditional-delete/rollback expectations remain outside this change.
 - Java compile passed after the correction: 548 main sources.
 - Frontend production build passed with existing warnings; source/resource mirror is 58/58 files and
-  the source/destination SHA-256 for `main.23344ef8.js` is identical.
+  the source/destination SHA-256 for `main.16e24f7b.js` is
+  `ED8C10BCA7B21661C19EA67613DE04884EC27CA5920C06D6A65A1E469A112004`.
 
 ### Frontend risks currently known
 
 | Severity | Status | Risk |
 |---|---|---|
-| Critical | Fixed in `209d24d7` / `ce6a56f` | Failed Memory `open` responses could be discarded when `workspaceEpoch` was absent, leaving the request stuck. Exact request failures now settle before success-only generation validation. |
-| Critical | Fixed in `209d24d7` / `ce6a56f` | Failed Memory `sync` responses had no pending request correlation. OPEN and SYNC now use isolated typed pending records. |
-| Critical | Open | A pending command inside the detached `MemoryList` page is not yet bound to the current owner/workspace tuple. A late owner-A command response after A -> B retarget can still affect B's pending dialog/status state. |
+| Critical | Fixed in `209d24d7` / `ce6a56f` / `fb87aa0` | Failed Memory `open` responses could be discarded when `workspaceEpoch` was absent. Exact failures settle only for the typed current request/context and supplied authority fields must match. |
+| Critical | Fixed in `209d24d7` / `ce6a56f` / `fb87aa0` | Failed Memory `sync` responses had no pending request correlation. OPEN and SYNC use isolated typed pending records plus collision-resistant sequenced request IDs. |
+| Critical | Fixed in `fb87aa0` / `b147de41` | Detached Memory commands and drag state are bound to the complete owner/workspace tuple, retired synchronously on retarget, and backend responses are sent only to the captured exact requester transport. |
 | High | Deployment gate | The backend now requires exact static-source `workspaceEpoch`; old cached frontend assets must not be paired with the new backend. Source and backend resources are aligned in Git, but the backend has not been packaged/restarted. |
 | Medium | Open verification | Real detached-window reload, takeover, retarget, deletion, same-ID reuse, and multi-page WebSocket behavior have not been live-verified. |
-| Medium | Open verification | The complete frontend test suite was not run. The current failure-correlation correction has compile/build and independent review evidence only, per explicit instruction not to create or run tests. |
+| Medium | Open verification | The complete frontend suite was not run. The affected-path suite passed 25/25; eight stale expectations in a nearby `GridItemComp.memoryParity` suite remain outside this change. |
 | Low | Existing | The production build completes with existing repository lint/dependency/bundle-size warnings. |
 
 ## Original review summary (pre-remediation)
@@ -131,6 +136,7 @@ Normal Page Mappings launch is blocked, valid owner context is never established
 - [x] Bot Job deletion removes database rows and safely removes owned artifacts in source/tests.
 - [x] Sensitive URLs are redacted in storage, responses, UI, and logs in source/tests.
 - [x] Failure cleanup and FAILED-history behavior verified by focused tests.
-- [x] Focused tests and broader selected builds pass, except the explicitly untested final frontend failure-correlation correction.
+- [x] Focused Memory request/command/retarget/drag tests and the production frontend build pass.
+- [ ] All nearby frontend suites are clean; `GridItemComp.memoryParity` still has eight stale conditional-delete/rollback expectations.
 - [ ] Backend packaged/restarted only when explicitly authorized.
 - [ ] Live behavior verified and evidence recorded.
