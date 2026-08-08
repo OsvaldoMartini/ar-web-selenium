@@ -45,6 +45,31 @@ public final class PageScanSnapshotStore {
             String diagnosticPath,
             ArtifactWriter artifactWriter)
             throws Exception {
+        synchronized (PageScanSnapshotLifecycleLock.MONITOR) {
+            return persistLocked(
+                    connection,
+                    homeBankingId,
+                    botJobId,
+                    homeUrlId,
+                    botJobName,
+                    page,
+                    elements,
+                    diagnosticPath,
+                    artifactWriter);
+        }
+    }
+
+    private static Snapshot persistLocked(
+            Connection connection,
+            int homeBankingId,
+            int botJobId,
+            Integer homeUrlId,
+            String botJobName,
+            ScannedPageIdentity page,
+            List<ElementDTO> elements,
+            String diagnosticPath,
+            ArtifactWriter artifactWriter)
+            throws Exception {
         Objects.requireNonNull(connection, "connection");
         Objects.requireNonNull(page, "page");
         Objects.requireNonNull(artifactWriter, "artifactWriter");
@@ -77,8 +102,11 @@ public final class PageScanSnapshotStore {
             Path ownerRoot = root.resolve(safeOwner).resolve(safePageName(page.pageKey()));
             staging = ownerRoot.resolve("." + finalName + ".staging");
             target = ownerRoot.resolve(finalName);
-            Files.createDirectories(ownerRoot);
+            Files.createDirectories(root);
+            PageScanSnapshotFileSecurity.secureDirectory(root);
+            PageScanSnapshotFileSecurity.createPrivateDirectories(root, ownerRoot);
             Files.createDirectory(staging);
+            PageScanSnapshotFileSecurity.secureDirectory(staging);
 
             CaptureMetadata capture = Objects.requireNonNullElseGet(
                     artifactWriter.write(staging), CaptureMetadata::unavailable);
@@ -111,7 +139,9 @@ public final class PageScanSnapshotStore {
             byte[] manifestBytes = writeLimited(
                     staging.resolve("manifest.json"), JSON.toJson(manifest));
             String manifestHash = sha256(manifestBytes);
+            PageScanSnapshotFileSecurity.secureCaptureDirectory(staging);
             moveIntoPlace(staging, target);
+            PageScanSnapshotFileSecurity.requirePrivateDirectory(target);
             String relative = root.relativize(target).toString().replace('\\', '/');
             markReady(
                     connection,

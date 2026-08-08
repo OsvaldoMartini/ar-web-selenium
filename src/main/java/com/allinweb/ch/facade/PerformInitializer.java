@@ -52,9 +52,13 @@ public class PerformInitializer {
             // silently dropped by a driver on a prior boot. No-op on a clean DB.
             // M20260426_ScrollFromActionsVarchar.selfHealIfLegacyRemains(conn);
 
-            // This is filesystem/database recovery, not a schema migration. Resolve any
-            // crash-left Page Scanner deletion journal from the authoritative bot_job rows.
-            PageScanSnapshotArtifactLifecycle.configured().reconcile(conn);
+            // This is filesystem/database recovery, not a schema migration. First harden the
+            // existing Page Scanner root, then resolve crash-left deletion and retention journals
+            // from authoritative database rows.
+            synchronized (PageScanSnapshotLifecycleLock.MONITOR) {
+                PageScanSnapshotArtifactLifecycle.configured().reconcile(conn);
+                PageScanSnapshotRetentionService.getInstance().reconcile(conn);
+            }
         } catch (Exception e) {
             log.error("PerformInitializer — migration check failed: {}", e.getMessage());
         }

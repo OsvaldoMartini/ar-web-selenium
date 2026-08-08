@@ -463,6 +463,22 @@ public final class PreScanWorkflowService {
                                         screenshotScope,
                                         scannedView);
                             });
+                    PageScanSnapshotRetentionService retention =
+                            PageScanSnapshotRetentionService.getInstance();
+                    if (retention.configuredPolicy().enabled()) {
+                        try {
+                            retention.purgeConfigured(
+                                    connection,
+                                    context.homeBankingId(),
+                                    context.botJobId());
+                        } catch (Exception retentionFailure) {
+                            // The new immutable capture is already READY. Retention is a separate
+                            // lifecycle and must never misreport a successful scan as failed.
+                            log.warn(
+                                    "PRE SCAN - configured snapshot retention deferred: {}",
+                                    retentionFailure.getMessage());
+                        }
+                    }
                 }
             } catch (Exception snapshotFailure) {
                 // Snapshot history is additive. A filesystem/DB issue must not turn a

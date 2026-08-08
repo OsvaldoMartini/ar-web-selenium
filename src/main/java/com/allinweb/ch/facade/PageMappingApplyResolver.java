@@ -318,6 +318,7 @@ public final class PageMappingApplyResolver {
         if (!realFolder.startsWith(realRoot)) {
             throw new Refused("The selected Page Mapping capture path is unsafe.");
         }
+        PageScanSnapshotFileSecurity.secureCaptureDirectory(realFolder);
         return realFolder;
     }
 

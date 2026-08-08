@@ -1045,6 +1045,7 @@ public class PerformBackup {
         PageScanSnapshotArtifactLifecycle.Plan artifactPlan =
                 PageScanSnapshotArtifactLifecycle.Plan.none();
         boolean destructiveCommitCompleted = false;
+        boolean destructiveCommitAttempted = false;
 
         try (BufferedReader reader = new BufferedReader(
                         new InputStreamReader(new FileInputStream(sqlFilePath), Charset.forName("windows-1252")));
@@ -1052,6 +1053,7 @@ public class PerformBackup {
                 Statement idStmtBefore = conn.createStatement();
                 Statement idStmtAfter = conn.createStatement();
                 Statement deleteStmt = conn.createStatement()) {
+            synchronized (PageScanSnapshotLifecycleLock.MONITOR) {
             conn.setAutoCommit(false);
             snapshotArtifacts.reconcile(conn);
             artifactPlan = snapshotArtifacts.stageAll();
@@ -1083,11 +1085,15 @@ public class PerformBackup {
             deleteStmt.executeUpdate("DELETE FROM bot_job");
             deleteStmt.executeUpdate("DELETE FROM home_url");
             deleteStmt.executeUpdate("DELETE FROM home_banking");
+            destructiveCommitAttempted = true;
             conn.commit();
             destructiveCommitCompleted = true;
+            }
             notifyDestructiveCommit(destructiveCommitObserver);
             try {
-                snapshotArtifacts.purge(artifactPlan);
+                synchronized (PageScanSnapshotLifecycleLock.MONITOR) {
+                    snapshotArtifacts.purge(artifactPlan);
+                }
             } catch (IOException cleanupFailure) {
                 // Active owner paths are already gone. Startup reconciliation retries the
                 // journal without changing the completed database restore transaction.
@@ -1186,17 +1192,23 @@ public class PerformBackup {
             return null;
 
         } catch (Exception error) {
-            if (!destructiveCommitCompleted) {
-                try {
-                    conn.rollback();
-                } catch (SQLException rollbackFailure) {
-                    error.addSuppressed(rollbackFailure);
+            if (!destructiveCommitAttempted) {
+                synchronized (PageScanSnapshotLifecycleLock.MONITOR) {
+                    try {
+                        conn.rollback();
+                    } catch (SQLException rollbackFailure) {
+                        error.addSuppressed(rollbackFailure);
+                    }
+                    try {
+                        snapshotArtifacts.restore(artifactPlan);
+                    } catch (IOException restoreFailure) {
+                        error.addSuppressed(restoreFailure);
+                    }
                 }
-                try {
-                    snapshotArtifacts.restore(artifactPlan);
-                } catch (IOException restoreFailure) {
-                    error.addSuppressed(restoreFailure);
-                }
+            } else if (!destructiveCommitCompleted) {
+                log.error(
+                        "Home Banking replacement commit outcome is unknown; artifact journal retained",
+                        error);
             }
             return new ErrorMessage("Restore Failed", "Failed to load home_banking data", error.getMessage());
         }

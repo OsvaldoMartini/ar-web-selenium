@@ -16,6 +16,8 @@ public enum ARPropertyEnum {
     DB_USER("db_user"),
     DB_PWD("db_pwd"),
     PATH_DB("path_db"),
+    PAGE_SCAN_RETENTION_DAYS("page_scan_retention_days"),
+    PAGE_SCAN_RETENTION_MAX_UNPINNED_PER_PAGE("page_scan_retention_max_unpinned_per_page"),
     PATH_REPORT("path_report"),
     PATH_PRIORITY("path_priority"),
     PATH_ENGINE("path_engine"),

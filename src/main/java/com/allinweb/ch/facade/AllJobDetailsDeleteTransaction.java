@@ -53,39 +53,53 @@ final class AllJobDetailsDeleteTransaction {
         PageScanSnapshotArtifactLifecycle.Plan artifactPlan =
                 PageScanSnapshotArtifactLifecycle.Plan.none();
         boolean committed = false;
-        connection.setAutoCommit(false);
-        try {
-            if (tableExists(connection, "bot_job")) snapshotArtifacts.reconcile(connection);
-            artifactPlan = snapshotArtifacts.stageAll();
-            try (Statement statement = connection.createStatement()) {
-                for (String table : DELETE_ORDER) {
-                    if (tableExists(connection, table)) {
-                        statement.executeUpdate("DELETE FROM " + table);
+        boolean commitAttempted = false;
+        synchronized (PageScanSnapshotLifecycleLock.MONITOR) {
+            connection.setAutoCommit(false);
+            try {
+                if (tableExists(connection, "bot_job")) snapshotArtifacts.reconcile(connection);
+                artifactPlan = snapshotArtifacts.stageAll();
+                try (Statement statement = connection.createStatement()) {
+                    for (String table : DELETE_ORDER) {
+                        if (tableExists(connection, table)) {
+                            statement.executeUpdate("DELETE FROM " + table);
+                        }
                     }
                 }
+                commitAttempted = true;
+                connection.commit();
+                committed = true;
+            } catch (SQLException | IOException failure) {
+                if (!commitAttempted) {
+                    try {
+                        connection.rollback();
+                    } catch (SQLException rollbackFailure) {
+                        failure.addSuppressed(rollbackFailure);
+                    }
+                    try {
+                        snapshotArtifacts.restore(artifactPlan);
+                    } catch (IOException restoreFailure) {
+                        failure.addSuppressed(restoreFailure);
+                    }
+                } else if (!committed) {
+                    log.error(
+                            "Job cleanup commit outcome is unknown; artifact journal retained",
+                            failure);
+                }
+                if (failure instanceof SQLException sqlFailure) throw sqlFailure;
+                throw new SQLException("Job cleanup could not stage Page Scanner artifacts.", failure);
+            } finally {
+                if (!commitAttempted || committed) {
+                    restoreAutoCommit(connection, previousAutoCommit);
+                }
             }
-            connection.commit();
-            committed = true;
-            notifyCommittedReplacement(committedReplacementObserver);
-        } catch (SQLException | IOException failure) {
-            try {
-                connection.rollback();
-            } catch (SQLException rollbackFailure) {
-                failure.addSuppressed(rollbackFailure);
-            }
-            try {
-                snapshotArtifacts.restore(artifactPlan);
-            } catch (IOException restoreFailure) {
-                failure.addSuppressed(restoreFailure);
-            }
-            if (failure instanceof SQLException sqlFailure) throw sqlFailure;
-            throw new SQLException("Job cleanup could not stage Page Scanner artifacts.", failure);
-        } finally {
-            restoreAutoCommit(connection, previousAutoCommit);
         }
         if (committed) {
+            notifyCommittedReplacement(committedReplacementObserver);
             try {
-                snapshotArtifacts.purge(artifactPlan);
+                synchronized (PageScanSnapshotLifecycleLock.MONITOR) {
+                    snapshotArtifacts.purge(artifactPlan);
+                }
             } catch (IOException cleanupFailure) {
                 log.error("Job cleanup committed, but pending Page Scanner artifacts could not be "
                                 + "removed: {}",

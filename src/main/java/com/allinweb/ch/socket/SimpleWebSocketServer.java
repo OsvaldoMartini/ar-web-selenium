@@ -86,6 +86,14 @@ public class SimpleWebSocketServer {
             GridItemWebElementTypeService.getInstance();
     private static final ThreadPoolExecutor pageMappingsOcrWorker =
             newPageMappingsOcrWorker();
+    private static final ThreadPoolExecutor pageMappingsRetentionWorker =
+            newPageMappingsRetentionWorker();
+    private static final Object pageMappingsRetentionRequestLock = new Object();
+    private static final int MAX_COMPLETED_RETENTION_PURGES = 64;
+    private static final LinkedHashMap<String, CompletedPageMappingsRetentionResponse>
+            completedPageMappingsRetentionPurges = new LinkedHashMap<>();
+    private static String activePageMappingsRetentionKey = "";
+    private static String activePageMappingsRetentionPayload = "";
     private static final Object pageMappingsOcrRequestLock = new Object();
     private static final int MAX_COMPLETED_OCR_APPLIES = 64;
     private static final LinkedHashMap<String, CompletedPageMappingsOcrResponse>
@@ -144,6 +152,9 @@ public class SimpleWebSocketServer {
             "pageMappings.capture",
             "pageMappings.cacheState",
             "pageMappings.rescan",
+            "pageMappings.pin",
+            "pageMappings.retentionUpdate",
+            "pageMappings.retentionPurge",
             "pageMappings.ocrReview",
             "pageMappings.ocrReviewApply",
             "memoryList.open",
@@ -699,6 +710,26 @@ public class SimpleWebSocketServer {
                                     "An active license is required for OCR Review."));
                     return;
                 }
+                String retentionLicenseResponse = switch (type) {
+                    case "pageMappings.pin" -> "pageMappings.pinResponse";
+                    case "pageMappings.retentionUpdate" ->
+                            "pageMappings.retentionUpdateResponse";
+                    case "pageMappings.retentionPurge" ->
+                            "pageMappings.retentionPurgeResponse";
+                    default -> "";
+                };
+                if (!retentionLicenseResponse.isEmpty()) {
+                    JsonObject mappingsBody = extractBody(jsonObjMSG);
+                    sendPageMappingsResponse(
+                            homeBankingId,
+                            sessionId,
+                            session,
+                            retentionLicenseResponse,
+                            commandEditorFailure(
+                                    mappingsBody,
+                                    "An active license is required for Page Mappings retention."));
+                    return;
+                }
                 sendCommandEditorFailureToTransport(
                         session,
                         homeBankingId,
@@ -1169,14 +1200,139 @@ public class SimpleWebSocketServer {
                 }
                 case "pageMappings.rescan": {
                     JsonObject mappingsBody = extractBody(jsonObjMSG);
-                    JsonObject response = pageMappingsWorkspaceService.rescan(
-                            mappingsBody, sessionId, session);
+                    JsonObject response;
+                    try (java.sql.Connection connection = performDataBase.getConnection()) {
+                        response = pageMappingsWorkspaceService.rescan(
+                                mappingsBody, sessionId, session, connection);
+                    } catch (Exception unavailable) {
+                        log.warn("Unable to start Page Mappings rescan", unavailable);
+                        response = commandEditorFailure(
+                                mappingsBody,
+                                "Page Mappings rescan could not be started.");
+                    }
                     sendPageMappingsResponse(
                             homeBankingId,
                             sessionId,
                             session,
                             "pageMappings.rescanResponse",
                             response);
+                    break;
+                }
+                case "pageMappings.pin": {
+                    JsonObject mappingsBody = extractBody(jsonObjMSG);
+                    JsonObject response;
+                    try (java.sql.Connection connection = performDataBase.getConnection()) {
+                        response = pageMappingsWorkspaceService.pinSnapshot(
+                                mappingsBody, sessionId, session, connection);
+                    } catch (Exception unavailable) {
+                        log.warn("Unable to update Page Mappings snapshot pin", unavailable);
+                        response = commandEditorFailure(
+                                mappingsBody,
+                                "The selected capture pin could not be updated.");
+                    }
+                    sendPageMappingsResponse(
+                            homeBankingId,
+                            sessionId,
+                            session,
+                            "pageMappings.pinResponse",
+                            response);
+                    break;
+                }
+                case "pageMappings.retentionUpdate": {
+                    JsonObject mappingsBody = extractBody(jsonObjMSG);
+                    JsonObject response;
+                    try (java.sql.Connection connection = performDataBase.getConnection()) {
+                        response = pageMappingsWorkspaceService.updateRetention(
+                                mappingsBody, sessionId, session, connection);
+                    } catch (Exception unavailable) {
+                        log.warn("Unable to update Page Mappings retention", unavailable);
+                        response = commandEditorFailure(
+                                mappingsBody,
+                                "Snapshot retention policy could not be saved.");
+                    }
+                    sendPageMappingsResponse(
+                            homeBankingId,
+                            sessionId,
+                            session,
+                            "pageMappings.retentionUpdateResponse",
+                            response);
+                    break;
+                }
+                case "pageMappings.retentionPurge": {
+                    JsonObject mappingsBody = extractBody(jsonObjMSG);
+                    String requestKey = pageMappingsRetentionRequestKey(mappingsBody);
+                    String requestPayload = mappingsBody == null ? "" : mappingsBody.toString();
+                    JsonObject immediate = null;
+                    boolean duplicateInFlight = false;
+                    synchronized (pageMappingsRetentionRequestLock) {
+                        CompletedPageMappingsRetentionResponse completed =
+                                completedPageMappingsRetentionPurges.get(requestKey);
+                        if (completed != null) {
+                            immediate = completed.payload().equals(requestPayload)
+                                    ? completed.response().deepCopy()
+                                    : commandEditorFailure(
+                                            mappingsBody,
+                                            "This retention purge request ID was already used.");
+                        } else if (activePageMappingsRetentionKey.equals(requestKey)) {
+                            if (activePageMappingsRetentionPayload.equals(requestPayload)) {
+                                duplicateInFlight = true;
+                            } else {
+                                immediate = commandEditorFailure(
+                                        mappingsBody,
+                                        "This retention purge request ID is already in use.");
+                            }
+                        } else if (!activePageMappingsRetentionKey.isBlank()) {
+                            immediate = commandEditorFailure(
+                                    mappingsBody,
+                                    "Another Page Mappings retention purge is still running.");
+                        } else {
+                            activePageMappingsRetentionKey = requestKey;
+                            activePageMappingsRetentionPayload = requestPayload;
+                        }
+                    }
+                    if (immediate != null) {
+                        sendPageMappingsResponse(
+                                homeBankingId,
+                                sessionId,
+                                session,
+                                "pageMappings.retentionPurgeResponse",
+                                immediate);
+                        break;
+                    }
+                    if (duplicateInFlight) break;
+                    final int retentionResponseHomeBankingId = homeBankingId;
+                    try {
+                        pageMappingsRetentionWorker.execute(() -> {
+                            JsonObject response;
+                            try (java.sql.Connection connection = performDataBase.getConnection()) {
+                                response = pageMappingsWorkspaceService.purgeRetention(
+                                        mappingsBody, sessionId, session, connection);
+                            } catch (Exception unavailable) {
+                                log.warn("Unable to purge Page Mappings snapshots", unavailable);
+                                response = commandEditorFailure(
+                                        mappingsBody,
+                                        "Eligible snapshots could not be purged.");
+                            }
+                            completePageMappingsRetentionRequest(
+                                    requestKey, requestPayload, response);
+                            sendPageMappingsResponse(
+                                    retentionResponseHomeBankingId,
+                                    sessionId,
+                                    session,
+                                    "pageMappings.retentionPurgeResponse",
+                                    response);
+                        });
+                    } catch (RejectedExecutionException busy) {
+                        releasePageMappingsRetentionRequest(requestKey, requestPayload);
+                        sendPageMappingsResponse(
+                                homeBankingId,
+                                sessionId,
+                                session,
+                                "pageMappings.retentionPurgeResponse",
+                                commandEditorFailure(
+                                        mappingsBody,
+                                        "Another Page Mappings retention purge is still running."));
+                    }
                     break;
                 }
                 case "pageMappings.ocrReview": {
@@ -8162,12 +8318,70 @@ public class SimpleWebSocketServer {
                 new ThreadPoolExecutor.AbortPolicy());
     }
 
+    private static ThreadPoolExecutor newPageMappingsRetentionWorker() {
+        return new ThreadPoolExecutor(
+                1,
+                1,
+                0L,
+                TimeUnit.MILLISECONDS,
+                new SynchronousQueue<>(),
+                operation -> {
+                    Thread thread = new Thread(operation, "page-mappings-retention");
+                    thread.setDaemon(true);
+                    return thread;
+                },
+                new ThreadPoolExecutor.AbortPolicy());
+    }
+
+    private static String pageMappingsRetentionRequestKey(JsonObject request) {
+        return pageMappingsOcrText(request, "bindingEpoch")
+                + '\u0000'
+                + pageMappingsOcrText(request, "requestId");
+    }
+
+    private static void completePageMappingsRetentionRequest(
+            String requestKey, String requestPayload, JsonObject response) {
+        synchronized (pageMappingsRetentionRequestLock) {
+            if (!activePageMappingsRetentionKey.equals(requestKey)
+                    || !activePageMappingsRetentionPayload.equals(requestPayload)) {
+                return;
+            }
+            if (response != null) {
+                completedPageMappingsRetentionPurges.put(
+                        requestKey,
+                        new CompletedPageMappingsRetentionResponse(
+                                requestPayload, response.deepCopy()));
+                while (completedPageMappingsRetentionPurges.size()
+                        > MAX_COMPLETED_RETENTION_PURGES) {
+                    String eldest = completedPageMappingsRetentionPurges.keySet().iterator().next();
+                    completedPageMappingsRetentionPurges.remove(eldest);
+                }
+            }
+            activePageMappingsRetentionKey = "";
+            activePageMappingsRetentionPayload = "";
+        }
+    }
+
+    private static void releasePageMappingsRetentionRequest(
+            String requestKey, String requestPayload) {
+        synchronized (pageMappingsRetentionRequestLock) {
+            if (activePageMappingsRetentionKey.equals(requestKey)
+                    && activePageMappingsRetentionPayload.equals(requestPayload)) {
+                activePageMappingsRetentionKey = "";
+                activePageMappingsRetentionPayload = "";
+            }
+        }
+    }
+
     @FunctionalInterface
     private interface PageMappingsOcrTask {
         JsonObject run() throws Exception;
     }
 
     private record CompletedPageMappingsOcrResponse(String payload, JsonObject response) {}
+
+    private record CompletedPageMappingsRetentionResponse(
+            String payload, JsonObject response) {}
 
     private boolean isMobileReturnSession(String sessionId) {
         return scannerMobileTestRoute.returnSessionId().equals(sessionId);

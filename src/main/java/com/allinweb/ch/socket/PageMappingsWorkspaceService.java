@@ -6,7 +6,9 @@ import com.allinweb.ch.facade.BotJobWorkspaceController;
 import com.allinweb.ch.facade.PageMappingsCacheService;
 import com.allinweb.ch.facade.PageMappingsOcrAliasService;
 import com.allinweb.ch.facade.PageMappingsOcrReviewService;
+import com.allinweb.ch.facade.PageScanSnapshotFileSecurity;
 import com.allinweb.ch.facade.PageScanUrlRedactor;
+import com.allinweb.ch.facade.PageScanSnapshotRetentionService;
 import com.allinweb.ch.facade.PreScanWorkflowService;
 import com.allinweb.ch.facade.OcrConfigService;
 import com.allinweb.ch.model.ElementDTO;
@@ -29,6 +31,7 @@ import java.nio.file.StandardOpenOption;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.ArrayList;
@@ -79,6 +82,8 @@ public final class PageMappingsWorkspaceService {
             new PageMappingsOcrReviewService();
     private static final PageMappingsOcrAliasService OCR_ALIASES =
             PageMappingsOcrAliasService.getInstance();
+    private static final PageScanSnapshotRetentionService SNAPSHOT_RETENTION =
+            PageScanSnapshotRetentionService.getInstance();
     private static final PageMappingsWorkspaceService INSTANCE = new PageMappingsWorkspaceService();
 
     private final Object bindingLock = new Object();
@@ -235,13 +240,36 @@ public final class PageMappingsWorkspaceService {
 
         JsonObject response = baseResponse(body, authorized);
         response.addProperty("ok", true);
+        response.addProperty("storageReady", true);
         response.addProperty("sessionId", SESSION_ID);
         JsonArray snapshots = new JsonArray();
+        if (!snapshotTableExists(connection)) {
+            response.addProperty("ok", false);
+            response.addProperty("storageReady", false);
+            response.addProperty(
+                    "message",
+                    "Page Mappings storage is not initialized. No database migration was run.");
+            addRetentionPolicy(response, SNAPSHOT_RETENTION.configuredPolicy());
+            response.add("snapshots", snapshots);
+            return response;
+        }
         String sql = "SELECT scan_id, home_url_id, page_key, page_url, captured_at, element_count, "
                 + "manifest_sha256, status, pinned "
                 + "FROM page_scan_snapshot WHERE home_banking_id = ? AND bot_job_id = ? "
                 + "ORDER BY captured_at DESC";
-        try (PreparedStatement statement = Objects.requireNonNull(connection).prepareStatement(sql)) {
+        try {
+            SNAPSHOT_RETENTION.reconcile(Objects.requireNonNull(connection));
+        } catch (Exception reconciliationFailure) {
+            log.error("Unable to reconcile Page Mappings retention journals", reconciliationFailure);
+            response.addProperty("ok", false);
+            response.addProperty("storageReady", false);
+            response.addProperty(
+                    "message", "Page Mappings retention recovery is unavailable.");
+            addRetentionPolicy(response, SNAPSHOT_RETENTION.configuredPolicy());
+            response.add("snapshots", snapshots);
+            return response;
+        }
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setInt(1, authorized.homeBankingId());
             statement.setInt(2, authorized.botJobId());
             try (ResultSet rows = statement.executeQuery()) {
@@ -262,6 +290,12 @@ public final class PageMappingsWorkspaceService {
                     snapshots.add(snapshot);
                 }
             }
+            addRetention(
+                    response,
+                    SNAPSHOT_RETENTION.summary(
+                            connection,
+                            authorized.homeBankingId(),
+                            authorized.botJobId()));
         } catch (Exception failure) {
             log.error(
                     "Unable to load Page Mappings snapshots for homeBankingId={} botJobId={}",
@@ -269,7 +303,13 @@ public final class PageMappingsWorkspaceService {
                     authorized.botJobId(),
                     failure);
             response.addProperty("ok", false);
-            response.addProperty("message", "Page Mappings history is unavailable.");
+            response.addProperty("storageReady", false);
+            response.addProperty(
+                    "message",
+                    snapshotTableExists(connection)
+                            ? "Page Mappings history is unavailable."
+                            : "Page Mappings storage is not initialized. No database migration was run.");
+            addRetentionPolicy(response, SNAPSHOT_RETENTION.configuredPolicy());
         }
         response.add("snapshots", snapshots);
         return response;
@@ -325,12 +365,21 @@ public final class PageMappingsWorkspaceService {
 
     /** Starts a server-owned Page Scanner run and publishes only Page Mappings progress. */
     public JsonObject rescan(
-            JsonObject body, String requesterSessionId, Session requesterTransport) {
+            JsonObject body,
+            String requesterSessionId,
+            Session requesterTransport,
+            Connection connection) {
         synchronized (bindingLock) {
             Binding authorized;
             try {
                 authorized = authorizeDetachedRequest(
                         body, requesterSessionId, requesterTransport, true);
+                if (!snapshotTableExists(connection)) {
+                    return failure(
+                            body,
+                            "Page Mappings storage is not initialized. No database migration was run.",
+                            authorized);
+                }
                 String requestId = string(body, "requestId").trim();
                 if (requestId.isEmpty() || requestId.length() > 200) {
                     return failure(body, "A valid Page Mappings request ID is required.", authorized);
@@ -508,6 +557,161 @@ public final class PageMappingsWorkspaceService {
             log.warn("Unable to load Page Mappings capture {}", scanId, failure);
             return captureFailure(
                     body, "The selected scan artifact could not be loaded.", authorized, scanId);
+        }
+    }
+
+    /** Pins or unpins one READY capture owned by the current Page Mappings binding. */
+    public JsonObject pinSnapshot(
+            JsonObject body,
+            String requesterSessionId,
+            Session requesterTransport,
+            Connection connection) {
+        Binding authorized;
+        try {
+            authorized = authorizeDetachedRequest(
+                    body, requesterSessionId, requesterTransport, true);
+            requireRequestId(body);
+        } catch (IllegalArgumentException unauthorized) {
+            return failure(body, unauthorized.getMessage());
+        }
+        if (!snapshotTableExists(connection)) {
+            return failure(
+                    body,
+                    "Page Mappings storage is not initialized. No database migration was run.",
+                    authorized);
+        }
+        String scanId = string(body, "scanId").trim();
+        if (body == null
+                || !body.has("pinned")
+                || !body.get("pinned").isJsonPrimitive()
+                || !body.getAsJsonPrimitive("pinned").isBoolean()) {
+            return failure(body, "A valid pinned state is required.", authorized);
+        }
+        try {
+            PageScanSnapshotRetentionService.PinResult result = SNAPSHOT_RETENTION.pin(
+                    Objects.requireNonNull(connection),
+                    authorized.homeBankingId(),
+                    authorized.botJobId(),
+                    scanId,
+                    body.get("pinned").getAsBoolean());
+            JsonObject response = baseResponse(body, authorized);
+            response.addProperty("ok", true);
+            response.addProperty("scanId", result.scanId());
+            response.addProperty("pinned", result.pinned());
+            addRetention(response, result.summary());
+            response.addProperty(
+                    "message",
+                    result.pinned()
+                            ? "Capture pinned. Retention will preserve it."
+                            : "Capture unpinned.");
+            return response;
+        } catch (IllegalArgumentException invalid) {
+            return failure(body, invalid.getMessage(), authorized);
+        } catch (Exception unavailable) {
+            log.warn("Unable to update Page Mapping pin {}", scanId, unavailable);
+            return failure(body, "The selected capture pin could not be updated.", authorized);
+        }
+    }
+
+    /** Persists the global retention policy in the existing application configuration file. */
+    public JsonObject updateRetention(
+            JsonObject body,
+            String requesterSessionId,
+            Session requesterTransport,
+            Connection connection) {
+        Binding authorized;
+        try {
+            authorized = authorizeDetachedRequest(
+                    body, requesterSessionId, requesterTransport, true);
+            requireRequestId(body);
+        } catch (IllegalArgumentException unauthorized) {
+            return failure(body, unauthorized.getMessage());
+        }
+        if (!snapshotTableExists(connection)) {
+            return failure(
+                    body,
+                    "Page Mappings storage is not initialized. No database migration was run.",
+                    authorized);
+        }
+        try {
+            int retentionDays = requiredNonNegativeInteger(body, "retentionDays");
+            int maxUnpinnedPerPage =
+                    requiredNonNegativeInteger(body, "maxUnpinnedPerPage");
+            PageScanSnapshotRetentionService.Summary summary = SNAPSHOT_RETENTION.savePolicy(
+                    Objects.requireNonNull(connection),
+                    authorized.homeBankingId(),
+                    authorized.botJobId(),
+                    retentionDays,
+                    maxUnpinnedPerPage);
+            JsonObject response = baseResponse(body, authorized);
+            response.addProperty("ok", true);
+            addRetention(response, summary);
+            response.addProperty(
+                    "message",
+                    summary.policy().enabled()
+                            ? "Snapshot retention policy saved. It runs after successful scans."
+                            : "Snapshot retention is disabled.");
+            return response;
+        } catch (IllegalArgumentException invalid) {
+            return failure(body, invalid.getMessage(), authorized);
+        } catch (Exception unavailable) {
+            log.warn("Unable to save Page Mapping retention policy", unavailable);
+            return failure(body, "Snapshot retention policy could not be saved.", authorized);
+        }
+    }
+
+    /** Purges only currently eligible, unpinned READY captures for the bound owner/Bot Job. */
+    public JsonObject purgeRetention(
+            JsonObject body,
+            String requesterSessionId,
+            Session requesterTransport,
+            Connection connection) {
+        Binding authorized;
+        try {
+            authorized = authorizeDetachedRequest(
+                    body, requesterSessionId, requesterTransport, true);
+            requireRequestId(body);
+        } catch (IllegalArgumentException unauthorized) {
+            return failure(body, unauthorized.getMessage());
+        }
+        if (!snapshotTableExists(connection)) {
+            return failure(
+                    body,
+                    "Page Mappings storage is not initialized. No database migration was run.",
+                    authorized);
+        }
+        try {
+            PageScanSnapshotRetentionService.PurgeResult result =
+                    SNAPSHOT_RETENTION.purgeConfigured(
+                            Objects.requireNonNull(connection),
+                            authorized.homeBankingId(),
+                            authorized.botJobId());
+            JsonObject response = baseResponse(body, authorized);
+            response.addProperty("ok", true);
+            JsonArray purged = new JsonArray();
+            for (String scanId : result.purgedScanIds()) purged.add(scanId);
+            response.add("purgedScanIds", purged);
+            response.addProperty("cleanupPending", result.cleanupPending());
+            addRetention(response, result.summary());
+            int remaining = result.summary().eligibleCount();
+            response.addProperty(
+                    "message",
+                    result.purgedScanIds().isEmpty()
+                            ? "No unpinned captures are currently eligible for purge."
+                            : result.purgedScanIds().size()
+                                    + " unpinned capture(s) purged."
+                                    + (remaining > 0
+                                            ? " " + remaining + " remain eligible."
+                                            : ""));
+            return response;
+        } catch (PageScanSnapshotRetentionService.PurgeOutcomeUnknownException unknown) {
+            log.error("Page Mapping retention purge outcome is unknown", unknown);
+            JsonObject response = failure(body, unknown.getMessage(), authorized);
+            response.addProperty("reloadRequired", true);
+            return response;
+        } catch (Exception unavailable) {
+            log.warn("Unable to purge Page Mapping retention candidates", unavailable);
+            return failure(body, "Eligible snapshots could not be purged.", authorized);
         }
     }
 
@@ -978,6 +1182,7 @@ public final class PageMappingsWorkspaceService {
         if (!realFolder.startsWith(root)) {
             throw new IOException("The capture artifact folder escaped its root");
         }
+        PageScanSnapshotFileSecurity.secureCaptureDirectory(realFolder);
         return realFolder;
     }
 
@@ -1222,6 +1427,65 @@ public final class PageMappingsWorkspaceService {
             throw new IOException("The capture integer field is invalid: " + field);
         }
         return (int) value;
+    }
+
+    private static String requireRequestId(JsonObject body) {
+        String requestId = string(body, "requestId").trim();
+        if (requestId.isEmpty() || requestId.length() > 200) {
+            throw new IllegalArgumentException("A valid Page Mappings request ID is required.");
+        }
+        return requestId;
+    }
+
+    private static boolean snapshotTableExists(Connection connection) {
+        if (connection == null) return false;
+        try {
+            DatabaseMetaData metadata = connection.getMetaData();
+            try (ResultSet tables = metadata.getTables(null, null, null, new String[] {"TABLE"})) {
+                while (tables.next()) {
+                    if ("page_scan_snapshot".equalsIgnoreCase(tables.getString("TABLE_NAME"))) {
+                        return true;
+                    }
+                }
+            }
+        } catch (Exception unavailable) {
+            log.debug("Unable to inspect Page Mappings storage metadata", unavailable);
+        }
+        return false;
+    }
+
+    private static void addRetention(
+            JsonObject response, PageScanSnapshotRetentionService.Summary summary) {
+        if (summary == null) {
+            addRetentionPolicy(response, SNAPSHOT_RETENTION.configuredPolicy());
+            return;
+        }
+        JsonObject retention = retentionPolicy(summary.policy());
+        retention.addProperty("readyCount", summary.readyCount());
+        retention.addProperty("pinnedCount", summary.pinnedCount());
+        retention.addProperty("eligibleCount", summary.eligibleCount());
+        response.add("retention", retention);
+    }
+
+    private static void addRetentionPolicy(
+            JsonObject response, PageScanSnapshotRetentionService.Policy policy) {
+        JsonObject retention = retentionPolicy(policy);
+        retention.addProperty("readyCount", 0);
+        retention.addProperty("pinnedCount", 0);
+        retention.addProperty("eligibleCount", 0);
+        response.add("retention", retention);
+    }
+
+    private static JsonObject retentionPolicy(PageScanSnapshotRetentionService.Policy policy) {
+        PageScanSnapshotRetentionService.Policy current =
+                policy == null ? new PageScanSnapshotRetentionService.Policy(0, 0) : policy;
+        JsonObject retention = new JsonObject();
+        retention.addProperty("retentionDays", current.retentionDays());
+        retention.addProperty("maxUnpinnedPerPage", current.maxUnpinnedPerPage());
+        retention.addProperty("enabled", current.enabled());
+        retention.addProperty(
+                "purgeBatchLimit", PageScanSnapshotRetentionService.MAX_PURGE_BATCH);
+        return retention;
     }
 
     private static boolean requiredBoolean(JsonObject object, String field) throws IOException {

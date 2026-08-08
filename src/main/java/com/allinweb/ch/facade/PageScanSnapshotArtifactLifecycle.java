@@ -75,6 +75,7 @@ final class PageScanSnapshotArtifactLifecycle {
         Path batch = pendingRoot.resolve(UUID.randomUUID().toString()).normalize();
         requireWithin(pendingRoot, batch);
         Files.createDirectory(batch);
+        PageScanSnapshotFileSecurity.secureDirectory(batch);
         Plan plan = new Plan(batch, List.copyOf(candidates));
         try {
             writeJournal(plan);
@@ -82,9 +83,13 @@ final class PageScanSnapshotArtifactLifecycle {
                 Path source = resolveArtifact(entry.originalRelative());
                 if (!Files.exists(source, LinkOption.NOFOLLOW_LINKS)) continue;
                 verifyMovableDirectory(source);
+                PageScanSnapshotFileSecurity.requirePrivateDirectoryTree(snapshotRoot, source);
+                PageScanSnapshotFileSecurity.secureDirectory(source);
                 Path destination = resolvePending(batch, entry.pendingRelative());
-                Files.createDirectories(destination.getParent());
+                PageScanSnapshotFileSecurity.createPrivateDirectories(
+                        snapshotRoot, destination.getParent());
                 move(source, destination);
+                PageScanSnapshotFileSecurity.requirePrivateDirectory(destination);
             }
             return plan;
         } catch (IOException failure) {
@@ -121,8 +126,11 @@ final class PageScanSnapshotArtifactLifecycle {
                 continue;
             }
             try {
-                Files.createDirectories(original.getParent());
+                PageScanSnapshotFileSecurity.secureDirectory(staged);
+                PageScanSnapshotFileSecurity.createPrivateDirectories(
+                        snapshotRoot, original.getParent());
                 move(staged, original);
+                PageScanSnapshotFileSecurity.requirePrivateDirectory(original);
             } catch (IOException restoreFailure) {
                 if (failure == null) failure = restoreFailure;
                 else failure.addSuppressed(restoreFailure);
@@ -134,7 +142,11 @@ final class PageScanSnapshotArtifactLifecycle {
 
     /** Resolves any crash-left pending deletion using current Bot Job existence as authority. */
     void reconcile(Connection connection) throws IOException, SQLException {
-        if (snapshotRoot == null || !Files.isDirectory(snapshotRoot, LinkOption.NOFOLLOW_LINKS)) {
+        if (snapshotRoot == null) {
+            return;
+        }
+        PageScanSnapshotFileSecurity.secureExistingRoot(snapshotRoot);
+        if (!Files.isDirectory(snapshotRoot, LinkOption.NOFOLLOW_LINKS)) {
             return;
         }
         Path pendingRoot = safePendingRoot(false);
@@ -171,8 +183,11 @@ final class PageScanSnapshotArtifactLifecycle {
                         throw new IOException("Refusing to overwrite a recreated Page Scanner artifact root: "
                                 + original);
                     }
-                    Files.createDirectories(original.getParent());
+                    PageScanSnapshotFileSecurity.secureDirectory(staged);
+                    PageScanSnapshotFileSecurity.createPrivateDirectories(
+                            snapshotRoot, original.getParent());
                     move(staged, original);
+                    PageScanSnapshotFileSecurity.requirePrivateDirectory(original);
                 } else {
                     deleteTree(staged);
                 }
@@ -265,10 +280,12 @@ final class PageScanSnapshotArtifactLifecycle {
                 StandardCharsets.UTF_8,
                 StandardOpenOption.CREATE_NEW,
                 StandardOpenOption.WRITE);
+        PageScanSnapshotFileSecurity.secureFile(plan.batch().resolve(JOURNAL));
     }
 
     private Plan readJournal(Path batch) throws IOException {
         verifyPendingBatch(batch);
+        PageScanSnapshotFileSecurity.secureFile(batch.resolve(JOURNAL));
         List<String> lines = Files.readAllLines(batch.resolve(JOURNAL), StandardCharsets.UTF_8);
         if (lines.isEmpty() || !JOURNAL_VERSION.equals(lines.get(0))) {
             throw new IOException("Unsupported or missing Page Scanner deletion journal version");
@@ -312,11 +329,16 @@ final class PageScanSnapshotArtifactLifecycle {
         if (snapshotRoot == null) return null;
         Path pending = snapshotRoot.resolve(PENDING_FOLDER).normalize();
         requireWithin(snapshotRoot, pending);
-        if (create) Files.createDirectories(pending);
+        if (create) {
+            Files.createDirectories(snapshotRoot);
+            PageScanSnapshotFileSecurity.secureDirectory(snapshotRoot);
+            PageScanSnapshotFileSecurity.createPrivateDirectories(snapshotRoot, pending);
+        }
         if (!Files.exists(pending, LinkOption.NOFOLLOW_LINKS)) return null;
         if (!Files.isDirectory(pending, LinkOption.NOFOLLOW_LINKS) || Files.isSymbolicLink(pending)) {
             throw new IOException("Unsafe Page Scanner pending deletion folder: " + pending);
         }
+        PageScanSnapshotFileSecurity.secureDirectory(pending);
         return pending.toAbsolutePath().normalize();
     }
 
@@ -344,6 +366,7 @@ final class PageScanSnapshotArtifactLifecycle {
         if (batch.toAbsolutePath().normalize().equals(pending) || Files.isSymbolicLink(batch)) {
             throw new IOException("Unsafe Page Scanner pending deletion batch: " + batch);
         }
+        PageScanSnapshotFileSecurity.secureDirectory(batch);
     }
 
     private static void verifyMovableDirectory(Path path) throws IOException {

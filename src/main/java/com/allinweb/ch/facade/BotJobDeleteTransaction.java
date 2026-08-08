@@ -55,39 +55,55 @@ final class BotJobDeleteTransaction {
         PageScanSnapshotArtifactLifecycle.Plan artifactPlan =
                 PageScanSnapshotArtifactLifecycle.Plan.none();
         boolean committed = false;
-        connection.setAutoCommit(false);
-        try {
-            requireExistingBotJobs(connection, botJobIds);
-            snapshotArtifacts.reconcile(connection);
-            artifactPlan = snapshotArtifacts.stage(botJobIds);
-            for (OwnedTable table : OWNED_TABLES) {
-                if (tableExists(connection, table.name())) {
-                    deleteOwnedRows(connection, table, botJobIds);
+        boolean commitAttempted = false;
+        synchronized (PageScanSnapshotLifecycleLock.MONITOR) {
+            connection.setAutoCommit(false);
+            try {
+                requireExistingBotJobs(connection, botJobIds);
+                snapshotArtifacts.reconcile(connection);
+                artifactPlan = snapshotArtifacts.stage(botJobIds);
+                for (OwnedTable table : OWNED_TABLES) {
+                    if (tableExists(connection, table.name())) {
+                        deleteOwnedRows(connection, table, botJobIds);
+                    }
+                }
+                deleteBotJobs(connection, botJobIds);
+                commitAttempted = true;
+                connection.commit();
+                committed = true;
+            } catch (SQLException | IOException failure) {
+                if (!commitAttempted) {
+                    try {
+                        connection.rollback();
+                    } catch (SQLException rollbackFailure) {
+                        failure.addSuppressed(rollbackFailure);
+                    }
+                    try {
+                        snapshotArtifacts.restore(artifactPlan);
+                    } catch (IOException restoreFailure) {
+                        failure.addSuppressed(restoreFailure);
+                    }
+                } else if (!committed) {
+                    log.error(
+                            "Bot Job deletion commit outcome is unknown; artifact journal retained",
+                            failure);
+                }
+                if (failure instanceof SQLException sqlFailure) throw sqlFailure;
+                throw new SQLException("Bot Job deletion could not stage Page Scanner artifacts.", failure);
+            } finally {
+                if (!commitAttempted || committed) {
+                    restoreAutoCommit(connection, previousAutoCommit);
                 }
             }
-            deleteBotJobs(connection, botJobIds);
-            connection.commit();
-            committed = true;
-            notifyCommittedDeletion(committedDeletionObserver, botJobIds);
-        } catch (SQLException | IOException failure) {
-            try {
-                connection.rollback();
-            } catch (SQLException rollbackFailure) {
-                failure.addSuppressed(rollbackFailure);
-            }
-            try {
-                snapshotArtifacts.restore(artifactPlan);
-            } catch (IOException restoreFailure) {
-                failure.addSuppressed(restoreFailure);
-            }
-            if (failure instanceof SQLException sqlFailure) throw sqlFailure;
-            throw new SQLException("Bot Job deletion could not stage Page Scanner artifacts.", failure);
-        } finally {
-            restoreAutoCommit(connection, previousAutoCommit);
         }
         if (committed) {
+            // Invalidate/focus lifecycle outside the filesystem lock to preserve the global
+            // binding -> snapshot lock order used by Page Mappings requests.
+            notifyCommittedDeletion(committedDeletionObserver, botJobIds);
             try {
-                snapshotArtifacts.purge(artifactPlan);
+                synchronized (PageScanSnapshotLifecycleLock.MONITOR) {
+                    snapshotArtifacts.purge(artifactPlan);
+                }
             } catch (IOException cleanupFailure) {
                 // The database commit is final and the artifacts are no longer visible at their
                 // active owner path. A later deletion or startup reconciliation retries cleanup.
