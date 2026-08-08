@@ -1128,19 +1128,20 @@ public class SimpleWebSocketServer {
                 }
                 case "pageMappings.cacheState": {
                     JsonObject mappingsBody = extractBody(jsonObjMSG);
+                    final int cacheStateHomeBankingId = homeBankingId;
                     CompletableFuture.runAsync(() -> {
                         try (java.sql.Connection connection = performDataBase.getConnection()) {
                             JsonObject response = pageMappingsWorkspaceService.cacheState(
                                     mappingsBody, sessionId, session, connection);
                             sendPageMappingsResponse(
-                                    homeBankingId,
+                                    cacheStateHomeBankingId,
                                     sessionId,
                                     session,
                                     "pageMappings.cacheStateResponse",
                                     response);
                         } catch (Exception failure) {
                             sendPageMappingsResponse(
-                                    homeBankingId,
+                                    cacheStateHomeBankingId,
                                     sessionId,
                                     session,
                                     "pageMappings.cacheStateResponse",
