@@ -50,15 +50,22 @@ final class AllJobDetailsDeleteTransaction {
             throws SQLException {
         if (connection == null) throw new SQLException("Job cleanup requires a database connection.");
         boolean previousAutoCommit = connection.getAutoCommit();
+        if (!previousAutoCommit) {
+            throw new SQLException(
+                    "Job cleanup requires a fresh autocommit connection for lifecycle recovery.");
+        }
         PageScanSnapshotArtifactLifecycle.Plan artifactPlan =
                 PageScanSnapshotArtifactLifecycle.Plan.none();
         boolean committed = false;
         boolean commitAttempted = false;
+        boolean transactionStarted = false;
+        try {
         synchronized (PageScanSnapshotLifecycleLock.MONITOR) {
-            connection.setAutoCommit(false);
             try {
-                if (tableExists(connection, "bot_job")) snapshotArtifacts.reconcile(connection);
-                artifactPlan = snapshotArtifacts.stageAll();
+                PageScanSnapshotLifecycleCoordinator.reconcileAll(connection);
+                connection.setAutoCommit(false);
+                transactionStarted = true;
+                artifactPlan = snapshotArtifacts.stageAll(connection);
                 try (Statement statement = connection.createStatement()) {
                     for (String table : DELETE_ORDER) {
                         if (tableExists(connection, table)) {
@@ -70,7 +77,7 @@ final class AllJobDetailsDeleteTransaction {
                 connection.commit();
                 committed = true;
             } catch (SQLException | IOException failure) {
-                if (!commitAttempted) {
+                if (transactionStarted && !commitAttempted) {
                     try {
                         connection.rollback();
                     } catch (SQLException rollbackFailure) {
@@ -81,7 +88,7 @@ final class AllJobDetailsDeleteTransaction {
                     } catch (IOException restoreFailure) {
                         failure.addSuppressed(restoreFailure);
                     }
-                } else if (!committed) {
+                } else if (transactionStarted && commitAttempted && !committed) {
                     log.error(
                             "Job cleanup commit outcome is unknown; artifact journal retained",
                             failure);
@@ -89,13 +96,23 @@ final class AllJobDetailsDeleteTransaction {
                 if (failure instanceof SQLException sqlFailure) throw sqlFailure;
                 throw new SQLException("Job cleanup could not stage Page Scanner artifacts.", failure);
             } finally {
-                if (!commitAttempted || committed) {
+                if (!transactionStarted || !commitAttempted || committed) {
                     restoreAutoCommit(connection, previousAutoCommit);
                 }
             }
         }
+        } catch (SQLException failure) {
+            if (transactionStarted && commitAttempted && !committed) {
+                PageScanSnapshotStorageHealth.markUnhealthy(failure);
+                notifyReplacementBoundary(committedReplacementObserver);
+                throw new SQLException(
+                        "Job cleanup outcome is unknown. Reload after restarting the application.",
+                        failure);
+            }
+            throw failure;
+        }
         if (committed) {
-            notifyCommittedReplacement(committedReplacementObserver);
+            notifyReplacementBoundary(committedReplacementObserver);
             try {
                 synchronized (PageScanSnapshotLifecycleLock.MONITOR) {
                     snapshotArtifacts.purge(artifactPlan);
@@ -108,7 +125,7 @@ final class AllJobDetailsDeleteTransaction {
         }
     }
 
-    private static void notifyCommittedReplacement(Runnable observer) {
+    private static void notifyReplacementBoundary(Runnable observer) {
         if (observer == null) return;
         try {
             observer.run();

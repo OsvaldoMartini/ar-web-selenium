@@ -46,6 +46,7 @@ public final class PageScanSnapshotStore {
             ArtifactWriter artifactWriter)
             throws Exception {
         synchronized (PageScanSnapshotLifecycleLock.MONITOR) {
+            PageScanSnapshotStorageHealth.requireHealthyContext(diagnosticPath);
             return persistLocked(
                     connection,
                     homeBankingId,

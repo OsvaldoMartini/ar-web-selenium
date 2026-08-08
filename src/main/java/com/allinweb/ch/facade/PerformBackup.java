@@ -1046,6 +1046,8 @@ public class PerformBackup {
                 PageScanSnapshotArtifactLifecycle.Plan.none();
         boolean destructiveCommitCompleted = false;
         boolean destructiveCommitAttempted = false;
+        boolean destructiveTransactionStarted = false;
+        boolean destructiveOutcomeUnknown = false;
 
         try (BufferedReader reader = new BufferedReader(
                         new InputStreamReader(new FileInputStream(sqlFilePath), Charset.forName("windows-1252")));
@@ -1054,9 +1056,14 @@ public class PerformBackup {
                 Statement idStmtAfter = conn.createStatement();
                 Statement deleteStmt = conn.createStatement()) {
             synchronized (PageScanSnapshotLifecycleLock.MONITOR) {
-            conn.setAutoCommit(false);
-            snapshotArtifacts.reconcile(conn);
-            artifactPlan = snapshotArtifacts.stageAll();
+                if (!conn.getAutoCommit()) {
+                    throw new SQLException(
+                            "Home Banking restore requires a fresh autocommit connection for lifecycle recovery.");
+                }
+                PageScanSnapshotLifecycleCoordinator.reconcileAll(conn);
+                conn.setAutoCommit(false);
+                destructiveTransactionStarted = true;
+                artifactPlan = snapshotArtifacts.stageAll(conn);
 
             // 🔹 Step 0: Delete in correct order
             //            deleteStmt.execute("PRAGMA foreign_keys = ON");
@@ -1192,7 +1199,7 @@ public class PerformBackup {
             return null;
 
         } catch (Exception error) {
-            if (!destructiveCommitAttempted) {
+            if (destructiveTransactionStarted && !destructiveCommitAttempted) {
                 synchronized (PageScanSnapshotLifecycleLock.MONITOR) {
                     try {
                         conn.rollback();
@@ -1205,12 +1212,22 @@ public class PerformBackup {
                         error.addSuppressed(restoreFailure);
                     }
                 }
-            } else if (!destructiveCommitCompleted) {
+            } else if (destructiveTransactionStarted
+                    && destructiveCommitAttempted
+                    && !destructiveCommitCompleted) {
+                destructiveOutcomeUnknown = true;
                 log.error(
                         "Home Banking replacement commit outcome is unknown; artifact journal retained",
                         error);
+                PageScanSnapshotStorageHealth.markUnhealthy(error);
+                notifyDestructiveCommit(destructiveCommitObserver);
             }
-            return new ErrorMessage("Restore Failed", "Failed to load home_banking data", error.getMessage());
+            return new ErrorMessage(
+                    destructiveOutcomeUnknown ? "Restore Outcome Unknown" : "Restore Failed",
+                    destructiveOutcomeUnknown
+                            ? "The database replacement outcome is unknown. Restart and reload before continuing."
+                            : "Failed to load home_banking data",
+                    error.getMessage());
         }
     }
 

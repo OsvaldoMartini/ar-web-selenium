@@ -9,6 +9,7 @@ import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
@@ -62,9 +63,14 @@ final class PageScanSnapshotRetentionLifecycle {
             writeJournal(plan);
             for (Entry entry : plan.entries()) {
                 Path source = resolveOriginal(entry);
-                requireMovableDirectory(source);
-                PageScanSnapshotFileSecurity.requirePrivateDirectoryTree(snapshotRoot, source);
-                PageScanSnapshotFileSecurity.secureCaptureDirectory(source);
+                if (!requireMovableDirectoryIfPresent(source)) {
+                    log.warn(
+                            "Page Mapping retention will remove READY row {} whose artifact is already missing",
+                            entry.scanId());
+                    continue;
+                }
+                PageScanSnapshotFileSecurity.secureDirectoryTree(snapshotRoot, source);
+                PageScanSnapshotFileSecurity.requirePrivateCaptureDirectory(snapshotRoot, source);
                 Path destination = resolvePending(plan.batch(), entry.scanId());
                 move(source, destination);
                 PageScanSnapshotFileSecurity.requirePrivateDirectory(destination);
@@ -104,7 +110,7 @@ final class PageScanSnapshotRetentionLifecycle {
                 continue;
             }
             try {
-                PageScanSnapshotFileSecurity.secureCaptureDirectory(staged);
+                PageScanSnapshotFileSecurity.secureDirectoryTree(snapshotRoot, staged);
                 PageScanSnapshotFileSecurity.createPrivateDirectories(
                         snapshotRoot, original.getParent());
                 move(staged, original);
@@ -157,7 +163,7 @@ final class PageScanSnapshotRetentionLifecycle {
                     if (Files.exists(original, LinkOption.NOFOLLOW_LINKS)) {
                         throw new IOException("Refusing to overwrite a recreated Page Mapping capture");
                     }
-                    PageScanSnapshotFileSecurity.secureCaptureDirectory(staged);
+                    PageScanSnapshotFileSecurity.secureDirectoryTree(snapshotRoot, staged);
                     PageScanSnapshotFileSecurity.createPrivateDirectories(
                             snapshotRoot, original.getParent());
                     move(staged, original);
@@ -357,11 +363,40 @@ final class PageScanSnapshotRetentionLifecycle {
         return capturedAt.replace(':', '-');
     }
 
-    private static void requireMovableDirectory(Path path) throws IOException {
-        BasicFileAttributes attributes = Files.readAttributes(
-                path, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
+    private boolean requireMovableDirectoryIfPresent(Path path) throws IOException {
+        final BasicFileAttributes attributes;
+        try {
+            attributes = Files.readAttributes(
+                    path, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
+        } catch (NoSuchFileException missing) {
+            requireSafeMissingArtifactPath(path);
+            return false;
+        }
         if (!attributes.isDirectory() || attributes.isSymbolicLink() || attributes.isOther()) {
             throw new IOException("Refusing to retain an unsafe Page Mapping artifact");
+        }
+        return true;
+    }
+
+    /**
+     * A missing leaf is safe to retire only when every existing ancestor is still a private,
+     * no-link descendant of the configured root. Unknown/inaccessible paths remain failures.
+     */
+    private void requireSafeMissingArtifactPath(Path path) throws IOException {
+        requireWithin(snapshotRoot, path);
+        Path existingAncestor = path.getParent();
+        while (existingAncestor != null
+                && existingAncestor.startsWith(snapshotRoot)
+                && !Files.exists(existingAncestor, LinkOption.NOFOLLOW_LINKS)) {
+            existingAncestor = existingAncestor.getParent();
+        }
+        if (existingAncestor == null || !existingAncestor.startsWith(snapshotRoot)) {
+            throw new IOException("Unsafe missing Page Mapping artifact path");
+        }
+        PageScanSnapshotFileSecurity.requirePrivateDirectoryTree(
+                snapshotRoot, existingAncestor);
+        if (!Files.notExists(path, LinkOption.NOFOLLOW_LINKS)) {
+            throw new IOException("Page Mapping artifact availability could not be verified");
         }
     }
 

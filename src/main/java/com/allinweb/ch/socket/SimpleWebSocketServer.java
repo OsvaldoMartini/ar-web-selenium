@@ -90,10 +90,10 @@ public class SimpleWebSocketServer {
             newPageMappingsRetentionWorker();
     private static final Object pageMappingsRetentionRequestLock = new Object();
     private static final int MAX_COMPLETED_RETENTION_PURGES = 64;
+    private static final int MAX_RETENTION_SUBSCRIBERS = 8;
     private static final LinkedHashMap<String, CompletedPageMappingsRetentionResponse>
             completedPageMappingsRetentionPurges = new LinkedHashMap<>();
-    private static String activePageMappingsRetentionKey = "";
-    private static String activePageMappingsRetentionPayload = "";
+    private static ActivePageMappingsRetentionRequest activePageMappingsRetentionRequest;
     private static final Object pageMappingsOcrRequestLock = new Object();
     private static final int MAX_COMPLETED_OCR_APPLIES = 64;
     private static final LinkedHashMap<String, CompletedPageMappingsOcrResponse>
@@ -1220,118 +1220,175 @@ public class SimpleWebSocketServer {
                 }
                 case "pageMappings.pin": {
                     JsonObject mappingsBody = extractBody(jsonObjMSG);
-                    JsonObject response;
-                    try (java.sql.Connection connection = performDataBase.getConnection()) {
-                        response = pageMappingsWorkspaceService.pinSnapshot(
-                                mappingsBody, sessionId, session, connection);
-                    } catch (Exception unavailable) {
-                        log.warn("Unable to update Page Mappings snapshot pin", unavailable);
-                        response = commandEditorFailure(
-                                mappingsBody,
-                                "The selected capture pin could not be updated.");
+                    PageMappingsWorkspaceService.RetentionAuthority authority;
+                    try {
+                        authority = pageMappingsWorkspaceService.authorizeRetentionRequest(
+                                mappingsBody, sessionId, session);
+                    } catch (IllegalArgumentException unauthorized) {
+                        sendPageMappingsResponse(
+                                homeBankingId,
+                                sessionId,
+                                session,
+                                "pageMappings.pinResponse",
+                                commandEditorFailure(mappingsBody, unauthorized.getMessage()));
+                        break;
                     }
-                    sendPageMappingsResponse(
-                            homeBankingId,
-                            sessionId,
-                            session,
+                    JsonObject response = withPageMappingsConnection(
+                            mappingsBody,
+                            "update Page Mappings snapshot pin",
+                            "The selected capture pin could not be updated.",
+                            connection -> pageMappingsWorkspaceService.pinSnapshot(
+                                    mappingsBody, sessionId, session, connection));
+                    deliverPageMappingsRetentionResponse(
+                            new RetentionSubscriber(
+                                    homeBankingId, sessionId, session, authority),
                             "pageMappings.pinResponse",
                             response);
                     break;
                 }
                 case "pageMappings.retentionUpdate": {
                     JsonObject mappingsBody = extractBody(jsonObjMSG);
-                    JsonObject response;
-                    try (java.sql.Connection connection = performDataBase.getConnection()) {
-                        response = pageMappingsWorkspaceService.updateRetention(
-                                mappingsBody, sessionId, session, connection);
-                    } catch (Exception unavailable) {
-                        log.warn("Unable to update Page Mappings retention", unavailable);
-                        response = commandEditorFailure(
-                                mappingsBody,
-                                "Snapshot retention policy could not be saved.");
+                    PageMappingsWorkspaceService.RetentionAuthority authority;
+                    try {
+                        authority = pageMappingsWorkspaceService.authorizeRetentionRequest(
+                                mappingsBody, sessionId, session);
+                    } catch (IllegalArgumentException unauthorized) {
+                        sendPageMappingsResponse(
+                                homeBankingId,
+                                sessionId,
+                                session,
+                                "pageMappings.retentionUpdateResponse",
+                                commandEditorFailure(mappingsBody, unauthorized.getMessage()));
+                        break;
                     }
-                    sendPageMappingsResponse(
-                            homeBankingId,
-                            sessionId,
-                            session,
+                    JsonObject response = withPageMappingsConnection(
+                            mappingsBody,
+                            "update Page Mappings retention",
+                            "Snapshot retention policy could not be saved.",
+                            connection -> pageMappingsWorkspaceService.updateRetention(
+                                    mappingsBody, sessionId, session, connection));
+                    deliverPageMappingsRetentionResponse(
+                            new RetentionSubscriber(
+                                    homeBankingId, sessionId, session, authority),
                             "pageMappings.retentionUpdateResponse",
                             response);
                     break;
                 }
                 case "pageMappings.retentionPurge": {
                     JsonObject mappingsBody = extractBody(jsonObjMSG);
-                    String requestKey = pageMappingsRetentionRequestKey(mappingsBody);
-                    String requestPayload = mappingsBody == null ? "" : mappingsBody.toString();
-                    JsonObject immediate = null;
-                    boolean duplicateInFlight = false;
-                    synchronized (pageMappingsRetentionRequestLock) {
-                        CompletedPageMappingsRetentionResponse completed =
-                                completedPageMappingsRetentionPurges.get(requestKey);
-                        if (completed != null) {
-                            immediate = completed.payload().equals(requestPayload)
-                                    ? completed.response().deepCopy()
-                                    : commandEditorFailure(
-                                            mappingsBody,
-                                            "This retention purge request ID was already used.");
-                        } else if (activePageMappingsRetentionKey.equals(requestKey)) {
-                            if (activePageMappingsRetentionPayload.equals(requestPayload)) {
-                                duplicateInFlight = true;
-                            } else {
-                                immediate = commandEditorFailure(
-                                        mappingsBody,
-                                        "This retention purge request ID is already in use.");
-                            }
-                        } else if (!activePageMappingsRetentionKey.isBlank()) {
-                            immediate = commandEditorFailure(
-                                    mappingsBody,
-                                    "Another Page Mappings retention purge is still running.");
-                        } else {
-                            activePageMappingsRetentionKey = requestKey;
-                            activePageMappingsRetentionPayload = requestPayload;
-                        }
-                    }
-                    if (immediate != null) {
+                    PageMappingsWorkspaceService.RetentionAuthority authority;
+                    try {
+                        authority = pageMappingsWorkspaceService.authorizeRetentionRequest(
+                                mappingsBody, sessionId, session);
+                    } catch (IllegalArgumentException unauthorized) {
                         sendPageMappingsResponse(
                                 homeBankingId,
                                 sessionId,
                                 session,
+                                "pageMappings.retentionPurgeResponse",
+                                commandEditorFailure(mappingsBody, unauthorized.getMessage()));
+                        break;
+                    }
+                    String requestKey = authority.ledgerKey();
+                    String requestPayload = mappingsBody == null ? "" : mappingsBody.toString();
+                    RetentionSubscriber subscriber = new RetentionSubscriber(
+                            homeBankingId, sessionId, session, authority);
+                    JsonObject immediate = null;
+                    boolean duplicateInFlight = false;
+                    boolean protocolConflict = false;
+                    synchronized (pageMappingsRetentionRequestLock) {
+                        CompletedPageMappingsRetentionResponse completed =
+                                completedPageMappingsRetentionPurges.get(requestKey);
+                        if (completed != null) {
+                            if (completed.payload().equals(requestPayload)) {
+                                immediate = completed.response().deepCopy();
+                            } else {
+                                protocolConflict = true;
+                            }
+                        } else if (activePageMappingsRetentionRequest != null
+                                && activePageMappingsRetentionRequest.key.equals(requestKey)) {
+                            if (activePageMappingsRetentionRequest.payload.equals(requestPayload)) {
+                                activePageMappingsRetentionRequest.addSubscriber(subscriber);
+                                duplicateInFlight = true;
+                            } else {
+                                // The accepted task exclusively owns this terminal request ID.
+                                // Never let a conflicting duplicate settle React while that task
+                                // may still commit later.
+                                protocolConflict = true;
+                            }
+                        } else if (activePageMappingsRetentionRequest != null) {
+                            immediate = commandEditorFailure(
+                                    mappingsBody,
+                                    "Another Page Mappings retention purge is still running.");
+                        } else {
+                            activePageMappingsRetentionRequest =
+                                    new ActivePageMappingsRetentionRequest(
+                                            requestKey, requestPayload, subscriber);
+                        }
+                    }
+                    if (protocolConflict) {
+                        log.warn(
+                                "Dropped conflicting Page Mappings retention replay for accepted request {}",
+                                authority.requestId());
+                        break;
+                    }
+                    if (immediate != null) {
+                        deliverPageMappingsRetentionResponse(
+                                subscriber,
                                 "pageMappings.retentionPurgeResponse",
                                 immediate);
                         break;
                     }
                     if (duplicateInFlight) break;
-                    final int retentionResponseHomeBankingId = homeBankingId;
                     try {
                         pageMappingsRetentionWorker.execute(() -> {
-                            JsonObject response;
-                            try (java.sql.Connection connection = performDataBase.getConnection()) {
-                                response = pageMappingsWorkspaceService.purgeRetention(
-                                        mappingsBody, sessionId, session, connection);
-                            } catch (Exception unavailable) {
-                                log.warn("Unable to purge Page Mappings snapshots", unavailable);
-                                response = commandEditorFailure(
+                            try {
+                                JsonObject response = withPageMappingsConnection(
                                         mappingsBody,
-                                        "Eligible snapshots could not be purged.");
+                                        "purge Page Mappings snapshots",
+                                        "Eligible snapshots could not be purged.",
+                                        connection -> pageMappingsWorkspaceService.purgeRetention(
+                                                mappingsBody, authority, connection));
+                                List<RetentionSubscriber> recipients =
+                                        completePageMappingsRetentionRequest(
+                                                requestKey, requestPayload, response);
+                                for (RetentionSubscriber recipient : recipients) {
+                                    deliverPageMappingsRetentionResponse(
+                                            recipient,
+                                            "pageMappings.retentionPurgeResponse",
+                                            response);
+                                }
+                            } catch (Error abruptFailure) {
+                                JsonObject response = commandEditorFailure(
+                                        mappingsBody,
+                                        "The purge ended unexpectedly. Reload Page Mappings before continuing.");
+                                response.addProperty("reloadRequired", true);
+                                for (RetentionSubscriber recipient :
+                                        releasePageMappingsRetentionRequest(
+                                                requestKey, requestPayload)) {
+                                    try {
+                                        deliverPageMappingsRetentionResponse(
+                                                recipient,
+                                                "pageMappings.retentionPurgeResponse",
+                                                response);
+                                    } catch (RuntimeException deliveryFailure) {
+                                        abruptFailure.addSuppressed(deliveryFailure);
+                                    }
+                                }
+                                throw abruptFailure;
                             }
-                            completePageMappingsRetentionRequest(
-                                    requestKey, requestPayload, response);
-                            sendPageMappingsResponse(
-                                    retentionResponseHomeBankingId,
-                                    sessionId,
-                                    session,
-                                    "pageMappings.retentionPurgeResponse",
-                                    response);
                         });
                     } catch (RejectedExecutionException busy) {
-                        releasePageMappingsRetentionRequest(requestKey, requestPayload);
-                        sendPageMappingsResponse(
-                                homeBankingId,
-                                sessionId,
-                                session,
-                                "pageMappings.retentionPurgeResponse",
-                                commandEditorFailure(
-                                        mappingsBody,
-                                        "Another Page Mappings retention purge is still running."));
+                        JsonObject response = commandEditorFailure(
+                                mappingsBody,
+                                "Another Page Mappings retention purge is still running.");
+                        for (RetentionSubscriber recipient :
+                                releasePageMappingsRetentionRequest(requestKey, requestPayload)) {
+                            deliverPageMappingsRetentionResponse(
+                                    recipient,
+                                    "pageMappings.retentionPurgeResponse",
+                                    response);
+                        }
                     }
                     break;
                 }
@@ -8109,6 +8166,57 @@ public class SimpleWebSocketServer {
                 operationId);
     }
 
+    private JsonObject withPageMappingsConnection(
+            JsonObject request,
+            String operationDescription,
+            String failureMessage,
+            PageMappingsConnectionTask task) {
+        java.sql.Connection connection = null;
+        try {
+            connection = performDataBase.getConnection();
+            return task.run(connection);
+        } catch (Exception unavailable) {
+            log.warn("Unable to {}", operationDescription, unavailable);
+            JsonObject failure = commandEditorFailure(request, failureMessage);
+            failure.addProperty("reloadRequired", true);
+            return failure;
+        } finally {
+            if (connection != null) {
+                try {
+                    connection.close();
+                } catch (Exception closeFailure) {
+                    // A close failure after a completed mutation must not replace its authoritative
+                    // response with an ordinary failure: the commit outcome is already settled.
+                    log.warn(
+                            "Page Mappings database connection did not close after {}",
+                            operationDescription,
+                            closeFailure);
+                }
+            }
+        }
+    }
+
+    private void deliverPageMappingsRetentionResponse(
+            RetentionSubscriber subscriber,
+            String operationId,
+            JsonObject response) {
+        boolean delivered = pageMappingsWorkspaceService.deliverRetentionIfCurrent(
+                subscriber.authority(),
+                subscriber.sessionId(),
+                subscriber.transport(),
+                () -> sendPageMappingsResponse(
+                        subscriber.fallbackHomeBankingId(),
+                        subscriber.sessionId(),
+                        subscriber.transport(),
+                        operationId,
+                        response));
+        if (!delivered) {
+            log.warn(
+                    "Dropped {} response because Page Mappings retention authority changed",
+                    operationId);
+        }
+    }
+
     private void submitPageMappingsOcr(
             int fallbackHomeBankingId,
             String sessionId,
@@ -8333,19 +8441,16 @@ public class SimpleWebSocketServer {
                 new ThreadPoolExecutor.AbortPolicy());
     }
 
-    private static String pageMappingsRetentionRequestKey(JsonObject request) {
-        return pageMappingsOcrText(request, "bindingEpoch")
-                + '\u0000'
-                + pageMappingsOcrText(request, "requestId");
-    }
-
-    private static void completePageMappingsRetentionRequest(
+    private static List<RetentionSubscriber> completePageMappingsRetentionRequest(
             String requestKey, String requestPayload, JsonObject response) {
         synchronized (pageMappingsRetentionRequestLock) {
-            if (!activePageMappingsRetentionKey.equals(requestKey)
-                    || !activePageMappingsRetentionPayload.equals(requestPayload)) {
-                return;
+            if (activePageMappingsRetentionRequest == null
+                    || !activePageMappingsRetentionRequest.key.equals(requestKey)
+                    || !activePageMappingsRetentionRequest.payload.equals(requestPayload)) {
+                return List.of();
             }
+            List<RetentionSubscriber> recipients =
+                    List.copyOf(activePageMappingsRetentionRequest.subscribers);
             if (response != null) {
                 completedPageMappingsRetentionPurges.put(
                         requestKey,
@@ -8357,20 +8462,29 @@ public class SimpleWebSocketServer {
                     completedPageMappingsRetentionPurges.remove(eldest);
                 }
             }
-            activePageMappingsRetentionKey = "";
-            activePageMappingsRetentionPayload = "";
+            activePageMappingsRetentionRequest = null;
+            return recipients;
         }
     }
 
-    private static void releasePageMappingsRetentionRequest(
+    private static List<RetentionSubscriber> releasePageMappingsRetentionRequest(
             String requestKey, String requestPayload) {
         synchronized (pageMappingsRetentionRequestLock) {
-            if (activePageMappingsRetentionKey.equals(requestKey)
-                    && activePageMappingsRetentionPayload.equals(requestPayload)) {
-                activePageMappingsRetentionKey = "";
-                activePageMappingsRetentionPayload = "";
+            if (activePageMappingsRetentionRequest != null
+                    && activePageMappingsRetentionRequest.key.equals(requestKey)
+                    && activePageMappingsRetentionRequest.payload.equals(requestPayload)) {
+                List<RetentionSubscriber> recipients =
+                        List.copyOf(activePageMappingsRetentionRequest.subscribers);
+                activePageMappingsRetentionRequest = null;
+                return recipients;
             }
+            return List.of();
         }
+    }
+
+    @FunctionalInterface
+    private interface PageMappingsConnectionTask {
+        JsonObject run(java.sql.Connection connection) throws Exception;
     }
 
     @FunctionalInterface
@@ -8382,6 +8496,34 @@ public class SimpleWebSocketServer {
 
     private record CompletedPageMappingsRetentionResponse(
             String payload, JsonObject response) {}
+
+    private record RetentionSubscriber(
+            int fallbackHomeBankingId,
+            String sessionId,
+            Session transport,
+            PageMappingsWorkspaceService.RetentionAuthority authority) {}
+
+    private static final class ActivePageMappingsRetentionRequest {
+        private final String key;
+        private final String payload;
+        private final List<RetentionSubscriber> subscribers = new ArrayList<>();
+
+        private ActivePageMappingsRetentionRequest(
+                String key, String payload, RetentionSubscriber subscriber) {
+            this.key = key;
+            this.payload = payload;
+            addSubscriber(subscriber);
+        }
+
+        private void addSubscriber(RetentionSubscriber subscriber) {
+            subscribers.removeIf(existing -> existing.transport() == subscriber.transport()
+                    && Objects.equals(existing.sessionId(), subscriber.sessionId()));
+            if (subscribers.size() >= MAX_RETENTION_SUBSCRIBERS) {
+                subscribers.remove(0);
+            }
+            subscribers.add(subscriber);
+        }
+    }
 
     private boolean isMobileReturnSession(String sessionId) {
         return scannerMobileTestRoute.returnSessionId().equals(sessionId);

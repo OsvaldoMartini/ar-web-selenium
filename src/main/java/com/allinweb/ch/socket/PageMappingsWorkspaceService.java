@@ -7,15 +7,15 @@ import com.allinweb.ch.facade.PageMappingsCacheService;
 import com.allinweb.ch.facade.PageMappingsOcrAliasService;
 import com.allinweb.ch.facade.PageMappingsOcrReviewService;
 import com.allinweb.ch.facade.PageScanSnapshotFileSecurity;
+import com.allinweb.ch.facade.PageScanSnapshotLifecycleCoordinator;
 import com.allinweb.ch.facade.PageScanUrlRedactor;
 import com.allinweb.ch.facade.PageScanSnapshotRetentionService;
+import com.allinweb.ch.facade.PageScanSnapshotStorageHealth;
 import com.allinweb.ch.facade.PreScanWorkflowService;
 import com.allinweb.ch.facade.OcrConfigService;
 import com.allinweb.ch.model.ElementDTO;
 import com.allinweb.ch.model.DetachedWorkspaceSessions;
 import com.allinweb.ch.model.ScannerWorkspaceSessions;
-import com.allinweb.ch.util.ARPropertyEnum;
-import com.allinweb.ch.util.ARPropertyManager;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -258,7 +258,8 @@ public final class PageMappingsWorkspaceService {
                 + "FROM page_scan_snapshot WHERE home_banking_id = ? AND bot_job_id = ? "
                 + "ORDER BY captured_at DESC";
         try {
-            SNAPSHOT_RETENTION.reconcile(Objects.requireNonNull(connection));
+            PageScanSnapshotLifecycleCoordinator.reconcileAll(
+                    Objects.requireNonNull(connection));
         } catch (Exception reconciliationFailure) {
             log.error("Unable to reconcile Page Mappings retention journals", reconciliationFailure);
             response.addProperty("ok", false);
@@ -566,7 +567,8 @@ public final class PageMappingsWorkspaceService {
             String requesterSessionId,
             Session requesterTransport,
             Connection connection) {
-        Binding authorized;
+        synchronized (bindingLock) {
+        Binding authorized = null;
         try {
             authorized = authorizeDetachedRequest(
                     body, requesterSessionId, requesterTransport, true);
@@ -605,11 +607,21 @@ public final class PageMappingsWorkspaceService {
                             ? "Capture pinned. Retention will preserve it."
                             : "Capture unpinned.");
             return response;
+        } catch (PageScanSnapshotRetentionService.PinOutcomeUnknownException unknown) {
+            log.error("Page Mapping pin outcome is unknown for {}", scanId, unknown);
+            JsonObject response = failure(body, unknown.getMessage(), authorized);
+            response.addProperty("reloadRequired", true);
+            return response;
+        } catch (PageScanSnapshotRetentionService.StaleSnapshotException stale) {
+            JsonObject response = failure(body, stale.getMessage(), authorized);
+            response.addProperty("reloadRequired", true);
+            return response;
         } catch (IllegalArgumentException invalid) {
             return failure(body, invalid.getMessage(), authorized);
         } catch (Exception unavailable) {
             log.warn("Unable to update Page Mapping pin {}", scanId, unavailable);
             return failure(body, "The selected capture pin could not be updated.", authorized);
+        }
         }
     }
 
@@ -619,6 +631,7 @@ public final class PageMappingsWorkspaceService {
             String requesterSessionId,
             Session requesterTransport,
             Connection connection) {
+        synchronized (bindingLock) {
         Binding authorized;
         try {
             authorized = authorizeDetachedRequest(
@@ -649,14 +662,23 @@ public final class PageMappingsWorkspaceService {
             response.addProperty(
                     "message",
                     summary.policy().enabled()
-                            ? "Snapshot retention policy saved. It runs after successful scans."
-                            : "Snapshot retention is disabled.");
+                            ? "System-wide snapshot retention policy saved. It runs after successful scans."
+                            : "System-wide snapshot retention is disabled.");
             return response;
         } catch (IllegalArgumentException invalid) {
             return failure(body, invalid.getMessage(), authorized);
+        } catch (IOException unknown) {
+            log.warn("Page Mapping retention policy outcome requires reload", unknown);
+            JsonObject response = failure(
+                    body,
+                    "Snapshot retention policy could not be confirmed. Reload before changing it again.",
+                    authorized);
+            response.addProperty("reloadRequired", true);
+            return response;
         } catch (Exception unavailable) {
             log.warn("Unable to save Page Mapping retention policy", unavailable);
             return failure(body, "Snapshot retention policy could not be saved.", authorized);
+        }
         }
     }
 
@@ -666,26 +688,44 @@ public final class PageMappingsWorkspaceService {
             String requesterSessionId,
             Session requesterTransport,
             Connection connection) {
-        Binding authorized;
+        final RetentionAuthority authority;
         try {
-            authorized = authorizeDetachedRequest(
-                    body, requesterSessionId, requesterTransport, true);
-            requireRequestId(body);
+            authority = authorizeRetentionRequest(body, requesterSessionId, requesterTransport);
         } catch (IllegalArgumentException unauthorized) {
             return failure(body, unauthorized.getMessage());
         }
-        if (!snapshotTableExists(connection)) {
-            return failure(
-                    body,
-                    "Page Mappings storage is not initialized. No database migration was run.",
-                    authorized);
-        }
+        return purgeRetention(body, authority, connection);
+    }
+
+    /** Executes an accepted purge only while its exact owner generation is still current. */
+    JsonObject purgeRetention(
+            JsonObject body, RetentionAuthority authority, Connection connection) {
+        synchronized (bindingLock) {
+        Binding authorized = null;
         try {
+            authorized = requireCurrentRetentionAuthority(authority);
+            if (!authority.requestId().equals(requireRequestId(body))) {
+                throw new IllegalArgumentException(
+                        "The Page Mappings retention request identity changed.");
+            }
+            validateOwnerAssertions(body, authorized.asTarget(), authorized.bindingEpoch());
+            if (!snapshotTableExists(connection)) {
+                return failure(
+                        body,
+                        "Page Mappings storage is not initialized. No database migration was run.",
+                        authorized);
+            }
+            int expectedRetentionDays =
+                    requiredNonNegativeInteger(body, "expectedRetentionDays");
+            int expectedMaxUnpinnedPerPage =
+                    requiredNonNegativeInteger(body, "expectedMaxUnpinnedPerPage");
             PageScanSnapshotRetentionService.PurgeResult result =
                     SNAPSHOT_RETENTION.purgeConfigured(
                             Objects.requireNonNull(connection),
                             authorized.homeBankingId(),
-                            authorized.botJobId());
+                            authorized.botJobId(),
+                            expectedRetentionDays,
+                            expectedMaxUnpinnedPerPage);
             JsonObject response = baseResponse(body, authorized);
             response.addProperty("ok", true);
             JsonArray purged = new JsonArray();
@@ -704,14 +744,33 @@ public final class PageMappingsWorkspaceService {
                                             ? " " + remaining + " remain eligible."
                                             : ""));
             return response;
+        } catch (PageScanSnapshotRetentionService.StaleRetentionPolicyException stale) {
+            JsonObject response = failure(body, stale.getMessage(), authorized);
+            addRetentionPolicy(response, stale.currentPolicy());
+            response.addProperty("reloadRequired", true);
+            return response;
+        } catch (PageScanSnapshotRetentionService.StaleSnapshotException stale) {
+            JsonObject response = failure(
+                    body,
+                    "Capture history changed while the purge was running. Reload before continuing.",
+                    authorized);
+            response.addProperty("reloadRequired", true);
+            return response;
         } catch (PageScanSnapshotRetentionService.PurgeOutcomeUnknownException unknown) {
             log.error("Page Mapping retention purge outcome is unknown", unknown);
             JsonObject response = failure(body, unknown.getMessage(), authorized);
             response.addProperty("reloadRequired", true);
             return response;
+        } catch (IllegalArgumentException invalid) {
+            return failure(body, invalid.getMessage());
         } catch (Exception unavailable) {
             log.warn("Unable to purge Page Mapping retention candidates", unavailable);
-            return failure(body, "Eligible snapshots could not be purged.", authorized);
+            JsonObject response = authorized == null
+                    ? failure(body, "Eligible snapshots could not be purged.")
+                    : failure(body, "Eligible snapshots could not be purged.", authorized);
+            response.addProperty("reloadRequired", true);
+            return response;
+        }
         }
     }
 
@@ -1127,16 +1186,7 @@ public final class PageMappingsWorkspaceService {
     }
 
     private static Path configuredSnapshotRoot() throws IOException {
-        String configured = ARPropertyManager.getInstance().getProperty(ARPropertyEnum.PATH_DB);
-        if (configured == null || configured.isBlank()) {
-            throw new IOException("The Page Scanner artifact root is not configured");
-        }
-        return Path.of(configured)
-                .toAbsolutePath()
-                .normalize()
-                .resolve("page_diagnostics")
-                .resolve("Scanned")
-                .normalize();
+        return PageScanSnapshotStorageHealth.configuredSnapshotRoot();
     }
 
     private static Path resolveCaptureFolder(
@@ -1182,7 +1232,7 @@ public final class PageMappingsWorkspaceService {
         if (!realFolder.startsWith(root)) {
             throw new IOException("The capture artifact folder escaped its root");
         }
-        PageScanSnapshotFileSecurity.secureCaptureDirectory(realFolder);
+        PageScanSnapshotFileSecurity.requirePrivateCaptureDirectory(root, realFolder);
         return realFolder;
     }
 
@@ -1483,6 +1533,8 @@ public final class PageMappingsWorkspaceService {
         retention.addProperty("retentionDays", current.retentionDays());
         retention.addProperty("maxUnpinnedPerPage", current.maxUnpinnedPerPage());
         retention.addProperty("enabled", current.enabled());
+        retention.addProperty("policyScope", "SYSTEM");
+        retention.addProperty("countScope", "BOT_JOB");
         retention.addProperty(
                 "purgeBatchLimit", PageScanSnapshotRetentionService.MAX_PURGE_BATCH);
         return retention;
@@ -1581,6 +1633,20 @@ public final class PageMappingsWorkspaceService {
     }
 
     /**
+     * Captures the exact owner generation for one retention request before it can enter the
+     * asynchronous purge ledger. The client owner fields are assertions only; the live binding is
+     * always authoritative.
+     */
+    RetentionAuthority authorizeRetentionRequest(
+            JsonObject body, String requesterSessionId, Session requesterTransport) {
+        synchronized (bindingLock) {
+            Binding authorized = authorizeDetachedRequest(
+                    body, requesterSessionId, requesterTransport, true);
+            return RetentionAuthority.from(authorized, requireRequestId(body));
+        }
+    }
+
+    /**
      * Linearizes one OCR response with retarget/invalidation so old-owner capture data is never
      * delivered to a transport after it has become authoritative for another Bot Job.
      */
@@ -1600,6 +1666,38 @@ public final class PageMappingsWorkspaceService {
             delivery.run();
             return true;
         }
+    }
+
+    /**
+     * Delivers a retention terminal response only while both the accepted owner generation and
+     * the exact WebSocket transport are still current. A reconnect may attach its replacement
+     * transport to the in-flight request without exposing an old owner's response after retarget.
+     */
+    boolean deliverRetentionIfCurrent(
+            RetentionAuthority authority,
+            String requesterSessionId,
+            Session requesterTransport,
+            Runnable delivery) {
+        Objects.requireNonNull(authority, "retention authority");
+        Objects.requireNonNull(delivery, "retention response delivery is required");
+        synchronized (bindingLock) {
+            if (!SESSION_ID.equals(requesterSessionId)
+                    || !transportAuthorizer.isExact(requesterSessionId, requesterTransport)
+                    || !authority.matches(binding)) {
+                return false;
+            }
+            delivery.run();
+            return true;
+        }
+    }
+
+    private Binding requireCurrentRetentionAuthority(RetentionAuthority authority) {
+        Objects.requireNonNull(authority, "retention authority");
+        if (!authority.matches(binding)) {
+            throw new IllegalArgumentException(
+                    "Page Mappings owner changed. Reload before changing retention.");
+        }
+        return binding;
     }
 
     /**
@@ -2227,6 +2325,48 @@ public final class PageMappingsWorkspaceService {
 
         OwnerTarget asTarget() {
             return new OwnerTarget(homeBankingId, botJobId, workspaceEpoch, botJobName);
+        }
+    }
+
+    record RetentionAuthority(
+            String bindingEpoch,
+            long workspaceEpoch,
+            int homeBankingId,
+            int botJobId,
+            String requestId) {
+        RetentionAuthority {
+            bindingEpoch = Objects.requireNonNull(bindingEpoch);
+            requestId = Objects.requireNonNull(requestId);
+        }
+
+        static RetentionAuthority from(Binding binding, String requestId) {
+            Objects.requireNonNull(binding, "binding");
+            return new RetentionAuthority(
+                    binding.bindingEpoch(),
+                    binding.workspaceEpoch(),
+                    binding.homeBankingId(),
+                    binding.botJobId(),
+                    requestId);
+        }
+
+        boolean matches(Binding candidate) {
+            return candidate != null
+                    && bindingEpoch.equals(candidate.bindingEpoch())
+                    && workspaceEpoch == candidate.workspaceEpoch()
+                    && homeBankingId == candidate.homeBankingId()
+                    && botJobId == candidate.botJobId();
+        }
+
+        String ledgerKey() {
+            return bindingEpoch
+                    + '\u0000'
+                    + workspaceEpoch
+                    + '\u0000'
+                    + homeBankingId
+                    + '\u0000'
+                    + botJobId
+                    + '\u0000'
+                    + requestId;
         }
     }
 

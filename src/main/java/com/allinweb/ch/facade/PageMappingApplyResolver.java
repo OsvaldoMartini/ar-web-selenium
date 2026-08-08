@@ -268,6 +268,7 @@ public final class PageMappingApplyResolver {
 
     private Path captureFolder(Capture capture, int homeBankingId, int botJobId)
             throws IOException, Refused {
+        PageScanSnapshotStorageHealth.requireHealthy();
         String artifactPath = capture.artifactPath();
         if (snapshotRoot == null || artifactPath == null || artifactPath.isBlank()) {
             throw new Refused("Page Mapping capture storage is unavailable.");
@@ -318,7 +319,7 @@ public final class PageMappingApplyResolver {
         if (!realFolder.startsWith(realRoot)) {
             throw new Refused("The selected Page Mapping capture path is unsafe.");
         }
-        PageScanSnapshotFileSecurity.secureCaptureDirectory(realFolder);
+        PageScanSnapshotFileSecurity.requirePrivateCaptureDirectory(realRoot, realFolder);
         return realFolder;
     }
 

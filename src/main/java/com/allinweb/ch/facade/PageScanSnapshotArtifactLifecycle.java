@@ -13,16 +13,17 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.security.MessageDigest;
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
+import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
@@ -33,14 +34,18 @@ import lombok.extern.slf4j.Slf4j;
  * <p>The database cannot participate in a filesystem transaction. This lifecycle first moves only
  * exact {@code org-N/bot-job-N} roots into a same-volume pending folder. A database rollback moves
  * them back; a commit removes the pending copy. A journal and {@link #reconcile(Connection)} make a
- * process crash recoverable by treating the {@code bot_job} table as the final authority.
+ * process crash recoverable by treating the exact owner and READY snapshot generation as the final
+ * authority. Version-one journals remain readable for compatibility, while connection-aware
+ * callers write generation-bound version-two journals when the authority schema is available.
  */
 @Slf4j
 final class PageScanSnapshotArtifactLifecycle {
 
     private static final String PENDING_FOLDER = ".delete-pending";
     private static final String JOURNAL = "manifest.tsv";
-    private static final String JOURNAL_VERSION = "page-scan-delete-v1";
+    private static final String JOURNAL_VERSION_V1 = "page-scan-delete-v1";
+    private static final String JOURNAL_VERSION_V2 = "page-scan-delete-v2";
+    private static final int MAX_GENERATION_SNAPSHOTS = 100_000;
 
     private final Path snapshotRoot;
 
@@ -60,14 +65,55 @@ final class PageScanSnapshotArtifactLifecycle {
 
     Plan stage(Collection<Integer> submittedBotJobIds) throws IOException {
         Set<Integer> botJobIds = positiveIds(submittedBotJobIds);
-        return stageCandidates(discover(botJobIds));
+        return stageCandidates(discover(botJobIds), JOURNAL_VERSION_V1);
+    }
+
+    /**
+     * Stages selected roots with exact database owner and READY-snapshot generation authority.
+     *
+     * <p>The caller owns the surrounding destructive transaction. Authority is captured before its
+     * DELETE statements, so crash recovery can distinguish a rolled-back generation from a reused
+     * numeric Bot Job ID.</p>
+     */
+    Plan stage(Connection connection, Collection<Integer> submittedBotJobIds)
+            throws IOException, SQLException {
+        Set<Integer> botJobIds = positiveIds(submittedBotJobIds);
+        return generationBoundCandidates(connection, discover(botJobIds));
     }
 
     Plan stageAll() throws IOException {
-        return stageCandidates(discoverAll());
+        return stageCandidates(discoverAll(), JOURNAL_VERSION_V1);
     }
 
-    private Plan stageCandidates(List<Entry> candidates) throws IOException {
+    /** Stages every strict artifact root with exact database generation authority. */
+    Plan stageAll(Connection connection) throws IOException, SQLException {
+        return generationBoundCandidates(connection, discoverAll());
+    }
+
+    private Plan generationBoundCandidates(Connection connection, List<Entry> candidates)
+            throws IOException, SQLException {
+        if (connection == null) {
+            throw new SQLException("Page Scanner deletion authority requires a database connection");
+        }
+        if (!supportsGenerationAuthority(connection)) {
+            // Compatibility for old schemas and tests. New production schema always writes v2.
+            return stageCandidates(candidates, JOURNAL_VERSION_V1);
+        }
+        List<Entry> bound = new ArrayList<>(candidates.size());
+        for (Entry candidate : candidates) {
+            validateEntry(candidate);
+            int homeBankingId = homeBankingId(candidate.originalRelative());
+            boolean ownerPresent = botJobOwnedBy(
+                    connection, candidate.botJobId(), homeBankingId);
+            SnapshotAuthority authority = readySnapshotAuthority(
+                    connection, candidate.botJobId(), homeBankingId);
+            bound.add(candidate.withAuthority(homeBankingId, ownerPresent, authority));
+        }
+        return stageCandidates(List.copyOf(bound), JOURNAL_VERSION_V2);
+    }
+
+    private Plan stageCandidates(List<Entry> candidates, String journalVersion) throws IOException {
+        PageScanSnapshotStorageHealth.requireHealthy();
         if (candidates.isEmpty()) return Plan.none();
         for (Entry candidate : candidates) validateEntry(candidate);
 
@@ -76,15 +122,15 @@ final class PageScanSnapshotArtifactLifecycle {
         requireWithin(pendingRoot, batch);
         Files.createDirectory(batch);
         PageScanSnapshotFileSecurity.secureDirectory(batch);
-        Plan plan = new Plan(batch, List.copyOf(candidates));
+        Plan plan = new Plan(batch, List.copyOf(candidates), journalVersion);
         try {
             writeJournal(plan);
             for (Entry entry : plan.entries()) {
                 Path source = resolveArtifact(entry.originalRelative());
                 if (!Files.exists(source, LinkOption.NOFOLLOW_LINKS)) continue;
                 verifyMovableDirectory(source);
+                PageScanSnapshotFileSecurity.secureDirectoryTree(snapshotRoot, source);
                 PageScanSnapshotFileSecurity.requirePrivateDirectoryTree(snapshotRoot, source);
-                PageScanSnapshotFileSecurity.secureDirectory(source);
                 Path destination = resolvePending(batch, entry.pendingRelative());
                 PageScanSnapshotFileSecurity.createPrivateDirectories(
                         snapshotRoot, destination.getParent());
@@ -126,7 +172,7 @@ final class PageScanSnapshotArtifactLifecycle {
                 continue;
             }
             try {
-                PageScanSnapshotFileSecurity.secureDirectory(staged);
+                PageScanSnapshotFileSecurity.secureDirectoryTree(snapshotRoot, staged);
                 PageScanSnapshotFileSecurity.createPrivateDirectories(
                         snapshotRoot, original.getParent());
                 move(staged, original);
@@ -140,8 +186,9 @@ final class PageScanSnapshotArtifactLifecycle {
         deleteTree(plan.batch());
     }
 
-    /** Resolves any crash-left pending deletion using current Bot Job existence as authority. */
+    /** Resolves crash-left deletions using the authority recorded by each journal version. */
     void reconcile(Connection connection) throws IOException, SQLException {
+        PageScanSnapshotStorageHealth.requireHealthy();
         if (snapshotRoot == null) {
             return;
         }
@@ -165,25 +212,26 @@ final class PageScanSnapshotArtifactLifecycle {
                             batch, invalidJournal.getMessage());
                     continue;
                 }
-                Map<Integer, Boolean> exists = botJobExistence(connection, plan.entries());
-                reconcile(plan, exists);
+                List<Boolean> restoreDecisions = restoreDecisions(connection, plan);
+                reconcile(plan, restoreDecisions);
             }
         }
     }
 
-    private void reconcile(Plan plan, Map<Integer, Boolean> exists) throws IOException {
+    private void reconcile(Plan plan, List<Boolean> restoreDecisions) throws IOException {
         IOException failure = null;
-        for (Entry entry : plan.entries()) {
+        for (int index = 0; index < plan.entries().size(); index++) {
+            Entry entry = plan.entries().get(index);
             Path staged = resolvePending(plan.batch(), entry.pendingRelative());
             if (!Files.exists(staged, LinkOption.NOFOLLOW_LINKS)) continue;
             try {
-                if (Boolean.TRUE.equals(exists.get(entry.botJobId()))) {
+                if (Boolean.TRUE.equals(restoreDecisions.get(index))) {
                     Path original = resolveArtifact(entry.originalRelative());
                     if (Files.exists(original, LinkOption.NOFOLLOW_LINKS)) {
                         throw new IOException("Refusing to overwrite a recreated Page Scanner artifact root: "
                                 + original);
                     }
-                    PageScanSnapshotFileSecurity.secureDirectory(staged);
+                    PageScanSnapshotFileSecurity.secureDirectoryTree(snapshotRoot, staged);
                     PageScanSnapshotFileSecurity.createPrivateDirectories(
                             snapshotRoot, original.getParent());
                     move(staged, original);
@@ -223,7 +271,7 @@ final class PageScanSnapshotArtifactLifecycle {
                     verifyMovableDirectory(candidate);
                     requireWithin(rootReal, candidate.toRealPath());
                     Path relative = snapshotRoot.relativize(candidate);
-                    entries.add(new Entry(botJobId, portable(relative), portable(relative)));
+                    entries.add(Entry.legacy(botJobId, portable(relative), portable(relative)));
                 }
             }
         }
@@ -259,7 +307,7 @@ final class PageScanSnapshotArtifactLifecycle {
                         verifyMovableDirectory(candidate);
                         requireWithin(rootReal, candidate.toRealPath());
                         Path relative = snapshotRoot.relativize(candidate);
-                        entries.add(new Entry(botJobId, portable(relative), portable(relative)));
+                        entries.add(Entry.legacy(botJobId, portable(relative), portable(relative)));
                     }
                 }
             }
@@ -269,10 +317,19 @@ final class PageScanSnapshotArtifactLifecycle {
 
     private void writeJournal(Plan plan) throws IOException {
         List<String> lines = new ArrayList<>();
-        lines.add(JOURNAL_VERSION);
+        lines.add(plan.journalVersion());
         for (Entry entry : plan.entries()) {
-            lines.add(entry.botJobId() + "\t" + entry.originalRelative() + "\t"
-                    + entry.pendingRelative());
+            if (JOURNAL_VERSION_V2.equals(plan.journalVersion())) {
+                lines.add(entry.botJobId() + "\t" + entry.homeBankingId() + "\t"
+                        + (entry.ownerPresent() ? "1" : "0") + "\t"
+                        + entry.snapshotCount() + "\t" + entry.snapshotAuthoritySha256() + "\t"
+                        + entry.originalRelative() + "\t" + entry.pendingRelative());
+            } else if (JOURNAL_VERSION_V1.equals(plan.journalVersion())) {
+                lines.add(entry.botJobId() + "\t" + entry.originalRelative() + "\t"
+                        + entry.pendingRelative());
+            } else {
+                throw new IOException("Unsupported Page Scanner deletion journal version");
+            }
         }
         Files.write(
                 plan.batch().resolve(JOURNAL),
@@ -287,13 +344,19 @@ final class PageScanSnapshotArtifactLifecycle {
         verifyPendingBatch(batch);
         PageScanSnapshotFileSecurity.secureFile(batch.resolve(JOURNAL));
         List<String> lines = Files.readAllLines(batch.resolve(JOURNAL), StandardCharsets.UTF_8);
-        if (lines.isEmpty() || !JOURNAL_VERSION.equals(lines.get(0))) {
+        if (lines.isEmpty()
+                || (!JOURNAL_VERSION_V1.equals(lines.get(0))
+                        && !JOURNAL_VERSION_V2.equals(lines.get(0)))) {
             throw new IOException("Unsupported or missing Page Scanner deletion journal version");
         }
+        String journalVersion = lines.get(0);
         List<Entry> entries = new ArrayList<>();
         for (int index = 1; index < lines.size(); index++) {
             String[] parts = lines.get(index).split("\\t", -1);
-            if (parts.length != 3) throw new IOException("Invalid deletion journal row " + index);
+            int expectedParts = JOURNAL_VERSION_V2.equals(journalVersion) ? 7 : 3;
+            if (parts.length != expectedParts) {
+                throw new IOException("Invalid deletion journal row " + index);
+            }
             int botJobId;
             try {
                 botJobId = Integer.parseInt(parts[0]);
@@ -301,28 +364,72 @@ final class PageScanSnapshotArtifactLifecycle {
                 throw new IOException("Invalid Bot Job ID in deletion journal row " + index, invalidId);
             }
             if (botJobId <= 0) throw new IOException("Invalid Bot Job ID in deletion journal row " + index);
-            Entry entry = new Entry(botJobId, parts[1], parts[2]);
+            Entry entry;
+            if (JOURNAL_VERSION_V2.equals(journalVersion)) {
+                try {
+                    int homeBankingId = Integer.parseInt(parts[1]);
+                    boolean ownerPresent;
+                    if ("1".equals(parts[2])) ownerPresent = true;
+                    else if ("0".equals(parts[2])) ownerPresent = false;
+                    else throw new IllegalArgumentException("invalid owner flag");
+                    long snapshotCount = Long.parseLong(parts[3]);
+                    entry = new Entry(
+                            botJobId,
+                            parts[5],
+                            parts[6],
+                            homeBankingId,
+                            ownerPresent,
+                            snapshotCount,
+                            parts[4]);
+                } catch (IllegalArgumentException invalidAuthority) {
+                    throw new IOException(
+                            "Invalid generation authority in deletion journal row " + index,
+                            invalidAuthority);
+                }
+            } else {
+                entry = Entry.legacy(botJobId, parts[1], parts[2]);
+            }
             validateEntry(entry);
+            if (JOURNAL_VERSION_V2.equals(journalVersion)) validateV2Authority(entry);
             resolveArtifact(entry.originalRelative());
             resolvePending(batch, entry.pendingRelative());
             entries.add(entry);
         }
-        return new Plan(batch.toAbsolutePath().normalize(), List.copyOf(entries));
+        return new Plan(batch.toAbsolutePath().normalize(), List.copyOf(entries), journalVersion);
     }
 
-    private Map<Integer, Boolean> botJobExistence(Connection connection, List<Entry> entries)
-            throws SQLException {
-        Map<Integer, Boolean> result = new HashMap<>();
-        try (PreparedStatement select = connection.prepareStatement("SELECT id FROM bot_job WHERE id=?")) {
-            for (Entry entry : entries) {
-                if (result.containsKey(entry.botJobId())) continue;
-                select.setInt(1, entry.botJobId());
-                try (ResultSet rows = select.executeQuery()) {
-                    result.put(entry.botJobId(), rows.next());
+    private List<Boolean> restoreDecisions(Connection connection, Plan plan) throws SQLException {
+        if (connection == null) {
+            throw new SQLException("Page Scanner deletion recovery requires a database connection");
+        }
+        List<Boolean> decisions = new ArrayList<>(plan.entries().size());
+        if (JOURNAL_VERSION_V1.equals(plan.journalVersion())) {
+            try (PreparedStatement select =
+                    connection.prepareStatement("SELECT id FROM bot_job WHERE id=?")) {
+                for (Entry entry : plan.entries()) {
+                    select.setInt(1, entry.botJobId());
+                    try (ResultSet rows = select.executeQuery()) {
+                        decisions.add(rows.next());
+                    }
                 }
             }
+            return List.copyOf(decisions);
         }
-        return result;
+        if (!JOURNAL_VERSION_V2.equals(plan.journalVersion())
+                || !supportsGenerationAuthority(connection)) {
+            throw new SQLException(
+                    "Cannot verify Page Scanner deletion generation authority with this schema");
+        }
+        for (Entry entry : plan.entries()) {
+            SnapshotAuthority current = readySnapshotAuthority(
+                    connection, entry.botJobId(), entry.homeBankingId());
+            decisions.add(entry.ownerPresent()
+                    && entry.snapshotCount() > 0
+                    && botJobOwnedBy(connection, entry.botJobId(), entry.homeBankingId())
+                    && entry.snapshotCount() == current.count()
+                    && entry.snapshotAuthoritySha256().equals(current.sha256()));
+        }
+        return List.copyOf(decisions);
     }
 
     private Path safePendingRoot(boolean create) throws IOException {
@@ -380,12 +487,134 @@ final class PageScanSnapshotArtifactLifecycle {
     private static void validateEntry(Entry entry) throws IOException {
         String expectedSuffix = "bot-job-" + entry.botJobId();
         if (entry.originalRelative() == null
-                || !entry.originalRelative().matches("org-[0-9]+/bot-job-[1-9][0-9]*")
+                || !entry.originalRelative().matches("org-[1-9][0-9]*/bot-job-[1-9][0-9]*")
                 || !entry.originalRelative().endsWith("/" + expectedSuffix)
                 || !entry.originalRelative().equals(entry.pendingRelative())) {
             throw new IOException("Unsafe Page Scanner deletion journal entry for Bot Job "
                     + entry.botJobId());
         }
+    }
+
+    private static void validateV2Authority(Entry entry) throws IOException {
+        if (entry.homeBankingId() <= 0
+                || entry.homeBankingId() != homeBankingId(entry.originalRelative())
+                || entry.snapshotCount() < 0
+                || entry.snapshotAuthoritySha256() == null
+                || !entry.snapshotAuthoritySha256().matches("[0-9a-f]{64}")) {
+            throw new IOException("Invalid Page Scanner deletion generation authority for Bot Job "
+                    + entry.botJobId());
+        }
+    }
+
+    private static int homeBankingId(String relative) throws IOException {
+        int separator = relative == null ? -1 : relative.indexOf('/');
+        if (separator <= "org-".length()) {
+            throw new IOException("Invalid Page Scanner organization path");
+        }
+        try {
+            int homeBankingId = Integer.parseInt(relative.substring("org-".length(), separator));
+            if (homeBankingId <= 0) throw new NumberFormatException("non-positive owner");
+            return homeBankingId;
+        } catch (NumberFormatException invalidOwner) {
+            throw new IOException("Invalid Page Scanner organization path", invalidOwner);
+        }
+    }
+
+    private static boolean supportsGenerationAuthority(Connection connection) throws SQLException {
+        return hasColumns(connection, "bot_job", "id", "home_banking_id")
+                && hasColumns(
+                        connection,
+                        "page_scan_snapshot",
+                        "scan_id",
+                        "home_banking_id",
+                        "bot_job_id",
+                        "artifact_path",
+                        "manifest_sha256",
+                        "status");
+    }
+
+    private static boolean hasColumns(Connection connection, String table, String... required)
+            throws SQLException {
+        DatabaseMetaData metadata = connection.getMetaData();
+        Set<String> found = new LinkedHashSet<>();
+        try (ResultSet columns = metadata.getColumns(null, null, null, null)) {
+            while (columns.next()) {
+                if (table.equalsIgnoreCase(columns.getString("TABLE_NAME"))) {
+                    found.add(columns.getString("COLUMN_NAME").toLowerCase(java.util.Locale.ROOT));
+                }
+            }
+        }
+        for (String column : required) {
+            if (!found.contains(column.toLowerCase(java.util.Locale.ROOT))) return false;
+        }
+        return true;
+    }
+
+    private static boolean botJobOwnedBy(
+            Connection connection, int botJobId, int homeBankingId) throws SQLException {
+        try (PreparedStatement select = connection.prepareStatement(
+                "SELECT id FROM bot_job WHERE id=? AND home_banking_id=?")) {
+            select.setInt(1, botJobId);
+            select.setInt(2, homeBankingId);
+            try (ResultSet rows = select.executeQuery()) {
+                return rows.next();
+            }
+        }
+    }
+
+    private static SnapshotAuthority readySnapshotAuthority(
+            Connection connection, int botJobId, int homeBankingId) throws SQLException {
+        MessageDigest digest;
+        try {
+            digest = MessageDigest.getInstance("SHA-256");
+        } catch (java.security.NoSuchAlgorithmException unavailable) {
+            throw new IllegalStateException("SHA-256 is unavailable", unavailable);
+        }
+        List<SnapshotAuthorityRow> snapshots = new ArrayList<>();
+        try (PreparedStatement select = connection.prepareStatement(
+                "SELECT scan_id, artifact_path, manifest_sha256 FROM page_scan_snapshot "
+                        + "WHERE bot_job_id=? AND home_banking_id=? AND status='READY'")) {
+            select.setInt(1, botJobId);
+            select.setInt(2, homeBankingId);
+            try (ResultSet rows = select.executeQuery()) {
+                while (rows.next()) {
+                    if (snapshots.size() >= MAX_GENERATION_SNAPSHOTS) {
+                        throw new SQLException(
+                                "Page Scanner deletion generation exceeds its safe snapshot limit");
+                    }
+                    snapshots.add(new SnapshotAuthorityRow(
+                            rows.getString("scan_id"),
+                            rows.getString("artifact_path"),
+                            rows.getString("manifest_sha256")));
+                }
+            }
+        }
+        Comparator<String> textOrder = Comparator.nullsFirst(Comparator.naturalOrder());
+        snapshots.sort(Comparator.comparing(SnapshotAuthorityRow::scanId, textOrder)
+                .thenComparing(SnapshotAuthorityRow::artifactPath, textOrder)
+                .thenComparing(SnapshotAuthorityRow::manifestSha256, textOrder));
+        for (SnapshotAuthorityRow snapshot : snapshots) {
+            updateDigest(digest, snapshot.scanId());
+            updateDigest(digest, snapshot.artifactPath());
+            updateDigest(digest, snapshot.manifestSha256());
+        }
+        return new SnapshotAuthority(snapshots.size(), hex(digest.digest()));
+    }
+
+    private static void updateDigest(MessageDigest digest, String value) {
+        byte[] bytes = value == null ? null : value.getBytes(StandardCharsets.UTF_8);
+        int length = bytes == null ? -1 : bytes.length;
+        digest.update((byte) (length >>> 24));
+        digest.update((byte) (length >>> 16));
+        digest.update((byte) (length >>> 8));
+        digest.update((byte) length);
+        if (bytes != null) digest.update(bytes);
+    }
+
+    private static String hex(byte[] bytes) {
+        StringBuilder result = new StringBuilder(bytes.length * 2);
+        for (byte value : bytes) result.append(String.format("%02x", value & 0xff));
+        return result.toString();
     }
 
     private static void requireWithin(Path root, Path candidate) throws IOException {
@@ -434,10 +663,41 @@ final class PageScanSnapshotArtifactLifecycle {
         }
     }
 
-    record Plan(Path batch, List<Entry> entries) {
-        static Plan none() { return new Plan(null, List.of()); }
+    record Plan(Path batch, List<Entry> entries, String journalVersion) {
+        static Plan none() { return new Plan(null, List.of(), JOURNAL_VERSION_V2); }
         boolean empty() { return batch == null || entries == null || entries.isEmpty(); }
     }
 
-    private record Entry(int botJobId, String originalRelative, String pendingRelative) {}
+    private record Entry(
+            int botJobId,
+            String originalRelative,
+            String pendingRelative,
+            int homeBankingId,
+            boolean ownerPresent,
+            long snapshotCount,
+            String snapshotAuthoritySha256) {
+
+        static Entry legacy(int botJobId, String originalRelative, String pendingRelative) {
+            return new Entry(botJobId, originalRelative, pendingRelative, -1, false, -1, null);
+        }
+
+        Entry withAuthority(
+                int authoritativeHomeBankingId,
+                boolean authoritativeOwnerPresent,
+                SnapshotAuthority authority) {
+            return new Entry(
+                    botJobId,
+                    originalRelative,
+                    pendingRelative,
+                    authoritativeHomeBankingId,
+                    authoritativeOwnerPresent,
+                    authority.count(),
+                    authority.sha256());
+        }
+    }
+
+    private record SnapshotAuthority(long count, String sha256) {}
+
+    private record SnapshotAuthorityRow(
+            String scanId, String artifactPath, String manifestSha256) {}
 }

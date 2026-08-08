@@ -52,16 +52,23 @@ final class BotJobDeleteTransaction {
         }
         List<Integer> botJobIds = canonicalIds(submittedIds);
         boolean previousAutoCommit = connection.getAutoCommit();
+        if (!previousAutoCommit) {
+            throw new SQLException(
+                    "Bot Job deletion requires a fresh autocommit connection for lifecycle recovery.");
+        }
         PageScanSnapshotArtifactLifecycle.Plan artifactPlan =
                 PageScanSnapshotArtifactLifecycle.Plan.none();
         boolean committed = false;
         boolean commitAttempted = false;
+        boolean transactionStarted = false;
+        try {
         synchronized (PageScanSnapshotLifecycleLock.MONITOR) {
-            connection.setAutoCommit(false);
             try {
+                PageScanSnapshotLifecycleCoordinator.reconcileAll(connection);
                 requireExistingBotJobs(connection, botJobIds);
-                snapshotArtifacts.reconcile(connection);
-                artifactPlan = snapshotArtifacts.stage(botJobIds);
+                connection.setAutoCommit(false);
+                transactionStarted = true;
+                artifactPlan = snapshotArtifacts.stage(connection, botJobIds);
                 for (OwnedTable table : OWNED_TABLES) {
                     if (tableExists(connection, table.name())) {
                         deleteOwnedRows(connection, table, botJobIds);
@@ -72,7 +79,7 @@ final class BotJobDeleteTransaction {
                 connection.commit();
                 committed = true;
             } catch (SQLException | IOException failure) {
-                if (!commitAttempted) {
+                if (transactionStarted && !commitAttempted) {
                     try {
                         connection.rollback();
                     } catch (SQLException rollbackFailure) {
@@ -83,7 +90,7 @@ final class BotJobDeleteTransaction {
                     } catch (IOException restoreFailure) {
                         failure.addSuppressed(restoreFailure);
                     }
-                } else if (!committed) {
+                } else if (transactionStarted && commitAttempted && !committed) {
                     log.error(
                             "Bot Job deletion commit outcome is unknown; artifact journal retained",
                             failure);
@@ -91,15 +98,28 @@ final class BotJobDeleteTransaction {
                 if (failure instanceof SQLException sqlFailure) throw sqlFailure;
                 throw new SQLException("Bot Job deletion could not stage Page Scanner artifacts.", failure);
             } finally {
-                if (!commitAttempted || committed) {
+                if (!transactionStarted || !commitAttempted || committed) {
                     restoreAutoCommit(connection, previousAutoCommit);
                 }
             }
         }
+        } catch (SQLException failure) {
+            if (transactionStarted && commitAttempted && !committed) {
+                // The database may already have committed. Retire the affected workspaces only
+                // after releasing the filesystem lock, and block snapshot access until startup
+                // reconciliation resolves the retained journal.
+                PageScanSnapshotStorageHealth.markUnhealthy(failure);
+                notifyDeletionBoundary(committedDeletionObserver, botJobIds);
+                throw new SQLException(
+                        "Bot Job deletion outcome is unknown. Reload after restarting the application.",
+                        failure);
+            }
+            throw failure;
+        }
         if (committed) {
             // Invalidate/focus lifecycle outside the filesystem lock to preserve the global
             // binding -> snapshot lock order used by Page Mappings requests.
-            notifyCommittedDeletion(committedDeletionObserver, botJobIds);
+            notifyDeletionBoundary(committedDeletionObserver, botJobIds);
             try {
                 synchronized (PageScanSnapshotLifecycleLock.MONITOR) {
                     snapshotArtifacts.purge(artifactPlan);
@@ -115,7 +135,7 @@ final class BotJobDeleteTransaction {
         return List.copyOf(botJobIds);
     }
 
-    private static void notifyCommittedDeletion(
+    private static void notifyDeletionBoundary(
             Consumer<List<Integer>> observer, List<Integer> botJobIds) {
         if (observer == null) return;
         try {

@@ -17,7 +17,7 @@ import java.util.Map;
 import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
 
-/** Owner-scoped pin and configured retention operations for immutable Page Mapping snapshots. */
+/** Owner-scoped snapshot operations governed by one explicit system-wide retention policy. */
 @Slf4j
 public final class PageScanSnapshotRetentionService {
 
@@ -58,6 +58,7 @@ public final class PageScanSnapshotRetentionService {
             int retentionDays,
             int maxUnpinnedPerPage)
             throws IOException, SQLException {
+        PageScanSnapshotStorageHealth.requireHealthy();
         synchronized (PageScanSnapshotLifecycleLock.MONITOR) {
             Policy policy = new Policy(retentionDays, maxUnpinnedPerPage);
             Summary summary = evaluate(
@@ -84,6 +85,11 @@ public final class PageScanSnapshotRetentionService {
             int homeBankingId,
             int botJobId)
             throws SQLException {
+        try {
+            PageScanSnapshotStorageHealth.requireHealthy();
+        } catch (IOException unavailable) {
+            throw new SQLException(unavailable.getMessage(), unavailable);
+        }
         synchronized (PageScanSnapshotLifecycleLock.MONITOR) {
             Evaluation evaluation = evaluate(
                     loadReady(connection, homeBankingId, botJobId),
@@ -102,6 +108,11 @@ public final class PageScanSnapshotRetentionService {
             String scanId,
             boolean pinned)
             throws SQLException {
+        try {
+            PageScanSnapshotStorageHealth.requireHealthy();
+        } catch (IOException unavailable) {
+            throw new SQLException(unavailable.getMessage(), unavailable);
+        }
         if (scanId == null || scanId.isBlank() || scanId.length() > 80) {
             throw new IllegalArgumentException("A valid Page Mapping scan ID is required.");
         }
@@ -114,16 +125,15 @@ public final class PageScanSnapshotRetentionService {
             boolean commitAttempted = false;
             boolean committed = false;
             try {
-                connection.setAutoCommit(false);
                 if (previousIsolation != Connection.TRANSACTION_SERIALIZABLE) {
                     connection.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
                 }
+                connection.setAutoCommit(false);
                 List<SnapshotRow> ready = loadReady(connection, homeBankingId, botJobId);
                 SnapshotRow current = ready.stream()
                         .filter(row -> scanId.equals(row.scanId()))
                         .findFirst()
-                        .orElseThrow(() -> new SQLException(
-                                "The selected Page Mapping capture is no longer available."));
+                        .orElseThrow(() -> new StaleSnapshotException(scanId));
                 List<SnapshotRow> projected = ready.stream()
                         .map(row -> scanId.equals(row.scanId())
                                 ? new SnapshotRow(
@@ -143,20 +153,17 @@ public final class PageScanSnapshotRetentionService {
                                 configuredPolicy(),
                                 Instant.now())
                         .summary();
-                if (current.pinned() != pinned) {
-                    String update = "UPDATE page_scan_snapshot SET pinned = ?"
-                            + " WHERE scan_id = ? AND home_banking_id = ? AND bot_job_id = ?"
-                            + " AND status = 'READY' AND pinned = ?";
-                    try (PreparedStatement statement = connection.prepareStatement(update)) {
-                        statement.setInt(1, pinned ? 1 : 0);
-                        statement.setString(2, scanId);
-                        statement.setInt(3, homeBankingId);
-                        statement.setInt(4, botJobId);
-                        statement.setInt(5, current.pinned() ? 1 : 0);
-                        if (statement.executeUpdate() != 1) {
-                            throw new SQLException(
-                                    "The selected Page Mapping capture is no longer available.");
-                        }
+                String update = "UPDATE page_scan_snapshot SET pinned = ?"
+                        + " WHERE scan_id = ? AND home_banking_id = ? AND bot_job_id = ?"
+                        + " AND status = 'READY' AND pinned = ?";
+                try (PreparedStatement statement = connection.prepareStatement(update)) {
+                    statement.setInt(1, pinned ? 1 : 0);
+                    statement.setString(2, scanId);
+                    statement.setInt(3, homeBankingId);
+                    statement.setInt(4, botJobId);
+                    statement.setInt(5, current.pinned() ? 1 : 0);
+                    if (statement.executeUpdate() != 1) {
+                        throw new StaleSnapshotException(scanId);
                     }
                 }
                 commitAttempted = true;
@@ -174,6 +181,9 @@ public final class PageScanSnapshotRetentionService {
                     log.error(
                             "Page Mapping pin commit outcome is unknown; reload capture history",
                             failure);
+                    throw new PinOutcomeUnknownException(
+                            "The capture pin outcome is unknown. Reload Page Mappings before changing it again.",
+                            failure);
                 }
                 throw failure;
             } finally {
@@ -189,8 +199,51 @@ public final class PageScanSnapshotRetentionService {
             int homeBankingId,
             int botJobId)
             throws Exception {
+        return purgeConfiguredInternal(connection, homeBankingId, botJobId, null);
+    }
+
+    /**
+     * Purges only when the configured policy still matches the policy presented to the caller.
+     * A mismatch is fail-closed and requires the caller to reload before asking again.
+     */
+    public PurgeResult purgeConfigured(
+            Connection connection,
+            int homeBankingId,
+            int botJobId,
+            Policy expectedPolicy)
+            throws Exception {
+        return purgeConfiguredInternal(
+                connection,
+                homeBankingId,
+                botJobId,
+                Objects.requireNonNull(expectedPolicy, "Expected retention policy is required."));
+    }
+
+    /** Convenience overload for wire-contract callers that already validated both integers. */
+    public PurgeResult purgeConfigured(
+            Connection connection,
+            int homeBankingId,
+            int botJobId,
+            int expectedRetentionDays,
+            int expectedMaxUnpinnedPerPage)
+            throws Exception {
+        return purgeConfigured(
+                connection,
+                homeBankingId,
+                botJobId,
+                new Policy(expectedRetentionDays, expectedMaxUnpinnedPerPage));
+    }
+
+    private PurgeResult purgeConfiguredInternal(
+            Connection connection,
+            int homeBankingId,
+            int botJobId,
+            Policy expectedPolicy)
+            throws Exception {
+        PageScanSnapshotStorageHealth.requireHealthy();
         synchronized (PageScanSnapshotLifecycleLock.MONITOR) {
             Policy policy = configuredPolicy();
+            requireExpectedPolicy(expectedPolicy, policy);
             Evaluation evaluation = evaluate(
                     loadReady(connection, homeBankingId, botJobId),
                     homeBankingId,
@@ -207,6 +260,7 @@ public final class PageScanSnapshotRetentionService {
 
     /** Reconciles only filesystem retention journals; it never creates or changes DB schema. */
     public void reconcile(Connection connection) throws IOException, SQLException {
+        PageScanSnapshotStorageHealth.requireHealthy();
         synchronized (PageScanSnapshotLifecycleLock.MONITOR) {
             PageScanSnapshotRetentionLifecycle.configured().reconcile(connection);
         }
@@ -226,10 +280,12 @@ public final class PageScanSnapshotRetentionService {
         boolean committed = false;
         boolean commitAttempted = false;
         try {
-            if (previousAutoCommit) connection.setAutoCommit(false);
             if (previousIsolation != Connection.TRANSACTION_SERIALIZABLE) {
                 connection.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
             }
+            connection.setAutoCommit(false);
+            Policy transactionPolicy = configuredPolicy();
+            requireExpectedPolicy(evaluation.summary().policy(), transactionPolicy);
             // Re-evaluate under the write transaction so a concurrent pin cannot be deleted.
             Evaluation current = evaluate(
                     loadReady(
@@ -238,7 +294,7 @@ public final class PageScanSnapshotRetentionService {
                             evaluation.summary().botJobId()),
                     evaluation.summary().homeBankingId(),
                     evaluation.summary().botJobId(),
-                    evaluation.summary().policy(),
+                    transactionPolicy,
                     Instant.now());
             if (current.eligible().isEmpty()) {
                 commitAttempted = true;
@@ -259,8 +315,7 @@ public final class PageScanSnapshotRetentionService {
                     statement.setInt(2, row.homeBankingId());
                     statement.setInt(3, row.botJobId());
                     if (statement.executeUpdate() != 1) {
-                        throw new SQLException(
-                                "A Page Mapping capture changed while retention was running.");
+                        throw new StaleSnapshotException(row.scanId());
                     }
                 }
             }
@@ -322,18 +377,25 @@ public final class PageScanSnapshotRetentionService {
     private static void restoreConnectionState(
             Connection connection, int previousIsolation, boolean previousAutoCommit) {
         try {
+            if (connection.getAutoCommit() != previousAutoCommit) {
+                connection.setAutoCommit(previousAutoCommit);
+            }
+        } catch (SQLException restorationFailure) {
+            log.warn("Page Mapping retention could not restore auto-commit", restorationFailure);
+        }
+        try {
             if (connection.getTransactionIsolation() != previousIsolation) {
                 connection.setTransactionIsolation(previousIsolation);
             }
         } catch (SQLException restorationFailure) {
             log.warn("Page Mapping retention could not restore transaction isolation", restorationFailure);
         }
-        try {
-            if (connection.getAutoCommit() != previousAutoCommit) {
-                connection.setAutoCommit(previousAutoCommit);
-            }
-        } catch (SQLException restorationFailure) {
-            log.warn("Page Mapping retention could not restore auto-commit", restorationFailure);
+    }
+
+    private static void requireExpectedPolicy(Policy expected, Policy current)
+            throws StaleRetentionPolicyException {
+        if (expected != null && !expected.equals(current)) {
+            throw new StaleRetentionPolicyException(expected, current);
         }
     }
 
@@ -493,6 +555,47 @@ public final class PageScanSnapshotRetentionService {
     public static final class PurgeOutcomeUnknownException extends Exception {
         public PurgeOutcomeUnknownException(String message, Throwable cause) {
             super(message, cause);
+        }
+    }
+
+    /** The pin transaction may have committed even though the driver did not acknowledge it. */
+    public static final class PinOutcomeUnknownException extends SQLException {
+        public PinOutcomeUnknownException(String message, Throwable cause) {
+            super(message, cause);
+        }
+    }
+
+    /** The selected READY snapshot disappeared or changed before its pin update could commit. */
+    public static final class StaleSnapshotException extends SQLException {
+        private final String scanId;
+
+        public StaleSnapshotException(String scanId) {
+            super("The selected Page Mapping capture changed or is no longer available.");
+            this.scanId = scanId == null ? "" : scanId;
+        }
+
+        public String scanId() {
+            return scanId;
+        }
+    }
+
+    /** The caller's displayed retention policy is no longer the configured source of truth. */
+    public static final class StaleRetentionPolicyException extends SQLException {
+        private final Policy expectedPolicy;
+        private final Policy currentPolicy;
+
+        public StaleRetentionPolicyException(Policy expectedPolicy, Policy currentPolicy) {
+            super("Snapshot retention policy changed. Reload Page Mappings before purging.");
+            this.expectedPolicy = expectedPolicy;
+            this.currentPolicy = currentPolicy;
+        }
+
+        public Policy expectedPolicy() {
+            return expectedPolicy;
+        }
+
+        public Policy currentPolicy() {
+            return currentPolicy;
         }
     }
 

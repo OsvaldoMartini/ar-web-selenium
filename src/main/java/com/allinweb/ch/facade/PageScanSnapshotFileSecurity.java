@@ -80,7 +80,7 @@ public final class PageScanSnapshotFileSecurity {
         }
     }
 
-    /** Verifies and secures an existing descendant chain without following a link or junction. */
+    /** Verifies an existing private descendant chain without following a link or junction. */
     static void requirePrivateDirectoryTree(Path root, Path directory) throws IOException {
         if (root == null || directory == null) {
             throw new IOException("The Page Scanner artifact directory is unavailable");
@@ -91,6 +91,34 @@ public final class PageScanSnapshotFileSecurity {
             throw new IOException("The Page Scanner artifact directory escaped its root");
         }
         Path realRoot = normalizedRoot.toRealPath();
+        requirePrivateDirectory(normalizedRoot);
+        Path cursor = normalizedRoot;
+        for (Path segment : normalizedRoot.relativize(normalizedDirectory)) {
+            cursor = cursor.resolve(segment);
+            requireKind(cursor, true);
+            requirePrivateDirectory(cursor);
+        }
+        Path realDirectory = normalizedDirectory.toRealPath();
+        if (!realDirectory.startsWith(realRoot)) {
+            throw new IOException("The Page Scanner artifact directory escaped its real root");
+        }
+    }
+
+    /**
+     * Repairs and verifies every no-follow descendant below an already validated private root.
+     * This is reserved for controlled creation/startup/recovery paths; read paths must use the
+     * require-only methods so an unexpectedly exposed capture is rejected and audited.
+     */
+    static void secureDirectoryTree(Path root, Path directory) throws IOException {
+        if (root == null || directory == null) {
+            throw new IOException("The Page Scanner artifact directory is unavailable");
+        }
+        Path normalizedRoot = root.toAbsolutePath().normalize();
+        Path normalizedDirectory = directory.toAbsolutePath().normalize();
+        if (!normalizedDirectory.startsWith(normalizedRoot)) {
+            throw new IOException("The Page Scanner artifact directory escaped its root");
+        }
+        requireKind(normalizedDirectory, true);
         secureDirectory(normalizedRoot);
         Path cursor = normalizedRoot;
         for (Path segment : normalizedRoot.relativize(normalizedDirectory)) {
@@ -98,10 +126,22 @@ public final class PageScanSnapshotFileSecurity {
             requireKind(cursor, true);
             secureDirectory(cursor);
         }
+        Path realRoot = normalizedRoot.toRealPath();
         Path realDirectory = normalizedDirectory.toRealPath();
         if (!realDirectory.startsWith(realRoot)) {
             throw new IOException("The Page Scanner artifact directory escaped its real root");
         }
+        try (var paths = Files.walk(normalizedDirectory)) {
+            for (Path path : paths.toList()) {
+                BasicFileAttributes attributes = Files.readAttributes(
+                        path, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
+                if (attributes.isDirectory()) secureDirectory(path);
+                else if (attributes.isRegularFile()) secureFile(path);
+                else throw new IOException(
+                        "The Page Scanner artifact tree contains an unsafe entry");
+            }
+        }
+        requirePrivateDirectoryTree(normalizedRoot, normalizedDirectory);
     }
 
     /** Secures one real directory and makes its private grants inheritable by children. */
@@ -140,24 +180,20 @@ public final class PageScanSnapshotFileSecurity {
         requirePrivateDirectory(directory);
     }
 
+    /** Refuses a capture whose directory or any direct immutable artifact is not private. */
+    public static void requirePrivateCaptureDirectory(Path root, Path directory)
+            throws IOException {
+        requirePrivateDirectoryTree(root, directory);
+        try (var entries = Files.list(directory)) {
+            for (Path entry : entries.toList()) requirePrivateFile(entry);
+        }
+        requirePrivateDirectory(directory);
+    }
+
     /** Hardens a pre-existing snapshot root before recovery or reads use its contents. */
     public static void secureExistingRoot(Path root) throws IOException {
         if (root == null || !Files.exists(root, LinkOption.NOFOLLOW_LINKS)) return;
-        if (WINDOWS) {
-            // SetNamedSecurityInfo propagates the exact inheritable DACL to existing unprotected
-            // descendants. Selected legacy captures are additionally protected when read.
-            secureDirectory(root);
-            return;
-        }
-        try (var paths = Files.walk(root)) {
-            for (Path path : paths.toList()) {
-                BasicFileAttributes attributes = Files.readAttributes(
-                        path, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
-                if (attributes.isDirectory()) secureDirectory(path);
-                else if (attributes.isRegularFile()) secureFile(path);
-                else throw new IOException("The Page Scanner artifact tree contains an unsafe entry");
-            }
-        }
+        secureDirectoryTree(root, root);
     }
 
     /** Refuses a capture whose effective directory policy is not private. */
@@ -198,6 +234,21 @@ public final class PageScanSnapshotFileSecurity {
         if (!Files.getPosixFilePermissions(file, LinkOption.NOFOLLOW_LINKS)
                 .equals(PRIVATE_FILE_PERMISSIONS)) {
             Files.setPosixFilePermissions(file, PRIVATE_FILE_PERMISSIONS);
+        }
+        requirePrivatePosix(file, PRIVATE_FILE_PERMISSIONS);
+    }
+
+    static void requirePrivateFile(Path file) throws IOException {
+        requireKind(file, false);
+        if (WINDOWS) {
+            WindowsPrivateAcl.requirePrivate(file, false);
+            return;
+        }
+        PosixFileAttributeView view = Files.getFileAttributeView(
+                file, PosixFileAttributeView.class, LinkOption.NOFOLLOW_LINKS);
+        if (view == null) {
+            reportUnsupportedNonWindows(file);
+            return;
         }
         requirePrivatePosix(file, PRIVATE_FILE_PERMISSIONS);
     }

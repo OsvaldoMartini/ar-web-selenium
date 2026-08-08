@@ -55,12 +55,13 @@ public class PerformInitializer {
             // This is filesystem/database recovery, not a schema migration. First harden the
             // existing Page Scanner root, then resolve crash-left deletion and retention journals
             // from authoritative database rows.
-            synchronized (PageScanSnapshotLifecycleLock.MONITOR) {
-                PageScanSnapshotArtifactLifecycle.configured().reconcile(conn);
-                PageScanSnapshotRetentionService.getInstance().reconcile(conn);
-            }
+            PageScanSnapshotLifecycleCoordinator.reconcileAll(conn);
+            PageScanSnapshotStorageHealth.markHealthyConfiguredRoot();
         } catch (Exception e) {
-            log.error("PerformInitializer — migration check failed: {}", e.getMessage());
+            PageScanSnapshotStorageHealth.markUnhealthy(e);
+            log.error(
+                    "Page Mapping snapshot security/recovery failed; snapshot access remains disabled",
+                    e);
         }
     }
 

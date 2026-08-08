@@ -24,6 +24,7 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 
@@ -165,20 +166,31 @@ public class ConfigService {
         put(updates, ARPropertyEnum.DB_URL, dbUrl);
         put(updates, ARPropertyEnum.DB_USER, dbUser);
         put(updates, ARPropertyEnum.DB_PWD, dbPwd);
-        try {
-            arPropertyManager.setPropertiesChecked(updates);
-        } catch (IOException persistenceFailure) {
-            log.error(
-                    "Could not persist configuration to {}",
-                    arPropertyManager.getConfigurationFileName(),
-                    persistenceFailure);
-            return failure("Configuration could not be written to the active config file");
-        }
-
-        try {
-            performDataBase.changeDbConnection();
-        } catch (SQLException error) {
-            return failure("Database change failed: " + error.getMessage());
+        boolean snapshotGenerationChanged = changed(ARPropertyEnum.PATH_DB, pathDb)
+                || changed(ARPropertyEnum.DATABASE_TYPE, databaseType)
+                || changed(ARPropertyEnum.DB_URL, dbUrl)
+                || changed(ARPropertyEnum.DB_USER, dbUser)
+                || changed(ARPropertyEnum.DB_PWD, dbPwd);
+        synchronized (PageScanSnapshotLifecycleLock.MONITOR) {
+            try {
+                arPropertyManager.setPropertiesChecked(updates);
+            } catch (IOException persistenceFailure) {
+                log.error(
+                        "Could not persist configuration to {}",
+                        arPropertyManager.getConfigurationFileName(),
+                        persistenceFailure);
+                return failure("Configuration could not be written to the active config file");
+            }
+            if (snapshotGenerationChanged) {
+                // An already-open DB connection and the old artifact root cannot be atomically
+                // rebound. Block sensitive snapshot access until the normal application restart.
+                PageScanSnapshotStorageHealth.configurationChanged();
+            }
+            try {
+                performDataBase.changeDbConnection();
+            } catch (SQLException error) {
+                return failure("Database change failed: " + error.getMessage());
+            }
         }
         RuntimeVariableMemoryRegistry.getInstance().clearAll();
 
@@ -602,6 +614,13 @@ public class ConfigService {
 
     private boolean dbMatches(String savedDb, String selectedDb) {
         return savedDb != null && selectedDb != null && savedDb.trim().equalsIgnoreCase(selectedDb.trim());
+    }
+
+    private boolean changed(ARPropertyEnum property, String requestedValue) {
+        String currentValue = arPropertyManager.getProperty(property);
+        return !Objects.equals(
+                currentValue == null ? "" : currentValue.trim(),
+                requestedValue == null ? "" : requestedValue.trim());
     }
 
     private String supportedBrowser(String requested) {
