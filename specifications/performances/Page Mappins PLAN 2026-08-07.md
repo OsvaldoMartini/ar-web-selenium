@@ -203,7 +203,7 @@ Every name-based lookup must:
 
    - [x] New `PageMappingsPage`, dedicated module stylesheet, detached route/session, and WebSocket bootstrap.
    - [x] Load integrity-verified images, rectangles, metadata, and exact element payloads for the selected READY capture.
-   - [ ] Keep old OCR route as a temporary compatibility adapter.
+   - [x] Preserve the old OCR route as a temporary compatibility path while OCR Review moves into Page Mappings.
 
 4. **P3 — Mappings launchers and explorer**
 
@@ -218,25 +218,33 @@ Every name-based lookup must:
    - [x] Implement `+`, drag/drop, target Block and idempotent staging.
    - [x] Reuse the existing Memory List WebSocket and transactional Apply path.
 
-6. **P5 — Cache-first scanning**
+6. **P5 — Cache-first scanning — COMPLETE IN SOURCE**
 
-   - Current-page fingerprint.
-   - Use Existing / Rescan states.
-   - Stale and changed-page diagnostics.
+   - [x] Current-page fingerprint with fail-closed unsupported/truncated states.
+   - [x] Use Existing / Rescan states with verified immutable-capture reuse.
+   - [x] Stale and changed-page diagnostics with bounded request and timeout lifecycle.
 
-7. **P6 — Safe runtime healing**
+7. **P6 — Safe runtime healing — COMPLETE IN SOURCE**
 
-   - Canonical and alias live-page lookup.
-   - Unique candidate enforcement.
-   - One-action guarantee and structured diagnostics.
+   - [x] Owner/page-scoped canonical and alias live-page lookup.
+   - [x] Unique visible/actionable candidate and page/frame/tag/action enforcement.
+   - [x] One-action guarantee, pinned Playwright target, and structured safe diagnostics.
 
-8. **P7 — Complete visible rename**
+8. **P7 — OCR Review consolidation core — COMPLETE; LEGACY RETIREMENT PARKED**
 
-   - Rename public page/components to `PageMappings*`.
-   - Move existing OCR comparison into OCR Review.
-   - Retire the old `OCR Results` names only after route/session parity tests pass.
+   - [x] Add isolated public `PageMappingsOcrReview*` components and reduced typed contracts.
+   - [x] Move selected immutable-capture OCR comparison and atomic alias Apply into Page Mappings.
+   - [ ] Replace/remove the legacy `OCR Results` launcher in `GridItemScann` after the concurrent
+     Grid work is clear.
+   - [ ] Retire the old `ocr-results-*` route/session/components after route/session parity tests
+     are authorized and pass. Both items remain intentionally parked under the user's
+     no-Grid/no-test constraint.
 
-Because screenshots may contain banking data, access must remain owner-scoped, files need private Windows permissions, URLs/query values should be redacted in UI/logs, and retention should require an explicit configured policy.
+Because screenshots may contain banking data:
+
+- [x] Keep capture access owner-scoped and redact URL/query values in persisted/displayed metadata.
+- [ ] Apply explicit private Windows ACLs to capture folders.
+- [ ] Implement an explicit configured retention/pin/purge policy.
 
 ## P0 delivery evidence
 
@@ -251,7 +259,8 @@ Because screenshots may contain banking data, access must remain owner-scoped, f
 - Deployment-assets commit pushed: `2f18f48d`.
 - Duplicate-alias regression commit pushed: `8718ed63`.
 - No migration was required for P0. The backend was compiled/tested but was not packaged, restarted, or live-verified.
-- P1 is implemented in backend source/tests; P2 through P7 remain planned and unimplemented. Existing unrelated untracked files were left untouched.
+- This paragraph records the earlier P0 checkpoint. Later checkpoints below deliver P1-P6 and the
+  P7 OCR Review core; legacy OCR route retirement remains intentionally open.
 
 ## P2 delivery checkpoint - 2026-08-07
 
@@ -320,8 +329,8 @@ Delivery evidence:
 - Frontend commit pushed: `a289663`.
 - Backend source/test commit pushed: `99ad9c2f`.
 - Backend deployment-assets commit pushed: `46dd420e`.
-- Packaging, restart, and live acceptance remain open; the P2 core plus P3 and P4 are delivered in
-  source, the temporary OCR compatibility adapter remains open, and P5 through P7 remain planned.
+- Packaging, restart, and live acceptance remain open. P5, P6, and the P7 OCR Review core were
+  delivered in the later 2026-08-08 checkpoint; legacy OCR launcher/session retirement remains open.
 
 ## Page Mappings review remediation checkpoint — 2026-08-08
 
@@ -357,3 +366,46 @@ Checkpoint commits:
 
 Operational gates remain separate: migration application, real SQL Server inspection, backend
 package/restart, deployed health, and live behavior are not complete.
+
+## P5-P7 delivery checkpoint — 2026-08-08
+
+### P5 — cache-first scanning
+
+- Backend commit `c8e722cd` adds privacy-safe current-page fingerprints, verified READY-capture
+  reuse, strict scan persistence, bounded in-flight gates, and current/changed/stale diagnostics.
+- Frontend commit `14b7832` adds Use Existing / Rescan controls and correlated timeout/disconnect
+  handling inside Page Mappings.
+- Backend correction `823ab2dc` binds the fingerprint to the actual asynchronous scan/capture and
+  fails closed on unsupported or changing pages.
+
+### P6 — safe runtime healing
+
+- Backend commit `668a7acb` adds an isolated owner/Bot Job/page registry preparation service and a
+  serialized Playwright runtime executor for Test Run and Smoke Integration.
+- Resolution enforces current-page identity, unique visible/actionable candidates, physical tag and
+  action compatibility, pinned DOM handles, one physical operation, and structured non-secret
+  diagnostics. Existing Grid/manual test APIs remain unchanged.
+
+### P7 — Page Mappings OCR Review core
+
+- Backend commit `89bbce24` adds selected immutable-capture OCR review, full capture checksum and
+  owner/revision validation, an isolated OCR worker, retarget-safe response delivery, and
+  SERIALIZABLE all-or-nothing `scanned_element.client_named` Apply.
+- Frontend commit `4dc51aa` adds isolated `PageMappingsOcrReview*` types, grid, panel, styles, exact
+  success correlation, safe failure settlement, visible-row-only Apply, and authoritative updates
+  to loaded capture and staged Memory List projections.
+- `GridItem` and `GridItemScann` were not modified or staged. The old `OCR Results` launcher/session
+  remains as a compatibility route; its final visible rename and retirement are parked until the
+  concurrent Grid work is complete and route/session parity tests are allowed.
+
+### Verification and separate completion gates
+
+- `mvn compile`: BUILD SUCCESS, 555 main Java sources, 2026-08-08.
+- Focused frontend lint for the Page Mappings OCR files: 0 errors; one existing
+  `captureElements` hook-dependency warning remains.
+- Per explicit instruction, no tests were created or run, no frontend production build was run,
+  and the backend was not packaged.
+- The frontend bundle was not mirrored because concurrent uncommitted Grid work must not be mixed
+  into this checkpoint.
+- Migration application, real SQL Server inspection, package/restart, deployed health, and live
+  desktop/browser behavior remain open operational gates.

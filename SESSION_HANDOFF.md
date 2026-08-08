@@ -1,26 +1,32 @@
 # Session Handoff
 
-## Current checkpoint - 2026-08-07
+## Current checkpoint - 2026-08-08
 
-The dated 2026-07-15 scanner-removal notes below remain historical backlog. The current delivery
-checkpoint is:
+The dated 2026-07-15 scanner-removal notes below remain historical backlog. The authoritative Page
+Mappings delivery checkpoint is:
 
-- Page Mappings P0 is committed and pushed; its running-app acceptance checklist remains open.
-- Page Mappings P1 immutable scan storage is now implemented in backend source/tests; P2-P7 remain planned.
-- Page Mappings P2 is partially implemented: detached read-only history page and `pageMappings.bootstrap`
-  metadata contract are committed; artifact/image loading, launchers, and Memory List integration remain open.
-- Page Mappings P3 launchers, immutable artifact loading, frontend element search, and selectable
-  image rectangle overlays are committed for Bot Job Details and Page Scanner.
-- The functional Page Scanner/GridItem `INPUT -> OUTPUT -> CLICK` toggle is committed and pushed.
-- Frontend focused verification passed: 4 suites / 19 tests.
-- Java focused verification passed: 24 tests; Maven compiled 536 main and 307 test sources.
-- Frontend bundle `main.83054b52.js` is mirrored into backend source resources with 58/58 files and
-  zero SHA-256 differences.
-- Frontend commit: `a289663`; backend source/test commit: `99ad9c2f`; asset commit: `46dd420e`.
-- The backend has not been packaged or restarted, so live verification is still pending.
-- Page Mappings P4 staging is committed: selected capture elements can be added or dragged into
-  Memory List through the explicit PAGE_MAPPINGS source and existing WebSocket Apply path.
-  P5-P7 and Main-page virtual-grid/Canvas implementation remain unstarted.
+- P0-P4 and all 12 review-remediation findings are implemented and pushed.
+- P5 cache-first scanning is implemented and pushed: backend `c8e722cd` plus correction `823ab2dc`;
+  frontend `14b7832`.
+- P6 safe runtime healing is implemented and pushed in backend `668a7acb`.
+- The P7 OCR Review core is implemented and pushed: backend `89bbce24`; frontend `4dc51aa`.
+- P7 reads the selected immutable READY capture and atomically applies owner/page/revision-scoped
+  `client_named` changes. The frontend keeps OCR Review isolated inside Page Mappings.
+- `GridItem` and `GridItemScann` were not modified or staged by the P5-P7 work. The legacy
+  `GridItemScann` OCR Results launcher and old `ocr-results-*` route/session/component retirement
+  remain parked until the concurrent Grid work finishes and parity verification is permitted.
+- The final authorized `mvn compile` passed with 555 main Java sources. No tests were created or run
+  for P5-P7 under the explicit user pause.
+- Focused frontend lint for the Page Mappings OCR files passed with 0 errors and one existing
+  `captureElements` hook-dependency warning.
+- No P5-P7 frontend production build or resource mirror was performed because it would include
+  concurrent uncommitted Grid changes. The backend was not packaged or restarted.
+- Migration application, real SQL Server inspection, deployment health, and live desktop/browser
+  acceptance remain open operational gates.
+- Explicit private Windows capture-folder ACL enforcement and configured snapshot retention/pin/purge
+  remain open security/lifecycle roadmap work.
+- Unrelated dirty Grid, generated-resource, Claude-settings, Marketing, and screenshot files remain
+  preserved and outside the Page Mappings commits.
 
 Read `specifications/performances/COPY_LAST_RESPONSE.md` and
 `specifications/performances/Page Mappins PLAN 2026-08-07.md` before continuing.

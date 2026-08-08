@@ -2,7 +2,7 @@
 
 Keep exactly two review sections. Check tasks only after their separate gates pass.
 
-**Last updated:** 2026-08-08 - Codex completed Page Mappings review remediation, Memory request/command generation correlation, and exact requester response routing. Claude independent review requested.
+**Last updated:** 2026-08-08 - Codex completed Page Mappings P5, P6, and the P7 OCR Review core. Legacy OCR launcher/session retirement and operational acceptance remain open. Claude independent review requested.
 
 ## 1. CODEX -> CLAUDE - Page Mappings and Memory lifecycle review handoff
 
@@ -30,6 +30,15 @@ memoryList.command
   -> late old-owner responses and drags are ignored
   -> Java replies only to the captured requester while it still owns the transport
 ```
+
+The Page Mappings roadmap is now source-complete through P6, and the P7 OCR Review core is source-complete:
+
+- P5 cache-first scanning: backend `c8e722cd` plus correction `823ab2dc`; frontend `14b7832`.
+- P6 safe runtime healing: backend `668a7acb`.
+- P7 selected-capture OCR Review and atomic alias Apply: backend `89bbce24`; frontend `4dc51aa`.
+- `GridItem` and `GridItemScann` were not modified or staged by these P5-P7 commits.
+- The legacy `GridItemScann` OCR Results launcher and `ocr-results-*` route/session retirement remain
+  parked until the concurrent Grid work is complete and parity verification is allowed.
 
 ### Frontend risks currently known
 
@@ -61,25 +70,28 @@ memoryList.command
 - [x] TASK - Exact Memory requester-routing commit pushed: `b147de41`.
 - [x] TASK - Detached Memory command-generation commit pushed: `fb87aa0`.
 - [x] TASK - Latest deployment-assets commit pushed: `9a9dc6db`.
+- [x] TASK - P5 cache-first scanning pushed: backend `c8e722cd` / `823ab2dc`; frontend `14b7832`.
+- [x] TASK - P6 safe runtime healing pushed: backend `668a7acb`.
+- [x] TASK - P7 OCR Review core pushed: backend `89bbce24`; frontend `4dc51aa`.
+- [x] TASK - Final authorized Java compile passed: 555 main sources.
+- [x] TASK - Focused Page Mappings OCR frontend lint passed with 0 errors and one existing hook warning.
 - [ ] TASK - Migration `2026-08-08__page_scan_snapshot_sqlserver_key_repair` is created but not applied; migration startup remains parked.
+- [ ] TASK - Legacy `GridItemScann` OCR Results launcher replacement and old `ocr-results-*` route/session/component retirement remain parked pending Grid parity verification.
+- [ ] TASK - Explicit private Windows capture-folder ACL enforcement remains open.
+- [ ] TASK - Configured snapshot retention/pin/purge behavior remains open.
+- [ ] TASK - No tests were created or run for P5-P7 under the explicit user pause.
+- [ ] TASK - The P5-P7 frontend production bundle was not built or mirrored because concurrent uncommitted Grid work must not be mixed into this checkpoint.
 - [ ] TASK - Backend was not packaged or restarted.
 - [ ] TASK - No live desktop or SQL Server acceptance was performed.
-- [ ] TASK - Page Mappings P5 through P7 remain planned.
 
 ## 2. CLAUDE -> CODEX - Independent review requested
 
-- [ ] TASK - Review backend commit `ea68268e`, especially `MemoryListWorkspaceService` authorization,
-  lock ordering, generation handling, exact transport retirement, delete/full-restore callbacks, and
-  same-ID Bot Job reuse.
-- [ ] TASK - Review backend commits `209d24d7` and `b147de41`; confirm failure envelopes grant no
-  authority and all Memory responses are sent only to the captured transport while it remains the
-  exact registered requester.
-- [ ] TASK - Review frontend commits `7774aeb`, `ce6a56f`, and `fb87aa0`; confirm OPEN/SYNC failures
-  settle only for the current request/context, supplied authority mismatches fail closed, and
-  request IDs cannot collide within one producer lifecycle.
-- [ ] TASK - Independently verify detached `MemoryList` commands, timers, dialogs, status, and drag
-  state are retired synchronously on owner-generation retarget, including a same-message-batch late
-  response from the prior owner.
-- [ ] TASK - Confirm source/backend asset compatibility for `main.16e24f7b.js` and commit `9a9dc6db`.
+- [ ] TASK - Review P5 backend commits `c8e722cd` and `823ab2dc` plus frontend `14b7832`; confirm cache reuse is limited to a verified CURRENT immutable capture, scan/page fingerprint correlation fails closed, and rescan completion cannot report success without READY persistence.
+- [ ] TASK - Review P6 backend commit `668a7acb`; confirm owner/Bot Job/page isolation, pinned unique candidates, one physical action, page/frame/shadow safeguards, and no regression to the untouched Grid/manual-test paths.
+- [ ] TASK - Review P7 backend commit `89bbce24`; confirm selected READY-capture checksum verification, owner/revision membership, bounded OCR work, duplicate/retarget handling, and SERIALIZABLE all-or-nothing alias Apply.
+- [ ] TASK - Review P7 frontend commit `4dc51aa`; confirm exact success correlation, safe failure settlement, explicit nullable aliases, pending-Apply navigation guards, visible-row-only Apply, and staged Memory projection refresh.
+- [ ] TASK - Confirm the P5-P7 commits do not modify `GridItem` or `GridItemScann`, and that legacy OCR launcher/session retirement remains explicitly parked rather than silently removed.
+- [ ] TASK - Confirm private Windows capture-folder ACL enforcement and configured retention/pin/purge remain open security/lifecycle work.
+- [ ] TASK - Confirm migration, production bundle/mirror, package/restart, SQL Server inspection, and live acceptance remain open and are not inferred from source or compile evidence.
 - [ ] TASK - Record any concrete blocker with producer, consumer, exact interleaving, and smallest
   authoritative fix. Do not mark deployment or live behavior complete from source/build evidence.
