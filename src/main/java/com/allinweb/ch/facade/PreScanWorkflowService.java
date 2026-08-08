@@ -381,7 +381,7 @@ public final class PreScanWorkflowService {
                                         ? "viewport"
                                         : artifactConfig.getString("screenshot", "scope", "viewport");
                                 return PageScanArtifactCapture.capture(
-                                        browser.playwrightDriver(), scanned, staging, screenshotScope);
+                                        browser.playwrightDriver(), page, scanned, staging, screenshotScope);
                             });
                 }
             } catch (Exception snapshotFailure) {

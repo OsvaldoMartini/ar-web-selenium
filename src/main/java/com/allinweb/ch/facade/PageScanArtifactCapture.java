@@ -1,5 +1,6 @@
 package com.allinweb.ch.facade;
 
+import com.allinweb.ch.db.ScannedPageIdentity;
 import com.allinweb.ch.driver.ARPlaywrightDriver;
 import com.allinweb.ch.model.ElementDTO;
 import com.allinweb.ch.vision.RasterImage;
@@ -106,11 +107,14 @@ final class PageScanArtifactCapture {
 
     static PageScanSnapshotStore.CaptureMetadata capture(
             ARPlaywrightDriver browser,
+            ScannedPageIdentity expectedPage,
             List<ElementDTO> elements,
             Path staging,
             String requestedScope)
             throws Exception {
         if (browser == null) throw new IllegalArgumentException("The active Playwright page is required");
+        if (expectedPage == null) throw new IllegalArgumentException("The scanned page identity is required");
+        requireExpectedPage(browser, expectedPage);
         String scope = "full_page".equalsIgnoreCase(requestedScope) ? "full_page" : "viewport";
         List<Map<String, Object>> targets = targets(elements);
         Object rawGeometry = browser.evaluate(GEOMETRY_SCRIPT, targets);
@@ -125,6 +129,7 @@ final class PageScanArtifactCapture {
                 : new JsonArray();
 
         byte[] screenshot = browser.screenshot("full_page".equals(scope));
+        PageScanArtifactPolicy.requireWritableSize("screenshot.png", screenshot.length);
         RasterImage image = RasterImageIO.readPng(screenshot);
         if (image == null || image.width() <= 0 || image.height() <= 0) {
             throw new IllegalStateException("The active page screenshot could not be decoded");
@@ -134,10 +139,11 @@ final class PageScanArtifactCapture {
                 screenshot,
                 StandardOpenOption.CREATE_NEW,
                 StandardOpenOption.WRITE);
-        Files.writeString(
+        byte[] rectangleBytes = JSON.toJson(rects).getBytes(StandardCharsets.UTF_8);
+        PageScanArtifactPolicy.requireWritableSize("rects.json", rectangleBytes.length);
+        Files.write(
                 staging.resolve("rects.json"),
-                JSON.toJson(rects),
-                StandardCharsets.UTF_8,
+                rectangleBytes,
                 StandardOpenOption.CREATE_NEW,
                 StandardOpenOption.WRITE);
 
@@ -151,6 +157,7 @@ final class PageScanArtifactCapture {
         double cssHeight = "full_page".equals(scope) ? documentHeight : viewportHeight;
         if (cssWidth <= 0) cssWidth = image.width() / dpr;
         if (cssHeight <= 0) cssHeight = image.height() / dpr;
+        requireExpectedPage(browser, expectedPage);
         return new PageScanSnapshotStore.CaptureMetadata(
                 scope,
                 dpr,
@@ -160,6 +167,16 @@ final class PageScanArtifactCapture {
                 image.height(),
                 nonNegative(meta, "scrollX"),
                 nonNegative(meta, "scrollY"));
+    }
+
+    private static void requireExpectedPage(
+            ARPlaywrightDriver browser, ScannedPageIdentity expectedPage) {
+        ScannedPageIdentity activePage = ScannedPageIdentity.fromLiveUrl(browser.currentUrl());
+        if (!expectedPage.pageKey().equals(activePage.pageKey())) {
+            throw new IllegalStateException(
+                    "The browser page changed while Page Scanner captured its immutable artifacts. "
+                            + "Scan the current page again.");
+        }
     }
 
     private static List<Map<String, Object>> targets(List<ElementDTO> elements) {

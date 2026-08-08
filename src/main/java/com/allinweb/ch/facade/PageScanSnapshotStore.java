@@ -80,7 +80,7 @@ public final class PageScanSnapshotStore {
 
             CaptureMetadata capture = Objects.requireNonNullElseGet(
                     artifactWriter.write(staging), CaptureMetadata::unavailable);
-            write(staging.resolve("elements.json"), JSON.toJson(values));
+            writeLimited(staging.resolve("elements.json"), JSON.toJson(values));
             Map<String, Object> metadata = new LinkedHashMap<>();
             metadata.put("scanId", scanId);
             metadata.put("homeBankingId", homeBankingId);
@@ -93,8 +93,9 @@ public final class PageScanSnapshotStore {
             metadata.put("capturedAt", capturedAt);
             metadata.put("elementCount", values.length);
             metadata.put("capture", capture.asMap());
-            write(staging.resolve("meta.json"), JSON.toJson(metadata));
+            writeLimited(staging.resolve("meta.json"), JSON.toJson(metadata));
 
+            PageScanArtifactPolicy.validatePayload(staging);
             Map<String, String> checksums = checksums(staging);
             Map<String, Object> manifest = new LinkedHashMap<>();
             manifest.put("format", "page-scan-snapshot-v1");
@@ -105,8 +106,9 @@ public final class PageScanSnapshotStore {
             manifest.put("capture", capture.asMap());
             manifest.put("elementCount", values.length);
             manifest.put("files", checksums);
-            write(staging.resolve("manifest.json"), JSON.toJson(manifest));
-            String manifestHash = sha256(Files.readAllBytes(staging.resolve("manifest.json")));
+            byte[] manifestBytes = writeLimited(
+                    staging.resolve("manifest.json"), JSON.toJson(manifest));
+            String manifestHash = sha256(manifestBytes);
             moveIntoPlace(staging, target);
             String relative = root.relativize(target).toString().replace('\\', '/');
             markReady(
@@ -170,8 +172,11 @@ public final class PageScanSnapshotStore {
         return result;
     }
 
-    private static void write(Path path, String value) throws IOException {
-        Files.writeString(path, value, StandardCharsets.UTF_8, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
+    private static byte[] writeLimited(Path path, String value) throws IOException {
+        byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
+        PageScanArtifactPolicy.requireWritableSize(path.getFileName().toString(), bytes.length);
+        Files.write(path, bytes, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
+        return bytes;
     }
 
     private static void moveIntoPlace(Path staging, Path target) throws IOException {

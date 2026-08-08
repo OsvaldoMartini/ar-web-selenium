@@ -1,13 +1,17 @@
 package com.allinweb.ch.facade;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.allinweb.ch.db.ScannedPageIdentity;
 import com.allinweb.ch.driver.ARPlaywrightDriver;
 import com.allinweb.ch.model.ElementDTO;
 import com.allinweb.ch.vision.RasterImage;
@@ -23,12 +27,15 @@ import org.mockito.ArgumentCaptor;
 
 class PageScanArtifactCaptureTest {
 
+    private static final String PAGE_URL = "https://bank.example/accounts";
+
     @TempDir
     Path temporaryDirectory;
 
     @Test
     void writesCurrentScreenshotAndValidRectangleJsonWithDprMetadata() throws Exception {
         ARPlaywrightDriver browser = mock(ARPlaywrightDriver.class);
+        when(browser.currentUrl()).thenReturn(PAGE_URL);
         when(browser.evaluate(anyString(), any())).thenReturn(Map.of(
                 "meta", Map.of(
                         "devicePixelRatio", 2.0d,
@@ -56,7 +63,11 @@ class PageScanArtifactCaptureTest {
         ElementDTO missingXPath = new ElementDTO();
 
         PageScanSnapshotStore.CaptureMetadata metadata = PageScanArtifactCapture.capture(
-                browser, List.of(element, missingXPath), temporaryDirectory, "viewport");
+                browser,
+                ScannedPageIdentity.fromLiveUrl(PAGE_URL),
+                List.of(element, missingXPath),
+                temporaryDirectory,
+                "viewport");
 
         assertEquals("viewport", metadata.screenshotScope());
         assertEquals(2.0d, metadata.devicePixelRatio());
@@ -85,6 +96,7 @@ class PageScanArtifactCaptureTest {
     @Test
     void capturesEmptyFullPageUsingDocumentDimensions() throws Exception {
         ARPlaywrightDriver browser = mock(ARPlaywrightDriver.class);
+        when(browser.currentUrl()).thenReturn(PAGE_URL);
         when(browser.evaluate(anyString(), any())).thenReturn(Map.of(
                 "meta", Map.of(
                         "devicePixelRatio", 1.5d,
@@ -98,7 +110,11 @@ class PageScanArtifactCaptureTest {
         when(browser.screenshot(true)).thenReturn(png(450, 300));
 
         PageScanSnapshotStore.CaptureMetadata metadata = PageScanArtifactCapture.capture(
-                browser, List.of(), temporaryDirectory, "full_page");
+                browser,
+                ScannedPageIdentity.fromLiveUrl(PAGE_URL),
+                List.of(),
+                temporaryDirectory,
+                "full_page");
 
         assertEquals("full_page", metadata.screenshotScope());
         assertEquals(300.0d, metadata.cssWidth());
@@ -106,6 +122,56 @@ class PageScanArtifactCaptureTest {
         assertEquals(0, JsonParser.parseString(Files.readString(temporaryDirectory.resolve("rects.json")))
                 .getAsJsonArray().size());
         verify(browser).screenshot(true);
+    }
+
+    @Test
+    void refusesAChangedPageBeforeCapturingAnyArtifact() {
+        ARPlaywrightDriver browser = mock(ARPlaywrightDriver.class);
+        when(browser.currentUrl()).thenReturn("https://bank.example/payments");
+
+        IllegalStateException failure = assertThrows(
+                IllegalStateException.class,
+                () -> PageScanArtifactCapture.capture(
+                        browser,
+                        ScannedPageIdentity.fromLiveUrl(PAGE_URL),
+                        List.of(),
+                        temporaryDirectory,
+                        "viewport"));
+
+        assertTrue(failure.getMessage().contains("browser page changed"));
+        verify(browser, never()).evaluate(anyString(), any());
+        verify(browser, never()).screenshot(false);
+        assertFalse(Files.exists(temporaryDirectory.resolve("screenshot.png")));
+    }
+
+    @Test
+    void refusesAnOversizedScreenshotBeforeWritingIt() throws Exception {
+        ARPlaywrightDriver browser = mock(ARPlaywrightDriver.class);
+        when(browser.currentUrl()).thenReturn(PAGE_URL);
+        when(browser.evaluate(anyString(), any())).thenReturn(Map.of(
+                "meta", Map.of(
+                        "devicePixelRatio", 1.0d,
+                        "viewportWidth", 100.0d,
+                        "viewportHeight", 50.0d,
+                        "documentWidth", 100.0d,
+                        "documentHeight", 50.0d,
+                        "scrollX", 0.0d,
+                        "scrollY", 0.0d),
+                "rects", List.of()));
+        when(browser.screenshot(false)).thenReturn(
+                new byte[(int) PageScanArtifactPolicy.MAX_SCREENSHOT_BYTES + 1]);
+
+        Exception failure = assertThrows(
+                Exception.class,
+                () -> PageScanArtifactCapture.capture(
+                        browser,
+                        ScannedPageIdentity.fromLiveUrl(PAGE_URL),
+                        List.of(),
+                        temporaryDirectory,
+                        "viewport"));
+
+        assertTrue(failure.getMessage().contains("exceeds its safe size"));
+        assertFalse(Files.exists(temporaryDirectory.resolve("screenshot.png")));
     }
 
     private byte[] png(int width, int height) throws Exception {
