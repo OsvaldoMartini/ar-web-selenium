@@ -98,6 +98,23 @@ public final class BotJobWorkspaceController {
         host().pageScannerElementTest(payload, type, workspaceSessionId, context);
     }
 
+    /** Runs a cache-first Page Mappings rescan without publishing Scanner-grid rows. */
+    public void pageMappingsRescan(
+            PreScanWorkflowService.Context context,
+            long workspaceEpoch,
+            String destinationSessionId,
+            String bindingEpoch,
+            String requestId,
+            Runnable completion) {
+        host().pageMappingsRescan(
+                context,
+                workspaceEpoch,
+                destinationSessionId,
+                bindingEpoch,
+                requestId,
+                completion);
+    }
+
     /** Releases only the isolated browser resources owned by the detached Page Scanner. */
     public void closePageScanner(String workspaceSessionId) {
         host().closePageScanner(workspaceSessionId);
@@ -157,6 +174,16 @@ public final class BotJobWorkspaceController {
                 String workspaceSessionId,
                 PreScanWorkflowService.Context context) {
             preScanElementTest(payload, type);
+        }
+
+        default void pageMappingsRescan(
+                PreScanWorkflowService.Context context,
+                long workspaceEpoch,
+                String destinationSessionId,
+                String bindingEpoch,
+                String requestId,
+                Runnable completion) {
+            throw new IllegalStateException("Page Mappings rescan is not available");
         }
 
         default void closePageScanner(String workspaceSessionId) {

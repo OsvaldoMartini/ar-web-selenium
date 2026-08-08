@@ -53,6 +53,7 @@ public final class PageScanSnapshotStore {
         ElementDTO[] values = elements == null ? new ElementDTO[0] : elements.toArray(new ElementDTO[0]);
         String redactedActualUrl = PageScanUrlRedactor.redact(page.actualUrl());
         String redactedNormalizedUrl = PageScanUrlRedactor.redact(page.normalizedUrl());
+        boolean fingerprintColumn = hasViewFingerprintColumn(connection);
         boolean stagedRecorded = false;
         Path staging = null;
         Path target = null;
@@ -66,7 +67,8 @@ public final class PageScanSnapshotStore {
                     page.pageKey(),
                     redactedActualUrl,
                     capturedAt,
-                    values.length);
+                    values.length,
+                    fingerprintColumn);
             stagedRecorded = true;
 
             Path root = safeRoot(diagnosticPath);
@@ -118,7 +120,9 @@ public final class PageScanSnapshotStore {
                     botJobId,
                     values.length,
                     relative,
-                    manifestHash);
+                    manifestHash,
+                    capture.viewFingerprint(),
+                    fingerprintColumn);
             return new Snapshot(scanId, relative, values.length, manifestHash, "READY");
         } catch (Exception failure) {
             cleanup(staging, failure);
@@ -196,11 +200,18 @@ public final class PageScanSnapshotStore {
             String pageKey,
             String pageUrl,
             String capturedAt,
-            int elementCount)
+            int elementCount,
+            boolean fingerprintColumn)
             throws SQLException {
-        String sql = "INSERT INTO page_scan_snapshot "
-                + "(scan_id, home_banking_id, bot_job_id, home_url_id, page_key, page_url, captured_at, "
-                + "element_count, artifact_path, manifest_sha256, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        String sql = fingerprintColumn
+                ? "INSERT INTO page_scan_snapshot "
+                        + "(scan_id, home_banking_id, bot_job_id, home_url_id, page_key, page_url, captured_at, "
+                        + "element_count, artifact_path, manifest_sha256, status, view_fingerprint) "
+                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+                : "INSERT INTO page_scan_snapshot "
+                        + "(scan_id, home_banking_id, bot_job_id, home_url_id, page_key, page_url, captured_at, "
+                        + "element_count, artifact_path, manifest_sha256, status) "
+                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, scanId);
             statement.setInt(2, homeBankingId);
@@ -213,6 +224,7 @@ public final class PageScanSnapshotStore {
             statement.setString(9, "");
             statement.setString(10, "");
             statement.setString(11, "STAGED");
+            if (fingerprintColumn) statement.setString(12, "");
             requireOne(statement.executeUpdate(), "create STAGED page scan snapshot");
         }
     }
@@ -224,20 +236,44 @@ public final class PageScanSnapshotStore {
             int botJobId,
             int elementCount,
             String artifactPath,
-            String manifestHash)
+            String manifestHash,
+            String viewFingerprint,
+            boolean fingerprintColumn)
             throws SQLException {
-        String sql = "UPDATE page_scan_snapshot SET element_count = ?, artifact_path = ?, "
-                + "manifest_sha256 = ?, status = 'READY' "
-                + "WHERE scan_id = ? AND home_banking_id = ? AND bot_job_id = ? AND status = 'STAGED'";
+        String sql = fingerprintColumn
+                ? "UPDATE page_scan_snapshot SET element_count = ?, artifact_path = ?, "
+                        + "manifest_sha256 = ?, view_fingerprint = ?, status = 'READY' "
+                        + "WHERE scan_id = ? AND home_banking_id = ? AND bot_job_id = ? AND status = 'STAGED'"
+                : "UPDATE page_scan_snapshot SET element_count = ?, artifact_path = ?, "
+                        + "manifest_sha256 = ?, status = 'READY' "
+                        + "WHERE scan_id = ? AND home_banking_id = ? AND bot_job_id = ? AND status = 'STAGED'";
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setInt(1, elementCount);
             statement.setString(2, artifactPath);
             statement.setString(3, manifestHash);
-            statement.setString(4, scanId);
-            statement.setInt(5, homeBankingId);
-            statement.setInt(6, botJobId);
+            int ownerOffset = 4;
+            if (fingerprintColumn) {
+                statement.setString(4, value(viewFingerprint));
+                ownerOffset = 5;
+            }
+            statement.setString(ownerOffset, scanId);
+            statement.setInt(ownerOffset + 1, homeBankingId);
+            statement.setInt(ownerOffset + 2, botJobId);
             requireOne(statement.executeUpdate(), "finalize READY page scan snapshot");
         }
+    }
+
+    static boolean hasViewFingerprintColumn(Connection connection) throws SQLException {
+        try (java.sql.ResultSet columns =
+                connection.getMetaData().getColumns(null, null, null, null)) {
+            while (columns.next()) {
+                if ("page_scan_snapshot".equalsIgnoreCase(columns.getString("TABLE_NAME"))
+                        && "view_fingerprint".equalsIgnoreCase(columns.getString("COLUMN_NAME"))) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private static void markFailed(
@@ -305,10 +341,35 @@ public final class PageScanSnapshotStore {
             int pixelWidth,
             int pixelHeight,
             double scrollX,
-            double scrollY) {
+            double scrollY,
+            String viewFingerprint,
+            int fingerprintNodeCount) {
+
+        CaptureMetadata(
+                String screenshotScope,
+                double devicePixelRatio,
+                double cssWidth,
+                double cssHeight,
+                int pixelWidth,
+                int pixelHeight,
+                double scrollX,
+                double scrollY) {
+            this(
+                    screenshotScope,
+                    devicePixelRatio,
+                    cssWidth,
+                    cssHeight,
+                    pixelWidth,
+                    pixelHeight,
+                    scrollX,
+                    scrollY,
+                    "",
+                    0);
+        }
 
         static CaptureMetadata unavailable() {
-            return new CaptureMetadata("unavailable", 1.0d, 0.0d, 0.0d, 0, 0, 0.0d, 0.0d);
+            return new CaptureMetadata(
+                    "unavailable", 1.0d, 0.0d, 0.0d, 0, 0, 0.0d, 0.0d, "", 0);
         }
 
         Map<String, Object> asMap() {
@@ -321,6 +382,8 @@ public final class PageScanSnapshotStore {
             values.put("pixelHeight", pixelHeight);
             values.put("scrollX", scrollX);
             values.put("scrollY", scrollY);
+            values.put("viewFingerprint", value(viewFingerprint));
+            values.put("fingerprintNodeCount", Math.max(0, fingerprintNodeCount));
             return values;
         }
     }

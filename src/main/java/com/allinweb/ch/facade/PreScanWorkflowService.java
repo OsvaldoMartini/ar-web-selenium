@@ -59,6 +59,21 @@ public final class PreScanWorkflowService {
     }
 
     public void scan(Context context, String searchTerms, boolean searchHidden, Sink sink) {
+        scan(context, searchTerms, searchHidden, sink, false);
+    }
+
+    /** Runs Page Mappings scan with immutable snapshot persistence as a success requirement. */
+    public void scanForPageMappings(
+            Context context, String searchTerms, boolean searchHidden, Sink sink) {
+        scan(context, searchTerms, searchHidden, sink, true);
+    }
+
+    private void scan(
+            Context context,
+            String searchTerms,
+            boolean searchHidden,
+            Sink sink,
+            boolean requireSnapshot) {
         require(context, sink);
         if (!browser.tryBeginScan()) {
             sink.status("running", "A pre-scan is already in progress...", 0);
@@ -78,6 +93,21 @@ public final class PreScanWorkflowService {
             sink.status("running", "web elements...", 0);
             ScannedPageIdentity scannedPage =
                     ScannedPageIdentity.fromLiveUrl(browser.currentUrl());
+            PageViewFingerprintService.Observation scannedView;
+            try {
+                scannedView = PageViewFingerprintService.requirePage(
+                        browser.playwrightDriver(), scannedPage);
+            } catch (RuntimeException fingerprintUnavailable) {
+                log.warn(
+                        "PRE SCAN - structural fingerprint unavailable; cache reuse disabled: {}",
+                        fingerprintUnavailable.getMessage());
+                scannedView = PageViewFingerprintService.Observation.unavailable(
+                        scannedPage, "This page requires a fresh scan.");
+            }
+            if (!Strings.isNullOrEmpty(searchTerms) || searchHidden) {
+                scannedView = scannedView.disableReuse(
+                        "Custom Page Scanner filters require a fresh scan.");
+            }
             List<ElementDTO> elements = keepActionableElements(
                     browser.scanElements(searchTermsArray(searchTerms), searchHidden));
             diagnostics.resolveNames(context, browser, elements, sink);
@@ -87,7 +117,8 @@ public final class PreScanWorkflowService {
                 throw new IllegalStateException(
                         "The browser page changed during Page Scanner. Scan the current page again.");
             }
-            diagnostics.persist(context, scannedPage, elements, browser);
+            diagnostics.persist(
+                    context, scannedPage, elements, browser, scannedView, requireSnapshot);
             sink.elements(elements);
             int count = elements == null ? 0 : elements.size();
             sink.status(
@@ -261,6 +292,27 @@ public final class PreScanWorkflowService {
                 List<ElementDTO> elements,
                 BrowserPort browser)
                 throws Exception;
+
+        default void persist(
+                Context context,
+                ScannedPageIdentity page,
+                List<ElementDTO> elements,
+                BrowserPort browser,
+                PageViewFingerprintService.Observation scannedView)
+                throws Exception {
+            persist(context, page, elements, browser);
+        }
+
+        default void persist(
+                Context context,
+                ScannedPageIdentity page,
+                List<ElementDTO> elements,
+                BrowserPort browser,
+                PageViewFingerprintService.Observation scannedView,
+                boolean requireSnapshot)
+                throws Exception {
+            persist(context, page, elements, browser, scannedView);
+        }
     }
 
     @FunctionalInterface
@@ -334,6 +386,29 @@ public final class PreScanWorkflowService {
                 List<ElementDTO> elements,
                 BrowserPort browser)
                 throws Exception {
+            persist(context, page, elements, browser, null);
+        }
+
+        @Override
+        public void persist(
+                Context context,
+                ScannedPageIdentity page,
+                List<ElementDTO> elements,
+                BrowserPort browser,
+                PageViewFingerprintService.Observation scannedView)
+                throws Exception {
+            persist(context, page, elements, browser, scannedView, false);
+        }
+
+        @Override
+        public void persist(
+                Context context,
+                ScannedPageIdentity page,
+                List<ElementDTO> elements,
+                BrowserPort browser,
+                PageViewFingerprintService.Observation scannedView,
+                boolean requireSnapshot)
+                throws Exception {
             List<ElementDTO> scanned = elements == null ? List.of() : elements;
             if (!scanned.isEmpty()) {
                 int[] registry = PerformDataBase.getInstance().upsertScannedElementsStrict(
@@ -381,7 +456,12 @@ public final class PreScanWorkflowService {
                                         ? "viewport"
                                         : artifactConfig.getString("screenshot", "scope", "viewport");
                                 return PageScanArtifactCapture.capture(
-                                        browser.playwrightDriver(), page, scanned, staging, screenshotScope);
+                                        browser.playwrightDriver(),
+                                        page,
+                                        scanned,
+                                        staging,
+                                        screenshotScope,
+                                        scannedView);
                             });
                 }
             } catch (Exception snapshotFailure) {
@@ -390,6 +470,7 @@ public final class PreScanWorkflowService {
                 // already records FAILED when it can reach the snapshot table.
                 log.warn("PRE SCAN - immutable snapshot unavailable (legacy scan preserved): {}",
                         snapshotFailure.getMessage());
+                if (requireSnapshot) throw snapshotFailure;
             }
         }
     }

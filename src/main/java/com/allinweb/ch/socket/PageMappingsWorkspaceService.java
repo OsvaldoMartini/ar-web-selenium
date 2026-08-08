@@ -2,7 +2,10 @@ package com.allinweb.ch.socket;
 
 import com.allinweb.ch.db.ScannedElementRepository;
 import com.allinweb.ch.facade.BotJobDetailsWorkspaceRegistry;
+import com.allinweb.ch.facade.BotJobWorkspaceController;
+import com.allinweb.ch.facade.PageMappingsCacheService;
 import com.allinweb.ch.facade.PageScanUrlRedactor;
+import com.allinweb.ch.facade.PreScanWorkflowService;
 import com.allinweb.ch.model.ElementDTO;
 import com.allinweb.ch.model.DetachedWorkspaceSessions;
 import com.allinweb.ch.model.ScannerWorkspaceSessions;
@@ -30,6 +33,7 @@ import java.util.Base64;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -51,6 +55,7 @@ public final class PageMappingsWorkspaceService {
     private static final Gson JSON = new Gson();
     private static final SecureRandom WINDOW_CAPABILITY_RANDOM = new SecureRandom();
     private static final int WINDOW_CAPABILITY_BYTES = 32;
+    private static final int MAX_RESCAN_REQUESTS = 256;
     private static final long DELIVERY_TIMEOUT_SECONDS = 5L;
     private static final long MAX_MANIFEST_BYTES = 1_000_000L;
     private static final long MAX_METADATA_BYTES = 1_000_000L;
@@ -68,7 +73,10 @@ public final class PageMappingsWorkspaceService {
     private final RetargetObserver retargetObserver;
     private final ExactTransportAuthorizer transportAuthorizer;
     private final SnapshotRootResolver snapshotRootResolver;
+    private final LinkedHashSet<String> acceptedRescanRequests = new LinkedHashSet<>();
     private Binding binding;
+    private String activeRescanKey = "";
+    private boolean cacheInspectionInFlight;
 
     public static PageMappingsWorkspaceService getInstance() {
         return INSTANCE;
@@ -251,6 +259,173 @@ public final class PageMappingsWorkspaceService {
         return response;
     }
 
+    /** Compares the live shared Playwright page with the latest owner-scoped READY capture. */
+    public JsonObject cacheState(
+            JsonObject body,
+            String requesterSessionId,
+            Session requesterTransport,
+            Connection connection) {
+        Binding authorized;
+        synchronized (bindingLock) {
+            try {
+                authorized = authorizeDetachedRequest(
+                        body, requesterSessionId, requesterTransport, true);
+            } catch (IllegalArgumentException unauthorizedRequest) {
+                return failure(body, unauthorizedRequest.getMessage());
+            }
+            if (cacheInspectionInFlight) {
+                return failure(
+                        body, "A live page comparison is already in progress.", authorized);
+            }
+            cacheInspectionInFlight = true;
+        }
+        try {
+            PageMappingsCacheService.CacheState state = PageMappingsCacheService.inspect(
+                    Objects.requireNonNull(connection),
+                    authorized.homeBankingId(),
+                    authorized.botJobId());
+            if ("CURRENT".equals(state.state())
+                    && !verifyReusableCapture(
+                            connection, authorized, state.reusableScanId())) {
+                state = state.artifactStale();
+            }
+            JsonObject response = baseResponse(body, authorized);
+            response.addProperty("ok", true);
+            response.addProperty("cacheState", state.state());
+            response.addProperty("message", state.message());
+            response.addProperty("browserAvailable", state.browserAvailable());
+            response.addProperty("livePageKey", state.livePageKey());
+            response.addProperty("livePageUrl", state.livePageUrl());
+            response.addProperty("liveNodeCount", state.liveNodeCount());
+            response.addProperty("reusableScanId", state.reusableScanId());
+            response.addProperty("comparedScanId", state.comparedScanId());
+            return response;
+        } finally {
+            synchronized (bindingLock) {
+                cacheInspectionInFlight = false;
+            }
+        }
+    }
+
+    /** Starts a server-owned Page Scanner run and publishes only Page Mappings progress. */
+    public JsonObject rescan(
+            JsonObject body, String requesterSessionId, Session requesterTransport) {
+        synchronized (bindingLock) {
+            Binding authorized;
+            try {
+                authorized = authorizeDetachedRequest(
+                        body, requesterSessionId, requesterTransport, true);
+                String requestId = string(body, "requestId").trim();
+                if (requestId.isEmpty() || requestId.length() > 200) {
+                    return failure(body, "A valid Page Mappings request ID is required.", authorized);
+                }
+                if (!activeRescanKey.isBlank()) {
+                    return failure(
+                            body, "A Page Mappings rescan is already in progress.", authorized);
+                }
+                if (!acceptRescanRequest(authorized.bindingEpoch(), requestId)) {
+                    return failure(
+                            body,
+                            "This Page Mappings rescan request was already accepted.",
+                            authorized);
+                }
+                BotJobDetailsWorkspaceRegistry.getInstance()
+                        .require(authorized.botJobId(), authorized.workspaceEpoch());
+                PreScanWorkflowService.Context context = BotJobWorkspaceController.getInstance()
+                        .pageScannerContext(authorized.botJobId());
+                if (context.homeBankingId() != authorized.homeBankingId()
+                        || context.botJobId() != authorized.botJobId()) {
+                    return failure(body, "Page Mappings owner changed. Refresh this page.", authorized);
+                }
+                String rescanKey = rescanKey(authorized.bindingEpoch(), requestId);
+                activeRescanKey = rescanKey;
+                try {
+                    BotJobWorkspaceController.getInstance().pageMappingsRescan(
+                            context,
+                            authorized.workspaceEpoch(),
+                            SESSION_ID,
+                            authorized.bindingEpoch(),
+                            requestId,
+                            () -> finishRescan(rescanKey));
+                } catch (RuntimeException startFailure) {
+                    finishRescan(rescanKey);
+                    throw startFailure;
+                }
+                JsonObject response = baseResponse(body, authorized);
+                response.addProperty("ok", true);
+                response.addProperty("accepted", true);
+                response.addProperty("message", "Page Mappings rescan started.");
+                return response;
+            } catch (IllegalArgumentException unauthorized) {
+                return failure(body, unauthorized.getMessage());
+            } catch (RuntimeException unavailable) {
+                log.warn("Unable to start Page Mappings rescan", unavailable);
+                return failure(body, "Page Mappings rescan could not be started.");
+            }
+        }
+    }
+
+    private boolean acceptRescanRequest(String bindingEpoch, String requestId) {
+        String key = rescanKey(bindingEpoch, requestId);
+        if (!acceptedRescanRequests.add(key)) return false;
+        while (acceptedRescanRequests.size() > MAX_RESCAN_REQUESTS) {
+            var oldest = acceptedRescanRequests.iterator();
+            if (!oldest.hasNext()) break;
+            oldest.next();
+            oldest.remove();
+        }
+        return true;
+    }
+
+    private static String rescanKey(String bindingEpoch, String requestId) {
+        return bindingEpoch + '\u0000' + requestId;
+    }
+
+    private void finishRescan(String key) {
+        synchronized (bindingLock) {
+            if (Objects.equals(activeRescanKey, key)) activeRescanKey = "";
+        }
+    }
+
+    private boolean verifyReusableCapture(
+            Connection connection, Binding owner, String scanId) {
+        if (scanId == null || scanId.isBlank()) return false;
+        String expectedFingerprint;
+        CaptureRow selected;
+        try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT scan_id, page_key, page_url, captured_at, element_count, artifact_path, "
+                        + "manifest_sha256, view_fingerprint FROM page_scan_snapshot "
+                        + "WHERE scan_id = ? AND home_banking_id = ? AND bot_job_id = ? "
+                        + "AND status = 'READY'")) {
+            statement.setString(1, scanId);
+            statement.setInt(2, owner.homeBankingId());
+            statement.setInt(3, owner.botJobId());
+            try (ResultSet rows = statement.executeQuery()) {
+                if (!rows.next()) return false;
+                selected = new CaptureRow(
+                        rows.getString("scan_id"),
+                        rows.getString("page_key"),
+                        rows.getString("page_url"),
+                        rows.getString("captured_at"),
+                        rows.getInt("element_count"),
+                        rows.getString("artifact_path"),
+                        rows.getString("manifest_sha256"));
+                expectedFingerprint = Objects.toString(
+                        rows.getString("view_fingerprint"), "").trim();
+            }
+            if (expectedFingerprint.isBlank()) return false;
+            VerifiedCapture verified = verifyCapture(
+                    snapshotRootResolver.resolve(), selected, owner, connection);
+            return expectedFingerprint.equals(verified.viewFingerprint());
+        } catch (Exception invalidCapture) {
+            log.warn(
+                    "Page Mappings cache rejected capture {} after integrity verification: {}",
+                    scanId,
+                    invalidCapture.getMessage());
+            return false;
+        }
+    }
+
     /** Loads one artifact that belongs to the exact currently bound owner. */
     public JsonObject capture(
             JsonObject body,
@@ -424,7 +599,12 @@ public final class PageMappingsWorkspaceService {
         if (screenshot.length == 0) {
             throw new IOException("The capture screenshot is empty");
         }
-        return new VerifiedCapture(enrichedElements, rectangles, viewport, screenshot);
+        return new VerifiedCapture(
+                enrichedElements,
+                rectangles,
+                viewport,
+                screenshot,
+                text(metadataCapture, "viewFingerprint"));
     }
 
     private static Path configuredSnapshotRoot() throws IOException {
@@ -1459,5 +1639,9 @@ public final class PageMappingsWorkspaceService {
             long scannedElementId, String elementHash, String lastScannedAt, int scanCount) {}
 
     private record VerifiedCapture(
-            JsonArray elements, JsonArray rectangles, JsonObject viewport, byte[] screenshot) {}
+            JsonArray elements,
+            JsonArray rectangles,
+            JsonObject viewport,
+            byte[] screenshot,
+            String viewFingerprint) {}
 }

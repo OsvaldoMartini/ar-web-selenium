@@ -132,6 +132,8 @@ public class SimpleWebSocketServer {
     private static final Set<String> DETACHED_PAGE_MAPPINGS_OPERATIONS = Set.of(
             "pageMappings.bootstrap",
             "pageMappings.capture",
+            "pageMappings.cacheState",
+            "pageMappings.rescan",
             "memoryList.open",
             "memoryList.sync",
             "memoryList.summary",
@@ -1122,6 +1124,43 @@ public class SimpleWebSocketServer {
                                         mappingsBody,
                                         "The selected scan artifact could not be loaded."));
                     }
+                    break;
+                }
+                case "pageMappings.cacheState": {
+                    JsonObject mappingsBody = extractBody(jsonObjMSG);
+                    CompletableFuture.runAsync(() -> {
+                        try (java.sql.Connection connection = performDataBase.getConnection()) {
+                            JsonObject response = pageMappingsWorkspaceService.cacheState(
+                                    mappingsBody, sessionId, session, connection);
+                            sendPageMappingsResponse(
+                                    homeBankingId,
+                                    sessionId,
+                                    session,
+                                    "pageMappings.cacheStateResponse",
+                                    response);
+                        } catch (Exception failure) {
+                            sendPageMappingsResponse(
+                                    homeBankingId,
+                                    sessionId,
+                                    session,
+                                    "pageMappings.cacheStateResponse",
+                                    commandEditorFailure(
+                                            mappingsBody,
+                                            "Live mapping comparison is unavailable."));
+                        }
+                    });
+                    break;
+                }
+                case "pageMappings.rescan": {
+                    JsonObject mappingsBody = extractBody(jsonObjMSG);
+                    JsonObject response = pageMappingsWorkspaceService.rescan(
+                            mappingsBody, sessionId, session);
+                    sendPageMappingsResponse(
+                            homeBankingId,
+                            sessionId,
+                            session,
+                            "pageMappings.rescanResponse",
+                            response);
                     break;
                 }
                 case "pageMappings.open": {

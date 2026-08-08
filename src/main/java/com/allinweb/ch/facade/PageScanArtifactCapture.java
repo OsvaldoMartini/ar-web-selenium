@@ -112,9 +112,34 @@ final class PageScanArtifactCapture {
             Path staging,
             String requestedScope)
             throws Exception {
+        return capture(browser, expectedPage, elements, staging, requestedScope, null);
+    }
+
+    static PageScanSnapshotStore.CaptureMetadata capture(
+            ARPlaywrightDriver browser,
+            ScannedPageIdentity expectedPage,
+            List<ElementDTO> elements,
+            Path staging,
+            String requestedScope,
+            PageViewFingerprintService.Observation scannedView)
+            throws Exception {
         if (browser == null) throw new IllegalArgumentException("The active Playwright page is required");
         if (expectedPage == null) throw new IllegalArgumentException("The scanned page identity is required");
         requireExpectedPage(browser, expectedPage);
+        PageViewFingerprintService.Observation fingerprintBefore = null;
+        PageViewFingerprintService.Observation authoritativeView = null;
+        if (scannedView != null) {
+            fingerprintBefore = PageViewFingerprintService.requirePage(browser, expectedPage);
+            authoritativeView = scannedView.fingerprint().isBlank()
+                    ? fingerprintBefore
+                    : scannedView;
+            if (!expectedPage.pageKey().equals(authoritativeView.page().pageKey())
+                    || !authoritativeView.fingerprint().equals(fingerprintBefore.fingerprint())) {
+                throw new IllegalStateException(
+                        "The page structure changed after Page Scanner collected its elements. "
+                                + "Scan the current page again.");
+            }
+        }
         String scope = "full_page".equalsIgnoreCase(requestedScope) ? "full_page" : "viewport";
         List<Map<String, Object>> targets = targets(elements);
         Object rawGeometry = browser.evaluate(GEOMETRY_SCRIPT, targets);
@@ -158,6 +183,23 @@ final class PageScanArtifactCapture {
         if (cssWidth <= 0) cssWidth = image.width() / dpr;
         if (cssHeight <= 0) cssHeight = image.height() / dpr;
         requireExpectedPage(browser, expectedPage);
+        PageViewFingerprintService.Observation fingerprintAfter = null;
+        if (scannedView != null) {
+            fingerprintAfter = PageViewFingerprintService.requirePage(browser, expectedPage);
+            if (!authoritativeView.fingerprint().equals(fingerprintAfter.fingerprint())) {
+                throw new IllegalStateException(
+                        "The page structure changed while Page Scanner captured its immutable artifacts. "
+                                + "Scan the current page again.");
+            }
+        }
+        String reusableFingerprint = scannedView != null
+                        && scannedView.cacheable()
+                        && fingerprintBefore != null
+                        && fingerprintBefore.cacheable()
+                        && fingerprintAfter != null
+                        && fingerprintAfter.cacheable()
+                ? scannedView.fingerprint()
+                : "";
         return new PageScanSnapshotStore.CaptureMetadata(
                 scope,
                 dpr,
@@ -166,7 +208,9 @@ final class PageScanArtifactCapture {
                 image.width(),
                 image.height(),
                 nonNegative(meta, "scrollX"),
-                nonNegative(meta, "scrollY"));
+                nonNegative(meta, "scrollY"),
+                reusableFingerprint,
+                scannedView == null ? 0 : scannedView.nodeCount());
     }
 
     private static void requireExpectedPage(

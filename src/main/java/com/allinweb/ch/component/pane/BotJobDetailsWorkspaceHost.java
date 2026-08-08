@@ -368,6 +368,21 @@ public class BotJobDetailsWorkspaceHost {
                             PreScanWorkflowService.Context context) {
                         handlePreScanElementTest(payload, type, workspaceSessionId, context);
                     }
+                    public void pageMappingsRescan(
+                            PreScanWorkflowService.Context context,
+                            long workspaceEpoch,
+                            String destinationSessionId,
+                            String bindingEpoch,
+                            String requestId,
+                            Runnable completion) {
+                        runPageMappingsRescan(
+                                context,
+                                workspaceEpoch,
+                                destinationSessionId,
+                                bindingEpoch,
+                                requestId,
+                                completion);
+                    }
                     public void closePageScanner(String workspaceSessionId) {
                         closePageScannerOperations();
                     }
@@ -548,6 +563,48 @@ public class BotJobDetailsWorkspaceHost {
                         searchTerms,
                         searchHidden,
                         preScanSink(destinationSessionId, context)));
+    }
+
+    private void runPageMappingsRescan(
+            PreScanWorkflowService.Context context,
+            long workspaceEpoch,
+            String destinationSessionId,
+            String bindingEpoch,
+            String requestId,
+            Runnable completion) {
+        dispatchPreScanOperation(
+                () -> withSharedScannerActivity(
+                        context,
+                        workspaceEpoch,
+                        () -> preScanWorkflowService.scanForPageMappings(
+                                context,
+                                "",
+                                false,
+                                pageMappingsRescanSink(
+                                        destinationSessionId,
+                                        context,
+                                        workspaceEpoch,
+                                        bindingEpoch,
+                                        requestId,
+                                        completion)),
+                        message -> {
+                            try {
+                                sendPageMappingsRescanStatus(
+                                        destinationSessionId,
+                                        context,
+                                        workspaceEpoch,
+                                        bindingEpoch,
+                                        requestId,
+                                        "failed",
+                                        message,
+                                        0);
+                            } finally {
+                                completion.run();
+                            }
+                        }),
+                "page-mappings-rescan-" + context.botJobId(),
+                destinationSessionId,
+                context);
     }
 
     @Deprecated
@@ -851,12 +908,108 @@ public class BotJobDetailsWorkspaceHost {
             Runnable operation) {
         BotJobDetailsWorkspaceRegistry.Snapshot snapshot =
                 botJobDetailsWorkspaceRegistry.require(context.botJobId());
-        try (ExecutionPauseCoordinator.ScannerActivity ignored = executionPauseCoordinator.beginScannerActivity(
-                context.botJobId(), snapshot.workspaceEpoch())) {
-            operation.run();
+        withSharedScannerActivity(
+                context,
+                snapshot.workspaceEpoch(),
+                operation,
+                message -> sendPreScanStatus(
+                        destinationSessionId, context, "failed", message, 0));
+    }
+
+    private void withSharedScannerActivity(
+            PreScanWorkflowService.Context context,
+            long workspaceEpoch,
+            Runnable operation,
+            java.util.function.Consumer<String> unavailableSink) {
+        try {
+            botJobDetailsWorkspaceRegistry.require(context.botJobId(), workspaceEpoch);
+            try (ExecutionPauseCoordinator.ScannerActivity ignored = executionPauseCoordinator.beginScannerActivity(
+                    context.botJobId(), workspaceEpoch)) {
+                operation.run();
+            }
         } catch (IllegalStateException unavailable) {
-            sendPreScanStatus(destinationSessionId, context, "failed", unavailable.getMessage(), 0);
+            unavailableSink.accept(unavailable.getMessage());
         }
+    }
+
+    private PreScanWorkflowService.Sink pageMappingsRescanSink(
+            String destinationSessionId,
+            PreScanWorkflowService.Context context,
+            long workspaceEpoch,
+            String bindingEpoch,
+            String requestId,
+            Runnable completion) {
+        java.util.concurrent.atomic.AtomicBoolean completed =
+                new java.util.concurrent.atomic.AtomicBoolean();
+        return new PreScanWorkflowService.Sink() {
+            @Override
+            public void status(String status, String message, int elementCount) {
+                String publishedStatus = "running".equalsIgnoreCase(status)
+                                && message != null
+                                && message.toLowerCase(java.util.Locale.ROOT)
+                                        .contains("already in progress")
+                        ? "failed"
+                        : status;
+                boolean terminal = "done".equalsIgnoreCase(publishedStatus)
+                        || "empty".equalsIgnoreCase(publishedStatus)
+                        || "failed".equalsIgnoreCase(publishedStatus);
+                try {
+                    sendPageMappingsRescanStatus(
+                            destinationSessionId,
+                            context,
+                            workspaceEpoch,
+                            bindingEpoch,
+                            requestId,
+                            publishedStatus,
+                            message,
+                            elementCount);
+                } finally {
+                    if (terminal && completed.compareAndSet(false, true)) {
+                        completion.run();
+                    }
+                }
+            }
+
+            @Override
+            public void reset() {
+                // Page Mappings keeps the selected immutable capture visible while rescanning.
+            }
+
+            @Override
+            public void elements(List<ElementDTO> elements) {
+                // The new immutable capture is loaded through pageMappings.bootstrap/capture.
+            }
+
+            @Override
+            public void failure(String message) {
+                // PreScanWorkflowService always emits the terminal failed status first.
+            }
+        };
+    }
+
+    private void sendPageMappingsRescanStatus(
+            String destinationSessionId,
+            PreScanWorkflowService.Context context,
+            long workspaceEpoch,
+            String bindingEpoch,
+            String requestId,
+            String status,
+            String message,
+            int elementCount) {
+        JsonObject payload = new JsonObject();
+        payload.addProperty("requestId", requestId);
+        payload.addProperty("bindingEpoch", bindingEpoch);
+        payload.addProperty("workspaceEpoch", workspaceEpoch);
+        payload.addProperty("homeBankingId", context.homeBankingId());
+        payload.addProperty("botJobId", context.botJobId());
+        payload.addProperty("status", status);
+        payload.addProperty("message", message == null ? "" : message);
+        payload.addProperty("elementCount", elementCount);
+        webSocketSessionManager.sendMessageJson(
+                context.homeBankingId(),
+                destinationSessionId,
+                payload.toString(),
+                "pageMappings.rescanStatus");
     }
 
     private PreScanWorkflowService.Context detachedPageScannerContext(int botJobId) {
