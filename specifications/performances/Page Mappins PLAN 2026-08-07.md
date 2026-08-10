@@ -601,3 +601,49 @@ separate and requires a user action; Codex did not trigger a validating scan.
 - [ ] Pre-fix Lloyds captures stored under Bot Job 32 remain untouched; cleanup requires explicit
   authorization.
 - [ ] Package/image delivery and other-database/SQL Server rollout remain open.
+
+## Step 8 UI completion and adaptive full-page Rescan - 2026-08-10
+
+This checkpoint supersedes the older contaminated-capture, Page Mappings UI, fixed-delay scroll,
+and running-PID statements in the preceding Step 8 section. Historical implementation evidence
+remains valid.
+
+- [x] Frontend `716a686` adds independently scrollable history/details regions; `7264fa7` adds the
+  search clear-X and pulsing Pages badge; and `f5cb822` adds the focus-contained bottom-right rules
+  guide plus horizontally pannable natural-width screenshots with overlays on the same canvas.
+- [x] Frontend `7f04cbc` adds the correlated red/green `SCROLL PAGE` toggle; `af6fffd` closes the
+  modal focus boundary. `Use Existing` remains a read-only load of the latest fingerprint-matching
+  READY capture and intentionally selects that newest reusable row.
+- [x] Backend `260f2025` owner-authorizes and propagates `scrollPage`, performs bounded scrolling
+  before the authoritative scan, restores/revalidates page identity, and forces only that snapshot
+  to `full_page`. Explicit OFF and normal Page Scanner behavior are unchanged.
+- [x] Retention-days fallback is 30 for missing/blank/invalid/out-of-range configuration; explicit
+  `0` still disables age cleanup. Max-unpinned fallback remains `0`, and pinned/newest-per-page
+  safety rules remain unchanged.
+- [x] The two exact Lloyds rows incorrectly persisted under Home Banking 2 / Bot Job 32 and their
+  active artifact folder were removed through guarded maintenance. The recoverable database/artifact
+  backup is `D:\Projects\ARWebBancaStato\ARWeb\Backup-CODEX-2026-08-10-job32-lloyds-cleanup`;
+  database backup SHA-256 is
+  `8B4BD1F19A535644824F953E2D7FDEA4291592020A7E082F1CBC1DF0D7F95716`.
+- [x] Read-only post-cleanup/current DB evidence: `quick_check=ok`, 24 migrations, zero FK violations,
+  17 READY Job 32 BancaStato captures, two pinned, zero Job 32 Lloyds rows, and no SQLite sidecar.
+- [x] Live evidence confirmed the initial 200 ms traversal was too fast for visual fidelity: all
+  repeats found 239 locators, but available OCR words increased 10 -> 25 -> 51 while the scroll
+  completed in about 2.3 seconds.
+- [x] Backend `20c8a4bc` replaces the fixed delay with bounded adaptive render readiness covering
+  paint frames, relevant DOM/class/style quiet, near-viewport image decoding, fonts, and finite
+  visible animations. Per-viewport and 45-second global deadlines, stable-bottom confirmation,
+  restore-time readiness, exact page identity, and fail-closed timeout behavior remain enforced.
+- [x] Clean frontend build passed with existing warnings; exact 58-file mirror `6b2d1350` serves
+  `main.3f8cb24e.js` and `main.c51a1b29.css`. Source/target resource hashes match.
+- [x] Java compile passed with 563 sources and the two existing warnings. No tests were created/run,
+  no package/image was built, and all unrelated dirty files were preserved.
+- [x] PID `4428` runs the adaptive class from `target/classes` with the exact BancaStato config on
+  127.0.0.1:54668/54669. HTTP root/assets match the committed hashes and six new `.16` logs have
+  zero relevant error matches.
+- [ ] User live gate: run one new Page Mappings Rescan with `SCROLL PAGE` ON and compare the visual
+  completeness. Do not infer this from compile, restart, or pre-adaptive captures.
+- [ ] Explicit bounded limitations remain: virtualized lists, nested scroll containers, canvas/video,
+  CSS background-image readiness, and unbounded infinite pages cannot be guaranteed.
+- [ ] Package/image delivery, other-database/SQL Server rollout, and broader reconnect/takeover/
+  retention/OCR/Memory/multi-page acceptance remain open.

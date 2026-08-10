@@ -144,6 +144,61 @@ Rescan gate statements. Historical migration and acceptance evidence above remai
   switch with both detached pages open, one fresh Page Mappings Rescan after `b9222d2f`, and one Use
   Existing action proving no additional snapshot is created.
 
+### Page Mappings controls, cleanup, and full-page rendering - 2026-08-10
+
+This checkpoint supersedes the older Page Mappings UI, contaminated-capture cleanup, current-runtime,
+and initial fixed-delay SCROLL PAGE status above. It does not change any other installation or SQL
+Server database.
+
+- Frontend `716a686` adds independent left-history and right-details vertical scrolling; `7264fa7`
+  adds the captured-element search clear-X and established pulsing Pages badge treatment; `f5cb822`
+  adds the focus-contained bottom-right help dialog and natural-width screenshot panning with aligned
+  overlays; `7f04cbc` adds the correlated red/green `SCROLL PAGE` Rescan toggle; and `af6fffd`
+  contains modal focus. The Page Mappings detached page still has one guarded Close action.
+- `Use Existing` performs no scan and creates no snapshot. It integrity-loads the latest READY capture
+  whose page fingerprint matches the current shared browser page, so selecting an older history row
+  and then choosing `Use Existing` intentionally returns selection to that newest reusable row.
+- Backend `260f2025` propagates the authenticated `scrollPage` flag through the owner/workspace-bound
+  Rescan path. OFF preserves the existing live-DOM scan. ON performs bounded top-window traversal
+  before fingerprinting/scanning and forces only that immutable capture to `full_page`; the original
+  scroll position and exact page identity are restored/revalidated. Missing, blank, invalid, or
+  out-of-range retention-days configuration now defaults to 30; an explicit configured `0` still
+  disables age cleanup and max-unpinned fallback remains `0`.
+- The exact two pre-fix Lloyds captures incorrectly stored under Home Banking 2 / Bot Job 32 were
+  removed from the active SQLite history and their artifact folder was moved to the recoverable
+  quarantine under
+  `D:\Projects\ARWebBancaStato\ARWeb\Backup-CODEX-2026-08-10-job32-lloyds-cleanup`.
+  Its database backup is 5,267,456 bytes with SHA-256
+  `8B4BD1F19A535644824F953E2D7FDEA4291592020A7E082F1CBC1DF0D7F95716`. Current read-only evidence is
+  `quick_check=ok`, 24 migrations, zero foreign-key violations, 17 READY Job 32 BancaStato captures,
+  two pinned, zero Job 32 Lloyds rows, and no SQLite sidecar.
+- The first live SCROLL PAGE implementation found the same 239 locators, but logs showed its fixed
+  200 ms hops completed traversal in about 2.3 seconds while OCR availability rose across repeated
+  scans from 10 to 25 to 51 words. The locator scan was stable, but the rendered pixels/text were
+  still completing.
+- Backend `20c8a4bc` replaces those fixed hops with a bounded adaptive render-ready gate: each
+  viewport waits for paint frames, relevant DOM/class/style quiet, near-viewport image load/decode,
+  fonts, and finite visible animations. It uses per-viewport and 45-second global deadlines, checks
+  two stable bottom windows, applies the same readiness after restoring position, ignores infinite
+  animations, and fails closed instead of persisting a known-incomplete capture.
+- Frontend production build passed with existing repository warnings; its exact 58-file mirror is
+  backend `6b2d1350`. Live entrypoints are `main.3f8cb24e.js` (2,062,835 bytes; SHA-256
+  `089E7A4564C3345B3B4CE0DB2D8AAA9C734253D8A45FB38FA4252DAC2F131C58`) and
+  `main.c51a1b29.css` (495,832 bytes; SHA-256
+  `FC65A5462FF227DB8CAA8936C68DC2B6FCCFC611DB6BC38621C8BB59AF1918BA`); source and
+  `target/classes` contain the same 58 paths and hashes.
+- `mvn -DskipTests compile` passed with 563 main sources and the two existing warnings. No tests were
+  created or run and no package/image was built. Backend `20c8a4bc` and frontend `af6fffd` are pushed
+  to their upstream branches.
+- PID `4428` now runs the adaptive class from `target/classes` with the exact BancaStato config on
+  `127.0.0.1:54668` / `127.0.0.1:54669`. Root, JS, and CSS return HTTP 200 with the hashes above; the
+  six new `.16` logs have zero relevant failure matches: error, exception, `SQLITE_ERROR`, snapshot
+  failure, or render timeout. The old PID's forced-close EOF messages remain in `.15` and are not
+  new-runtime failures.
+- A fresh user-driven `SCROLL PAGE` Rescan is still required to compare the adaptive visual result.
+  A bounded browser traversal cannot guarantee virtualized lists, nested scroll containers,
+  canvas/video, CSS background resources, or unbounded infinite pages; these remain explicit limits.
+
 Read `specifications/performances/COPY_LAST_RESPONSE.md` and
 `specifications/performances/Page Mappins PLAN 2026-08-07.md` before continuing.
 

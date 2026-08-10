@@ -2,7 +2,7 @@
 
 Keep exactly two review sections. Check tasks only after their separate gates pass.
 
-**Last updated:** 2026-08-10 - Page Mappings is source-complete through P7 and the Step 8 Bot Job retarget/cache correction is pushed and running from `target/classes`. Backend commits `3721c049`, `c594ba5b`, and `b9222d2f`, frontend `17748b8`, and mirrored assets `242095b2` fix shared-browser owner contamination, stale detached-page buffers, concurrent mutation/bootstrap races, frame handling, and bounded open-Shadow-DOM fingerprinting. PID `8032` is healthy on ports 60711/60712 with current assets. Package/image delivery, contaminated-capture cleanup, other-database rollout, and final user-driven retarget/Rescan/Use Existing acceptance remain open. Claude independent review requested.
+**Last updated:** 2026-08-10 - Page Mappings UI/full-page controls, targeted Job 32 Lloyds cleanup, and adaptive render waiting are pushed and running from `target/classes`. Frontend `716a686`, `7264fa7`, `f5cb822`, `7f04cbc`, and `af6fffd`; backend `260f2025`, mirrored assets `6b2d1350`, and adaptive wait `20c8a4bc`. PID `4428` is healthy on ports 54668/54669 and serves the matching current assets. One user-driven adaptive SCROLL PAGE Rescan, package/image delivery, other-database rollout, and broader acceptance remain open. Claude independent review requested.
 
 ## 1. CODEX -> CLAUDE - Page Mappings and Memory lifecycle review handoff
 
@@ -103,6 +103,36 @@ The Page Mappings roadmap is now source-complete through P7:
   blank fingerprints under the old Shadow DOM gate. One fresh post-deployment Rescan is required;
   Codex did not trigger a scan.
 
+### Page Mappings UI, cleanup, and adaptive full-page Rescan
+
+- Frontend `716a686`, `7264fa7`, `f5cb822`, `7f04cbc`, and `af6fffd` respectively deliver independent
+  history/details scrolling, captured-element search clear plus the pulsing Pages badge, the
+  focus-contained bottom-right rules guide plus horizontal natural-width screenshot pan, and the
+  correlated red/green `SCROLL PAGE` toggle. `Use Existing` remains a read-only integrity load of the
+  newest READY capture matching the live page fingerprint; it intentionally selects that reusable row.
+- Backend `260f2025` authorizes and propagates `scrollPage`, traverses the top-level document before
+  fingerprint/scan, restores and revalidates exact page identity, and forces only that snapshot to
+  `full_page`. OFF and ordinary Page Scanner behavior remain unchanged. Retention-days fallback is
+  now 30 for missing/blank/invalid configuration, while explicit `0` still disables age cleanup.
+- The two exact Lloyds snapshots incorrectly stored under Home Banking 2 / Bot Job 32 were removed
+  from the active DB and their artifact folder was quarantined under the recoverable backup
+  `D:\Projects\ARWebBancaStato\ARWeb\Backup-CODEX-2026-08-10-job32-lloyds-cleanup`. Database backup
+  SHA-256 is `8B4BD1F19A535644824F953E2D7FDEA4291592020A7E082F1CBC1DF0D7F95716`.
+- Live evidence showed the first 200 ms scroll hops completed in about 2.3 seconds: every repeat found
+  239 locators, while OCR availability rose 10 -> 25 -> 51. Backend `20c8a4bc` replaces the fixed
+  delay with bounded readiness for paint frames, relevant DOM/class/style quiet, near-viewport image
+  decode, fonts, and finite visible animations, including stable-bottom and restored-position gates.
+- Frontend build passed with existing warnings. Backend `6b2d1350` mirrors exactly 58 files;
+  `main.3f8cb24e.js` SHA-256 is
+  `089E7A4564C3345B3B4CE0DB2D8AAA9C734253D8A45FB38FA4252DAC2F131C58` and
+  `main.c51a1b29.css` SHA-256 is
+  `FC65A5462FF227DB8CAA8936C68DC2B6FCCFC611DB6BC38621C8BB59AF1918BA`.
+- Java compile passed with 563 sources and the two existing warnings. No tests were created/run and no
+  package/image was built. PID `4428` runs the adaptive class with the exact BancaStato config on
+  54668/54669; HTTP assets match, the six new `.16` logs have zero relevant errors, and read-only DB
+  state is `quick_check=ok`, 24 migrations, zero FK violations, 17 READY Job 32 BancaStato rows, two
+  pinned, zero Job 32 Lloyds rows, and no SQLite sidecar.
+
 ### Current risks
 
 | Severity | Status | Risk |
@@ -111,9 +141,9 @@ The Page Mappings roadmap is now source-complete through P7:
 | Critical | Fixed in `209d24d7` / `ce6a56f` / `fb87aa0` | Failed Memory `open` responses without `workspaceEpoch` could be discarded and leave opening stuck. Exact failures now correlate by typed request/current context and validate every supplied authority field. |
 | Critical | Fixed in `209d24d7` / `ce6a56f` / `fb87aa0` | Failed Memory `sync` responses lacked pending request correlation and could disappear silently. OPEN and SYNC now use typed pending records and collision-resistant sequenced request IDs. |
 | Critical | Fixed in `fb87aa0` / `b147de41` | Detached Memory commands, timers, dialogs, status, and drag state are bound to the exact owner/workspace generation; late prior-owner responses are ignored and backend responses stay on the captured requester transport. |
-| High | Live acceptance open | PID `8032` is running the final Step 8 classes and exact mirrored frontend from `target/classes`, but the user-driven Job 29 -> 32 switch and post-fix Rescan / Use Existing flow is not yet verified. No package/image or other-installation rollout was performed. |
-| Medium | Cleanup authorization required | Pre-fix Lloyds captures genuinely stored under Bot Job 32 remain visible in its correctly owner-filtered history. They were not deleted or rewritten. |
-| Medium | Cache acceptance open | All 13 existing READY captures predate the final shadow-aware runtime and have blank fingerprints. One fresh Page Mappings Rescan must create a 64-character fingerprint before Use Existing can become CURRENT/enabled. |
+| High | Adaptive live acceptance open | PID `4428` runs the adaptive rendering gate and exact mirrored frontend, but one fresh user-driven SCROLL PAGE Rescan is still needed to compare visual completeness. Compile/restart and pre-adaptive captures do not close this gate. |
+| Medium | Cleanup complete and recoverable | The two exact Job 32 Lloyds rows/artifacts are absent from active storage. The guarded pre-write database and quarantined artifacts remain under `Backup-CODEX-2026-08-10-job32-lloyds-cleanup`. |
+| Medium | Bounded browser limitation | Virtualized lists, nested scroll containers, canvas/video, CSS background resources, and unbounded infinite pages cannot be guaranteed. The adaptive traversal fails closed on its bounds rather than storing known-incomplete output. |
 | Medium | Open verification | Live detached-window reload, takeover, retarget, deletion, same-ID reuse, and multi-page WebSocket behavior remain unverified. |
 | Medium | Open verification | The final affected-path JSDOM suite passed 44/44. The complete repository-wide frontend suite was not run. |
 | Low | Existing | Production build lint/dependency/bundle-size warnings remain outside the Page Mappings retention files. |
@@ -173,8 +203,13 @@ The Page Mappings roadmap is now source-complete through P7:
 - [x] TASK - Clean `npm run build` passed; exact 58-file mirror pushed in `242095b2`; final `mvn -DskipTests compile` passed with 562 sources.
 - [x] TASK - PID `8032` runs final `target/classes` on 60711/60712; HTTP assets match, `.10` logs have zero relevant errors, and read-only SQLite health is clean.
 - [x] TASK - No Step 8 tests were created/run, no package/image was built, no Codex scan was triggered, and unrelated dirty state was preserved.
-- [ ] TASK - User must verify live Job 29 -> 32 automatic retarget, run one post-`b9222d2f` Page Mappings Rescan, confirm a 64-character fingerprint/CURRENT state, and use the capture without creating another row.
-- [ ] TASK - Orphan inventory/reconciliation, package/image delivery, other-database/SQL Server rollout, and broader reconnect/takeover/retarget/delete/same-ID/Use Existing/Rescan/retention-save-purge/OCR/Memory/multi-page acceptance remain open.
+- [x] TASK - Page Mappings UI/help/pan and SCROLL PAGE frontend commits pushed: `716a686`, `7264fa7`, `f5cb822`, `7f04cbc`, `af6fffd`.
+- [x] TASK - Owner-bound full-page traversal/default retention pushed in `260f2025`; adaptive render readiness pushed in `20c8a4bc`.
+- [x] TASK - Exact 58-file frontend deployment mirror pushed in `6b2d1350`; production build passed with existing warnings.
+- [x] TASK - The two exact Job 32 Lloyds rows/artifacts were removed from active storage after guarded backup/quarantine; current Job 32 Lloyds count is zero.
+- [x] TASK - Final Java compile passed with 563 sources; no tests/package/image. PID `4428` serves matching assets on 54668/54669 and `.16` logs have zero relevant errors.
+- [ ] TASK - User must run one fresh adaptive `SCROLL PAGE` Rescan and compare the full-page visual result; Codex did not trigger this scan.
+- [ ] TASK - Package/image delivery, other-database/SQL Server rollout, and broader reconnect/takeover/retention-save-purge/OCR/Memory/multi-page acceptance remain open.
 
 ## 2. CLAUDE -> CODEX - Independent review requested
 
@@ -187,8 +222,11 @@ The Page Mappings roadmap is now source-complete through P7:
 - [x] Shadow review confirmed deterministic bounded traversal, non-shadow hash compatibility,
   hash-only persistence, explicit root/slot topology, and fail-closed omission of unrepresentable
   shadow-scoped elements. Full shadow-element locator/geometry support remains a future feature.
-- [ ] Validate the final user-driven Job 29 -> 32 retarget and post-`b9222d2f` Rescan / Use Existing
-  evidence. Do not infer this live gate from compile, build, deployment, or the pre-fix READY rows.
+- [x] Independent adaptive-scroll review confirmed bounded paint waits, class/style mutation coverage,
+  finite near-viewport animation gating, image decode/font readiness, deadline-bounded restore, and
+  fail-closed timeout behavior. No concrete source blocker remains.
+- [ ] Validate one user-driven post-`20c8a4bc` SCROLL PAGE Rescan. Do not infer visual completeness
+  from compile, restart, or the pre-adaptive READY captures.
 
 - [ ] TASK - Review frontend OCR reconnect commit `449f9ea`; confirm read-only Review is discarded,
   mutating Apply resends the byte-identical request before bootstrap, and timeout/retarget/malformed
