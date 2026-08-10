@@ -198,6 +198,7 @@ final class PageScanArtifactCapture {
                         && fingerprintBefore.cacheable()
                         && fingerprintAfter != null
                         && fingerprintAfter.cacheable()
+                        && containsOnlyTopDocumentElements(elements)
                 ? scannedView.fingerprint()
                 : "";
         return new PageScanSnapshotStore.CaptureMetadata(
@@ -211,6 +212,29 @@ final class PageScanArtifactCapture {
                 nonNegative(meta, "scrollY"),
                 reusableFingerprint,
                 scannedView == null ? 0 : scannedView.nodeCount());
+    }
+
+    /**
+     * The structural material covers the top document, including iframe host nodes, but not frame
+     * or Shadow DOM contents. Persist it for reuse only when every captured locator has that same
+     * top-document scope. This keeps future nested-context scanner support fail-closed.
+     */
+    private static boolean containsOnlyTopDocumentElements(List<ElementDTO> elements) {
+        if (elements == null || elements.isEmpty()) return true;
+        for (ElementDTO element : elements) {
+            if (element == null) continue;
+            if (hasText(element.getIFrameXPath())
+                    || hasText(element.getShadowHost())
+                    || hasText(element.getShadowRoot())
+                    || Boolean.parseBoolean(element.getNestedShadow())) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 
     private static void requireExpectedPage(

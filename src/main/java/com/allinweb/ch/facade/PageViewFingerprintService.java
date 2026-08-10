@@ -114,7 +114,6 @@ public final class PageViewFingerprintService {
         }
         int nodeCount = Math.max(0, result.get("nodeCount").getAsInt());
         boolean truncated = booleanValue(result, "truncated");
-        boolean hasFrames = booleanValue(result, "hasFrames");
         boolean hasShadowRoots = booleanValue(result, "hasShadowRoots");
         boolean attributeOversized = booleanValue(result, "attributeOversized");
         ScannedPageIdentity after = ScannedPageIdentity.fromLiveUrl(browser.currentUrl());
@@ -124,14 +123,11 @@ public final class PageViewFingerprintService {
         }
         boolean cacheable = !truncated
                 && !attributeOversized
-                && !hasFrames
                 && !hasShadowRoots;
         String diagnostic = truncated
                 ? "The live DOM exceeds the safe fingerprint limit."
                 : attributeOversized
                         ? "A locator attribute exceeds the safe fingerprint limit."
-                        : hasFrames
-                        ? "Pages containing frames require a fresh scan."
                         : hasShadowRoots
                                 ? "Pages containing Shadow DOM require a fresh scan."
                                 : "";
