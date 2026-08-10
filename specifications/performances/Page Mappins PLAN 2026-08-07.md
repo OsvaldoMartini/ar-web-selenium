@@ -439,3 +439,65 @@ package/restart, deployed health, and live behavior are not complete.
 - Per explicit instruction, no tests were created or run. The backend was not packaged or restarted.
 - Migration application remains intentionally deferred. Real database inspection, live Windows ACL
   inspection, running-service health, and live desktop/browser behavior remain open gates.
+
+## Item-7 verification and OCR recovery checkpoint - 2026-08-10
+
+The later user authorization to continue item 7 superseded the earlier test pause for this
+checkpoint. Verification was kept local and deterministic: no Playwright browser, live service,
+native OCR bridge, migration, or production database was started.
+
+### Defects found and fixed
+
+- Snapshot verification exposed an invalid STAGED-recovery write of `NULL` into migration-defined
+  NOT NULL artifact columns. Recovery now uses the established FAILED empty-string representation.
+- Windows ACL verification exposed a valid capture path beyond the legacy Win32 path limit. Private
+  ACL reads and writes now use extended-length paths while retaining no-follow owner checks.
+- A pending OCR alias Apply was previously discarded by React on disconnect, while Java silently
+  dropped its duplicate and bound terminal delivery to the replaced transport. The database could
+  commit with no authoritative result reaching the new window.
+- React now retains the exact serialized Apply body and request ID, resends it before bootstrap on
+  reconnect, and blocks further OCR mutation after an unknown outcome until a correlated bootstrap
+  plus integrity-verified capture response succeeds. Read-only OCR Review remains safely rerunnable.
+- Java now authorizes the exact Page Mappings transport and full owner contract before the OCR
+  ledger, attaches byte-identical reconnect subscribers, drops conflicting payloads, caches only
+  successful Apply responses, and reauthorizes every terminal recipient.
+- Alias commit acknowledgement and connection-close ambiguity now return a typed correlated
+  `reloadRequired=true` failure. No rollback or connection-state mutation runs after an ambiguous
+  commit attempt. An outer read-connection close can no longer replace an already-built success.
+- Abrupt worker errors detach the active ledger state before allocation/copy work, send best-effort
+  fail-closed terminal responses, and cannot permanently leave OCR requests BUSY.
+- The broader frontend run found one stale OCR Config test that contradicted the later desktop-shell
+  design. The test now correctly records the header as the containing workspace frame's drag handle;
+  production presentation was not changed.
+
+### Commits and verification
+
+- Frontend retention test checkpoint: `f8dd5aa`.
+- Backend snapshot/retention tests and hardening: `380841af`.
+- Frontend OCR reconnect lifecycle: `449f9ea`.
+- Frontend OCR Config contract correction: `a51e792`.
+- Backend OCR authority, ledger, and transaction recovery: `3e365b25`.
+- Mirrored production frontend assets: `fb23c531`.
+- Regenerated automation catalog: `d76362ff`.
+- Frontend retention-focused verification: 2 suites / 15 tests passed.
+- Final frontend affected-path verification: 8 suites / 44 tests passed.
+- Backend snapshot/retention hardening matrix: 71 tests passed.
+- Final backend non-browser OCR/session/retirement matrix: 106 tests passed.
+- `npm run build`: passed with existing repository lint/dependency/bundle-size warnings.
+- `mvn compile`: BUILD SUCCESS, 562 main Java sources; only the existing Lombok builder and
+  inexact-varargs warnings remain.
+- Exact frontend mirror: 58 source files / 58 backend files / zero manifest differences.
+  Entrypoints are `main.eb4f02b1.js` (SHA-256
+  `965E2A606FA0AA0A5744C0443BC1EF2FA97FDCE66EB83C4050BE0A5C82E83C56`) and
+  `main.df7752f0.css` (SHA-256
+  `912DEAE51E4B60DE97A1BEAEB74F6AAE6719EFBB54ED8D28388E77A1518AE70C`).
+- Catalog: 2,341 rows, 2,305 code cases, 19,452 generated API requests, 13 focused Page Mappings
+  OCR cases, and zero retired OCR Results rows. Source metadata is backend `3e365b25` / frontend
+  `a51e792`.
+
+### Operational gates still open
+
+- No migration or DDL was created or applied.
+- No backend package was built and no service was restarted.
+- No running image/service freshness, real database, live Windows ACL, desktop-window, or browser
+  behavior was verified.

@@ -1,38 +1,53 @@
 # Session Handoff
 
-## Current checkpoint - 2026-08-09
+## Current checkpoint - 2026-08-10
 
 The dated 2026-07-15 scanner-removal notes below remain historical backlog. The authoritative Page
 Mappings delivery checkpoint is:
 
-- P0-P7 and all 12 original review-remediation findings are implemented and pushed.
-- P5 cache-first scanning is backend `c8e722cd` plus `823ab2dc`, frontend `14b7832`; P6 runtime
-  healing is backend `668a7acb`; P7 OCR Review is backend `89bbce24`, frontend `4dc51aa`.
-- Legacy OCR Results production source is retired in backend `07f3fd47` and frontend `b2d8a59`.
-  OCR Config and Page Mappings OCR Review remain. The regenerated catalog and mirrored bundle have
-  no retired workspace identifiers.
-- Snapshot ACL/retention foundations are backend `478a51b2`, frontend `dfd4836`. The final
-  hardening is backend `09fa2824`: recursive no-follow ACL hardening on controlled recovery paths,
-  verify-only reads, fail-closed storage health, STAGED creation recovery, generation-bound delete
-  journals, unified lifecycle reconciliation, stale/unknown pin handling, expected-policy purge,
-  binding-linearized mutations, and authorized duplicate/reconnect delivery.
-- The retention policy is explicitly system-wide; capture counts, pinning, eligibility, and purge
-  remain scoped to the authoritative organization/Bot Job binding. Frontend hardening is
-  `cb64ab3` plus `6750c3b`, including reload latching, permanent-purge confirmation, policy
-  assertions, and authoritative draft reset.
-- A clean frontend worktree excluded the unrelated dirty `GridItemScann.tsx` change.
-  `npm run build` passed with existing repository warnings. The exact 58-file build was mirrored
-  into backend resources and pushed in `c3a86e6f`; entrypoints are `main.5501261a.js` (SHA-256
-  `4A2F8128F929BA7C6D85059742A366466F096982603A89141E6A6E3CAA87392B`) and
-  `main.53308f43.css`.
-- `mvn compile` passed with 561 main Java sources on Java 17. Only the existing
+- P0-P7 and all 12 original review-remediation findings are implemented and pushed. P5 is backend
+  `c8e722cd` plus `823ab2dc` / frontend `14b7832`; P6 is backend `668a7acb`; P7 OCR Review is
+  backend `89bbce24` / frontend `4dc51aa`.
+- Legacy OCR Results production source remains retired in backend `07f3fd47` and frontend
+  `b2d8a59`. OCR Config and Page Mappings OCR Review remain. The current catalog contains zero
+  retired OCR Results entries.
+- Snapshot ACL/retention foundations are backend `478a51b2` / frontend `dfd4836`; prior lifecycle
+  hardening is backend `09fa2824` / frontend `cb64ab3` plus `6750c3b`.
+- Item-7 verification added retention/snapshot coverage and fixed two defects found by it: STAGED
+  recovery now uses the migration-compatible empty-string FAILED representation, and private ACL
+  handling supports extended-length Windows paths. Frontend retention tests are `f8dd5aa`; backend
+  tests and fixes are `380841af`.
+- OCR Apply reconnect recovery is frontend `449f9ea`: read-only Review is retired on disconnect,
+  while a mutating Apply preserves and resends its exact serialized request before bootstrap. Any
+  timeout, malformed/stale response, invalidation, retarget, or backend ambiguity remains blocked
+  until a correlated bootstrap and integrity-verified capture reload.
+- Backend OCR recovery is `3e365b25`: requests are authorized before the bounded ledger, identical
+  reconnects attach replacement transports, successful Applies alone are replay-cached, every
+  terminal subscriber is reauthorized, and abrupt worker errors cannot wedge the lane. Alias
+  commit/close ambiguity is typed and returns `reloadRequired=true`; settled responses survive the
+  outer read-connection close path.
+- The previously reported SQLite frame `org.sqlite.core.DB.prepare(DB.java:264)` came from an old
+  test fixture missing `scanned_element.defined_name`. The fixture now creates both `defined_name`
+  and `client_named`; focused and broader reruns contain no recurrence.
+- Frontend verification: the retention-focused run passed 15/15; the final JSDOM-only affected
+  suite passed 44/44 across 8 suites. Backend verification: the snapshot/retention matrix passed
+  71/71; the final non-browser OCR/session/retirement suite passed 106/106. No browser or native OCR
+  process was launched.
+- `npm run build` passed at frontend `a51e792` with existing repository warnings. The exact 58-file
+  build mirror has zero path/hash differences and is pushed in backend `fb23c531`. Entrypoints are
+  `main.eb4f02b1.js` (SHA-256
+  `965E2A606FA0AA0A5744C0443BC1EF2FA97FDCE66EB83C4050BE0A5C82E83C56`) and
+  `main.df7752f0.css` (SHA-256
+  `912DEAE51E4B60DE97A1BEAEB74F6AAE6719EFBB54ED8D28388E77A1518AE70C`).
+- Explicit `mvn compile` passed with 562 main Java sources on Java 17. Only the existing
   `InstructionLoad` Lombok and `TargetElementHelper` varargs warnings remained.
-- `automation-tests.json` was regenerated as metadata at backend `09fa2824` / frontend `6750c3b`:
-  2,298 catalog rows, 2,263 code cases, and 19,452 generated API requests. This did not execute tests.
-- Per explicit direction, no tests were created or run. No new migration was created or applied.
-- Source and static assets are committed/pushed, but the backend was not packaged or restarted.
-  Real database inspection, live Windows ACL inspection, running-service health, and live
-  desktop/browser acceptance remain open operational gates.
+- `automation-tests.json` was regenerated and pushed in `d76362ff`, recording backend `3e365b25`
+  and frontend `a51e792`: 2,341 catalog rows, 2,305 code cases, and 19,452 generated API requests.
+  It contains 13 focused Page Mappings OCR cases and zero legacy OCR Results rows.
+- Source, tests, catalog, and static assets are committed/pushed. No new migration was created or
+  applied; the backend was not packaged or restarted. Real database inspection, live Windows ACL
+  inspection, running-service health, and live desktop/browser acceptance remain open operational
+  gates.
 - Unrelated dirty Grid, Claude-settings, Marketing, patch, screenshot, and dev-log files remain
   preserved and outside these commits.
 
