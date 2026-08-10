@@ -244,6 +244,14 @@ public class SimpleWebSocketServer {
         return sessionId != null && sessionId.contains(expectedSessionId);
     }
 
+    private static boolean isPingControlFrame(String value) {
+        if (value == null) {
+            return false;
+        }
+        String normalized = value.trim();
+        return "ping".equals(normalized) || normalized.startsWith("ping-");
+    }
+
     private static boolean isBotJobTasksSession(String sessionId) {
         return sessionIdContains(sessionId, ScannerWorkspaceSessions.BOT_JOB_TASKS);
     }
@@ -523,7 +531,7 @@ public class SimpleWebSocketServer {
             closeRejectedSession(session, "Session is not registered");
             return;
         }
-        if (message == null || message.contains("CONNECT") || message.contains("ping")) return;
+        if (message == null || message.contains("CONNECT") || isPingControlFrame(message)) return;
 
         try {
             // Decode from Base64
@@ -639,9 +647,11 @@ public class SimpleWebSocketServer {
             }
 
             // After Decoding
-            if (type == null || type.trim().isEmpty() || type.contains("CONNECT") || type.contains("ping")) {
-                // Ignore null or empty messages
-                type = (type == null) ? "unknown" : type.replaceAll("ping-", "");
+            if (type == null
+                    || type.trim().isEmpty()
+                    || type.contains("CONNECT")
+                    || isPingControlFrame(type)) {
+                // Ignore null, empty, connection-control, or heartbeat messages.
                 return;
             }
 
