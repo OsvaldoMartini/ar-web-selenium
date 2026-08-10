@@ -527,6 +527,12 @@ public class PlaywrightElementScanner {
               }
 
               function makeDto(el, idx, override) {
+                // The current DTO/geometry contract cannot encode a ShadowRoot boundary.
+                // Playwright CSS locators pierce open roots, so page.locator(...) can return
+                // those descendants even though their generated XPath is not executable from
+                // document. Keep the authoritative scan set document-scoped until that boundary
+                // is represented end to end instead of persisting a malformed locator.
+                if (el?.getRootNode?.() !== document) return null;
                 const tag = el.tagName.toLowerCase();
                 const forceKeep = override?.forceKeep === true || isNativeSelectHiddenButUseful(el, tag);
                 if (!forceKeep && !isVisibleEnough(el, tag)) return null;

@@ -18,6 +18,8 @@ public final class PageViewFingerprintService {
               const limit = 12000;
               const materialLimit = 2500000;
               const attributeLimit = 8192;
+              const shadowRootLimit = 1024;
+              const shadowDepthLimit = 32;
               let attributeOversized = false;
               const clean = value => {
                 const raw = String(value || '');
@@ -56,6 +58,16 @@ public final class PageViewFingerprintService {
                   placeholder, title, alt, link(element), String(element.childElementCount || 0)]
                   .join('\u001f');
               };
+              const slotBoundary = element => ({
+                slot: clean(element.getAttribute('slot')),
+                assigned: element.assignedSlot
+                  ? clean(element.assignedSlot.getAttribute('name'))
+                  : ''
+              });
+              const shadowSignature = element => {
+                const boundary = slotBoundary(element);
+                return `${signature(element)}\u001f${boundary.slot}\u001f${boundary.assigned}`;
+              };
               const root = document.documentElement;
               if (!root) return { material: '', nodeCount: 0, truncated: false,
                 hasFrames: false, hasShadowRoots: false };
@@ -66,6 +78,8 @@ public final class PageViewFingerprintService {
               let truncated = false;
               let hasFrames = false;
               let hasShadowRoots = false;
+              const shadowRoots = [];
+              const topElements = [];
               let element = walker.currentNode;
               while (element) {
                 if (nodeCount >= limit) {
@@ -74,7 +88,11 @@ public final class PageViewFingerprintService {
                 }
                 const tag = String(element.tagName || '').toLowerCase();
                 if (tag === 'iframe' || tag === 'frame') hasFrames = true;
-                if (element.shadowRoot) hasShadowRoots = true;
+                if (element.shadowRoot) {
+                  hasShadowRoots = true;
+                  shadowRoots.push({ root: element.shadowRoot, hostIndex: nodeCount });
+                }
+                topElements.push({ element, index: nodeCount });
                 const value = signature(element);
                 if (materialLength + value.length + 1 > materialLimit) {
                   truncated = true;
@@ -85,12 +103,90 @@ public final class PageViewFingerprintService {
                 nodeCount += 1;
                 element = walker.nextNode();
               }
+              let shadowTraversalComplete = !hasShadowRoots;
+              if (hasShadowRoots && !truncated && !attributeOversized) {
+                let shadowRootCount = shadowRoots.length;
+                if (shadowRootCount > shadowRootLimit) truncated = true;
+                const append = value => {
+                  if (materialLength + value.length + 1 > materialLimit) {
+                    truncated = true;
+                    return false;
+                  }
+                  parts.push(value);
+                  materialLength += value.length + 1;
+                  return true;
+                };
+                for (const top of topElements) {
+                  const boundary = slotBoundary(top.element);
+                  if ((boundary.slot || boundary.assigned)
+                      && !append(`\u001cslot:${top.index}\u001f${boundary.slot}\u001f${boundary.assigned}`)) {
+                    break;
+                  }
+                }
+                for (const shadow of shadowRoots) {
+                  if (truncated) break;
+                  if (!append(`\u001cshadow-open:${shadow.hostIndex}`)) break;
+                  const first = shadow.root?.firstElementChild;
+                  const stack = first ? [{ kind: 'element', node: first, depth: 1 }] : [];
+                  while (stack.length && !truncated) {
+                    const entry = stack.pop();
+                    if (entry.kind === 'marker') {
+                      append(entry.value);
+                      continue;
+                    }
+                    if (nodeCount >= limit) {
+                      truncated = true;
+                      break;
+                    }
+                    const shadowElement = entry.node;
+                    if (!append(shadowSignature(shadowElement))) break;
+                    nodeCount += 1;
+                    if (shadowElement.nextElementSibling) {
+                      stack.push({
+                        kind: 'element',
+                        node: shadowElement.nextElementSibling,
+                        depth: entry.depth
+                      });
+                    }
+                    if (shadowElement.firstElementChild) {
+                      stack.push({
+                        kind: 'element',
+                        node: shadowElement.firstElementChild,
+                        depth: entry.depth
+                      });
+                    }
+                    if (shadowElement.shadowRoot) {
+                      shadowRootCount += 1;
+                      if (shadowRootCount > shadowRootLimit
+                          || entry.depth >= shadowDepthLimit) {
+                        truncated = true;
+                        break;
+                      }
+                      stack.push({ kind: 'marker', value: '\u001cshadow-close' });
+                      if (shadowElement.shadowRoot.firstElementChild) {
+                        stack.push({
+                          kind: 'element',
+                          node: shadowElement.shadowRoot.firstElementChild,
+                          depth: entry.depth + 1
+                        });
+                      }
+                      stack.push({ kind: 'marker', value: '\u001cshadow-open' });
+                    }
+                  }
+                  if (!truncated && !append(`\u001cshadow-close:${shadow.hostIndex}`)) break;
+                }
+                shadowTraversalComplete = !truncated;
+              }
+              const material = hasShadowRoots
+                ? `shadow-v1\u001d${nodeCount}\u001d${truncated ? '1' : '0'}\u001d${parts.join('\u001e')}`
+                : `${nodeCount}\u001d${truncated ? '1' : '0'}\u001d${parts.join('\u001e')}`;
               return {
-                material: `${nodeCount}\u001d${truncated ? '1' : '0'}\u001d${parts.join('\u001e')}`,
+                material,
                 nodeCount,
                 truncated,
                 hasFrames,
                 hasShadowRoots,
+                shadowTraversalComplete,
                 attributeOversized
               };
             }
@@ -115,6 +211,8 @@ public final class PageViewFingerprintService {
         int nodeCount = Math.max(0, result.get("nodeCount").getAsInt());
         boolean truncated = booleanValue(result, "truncated");
         boolean hasShadowRoots = booleanValue(result, "hasShadowRoots");
+        boolean shadowTraversalComplete = !hasShadowRoots
+                || booleanValue(result, "shadowTraversalComplete");
         boolean attributeOversized = booleanValue(result, "attributeOversized");
         ScannedPageIdentity after = ScannedPageIdentity.fromLiveUrl(browser.currentUrl());
         if (!before.pageKey().equals(after.pageKey())) {
@@ -123,13 +221,13 @@ public final class PageViewFingerprintService {
         }
         boolean cacheable = !truncated
                 && !attributeOversized
-                && !hasShadowRoots;
+                && shadowTraversalComplete;
         String diagnostic = truncated
                 ? "The live DOM exceeds the safe fingerprint limit."
                 : attributeOversized
                         ? "A locator attribute exceeds the safe fingerprint limit."
-                        : hasShadowRoots
-                                ? "Pages containing Shadow DOM require a fresh scan."
+                        : !shadowTraversalComplete
+                                ? "The live Shadow DOM could not be fingerprinted safely."
                                 : "";
         return new Observation(after, sha256(material), nodeCount, cacheable, diagnostic);
     }

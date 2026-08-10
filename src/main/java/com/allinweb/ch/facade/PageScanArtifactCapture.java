@@ -215,9 +215,11 @@ final class PageScanArtifactCapture {
     }
 
     /**
-     * The structural material covers the top document, including iframe host nodes, but not frame
-     * or Shadow DOM contents. Persist it for reuse only when every captured locator has that same
-     * top-document scope. This keeps future nested-context scanner support fail-closed.
+     * The structural material covers the top document, iframe host nodes, and bounded open Shadow
+     * DOM structure. The current scanner deliberately emits only document-root elements because
+     * its DTO/geometry contract cannot yet encode a ShadowRoot boundary. Persist reuse only when
+     * every captured locator confirms that same supported scope so future nested-context scanner
+     * changes remain fail-closed.
      */
     private static boolean containsOnlyTopDocumentElements(List<ElementDTO> elements) {
         if (elements == null || elements.isEmpty()) return true;
