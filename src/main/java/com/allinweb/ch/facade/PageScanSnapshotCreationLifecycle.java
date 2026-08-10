@@ -41,8 +41,8 @@ final class PageScanSnapshotCreationLifecycle {
             deleteControlled(root, owner.resolve("." + finalName + ".staging").normalize());
             deleteControlled(root, owner.resolve(finalName).normalize());
             try (PreparedStatement update = connection.prepareStatement(
-                    "UPDATE page_scan_snapshot SET status='FAILED', artifact_path=NULL, "
-                            + "manifest_sha256=NULL WHERE scan_id=? AND home_banking_id=? "
+                    "UPDATE page_scan_snapshot SET status='FAILED', artifact_path='', "
+                            + "manifest_sha256='' WHERE scan_id=? AND home_banking_id=? "
                             + "AND bot_job_id=? AND status='STAGED'")) {
                 update.setString(1, row.scanId());
                 update.setInt(2, row.homeBankingId());

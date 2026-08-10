@@ -329,7 +329,11 @@ public final class PageScanSnapshotFileSecurity {
         private static void requirePrivate(Path path, boolean directory) throws IOException {
             try {
                 WinNT.SECURITY_DESCRIPTOR_RELATIVE descriptor =
-                        Advapi32Util.getFileSecurityDescriptor(path.toFile(), false);
+                        new WinNT.SECURITY_DESCRIPTOR_RELATIVE(
+                                Advapi32Util.getSecurityDescriptorForObject(
+                                        windowsPath(path),
+                                        AccCtrl.SE_OBJECT_TYPE.SE_FILE_OBJECT,
+                                        false));
                 if ((Short.toUnsignedInt(descriptor.Control) & WinNT.SE_DACL_PROTECTED) == 0) {
                     throw new IOException("The Page Scanner Windows ACL still inherits permissions");
                 }
@@ -408,7 +412,14 @@ public final class PageScanSnapshotFileSecurity {
         }
 
         private static String windowsPath(Path path) {
-            return path.toAbsolutePath().normalize().toString().replace('/', '\\');
+            String absolute = path.toAbsolutePath().normalize().toString().replace('/', '\\');
+            if (absolute.length() < 248 || absolute.startsWith("\\\\?\\")) {
+                return absolute;
+            }
+            if (absolute.startsWith("\\\\")) {
+                return "\\\\?\\UNC\\" + absolute.substring(2);
+            }
+            return "\\\\?\\" + absolute;
         }
 
         private static IOException windowsFailure(String action) {

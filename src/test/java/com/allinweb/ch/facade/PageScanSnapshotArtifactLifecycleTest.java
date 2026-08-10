@@ -2,6 +2,8 @@ package com.allinweb.ch.facade;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.allinweb.ch.util.ARPropertyEnum;
+import com.allinweb.ch.util.ARPropertyManager;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
@@ -9,12 +11,20 @@ import java.sql.DriverManager;
 import java.sql.Statement;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.io.TempDir;
 
 class PageScanSnapshotArtifactLifecycleTest {
 
     @TempDir
     Path tempDir;
+
+    @BeforeEach
+    void configureSnapshotStorage() {
+        ARPropertyManager.getInstance()
+                .getProperties()
+                .setProperty(ARPropertyEnum.PATH_DB.getValue(), tempDir.toString());
+    }
 
     @Test
     void reconciliationRestoresArtifactsWhenTheBotJobStillExists() throws Exception {

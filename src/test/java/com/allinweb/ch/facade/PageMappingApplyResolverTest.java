@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import com.allinweb.ch.db.ScannedElementRepository;
 import com.allinweb.ch.model.ElementDTO;
 import com.allinweb.ch.model.InstructionLoad;
+import com.allinweb.ch.util.ARPropertyEnum;
+import com.allinweb.ch.util.ARPropertyManager;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import java.nio.charset.StandardCharsets;
@@ -36,6 +38,9 @@ class PageMappingApplyResolverTest {
 
     @BeforeEach
     void prepare() throws Exception {
+        ARPropertyManager.getInstance()
+                .getProperties()
+                .setProperty(ARPropertyEnum.PATH_DB.getValue(), temporaryDirectory.toString());
         snapshotRoot = temporaryDirectory.resolve("Scanned");
         Files.createDirectories(snapshotRoot);
         databaseUrl = "jdbc:sqlite:" + temporaryDirectory.resolve("mapping.db");
@@ -338,6 +343,7 @@ class PageMappingApplyResolverTest {
         manifest.add("files", files);
         byte[] manifestBytes = JSON.toJson(manifest).getBytes(StandardCharsets.UTF_8);
         Files.write(folder.resolve("manifest.json"), manifestBytes);
+        PageScanSnapshotFileSecurity.secureExistingRoot(snapshotRoot);
 
         try (Connection connection = DriverManager.getConnection(databaseUrl);
                 PreparedStatement statement = connection.prepareStatement(

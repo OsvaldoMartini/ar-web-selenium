@@ -12,10 +12,13 @@ import static org.mockito.Mockito.when;
 
 import com.allinweb.ch.db.ScannedElementRepository;
 import com.allinweb.ch.facade.BotJobDetailsWorkspaceRegistry;
+import com.allinweb.ch.facade.PageScanSnapshotFileSecurity;
 import com.allinweb.ch.model.BotJobLoadDTO;
 import com.allinweb.ch.model.DetachedWorkspaceSessions;
 import com.allinweb.ch.model.ElementDTO;
 import com.allinweb.ch.model.ScannerWorkspaceSessions;
+import com.allinweb.ch.util.ARPropertyEnum;
+import com.allinweb.ch.util.ARPropertyManager;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -41,6 +44,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import javax.websocket.Session;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.io.TempDir;
 
 class PageMappingsWorkspaceServiceTest {
@@ -49,6 +53,13 @@ class PageMappingsWorkspaceServiceTest {
 
     @TempDir
     Path temporaryDirectory;
+
+    @BeforeEach
+    void configureSnapshotStorage() {
+        ARPropertyManager.getInstance()
+                .getProperties()
+                .setProperty(ARPropertyEnum.PATH_DB.getValue(), temporaryDirectory.toString());
+    }
 
     @Test
     void pageMappingsIsRegisteredAsAFixedDetachedPresentation() {
@@ -117,7 +128,7 @@ class PageMappingsWorkspaceServiceTest {
                     mock(Session.class),
                     connection);
 
-            assertTrue(response.get("ok").getAsBoolean());
+            assertTrue(response.get("ok").getAsBoolean(), response::toString);
             assertEquals("bootstrap-1", response.get("requestId").getAsString());
             assertEquals(1, response.getAsJsonArray("snapshots").size());
             assertEquals(
@@ -207,7 +218,7 @@ class PageMappingsWorkspaceServiceTest {
                     mock(Session.class),
                     connection);
 
-            assertTrue(response.get("ok").getAsBoolean());
+            assertTrue(response.get("ok").getAsBoolean(), response::toString);
             assertEquals("capture-valid", response.get("requestId").getAsString());
             assertEquals(opened.get("bindingEpoch").getAsString(), response.get("bindingEpoch").getAsString());
             assertEquals(scanId, response.get("scanId").getAsString());
@@ -278,7 +289,7 @@ class PageMappingsWorkspaceServiceTest {
                     mock(Session.class),
                     connection);
 
-            assertTrue(response.get("ok").getAsBoolean());
+            assertTrue(response.get("ok").getAsBoolean(), response::toString);
             JsonObject viewport = response.getAsJsonObject("viewport");
             assertEquals("VIEWPORT", viewport.get("screenshotScope").getAsString());
             assertEquals(2.0d, viewport.get("devicePixelRatio").getAsDouble());
@@ -1212,7 +1223,8 @@ class PageMappingsWorkspaceServiceTest {
         connection.createStatement().executeUpdate(
                 "CREATE TABLE scanned_element ("
                         + "id INTEGER PRIMARY KEY, home_banking_id INTEGER, bot_job_id INTEGER, "
-                        + "page_key TEXT, element_hash TEXT, last_scanned_at TEXT, scan_count INTEGER)");
+                        + "page_key TEXT, element_hash TEXT, last_scanned_at TEXT, scan_count INTEGER, "
+                        + "defined_name TEXT, client_named TEXT)");
     }
 
     private static void createSnapshotTable(Connection connection) throws Exception {
@@ -1356,6 +1368,8 @@ class PageMappingsWorkspaceServiceTest {
         manifest.add("files", files);
         byte[] manifestBytes = manifest.toString().getBytes(StandardCharsets.UTF_8);
         Files.write(folder.resolve("manifest.json"), manifestBytes);
+        PageScanSnapshotFileSecurity.secureExistingRoot(root);
+        PageScanSnapshotFileSecurity.requirePrivateCaptureDirectory(root, folder);
         String artifactPath = root.relativize(folder).toString().replace('\\', '/');
         return new Artifact(
                 scanId,
@@ -1379,6 +1393,8 @@ class PageMappingsWorkspaceServiceTest {
         capture.addProperty("pixelHeight", 1800);
         capture.addProperty("scrollX", 100.0d);
         capture.addProperty("scrollY", 200.0d);
+        capture.addProperty("viewFingerprint", "a".repeat(64));
+        capture.addProperty("fingerprintNodeCount", 2);
         return capture;
     }
 

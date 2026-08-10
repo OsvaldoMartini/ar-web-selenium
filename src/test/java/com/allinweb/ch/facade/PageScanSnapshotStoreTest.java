@@ -14,6 +14,8 @@ import com.allinweb.ch.db.ScannedPageIdentity;
 import com.allinweb.ch.db.migrations.M20260807_PageScanSnapshot;
 import com.allinweb.ch.driver.ARPlaywrightDriver;
 import com.allinweb.ch.model.ElementDTO;
+import com.allinweb.ch.util.ARPropertyEnum;
+import com.allinweb.ch.util.ARPropertyManager;
 import com.allinweb.ch.vision.RasterImage;
 import com.allinweb.ch.vision.RasterImageIO;
 import java.nio.file.Files;
@@ -30,7 +32,7 @@ class PageScanSnapshotStoreTest {
 
     @Test
     void persistsEmptyScanWithoutOverwritingPreviousSnapshot() throws Exception {
-        Path diagnostics = temporaryDirectory.resolve("empty-scan");
+        Path diagnostics = diagnostics("empty-scan");
         try (var connection = DriverManager.getConnection("jdbc:sqlite::memory:")) {
             new M20260807_PageScanSnapshot().apply(connection, "TEXT");
             ScannedPageIdentity page = ScannedPageIdentity.fromLiveUrl("https://example.test/account");
@@ -55,7 +57,7 @@ class PageScanSnapshotStoreTest {
 
     @Test
     void storesOnlyArtifactsWrittenForTheCurrentScan() throws Exception {
-        Path diagnostics = temporaryDirectory.resolve("isolated-artifacts");
+        Path diagnostics = diagnostics("isolated-artifacts");
         Path mutableDiagnostics = diagnostics.resolve("page_diagnostics");
         Files.createDirectories(mutableDiagnostics);
         Files.writeString(mutableDiagnostics.resolve("page-BJ.png"), "previous-owner-artifact");
@@ -87,7 +89,7 @@ class PageScanSnapshotStoreTest {
 
     @Test
     void redactsPageCredentialsQueryAndFragmentAtTheSnapshotBoundary() throws Exception {
-        Path diagnostics = temporaryDirectory.resolve("redacted-url");
+        Path diagnostics = diagnostics("redacted-url");
         String secretUrl = "https://client:password@BANK.EXAMPLE:443/accounts?token=secret#account-42";
         try (var connection = DriverManager.getConnection("jdbc:sqlite::memory:")) {
             new M20260807_PageScanSnapshot().apply(connection, "TEXT");
@@ -121,7 +123,7 @@ class PageScanSnapshotStoreTest {
 
     @Test
     void recordsFailedWhenTheStagingDirectoryCannotBeCreated() throws Exception {
-        Path diagnostics = temporaryDirectory.resolve("blocked-staging");
+        Path diagnostics = diagnostics("blocked-staging");
         Path scannedRoot = diagnostics.resolve("page_diagnostics").resolve("Scanned");
         Files.createDirectories(scannedRoot.getParent());
         Files.writeString(scannedRoot, "not-a-directory");
@@ -147,7 +149,7 @@ class PageScanSnapshotStoreTest {
 
     @Test
     void removesFinalizedArtifactsWhenTheReadyDatabaseUpdateFails() throws Exception {
-        Path diagnostics = temporaryDirectory.resolve("ready-db-failure");
+        Path diagnostics = diagnostics("ready-db-failure");
         try (var connection = DriverManager.getConnection("jdbc:sqlite::memory:")) {
             new M20260807_PageScanSnapshot().apply(connection, "TEXT");
             try (var statement = connection.createStatement()) {
@@ -186,7 +188,7 @@ class PageScanSnapshotStoreTest {
 
     @Test
     void pageDriftDuringArtifactCaptureLeavesFailedHistoryAndNoArtifactFolder() throws Exception {
-        Path diagnostics = temporaryDirectory.resolve("page-drift");
+        Path diagnostics = diagnostics("page-drift");
         ScannedPageIdentity expectedPage =
                 ScannedPageIdentity.fromLiveUrl("https://bank.example/accounts");
         ARPlaywrightDriver browser = mock(ARPlaywrightDriver.class);
@@ -228,7 +230,7 @@ class PageScanSnapshotStoreTest {
 
     @Test
     void oversizedWriterPayloadCannotBecomeReady() throws Exception {
-        Path diagnostics = temporaryDirectory.resolve("oversized-payload");
+        Path diagnostics = diagnostics("oversized-payload");
         try (var connection = DriverManager.getConnection("jdbc:sqlite::memory:")) {
             new M20260807_PageScanSnapshot().apply(connection, "TEXT");
 
@@ -279,6 +281,14 @@ class PageScanSnapshotStoreTest {
             rows.next();
             return rows.getInt(1);
         }
+    }
+
+    private Path diagnostics(String name) {
+        Path diagnostics = temporaryDirectory.resolve(name);
+        ARPropertyManager.getInstance()
+                .getProperties()
+                .setProperty(ARPropertyEnum.PATH_DB.getValue(), diagnostics.toString());
+        return diagnostics;
     }
 
     private static PageScanSnapshotStore.CaptureMetadata writeMinimalCapture(Path staging)
