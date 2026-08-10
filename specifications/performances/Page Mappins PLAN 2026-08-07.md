@@ -569,3 +569,35 @@ database.
   No package/image was built. Other-database/SQL Server rollout, orphan inventory/reconciliation,
   reconnect/takeover/retarget/delete/same-ID reuse, Use Existing/Rescan, retention policy-save/purge,
   OCR/Memory workflows, and broader multi-page desktop/browser acceptance remain open.
+
+## Step 8 - Bot Job switch isolation and cache reuse - 2026-08-10
+
+The code and target/classes deployment are complete. The final live acceptance remains deliberately
+separate and requires a user action; Codex did not trigger a validating scan.
+
+- [x] Root cause confirmed: history SQL is owner-filtered, while the shared Playwright page was not
+  owner-generation-bound and polluted Bot Job 32 with real Lloyds captures.
+- [x] Backend owner/browser/workspace retarget and mutation fencing implemented and pushed in
+  `3721c049`.
+- [x] Safe top-document reuse on pages containing frames implemented and pushed in `c594ba5b`.
+- [x] Frontend atomic WebSocket-buffer generation and stale-owner state retirement pushed in
+  `17748b8`.
+- [x] Duplicate Page Mappings Close control removed in frontend `e23c6d6e`; one guarded Close
+  action remains.
+- [x] Bounded open-Shadow-DOM fingerprinting and fail-closed top-document scanner scope pushed in
+  `b9222d2f`; closed roots and shadow-scoped element capture remain unsupported.
+- [x] Clean production frontend build mirrored exactly and pushed in backend `242095b2`: 58 files,
+  zero differences, `main.d31d8186.js` and `main.9afd0737.css`.
+- [x] Java compilation passed with 562 main sources and only the two existing warnings.
+- [x] No tests were created or run, per current user direction; no package/image was built.
+- [x] Final runtime PID `8032` is healthy on `127.0.0.1:60711` / `127.0.0.1:60712`; live assets
+  return HTTP 200 with the committed hashes and new `.10` logs have zero relevant error matches.
+- [x] Read-only SQLite health passed: `quick_check=ok`, 24 migrations, zero FK violations, 13 READY
+  snapshots, and no sidecar. The final code deployment has not produced a new snapshot yet.
+- [ ] User-driven Bot Job 29 -> 32 automatic Page Scanner/Page Mappings/browser retarget acceptance.
+- [ ] One fresh post-`b9222d2f` Page Mappings Rescan must create a READY capture with a 64-character
+  fingerprint and make cache state CURRENT / Use Existing enabled.
+- [ ] Use Existing must load that capture without adding a database row or artifact.
+- [ ] Pre-fix Lloyds captures stored under Bot Job 32 remain untouched; cleanup requires explicit
+  authorization.
+- [ ] Package/image delivery and other-database/SQL Server rollout remain open.

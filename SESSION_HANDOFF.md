@@ -94,6 +94,56 @@ Mappings delivery checkpoint is:
   The two untracked generated `dev-server.*.log` files were deleted by the failed cleanup and were
   not recoverable from Git; final frontend status contains only the pre-existing Grid edit.
 
+### Step 8 Bot Job retarget and cache-reuse correction - 2026-08-10
+
+This checkpoint supersedes only the earlier current-runtime, Bot Job retarget, and Use Existing /
+Rescan gate statements. Historical migration and acceptance evidence above remains unchanged.
+
+- The apparent cross-owner history was not a history-query leak. Snapshot SQL was already scoped by
+  Home Banking and Bot Job. Pre-fix Lloyds captures are genuinely stored as Bot Job 32 data because
+  the process-global Playwright page retained Bot Job 29's page while the active owner changed.
+  Those contaminated rows remain untouched and require explicit cleanup authorization.
+- Backend `3721c049` strictly navigates the shared browser to the newly active Bot Job endpoint,
+  closes it fail-closed if the owner switch cannot be confirmed, retargets the existing Page Scanner
+  and Page Mappings generations, and revalidates detached transports against the active Registry.
+  Backend mutation fencing also prevents Rescan, OCR Apply, pin, retention save, or purge from
+  crossing a Bot Job generation or racing an authoritative bootstrap.
+- Frontend `17748b8` makes WebSocket message-buffer generation explicit and atomic, resets both Page
+  Mappings cursors before consuming a replacement buffer, clears stale owner-sensitive state, and
+  keeps mutation controls disabled while an authoritative reload is required.
+- Frontend `e23c6d6e` removes the duplicate shell Close control from Page Mappings. The page keeps
+  one owner-aware Close button and retains its pending-mutation guards.
+- Backend `c594ba5b` allows frame-hosted pages to reuse the top-document mapping only when captured
+  locators remain top-document scoped. Live BancaStato Rescan then proved the remaining unsupported
+  state was open Shadow DOM, not frames or the earlier long locator attribute.
+- Backend `b9222d2f` adds a versioned, bounded open-Shadow-DOM structural fingerprint with explicit
+  root and slot boundaries. Existing non-shadow fingerprint bytes remain unchanged. Because the
+  current DTO/geometry contract cannot encode a ShadowRoot boundary safely, Playwright-pierced
+  shadow descendants are deliberately omitted; iframe, nested-context, size, depth, and malformed
+  scopes remain fail-closed.
+- `mvn -DskipTests compile` passed with 562 Java sources and only the two existing warnings. A clean
+  isolated frontend `npm run build` passed with existing repository warnings. Its exact 58-file
+  resource mirror has zero path/hash differences and is pushed in backend `242095b2`.
+- Current frontend entrypoints are `main.d31d8186.js` (2,055,381 bytes; SHA-256
+  `81D457AF99A8CCEE16B5B6E323DE5FE0B2AEAC4698942E5E21CF1C3DC0E4A89E`) and
+  `main.9afd0737.css` (489,796 bytes; SHA-256
+  `4A1E4538BFF7E0FD0C6106BC2EAEAA6A6F4720D231E2153B617D309AA594B04B`).
+- The final BancaStato runtime is PID `8032`, loaded from `target/classes` with the exact Config-4.2
+  file and listening on `127.0.0.1:60711` / `127.0.0.1:60712`. Root, JS, and CSS return HTTP 200
+  with the hashes above. Six `.10` logs contain zero error/exception/missing-table/snapshot-failure
+  matches.
+- A read-only post-restart database check reports `query_only=1`, `quick_check=ok`, 24 migrations,
+  zero foreign-key violations, 13 READY snapshots, and no WAL/SHM/journal sidecar. No capture has a
+  64-character fingerprint yet because no Rescan was run after `b9222d2f` became active.
+- Before the final shadow-aware deployment, the user ran a normal Page Scanner scan and one real
+  Page Mappings Rescan on the correct BancaStato URL. Both produced READY Job 32 captures without a
+  backend error, but correctly retained blank fingerprints under the old Shadow DOM gate. Codex did
+  not trigger either scan.
+- No tests were created or run for Step 8, no package/image was built, and no other database or SQL
+  Server installation was changed. Live completion still requires one user-driven Bot Job 29 -> 32
+  switch with both detached pages open, one fresh Page Mappings Rescan after `b9222d2f`, and one Use
+  Existing action proving no additional snapshot is created.
+
 Read `specifications/performances/COPY_LAST_RESPONSE.md` and
 `specifications/performances/Page Mappins PLAN 2026-08-07.md` before continuing.
 

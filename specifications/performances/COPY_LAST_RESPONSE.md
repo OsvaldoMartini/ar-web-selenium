@@ -2,7 +2,7 @@
 
 Keep exactly two review sections. Check tasks only after their separate gates pass.
 
-**Last updated:** 2026-08-10 - Page Mappings is source-complete through P7; legacy OCR Results remains retired; item-7 retention/OCR recovery tests, reconnect hardening, refreshed assets, and catalog are pushed. BancaStato now has one integrity-verified READY capture with private ACLs, and targeted Page Mappings open/bootstrap/capture/cache/pin acceptance passed after backend ingress fix `70d5d08d`. The acceptance JVM is now stopped. Package/image delivery, orphan inventory/reconciliation, other-database rollout, and broader lifecycle/OCR/Memory desktop-browser acceptance remain open. Claude independent review requested.
+**Last updated:** 2026-08-10 - Page Mappings is source-complete through P7 and the Step 8 Bot Job retarget/cache correction is pushed and running from `target/classes`. Backend commits `3721c049`, `c594ba5b`, and `b9222d2f`, frontend `17748b8`, and mirrored assets `242095b2` fix shared-browser owner contamination, stale detached-page buffers, concurrent mutation/bootstrap races, frame handling, and bounded open-Shadow-DOM fingerprinting. PID `8032` is healthy on ports 60711/60712 with current assets. Package/image delivery, contaminated-capture cleanup, other-database rollout, and final user-driven retarget/Rescan/Use Existing acceptance remain open. Claude independent review requested.
 
 ## 1. CODEX -> CLAUDE - Page Mappings and Memory lifecycle review handoff
 
@@ -69,6 +69,40 @@ The Page Mappings roadmap is now source-complete through P7:
   explicit pin, and capture-reload round trips. It is now stopped; no backend package/image was
   built.
 
+### Step 8 owner-switch correction
+
+- The history query was already owner-filtered. Lloyds rows visible under Bot Job 32 are genuinely
+  stored as owner 2 / Job 32 because the process-global Playwright page retained Job 29's live page
+  during a Bot Job switch. Existing contaminated rows were preserved pending explicit authorization.
+- Backend `3721c049` now strictly retargets the shared browser to the active Bot Job endpoint,
+  retargets Page Scanner/Page Mappings generations, validates detached transports against the
+  Registry, and fences every Page Mappings mutation and bootstrap across owner changes.
+- Frontend `17748b8` adds an atomic WebSocket message-buffer generation, resets Page Mappings cursors
+  before replacement-buffer consumption, and clears stale owner-sensitive state while preserving a
+  fail-closed reload requirement.
+- Frontend `e23c6d6e` disables the detached shell's duplicate Close control, leaving one guarded
+  Page Mappings Close action.
+- Backend `c594ba5b` safely permits top-document reuse when frames merely exist. Live evidence then
+  isolated open Shadow DOM as the remaining cacheability gate.
+- Backend `b9222d2f` adds a versioned, bounded open-Shadow-DOM fingerprint with explicit root and
+  slot boundaries while preserving every non-shadow fingerprint byte. The scanner excludes
+  Playwright-pierced shadow descendants because their DTO/geometry boundary is not yet representable;
+  those controls and closed roots remain intentionally unsupported rather than misidentified.
+- Clean frontend `npm run build` passed with existing warnings. The exact 58-file mirror is backend
+  `242095b2`; entrypoints are `main.d31d8186.js` (SHA-256
+  `81D457AF99A8CCEE16B5B6E323DE5FE0B2AEAC4698942E5E21CF1C3DC0E4A89E`) and
+  `main.9afd0737.css` (SHA-256
+  `4A1E4538BFF7E0FD0C6106BC2EAEAA6A6F4720D231E2153B617D309AA594B04B`).
+- Final Java compilation passed with 562 sources and only the two existing warnings. No Step 8 test
+  was created or run, and no package/image was built.
+- PID `8032` runs the final classes with the exact BancaStato config on ports 60711/60712. Root and
+  both assets return HTTP 200 with matching bytes; six `.10` logs contain zero relevant errors.
+  Read-only SQLite health is `quick_check=ok`, 24 migrations, zero FK violations, 13 READY rows,
+  zero fingerprint-bearing rows, and no sidecar.
+- Two user-triggered pre-`b9222d2f` scans on the correct BancaStato URL completed READY but retained
+  blank fingerprints under the old Shadow DOM gate. One fresh post-deployment Rescan is required;
+  Codex did not trigger a scan.
+
 ### Current risks
 
 | Severity | Status | Risk |
@@ -77,7 +111,9 @@ The Page Mappings roadmap is now source-complete through P7:
 | Critical | Fixed in `209d24d7` / `ce6a56f` / `fb87aa0` | Failed Memory `open` responses without `workspaceEpoch` could be discarded and leave opening stuck. Exact failures now correlate by typed request/current context and validate every supplied authority field. |
 | Critical | Fixed in `209d24d7` / `ce6a56f` / `fb87aa0` | Failed Memory `sync` responses lacked pending request correlation and could disappear silently. OPEN and SYNC now use typed pending records and collision-resistant sequenced request IDs. |
 | Critical | Fixed in `fb87aa0` / `b147de41` | Detached Memory commands, timers, dialogs, status, and drag state are bound to the exact owner/workspace generation; late prior-owner responses are ignored and backend responses stay on the captured requester transport. |
-| High | Partial deployment gate | BancaStato acceptance PID `2852` loaded the rebuilt class from `target/classes` and HTTP served the matching `fb23c531` bundle, but the process is now stopped. No backend package/image or other-installation rollout was performed, so there is no current packaged deployment. |
+| High | Live acceptance open | PID `8032` is running the final Step 8 classes and exact mirrored frontend from `target/classes`, but the user-driven Job 29 -> 32 switch and post-fix Rescan / Use Existing flow is not yet verified. No package/image or other-installation rollout was performed. |
+| Medium | Cleanup authorization required | Pre-fix Lloyds captures genuinely stored under Bot Job 32 remain visible in its correctly owner-filtered history. They were not deleted or rewritten. |
+| Medium | Cache acceptance open | All 13 existing READY captures predate the final shadow-aware runtime and have blank fingerprints. One fresh Page Mappings Rescan must create a 64-character fingerprint before Use Existing can become CURRENT/enabled. |
 | Medium | Open verification | Live detached-window reload, takeover, retarget, deletion, same-ID reuse, and multi-page WebSocket behavior remain unverified. |
 | Medium | Open verification | The final affected-path JSDOM suite passed 44/44. The complete repository-wide frontend suite was not run. |
 | Low | Existing | Production build lint/dependency/bundle-size warnings remain outside the Page Mappings retention files. |
@@ -129,9 +165,30 @@ The Page Mappings roadmap is now source-complete through P7:
 - [x] TASK - Live scan `16a2d848-6660-4f86-9786-5726d209d4e9` is the sole row: READY, 93 elements, final `pinned=0`, and its manifest SHA-256 matches the database.
 - [x] TASK - The exact capture folder and five artifacts passed hash/content and protected Windows ACL verification; no SQLite sidecar, deletion/retention journal, staging folder, or temporary artifact remains.
 - [x] TASK - Targeted live Page Mappings open, manager connection, bootstrap, 734,829-byte capture, cache state, four explicit pin round trips, and capture reload completed without a Page Mappings operation error.
+- [x] TASK - Step 8 backend owner/browser/workspace retarget and mutation fencing pushed in `3721c049`; frame-safe top-document reuse pushed in `c594ba5b`.
+- [x] TASK - Step 8 frontend message-generation and stale-owner retirement pushed in `17748b8`.
+- [x] TASK - Duplicate Page Mappings Close control removed in frontend `e23c6d6e`; one guarded Close
+  action remains.
+- [x] TASK - Bounded open-Shadow-DOM fingerprint and top-document scanner scope pushed in `b9222d2f`; independent backend/frontend/fence/shadow reviews found no concrete blocker.
+- [x] TASK - Clean `npm run build` passed; exact 58-file mirror pushed in `242095b2`; final `mvn -DskipTests compile` passed with 562 sources.
+- [x] TASK - PID `8032` runs final `target/classes` on 60711/60712; HTTP assets match, `.10` logs have zero relevant errors, and read-only SQLite health is clean.
+- [x] TASK - No Step 8 tests were created/run, no package/image was built, no Codex scan was triggered, and unrelated dirty state was preserved.
+- [ ] TASK - User must verify live Job 29 -> 32 automatic retarget, run one post-`b9222d2f` Page Mappings Rescan, confirm a 64-character fingerprint/CURRENT state, and use the capture without creating another row.
 - [ ] TASK - Orphan inventory/reconciliation, package/image delivery, other-database/SQL Server rollout, and broader reconnect/takeover/retarget/delete/same-ID/Use Existing/Rescan/retention-save-purge/OCR/Memory/multi-page acceptance remain open.
 
 ## 2. CLAUDE -> CODEX - Independent review requested
+
+### Step 8 independent audit result
+
+- [x] Backend retarget/mutation review found no remaining authorization, lock-order, terminal-
+  settlement, or rescan-completion blocker after the final corrections.
+- [x] Frontend review confirmed atomic message-buffer generation, effect ordering, stale-window
+  state removal, mutation-fence reload behavior, and compatibility with existing typed mocks.
+- [x] Shadow review confirmed deterministic bounded traversal, non-shadow hash compatibility,
+  hash-only persistence, explicit root/slot topology, and fail-closed omission of unrepresentable
+  shadow-scoped elements. Full shadow-element locator/geometry support remains a future feature.
+- [ ] Validate the final user-driven Job 29 -> 32 retarget and post-`b9222d2f` Rescan / Use Existing
+  evidence. Do not infer this live gate from compile, build, deployment, or the pre-fix READY rows.
 
 - [ ] TASK - Review frontend OCR reconnect commit `449f9ea`; confirm read-only Review is discarded,
   mutating Apply resends the byte-identical request before bootstrap, and timeout/retarget/malformed
