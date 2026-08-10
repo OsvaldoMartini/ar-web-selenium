@@ -9,9 +9,15 @@ import java.util.Objects;
 final class PageScanScrollTraversal {
 
     private static final int MAX_STEPS = 40;
-    private static final int MAX_DURATION_MS = 20_000;
+    private static final int MAX_DURATION_MS = 45_000;
     private static final int MAX_DOCUMENT_HEIGHT_CSS_PX = 60_000;
-    private static final int STEP_DELAY_MS = 200;
+    private static final int MIN_VIEWPORT_SETTLE_MS = 1_000;
+    private static final int MAX_VIEWPORT_SETTLE_MS = 2_500;
+    private static final int DOM_QUIET_MS = 750;
+    private static final int POLL_MS = 100;
+    private static final int PAINT_TIMEOUT_MS = 300;
+    private static final int RESTORE_SETTLE_MS = 3_000;
+    private static final int STABLE_BOTTOM_SAMPLES = 2;
     private static final String TRAVERSE_SCRIPT = """
             async (limits) => {
               const number = (value, fallback = 0) =>
@@ -27,65 +33,221 @@ final class PageScanScrollTraversal {
                   number(window.innerHeight));
               };
               const wait = (delay) => new Promise(resolve => setTimeout(resolve, delay));
+              const paint = () => new Promise(resolve => {
+                let finished = false;
+                const finish = () => {
+                  if (finished) return;
+                  finished = true;
+                  clearTimeout(timeout);
+                  resolve();
+                };
+                const timeout = setTimeout(finish, limits.paintTimeoutMs);
+                if (typeof requestAnimationFrame === 'function') {
+                  window.requestAnimationFrame(() => window.requestAnimationFrame(finish));
+                } else {
+                  setTimeout(finish, 32);
+                }
+              });
+              const nearViewport = (node) => {
+                const element = node?.nodeType === Node.ELEMENT_NODE
+                  ? node
+                  : node?.parentElement;
+                if (!element?.getBoundingClientRect) return false;
+                const rect = element.getBoundingClientRect();
+                const margin = Math.max(200, number(window.innerHeight) * 0.25);
+                return rect.width > 0
+                  && rect.height > 0
+                  && rect.bottom >= -margin
+                  && rect.top <= number(window.innerHeight) + margin;
+              };
+              const visibleImages = () => Array.from(document.images || []).filter(image =>
+                nearViewport(image) && Boolean(image.currentSrc || image.getAttribute('src')));
+              const activeFiniteAnimations = () => {
+                if (typeof document.getAnimations !== 'function') return [];
+                return document.getAnimations().filter(animation => {
+                  if (animation.playState !== 'running' && animation.playState !== 'pending') {
+                    return false;
+                  }
+                  const target = animation.effect?.target;
+                  if (target && !nearViewport(target)) return false;
+                  try {
+                    return Number.isFinite(Number(animation.effect?.getComputedTiming()?.endTime));
+                  } catch (_) {
+                    return false;
+                  }
+                });
+              };
+              const visualState = () => {
+                const images = visibleImages();
+                const pendingImages = images.filter(image => !image.complete);
+                const finiteAnimations = activeFiniteAnimations();
+                const fontsReady = !document.fonts || document.fonts.status !== 'loading';
+                return {
+                  images,
+                  pendingImages,
+                  finiteAnimations,
+                  fontsReady,
+                  signature: [
+                    height(),
+                    number(window.scrollY || window.pageYOffset),
+                    document.querySelectorAll('*').length,
+                    images.length,
+                    pendingImages.length,
+                    finiteAnimations.length,
+                    fontsReady ? 'fonts-ready' : 'fonts-loading'
+                  ].join('|')
+                };
+              };
               const root = document.documentElement;
               const previousScrollBehavior = root?.style?.scrollBehavior || '';
               const initialUrl = String(window.location.href);
               const originX = number(window.scrollX || window.pageXOffset);
               const originY = number(window.scrollY || window.pageYOffset);
               const startedAt = Date.now();
+              const traversalDeadline = startedAt + limits.maxDurationMs;
               let steps = 0;
               let stableBottomSamples = 0;
               let previousHeight = -1;
               let maximumHeight = height();
               let completed = false;
               let reason = '';
+              const settleViewport = async (maximumWait, deadline) => {
+                const settleStartedAt = Date.now();
+                const settleDeadline = Math.min(settleStartedAt + maximumWait, deadline);
+                let lastRelevantMutation = settleStartedAt;
+                let lastSignatureChange = settleStartedAt;
+                let previousSignature = '';
+                const observer = new MutationObserver(mutations => {
+                  if (mutations.some(mutation => nearViewport(mutation.target))) {
+                    lastRelevantMutation = Date.now();
+                  }
+                });
+                if (root) {
+                  observer.observe(root, {
+                    subtree: true,
+                    childList: true,
+                    characterData: true,
+                    attributes: true,
+                    attributeFilter: [
+                      'src', 'srcset', 'sizes', 'loading', 'hidden', 'class', 'style'
+                    ]
+                  });
+                }
+                try {
+                  await paint();
+                  while (Date.now() < settleDeadline) {
+                    if (String(window.location.href) !== initialUrl) {
+                      return {ok: false, reason: 'page-changed'};
+                    }
+                    const state = visualState();
+                    if (state.signature !== previousSignature) {
+                      previousSignature = state.signature;
+                      lastSignatureChange = Date.now();
+                    }
+                    const now = Date.now();
+                    const quietSince = Math.max(lastRelevantMutation, lastSignatureChange);
+                    if (now - settleStartedAt >= limits.minViewportSettleMs
+                        && now - quietSince >= limits.domQuietMs
+                        && state.pendingImages.length === 0
+                        && state.finiteAnimations.length === 0
+                        && state.fontsReady) {
+                      const decodes = state.images
+                        .filter(image => image.complete && image.naturalWidth > 0
+                          && typeof image.decode === 'function')
+                        .map(image => {
+                          try {
+                            return Promise.resolve(image.decode()).catch(() => undefined);
+                          } catch (_) {
+                            return Promise.resolve();
+                          }
+                        });
+                      let decoded = decodes.length === 0;
+                      if (!decoded) {
+                        await Promise.race([
+                          Promise.allSettled(decodes).then(() => { decoded = true; }),
+                          wait(Math.max(0, settleDeadline - Date.now()))
+                        ]);
+                      }
+                      if (decoded) {
+                        await paint();
+                        const painted = visualState();
+                        const paintedNow = Date.now();
+                        if (painted.pendingImages.length === 0
+                            && painted.finiteAnimations.length === 0
+                            && painted.fontsReady
+                            && painted.signature === previousSignature
+                            && paintedNow - Math.max(
+                              lastRelevantMutation, lastSignatureChange) >= limits.domQuietMs) {
+                          return {ok: true, reason: ''};
+                        }
+                      }
+                    }
+                    await wait(Math.min(limits.pollMs, Math.max(0, settleDeadline - Date.now())));
+                  }
+                  return {ok: false, reason: 'visual-settle-timeout'};
+                } finally {
+                  observer.disconnect();
+                }
+              };
               try {
                 if (root?.style) root.style.scrollBehavior = 'auto';
                 if (maximumHeight > limits.maxDocumentHeight) {
                   reason = 'document-height-limit';
-                  return {completed, reason, steps, maximumHeight};
+                } else {
+                  window.scrollTo(originX, 0);
+                  const initialSettle = await settleViewport(
+                    limits.maxViewportSettleMs, traversalDeadline);
+                  if (!initialSettle.ok) reason = initialSettle.reason;
+                  while (!reason
+                      && steps < limits.maxSteps
+                      && Date.now() < traversalDeadline) {
+                    if (String(window.location.href) !== initialUrl) {
+                      reason = 'page-changed';
+                      break;
+                    }
+                    const viewportHeight = Math.max(1, number(window.innerHeight, 1));
+                    const currentHeight = height();
+                    maximumHeight = Math.max(maximumHeight, currentHeight);
+                    if (maximumHeight > limits.maxDocumentHeight) {
+                      reason = 'document-height-limit';
+                      break;
+                    }
+                    const bottom = Math.max(0, currentHeight - viewportHeight);
+                    const currentY = Math.max(0, number(window.scrollY || window.pageYOffset));
+                    const atBottom = currentY >= bottom - 2;
+                    if (atBottom && currentHeight === previousHeight) {
+                      stableBottomSamples += 1;
+                    } else {
+                      stableBottomSamples = 0;
+                    }
+                    if (stableBottomSamples >= limits.stableBottomSamples) {
+                      completed = true;
+                      break;
+                    }
+                    previousHeight = currentHeight;
+                    const stepSize = Math.max(250, Math.floor(viewportHeight * 0.75));
+                    const nextY = atBottom ? bottom : Math.min(bottom, currentY + stepSize);
+                    window.scrollTo(originX, nextY);
+                    steps += 1;
+                    const settled = await settleViewport(
+                      limits.maxViewportSettleMs, traversalDeadline);
+                    if (!settled.ok) reason = settled.reason;
+                  }
+                  if (!completed && !reason) {
+                    reason = steps >= limits.maxSteps ? 'step-limit' : 'time-limit';
+                  }
                 }
-                window.scrollTo(originX, 0);
-                await wait(limits.stepDelayMs);
-                while (steps < limits.maxSteps && Date.now() - startedAt < limits.maxDurationMs) {
-                  if (String(window.location.href) !== initialUrl) {
-                    reason = 'page-changed';
-                    break;
-                  }
-                  const viewportHeight = Math.max(1, number(window.innerHeight, 1));
-                  const currentHeight = height();
-                  maximumHeight = Math.max(maximumHeight, currentHeight);
-                  if (maximumHeight > limits.maxDocumentHeight) {
-                    reason = 'document-height-limit';
-                    break;
-                  }
-                  const bottom = Math.max(0, currentHeight - viewportHeight);
-                  const currentY = Math.max(0, number(window.scrollY || window.pageYOffset));
-                  const atBottom = currentY >= bottom - 2;
-                  if (atBottom && currentHeight === previousHeight) {
-                    stableBottomSamples += 1;
-                  } else {
-                    stableBottomSamples = 0;
-                  }
-                  if (stableBottomSamples >= 4) {
-                    completed = true;
-                    break;
-                  }
-                  previousHeight = currentHeight;
-                  const stepSize = Math.max(250, Math.floor(viewportHeight * 0.85));
-                  const nextY = atBottom ? bottom : Math.min(bottom, currentY + stepSize);
-                  window.scrollTo(originX, nextY);
-                  steps += 1;
-                  await wait(limits.stepDelayMs);
-                }
-                if (!completed && !reason) {
-                  reason = steps >= limits.maxSteps ? 'step-limit' : 'time-limit';
-                }
-                return {completed, reason, steps, maximumHeight};
               } finally {
                 window.scrollTo(originX, originY);
+                const restored = await settleViewport(
+                  limits.restoreSettleMs, Date.now() + limits.restoreSettleMs);
+                if (!restored.ok && !reason) {
+                  completed = false;
+                  reason = 'restore-' + restored.reason;
+                }
                 if (root?.style) root.style.scrollBehavior = previousScrollBehavior;
               }
+              return {completed, reason, steps, maximumHeight};
             }
             """;
 
@@ -101,7 +263,13 @@ final class PageScanScrollTraversal {
                         "maxSteps", MAX_STEPS,
                         "maxDurationMs", MAX_DURATION_MS,
                         "maxDocumentHeight", MAX_DOCUMENT_HEIGHT_CSS_PX,
-                        "stepDelayMs", STEP_DELAY_MS));
+                        "minViewportSettleMs", MIN_VIEWPORT_SETTLE_MS,
+                        "maxViewportSettleMs", MAX_VIEWPORT_SETTLE_MS,
+                        "domQuietMs", DOM_QUIET_MS,
+                        "pollMs", POLL_MS,
+                        "paintTimeoutMs", PAINT_TIMEOUT_MS,
+                        "restoreSettleMs", RESTORE_SETTLE_MS,
+                        "stableBottomSamples", STABLE_BOTTOM_SAMPLES));
         requireUnchangedPage(browser, expectedPage);
         if (!(raw instanceof Map<?, ?> result)) {
             throw new IllegalStateException(
