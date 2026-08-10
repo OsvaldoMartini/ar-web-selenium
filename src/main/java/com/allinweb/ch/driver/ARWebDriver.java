@@ -76,6 +76,19 @@ public class ARWebDriver {
     }
 
     /**
+     * Strict cross-owner navigation used when the active Bot Job changes. A timeout is a failure,
+     * even when the previous page remains nonblank, so callers can close that stale page.
+     */
+    public boolean openBrowserForOwnerSwitch(
+            String browserType, String url, String optionsConfig) {
+        if (url == null || Strings.isNullOrEmpty(url.trim())) return false;
+        log.info("Opening or retargeting Playwright browser for the active Bot Job owner");
+        getPlaywrightDriver().openOrNavigateStrict(browserType, url, optionsConfig);
+        this.currentDriver = null;
+        return true;
+    }
+
+    /**
      * Starts an owned TEST RUN or Smoke Test Integration without changing an already-open page.
      *
      * <p>The normal {@link #openBrowser(String, String, String)} contract intentionally navigates an

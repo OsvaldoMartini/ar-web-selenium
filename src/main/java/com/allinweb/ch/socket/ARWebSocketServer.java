@@ -9,6 +9,7 @@ import java.net.URI;
 import java.net.URLEncoder;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import com.allinweb.ch.facade.PreScanWorkflowService;
 import com.allinweb.ch.model.DetachedWorkspaceSessions;
 import lombok.extern.slf4j.Slf4j;
 import org.eclipse.jetty.server.Server;
@@ -245,6 +246,43 @@ public class ARWebSocketServer {
     /** Closes the one global Page Scanner when Bot Job Details itself is explicitly closed. */
     public boolean closeActivePageScannerWorkspace() {
         return PageScannerWorkspaceCoordinator.getInstance().closeActive();
+    }
+
+    /** Returns whether the one detached Page Scanner currently belongs to this Bot Job. */
+    public boolean isPageScannerWorkspaceOpenForBotJob(int botJobId) {
+        return PageScannerWorkspaceCoordinator.getInstance()
+                .activeSessionIdForBotJob(botJobId)
+                .isPresent();
+    }
+
+    /** Returns whether Page Scanner belongs to this exact Bot Job workspace generation. */
+    public boolean isPageScannerWorkspaceOpenForBotJob(
+            int botJobId, long workspaceEpoch) {
+        return PageScannerWorkspaceCoordinator.getInstance()
+                .activeSessionIdForBotJob(botJobId, workspaceEpoch)
+                .isPresent();
+    }
+
+    /**
+     * Moves an already-open Page Scanner to the newly active Bot Job without launching a new
+     * physical window. The caller must supply the workspace epoch issued by the active registry.
+     */
+    public boolean retargetActivePageScannerWorkspace(
+            PreScanWorkflowService.Context context, long workspaceEpoch) {
+        if (context == null) {
+            throw new IllegalArgumentException("A Page Scanner context is required");
+        }
+        return PageScannerWorkspaceCoordinator.getInstance().retargetActive(
+                new PageScannerWorkspaceCoordinator.WorkspaceContext(
+                        context.homeBankingId(),
+                        context.botJobId(),
+                        workspaceEpoch,
+                        context.botJobName(),
+                        context.homeUrlId(),
+                        context.endpointUrl(),
+                        context.browserType(),
+                        context.optionsConfig(),
+                        context.jsonPath()));
     }
 
     static String pageScannerDesktopUrl(int port, String sessionId) {

@@ -36,6 +36,8 @@ import com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableModels.Owne
 import com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableModels.Snapshot;
 import com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableService;
 import com.allinweb.ch.facade.scanner.prelaunch.ScannerExecutionPreflightMonitor;
+import com.allinweb.ch.driver.ARPlaywrightDriver;
+import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.license.LicenceVal;
 import com.allinweb.ch.license.LicenseManager;
 import com.allinweb.ch.model.*;
@@ -278,6 +280,15 @@ public class BotJobDetailsWorkspaceHost {
         boolean existingWorkspace = this.selectedBotJob != null && this.selectedBotJob.getId() != null;
         Integer previousBotJobId = this.selectedBotJob == null ? null : this.selectedBotJob.getId();
         Integer requestedBotJobId = selectedBotJob == null ? null : selectedBotJob.getId();
+        long previousWorkspaceEpoch = 0L;
+        if (existingWorkspace && previousBotJobId != null) {
+            try {
+                previousWorkspaceEpoch =
+                        botJobDetailsWorkspaceRegistry.require(previousBotJobId).workspaceEpoch();
+            } catch (IllegalArgumentException inactiveWorkspace) {
+                // Detached surfaces from an inactive generation are retired below, never reused.
+            }
+        }
         boolean switchingBotJob = existingWorkspace
                 && previousBotJobId != null
                 && requestedBotJobId != null
@@ -294,16 +305,23 @@ public class BotJobDetailsWorkspaceHost {
         boolean preserveSmokeTestWorkspace = switchingBotJob
                 && VariablesWorkspaceService.getInstance()
                         .isSmokeTestOpenForBotJob(previousBotJobId);
-        if (switchingBotJob && !canCloseWorkspace()) {
+        boolean preserveDetachedPageScanner = existingWorkspace
+                && previousWorkspaceEpoch > 0
+                && ARWebSocketServer.getInstance()
+                        .isPageScannerWorkspaceOpenForBotJob(
+                                previousBotJobId, previousWorkspaceEpoch);
+        if (existingWorkspace && !canCloseWorkspace()) {
             throw new IllegalStateException(
-                    "Stop the active Bot Job operation before opening another Bot Job");
+                    "Stop the active Bot Job operation before reloading or opening another Bot Job");
         }
         if (switchingBotJob) {
-            // Keep the one detached Page Scanner native window alive. Its trusted old binding is
-            // rejected after the registry epoch changes and PRE SCAN on the new Bot Job retargets
-            // that same physical panel to a fresh logical scanner session.
+            // Keep an authoritative detached Page Scanner native window alive so it can be
+            // retargeted immediately after the new owner and endpoint are active. Any unexpected
+            // stale scanner is closed by suspendReactWorkspaceSurfaces instead.
             suspendReactWorkspaceSurfaces(
-                    previousBotJobId, true, preserveVariablesWorkspace);
+                    previousBotJobId, preserveDetachedPageScanner, preserveVariablesWorkspace);
+        } else if (!preserveDetachedPageScanner) {
+            ARWebSocketServer.getInstance().closeActivePageScannerWorkspace();
         }
         this.isEnabledLicence = isEnabledLicence;
         this.selectedBotJob = selectedBotJob;
@@ -389,7 +407,8 @@ public class BotJobDetailsWorkspaceHost {
                 });
         BotJobWorkspaceService.GridSnapshot initialGridSnapshot;
         reactSessionContext.activate(selectedBotJob);
-        botJobDetailsWorkspaceRegistry.activate(selectedBotJob, isEnabledLicence);
+        BotJobDetailsWorkspaceRegistry.Snapshot activatedWorkspace =
+                botJobDetailsWorkspaceRegistry.activate(selectedBotJob, isEnabledLicence);
         if (preserveVariablesWorkspace) {
             retargetVariablesWorkspace(previousBotJobId, selectedBotJob.getId());
         }
@@ -424,6 +443,41 @@ public class BotJobDetailsWorkspaceHost {
             throw error;
         }
 
+        if (switchingBotJob) {
+            retargetSharedBrowserForActiveBotJob();
+        }
+        if (existingWorkspace) {
+            if (preserveDetachedPageScanner) {
+                boolean retargeted = ARWebSocketServer.getInstance()
+                        .retargetActivePageScannerWorkspace(
+                                preScanContext(), activatedWorkspace.workspaceEpoch());
+                if (!retargeted) {
+                    log.error(
+                            "Page Scanner could not follow Bot Job {} -> {}; retiring the stale workspace",
+                            previousBotJobId,
+                            selectedBotJob.getId());
+                    ARWebSocketServer.getInstance().closeActivePageScannerWorkspace();
+                }
+            }
+        }
+        JsonObject mappingsRetarget =
+                com.allinweb.ch.socket.PageMappingsWorkspaceService.getInstance()
+                        .activeBotJobChanged(
+                                previousBotJobId == null ? 0 : previousBotJobId,
+                                previousWorkspaceEpoch,
+                                selectedBotJob.getId());
+        if (existingWorkspace) {
+            logDetachedRetargetFailure(
+                    mappingsRetarget,
+                    "Page Mappings",
+                    previousBotJobId,
+                    selectedBotJob.getId());
+        } else if (mappingsRetarget != null
+                && mappingsRetarget.has("ok")
+                && !mappingsRetarget.get("ok").getAsBoolean()) {
+            log.warn("Page Mappings could not synchronize with Bot Job {}", selectedBotJob.getId());
+        }
+
         if (existingWorkspace) {
             showBotJobWorkspace();
         }
@@ -441,6 +495,43 @@ public class BotJobDetailsWorkspaceHost {
 
     private void clearBotJobWorkspaceCaches() {
         botJobWorkspaceService.clearAllCaches();
+    }
+
+    /**
+     * The Playwright page is process-wide so TEST RUN and Page Scanner can share a deep same-job
+     * state. Crossing Bot Jobs is a different ownership generation: navigate the already-open
+     * page once to the new persisted endpoint, or close it fail-closed so the next scan cannot
+     * attribute the previous bank's page to the new owner.
+     */
+    private void retargetSharedBrowserForActiveBotJob() {
+        ARWebDriver sharedBrowser = ARWebDriver.getInstance();
+        ARPlaywrightDriver activeBrowser = sharedBrowser.currentPlaywrightDriver();
+        if (activeBrowser == null || !activeBrowser.isOpen()) return;
+
+        String endpointUrl = selectedEndpointUrl();
+        try {
+            if (Strings.isNullOrEmpty(endpointUrl)
+                    || !sharedBrowser.openBrowserForOwnerSwitch(
+                            arPropertyManager.getProperty(ARPropertyEnum.BROWSER),
+                            endpointUrl,
+                            preScanOptionsConfig())) {
+                throw new IllegalStateException(
+                        "The selected Bot Job does not have an available browser endpoint");
+            }
+            log.info(
+                    "Shared Playwright browser retargeted to Bot Job {} endpoint",
+                    selectedBotJob.getId());
+        } catch (RuntimeException retargetFailure) {
+            try {
+                sharedBrowser.closeBrowser();
+            } catch (RuntimeException closeFailure) {
+                retargetFailure.addSuppressed(closeFailure);
+            }
+            log.error(
+                    "Shared Playwright browser could not follow Bot Job {}; the stale page was closed",
+                    selectedBotJob.getId(),
+                    retargetFailure);
+        }
     }
 
     private void abortWorkspaceActivation(int botJobId) {
@@ -572,22 +663,32 @@ public class BotJobDetailsWorkspaceHost {
             String bindingEpoch,
             String requestId,
             Runnable completion) {
+        java.util.concurrent.atomic.AtomicBoolean completed =
+                new java.util.concurrent.atomic.AtomicBoolean();
+        PreScanWorkflowService.Sink sink = pageMappingsRescanSink(
+                destinationSessionId,
+                context,
+                workspaceEpoch,
+                bindingEpoch,
+                requestId,
+                completed,
+                completion);
         dispatchPreScanOperation(
-                () -> withSharedScannerActivity(
-                        context,
-                        workspaceEpoch,
-                        () -> preScanWorkflowService.scanForPageMappings(
+                () -> {
+                    try {
+                        withSharedScannerActivity(
                                 context,
-                                "",
-                                false,
-                                pageMappingsRescanSink(
-                                        destinationSessionId,
-                                        context,
-                                        workspaceEpoch,
-                                        bindingEpoch,
-                                        requestId,
-                                        completion)),
-                        message -> {
+                                workspaceEpoch,
+                                () -> preScanWorkflowService.scanForPageMappings(
+                                        context, "", false, sink),
+                                message -> sink.status("failed", message, 0));
+                    } catch (RuntimeException taskFailure) {
+                        log.warn(
+                                "Page Mappings rescan task failed for Bot Job {}",
+                                context.botJobId(),
+                                taskFailure);
+                    } finally {
+                        if (completePageMappingsRescan(completed, completion)) {
                             try {
                                 sendPageMappingsRescanStatus(
                                         destinationSessionId,
@@ -596,12 +697,17 @@ public class BotJobDetailsWorkspaceHost {
                                         bindingEpoch,
                                         requestId,
                                         "failed",
-                                        message,
+                                        "Page Mappings rescan ended before a terminal scan result was available.",
                                         0);
-                            } finally {
-                                completion.run();
+                            } catch (RuntimeException deliveryFailure) {
+                                log.warn(
+                                        "Unable to publish terminal Page Mappings rescan failure for Bot Job {}",
+                                        context.botJobId(),
+                                        deliveryFailure);
                             }
-                        }),
+                        }
+                    }
+                },
                 "page-mappings-rescan-" + context.botJobId(),
                 destinationSessionId,
                 context);
@@ -938,9 +1044,8 @@ public class BotJobDetailsWorkspaceHost {
             long workspaceEpoch,
             String bindingEpoch,
             String requestId,
+            java.util.concurrent.atomic.AtomicBoolean completed,
             Runnable completion) {
-        java.util.concurrent.atomic.AtomicBoolean completed =
-                new java.util.concurrent.atomic.AtomicBoolean();
         return new PreScanWorkflowService.Sink() {
             @Override
             public void status(String status, String message, int elementCount) {
@@ -953,21 +1058,18 @@ public class BotJobDetailsWorkspaceHost {
                 boolean terminal = "done".equalsIgnoreCase(publishedStatus)
                         || "empty".equalsIgnoreCase(publishedStatus)
                         || "failed".equalsIgnoreCase(publishedStatus);
-                try {
-                    sendPageMappingsRescanStatus(
-                            destinationSessionId,
-                            context,
-                            workspaceEpoch,
-                            bindingEpoch,
-                            requestId,
-                            publishedStatus,
-                            message,
-                            elementCount);
-                } finally {
-                    if (terminal && completed.compareAndSet(false, true)) {
-                        completion.run();
-                    }
+                if (terminal) {
+                    completePageMappingsRescan(completed, completion);
                 }
+                sendPageMappingsRescanStatus(
+                        destinationSessionId,
+                        context,
+                        workspaceEpoch,
+                        bindingEpoch,
+                        requestId,
+                        publishedStatus,
+                        message,
+                        elementCount);
             }
 
             @Override
@@ -985,6 +1087,13 @@ public class BotJobDetailsWorkspaceHost {
                 // PreScanWorkflowService always emits the terminal failed status first.
             }
         };
+    }
+
+    private static boolean completePageMappingsRescan(
+            java.util.concurrent.atomic.AtomicBoolean completed, Runnable completion) {
+        if (!completed.compareAndSet(false, true)) return false;
+        completion.run();
+        return true;
     }
 
     private void sendPageMappingsRescanStatus(

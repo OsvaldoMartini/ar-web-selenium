@@ -1230,10 +1230,13 @@ public class SimpleWebSocketServer {
                 }
                 case "pageMappings.pin": {
                     JsonObject mappingsBody = extractBody(jsonObjMSG);
-                    PageMappingsWorkspaceService.RetentionAuthority authority;
+                    PageMappingsWorkspaceService.MutationTicket mutation;
                     try {
-                        authority = pageMappingsWorkspaceService.authorizeRetentionRequest(
-                                mappingsBody, sessionId, session);
+                        mutation = pageMappingsWorkspaceService.beginMutation(
+                                mappingsBody,
+                                sessionId,
+                                session,
+                                PageMappingsWorkspaceService.MutationKind.PIN);
                     } catch (IllegalArgumentException unauthorized) {
                         sendPageMappingsResponse(
                                 homeBankingId,
@@ -1243,25 +1246,40 @@ public class SimpleWebSocketServer {
                                 commandEditorFailure(mappingsBody, unauthorized.getMessage()));
                         break;
                     }
-                    JsonObject response = withPageMappingsConnection(
-                            mappingsBody,
-                            "update Page Mappings snapshot pin",
-                            "The selected capture pin could not be updated.",
-                            connection -> pageMappingsWorkspaceService.pinSnapshot(
-                                    mappingsBody, sessionId, session, connection));
-                    deliverPageMappingsRetentionResponse(
-                            new RetentionSubscriber(
-                                    homeBankingId, sessionId, session, authority),
-                            "pageMappings.pinResponse",
-                            response);
+                    boolean mutationSettled = false;
+                    try {
+                        JsonObject response = withPageMappingsConnection(
+                                mappingsBody,
+                                "update Page Mappings snapshot pin",
+                                "The selected capture pin could not be updated.",
+                                connection -> pageMappingsWorkspaceService.pinSnapshot(
+                                        mappingsBody, sessionId, session, connection));
+                        pageMappingsWorkspaceService.finishMutation(mutation);
+                        mutationSettled = true;
+                        deliverPageMappingsRetentionResponse(
+                                new RetentionSubscriber(
+                                        homeBankingId,
+                                        sessionId,
+                                        session,
+                                        mutation.retentionAuthority()),
+                                "pageMappings.pinResponse",
+                                response);
+                    } finally {
+                        if (!mutationSettled) {
+                            pageMappingsWorkspaceService.finishMutation(mutation);
+                        }
+                    }
                     break;
                 }
                 case "pageMappings.retentionUpdate": {
                     JsonObject mappingsBody = extractBody(jsonObjMSG);
-                    PageMappingsWorkspaceService.RetentionAuthority authority;
+                    PageMappingsWorkspaceService.MutationTicket mutation;
                     try {
-                        authority = pageMappingsWorkspaceService.authorizeRetentionRequest(
-                                mappingsBody, sessionId, session);
+                        mutation = pageMappingsWorkspaceService.beginMutation(
+                                mappingsBody,
+                                sessionId,
+                                session,
+                                PageMappingsWorkspaceService.MutationKind.RETENTION_UPDATE);
                     } catch (IllegalArgumentException unauthorized) {
                         sendPageMappingsResponse(
                                 homeBankingId,
@@ -1271,25 +1289,40 @@ public class SimpleWebSocketServer {
                                 commandEditorFailure(mappingsBody, unauthorized.getMessage()));
                         break;
                     }
-                    JsonObject response = withPageMappingsConnection(
-                            mappingsBody,
-                            "update Page Mappings retention",
-                            "Snapshot retention policy could not be saved.",
-                            connection -> pageMappingsWorkspaceService.updateRetention(
-                                    mappingsBody, sessionId, session, connection));
-                    deliverPageMappingsRetentionResponse(
-                            new RetentionSubscriber(
-                                    homeBankingId, sessionId, session, authority),
-                            "pageMappings.retentionUpdateResponse",
-                            response);
+                    boolean mutationSettled = false;
+                    try {
+                        JsonObject response = withPageMappingsConnection(
+                                mappingsBody,
+                                "update Page Mappings retention",
+                                "Snapshot retention policy could not be saved.",
+                                connection -> pageMappingsWorkspaceService.updateRetention(
+                                        mappingsBody, sessionId, session, connection));
+                        pageMappingsWorkspaceService.finishMutation(mutation);
+                        mutationSettled = true;
+                        deliverPageMappingsRetentionResponse(
+                                new RetentionSubscriber(
+                                        homeBankingId,
+                                        sessionId,
+                                        session,
+                                        mutation.retentionAuthority()),
+                                "pageMappings.retentionUpdateResponse",
+                                response);
+                    } finally {
+                        if (!mutationSettled) {
+                            pageMappingsWorkspaceService.finishMutation(mutation);
+                        }
+                    }
                     break;
                 }
                 case "pageMappings.retentionPurge": {
                     JsonObject mappingsBody = extractBody(jsonObjMSG);
-                    PageMappingsWorkspaceService.RetentionAuthority authority;
+                    PageMappingsWorkspaceService.MutationTicket mutation;
                     try {
-                        authority = pageMappingsWorkspaceService.authorizeRetentionRequest(
-                                mappingsBody, sessionId, session);
+                        mutation = pageMappingsWorkspaceService.beginMutation(
+                                mappingsBody,
+                                sessionId,
+                                session,
+                                PageMappingsWorkspaceService.MutationKind.RETENTION_PURGE);
                     } catch (IllegalArgumentException unauthorized) {
                         sendPageMappingsResponse(
                                 homeBankingId,
@@ -1299,105 +1332,135 @@ public class SimpleWebSocketServer {
                                 commandEditorFailure(mappingsBody, unauthorized.getMessage()));
                         break;
                     }
-                    String requestKey = authority.ledgerKey();
-                    String requestPayload = mappingsBody == null ? "" : mappingsBody.toString();
-                    RetentionSubscriber subscriber = new RetentionSubscriber(
-                            homeBankingId, sessionId, session, authority);
-                    JsonObject immediate = null;
-                    boolean duplicateInFlight = false;
-                    boolean protocolConflict = false;
-                    synchronized (pageMappingsRetentionRequestLock) {
-                        CompletedPageMappingsRetentionResponse completed =
-                                completedPageMappingsRetentionPurges.get(requestKey);
-                        if (completed != null) {
-                            if (completed.payload().equals(requestPayload)) {
-                                immediate = completed.response().deepCopy();
-                            } else {
-                                protocolConflict = true;
-                            }
-                        } else if (activePageMappingsRetentionRequest != null
-                                && activePageMappingsRetentionRequest.key.equals(requestKey)) {
-                            if (activePageMappingsRetentionRequest.payload.equals(requestPayload)) {
-                                activePageMappingsRetentionRequest.addSubscriber(subscriber);
-                                duplicateInFlight = true;
-                            } else {
-                                // The accepted task exclusively owns this terminal request ID.
-                                // Never let a conflicting duplicate settle React while that task
-                                // may still commit later.
-                                protocolConflict = true;
-                            }
-                        } else if (activePageMappingsRetentionRequest != null) {
-                            immediate = commandEditorFailure(
-                                    mappingsBody,
-                                    "Another Page Mappings retention purge is still running.");
-                        } else {
-                            activePageMappingsRetentionRequest =
-                                    new ActivePageMappingsRetentionRequest(
-                                            requestKey, requestPayload, subscriber);
-                        }
-                    }
-                    if (protocolConflict) {
-                        log.warn(
-                                "Dropped conflicting Page Mappings retention replay for accepted request {}",
-                                authority.requestId());
-                        break;
-                    }
-                    if (immediate != null) {
-                        deliverPageMappingsRetentionResponse(
-                                subscriber,
-                                "pageMappings.retentionPurgeResponse",
-                                immediate);
-                        break;
-                    }
-                    if (duplicateInFlight) break;
+                    PageMappingsWorkspaceService.RetentionAuthority authority =
+                            mutation.retentionAuthority();
+                    boolean mutationHandedOff = false;
+                    boolean mutationSettled = false;
                     try {
-                        pageMappingsRetentionWorker.execute(() -> {
-                            try {
-                                JsonObject response = withPageMappingsConnection(
-                                        mappingsBody,
-                                        "purge Page Mappings snapshots",
-                                        "Eligible snapshots could not be purged.",
-                                        connection -> pageMappingsWorkspaceService.purgeRetention(
-                                                mappingsBody, authority, connection));
-                                List<RetentionSubscriber> recipients =
-                                        completePageMappingsRetentionRequest(
-                                                requestKey, requestPayload, response);
-                                for (RetentionSubscriber recipient : recipients) {
-                                    deliverPageMappingsRetentionResponse(
-                                            recipient,
-                                            "pageMappings.retentionPurgeResponse",
-                                            response);
+                        String requestKey = authority.ledgerKey();
+                        String requestPayload = mappingsBody == null ? "" : mappingsBody.toString();
+                        RetentionSubscriber subscriber = new RetentionSubscriber(
+                                homeBankingId, sessionId, session, authority);
+                        JsonObject immediate = null;
+                        boolean duplicateInFlight = false;
+                        boolean protocolConflict = false;
+                        synchronized (pageMappingsRetentionRequestLock) {
+                            CompletedPageMappingsRetentionResponse completed =
+                                    completedPageMappingsRetentionPurges.get(requestKey);
+                            if (completed != null) {
+                                if (completed.payload().equals(requestPayload)) {
+                                    immediate = completed.response().deepCopy();
+                                } else {
+                                    protocolConflict = true;
                                 }
-                            } catch (Error abruptFailure) {
-                                JsonObject response = commandEditorFailure(
+                            } else if (activePageMappingsRetentionRequest != null
+                                    && activePageMappingsRetentionRequest.key.equals(requestKey)) {
+                                if (activePageMappingsRetentionRequest.payload.equals(requestPayload)) {
+                                    activePageMappingsRetentionRequest.addSubscriber(subscriber);
+                                    duplicateInFlight = true;
+                                } else {
+                                    // The accepted task exclusively owns this terminal request ID.
+                                    // Never let a conflicting duplicate settle React while that task
+                                    // may still commit later.
+                                    protocolConflict = true;
+                                }
+                            } else if (activePageMappingsRetentionRequest != null) {
+                                immediate = commandEditorFailure(
                                         mappingsBody,
-                                        "The purge ended unexpectedly. Reload Page Mappings before continuing.");
-                                response.addProperty("reloadRequired", true);
-                                for (RetentionSubscriber recipient :
-                                        releasePageMappingsRetentionRequest(
-                                                requestKey, requestPayload)) {
+                                        "Another Page Mappings retention purge is still running.");
+                            } else {
+                                activePageMappingsRetentionRequest =
+                                        new ActivePageMappingsRetentionRequest(
+                                                requestKey, requestPayload, subscriber);
+                            }
+                        }
+                        if (protocolConflict) {
+                            log.warn(
+                                    "Dropped conflicting Page Mappings retention replay for accepted request {}",
+                                    authority.requestId());
+                            break;
+                        }
+                        if (immediate != null) {
+                            pageMappingsWorkspaceService.finishMutation(mutation);
+                            mutationSettled = true;
+                            deliverPageMappingsRetentionResponse(
+                                    subscriber,
+                                    "pageMappings.retentionPurgeResponse",
+                                    immediate);
+                            break;
+                        }
+                        if (duplicateInFlight) break;
+                        try {
+                            pageMappingsRetentionWorker.execute(() -> {
+                                boolean workerMutationSettled = false;
+                                try {
                                     try {
-                                        deliverPageMappingsRetentionResponse(
-                                                recipient,
-                                                "pageMappings.retentionPurgeResponse",
-                                                response);
-                                    } catch (RuntimeException deliveryFailure) {
-                                        abruptFailure.addSuppressed(deliveryFailure);
+                                        JsonObject response = withPageMappingsConnection(
+                                                mappingsBody,
+                                                "purge Page Mappings snapshots",
+                                                "Eligible snapshots could not be purged.",
+                                                connection -> pageMappingsWorkspaceService.purgeRetention(
+                                                        mappingsBody, authority, connection));
+                                        List<RetentionSubscriber> recipients =
+                                                completePageMappingsRetentionRequest(
+                                                        requestKey, requestPayload, response);
+                                        pageMappingsWorkspaceService.finishMutation(mutation);
+                                        workerMutationSettled = true;
+                                        for (RetentionSubscriber recipient : recipients) {
+                                            deliverPageMappingsRetentionResponse(
+                                                    recipient,
+                                                    "pageMappings.retentionPurgeResponse",
+                                                    response);
+                                        }
+                                    } catch (Error abruptFailure) {
+                                        JsonObject response = commandEditorFailure(
+                                                mappingsBody,
+                                                "The purge ended unexpectedly. Reload Page Mappings before continuing.");
+                                        response.addProperty("reloadRequired", true);
+                                        List<RetentionSubscriber> recipients =
+                                                releasePageMappingsRetentionRequest(
+                                                        requestKey, requestPayload);
+                                        if (!workerMutationSettled) {
+                                            pageMappingsWorkspaceService.finishMutation(mutation);
+                                            workerMutationSettled = true;
+                                        }
+                                        for (RetentionSubscriber recipient : recipients) {
+                                            try {
+                                                deliverPageMappingsRetentionResponse(
+                                                        recipient,
+                                                        "pageMappings.retentionPurgeResponse",
+                                                        response);
+                                            } catch (RuntimeException deliveryFailure) {
+                                                abruptFailure.addSuppressed(deliveryFailure);
+                                            }
+                                        }
+                                        throw abruptFailure;
+                                    }
+                                } finally {
+                                    if (!workerMutationSettled) {
+                                        pageMappingsWorkspaceService.finishMutation(mutation);
                                     }
                                 }
-                                throw abruptFailure;
+                            });
+                            mutationHandedOff = true;
+                        } catch (RejectedExecutionException busy) {
+                            JsonObject response = commandEditorFailure(
+                                    mappingsBody,
+                                    "Another Page Mappings retention purge is still running.");
+                            List<RetentionSubscriber> recipients =
+                                    releasePageMappingsRetentionRequest(requestKey, requestPayload);
+                            pageMappingsWorkspaceService.finishMutation(mutation);
+                            mutationSettled = true;
+                            for (RetentionSubscriber recipient : recipients) {
+                                deliverPageMappingsRetentionResponse(
+                                        recipient,
+                                        "pageMappings.retentionPurgeResponse",
+                                        response);
                             }
-                        });
-                    } catch (RejectedExecutionException busy) {
-                        JsonObject response = commandEditorFailure(
-                                mappingsBody,
-                                "Another Page Mappings retention purge is still running.");
-                        for (RetentionSubscriber recipient :
-                                releasePageMappingsRetentionRequest(requestKey, requestPayload)) {
-                            deliverPageMappingsRetentionResponse(
-                                    recipient,
-                                    "pageMappings.retentionPurgeResponse",
-                                    response);
+                        }
+                    } finally {
+                        if (!mutationHandedOff && !mutationSettled) {
+                            pageMappingsWorkspaceService.finishMutation(mutation);
                         }
                     }
                     break;
@@ -8236,9 +8299,20 @@ public class SimpleWebSocketServer {
             String failureMessage,
             PageMappingsOcrTask task) {
         PageMappingsWorkspaceService.OcrAuthority authority;
+        final PageMappingsWorkspaceService.MutationTicket mutation;
         try {
-            authority = pageMappingsWorkspaceService.authorizeOcrRequest(
-                    request, sessionId, requesterTransport);
+            if (PageMappingsOcrRequestLedger.APPLY_RESPONSE_OPERATION.equals(responseOperation)) {
+                mutation = pageMappingsWorkspaceService.beginMutation(
+                        request,
+                        sessionId,
+                        requesterTransport,
+                        PageMappingsWorkspaceService.MutationKind.OCR_APPLY);
+                authority = mutation.ocrAuthority();
+            } else {
+                mutation = null;
+                authority = pageMappingsWorkspaceService.authorizeOcrRequest(
+                        request, sessionId, requesterTransport);
+            }
         } catch (IllegalArgumentException unauthorized) {
             // Do not disclose Page Mappings state to arbitrary registered transports, and never
             // let a malformed or stale request occupy the process-wide OCR lane.
@@ -8252,10 +8326,16 @@ public class SimpleWebSocketServer {
                         requesterTransport,
                         authority,
                         request);
-        PageMappingsOcrRequestLedger.Admission admission =
-                pageMappingsOcrRequests.admit(responseOperation, request, subscriber);
+        PageMappingsOcrRequestLedger.Admission admission;
+        try {
+            admission = pageMappingsOcrRequests.admit(responseOperation, request, subscriber);
+        } catch (RuntimeException | Error admissionFailure) {
+            pageMappingsWorkspaceService.finishMutation(mutation);
+            throw admissionFailure;
+        }
         switch (admission.disposition()) {
             case ATTACHED:
+                pageMappingsWorkspaceService.finishMutation(mutation);
                 return;
             case CONFLICT:
                 // A conflicting payload must not settle the request ID that already belongs to
@@ -8263,14 +8343,17 @@ public class SimpleWebSocketServer {
                 log.warn(
                         "Dropped conflicting Page Mappings OCR replay for accepted request {}",
                         authority.requestId());
+                pageMappingsWorkspaceService.finishMutation(mutation);
                 return;
             case REPLAY:
+                pageMappingsWorkspaceService.finishMutation(mutation);
                 deliverPageMappingsOcrResponse(
                         subscriber,
                         responseOperation,
                         admission.response());
                 return;
             case BUSY:
+                pageMappingsWorkspaceService.finishMutation(mutation);
                 deliverPageMappingsOcrResponse(
                         subscriber,
                         responseOperation,
@@ -8284,72 +8367,93 @@ public class SimpleWebSocketServer {
         PageMappingsOcrRequestLedger.Ticket ticket =
                 Objects.requireNonNull(admission.ticket());
 
+        boolean mutationHandedOff = false;
         try {
             pageMappingsOcrWorker.execute(() -> {
-                JsonObject response;
-                List<PageMappingsOcrRequestLedger.Subscriber> recipients;
+                boolean workerMutationSettled = false;
                 try {
+                    JsonObject response;
+                    List<PageMappingsOcrRequestLedger.Subscriber> recipients;
                     try {
-                        response = task.run();
-                    } catch (Exception failure) {
-                        log.warn("{} failed", responseOperation, failure);
-                        response = commandEditorFailure(request, failureMessage);
-                    }
-                    recipients = pageMappingsOcrRequests.complete(ticket, response);
-                } catch (Error abruptFailure) {
-                    // Release before allocating the terminal response so even a VM-level failure
-                    // cannot leave the process-wide OCR lane permanently occupied.
-                    recipients =
-                            pageMappingsOcrRequests.release(ticket);
-                    try {
-                        String abruptMessage = failureMessage;
-                        if (PageMappingsOcrRequestLedger.APPLY_RESPONSE_OPERATION.equals(
-                                responseOperation)) {
-                            abruptMessage = "OCR Review save ended unexpectedly. Reload Page "
-                                    + "Mappings before saving names again.";
+                        try {
+                            response = task.run();
+                        } catch (Exception failure) {
+                            log.warn("{} failed", responseOperation, failure);
+                            response = commandEditorFailure(request, failureMessage);
                         }
-                        JsonObject abruptResponse = commandEditorFailure(
-                                request,
-                                abruptMessage);
-                        if (PageMappingsOcrRequestLedger.APPLY_RESPONSE_OPERATION.equals(
-                                responseOperation)) {
-                            abruptResponse.addProperty("reloadRequired", true);
+                        recipients = pageMappingsOcrRequests.complete(ticket, response);
+                        pageMappingsWorkspaceService.finishMutation(mutation);
+                        workerMutationSettled = true;
+                    } catch (Error abruptFailure) {
+                        // Release before allocating the terminal response so even a VM-level
+                        // failure cannot leave the process-wide OCR lane permanently occupied.
+                        recipients = pageMappingsOcrRequests.release(ticket);
+                        if (!workerMutationSettled) {
+                            pageMappingsWorkspaceService.finishMutation(mutation);
+                            workerMutationSettled = true;
                         }
-                        for (PageMappingsOcrRequestLedger.Subscriber recipient : recipients) {
-                            try {
-                                deliverPageMappingsOcrResponse(
-                                        recipient,
-                                        responseOperation,
-                                        abruptResponse);
-                            } catch (Throwable deliveryFailure) {
-                                if (deliveryFailure != abruptFailure) {
-                                    abruptFailure.addSuppressed(deliveryFailure);
+                        try {
+                            String abruptMessage = failureMessage;
+                            if (PageMappingsOcrRequestLedger.APPLY_RESPONSE_OPERATION.equals(
+                                    responseOperation)) {
+                                abruptMessage = "OCR Review save ended unexpectedly. Reload Page "
+                                        + "Mappings before saving names again.";
+                            }
+                            JsonObject abruptResponse = commandEditorFailure(
+                                    request,
+                                    abruptMessage);
+                            if (PageMappingsOcrRequestLedger.APPLY_RESPONSE_OPERATION.equals(
+                                    responseOperation)) {
+                                abruptResponse.addProperty("reloadRequired", true);
+                            }
+                            for (PageMappingsOcrRequestLedger.Subscriber recipient : recipients) {
+                                try {
+                                    deliverPageMappingsOcrResponse(
+                                            recipient,
+                                            responseOperation,
+                                            abruptResponse);
+                                } catch (Throwable deliveryFailure) {
+                                    if (deliveryFailure != abruptFailure) {
+                                        abruptFailure.addSuppressed(deliveryFailure);
+                                    }
                                 }
                             }
+                        } catch (Throwable terminalFailure) {
+                            if (terminalFailure != abruptFailure) {
+                                abruptFailure.addSuppressed(terminalFailure);
+                            }
                         }
-                    } catch (Throwable terminalFailure) {
-                        if (terminalFailure != abruptFailure) {
-                            abruptFailure.addSuppressed(terminalFailure);
-                        }
+                        throw abruptFailure;
                     }
-                    throw abruptFailure;
-                }
-                for (PageMappingsOcrRequestLedger.Subscriber recipient : recipients) {
-                    deliverPageMappingsOcrResponse(
-                            recipient,
-                            responseOperation,
-                            response);
+                    for (PageMappingsOcrRequestLedger.Subscriber recipient : recipients) {
+                        deliverPageMappingsOcrResponse(
+                                recipient,
+                                responseOperation,
+                                response);
+                    }
+                } finally {
+                    if (!workerMutationSettled) {
+                        pageMappingsWorkspaceService.finishMutation(mutation);
+                    }
                 }
             });
+            mutationHandedOff = true;
         } catch (RejectedExecutionException busy) {
             JsonObject response = commandEditorFailure(
                     request, "Another Page Mappings OCR operation is still running.");
-            for (PageMappingsOcrRequestLedger.Subscriber recipient :
-                    pageMappingsOcrRequests.release(ticket)) {
+            List<PageMappingsOcrRequestLedger.Subscriber> recipients =
+                    pageMappingsOcrRequests.release(ticket);
+            pageMappingsWorkspaceService.finishMutation(mutation);
+            mutationHandedOff = true;
+            for (PageMappingsOcrRequestLedger.Subscriber recipient : recipients) {
                 deliverPageMappingsOcrResponse(
                         recipient,
                         responseOperation,
                         response);
+            }
+        } finally {
+            if (!mutationHandedOff) {
+                pageMappingsWorkspaceService.finishMutation(mutation);
             }
         }
     }

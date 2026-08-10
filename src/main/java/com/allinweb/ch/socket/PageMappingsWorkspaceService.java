@@ -39,6 +39,7 @@ import java.util.Base64;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -62,6 +63,8 @@ public final class PageMappingsWorkspaceService {
     private static final SecureRandom WINDOW_CAPABILITY_RANDOM = new SecureRandom();
     private static final int WINDOW_CAPABILITY_BYTES = 32;
     private static final int MAX_RESCAN_REQUESTS = 256;
+    private static final int MAX_ACTIVE_MUTATIONS = 32;
+    private static final int MAX_MUTATION_OWNER_REVISIONS = 256;
     private static final long DELIVERY_TIMEOUT_SECONDS = 5L;
     private static final long MAX_MANIFEST_BYTES = 1_000_000L;
     private static final long MAX_METADATA_BYTES = 1_000_000L;
@@ -95,9 +98,13 @@ public final class PageMappingsWorkspaceService {
     private final ExactTransportAuthorizer transportAuthorizer;
     private final SnapshotRootResolver snapshotRootResolver;
     private final LinkedHashSet<String> acceptedRescanRequests = new LinkedHashSet<>();
+    private final Map<String, ActiveMutation> activeMutations = new HashMap<>();
+    private final LinkedHashMap<MutationOwner, Long> mutationOwnerRevisions =
+            new LinkedHashMap<>(16, 0.75f, true);
     private Binding binding;
     private String activeRescanKey = "";
     private boolean cacheInspectionInFlight;
+    private long nextMutationRevision;
 
     public static PageMappingsWorkspaceService getInstance() {
         return INSTANCE;
@@ -201,6 +208,93 @@ public final class PageMappingsWorkspaceService {
         }
     }
 
+    /**
+     * Follows the application-owned Bot Job Details switch when Page Mappings already has an
+     * owner. A connected (or still-launching) window is retargeted in place; a disconnected stale
+     * binding is invalidated so it cannot reconnect later under the previous Bot Job.
+     */
+    public JsonObject activeBotJobChanged(
+            int previousBotJobId, long previousWorkspaceEpoch, int nextBotJobId) {
+        try {
+            synchronized (bindingLock) {
+                boolean alreadyOpen = windowAccess.isOpen();
+                boolean launchPending = !alreadyOpen && windowAccess.isLaunchPending();
+                OwnerTarget target;
+                try {
+                    target = botJobOwnerResolver.resolve(nextBotJobId);
+                } catch (RuntimeException unavailable) {
+                    if (binding != null || alreadyOpen || launchPending) {
+                        Binding retired = binding;
+                        invalidateLocked(
+                                retired,
+                                null,
+                                retired,
+                                "Page Mappings was retired because the active Bot Job is unavailable.");
+                    }
+                    throw unavailable;
+                }
+
+                if (binding == null) {
+                    if (alreadyOpen || launchPending) {
+                        invalidateLocked(
+                                null,
+                                null,
+                                null,
+                                "Page Mappings was retired because it had no active Bot Job owner.");
+                    }
+                    JsonObject response = new JsonObject();
+                    response.addProperty("ok", true);
+                    response.addProperty("retargeted", false);
+                    response.addProperty("invalidated", alreadyOpen || launchPending);
+                    return response;
+                }
+
+                Binding retired = binding;
+                if (!alreadyOpen && !launchPending) {
+                    invalidateLocked(
+                            retired,
+                            null,
+                            retired,
+                            "Page Mappings was retired because the active Bot Job changed.");
+                    JsonObject response = new JsonObject();
+                    response.addProperty("ok", true);
+                    response.addProperty("retargeted", false);
+                    response.addProperty("invalidated", true);
+                    return response;
+                }
+                if (retired.matches(target)) {
+                    JsonObject response = new JsonObject();
+                    response.addProperty("ok", true);
+                    response.addProperty("retargeted", false);
+                    return response;
+                }
+                if (retired.botJobId() != previousBotJobId
+                        || retired.workspaceEpoch() != previousWorkspaceEpoch) {
+                    invalidateLocked(
+                            retired,
+                            null,
+                            retired,
+                            "Page Mappings was retired because its Bot Job owner was stale.");
+                    JsonObject response = new JsonObject();
+                    response.addProperty("ok", true);
+                    response.addProperty("retargeted", false);
+                    response.addProperty("invalidated", true);
+                    return response;
+                }
+                return open(target, null);
+            }
+        } catch (IllegalArgumentException unavailable) {
+            return failure(null, unavailable.getMessage());
+        } catch (RuntimeException failure) {
+            log.warn(
+                    "Unable to synchronize Page Mappings from Bot Job {} to {}",
+                    previousBotJobId,
+                    nextBotJobId,
+                    failure);
+            return failure(null, "Page Mappings could not follow the active Bot Job.");
+        }
+    }
+
     /** Opens Page Mappings using only the context owned by the exact Page Scanner transport. */
     public JsonObject openFromPageScanner(
             JsonObject body, String requesterSessionId, Session requesterTransport) {
@@ -231,11 +325,18 @@ public final class PageMappingsWorkspaceService {
             Session requesterTransport,
             Connection connection) {
         Binding authorized;
+        MutationFence startedFence;
         try {
-            authorized = authorizeDetachedRequest(
-                    body, requesterSessionId, requesterTransport, false);
+            synchronized (bindingLock) {
+                authorized = authorizeDetachedRequest(
+                        body, requesterSessionId, requesterTransport, false);
+                startedFence = mutationFenceLocked(MutationOwner.from(authorized));
+            }
         } catch (IllegalArgumentException unauthorized) {
             return failure(body, unauthorized.getMessage());
+        }
+        if (startedFence.inFlight()) {
+            return mutationBootstrapFailure(body, authorized, startedFence);
         }
 
         JsonObject response = baseResponse(body, authorized);
@@ -251,7 +352,7 @@ public final class PageMappingsWorkspaceService {
                     "Page Mappings storage is not initialized. No database migration was run.");
             addRetentionPolicy(response, SNAPSHOT_RETENTION.configuredPolicy());
             response.add("snapshots", snapshots);
-            return response;
+            return finishBootstrapResponse(body, authorized, startedFence, response);
         }
         String sql = "SELECT scan_id, home_url_id, page_key, page_url, captured_at, element_count, "
                 + "manifest_sha256, status, pinned "
@@ -268,7 +369,7 @@ public final class PageMappingsWorkspaceService {
                     "message", "Page Mappings retention recovery is unavailable.");
             addRetentionPolicy(response, SNAPSHOT_RETENTION.configuredPolicy());
             response.add("snapshots", snapshots);
-            return response;
+            return finishBootstrapResponse(body, authorized, startedFence, response);
         }
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setInt(1, authorized.homeBankingId());
@@ -313,6 +414,46 @@ public final class PageMappingsWorkspaceService {
             addRetentionPolicy(response, SNAPSHOT_RETENTION.configuredPolicy());
         }
         response.add("snapshots", snapshots);
+        return finishBootstrapResponse(body, authorized, startedFence, response);
+    }
+
+    private JsonObject finishBootstrapResponse(
+            JsonObject request,
+            Binding authorized,
+            MutationFence startedFence,
+            JsonObject response) {
+        synchronized (bindingLock) {
+            if (!sameBindingGeneration(binding, authorized)) {
+                JsonObject stale = failure(
+                        request,
+                        "Page Mappings owner changed while history was loading. Reload this page.",
+                        authorized);
+                stale.add("snapshots", new JsonArray());
+                return stale;
+            }
+            MutationFence currentFence = mutationFenceLocked(MutationOwner.from(authorized));
+            if (currentFence.inFlight()
+                    || currentFence.revision() != startedFence.revision()) {
+                return mutationBootstrapFailure(request, authorized, currentFence);
+            }
+            response.addProperty("mutationRevision", currentFence.revision());
+            response.addProperty("mutationInFlight", false);
+            return response;
+        }
+    }
+
+    private static JsonObject mutationBootstrapFailure(
+            JsonObject request, Binding owner, MutationFence fence) {
+        JsonObject response = failure(
+                request,
+                fence.inFlight()
+                        ? "A Page Mappings change is still finishing. Reload after it settles."
+                        : "Page Mappings changed while history was loading. Reload to obtain authoritative history.",
+                owner);
+        response.addProperty("reloadRequired", true);
+        response.addProperty("mutationInFlight", fence.inFlight());
+        response.addProperty("mutationRevision", fence.revision());
+        response.add("snapshots", new JsonArray());
         return response;
     }
 
@@ -403,6 +544,8 @@ public final class PageMappingsWorkspaceService {
                         || context.botJobId() != authorized.botJobId()) {
                     return failure(body, "Page Mappings owner changed. Refresh this page.", authorized);
                 }
+                MutationTicket mutation = beginMutationLocked(
+                        authorized, MutationKind.RESCAN, requestId);
                 String rescanKey = rescanKey(authorized.bindingEpoch(), requestId);
                 activeRescanKey = rescanKey;
                 try {
@@ -412,9 +555,9 @@ public final class PageMappingsWorkspaceService {
                             SESSION_ID,
                             authorized.bindingEpoch(),
                             requestId,
-                            () -> finishRescan(rescanKey));
-                } catch (RuntimeException startFailure) {
-                    finishRescan(rescanKey);
+                            () -> finishRescan(rescanKey, mutation));
+                } catch (RuntimeException | Error startFailure) {
+                    finishRescan(rescanKey, mutation);
                     throw startFailure;
                 }
                 JsonObject response = baseResponse(body, authorized);
@@ -447,9 +590,10 @@ public final class PageMappingsWorkspaceService {
         return bindingEpoch + '\u0000' + requestId;
     }
 
-    private void finishRescan(String key) {
+    private void finishRescan(String key, MutationTicket mutation) {
         synchronized (bindingLock) {
             if (Objects.equals(activeRescanKey, key)) activeRescanKey = "";
+            finishMutationLocked(mutation);
         }
     }
 
@@ -590,12 +734,15 @@ public final class PageMappingsWorkspaceService {
             return failure(body, "A valid pinned state is required.", authorized);
         }
         try {
-            PageScanSnapshotRetentionService.PinResult result = SNAPSHOT_RETENTION.pin(
-                    Objects.requireNonNull(connection),
-                    authorized.homeBankingId(),
-                    authorized.botJobId(),
-                    scanId,
-                    body.get("pinned").getAsBoolean());
+            Binding commitOwner = authorized;
+            PageScanSnapshotRetentionService.PinResult result = commitWorkspaceMutation(
+                    commitOwner,
+                    () -> SNAPSHOT_RETENTION.pin(
+                            Objects.requireNonNull(connection),
+                            commitOwner.homeBankingId(),
+                            commitOwner.botJobId(),
+                            scanId,
+                            body.get("pinned").getAsBoolean()));
             JsonObject response = baseResponse(body, authorized);
             response.addProperty("ok", true);
             response.addProperty("scanId", result.scanId());
@@ -650,12 +797,15 @@ public final class PageMappingsWorkspaceService {
             int retentionDays = requiredNonNegativeInteger(body, "retentionDays");
             int maxUnpinnedPerPage =
                     requiredNonNegativeInteger(body, "maxUnpinnedPerPage");
-            PageScanSnapshotRetentionService.Summary summary = SNAPSHOT_RETENTION.savePolicy(
-                    Objects.requireNonNull(connection),
-                    authorized.homeBankingId(),
-                    authorized.botJobId(),
-                    retentionDays,
-                    maxUnpinnedPerPage);
+            Binding commitOwner = authorized;
+            PageScanSnapshotRetentionService.Summary summary = commitWorkspaceMutation(
+                    commitOwner,
+                    () -> SNAPSHOT_RETENTION.savePolicy(
+                            Objects.requireNonNull(connection),
+                            commitOwner.homeBankingId(),
+                            commitOwner.botJobId(),
+                            retentionDays,
+                            maxUnpinnedPerPage));
             JsonObject response = baseResponse(body, authorized);
             response.addProperty("ok", true);
             addRetention(response, summary);
@@ -719,13 +869,15 @@ public final class PageMappingsWorkspaceService {
                     requiredNonNegativeInteger(body, "expectedRetentionDays");
             int expectedMaxUnpinnedPerPage =
                     requiredNonNegativeInteger(body, "expectedMaxUnpinnedPerPage");
-            PageScanSnapshotRetentionService.PurgeResult result =
-                    SNAPSHOT_RETENTION.purgeConfigured(
+            Binding commitOwner = authorized;
+            PageScanSnapshotRetentionService.PurgeResult result = commitWorkspaceMutation(
+                    commitOwner,
+                    () -> SNAPSHOT_RETENTION.purgeConfigured(
                             Objects.requireNonNull(connection),
-                            authorized.homeBankingId(),
-                            authorized.botJobId(),
+                            commitOwner.homeBankingId(),
+                            commitOwner.botJobId(),
                             expectedRetentionDays,
-                            expectedMaxUnpinnedPerPage);
+                            expectedMaxUnpinnedPerPage));
             JsonObject response = baseResponse(body, authorized);
             response.addProperty("ok", true);
             JsonArray purged = new JsonArray();
@@ -851,11 +1003,14 @@ public final class PageMappingsWorkspaceService {
                         snapshotRootResolver.resolve(), selected.capture(), authorized, connection);
                 List<PageMappingsOcrAliasService.AliasChange> changes =
                         parseAliasChanges(body, verified.elements());
-                PageMappingsOcrAliasService.ApplyResult applied = OCR_ALIASES.apply(
-                        authorized.homeBankingId(),
-                        authorized.botJobId(),
-                        selected.capture().pageKey(),
-                        changes);
+                Binding commitOwner = authorized;
+                PageMappingsOcrAliasService.ApplyResult applied = commitWorkspaceMutation(
+                        commitOwner,
+                        () -> OCR_ALIASES.apply(
+                                commitOwner.homeBankingId(),
+                                commitOwner.botJobId(),
+                                selected.capture().pageKey(),
+                                changes));
 
                 JsonObject response = baseResponse(body, authorized);
                 response.addProperty("ok", true);
@@ -1635,6 +1790,138 @@ public final class PageMappingsWorkspaceService {
         return nullableText(object, field);
     }
 
+    private static <T> T commitWorkspaceMutation(
+            Binding owner, CheckedWorkspaceMutation<T> mutation) throws Exception {
+        Objects.requireNonNull(owner, "Page Mappings mutation owner is required");
+        Objects.requireNonNull(mutation, "Page Mappings mutation is required");
+        try {
+            return BotJobDetailsWorkspaceRegistry.getInstance().commitWorkspaceMutation(
+                    owner.botJobId(),
+                    owner.workspaceEpoch(),
+                    () -> {
+                        try {
+                            return mutation.run();
+                        } catch (RuntimeException | Error unchecked) {
+                            throw unchecked;
+                        } catch (Exception checked) {
+                            throw new CheckedWorkspaceMutationFailure(checked);
+                        }
+                    });
+        } catch (CheckedWorkspaceMutationFailure wrapped) {
+            throw wrapped.checked();
+        }
+    }
+
+    /**
+     * Atomically authorizes one mutating Page Mappings request and registers its owner-scoped
+     * recovery fence before a ledger or worker can accept it.
+     */
+    MutationTicket beginMutation(
+            JsonObject body,
+            String requesterSessionId,
+            Session requesterTransport,
+            MutationKind kind) {
+        Objects.requireNonNull(kind, "Page Mappings mutation kind is required");
+        synchronized (bindingLock) {
+            Binding authorized = authorizeDetachedRequest(
+                    body, requesterSessionId, requesterTransport, true);
+            return beginMutationLocked(authorized, kind, requireRequestId(body));
+        }
+    }
+
+    /** Releases exactly one admission lease after its request reaches a terminal server path. */
+    void finishMutation(MutationTicket ticket) {
+        synchronized (bindingLock) {
+            finishMutationLocked(ticket);
+        }
+    }
+
+    private MutationTicket beginMutationLocked(
+            Binding owner, MutationKind kind, String requestId) {
+        MutationOwner mutationOwner = MutationOwner.from(owner);
+        String key = kind.name()
+                + '\u0000'
+                + owner.bindingEpoch()
+                + '\u0000'
+                + owner.workspaceEpoch()
+                + '\u0000'
+                + owner.homeBankingId()
+                + '\u0000'
+                + owner.botJobId()
+                + '\u0000'
+                + requestId;
+        ActiveMutation active = activeMutations.get(key);
+        if (active == null) {
+            if (activeMutations.size() >= MAX_ACTIVE_MUTATIONS) {
+                throw new IllegalArgumentException(
+                        "Too many Page Mappings changes are still finishing. Reload before retrying.");
+            }
+            active = new ActiveMutation(
+                    key, mutationOwner, owner.bindingEpoch(), kind, requestId);
+            activeMutations.put(key, active);
+            bumpMutationRevisionLocked(mutationOwner);
+        }
+        String leaseId = UUID.randomUUID().toString();
+        active.leases().add(leaseId);
+        return new MutationTicket(
+                key,
+                leaseId,
+                mutationOwner,
+                owner.bindingEpoch(),
+                kind,
+                requestId);
+    }
+
+    private void finishMutationLocked(MutationTicket ticket) {
+        if (ticket == null) return;
+        ActiveMutation active = activeMutations.get(ticket.key());
+        if (active == null || !active.matches(ticket) || !active.leases().remove(ticket.leaseId())) {
+            return;
+        }
+        if (!active.leases().isEmpty()) return;
+        activeMutations.remove(ticket.key());
+        bumpMutationRevisionLocked(ticket.owner());
+    }
+
+    private MutationFence mutationFenceLocked(MutationOwner owner) {
+        long revision = mutationOwnerRevisions.getOrDefault(owner, 0L);
+        boolean inFlight = activeMutations.values().stream()
+                .anyMatch(active -> active.owner().equals(owner));
+        return new MutationFence(revision, inFlight);
+    }
+
+    private void bumpMutationRevisionLocked(MutationOwner owner) {
+        long revision = ++nextMutationRevision;
+        mutationOwnerRevisions.put(owner, revision);
+        trimMutationOwnerRevisionsLocked();
+    }
+
+    private void trimMutationOwnerRevisionsLocked() {
+        while (mutationOwnerRevisions.size() > MAX_MUTATION_OWNER_REVISIONS) {
+            boolean removed = false;
+            var revisions = mutationOwnerRevisions.entrySet().iterator();
+            while (revisions.hasNext()) {
+                MutationOwner candidate = revisions.next().getKey();
+                boolean active = activeMutations.values().stream()
+                        .anyMatch(mutation -> mutation.owner().equals(candidate));
+                if (active) continue;
+                revisions.remove();
+                removed = true;
+                break;
+            }
+            if (!removed) return;
+        }
+    }
+
+    private static boolean sameBindingGeneration(Binding first, Binding second) {
+        return first != null
+                && second != null
+                && first.bindingEpoch().equals(second.bindingEpoch())
+                && first.workspaceEpoch() == second.workspaceEpoch()
+                && first.homeBankingId() == second.homeBankingId()
+                && first.botJobId() == second.botJobId();
+    }
+
     /**
      * Authorizes a Page Mappings Memory List contribution against the current owner and epoch.
      * Client owner fields remain assertions only and never choose the server-side scope.
@@ -1694,6 +1981,11 @@ public final class PageMappingsWorkspaceService {
                     || !authority.matches(binding)) {
                 return false;
             }
+            try {
+                requireActiveOwner(binding.asTarget());
+            } catch (IllegalArgumentException staleOwner) {
+                return false;
+            }
             delivery.run();
             return true;
         }
@@ -1717,6 +2009,11 @@ public final class PageMappingsWorkspaceService {
                     || !authority.matches(binding)) {
                 return false;
             }
+            try {
+                requireActiveOwner(binding.asTarget());
+            } catch (IllegalArgumentException staleOwner) {
+                return false;
+            }
             delivery.run();
             return true;
         }
@@ -1728,6 +2025,7 @@ public final class PageMappingsWorkspaceService {
             throw new IllegalArgumentException(
                     "Page Mappings owner changed. Reload before changing retention.");
         }
+        requireActiveOwner(binding.asTarget());
         return binding;
     }
 
@@ -1958,6 +2256,7 @@ public final class PageMappingsWorkspaceService {
             if (binding == null) {
                 throw new IllegalArgumentException("Page Mappings has no active Bot Job owner.");
             }
+            requireActiveOwner(binding.asTarget());
             validateOwnerAssertions(body, binding.asTarget(), binding.bindingEpoch());
             JsonObject nested = object(body, "snapshot");
             if (nested != null) {
@@ -2057,11 +2356,11 @@ public final class PageMappingsWorkspaceService {
         PageScannerWorkspaceCoordinator.WorkspaceContext context =
                 PageScannerWorkspaceCoordinator.getInstance()
                         .authoritativeContext(requesterSessionId);
-        return new OwnerTarget(
+        return requireActiveOwner(new OwnerTarget(
                 context.homeBankingId(),
                 context.botJobId(),
                 context.workspaceEpoch(),
-                context.botJobName());
+                context.botJobName()));
     }
 
     private static PageScannerOwnerResolver authoritativePageScannerOwnerResolver() {
@@ -2076,14 +2375,25 @@ public final class PageMappingsWorkspaceService {
                     String requesterSessionId, Function<OwnerTarget, T> action) {
                 return PageScannerWorkspaceCoordinator.getInstance()
                         .withAuthoritativeContext(
-                                requesterSessionId,
-                                context -> action.apply(new OwnerTarget(
-                                        context.homeBankingId(),
-                                        context.botJobId(),
-                                        context.workspaceEpoch(),
-                                        context.botJobName())));
+                                requesterSessionId, context -> action.apply(requireActiveOwner(
+                                        new OwnerTarget(
+                                                context.homeBankingId(),
+                                                context.botJobId(),
+                                                context.workspaceEpoch(),
+                                                context.botJobName()))));
             }
         };
+    }
+
+    private static OwnerTarget requireActiveOwner(OwnerTarget target) {
+        BotJobDetailsWorkspaceRegistry.Snapshot active =
+                BotJobDetailsWorkspaceRegistry.getInstance()
+                        .require(target.botJobId(), target.workspaceEpoch());
+        if (active.homeBankingId() != target.homeBankingId()) {
+            throw new IllegalArgumentException(
+                    "Page Mappings does not match the active Bot Job organization.");
+        }
+        return target;
     }
 
     private static boolean isExactRegisteredTransport(String sessionId, Session transport) {
@@ -2335,6 +2645,99 @@ public final class PageMappingsWorkspaceService {
         }
     }
 
+    enum MutationKind {
+        RESCAN,
+        OCR_APPLY,
+        PIN,
+        RETENTION_UPDATE,
+        RETENTION_PURGE
+    }
+
+    private record MutationOwner(long workspaceEpoch, int homeBankingId, int botJobId) {
+        private static MutationOwner from(Binding binding) {
+            Objects.requireNonNull(binding, "Page Mappings mutation owner is required");
+            return new MutationOwner(
+                    binding.workspaceEpoch(),
+                    binding.homeBankingId(),
+                    binding.botJobId());
+        }
+    }
+
+    private record MutationFence(long revision, boolean inFlight) {}
+
+    record MutationTicket(
+            String key,
+            String leaseId,
+            MutationOwner owner,
+            String bindingEpoch,
+            MutationKind kind,
+            String requestId) {
+        MutationTicket {
+            key = Objects.requireNonNull(key);
+            leaseId = Objects.requireNonNull(leaseId);
+            owner = Objects.requireNonNull(owner);
+            bindingEpoch = Objects.requireNonNull(bindingEpoch);
+            kind = Objects.requireNonNull(kind);
+            requestId = Objects.requireNonNull(requestId);
+        }
+
+        RetentionAuthority retentionAuthority() {
+            return new RetentionAuthority(
+                    bindingEpoch,
+                    owner.workspaceEpoch(),
+                    owner.homeBankingId(),
+                    owner.botJobId(),
+                    requestId);
+        }
+
+        OcrAuthority ocrAuthority() {
+            return new OcrAuthority(
+                    bindingEpoch,
+                    owner.workspaceEpoch(),
+                    owner.homeBankingId(),
+                    owner.botJobId(),
+                    requestId);
+        }
+    }
+
+    private static final class ActiveMutation {
+        private final String key;
+        private final MutationOwner owner;
+        private final String bindingEpoch;
+        private final MutationKind kind;
+        private final String requestId;
+        private final Set<String> leases = new HashSet<>();
+
+        private ActiveMutation(
+                String key,
+                MutationOwner owner,
+                String bindingEpoch,
+                MutationKind kind,
+                String requestId) {
+            this.key = Objects.requireNonNull(key);
+            this.owner = Objects.requireNonNull(owner);
+            this.bindingEpoch = Objects.requireNonNull(bindingEpoch);
+            this.kind = Objects.requireNonNull(kind);
+            this.requestId = Objects.requireNonNull(requestId);
+        }
+
+        private MutationOwner owner() {
+            return owner;
+        }
+
+        private Set<String> leases() {
+            return leases;
+        }
+
+        private boolean matches(MutationTicket ticket) {
+            return key.equals(ticket.key())
+                    && owner.equals(ticket.owner())
+                    && bindingEpoch.equals(ticket.bindingEpoch())
+                    && kind == ticket.kind()
+                    && requestId.equals(ticket.requestId());
+        }
+    }
+
     record Binding(
             String bindingEpoch,
             String windowCapability,
@@ -2442,6 +2845,24 @@ public final class PageMappingsWorkspaceService {
                     + botJobId
                     + '\u0000'
                     + requestId;
+        }
+    }
+
+    @FunctionalInterface
+    private interface CheckedWorkspaceMutation<T> {
+        T run() throws Exception;
+    }
+
+    private static final class CheckedWorkspaceMutationFailure extends RuntimeException {
+        private final Exception checked;
+
+        private CheckedWorkspaceMutationFailure(Exception checked) {
+            super(Objects.requireNonNull(checked));
+            this.checked = checked;
+        }
+
+        private Exception checked() {
+            return checked;
         }
     }
 

@@ -1,6 +1,7 @@
 package com.allinweb.ch.socket;
 
 import com.allinweb.ch.facade.BotJobWorkspaceController;
+import com.allinweb.ch.facade.BotJobDetailsWorkspaceRegistry;
 import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import com.google.gson.JsonObject;
 import java.time.Clock;
@@ -45,6 +46,7 @@ final class PageScannerWorkspaceCoordinator {
     private final WorkspaceRetargetNotifier retargetNotifier;
     private final Duration reconnectGrace;
     private final DeferredExecutor deferredExecutor;
+    private final WorkspaceAuthorityValidator workspaceAuthorityValidator;
     private final Map<String, WorkspaceEntry> workspaces = new LinkedHashMap<>();
     private PendingOpen pendingOpen;
 
@@ -62,7 +64,8 @@ final class PageScannerWorkspaceCoordinator {
                 RECONNECT_GRACE,
                 (delay, task) -> CompletableFuture.delayedExecutor(
                                 Math.max(1L, delay.toMillis()), TimeUnit.MILLISECONDS)
-                        .execute(task));
+                        .execute(task),
+                PageScannerWorkspaceCoordinator::requireActiveRegistryOwner);
     }
 
     PageScannerWorkspaceCoordinator(WorkspaceLauncher launcher, Supplier<String> idSupplier, Clock clock) {
@@ -183,6 +186,34 @@ final class PageScannerWorkspaceCoordinator {
             WorkspaceRetargetNotifier retargetNotifier,
             Duration reconnectGrace,
             DeferredExecutor deferredExecutor) {
+        this(
+                launcher,
+                idSupplier,
+                clock,
+                maximumActiveWorkspaces,
+                workspaceLifecycle,
+                connectionProbe,
+                connectionGrace,
+                invalidationNotifier,
+                retargetNotifier,
+                reconnectGrace,
+                deferredExecutor,
+                context -> {});
+    }
+
+    private PageScannerWorkspaceCoordinator(
+            WorkspaceLauncher launcher,
+            Supplier<String> idSupplier,
+            Clock clock,
+            int maximumActiveWorkspaces,
+            WorkspaceLifecycle workspaceLifecycle,
+            WorkspaceConnectionProbe connectionProbe,
+            Duration connectionGrace,
+            WorkspaceInvalidationNotifier invalidationNotifier,
+            WorkspaceRetargetNotifier retargetNotifier,
+            Duration reconnectGrace,
+            DeferredExecutor deferredExecutor,
+            WorkspaceAuthorityValidator workspaceAuthorityValidator) {
         this.launcher = Objects.requireNonNull(launcher, "Page Scanner workspace launcher is required");
         this.idSupplier = Objects.requireNonNull(idSupplier, "Page Scanner workspace ID supplier is required");
         this.clock = Objects.requireNonNull(clock, "Page Scanner workspace clock is required");
@@ -210,6 +241,8 @@ final class PageScannerWorkspaceCoordinator {
         }
         this.deferredExecutor = Objects.requireNonNull(
                 deferredExecutor, "Page Scanner deferred executor is required");
+        this.workspaceAuthorityValidator = Objects.requireNonNull(
+                workspaceAuthorityValidator, "Page Scanner workspace authority validator is required");
     }
 
     static PageScannerWorkspaceCoordinator getInstance() {
@@ -220,7 +253,7 @@ final class PageScannerWorkspaceCoordinator {
         Objects.requireNonNull(request, "Page Scanner workspace open request is required");
         purgeExpiredEntries();
         requireBotJobTransport(request.transportSessionId());
-        WorkspaceContext context = normalizeContext(request.context());
+        WorkspaceContext context = requireActiveOwner(normalizeContext(request.context()));
 
         WorkspaceEntry existing = activeWorkspace();
         if (existing != null && existing.context().equals(context)) {
@@ -232,9 +265,28 @@ final class PageScannerWorkspaceCoordinator {
         return createAndLaunch(request.transportSessionId(), context);
     }
 
+    /**
+     * Retargets the already-open physical Page Scanner from the server-owned Bot Job switch.
+     *
+     * <p>The ordinary {@link #open(OpenRequest)} path still requires the exact Bot Job Details
+     * transport. This narrower path is called only after the active workspace registry has moved
+     * to the supplied owner, and it never launches a scanner that the user did not already have
+     * open.
+     */
+    synchronized boolean retargetActive(WorkspaceContext requestedContext) {
+        purgeExpiredEntries();
+        WorkspaceEntry existing = activeWorkspace();
+        if (existing == null) return false;
+
+        WorkspaceContext context = requireActiveOwner(normalizeContext(requestedContext));
+        if (existing.context().equals(context)) return true;
+        return retarget(existing, existing.sourceBotJobSessionId(), context).ok();
+    }
+
     synchronized BootstrapContext bootstrap(String transportSessionId) {
         purgeExpiredEntries();
         WorkspaceEntry entry = requireActiveWorkspace(transportSessionId);
+        requireActiveOwner(entry.context());
         if (!entry.connectionEstablished()) {
             entry = entry.withConnectionEstablished();
             workspaces.put(entry.sessionId(), entry);
@@ -257,7 +309,7 @@ final class PageScannerWorkspaceCoordinator {
      */
     synchronized WorkspaceContext authoritativeContext(String transportSessionId) {
         purgeExpiredEntries();
-        return requireActiveWorkspace(transportSessionId).context();
+        return requireActiveOwner(requireActiveWorkspace(transportSessionId).context());
     }
 
     /**
@@ -270,7 +322,22 @@ final class PageScannerWorkspaceCoordinator {
             String transportSessionId, Function<WorkspaceContext, T> action) {
         Objects.requireNonNull(action, "action");
         purgeExpiredEntries();
-        return action.apply(requireActiveWorkspace(transportSessionId).context());
+        return action.apply(requireActiveOwner(requireActiveWorkspace(transportSessionId).context()));
+    }
+
+    private WorkspaceContext requireActiveOwner(WorkspaceContext context) {
+        workspaceAuthorityValidator.validate(context);
+        return context;
+    }
+
+    private static void requireActiveRegistryOwner(WorkspaceContext context) {
+        BotJobDetailsWorkspaceRegistry.Snapshot active =
+                BotJobDetailsWorkspaceRegistry.getInstance()
+                        .require(context.botJobId(), context.workspaceEpoch());
+        if (active.homeBankingId() != context.homeBankingId()) {
+            throw new IllegalArgumentException(
+                    "Page Scanner does not match the active Bot Job organization");
+        }
     }
 
     synchronized boolean close(String transportSessionId) {
@@ -325,6 +392,16 @@ final class PageScannerWorkspaceCoordinator {
         purgeExpiredEntries();
         return workspaces.values().stream()
                 .filter(entry -> entry.context().botJobId() == botJobId)
+                .map(WorkspaceEntry::sessionId)
+                .findFirst();
+    }
+
+    synchronized Optional<String> activeSessionIdForBotJob(
+            int botJobId, long workspaceEpoch) {
+        purgeExpiredEntries();
+        return workspaces.values().stream()
+                .filter(entry -> entry.context().botJobId() == botJobId
+                        && entry.context().workspaceEpoch() == workspaceEpoch)
                 .map(WorkspaceEntry::sessionId)
                 .findFirst();
     }
@@ -929,6 +1006,11 @@ final class PageScannerWorkspaceCoordinator {
     @FunctionalInterface
     interface DeferredExecutor {
         void schedule(Duration delay, Runnable task);
+    }
+
+    @FunctionalInterface
+    private interface WorkspaceAuthorityValidator {
+        void validate(WorkspaceContext context);
     }
 
     enum CloseReason {

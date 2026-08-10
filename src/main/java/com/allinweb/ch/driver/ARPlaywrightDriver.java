@@ -80,10 +80,27 @@ public class ARPlaywrightDriver {
     }
 
     public void openOrNavigate(String browserType, String url, String optionsConfig, boolean headless) {
+        openOrNavigate(browserType, url, optionsConfig, headless, true);
+    }
+
+    /**
+     * Navigates for a cross-owner workspace handoff and never treats a navigation timeout as a
+     * usable page. Ordinary scanner startup retains its tolerant timeout behavior.
+     */
+    public void openOrNavigateStrict(String browserType, String url, String optionsConfig) {
+        openOrNavigate(browserType, url, optionsConfig, false, false);
+    }
+
+    private void openOrNavigate(
+            String browserType,
+            String url,
+            String optionsConfig,
+            boolean headless,
+            boolean tolerateReachedPageOnTimeout) {
         run(() -> {
             if (page != null && !page.isClosed()) {
                 assertBrowserCompatibleInternal(browserType);
-                navigateDomReady(page, url);
+                navigateDomReady(page, url, tolerateReachedPageOnTimeout);
                 return null;
             }
 
@@ -96,7 +113,7 @@ public class ARPlaywrightDriver {
             attachContextTracking();
             page = context.newPage();
             attachDiagnostics(page);
-            navigateDomReady(page, url);
+            navigateDomReady(page, url, tolerateReachedPageOnTimeout);
             return null;
         });
     }
@@ -509,6 +526,11 @@ public class ARPlaywrightDriver {
     }
 
     private void navigateDomReady(Page targetPage, String url) {
+        navigateDomReady(targetPage, url, true);
+    }
+
+    private void navigateDomReady(
+            Page targetPage, String url, boolean tolerateReachedPageOnTimeout) {
         try {
             targetPage.navigate(
                     url,
@@ -517,6 +539,7 @@ public class ARPlaywrightDriver {
                             .setTimeout(60000));
             targetPage.waitForLoadState(LoadState.DOMCONTENTLOADED);
         } catch (TimeoutError timeout) {
+            if (!tolerateReachedPageOnTimeout) throw timeout;
             String current = "";
             try {
                 current = targetPage.url();
