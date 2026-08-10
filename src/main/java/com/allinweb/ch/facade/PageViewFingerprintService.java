@@ -17,11 +17,12 @@ public final class PageViewFingerprintService {
             () => {
               const limit = 12000;
               const materialLimit = 2500000;
-              let attributeTruncated = false;
+              const attributeLimit = 8192;
+              let attributeOversized = false;
               const clean = value => {
-                const normalized = String(value || '').replace(/\\s+/g, ' ').trim();
-                if (normalized.length > 256) attributeTruncated = true;
-                return normalized.slice(0, 256);
+                const raw = String(value || '');
+                if (raw.length > attributeLimit) attributeOversized = true;
+                return raw.slice(0, attributeLimit).replace(/\\s+/g, ' ').trim();
               };
               const classes = element => clean(element.getAttribute('class'))
                 .split(' ')
@@ -90,7 +91,7 @@ public final class PageViewFingerprintService {
                 truncated,
                 hasFrames,
                 hasShadowRoots,
-                attributeTruncated
+                attributeOversized
               };
             }
             """;
@@ -115,19 +116,19 @@ public final class PageViewFingerprintService {
         boolean truncated = booleanValue(result, "truncated");
         boolean hasFrames = booleanValue(result, "hasFrames");
         boolean hasShadowRoots = booleanValue(result, "hasShadowRoots");
-        boolean attributeTruncated = booleanValue(result, "attributeTruncated");
+        boolean attributeOversized = booleanValue(result, "attributeOversized");
         ScannedPageIdentity after = ScannedPageIdentity.fromLiveUrl(browser.currentUrl());
         if (!before.pageKey().equals(after.pageKey())) {
             throw new IllegalStateException(
                     "The browser page changed while its structural fingerprint was calculated");
         }
         boolean cacheable = !truncated
-                && !attributeTruncated
+                && !attributeOversized
                 && !hasFrames
                 && !hasShadowRoots;
         String diagnostic = truncated
                 ? "The live DOM exceeds the safe fingerprint limit."
-                : attributeTruncated
+                : attributeOversized
                         ? "A locator attribute exceeds the safe fingerprint limit."
                         : hasFrames
                         ? "Pages containing frames require a fresh scan."
