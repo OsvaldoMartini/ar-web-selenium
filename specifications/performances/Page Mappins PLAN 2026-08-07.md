@@ -501,3 +501,41 @@ native OCR bridge, migration, or production database was started.
 - No backend package was built and no service was restarted.
 - No running image/service freshness, real database, live Windows ACL, desktop-window, or browser
   behavior was verified.
+
+## BancaStato SQLite activation - 2026-08-10
+
+This checkpoint supersedes the earlier deferred-migration and restart status only for
+`D:\Projects\ARWebBancaStato\ARWeb\database.db`. The earlier text remains the historical state when
+written. No other installation or SQL Server database was changed.
+
+### Incident and migration
+
+- The live Page Scanner updated its locator registry and saved both 93-entry diagnostic JSON files,
+  then immutable snapshot persistence failed with `[SQLITE_ERROR] no such table:
+  page_scan_snapshot`. The optional legacy scan completed, but there was no new immutable capture.
+- ARWeb was quiesced before the database write. The exact pre-migration backup is
+  `D:\Projects\ARWebBancaStato\ARWeb\Backup-CODEX-2026-08-10-page-scan-snapshot\database.db`
+  (5,050,368 bytes; SHA-256
+  `6256AEDB77C489060CC22F7F00E465349008265C3330ABE4E0D513F0375D8AD3`).
+- One SQLite transaction applied and recorded exactly these registered migrations, in order:
+  `2026-08-07__page_scan_snapshot`,
+  `2026-08-08__page_scan_snapshot_sqlserver_key_repair`, and
+  `2026-08-08__page_scan_snapshot_view_fingerprint`.
+
+### Verification and remaining gates
+
+- Post-migration inspection found 24 migration rows; `quick_check=ok`; zero foreign-key violations;
+  zero snapshot rows; and no WAL, SHM, or journal sidecar. The table has
+  `scan_id, home_banking_id, bot_job_id, home_url_id, page_key, page_url, captured_at,
+  element_count, artifact_path, manifest_sha256, status, pinned, view_fingerprint`, indexes
+  `idx_page_scan_snapshot_owner` and `idx_page_scan_snapshot_page`, plus its primary-key autoindex.
+- `mvn -DskipTests compile` passed with 562 Java sources, copied 273 resources, and retained only the
+  existing Lombok-builder and inexact-varargs warnings. Source and `target/classes` hashes match for
+  `main.eb4f02b1.js` and `main.df7752f0.css`.
+- ARWeb restarted from `target/classes` outside the IntelliJ debugger as PID `33084`, using the exact
+  BancaStato config. It is responsive on dynamic ports `127.0.0.1:50612` and `127.0.0.1:50613`;
+  HTTP returns 200 for the current JS/CSS assets; six new `.2` logs contain zero error/exception
+  matches; and a concurrent read-only database check remains healthy.
+- No package or image was built. A fresh scan/READY row, live snapshot ACL verification, orphan
+  inventory/reconciliation, other-database and SQL Server rollout, and full desktop/browser
+  acceptance remain open. The pre-existing orphan capture folder was intentionally left untouched.

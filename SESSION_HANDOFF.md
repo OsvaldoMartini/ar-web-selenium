@@ -26,9 +26,12 @@ Mappings delivery checkpoint is:
   terminal subscriber is reauthorized, and abrupt worker errors cannot wedge the lane. Alias
   commit/close ambiguity is typed and returns `reloadRequired=true`; settled responses survive the
   outer read-connection close path.
-- The previously reported SQLite frame `org.sqlite.core.DB.prepare(DB.java:264)` came from an old
-  test fixture missing `scanned_element.defined_name`. The fixture now creates both `defined_name`
-  and `client_named`; focused and broader reruns contain no recurrence.
+- The earlier SQLite frame `org.sqlite.core.DB.prepare(DB.java:264)` from automated verification
+  came from an old test fixture missing `scanned_element.defined_name`. It is distinct from the
+  later live BancaStato incident; the fixture now creates both `defined_name` and `client_named`.
+- In the live BancaStato Page Scanner, the registry and both 93-entry JSON diagnostics were saved,
+  then immutable snapshot persistence failed with `[SQLITE_ERROR] no such table:
+  page_scan_snapshot`. The legacy scan remained available, but it produced no history/capture row.
 - Frontend verification: the retention-focused run passed 15/15; the final JSDOM-only affected
   suite passed 44/44 across 8 suites. Backend verification: the snapshot/retention matrix passed
   71/71; the final non-browser OCR/session/retirement suite passed 106/106. No browser or native OCR
@@ -44,10 +47,25 @@ Mappings delivery checkpoint is:
 - `automation-tests.json` was regenerated and pushed in `d76362ff`, recording backend `3e365b25`
   and frontend `a51e792`: 2,341 catalog rows, 2,305 code cases, and 19,452 generated API requests.
   It contains 13 focused Page Mappings OCR cases and zero legacy OCR Results rows.
-- Source, tests, catalog, and static assets are committed/pushed. No new migration was created or
-  applied; the backend was not packaged or restarted. Real database inspection, live Windows ACL
-  inspection, running-service health, and live desktop/browser acceptance remain open operational
-  gates.
+- An authorized maintenance window quiesced only the BancaStato ARWeb process tree and created the exact
+  pre-migration backup
+  `D:\Projects\ARWebBancaStato\ARWeb\Backup-CODEX-2026-08-10-page-scan-snapshot\database.db`
+  (5,050,368 bytes; SHA-256
+  `6256AEDB77C489060CC22F7F00E465349008265C3330ABE4E0D513F0375D8AD3`).
+- Exactly `2026-08-07__page_scan_snapshot`,
+  `2026-08-08__page_scan_snapshot_sqlserver_key_repair`, and
+  `2026-08-08__page_scan_snapshot_view_fingerprint` were applied to
+  `D:\Projects\ARWebBancaStato\ARWeb\database.db` in one SQLite transaction. The live database now
+  has 24 migration rows, the expected 13-column table and indexes, `quick_check=ok`, zero foreign-
+  key violations, zero snapshot rows, and no SQLite sidecar file.
+- After `mvn -DskipTests compile` recopied 273 resources and compiled 562 Java sources successfully,
+  BancaStato ARWeb was restarted from `target/classes` outside the IntelliJ debugger with the exact
+  `Config-4.2\ARWeb.config`. PID `33084` is responsive on dynamic ports `127.0.0.1:50612` and
+  `127.0.0.1:50613`; HTTP serves `main.eb4f02b1.js` and `main.df7752f0.css`, and the six new `.2`
+  logs contain zero error/exception matches.
+- No backend package/image was built, no fresh scan has yet produced a READY snapshot, and no other
+  database or SQL Server schema was changed. Live snapshot ACL and orphan inventory, the untouched
+  pre-existing orphan capture folder, and full desktop/browser acceptance remain open gates.
 - Unrelated dirty Grid, Claude-settings, Marketing, patch, and screenshot files remain preserved
   and outside these commits. During final temporary-worktree cleanup, Git for Windows followed the
   worktree's `node_modules` junction into the original frontend checkout before failing on a path

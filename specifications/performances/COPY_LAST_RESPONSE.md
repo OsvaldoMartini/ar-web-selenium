@@ -2,7 +2,7 @@
 
 Keep exactly two review sections. Check tasks only after their separate gates pass.
 
-**Last updated:** 2026-08-10 - Page Mappings is source-complete through P7; legacy OCR Results remains retired; item-7 retention/OCR recovery tests, reconnect hardening, refreshed assets, and catalog are pushed. Migration activation, package/restart, and live acceptance remain open. Claude independent review requested.
+**Last updated:** 2026-08-10 - Page Mappings is source-complete through P7; legacy OCR Results remains retired; item-7 retention/OCR recovery tests, reconnect hardening, refreshed assets, and catalog are pushed. The BancaStato SQLite schema is activated and its `target/classes` process is restarted with current assets. Package/image delivery, a fresh READY snapshot, other-database rollout, live ACL/orphan review, and full desktop/browser acceptance remain open. Claude independent review requested.
 
 ## 1. CODEX -> CLAUDE - Page Mappings and Memory lifecycle review handoff
 
@@ -55,8 +55,11 @@ The Page Mappings roadmap is now source-complete through P7:
   is backend `d76362ff`, recording backend source `3e365b25` and frontend `a51e792`.
 - The retirement commit changed only OCR Results concerns in `GridItemScann`; Claude's unrelated
   rollback-name Grid work remains unstaged and uncommitted.
-- No migration or DDL was applied. Existing SQLite-compatible persistence is used only when the
-  `page_scan_snapshot` table already exists; initialization remains user-controlled.
+- In an authorized BancaStato-only maintenance window, the exact live SQLite database was backed up
+  and exactly the three registered snapshot migrations were applied in one transaction. Other
+  installations and SQL Server remain unchanged and migration initialization remains user-controlled.
+- The BancaStato process was refreshed from `target/classes` and now serves the current frontend
+  hashes. No backend package/image was built and no fresh scan has yet created a READY snapshot.
 
 ### Frontend risks currently known
 
@@ -65,7 +68,7 @@ The Page Mappings roadmap is now source-complete through P7:
 | Critical | Fixed in `209d24d7` / `ce6a56f` / `fb87aa0` | Failed Memory `open` responses without `workspaceEpoch` could be discarded and leave opening stuck. Exact failures now correlate by typed request/current context and validate every supplied authority field. |
 | Critical | Fixed in `209d24d7` / `ce6a56f` / `fb87aa0` | Failed Memory `sync` responses lacked pending request correlation and could disappear silently. OPEN and SYNC now use typed pending records and collision-resistant sequenced request IDs. |
 | Critical | Fixed in `fb87aa0` / `b147de41` | Detached Memory commands, timers, dialogs, status, and drag state are bound to the exact owner/workspace generation; late prior-owner responses are ignored and backend responses stay on the captured requester transport. |
-| High | Partial deployment gate | The matching frontend bundle is built and mirrored in Git at `fb23c531`, but the backend has not been packaged or restarted, so running-service freshness is not established. |
+| High | Partial deployment gate | The BancaStato process was restarted from `target/classes` and HTTP serves the matching `fb23c531` bundle. No backend package/image or other-installation rollout was performed in this checkpoint, so this is not a general packaged deployment. |
 | Medium | Open verification | Live detached-window reload, takeover, retarget, deletion, same-ID reuse, and multi-page WebSocket behavior remain unverified. |
 | Medium | Open verification | The final affected-path JSDOM suite passed 44/44. The complete repository-wide frontend suite was not run. |
 | Low | Existing | Production build lint/dependency/bundle-size warnings remain outside the Page Mappings retention files. |
@@ -109,10 +112,12 @@ The Page Mappings roadmap is now source-complete through P7:
 - [x] TASK - Explicit `mvn compile` passed: 562 main Java sources.
 - [x] TASK - Exact 58-file build mirror pushed in `fb23c531`: `main.eb4f02b1.js`, SHA-256 `965E2A606FA0AA0A5744C0443BC1EF2FA97FDCE66EB83C4050BE0A5C82E83C56`.
 - [x] TASK - Catalog `d76362ff` records 2,341 rows, 2,305 code cases, 13 focused Page Mappings OCR cases, and zero legacy OCR Results rows.
-- [ ] TASK - Migration application is explicitly deferred by the user; no migration or DDL was run.
+- [x] TASK - Exact BancaStato pre-migration backup created: 5,050,368 bytes, SHA-256 `6256AEDB77C489060CC22F7F00E465349008265C3330ABE4E0D513F0375D8AD3`.
+- [x] TASK - Exactly the three registered snapshot migrations were applied in one SQLite transaction; post-state is 24 migration rows, expected table/indexes, `quick_check=ok`, and zero FK violations.
 - [x] TASK - The later item-7 authorization superseded the earlier test pause; only local JSDOM/JVM/embedded-SQLite tests were run, with no browser or native OCR.
-- [ ] TASK - Backend was not packaged or restarted.
-- [ ] TASK - No live desktop, Windows ACL, SQLite history-table, or SQL Server acceptance was performed.
+- [x] TASK - `mvn -DskipTests compile` passed; BancaStato ARWeb restarted as PID `33084` and serves `main.eb4f02b1.js` / `main.df7752f0.css` with zero new-log error matches.
+- [ ] TASK - No fresh scan/READY snapshot has been produced; the migrated table currently has zero rows.
+- [ ] TASK - Live snapshot ACL/orphan inventory, package/image delivery, other-database/SQL Server rollout, and full desktop/browser acceptance remain open.
 
 ## 2. CLAUDE -> CODEX - Independent review requested
 
@@ -130,8 +135,10 @@ The Page Mappings roadmap is now source-complete through P7:
   NOT NULL migration columns and extended-length ACL handling preserves the private/no-follow model.
 - [ ] TASK - Review assets/catalog `fb23c531` / `d76362ff`; confirm the manifest selects
   `main.eb4f02b1.js`, source/backend manifests match, and retired OCR Results entries remain absent.
-- [ ] TASK - Confirm migration application, package/restart, live ACL/database inspection,
-  running-service health, and desktop/browser acceptance remain open and are not inferred from
-  source, JVM/JSDOM test, build, compile, or mirrored-asset evidence.
+- [ ] TASK - Validate the BancaStato backup, exact-three-migration, schema/integrity, restarted-process,
+  current-asset, and zero-new-error evidence, including the BancaStato-only rollout boundary.
+- [ ] TASK - Confirm package/image delivery, a fresh READY snapshot, live ACL/orphan review,
+  other-database/SQL Server rollout, and full desktop/browser acceptance remain open and are not
+  inferred from source, test, build, compile, or this one live SQLite activation.
 - [ ] TASK - Record any concrete blocker with producer, consumer, exact interleaving, and smallest
   authoritative fix. Do not mark deployment or live behavior complete from source/build evidence.
