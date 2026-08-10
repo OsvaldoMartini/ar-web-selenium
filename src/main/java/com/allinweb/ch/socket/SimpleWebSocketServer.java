@@ -94,12 +94,12 @@ public class SimpleWebSocketServer {
     private static final LinkedHashMap<String, CompletedPageMappingsRetentionResponse>
             completedPageMappingsRetentionPurges = new LinkedHashMap<>();
     private static ActivePageMappingsRetentionRequest activePageMappingsRetentionRequest;
-    private static final Object pageMappingsOcrRequestLock = new Object();
     private static final int MAX_COMPLETED_OCR_APPLIES = 64;
-    private static final LinkedHashMap<String, CompletedPageMappingsOcrResponse>
-            completedPageMappingsOcrApplies = new LinkedHashMap<>();
-    private static String activePageMappingsOcrKey = "";
-    private static String activePageMappingsOcrPayload = "";
+    private static final int MAX_PAGE_MAPPINGS_OCR_SUBSCRIBERS = 8;
+    private static final PageMappingsOcrRequestLedger pageMappingsOcrRequests =
+            new PageMappingsOcrRequestLedger(
+                    MAX_COMPLETED_OCR_APPLIES,
+                    MAX_PAGE_MAPPINGS_OCR_SUBSCRIBERS);
     private static final int MAX_PAGE_SCANNER_BODY_CHARACTERS = 2_000_000;
     private static final int MAX_PAGE_SCANNER_ELEMENTS = 1_000;
     private static final int MAX_PAGE_SCANNER_SEARCH_TERMS = 8_192;
@@ -1401,12 +1401,12 @@ public class SimpleWebSocketServer {
                             "pageMappings.ocrReviewResponse",
                             mappingsBody,
                             "OCR Review could not process the selected capture.",
-                            () -> {
-                                try (java.sql.Connection connection = performDataBase.getConnection()) {
-                                    return pageMappingsWorkspaceService.ocrReview(
-                                            mappingsBody, sessionId, session, connection);
-                                }
-                            });
+                            () -> withPageMappingsConnection(
+                                    mappingsBody,
+                                    "run Page Mappings OCR Review",
+                                    "OCR Review could not process the selected capture.",
+                                    connection -> pageMappingsWorkspaceService.ocrReview(
+                                            mappingsBody, sessionId, session, connection)));
                     break;
                 }
                 case "pageMappings.ocrReviewApply": {
@@ -1418,12 +1418,12 @@ public class SimpleWebSocketServer {
                             "pageMappings.ocrReviewApplyResponse",
                             mappingsBody,
                             "OCR Review names could not be saved.",
-                            () -> {
-                                try (java.sql.Connection connection = performDataBase.getConnection()) {
-                                    return pageMappingsWorkspaceService.ocrReviewApply(
-                                            mappingsBody, sessionId, session, connection);
-                                }
-                            });
+                            () -> withPageMappingsConnection(
+                                    mappingsBody,
+                                    "apply Page Mappings OCR Review names",
+                                    "OCR Review names could not be saved.",
+                                    connection -> pageMappingsWorkspaceService.ocrReviewApply(
+                                            mappingsBody, sessionId, session, connection)));
                     break;
                 }
                 case "pageMappings.open": {
@@ -8225,95 +8225,137 @@ public class SimpleWebSocketServer {
             JsonObject request,
             String failureMessage,
             PageMappingsOcrTask task) {
-        String requestKey = pageMappingsOcrRequestKey(responseOperation, request);
-        String requestPayload = request == null ? "" : request.toString();
-        JsonObject immediate = null;
-        boolean duplicateInFlight = false;
-        synchronized (pageMappingsOcrRequestLock) {
-            CompletedPageMappingsOcrResponse completed =
-                    completedPageMappingsOcrApplies.get(requestKey);
-            if (completed != null) {
-                immediate = completed.payload().equals(requestPayload)
-                        ? completed.response().deepCopy()
-                        : commandEditorFailure(
-                                request, "This OCR Review request ID was already used.");
-            } else if (activePageMappingsOcrKey.equals(requestKey)) {
-                // The accepted task owns the only terminal response for this request ID. Sending
-                // a second busy/conflict response would let React settle before a committed Apply.
-                duplicateInFlight = true;
-            } else if (!activePageMappingsOcrKey.isBlank()) {
-                immediate = commandEditorFailure(
-                        request, "Another Page Mappings OCR operation is still running.");
-            } else {
-                activePageMappingsOcrKey = requestKey;
-                activePageMappingsOcrPayload = requestPayload;
-            }
-        }
-        if (duplicateInFlight) return;
-        if (immediate != null) {
-            deliverPageMappingsOcrResponse(
-                    fallbackHomeBankingId,
-                    sessionId,
-                    requesterTransport,
-                    responseOperation,
-                    request,
-                    immediate);
+        PageMappingsWorkspaceService.OcrAuthority authority;
+        try {
+            authority = pageMappingsWorkspaceService.authorizeOcrRequest(
+                    request, sessionId, requesterTransport);
+        } catch (IllegalArgumentException unauthorized) {
+            // Do not disclose Page Mappings state to arbitrary registered transports, and never
+            // let a malformed or stale request occupy the process-wide OCR lane.
+            log.debug("Dropped unauthorized {} request", responseOperation);
             return;
         }
+        PageMappingsOcrRequestLedger.Subscriber subscriber =
+                new PageMappingsOcrRequestLedger.Subscriber(
+                        fallbackHomeBankingId,
+                        sessionId,
+                        requesterTransport,
+                        authority,
+                        request);
+        PageMappingsOcrRequestLedger.Admission admission =
+                pageMappingsOcrRequests.admit(responseOperation, request, subscriber);
+        switch (admission.disposition()) {
+            case ATTACHED:
+                return;
+            case CONFLICT:
+                // A conflicting payload must not settle the request ID that already belongs to
+                // the accepted Apply, whether it is still running or has a cached success.
+                log.warn(
+                        "Dropped conflicting Page Mappings OCR replay for accepted request {}",
+                        authority.requestId());
+                return;
+            case REPLAY:
+                deliverPageMappingsOcrResponse(
+                        subscriber,
+                        responseOperation,
+                        admission.response());
+                return;
+            case BUSY:
+                deliverPageMappingsOcrResponse(
+                        subscriber,
+                        responseOperation,
+                        commandEditorFailure(
+                                request,
+                                "Another Page Mappings OCR operation is still running."));
+                return;
+            case START:
+                break;
+        }
+        PageMappingsOcrRequestLedger.Ticket ticket =
+                Objects.requireNonNull(admission.ticket());
 
         try {
             pageMappingsOcrWorker.execute(() -> {
                 JsonObject response;
+                List<PageMappingsOcrRequestLedger.Subscriber> recipients;
                 try {
-                    response = task.run();
-                } catch (Exception failure) {
-                    log.warn("{} failed", responseOperation, failure);
-                    response = commandEditorFailure(request, failureMessage);
+                    try {
+                        response = task.run();
+                    } catch (Exception failure) {
+                        log.warn("{} failed", responseOperation, failure);
+                        response = commandEditorFailure(request, failureMessage);
+                    }
+                    recipients = pageMappingsOcrRequests.complete(ticket, response);
+                } catch (Error abruptFailure) {
+                    // Release before allocating the terminal response so even a VM-level failure
+                    // cannot leave the process-wide OCR lane permanently occupied.
+                    recipients =
+                            pageMappingsOcrRequests.release(ticket);
+                    try {
+                        String abruptMessage = failureMessage;
+                        if (PageMappingsOcrRequestLedger.APPLY_RESPONSE_OPERATION.equals(
+                                responseOperation)) {
+                            abruptMessage = "OCR Review save ended unexpectedly. Reload Page "
+                                    + "Mappings before saving names again.";
+                        }
+                        JsonObject abruptResponse = commandEditorFailure(
+                                request,
+                                abruptMessage);
+                        if (PageMappingsOcrRequestLedger.APPLY_RESPONSE_OPERATION.equals(
+                                responseOperation)) {
+                            abruptResponse.addProperty("reloadRequired", true);
+                        }
+                        for (PageMappingsOcrRequestLedger.Subscriber recipient : recipients) {
+                            try {
+                                deliverPageMappingsOcrResponse(
+                                        recipient,
+                                        responseOperation,
+                                        abruptResponse);
+                            } catch (Throwable deliveryFailure) {
+                                if (deliveryFailure != abruptFailure) {
+                                    abruptFailure.addSuppressed(deliveryFailure);
+                                }
+                            }
+                        }
+                    } catch (Throwable terminalFailure) {
+                        if (terminalFailure != abruptFailure) {
+                            abruptFailure.addSuppressed(terminalFailure);
+                        }
+                    }
+                    throw abruptFailure;
                 }
-                try {
+                for (PageMappingsOcrRequestLedger.Subscriber recipient : recipients) {
                     deliverPageMappingsOcrResponse(
-                            fallbackHomeBankingId,
-                            sessionId,
-                            requesterTransport,
-                            responseOperation,
-                            request,
-                            response);
-                } finally {
-                    completePageMappingsOcrRequest(
-                            requestKey,
-                            requestPayload,
+                            recipient,
                             responseOperation,
                             response);
                 }
             });
         } catch (RejectedExecutionException busy) {
-            releasePageMappingsOcrRequest(requestKey);
-            deliverPageMappingsOcrResponse(
-                    fallbackHomeBankingId,
-                    sessionId,
-                    requesterTransport,
-                    responseOperation,
-                    request,
-                    commandEditorFailure(
-                            request, "Another Page Mappings OCR operation is still running."));
+            JsonObject response = commandEditorFailure(
+                    request, "Another Page Mappings OCR operation is still running.");
+            for (PageMappingsOcrRequestLedger.Subscriber recipient :
+                    pageMappingsOcrRequests.release(ticket)) {
+                deliverPageMappingsOcrResponse(
+                        recipient,
+                        responseOperation,
+                        response);
+            }
         }
     }
 
     private void deliverPageMappingsOcrResponse(
-            int fallbackHomeBankingId,
-            String sessionId,
-            Session requesterTransport,
+            PageMappingsOcrRequestLedger.Subscriber subscriber,
             String responseOperation,
-            JsonObject request,
             JsonObject response) {
         boolean delivered = pageMappingsWorkspaceService.deliverOcrIfCurrent(
-                request,
-                sessionId,
-                requesterTransport,
+                subscriber.authority(),
+                subscriber.sessionId(),
+                subscriber.transport(),
                 () -> sendPageMappingsOcrResponseAcknowledged(
-                        fallbackHomeBankingId,
-                        sessionId,
-                        requesterTransport,
+                        subscriber.fallbackHomeBankingId(),
+                        subscriber.sessionId(),
+                        subscriber.transport(),
                         responseOperation,
                         response));
         if (!delivered) {
@@ -8350,64 +8392,6 @@ public class SimpleWebSocketServer {
             log.warn("{} response acknowledgement was interrupted", responseOperation);
         } catch (Exception deliveryFailure) {
             log.warn("{} response could not be acknowledged", responseOperation, deliveryFailure);
-        }
-    }
-
-    private static void completePageMappingsOcrRequest(
-            String requestKey,
-            String requestPayload,
-            String responseOperation,
-            JsonObject response) {
-        synchronized (pageMappingsOcrRequestLock) {
-            if (!activePageMappingsOcrKey.equals(requestKey)
-                    || !activePageMappingsOcrPayload.equals(requestPayload)) {
-                return;
-            }
-            if ("pageMappings.ocrReviewApplyResponse".equals(responseOperation)
-                    && response != null
-                    && response.has("ok")
-                    && response.get("ok").isJsonPrimitive()
-                    && response.get("ok").getAsBoolean()) {
-                completedPageMappingsOcrApplies.put(
-                        requestKey,
-                        new CompletedPageMappingsOcrResponse(
-                                requestPayload,
-                                response == null ? new JsonObject() : response.deepCopy()));
-                while (completedPageMappingsOcrApplies.size() > MAX_COMPLETED_OCR_APPLIES) {
-                    Iterator<String> oldest = completedPageMappingsOcrApplies.keySet().iterator();
-                    if (!oldest.hasNext()) break;
-                    oldest.next();
-                    oldest.remove();
-                }
-            }
-            activePageMappingsOcrKey = "";
-            activePageMappingsOcrPayload = "";
-        }
-    }
-
-    private static void releasePageMappingsOcrRequest(String requestKey) {
-        synchronized (pageMappingsOcrRequestLock) {
-            if (!activePageMappingsOcrKey.equals(requestKey)) return;
-            activePageMappingsOcrKey = "";
-            activePageMappingsOcrPayload = "";
-        }
-    }
-
-    private static String pageMappingsOcrRequestKey(
-            String responseOperation, JsonObject request) {
-        return responseOperation
-                + '\u0000'
-                + pageMappingsOcrText(request, "bindingEpoch")
-                + '\u0000'
-                + pageMappingsOcrText(request, "requestId");
-    }
-
-    private static String pageMappingsOcrText(JsonObject body, String field) {
-        if (body == null || !body.has(field) || body.get(field).isJsonNull()) return "";
-        try {
-            return body.get(field).getAsString().trim();
-        } catch (RuntimeException invalid) {
-            return "";
         }
     }
 
@@ -8491,8 +8475,6 @@ public class SimpleWebSocketServer {
     private interface PageMappingsOcrTask {
         JsonObject run() throws Exception;
     }
-
-    private record CompletedPageMappingsOcrResponse(String payload, JsonObject response) {}
 
     private record CompletedPageMappingsRetentionResponse(
             String payload, JsonObject response) {}

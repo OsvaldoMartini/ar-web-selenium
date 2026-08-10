@@ -68,6 +68,58 @@ class PageMappingsWorkspaceServiceTest {
     }
 
     @Test
+    void ocrAdmissionRequiresExactCurrentTransportAndCompleteContract() {
+        Session exactTransport = mock(Session.class);
+        PageMappingsWorkspaceService service = new PageMappingsWorkspaceService(
+                id -> new PageMappingsWorkspaceService.OwnerTarget(7, id, 11, "Payments"),
+                sessionId -> new PageMappingsWorkspaceService.OwnerTarget(7, 42, 11, "Payments"),
+                closedWindow(),
+                binding -> false,
+                (previous, current) -> {},
+                (sessionId, transport) -> transport == exactTransport);
+        JsonObject opened = service.openForBotJob(42);
+        JsonObject request = new JsonObject();
+        request.addProperty("contractVersion", 1);
+        request.addProperty("requestId", "ocr-auth-1");
+        request.addProperty("bindingEpoch", opened.get("bindingEpoch").getAsString());
+        request.addProperty("workspaceEpoch", 11);
+        request.addProperty("homeBankingId", 7);
+        request.addProperty("botJobId", 42);
+
+        PageMappingsWorkspaceService.OcrAuthority authority = service.authorizeOcrRequest(
+                request,
+                DetachedWorkspaceSessions.PAGE_MAPPINGS_MANAGER,
+                exactTransport);
+
+        assertEquals("ocr-auth-1", authority.requestId());
+        assertEquals(opened.get("bindingEpoch").getAsString(), authority.bindingEpoch());
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> service.authorizeOcrRequest(
+                        request,
+                        DetachedWorkspaceSessions.PAGE_MAPPINGS_MANAGER,
+                        mock(Session.class)));
+
+        JsonObject staleEpoch = request.deepCopy();
+        staleEpoch.addProperty("bindingEpoch", "stale-binding");
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> service.authorizeOcrRequest(
+                        staleEpoch,
+                        DetachedWorkspaceSessions.PAGE_MAPPINGS_MANAGER,
+                        exactTransport));
+
+        JsonObject missingRequestId = request.deepCopy();
+        missingRequestId.remove("requestId");
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> service.authorizeOcrRequest(
+                        missingRequestId,
+                        DetachedWorkspaceSessions.PAGE_MAPPINGS_MANAGER,
+                        exactTransport));
+    }
+
+    @Test
     void initialOpenBindsTheServerOwnerAndBootstrapQueriesOnlyThatOwner() throws Exception {
         AtomicReference<Integer> openedBotJob = new AtomicReference<>();
         AtomicReference<String> windowCapability = new AtomicReference<>();

@@ -45,12 +45,19 @@ public final class PageMappingsOcrAliasService {
             String pageKey,
             List<AliasChange> requestedChanges)
             throws SQLException {
-        try (Connection connection = connections.open()) {
-            if (connection == null) {
-                throw new SQLException("Page Mappings alias storage is unavailable");
-            }
+        Connection connection = connections.open();
+        if (connection == null) {
+            throw new SQLException("Page Mappings alias storage is unavailable");
+        }
+        Throwable operationFailure = null;
+        try {
             return applyTransaction(
                     connection, homeBankingId, botJobId, pageKey, requestedChanges);
+        } catch (SQLException | RuntimeException | Error failure) {
+            operationFailure = failure;
+            throw failure;
+        } finally {
+            closeConnection(connection, operationFailure);
         }
     }
 
@@ -78,6 +85,9 @@ public final class PageMappingsOcrAliasService {
         int previousIsolation = connection.getTransactionIsolation();
         boolean isolationChanged = false;
         boolean transactionStarted = false;
+        boolean commitAttempted = false;
+        boolean committed = false;
+        Throwable operationFailure = null;
         try {
             connection.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
             isolationChanged = true;
@@ -108,16 +118,34 @@ public final class PageMappingsOcrAliasService {
                 }
             }
 
-            List<CommittedAlias> committed = verifyCommitted(
+            List<CommittedAlias> committedAliases = verifyCommitted(
                     connection, homeBankingId, botJobId, exactPageKey, prepared);
-            connection.commit();
-            return new ApplyResult(List.copyOf(committed), changedCount(committed));
-        } catch (SQLException | RuntimeException failure) {
-            if (transactionStarted) rollback(connection, failure);
+            commitAttempted = true;
+            try {
+                connection.commit();
+            } catch (SQLException | RuntimeException commitFailure) {
+                throw new AliasApplyOutcomeUnknownException(
+                        "The OCR Review save outcome is unknown. Reload Page Mappings before saving names again.",
+                        commitFailure);
+            }
+            committed = true;
+            return new ApplyResult(
+                    List.copyOf(committedAliases), changedCount(committedAliases));
+        } catch (SQLException | RuntimeException | Error failure) {
+            operationFailure = failure;
+            if (transactionStarted && !commitAttempted) rollback(connection, failure);
             throw failure;
         } finally {
-            restoreIsolation(connection, previousIsolation, isolationChanged);
-            restoreAutoCommit(connection);
+            // A rollback or setAutoCommit(true) after a failed commit acknowledgement can itself
+            // decide the transaction. Leave the isolated connection untouched and close it.
+            if (!commitAttempted || committed) {
+                restoreIsolation(
+                        connection,
+                        previousIsolation,
+                        isolationChanged,
+                        operationFailure);
+                restoreAutoCommit(connection, operationFailure);
+            }
         }
     }
 
@@ -305,26 +333,52 @@ public final class PageMappingsOcrAliasService {
     private static void rollback(Connection connection, Throwable failure) {
         try {
             connection.rollback();
-        } catch (SQLException rollbackFailure) {
+        } catch (SQLException | RuntimeException rollbackFailure) {
             failure.addSuppressed(rollbackFailure);
         }
     }
 
     private static void restoreIsolation(
-            Connection connection, int previousIsolation, boolean isolationChanged) {
+            Connection connection,
+            int previousIsolation,
+            boolean isolationChanged,
+            Throwable operationFailure) {
         if (!isolationChanged) return;
         try {
             connection.setTransactionIsolation(previousIsolation);
-        } catch (SQLException ignored) {
-            // Production closes the isolated connection immediately after this method returns.
+        } catch (SQLException | RuntimeException restorationFailure) {
+            suppress(operationFailure, restorationFailure);
         }
     }
 
-    private static void restoreAutoCommit(Connection connection) {
+    private static void restoreAutoCommit(
+            Connection connection, Throwable operationFailure) {
         try {
             connection.setAutoCommit(true);
-        } catch (SQLException ignored) {
-            // Production closes the isolated connection immediately after this method returns.
+        } catch (SQLException | RuntimeException restorationFailure) {
+            suppress(operationFailure, restorationFailure);
+        }
+    }
+
+    private static void closeConnection(
+            Connection connection, Throwable operationFailure)
+            throws AliasApplyOutcomeUnknownException {
+        try {
+            connection.close();
+        } catch (SQLException | RuntimeException closeFailure) {
+            if (operationFailure != null) {
+                operationFailure.addSuppressed(closeFailure);
+                return;
+            }
+            throw new AliasApplyOutcomeUnknownException(
+                    "The OCR Review save outcome is unknown. Reload Page Mappings before saving names again.",
+                    closeFailure);
+        }
+    }
+
+    private static void suppress(Throwable operationFailure, Throwable cleanupFailure) {
+        if (operationFailure != null && cleanupFailure != operationFailure) {
+            operationFailure.addSuppressed(cleanupFailure);
         }
     }
 
@@ -398,6 +452,13 @@ public final class PageMappingsOcrAliasService {
 
         public String code() {
             return code;
+        }
+    }
+
+    /** The alias transaction may have committed even though JDBC did not return a clean outcome. */
+    public static final class AliasApplyOutcomeUnknownException extends SQLException {
+        public AliasApplyOutcomeUnknownException(String message, Throwable cause) {
+            super(message, cause);
         }
     }
 }

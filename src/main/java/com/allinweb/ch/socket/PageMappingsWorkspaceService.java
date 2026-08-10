@@ -868,6 +868,16 @@ public final class PageMappingsWorkspaceService {
                                 ? "One Page Mapping name was saved."
                                 : applied.changedCount() + " Page Mapping names were saved.");
                 return response;
+            } catch (PageMappingsOcrAliasService.AliasApplyOutcomeUnknownException unknown) {
+                log.error(
+                        "Page Mappings OCR alias Apply outcome is unknown for scan {}",
+                        scanId,
+                        unknown);
+                JsonObject response = failure(body, unknown.getMessage(), authorized);
+                response.addProperty(
+                        "errorCode", "PAGE_MAPPINGS_OCR_ALIAS_OUTCOME_UNKNOWN");
+                response.addProperty("reloadRequired", true);
+                return response;
             } catch (PageMappingsOcrAliasService.AliasApplyRefusedException refused) {
                 JsonObject response = failure(body, refused.getMessage(), authorized);
                 response.addProperty("errorCode", refused.code());
@@ -879,10 +889,12 @@ public final class PageMappingsWorkspaceService {
                         "Unable to apply Page Mappings OCR aliases for scan {}",
                         scanId,
                         unavailable);
-                return failure(
+                JsonObject response = failure(
                         body,
                         "OCR Review names could not be saved.",
                         authorized);
+                response.addProperty("reloadRequired", true);
+                return response;
             }
         }
     }
@@ -1647,20 +1659,39 @@ public final class PageMappingsWorkspaceService {
     }
 
     /**
+     * Captures an exact OCR owner generation before the request can occupy the process-wide OCR
+     * ledger or worker. Malformed contracts and stale transports therefore consume no OCR capacity.
+     */
+    OcrAuthority authorizeOcrRequest(
+            JsonObject body, String requesterSessionId, Session requesterTransport) {
+        synchronized (bindingLock) {
+            Binding authorized = authorizeDetachedRequest(
+                    body, requesterSessionId, requesterTransport, true);
+            try {
+                requireOcrContract(body, authorized);
+            } catch (IOException invalidContract) {
+                throw new IllegalArgumentException(
+                        "The OCR Review request is invalid.", invalidContract);
+            }
+            return OcrAuthority.from(authorized, requireRequestId(body));
+        }
+    }
+
+    /**
      * Linearizes one OCR response with retarget/invalidation so old-owner capture data is never
      * delivered to a transport after it has become authoritative for another Bot Job.
      */
     boolean deliverOcrIfCurrent(
-            JsonObject request,
+            OcrAuthority authority,
             String requesterSessionId,
             Session requesterTransport,
             Runnable delivery) {
+        Objects.requireNonNull(authority, "OCR authority");
         Objects.requireNonNull(delivery, "OCR response delivery is required");
         synchronized (bindingLock) {
-            try {
-                authorizeDetachedRequest(
-                        request, requesterSessionId, requesterTransport, true);
-            } catch (IllegalArgumentException stale) {
+            if (!SESSION_ID.equals(requesterSessionId)
+                    || !transportAuthorizer.isExact(requesterSessionId, requesterTransport)
+                    || !authority.matches(binding)) {
                 return false;
             }
             delivery.run();
@@ -2359,6 +2390,50 @@ public final class PageMappingsWorkspaceService {
 
         String ledgerKey() {
             return bindingEpoch
+                    + '\u0000'
+                    + workspaceEpoch
+                    + '\u0000'
+                    + homeBankingId
+                    + '\u0000'
+                    + botJobId
+                    + '\u0000'
+                    + requestId;
+        }
+    }
+
+    record OcrAuthority(
+            String bindingEpoch,
+            long workspaceEpoch,
+            int homeBankingId,
+            int botJobId,
+            String requestId) {
+        OcrAuthority {
+            bindingEpoch = Objects.requireNonNull(bindingEpoch);
+            requestId = Objects.requireNonNull(requestId);
+        }
+
+        static OcrAuthority from(Binding binding, String requestId) {
+            Objects.requireNonNull(binding, "binding");
+            return new OcrAuthority(
+                    binding.bindingEpoch(),
+                    binding.workspaceEpoch(),
+                    binding.homeBankingId(),
+                    binding.botJobId(),
+                    requestId);
+        }
+
+        boolean matches(Binding candidate) {
+            return candidate != null
+                    && bindingEpoch.equals(candidate.bindingEpoch())
+                    && workspaceEpoch == candidate.workspaceEpoch()
+                    && homeBankingId == candidate.homeBankingId()
+                    && botJobId == candidate.botJobId();
+        }
+
+        String ledgerKey(String responseOperation) {
+            return responseOperation
+                    + '\u0000'
+                    + bindingEpoch
                     + '\u0000'
                     + workspaceEpoch
                     + '\u0000'
