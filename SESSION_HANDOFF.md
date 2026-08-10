@@ -48,8 +48,15 @@ Mappings delivery checkpoint is:
   applied; the backend was not packaged or restarted. Real database inspection, live Windows ACL
   inspection, running-service health, and live desktop/browser acceptance remain open operational
   gates.
-- Unrelated dirty Grid, Claude-settings, Marketing, patch, screenshot, and dev-log files remain
-  preserved and outside these commits.
+- Unrelated dirty Grid, Claude-settings, Marketing, patch, and screenshot files remain preserved
+  and outside these commits. During final temporary-worktree cleanup, Git for Windows followed the
+  worktree's `node_modules` junction into the original frontend checkout before failing on a path
+  loop. The verified pushed tree was restored without overwriting the dirty `GridItemScann.tsx`
+  (SHA-256 `7E8F12625D890E97F68EDC58482E0B1ACFB5D08A39156BF16F5D985136F04D45`), Git metadata was
+  reconstructed at `a51e792`, and `npm rebuild --ignore-scripts` restored 168 dependency command
+  shims without changing `package-lock.json`. The temporary worktree/junction was then removed.
+  The two untracked generated `dev-server.*.log` files were deleted by the failed cleanup and were
+  not recoverable from Git; final frontend status contains only the pre-existing Grid edit.
 
 Read `specifications/performances/COPY_LAST_RESPONSE.md` and
 `specifications/performances/Page Mappins PLAN 2026-08-07.md` before continuing.
