@@ -1,32 +1,40 @@
 # Session Handoff
 
-## Current checkpoint - 2026-08-08
+## Current checkpoint - 2026-08-09
 
 The dated 2026-07-15 scanner-removal notes below remain historical backlog. The authoritative Page
 Mappings delivery checkpoint is:
 
-- P0-P4 and all 12 review-remediation findings are implemented and pushed.
-- P5 cache-first scanning is implemented and pushed: backend `c8e722cd` plus correction `823ab2dc`;
-  frontend `14b7832`.
-- P6 safe runtime healing is implemented and pushed in backend `668a7acb`.
-- The P7 OCR Review core is implemented and pushed: backend `89bbce24`; frontend `4dc51aa`.
-- P7 reads the selected immutable READY capture and atomically applies owner/page/revision-scoped
-  `client_named` changes. The frontend keeps OCR Review isolated inside Page Mappings.
-- `GridItem` and `GridItemScann` were not modified or staged by the P5-P7 work. The legacy
-  `GridItemScann` OCR Results launcher and old `ocr-results-*` route/session/component retirement
-  remain parked until the concurrent Grid work finishes and parity verification is permitted.
-- The final authorized `mvn compile` passed with 555 main Java sources. No tests were created or run
-  for P5-P7 under the explicit user pause.
-- Focused frontend lint for the Page Mappings OCR files passed with 0 errors and one existing
-  `captureElements` hook-dependency warning.
-- No P5-P7 frontend production build or resource mirror was performed because it would include
-  concurrent uncommitted Grid changes. The backend was not packaged or restarted.
-- Migration application, real SQL Server inspection, deployment health, and live desktop/browser
-  acceptance remain open operational gates.
-- Explicit private Windows capture-folder ACL enforcement and configured snapshot retention/pin/purge
-  remain open security/lifecycle roadmap work.
-- Unrelated dirty Grid, generated-resource, Claude-settings, Marketing, and screenshot files remain
-  preserved and outside the Page Mappings commits.
+- P0-P7 and all 12 original review-remediation findings are implemented and pushed.
+- P5 cache-first scanning is backend `c8e722cd` plus `823ab2dc`, frontend `14b7832`; P6 runtime
+  healing is backend `668a7acb`; P7 OCR Review is backend `89bbce24`, frontend `4dc51aa`.
+- Legacy OCR Results production source is retired in backend `07f3fd47` and frontend `b2d8a59`.
+  OCR Config and Page Mappings OCR Review remain. The regenerated catalog and mirrored bundle have
+  no retired workspace identifiers.
+- Snapshot ACL/retention foundations are backend `478a51b2`, frontend `dfd4836`. The final
+  hardening is backend `09fa2824`: recursive no-follow ACL hardening on controlled recovery paths,
+  verify-only reads, fail-closed storage health, STAGED creation recovery, generation-bound delete
+  journals, unified lifecycle reconciliation, stale/unknown pin handling, expected-policy purge,
+  binding-linearized mutations, and authorized duplicate/reconnect delivery.
+- The retention policy is explicitly system-wide; capture counts, pinning, eligibility, and purge
+  remain scoped to the authoritative organization/Bot Job binding. Frontend hardening is
+  `cb64ab3` plus `6750c3b`, including reload latching, permanent-purge confirmation, policy
+  assertions, and authoritative draft reset.
+- A clean frontend worktree excluded the unrelated dirty `GridItemScann.tsx` change.
+  `npm run build` passed with existing repository warnings. The exact 58-file build was mirrored
+  into backend resources and pushed in `c3a86e6f`; entrypoints are `main.5501261a.js` (SHA-256
+  `4A2F8128F929BA7C6D85059742A366466F096982603A89141E6A6E3CAA87392B`) and
+  `main.53308f43.css`.
+- `mvn compile` passed with 561 main Java sources on Java 17. Only the existing
+  `InstructionLoad` Lombok and `TargetElementHelper` varargs warnings remained.
+- `automation-tests.json` was regenerated as metadata at backend `09fa2824` / frontend `6750c3b`:
+  2,298 catalog rows, 2,263 code cases, and 19,452 generated API requests. This did not execute tests.
+- Per explicit direction, no tests were created or run. No new migration was created or applied.
+- Source and static assets are committed/pushed, but the backend was not packaged or restarted.
+  Real database inspection, live Windows ACL inspection, running-service health, and live
+  desktop/browser acceptance remain open operational gates.
+- Unrelated dirty Grid, Claude-settings, Marketing, patch, screenshot, and dev-log files remain
+  preserved and outside these commits.
 
 Read `specifications/performances/COPY_LAST_RESPONSE.md` and
 `specifications/performances/Page Mappins PLAN 2026-08-07.md` before continuing.

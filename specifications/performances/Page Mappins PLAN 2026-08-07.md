@@ -402,23 +402,40 @@ package/restart, deployed health, and live behavior are not complete.
 - Backend commit `478a51b2` adds protected Windows ACLs (process user, LocalSystem, and Administrators),
   POSIX-private permissions, no-link path validation, and privacy checks across snapshot writes,
   reads, deletion/retention journals, restore, and startup reconciliation.
-- The same commit adds owner-scoped retention settings, pin/unpin, bounded purge batches, shared
-  snapshot mutation locking, request idempotency, ambiguous-commit journal recovery, and SQLite-
-  compatible JDBC behavior. Cleanup runs after successful scans or by explicit Purge Eligible; it
-  is not a time scheduler.
+- The same commit adds owner-scoped capture operations governed by one system-wide retention
+  policy, pin/unpin, bounded purge batches, shared snapshot mutation locking, request idempotency,
+  ambiguous-commit journal recovery, and SQLite-compatible JDBC behavior. Cleanup runs after
+  successful scans or by explicit Purge Eligible; it is not a time scheduler.
 - Frontend commit `dfd4836` adds the isolated Page Mappings retention panel and correlated pin,
   policy-save, purge, reload-required, and missing-storage states.
+- Backend hardening commit `09fa2824` recursively hardens every no-follow descendant during
+  controlled startup/recovery while read paths reject unexpected ACLs. It adds fail-closed storage
+  health, PATH_DB/database-generation invalidation, STAGED-creation cleanup, exact owner/snapshot-
+  generation deletion journals, unified lifecycle reconciliation, missing-artifact progress,
+  typed stale/unknown pin outcomes, expected-policy purge, binding-linearized mutations, and
+  authorized cached/reconnect response delivery.
+- Frontend commits `cb64ab3` and `6750c3b` enforce the reload-required latch across timeout,
+  disconnect, malformed/stale success, and backend ambiguity; assert the displayed policy on purge;
+  remove hidden Memory pending coupling; add permanent-purge confirmation; and reset policy drafts
+  on every authoritative bootstrap revision. The UI explicitly distinguishes the system-wide
+  policy from Bot Job-scoped counts and purge.
 - No migration or DDL was applied. By explicit user direction, migration activation and other-
   database rollout remain parked for a later authorized maintenance window.
 
 ### Verification and separate completion gates
 
-- Final `mvn compile`: BUILD SUCCESS, 558 main Java sources, 2026-08-08.
-- Focused frontend lint for the Page Mappings OCR files: 0 errors; one existing
-  `captureElements` hook-dependency warning remains.
-- Per explicit instruction, no tests were created or run, no frontend production build was run,
-  and the backend was not packaged.
-- The frontend bundle was not mirrored because concurrent uncommitted Grid work must not be mixed
-  into this checkpoint.
-- Migration application is intentionally deferred. Frontend build/mirror, package/restart, live
-  Windows ACL inspection, deployed health, and live desktop/browser behavior remain open gates.
+- Final `mvn compile`: BUILD SUCCESS, 561 main Java sources, 2026-08-08. Only the existing Lombok
+  builder and inexact-varargs warnings remained.
+- A clean worktree at frontend `6750c3b` excluded the unrelated dirty Grid change.
+  `npm run build` passed with existing repository warnings. The 58-file mirror was exact before
+  cleanup and was pushed in backend `c3a86e6f`.
+- Current entrypoints: `main.5501261a.js` (SHA-256
+  `4A2F8128F929BA7C6D85059742A366466F096982603A89141E6A6E3CAA87392B`) and
+  `main.53308f43.css` (SHA-256
+  `FA404C80C92070EC95FC3D66B0ED3C3B279DBC45D6BF27C9B4CAD247DF8CA822`).
+- `automation-tests.json` was regenerated after the source commits and now records backend
+  `09fa2824` plus frontend `6750c3b`; retired OCR Results workspace entries are absent. Catalog
+  generation did not execute tests.
+- Per explicit instruction, no tests were created or run. The backend was not packaged or restarted.
+- Migration application remains intentionally deferred. Real database inspection, live Windows ACL
+  inspection, running-service health, and live desktop/browser behavior remain open gates.
