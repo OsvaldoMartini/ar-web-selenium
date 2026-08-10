@@ -65,7 +65,17 @@ public final class PreScanWorkflowService {
     /** Runs Page Mappings scan with immutable snapshot persistence as a success requirement. */
     public void scanForPageMappings(
             Context context, String searchTerms, boolean searchHidden, Sink sink) {
-        scan(context, searchTerms, searchHidden, sink, true);
+        scanForPageMappings(context, searchTerms, searchHidden, false, sink);
+    }
+
+    /** Runs Page Mappings scan, optionally traversing lazy content before a full-page capture. */
+    public void scanForPageMappings(
+            Context context,
+            String searchTerms,
+            boolean searchHidden,
+            boolean scrollPage,
+            Sink sink) {
+        scan(context, searchTerms, searchHidden, sink, true, scrollPage);
     }
 
     private void scan(
@@ -74,6 +84,16 @@ public final class PreScanWorkflowService {
             boolean searchHidden,
             Sink sink,
             boolean requireSnapshot) {
+        scan(context, searchTerms, searchHidden, sink, requireSnapshot, false);
+    }
+
+    private void scan(
+            Context context,
+            String searchTerms,
+            boolean searchHidden,
+            Sink sink,
+            boolean requireSnapshot,
+            boolean scrollPage) {
         require(context, sink);
         if (!browser.tryBeginScan()) {
             sink.status("running", "A pre-scan is already in progress...", 0);
@@ -90,6 +110,28 @@ public final class PreScanWorkflowService {
             sink.status("waiting", "Loading the Page - waiting to settle...", 0);
             long settledMs = browser.waitForPageSettled(15_000);
             log.info("PRE SCAN - page settled after {} ms", settledMs);
+            if (scrollPage) {
+                ScannedPageIdentity traversalPage =
+                        ScannedPageIdentity.fromLiveUrl(browser.currentUrl());
+                sink.status("running", "Scrolling the page to load bounded lazy content...", 0);
+                long restoredSettledMs;
+                try {
+                    PageScanScrollTraversal.traverse(browser.playwrightDriver(), traversalPage);
+                } finally {
+                    restoredSettledMs = browser.waitForPageSettled(15_000);
+                    ScannedPageIdentity restoredPage =
+                            ScannedPageIdentity.fromLiveUrl(browser.currentUrl());
+                    if (!traversalPage.pageKey().equals(restoredPage.pageKey())
+                            || !traversalPage.actualUrl().equals(restoredPage.actualUrl())) {
+                        throw new IllegalStateException(
+                                "The browser page changed after automatic scrolling. "
+                                        + "Scan the current page again.");
+                    }
+                }
+                log.info(
+                        "PRE SCAN - automatic page scrolling restored and settled after {} ms",
+                        restoredSettledMs);
+            }
             sink.status("running", "web elements...", 0);
             ScannedPageIdentity scannedPage =
                     ScannedPageIdentity.fromLiveUrl(browser.currentUrl());
@@ -118,7 +160,13 @@ public final class PreScanWorkflowService {
                         "The browser page changed during Page Scanner. Scan the current page again.");
             }
             diagnostics.persist(
-                    context, scannedPage, elements, browser, scannedView, requireSnapshot);
+                    context,
+                    scannedPage,
+                    elements,
+                    browser,
+                    scannedView,
+                    requireSnapshot,
+                    scrollPage);
             sink.elements(elements);
             int count = elements == null ? 0 : elements.size();
             sink.status(
@@ -313,6 +361,18 @@ public final class PreScanWorkflowService {
                 throws Exception {
             persist(context, page, elements, browser, scannedView);
         }
+
+        default void persist(
+                Context context,
+                ScannedPageIdentity page,
+                List<ElementDTO> elements,
+                BrowserPort browser,
+                PageViewFingerprintService.Observation scannedView,
+                boolean requireSnapshot,
+                boolean forceFullPageSnapshot)
+                throws Exception {
+            persist(context, page, elements, browser, scannedView, requireSnapshot);
+        }
     }
 
     @FunctionalInterface
@@ -409,6 +469,26 @@ public final class PreScanWorkflowService {
                 PageViewFingerprintService.Observation scannedView,
                 boolean requireSnapshot)
                 throws Exception {
+            persist(
+                    context,
+                    page,
+                    elements,
+                    browser,
+                    scannedView,
+                    requireSnapshot,
+                    false);
+        }
+
+        @Override
+        public void persist(
+                Context context,
+                ScannedPageIdentity page,
+                List<ElementDTO> elements,
+                BrowserPort browser,
+                PageViewFingerprintService.Observation scannedView,
+                boolean requireSnapshot,
+                boolean forceFullPageSnapshot)
+                throws Exception {
             List<ElementDTO> scanned = elements == null ? List.of() : elements;
             if (!scanned.isEmpty()) {
                 int[] registry = PerformDataBase.getInstance().upsertScannedElementsStrict(
@@ -455,6 +535,7 @@ public final class PreScanWorkflowService {
                                 String screenshotScope = artifactConfig == null
                                         ? "viewport"
                                         : artifactConfig.getString("screenshot", "scope", "viewport");
+                                if (forceFullPageSnapshot) screenshotScope = "full_page";
                                 return PageScanArtifactCapture.capture(
                                         browser.playwrightDriver(),
                                         page,

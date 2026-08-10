@@ -24,6 +24,7 @@ public final class PageScanSnapshotRetentionService {
     public static final int MAX_RETENTION_DAYS = 3_650;
     public static final int MAX_CAPTURES_PER_PAGE = 1_000;
     public static final int MAX_PURGE_BATCH = 100;
+    public static final int DEFAULT_RETENTION_DAYS = 30;
     private static final int MAX_READY_ROWS_PER_OWNER = 100_000;
 
     private static final PageScanSnapshotRetentionService INSTANCE =
@@ -43,10 +44,12 @@ public final class PageScanSnapshotRetentionService {
         return new Policy(
                 configuredInteger(
                         ARPropertyEnum.PAGE_SCAN_RETENTION_DAYS,
+                        DEFAULT_RETENTION_DAYS,
                         0,
                         MAX_RETENTION_DAYS),
                 configuredInteger(
                         ARPropertyEnum.PAGE_SCAN_RETENTION_MAX_UNPINNED_PER_PAGE,
+                        0,
                         0,
                         MAX_CAPTURES_PER_PAGE));
     }
@@ -503,14 +506,15 @@ public final class PageScanSnapshotRetentionService {
                         eligible.size()));
     }
 
-    private int configuredInteger(ARPropertyEnum property, int minimum, int maximum) {
+    private int configuredInteger(
+            ARPropertyEnum property, int fallback, int minimum, int maximum) {
         String raw = properties.getProperty(property);
-        if (raw == null || raw.isBlank()) return minimum;
+        if (raw == null || raw.isBlank()) return fallback;
         try {
             int value = Integer.parseInt(raw.trim());
-            return value >= minimum && value <= maximum ? value : minimum;
+            return value >= minimum && value <= maximum ? value : fallback;
         } catch (NumberFormatException invalid) {
-            return minimum;
+            return fallback;
         }
     }
 

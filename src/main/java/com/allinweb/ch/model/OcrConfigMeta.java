@@ -75,7 +75,9 @@ public final class OcrConfigMeta {
         // screenshot
         d.put(
                 "screenshot.scope",
-                "viewport = only visible area; full_page = scroll-stitched capture (NOT YET IMPLEMENTED — planned Roadmap 2 s2).");
+                "viewport = only the visible area; full_page = one full-document Playwright screenshot. "
+                        + "Full-page capture does not by itself load virtualized or lazy content; use the "
+                        + "bounded Page Mappings SCROLL PAGE option when that traversal is required.");
         d.put(
                 "screenshot.pre_capture_delay_ms",
                 "Wait N ms after the page ready event before snapping. Useful for pages with fade-in animations.");

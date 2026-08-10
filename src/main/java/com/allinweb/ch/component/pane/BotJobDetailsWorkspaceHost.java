@@ -392,6 +392,7 @@ public class BotJobDetailsWorkspaceHost {
                             String destinationSessionId,
                             String bindingEpoch,
                             String requestId,
+                            boolean scrollPage,
                             Runnable completion) {
                         runPageMappingsRescan(
                                 context,
@@ -399,6 +400,7 @@ public class BotJobDetailsWorkspaceHost {
                                 destinationSessionId,
                                 bindingEpoch,
                                 requestId,
+                                scrollPage,
                                 completion);
                     }
                     public void closePageScanner(String workspaceSessionId) {
@@ -662,6 +664,7 @@ public class BotJobDetailsWorkspaceHost {
             String destinationSessionId,
             String bindingEpoch,
             String requestId,
+            boolean scrollPage,
             Runnable completion) {
         java.util.concurrent.atomic.AtomicBoolean completed =
                 new java.util.concurrent.atomic.AtomicBoolean();
@@ -671,6 +674,7 @@ public class BotJobDetailsWorkspaceHost {
                 workspaceEpoch,
                 bindingEpoch,
                 requestId,
+                scrollPage,
                 completed,
                 completion);
         dispatchPreScanOperation(
@@ -680,7 +684,7 @@ public class BotJobDetailsWorkspaceHost {
                                 context,
                                 workspaceEpoch,
                                 () -> preScanWorkflowService.scanForPageMappings(
-                                        context, "", false, sink),
+                                        context, "", false, scrollPage, sink),
                                 message -> sink.status("failed", message, 0));
                     } catch (RuntimeException taskFailure) {
                         log.warn(
@@ -696,6 +700,7 @@ public class BotJobDetailsWorkspaceHost {
                                         workspaceEpoch,
                                         bindingEpoch,
                                         requestId,
+                                        scrollPage,
                                         "failed",
                                         "Page Mappings rescan ended before a terminal scan result was available.",
                                         0);
@@ -1044,6 +1049,7 @@ public class BotJobDetailsWorkspaceHost {
             long workspaceEpoch,
             String bindingEpoch,
             String requestId,
+            boolean scrollPage,
             java.util.concurrent.atomic.AtomicBoolean completed,
             Runnable completion) {
         return new PreScanWorkflowService.Sink() {
@@ -1067,6 +1073,7 @@ public class BotJobDetailsWorkspaceHost {
                         workspaceEpoch,
                         bindingEpoch,
                         requestId,
+                        scrollPage,
                         publishedStatus,
                         message,
                         elementCount);
@@ -1102,6 +1109,7 @@ public class BotJobDetailsWorkspaceHost {
             long workspaceEpoch,
             String bindingEpoch,
             String requestId,
+            boolean scrollPage,
             String status,
             String message,
             int elementCount) {
@@ -1111,6 +1119,7 @@ public class BotJobDetailsWorkspaceHost {
         payload.addProperty("workspaceEpoch", workspaceEpoch);
         payload.addProperty("homeBankingId", context.homeBankingId());
         payload.addProperty("botJobId", context.botJobId());
+        payload.addProperty("scrollPage", scrollPage);
         payload.addProperty("status", status);
         payload.addProperty("message", message == null ? "" : message);
         payload.addProperty("elementCount", elementCount);

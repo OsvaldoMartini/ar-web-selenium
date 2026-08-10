@@ -105,6 +105,7 @@ public final class BotJobWorkspaceController {
             String destinationSessionId,
             String bindingEpoch,
             String requestId,
+            boolean scrollPage,
             Runnable completion) {
         host().pageMappingsRescan(
                 context,
@@ -112,6 +113,7 @@ public final class BotJobWorkspaceController {
                 destinationSessionId,
                 bindingEpoch,
                 requestId,
+                scrollPage,
                 completion);
     }
 
@@ -182,6 +184,7 @@ public final class BotJobWorkspaceController {
                 String destinationSessionId,
                 String bindingEpoch,
                 String requestId,
+                boolean scrollPage,
                 Runnable completion) {
             throw new IllegalStateException("Page Mappings rescan is not available");
         }

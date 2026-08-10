@@ -512,29 +512,40 @@ public final class PageMappingsWorkspaceService {
             Session requesterTransport,
             Connection connection) {
         synchronized (bindingLock) {
-            Binding authorized;
+            Binding authorized = null;
+            boolean scrollPage = false;
             try {
                 authorized = authorizeDetachedRequest(
                         body, requesterSessionId, requesterTransport, true);
+                scrollPage = optionalBoolean(body, "scrollPage", false);
                 if (!snapshotTableExists(connection)) {
-                    return failure(
+                    return rescanFailure(
                             body,
                             "Page Mappings storage is not initialized. No database migration was run.",
-                            authorized);
+                            authorized,
+                            scrollPage);
                 }
                 String requestId = string(body, "requestId").trim();
                 if (requestId.isEmpty() || requestId.length() > 200) {
-                    return failure(body, "A valid Page Mappings request ID is required.", authorized);
+                    return rescanFailure(
+                            body,
+                            "A valid Page Mappings request ID is required.",
+                            authorized,
+                            scrollPage);
                 }
                 if (!activeRescanKey.isBlank()) {
-                    return failure(
-                            body, "A Page Mappings rescan is already in progress.", authorized);
+                    return rescanFailure(
+                            body,
+                            "A Page Mappings rescan is already in progress.",
+                            authorized,
+                            scrollPage);
                 }
                 if (!acceptRescanRequest(authorized.bindingEpoch(), requestId)) {
-                    return failure(
+                    return rescanFailure(
                             body,
                             "This Page Mappings rescan request was already accepted.",
-                            authorized);
+                            authorized,
+                            scrollPage);
                 }
                 BotJobDetailsWorkspaceRegistry.getInstance()
                         .require(authorized.botJobId(), authorized.workspaceEpoch());
@@ -542,7 +553,11 @@ public final class PageMappingsWorkspaceService {
                         .pageScannerContext(authorized.botJobId());
                 if (context.homeBankingId() != authorized.homeBankingId()
                         || context.botJobId() != authorized.botJobId()) {
-                    return failure(body, "Page Mappings owner changed. Refresh this page.", authorized);
+                    return rescanFailure(
+                            body,
+                            "Page Mappings owner changed. Refresh this page.",
+                            authorized,
+                            scrollPage);
                 }
                 MutationTicket mutation = beginMutationLocked(
                         authorized, MutationKind.RESCAN, requestId);
@@ -555,6 +570,7 @@ public final class PageMappingsWorkspaceService {
                             SESSION_ID,
                             authorized.bindingEpoch(),
                             requestId,
+                            scrollPage,
                             () -> finishRescan(rescanKey, mutation));
                 } catch (RuntimeException | Error startFailure) {
                     finishRescan(rescanKey, mutation);
@@ -563,15 +579,35 @@ public final class PageMappingsWorkspaceService {
                 JsonObject response = baseResponse(body, authorized);
                 response.addProperty("ok", true);
                 response.addProperty("accepted", true);
+                response.addProperty("scrollPage", scrollPage);
                 response.addProperty("message", "Page Mappings rescan started.");
                 return response;
             } catch (IllegalArgumentException unauthorized) {
-                return failure(body, unauthorized.getMessage());
+                return authorized == null
+                        ? failure(body, unauthorized.getMessage())
+                        : rescanFailure(
+                                body,
+                                unauthorized.getMessage(),
+                                authorized,
+                                scrollPage);
             } catch (RuntimeException unavailable) {
                 log.warn("Unable to start Page Mappings rescan", unavailable);
-                return failure(body, "Page Mappings rescan could not be started.");
+                return authorized == null
+                        ? failure(body, "Page Mappings rescan could not be started.")
+                        : rescanFailure(
+                                body,
+                                "Page Mappings rescan could not be started.",
+                                authorized,
+                                scrollPage);
             }
         }
+    }
+
+    private static JsonObject rescanFailure(
+            JsonObject body, String message, Binding owner, boolean scrollPage) {
+        JsonObject response = failure(body, message, owner);
+        response.addProperty("scrollPage", scrollPage);
+        return response;
     }
 
     private boolean acceptRescanRequest(String bindingEpoch, String requestId) {
@@ -2628,6 +2664,18 @@ public final class PageMappingsWorkspaceService {
 
     private static String text(JsonObject body, String field) {
         return string(body, field);
+    }
+
+    private static boolean optionalBoolean(
+            JsonObject body, String field, boolean defaultValue) {
+        if (body == null || !body.has(field) || body.get(field).isJsonNull()) {
+            return defaultValue;
+        }
+        if (!body.get(field).isJsonPrimitive()
+                || !body.getAsJsonPrimitive(field).isBoolean()) {
+            throw new IllegalArgumentException("A valid " + field + " state is required.");
+        }
+        return body.getAsJsonPrimitive(field).getAsBoolean();
     }
 
     private static JsonObject object(JsonObject body, String field) {
