@@ -2,7 +2,7 @@
 
 Keep exactly two review sections. Check tasks only after their separate gates pass.
 
-**Last updated:** 2026-08-10 - Page Mappings is source-complete through P7; legacy OCR Results remains retired; item-7 retention/OCR recovery tests, reconnect hardening, refreshed assets, and catalog are pushed. The BancaStato SQLite schema is activated and its `target/classes` process is restarted with current assets. Package/image delivery, a fresh READY snapshot, other-database rollout, live ACL/orphan review, and full desktop/browser acceptance remain open. Claude independent review requested.
+**Last updated:** 2026-08-10 - Page Mappings is source-complete through P7; legacy OCR Results remains retired; item-7 retention/OCR recovery tests, reconnect hardening, refreshed assets, and catalog are pushed. BancaStato now has one integrity-verified READY capture with private ACLs, and targeted Page Mappings open/bootstrap/capture/cache/pin acceptance passed after backend ingress fix `70d5d08d`. The acceptance JVM is now stopped. Package/image delivery, orphan inventory/reconciliation, other-database rollout, and broader lifecycle/OCR/Memory desktop-browser acceptance remain open. Claude independent review requested.
 
 ## 1. CODEX -> CLAUDE - Page Mappings and Memory lifecycle review handoff
 
@@ -58,17 +58,26 @@ The Page Mappings roadmap is now source-complete through P7:
 - In an authorized BancaStato-only maintenance window, the exact live SQLite database was backed up
   and exactly the three registered snapshot migrations were applied in one transaction. Other
   installations and SQL Server remain unchanged and migration initialization remains user-controlled.
-- The BancaStato process was refreshed from `target/classes` and now serves the current frontend
-  hashes. No backend package/image was built and no fresh scan has yet created a READY snapshot.
+- A targeted BancaStato scan created READY capture `16a2d848-6660-4f86-9786-5726d209d4e9` for
+  Home Banking 13 / Bot Job 29 / Home URL 15 with 93 elements. Its manifest/payload hashes and
+  private Windows ACLs were verified end to end.
+- Both WebSocket ingress guards previously used `contains("ping")`, which swallowed every
+  `pageMappings.*` operation because `Mappings` contains lowercase `ping`. Pushed backend commit
+  `70d5d08d` now recognizes only exact `ping` / `ping-*` control frames.
+- BancaStato acceptance PID `2852` ran the rebuilt class from `target/classes`, served the current
+  frontend hashes, and completed Page Mappings open, bootstrap, integrity-verified capture, cache,
+  explicit pin, and capture-reload round trips. It is now stopped; no backend package/image was
+  built.
 
-### Frontend risks currently known
+### Current risks
 
 | Severity | Status | Risk |
 |---|---|---|
+| Critical | Fixed in `70d5d08d` | Raw and decoded WebSocket ingress treated any lowercase `ping` substring as a heartbeat, silently dropping all `pageMappings.*` operations. Only exact `ping` / `ping-*` control frames are ignored now. |
 | Critical | Fixed in `209d24d7` / `ce6a56f` / `fb87aa0` | Failed Memory `open` responses without `workspaceEpoch` could be discarded and leave opening stuck. Exact failures now correlate by typed request/current context and validate every supplied authority field. |
 | Critical | Fixed in `209d24d7` / `ce6a56f` / `fb87aa0` | Failed Memory `sync` responses lacked pending request correlation and could disappear silently. OPEN and SYNC now use typed pending records and collision-resistant sequenced request IDs. |
 | Critical | Fixed in `fb87aa0` / `b147de41` | Detached Memory commands, timers, dialogs, status, and drag state are bound to the exact owner/workspace generation; late prior-owner responses are ignored and backend responses stay on the captured requester transport. |
-| High | Partial deployment gate | The BancaStato process was restarted from `target/classes` and HTTP serves the matching `fb23c531` bundle. No backend package/image or other-installation rollout was performed in this checkpoint, so this is not a general packaged deployment. |
+| High | Partial deployment gate | BancaStato acceptance PID `2852` loaded the rebuilt class from `target/classes` and HTTP served the matching `fb23c531` bundle, but the process is now stopped. No backend package/image or other-installation rollout was performed, so there is no current packaged deployment. |
 | Medium | Open verification | Live detached-window reload, takeover, retarget, deletion, same-ID reuse, and multi-page WebSocket behavior remain unverified. |
 | Medium | Open verification | The final affected-path JSDOM suite passed 44/44. The complete repository-wide frontend suite was not run. |
 | Low | Existing | Production build lint/dependency/bundle-size warnings remain outside the Page Mappings retention files. |
@@ -115,9 +124,12 @@ The Page Mappings roadmap is now source-complete through P7:
 - [x] TASK - Exact BancaStato pre-migration backup created: 5,050,368 bytes, SHA-256 `6256AEDB77C489060CC22F7F00E465349008265C3330ABE4E0D513F0375D8AD3`.
 - [x] TASK - Exactly the three registered snapshot migrations were applied in one SQLite transaction; post-state is 24 migration rows, expected table/indexes, `quick_check=ok`, and zero FK violations.
 - [x] TASK - The later item-7 authorization superseded the earlier test pause; only local JSDOM/JVM/embedded-SQLite tests were run, with no browser or native OCR.
-- [x] TASK - `mvn -DskipTests compile` passed; BancaStato ARWeb restarted as PID `33084` and serves `main.eb4f02b1.js` / `main.df7752f0.css` with zero new-log error matches.
-- [ ] TASK - No fresh scan/READY snapshot has been produced; the migrated table currently has zero rows.
-- [ ] TASK - Live snapshot ACL/orphan inventory, package/image delivery, other-database/SQL Server rollout, and full desktop/browser acceptance remain open.
+- [x] TASK - `mvn -DskipTests compile` passed; BancaStato acceptance PID `2852` ran the rebuilt `target/classes` code and served `main.eb4f02b1.js` / `main.df7752f0.css`. It is now stopped.
+- [x] TASK - WebSocket heartbeat ingress fix `70d5d08d` is pushed; exact `ping` / `ping-*` control frames remain ignored while `pageMappings.*` reaches authorization and dispatch.
+- [x] TASK - Live scan `16a2d848-6660-4f86-9786-5726d209d4e9` is the sole row: READY, 93 elements, final `pinned=0`, and its manifest SHA-256 matches the database.
+- [x] TASK - The exact capture folder and five artifacts passed hash/content and protected Windows ACL verification; no SQLite sidecar, deletion/retention journal, staging folder, or temporary artifact remains.
+- [x] TASK - Targeted live Page Mappings open, manager connection, bootstrap, 734,829-byte capture, cache state, four explicit pin round trips, and capture reload completed without a Page Mappings operation error.
+- [ ] TASK - Orphan inventory/reconciliation, package/image delivery, other-database/SQL Server rollout, and broader reconnect/takeover/retarget/delete/same-ID/Use Existing/Rescan/retention-save-purge/OCR/Memory/multi-page acceptance remain open.
 
 ## 2. CLAUDE -> CODEX - Independent review requested
 
@@ -135,10 +147,14 @@ The Page Mappings roadmap is now source-complete through P7:
   NOT NULL migration columns and extended-length ACL handling preserves the private/no-follow model.
 - [ ] TASK - Review assets/catalog `fb23c531` / `d76362ff`; confirm the manifest selects
   `main.eb4f02b1.js`, source/backend manifests match, and retired OCR Results entries remain absent.
-- [ ] TASK - Validate the BancaStato backup, exact-three-migration, schema/integrity, restarted-process,
-  current-asset, and zero-new-error evidence, including the BancaStato-only rollout boundary.
-- [ ] TASK - Confirm package/image delivery, a fresh READY snapshot, live ACL/orphan review,
-  other-database/SQL Server rollout, and full desktop/browser acceptance remain open and are not
-  inferred from source, test, build, compile, or this one live SQLite activation.
+- [ ] TASK - Validate `70d5d08d`: both raw and decoded ingress paths must preserve exact plain and
+  encoded heartbeat frames without classifying any `pageMappings.*` operation as a ping.
+- [ ] TASK - Validate the BancaStato backup/migrations plus the targeted READY-row, manifest,
+  artifact, ACL, current-asset, and Page Mappings open/bootstrap/capture/cache/pin evidence,
+  including the BancaStato-only rollout boundary.
+- [ ] TASK - Confirm package/image delivery, orphan inventory/reconciliation, other-database/SQL
+  Server rollout, and broader reconnect/takeover/retarget/delete/same-ID/Use Existing/Rescan/
+  retention-save-purge/OCR/Memory/multi-page acceptance remain open and are not inferred from this
+  targeted live path.
 - [ ] TASK - Record any concrete blocker with producer, consumer, exact interleaving, and smallest
   authoritative fix. Do not mark deployment or live behavior complete from source/build evidence.

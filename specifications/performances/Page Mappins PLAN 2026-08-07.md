@@ -539,3 +539,33 @@ written. No other installation or SQL Server database was changed.
 - No package or image was built. A fresh scan/READY row, live snapshot ACL verification, orphan
   inventory/reconciliation, other-database and SQL Server rollout, and full desktop/browser
   acceptance remain open. The pre-existing orphan capture folder was intentionally left untouched.
+
+## BancaStato targeted Page Mappings acceptance - 2026-08-10
+
+This checkpoint supersedes the activation section's open fresh-scan and capture-ACL gates only for
+the targeted BancaStato Bot Job 29 path. It does not change any other installation or SQL Server
+database.
+
+- A live Page Scanner run created the sole snapshot row
+  `16a2d848-6660-4f86-9786-5726d209d4e9` for Home Banking `13`, Bot Job `29`, and Home URL `15`:
+  93 elements, `READY`, captured `2026-08-10T12:12:10.059962200Z`, final `pinned=0`, manifest
+  SHA-256 `e5e099c71f9d3099943121cd285627da991bd6d5a00f7c117bc90bd18c305bcd`.
+- The capture contains exactly the five expected files. Manifest/payload hashes and all owner,
+  capture, geometry, and element counts agree. The capture tree and files have protected Windows
+  ACLs limited to the process user, SYSTEM, and Administrators. SQLite remains healthy with no
+  sidecar, deletion/retention journal, staging folder, or temporary snapshot artifact.
+- The first Mappings clicks exposed an ingress bug: `contains("ping")` matched the lowercase
+  `ping` inside every `pageMappings.*` operation. Backend commit `70d5d08d` narrows both raw and
+  decoded filters to exact `ping` / `ping-*` control frames, preserving the actual heartbeat
+  contracts while allowing Page Mappings through authorization and dispatch.
+- After compile and restart from `target/classes`, PID `2852` opened the native Page Mappings
+  window. Live `.4` logs record `pageMappings.openResponse`, `pageMappingsManager` connect,
+  bootstrap, a 734,829-byte capture response, cache state, four explicit pin responses, and a later
+  capture reload. The four pin operations ended at the original `pinned=0`; bootstrap/capture made
+  no unexpected database, journal, or artifact change. No Page Mappings failure was recorded after
+  the open request.
+- HTTP on `127.0.0.1:65278` served the current `main.eb4f02b1.js` and
+  `main.df7752f0.css` bytes during acceptance. PID `2852` is now stopped and both ports are closed.
+  No package/image was built. Other-database/SQL Server rollout, orphan inventory/reconciliation,
+  reconnect/takeover/retarget/delete/same-ID reuse, Use Existing/Rescan, retention policy-save/purge,
+  OCR/Memory workflows, and broader multi-page desktop/browser acceptance remain open.

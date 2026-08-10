@@ -55,17 +55,35 @@ Mappings delivery checkpoint is:
 - Exactly `2026-08-07__page_scan_snapshot`,
   `2026-08-08__page_scan_snapshot_sqlserver_key_repair`, and
   `2026-08-08__page_scan_snapshot_view_fingerprint` were applied to
-  `D:\Projects\ARWebBancaStato\ARWeb\database.db` in one SQLite transaction. The live database now
-  has 24 migration rows, the expected 13-column table and indexes, `quick_check=ok`, zero foreign-
-  key violations, zero snapshot rows, and no SQLite sidecar file.
-- After `mvn -DskipTests compile` recopied 273 resources and compiled 562 Java sources successfully,
-  BancaStato ARWeb was restarted from `target/classes` outside the IntelliJ debugger with the exact
-  `Config-4.2\ARWeb.config`. PID `33084` is responsive on dynamic ports `127.0.0.1:50612` and
-  `127.0.0.1:50613`; HTTP serves `main.eb4f02b1.js` and `main.df7752f0.css`, and the six new `.2`
-  logs contain zero error/exception matches.
-- No backend package/image was built, no fresh scan has yet produced a READY snapshot, and no other
-  database or SQL Server schema was changed. Live snapshot ACL and orphan inventory, the untouched
-  pre-existing orphan capture folder, and full desktop/browser acceptance remain open gates.
+  `D:\Projects\ARWebBancaStato\ARWeb\database.db` in one SQLite transaction. The initial
+  post-migration state had 24 migration rows, the expected 13-column table and indexes,
+  `quick_check=ok`, zero foreign-key violations, zero snapshot rows, and no SQLite sidecar file.
+- The targeted live scan then created the sole snapshot row:
+  `16a2d848-6660-4f86-9786-5726d209d4e9`, owner Home Banking `13` / Bot Job `29` / Home URL `15`,
+  captured `2026-08-10T12:12:10.059962200Z`, 93 elements, `READY`, final `pinned=0`, and manifest
+  SHA-256 `e5e099c71f9d3099943121cd285627da991bd6d5a00f7c117bc90bd18c305bcd`.
+- Its owner-scoped capture contains exactly `manifest.json`, `screenshot.png`, `elements.json`,
+  `rects.json`, and `meta.json`. The manifest hash matches the database, each payload hash matches
+  the manifest, and the capture chain plus all five files have protected ACLs limited to the
+  process user, SYSTEM, and Administrators. No SQLite sidecar, deletion/retention journal, staging
+  folder, or temporary snapshot artifact remains.
+- Targeted acceptance exposed one backend ingress defect: both raw and decoded WebSocket guards
+  used `contains("ping")`, so every `pageMappings.*` operation was silently swallowed because
+  `Mappings` contains lowercase `ping`. Commit `70d5d08d` now ignores only exact `ping` or
+  `ping-*` control frames and preserves the existing plain and encoded heartbeat producers.
+- `mvn -DskipTests compile` passed with 562 Java sources and the two existing warnings. The targeted
+  BancaStato IntelliJ-debug acceptance run used PID `2852`, started after the rebuilt class from
+  `target/classes`, and listened on `127.0.0.1:65278` / `127.0.0.1:65279`. HTTP served the matching
+  `main.eb4f02b1.js` and `main.df7752f0.css` assets. Live logs record
+  `pageMappings.openResponse`, the `pageMappingsManager` connection, bootstrap, a 734,829-byte
+  integrity-verified capture response, cache state, four explicit pin responses, and capture
+  reload. No Page Mappings failure/error was recorded after the open request; one earlier Bot Job
+  transport EOF reconnected before Page Mappings opened. PID `2852` is now stopped and both ports
+  are closed, so no running-service health is claimed after the acceptance window.
+- No backend package/image or other-database/SQL Server rollout was performed. The pre-existing
+  orphan capture folder remains untouched; orphan inventory/reconciliation and broader live
+  reconnect, takeover, retarget, deletion, same-ID reuse, Use Existing/Rescan, retention
+  policy-save/purge, OCR/Memory, and multi-page acceptance remain open.
 - Unrelated dirty Grid, Claude-settings, Marketing, patch, and screenshot files remain preserved
   and outside these commits. During final temporary-worktree cleanup, Git for Windows followed the
   worktree's `node_modules` junction into the original frontend checkout before failing on a path
