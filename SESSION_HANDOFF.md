@@ -505,6 +505,41 @@ Lloyds Smoke Integration or Page Mappings live-acceptance gates above.
   Apply; and disconnect/takeover/same-ID/multi-page lifecycle behavior. Live acceptance, legacy
   orphan inventory, other-database/SQL Server rollout, and package/image delivery remain separate.
 
+### Page Mappings OCR Review guidance and alias rollback - 2026-08-11
+
+This checkpoint supersedes only the current Page Mappings OCR help, OCR proposal presentation, and
+frontend asset/runtime status. OCR authorization, transaction, reconnect, and persistence contracts
+remain unchanged.
+
+- Frontend `4ff3a99` expands the `Immutable capture workspace / Page Mappings rules` dialog with the
+  selected-screenshot OCR workflow, quality meanings, safe one-row test, exact Apply scope and
+  non-effects, Memory List behavior, limits, rollback, and unknown-outcome recovery.
+- Read-only live SQLite evidence proved the user's Apply had succeeded: `scanned_element.id=672`,
+  Bot Job 32, canonical `bancastato`, has `client_named=Banca Stato`. The apparent failure was
+  frontend state: changing Proposed name did not select Use, and a successful Apply replaced the
+  row object, causing the panel to initialize its draft again from the old OCR text and select it as
+  another pending change.
+- Frontend `3f67e5a` makes a valid edited proposal select its Use checkbox, preserves the acknowledged
+  draft for the same OCR Review request, and clears selection when that draft becomes authoritative.
+  A compact restore icon appears only for rows with a client alias and immediately submits one exact
+  `clientNamed=null` change through the existing all-or-nothing OCR Apply path. No Rescan or new
+  backend operation is involved.
+- A successful Apply still refreshes the loaded immutable-capture projection and any matching staged
+  Memory List label/revision. Adding or dragging afterward carries the saved alias; creating or
+  changing an instruction remains the separate Memory List Apply action.
+- Both frontend production builds passed with existing repository warnings; no test suite, Maven
+  command, or Java compilation ran. Final deployment `64f499e1` mirrors exactly 58 files and 19
+  images; catalog `91bab2a3` records 2,344 rows / 2,308 code cases without executing tests.
+- Current entrypoints are `main.b8284312.js` (2,097,331 bytes; SHA-256
+  `81FC483A4E71999A1E2723FC37F8C69665C7137DCBD4EE1F8CAFFCE9DCDCB045`) and
+  `main.680e6c4a.css` (510,746 bytes; SHA-256
+  `045304EA50C5F8B9CEAB94F5478DF6DE9B13767A4759AF0D760209006356F65B`). PID `1556` serves the
+  exact bytes on `127.0.0.1:57395` / `57396`; root/JS/CSS return HTTP 200. Six startup logs contain
+  no Java/SQLite/snapshot failure; one old-client WebSocket EOF followed restart.
+- The in-app browser surface was unavailable. User live acceptance remains: reopen Page Mappings,
+  confirm the saved `Banca Stato` row no longer jumps back to the OCR draft, use the restore icon only
+  if the alias should be cleared, and verify Add/drag plus the separate Memory List Apply workflow.
+
 Read `specifications/performances/COPY_LAST_RESPONSE.md` and
 `specifications/performances/Page Mappins PLAN 2026-08-07.md` before continuing.
 

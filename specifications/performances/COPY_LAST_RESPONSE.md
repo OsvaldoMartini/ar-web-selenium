@@ -2,7 +2,7 @@
 
 Keep exactly two review sections. Check tasks only after their separate gates pass.
 
-**Last updated:** 2026-08-11 - Frontend `1e8d528` adds `About this Software`, the `License Request` title, compact top-bar Ready/warning/error messages, and mandatory-field validation. Focused checks passed 2 suites / 8 tests and the production build passed. Deployment `c320f5a6` serves exact `main.7a606860.js` / `main.834b1a93.css` bytes from PID `28552` on 53768/53769; catalog `2f0db93e` records 2,344 rows. No live visual click-through, Java test, migration, package, or image is claimed.
+**Last updated:** 2026-08-11 - Frontend `4ff3a99` expands Page Mappings OCR rules and `3f67e5a` fixes Proposed-name acknowledgement, auto-selection, and one-click canonical-name rollback. Deployment `64f499e1` serves exact `main.b8284312.js` / `main.680e6c4a.css` bytes from PID `1556` on 57395/57396; catalog `91bab2a3` records 2,344 rows. Production build passed with existing warnings; no test suite, Maven command, Java compilation, migration, package, or image is claimed.
 
 ## 1. CODEX -> CLAUDE - Page Mappings and Memory lifecycle review handoff
 
@@ -321,6 +321,23 @@ The Page Mappings roadmap is now source-complete through P7:
   29 -> 32 live retarget, retention Save/Purge, OCR Apply, Memory Add/drag/Apply, reconnect/takeover/
   same-ID/multi-page behavior, orphan reconciliation, other DB/SQL Server rollout, and packaging.
 
+### Page Mappings OCR Review guidance and alias rollback
+
+- Frontend `4ff3a99` expands the rules modal with the exact selected-screenshot Review, safe-test,
+  Apply, Memory, rollback, limit, and recovery rules.
+- Read-only SQLite evidence confirms the user's save succeeded: scanned row 672 for Bot Job 32 is
+  canonical `bancastato` with `client_named=Banca Stato`. The UI looked reverted because editing did
+  not auto-select Use and the Apply response caused the old OCR proposal to be initialized again.
+- Frontend `3f67e5a` auto-selects a valid edited draft, preserves the acknowledged value for the same
+  Review request, and removes the pending selection after it becomes authoritative. Its compact
+  restore icon submits one exact `clientNamed=null` change through the existing OCR Apply contract;
+  there is no Rescan or new backend route.
+- Successful Apply refreshes matching staged Memory labels/revisions. Add/drag carries the saved
+  alias, while Bot Job instruction creation remains a separate Memory List Apply action.
+- Deployment `64f499e1` and catalog `91bab2a3` are pushed. PID `1556` serves exact
+  `main.b8284312.js` / `main.680e6c4a.css` bytes on 57395/57396. No visual browser acceptance or
+  test suite ran.
+
 ### Current risks
 
 | Severity | Status | Risk |
@@ -435,6 +452,10 @@ The Page Mappings roadmap is now source-complete through P7:
   inactive Block 204 and is not Lloyds plan evidence. START must open/settle Lloyds automatically,
   and Stop must restore controls without a Bot Job switch.
 - [ ] TASK - User must run one fresh adaptive `SCROLL PAGE` Rescan with a selected non-default limit and compare the full-page visual result; Codex did not trigger this scan.
+- [x] TASK - OCR Review rules, proposal acknowledgement/auto-selection, and canonical rollback are
+  pushed in frontend `4ff3a99` / `3f67e5a`; exact deployment `64f499e1` and catalog `91bab2a3` are live.
+- [ ] TASK - Reopen Page Mappings and visually confirm the saved Banca Stato alias remains displayed;
+  use the restore icon only if rollback is intended, then verify Add/drag and separate Memory Apply.
 - [ ] TASK - Package/image delivery, other-database/SQL Server rollout, and broader reconnect/takeover/retention-save-purge/OCR/Memory/multi-page acceptance remain open.
 
 ## 2. CLAUDE -> CODEX - Independent review requested
@@ -483,6 +504,9 @@ The Page Mappings roadmap is now source-complete through P7:
   an unknown commit attempt and always reaches React as correlated `reloadRequired=true`.
 - [ ] TASK - Confirm abrupt `Error` paths detach the active OCR lane before allocation/copy work and
   an outer read-connection close cannot replace an already-built mutation response.
+- [ ] TASK - Validate frontend `3f67e5a`: edited Proposed names auto-select Use, the same Review does
+  not restore stale OCR text after success, and rollback sends one exact null alias while preserving
+  owner/revision/reconnect safety and Memory projection updates.
 - [ ] TASK - Review snapshot verification commit `380841af`; confirm FAILED creation recovery honors
   NOT NULL migration columns and extended-length ACL handling preserves the private/no-follow model.
 - [ ] TASK - Review assets/catalog `fb23c531` / `d76362ff`; confirm the manifest selects

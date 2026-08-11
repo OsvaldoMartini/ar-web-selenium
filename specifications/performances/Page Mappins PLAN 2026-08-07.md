@@ -921,3 +921,31 @@ it does not change or close any Page Mappings source/live gate above.
   visual quality, disconnect/reconnect/takeover/same-ID/deletion, and multiple pages.
 - [ ] Reconcile the separate legacy orphan capture folder; roll out migrations to other required
   databases/SQL Server; create a distributable package/image only if required.
+
+## Page Mappings OCR Review guidance and alias rollback - 2026-08-11
+
+This checkpoint supersedes only the current OCR Review help/proposal presentation and frontend
+asset/runtime status. The existing backend OCR Apply authority and transaction remain unchanged.
+
+- [x] Frontend `4ff3a99` documents that Review reads the selected immutable screenshot, is read-only,
+  and changes only selected client aliases through Apply. It also documents quality, a safe one-row
+  test, non-effects, Memory behavior, limits, rollback, and reload-required recovery.
+- [x] Root cause confirmed from source and read-only SQLite: row 672 already persisted
+  `client_named=Banca Stato`. Proposed-name edits did not select Use, and successful Apply recreated
+  drafts from the old OCR text for the same request, making the save appear undone.
+- [x] Frontend `3f67e5a` auto-selects valid edited proposals, preserves same-request acknowledged
+  drafts, and clears their selection once authoritative. A small restore SVG submits one exact null
+  alias through the existing OCR Apply path and returns display to the canonical name without Rescan.
+- [x] Successful aliases continue to update the loaded capture and matching staged Memory entries;
+  Add/drag carries the alias and Memory List Apply remains the only instruction-creation step.
+- [x] Production build passed with existing warnings. Deployment `64f499e1` contains 58 exact files
+  and 19 images; catalog `91bab2a3` was regenerated without running tests. No Java source changed,
+  so no Maven command or Java compilation ran.
+- [x] PID `1556` serves `main.b8284312.js` (SHA-256
+  `81FC483A4E71999A1E2723FC37F8C69665C7137DCBD4EE1F8CAFFCE9DCDCB045`) and
+  `main.680e6c4a.css` (SHA-256
+  `045304EA50C5F8B9CEAB94F5478DF6DE9B13767A4759AF0D760209006356F65B`) on 57395/57396 with
+  HTTP 200; six startup logs contain no Java/SQLite/snapshot failure.
+- [ ] User live gate: reopen Page Mappings, confirm Banca Stato remains after Apply, optionally click
+  restore to clear the alias, and verify Add/drag plus separate Memory List Apply. No controllable
+  in-app browser was attached to Codex.
