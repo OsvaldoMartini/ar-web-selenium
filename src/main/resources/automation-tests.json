@@ -1,27 +1,27 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-11T15:02:53.555Z",
+  "generatedAt": "2026-08-11T17:07:54.578Z",
   "summary": {
-    "catalogEntries": 2351,
-    "automatedCodeCases": 2315,
+    "catalogEntries": 2353,
+    "automatedCodeCases": 2317,
     "generatedApiCases": 19452,
-    "totalAutomatedCases": 21767,
-    "automatedSuites": 487,
+    "totalAutomatedCases": 21769,
+    "automatedSuites": 489,
     "generatedSuites": 21,
     "manualArtifacts": 9,
     "supportArtifacts": 6,
-    "defaultRunnable": 2286,
-    "safeRunAllEligible": 2286
+    "defaultRunnable": 2288,
+    "safeRunAllEligible": 2288
   },
   "sources": [
     {
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "branch": "refactor/perform-actions-decomposition",
-      "commit": "354256c88aeced72fe398b8821db964f755ce05d",
-      "sourceFiles": 331,
-      "automatedSuites": 320,
-      "automatedTestCases": 1433,
+      "commit": "d593db48275a7ad8a4957d8c60a6e53f90110028",
+      "sourceFiles": 333,
+      "automatedSuites": 322,
+      "automatedTestCases": 1435,
       "generatedSuites": 0,
       "generatedCases": 0
     },
@@ -1061,7 +1061,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.db.MigrationRunnerPageScanSnapshotRegistrationTest#registersUniqueFollowUpImmediatelyAfterOriginalSnapshotMigration@20",
+      "id": "junit:com.allinweb.ch.db.MigrationRunnerPageScanSnapshotRegistrationTest#registersUniqueFollowUpImmediatelyAfterOriginalSnapshotMigration@21",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -1075,7 +1075,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/db/MigrationRunnerPageScanSnapshotRegistrationTest.java",
-      "line": 20,
+      "line": 21,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -1085,7 +1085,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.db.MigrationRunnerPageScanSnapshotRegistrationTest#originalMigrationRecordDoesNotSuppressTheFollowUpRepair@37",
+      "id": "junit:com.allinweb.ch.db.MigrationRunnerPageScanSnapshotRegistrationTest#originalMigrationRecordDoesNotSuppressTheFollowUpRepair@41",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -1099,7 +1099,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/db/MigrationRunnerPageScanSnapshotRegistrationTest.java",
-      "line": 37,
+      "line": 41,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -1440,6 +1440,30 @@
       "runnable": true,
       "runAllEligible": true,
       "command": "mvn -Dtest=com.allinweb.ch.db.migrations.M20260808_PageScanSnapshotSqlServerKeyRepairTest#skipsNonSqlServerDialectsWithoutTouchingTheConnection test",
+      "tags": [
+        "Test"
+      ]
+    },
+    {
+      "id": "junit:com.allinweb.ch.db.migrations.M20260811_ExcelWriteInstructionTargetsTest#backfillsInstructionTargetsPreservesVariablesAndClearsOnlyElementParents@15",
+      "project": "AR Web Scanner",
+      "repository": "ar-web-selenium",
+      "recordType": "AUTOMATED_CASE",
+      "suite": "com.allinweb.ch.db.migrations.M20260811_ExcelWriteInstructionTargetsTest",
+      "name": "backfillsInstructionTargetsPreservesVariablesAndClearsOnlyElementParents",
+      "displayName": "backfillsInstructionTargetsPreservesVariablesAndClearsOnlyElementParents",
+      "framework": "JUnit 5",
+      "language": "Java",
+      "kind": "UNIT",
+      "runtime": "JVM",
+      "execution": "DEFAULT",
+      "safety": "SAFE",
+      "sourcePath": "src/test/java/com/allinweb/ch/db/migrations/M20260811_ExcelWriteInstructionTargetsTest.java",
+      "line": 15,
+      "caseCount": 1,
+      "runnable": true,
+      "runAllEligible": true,
+      "command": "mvn -Dtest=com.allinweb.ch.db.migrations.M20260811_ExcelWriteInstructionTargetsTest#backfillsInstructionTargetsPreservesVariablesAndClearsOnlyElementParents test",
       "tags": [
         "Test"
       ]
@@ -9457,6 +9481,30 @@
       "runnable": true,
       "runAllEligible": true,
       "command": "mvn -Dtest=com.allinweb.ch.facade.ExcelExportTargetTest#legacySentinelDoesNotHideARealPathContainingTheSameWords test",
+      "tags": [
+        "Test"
+      ]
+    },
+    {
+      "id": "junit:com.allinweb.ch.facade.execution.ExcelWriteFileWriteCoordinatorTest#serializesEveryWriterForTheSameNormalizedFile@18",
+      "project": "AR Web Scanner",
+      "repository": "ar-web-selenium",
+      "recordType": "AUTOMATED_CASE",
+      "suite": "com.allinweb.ch.facade.execution.ExcelWriteFileWriteCoordinatorTest",
+      "name": "serializesEveryWriterForTheSameNormalizedFile",
+      "displayName": "serializesEveryWriterForTheSameNormalizedFile",
+      "framework": "JUnit 5",
+      "language": "Java",
+      "kind": "UNIT",
+      "runtime": "JVM",
+      "execution": "DEFAULT",
+      "safety": "SAFE",
+      "sourcePath": "src/test/java/com/allinweb/ch/facade/execution/ExcelWriteFileWriteCoordinatorTest.java",
+      "line": 18,
+      "caseCount": 1,
+      "runnable": true,
+      "runAllEligible": true,
+      "command": "mvn -Dtest=com.allinweb.ch.facade.execution.ExcelWriteFileWriteCoordinatorTest#serializesEveryWriterForTheSameNormalizedFile test",
       "tags": [
         "Test"
       ]
