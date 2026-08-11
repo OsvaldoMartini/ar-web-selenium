@@ -55,9 +55,10 @@ public final class SmokeTestIntegrationContracts {
         SYNTHETIC
     }
 
-    /** The first integration version may reuse the current authenticated page, but not retarget it. */
+    /** Authoritative start behavior for the selected Bot Job Playwright page. */
     public enum PagePolicy {
-        PRESERVE_ACTIVE
+        PRESERVE_ACTIVE,
+        RELOAD_SELECTED
     }
 
     /** Whole-run physical runtime. A run cannot change this value after START. */
@@ -304,6 +305,7 @@ public final class SmokeTestIntegrationContracts {
             long datasetRevision,
             String datasetContentRevision,
             String runtimeMode,
+            String pagePolicy,
             boolean durableRuntimeWrites,
             RuntimeSnapshot runtimeSnapshot,
             int blockCount,
@@ -328,6 +330,7 @@ public final class SmokeTestIntegrationContracts {
             datasetContentRevision = requireSha256(
                     datasetContentRevision, "datasetContentRevision");
             runtimeMode = requireEnumText(runtimeMode, "runtimeMode", RuntimeMode.class);
+            pagePolicy = requireEnumText(pagePolicy, "pagePolicy", PagePolicy.class);
             runtimeSnapshot = Objects.requireNonNull(
                     runtimeSnapshot, "Smoke integration runtimeSnapshot is required");
             requireNonNegative(blockCount, "blockCount");

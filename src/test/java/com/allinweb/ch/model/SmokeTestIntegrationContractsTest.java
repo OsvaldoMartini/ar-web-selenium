@@ -197,6 +197,7 @@ class SmokeTestIntegrationContractsTest {
                         8L,
                         REVISION,
                         "JAVA_V1",
+                        "PRESERVE_ACTIVE",
                         false,
                         runtime,
                         2,
@@ -206,6 +207,7 @@ class SmokeTestIntegrationContractsTest {
 
         mutableValues.clear();
         assertEquals("JAVA_V1", response.runtimeMode());
+        assertEquals("PRESERVE_ACTIVE", response.pagePolicy());
         assertEquals(2, response.runtimeSnapshot().values().size());
         assertThrows(
                 UnsupportedOperationException.class,

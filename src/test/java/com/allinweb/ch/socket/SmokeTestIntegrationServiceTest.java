@@ -50,6 +50,7 @@ class SmokeTestIntegrationServiceTest {
     private RecordingSteps steps;
     private RecordingV2 v2;
     private AtomicReference<String> openedBrowserUrl;
+    private RecordingBrowserStart browserStart;
     private SmokeTestIntegrationService service;
 
     @BeforeEach
@@ -71,6 +72,7 @@ class SmokeTestIntegrationServiceTest {
         steps = new RecordingSteps();
         v2 = new RecordingV2();
         openedBrowserUrl = new AtomicReference<>();
+        browserStart = new RecordingBrowserStart(openedBrowserUrl);
 
         SmokeIntegrationAuthorization authorization = new SmokeIntegrationAuthorization(
                 BINDING_EPOCH,
@@ -101,10 +103,7 @@ class SmokeTestIntegrationServiceTest {
                 v2,
                 browserOwnership,
                 (botJobId, workspaceEpoch) -> "IDLE",
-                (browserType, url, optionsConfig) -> {
-                    openedBrowserUrl.set(url);
-                    return true;
-                },
+                browserStart,
                 responses,
                 worker);
     }
@@ -209,6 +208,7 @@ class SmokeTestIntegrationServiceTest {
     void explicitV2RunNeverOpensOrExecutesThroughTheSharedJavaBrowser() throws Exception {
         JsonObject request = startRequest("start-v2");
         request.addProperty("runtimeMode", "TYPESCRIPT_PLAYWRIGHT_V2");
+        request.addProperty("pagePolicy", "RELOAD_SELECTED");
         service.handle(
                 SmokeTestIntegrationContracts.START,
                 request,
@@ -219,6 +219,7 @@ class SmokeTestIntegrationServiceTest {
 
         assertTrue(started.get("ok").getAsBoolean());
         assertEquals("TYPESCRIPT_PLAYWRIGHT_V2", started.get("runtimeMode").getAsString());
+        assertEquals("RELOAD_SELECTED", started.get("pagePolicy").getAsString());
         assertEquals("runtime-v2-run", runId);
         assertEquals(1, v2.starts.get());
         assertEquals(0, browserOwnership.closes.get());
@@ -245,6 +246,23 @@ class SmokeTestIntegrationServiceTest {
         assertEquals(0, browserOwnership.closes.get());
     }
 
+    @Test
+    void reloadPolicyUsesStrictSelectedPageInsteadOfPreservingTheCurrentPage() throws Exception {
+        JsonObject request = startRequest("start-reload");
+        request.addProperty("pagePolicy", "RELOAD_SELECTED");
+        service.handle(
+                SmokeTestIntegrationContracts.START,
+                request,
+                DetachedWorkspaceSessions.SMOKE_TEST_MANAGER,
+                transport);
+        JsonObject started = responses.await(SmokeTestIntegrationContracts.START_RESPONSE).body;
+
+        assertTrue(started.get("ok").getAsBoolean());
+        assertEquals("RELOAD_SELECTED", started.get("pagePolicy").getAsString());
+        assertEquals(1, browserStart.selected.get());
+        assertEquals(0, browserStart.preserved.get());
+    }
+
     private JsonObject start(String requestId) throws InterruptedException {
         service.handle(
                 SmokeTestIntegrationContracts.START,
@@ -255,7 +273,10 @@ class SmokeTestIntegrationServiceTest {
         assertTrue(response.body.get("ok").getAsBoolean());
         assertEquals(requestId, response.body.get("requestId").getAsString());
         assertEquals(OWNER.homeBankingId(), response.homeBankingId);
+        assertEquals("PRESERVE_ACTIVE", response.body.get("pagePolicy").getAsString());
         assertEquals("https://example.test", openedBrowserUrl.get());
+        assertEquals(0, browserStart.selected.get());
+        assertEquals(1, browserStart.preserved.get());
         return response.body;
     }
 
@@ -390,6 +411,33 @@ class SmokeTestIntegrationServiceTest {
         @Override
         public void close(SmokeTestIntegrationService.V2Run run) {
             closes.incrementAndGet();
+        }
+    }
+
+    private static final class RecordingBrowserStart
+            implements SmokeTestIntegrationService.BrowserStartPort {
+        private final AtomicReference<String> openedUrl;
+        private final AtomicInteger selected = new AtomicInteger();
+        private final AtomicInteger preserved = new AtomicInteger();
+
+        private RecordingBrowserStart(AtomicReference<String> openedUrl) {
+            this.openedUrl = openedUrl;
+        }
+
+        @Override
+        public boolean openSelectedPageAndWait(
+                String browserType, String url, String optionsConfig) {
+            selected.incrementAndGet();
+            openedUrl.set(url);
+            return true;
+        }
+
+        @Override
+        public boolean openPreservingCurrentPageAndWait(
+                String browserType, String url, String optionsConfig) {
+            preserved.incrementAndGet();
+            openedUrl.set(url);
+            return true;
         }
     }
 

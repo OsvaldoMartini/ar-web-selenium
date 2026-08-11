@@ -18,6 +18,7 @@ import com.allinweb.ch.model.DetachedWorkspaceSessions;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts.Correlation;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts.FinishRequest;
+import com.allinweb.ch.model.SmokeTestIntegrationContracts.PagePolicy;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts.RefreshRequest;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts.RunStatus;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts.RuntimeSnapshot;
@@ -33,6 +34,7 @@ import com.allinweb.ch.socket.ExcelDataWorkspaceService.IntegrationDataset;
 import com.allinweb.ch.socket.VariablesWorkspaceService.SmokeIntegrationAuthorization;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -343,15 +345,26 @@ public final class SmokeTestIntegrationService {
                 boolean pageReady = workspaces.commitMutation(
                         authorization.botJobId(),
                         authorization.workspaceEpoch(),
-                        () -> browser.openSelectedPageAndWait(
-                                plan.environment().browserType(),
-                                plan.environment().url(),
-                                plan.environment().optionsConfig()));
+                        () -> request.pagePolicy() == PagePolicy.PRESERVE_ACTIVE
+                                ? browser.openPreservingCurrentPageAndWait(
+                                        plan.environment().browserType(),
+                                        plan.environment().url(),
+                                        plan.environment().optionsConfig())
+                                : browser.openSelectedPageAndWait(
+                                        plan.environment().browserType(),
+                                        plan.environment().url(),
+                                        plan.environment().optionsConfig()));
                 if (!pageReady) {
                     throw new IllegalStateException(
-                            "The selected Bot Job Playwright page could not be opened and settled.");
+                            request.pagePolicy() == PagePolicy.PRESERVE_ACTIVE
+                                    ? "The current Playwright page is unavailable or belongs to another site."
+                                    : "The selected Bot Job Playwright page could not be opened and settled.");
                 }
             } else {
+                if (request.pagePolicy() != PagePolicy.RELOAD_SELECTED) {
+                    throw new IllegalArgumentException(
+                            "Execution V2 requires a new isolated page at the selected Bot Job URL.");
+                }
                 v2Run = v2.start(authorization, plan, dataset.mode());
             }
             if (!variables.isCurrent(authorization, transport)) {
@@ -373,6 +386,7 @@ public final class SmokeTestIntegrationService {
                             authorization.botJobId(),
                             request.durableRuntimeWrites()),
                     request.runtimeMode(),
+                    request.pagePolicy(),
                     lease,
                     v2Run);
             synchronized (stateLock) {
@@ -401,12 +415,15 @@ public final class SmokeTestIntegrationService {
                     dataset.datasetRevision(),
                     dataset.contentRevision(),
                     request.runtimeMode().name(),
+                    request.pagePolicy().name(),
                     request.durableRuntimeWrites(),
                     run.runtimeSnapshot,
                     plan.blocks().size(),
                     plan.instructions().size(),
                     "INTEGRATION_STARTED",
-                    "Integration owns the selected Bot Job Playwright page.");
+                    request.pagePolicy() == PagePolicy.PRESERVE_ACTIVE
+                            ? "Integration continues from the current Playwright page."
+                            : "Integration owns the reloaded Bot Job Playwright page.");
             return successful(response);
         } catch (IllegalArgumentException | IllegalStateException refused) {
             log.warn("Smoke Test Integration start refused: {}", refused.getMessage());
@@ -1169,6 +1186,11 @@ public final class SmokeTestIntegrationService {
     interface BrowserStartPort {
         boolean openSelectedPageAndWait(String browserType, String url, String optionsConfig);
 
+        default boolean openPreservingCurrentPageAndWait(
+                String browserType, String url, String optionsConfig) {
+            return openSelectedPageAndWait(browserType, url, optionsConfig);
+        }
+
         default boolean reloadCurrentPage() {
             return false;
         }
@@ -1191,6 +1213,49 @@ public final class SmokeTestIntegrationService {
             return currentUrl != null
                     && !currentUrl.isBlank()
                     && !"about:blank".equalsIgnoreCase(currentUrl.trim());
+        }
+
+        @Override
+        public boolean openPreservingCurrentPageAndWait(
+                String browserType, String url, String optionsConfig) {
+            ARWebDriver driver = ARWebDriver.getInstance();
+            var current = driver.currentPlaywrightDriver();
+            if (current != null && current.isOpen()
+                    && !sameOrigin(current.currentUrl(), url)) {
+                return false;
+            }
+            if (!driver.openBrowserPreservingCurrentPage(browserType, url, optionsConfig)) {
+                return false;
+            }
+            current = driver.currentPlaywrightDriver();
+            if (current == null || !current.isOpen()) return false;
+            current.waitForPageSettled(15_000L);
+            String currentUrl = current.currentUrl();
+            return currentUrl != null
+                    && !currentUrl.isBlank()
+                    && !"about:blank".equalsIgnoreCase(currentUrl.trim())
+                    && sameOrigin(currentUrl, url);
+        }
+
+        private static boolean sameOrigin(String currentUrl, String selectedUrl) {
+            try {
+                URI current = URI.create(currentUrl);
+                URI selected = URI.create(selectedUrl);
+                return equalIgnoreCase(current.getScheme(), selected.getScheme())
+                        && equalIgnoreCase(current.getHost(), selected.getHost())
+                        && effectivePort(current) == effectivePort(selected);
+            } catch (IllegalArgumentException invalidUrl) {
+                return false;
+            }
+        }
+
+        private static int effectivePort(URI uri) {
+            if (uri.getPort() >= 0) return uri.getPort();
+            return "https".equalsIgnoreCase(uri.getScheme()) ? 443 : 80;
+        }
+
+        private static boolean equalIgnoreCase(String left, String right) {
+            return left != null && right != null && left.equalsIgnoreCase(right);
         }
 
         @Override
@@ -1357,6 +1422,7 @@ public final class SmokeTestIntegrationService {
         private final RunVariables variables;
         private final RuntimeSnapshot runtimeSnapshot;
         private final RuntimeMode runtimeMode;
+        private final PagePolicy pagePolicy;
         private final BrowserLease lease;
         private final V2Run v2Run;
         private final java.util.concurrent.atomic.AtomicBoolean released =
@@ -1383,6 +1449,7 @@ public final class SmokeTestIntegrationService {
                 boolean durableRuntimeWrites,
                 RunVariables variables,
                 RuntimeMode runtimeMode,
+                PagePolicy pagePolicy,
                 BrowserLease lease,
                 V2Run v2Run) {
             this.runId = runId;
@@ -1395,6 +1462,7 @@ public final class SmokeTestIntegrationService {
             this.variables = variables;
             this.runtimeSnapshot = variables.initialSnapshot();
             this.runtimeMode = runtimeMode;
+            this.pagePolicy = pagePolicy;
             this.lease = lease;
             this.v2Run = v2Run;
         }
