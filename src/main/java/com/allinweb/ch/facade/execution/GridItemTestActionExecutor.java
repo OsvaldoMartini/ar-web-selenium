@@ -2,6 +2,8 @@ package com.allinweb.ch.facade.execution;
 
 import com.allinweb.ch.driver.ARPlaywrightDriver;
 import com.allinweb.ch.driver.ARWebDriver;
+import com.allinweb.ch.facade.PlaywrightRuntimeHealingExecutor.Result;
+import com.allinweb.ch.facade.RuntimeElementHealingService;
 import com.allinweb.ch.facade.execution.GridItemTestInstructionRepository.InstructionSnapshot;
 import com.allinweb.ch.model.FieldData;
 import com.allinweb.ch.model.GridItemTestActionContracts.Action;
@@ -264,6 +266,9 @@ public final class GridItemTestActionExecutor {
     }
 
     private static final class DefaultBrowserPort implements BrowserPort {
+        private final RuntimeElementHealingService healingService =
+                RuntimeElementHealingService.getInstance();
+
         private ARPlaywrightDriver driver() {
             ARPlaywrightDriver driver = ARWebDriver.getInstance().currentPlaywrightDriver();
             if (driver == null || !driver.isOpen()) {
@@ -274,12 +279,29 @@ public final class GridItemTestActionExecutor {
 
         @Override
         public boolean clickOnce(InstructionLoad instruction) {
-            return driver().clickOnce(instruction);
+            ARPlaywrightDriver activeDriver = driver();
+            Result result = activeDriver.runtimeClick(
+                    instruction,
+                    healingService.prepare(
+                            instruction.getHomeBankingId(),
+                            instruction.getBotJobId(),
+                            activeDriver.currentUrl(),
+                            instruction));
+            return result.succeeded();
         }
 
         @Override
         public boolean fillOnce(InstructionLoad instruction, FieldData value) {
-            return driver().fillOnceWithoutValueLogging(instruction, value);
+            ARPlaywrightDriver activeDriver = driver();
+            Result result = activeDriver.runtimeInput(
+                    instruction,
+                    value,
+                    healingService.prepare(
+                            instruction.getHomeBankingId(),
+                            instruction.getBotJobId(),
+                            activeDriver.currentUrl(),
+                            instruction));
+            return result.succeeded();
         }
     }
 }

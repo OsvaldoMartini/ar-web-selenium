@@ -682,6 +682,11 @@ public class SimpleWebSocketServer {
                     && !pauseResponseWithoutLicense
                     && !pageScannerCloseWithoutLicense
                     && !smokeCleanupWithoutLicense) {
+                if (gridItemTestActionOperation) {
+                    gridItemTestActionService.rejectLicense(
+                            extractBody(jsonObjMSG), session);
+                    return;
+                }
                 if (gridItemWebElementTypeOperation) {
                     gridItemWebElementTypeService.rejectLicense(
                             extractBody(jsonObjMSG), session);

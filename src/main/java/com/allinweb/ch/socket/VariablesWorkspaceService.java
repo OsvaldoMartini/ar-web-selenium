@@ -2392,21 +2392,26 @@ public final class VariablesWorkspaceService {
         JsonObject request = body == null ? new JsonObject() : body;
         Binding current = null;
         try {
-            requireManagerTransport(requesterSessionId, requesterTransport);
-            current = currentBinding();
-            if (current == null) {
-                throw new IllegalArgumentException(
-                        "No Bot Job is bound to the Variables workspace.");
+            if (DetachedWorkspaceSessions.SMOKE_TEST_MANAGER.equals(requesterSessionId)) {
+                current = authorizeRuntimeRequest(
+                        request, requesterSessionId, requesterTransport);
+            } else {
+                requireManagerTransport(requesterSessionId, requesterTransport);
+                current = currentBinding();
+                if (current == null) {
+                    throw new IllegalArgumentException(
+                            "No Bot Job is bound to the Variables workspace.");
+                }
+                String requestedBindingEpoch = text(request, "bindingEpoch");
+                if (requestedBindingEpoch.isBlank()
+                        || !requestedBindingEpoch.equals(current.bindingEpoch())) {
+                    throw new IllegalArgumentException(
+                            "The Variables target changed. Reload the current Bot Job.");
+                }
+                WorkspaceContext workspace =
+                        workspaces.require(current.botJobId(), current.workspaceEpoch());
+                current = current.withWorkspace(workspace);
             }
-            String requestedBindingEpoch = text(request, "bindingEpoch");
-            if (requestedBindingEpoch.isBlank()
-                    || !requestedBindingEpoch.equals(current.bindingEpoch())) {
-                throw new IllegalArgumentException(
-                        "The Variables target changed. Reload the current Bot Job.");
-            }
-            WorkspaceContext workspace =
-                    workspaces.require(current.botJobId(), current.workspaceEpoch());
-            current = current.withWorkspace(workspace);
             VariablesWorkspaceInstructionStatus.Request statusRequest;
             try {
                 statusRequest = gson.fromJson(
@@ -2427,7 +2432,8 @@ public final class VariablesWorkspaceService {
                             authorized.workspaceEpoch(),
                             () -> persistInstructionStatus(authorized, statusRequest));
             JsonObject response = instructionStatusSuccess(request, authorized, committed);
-            if (!isCurrent(authorized) || !isManagerTransport(requesterTransport)) {
+            if (!isInstructionStatusRequesterCurrent(
+                    authorized, requesterSessionId, requesterTransport)) {
                 response.addProperty("resyncRequired", true);
                 response.addProperty(
                         "message",
@@ -2460,6 +2466,26 @@ public final class VariablesWorkspaceService {
                     "COMMAND_STATUS_FAILED",
                     "The command status was not updated.",
                     current == null ? currentBinding() : current);
+        }
+    }
+
+    private boolean isInstructionStatusRequesterCurrent(
+            Binding expected, String requesterSessionId, Session requesterTransport) {
+        if (expected == null || requesterTransport == null) return false;
+        synchronized (stateLock) {
+            if (DetachedWorkspaceSessions.SMOKE_TEST_MANAGER.equals(requesterSessionId)) {
+                return smokeTestBinding != null
+                        && smokeTestTransport == requesterTransport
+                        && windows.isRegistered(requesterSessionId, requesterTransport)
+                        && smokeTestBinding.bindingEpoch().equals(expected.bindingEpoch())
+                        && smokeTestBinding.workspaceEpoch() == expected.workspaceEpoch()
+                        && smokeTestBinding.botJobId() == expected.botJobId()
+                        && smokeTestBinding.homeBankingId() == expected.homeBankingId();
+            }
+            return binding != null
+                    && managerTransport == requesterTransport
+                    && binding.bindingEpoch().equals(expected.bindingEpoch())
+                    && binding.workspaceEpoch() == expected.workspaceEpoch();
         }
     }
 

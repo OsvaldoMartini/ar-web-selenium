@@ -5,6 +5,7 @@ import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.facade.CommandRegistry;
 import com.allinweb.ch.facade.PlaywrightActionExecutor.TextResult;
 import com.allinweb.ch.facade.PlaywrightRuntimeHealingExecutor.Result;
+import com.allinweb.ch.facade.PlaywrightRuntimeHealingExecutor.Diagnostic;
 import com.allinweb.ch.facade.RuntimeElementHealingService;
 import com.allinweb.ch.facade.RuntimeElementHealingService.Preparation;
 import com.allinweb.ch.facade.actions.RuntimeVariableMemoryRegistry;
@@ -136,7 +137,8 @@ public final class SmokeTestIntegrationStepExecutor {
                     instruction.optional(),
                     browser.clickOnce(instruction),
                     "CLICK_FAILED",
-                    "The Web Element click could not be completed.");
+                    "The Web Element click could not be completed.",
+                    browser.diagnostic());
             case "I" -> executeInput(instruction, dataset, rowIndex);
             case "O" -> {
                 TextResult value = browser.text(instruction);
@@ -204,7 +206,8 @@ public final class SmokeTestIntegrationStepExecutor {
                 instruction.optional(),
                 browser.fillOnce(instruction, new FieldData(column, value)),
                 "INPUT_FAILED",
-                "The Web Element input could not be completed.");
+                "The Web Element input could not be completed.",
+                browser.diagnostic());
     }
 
     private Outcome executeGet(
@@ -284,7 +287,8 @@ public final class SmokeTestIntegrationStepExecutor {
                 command.optional(),
                 browser.fillOnce(parent, new FieldData(parent.displayKey(), value.value())),
                 "SET_FAILED",
-                "SET could not update its Web Element parent.");
+                "SET could not update its Web Element parent.",
+                browser.diagnostic());
     }
 
     private Outcome executeRefresh(boolean optional) {
@@ -321,7 +325,24 @@ public final class SmokeTestIntegrationStepExecutor {
     }
 
     private static Outcome physical(
-            boolean optional, boolean succeeded, String failureCode, String failureMessage) {
+            boolean optional,
+            boolean succeeded,
+            String failureCode,
+            String failureMessage,
+            Diagnostic diagnostic) {
+        if (!succeeded && diagnostic != null) {
+            String stage = diagnostic.stage() == null ? "RESOLUTION" : diagnostic.stage();
+            String code = diagnostic.code() == null ? failureCode : diagnostic.code();
+            return failed(
+                    optional,
+                    StepDisposition.PHYSICAL,
+                    code,
+                    failureMessage
+                            + " Resolver stage " + stage
+                            + " found " + diagnostic.liveCandidateCount()
+                            + " live candidate(s); physical attempts: "
+                            + diagnostic.physicalAttempts() + ".");
+        }
         return succeeded ? passed("Playwright completed the instruction.") : failed(
                 optional, StepDisposition.PHYSICAL, failureCode, failureMessage);
     }
@@ -438,6 +459,10 @@ public final class SmokeTestIntegrationStepExecutor {
         TextResult text(InstructionSnapshot instruction);
 
         void reload();
+
+        default Diagnostic diagnostic() {
+            return null;
+        }
     }
 
     @FunctionalInterface
@@ -448,6 +473,7 @@ public final class SmokeTestIntegrationStepExecutor {
     private static final class DefaultBrowserPort implements BrowserPort {
         private final RuntimeElementHealingService healingService =
                 RuntimeElementHealingService.getInstance();
+        private Diagnostic lastDiagnostic;
 
         private ARPlaywrightDriver driver() {
             ARPlaywrightDriver driver = ARWebDriver.getInstance().currentPlaywrightDriver();
@@ -463,6 +489,7 @@ public final class SmokeTestIntegrationStepExecutor {
             com.allinweb.ch.model.InstructionLoad target = instruction.toInstructionLoad();
             Result result = activeDriver.runtimeClick(
                     target, prepare(activeDriver, instruction, target));
+            lastDiagnostic = result == null ? null : result.diagnostic();
             logResult("CLICK", instruction, result);
             return result.succeeded();
         }
@@ -473,6 +500,7 @@ public final class SmokeTestIntegrationStepExecutor {
             com.allinweb.ch.model.InstructionLoad target = instruction.toInstructionLoad();
             Result result = activeDriver.runtimeInput(
                     target, data, prepare(activeDriver, instruction, target));
+            lastDiagnostic = result == null ? null : result.diagnostic();
             logResult("INPUT", instruction, result);
             return result.succeeded();
         }
@@ -483,6 +511,7 @@ public final class SmokeTestIntegrationStepExecutor {
             com.allinweb.ch.model.InstructionLoad target = instruction.toInstructionLoad();
             Result result = activeDriver.runtimeOutput(
                     target, prepare(activeDriver, instruction, target));
+            lastDiagnostic = result == null ? null : result.diagnostic();
             logResult("OUTPUT", instruction, result);
             return result.succeeded() && result.found()
                     ? TextResult.found(result.value())
@@ -491,7 +520,13 @@ public final class SmokeTestIntegrationStepExecutor {
 
         @Override
         public void reload() {
+            lastDiagnostic = null;
             driver().reload();
+        }
+
+        @Override
+        public Diagnostic diagnostic() {
+            return lastDiagnostic;
         }
 
         private Preparation prepare(

@@ -11,6 +11,7 @@ import com.allinweb.ch.facade.execution.GridItemTestInstructionRepository.Instru
 import com.allinweb.ch.model.GridItemTestActionContracts;
 import com.allinweb.ch.model.GridItemTestActionContracts.Action;
 import com.allinweb.ch.model.GridItemTestActionContracts.Request;
+import com.allinweb.ch.model.DetachedWorkspaceSessions;
 import com.allinweb.ch.model.ScannerWorkspaceSessions;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -38,6 +39,7 @@ public final class GridItemTestActionService {
     private final BotJobGraphMutationService graphs;
     private final GridItemTestInstructionRepository instructions;
     private final ExcelDataWorkspaceService excel;
+    private final VariablesWorkspaceService variables;
     private final GridItemTestActionExecutor executor;
     private final ExecutionPauseCoordinator execution;
     private final ThreadPoolExecutor worker;
@@ -48,6 +50,7 @@ public final class GridItemTestActionService {
         this.graphs = BotJobGraphMutationService.getInstance();
         this.instructions = new GridItemTestInstructionRepository();
         this.excel = ExcelDataWorkspaceService.getInstance();
+        this.variables = VariablesWorkspaceService.getInstance();
         this.executor = new GridItemTestActionExecutor(excel::publishActiveCell);
         this.execution = ExecutionPauseCoordinator.getInstance();
         this.worker = newWorker();
@@ -83,7 +86,7 @@ public final class GridItemTestActionService {
                             safePositiveInt(body, "instructionId"),
                             safeText(body, "action"),
                             "TRANSPORT_NOT_AUTHORIZED",
-                            "Only the active Bot Job Details page can run this test action."));
+                            "Only the active Bot Job Details or Smoke Test page can run this action."));
             return;
         }
 
@@ -103,6 +106,17 @@ public final class GridItemTestActionService {
             return;
         }
 
+        JsonObject authorizedBody = body == null ? new JsonObject() : body.deepCopy();
+        try {
+            authorizeRequest(request, authorizedBody, sessionId, transport);
+        } catch (IllegalArgumentException | IllegalStateException refused) {
+            send(
+                    transport,
+                    request.homeBankingId(),
+                    failure(request, "ACTION_REFUSED", humanMessage(refused)));
+            return;
+        }
+
         String fingerprint = fingerprint(request);
         JsonObject immediate = reserve(request, fingerprint);
         if (immediate != null) {
@@ -110,7 +124,8 @@ public final class GridItemTestActionService {
             return;
         }
         try {
-            worker.execute(() -> process(request, fingerprint, sessionId, transport));
+            worker.execute(() -> process(
+                    request, fingerprint, authorizedBody, sessionId, transport));
         } catch (RejectedExecutionException busy) {
             synchronized (ledger) {
                 ledger.remove(request.requestId());
@@ -123,20 +138,15 @@ public final class GridItemTestActionService {
     }
 
     private void process(
-            Request request, String fingerprint, String sessionId, Session transport) {
+            Request request,
+            String fingerprint,
+            JsonObject authorizedBody,
+            String sessionId,
+            Session transport) {
         JsonObject response;
         try {
-            if (!authoritativeTransport(sessionId, transport)) {
-                throw new IllegalStateException(
-                        "The Bot Job Details page changed before the test action started.");
-            }
-            BotJobDetailsWorkspaceRegistry.Snapshot workspace = request.workspaceEpoch() == null
-                    ? workspaces.require(request.botJobId())
-                    : workspaces.require(request.botJobId(), request.workspaceEpoch());
-            if (workspace.homeBankingId() != request.homeBankingId()) {
-                throw new IllegalArgumentException(
-                        "The GridItem test organization does not match the active Bot Job.");
-            }
+            BotJobDetailsWorkspaceRegistry.Snapshot workspace = authorizeRequest(
+                    request, authorizedBody, sessionId, transport);
 
             try (ExecutionPauseCoordinator.ScannerActivity ignored =
                     execution.beginScannerActivity(request.botJobId(), workspace.workspaceEpoch())) {
@@ -181,6 +191,49 @@ public final class GridItemTestActionService {
 
         complete(request.requestId(), fingerprint, response);
         send(transport, request.homeBankingId(), response);
+    }
+
+    /** Correlated license refusal used by either supported detached page. */
+    public void rejectLicense(JsonObject body, Session transport) {
+        send(
+                transport,
+                safePositiveInt(body, "homeBankingId"),
+                failureBody(
+                        safeText(body, "requestId"),
+                        safePositiveInt(body, "instructionId"),
+                        safeText(body, "action"),
+                        "LICENSE_REQUIRED",
+                        "An active license is required for this Playwright test action."));
+    }
+
+    private BotJobDetailsWorkspaceRegistry.Snapshot authorizeRequest(
+            Request request, JsonObject body, String sessionId, Session transport) {
+        if (!authoritativeTransport(sessionId, transport)) {
+            throw new IllegalStateException(
+                    "The instruction-test page changed before the action started.");
+        }
+        BotJobDetailsWorkspaceRegistry.Snapshot workspace;
+        if (DetachedWorkspaceSessions.SMOKE_TEST_MANAGER.equals(sessionId)) {
+            VariablesWorkspaceService.SmokeIntegrationAuthorization authority =
+                    variables.authorizeSmokeIntegration(body, sessionId, transport);
+            if (authority.homeBankingId() != request.homeBankingId()
+                    || authority.botJobId() != request.botJobId()
+                    || request.workspaceEpoch() == null
+                    || authority.workspaceEpoch() != request.workspaceEpoch()) {
+                throw new IllegalArgumentException(
+                        "The Smoke Test action no longer matches the active Bot Job.");
+            }
+            workspace = workspaces.require(request.botJobId(), request.workspaceEpoch());
+        } else {
+            workspace = request.workspaceEpoch() == null
+                    ? workspaces.require(request.botJobId())
+                    : workspaces.require(request.botJobId(), request.workspaceEpoch());
+        }
+        if (workspace.homeBankingId() != request.homeBankingId()) {
+            throw new IllegalArgumentException(
+                    "The instruction-test organization does not match the active Bot Job.");
+        }
+        return workspace;
     }
 
     private void validateGraphIfProvided(Request request, long workspaceEpoch) throws SQLException {
@@ -254,11 +307,17 @@ public final class GridItemTestActionService {
     }
 
     boolean authoritativeTransport(String sessionId, Session transport) {
+        if (transport == null || !transport.isOpen()) return false;
+        String registered = WebSocketSessionManager.getInstance()
+                .getSessionIdBySession(transport);
+        if (DetachedWorkspaceSessions.SMOKE_TEST_MANAGER.equals(sessionId)) {
+            return sessionId.equals(registered)
+                    && WebSocketSessionManager.getSession(sessionId) == transport;
+        }
         return ScannerWorkspaceSessions.BOT_JOB_TASKS.equals(sessionId)
-                && transport != null
                 && transport.isOpen()
                 && ScannerWorkspaceSessions.BOT_JOB_TASKS.equals(
-                        WebSocketSessionManager.getInstance().getSessionIdBySession(transport))
+                        registered)
                 && WebSocketSessionManager.getSession(ScannerWorkspaceSessions.BOT_JOB_TASKS)
                         == transport;
     }
@@ -339,10 +398,17 @@ public final class GridItemTestActionService {
     }
 
     private void send(Session transport, int homeBankingId, JsonObject response) {
+        String targetSessionId = transport == null
+                ? ""
+                : WebSocketSessionManager.getInstance().getSessionIdBySession(transport);
+        if (!ScannerWorkspaceSessions.BOT_JOB_TASKS.equals(targetSessionId)
+                && !DetachedWorkspaceSessions.SMOKE_TEST_MANAGER.equals(targetSessionId)) {
+            return;
+        }
         WebSocketSessionManager.sendMessageJson(
                 Math.max(homeBankingId, 0),
                 transport,
-                ScannerWorkspaceSessions.BOT_JOB_TASKS,
+                targetSessionId,
                 response.toString(),
                 GridItemTestActionContracts.RESPONSE);
     }

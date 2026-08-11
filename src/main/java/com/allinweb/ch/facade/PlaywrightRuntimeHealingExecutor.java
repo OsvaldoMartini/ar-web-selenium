@@ -135,9 +135,8 @@ public final class PlaywrightRuntimeHealingExecutor {
                 physicalTag(instruction),
                 effectiveAction,
                 "AUTHORED");
-        Result terminal = terminalProbe(authored, action, instruction, preparation);
-        if (terminal != null) return terminal;
-        if (authored.target() != null) {
+        Probe deferredAmbiguity = authored.ambiguous() ? authored : null;
+        if (!authored.ambiguous() && authored.target() != null) {
             return executeTarget(
                     page, instruction, data, action, effectiveAction, preparation, authored);
         }
@@ -173,8 +172,10 @@ public final class PlaywrightRuntimeHealingExecutor {
                         physicalTag(instruction),
                         instruction.getIFrameXPath());
                 observed += registry.liveCandidateCount();
-                terminal = terminalProbe(registry, action, instruction, preparation);
-                if (terminal != null) return terminal;
+                if (registry.ambiguous()) {
+                    if (deferredAmbiguity == null) deferredAmbiguity = registry;
+                    continue;
+                }
                 if (registry.target() != null) {
                     Probe combined = registry.withLiveCandidateCount(observed);
                     return executeTarget(
@@ -197,9 +198,9 @@ public final class PlaywrightRuntimeHealingExecutor {
                 instruction.getIFrameXPath(),
                 physicalTag(instruction));
         observed += canonical.liveCandidateCount();
-        terminal = terminalProbe(canonical, action, instruction, preparation);
-        if (terminal != null) return terminal;
-        if (canonical.target() != null) {
+        if (canonical.ambiguous()) {
+            if (deferredAmbiguity == null) deferredAmbiguity = canonical;
+        } else if (canonical.target() != null) {
             return executeTarget(
                     page,
                     instruction,
@@ -212,13 +213,8 @@ public final class PlaywrightRuntimeHealingExecutor {
 
         Probe alias = Probe.empty();
         if (preparation.ready() && preparation.aliasCandidates().size() > 1) {
-            return failed(
-                    "AMBIGUOUS_TARGET",
-                    "LIVE_ALIAS",
-                    action,
-                    instruction,
-                    preparation,
-                    preparation.aliasCandidates().size());
+            alias = Probe.ambiguous(
+                    "LIVE_ALIAS", preparation.aliasCandidates().size());
         }
         if (preparation.ready() && preparation.aliasCandidates().size() == 1) {
             RegistryCandidate aliasOwner = preparation.aliasCandidates().get(0);
@@ -238,9 +234,9 @@ public final class PlaywrightRuntimeHealingExecutor {
             }
         }
         observed += alias.liveCandidateCount();
-        terminal = terminalProbe(alias, action, instruction, preparation);
-        if (terminal != null) return terminal;
-        if (alias.target() != null) {
+        if (alias.ambiguous()) {
+            if (deferredAmbiguity == null) deferredAmbiguity = alias;
+        } else if (alias.target() != null) {
             return executeTarget(
                     page,
                     instruction,
@@ -260,6 +256,10 @@ public final class PlaywrightRuntimeHealingExecutor {
                     preparation,
                     observed);
         }
+
+        Result terminal = terminalProbe(
+                deferredAmbiguity, action, instruction, preparation);
+        if (terminal != null) return terminal;
 
         CoordinateTarget coordinates = coordinateTarget(instruction, preparation);
         if (coordinates != null) {
@@ -283,10 +283,10 @@ public final class PlaywrightRuntimeHealingExecutor {
                 continue;
             }
             String candidateTag = physicalTag(candidate);
-            if (hasText(authoredTag) && !sameTag(authoredTag, candidateTag)) {
-                continue;
-            }
-            String expectedTag = firstText(authoredTag, candidateTag);
+            // Current-page registry metadata is allowed to heal a stale authored tag. The
+            // candidate still has to satisfy its observed tag/action/boundary contract, and the
+            // complete tier must resolve to exactly one DOM element before execution.
+            String expectedTag = firstText(candidateTag, authoredTag);
             Probe probe = probeSelectors(
                     page,
                     registrySelectors(candidate),
@@ -328,15 +328,16 @@ public final class PlaywrightRuntimeHealingExecutor {
             return new Probe(null, false, stage, 0);
         }
         int observed = 0;
-        Map<String, ResolvedTarget> unique = new LinkedHashMap<>();
+        boolean ambiguous = false;
         for (String selector : selectors == null ? List.<String>of() : selectors) {
             if (!hasText(selector)) continue;
             try {
                 Locator locator = scopedLocator(page, iframeXpath, selector);
                 int count = locator.count();
                 if (count > MAX_CANDIDATES) {
-                    disposeTargets(unique.values());
-                    return Probe.ambiguous(stage, observed + count);
+                    observed += count;
+                    ambiguous = true;
+                    continue;
                 }
                 List<ResolvedTarget> valid = new ArrayList<>();
                 for (int index = 0; index < count; index++) {
@@ -372,26 +373,21 @@ public final class PlaywrightRuntimeHealingExecutor {
                 }
                 if (valid.size() > 1) {
                     disposeTargets(valid);
-                    disposeTargets(unique.values());
-                    return Probe.ambiguous(stage, observed);
+                    ambiguous = true;
+                    continue;
                 }
                 if (valid.size() == 1) {
-                    ResolvedTarget target = valid.get(0);
-                    ResolvedTarget existing = unique.putIfAbsent(
-                            elementIdentity(target.element(), iframeXpath), target);
-                    if (existing != null) dispose(target.element());
-                    if (unique.size() > 1) {
-                        disposeTargets(unique.values());
-                        return Probe.ambiguous(stage, observed);
-                    }
+                    // Selector order is authoritative. A unique strong locator wins immediately;
+                    // a later broad CSS fallback must not convert it into a false ambiguity.
+                    return new Probe(valid.get(0), false, stage, observed);
                 }
             } catch (RuntimeException ignored) {
                 // A broken selector is not authority to act. Continue resolving before any action.
             }
         }
-        return unique.isEmpty()
-                ? new Probe(null, false, stage, observed)
-                : new Probe(unique.values().iterator().next(), false, stage, observed);
+        return ambiguous
+                ? Probe.ambiguous(stage, observed)
+                : new Probe(null, false, stage, observed);
     }
 
     private static Probe probeLiveName(
