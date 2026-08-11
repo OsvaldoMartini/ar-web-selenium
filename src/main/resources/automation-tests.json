@@ -1,27 +1,27 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-11T12:58:34.202Z",
+  "generatedAt": "2026-08-11T14:44:31.700Z",
   "summary": {
-    "catalogEntries": 2347,
-    "automatedCodeCases": 2311,
+    "catalogEntries": 2350,
+    "automatedCodeCases": 2314,
     "generatedApiCases": 19452,
-    "totalAutomatedCases": 21763,
-    "automatedSuites": 485,
+    "totalAutomatedCases": 21766,
+    "automatedSuites": 486,
     "generatedSuites": 21,
     "manualArtifacts": 9,
     "supportArtifacts": 6,
-    "defaultRunnable": 2282,
-    "safeRunAllEligible": 2282
+    "defaultRunnable": 2285,
+    "safeRunAllEligible": 2285
   },
   "sources": [
     {
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "branch": "refactor/perform-actions-decomposition",
-      "commit": "e3469fb7553c9543642b1f166df082e68e7ccf04",
-      "sourceFiles": 329,
-      "automatedSuites": 318,
-      "automatedTestCases": 1431,
+      "commit": "af56bd24dd4822bdf8b0519346676c826c3c0cde",
+      "sourceFiles": 330,
+      "automatedSuites": 319,
+      "automatedTestCases": 1432,
       "generatedSuites": 0,
       "generatedCases": 0
     },
@@ -29,10 +29,10 @@
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "branch": "VERSION-4.6",
-      "commit": "57c311897b45c1face20cb1e482eab23d1a1f784",
+      "commit": "4319195273ad70c95f18680e7808e8f32fee7f6d",
       "sourceFiles": 167,
       "automatedSuites": 167,
-      "automatedTestCases": 880,
+      "automatedTestCases": 882,
       "generatedSuites": 21,
       "generatedCases": 19452
     },
@@ -15535,7 +15535,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.PerformDataBaseBlockDeleteBatchTest#deletesOnlyTheRequestedOwnedSubsetAndNormalizesRemainingOrder@73",
+      "id": "junit:com.allinweb.ch.facade.PerformDataBaseBlockDeleteBatchTest#deletesOnlyTheRequestedOwnedSubsetAndNormalizesRemainingOrder@74",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -15549,7 +15549,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/PerformDataBaseBlockDeleteBatchTest.java",
-      "line": 73,
+      "line": 74,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -15559,7 +15559,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.PerformDataBaseBlockDeleteBatchTest#refusesBlocksOwnedByAnotherBotJobWithoutChangingTheOwnerGraph@89",
+      "id": "junit:com.allinweb.ch.facade.PerformDataBaseBlockDeleteBatchTest#refusesBlocksOwnedByAnotherBotJobWithoutChangingTheOwnerGraph@91",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -15573,11 +15573,35 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/PerformDataBaseBlockDeleteBatchTest.java",
-      "line": 89,
+      "line": 91,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
       "command": "mvn -Dtest=com.allinweb.ch.facade.PerformDataBaseBlockDeleteBatchTest#refusesBlocksOwnedByAnotherBotJobWithoutChangingTheOwnerGraph test",
+      "tags": [
+        "Test"
+      ]
+    },
+    {
+      "id": "junit:com.allinweb.ch.facade.PerformDataBaseInstructionDeletePreservationTest#preservesVariablesAndDisconnectsSurvivingParents@63",
+      "project": "AR Web Scanner",
+      "repository": "ar-web-selenium",
+      "recordType": "AUTOMATED_CASE",
+      "suite": "com.allinweb.ch.facade.PerformDataBaseInstructionDeletePreservationTest",
+      "name": "preservesVariablesAndDisconnectsSurvivingParents",
+      "displayName": "preservesVariablesAndDisconnectsSurvivingParents",
+      "framework": "JUnit 5",
+      "language": "Java",
+      "kind": "UNIT",
+      "runtime": "JVM",
+      "execution": "DEFAULT",
+      "safety": "SAFE",
+      "sourcePath": "src/test/java/com/allinweb/ch/facade/PerformDataBaseInstructionDeletePreservationTest.java",
+      "line": 63,
+      "caseCount": 1,
+      "runnable": true,
+      "runAllEligible": true,
+      "command": "mvn -Dtest=com.allinweb.ch.facade.PerformDataBaseInstructionDeletePreservationTest#preservesVariablesAndDisconnectsSurvivingParents test",
       "tags": [
         "Test"
       ]
@@ -37668,7 +37692,7 @@
       ]
     },
     {
-      "id": "jest:src/components/bot-job-details/grid/domain/instructionDelete.test.ts::React-owned instruction deletion planning::deletes only linked conditional boundaries and preserves every body row@40",
+      "id": "jest:src/components/bot-job-details/grid/domain/instructionDelete.test.ts::React-owned instruction deletion planning::deletes only linked conditional boundaries and preserves every body row@43",
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "recordType": "AUTOMATED_CASE",
@@ -37682,7 +37706,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/components/bot-job-details/grid/domain/instructionDelete.test.ts",
-      "line": 40,
+      "line": 43,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -37693,7 +37717,7 @@
       ]
     },
     {
-      "id": "jest:src/components/bot-job-details/grid/domain/instructionDelete.test.ts::React-owned instruction deletion planning::deletes a LOOP anchor family through explicit links, never positional body rows@54",
+      "id": "jest:src/components/bot-job-details/grid/domain/instructionDelete.test.ts::React-owned instruction deletion planning::deletes a LOOP anchor family through explicit links, never positional body rows@57",
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "recordType": "AUTOMATED_CASE",
@@ -37707,7 +37731,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/components/bot-job-details/grid/domain/instructionDelete.test.ts",
-      "line": 54,
+      "line": 57,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -37718,7 +37742,7 @@
       ]
     },
     {
-      "id": "jest:src/components/bot-job-details/grid/domain/instructionDelete.test.ts::React-owned instruction deletion planning::deletes ordinary explicit dependent descendants without deleting an upstream parent@68",
+      "id": "jest:src/components/bot-job-details/grid/domain/instructionDelete.test.ts::React-owned instruction deletion planning::deletes ordinary explicit dependent descendants without deleting an upstream parent@71",
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "recordType": "AUTOMATED_CASE",
@@ -37732,7 +37756,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/components/bot-job-details/grid/domain/instructionDelete.test.ts",
-      "line": 68,
+      "line": 71,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -37743,7 +37767,7 @@
       ]
     },
     {
-      "id": "jest:src/components/bot-job-details/grid/domain/instructionDelete.test.ts::React-owned instruction deletion planning::does not cross the selected owner or block and ignores navigation references@80",
+      "id": "jest:src/components/bot-job-details/grid/domain/instructionDelete.test.ts::React-owned instruction deletion planning::does not cross the selected owner or block and ignores navigation references@83",
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "recordType": "AUTOMATED_CASE",
@@ -37757,7 +37781,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/components/bot-job-details/grid/domain/instructionDelete.test.ts",
-      "line": 80,
+      "line": 83,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -37768,7 +37792,7 @@
       ]
     },
     {
-      "id": "jest:src/components/bot-job-details/grid/domain/instructionDelete.test.ts::React-owned instruction deletion planning::deletes variable consumers downstream of an owner but preserves the owner for consumer deletion@103",
+      "id": "jest:src/components/bot-job-details/grid/domain/instructionDelete.test.ts::React-owned instruction deletion planning::deletes variable consumers downstream of an owner but preserves the owner for consumer deletion@106",
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "recordType": "AUTOMATED_CASE",
@@ -37782,7 +37806,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/components/bot-job-details/grid/domain/instructionDelete.test.ts",
-      "line": 103,
+      "line": 106,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -37793,7 +37817,7 @@
       ]
     },
     {
-      "id": "jest:src/components/bot-job-details/grid/domain/instructionDelete.test.ts::React-owned instruction deletion planning::reports preserved rows whose explicit parent is a deleted structural boundary@122",
+      "id": "jest:src/components/bot-job-details/grid/domain/instructionDelete.test.ts::React-owned instruction deletion planning::reports preserved rows whose explicit parent is a deleted structural boundary@125",
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "recordType": "AUTOMATED_CASE",
@@ -37807,11 +37831,61 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/components/bot-job-details/grid/domain/instructionDelete.test.ts",
-      "line": 122,
+      "line": 125,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
       "command": "npm test -- --runInBand --runTestsByPath src/components/bot-job-details/grid/domain/instructionDelete.test.ts -t \"reports preserved rows whose explicit parent is a deleted structural boundary\"",
+      "tags": [
+        "frontend",
+        "it"
+      ]
+    },
+    {
+      "id": "jest:src/components/bot-job-details/grid/domain/instructionDelete.test.ts::React-owned instruction deletion planning::deletes exactly the checked rows and repairs surviving parent references@142",
+      "project": "AR React UI",
+      "repository": "abr-react-ts-grid",
+      "recordType": "AUTOMATED_CASE",
+      "suite": "React-owned instruction deletion planning",
+      "name": "deletes exactly the checked rows and repairs surviving parent references",
+      "displayName": "deletes exactly the checked rows and repairs surviving parent references",
+      "framework": "Jest / Testing Library",
+      "language": "TypeScript",
+      "kind": "FRONTEND",
+      "runtime": "JSDOM",
+      "execution": "DEFAULT",
+      "safety": "SAFE",
+      "sourcePath": "src/components/bot-job-details/grid/domain/instructionDelete.test.ts",
+      "line": 142,
+      "caseCount": 1,
+      "runnable": true,
+      "runAllEligible": true,
+      "command": "npm test -- --runInBand --runTestsByPath src/components/bot-job-details/grid/domain/instructionDelete.test.ts -t \"deletes exactly the checked rows and repairs surviving parent references\"",
+      "tags": [
+        "frontend",
+        "it"
+      ]
+    },
+    {
+      "id": "jest:src/components/bot-job-details/grid/domain/instructionDelete.test.ts::React-owned instruction deletion planning::expands structural connections without cascading through variables@159",
+      "project": "AR React UI",
+      "repository": "abr-react-ts-grid",
+      "recordType": "AUTOMATED_CASE",
+      "suite": "React-owned instruction deletion planning",
+      "name": "expands structural connections without cascading through variables",
+      "displayName": "expands structural connections without cascading through variables",
+      "framework": "Jest / Testing Library",
+      "language": "TypeScript",
+      "kind": "FRONTEND",
+      "runtime": "JSDOM",
+      "execution": "DEFAULT",
+      "safety": "SAFE",
+      "sourcePath": "src/components/bot-job-details/grid/domain/instructionDelete.test.ts",
+      "line": 159,
+      "caseCount": 1,
+      "runnable": true,
+      "runAllEligible": true,
+      "command": "npm test -- --runInBand --runTestsByPath src/components/bot-job-details/grid/domain/instructionDelete.test.ts -t \"expands structural connections without cascading through variables\"",
       "tags": [
         "frontend",
         "it"
