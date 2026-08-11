@@ -403,6 +403,25 @@ public class BotJobDetailsWorkspaceHost {
                                 scrollPage,
                                 completion);
                     }
+                    public void pageMappingsRescan(
+                            PreScanWorkflowService.Context context,
+                            long workspaceEpoch,
+                            String destinationSessionId,
+                            String bindingEpoch,
+                            String requestId,
+                            boolean scrollPage,
+                            int scrollPages,
+                            Runnable completion) {
+                        runPageMappingsRescan(
+                                context,
+                                workspaceEpoch,
+                                destinationSessionId,
+                                bindingEpoch,
+                                requestId,
+                                scrollPage,
+                                scrollPages,
+                                completion);
+                    }
                     public void closePageScanner(String workspaceSessionId) {
                         closePageScannerOperations();
                     }
@@ -666,6 +685,26 @@ public class BotJobDetailsWorkspaceHost {
             String requestId,
             boolean scrollPage,
             Runnable completion) {
+        runPageMappingsRescan(
+                context,
+                workspaceEpoch,
+                destinationSessionId,
+                bindingEpoch,
+                requestId,
+                scrollPage,
+                PreScanWorkflowService.DEFAULT_SCROLL_PAGES,
+                completion);
+    }
+
+    private void runPageMappingsRescan(
+            PreScanWorkflowService.Context context,
+            long workspaceEpoch,
+            String destinationSessionId,
+            String bindingEpoch,
+            String requestId,
+            boolean scrollPage,
+            int scrollPages,
+            Runnable completion) {
         java.util.concurrent.atomic.AtomicBoolean completed =
                 new java.util.concurrent.atomic.AtomicBoolean();
         PreScanWorkflowService.Sink sink = pageMappingsRescanSink(
@@ -675,6 +714,7 @@ public class BotJobDetailsWorkspaceHost {
                 bindingEpoch,
                 requestId,
                 scrollPage,
+                scrollPages,
                 completed,
                 completion);
         dispatchPreScanOperation(
@@ -684,7 +724,7 @@ public class BotJobDetailsWorkspaceHost {
                                 context,
                                 workspaceEpoch,
                                 () -> preScanWorkflowService.scanForPageMappings(
-                                        context, "", false, scrollPage, sink),
+                                        context, "", false, scrollPage, scrollPages, sink),
                                 message -> sink.status("failed", message, 0));
                     } catch (RuntimeException taskFailure) {
                         log.warn(
@@ -701,6 +741,7 @@ public class BotJobDetailsWorkspaceHost {
                                         bindingEpoch,
                                         requestId,
                                         scrollPage,
+                                        scrollPages,
                                         "failed",
                                         "Page Mappings rescan ended before a terminal scan result was available.",
                                         0);
@@ -1050,6 +1091,7 @@ public class BotJobDetailsWorkspaceHost {
             String bindingEpoch,
             String requestId,
             boolean scrollPage,
+            int scrollPages,
             java.util.concurrent.atomic.AtomicBoolean completed,
             Runnable completion) {
         return new PreScanWorkflowService.Sink() {
@@ -1074,6 +1116,7 @@ public class BotJobDetailsWorkspaceHost {
                         bindingEpoch,
                         requestId,
                         scrollPage,
+                        scrollPages,
                         publishedStatus,
                         message,
                         elementCount);
@@ -1110,6 +1153,7 @@ public class BotJobDetailsWorkspaceHost {
             String bindingEpoch,
             String requestId,
             boolean scrollPage,
+            int scrollPages,
             String status,
             String message,
             int elementCount) {
@@ -1120,6 +1164,7 @@ public class BotJobDetailsWorkspaceHost {
         payload.addProperty("homeBankingId", context.homeBankingId());
         payload.addProperty("botJobId", context.botJobId());
         payload.addProperty("scrollPage", scrollPage);
+        payload.addProperty("scrollPages", scrollPages);
         payload.addProperty("status", status);
         payload.addProperty("message", message == null ? "" : message);
         payload.addProperty("elementCount", elementCount);

@@ -117,6 +117,27 @@ public final class BotJobWorkspaceController {
                 completion);
     }
 
+    /** Runs Page Mappings Rescan with the caller's validated viewport-advance preference. */
+    public void pageMappingsRescan(
+            PreScanWorkflowService.Context context,
+            long workspaceEpoch,
+            String destinationSessionId,
+            String bindingEpoch,
+            String requestId,
+            boolean scrollPage,
+            int scrollPages,
+            Runnable completion) {
+        host().pageMappingsRescan(
+                context,
+                workspaceEpoch,
+                destinationSessionId,
+                bindingEpoch,
+                requestId,
+                scrollPage,
+                scrollPages,
+                completion);
+    }
+
     /** Releases only the isolated browser resources owned by the detached Page Scanner. */
     public void closePageScanner(String workspaceSessionId) {
         host().closePageScanner(workspaceSessionId);
@@ -187,6 +208,25 @@ public final class BotJobWorkspaceController {
                 boolean scrollPage,
                 Runnable completion) {
             throw new IllegalStateException("Page Mappings rescan is not available");
+        }
+
+        default void pageMappingsRescan(
+                PreScanWorkflowService.Context context,
+                long workspaceEpoch,
+                String destinationSessionId,
+                String bindingEpoch,
+                String requestId,
+                boolean scrollPage,
+                int scrollPages,
+                Runnable completion) {
+            pageMappingsRescan(
+                    context,
+                    workspaceEpoch,
+                    destinationSessionId,
+                    bindingEpoch,
+                    requestId,
+                    scrollPage,
+                    completion);
         }
 
         default void closePageScanner(String workspaceSessionId) {

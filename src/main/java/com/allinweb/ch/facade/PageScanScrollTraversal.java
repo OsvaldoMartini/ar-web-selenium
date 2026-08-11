@@ -8,7 +8,7 @@ import java.util.Objects;
 /** Bounded top-window traversal used to expose lazy page content before a mapping scan. */
 final class PageScanScrollTraversal {
 
-    private static final int MAX_STEPS = 40;
+    private static final int MAX_STEPS = PreScanWorkflowService.MAX_SCROLL_PAGES;
     private static final int MAX_DURATION_MS = 45_000;
     private static final int MAX_DOCUMENT_HEIGHT_CSS_PX = 60_000;
     private static final int MIN_VIEWPORT_SETTLE_MS = 1_000;
@@ -109,6 +109,7 @@ final class PageScanScrollTraversal {
               let stableBottomSamples = 0;
               let previousHeight = -1;
               let maximumHeight = height();
+              let stalledScrollAttempts = 0;
               let completed = false;
               let reason = '';
               const settleViewport = async (maximumWait, deadline) => {
@@ -199,6 +200,7 @@ final class PageScanScrollTraversal {
                     limits.maxViewportSettleMs, traversalDeadline);
                   if (!initialSettle.ok) reason = initialSettle.reason;
                   while (!reason
+                      && steps < limits.requestedSteps
                       && steps < limits.maxSteps
                       && Date.now() < traversalDeadline) {
                     if (String(window.location.href) !== initialUrl) {
@@ -215,26 +217,57 @@ final class PageScanScrollTraversal {
                     const bottom = Math.max(0, currentHeight - viewportHeight);
                     const currentY = Math.max(0, number(window.scrollY || window.pageYOffset));
                     const atBottom = currentY >= bottom - 2;
-                    if (atBottom && currentHeight === previousHeight) {
-                      stableBottomSamples += 1;
-                    } else {
-                      stableBottomSamples = 0;
+                    if (atBottom) {
+                      if (currentHeight === previousHeight) {
+                        stableBottomSamples += 1;
+                      } else {
+                        stableBottomSamples = 0;
+                      }
+                      previousHeight = currentHeight;
+                      if (stableBottomSamples >= limits.stableBottomSamples) {
+                        completed = true;
+                        break;
+                      }
+                      const bottomSettled = await settleViewport(
+                        limits.maxViewportSettleMs, traversalDeadline);
+                      if (!bottomSettled.ok) reason = bottomSettled.reason;
+                      continue;
                     }
-                    if (stableBottomSamples >= limits.stableBottomSamples) {
-                      completed = true;
-                      break;
-                    }
+                    stableBottomSamples = 0;
                     previousHeight = currentHeight;
                     const stepSize = Math.max(250, Math.floor(viewportHeight * 0.75));
-                    const nextY = atBottom ? bottom : Math.min(bottom, currentY + stepSize);
+                    const nextY = Math.min(bottom, currentY + stepSize);
                     window.scrollTo(originX, nextY);
-                    steps += 1;
+                    const movedY = Math.max(
+                      0, number(window.scrollY || window.pageYOffset));
+                    if (movedY > currentY + 1) {
+                      steps += 1;
+                      stalledScrollAttempts = 0;
+                    } else {
+                      stalledScrollAttempts += 1;
+                    }
                     const settled = await settleViewport(
                       limits.maxViewportSettleMs, traversalDeadline);
-                    if (!settled.ok) reason = settled.reason;
+                    if (!settled.ok) {
+                      reason = settled.reason;
+                    } else if (stalledScrollAttempts >= 2) {
+                      reason = 'scroll-stalled';
+                    } else {
+                      const settledHeight = height();
+                      maximumHeight = Math.max(maximumHeight, settledHeight);
+                      if (maximumHeight > limits.maxDocumentHeight) {
+                        reason = 'document-height-limit';
+                      } else if (steps >= limits.requestedSteps) {
+                        completed = true;
+                      }
+                    }
                   }
                   if (!completed && !reason) {
-                    reason = steps >= limits.maxSteps ? 'step-limit' : 'time-limit';
+                    if (steps >= limits.requestedSteps) {
+                      completed = true;
+                    } else {
+                      reason = steps >= limits.maxSteps ? 'step-limit' : 'time-limit';
+                    }
                   }
                 }
               } finally {
@@ -254,22 +287,37 @@ final class PageScanScrollTraversal {
     private PageScanScrollTraversal() {}
 
     static void traverse(ARPlaywrightDriver browser, ScannedPageIdentity expectedPage) {
+        traverse(browser, expectedPage, PreScanWorkflowService.DEFAULT_SCROLL_PAGES);
+    }
+
+    static void traverse(
+            ARPlaywrightDriver browser,
+            ScannedPageIdentity expectedPage,
+            int scrollPages) {
         Objects.requireNonNull(browser, "The active Playwright page is required");
         Objects.requireNonNull(expectedPage, "The active page identity is required");
+        if (scrollPages < PreScanWorkflowService.MIN_SCROLL_PAGES
+                || scrollPages > MAX_STEPS) {
+            throw new IllegalArgumentException(
+                    "SCROLL PAGE count must be between "
+                            + PreScanWorkflowService.MIN_SCROLL_PAGES
+                            + " and " + MAX_STEPS + '.');
+        }
         requireUnchangedPage(browser, expectedPage);
         Object raw = browser.evaluate(
                 TRAVERSE_SCRIPT,
-                Map.of(
-                        "maxSteps", MAX_STEPS,
-                        "maxDurationMs", MAX_DURATION_MS,
-                        "maxDocumentHeight", MAX_DOCUMENT_HEIGHT_CSS_PX,
-                        "minViewportSettleMs", MIN_VIEWPORT_SETTLE_MS,
-                        "maxViewportSettleMs", MAX_VIEWPORT_SETTLE_MS,
-                        "domQuietMs", DOM_QUIET_MS,
-                        "pollMs", POLL_MS,
-                        "paintTimeoutMs", PAINT_TIMEOUT_MS,
-                        "restoreSettleMs", RESTORE_SETTLE_MS,
-                        "stableBottomSamples", STABLE_BOTTOM_SAMPLES));
+                Map.ofEntries(
+                        Map.entry("requestedSteps", scrollPages),
+                        Map.entry("maxSteps", MAX_STEPS),
+                        Map.entry("maxDurationMs", MAX_DURATION_MS),
+                        Map.entry("maxDocumentHeight", MAX_DOCUMENT_HEIGHT_CSS_PX),
+                        Map.entry("minViewportSettleMs", MIN_VIEWPORT_SETTLE_MS),
+                        Map.entry("maxViewportSettleMs", MAX_VIEWPORT_SETTLE_MS),
+                        Map.entry("domQuietMs", DOM_QUIET_MS),
+                        Map.entry("pollMs", POLL_MS),
+                        Map.entry("paintTimeoutMs", PAINT_TIMEOUT_MS),
+                        Map.entry("restoreSettleMs", RESTORE_SETTLE_MS),
+                        Map.entry("stableBottomSamples", STABLE_BOTTOM_SAMPLES)));
         requireUnchangedPage(browser, expectedPage);
         if (!(raw instanceof Map<?, ?> result)) {
             throw new IllegalStateException(

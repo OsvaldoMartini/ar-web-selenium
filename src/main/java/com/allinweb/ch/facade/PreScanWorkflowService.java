@@ -22,6 +22,10 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public final class PreScanWorkflowService {
 
+    public static final int DEFAULT_SCROLL_PAGES = 5;
+    public static final int MIN_SCROLL_PAGES = 1;
+    public static final int MAX_SCROLL_PAGES = 40;
+
     private final BrowserPort browser;
     private final DiagnosticsPort diagnostics;
     private final InstructionPort instructions;
@@ -75,7 +79,24 @@ public final class PreScanWorkflowService {
             boolean searchHidden,
             boolean scrollPage,
             Sink sink) {
-        scan(context, searchTerms, searchHidden, sink, true, scrollPage);
+        scanForPageMappings(
+                context,
+                searchTerms,
+                searchHidden,
+                scrollPage,
+                DEFAULT_SCROLL_PAGES,
+                sink);
+    }
+
+    /** Runs Page Mappings scan with a bounded number of lazy-content viewport advances. */
+    public void scanForPageMappings(
+            Context context,
+            String searchTerms,
+            boolean searchHidden,
+            boolean scrollPage,
+            int scrollPages,
+            Sink sink) {
+        scan(context, searchTerms, searchHidden, sink, true, scrollPage, scrollPages);
     }
 
     private void scan(
@@ -94,7 +115,26 @@ public final class PreScanWorkflowService {
             Sink sink,
             boolean requireSnapshot,
             boolean scrollPage) {
+        scan(
+                context,
+                searchTerms,
+                searchHidden,
+                sink,
+                requireSnapshot,
+                scrollPage,
+                DEFAULT_SCROLL_PAGES);
+    }
+
+    private void scan(
+            Context context,
+            String searchTerms,
+            boolean searchHidden,
+            Sink sink,
+            boolean requireSnapshot,
+            boolean scrollPage,
+            int scrollPages) {
         require(context, sink);
+        if (scrollPage) requireScrollPages(scrollPages);
         if (!browser.tryBeginScan()) {
             sink.status("running", "A pre-scan is already in progress...", 0);
             return;
@@ -113,10 +153,15 @@ public final class PreScanWorkflowService {
             if (scrollPage) {
                 ScannedPageIdentity traversalPage =
                         ScannedPageIdentity.fromLiveUrl(browser.currentUrl());
-                sink.status("running", "Scrolling the page to load bounded lazy content...", 0);
+                sink.status(
+                        "running",
+                        "Scrolling up to " + scrollPages
+                                + " page viewport(s) to load bounded lazy content...",
+                        0);
                 long restoredSettledMs;
                 try {
-                    PageScanScrollTraversal.traverse(browser.playwrightDriver(), traversalPage);
+                    PageScanScrollTraversal.traverse(
+                            browser.playwrightDriver(), traversalPage, scrollPages);
                 } finally {
                     restoredSettledMs = browser.waitForPageSettled(15_000);
                     ScannedPageIdentity restoredPage =
@@ -129,7 +174,9 @@ public final class PreScanWorkflowService {
                     }
                 }
                 log.info(
-                        "PRE SCAN - automatic page scrolling restored and settled after {} ms",
+                        "PRE SCAN - automatic page scrolling (maximum {} viewport advances) "
+                                + "restored and settled after {} ms",
+                        scrollPages,
                         restoredSettledMs);
             }
             sink.status("running", "web elements...", 0);
@@ -291,6 +338,14 @@ public final class PreScanWorkflowService {
     private static void require(Context context, Sink sink) {
         if (context == null) throw new IllegalArgumentException("A Pre Scan context is required");
         if (sink == null) throw new IllegalArgumentException("A Pre Scan result sink is required");
+    }
+
+    private static void requireScrollPages(int scrollPages) {
+        if (scrollPages < MIN_SCROLL_PAGES || scrollPages > MAX_SCROLL_PAGES) {
+            throw new IllegalArgumentException(
+                    "SCROLL PAGE count must be between " + MIN_SCROLL_PAGES
+                            + " and " + MAX_SCROLL_PAGES + '.');
+        }
     }
 
     public record Context(

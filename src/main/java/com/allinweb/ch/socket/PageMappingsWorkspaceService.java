@@ -514,16 +514,20 @@ public final class PageMappingsWorkspaceService {
         synchronized (bindingLock) {
             Binding authorized = null;
             boolean scrollPage = false;
+            int scrollPages = PreScanWorkflowService.DEFAULT_SCROLL_PAGES;
             try {
                 authorized = authorizeDetachedRequest(
                         body, requesterSessionId, requesterTransport, true);
                 scrollPage = optionalBoolean(body, "scrollPage", false);
+                scrollPages = optionalScrollPages(
+                        body, "scrollPages", PreScanWorkflowService.DEFAULT_SCROLL_PAGES);
                 if (!snapshotTableExists(connection)) {
                     return rescanFailure(
                             body,
                             "Page Mappings storage is not initialized. No database migration was run.",
                             authorized,
-                            scrollPage);
+                            scrollPage,
+                            scrollPages);
                 }
                 String requestId = string(body, "requestId").trim();
                 if (requestId.isEmpty() || requestId.length() > 200) {
@@ -531,21 +535,24 @@ public final class PageMappingsWorkspaceService {
                             body,
                             "A valid Page Mappings request ID is required.",
                             authorized,
-                            scrollPage);
+                            scrollPage,
+                            scrollPages);
                 }
                 if (!activeRescanKey.isBlank()) {
                     return rescanFailure(
                             body,
                             "A Page Mappings rescan is already in progress.",
                             authorized,
-                            scrollPage);
+                            scrollPage,
+                            scrollPages);
                 }
                 if (!acceptRescanRequest(authorized.bindingEpoch(), requestId)) {
                     return rescanFailure(
                             body,
                             "This Page Mappings rescan request was already accepted.",
                             authorized,
-                            scrollPage);
+                            scrollPage,
+                            scrollPages);
                 }
                 BotJobDetailsWorkspaceRegistry.getInstance()
                         .require(authorized.botJobId(), authorized.workspaceEpoch());
@@ -557,7 +564,8 @@ public final class PageMappingsWorkspaceService {
                             body,
                             "Page Mappings owner changed. Refresh this page.",
                             authorized,
-                            scrollPage);
+                            scrollPage,
+                            scrollPages);
                 }
                 MutationTicket mutation = beginMutationLocked(
                         authorized, MutationKind.RESCAN, requestId);
@@ -571,6 +579,7 @@ public final class PageMappingsWorkspaceService {
                             authorized.bindingEpoch(),
                             requestId,
                             scrollPage,
+                            scrollPages,
                             () -> finishRescan(rescanKey, mutation));
                 } catch (RuntimeException | Error startFailure) {
                     finishRescan(rescanKey, mutation);
@@ -580,6 +589,7 @@ public final class PageMappingsWorkspaceService {
                 response.addProperty("ok", true);
                 response.addProperty("accepted", true);
                 response.addProperty("scrollPage", scrollPage);
+                response.addProperty("scrollPages", scrollPages);
                 response.addProperty("message", "Page Mappings rescan started.");
                 return response;
             } catch (IllegalArgumentException unauthorized) {
@@ -589,7 +599,8 @@ public final class PageMappingsWorkspaceService {
                                 body,
                                 unauthorized.getMessage(),
                                 authorized,
-                                scrollPage);
+                                scrollPage,
+                                scrollPages);
             } catch (RuntimeException unavailable) {
                 log.warn("Unable to start Page Mappings rescan", unavailable);
                 return authorized == null
@@ -598,15 +609,21 @@ public final class PageMappingsWorkspaceService {
                                 body,
                                 "Page Mappings rescan could not be started.",
                                 authorized,
-                                scrollPage);
+                                scrollPage,
+                                scrollPages);
             }
         }
     }
 
     private static JsonObject rescanFailure(
-            JsonObject body, String message, Binding owner, boolean scrollPage) {
+            JsonObject body,
+            String message,
+            Binding owner,
+            boolean scrollPage,
+            int scrollPages) {
         JsonObject response = failure(body, message, owner);
         response.addProperty("scrollPage", scrollPage);
+        response.addProperty("scrollPages", scrollPages);
         return response;
     }
 
@@ -2676,6 +2693,42 @@ public final class PageMappingsWorkspaceService {
             throw new IllegalArgumentException("A valid " + field + " state is required.");
         }
         return body.getAsJsonPrimitive(field).getAsBoolean();
+    }
+
+    private static int optionalScrollPages(
+            JsonObject body, String field, int defaultValue) {
+        if (body == null || !body.has(field) || body.get(field).isJsonNull()) {
+            return defaultValue;
+        }
+        return requiredScrollPages(body, field);
+    }
+
+    private static int requiredScrollPages(JsonObject body, String field) {
+        if (body == null
+                || !body.has(field)
+                || !body.get(field).isJsonPrimitive()
+                || !body.getAsJsonPrimitive(field).isNumber()) {
+            throw new IllegalArgumentException("A valid Page Mappings scroll page count is required.");
+        }
+        double numeric;
+        try {
+            numeric = body.getAsJsonPrimitive(field).getAsDouble();
+        } catch (RuntimeException invalid) {
+            throw new IllegalArgumentException(
+                    "A valid Page Mappings scroll page count is required.", invalid);
+        }
+        if (!Double.isFinite(numeric)
+                || numeric != Math.rint(numeric)
+                || numeric < PreScanWorkflowService.MIN_SCROLL_PAGES
+                || numeric > PreScanWorkflowService.MAX_SCROLL_PAGES) {
+            throw new IllegalArgumentException(
+                    "Page Mappings scroll pages must be between "
+                            + PreScanWorkflowService.MIN_SCROLL_PAGES
+                            + " and "
+                            + PreScanWorkflowService.MAX_SCROLL_PAGES
+                            + ".");
+        }
+        return (int) numeric;
     }
 
     private static JsonObject object(JsonObject body, String field) {
