@@ -1082,3 +1082,34 @@ and close the exact V2 run on finish, stop, disconnect, binding change, failure,
 Next: migrate GET and SET without Java physical-action fallback, then add the frontend runtime-mode
 control and deploy/configure the loopback Node runtime for an explicit live V2 Smoke run. ExcelWrite
 and multi-Bot-Job orchestration remain later checkpoints and must use the same isolated run model.
+
+## 32. Execution V2 GET/SET and physical-sequence checkpoint - 2026-08-11
+
+- Migrated frozen GET and SET commands without invoking Java Playwright. GET submits an OUTPUT
+  action to Node against its validated same-Block Web Element parent, then updates the existing
+  run-local variable overlay and optional durable mirror. SET reads the exact `READ_SET` run-local
+  slot and submits an INPUT action against that frozen parent.
+- Java remains authoritative for command/parent/Block relationships, variable slot ownership, and
+  runtime-variable state. Node receives only the physical parent locator facts while the request
+  retains the GET/SET command instruction ID for diagnostics and at-most-once correlation.
+- Empty GET output remains a valid value. Missing slots, VOID SET values, malformed Node output,
+  failed producers, durable-mirror failure, invalid parents, and runtime refusal remain fail-closed.
+  Successful GET continues to emit the established `runtimeUpdate` response consumed by React.
+- Added a Node-physical sequence owned by each isolated Java run. React Integration sequence numbers
+  include logical rows and therefore cannot be used directly by Node's consecutive action ledger.
+  Physical actions now receive 1, 2, 3... even when IF/LOOP/other React-only rows occur between
+  them, while React's original sequence remains the outer Smoke request correlation.
+- A transport/HTTP exception after physical submission marks that isolated run's action outcome
+  unknown and blocks every later action. Exact Stop/Release cleanup remains available; the system
+  never guesses whether the physical action occurred or reuses its sequence for a different step.
+- Focused verification command
+  `mvn -Dtest=ExecutionRuntimeActionFactoryTest,ExecutionRuntimeRunCoordinatorTest,SmokeTestIntegrationV2StepExecutorTest,SmokeTestIntegrationServiceTest test`
+  compiled 577 production and 338 test sources and passed all 13 tests with zero failures/errors.
+  `git diff --check` passed.
+- Source commit/push: `420e9f31`. No frontend/Node/resource mirror, database, migration, browser,
+  service, image, or deployment changed.
+
+Next: add the Smoke Test frontend runtime-mode control so a user can explicitly choose V1 or V2,
+then configure and deploy the loopback Node runtime for the first live isolated Smoke run. ExcelWrite
+remains intentionally fail-closed in V2 until its frontend-memory manager and artifact boundary are
+implemented.
