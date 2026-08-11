@@ -935,6 +935,15 @@ Do not change frontend CSS/design while doing the scanner contract cleanup unles
   `65031/65032`. Live `main.086bf45c.js` / `main.8678873d.css` hashes match exactly and six new logs
   contain zero strict failures. No Smoke action was triggered by Codex.
 
+## Inline Smoke runtime status - 2026-08-11
+
+- Frontend `d5fc82c` places the runtime badge immediately before the workspace message in one
+  responsive horizontal wrapper. Build passed without tests; deployment `b1659f3b` is exact across
+  58 files. Live CSS is `main.d4eaaa1c.css` with SHA-256
+  `CE6211A963688478DB8732E602E381501FA31AB4B229414105582BE62E868AF5`.
+- Node PID `14772` is READY on `60110`; ARWeb PID `16304` is responsive on `56775/56776`; live CSS
+  matches and nine current logs have zero strict failures. No Smoke action was triggered.
+
 ### Instruction-owned ExcelWrite redesign - 2026-08-11
 
 - [x] Root cause confirmed: the typed Command Editor already persisted per-instruction ExcelWrite metadata, but execution still read the Block `export_file`, used an element parent as the destination column, and rebuilt columns per Block. The React Bot Job grid also still exposed the obsolete Block-level Excel panel.

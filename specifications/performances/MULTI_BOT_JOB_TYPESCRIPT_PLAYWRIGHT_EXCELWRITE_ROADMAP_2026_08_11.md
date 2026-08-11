@@ -1198,3 +1198,13 @@ and atomic artifact-write checkpoints are complete.
   `11200` is responsive on `65031/65032`. HTTP JS/CSS hashes match the deployment exactly and six
   new BancaStato logs contain zero strict failures. Visual placement and Lloyds V2 actions remain
   user-driven gates.
+
+## 36. Inline Smoke runtime-status deployment - 2026-08-11
+
+- Frontend `d5fc82c` changes only presentation: the selected runtime badge and workspace message now
+  share one responsive horizontal wrapper, with the badge immediately before the message.
+- Production build passed with existing warnings and no tests. Deployment `b1659f3b` mirrors 58 exact
+  files; JavaScript remains `main.086bf45c.js` and CSS is `main.d4eaaa1c.css` (SHA-256
+  `CE6211A963688478DB8732E602E381501FA31AB4B229414105582BE62E868AF5`). No Java/Maven change.
+- Node PID `14772` is READY on `60110`; ARWeb PID `16304` is responsive on `56775/56776`. Live CSS
+  bytes match exactly and nine current logs contain zero strict failures. Visual approval remains open.
