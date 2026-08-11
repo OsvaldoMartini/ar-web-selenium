@@ -1,7 +1,7 @@
 # Multi-Bot-Job TypeScript Playwright and ExcelWrite Manager Roadmap
 
 Date: 2026-08-11  
-Status: planned; architecture agreed; implementation not started  
+Status: implementation started; safe Main Dashboard admission slice deployed; execution runtime not started
 Primary priorities: Smoke Test Integration, ExcelWrite Manager, concurrent Bot Job execution  
 Migration strategy: incremental strangler replacement of the Java execution engine
 
@@ -726,7 +726,7 @@ prevents multiplying an unproven single-run execution path.
 [ ] CSV-first artifact generation implemented in frontend
 [ ] Minimal Java atomic artifact writer implemented
 [ ] End-of-Block and end-of-execution policies verified
-[ ] Main RUN / MULTIPLE JOBS button implemented
+[x] Main RUN / MULTIPLE JOBS button implemented
 [ ] Concurrent same-organization isolation verified
 [ ] Concurrent different-organization isolation verified
 [ ] Failure/reconnect/stop/cleanup verified
@@ -751,3 +751,30 @@ prevents multiplying an unproven single-run execution path.
 - VPN/proxy routing is process/host infrastructure and may require dedicated workers or containers.
 - Infinite pages, closed Shadow DOM, virtualized elements, canvas/video state, and ambiguous live
   targets remain bounded fail-closed cases rather than targets for unsafe guessing.
+
+## 20. Main Dashboard admission checkpoint - 2026-08-11
+
+This checkpoint implements only the safe P7 admission surface; it does not claim that the Node
+runtime, worker pool, execution grants, REAL/SYNTHETIC selection, or concurrent execution exists.
+
+- Reused the authoritative Main Dashboard row/select-all checkbox state. The highlighted row is
+  still not an execution selection.
+- Added `RUN (N) / MULTIPLE JOBS` immediately before `Refresh`; zero is disabled/non-glowing and a
+  positive count uses the cyan glow with reduced-motion support.
+- Opening freezes an owner-qualified snapshot of the exact checked rows in one isolated floating
+  `Multi-Bot-Job Execution Manager`. Checkbox refresh/delete behavior remains separate.
+- `Start Selected` is intentionally disabled with an explicit runtime-not-installed explanation,
+  preventing accidental use of the process-global legacy Playwright page.
+- Pages Open now inventories and can close this inline manager independently of Auto Test.
+- Frontend source commit/push: `f6aa520`; backend source commit/push: `1740e8da`; frontend resource
+  deployment commit/push: `9fb06b73`.
+- `npm run build` succeeded with pre-existing warnings. `mvn -DskipTests compile` succeeded for 568
+  Java sources with two pre-existing warnings. No tests were run in this checkpoint.
+- The 58-file build mirrors exactly into `src/main/resources/build` and `target/classes/build`.
+  Entry assets: `main.d551b552.js` SHA-256
+  `1933EBE8D5B381DCCD588CCC2BFFA1385A148BAED43B0C3ACCF3F22CDBA55C28` and
+  `main.9b770504.css` SHA-256
+  `2F7A8F609361F3017B0357DC58C35F5718CACDF4B8624E9796CDEC01E91F0A95`.
+- No ARControlPanel JVM was running after deployment, so live HTTP/UI freshness is not claimed.
+
+Next: P0/P1 shared V2 contracts, threat model, and independent Node/TypeScript runtime skeleton.
