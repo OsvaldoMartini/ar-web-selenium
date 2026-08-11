@@ -40,6 +40,9 @@ public final class PagesOpenWorkspaceService {
     private static final String BOT_JOB_DETAILS_DATA_SESSION = "botJobTasks";
     private static final String AUTO_TEST_KEY = "inline:auto-test";
     private static final String AUTO_TEST_KIND = "AUTO_TEST";
+    private static final String MULTI_EXECUTION_PAGE_ID = "multiBotJobExecutionManager";
+    private static final String MULTI_EXECUTION_KEY = "inline:multi-bot-job-execution";
+    private static final String MULTI_EXECUTION_KIND = "MULTI_BOT_JOB_EXECUTION";
     private static final long LAUNCH_PENDING_NANOS =
             java.util.concurrent.TimeUnit.SECONDS.toNanos(15);
     private static final long FIXED_WORKSPACE_LAUNCH_PENDING_NANOS =
@@ -146,6 +149,7 @@ public final class PagesOpenWorkspaceService {
     private final Map<String, PageHandle> handlesById = new LinkedHashMap<>();
     private final Map<String, Long> fixedWorkspaceLaunchPendingSince = new LinkedHashMap<>();
     private boolean autoTestOpen;
+    private boolean multiExecutionOpen;
     private boolean launchPending;
     private long launchPendingSince;
 
@@ -301,7 +305,7 @@ public final class PagesOpenWorkspaceService {
         return snapshotResponse(body, "Open pages loaded.");
     }
 
-    /** Tracks the Auto Test panel that lives inside the Main Dashboard browser window. */
+    /** Tracks approved inline panels that live inside the Main Dashboard browser window. */
     public synchronized JsonObject inlineState(
             JsonObject body, String requesterSessionId, Session requesterTransport) {
         if (!MAIN_DASHBOARD_SESSION.equals(requesterSessionId)
@@ -311,14 +315,42 @@ public final class PagesOpenWorkspaceService {
         if (body == null || !body.has("open") || body.get("open").isJsonNull()) {
             return failure(body, "Inline page state requires an open flag.");
         }
+        String requestedPage = string(body, "pageId");
+        String key;
+        String title;
+        if ("autoTest".equals(requestedPage)) {
+            key = AUTO_TEST_KEY;
+            title = "Auto Test";
+        } else if (MULTI_EXECUTION_PAGE_ID.equals(requestedPage)) {
+            key = MULTI_EXECUTION_KEY;
+            title = "Multi-Bot-Job Execution Manager";
+        } else {
+            return failure(body, "The inline page is not supported.");
+        }
+        boolean open;
         try {
-            autoTestOpen = body.get("open").getAsBoolean();
+            open = body.get("open").getAsBoolean();
         } catch (RuntimeException invalidOpenFlag) {
             return failure(body, "Inline page state requires a valid open flag.");
         }
+        setInlineOpen(key, open);
         publishSnapshot();
         return snapshotResponse(
-                body, autoTestOpen ? "Auto Test is open." : "Auto Test is closed.");
+                body, title + (open ? " is open." : " is closed."));
+    }
+
+    private static boolean isInlineKey(String key) {
+        return AUTO_TEST_KEY.equals(key) || MULTI_EXECUTION_KEY.equals(key);
+    }
+
+    private void setInlineOpen(String key, boolean open) {
+        if (AUTO_TEST_KEY.equals(key)) {
+            autoTestOpen = open;
+        } else if (MULTI_EXECUTION_KEY.equals(key)) {
+            multiExecutionOpen = open;
+        } else {
+            throw new IllegalArgumentException("The inline page is not supported.");
+        }
     }
 
     /** Closes one page only after validating its opaque ID against the exact live transport. */
@@ -345,14 +377,15 @@ public final class PagesOpenWorkspaceService {
             ApplicationShutdownCoordinator.getInstance().requestShutdown();
             return success(body, "Application shutdown requested.");
         }
-        if (AUTO_TEST_KEY.equals(target.key())) {
+        if (isInlineKey(target.key())) {
+            String title = target.presentation().title();
             boolean delivered = sendWindowOperation(
-                    target, INLINE_CLOSE_OPERATION, "Pages Open requested Auto Test close.");
-            if (delivered) autoTestOpen = false;
+                    target, INLINE_CLOSE_OPERATION, "Pages Open requested " + title + " close.");
+            if (delivered) setInlineOpen(target.key(), false);
             publishSnapshot();
             return delivered
-                    ? success(body, "Auto Test close requested.")
-                    : failure(body, "Auto Test could not be closed.");
+                    ? success(body, title + " close requested.")
+                    : failure(body, title + " could not be closed.");
         }
 
         String cleanupFailure = cleanupOwnedWorkspace(target, false);
@@ -441,10 +474,27 @@ public final class PagesOpenWorkspaceService {
                 warnings.add("Auto Test no longer has an authoritative Main Dashboard transport.");
             }
         }
+        if (multiExecutionOpen) {
+            PageHandle manager = handlesByKey.get(MULTI_EXECUTION_KEY);
+            if (manager != null && isCurrentHandle(manager)) {
+                if (sendWindowOperation(
+                        manager,
+                        INLINE_CLOSE_OPERATION,
+                        "Database configuration reloaded.")) {
+                    multiExecutionOpen = false;
+                    requested++;
+                } else {
+                    warnings.add("Multi-Bot-Job Execution Manager did not accept the close request.");
+                }
+            } else {
+                warnings.add(
+                        "Multi-Bot-Job Execution Manager no longer has an authoritative Main Dashboard transport.");
+            }
+        }
 
         List<PageHandle> targets = new ArrayList<>(handlesById.values());
         for (PageHandle target : targets) {
-            if (AUTO_TEST_KEY.equals(target.key())
+            if (isInlineKey(target.key())
                     || target.presentation().main()
                     || requesterSessionId.equals(target.sessionId())) {
                 continue;
@@ -480,6 +530,7 @@ public final class PagesOpenWorkspaceService {
     public synchronized void sessionRegistryChanged() {
         if (!WebSocketSessionManager.isSessionOpen(MAIN_DASHBOARD_SESSION)) {
             autoTestOpen = false;
+            multiExecutionOpen = false;
         }
         fixedWorkspaceLaunchPendingSince
                 .keySet()
@@ -596,6 +647,20 @@ public final class PagesOpenWorkspaceService {
                                     false,
                                     true)));
         }
+        if (multiExecutionOpen && mainTransport != null && mainTransport.isOpen()) {
+            candidates.put(
+                    MULTI_EXECUTION_KEY,
+                    new Candidate(
+                            MULTI_EXECUTION_KEY,
+                            MAIN_DASHBOARD_SESSION,
+                            mainTransport,
+                            new PagePresentation(
+                                    "Multi-Bot-Job Execution Manager",
+                                    MULTI_EXECUTION_KIND,
+                                    "Main Dashboard inline workspace",
+                                    false,
+                                    true)));
+        }
         return candidates;
     }
 
@@ -701,6 +766,8 @@ public final class PagesOpenWorkspaceService {
         payload.addProperty("pageId", target.pageId());
         payload.addProperty("sessionId", target.sessionId());
         payload.addProperty("targetSessionId", target.sessionId());
+        payload.addProperty("pageKey", target.key());
+        payload.addProperty("kind", target.presentation().kind());
         payload.addProperty("reason", reason);
         if (nativeWindowTitleToken != null && !nativeWindowTitleToken.isBlank()) {
             payload.addProperty("nativeWindowTitleToken", nativeWindowTitleToken);
