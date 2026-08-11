@@ -1049,3 +1049,36 @@ Next: add the explicit V1/V2 start selector and connect `SmokeTestIntegrationSer
 coordinator. The service must freeze plan plus REAL/SYNTHETIC data before issuing V2 authority,
 resolve INPUT values server-side, translate Node diagnostics/output into the existing step response,
 and close the exact V2 run on finish, stop, disconnect, binding change, failure, and shutdown.
+
+## 31. Execution V2 explicit Smoke routing checkpoint - 2026-08-11
+
+- Added a frozen whole-run `runtimeMode` to the Smoke Integration start contract. A missing field
+  remains `JAVA_V1` for backward compatibility; the only explicit alternative is
+  `TYPESCRIPT_PLAYWRIGHT_V2`. The selected mode is echoed in the accepted start response and cannot
+  change during the run.
+- Added the V2 Smoke step translator. Frozen CLICK, INPUT, and OUTPUT instructions use the isolated
+  Node action path; REFRESH uses the exact isolated run; logical React-owned rows remain logical.
+  INPUT values are resolved from the frozen REAL/SYNTHETIC dataset and variable slots before the
+  action DTO is built. Node diagnostics, ambiguity, output, and step disposition are mapped into
+  the existing correlated Smoke response without exposing runtime authority.
+- Commands that have not yet been migrated to V2, including GET, SET, and ExcelWrite, fail closed
+  with `V2_COMMAND_NOT_MIGRATED`. They never fall back to Java V1 inside an accepted V2 run.
+- Connected `SmokeTestIntegrationService` to the environment-disabled V2 coordinator. The service
+  freezes and reauthorizes the plan/data first, starts the dedicated Node browser only for explicit
+  V2, retains its opaque authority server-side, and never opens or executes through the shared Java
+  Playwright browser for that run.
+- Finish, Stop, disconnect, Bot Job binding change, failed start, and application shutdown close the
+  exact V2 run. Unknown cleanup failure retains the run for a bounded exact retry instead of
+  declaring it released. V1 retains its existing shared-page behavior and terminal wording; V2
+  reports that its isolated Playwright session was closed.
+- Focused verification command
+  `mvn -Dtest=SmokeTestIntegrationServiceTest,SmokeTestIntegrationV2StepExecutorTest,SmokeTestIntegrationContractsTest test`
+  compiled 577 production and 338 test sources and passed all 12 tests with zero failures/errors.
+  `git diff --check` passed.
+- Source commits/pushed: selector `fa0dcc3d`, V2 step translation `1887dbe2`, and service routing
+  `90789f4d`. No frontend or resource mirror changed. No runtime secret was provisioned, and no Node
+  runtime, browser, ARWeb service, database, migration, image, or deployment was started or changed.
+
+Next: migrate GET and SET without Java physical-action fallback, then add the frontend runtime-mode
+control and deploy/configure the loopback Node runtime for an explicit live V2 Smoke run. ExcelWrite
+and multi-Bot-Job orchestration remain later checkpoints and must use the same isolated run model.
