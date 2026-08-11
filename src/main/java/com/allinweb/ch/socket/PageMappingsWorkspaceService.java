@@ -6,6 +6,7 @@ import com.allinweb.ch.facade.BotJobWorkspaceController;
 import com.allinweb.ch.facade.PageMappingsCacheService;
 import com.allinweb.ch.facade.PageMappingsOcrAliasService;
 import com.allinweb.ch.facade.PageMappingsOcrReviewService;
+import com.allinweb.ch.facade.PageMappingsScanInventoryService;
 import com.allinweb.ch.facade.PageScanSnapshotFileSecurity;
 import com.allinweb.ch.facade.PageScanSnapshotLifecycleCoordinator;
 import com.allinweb.ch.facade.PageScanUrlRedactor;
@@ -85,6 +86,8 @@ public final class PageMappingsWorkspaceService {
             new PageMappingsOcrReviewService();
     private static final PageMappingsOcrAliasService OCR_ALIASES =
             PageMappingsOcrAliasService.getInstance();
+    private static final PageMappingsScanInventoryService SCAN_INVENTORY =
+            new PageMappingsScanInventoryService();
     private static final PageScanSnapshotRetentionService SNAPSHOT_RETENTION =
             PageScanSnapshotRetentionService.getInstance();
     private static final PageMappingsWorkspaceService INSTANCE = new PageMappingsWorkspaceService();
@@ -343,6 +346,7 @@ public final class PageMappingsWorkspaceService {
         response.addProperty("ok", true);
         response.addProperty("storageReady", true);
         response.addProperty("sessionId", SESSION_ID);
+        response.add("scanInventory", scanInventory(connection, authorized));
         JsonArray snapshots = new JsonArray();
         if (!snapshotTableExists(connection)) {
             response.addProperty("ok", false);
@@ -415,6 +419,26 @@ public final class PageMappingsWorkspaceService {
         }
         response.add("snapshots", snapshots);
         return finishBootstrapResponse(body, authorized, startedFence, response);
+    }
+
+    private JsonObject scanInventory(Connection connection, Binding authorized) {
+        JsonObject result = new JsonObject();
+        try {
+            PageMappingsScanInventoryService.Inventory inventory =
+                    SCAN_INVENTORY.load(connection, authorized.homeBankingId());
+            result = JSON.toJsonTree(inventory).getAsJsonObject();
+            result.addProperty("ready", true);
+        } catch (Exception failure) {
+            log.warn(
+                    "Unable to load Page Mappings scan inventory for homeBankingId={}",
+                    authorized.homeBankingId(),
+                    failure);
+            result.addProperty("ready", false);
+            result.addProperty("homeBankingId", authorized.homeBankingId());
+            result.addProperty("message", "The scanned page inventory is unavailable.");
+            result.add("jobs", new JsonArray());
+        }
+        return result;
     }
 
     private JsonObject finishBootstrapResponse(
