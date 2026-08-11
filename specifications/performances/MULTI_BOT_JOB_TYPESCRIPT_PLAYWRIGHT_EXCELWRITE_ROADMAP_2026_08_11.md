@@ -887,3 +887,31 @@ slice inside the Node runtime. Before application admission, the Java routing ad
 Next: the P4 admission adapter must authoritatively resolve organization and Bot Job ownership,
 freeze the plan/data/registry inputs, add capability-bound Node run/action routes, and connect one
 explicit Smoke Integration V2 run without permitting partial fallback to Java V1.
+
+## 25. Execution V2 P4 run-authority prerequisite - 2026-08-11
+
+- Extended the signed-grant capability vocabulary for start, action, refresh, stop, and heartbeat
+  while retaining the original reserve/bootstrap/release compatibility fixture.
+- Reservation now creates one cryptographically random 256-bit opaque run-access token. Only an
+  exact replay of the same admitted signed grant can receive the same in-memory token; conflicting
+  run or grant reuse remains refused.
+- The token is validated as canonical base64url, retained only in runtime memory, compared through
+  SHA-256 plus constant-time equality, and constrained by the capabilities copied from the verified
+  Java grant. It is not added to logs or the public run view.
+- A run must activate with `runtime.start` before action/refresh/stop/heartbeat authority is usable.
+  Activation replaces the short admission expiry with a renewable idle lease bounded to 10-300
+  seconds. Every authorized active operation renews that lease; abandoned runs are swept without
+  allowing an expired, never-activated reservation to survive.
+- This solves the mismatch between the signer maximum 120-second grant and a legitimate longer
+  execution without making the bearer grant long-lived. HTTP start/action/refresh/stop/heartbeat
+  routes are still absent and therefore cannot invoke the worker pool yet.
+- `npm test` built the isolated package and all 28 focused Node tests passed. The first sandboxed
+  attempt was unable to spawn Node test workers (`EPERM`); the identical approved out-of-sandbox
+  rerun passed. `git diff --check` passed.
+- Source commit/push: `0d122f27`. No Java or frontend source changed, so Maven and the frontend
+  build were not run. No browser, application service, database, migration, package, or deployment
+  was started or changed.
+
+Next: expose strictly parsed token-authorized start/action/refresh/stop/heartbeat routes, connect
+them to the existing isolated worker/action engine, and then add the minimal Java authority adapter
+that supplies only frozen server-derived plan, registry, endpoint, and dataset facts.
