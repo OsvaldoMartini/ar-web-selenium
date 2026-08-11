@@ -7,6 +7,7 @@ import com.allinweb.ch.facade.GridItemWebElementTypeUpdateTransaction.UpdateResu
 import com.allinweb.ch.facade.PerformDBEngine;
 import com.allinweb.ch.facade.PerformLists;
 import com.allinweb.ch.model.BotJobLoadDTO;
+import com.allinweb.ch.model.DetachedWorkspaceSessions;
 import com.allinweb.ch.model.GridItemWebElementTypeContracts;
 import com.allinweb.ch.model.GridItemWebElementTypeContracts.Request;
 import com.allinweb.ch.model.InstructionLoad;
@@ -31,6 +32,7 @@ public final class GridItemWebElementTypeService {
     private final GridItemWebElementTypeUpdateService updates;
     private final PerformDBEngine engine;
     private final PerformLists lists;
+    private final VariablesWorkspaceService variables;
     private final Gson gson;
 
     private GridItemWebElementTypeService() {
@@ -38,6 +40,7 @@ public final class GridItemWebElementTypeService {
         this.updates = GridItemWebElementTypeUpdateService.getInstance();
         this.engine = PerformDBEngine.getInstance();
         this.lists = PerformLists.getInstance();
+        this.variables = VariablesWorkspaceService.getInstance();
         this.gson = new Gson();
     }
 
@@ -66,7 +69,7 @@ public final class GridItemWebElementTypeService {
                             safeText(body, "requestId"),
                             safePositiveInt(body, "instructionId"),
                             "TRANSPORT_NOT_AUTHORIZED",
-                            "Only the active Bot Job Details page can change this Web Element type."));
+                            "Only the active Bot Job Details or Smoke Test page can change this Web Element type."));
             return;
         }
 
@@ -85,13 +88,9 @@ public final class GridItemWebElementTypeService {
             return;
         }
 
+        JsonObject authorizedBody = body == null ? new JsonObject() : body.deepCopy();
         try {
-            BotJobDetailsWorkspaceRegistry.Snapshot workspace =
-                    workspaces.require(request.botJobId(), request.workspaceEpoch());
-            if (workspace.homeBankingId() != request.homeBankingId()) {
-                throw new IllegalArgumentException(
-                        "The Web Element organization does not match the active Bot Job.");
-            }
+            authorizeRequest(request, authorizedBody, sessionId, transport);
 
             Processed processed = workspaces.commitWorkspaceMutation(
                     request.botJobId(),
@@ -111,7 +110,8 @@ public final class GridItemWebElementTypeService {
             }
 
             send(transport, request.homeBankingId(), successBody(processed));
-            if (processed.snapshotJson() != null) {
+            if (ScannerWorkspaceSessions.BOT_JOB_TASKS.equals(sessionId)
+                    && processed.snapshotJson() != null) {
                 // Keep the post-ack snapshot bound to the same physical transport. Looking it up
                 // again by logical session ID could publish this Bot Job into a replacement page.
                 WebSocketSessionManager.sendMessageJson(
@@ -193,6 +193,36 @@ public final class GridItemWebElementTypeService {
         }
     }
 
+    private BotJobDetailsWorkspaceRegistry.Snapshot authorizeRequest(
+            Request request,
+            JsonObject body,
+            String sessionId,
+            Session transport) {
+        if (!authoritativeTransport(sessionId, transport)) {
+            throw new IllegalStateException(
+                    "The Web Element type page changed before the update started.");
+        }
+        BotJobDetailsWorkspaceRegistry.Snapshot workspace;
+        if (DetachedWorkspaceSessions.SMOKE_TEST_MANAGER.equals(sessionId)) {
+            VariablesWorkspaceService.SmokeIntegrationAuthorization authority =
+                    variables.authorizeSmokeIntegration(body, sessionId, transport);
+            if (authority.homeBankingId() != request.homeBankingId()
+                    || authority.botJobId() != request.botJobId()
+                    || authority.workspaceEpoch() != request.workspaceEpoch()) {
+                throw new IllegalArgumentException(
+                        "The Smoke Test Web Element type no longer matches the active Bot Job.");
+            }
+            workspace = workspaces.require(request.botJobId(), request.workspaceEpoch());
+        } else {
+            workspace = workspaces.require(request.botJobId(), request.workspaceEpoch());
+        }
+        if (workspace.homeBankingId() != request.homeBankingId()) {
+            throw new IllegalArgumentException(
+                    "The Web Element organization does not match the active Bot Job.");
+        }
+        return workspace;
+    }
+
     static PublicationPlan publicationPlan(UpdateResult result) {
         if (result == null || !result.changed()) {
             return new PublicationPlan(false, false);
@@ -222,11 +252,15 @@ public final class GridItemWebElementTypeService {
     }
 
     boolean authoritativeTransport(String sessionId, Session transport) {
+        if (transport == null || !transport.isOpen()) return false;
+        String registered = WebSocketSessionManager.getInstance()
+                .getSessionIdBySession(transport);
+        if (DetachedWorkspaceSessions.SMOKE_TEST_MANAGER.equals(sessionId)) {
+            return sessionId.equals(registered)
+                    && WebSocketSessionManager.getSession(sessionId) == transport;
+        }
         return ScannerWorkspaceSessions.BOT_JOB_TASKS.equals(sessionId)
-                && transport != null
-                && transport.isOpen()
-                && ScannerWorkspaceSessions.BOT_JOB_TASKS.equals(
-                        WebSocketSessionManager.getInstance().getSessionIdBySession(transport))
+                && ScannerWorkspaceSessions.BOT_JOB_TASKS.equals(registered)
                 && WebSocketSessionManager.getSession(ScannerWorkspaceSessions.BOT_JOB_TASKS)
                         == transport;
     }
@@ -291,10 +325,17 @@ public final class GridItemWebElementTypeService {
     }
 
     private void send(Session transport, int homeBankingId, JsonObject body) {
+        String targetSessionId = transport == null
+                ? ""
+                : WebSocketSessionManager.getInstance().getSessionIdBySession(transport);
+        if (!ScannerWorkspaceSessions.BOT_JOB_TASKS.equals(targetSessionId)
+                && !DetachedWorkspaceSessions.SMOKE_TEST_MANAGER.equals(targetSessionId)) {
+            return;
+        }
         WebSocketSessionManager.sendMessageJson(
                 Math.max(0, homeBankingId),
                 transport,
-                ScannerWorkspaceSessions.BOT_JOB_TASKS,
+                targetSessionId,
                 gson.toJson(body),
                 GridItemWebElementTypeContracts.RESPONSE);
     }
