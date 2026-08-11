@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-11T11:42:21.630Z",
+  "generatedAt": "2026-08-11T12:13:48.002Z",
   "summary": {
     "catalogEntries": 2344,
     "automatedCodeCases": 2308,
@@ -18,7 +18,7 @@
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "branch": "refactor/perform-actions-decomposition",
-      "commit": "64f499e131c348723735a8a8adc515db6356480e",
+      "commit": "bfe4cf87b1877bb8ca3d8a6bddae594d0f969a99",
       "sourceFiles": 329,
       "automatedSuites": 318,
       "automatedTestCases": 1431,
@@ -29,7 +29,7 @@
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "branch": "VERSION-4.6",
-      "commit": "3f67e5a5b4091e94568ae760f6bedc1f538bff81",
+      "commit": "0cd8bed377a3dba03542183b11c653f1f8c96e99",
       "sourceFiles": 165,
       "automatedSuites": 165,
       "automatedTestCases": 877,
