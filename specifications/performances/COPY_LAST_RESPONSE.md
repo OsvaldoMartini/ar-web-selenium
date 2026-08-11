@@ -573,3 +573,11 @@ The Page Mappings roadmap is now source-complete through P7:
   targeted live path.
 - [ ] TASK - Record any concrete blocker with producer, consumer, exact interleaving, and smallest
   authoritative fix. Do not mark deployment or live behavior complete from source/build evidence.
+
+### Bot Job instruction-row selection and safe deletion - 2026-08-11
+
+- [x] Frontend `4319195` adds the requested Bot Job row checkbox after Active and a dynamic glowing red block-header trash/count after collapse. First-row selection offers first-only/all; remaining rows can be adjusted independently.
+- [x] Backend `4ffd41d3` makes variables independent of instruction/block deletion by detaching deleted producers instead of deleting definitions; surviving parent repairs clear both parent fields.
+- [x] Focused verification passed: frontend 8/8, backend 4/4, Java compilation, and the production frontend build. The initial TypeScript narrowing issue and stale legacy backend test fixture were corrected before the final passing runs.
+- [x] Deployment `af56bd24` contains 58 exact files in resources and `target/classes`; catalog `7a9e1be5` is pushed. Current assets are `main.7984b953.js` / `main.af1d2d62.css`.
+- [ ] ARWeb was not running, so live visual/deletion acceptance remains open. Clone Job legacy `variable_id` and the ExcelWrite instruction-level redesign are the next separate items.

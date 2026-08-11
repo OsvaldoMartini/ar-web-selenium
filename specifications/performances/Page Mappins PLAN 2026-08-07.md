@@ -1002,3 +1002,11 @@ existing backend alias transaction and exact locator/page identity remain author
 - [ ] User live gate: start ARWeb, open the new instruction tab, then rerun OCR Review. A saved
   `Banca Stato` row must show the alias as Current and Proposed with Use unchecked; only explicit
   edit/select/Apply may replace it, and Restore must remain intentional.
+
+## Bot Job instruction-row selection and safe deletion - 2026-08-11
+
+- [x] Isolated Bot Job row selection shipped in frontend `4319195`: checkbox after Active; dynamic red trash/count after collapse; first-only/all choice plus individual adjustment.
+- [x] Exact selected-only and structural-connected deletion reuse the authoritative versioned instruction-delete transaction. Row deletion keeps blocks and never cascades variable definitions.
+- [x] Backend `4ffd41d3` detaches deleted variable producers and clears both surviving parent fields. Focused frontend 8/8 and backend 4/4 checks passed; Java compile and frontend build passed.
+- [x] Exact 58-file deployment `af56bd24` and regenerated catalog `7a9e1be5` are pushed. Source resources and `target/classes` have zero hash differences.
+- [ ] Start ARWeb and complete the visual/live database acceptance. The Clone Job legacy-column failure and ExcelWrite redesign remain outside this checkpoint.

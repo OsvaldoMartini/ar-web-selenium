@@ -878,3 +878,15 @@ Backend recent verification:
 The frontend file `GridItemScannMobile.tsx` is already modified. Read and preserve that diff before editing.
 
 Do not change frontend CSS/design while doing the scanner contract cleanup unless a functional migration requires it.
+
+## Bot Job instruction-row selection and safe deletion - 2026-08-11
+
+- [x] Frontend `4319195` adds an isolated checkbox immediately after each Bot Job instruction Active toggle. The first row offers `First row only` or `All rows`; every other row remains independently adjustable.
+- [x] A glowing red trash/count appears immediately after the owning block collapse control only while that block has selected rows. It offers exact selected-row deletion or structural parent/conditional/loop expansion, then disappears after the authoritative grid removes the rows.
+- [x] Existing block-selection, Page Scanner, and Memory List checkboxes were not changed. Component-workspace rows do not expose the new Bot Job control.
+- [x] Backend `4ffd41d3` preserves normalized variable definitions during instruction and block deletion, clears only deleted `producer_instruction_id` ownership, and clears both stale `parent_id` and `parent_block_id` on surviving repaired rows. Blocks remain independent from row deletion.
+- [x] Focused verification passed: frontend instruction-delete planner 8/8; backend instruction/block deletion 4/4; `mvn -DskipTests compile` passed; production frontend build passed with existing repository warnings.
+- [x] Deployment assets `af56bd24` are pushed. Frontend build, backend resources, and `target/classes` match across 58 files; entrypoints are `main.7984b953.js` (SHA-256 `467B345F77C4E1CE02527BE571E12A2293517637542291C86C8C0391173D04F4`) and `main.af1d2d62.css` (SHA-256 `45518EC2707BAD707F6C2FA620EB908953E11D10F468C6F019EC82FF93DA63CB`).
+- [x] Automation catalog `7a9e1be5` records the new coverage; catalog generation executed no tests.
+- [ ] No ARControlPanel JVM was running during deployment. Start ARWeb and visually verify row positioning, first-row selection scope, exact selected deletion, connected deletion, counter disappearance, and variable preservation before treating live acceptance as complete.
+- [ ] The reported Clone Job `instruction.variable_id` schema defect and the requested per-instruction ExcelWrite redesign remain separate follow-up work and were not mixed into this checkpoint.
