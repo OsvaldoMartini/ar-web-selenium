@@ -588,3 +588,11 @@ The Page Mappings roadmap is now source-complete through P7:
 - [x] Backend `354256c8` clones normalized instructions, parent links, definitions, slots, typed command config, and references without reading or writing the retired column. Missing mappings fail closed.
 - [x] Java compile passed with 564 sources; focused clone verification passed 4/4. Catalog `e5794caa` is pushed with 2,351 rows / 2,315 cases.
 - [ ] No migration/frontend build/runtime restart occurred. User live gate: restart ARWeb, clone Lloyds Job 29 once, and compare the complete source/destination graph. ExcelWrite remains separate.
+
+### Instruction-owned ExcelWrite - 2026-08-11
+
+- [x] Frontend `74a345d` / `319a2cd` moves the Excel file control from Block headers to each ExcelWrite instruction and adds owner-scoped target search/reuse. The old GridItem Block Excel UI/socket state is removed.
+- [x] Backend `d593db48` makes typed instruction configuration authoritative: READ-variable value source, per-instruction file/column target, no element parent, one execution plan, shared-file grouping, and race-safe same-file writes. Catalog `2f89c731` is current.
+- [x] Focused JVM verification passed 17/17 after correcting one detected compile failure; the final successful run compiled 568 main and 333 test sources. Frontend production build passed with existing warnings.
+- [x] Exact deployment `03ce2179` is mirrored across 58 files / 19 images in resources and `target/classes`: `main.86864372.js` and `main.cd1e36ee.css`.
+- [ ] Migration `2026-08-11__excelwrite_instruction_targets` is committed but not applied. No restart or live workbook write was performed. Apply only after database backup, then verify two instructions from different Blocks can share one file while keeping independent variable bindings and columns.

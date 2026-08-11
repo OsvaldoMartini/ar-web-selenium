@@ -53,3 +53,16 @@ Replace `ARExcelFilePane` and `ARExcelFileScene` with a React floating panel ope
 - [x] Close execution-export workbooks after each write so repeated Windows writes do not lock their own destination.
 - [x] Deploy the optimized React build into `src/main/resources/build` and verify all 45 files by SHA-256 (zero differences).
 - [x] Verify focused React suites (7/7 panel/confirmation tests and 13/13 controller tests), focused Java regression tests (47/47), and the complete Bot Job Details toolbar Playwright test (1/1).
+
+## 2026-08-11 Instruction-owned ExcelWrite supersession
+
+This checkpoint supersedes the Block-owned execution model above for Bot Job ExcelWrite commands. The historical `excelExport.*` service and Block column remain compatibility/rollback seams, but the active Bot Job grid no longer exposes that editor and new execution authority is the typed instruction configuration.
+
+- [x] React full-page Command Editor owns an isolated ExcelWrite file modal per instruction: directory, filename/type, delimiter, output key, destination column, and searchable reuse of other typed Bot Job targets (`74a345d`, `319a2cd`).
+- [x] File-system selection/validation stays in Java. Three logical `excelWrite.*` operations reuse the already authoritative detached Command Editor WebSocket and exact transport/binding/owner contract; no second physical socket or duplicate persistence path was introduced.
+- [x] Command Editor UPDATE persists the typed configuration and clears obsolete ExcelWrite element-parent fields. The independent READ variable slot is preserved and is the only runtime value source.
+- [x] Execution loads all ExcelWrite instruction targets once, groups instructions that intentionally share one file, preserves instruction/column order, writes once at job completion, and serializes same-file writers without a lock-removal race.
+- [x] Missing file means intentional bypass. A configured file requires a destination column and a valid absolute `.xlsx`/`.csv` target. Multiple Blocks may share one file; conflicting delimiters for that file fail closed.
+- [x] Registered migration `2026-08-11__excelwrite_instruction_targets` safely backfills legacy file/column data only where no typed row exists, then clears obsolete E parents without deleting definitions or READ slots. Explicit typed blank files stay blank.
+- [x] Focused JVM checks passed 17/17; production React build passed; exact deployment mirror is backend `03ce2179` with 58 files / 19 images and `main.86864372.js` / `main.cd1e36ee.css`.
+- [ ] Migration apply, restart, and live same-file multi-Block write acceptance remain separate gates. No live database or output workbook was modified by this checkpoint.
