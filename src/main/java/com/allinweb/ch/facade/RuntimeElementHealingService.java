@@ -87,10 +87,16 @@ public final class RuntimeElementHealingService {
             Map<Long, RegistryCandidate> locatorMatches = new LinkedHashMap<>();
             Map<Long, RegistryCandidate> canonicalMatches = new LinkedHashMap<>();
             Map<Long, RegistryCandidate> aliasMatches = new LinkedHashMap<>();
+            int strongestLocatorMatch = 0;
             for (ScannedElement row : registry) {
                 if (row == null || row.getId() == null || row.getId() <= 0) continue;
                 RegistryCandidate candidate = candidate(row);
-                if (matchesLocatorIdentity(instruction, row, candidate.attributes())) {
+                int locatorMatch = locatorMatchStrength(instruction, row, candidate.attributes());
+                if (locatorMatch > strongestLocatorMatch) {
+                    locatorMatches.clear();
+                    strongestLocatorMatch = locatorMatch;
+                }
+                if (locatorMatch > 0 && locatorMatch == strongestLocatorMatch) {
                     locatorMatches.putIfAbsent(row.getId(), candidate);
                 }
                 if (sameName(instruction.getName(), row.getDefinedName())) {
@@ -140,24 +146,26 @@ public final class RuntimeElementHealingService {
         }
     }
 
-    private static boolean matchesLocatorIdentity(
+    static int locatorMatchStrength(
             InstructionLoad instruction,
             ScannedElement row,
             Map<String, String> stableAttributes) {
         if (sameLocator(instruction.getXpath(), row.getCustomXPath())
-                || sameLocator(instruction.getXpath(), row.getXPath())
-                || sameLocator(instruction.getCssSelector(), row.getCssSelector())) {
-            return true;
+                || sameLocator(instruction.getXpath(), row.getXPath())) {
+            return 3;
         }
 
         Map<String, String> references = instructionReferences(instruction);
-        return sameLocator(references.get("id"), row.getAttribId())
+        if (sameLocator(references.get("id"), row.getAttribId())
                 || sameLocator(references.get("name"), row.getAttribName())
                 || sameLocator(references.get("data-testid"), stableAttributes.get("data-testid"))
                 || sameLocator(references.get("data-test-id"), stableAttributes.get("data-test-id"))
                 || sameLocator(references.get("test-id"), stableAttributes.get("test-id"))
                 || sameLocator(references.get("data-cy"), stableAttributes.get("data-cy"))
-                || sameLocator(references.get("data-qa"), stableAttributes.get("data-qa"));
+                || sameLocator(references.get("data-qa"), stableAttributes.get("data-qa"))) {
+            return 2;
+        }
+        return sameLocator(instruction.getCssSelector(), row.getCssSelector()) ? 1 : 0;
     }
 
     private static Map<String, String> instructionReferences(InstructionLoad instruction) {

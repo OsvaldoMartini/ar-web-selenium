@@ -161,6 +161,8 @@ public final class PlaywrightRuntimeHealingExecutor {
 
         int observed = authored.liveCandidateCount();
         if (preparation != null && preparation.ready()) {
+            String scannedText = firstReferenceValue(
+                    instruction, "scanned-text", "AttrData:scanned-text");
             for (Tier tier : List.of(
                     new Tier("REGISTRY_LOCATOR", preparation.locatorCandidates()),
                     new Tier("REGISTRY_CANONICAL", preparation.canonicalCandidates()),
@@ -170,7 +172,8 @@ public final class PlaywrightRuntimeHealingExecutor {
                         tier,
                         effectiveAction,
                         physicalTag(instruction),
-                        instruction.getIFrameXPath());
+                        instruction.getIFrameXPath(),
+                        scannedText);
                 observed += registry.liveCandidateCount();
                 if (registry.ambiguous()) {
                     if (deferredAmbiguity == null) deferredAmbiguity = registry;
@@ -273,7 +276,8 @@ public final class PlaywrightRuntimeHealingExecutor {
             Tier tier,
             Action action,
             String authoredTag,
-            String authoredIframe) {
+            String authoredIframe,
+            String scannedText) {
         if (tier.candidates() == null || tier.candidates().isEmpty()) return Probe.empty();
         Map<String, ResolvedTarget> unique = new LinkedHashMap<>();
         int observed = 0;
@@ -296,6 +300,23 @@ public final class PlaywrightRuntimeHealingExecutor {
                     expectedTag,
                     action,
                     tier.stage());
+            if (probe.ambiguous()
+                    && tier.candidates().size() == 1
+                    && hasText(scannedText)) {
+                Probe narrowed = probeSelectors(
+                        page,
+                        registrySelectors(candidate),
+                        candidate.iframeXpath(),
+                        candidate.shadowHost(),
+                        candidate.shadowRoot(),
+                        expectedTag,
+                        action,
+                        tier.stage(),
+                        normalizeName(scannedText));
+                if (narrowed.target() != null || narrowed.ambiguous()) {
+                    probe = narrowed;
+                }
+            }
             observed += probe.liveCandidateCount();
             if (probe.ambiguous()) {
                 disposeTargets(unique.values());
@@ -324,6 +345,28 @@ public final class PlaywrightRuntimeHealingExecutor {
             String expectedTag,
             Action action,
             String stage) {
+        return probeSelectors(
+                page,
+                selectors,
+                iframeXpath,
+                shadowHost,
+                shadowRoot,
+                expectedTag,
+                action,
+                stage,
+                "");
+    }
+
+    private static Probe probeSelectors(
+            Page page,
+            List<String> selectors,
+            String iframeXpath,
+            String shadowHost,
+            String shadowRoot,
+            String expectedTag,
+            Action action,
+            String stage,
+            String expectedName) {
         if (hasShadowScope(shadowHost) || hasShadowScope(shadowRoot)) {
             return new Probe(null, false, stage, 0);
         }
@@ -345,6 +388,10 @@ public final class PlaywrightRuntimeHealingExecutor {
                     try {
                         element = locator.nth(index).elementHandle();
                         if (element == null) continue;
+                        if (hasText(expectedName) && !matchesLiveName(element, expectedName)) {
+                            dispose(element);
+                            continue;
+                        }
                         Validation validation = validate(
                                 element,
                                 expectedTag,
