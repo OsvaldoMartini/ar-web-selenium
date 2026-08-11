@@ -782,3 +782,32 @@ runtime PID. It does not close the Page Mappings live gates or claim a Lloyds ex
   Confirm Active toggles synchronize with Bot Job and failures expose the structured locator stage.
 - [ ] The in-app browser-control surface was unavailable to Codex. No live row action, Integration,
   Refresh Web Page click, migration, backend package, or container image was run or created.
+
+## Smoke Test execution-type controls and exact binding - 2026-08-11
+
+This checkpoint supersedes only the preceding Smoke Test row-control assets and runtime PID. It does
+not close the Lloyds Integration or Page Mappings live gates.
+
+- [x] Backend `a1d6bd3e` authorizes the existing exact-one `gridItem.webElementType.update` database
+  mutation from the authoritative Smoke Test binding while preserving owner, workspace epoch, graph
+  revision, expected-value, reconnect, and current-recipient checks.
+- [x] Frontend `3fde7be` reuses the same `WebElementTypeToggle` as GridItem/Page Scanner, with the
+  persisted `INPUT -> OUTPUT -> CLICK` cycle. The Active/Inactive button is now icon-only, and power,
+  type, Test Input, and Test Click remain in one horizontally scrollable row.
+- [x] The same frontend checkpoint supplies the required Smoke `bindingEpoch` to manual Test Input /
+  Test Click requests, fixing the earlier pre-executor authorization refusal.
+- [x] Focused Java verification passed 13/13. Final `mvn -DskipTests compile` passed with 564 main
+  sources and the two existing warnings. `npm run build` passed with existing warnings; no frontend
+  suite or live Integration execution ran.
+- [x] Deployment `74168d27` mirrors 58 exact source/target frontend files and 19 images; five stale
+  target-only bundles were removed. Catalog `3609803d` was regenerated without executing tests.
+- [x] PID `20668` runs the rebuilt BancaStato `target/classes` on 127.0.0.1:64433/64434. HTTP root,
+  `main.45672047.js` (SHA-256
+  `C793B11EC3E6D7496B83C721A2AA8B085D7C756CC8AB12067815F3C9424A1157`), and
+  `main.aacbfa82.css` (SHA-256
+  `0EAD57019FEDDE86C53558714F1A3F3F9B3C6378B2573EA9D2CB90DA335C908B`) return 200 with exact
+  target hashes; six `.3` logs contain zero strict operational failures at checkpoint.
+- [ ] Live user gate: visually confirm the single-row controls, change one safe instruction type and
+  verify it synchronizes with Bot Job, then run one safe Test Input/Click and intended Lloyds Bot Job
+  29 Integration flow with its Playwright page open.
+- [ ] No migration, backend package, or container image was created.

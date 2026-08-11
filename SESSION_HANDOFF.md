@@ -349,6 +349,41 @@ The Page Mappings checkpoints and the still-open user-driven Lloyds execution ga
   migration, backend package, or container image was created. Those live user actions remain separate
   acceptance gates and must not be inferred from compile/build/deployment evidence.
 
+### Smoke Test execution-type controls and exact binding - 2026-08-11
+
+This checkpoint supersedes only the immediately preceding Smoke Test row-control assets and runtime
+PID. The remaining Lloyds Integration and Page Mappings live gates are unchanged.
+
+- Backend `a1d6bd3e` extends the existing authoritative `gridItem.webElementType.update` contract to
+  the exact active `smokeTestManager` transport. It revalidates the Smoke binding, owner, workspace
+  epoch, and graph revision before the existing exact-one database mutation, then publishes the
+  synchronized workspace snapshot without broadening Bot Job transport authority.
+- Frontend `3fde7be` reuses the established `WebElementTypeToggle` in every applicable Smoke Test flow
+  row, preserving the `INPUT -> OUTPUT -> CLICK` cycle and database-backed semantics used by GridItem.
+  The Active/Inactive control is now the requested icon-only power button, and the power, type, Test
+  Input, and Test Click controls remain on one horizontally scrollable row. The same change includes
+  the missing Smoke `bindingEpoch` on manual Test Input/Click requests, which had caused earlier
+  requests to be refused before reaching the Playwright executor.
+- Focused Java verification for the execution-type service passed 13/13 with zero failures, errors,
+  or skips. Final `mvn -DskipTests compile` passed with 564 main sources and only the two existing
+  Lombok/varargs warnings. `npm run build` passed with existing repository warnings; no frontend
+  test suite or live Integration execution was run.
+- Deployment `74168d27` mirrors the 58-file frontend production build; catalog `3609803d` records
+  2,341 rows, 2,305 code cases, and 19,452 generated API requests without executing tests. Source
+  resources and `target/classes` match exactly, including 19 image assets, and five stale target-only
+  bundles were removed.
+- Current entrypoints are `main.45672047.js` (2,091,300 bytes; SHA-256
+  `C793B11EC3E6D7496B83C721A2AA8B085D7C756CC8AB12067815F3C9424A1157`) and
+  `main.aacbfa82.css` (509,093 bytes; SHA-256
+  `0EAD57019FEDDE86C53558714F1A3F3F9B3C6378B2573EA9D2CB90DA335C908B`). PID `20668` runs the
+  rebuilt `target/classes` with the exact BancaStato config on `127.0.0.1:64433` / `64434`; HTTP
+  root and both assets return 200 with matching hashes. The six new `.3` logs contain zero strict
+  Java/SQLite/snapshot/WebSocket failure matches at the deployment checkpoint.
+- Live acceptance remains user-driven: visually confirm the single-row layout, change one safe
+  instruction type and verify Bot Job synchronization, then execute one safe Test Input/Click with
+  Lloyds Bot Job 29 and its Playwright page open. No database migration, package, or container image
+  was created.
+
 Read `specifications/performances/COPY_LAST_RESPONSE.md` and
 `specifications/performances/Page Mappins PLAN 2026-08-07.md` before continuing.
 

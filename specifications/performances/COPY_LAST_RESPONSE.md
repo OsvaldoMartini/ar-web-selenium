@@ -2,7 +2,7 @@
 
 Keep exactly two review sections. Check tasks only after their separate gates pass.
 
-**Last updated:** 2026-08-11 - Smoke Test manual row actions and full Integration now share the same server-owned Playwright runtime-healing path. Backend `4c11186e`, frontend `f7f9aae`, and deployment `3fcee24c` are pushed. Focused Java verification passed 47/47, Java compile and the frontend production build passed, and PID `31360` serves exact `main.0d1c19c7.js` / `main.11a8513b.css` bytes on ports 62094/62095. No frontend suite or live Playwright action was run; Lloyds user acceptance remains open. Claude independent review requested.
+**Last updated:** 2026-08-11 - Smoke Test now reuses the persisted GridItem `INPUT -> OUTPUT -> CLICK` toggle, keeps power/type/Test Input/Test Click on one row, and renders Active/Inactive as an icon-only power control. Backend `a1d6bd3e`, frontend `3fde7be`, deployment `74168d27`, and catalog `3609803d` are pushed. Focused execution-type verification passed 13/13, Java compile and the frontend production build passed, and PID `20668` serves exact `main.45672047.js` / `main.aacbfa82.css` bytes on ports 64433/64434. No frontend suite or live Lloyds action was run; independent review remains requested.
 
 ## 1. CODEX -> CLAUDE - Page Mappings and Memory lifecycle review handoff
 
@@ -227,6 +227,26 @@ The Page Mappings roadmap is now source-complete through P7:
   and 400 resource messages; no JVM/SQLite/snapshot/WebSocket operation failure is present.
   Browser-control was unavailable, so visual/action acceptance is not claimed.
 
+### Smoke Test execution-type toggle and exact manual-action binding
+
+- Backend `a1d6bd3e` authorizes the existing database-backed `gridItem.webElementType.update` operation
+  from the exact active Smoke Test binding as well as Bot Job Details. Owner, workspace epoch, graph
+  revision, expected type, exact-one write, and current-recipient checks remain enforced.
+- Frontend `3fde7be` reuses the established GridItem/Page Scanner `WebElementTypeToggle`, so every
+  applicable Smoke flow row cycles `INPUT -> OUTPUT -> CLICK` with the same icons and semantics. The
+  Active/Inactive button now contains only its power/spinner SVG, while the power, type, Test Input,
+  and Test Click controls share one row. Manual Test Input/Click requests now include the required
+  Smoke `bindingEpoch`; the earlier binding-less requests were rejected before Playwright execution.
+- The focused Java execution-type matrix passed 13/13. `mvn -DskipTests compile` passed with 564
+  sources and the two existing warnings; `npm run build` passed with existing warnings. No frontend
+  suite or live Integration action ran.
+- Deployment `74168d27` and catalog `3609803d` are pushed. The 58 source/target files and 19 images
+  match exactly; stale target bundles were removed. PID `20668` serves `main.45672047.js` (SHA-256
+  `C793B11EC3E6D7496B83C721A2AA8B085D7C756CC8AB12067815F3C9424A1157`) and
+  `main.aacbfa82.css` (SHA-256
+  `0EAD57019FEDDE86C53558714F1A3F3F9B3C6378B2573EA9D2CB90DA335C908B`) on 64433/64434. HTTP
+  freshness passed and the six new `.3` logs have zero strict operational failures at checkpoint.
+
 ### Current risks
 
 | Severity | Status | Risk |
@@ -236,7 +256,7 @@ The Page Mappings roadmap is now source-complete through P7:
 | Critical | Fixed in `209d24d7` / `ce6a56f` / `fb87aa0` | Failed Memory `sync` responses lacked pending request correlation and could disappear silently. OPEN and SYNC now use typed pending records and collision-resistant sequenced request IDs. |
 | Critical | Fixed in `fb87aa0` / `b147de41` | Detached Memory commands, timers, dialogs, status, and drag state are bound to the exact owner/workspace generation; late prior-owner responses are ignored and backend responses stay on the captured requester transport. |
 | High | Bounded live acceptance open | PID `31360` runs the latest exact frontend/backend deployment, but one user-driven SCROLL PAGE Rescan with a selected non-default limit is still needed to compare Page Mappings visual completeness. Build/restart and earlier default-limit captures do not close this gate. |
-| High | Smoke Test live acceptance open | The exact row controls, status synchronization, and shared runtime-healing path are deployed, but no Codex Playwright action ran. Lloyds Bot Job 29 still needs one user-driven row INPUT/CLICK and one intended Integration run with its browser page open. |
+| High | Smoke Test live acceptance open | The exact row controls, persisted execution-type toggle, status synchronization, and shared runtime-healing path are deployed, but no Codex Playwright action ran. Lloyds Bot Job 29 still needs one user-driven type change, row INPUT/CLICK, and intended Integration run with its browser page open. |
 | Medium | Cleanup complete and recoverable | The two exact Job 32 Lloyds rows/artifacts are absent from active storage. The guarded pre-write database and quarantined artifacts remain under `Backup-CODEX-2026-08-10-job32-lloyds-cleanup`. |
 | Medium | Bounded browser limitation | Virtualized lists, nested scroll containers, canvas/video, CSS background resources, and unbounded infinite pages cannot be guaranteed. The adaptive traversal fails closed on its bounds rather than storing known-incomplete output. |
 | Medium | Open verification | Live detached-window reload, takeover, retarget, deletion, same-ID reuse, and multi-page WebSocket behavior remain unverified. |
@@ -325,6 +345,12 @@ The Page Mappings roadmap is now source-complete through P7:
   no JVM/SQLite/snapshot/WebSocket operation failure was found.
 - [x] TASK - Automation catalog `2b11e657` records the final backend/frontend commits and unchanged
   2,341-row inventory; catalog generation executed no tests.
+- [x] TASK - Exact Smoke execution-type authority is pushed in backend `a1d6bd3e`; focused Java
+  verification passed 13/13 and final Java compilation passed with 564 sources.
+- [x] TASK - Icon-only Active plus same-row INPUT/OUTPUT/CLICK and Test controls are pushed in
+  frontend `3fde7be`; the production build passed without running a frontend test suite.
+- [x] TASK - Deployment `74168d27` and catalog `3609803d` are pushed; PID `20668` serves matching
+  `main.45672047.js` / `main.aacbfa82.css` bytes on 64433/64434.
 - [ ] TASK - Retry the intended Lloyds Bot Job 29 run. The prior Step 0 error belongs to Bot Job 32
   inactive Block 204 and is not Lloyds plan evidence.
 - [ ] TASK - User must run one fresh adaptive `SCROLL PAGE` Rescan with a selected non-default limit and compare the full-page visual result; Codex did not trigger this scan.
@@ -353,6 +379,9 @@ The Page Mappings roadmap is now source-complete through P7:
 - [ ] Validate `4c11186e` / `f7f9aae`: Smoke manual actions must require the exact current transport,
   owner/workspace/graph generation, reuse the same ordered locator-healing path as Integration, run
   one physical action only, keep ambiguity fail-closed, and synchronize Active state with Bot Job.
+- [ ] Validate `a1d6bd3e` / `3fde7be`: execution-type changes must require the exact current Smoke
+  binding, persist only `instruction.actions`, synchronize both Bot Job and Smoke views, and keep
+  power/type/Input/Click controls on one accessible row without broadening mutation authority.
 - [ ] Validate exact Home Banking/Bot Job browser-storage isolation, post-authorization explicit
   `1..40` validation, request/status `scrollPage` + `scrollPages` correlation, and the rule that N
   counts only confirmed downward viewport movements.
