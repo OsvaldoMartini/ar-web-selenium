@@ -449,6 +449,37 @@ This checkpoint supersedes only the current runtime PID and the prior statement 
   physical action or, if the exact scanned text is genuinely duplicated, a fail-closed ambiguity
   with the reduced authoritative candidate count.
 
+### License Request status and validation UI - 2026-08-11
+
+This checkpoint supersedes only the current frontend assets and runtime PID. It does not close the
+Lloyds Smoke Integration or Page Mappings live-acceptance gates above.
+
+- Frontend `1e8d528` renames the detached Info workspace to `About this Software` and the License
+  workspace/header to `License Request`. The License header now has the established compact
+  green/yellow/red status treatment for Ready, progress, connection/backend errors, malformed
+  responses, and client-side mandatory-field errors.
+- License Request validates Organization, Owner, email presence/format, response/license file, and
+  agreement acceptance before sending. Backend license state remains authoritative; the existing
+  detailed Active/Required banner is preserved separately from transient operation feedback.
+- Focused frontend verification passed 2 suites / 8 tests. `npm run build` passed with existing
+  repository warnings. No Java source changed and no Java test ran.
+- Deployment `c320f5a6` mirrors exactly 58 frontend files and 19 image assets. Current entrypoints
+  are `main.7a606860.js` (2,093,729 bytes; SHA-256
+  `3E0C2D347E8861C68D04208ED7F352146DE1FC17B184869A4E6464448277DD48`) and
+  `main.834b1a93.css` (510,094 bytes; SHA-256
+  `B2EACC407DF28A4CCA57F3B1AAE8770BC5C19164735052743D5AA8B9E04E87C3`). Source resources and
+  `target/classes/build` have zero path/hash differences.
+- The backend `target` directory and prior ARWeb process disappeared externally during this
+  checkpoint. A no-test `mvn -DskipTests compile` recreated 1,442 class files and copied the exact
+  frontend resources; no Java source was modified. PID `28552` now runs the rebuilt
+  `target/classes` with the exact BancaStato config on `127.0.0.1:53768` / `53769`.
+- HTTP root, JS, and CSS return 200 with exact target hashes, and the deployed JS contains the new
+  titles and required-field messages. Catalog `2f0db93e` records 2,344 rows, 2,308 code cases, and
+  19,452 generated API requests; catalog generation executed no tests.
+- No controllable in-app browser was attached, so visual License/About acceptance is not claimed.
+  No migration, package, or container image was created. Unrelated dirty settings/specification/
+  screenshot files remain preserved.
+
 Read `specifications/performances/COPY_LAST_RESPONSE.md` and
 `specifications/performances/Page Mappins PLAN 2026-08-07.md` before continuing.
 

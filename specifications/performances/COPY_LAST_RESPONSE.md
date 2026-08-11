@@ -2,7 +2,7 @@
 
 Keep exactly two review sections. Check tasks only after their separate gates pass.
 
-**Last updated:** 2026-08-11 - Lloyds instruction `1749` ambiguity was traced to one exact XPath row being combined with 72 CSS-only `span.btn-text` rows. Backend `453710d2` now preserves locator strength and permits scanned-text narrowing only for one authoritative registry candidate while retaining exact-one fail-closed execution. Focused verification passed 2/2 and compiled 564 main sources; catalog `6d88c97c` records 2,344 rows. PID `27756` serves the rebuilt classes on 59032/59033 with HTTP 200 and zero new strict failures. The exact Lloyds click remains a user-driven live gate.
+**Last updated:** 2026-08-11 - Frontend `1e8d528` adds `About this Software`, the `License Request` title, compact top-bar Ready/warning/error messages, and mandatory-field validation. Focused checks passed 2 suites / 8 tests and the production build passed. Deployment `c320f5a6` serves exact `main.7a606860.js` / `main.834b1a93.css` bytes from PID `28552` on 53768/53769; catalog `2f0db93e` records 2,344 rows. No live visual click-through, Java test, migration, package, or image is claimed.
 
 ## 1. CODEX -> CLAUDE - Page Mappings and Memory lifecycle review handoff
 
@@ -285,6 +285,24 @@ The Page Mappings roadmap is now source-complete through P7:
   frontend build, migration, package, or container image was produced.
 - User acceptance remains: retry `personal_2` and record the new structured diagnostic. Success
   must show one physical attempt; any remaining real duplicate must stay at zero attempts.
+
+### License Request status and validation UI
+
+- Frontend `1e8d528` renames Info to `About this Software` and the license workspace/header to
+  `License Request`. A compact green/yellow/red top-bar status now reports Ready, progress,
+  connection/backend failures, malformed responses, and mandatory-field errors.
+- Organization, Owner, valid email, response/license file, and agreement acceptance are validated
+  before send. The backend remains authoritative for license validity and activation state.
+- Focused frontend verification passed 2 suites / 8 tests; `npm run build` passed with existing
+  warnings. No Java source changed and no Java test ran.
+- Deployment `c320f5a6` mirrors 58 exact files and 19 images. PID `28552` serves
+  `main.7a606860.js` (SHA-256
+  `3E0C2D347E8861C68D04208ED7F352146DE1FC17B184869A4E6464448277DD48`) and
+  `main.834b1a93.css` (SHA-256
+  `B2EACC407DF28A4CCA57F3B1AAE8770BC5C19164735052743D5AA8B9E04E87C3`) on 53768/53769.
+  Catalog `2f0db93e` was regenerated without executing tests.
+- The in-app browser surface was unavailable; HTTP freshness and focused component behavior passed,
+  but visual License/About approval remains a separate user gate.
 
 ### Current risks
 

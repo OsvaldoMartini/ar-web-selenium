@@ -869,3 +869,27 @@ instruction `1749` ambiguity as having no actionable locator-quality defect.
 - [ ] User live gate: retry Lloyds instruction `1749`. Accept either one completed physical action
   on the uniquely narrowed `Personal` span or a zero-action ambiguity only if the semantic target is
   genuinely duplicated.
+
+## License Request status and validation UI - 2026-08-11
+
+This frontend-only product checkpoint supersedes only the current frontend assets and runtime PID;
+it does not change or close any Page Mappings source/live gate above.
+
+- [x] Frontend `1e8d528` renames Info to `About this Software` and the License workspace/header to
+  `License Request`.
+- [x] License Request now uses the established compact top-bar Ready/warning/error mechanism for
+  progress, connection/backend failures, malformed responses, and human validation errors.
+- [x] Mandatory Organization, Owner, valid email, file, and agreement checks run before any license
+  request/activation/use-existing message is sent; backend license state remains authoritative.
+- [x] Focused frontend verification passed 2 suites / 8 tests; production `npm run build` passed
+  with existing repository warnings.
+- [x] Deployment `c320f5a6` contains 58 exact frontend files and 19 images. Current entrypoints are
+  `main.7a606860.js` (SHA-256
+  `3E0C2D347E8861C68D04208ED7F352146DE1FC17B184869A4E6464448277DD48`) and
+  `main.834b1a93.css` (SHA-256
+  `B2EACC407DF28A4CCA57F3B1AAE8770BC5C19164735052743D5AA8B9E04E87C3`).
+- [x] A no-test Maven compile recreated the externally removed `target/classes`; no Java source
+  changed. PID `28552` serves the exact assets on 53768/53769 with HTTP 200.
+- [x] Catalog `2f0db93e` records 2,344 rows / 2,308 code cases; generation ran no tests.
+- [ ] Visual user approval remains because no controllable in-app browser was attached. No
+  migration, backend package, or container image was created.
