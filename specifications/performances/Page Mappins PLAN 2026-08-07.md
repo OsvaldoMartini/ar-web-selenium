@@ -974,3 +974,31 @@ owner-scoped Memory state or the separate Memory Apply transaction.
 - [ ] Runtime/live gate: PID `1556` ended externally. Copy/restart only when the VPN production
   browser session is safe to interrupt, then verify clicking the card with zero/nonzero selections
   opens or focuses the single Memory List and leaves staged content unchanged.
+
+## Page Mappings client-name priority and instruction guidance - 2026-08-11
+
+This checkpoint supersedes only the current OCR proposal/help assets and target-copy status. The
+existing backend alias transaction and exact locator/page identity remain authoritative.
+
+- [x] Confirmed the saved alias was not erased: live row 672 retained `client_named=Banca Stato`,
+  and registry Rescan explicitly reuses the existing client alias. OCR-first proposal priority was
+  the remaining frontend defect.
+- [x] Frontend `57c3118` makes a saved alias the default Proposed value and leaves Use unchecked on
+  every new OCR Review request. Rows without a saved alias still receive/select a nonblank OCR
+  proposal. Normalized alias comparison prevents whitespace-only false changes.
+- [x] Added accessible `Workspace Rules` and `Client Names & Instructions` tabs to the immutable
+  capture help dialog. The instruction tab records canonical/client-name separation, preservation,
+  explicit change/restore, migration-reference use, Add/drag staging, separate Memory Apply, and
+  fail-closed duplicate/cross-page resolution.
+- [x] Focused checks passed 2 suites / 3 tests. The production frontend build passed with existing
+  warnings. No Java source changed, so no Maven command or Java compilation ran.
+- [x] Source commit `57c3118`, deployment `e3469fb7`, and catalog `3db5da92` are pushed. Catalog
+  generation executed no tests and reports 2,347 rows / 2,311 code cases.
+- [x] Source resources and `target/classes` contain the same 58 files / 19 images with zero hash
+  differences. Entrypoints are `main.0b70d82f.js` (SHA-256
+  `1F1B5A29BB1917E18C035715FD4EC4FA526B46034A058768AB400C4392513C89`) and
+  `main.8822f0dc.css` (SHA-256
+  `8290860100F7E9284FD30031BDBE45B3A022C0118F690D6999DE65F84B6BBC9B`).
+- [ ] User live gate: start ARWeb, open the new instruction tab, then rerun OCR Review. A saved
+  `Banca Stato` row must show the alias as Current and Proposed with Use unchecked; only explicit
+  edit/select/Apply may replace it, and Restore must remain intentional.

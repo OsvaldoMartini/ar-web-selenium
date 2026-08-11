@@ -568,6 +568,39 @@ not supersede the OCR, Memory Apply, runtime, or live-acceptance gates above.
   ended externally. No `target/classes` copy, service restart, or live visual click-through is
   claimed because the user was using the VPN/production browser session.
 
+### Page Mappings client-name priority and instruction guidance - 2026-08-11
+
+This checkpoint supersedes only the current OCR proposal/help assets and deployment-copy status. It
+does not change the backend OCR transaction, locator identity, or cross-page execution authority.
+
+- Root cause confirmed: SQLite row `672` already preserved `client_named=Banca Stato`, and
+  `ScannedElementRepository.upsert` already carries the existing alias through Rescan. The remaining
+  frontend proposal function placed OCR text before the saved alias, so Run again could display and
+  preselect `€ BancaStato` as a replacement even though the database had not rolled back.
+- Frontend `57c3118` makes a nonblank saved `client_named` the Proposed-name default and compares
+  normalized aliases consistently. Run again leaves Use unselected for an existing alias; OCR text
+  remains visible evidence. Only an explicit edit/select/Apply can replace it, and Restore remains
+  the explicit null-alias rollback.
+- The same checkpoint splits `Immutable capture workspace / Page Mappings rules` into accessible
+  `Workspace Rules` and `Client Names & Instructions` tabs. The new tab documents canonical versus
+  client names, Rescan/OCR preservation, migration-reference intent, Add/drag staging, the separate
+  Memory List Apply transaction, conflict safety, and the rule that aliases never silently join
+  unrelated elements or bypass exact locator/page identity.
+- Focused frontend verification passed 2 suites / 3 tests. The production build passed with only
+  existing repository warnings. No Java source changed, so no Maven command or Java compilation ran.
+- Resource deployment `e3469fb7` and catalog `3db5da92` are pushed. The catalog records 2,347 rows /
+  2,311 code cases and was regenerated without executing tests.
+- The exact 58-file/19-image build is mirrored into both source resources and `target/classes` with
+  zero hash differences; 26 stale target files were removed. Entrypoints are `main.0b70d82f.js`
+  (2,102,401 bytes; SHA-256
+  `1F1B5A29BB1917E18C035715FD4EC4FA526B46034A058768AB400C4392513C89`) and
+  `main.8822f0dc.css` (512,809 bytes; SHA-256
+  `8290860100F7E9284FD30031BDBE45B3A022C0118F690D6999DE65F84B6BBC9B`).
+- No ARControlPanel process was running during the target copy. User live gate: start the app,
+  reopen Page Mappings, confirm the new tabs, run OCR Review again, and verify saved `Banca Stato`
+  remains Current and Proposed with Use unchecked. Do not use Restore unless clearing the alias is
+  intended.
+
 Read `specifications/performances/COPY_LAST_RESPONSE.md` and
 `specifications/performances/Page Mappins PLAN 2026-08-07.md` before continuing.
 

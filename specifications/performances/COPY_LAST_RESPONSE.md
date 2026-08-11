@@ -2,7 +2,7 @@
 
 Keep exactly two review sections. Check tasks only after their separate gates pass.
 
-**Last updated:** 2026-08-11 - Frontend `0cd8bed` makes the complete Page Mappings Memory card open/focus Memory List and adds the cyan guidance badge. Production build passed; resource deployment `bfe4cf87` contains exact `main.f99c04f5.js` / `main.ff26b7fd.css` bytes and catalog `729f0850` records 2,344 rows. PID `1556` ended externally; no runtime copy/restart/live visual acceptance, test suite, Maven command, Java compilation, migration, package, or image is claimed.
+**Last updated:** 2026-08-11 - Frontend `57c3118` prioritizes persisted client names over rerun OCR proposals and adds the separated Client Names & Instructions rules tab. Focused checks passed 2 suites / 3 tests; production build and exact 58-file source/target mirror passed. Deployment `e3469fb7` and catalog `3db5da92` are pushed. No ARControlPanel process was running during the target copy, so user launch/live acceptance remains open; no Java source, Maven command, migration, package, or image is claimed.
 
 ## 1. CODEX -> CLAUDE - Page Mappings and Memory lifecycle review handoff
 
@@ -352,6 +352,27 @@ The Page Mappings roadmap is now source-complete through P7:
   catalog `729f0850` was regenerated without executing tests. The prior PID ended externally, and
   no target copy/restart/live click-through is claimed.
 
+### Page Mappings client-name priority and instruction guidance
+
+- Live SQLite and source evidence agree that Rescan did not erase `Banca Stato`: row 672 retained
+  its `client_named`, and the registry upsert deliberately preserves the existing alias. The UI
+  problem was OCR-first Proposed-name priority, which could make a rerun look reverted and prepare
+  an accidental overwrite.
+- Frontend `57c3118` makes the saved alias the Proposed default. Existing aliases stay unselected
+  after Run again; OCR text remains visible separately, and only manual edit/select/Apply changes
+  the alias. Restore remains the intentional canonical-name rollback.
+- The rules dialog now has separate `Workspace Rules` and `Client Names & Instructions` tabs. It
+  explains the canonical/client-name boundary, migration-reference role, Rescan/OCR preservation,
+  Add/drag staging, separate Memory Apply, and fail-closed duplicate/cross-page identity rules.
+- Focused verification passed 2 suites / 3 tests. Build passed with existing warnings; no Java or
+  Maven command ran. Deployment `e3469fb7` and catalog `3db5da92` are pushed.
+- The 58-file/19-image source and `target/classes` copies match exactly. Current entrypoints are
+  `main.0b70d82f.js` (SHA-256
+  `1F1B5A29BB1917E18C035715FD4EC4FA526B46034A058768AB400C4392513C89`) and
+  `main.8822f0dc.css` (SHA-256
+  `8290860100F7E9284FD30031BDBE45B3A022C0118F690D6999DE65F84B6BBC9B`). No app was running during
+  target deployment, so startup and live OCR acceptance remain user gates.
+
 ### Current risks
 
 | Severity | Status | Risk |
@@ -473,6 +494,12 @@ The Page Mappings roadmap is now source-complete through P7:
 - [ ] TASK - Copy `bfe4cf87` to the runtime/restart only after the active VPN production session is
   safe to interrupt, then click the complete Memory card with zero and nonzero selections and verify
   one Memory List opens/focuses without changing staged data.
+- [x] TASK - Saved client-name priority and separated instruction guidance are pushed in frontend
+  `57c3118`; focused verification passed 2 suites / 3 tests.
+- [x] TASK - Exact deployment `e3469fb7` and catalog `3db5da92` are pushed; source resources and
+  `target/classes` match across 58 files, with no Java/Maven execution.
+- [ ] TASK - Start ARWeb and verify a rerun OCR Review keeps saved `Banca Stato` as Current and
+  Proposed with Use unchecked; OCR text may differ but must not overwrite without explicit Apply.
 - [ ] TASK - Package/image delivery, other-database/SQL Server rollout, and broader reconnect/takeover/retention-save-purge/OCR/Memory/multi-page acceptance remain open.
 
 ## 2. CLAUDE -> CODEX - Independent review requested
@@ -527,6 +554,10 @@ The Page Mappings roadmap is now source-complete through P7:
 - [ ] TASK - Validate frontend `0cd8bed`: the full Memory card sends one owner-bound open request for
   mouse/Enter/Space, permits the empty snapshot, preserves Add/drop synchronization, blocks duplicate
   pending clicks, and keeps the cyan animation accessible under reduced-motion preferences.
+- [ ] TASK - Validate frontend `57c3118`: a nonblank saved client alias must remain the default
+  Proposed value and unselected across a new OCR Review request, while rows without an alias retain
+  OCR proposal/selection behavior. Confirm the instruction tab never presents aliases as automatic
+  cross-page identity or a replacement for exact owner/revision/locator checks.
 - [ ] TASK - Review snapshot verification commit `380841af`; confirm FAILED creation recovery honors
   NOT NULL migration columns and extended-length ACL handling preserves the private/no-follow model.
 - [ ] TASK - Review assets/catalog `fb23c531` / `d76362ff`; confirm the manifest selects
