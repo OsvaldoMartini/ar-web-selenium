@@ -255,6 +255,33 @@ This checkpoint supersedes only the immediately preceding current frontend asset
   three page keys; Job 32: 332 across two page keys). The latest Job 32 READY capture
   `454c45cd-cd5b-4a9c-8e70-6b15ab437713` contains 239 elements; Job 32 has 18 READY captures.
 
+### Smoke Test Playwright page refresh - 2026-08-10
+
+This checkpoint supersedes only the immediately preceding current frontend assets and runtime PID.
+
+- Frontend `7d5a157` adds a compact two-line `Refresh` / `Web Page` control immediately before
+  `Stop` on the Smoke Test toolbar. Its isolated style follows the established Real/Synthetic Data
+  toggle dimensions and visual language. It is enabled only for the authoritative Integration
+  workspace while no integration run or execution owns the browser.
+- Backend source `aab60fca` adds the exact `smokeTest.integration.refresh` contract. It authorizes the
+  current Smoke Test transport, binding, Bot Job workspace, owner, and graph revision before
+  reserving the shared Playwright browser; then it calls the current page's Playwright reload and
+  bounded settle path while holding the Bot Job mutation generation. It does not reload the React
+  Smoke Test page.
+- `npm run build` passed with existing repository warnings. `mvn -DskipTests compile` passed with
+  564 main Java sources and only the existing Lombok/varargs warnings. No tests ran per user direction.
+- Deployment commit `cd9bf34a` mirrors exactly 58 frontend files and 19 images into Java resources
+  and `target/classes`. Current entrypoints are `main.9a55ef9b.js` (2,077,464 bytes; SHA-256
+  `379BB80F481BFE97BB563BFAA98071125BEDDA06A97F85DD4F8DE53940F965F9`) and
+  `main.069de826.css` (506,255 bytes; SHA-256
+  `08535CB786F8B8A3D27FCA4BFF7953F48B1B20B27667A279337DBCD98101C16F`).
+- PID `17864` runs the rebuilt `target/classes` with the exact BancaStato config and responds on
+  `127.0.0.1:62590` / `127.0.0.1:62591`. HTTP root, JS, and CSS return 200 with the exact hashes
+  above. The new `.21` log set contains no generic error entry at the checkpoint.
+- The user-only live gate is to open Smoke Test Integration for Lloyds Bot Job 29, confirm the new
+  control appears before Stop, and click it while idle to observe the Lloyds Playwright page reload.
+  Codex did not click the button or run a test.
+
 Read `specifications/performances/COPY_LAST_RESPONSE.md` and
 `specifications/performances/Page Mappins PLAN 2026-08-07.md` before continuing.
 

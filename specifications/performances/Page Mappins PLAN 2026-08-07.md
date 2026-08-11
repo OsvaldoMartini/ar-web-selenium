@@ -702,3 +702,26 @@ This checkpoint supersedes only the preceding current frontend assets and PID.
   has 239 elements and Job 32 has 18 READY capture versions.
 - [ ] User visual check of the compact header and right-aligned total remains open, plus one Rescan at
   a selected non-default scroll limit.
+
+## Smoke Test Playwright page refresh - 2026-08-10
+
+This checkpoint supersedes only the prior current frontend assets and runtime PID; it does not alter
+the Page Mappings acceptance gates above.
+
+- [x] Frontend `7d5a157` adds the compact two-line `Refresh` / `Web Page` control immediately before
+  `Stop` in Smoke Test Integration, with isolated styling matching the established data-mode toggle.
+- [x] Backend `aab60fca` adds an exact owner/binding/workspace/graph-authorized refresh operation that
+  reserves the shared Playwright browser, calls current-page reload, waits for settlement, and holds
+  the Bot Job mutation generation throughout. It does not reload the React page.
+- [x] Frontend production build passed with existing warnings; Java compile passed with 564 main
+  sources and the two existing warnings. No tests ran per user direction.
+- [x] Deployment `cd9bf34a` mirrors 58 files and 19 images. Current entrypoints are
+  `main.9a55ef9b.js` (SHA-256
+  `379BB80F481BFE97BB563BFAA98071125BEDDA06A97F85DD4F8DE53940F965F9`) and
+  `main.069de826.css` (SHA-256
+  `08535CB786F8B8A3D27FCA4BFF7953F48B1B20B27667A279337DBCD98101C16F`).
+- [x] PID `17864` runs the rebuilt BancaStato `target/classes` on 62590/62591; root/JS/CSS return
+  HTTP 200 with matching hashes.
+- [ ] User live gate: open Lloyds Bot Job 29 Smoke Test Integration while idle, confirm Refresh Web
+  Page appears immediately before Stop, click it once, and verify the active Lloyds Playwright page
+  reloads. Codex did not click the control or execute a test.

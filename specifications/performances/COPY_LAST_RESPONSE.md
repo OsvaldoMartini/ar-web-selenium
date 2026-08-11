@@ -2,7 +2,7 @@
 
 Keep exactly two review sections. Check tasks only after their separate gates pass.
 
-**Last updated:** 2026-08-10 - Page Mappings now shows the authoritative selected-capture element total and follows the Main Dashboard shell/header pattern. Frontend `cf16efe` and deployment assets `98ae848b` are pushed. PID `12944` is healthy on ports 55720/55721 and serves `main.92c3e040.js` / `main.1ac3c57f.css` with matching hashes. No tests or Maven command ran. One user visual check, a selected non-default bounded Rescan, package/container-image delivery, other-database rollout, and broader acceptance remain open. Claude independent review requested.
+**Last updated:** 2026-08-10 - Smoke Test Integration now has an authorized two-line `Refresh` / `Web Page` control immediately before Stop. Frontend `7d5a157`, backend `aab60fca`, and deployment `cd9bf34a` are pushed. PID `17864` is healthy on ports 62590/62591 and serves `main.9a55ef9b.js` / `main.069de826.css` with matching hashes. No tests ran. One user click on idle Lloyds Bot Job 29 remains the live behavior gate. Claude independent review requested.
 
 ## 1. CODEX -> CLAUDE - Page Mappings and Memory lifecycle review handoff
 
@@ -163,6 +163,28 @@ The Page Mappings roadmap is now source-complete through P7:
 - No tests or Maven command ran. Read-only DB evidence is 881 active BancaStato scanned-element rows;
   the latest Job 32 READY capture contains 239 elements.
 
+### Smoke Test Playwright page refresh
+
+- Frontend `7d5a157` adds the isolated two-line `Refresh` / `Web Page` button immediately before
+  `Stop`, using the established Real/Synthetic Data toggle sizing and interaction pattern.
+- Backend `aab60fca` owner-authorizes `smokeTest.integration.refresh` against the exact Smoke Test
+  transport, binding, workspace, Bot Job owner, and graph revision before reserving the shared
+  Playwright browser and calling its reload/settle path. Bot Job mutation fencing prevents a switch
+  during refresh; the React Smoke Test page is never reloaded.
+- The button is available only for an authoritative, idle Integration workspace and is disabled
+  while execution or another browser owner is active. Response handling is request/binding/owner/
+  graph correlated and duplicate successes are replay-safe.
+- Frontend build passed with existing warnings; Java compile passed with 564 main sources and the
+  two existing warnings. No tests ran. Deployment `cd9bf34a` contains 58 matching frontend files
+  and 19 images.
+- PID `17864` serves `main.9a55ef9b.js` (SHA-256
+  `379BB80F481BFE97BB563BFAA98071125BEDDA06A97F85DD4F8DE53940F965F9`) and
+  `main.069de826.css` (SHA-256
+  `08535CB786F8B8A3D27FCA4BFF7953F48B1B20B27667A279337DBCD98101C16F`) from
+  `target/classes` on 62590/62591; root and both assets return HTTP 200.
+- Live acceptance remains one user click while Lloyds Bot Job 29 Smoke Test Integration is idle;
+  Codex did not trigger the refresh or run a test.
+
 ### Current risks
 
 | Severity | Status | Risk |
@@ -243,6 +265,12 @@ The Page Mappings roadmap is now source-complete through P7:
 - [x] TASK - Java compile passed with 563 sources; no tests were run. PID `21796` serves matching current assets on 53734/53735 and six `.17` logs have zero relevant errors.
 - [x] TASK - Authoritative capture total and Main Dashboard Page Mappings shell/header pushed in frontend `cf16efe`; exact frontend-only mirror pushed in backend `98ae848b`.
 - [x] TASK - No tests/Maven command ran; PID `12944` serves matching `main.92c3e040.js` / `main.1ac3c57f.css` on 55720/55721 and six `.18` logs have zero errors.
+- [x] TASK - Smoke Test browser-refresh source is pushed in frontend `7d5a157` and backend
+  `aab60fca`; exact frontend deployment assets are pushed in `cd9bf34a`.
+- [x] TASK - Frontend build and Java compile passed without tests; PID `17864` serves matching
+  `main.9a55ef9b.js` / `main.069de826.css` on 62590/62591.
+- [ ] TASK - User must click Refresh Web Page once from an idle Lloyds Bot Job 29 Smoke Test
+  Integration workspace and confirm that the active Playwright page reloads without reloading React.
 - [ ] TASK - User must run one fresh adaptive `SCROLL PAGE` Rescan with a selected non-default limit and compare the full-page visual result; Codex did not trigger this scan.
 - [ ] TASK - Package/image delivery, other-database/SQL Server rollout, and broader reconnect/takeover/retention-save-purge/OCR/Memory/multi-page acceptance remain open.
 
@@ -260,6 +288,9 @@ The Page Mappings roadmap is now source-complete through P7:
 - [x] Independent adaptive-scroll review confirmed bounded paint waits, class/style mutation coverage,
   finite near-viewport animation gating, image decode/font readiness, deadline-bounded restore, and
   fail-closed timeout behavior. No concrete source blocker remains.
+- [ ] Validate the Smoke Test refresh contract: exact current transport/binding/workspace/owner/graph
+  authorization, browser-owner exclusion, Bot Job mutation fencing during Playwright reload/settle,
+  correlated response handling, and the idle-only toolbar gate immediately before Stop.
 - [ ] Validate exact Home Banking/Bot Job browser-storage isolation, post-authorization explicit
   `1..40` validation, request/status `scrollPage` + `scrollPages` correlation, and the rule that N
   counts only confirmed downward viewport movements.
