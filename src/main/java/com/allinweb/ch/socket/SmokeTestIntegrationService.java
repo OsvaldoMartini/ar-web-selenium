@@ -39,6 +39,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.BooleanSupplier;
 import javax.websocket.Session;
 import lombok.extern.slf4j.Slf4j;
 
@@ -329,11 +330,16 @@ public final class SmokeTestIntegrationService {
             // concurrent graph mutation must fail start instead of combining a stale React graph
             // assertion with newer SQL/Excel facts.
             authorization = variables.authorize(rawBody, transport);
-            if (!browser.openPreservingPage(
-                    plan.environment().browserType(),
-                    plan.environment().url(),
-                    plan.environment().optionsConfig())) {
-                throw new IllegalStateException("The Playwright page could not be opened.");
+            boolean pageReady = workspaces.commitMutation(
+                    authorization.botJobId(),
+                    authorization.workspaceEpoch(),
+                    () -> browser.openSelectedPageAndWait(
+                            plan.environment().browserType(),
+                            plan.environment().url(),
+                            plan.environment().optionsConfig()));
+            if (!pageReady) {
+                throw new IllegalStateException(
+                        "The selected Bot Job Playwright page could not be opened and settled.");
             }
             if (!variables.isCurrent(authorization, transport)) {
                 throw new IllegalStateException(
@@ -383,7 +389,7 @@ public final class SmokeTestIntegrationService {
                     plan.blocks().size(),
                     plan.instructions().size(),
                     "INTEGRATION_STARTED",
-                    "Integration owns the current Playwright page.");
+                    "Integration owns the selected Bot Job Playwright page.");
             return successful(response);
         } catch (IllegalArgumentException | IllegalStateException refused) {
             log.warn("Smoke Test Integration start refused: {}", refused.getMessage());
@@ -1065,10 +1071,15 @@ public final class SmokeTestIntegrationService {
 
     interface WorkspacePort {
         String executionState(int botJobId, long workspaceEpoch);
+
+        default boolean commitMutation(
+                int botJobId, long workspaceEpoch, BooleanSupplier mutation) {
+            return mutation.getAsBoolean();
+        }
     }
 
     interface BrowserStartPort {
-        boolean openPreservingPage(String browserType, String url, String optionsConfig);
+        boolean openSelectedPageAndWait(String browserType, String url, String optionsConfig);
 
         default boolean reloadCurrentPage() {
             return false;
@@ -1081,9 +1092,17 @@ public final class SmokeTestIntegrationService {
 
     private static final class DefaultBrowserStartPort implements BrowserStartPort {
         @Override
-        public boolean openPreservingPage(String browserType, String url, String optionsConfig) {
-            return ARWebDriver.getInstance()
-                    .openBrowserPreservingCurrentPage(browserType, url, optionsConfig);
+        public boolean openSelectedPageAndWait(
+                String browserType, String url, String optionsConfig) {
+            ARWebDriver driver = ARWebDriver.getInstance();
+            if (!driver.openBrowserForOwnerSwitch(browserType, url, optionsConfig)) return false;
+            var current = driver.currentPlaywrightDriver();
+            if (current == null || !current.isOpen()) return false;
+            current.waitForPageSettled(15_000L);
+            String currentUrl = current.currentUrl();
+            return currentUrl != null
+                    && !currentUrl.isBlank()
+                    && !"about:blank".equalsIgnoreCase(currentUrl.trim());
         }
 
         @Override
@@ -1160,6 +1179,14 @@ public final class SmokeTestIntegrationService {
             return BotJobDetailsWorkspaceRegistry.getInstance()
                     .require(botJobId, workspaceEpoch)
                     .executionState();
+        }
+
+        @Override
+        public boolean commitMutation(
+                int botJobId, long workspaceEpoch, BooleanSupplier mutation) {
+            return BotJobDetailsWorkspaceRegistry.getInstance()
+                    .commitWorkspaceMutation(
+                            botJobId, workspaceEpoch, mutation::getAsBoolean);
         }
     }
 

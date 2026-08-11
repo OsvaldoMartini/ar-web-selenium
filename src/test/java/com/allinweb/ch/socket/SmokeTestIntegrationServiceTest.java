@@ -27,6 +27,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import javax.websocket.Session;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -46,6 +47,7 @@ class SmokeTestIntegrationServiceTest {
     private RecordingResponses responses;
     private RecordingBrowserOwnership browserOwnership;
     private RecordingSteps steps;
+    private AtomicReference<String> openedBrowserUrl;
     private SmokeTestIntegrationService service;
 
     @BeforeEach
@@ -65,6 +67,7 @@ class SmokeTestIntegrationServiceTest {
         responses = new RecordingResponses();
         browserOwnership = new RecordingBrowserOwnership();
         steps = new RecordingSteps();
+        openedBrowserUrl = new AtomicReference<>();
 
         SmokeIntegrationAuthorization authorization = new SmokeIntegrationAuthorization(
                 BINDING_EPOCH,
@@ -94,7 +97,10 @@ class SmokeTestIntegrationServiceTest {
                 steps,
                 browserOwnership,
                 (botJobId, workspaceEpoch) -> "IDLE",
-                (browserType, url, optionsConfig) -> true,
+                (browserType, url, optionsConfig) -> {
+                    openedBrowserUrl.set(url);
+                    return true;
+                },
                 responses,
                 worker);
     }
@@ -205,6 +211,7 @@ class SmokeTestIntegrationServiceTest {
         assertTrue(response.body.get("ok").getAsBoolean());
         assertEquals(requestId, response.body.get("requestId").getAsString());
         assertEquals(OWNER.homeBankingId(), response.homeBankingId);
+        assertEquals("https://example.test", openedBrowserUrl.get());
         return response.body;
     }
 
