@@ -726,3 +726,17 @@ the Page Mappings acceptance gates above.
 - [ ] User live gate: restart ARWeb, open Lloyds Bot Job 29 and its Playwright page, then open Smoke
   Test Integration while idle and click Refresh Web Page once. Confirm the active browser page reloads
   without reloading React. Codex did not click the control or execute a test.
+
+### Inactive Integration Block scope correction
+
+- [x] The observed Step 0 error came from Bot Job 32 inactive Block 204 (`Registra eBill`), not from
+  Lloyds Bot Job 29. The frontend displayed inactive blocks as bypassed but incorrectly sent their IDs
+  to the backend, whose active-only plan contract correctly refused them.
+- [x] Frontend `124ecb6` sends only selected active Block IDs while retaining inactive blocks in the
+  visual flow and local bypass report. Inactive-only selection fails locally and restores IDLE.
+- [x] `npm run build` passed with existing warnings; no tests or Maven command ran. Deployment
+  `1883a1bc` contains 58 exact files.
+- [x] PID `11496` serves matching `main.da89dda3.js` / `main.634ba30e.css` from `target/classes` on
+  61402/61403; six fresh `.23` logs have zero strict/error matches at the checkpoint.
+- [ ] Retry Lloyds Bot Job 29. Its database plan has active Block 131 (`Login Flow`); Block 204 is
+  owned by Bot Job 32 and must not appear in a Lloyds request.

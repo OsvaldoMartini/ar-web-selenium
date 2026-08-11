@@ -2,7 +2,7 @@
 
 Keep exactly two review sections. Check tasks only after their separate gates pass.
 
-**Last updated:** 2026-08-10 - Smoke Test Integration now has an authorized two-line `Refresh` / `Web Page` control immediately before Stop. Frontend `7d5a157`, backend `aab60fca`, and deployment `cd9bf34a` are pushed. PID `17864` served matching `main.9a55ef9b.js` / `main.069de826.css` on 62590/62591, then stopped normally when the Main window closed. One button action safely refused because no Bot Job Playwright page was open. No tests ran. Restart, open Lloyds Bot Job 29's Playwright page, and click Refresh while idle to close the live behavior gate. Claude independent review requested.
+**Last updated:** 2026-08-10 - Smoke Test Integration refresh is pushed, and frontend `124ecb6` fixes the observed inactive-Block plan failure by sending only selected active Block IDs to the authoritative Integration scope. Deployment `1883a1bc` is live on PID `11496`, ports 61402/61403, serving `main.da89dda3.js` / `main.634ba30e.css`. No tests or Maven command ran. The failed Step 0 attempt was Bot Job 32 inactive Block 204, not Lloyds Bot Job 29. User retry remains open. Claude independent review requested.
 
 ## 1. CODEX -> CLAUDE - Page Mappings and Memory lifecycle review handoff
 
@@ -187,6 +187,16 @@ The Page Mappings roadmap is now source-complete through P7:
 - Live acceptance remains: restart ARWeb, open Lloyds Bot Job 29 and its Playwright page, then click
   Refresh Web Page from the idle Smoke Test Integration workspace. Codex did not trigger the refresh
   or run a test.
+- The later Step 0 plan failure was Bot Job 32 requesting inactive Block 204 (`Registra eBill`), not
+  Lloyds Bot Job 29. Frontend `124ecb6` preserves inactive blocks in the visible/bypassed flow but
+  filters them from the executable Integration scope; an inactive-only selection fails locally with
+  a precise message and resets the start phase.
+- `npm run build` passed with existing warnings; no tests or Maven command ran. Deployment `1883a1bc`
+  mirrors 58 exact files. PID `11496` serves `main.da89dda3.js` (SHA-256
+  `A9CFBE95199F991D5CF0D1CD2D42200F24E5DE56D08ED413E69064D9E35FEC61`) and
+  `main.634ba30e.css` (SHA-256
+  `BFFC0DF3E252F977CED9A36791D481D00509474249B9D3052CA7EAF397178B64`) on 61402/61403; six
+  `.23` logs have zero error/strict matches at the checkpoint.
 
 ### Current risks
 
@@ -274,6 +284,10 @@ The Page Mappings roadmap is now source-complete through P7:
   `main.9a55ef9b.js` / `main.069de826.css` on 62590/62591 before a normal Main-window shutdown.
 - [ ] TASK - Restart ARWeb, open Lloyds Bot Job 29's Playwright page, then click Refresh Web Page once
   from idle Smoke Test Integration and confirm it reloads the browser without reloading React.
+- [x] TASK - Inactive selected Blocks remain visible/bypassed but are excluded from Integration start
+  scope in frontend `124ecb6`; build/deployment `1883a1bc` is live without tests or Maven.
+- [ ] TASK - Retry the intended Lloyds Bot Job 29 run. The prior Step 0 error belongs to Bot Job 32
+  inactive Block 204 and is not Lloyds plan evidence.
 - [ ] TASK - User must run one fresh adaptive `SCROLL PAGE` Rescan with a selected non-default limit and compare the full-page visual result; Codex did not trigger this scan.
 - [ ] TASK - Package/image delivery, other-database/SQL Server rollout, and broader reconnect/takeover/retention-save-purge/OCR/Memory/multi-page acceptance remain open.
 
@@ -294,6 +308,9 @@ The Page Mappings roadmap is now source-complete through P7:
 - [ ] Validate the Smoke Test refresh contract: exact current transport/binding/workspace/owner/graph
   authorization, browser-owner exclusion, Bot Job mutation fencing during Playwright reload/settle,
   correlated response handling, and the idle-only toolbar gate immediately before Stop.
+- [ ] Validate `124ecb6`: partial/all selections must send selected active IDs only, inactive blocks
+  must remain visible and bypassed locally, and inactive-only selection must never send a request or
+  leave the Integration hook in STARTING.
 - [ ] Validate exact Home Banking/Bot Job browser-storage isolation, post-authorization explicit
   `1..40` validation, request/status `scrollPage` + `scrollPages` correlation, and the rule that N
   counts only confirmed downward viewport movements.

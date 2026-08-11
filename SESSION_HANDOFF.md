@@ -283,6 +283,21 @@ This checkpoint supersedes only the immediately preceding current frontend asset
 - The remaining live gate is to restart ARWeb, open Lloyds Bot Job 29 and its Playwright page first,
   then open Smoke Test Integration and click Refresh Web Page while idle. Codex did not click the
   button or run a test.
+- A subsequent `Step 0` failure was not a Lloyds Bot Job 29 plan. Read-only SQLite/log evidence shows
+  the workspace was Bot Job 32 and selected inactive Block `204` (`Registra eBill`, order 10,
+  `active=0`). The React flow intentionally displays inactive blocks as bypassed, but the start
+  request incorrectly included their IDs while the authoritative backend accepts active IDs only.
+- Frontend `124ecb6` now derives the Integration scope from selected active plan blocks. Inactive
+  blocks remain visible and locally reported as bypassed; they are not sent for database/Playwright
+  execution. An inactive-only selection returns `Select at least one active Block...` and the hook
+  safely returns to IDLE instead of remaining in STARTING.
+- No tests or Maven command ran for this correction. `npm run build` passed with existing warnings;
+  deployment `1883a1bc` mirrors 58 exact files. PID `11496` runs the unchanged Java classes on
+  `127.0.0.1:61402` / `127.0.0.1:61403` and serves `main.da89dda3.js` (2,077,618 bytes; SHA-256
+  `A9CFBE95199F991D5CF0D1CD2D42200F24E5DE56D08ED413E69064D9E35FEC61`) plus
+  `main.634ba30e.css` (506,166 bytes; SHA-256
+  `BFFC0DF3E252F977CED9A36791D481D00509474249B9D3052CA7EAF397178B64`). Six `.23` logs contain
+  zero strict/error matches at the deployment checkpoint.
 
 Read `specifications/performances/COPY_LAST_RESPONSE.md` and
 `specifications/performances/Page Mappins PLAN 2026-08-07.md` before continuing.
