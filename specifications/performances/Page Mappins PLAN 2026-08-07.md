@@ -720,8 +720,9 @@ the Page Mappings acceptance gates above.
   `379BB80F481BFE97BB563BFAA98071125BEDDA06A97F85DD4F8DE53940F965F9`) and
   `main.069de826.css` (SHA-256
   `08535CB786F8B8A3D27FCA4BFF7953F48B1B20B27667A279337DBCD98101C16F`).
-- [x] PID `17864` runs the rebuilt BancaStato `target/classes` on 62590/62591; root/JS/CSS return
-  HTTP 200 with matching hashes.
-- [ ] User live gate: open Lloyds Bot Job 29 Smoke Test Integration while idle, confirm Refresh Web
-  Page appears immediately before Stop, click it once, and verify the active Lloyds Playwright page
-  reloads. Codex did not click the control or execute a test.
+- [x] PID `17864` ran the rebuilt BancaStato `target/classes` on 62590/62591; root/JS/CSS returned
+  HTTP 200 with matching hashes. The endpoint safely refused one action because no Bot Job Playwright
+  page was open, and the process later stopped normally when the Main window closed.
+- [ ] User live gate: restart ARWeb, open Lloyds Bot Job 29 and its Playwright page, then open Smoke
+  Test Integration while idle and click Refresh Web Page once. Confirm the active browser page reloads
+  without reloading React. Codex did not click the control or execute a test.

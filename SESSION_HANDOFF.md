@@ -275,12 +275,14 @@ This checkpoint supersedes only the immediately preceding current frontend asset
   `379BB80F481BFE97BB563BFAA98071125BEDDA06A97F85DD4F8DE53940F965F9`) and
   `main.069de826.css` (506,255 bytes; SHA-256
   `08535CB786F8B8A3D27FCA4BFF7953F48B1B20B27667A279337DBCD98101C16F`).
-- PID `17864` runs the rebuilt `target/classes` with the exact BancaStato config and responds on
-  `127.0.0.1:62590` / `127.0.0.1:62591`. HTTP root, JS, and CSS return 200 with the exact hashes
-  above. The new `.21` log set contains no generic error entry at the checkpoint.
-- The user-only live gate is to open Smoke Test Integration for Lloyds Bot Job 29, confirm the new
-  control appears before Stop, and click it while idle to observe the Lloyds Playwright page reload.
-  Codex did not click the button or run a test.
+- PID `17864` ran the rebuilt `target/classes` with the exact BancaStato config on
+  `127.0.0.1:62590` / `127.0.0.1:62591`. HTTP root, JS, and CSS returned 200 with the exact hashes
+  above. A user action reached the new endpoint and was safely refused because no Bot Job Playwright
+  page was open. The Main window was then closed; logs record normal application shutdown and PID
+  `17864` is stopped. One unrelated browser-console 404 is present, with no JVM/SQLite/snapshot error.
+- The remaining live gate is to restart ARWeb, open Lloyds Bot Job 29 and its Playwright page first,
+  then open Smoke Test Integration and click Refresh Web Page while idle. Codex did not click the
+  button or run a test.
 
 Read `specifications/performances/COPY_LAST_RESPONSE.md` and
 `specifications/performances/Page Mappins PLAN 2026-08-07.md` before continuing.

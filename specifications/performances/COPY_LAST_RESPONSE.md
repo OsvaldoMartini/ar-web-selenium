@@ -2,7 +2,7 @@
 
 Keep exactly two review sections. Check tasks only after their separate gates pass.
 
-**Last updated:** 2026-08-10 - Smoke Test Integration now has an authorized two-line `Refresh` / `Web Page` control immediately before Stop. Frontend `7d5a157`, backend `aab60fca`, and deployment `cd9bf34a` are pushed. PID `17864` is healthy on ports 62590/62591 and serves `main.9a55ef9b.js` / `main.069de826.css` with matching hashes. No tests ran. One user click on idle Lloyds Bot Job 29 remains the live behavior gate. Claude independent review requested.
+**Last updated:** 2026-08-10 - Smoke Test Integration now has an authorized two-line `Refresh` / `Web Page` control immediately before Stop. Frontend `7d5a157`, backend `aab60fca`, and deployment `cd9bf34a` are pushed. PID `17864` served matching `main.9a55ef9b.js` / `main.069de826.css` on 62590/62591, then stopped normally when the Main window closed. One button action safely refused because no Bot Job Playwright page was open. No tests ran. Restart, open Lloyds Bot Job 29's Playwright page, and click Refresh while idle to close the live behavior gate. Claude independent review requested.
 
 ## 1. CODEX -> CLAUDE - Page Mappings and Memory lifecycle review handoff
 
@@ -177,13 +177,16 @@ The Page Mappings roadmap is now source-complete through P7:
 - Frontend build passed with existing warnings; Java compile passed with 564 main sources and the
   two existing warnings. No tests ran. Deployment `cd9bf34a` contains 58 matching frontend files
   and 19 images.
-- PID `17864` serves `main.9a55ef9b.js` (SHA-256
+- PID `17864` served `main.9a55ef9b.js` (SHA-256
   `379BB80F481BFE97BB563BFAA98071125BEDDA06A97F85DD4F8DE53940F965F9`) and
   `main.069de826.css` (SHA-256
   `08535CB786F8B8A3D27FCA4BFF7953F48B1B20B27667A279337DBCD98101C16F`) from
-  `target/classes` on 62590/62591; root and both assets return HTTP 200.
-- Live acceptance remains one user click while Lloyds Bot Job 29 Smoke Test Integration is idle;
-  Codex did not trigger the refresh or run a test.
+  `target/classes` on 62590/62591; root and both assets returned HTTP 200. It stopped normally after
+  the Main window closed. The new endpoint safely refused one action because no Bot Job Playwright
+  page was open; no JVM/SQLite/snapshot failure followed.
+- Live acceptance remains: restart ARWeb, open Lloyds Bot Job 29 and its Playwright page, then click
+  Refresh Web Page from the idle Smoke Test Integration workspace. Codex did not trigger the refresh
+  or run a test.
 
 ### Current risks
 
@@ -267,10 +270,10 @@ The Page Mappings roadmap is now source-complete through P7:
 - [x] TASK - No tests/Maven command ran; PID `12944` serves matching `main.92c3e040.js` / `main.1ac3c57f.css` on 55720/55721 and six `.18` logs have zero errors.
 - [x] TASK - Smoke Test browser-refresh source is pushed in frontend `7d5a157` and backend
   `aab60fca`; exact frontend deployment assets are pushed in `cd9bf34a`.
-- [x] TASK - Frontend build and Java compile passed without tests; PID `17864` serves matching
-  `main.9a55ef9b.js` / `main.069de826.css` on 62590/62591.
-- [ ] TASK - User must click Refresh Web Page once from an idle Lloyds Bot Job 29 Smoke Test
-  Integration workspace and confirm that the active Playwright page reloads without reloading React.
+- [x] TASK - Frontend build and Java compile passed without tests; PID `17864` served matching
+  `main.9a55ef9b.js` / `main.069de826.css` on 62590/62591 before a normal Main-window shutdown.
+- [ ] TASK - Restart ARWeb, open Lloyds Bot Job 29's Playwright page, then click Refresh Web Page once
+  from idle Smoke Test Integration and confirm it reloads the browser without reloading React.
 - [ ] TASK - User must run one fresh adaptive `SCROLL PAGE` Rescan with a selected non-default limit and compare the full-page visual result; Codex did not trigger this scan.
 - [ ] TASK - Package/image delivery, other-database/SQL Server rollout, and broader reconnect/takeover/retention-save-purge/OCR/Memory/multi-page acceptance remain open.
 
