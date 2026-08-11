@@ -1538,6 +1538,7 @@ public class BotJobDetailsWorkspaceHost {
                 case SET_NAVIGATION_TIME -> setNavigationTimeFromReact(request.body());
                 case LAUNCH -> runLaunchFromReact(context, request, action, completion);
                 case REFRESH_BLOCKS -> reloadBlocksFromReact(context);
+                case PREFLIGHT -> runTestRunPreflightFromReact(context, request, completion);
                 case TEST_RUN -> runTestRunFromReact(context, request, action, completion);
                 case EXPORT_JOB -> exportJobFromReact(context, request);
                 case IMPORT_JOB -> importJobFromReact(context, request);
@@ -1545,7 +1546,9 @@ public class BotJobDetailsWorkspaceHost {
                 case STOP_TEST_RUN -> throw new IllegalStateException("STOP dispatch failed");
                 case OPEN_REPORT, CHOOSE_TRANSFER_PATH -> throw new IllegalStateException("Native chooser dispatch failed");
             }
-            if (action != BotJobToolbarAction.TEST_RUN && action != BotJobToolbarAction.LAUNCH) {
+            if (action != BotJobToolbarAction.PREFLIGHT
+                    && action != BotJobToolbarAction.TEST_RUN
+                    && action != BotJobToolbarAction.LAUNCH) {
                 botJobDetailsWorkspaceRegistry.require(context.botJobId(), context.workspaceEpoch());
                 botJobDetailsWorkspaceRegistry.touch(context.botJobId());
                 completion.complete(selectedFile == null
@@ -1689,7 +1692,92 @@ public class BotJobDetailsWorkspaceHost {
             BotJobToolbarAction action,
             CompletableFuture<BotJobToolbarActionResult> completion) {
         requireDesktopBrowserExecution(context);
+        TestRunRequestSelection requested = resolveTestRunRequest(context, request.body());
         JsonObject body = request.body();
+        String mode = requested.mode();
+        RunScope runScope = requested.runScope();
+
+        ScannerExecutionPreflightMonitor.Observation preflightObservation =
+                observeTestRunPreflight(context, runScope);
+        ExecutionPreflightReport preflightReport =
+                ExecutionPreflightReport.from(preflightObservation);
+        if (preflightBlocksStart(preflightReport)) {
+            completion.complete(BotJobToolbarActionResult.failure(
+                            action, preflightMessage(preflightReport, true))
+                    .withExecutionPreflight(preflightReport));
+            return;
+        }
+
+        JsonObject excelWorkspace = ExcelDataWorkspaceService.getInstance()
+                .openForBotJob(context.botJobId());
+        if (excelWorkspace == null
+                || !excelWorkspace.has("ok")
+                || !excelWorkspace.get("ok").getAsBoolean()) {
+            throw new IllegalStateException(
+                    excelWorkspace != null && excelWorkspace.has("error")
+                            ? excelWorkspace.get("error").getAsString()
+                    : "Excel Data memory could not be opened for TEST RUN");
+        }
+        JsonObject excelPolicy = ExcelDataWorkspaceService.getInstance()
+                .applyExecutionMode(context.botJobId());
+        if (!excelPolicy.get("ok").getAsBoolean()) {
+            throw new IllegalStateException(excelPolicy.get("error").getAsString());
+        }
+        prepareRuntimeMemoryForExecution(context, body);
+        BotJobTestRunCoordinator.StartResult result;
+        try (ExecutionPauseCoordinator.ExecutionStart ignored =
+                executionPauseCoordinator.reserveExecutionStart()) {
+            result = botJobTestRunCoordinator.start(
+                    context,
+                    requested.executionSelection().blockOrderNumber(),
+                    requested.executionSelection().runSingleBlock(),
+                    mode,
+                    requested.blockName(),
+                    request.requestId());
+        }
+        if (result.accepted()) {
+            JsonObject runtimeOpen = VariablesWorkspaceService.getInstance()
+                    .openRuntimeVariablesForBotJob(context.botJobId());
+            if (!runtimeOpen.has("ok") || !runtimeOpen.get("ok").getAsBoolean()) {
+                log.warn(
+                        "Runtime Variables could not be opened for TEST RUN Bot Job {}",
+                        context.botJobId());
+            }
+        }
+        completion.complete((result.accepted()
+                ? BotJobToolbarActionResult.success(action, result.message())
+                : BotJobToolbarActionResult.failure(action, result.message()))
+                .withExecutionPreflight(preflightReport));
+    }
+
+    private void runTestRunPreflightFromReact(
+            BotJobToolbarContext context,
+            BotJobDetailsRequest request,
+            CompletableFuture<BotJobToolbarActionResult> completion) {
+        TestRunRequestSelection requested = resolveTestRunRequest(context, request.body());
+        ExecutionPreflightReport report = ExecutionPreflightReport.from(
+                observeTestRunPreflight(context, requested.runScope()));
+        BotJobToolbarActionResult result = preflightBlocksStart(report)
+                ? BotJobToolbarActionResult.failure(
+                        BotJobToolbarAction.PREFLIGHT, preflightMessage(report, false))
+                : BotJobToolbarActionResult.success(
+                        BotJobToolbarAction.PREFLIGHT, preflightMessage(report, false));
+        completion.complete(result.withExecutionPreflight(report));
+    }
+
+    private ScannerExecutionPreflightMonitor.Observation observeTestRunPreflight(
+            BotJobToolbarContext context,
+            RunScope runScope) {
+        botJobDetailsWorkspaceRegistry.require(context.botJobId(), context.workspaceEpoch());
+        return executionPreflightMonitor.observe(
+                "BOT_JOB_DETAILS_TEST_RUN",
+                context.executionBotJob(),
+                runScope);
+    }
+
+    private TestRunRequestSelection resolveTestRunRequest(
+            BotJobToolbarContext context,
+            JsonObject body) {
         String mode = requiredString(body, "executionMode").toUpperCase(java.util.Locale.ROOT);
         if (!"ALL".equals(mode) && !"ONE".equals(mode)) {
             throw new IllegalArgumentException("Execution mode must be ALL or ONE");
@@ -1724,53 +1812,42 @@ public class BotJobDetailsWorkspaceHost {
                 : "ONE".equals(mode)
                         ? RunScope.one(blockId)
                         : RunScope.fromBlock(blockId);
-        JsonObject excelWorkspace = ExcelDataWorkspaceService.getInstance()
-                .openForBotJob(context.botJobId());
-        if (excelWorkspace == null
-                || !excelWorkspace.has("ok")
-                || !excelWorkspace.get("ok").getAsBoolean()) {
-            throw new IllegalStateException(
-                    excelWorkspace != null && excelWorkspace.has("error")
-                            ? excelWorkspace.get("error").getAsString()
-                    : "Excel Data memory could not be opened for TEST RUN");
-        }
-        JsonObject excelPolicy = ExcelDataWorkspaceService.getInstance()
-                .applyExecutionMode(context.botJobId());
-        if (!excelPolicy.get("ok").getAsBoolean()) {
-            throw new IllegalStateException(excelPolicy.get("error").getAsString());
-        }
-        prepareRuntimeMemoryForExecution(context, body);
-        ScannerExecutionPreflightMonitor.Observation preflightObservation =
-                executionPreflightMonitor.observe(
-                        "BOT_JOB_DETAILS_TEST_RUN",
-                        context.executionBotJob(),
-                        runScope);
-        BotJobTestRunCoordinator.StartResult result;
-        try (ExecutionPauseCoordinator.ExecutionStart ignored =
-                executionPauseCoordinator.reserveExecutionStart()) {
-            result = botJobTestRunCoordinator.start(
-                    context,
-                    selection.blockOrderNumber(),
-                    selection.runSingleBlock(),
-                    mode,
-                    blockName,
-                    request.requestId());
-        }
-        if (result.accepted()) {
-            JsonObject runtimeOpen = VariablesWorkspaceService.getInstance()
-                    .openRuntimeVariablesForBotJob(context.botJobId());
-            if (!runtimeOpen.has("ok") || !runtimeOpen.get("ok").getAsBoolean()) {
-                log.warn(
-                        "Runtime Variables could not be opened for TEST RUN Bot Job {}",
-                        context.botJobId());
-            }
-        }
-        completion.complete(result.accepted()
-                ? BotJobToolbarActionResult.success(action, result.message())
-                        .withExecutionPreflight(
-                                ExecutionPreflightReport.from(preflightObservation))
-                : BotJobToolbarActionResult.failure(action, result.message()));
+        return new TestRunRequestSelection(mode, blockName, selection, runScope);
     }
+
+    private static boolean preflightBlocksStart(ExecutionPreflightReport report) {
+        return report == null
+                || "BLOCKED".equals(report.outcome())
+                || "UNAVAILABLE".equals(report.outcome());
+    }
+
+    private static String preflightMessage(
+            ExecutionPreflightReport report,
+            boolean startAttempt) {
+        String prefix = startAttempt ? "TEST RUN was not started. " : "";
+        if (report == null || "UNAVAILABLE".equals(report.outcome())) {
+            String reason = report == null ? null : report.unavailableReason();
+            return prefix + "Test Run preflight is unavailable"
+                    + (Strings.isNullOrEmpty(reason) ? "." : ": " + reason);
+        }
+        if ("BLOCKED".equals(report.outcome())) {
+            int count = report.structuralStartFailureCount();
+            return prefix + count + " structural start failure"
+                    + (count == 1 ? " was" : "s were") + " detected.";
+        }
+        if ("WARN".equals(report.outcome())) {
+            int count = report.variableDiagnosticCount();
+            return "Test Run preflight completed with " + count + " variable diagnostic"
+                    + (count == 1 ? "." : "s.");
+        }
+        return "Test Run preflight passed.";
+    }
+
+    private record TestRunRequestSelection(
+            String mode,
+            String blockName,
+            TestRunExecutionSelection executionSelection,
+            RunScope runScope) {}
 
     /** LAUNCH now owns the same in-process Playwright runtime, progress stream, and PAUSE protocol. */
     private void runLaunchFromReact(
@@ -1997,6 +2074,7 @@ public class BotJobDetailsWorkspaceHost {
             case SET_NAVIGATION_TIME -> "Navigation time updated";
             case LAUNCH -> "Bot Job launch started";
             case REFRESH_BLOCKS -> "Block list refreshed";
+            case PREFLIGHT -> "Test Run preflight completed";
             case TEST_RUN -> "TEST RUN started";
             case STOP_TEST_RUN -> "TEST RUN stopped";
             case EXPORT_JOB -> "Bot Job export completed";

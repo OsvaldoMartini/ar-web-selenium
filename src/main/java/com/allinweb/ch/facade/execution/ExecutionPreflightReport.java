@@ -13,8 +13,9 @@ import java.util.Set;
 /**
  * Stable WebSocket representation of one authoritative execution-preflight observation.
  *
- * <p>Execution remains in warning-only mode. The issue sample is bounded so a damaged graph cannot
- * produce an unbounded toolbar response; {@link #totalIssues()} preserves the authoritative count.
+ * <p>The issue sample is bounded so a damaged graph cannot produce an unbounded toolbar response;
+ * {@link #totalIssues()} preserves the authoritative count. Individual execution entry points
+ * decide whether the reported semantic outcome is observational or an enforced start gate.
  */
 public record ExecutionPreflightReport(
         String enforcement,

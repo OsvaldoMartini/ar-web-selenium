@@ -10,6 +10,7 @@ public enum BotJobToolbarAction {
     SET_NAVIGATION_TIME,
     LAUNCH,
     REFRESH_BLOCKS,
+    PREFLIGHT,
     TEST_RUN,
     STOP_TEST_RUN,
     EXPORT_JOB,

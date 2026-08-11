@@ -127,6 +127,7 @@ public class SimpleWebSocketServer {
             "botJobDetails.toolbar.action");
     private static final Set<String> DETACHED_PAGE_SCANNER_TOOLBAR_ACTIONS = Set.of(
             "REFRESH_BLOCKS",
+            "PREFLIGHT",
             "TEST_RUN",
             "STOP_TEST_RUN");
     private static final Set<String> DETACHED_COMMAND_EDITOR_OPERATIONS = Set.of(
@@ -3188,7 +3189,7 @@ public class SimpleWebSocketServer {
             if (ScannerWorkspaceSessions.isPageScannerSession(request.sessionId())
                     && !isAllowedDetachedPageScannerToolbarAction(action.name())) {
                 throw new IllegalArgumentException(
-                        "Only block refresh, TEST RUN, and STOP are allowed from Page Scanner");
+                        "Only block refresh, Pre Flight, TEST RUN, and STOP are allowed from Page Scanner");
             }
             botJobDetailsToolbarLedger
                     .executeOnce(
