@@ -9,6 +9,11 @@ export const EXECUTION_CAPABILITIES = [
   'runtime.reserve',
   'runtime.bootstrap',
   'runtime.release',
+  'runtime.start',
+  'runtime.action',
+  'runtime.refresh',
+  'runtime.stop',
+  'runtime.heartbeat',
 ] as const;
 
 export type ExecutionCapability = (typeof EXECUTION_CAPABILITIES)[number];

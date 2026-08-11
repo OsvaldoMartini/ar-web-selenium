@@ -11,7 +11,9 @@ Implemented now:
 - bounded HS256 execution-grant verification;
 - a deterministic compatibility fixture shared with the Java grant signer;
 - a capped, expiring, in-memory run reservation registry;
-- exact-token replay and conflicting-run refusal;
+- one opaque, capability-bound run access token returned only on exact reservation admission/replay;
+- bounded renewable idle leases for admitted runs, independent of the short-lived admission grant;
+- exact-token replay, constant-time authority checks, and conflicting-run refusal;
 - a bounded worker pool with global, organization, and Bot Job admission limits;
 - one dedicated Chromium process, BrowserContext, and Page per admitted run;
 - bounded navigation readiness, refresh, stop, cleanup, and asynchronous crash containment;
@@ -25,6 +27,7 @@ Not implemented yet:
 - production secret provisioning and rotation;
 - React or Java routing to this service;
 - HTTP start/refresh/stop routes connected to the internal worker pool;
+- run-token heartbeat/action routes connected to the renewable lease authority;
 - authorized plan/registry preparation and HTTP routing for physical actions;
 - coordinates, Shadow DOM targets, and command families beyond CLICK, INPUT, and OUTPUT;
 - production browser executable provisioning and a live browser acceptance run;
