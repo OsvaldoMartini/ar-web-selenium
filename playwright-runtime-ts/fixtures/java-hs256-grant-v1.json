@@ -1,0 +1,29 @@
+{
+  "description": "Deterministic test-only grant emitted by ExecutionRuntimeGrantService",
+  "secretBase64Url": "WlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlo",
+  "keyId": "v1",
+  "claims": {
+    "v": 1,
+    "iss": "arweb-java-gateway",
+    "aud": "arweb-playwright-runtime",
+    "jti": "11111111-1111-4111-8111-111111111111",
+    "runId": "22222222-2222-4222-8222-222222222222",
+    "organizationId": 13,
+    "homeBankingId": 13,
+    "botJobId": 29,
+    "workspaceEpoch": 7,
+    "graphRevision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "planRevision": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "dataMode": "REAL",
+    "runtime": "TYPESCRIPT_PLAYWRIGHT_V2",
+    "capabilities": [
+      "runtime.reserve",
+      "runtime.bootstrap",
+      "runtime.release"
+    ],
+    "iat": 1786449600,
+    "nbf": 1786449600,
+    "exp": 1786449690
+  },
+  "compactGrant": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkFSV0VCLUVYRUNVVElPTi1HUkFOVCIsImtpZCI6InYxIn0.eyJ2IjoxLCJpc3MiOiJhcndlYi1qYXZhLWdhdGV3YXkiLCJhdWQiOiJhcndlYi1wbGF5d3JpZ2h0LXJ1bnRpbWUiLCJqdGkiOiIxMTExMTExMS0xMTExLTQxMTEtODExMS0xMTExMTExMTExMTEiLCJydW5JZCI6IjIyMjIyMjIyLTIyMjItNDIyMi04MjIyLTIyMjIyMjIyMjIyMiIsIm9yZ2FuaXphdGlvbklkIjoxMywiaG9tZUJhbmtpbmdJZCI6MTMsImJvdEpvYklkIjoyOSwid29ya3NwYWNlRXBvY2giOjcsImdyYXBoUmV2aXNpb24iOiJhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhIiwicGxhblJldmlzaW9uIjoiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYmJiYiIsImRhdGFNb2RlIjoiUkVBTCIsInJ1bnRpbWUiOiJUWVBFU0NSSVBUX1BMQVlXUklHSFRfVjIiLCJjYXBhYmlsaXRpZXMiOlsicnVudGltZS5yZXNlcnZlIiwicnVudGltZS5ib290c3RyYXAiLCJydW50aW1lLnJlbGVhc2UiXSwiaWF0IjoxNzg2NDQ5NjAwLCJuYmYiOjE3ODY0NDk2MDAsImV4cCI6MTc4NjQ0OTY5MH0.1t_QlfLsb0kUwHodRtVj64zsDcwZw3PGoFqj1El_3gA"
+}

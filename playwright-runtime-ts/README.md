@@ -8,13 +8,15 @@ Implemented now:
 - versioned execution/grant contracts;
 - loopback-only HTTP health and readiness endpoints;
 - bounded HS256 execution-grant verification;
+- a deterministic compatibility fixture shared with the Java grant signer;
 - a capped, expiring, in-memory run reservation registry;
 - exact-token replay and conflicting-run refusal;
 - safe structured logs that never include grants or request bodies.
 
 Not implemented yet:
 
-- Java grant issuance;
+- an authorized Java/WebSocket adapter that may invoke the grant signer;
+- production secret provisioning and rotation;
 - React or Java routing to this service;
 - Playwright workers, browsers, contexts, pages, or actions;
 - database, runtime-variable, CSV, XLSX, or filesystem writes.

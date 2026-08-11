@@ -43,8 +43,8 @@
 
 - HS256 requires secure shared-secret provisioning and rotation. A later asymmetric algorithm may
   reduce secret-distribution risk; changing algorithms requires a new contract version.
-- Java grant issuance and exact user/license/workspace authorization are not yet implemented, so
-  this service must not be connected to production execution.
+- The Java signer exists, but the exact user/license/workspace authorization adapter and secret
+  provisioning are not implemented, so this service must not be connected to production execution.
 - Browser worker isolation, process limits, page readiness, at-most-once physical actions,
   reconnect leases, crash cleanup, and VPN/proxy separation are P2+ gates.
 - Artifact upload, controlled paths, checksums, atomic moves, and ExcelWrite lifecycle are P5/P6
