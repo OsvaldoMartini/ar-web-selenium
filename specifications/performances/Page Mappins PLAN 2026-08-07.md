@@ -774,8 +774,9 @@ runtime PID. It does not close the Page Mappings live gates or claim a Lloyds ex
   `89C813BE043B8A39BD450667E9FAF35D39344B703E893DAEB0642A039A688406`).
 - [x] PID `31360` runs the rebuilt `target/classes` with the exact BancaStato config on
   127.0.0.1:62094/62095. Root/JS/CSS return HTTP 200 with exact hashes; Smoke Test connected and
-  received bootstrap plus instruction-status responses; six post-start logs have zero strict
-  operational error matches.
+  received bootstrap plus instruction-status responses. The six logs had zero strict matches at
+  restart; later user browsing added only page-console HTTP 404/400 resource messages, with no
+  JVM/SQLite/snapshot/WebSocket operation failure.
 - [ ] Live user gate: with Lloyds Bot Job 29 and its Playwright page open, visually confirm the new
   row controls, execute one safe manual TEST INPUT/CLICK, and run the intended Integration plan.
   Confirm Active toggles synchronize with Bot Job and failures expose the structured locator stage.

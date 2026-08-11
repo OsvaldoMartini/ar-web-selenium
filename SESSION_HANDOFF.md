@@ -340,8 +340,10 @@ The Page Mappings checkpoints and the still-open user-driven Lloyds execution ga
 - PID `31360` runs the rebuilt `target/classes` with the exact BancaStato config on
   `127.0.0.1:62094` / `127.0.0.1:62095`. HTTP root/JS/CSS return 200 with exact target hashes. The
   desktop shell opened, `smokeTestManager` connected, and live logs record Smoke bootstrap plus
-  `variablesWorkspace.commands.statusResponse`; six post-start logs contain zero strict operational
-  error matches.
+  `variablesWorkspace.commands.statusResponse`. At the restart checkpoint the six post-start logs
+  contained zero strict matches; subsequent user browsing added only two page-console resource
+  responses (HTTP 404 and 400), with no JVM exception, SQLite, missing-table, snapshot, or WebSocket
+  operation failure.
 - The in-app browser-control surface was unavailable, so no visual button approval, manual row
   click/input, Refresh Web Page action, or Lloyds Integration run was performed by Codex. No database
   migration, backend package, or container image was created. Those live user actions remain separate

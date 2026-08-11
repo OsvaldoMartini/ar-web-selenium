@@ -223,8 +223,9 @@ The Page Mappings roadmap is now source-complete through P7:
   `main.11a8513b.css` (SHA-256
   `89C813BE043B8A39BD450667E9FAF35D39344B703E893DAEB0642A039A688406`). PID `31360` serves
   them on 62094/62095; Smoke Test connected and received bootstrap/status synchronization, and six
-  new logs have zero strict operational matches. Browser-control was unavailable, so visual/action
-  acceptance is not claimed.
+  new logs had zero strict matches at restart. Later user browsing added only page-console HTTP 404
+  and 400 resource messages; no JVM/SQLite/snapshot/WebSocket operation failure is present.
+  Browser-control was unavailable, so visual/action acceptance is not claimed.
 
 ### Current risks
 
@@ -320,7 +321,8 @@ The Page Mappings roadmap is now source-complete through P7:
 - [x] TASK - Isolated Smoke Test Active/Input/Click row controls are pushed in frontend `f7f9aae`;
   the production build passed with existing warnings and no frontend suite ran.
 - [x] TASK - Exact deployment `3fcee24c` is live on PID `31360`; 58 resource/target files match and
-  HTTP serves the new JS/CSS hashes with zero new strict log matches.
+  HTTP serves the new JS/CSS hashes. Only two later user-page resource messages (404/400) are present;
+  no JVM/SQLite/snapshot/WebSocket operation failure was found.
 - [x] TASK - Automation catalog `2b11e657` records the final backend/frontend commits and unchanged
   2,341-row inventory; catalog generation executed no tests.
 - [ ] TASK - Retry the intended Lloyds Bot Job 29 run. The prior Step 0 error belongs to Bot Job 32
