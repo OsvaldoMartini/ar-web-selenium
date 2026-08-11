@@ -546,7 +546,8 @@ public final class SmokeTestIntegrationService {
                         run.dataset,
                         request.sequence(),
                         request.instructionId(),
-                        request.excelRowIndex())
+                        request.excelRowIndex(),
+                        run.variables)
                 : steps.execute(
                         run.plan,
                         run.dataset,
@@ -1132,7 +1133,8 @@ public final class SmokeTestIntegrationService {
                 IntegrationDataset dataset,
                 long sequence,
                 int instructionId,
-                int excelRowIndex);
+                int excelRowIndex,
+                RunVariables variables);
 
         void close(V2Run run);
     }
@@ -1284,9 +1286,10 @@ public final class SmokeTestIntegrationService {
                 IntegrationDataset dataset,
                 long sequence,
                 int instructionId,
-                int excelRowIndex) {
+                int excelRowIndex,
+                RunVariables variables) {
             return executor.execute(
-                    authority(run), plan, dataset, sequence, instructionId, excelRowIndex);
+                    authority(run), plan, dataset, sequence, instructionId, excelRowIndex, variables);
         }
 
         @Override

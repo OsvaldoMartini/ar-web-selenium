@@ -10,6 +10,7 @@ import com.allinweb.ch.facade.execution.SmokeTestIntegrationSnapshotRepository.E
 import com.allinweb.ch.facade.execution.SmokeTestIntegrationSnapshotRepository.Owner;
 import com.allinweb.ch.facade.execution.SmokeTestIntegrationSnapshotRepository.Plan;
 import com.allinweb.ch.facade.execution.SmokeTestIntegrationStepExecutor.Outcome;
+import com.allinweb.ch.facade.execution.SmokeTestIntegrationStepExecutor.RunVariables;
 import com.allinweb.ch.model.DetachedWorkspaceSessions;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts.Scope;
@@ -374,7 +375,8 @@ class SmokeTestIntegrationServiceTest {
                 IntegrationDataset dataset,
                 long sequence,
                 int instructionId,
-                int excelRowIndex) {
+                int excelRowIndex,
+                RunVariables variables) {
             steps.incrementAndGet();
             return new Outcome(
                     StepStatus.PASSED,

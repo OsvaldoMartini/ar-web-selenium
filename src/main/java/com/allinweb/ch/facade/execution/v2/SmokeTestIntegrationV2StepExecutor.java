@@ -1,9 +1,12 @@
 package com.allinweb.ch.facade.execution.v2;
 
 import com.allinweb.ch.facade.CommandRegistry;
+import com.allinweb.ch.facade.actions.RuntimeVariableValue;
+import com.allinweb.ch.facade.actions.RuntimeVariableValue.VoidReason;
 import com.allinweb.ch.facade.execution.SmokeTestIntegrationSnapshotRepository.InstructionSnapshot;
 import com.allinweb.ch.facade.execution.SmokeTestIntegrationSnapshotRepository.Plan;
 import com.allinweb.ch.facade.execution.SmokeTestIntegrationStepExecutor.Outcome;
+import com.allinweb.ch.facade.execution.SmokeTestIntegrationStepExecutor.RunVariables;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts.StepDisposition;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts.StepStatus;
 import com.allinweb.ch.socket.ExcelDataWorkspaceService;
@@ -40,6 +43,23 @@ public final class SmokeTestIntegrationV2StepExecutor {
                     public JsonObject refresh(ExecutionRuntimeRunCoordinator.Run run) {
                         return coordinator.refresh(run);
                     }
+
+                    @Override
+                    public JsonObject get(
+                            ExecutionRuntimeRunCoordinator.Run run,
+                            long sequence,
+                            int instructionId) {
+                        return coordinator.get(run, sequence, instructionId);
+                    }
+
+                    @Override
+                    public JsonObject set(
+                            ExecutionRuntimeRunCoordinator.Run run,
+                            long sequence,
+                            int instructionId,
+                            String value) {
+                        return coordinator.set(run, sequence, instructionId, value);
+                    }
                 },
                 ExcelDataWorkspaceService.getInstance()::publishActiveCell);
     }
@@ -55,10 +75,12 @@ public final class SmokeTestIntegrationV2StepExecutor {
             IntegrationDataset dataset,
             long sequence,
             int instructionId,
-            int excelRowIndex) {
+            int excelRowIndex,
+            RunVariables variables) {
         Objects.requireNonNull(run, "Execution V2 run is required");
         Objects.requireNonNull(plan, "Frozen Integration plan is required");
         Objects.requireNonNull(dataset, "Frozen Integration dataset is required");
+        Objects.requireNonNull(variables, "Execution V2 run variables are required");
         InstructionSnapshot instruction = plan.instruction(instructionId);
         if (instruction == null) {
             return failed(false, "INSTRUCTION_OUTSIDE_FROZEN_SCOPE",
@@ -91,6 +113,12 @@ public final class SmokeTestIntegrationV2StepExecutor {
                 runtime.refresh(run);
                 return passed("The isolated Playwright page was refreshed.");
             }
+            if ("GET".equals(action)) {
+                return executeGet(run, instruction, sequence, variables);
+            }
+            if ("SET".equals(action)) {
+                return executeSet(run, instruction, sequence, variables);
+            }
             if (!CommandRegistry.isWebElementAction(action)) {
                 return failed(
                         instruction.optional(),
@@ -122,6 +150,73 @@ public final class SmokeTestIntegrationV2StepExecutor {
                     "V2_RUNTIME_ACTION_FAILED",
                     "The isolated TypeScript Playwright action could not be completed.");
         }
+    }
+
+    private Outcome executeGet(
+            ExecutionRuntimeRunCoordinator.Run run,
+            InstructionSnapshot instruction,
+            long sequence,
+            RunVariables variables) {
+        Integer variableId = instruction.variableId("GET_WRITE");
+        if (variableId == null) {
+            return failed(instruction.optional(), "GET_VARIABLE_MISSING",
+                    "GET has no GET_WRITE variable slot.");
+        }
+        JsonObject result;
+        try {
+            result = runtime.get(run, sequence, instruction.id());
+        } catch (RuntimeException failure) {
+            variables.markVoid(variableId, VoidReason.PRODUCER_FAILED);
+            throw failure;
+        }
+        if (!successfulResult(result)) {
+            variables.markVoid(variableId, VoidReason.PRODUCER_FAILED);
+            return runtimeOutcome(instruction.optional(), result);
+        }
+        JsonElement output = result.get("output");
+        if (output == null || !output.isJsonPrimitive() || !output.getAsJsonPrimitive().isString()) {
+            variables.markVoid(variableId, VoidReason.PRODUCER_FAILED);
+            return failed(instruction.optional(), "V2_RUNTIME_OUTPUT_INVALID",
+                    "The TypeScript Playwright runtime returned an invalid GET value.");
+        }
+        String value = output.getAsString();
+        boolean durable = variables.write(variableId, value);
+        if (!durable) {
+            return new Outcome(
+                    StepStatus.FAILED,
+                    StepDisposition.PHYSICAL,
+                    "GET_RUNTIME_PERSISTENCE_FAILED",
+                    "GET read the page, but its durable runtime value was not saved.",
+                    variableId,
+                    RuntimeVariableValue.value(value));
+        }
+        return new Outcome(
+                StepStatus.PASSED,
+                StepDisposition.PHYSICAL,
+                "GET_VALUE_WRITTEN",
+                "GET updated the run-local variable.",
+                variableId,
+                RuntimeVariableValue.value(value));
+    }
+
+    private Outcome executeSet(
+            ExecutionRuntimeRunCoordinator.Run run,
+            InstructionSnapshot instruction,
+            long sequence,
+            RunVariables variables) {
+        Integer variableId = instruction.variableId("READ_SET");
+        if (variableId == null) {
+            return failed(instruction.optional(), "SET_VARIABLE_MISSING",
+                    "SET has no READ_SET variable slot.");
+        }
+        RuntimeVariableValue value = variables.read(variableId);
+        if (value == null || value.isVoid()) {
+            return failed(instruction.optional(), "SET_VARIABLE_VOID",
+                    "SET cannot write because its runtime variable is VOID.");
+        }
+        return runtimeOutcome(
+                instruction.optional(),
+                runtime.set(run, sequence, instruction.id(), value.value()));
     }
 
     private static String inputValue(
@@ -170,6 +265,16 @@ public final class SmokeTestIntegrationV2StepExecutor {
                 "The TypeScript Playwright runtime refused the physical action.");
     }
 
+    private static boolean successfulResult(JsonObject result) {
+        return result != null
+                && result.has("ok")
+                && result.get("ok").isJsonPrimitive()
+                && result.getAsJsonPrimitive("ok").isBoolean()
+                && result.get("ok").getAsBoolean()
+                && result.has("diagnostic")
+                && result.get("diagnostic").isJsonObject();
+    }
+
     private static String safeCode(JsonElement value) {
         if (value == null || !value.isJsonPrimitive() || !value.getAsJsonPrimitive().isString()) {
             return "";
@@ -206,6 +311,15 @@ public final class SmokeTestIntegrationV2StepExecutor {
                 String inputValue);
 
         JsonObject refresh(ExecutionRuntimeRunCoordinator.Run run);
+
+        JsonObject get(
+                ExecutionRuntimeRunCoordinator.Run run, long sequence, int instructionId);
+
+        JsonObject set(
+                ExecutionRuntimeRunCoordinator.Run run,
+                long sequence,
+                int instructionId,
+                String value);
     }
 
     interface ActiveCellPort {

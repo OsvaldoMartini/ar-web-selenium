@@ -20,6 +20,7 @@ import com.allinweb.ch.model.SmokeTestIntegrationContracts.Scope;
 import com.google.gson.JsonObject;
 import java.time.Instant;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
@@ -71,6 +72,45 @@ class ExecutionRuntimeRunCoordinatorTest {
         assertEquals(1, failedRuntime.releaseCount);
     }
 
+    @Test
+    void delegatesGetAndSetToTheFrozenParentWithoutChangingTheCommandIdentity() {
+        FakeRuntime runtime = new FakeRuntime();
+        runtime.snapshots.add(state("READY"));
+        ExecutionRuntimeRunCoordinator coordinator = coordinator(runtime);
+        ExecutionRuntimeRunCoordinator.Run run = coordinator.start(facts(), planWithCommands());
+
+        coordinator.get(run, 4L, 1734);
+        coordinator.set(run, 9L, 1735, "Banca Stato");
+
+        JsonObject get = runtime.actions.get(0);
+        JsonObject set = runtime.actions.get(1);
+        assertEquals(1734, get.get("instructionId").getAsInt());
+        assertEquals(1L, get.get("sequence").getAsLong());
+        assertEquals("OUTPUT", get.get("action").getAsString());
+        assertEquals("//*[@id='login']", get.getAsJsonArray("authoredSelectors").get(0).getAsString());
+        assertEquals(1735, set.get("instructionId").getAsInt());
+        assertEquals(2L, set.get("sequence").getAsLong());
+        assertEquals("INPUT", set.get("action").getAsString());
+        assertEquals("Banca Stato", set.get("inputValue").getAsString());
+    }
+
+    @Test
+    void unknownPhysicalOutcomePoisonsFurtherActionsButStillAllowsExactCleanup() {
+        FakeRuntime runtime = new FakeRuntime();
+        runtime.snapshots.add(state("READY"));
+        runtime.failActions = true;
+        ExecutionRuntimeRunCoordinator coordinator = coordinator(runtime);
+        ExecutionRuntimeRunCoordinator.Run run = coordinator.start(facts(), plan());
+
+        assertThrows(RuntimeException.class, () -> coordinator.action(run, 1L, 1733, null));
+        assertThrows(IllegalStateException.class, () -> coordinator.action(run, 2L, 1733, null));
+        coordinator.close(run);
+
+        assertEquals(1, runtime.actionCount);
+        assertEquals(1, runtime.stopCount);
+        assertEquals(1, runtime.releaseCount);
+    }
+
     private static ExecutionRuntimeRunCoordinator coordinator(FakeRuntime runtime) {
         IssuedGrant grant = new IssuedGrant(
                 1,
@@ -110,6 +150,29 @@ class ExecutionRuntimeRunCoordinatorTest {
                 owner, environment, Scope.all(), List.of(block), List.of(instruction), PLAN_REVISION);
     }
 
+    private static Plan planWithCommands() {
+        Plan base = plan();
+        InstructionSnapshot parent = base.instructions().get(0);
+        InstructionSnapshot get = command(parent, 1734, "GET", "GET_WRITE");
+        InstructionSnapshot set = command(parent, 1735, "SET", "READ_SET");
+        return new Plan(
+                base.owner(),
+                base.environment(),
+                base.scope(),
+                base.blocks(),
+                List.of(parent, get, set),
+                PLAN_REVISION);
+    }
+
+    private static InstructionSnapshot command(
+            InstructionSnapshot parent, int id, String action, String slot) {
+        return new InstructionSnapshot(
+                parent.owner(), parent.botJobName(), parent.botJobPriority(), parent.block(),
+                id, id - 1732, action, action.toLowerCase(), null, "", "", "", "", "", "",
+                "", "", "", "", "", false, false, null, null, false, false, true,
+                parent.id(), parent.block().id(), List.of(), Map.of(slot, 91));
+    }
+
     private static JsonObject state(String value) {
         JsonObject result = new JsonObject();
         result.addProperty("state", value);
@@ -127,6 +190,8 @@ class ExecutionRuntimeRunCoordinatorTest {
         private int stopCount;
         private int releaseCount;
         private JsonObject lastAction;
+        private final List<JsonObject> actions = new ArrayList<>();
+        private boolean failActions;
 
         @Override
         public Authority reserve(IssuedGrant grant) {
@@ -155,6 +220,8 @@ class ExecutionRuntimeRunCoordinatorTest {
         public JsonObject action(Authority authority, JsonObject request) {
             actionCount++;
             lastAction = request.deepCopy();
+            actions.add(lastAction);
+            if (failActions) throw new RuntimeException("transport failed");
             JsonObject response = new JsonObject();
             response.addProperty("ok", true);
             return response;

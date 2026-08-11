@@ -1,5 +1,6 @@
 package com.allinweb.ch.facade.execution.v2;
 
+import com.allinweb.ch.facade.CommandRegistry;
 import com.allinweb.ch.facade.RuntimeElementHealingService;
 import com.allinweb.ch.facade.RuntimeElementHealingService.Preparation;
 import com.allinweb.ch.facade.execution.SmokeTestIntegrationSnapshotRepository.InstructionSnapshot;
@@ -81,15 +82,92 @@ public final class ExecutionRuntimeRunCoordinator {
             if (instruction == null) {
                 throw new IllegalArgumentException("Instruction is outside the frozen V2 plan");
             }
-            String pageKey = runtime.pageIdentity(current.authority);
-            Preparation preparation = healing.prepare(
-                    current.facts.homeBankingId(),
-                    current.facts.botJobId(),
-                    pageKey,
-                    instruction.toInstructionLoad());
-            JsonObject request = actions.create(sequence, instruction, preparation, inputValue);
-            return runtime.action(current.authority, request);
+            return executePhysical(current, sequence, instruction.id(), instruction, null, inputValue);
         }
+    }
+
+    public JsonObject get(Run run, long sequence, int commandId) {
+        return delegatedAction(run, sequence, commandId, "GET", "OUTPUT", null);
+    }
+
+    public JsonObject set(Run run, long sequence, int commandId, String value) {
+        if (value == null) throw new IllegalArgumentException("Execution V2 SET value is required");
+        return delegatedAction(run, sequence, commandId, "SET", "INPUT", value);
+    }
+
+    private JsonObject delegatedAction(
+            Run run,
+            long sequence,
+            int commandId,
+            String expectedCommand,
+            String physicalAction,
+            String inputValue) {
+        Run current = Objects.requireNonNull(run, "Execution V2 run is required");
+        synchronized (current) {
+            requireOpen(current);
+            InstructionSnapshot command = current.plan.instruction(commandId);
+            if (command == null
+                    || !expectedCommand.equals(CommandRegistry.canonicalize(command.action()))) {
+                throw new IllegalArgumentException("Execution V2 delegated command is invalid");
+            }
+            InstructionSnapshot target = requireParent(current.plan, command);
+            return executePhysical(
+                    current, sequence, command.id(), target, physicalAction, inputValue);
+        }
+    }
+
+    private JsonObject executePhysical(
+            Run current,
+            long callerSequence,
+            int requestInstructionId,
+            InstructionSnapshot target,
+            String delegatedAction,
+            String inputValue) {
+        if (callerSequence <= 0
+                || callerSequence > ExecutionV2Contracts.MAX_JAVASCRIPT_SAFE_INTEGER) {
+            throw new IllegalArgumentException("Execution V2 caller sequence is invalid");
+        }
+        String pageKey = runtime.pageIdentity(current.authority);
+        Preparation preparation = healing.prepare(
+                current.facts.homeBankingId(),
+                current.facts.botJobId(),
+                pageKey,
+                target.toInstructionLoad());
+        long physicalSequence = current.nextPhysicalSequence;
+        if (physicalSequence > ExecutionV2Contracts.MAX_JAVASCRIPT_SAFE_INTEGER) {
+            throw new IllegalStateException("Execution V2 physical sequence limit exceeded");
+        }
+        JsonObject request = delegatedAction == null
+                ? actions.create(physicalSequence, target, preparation, inputValue)
+                : actions.createDelegated(
+                        physicalSequence,
+                        requestInstructionId,
+                        delegatedAction,
+                        target,
+                        preparation,
+                        inputValue);
+        current.nextPhysicalSequence++;
+        try {
+            return runtime.action(current.authority, request);
+        } catch (RuntimeException unknownOutcome) {
+            current.actionOutcomeUnknown = true;
+            throw unknownOutcome;
+        }
+    }
+
+    private static InstructionSnapshot requireParent(Plan plan, InstructionSnapshot command) {
+        if (command.parentId() == null) {
+            throw new IllegalArgumentException("Execution V2 command parent is missing");
+        }
+        InstructionSnapshot parent = plan.instruction(command.parentId());
+        if (parent == null
+                || parent.block().id() != command.block().id()
+                || (command.parentBlockId() != null
+                        && command.parentBlockId() != parent.block().id())
+                || !CommandRegistry.isWebElementAction(parent.action())) {
+            throw new IllegalArgumentException("Execution V2 command parent is invalid");
+        }
+        return parent;
     }
 
     public JsonObject refresh(Run run) {
@@ -151,6 +229,9 @@ public final class ExecutionRuntimeRunCoordinator {
 
     private static void requireOpen(Run run) {
         if (run.closed) throw new IllegalStateException("Execution V2 run is closed");
+        if (run.actionOutcomeUnknown) {
+            throw new IllegalStateException("Execution V2 action outcome is unknown");
+        }
     }
 
     private static void requirePlanAuthority(AuthorizedGrantFacts facts, Plan plan) {
@@ -190,6 +271,8 @@ public final class ExecutionRuntimeRunCoordinator {
         private final AuthorizedGrantFacts facts;
         private final Plan plan;
         private final Authority authority;
+        private long nextPhysicalSequence = 1L;
+        private boolean actionOutcomeUnknown;
         private boolean closed;
 
         private Run(String runId, AuthorizedGrantFacts facts, Plan plan, Authority authority) {

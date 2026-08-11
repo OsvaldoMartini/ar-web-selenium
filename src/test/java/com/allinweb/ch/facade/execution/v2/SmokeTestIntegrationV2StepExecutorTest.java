@@ -10,6 +10,7 @@ import com.allinweb.ch.facade.execution.SmokeTestIntegrationSnapshotRepository.I
 import com.allinweb.ch.facade.execution.SmokeTestIntegrationSnapshotRepository.Owner;
 import com.allinweb.ch.facade.execution.SmokeTestIntegrationSnapshotRepository.Plan;
 import com.allinweb.ch.facade.execution.SmokeTestIntegrationStepExecutor.Outcome;
+import com.allinweb.ch.facade.execution.SmokeTestIntegrationStepExecutor.RunVariables;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts.Scope;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts.StepDisposition;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts.StepStatus;
@@ -46,7 +47,8 @@ class SmokeTestIntegrationV2StepExecutorTest {
                 dataset(data),
                 1L,
                 input.id(),
-                0);
+                0,
+                variables());
 
         assertEquals(StepStatus.PASSED, outcome.status());
         assertEquals(StepDisposition.PHYSICAL, outcome.disposition());
@@ -58,15 +60,17 @@ class SmokeTestIntegrationV2StepExecutorTest {
     @Test
     void refusesNodeAmbiguityAndNeverFallsBackForUnmigratedCommands() {
         InstructionSnapshot click = instruction(1734, "C", "login", null, false);
-        InstructionSnapshot get = instruction(1735, "GET", "read_login", null, false);
+        InstructionSnapshot excelWrite = instruction(1735, "E", "write_login", null, false);
         RecordingActions actions = new RecordingActions(failure("AMBIGUOUS_TARGET"));
         SmokeTestIntegrationV2StepExecutor executor = new SmokeTestIntegrationV2StepExecutor(
                 actions, (botJobId, blockName, column, rowIndex, instructionId) -> {});
         ExecutionRuntimeRunCoordinator.Run run = mock(ExecutionRuntimeRunCoordinator.Run.class);
-        Plan plan = plan(List.of(click, get));
+        Plan plan = plan(List.of(click, excelWrite));
 
-        Outcome ambiguous = executor.execute(run, plan, dataset(new ExtractedData()), 1L, click.id(), 0);
-        Outcome unsupported = executor.execute(run, plan, dataset(new ExtractedData()), 2L, get.id(), 0);
+        Outcome ambiguous = executor.execute(
+                run, plan, dataset(new ExtractedData()), 1L, click.id(), 0, variables());
+        Outcome unsupported = executor.execute(
+                run, plan, dataset(new ExtractedData()), 2L, excelWrite.id(), 0, variables());
 
         assertEquals(StepStatus.FAILED, ambiguous.status());
         assertEquals("AMBIGUOUS_TARGET", ambiguous.code());
@@ -75,9 +79,43 @@ class SmokeTestIntegrationV2StepExecutorTest {
         assertNull(actions.inputValue);
     }
 
+    @Test
+    void getAndSetUseTheFrozenParentAndRunLocalVariable() {
+        InstructionSnapshot parent = instruction(1733, "I", "username", "Login name", false);
+        InstructionSnapshot get = command(1734, "GET", parent.id(), "GET_WRITE", 91);
+        InstructionSnapshot set = command(1735, "SET", parent.id(), "READ_SET", 91);
+        RecordingActions actions = new RecordingActions(successWithOutput("Banca Stato"));
+        SmokeTestIntegrationV2StepExecutor executor = new SmokeTestIntegrationV2StepExecutor(
+                actions, (botJobId, blockName, column, rowIndex, instructionId) -> {});
+        RunVariables variables = variables();
+        Plan plan = plan(List.of(parent, get, set));
+        ExecutionRuntimeRunCoordinator.Run run = mock(ExecutionRuntimeRunCoordinator.Run.class);
+
+        Outcome getOutcome = executor.execute(
+                run, plan, dataset(new ExtractedData()), 1L, get.id(), 0, variables);
+        actions.result = success("COMPLETED");
+        Outcome setOutcome = executor.execute(
+                run, plan, dataset(new ExtractedData()), 2L, set.id(), 0, variables);
+
+        assertEquals(StepStatus.PASSED, getOutcome.status());
+        assertEquals("GET_VALUE_WRITTEN", getOutcome.code());
+        assertEquals(91, getOutcome.runtimeVariableId());
+        assertEquals("Banca Stato", getOutcome.runtimeValue().value());
+        assertEquals(StepStatus.PASSED, setOutcome.status());
+        assertEquals(1, actions.getCalls);
+        assertEquals(1, actions.setCalls);
+        assertEquals("Banca Stato", actions.setValue);
+    }
+
     private static JsonObject success(String code) {
         JsonObject result = failure(code);
         result.addProperty("ok", true);
+        return result;
+    }
+
+    private static JsonObject successWithOutput(String output) {
+        JsonObject result = success("COMPLETED");
+        result.addProperty("output", output);
         return result;
     }
 
@@ -98,6 +136,19 @@ class SmokeTestIntegrationV2StepExecutorTest {
                 optional, false, null, null, false, false, true, null, null, List.of(), Map.of());
     }
 
+    private static InstructionSnapshot command(
+            int id, String action, int parentId, String slot, int variableId) {
+        return new InstructionSnapshot(
+                OWNER, "Lloyds", "", BLOCK, id, id - 1732, action, action.toLowerCase(), null, "",
+                "", "", "", "", "", "", "", "", "", "",
+                false, false, null, null, false, false, true, parentId, BLOCK.id(),
+                List.of(), Map.of(slot, variableId));
+    }
+
+    private static RunVariables variables() {
+        return new RunVariables(OWNER.homeBankingId(), OWNER.botJobId(), false);
+    }
+
     private static Plan plan(List<InstructionSnapshot> instructions) {
         Environment environment = new Environment(
                 13, "Lloyds", 29, "Lloyds", "", 15, "TEST",
@@ -113,10 +164,13 @@ class SmokeTestIntegrationV2StepExecutorTest {
 
     private static final class RecordingActions
             implements SmokeTestIntegrationV2StepExecutor.ActionPort {
-        private final JsonObject result;
+        private JsonObject result;
         private int calls;
+        private int getCalls;
+        private int setCalls;
         private long sequence;
         private String inputValue;
+        private String setValue;
 
         private RecordingActions(JsonObject result) {
             this.result = result;
@@ -139,6 +193,24 @@ class SmokeTestIntegrationV2StepExecutorTest {
             JsonObject result = new JsonObject();
             result.addProperty("state", "READY");
             return result;
+        }
+
+        @Override
+        public JsonObject get(
+                ExecutionRuntimeRunCoordinator.Run run, long sequence, int instructionId) {
+            getCalls++;
+            return result.deepCopy();
+        }
+
+        @Override
+        public JsonObject set(
+                ExecutionRuntimeRunCoordinator.Run run,
+                long sequence,
+                int instructionId,
+                String value) {
+            setCalls++;
+            setValue = value;
+            return result.deepCopy();
         }
     }
 }

@@ -25,18 +25,36 @@ public final class ExecutionRuntimeActionFactory {
             InstructionSnapshot instruction,
             Preparation preparation,
             String inputValue) {
-        Objects.requireNonNull(instruction, "Frozen instruction is required");
+        return createDelegated(
+                sequence,
+                instruction.id(),
+                physicalAction(instruction.action()),
+                instruction,
+                preparation,
+                inputValue);
+    }
+
+    JsonObject createDelegated(
+            long sequence,
+            int requestInstructionId,
+            String requestedAction,
+            InstructionSnapshot target,
+            Preparation preparation,
+            String inputValue) {
+        Objects.requireNonNull(target, "Frozen target instruction is required");
         Objects.requireNonNull(preparation, "Runtime healing preparation is required");
-        if (sequence <= 0 || sequence > ExecutionV2Contracts.MAX_JAVASCRIPT_SAFE_INTEGER) {
+        if (requestInstructionId <= 0
+                || sequence <= 0
+                || sequence > ExecutionV2Contracts.MAX_JAVASCRIPT_SAFE_INTEGER) {
             throw new IllegalArgumentException("Execution V2 action sequence is invalid");
         }
         if (!preparation.ready()
-                || preparation.homeBankingId() != instruction.owner().homeBankingId()
-                || preparation.botJobId() != instruction.owner().botJobId()) {
+                || preparation.homeBankingId() != target.owner().homeBankingId()
+                || preparation.botJobId() != target.owner().botJobId()) {
             throw new IllegalArgumentException("Execution V2 action owner preparation is invalid");
         }
 
-        String action = physicalAction(instruction.action());
+        String action = normalizedPhysicalAction(requestedAction);
         if ("INPUT".equals(action)) {
             if (inputValue == null || inputValue.length() > MAX_INPUT_LENGTH) {
                 throw new IllegalArgumentException("Execution V2 input value is invalid");
@@ -46,26 +64,34 @@ public final class ExecutionRuntimeActionFactory {
         }
 
         JsonObject request = new JsonObject();
-        request.addProperty("instructionId", instruction.id());
+        request.addProperty("instructionId", requestInstructionId);
         request.addProperty("sequence", sequence);
         request.addProperty("action", action);
         request.addProperty("pageKey", preparation.pageKey());
         request.add("authoredSelectors", selectors(
-                instruction.xpath(), instruction.cssSelector()));
+                target.xpath(), target.cssSelector()));
         request.add("registryCandidates", candidates(preparation));
-        optional(request, "canonicalName", instruction.name(), MAX_NAME_LENGTH);
-        optional(request, "clientName", instruction.clientNamed(), MAX_NAME_LENGTH);
-        optional(request, "expectedTag", normalizedTag(instruction.tagName()), 32);
-        optional(request, "iframeXPath", instruction.iframeXpath(), MAX_SELECTOR_LENGTH);
-        optional(request, "shadowHost", instruction.shadowHost(), MAX_SELECTOR_LENGTH);
-        optional(request, "shadowRoot", instruction.shadowRoot(), MAX_SELECTOR_LENGTH);
+        optional(request, "canonicalName", target.name(), MAX_NAME_LENGTH);
+        optional(request, "clientName", target.clientNamed(), MAX_NAME_LENGTH);
+        optional(request, "expectedTag", normalizedTag(target.tagName()), 32);
+        optional(request, "iframeXPath", target.iframeXpath(), MAX_SELECTOR_LENGTH);
+        optional(request, "shadowHost", target.shadowHost(), MAX_SELECTOR_LENGTH);
+        optional(request, "shadowRoot", target.shadowRoot(), MAX_SELECTOR_LENGTH);
         if ("INPUT".equals(action)) {
             request.addProperty("inputValue", inputValue);
-            String flags = value(instruction.forceCoordinates()).toUpperCase(Locale.ROOT);
+            String flags = value(target.forceCoordinates()).toUpperCase(Locale.ROOT);
             request.addProperty("pressEnter", flags.contains("E"));
             request.addProperty("pressTab", flags.contains("T"));
         }
         return request;
+    }
+
+    private static String normalizedPhysicalAction(String raw) {
+        String action = value(raw).trim().toUpperCase(Locale.ROOT);
+        if (!Set.of("CLICK", "INPUT", "OUTPUT").contains(action)) {
+            throw new IllegalArgumentException("Execution V2 delegated action is invalid");
+        }
+        return action;
     }
 
     private static String physicalAction(String raw) {
