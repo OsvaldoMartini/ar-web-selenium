@@ -975,3 +975,28 @@ Next: add the server-authorized Smoke Integration V2 adapter that derives organi
 identity from the active workspace, freezes the existing SQL plan plus REAL/SYNTHETIC dataset and
 owner/page-scoped registry candidates, and maps one explicit whole-run V2 mode to the Java-custodied
 Node run. V1 remains a separate rollback mode; partial-run fallback is forbidden.
+
+## 28. Execution V2 hash-only live-page identity checkpoint - 2026-08-11
+
+- Added a token-authorized `GET /v2/runs/{runId}/page-identity` operation under the existing
+  `runtime.action` capability. It is serialized with that run's page operations and is available
+  only while the exact isolated session is READY.
+- Node reads the current Playwright URL only inside the owned browser handle, converts it through
+  the established Java-compatible `url-v1:SHA-256` identity, validates the result again at the HTTP
+  boundary, and returns only `pageKey`. The raw banking URL is not returned or logged.
+- Added Java runtime-client support that retains the opaque run token and strictly accepts only the
+  hash contract. Added an owner-and-page-key registry query plus a healing preparation seam that
+  revalidates the Bot Job's authoritative Home Banking owner before selecting any candidates.
+- The existing URL-based Java healing path now delegates to the same exact page-key query, retaining
+  backward compatibility while removing duplicate selection logic.
+- `npm test` rebuilt the isolated runtime and all 32 Node tests passed. `mvn -DskipTests compile`
+  compiled 574 production sources successfully with two pre-existing warnings. Focused Java tests
+  `ExecutionRuntimeHttpClientTest,ScannedElementRepositoryTest,RuntimeElementHealingServiceTest`
+  passed 16/16. `git diff --check` passed.
+- Source commit/push: `65989d4c`. No frontend source/resource mirror changed. No Node runtime,
+  browser, ARWeb service, database, migration, image, or deployment was started or changed.
+
+Next: implement the server-authorized Smoke Integration V2 run adapter. It will freeze the current
+SQL plan and REAL/SYNTHETIC data, issue and retain one run grant/token in Java, query each action's
+current hash-only page identity, build authoritative Node action DTOs from the frozen instruction
+and owner-scoped registry candidates, and keep V1 as an explicit whole-run rollback mode only.
