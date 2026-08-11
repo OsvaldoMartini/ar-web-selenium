@@ -915,3 +915,33 @@ explicit Smoke Integration V2 run without permitting partial fallback to Java V1
 Next: expose strictly parsed token-authorized start/action/refresh/stop/heartbeat routes, connect
 them to the existing isolated worker/action engine, and then add the minimal Java authority adapter
 that supplies only frozen server-derived plan, registry, endpoint, and dataset facts.
+
+## 26. Execution V2 P4 isolated runtime-route checkpoint - 2026-08-11
+
+- Connected loopback-only Start, Session/Heartbeat, Action, Refresh, Stop, and terminal Release HTTP
+  routes to the existing bounded worker pool. These routes use the opaque run token after signed
+  admission; the short-lived grant is not reused as long-running authority.
+- Start accepts only a bounded HTTPS/HTTP endpoint and safe headless/channel options. Arbitrary
+  executable paths and unknown fields are refused. A normalized launch fingerprint makes exact
+  Start replay idempotent and rejects changed-payload reuse without creating another browser.
+- Action accepts a bounded JSON body, rejects unknown top-level and candidate fields, validates
+  strings/tags/keyboard flags and all established action limits, then enters the existing serialized
+  at-most-once session action ledger.
+- Added configurable global, queue, organization, Bot Job, and idle-lease limits. An expired active
+  lease now stops and releases only its exact worker session; an unactivated expired reservation
+  creates no worker. Legacy signed-grant deletion refuses an active worker and requires the run-token
+  terminal path, preventing an orphaned Chromium session.
+- `/version` now reports that the isolated runtime action routes are available. This does not mean
+  the ARWeb application uses them: there is still no Java adapter, secret provisioning, React route,
+  or live browser deployment.
+- `npm run typecheck` passed. `npm test` built the package and all 31 focused tests passed, covering
+  token routes, exact/conflicting Start, action DTO refusal, wrong-token isolation, Stop/Release, and
+  lease-expiry worker cleanup in addition to all P0-P3 behavior. `git diff --check` passed.
+- Source commit/push: `e34c95c7`. No Java or frontend source changed, so no Maven/frontend build was
+  run. No browser binary, banking page, application service, database, migration, artifact, or
+  deployment was started or changed.
+
+Next: implement the minimal Java-side runtime client/authority adapter. It must resolve organization
+and Bot Job ownership from the current workspace, freeze plan/data/registry/endpoint facts, retain
+the run token server-side, and expose one explicit whole-run V2 Smoke Integration mode without any
+mid-run fallback to Java V1.
