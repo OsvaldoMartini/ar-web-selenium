@@ -304,6 +304,23 @@ The Page Mappings roadmap is now source-complete through P7:
 - The in-app browser surface was unavailable; HTTP freshness and focused component behavior passed,
   but visual License/About approval remains a separate user gate.
 
+### Page Mappings Scan Flow and remaining verification
+
+- Backend `dd38963f`, frontend `08957d6`, and deployment `98d59860` already provide the read-only
+  organization -> Bot Job -> page Scan Flow tree. Its filter updates both the visible tree and its
+  Web Elements/Bot Jobs/Pages cards.
+- No dedicated test currently covers the backend inventory aggregation/owner isolation, frontend
+  modal filter/cards/tree/focus, bootstrap parser, or retarget clearing. These are the first focused
+  Page Mappings tests to add.
+- Current read-only DB state is 881 Home Banking 2 registry rows across two Bot Jobs/five page keys;
+  Job 32 has 20 READY captures and its latest is a 239-element, fingerprint-bearing READY capture.
+- The 881 owner total includes 93 Job 32 `scanned_element` rows for Lloyds. The previous targeted
+  cleanup removed only the bad snapshot rows/artifacts. Do not call 881 a clean BancaStato-page
+  count and do not delete the registry rows without reference/instruction audit plus authorization.
+- Remaining acceptance/test groups are Use Existing zero-write, non-default adaptive Rescan,
+  29 -> 32 live retarget, retention Save/Purge, OCR Apply, Memory Add/drag/Apply, reconnect/takeover/
+  same-ID/multi-page behavior, orphan reconciliation, other DB/SQL Server rollout, and packaging.
+
 ### Current risks
 
 | Severity | Status | Risk |
@@ -317,6 +334,7 @@ The Page Mappings roadmap is now source-complete through P7:
 | Medium | Cleanup complete and recoverable | The two exact Job 32 Lloyds rows/artifacts are absent from active storage. The guarded pre-write database and quarantined artifacts remain under `Backup-CODEX-2026-08-10-job32-lloyds-cleanup`. |
 | Medium | Bounded browser limitation | Virtualized lists, nested scroll containers, canvas/video, CSS background resources, and unbounded infinite pages cannot be guaranteed. The adaptive traversal fails closed on its bounds rather than storing known-incomplete output. |
 | Medium | Open verification | Live detached-window reload, takeover, retarget, deletion, same-ID reuse, and multi-page WebSocket behavior remain unverified. |
+| Medium | Data reconciliation open | Home Banking 2's 881-row Scan Flow includes 93 Lloyds `scanned_element` rows under Job 32. Wrong immutable captures were removed earlier, but cumulative registry cleanup requires a separate reference audit and authorization. |
 | Medium | Open verification | The final affected-path JSDOM suite passed 44/44. The complete repository-wide frontend suite was not run. |
 | Low | Existing | Production build lint/dependency/bundle-size warnings remain outside the Page Mappings retention files. |
 

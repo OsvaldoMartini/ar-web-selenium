@@ -480,6 +480,31 @@ Lloyds Smoke Integration or Page Mappings live-acceptance gates above.
   No migration, package, or container image was created. Unrelated dirty settings/specification/
   screenshot files remain preserved.
 
+### Page Mappings Scan Flow and remaining-verification audit - 2026-08-11
+
+- Backend `dd38963f`, frontend `08957d6`, and deployment `98d59860` already deliver the read-only,
+  owner-scoped `Scan Flow` tree. The modal groups the current `scanned_element` registry by
+  organization, Bot Job, and page. Its local filter applies to the visible tree and recomputes the
+  Web Elements, Bot Jobs, and Pages cards; it is intentionally a compact tree rather than the Smoke
+  Test execution graph.
+- The latest production bundle still contains this feature, but it has no dedicated frontend modal
+  test, bootstrap/parser/retarget test, or backend `PageMappingsScanInventoryService` test. Live
+  visual filtering and large-inventory behavior are also unverified.
+- Read-only live SQLite evidence is currently 881 Home Banking 2 registry rows, two Bot Jobs, and
+  five page keys: Job 5 has 549 rows across three pages; Job 32 has 332 rows across two pages. Job
+  32 has 20 READY immutable captures, two pinned; the latest is
+  `6fcf159d-2585-4cac-a6e9-6297ffd4a3cd`, 239 elements, READY, with a 64-character fingerprint.
+  Database `quick_check=ok` and foreign-key violations are zero.
+- The 881 owner total is not a clean BancaStato-page total: 93 cumulative Job 32 registry rows still
+  identify `https://www.lloydsbank.com/`. The earlier guarded cleanup removed the two wrong
+  `page_scan_snapshot` rows/artifacts only. These 93 registry rows require a separate reference/
+  instruction audit and explicit cleanup authorization; they were not modified in this checkpoint.
+- Highest-priority missing tests are: inventory owner isolation/counts/redaction; modal filter/card/
+  tree/clear/focus behavior; malformed inventory and retarget clearing; Use Existing zero-write;
+  non-default scroll option/adaptive failure paths; retention Save/Purge; OCR Apply; Memory staging/
+  Apply; and disconnect/takeover/same-ID/multi-page lifecycle behavior. Live acceptance, legacy
+  orphan inventory, other-database/SQL Server rollout, and package/image delivery remain separate.
+
 Read `specifications/performances/COPY_LAST_RESPONSE.md` and
 `specifications/performances/Page Mappins PLAN 2026-08-07.md` before continuing.
 

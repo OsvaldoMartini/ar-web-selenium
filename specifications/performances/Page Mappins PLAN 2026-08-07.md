@@ -893,3 +893,31 @@ it does not change or close any Page Mappings source/live gate above.
 - [x] Catalog `2f0db93e` records 2,344 rows / 2,308 code cases; generation ran no tests.
 - [ ] Visual user approval remains because no controllable in-app browser was attached. No
   migration, backend package, or container image was created.
+
+## Page Mappings Scan Flow and remaining-verification audit - 2026-08-11
+
+- [x] Backend `dd38963f`, frontend `08957d6`, and deployment `98d59860` implement the read-only,
+  owner-scoped organization -> Bot Job -> page Scan Flow tree.
+- [x] The tree filter matches organization, Bot Job ID/name, URL, page key, or count and recomputes
+  all three visible summary cards. The chosen presentation is the requested compact tree rather
+  than a Smoke Test action graph.
+- [x] Current read-only SQLite evidence is 881 Home Banking 2 registry rows, two Bot Jobs, five page
+  keys, `quick_check=ok`, and zero FK violations. Job 32 has 20 READY captures; latest
+  `6fcf159d-2585-4cac-a6e9-6297ffd4a3cd` is READY with 239 elements and a 64-character fingerprint.
+- [ ] Data reconciliation: 93 Job 32 cumulative registry rows still belong to the Lloyds page. The
+  prior cleanup removed wrong immutable captures only. Audit instruction/repository references,
+  back up, and obtain explicit authorization before an exact registry cleanup.
+- [ ] Add backend inventory tests for exact owner isolation, empty/missing owner, page grouping,
+  totals, URL redaction, and growing multi-page inventories.
+- [ ] Add frontend modal/bootstrap tests for filter-to-tree/card propagation, clear-X, no-match,
+  keyboard/focus behavior, malformed inventory rejection, and owner-retarget state clearing.
+- [ ] Add Use Existing tests proving CURRENT-only enablement and zero snapshot/artifact writes.
+- [ ] Add Rescan tests for exact owner/count correlation, per-job scroll preference, non-default
+  limits, adaptive timeout/page-change failure, full-page geometry, and legacy default 5.
+- [ ] Add retention, OCR, and Memory end-to-end contract tests covering Save-versus-Purge, policy
+  mismatch/unknown outcome, Apply atomicity/reconnect, staging dedupe/staleness, and authoritative
+  Bot Job instruction Apply.
+- [ ] Add live acceptance for 29 -> 32 retarget, Use Existing zero-write, non-default full-page
+  visual quality, disconnect/reconnect/takeover/same-ID/deletion, and multiple pages.
+- [ ] Reconcile the separate legacy orphan capture folder; roll out migrations to other required
+  databases/SQL Server; create a distributable package/image only if required.
