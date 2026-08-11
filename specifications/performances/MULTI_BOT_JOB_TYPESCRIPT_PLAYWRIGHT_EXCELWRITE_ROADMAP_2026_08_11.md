@@ -718,7 +718,7 @@ prevents multiplying an unproven single-run execution path.
 [x] Shared contracts implemented and versioned
 [x] Node runtime package created
 [x] Signed Java grant signing/verification boundary implemented (authorized routing still open)
-[ ] Isolated worker pool implemented
+[x] Isolated worker pool implemented
 [ ] Single-run Smoke Integration moved to Node Playwright
 [ ] REAL and SYNTHETIC data verified
 [ ] Multiple Excel rows verified
@@ -823,5 +823,31 @@ The signer checkpoint below completes the previously listed cross-language autho
 - No secret was provisioned, and no Node service, browser, application service, image, migration,
   or database was started or changed.
 
-Next: P2 bounded worker/session isolation behind the verified Node reservation boundary. The later
-Java routing adapter must resolve `organizationId` authoritatively before V2 application admission.
+## 23. Execution V2 P2 isolated Playwright session checkpoint - 2026-08-11
+
+- Added an internal bounded worker pool with global, per-organization, and per-Bot-Job admission
+  limits plus a bounded queue. The queue scans for the next eligible owner so one saturated
+  organization cannot block an independent organization behind it.
+- Every admitted run owns a dedicated Chromium process, BrowserContext, and Page with opaque
+  instance IDs. Contexts block service workers and downloads; no page, cookies, storage, or browser
+  handle is shared between runs.
+- Added strict HTTP(S) endpoint validation, bounded DOM-content navigation/readiness, explicit HTTP
+  error refusal, refresh, loading interruption, stop, and cleanup of page/context/browser resources.
+- Navigation failure and asynchronous browser/page termination fail only the affected run, retain a
+  safe terminal diagnostic, release its exact capacity slot, and admit the next eligible queued run.
+  Unexpected-close notification is buffered so a process that dies during handle construction is
+  still observed after callback registration.
+- `playwright-core` is pinned at `1.61.1`; it does not download or bundle Chromium. Production must
+  explicitly provide a compatible executable or channel.
+- `npm run typecheck` and `npm run lint` passed. `npm test` built the package and all 15 tests passed,
+  including same-owner queueing, different-owner concurrent admission, opaque resource separation,
+  loading interruption, refresh, navigation-failure cleanup, and one-browser crash containment.
+- Source commit/push: `a55bd648`. No Java or frontend source changed, so no Maven or frontend build
+  was run. No browser binary was launched, and no application service, database, migration, image,
+  or deployment was changed.
+- The pool remains intentionally internal: current HTTP routes still expose only reservation
+  operations, and current React/Java execution cannot start, refresh, or stop these sessions.
+
+Next: P3 authored locator resolution and the first CLICK/INPUT/OUTPUT physical-action vertical
+slice inside the Node runtime. Before application admission, the Java routing adapter must resolve
+`organizationId` authoritatively and expose only signed, capability-bound run operations.
