@@ -2,7 +2,7 @@
 
 Keep exactly two review sections. Check tasks only after their separate gates pass.
 
-**Last updated:** 2026-08-11 - Smoke Integration now strictly opens and settles the selected Bot Job URL before STARTED, and Stop/Finish is single-flight so a canceled row action cannot leave the controls locked. Backend `9fe40dbf`, frontend `882af61`, deployment `4dade5a0`, and catalog `ce41e3f7` are pushed. Focused verification passed Java 3/3 and frontend 8/8; the production build and Java compilation passed. PID `29912` serves exact `main.6a91a10f.js` / `main.aacbfa82.css` bytes on 59091/59092 with zero strict new-log failures. A user-driven Lloyds START/Stop acceptance remains open.
+**Last updated:** 2026-08-11 - Lloyds instruction `1749` ambiguity was traced to one exact XPath row being combined with 72 CSS-only `span.btn-text` rows. Backend `453710d2` now preserves locator strength and permits scanned-text narrowing only for one authoritative registry candidate while retaining exact-one fail-closed execution. Focused verification passed 2/2 and compiled 564 main sources; catalog `6d88c97c` records 2,344 rows. PID `27756` serves the rebuilt classes on 59032/59033 with HTTP 200 and zero new strict failures. The exact Lloyds click remains a user-driven live gate.
 
 ## 1. CODEX -> CLAUDE - Page Mappings and Memory lifecycle review handoff
 
@@ -268,6 +268,23 @@ The Page Mappings roadmap is now source-complete through P7:
 - Catalog `ce41e3f7` records 2,342 rows and 2,306 code cases without executing tests. No migration,
   package, or container image was created. Live Lloyds START/Stop acceptance remains user-driven;
   the two locator refusals remain intentionally fail-closed and are not presented as fixed actions.
+
+### Smoke runtime locator-strength correction
+
+- Live instruction `1749` (`personal_2`) had one exact scanned registry row, but the shared
+  `span.btn-text` CSS expanded preparation to 73 candidates and left two live targets. The runtime
+  correctly refused before any physical click.
+- Backend `453710d2` ranks exact XPath above stable attributes above CSS-only identity. A single
+  authoritative registry candidate may use its persisted scanned text to narrow a broad selector,
+  but action still requires exactly one visible, boundary-compatible target; genuine duplicates
+  remain fail-closed.
+- Focused verification passed 2/2 and Java compilation completed with 564 main sources. Catalog
+  `6d88c97c` was regenerated without executing tests and records 2,344 rows / 2,308 code cases.
+- PID `27756` runs the rebuilt BancaStato `target/classes` on 59032/59033; HTTP root returns 200 and
+  the fresh `.5/.6` logs contain zero strict runtime-healing/JVM/SQLite/snapshot failures. No
+  frontend build, migration, package, or container image was produced.
+- User acceptance remains: retry `personal_2` and record the new structured diagnostic. Success
+  must show one physical attempt; any remaining real duplicate must stay at zero attempts.
 
 ### Current risks
 

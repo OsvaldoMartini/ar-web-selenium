@@ -847,3 +847,25 @@ locator ambiguity refusal.
 - [ ] The observed `COORDINATE_TARGET_INVALID` and `AMBIGUOUS_TARGET` outcomes remain correct
   no-physical-action refusals. Any locator remediation must preserve one-target/one-action safety.
 - [ ] No migration, distributable backend package, or container image was created.
+
+## Smoke runtime locator-strength correction - 2026-08-11
+
+This checkpoint supersedes only the current runtime PID and the earlier treatment of the Lloyds
+instruction `1749` ambiguity as having no actionable locator-quality defect.
+
+- [x] Live evidence proved one exact `personal_2` scanned row was combined with 72 CSS-only rows
+  because `span.btn-text` had equal registry-match weight; two live spans survived and zero physical
+  actions were attempted.
+- [x] Backend `453710d2` ranks exact XPath above stable attribute identity above CSS-only identity.
+  Scanned-text narrowing is restricted to one authoritative registry candidate and still requires
+  exactly one visible/action-compatible DOM target; genuine duplicates remain fail-closed.
+- [x] Focused verification passed 2/2 and Java compilation completed with 564 main sources and the
+  two existing warnings. No browser action or Integration run was performed by Codex.
+- [x] Catalog `6d88c97c` records 2,344 rows, 2,308 code cases, and 19,452 generated API requests;
+  catalog generation executed no tests.
+- [x] PID `27756` runs rebuilt `target/classes` with the exact BancaStato config on 59032/59033;
+  HTTP root returns 200 and the new `.5/.6` logs contain zero strict failures. Frontend assets were
+  unchanged; no migration, package, or image was produced.
+- [ ] User live gate: retry Lloyds instruction `1749`. Accept either one completed physical action
+  on the uniquely narrowed `Personal` span or a zero-action ambiguity only if the semantic target is
+  genuinely duplicated.

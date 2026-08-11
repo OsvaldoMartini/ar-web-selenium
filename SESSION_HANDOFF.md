@@ -424,6 +424,31 @@ separate.
 - No migration, distributable backend package, or container image was created. Unrelated dirty
   Claude/settings, Marketing, patch, and screenshot files remain preserved.
 
+### Smoke runtime locator-strength correction - 2026-08-11
+
+This checkpoint supersedes only the current runtime PID and the prior statement that the Lloyds
+`AMBIGUOUS_TARGET` outcome required no source correction.
+
+- Live evidence for instruction `1749` (`personal_2`) showed one exact scanned registry row but 73
+  prepared registry candidates because its shared CSS `span.btn-text` was treated as equal to its
+  exact XPath. Two live spans survived, so the runtime correctly performed zero physical actions.
+- Backend `453710d2` preserves locator strength: exact XPath matches outrank stable identity
+  attributes, which outrank CSS-only matches. If the one authoritative registry candidate still
+  has a broad selector, its persisted `scanned-text` may narrow the DOM candidates, but execution
+  still requires exactly one visible, boundary-compatible, action-compatible element. Multiple
+  semantic matches remain `AMBIGUOUS_TARGET` with no physical action.
+- Focused `RuntimeElementHealingServiceTest` verification passed 2/2 and compiled all 564 main Java
+  sources; only the existing Lombok-builder and inexact-varargs warnings remained. No browser or
+  Integration action was executed by Codex.
+- Catalog `6d88c97c` was regenerated without executing tests and now records 2,344 rows, 2,308 code
+  cases, and 19,452 generated API requests.
+- PID `27756` runs the rebuilt `target/classes` with the exact BancaStato config on
+  `127.0.0.1:59032` / `127.0.0.1:59033`; HTTP root returns 200 and the fresh `.5/.6` log set has no
+  strict runtime-healing, SQLite, snapshot, or JVM failure match. Frontend assets were unchanged.
+- Live user acceptance remains: retry instruction `1749` on the Lloyds page and confirm one
+  physical action or, if the exact scanned text is genuinely duplicated, a fail-closed ambiguity
+  with the reduced authoritative candidate count.
+
 Read `specifications/performances/COPY_LAST_RESPONSE.md` and
 `specifications/performances/Page Mappins PLAN 2026-08-07.md` before continuing.
 
