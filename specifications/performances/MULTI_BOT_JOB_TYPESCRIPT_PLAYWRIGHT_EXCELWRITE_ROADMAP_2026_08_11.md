@@ -945,3 +945,33 @@ Next: implement the minimal Java-side runtime client/authority adapter. It must 
 and Bot Job ownership from the current workspace, freeze plan/data/registry/endpoint facts, retain
 the run token server-side, and expose one explicit whole-run V2 Smoke Integration mode without any
 mid-run fallback to Java V1.
+
+## 27. Execution V2 P4 Java runtime-custody checkpoint - 2026-08-11
+
+- Expanded Java-issued grants with the exact Start, Action, Refresh, Stop, and Heartbeat capabilities
+  already recognized by Node. The deterministic Java/Node fixture and compact signature were updated
+  together; Node independently verifies the new signed bytes.
+- Added a loopback-only Java runtime client configuration. The runtime address is fixed to
+  `127.0.0.1` with a bounded port and request timeout; remote hosts, credentials, paths, queries,
+  fragments, redirects, and invalid ports are refused.
+- Added the minimal Java HTTP transport for Reserve, Start, Action, Heartbeat, Refresh, Stop, and
+  terminal Release. It requires JSON envelopes, bounds responses, preserves safe runtime codes,
+  validates the exact granted run ID and canonical 256-bit token, and never logs grants, request
+  bodies, tokens, endpoints, locators, or values.
+- The opaque token is retained in a Java `RuntimeRun` object with no token accessor or token-bearing
+  `toString`; successful Release retires it and later use fails closed. The client accepts Start and
+  Action only package-internally so a future server-authorized adapter—not React—must build those
+  facts.
+- `mvn -DskipTests compile` compiled 574 production sources successfully with two pre-existing
+  warnings. The first focused test run had one fake-transport expectation error (`Bearer` belongs to
+  the production transport layer); after correcting the test, all 6 focused Java signer/client tests
+  passed. The full isolated Node suite built and all 31 tests passed, including Java grant
+  compatibility. `git diff --check` passed.
+- Source commit/push: `c89379a4`. No frontend source or resource mirror changed. No runtime secret
+  was provisioned and no Node/browser/application service, database, migration, image, or deployment
+  was started or changed.
+
+Next: add the server-authorized Smoke Integration V2 adapter that derives organization/home-banking
+identity from the active workspace, freezes the existing SQL plan plus REAL/SYNTHETIC dataset and
+owner/page-scoped registry candidates, and maps one explicit whole-run V2 mode to the Java-custodied
+Node run. V1 remains a separate rollback mode; partial-run fallback is forbidden.
