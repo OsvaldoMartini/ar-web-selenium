@@ -700,7 +700,7 @@ deployment assets, migrations, and documentation remain separate commits.
 
 ## 17. First implementation slice
 
-The next safe coding slice is P0 plus P1 only:
+The P0 plus P1 safe coding slice is implemented:
 
 1. Define V2 shared contracts and security limits.
 2. Scaffold the independent Node/TypeScript service.
@@ -714,9 +714,9 @@ prevents multiplying an unproven single-run execution path.
 ## 18. Completion gates
 
 ```text
-[ ] V2 architecture/threat model approved
-[ ] Shared contracts implemented and versioned
-[ ] Node runtime package created
+[x] V2 architecture/threat model approved
+[x] Shared contracts implemented and versioned
+[x] Node runtime package created
 [ ] Signed Java grant boundary implemented
 [ ] Isolated worker pool implemented
 [ ] Single-run Smoke Integration moved to Node Playwright
@@ -732,9 +732,9 @@ prevents multiplying an unproven single-run execution path.
 [ ] Failure/reconnect/stop/cleanup verified
 [ ] Remaining commands migrated to TypeScript
 [ ] Java V1 execution retirement audit complete
-[ ] Focused tests passed
+[x] Focused tests passed
 [ ] Broader builds/tests passed
-[ ] Committed and pushed by narrow checkpoint
+[x] Committed and pushed by narrow checkpoint
 [ ] Node/React/Java artifacts deployed with exact versions
 [ ] Services healthy and restart counts stable
 [ ] User live behavior verified
@@ -777,4 +777,29 @@ runtime, worker pool, execution grants, REAL/SYNTHETIC selection, or concurrent 
   `2F7A8F609361F3017B0357DC58C35F5718CACDF4B8624E9796CDEC01E91F0A95`.
 - No ARControlPanel JVM was running after deployment, so live HTTP/UI freshness is not claimed.
 
-Next: P0/P1 shared V2 contracts, threat model, and independent Node/TypeScript runtime skeleton.
+The P0/P1 runtime-boundary work below supersedes the earlier next-step statement for this roadmap.
+
+## 21. Execution V2 P0/P1 checkpoint - 2026-08-11
+
+- Added the isolated `playwright-runtime-ts` package. It is not bundled into React or embedded in
+  Java.
+- Recorded ADR-0001 and the P0 threat model: React control plane, Node worker plane, and Java
+  authority/persistence boundary.
+- Added strict version-1 execution/grant contracts and an HS256 verifier with exact issuer,
+  audience, type, key ID, runtime, UUID owner/run identities, revision hashes, capabilities,
+  lifetime, activation, and expiry validation.
+- Added a bounded in-memory reservation registry with exact replay, conflict refusal, capacity,
+  expiry cleanup, exact-token read/release authority, and no live-entry eviction.
+- Added loopback-only HTTP liveness/readiness/version and reserve/bootstrap/release endpoints.
+  Missing grant configuration is live but returns not-ready; no grant or request body is logged.
+- The package contains no Playwright dependency and performs no browser, database, runtime-value,
+  CSV/XLSX, or filesystem action.
+- `npm run lint` and TypeScript build passed. All 10 focused Node tests passed. `npm install` audited
+  four packages with zero vulnerabilities.
+- Source commit/push: `e03f4e3f`. No Java or frontend source changed, so no Maven/frontend build was
+  required for this checkpoint.
+- No service, image, or package was deployed or started. Java grant issuance and secret
+  provisioning do not exist yet, so production execution remains disconnected and fail-closed.
+
+Next: implement the minimal Java grant issuer plus cross-language compatibility fixture, then P2
+bounded worker/session isolation. Do not add browser actions before that authority boundary passes.
