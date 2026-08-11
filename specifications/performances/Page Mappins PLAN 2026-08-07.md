@@ -811,3 +811,39 @@ not close the Lloyds Integration or Page Mappings live gates.
   verify it synchronizes with Bot Job, then run one safe Test Input/Click and intended Lloyds Bot Job
   29 Integration flow with its Playwright page open.
 - [ ] No migration, backend package, or container image was created.
+
+## Smoke Integration selected-page startup and Stop recovery - 2026-08-11
+
+This checkpoint supersedes only the immediately preceding current Smoke Integration startup/Stop
+behavior, frontend assets, and runtime PID. It does not close the Page Mappings gates or weaken any
+locator ambiguity refusal.
+
+- [x] Root cause confirmed from live logs: Integration START adopted a new `about:blank` Playwright
+  tab because its old browser seam preserved any open page. Stop then raced the canceled step's
+  frontend failure path, permitting a second terminal request to replace/cancel the first terminal
+  acknowledgement and leave controls in cleanup-required state.
+- [x] Backend `9fe40dbf` strictly navigates to the selected Bot Job plan URL, waits for Playwright
+  page settlement, rejects blank/`about:blank`, and holds the exact Bot Job workspace generation
+  across navigation and settlement.
+- [x] Frontend `882af61` makes Stop/Finish single-flight, keeps step completion from overwriting the
+  terminal phase, and resets response processing from the atomic WebSocket message-buffer generation.
+- [x] Focused verification passed: `SmokeTestIntegrationServiceTest` 3/3 and two frontend Smoke
+  Integration suites 8/8. Java compilation completed with 564 main sources and the two existing
+  warnings; frontend checks retained only existing React `act`/open-handle warnings.
+- [x] `npm run build` passed with existing repository warnings. Deployment `4dade5a0` mirrors 58
+  exact files into resources and `target/classes`; stale `main.45672047.js` artifacts are absent.
+  Current entrypoints are `main.6a91a10f.js` (2,091,547 bytes; SHA-256
+  `36DA34C21B87826BFC1939E7BA8AACE1833F1BECA9876B2F7F3AE01C08CDEE36`) and
+  `main.aacbfa82.css` (509,093 bytes; SHA-256
+  `0EAD57019FEDDE86C53558714F1A3F3F9B3C6378B2573EA9D2CB90DA335C908B`).
+- [x] Catalog `ce41e3f7` records backend `4dade5a0`, frontend `882af61`, 2,342 rows, 2,306 code
+  cases, and 19,452 generated API requests; generation executed no tests.
+- [x] PID `29912` runs `target/classes` with the exact BancaStato config on 59091/59092. HTTP root,
+  JS, and CSS return 200 with exact target hashes; six new `.5/.4` logs contain zero strict
+  Java/SQLite/snapshot/Smoke-start failures.
+- [ ] User live gate: select Lloyds Bot Job 29 and start Integration without manually preparing the
+  browser. Confirm Lloyds opens and settles before STARTED, then Stop during/after one safe action
+  and confirm every row action re-enables without switching Bot Jobs.
+- [ ] The observed `COORDINATE_TARGET_INVALID` and `AMBIGUOUS_TARGET` outcomes remain correct
+  no-physical-action refusals. Any locator remediation must preserve one-target/one-action safety.
+- [ ] No migration, distributable backend package, or container image was created.

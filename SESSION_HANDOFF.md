@@ -384,6 +384,46 @@ PID. The remaining Lloyds Integration and Page Mappings live gates are unchanged
   Lloyds Bot Job 29 and its Playwright page open. No database migration, package, or container image
   was created.
 
+### Smoke Integration selected-page startup and Stop recovery - 2026-08-11
+
+This checkpoint supersedes only the current Smoke Integration startup/Stop behavior, frontend
+assets, and runtime PID. The locator-refusal diagnostics and Page Mappings live gates remain
+separate.
+
+- Live evidence confirmed that Integration START could acquire a newly adopted Playwright tab while
+  it was still `about:blank`, because the old startup contract intentionally preserved any open
+  page. Backend `9fe40dbf` now strictly opens/navigates to the selected Bot Job plan URL and waits
+  for the Playwright page-settled gate before returning STARTED. The navigation and settle are held
+  inside the exact Bot Job workspace generation, so a concurrent Bot Job switch refuses startup.
+- The observed Stop lockout was a frontend terminal race: Stop canceled the pending row action, the
+  rejected action restored READY, and another Stop path could cancel/replace the first terminal
+  acknowledgement and leave `CLEANUP_REQUIRED`. Frontend `882af61` makes Stop/Finish single-flight,
+  prevents a canceled step from overwriting terminal phase, and consumes replacement WebSocket
+  message buffers using their explicit generation.
+- Focused verification passed: `SmokeTestIntegrationServiceTest` 3/3 and the two focused frontend
+  Smoke Integration suites 8/8. Java compilation ran as part of the focused Maven check with 564
+  main sources; only the existing Lombok-builder and inexact-varargs warnings remained. The
+  frontend checks retained only existing React `act`/open-handle dependency warnings.
+- `npm run build` passed with existing repository warnings. Deployment `4dade5a0` mirrors exactly
+  58 files into Java resources and `target/classes`; the stale `main.45672047.js` set is absent.
+  Current entrypoints are `main.6a91a10f.js` (2,091,547 bytes; SHA-256
+  `36DA34C21B87826BFC1939E7BA8AACE1833F1BECA9876B2F7F3AE01C08CDEE36`) and
+  `main.aacbfa82.css` (509,093 bytes; SHA-256
+  `0EAD57019FEDDE86C53558714F1A3F3F9B3C6378B2573EA9D2CB90DA335C908B`).
+- Catalog `ce41e3f7` records backend deployment `4dade5a0`, frontend `882af61`, 2,342 rows,
+  2,306 code cases, and 19,452 generated API requests. Generation executed no tests.
+- PID `29912` runs the rebuilt `target/classes` with the exact BancaStato config on
+  `127.0.0.1:59091` / `127.0.0.1:59092`. HTTP root, JS, and CSS return 200 with exact target
+  hashes. The six new `.5/.4` logs contain zero strict Java/SQLite/snapshot/Smoke-start failure
+  matches.
+- Live user acceptance remains: open Lloyds Bot Job 29 and start Integration without manually
+  preparing the browser; verify it opens/settles the Lloyds URL, then press Stop during or after one
+  safe action and confirm the row controls recover without switching Bot Jobs. Codex did not run a
+  bank action after deployment. The reported `COORDINATE_TARGET_INVALID` and `AMBIGUOUS_TARGET`
+  refusals remain correct fail-closed locator diagnostics and were not weakened by this fix.
+- No migration, distributable backend package, or container image was created. Unrelated dirty
+  Claude/settings, Marketing, patch, and screenshot files remain preserved.
+
 Read `specifications/performances/COPY_LAST_RESPONSE.md` and
 `specifications/performances/Page Mappins PLAN 2026-08-07.md` before continuing.
 

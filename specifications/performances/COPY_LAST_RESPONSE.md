@@ -2,7 +2,7 @@
 
 Keep exactly two review sections. Check tasks only after their separate gates pass.
 
-**Last updated:** 2026-08-11 - Smoke Test now reuses the persisted GridItem `INPUT -> OUTPUT -> CLICK` toggle, keeps power/type/Test Input/Test Click on one row, and renders Active/Inactive as an icon-only power control. Backend `a1d6bd3e`, frontend `3fde7be`, deployment `74168d27`, and catalog `3609803d` are pushed. Focused execution-type verification passed 13/13, Java compile and the frontend production build passed, and PID `20668` serves exact `main.45672047.js` / `main.aacbfa82.css` bytes on ports 64433/64434. No frontend suite or live Lloyds action was run; independent review remains requested.
+**Last updated:** 2026-08-11 - Smoke Integration now strictly opens and settles the selected Bot Job URL before STARTED, and Stop/Finish is single-flight so a canceled row action cannot leave the controls locked. Backend `9fe40dbf`, frontend `882af61`, deployment `4dade5a0`, and catalog `ce41e3f7` are pushed. Focused verification passed Java 3/3 and frontend 8/8; the production build and Java compilation passed. PID `29912` serves exact `main.6a91a10f.js` / `main.aacbfa82.css` bytes on 59091/59092 with zero strict new-log failures. A user-driven Lloyds START/Stop acceptance remains open.
 
 ## 1. CODEX -> CLAUDE - Page Mappings and Memory lifecycle review handoff
 
@@ -247,6 +247,28 @@ The Page Mappings roadmap is now source-complete through P7:
   `0EAD57019FEDDE86C53558714F1A3F3F9B3C6378B2573EA9D2CB90DA335C908B`) on 64433/64434. HTTP
   freshness passed and the six new `.3` logs have zero strict operational failures at checkpoint.
 
+### Smoke Integration selected-page startup and Stop recovery
+
+- Backend `9fe40dbf` replaces the preserve-current-page START seam with strict navigation to the
+  selected plan URL plus the existing 15-second page-settled gate. The entire navigation/settle is
+  fenced by the exact Bot Job workspace generation, and START refuses blank/`about:blank` state.
+- Frontend `882af61` makes Stop/Finish one terminal request at a time, prevents the canceled step's
+  completion/rejection from restoring READY over STOPPING, and resets its response cursor from the
+  atomic WebSocket message-buffer generation. This fixes the observed need to switch Bot Jobs after
+  Stop before row controls became usable again.
+- Focused checks passed: Java 3/3 and frontend 8/8 across two suites. The frontend run retained only
+  existing React `act`/open-handle warnings. Java compilation completed with 564 sources and the two
+  existing warnings; `npm run build` completed with existing repository warnings.
+- Deployment `4dade5a0` contains 58 exact source/target files and removes the stale prior JS bundle.
+  PID `29912` serves `main.6a91a10f.js` (SHA-256
+  `36DA34C21B87826BFC1939E7BA8AACE1833F1BECA9876B2F7F3AE01C08CDEE36`) and
+  `main.aacbfa82.css` (SHA-256
+  `0EAD57019FEDDE86C53558714F1A3F3F9B3C6378B2573EA9D2CB90DA335C908B`) on 59091/59092.
+  The six new `.5/.4` logs contain zero strict Java/SQLite/snapshot/Smoke-start failures.
+- Catalog `ce41e3f7` records 2,342 rows and 2,306 code cases without executing tests. No migration,
+  package, or container image was created. Live Lloyds START/Stop acceptance remains user-driven;
+  the two locator refusals remain intentionally fail-closed and are not presented as fixed actions.
+
 ### Current risks
 
 | Severity | Status | Risk |
@@ -256,7 +278,7 @@ The Page Mappings roadmap is now source-complete through P7:
 | Critical | Fixed in `209d24d7` / `ce6a56f` / `fb87aa0` | Failed Memory `sync` responses lacked pending request correlation and could disappear silently. OPEN and SYNC now use typed pending records and collision-resistant sequenced request IDs. |
 | Critical | Fixed in `fb87aa0` / `b147de41` | Detached Memory commands, timers, dialogs, status, and drag state are bound to the exact owner/workspace generation; late prior-owner responses are ignored and backend responses stay on the captured requester transport. |
 | High | Bounded live acceptance open | PID `31360` runs the latest exact frontend/backend deployment, but one user-driven SCROLL PAGE Rescan with a selected non-default limit is still needed to compare Page Mappings visual completeness. Build/restart and earlier default-limit captures do not close this gate. |
-| High | Smoke Test live acceptance open | The exact row controls, persisted execution-type toggle, status synchronization, and shared runtime-healing path are deployed, but no Codex Playwright action ran. Lloyds Bot Job 29 still needs one user-driven type change, row INPUT/CLICK, and intended Integration run with its browser page open. |
+| High | Smoke Test live acceptance open | Selected-page START and single-flight Stop recovery are deployed, but no post-deployment bank action ran. Lloyds Bot Job 29 still needs one user-driven START proving automatic strict URL opening/settlement, then one Stop proving controls recover without switching Bot Jobs. The coordinate-invalid and ambiguous-target refusals remain fail-closed locator diagnostics. |
 | Medium | Cleanup complete and recoverable | The two exact Job 32 Lloyds rows/artifacts are absent from active storage. The guarded pre-write database and quarantined artifacts remain under `Backup-CODEX-2026-08-10-job32-lloyds-cleanup`. |
 | Medium | Bounded browser limitation | Virtualized lists, nested scroll containers, canvas/video, CSS background resources, and unbounded infinite pages cannot be guaranteed. The adaptive traversal fails closed on its bounds rather than storing known-incomplete output. |
 | Medium | Open verification | Live detached-window reload, takeover, retarget, deletion, same-ID reuse, and multi-page WebSocket behavior remain unverified. |
@@ -351,8 +373,14 @@ The Page Mappings roadmap is now source-complete through P7:
   frontend `3fde7be`; the production build passed without running a frontend test suite.
 - [x] TASK - Deployment `74168d27` and catalog `3609803d` are pushed; PID `20668` serves matching
   `main.45672047.js` / `main.aacbfa82.css` bytes on 64433/64434.
+- [x] TASK - Strict selected-Bot-Job START is pushed in backend `9fe40dbf`; Stop single-flight and
+  message-generation recovery are pushed in frontend `882af61`. Focused checks passed Java 3/3 and
+  frontend 8/8.
+- [x] TASK - Deployment `4dade5a0` and catalog `ce41e3f7` are pushed; PID `29912` serves exact
+  `main.6a91a10f.js` / `main.aacbfa82.css` on 59091/59092 and six new logs have zero strict matches.
 - [ ] TASK - Retry the intended Lloyds Bot Job 29 run. The prior Step 0 error belongs to Bot Job 32
-  inactive Block 204 and is not Lloyds plan evidence.
+  inactive Block 204 and is not Lloyds plan evidence. START must open/settle Lloyds automatically,
+  and Stop must restore controls without a Bot Job switch.
 - [ ] TASK - User must run one fresh adaptive `SCROLL PAGE` Rescan with a selected non-default limit and compare the full-page visual result; Codex did not trigger this scan.
 - [ ] TASK - Package/image delivery, other-database/SQL Server rollout, and broader reconnect/takeover/retention-save-purge/OCR/Memory/multi-page acceptance remain open.
 
@@ -382,6 +410,10 @@ The Page Mappings roadmap is now source-complete through P7:
 - [ ] Validate `a1d6bd3e` / `3fde7be`: execution-type changes must require the exact current Smoke
   binding, persist only `instruction.actions`, synchronize both Bot Job and Smoke views, and keep
   power/type/Input/Click controls on one accessible row without broadening mutation authority.
+- [ ] Validate `9fe40dbf` / `882af61`: START must hold the exact workspace generation through strict
+  selected-URL navigation and settlement; Stop/Finish must remain single-flight when canceling a
+  pending step, consume the one terminal acknowledgement after a message-buffer reset, and restore
+  controls without switching Bot Jobs.
 - [ ] Validate exact Home Banking/Bot Job browser-storage isolation, post-authorization explicit
   `1..40` validation, request/status `scrollPage` + `scrollPages` correlation, and the rule that N
   counts only confirmed downward viewport movements.
