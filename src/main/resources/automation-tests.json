@@ -1,27 +1,27 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-11T05:39:23.384Z",
+  "generatedAt": "2026-08-11T05:55:49.889Z",
   "summary": {
-    "catalogEntries": 2342,
-    "automatedCodeCases": 2306,
+    "catalogEntries": 2344,
+    "automatedCodeCases": 2308,
     "generatedApiCases": 19452,
-    "totalAutomatedCases": 21758,
-    "automatedSuites": 482,
+    "totalAutomatedCases": 21760,
+    "automatedSuites": 483,
     "generatedSuites": 21,
     "manualArtifacts": 9,
     "supportArtifacts": 6,
-    "defaultRunnable": 2277,
-    "safeRunAllEligible": 2277
+    "defaultRunnable": 2279,
+    "safeRunAllEligible": 2279
   },
   "sources": [
     {
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "branch": "refactor/perform-actions-decomposition",
-      "commit": "4dade5a0da9b4073455aa8bcd58cbe5f757f2ab0",
-      "sourceFiles": 328,
-      "automatedSuites": 317,
-      "automatedTestCases": 1429,
+      "commit": "453710d20101a03a98f6e2ed0c7a35a360e593e8",
+      "sourceFiles": 329,
+      "automatedSuites": 318,
+      "automatedTestCases": 1431,
       "generatedSuites": 0,
       "generatedCases": 0
     },
@@ -16755,6 +16755,54 @@
       "runnable": true,
       "runAllEligible": true,
       "command": "mvn -Dtest=com.allinweb.ch.facade.RowMoveServicesTest#componentPipelineDoesNotReportCommittedMoveAsFailedWhenRefreshFails test",
+      "tags": [
+        "Test"
+      ]
+    },
+    {
+      "id": "junit:com.allinweb.ch.facade.RuntimeElementHealingServiceTest#exactXpathOutranksASharedCssSelector@15",
+      "project": "AR Web Scanner",
+      "repository": "ar-web-selenium",
+      "recordType": "AUTOMATED_CASE",
+      "suite": "com.allinweb.ch.facade.RuntimeElementHealingServiceTest",
+      "name": "exactXpathOutranksASharedCssSelector",
+      "displayName": "exactXpathOutranksASharedCssSelector",
+      "framework": "JUnit 5",
+      "language": "Java",
+      "kind": "UNIT",
+      "runtime": "JVM",
+      "execution": "DEFAULT",
+      "safety": "SAFE",
+      "sourcePath": "src/test/java/com/allinweb/ch/facade/RuntimeElementHealingServiceTest.java",
+      "line": 15,
+      "caseCount": 1,
+      "runnable": true,
+      "runAllEligible": true,
+      "command": "mvn -Dtest=com.allinweb.ch.facade.RuntimeElementHealingServiceTest#exactXpathOutranksASharedCssSelector test",
+      "tags": [
+        "Test"
+      ]
+    },
+    {
+      "id": "junit:com.allinweb.ch.facade.RuntimeElementHealingServiceTest#stableIdentityOutranksCssFallback@35",
+      "project": "AR Web Scanner",
+      "repository": "ar-web-selenium",
+      "recordType": "AUTOMATED_CASE",
+      "suite": "com.allinweb.ch.facade.RuntimeElementHealingServiceTest",
+      "name": "stableIdentityOutranksCssFallback",
+      "displayName": "stableIdentityOutranksCssFallback",
+      "framework": "JUnit 5",
+      "language": "Java",
+      "kind": "UNIT",
+      "runtime": "JVM",
+      "execution": "DEFAULT",
+      "safety": "SAFE",
+      "sourcePath": "src/test/java/com/allinweb/ch/facade/RuntimeElementHealingServiceTest.java",
+      "line": 35,
+      "caseCount": 1,
+      "runnable": true,
+      "runAllEligible": true,
+      "command": "mvn -Dtest=com.allinweb.ch.facade.RuntimeElementHealingServiceTest#stableIdentityOutranksCssFallback test",
       "tags": [
         "Test"
       ]
