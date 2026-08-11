@@ -1146,3 +1146,29 @@ Next: configure the shared V2 signing secret and loopback runtime endpoint, star
 runtime, refresh `target/classes`/restart the narrow ARWeb process, and perform the first explicit V2
 Smoke Integration acceptance run. ExcelWrite remains fail-closed until its separate frontend-memory
 and atomic artifact-write checkpoints are complete.
+
+## 34. Execution V2 narrow live deployment checkpoint - 2026-08-11
+
+- Built `playwright-runtime-ts` with `npm run build`; no test suite was run in this operational
+  checkpoint. The runtime uses Node `20.17.0`, `playwright-core 1.61.1`, and the installed Chrome
+  channel. No browser session or banking action was started by Codex.
+- Mirrored the already committed frontend deployment into `target/classes/build`: 58 source files,
+  58 target files, and zero hash mismatches. Live entrypoints are `main.95512dab.js` (SHA-256
+  `7905DF8ED9B966AC55623EF53EF384F4EED272341A9D482774C241D14EC48F5A`) and
+  `main.e1122a50.css` (SHA-256
+  `650C09C59BFD2E6D96154FAD92D821CC6CD1AEEBFDC056A11E18E341FAE86DE4`). No Java source changed,
+  so Maven compilation was not run.
+- Provisioned one cryptographically random 256-bit base64url signing secret only in the environment
+  inherited by this Node/Java process pair. It was not printed, logged, written to the repository,
+  or persisted in configuration. A later independent restart must provision a new matching secret
+  to both processes.
+- Node PID `13220` is READY on `127.0.0.1:60110`; `/version` reports runtime `0.1.0`, contract `1`,
+  and browser actions enabled. ARWeb PID `3892` runs `target/classes` with the exact BancaStato
+  config and listens on `127.0.0.1:63291` / `127.0.0.1:63292`.
+- HTTP root, JS, and CSS return 200 with the exact target hashes. Seven new/active BancaStato log
+  files contain zero strict Java, SQLite, snapshot, or Execution V2 failure matches. Two earlier Node
+  attempts were stopped before ARWeb launch because the deployment probe used obsolete/wrongly
+  unwrapped readiness checks; the final probe uses `/health/ready` and the documented envelope.
+- No database write, migration, package, container, image, Smoke action, or live Integration run was
+  performed. The next gate is one user-driven Lloyds Bot Job 29 Integration run with **V2 / Isolated**,
+  first using safe CLICK/INPUT/OUTPUT/GET/SET/REFRESH steps and then exact Stop/Finish cleanup.

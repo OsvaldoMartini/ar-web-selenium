@@ -2,7 +2,7 @@
 
 Keep exactly two review sections. Check tasks only after their separate gates pass.
 
-**Last updated:** 2026-08-11 - Frontend `57c3118` prioritizes persisted client names over rerun OCR proposals and adds the separated Client Names & Instructions rules tab. Focused checks passed 2 suites / 3 tests; production build and exact 58-file source/target mirror passed. Deployment `e3469fb7` and catalog `3db5da92` are pushed. No ARControlPanel process was running during the target copy, so user launch/live acceptance remains open; no Java source, Maven command, migration, package, or image is claimed.
+**Last updated:** 2026-08-11 - Execution V2 is narrowly deployed for live acceptance. Node PID `13220` is READY on loopback port `60110`; BancaStato ARWeb PID `3892` runs `target/classes` on `63291/63292` and serves the exact `main.95512dab.js` / `main.e1122a50.css` hashes. The shared signing secret exists only in the two process environments. No banking action, test suite, Maven compilation, migration, package, or image was performed in this deployment checkpoint.
 
 ## 1. CODEX -> CLAUDE - Page Mappings and Memory lifecycle review handoff
 

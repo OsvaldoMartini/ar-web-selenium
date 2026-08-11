@@ -901,6 +901,23 @@ Do not change frontend CSS/design while doing the scanner contract cleanup unles
 - [ ] No migration or frontend build was required. ARWeb was not running; restart it and perform one real Lloyds Bot Job 29 clone, then verify instruction/block/variable/slot/config/reference counts before and after.
 - [ ] The per-instruction ExcelWrite redesign remains the next separate item.
 
+## Execution V2 live deployment - 2026-08-11
+
+- Source/runtime routing is already pushed through backend `420e9f31`, frontend `4e955d2`, resource
+  deployment `d3d20877`, and documentation `5c2b74d8`.
+- `playwright-runtime-ts` production TypeScript compilation passed. No tests were run in this
+  operational checkpoint. No Java source changed and no Maven compilation was run.
+- The committed 58-file frontend build was copied exactly into `target/classes/build`; live assets
+  are `main.95512dab.js` (`7905DF8ED9B966AC55623EF53EF384F4EED272341A9D482774C241D14EC48F5A`)
+  and `main.e1122a50.css` (`650C09C59BFD2E6D96154FAD92D821CC6CD1AEEBFDC056A11E18E341FAE86DE4`).
+- One random 256-bit signing secret exists only in the environments of the current process pair; it
+  was never printed or persisted. Node PID `13220` is READY on loopback port `60110`. BancaStato
+  ARWeb PID `3892` runs `target/classes` on `63291/63292`; HTTP assets match and startup logs contain
+  zero strict Java/SQLite/snapshot/V2 failures.
+- No banking action was triggered. Next: user selects Lloyds Bot Job 29, chooses `V2 / Isolated`,
+  and runs a safe C/I/O/GET/SET/REFRESH Integration acceptance followed by Stop/Finish. ExcelWrite
+  remains intentionally unsupported in V2 until the React-memory manager/artifact boundary lands.
+
 ### Instruction-owned ExcelWrite redesign - 2026-08-11
 
 - [x] Root cause confirmed: the typed Command Editor already persisted per-instruction ExcelWrite metadata, but execution still read the Block `export_file`, used an element parent as the destination column, and rebuilt columns per Block. The React Bot Job grid also still exposed the obsolete Block-level Excel panel.
