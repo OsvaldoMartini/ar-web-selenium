@@ -14,12 +14,18 @@ interface ReservedRunRecord {
   readonly runAccessTokenHash: Buffer;
   readonly capabilities: ReadonlySet<ExecutionCapability>;
   leaseExpiresAtEpochSeconds?: number;
+  startFingerprint?: string;
 }
 
 export interface ReservationResult {
   readonly created: boolean;
   readonly run: ReservedRunView;
   readonly runAccessToken: string;
+}
+
+export interface RunActivationResult {
+  readonly created: boolean;
+  readonly run: ReservedRunView;
 }
 
 export class ExecutionRegistryError extends Error {
@@ -37,6 +43,7 @@ export class ExecutionRegistry {
     private readonly maximumRuns: number,
     private readonly nowEpochSeconds: () => number = () => Math.floor(Date.now() / 1000),
     private readonly tokenSupplier: () => string = () => randomBytes(32).toString('base64url'),
+    private readonly onExpired?: (runId: string) => void,
   ) {
     if (!Number.isInteger(maximumRuns) || maximumRuns < 1) {
       throw new Error('REGISTRY_CAPACITY_INVALID');
@@ -94,10 +101,30 @@ export class ExecutionRegistry {
     runId: string,
     runAccessToken: string,
     leaseSeconds: number,
-  ): ReservedRunView {
+    startFingerprint = '',
+  ): RunActivationResult {
     const record = this.authorizeRunToken(runId, runAccessToken, 'runtime.start', false);
+    if (record.startFingerprint !== undefined) {
+      if (record.startFingerprint !== startFingerprint) {
+        throw new ExecutionRegistryError('RUN_START_CONFLICT');
+      }
+      record.leaseExpiresAtEpochSeconds = this.leaseDeadline(leaseSeconds);
+      return { created: false, run: record.view };
+    }
+    record.startFingerprint = startFingerprint;
     record.leaseExpiresAtEpochSeconds = this.leaseDeadline(leaseSeconds);
-    return record.view;
+    return { created: true, run: record.view };
+  }
+
+  authorizeRunStart(runId: string, runAccessToken: string): ReservedRunView {
+    return this.authorizeRunToken(runId, runAccessToken, 'runtime.start', false).view;
+  }
+
+  cancelRunActivation(runId: string, startFingerprint: string): void {
+    const record = this.runs.get(runId);
+    if (!record || record.startFingerprint !== startFingerprint) return;
+    delete record.startFingerprint;
+    delete record.leaseExpiresAtEpochSeconds;
   }
 
   authorizeActiveRun(
@@ -152,6 +179,7 @@ export class ExecutionRegistry {
       const deadline = record.leaseExpiresAtEpochSeconds ?? record.grantExpiresAtEpochSeconds;
       if (deadline > now) continue;
       this.remove(runId, record);
+      this.onExpired?.(runId);
       removed += 1;
     }
     return removed;

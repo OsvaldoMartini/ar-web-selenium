@@ -74,13 +74,30 @@ export type PhysicalActionResult =
 
 const PAGE_KEY_PATTERN = /^url-v1:[0-9a-f]{64}$/;
 const SAFE_TAG_PATTERN = /^[a-z][a-z0-9-]{0,31}$/;
+const ACTION_KEYS = new Set([
+  'instructionId', 'sequence', 'action', 'pageKey', 'authoredSelectors', 'registryCandidates',
+  'canonicalName', 'clientName', 'expectedTag', 'iframeXPath', 'shadowHost', 'shadowRoot',
+  'inputValue', 'pressEnter', 'pressTab',
+]);
+const CANDIDATE_KEYS = new Set([
+  'candidateId', 'tier', 'selectors', 'canonicalName', 'clientName', 'expectedTag',
+  'iframeXPath', 'shadowHost', 'shadowRoot',
+]);
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const hasOnlyKeys = (value: Record<string, unknown>, keys: ReadonlySet<string>): boolean =>
+  Object.keys(value).every(key => keys.has(key));
 
 const requireBoundedText = (
-  value: string | undefined,
+  value: unknown,
   maximum: number,
   code: string,
 ): void => {
-  if (value !== undefined && value.length > maximum) throw new Error(code);
+  if (value !== undefined && (typeof value !== 'string' || value.length > maximum)) {
+    throw new Error(code);
+  }
 };
 
 const validateSelectors = (selectors: readonly string[], code: string): void => {
@@ -118,6 +135,10 @@ export const validatePhysicalActionRequest = (
     requireBoundedText(candidate.shadowHost, 2_048, 'REGISTRY_SHADOW_INVALID');
     requireBoundedText(candidate.shadowRoot, 2_048, 'REGISTRY_SHADOW_INVALID');
     if (candidate.expectedTag !== undefined
+        && typeof candidate.expectedTag !== 'string') {
+      throw new Error('REGISTRY_TAG_INVALID');
+    }
+    if (candidate.expectedTag !== undefined
         && !SAFE_TAG_PATTERN.test(candidate.expectedTag.trim().toLowerCase())) {
       throw new Error('REGISTRY_TAG_INVALID');
     }
@@ -127,6 +148,9 @@ export const validatePhysicalActionRequest = (
   }
   for (const value of [request.iframeXPath, request.shadowHost, request.shadowRoot]) {
     requireBoundedText(value, 2_048, 'ACTION_SCOPE_INVALID');
+  }
+  if (request.expectedTag !== undefined && typeof request.expectedTag !== 'string') {
+    throw new Error('ACTION_TAG_INVALID');
   }
   if (request.expectedTag !== undefined
       && !SAFE_TAG_PATTERN.test(request.expectedTag.trim().toLowerCase())) {
@@ -139,7 +163,21 @@ export const validatePhysicalActionRequest = (
   } else if (request.inputValue !== undefined) {
     throw new Error('ACTION_INPUT_UNEXPECTED');
   }
+  if ((request.pressEnter !== undefined && typeof request.pressEnter !== 'boolean')
+      || (request.pressTab !== undefined && typeof request.pressTab !== 'boolean')) {
+    throw new Error('ACTION_KEYBOARD_OPTION_INVALID');
+  }
   return request;
+};
+
+export const parsePhysicalActionRequest = (value: unknown): PhysicalActionRequest => {
+  if (!isRecord(value) || !hasOnlyKeys(value, ACTION_KEYS)
+      || !Array.isArray(value.registryCandidates)
+      || value.registryCandidates.some(candidate => !isRecord(candidate)
+        || !hasOnlyKeys(candidate, CANDIDATE_KEYS))) {
+    throw new Error('ACTION_CONTRACT_INVALID');
+  }
+  return validatePhysicalActionRequest(value as unknown as PhysicalActionRequest);
 };
 
 export const physicalActionRequestFingerprint = (request: PhysicalActionRequest): string => {

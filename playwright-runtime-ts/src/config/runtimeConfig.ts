@@ -8,6 +8,11 @@ export interface RuntimeConfig {
   readonly maxReservedRuns: number;
   readonly maxGrantSeconds: number;
   readonly clockSkewSeconds: number;
+  readonly runIdleLeaseSeconds: number;
+  readonly maximumActiveRuns: number;
+  readonly maximumQueuedRuns: number;
+  readonly maximumActiveRunsPerOrganization: number;
+  readonly maximumActiveRunsPerBotJob: number;
 }
 
 const integerSetting = (
@@ -56,6 +61,21 @@ export const loadRuntimeConfig = (environment: NodeJS.ProcessEnv = process.env):
     ),
     clockSkewSeconds: integerSetting(
       environment, 'ARWEB_EXECUTION_V2_CLOCK_SKEW_SECONDS', 5, 0, 30,
+    ),
+    runIdleLeaseSeconds: integerSetting(
+      environment, 'ARWEB_EXECUTION_V2_RUN_IDLE_LEASE_SECONDS', 60, 10, 300,
+    ),
+    maximumActiveRuns: integerSetting(
+      environment, 'ARWEB_EXECUTION_V2_MAX_ACTIVE_RUNS', 4, 1, 64,
+    ),
+    maximumQueuedRuns: integerSetting(
+      environment, 'ARWEB_EXECUTION_V2_MAX_QUEUED_RUNS', 32, 1, 256,
+    ),
+    maximumActiveRunsPerOrganization: integerSetting(
+      environment, 'ARWEB_EXECUTION_V2_MAX_ACTIVE_PER_ORGANIZATION', 2, 1, 32,
+    ),
+    maximumActiveRunsPerBotJob: integerSetting(
+      environment, 'ARWEB_EXECUTION_V2_MAX_ACTIVE_PER_BOT_JOB', 1, 1, 8,
     ),
   };
 };
