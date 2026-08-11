@@ -918,6 +918,19 @@ Do not change frontend CSS/design while doing the scanner contract cleanup unles
   and runs a safe C/I/O/GET/SET/REFRESH Integration acceptance followed by Stop/Finish. ExcelWrite
   remains intentionally unsupported in V2 until the React-memory manager/artifact boundary lands.
 
+## Smoke runtime-selector placement - 2026-08-11
+
+- Frontend `9723982` places the existing Java V1/V2 selector between the active Integration toggle
+  and Refresh, removes its old lower-card rendering, and adds a compact selected-runtime badge above
+  the Smoke workspace status. No execution state or WebSocket contract changed.
+- `npm run build` passed with existing warnings; no tests ran. Deployment `5f608d7d` is exact across
+  58 resource/target files. Entrypoints are `main.086bf45c.js`
+  (`EA46677A5D413D9C80563FD8804EE61C473CF98FFEB8574603377B97357FCD68`) and
+  `main.8678873d.css` (`FE2A31FF421D702CFE8D1DE6C9B6A4E45419B6D82793B6F71496CA9559AA361C`).
+- ARWeb selected the new JS entrypoint, then exited externally before full live asset verification.
+  It was not restarted because the requested scope was frontend build/deployment only. Node PID
+  `13220` remains READY with zero reservations; visual approval and Lloyds V2 execution remain open.
+
 ### Instruction-owned ExcelWrite redesign - 2026-08-11
 
 - [x] Root cause confirmed: the typed Command Editor already persisted per-instruction ExcelWrite metadata, but execution still read the Block `export_file`, used an element parent as the destination column, and rebuilt columns per Block. The React Bot Job grid also still exposed the obsolete Block-level Excel panel.

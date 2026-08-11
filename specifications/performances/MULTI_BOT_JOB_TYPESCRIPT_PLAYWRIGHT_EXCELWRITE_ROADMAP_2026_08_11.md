@@ -1172,3 +1172,24 @@ and atomic artifact-write checkpoints are complete.
 - No database write, migration, package, container, image, Smoke action, or live Integration run was
   performed. The next gate is one user-driven Lloyds Bot Job 29 Integration run with **V2 / Isolated**,
   first using safe CLICK/INPUT/OUTPUT/GET/SET/REFRESH steps and then exact Stop/Finish cleanup.
+
+## 35. Smoke runtime-selector placement checkpoint - 2026-08-11
+
+- Frontend `9723982` moves the existing runtime selector out of the lower execution-card grid. When
+  Integration is active, the top toolbar now reads `SMOKE/INTEGRATION -> Java V1/V2 -> Refresh`.
+  The selector state, disabled lifecycle, and backend request contract are unchanged.
+- A compact read-only badge directly above the Smoke workspace status reports either
+  `Runtime: Java V1 Shared` or `Runtime: V2 Isolated`. The badge is shown only in Integration mode;
+  the toolbar remains horizontally scrollable on constrained widths.
+- The production frontend build passed with established repository warnings; no tests ran. The exact
+  58-file build was mirrored into `src/main/resources/build` and `target/classes/build` with zero
+  missing, extra, or hash-mismatched files. Deployment `5f608d7d` is pushed.
+- New entrypoints are `main.086bf45c.js` (SHA-256
+  `EA46677A5D413D9C80563FD8804EE61C473CF98FFEB8574603377B97357FCD68`) and
+  `main.8678873d.css` (SHA-256
+  `FE2A31FF421D702CFE8D1DE6C9B6A4E45419B6D82793B6F71496CA9559AA361C`). No Java source changed,
+  so Maven was not run.
+- The previously running ARWeb served an index selecting `main.086bf45c.js`, then exited externally
+  before the complete live CSS/hash verification. No Java shutdown/error evidence attributes that
+  exit to this frontend-only change. Node PID `13220` remains READY with zero reservations. Per user
+  scope, ARWeb was not restarted; visual acceptance remains open.

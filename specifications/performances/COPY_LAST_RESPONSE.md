@@ -2,7 +2,7 @@
 
 Keep exactly two review sections. Check tasks only after their separate gates pass.
 
-**Last updated:** 2026-08-11 - Execution V2 is narrowly deployed for live acceptance. Node PID `13220` is READY on loopback port `60110`; BancaStato ARWeb PID `3892` runs `target/classes` on `63291/63292` and serves the exact `main.95512dab.js` / `main.e1122a50.css` hashes. The shared signing secret exists only in the two process environments. No banking action, test suite, Maven compilation, migration, package, or image was performed in this deployment checkpoint.
+**Last updated:** 2026-08-11 - Frontend `9723982` moves the Java V1/V2 selector between Integration and Refresh and adds the selected runtime above the Smoke workspace status. The production build passed without tests; deployment `5f608d7d` mirrors 58 exact files with `main.086bf45c.js` / `main.8678873d.css`. ARWeb selected the new JS entrypoint and then exited externally before full live verification; it was not restarted. Node PID `13220` remains READY with zero reservations.
 
 ## 1. CODEX -> CLAUDE - Page Mappings and Memory lifecycle review handoff
 
