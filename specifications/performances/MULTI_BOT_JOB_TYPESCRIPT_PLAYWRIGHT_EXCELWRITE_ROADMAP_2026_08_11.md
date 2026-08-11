@@ -717,7 +717,7 @@ prevents multiplying an unproven single-run execution path.
 [x] V2 architecture/threat model approved
 [x] Shared contracts implemented and versioned
 [x] Node runtime package created
-[ ] Signed Java grant boundary implemented
+[x] Signed Java grant signing/verification boundary implemented (authorized routing still open)
 [ ] Isolated worker pool implemented
 [ ] Single-run Smoke Integration moved to Node Playwright
 [ ] REAL and SYNTHETIC data verified
@@ -801,5 +801,27 @@ The P0/P1 runtime-boundary work below supersedes the earlier next-step statement
 - No service, image, or package was deployed or started. Java grant issuance and secret
   provisioning do not exist yet, so production execution remains disconnected and fail-closed.
 
-Next: implement the minimal Java grant issuer plus cross-language compatibility fixture, then P2
-bounded worker/session isolation. Do not add browser actions before that authority boundary passes.
+The signer checkpoint below completes the previously listed cross-language authority prerequisite.
+
+## 22. Java grant signer compatibility checkpoint - 2026-08-11
+
+- Added Java Execution V2 constants, validated immutable authorized-facts DTO, fail-closed
+  environment configuration, deterministic HS256 signer, and short-lived grant service.
+- Java creates both UUIDs, fixes the runtime capabilities, emits second-precise times, enforces
+  lowercase SHA-256 revisions and JavaScript-safe workspace epochs, and never logs the secret or
+  compact grant.
+- Missing secret leaves issuance disabled; malformed base64url, short secrets, unsafe key IDs, and
+  grant lifetimes outside 10 to 120 seconds are refused.
+- Added one deterministic test-only Java grant fixture. Java proves it emits the exact compact
+  bytes; the independent Node verifier proves it accepts and parses those same claims.
+- The service is intentionally not exposed through current Smoke Integration/WebSocket routing.
+  Current authorization has Home Banking/Bot Job authority but cannot yet prove the separate
+  `organizationId`, so no client-provided organization assertion can mint a grant.
+- `mvn -Dtest=ExecutionRuntimeGrantServiceTest test` compiled 572 production and 334 test sources;
+  all 3 focused Java tests passed. Node lint/build passed and all 11 focused Node tests passed.
+- Source commit/push: `3e784a43`. No frontend source or deployment assets changed.
+- No secret was provisioned, and no Node service, browser, application service, image, migration,
+  or database was started or changed.
+
+Next: P2 bounded worker/session isolation behind the verified Node reservation boundary. The later
+Java routing adapter must resolve `organizationId` authoritatively before V2 application admission.
