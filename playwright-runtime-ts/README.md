@@ -1,7 +1,8 @@
 # AR Web Playwright Runtime V2
 
 This package is the isolated TypeScript worker-plane boundary for future AR Web executions. The
-current checkpoint contains no Playwright dependency and cannot launch or control a browser.
+current checkpoint includes an internal Playwright worker/session pool, but no HTTP or application
+route can admit work into it yet.
 
 Implemented now:
 
@@ -11,6 +12,9 @@ Implemented now:
 - a deterministic compatibility fixture shared with the Java grant signer;
 - a capped, expiring, in-memory run reservation registry;
 - exact-token replay and conflicting-run refusal;
+- a bounded worker pool with global, organization, and Bot Job admission limits;
+- one dedicated Chromium process, BrowserContext, and Page per admitted run;
+- bounded navigation readiness, refresh, stop, cleanup, and asynchronous crash containment;
 - safe structured logs that never include grants or request bodies.
 
 Not implemented yet:
@@ -18,8 +22,13 @@ Not implemented yet:
 - an authorized Java/WebSocket adapter that may invoke the grant signer;
 - production secret provisioning and rotation;
 - React or Java routing to this service;
-- Playwright workers, browsers, contexts, pages, or actions;
+- HTTP start/refresh/stop routes connected to the internal worker pool;
+- locator resolution or physical CLICK, INPUT, OUTPUT, and other command actions;
+- production browser executable provisioning and a live browser acceptance run;
 - database, runtime-variable, CSV, XLSX, or filesystem writes.
+
+`playwright-core` is pinned for the worker implementation. It does not download or bundle a browser;
+deployment must provide an explicitly configured compatible Chromium executable or channel.
 
 ## Configuration
 
