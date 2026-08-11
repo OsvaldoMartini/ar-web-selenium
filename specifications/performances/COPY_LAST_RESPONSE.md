@@ -581,3 +581,10 @@ The Page Mappings roadmap is now source-complete through P7:
 - [x] Focused verification passed: frontend 8/8, backend 4/4, Java compilation, and the production frontend build. The initial TypeScript narrowing issue and stale legacy backend test fixture were corrected before the final passing runs.
 - [x] Deployment `af56bd24` contains 58 exact files in resources and `target/classes`; catalog `7a9e1be5` is pushed. Current assets are `main.7984b953.js` / `main.af1d2d62.css`.
 - [ ] ARWeb was not running, so live visual/deletion acceptance remains open. Clone Job legacy `variable_id` and the ExcelWrite instruction-level redesign are the next separate items.
+
+### Normalized Clone Job variable graph - 2026-08-11
+
+- [x] Root cause was the retired `instruction.variable_id` column still used by Clone Job while the live schema stores definitions and bindings in normalized owner-scoped tables.
+- [x] Backend `354256c8` clones normalized instructions, parent links, definitions, slots, typed command config, and references without reading or writing the retired column. Missing mappings fail closed.
+- [x] Java compile passed with 564 sources; focused clone verification passed 4/4. Catalog `e5794caa` is pushed with 2,351 rows / 2,315 cases.
+- [ ] No migration/frontend build/runtime restart occurred. User live gate: restart ARWeb, clone Lloyds Job 29 once, and compare the complete source/destination graph. ExcelWrite remains separate.

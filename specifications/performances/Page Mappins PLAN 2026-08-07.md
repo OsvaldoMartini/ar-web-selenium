@@ -1010,3 +1010,10 @@ existing backend alias transaction and exact locator/page identity remain author
 - [x] Backend `4ffd41d3` detaches deleted variable producers and clears both surviving parent fields. Focused frontend 8/8 and backend 4/4 checks passed; Java compile and frontend build passed.
 - [x] Exact 58-file deployment `af56bd24` and regenerated catalog `7a9e1be5` are pushed. Source resources and `target/classes` have zero hash differences.
 - [ ] Start ARWeb and complete the visual/live database acceptance. The Clone Job legacy-column failure and ExcelWrite redesign remain outside this checkpoint.
+
+## Normalized Clone Job variable graph - 2026-08-11
+
+- [x] Live schema evidence confirmed the Clone Job failure: `instruction.variable_id` is retired; normalized definitions/slots are authoritative.
+- [x] Backend `354256c8` clones normalized instruction and variable relationships, both parent link types, typed command configuration, and references. It no longer reads or writes the retired instruction column.
+- [x] Java compile passed; focused clone/service verification passed 4/4. Catalog `e5794caa` is pushed.
+- [ ] Restart and perform one real Lloyds Job 29 clone, then verify exact graph parity and no residual partial job. ExcelWrite remains a separate roadmap item.

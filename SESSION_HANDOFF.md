@@ -890,3 +890,13 @@ Do not change frontend CSS/design while doing the scanner contract cleanup unles
 - [x] Automation catalog `7a9e1be5` records the new coverage; catalog generation executed no tests.
 - [ ] No ARControlPanel JVM was running during deployment. Start ARWeb and visually verify row positioning, first-row selection scope, exact selected deletion, connected deletion, counter disappearance, and variable preservation before treating live acceptance as complete.
 - [ ] The reported Clone Job `instruction.variable_id` schema defect and the requested per-instruction ExcelWrite redesign remain separate follow-up work and were not mixed into this checkpoint.
+
+## Normalized Clone Job variable graph - 2026-08-11
+
+- [x] Live read-only schema inspection confirmed `instruction.variable_id` is absent. Durable definitions are in `bot_job_variable_definition`; instruction bindings are in `instruction_variable_slot`.
+- [x] Backend `354256c8` removes the retired column from Clone Job instruction insert/update, preserves and remaps both parent fields, clones durable definitions, remaps slots and typed command configuration, and remaps references.
+- [x] Missing instruction/block/variable mappings now fail closed instead of silently omitting part of a clone. Existing Clone Job cleanup remains the failure boundary.
+- [x] `mvn -DskipTests compile` passed with 564 main sources. Focused `CloneJobServiceTest` plus the normalized-schema clone regression passed 4/4.
+- [x] Catalog `e5794caa` records 2,351 rows / 2,315 code cases; catalog generation ran no tests.
+- [ ] No migration or frontend build was required. ARWeb was not running; restart it and perform one real Lloyds Bot Job 29 clone, then verify instruction/block/variable/slot/config/reference counts before and after.
+- [ ] The per-instruction ExcelWrite redesign remains the next separate item.
