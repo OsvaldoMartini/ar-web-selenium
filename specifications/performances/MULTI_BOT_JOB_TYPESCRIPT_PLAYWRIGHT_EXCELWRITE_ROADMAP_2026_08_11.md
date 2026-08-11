@@ -1023,3 +1023,29 @@ Next: add the whole-run lifecycle adapter that freezes plan/data, issues and res
 run, starts the isolated Node browser, obtains the current page hash for each physical instruction,
 submits these authoritative action facts, and stops/releases the exact run on finish, stop,
 disconnect, or failure. V1/V2 selection must be explicit at start and cannot change mid-run.
+
+## 30. Execution V2 isolated run lifecycle checkpoint - 2026-08-11
+
+- Added an environment-disabled Java run coordinator. Missing V2 grant configuration returns no
+  coordinator and leaves Smoke Integration V1 untouched; no fallback or partial-run switch occurs.
+- Start verifies current app authority (`organizationId == homeBankingId`), frozen plan owner,
+  environment owner/Bot Job, and plan revision before issuing a grant or contacting Node. It maps
+  only configured Chrome, Edge, or Chromium channels and starts a visible dedicated runtime page.
+- Java retains the opaque runtime authority, polls bounded QUEUED/STARTING/LOADING_PAGE states for
+  up to 45 seconds, and exposes the run only after READY. Terminal, invalid, or timeout states run
+  best-effort exact stop/release cleanup; an unactivated reservation remains bounded by grant expiry.
+- Each physical action is serialized against refresh/close, re-reads the current hash-only Node page
+  identity, prepares the owner/page-scoped registry from the frozen instruction, submits the strict
+  action DTO, and never exposes runtime authority to React.
+- Close performs exact Stop then Release and marks the Java run closed only after both acknowledge.
+  An unknown terminal outcome retains authority for an exact retry instead of guessing success.
+- `mvn -Dtest=ExecutionRuntimeRunCoordinatorTest,ExecutionRuntimeActionFactoryTest test` compiled
+  576 production and 337 test sources; all 4 focused tests passed with only the two established
+  compiler warnings. `git diff --check` passed.
+- Source commit/push: `7300b26f`. No current Smoke route was switched. No frontend/Node resource,
+  database, migration, browser, process, service, image, or deployment changed.
+
+Next: add the explicit V1/V2 start selector and connect `SmokeTestIntegrationService` to this
+coordinator. The service must freeze plan plus REAL/SYNTHETIC data before issuing V2 authority,
+resolve INPUT values server-side, translate Node diagnostics/output into the existing step response,
+and close the exact V2 run on finish, stop, disconnect, binding change, failure, and shutdown.
