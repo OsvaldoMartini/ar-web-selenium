@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-11T05:55:49.889Z",
+  "generatedAt": "2026-08-11T06:34:28.537Z",
   "summary": {
     "catalogEntries": 2344,
     "automatedCodeCases": 2308,
@@ -18,7 +18,7 @@
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "branch": "refactor/perform-actions-decomposition",
-      "commit": "453710d20101a03a98f6e2ed0c7a35a360e593e8",
+      "commit": "c320f5a61f789aa7b5074cdc880325ebfb0120ca",
       "sourceFiles": 329,
       "automatedSuites": 318,
       "automatedTestCases": 1431,
@@ -29,7 +29,7 @@
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "branch": "VERSION-4.6",
-      "commit": "882af6150dd039de652b7fb49c85e2ec72f348c4",
+      "commit": "1e8d528f312f5ff7fc21ef30c3c883b82a3e204a",
       "sourceFiles": 165,
       "automatedSuites": 165,
       "automatedTestCases": 877,
@@ -47502,7 +47502,7 @@
       ]
     },
     {
-      "id": "jest:src/components/LicenseManager.test.tsx::::renders status and sends an agreement-gated license request@26",
+      "id": "jest:src/components/LicenseManager.test.tsx::::renders status and sends an agreement-gated license request@33",
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "recordType": "AUTOMATED_CASE",
@@ -47516,7 +47516,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/components/LicenseManager.test.tsx",
-      "line": 26,
+      "line": 33,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -47527,7 +47527,7 @@
       ]
     },
     {
-      "id": "jest:src/components/LicenseManager.test.tsx::::sends the activation response path@44",
+      "id": "jest:src/components/LicenseManager.test.tsx::::sends the activation response path@53",
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "recordType": "AUTOMATED_CASE",
@@ -47541,7 +47541,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/components/LicenseManager.test.tsx",
-      "line": 44,
+      "line": 53,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -47552,7 +47552,7 @@
       ]
     },
     {
-      "id": "jest:src/components/LicenseManager.test.tsx::::sends the existing-license path@54",
+      "id": "jest:src/components/LicenseManager.test.tsx::::sends the existing-license path@63",
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "recordType": "AUTOMATED_CASE",
@@ -47566,7 +47566,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/components/LicenseManager.test.tsx",
-      "line": 54,
+      "line": 63,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -47577,7 +47577,7 @@
       ]
     },
     {
-      "id": "jest:src/components/LicenseManager.test.tsx::::disables license modes excluded by backend capabilities@63",
+      "id": "jest:src/components/LicenseManager.test.tsx::::disables license modes excluded by backend capabilities@74",
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "recordType": "AUTOMATED_CASE",
@@ -47591,7 +47591,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/components/LicenseManager.test.tsx",
-      "line": 63,
+      "line": 74,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -47602,7 +47602,7 @@
       ]
     },
     {
-      "id": "jest:src/components/LicenseManager.test.tsx::::prevents repeated submission while a request is pending@74",
+      "id": "jest:src/components/LicenseManager.test.tsx::::prevents repeated submission while a request is pending@85",
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "recordType": "AUTOMATED_CASE",
@@ -47616,7 +47616,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/components/LicenseManager.test.tsx",
-      "line": 74,
+      "line": 85,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -47627,7 +47627,7 @@
       ]
     },
     {
-      "id": "jest:src/components/LicenseManager.test.tsx::::shows a structured backend error and clears pending state@85",
+      "id": "jest:src/components/LicenseManager.test.tsx::::shows a structured backend error and clears pending state@97",
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "recordType": "AUTOMATED_CASE",
@@ -47641,7 +47641,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/components/LicenseManager.test.tsx",
-      "line": 85,
+      "line": 97,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -47652,7 +47652,7 @@
       ]
     },
     {
-      "id": "jest:src/components/LicenseManager.test.tsx::::refreshes status after success and reports active state@97",
+      "id": "jest:src/components/LicenseManager.test.tsx::::refreshes status after success and reports active state@110",
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "recordType": "AUTOMATED_CASE",
@@ -47666,7 +47666,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/components/LicenseManager.test.tsx",
-      "line": 97,
+      "line": 110,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
