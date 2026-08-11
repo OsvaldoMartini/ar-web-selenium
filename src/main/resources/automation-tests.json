@@ -1,24 +1,24 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-11T05:09:50.133Z",
+  "generatedAt": "2026-08-11T05:39:23.384Z",
   "summary": {
-    "catalogEntries": 2341,
-    "automatedCodeCases": 2305,
+    "catalogEntries": 2342,
+    "automatedCodeCases": 2306,
     "generatedApiCases": 19452,
-    "totalAutomatedCases": 21757,
+    "totalAutomatedCases": 21758,
     "automatedSuites": 482,
     "generatedSuites": 21,
     "manualArtifacts": 9,
     "supportArtifacts": 6,
-    "defaultRunnable": 2276,
-    "safeRunAllEligible": 2276
+    "defaultRunnable": 2277,
+    "safeRunAllEligible": 2277
   },
   "sources": [
     {
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "branch": "refactor/perform-actions-decomposition",
-      "commit": "74168d2763fe33d6c333fa9e14a605f540a0ed6f",
+      "commit": "4dade5a0da9b4073455aa8bcd58cbe5f757f2ab0",
       "sourceFiles": 328,
       "automatedSuites": 317,
       "automatedTestCases": 1429,
@@ -29,10 +29,10 @@
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "branch": "VERSION-4.6",
-      "commit": "3fde7be4ba5baf0f484cd10d16043b6685d43fd0",
+      "commit": "882af6150dd039de652b7fb49c85e2ec72f348c4",
       "sourceFiles": 165,
       "automatedSuites": 165,
-      "automatedTestCases": 876,
+      "automatedTestCases": 877,
       "generatedSuites": 21,
       "generatedCases": 19452
     },
@@ -33444,7 +33444,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.socket.SmokeTestIntegrationServiceTest#startStepAndCorrelatedFinishReleaseTheBrowserLease@109",
+      "id": "junit:com.allinweb.ch.socket.SmokeTestIntegrationServiceTest#startStepAndCorrelatedFinishReleaseTheBrowserLease@115",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -33458,7 +33458,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/socket/SmokeTestIntegrationServiceTest.java",
-      "line": 109,
+      "line": 115,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -33468,7 +33468,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.socket.SmokeTestIntegrationServiceTest#lastSequenceMismatchPreservesRunUntilStopAndReleasesExactlyOnce@144",
+      "id": "junit:com.allinweb.ch.socket.SmokeTestIntegrationServiceTest#lastSequenceMismatchPreservesRunUntilStopAndReleasesExactlyOnce@150",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -33482,7 +33482,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/socket/SmokeTestIntegrationServiceTest.java",
-      "line": 144,
+      "line": 150,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -33492,7 +33492,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.socket.SmokeTestIntegrationServiceTest#disconnectReleasesTheActiveBrowserLeaseExactlyOnce@185",
+      "id": "junit:com.allinweb.ch.socket.SmokeTestIntegrationServiceTest#disconnectReleasesTheActiveBrowserLeaseExactlyOnce@191",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -33506,7 +33506,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/socket/SmokeTestIntegrationServiceTest.java",
-      "line": 185,
+      "line": 191,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -52893,7 +52893,7 @@
       ]
     },
     {
-      "id": "jest:src/components/smoke-test/integration/smokeTestIntegration.contract.test.ts::::builds a small Integration start request without browser execution facts@24",
+      "id": "jest:src/components/smoke-test/integration/smokeTestIntegration.contract.test.ts::::builds a small Integration start request without browser execution facts@30",
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "recordType": "AUTOMATED_CASE",
@@ -52907,7 +52907,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/components/smoke-test/integration/smokeTestIntegration.contract.test.ts",
-      "line": 24,
+      "line": 30,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -52918,7 +52918,7 @@
       ]
     },
     {
-      "id": "jest:src/components/smoke-test/integration/smokeTestIntegration.contract.test.ts::::accepts the backend-authored frozen run identity@52",
+      "id": "jest:src/components/smoke-test/integration/smokeTestIntegration.contract.test.ts::::accepts the backend-authored frozen run identity@58",
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "recordType": "AUTOMATED_CASE",
@@ -52932,7 +52932,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/components/smoke-test/integration/smokeTestIntegration.contract.test.ts",
-      "line": 52,
+      "line": 58,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -52943,7 +52943,7 @@
       ]
     },
     {
-      "id": "jest:src/components/smoke-test/integration/smokeTestIntegration.contract.test.ts::::keeps an empty GET result distinct from VOID@120",
+      "id": "jest:src/components/smoke-test/integration/smokeTestIntegration.contract.test.ts::::keeps an empty GET result distinct from VOID@126",
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "recordType": "AUTOMATED_CASE",
@@ -52957,7 +52957,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/components/smoke-test/integration/smokeTestIntegration.contract.test.ts",
-      "line": 120,
+      "line": 126,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -52968,7 +52968,7 @@
       ]
     },
     {
-      "id": "jest:src/components/smoke-test/integration/smokeTestIntegration.contract.test.ts::::rejects ambiguous backend runtime snapshot values@147",
+      "id": "jest:src/components/smoke-test/integration/smokeTestIntegration.contract.test.ts::::rejects ambiguous backend runtime snapshot values@153",
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "recordType": "AUTOMATED_CASE",
@@ -52982,7 +52982,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/components/smoke-test/integration/smokeTestIntegration.contract.test.ts",
-      "line": 147,
+      "line": 153,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -52993,7 +52993,7 @@
       ]
     },
     {
-      "id": "jest:src/components/smoke-test/integration/smokeTestIntegration.contract.test.ts::::rejects a response for another instruction and a refused terminal operation@181",
+      "id": "jest:src/components/smoke-test/integration/smokeTestIntegration.contract.test.ts::::rejects a response for another instruction and a refused terminal operation@187",
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "recordType": "AUTOMATED_CASE",
@@ -53007,7 +53007,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/components/smoke-test/integration/smokeTestIntegration.contract.test.ts",
-      "line": 181,
+      "line": 187,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -53018,7 +53018,7 @@
       ]
     },
     {
-      "id": "jest:src/components/smoke-test/integration/useSmokeTestIntegrationRun.test.ts::::releases the pending request immediately when WebSocket.send throws@79",
+      "id": "jest:src/components/smoke-test/integration/useSmokeTestIntegrationRun.test.ts::::releases the pending request immediately when WebSocket.send throws@85",
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "recordType": "AUTOMATED_CASE",
@@ -53032,7 +53032,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/components/smoke-test/integration/useSmokeTestIntegrationRun.test.ts",
-      "line": 79,
+      "line": 85,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -53043,7 +53043,7 @@
       ]
     },
     {
-      "id": "jest:src/components/smoke-test/integration/useSmokeTestIntegrationRun.test.ts::::keeps the active run when Finish is refused and permits Stop cleanup retry@114",
+      "id": "jest:src/components/smoke-test/integration/useSmokeTestIntegrationRun.test.ts::::keeps the active run when Finish is refused and permits Stop cleanup retry@120",
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "recordType": "AUTOMATED_CASE",
@@ -53057,11 +53057,36 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/components/smoke-test/integration/useSmokeTestIntegrationRun.test.ts",
-      "line": 114,
+      "line": 120,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
       "command": "npm test -- --runInBand --runTestsByPath src/components/smoke-test/integration/useSmokeTestIntegrationRun.test.ts -t \"keeps the active run when Finish is refused and permits Stop cleanup retry\"",
+      "tags": [
+        "frontend",
+        "test"
+      ]
+    },
+    {
+      "id": "jest:src/components/smoke-test/integration/useSmokeTestIntegrationRun.test.ts::::keeps Stop single-flight when it cancels an in-flight step@195",
+      "project": "AR React UI",
+      "repository": "abr-react-ts-grid",
+      "recordType": "AUTOMATED_CASE",
+      "suite": "useSmokeTestIntegrationRun",
+      "name": "keeps Stop single-flight when it cancels an in-flight step",
+      "displayName": "keeps Stop single-flight when it cancels an in-flight step",
+      "framework": "Jest / Testing Library",
+      "language": "TypeScript",
+      "kind": "FRONTEND",
+      "runtime": "JSDOM",
+      "execution": "DEFAULT",
+      "safety": "SAFE",
+      "sourcePath": "src/components/smoke-test/integration/useSmokeTestIntegrationRun.test.ts",
+      "line": 195,
+      "caseCount": 1,
+      "runnable": true,
+      "runAllEligible": true,
+      "command": "npm test -- --runInBand --runTestsByPath src/components/smoke-test/integration/useSmokeTestIntegrationRun.test.ts -t \"keeps Stop single-flight when it cancels an in-flight step\"",
       "tags": [
         "frontend",
         "test"
