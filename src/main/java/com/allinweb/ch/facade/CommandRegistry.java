@@ -22,7 +22,7 @@ public final class CommandRegistry {
             "REFRESH_LOOP", "REFRESH", "NEXT_ENTER", "SWIPE_UP", "SWIPE_DOWN", "H", "PAUSE", "Q", "P");
     private static final Set<String> NO_EDITOR_CONFIGURATION = Set.of(
             "GET", "SET", "EXCEL GOTO", "REFRESH", "NEXT_ENTER", "PAUSE", "Q", "P");
-    private static final Set<String> PRODUCES_VARIABLE_VALUE = Set.of("GET", "SET", "E");
+    private static final Set<String> PRODUCES_VARIABLE_VALUE = Set.of("GET", "SET");
     private CommandRegistry() {}
 
     public static String canonicalize(String action) {
@@ -141,7 +141,7 @@ public final class CommandRegistry {
         add(definitions, "CK", "Check Value", "variable", "variable", "operator");
         add(definitions, "PDF CHECK", "PDF Check", "variable", "variable", "operator");
         add(definitions, "CSV CHECK", "CSV Check", "variable", "variable", "operator");
-        add(definitions, "E", "Extract Field", "variable", "webField", "variable");
+        add(definitions, "E", "ExcelWrite", "variable", "variable");
         add(definitions, "IF", "IF", "none");
         add(definitions, "GOTO", "GOTO", "block", "block", "count");
         add(definitions, "EXCEL GOTO", "Excel GOTO", "block", "block");

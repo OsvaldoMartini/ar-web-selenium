@@ -53,6 +53,9 @@ import com.allinweb.ch.facade.actions.RuntimeVariableStore;
 import com.allinweb.ch.facade.actions.RuntimeVariableValue;
 import com.allinweb.ch.facade.actions.RuntimeVariableValue.VoidReason;
 import com.allinweb.ch.facade.execution.ExecutionPreflightSnapshotRepository;
+import com.allinweb.ch.facade.execution.ExcelWriteExecutionPlan;
+import com.allinweb.ch.facade.execution.ExcelWriteExecutionPlan.Target;
+import com.allinweb.ch.facade.execution.ExcelWriteFileWriteCoordinator;
 import com.allinweb.ch.facade.execution.RunScope;
 import com.allinweb.ch.model.*;
 import com.allinweb.ch.readersAndWriters.ExcelWriter;
@@ -248,7 +251,6 @@ public class ScannerRuntimeBackend
     protected AtomicBoolean interceptBotJob = new AtomicBoolean(false);
     double comboWidth = 200;
     String excelFieldName;
-    String delimiterCSV = null;
     private Set<String> windowHandles;
     // Shared executors from central manager (DO NOT shutdown them here)
     private final ExecutorService executorServicePreLaunch =
@@ -327,7 +329,6 @@ public class ScannerRuntimeBackend
     private String coordsText = "";
     private Map<String, String> mapOperators = new HashMap<>();
     private volatile boolean variableMetadataAvailable = true;
-    private List<String> currentColumnsCSV = new ArrayList<>(); // set once
     private Map<String, CsvTable> csvTables = new LinkedHashMap<>();
     private String[] defaultSearch;
     private boolean searchHiddenFields;
@@ -3104,9 +3105,6 @@ public class ScannerRuntimeBackend
         TargetElement matchXPath = null;
         WebElement webElementFound = null;
         int navTime = getNavigationTimeSeconds();
-        String newExcelFieldName = "";
-        CsvTable currentTableCSV = null;
-
         //        List<InputInfo> inputs = new ArrayList<>();
 
         sessionRowStatus = ScannerWorkspaceSessions.BOT_JOB_TASKS; // + botJobId;
@@ -3119,6 +3117,17 @@ public class ScannerRuntimeBackend
         RuntimeVariableStore runtimeVariables = new RuntimeVariableStore(
                 this.currentBotJob.getHomeBankingId(),
                 this.currentBotJob.getId());
+        final ExcelWriteExecutionPlan excelWritePlan;
+        try {
+            excelWritePlan = ExcelWriteExecutionPlan.load(this.currentBotJob);
+        } catch (Exception planFailure) {
+            logOperations.error(
+                    "ExcelWrite execution plan could not be loaded for Bot Job {}",
+                    this.currentBotJob.getId(),
+                    planFailure);
+            appendLog("ExcelWrite configuration could not be loaded. Execution was stopped.", "error");
+            return false;
+        }
         //        Map<String, String> mapSavedLocators = new HashMap<>();
 
         Set<Integer> parentIdsForLoop = null;
@@ -3173,8 +3182,14 @@ public class ScannerRuntimeBackend
             runtimeVariables.reconcileDefinitions(
                     runtimeVariableDefinitions,
                     runtimeVariableMetadataAvailable);
-            currentColumnsCSV.clear();
             csvTables.clear();
+            for (Target target : excelWritePlan.configuredTargets()) {
+                CsvTable table = csvTables.computeIfAbsent(
+                        target.fileKey(),
+                        ignored -> new CsvTable(
+                                target.fullPath(), target.fullPath(), target.delimiter()));
+                table.addColumns(List.of(target.outputColumn()));
+            }
 
             while (xExcelCurrentRow <= xExcelDataSize - 1 && !blocksLoaded.isEmpty() && !stopAll) {
                 // Clear's Up Any Loop as Per New Line
@@ -3239,29 +3254,6 @@ public class ScannerRuntimeBackend
                             // DomIntrospectionUtil.listAllRelevantElements(performActions.getCurrentDriver());
                         }
 
-                        // Always loads ExcelWrite columns per block
-                        ErrorMessage errorMessage = performDBEngine.loadAllColumnsExcelWrite(
-                                "instruction", currentBotJob.getId(), blockLoad.getId());
-                        if (errorMessage == null) {
-                            setCurrentColumns(performLists.getExcelColumnNames());
-                        }
-
-                        // Resolve the complete persisted destination on every block. A block without
-                        // Excel Export must not inherit the previous block's file or writer.
-                        Optional<ExcelExportTarget> exportTarget =
-                                ExcelExportTarget.decode(blockLoad.getExportFile());
-                        currentTableCSV = null;
-                        newExcelFieldName = "";
-                        if (exportTarget.isPresent()) {
-                            ExcelExportTarget target = exportTarget.get();
-                            newExcelFieldName = target.path().toString();
-                            delimiterCSV = target.delimiter();
-                            String finalNewExcelFieldName = newExcelFieldName;
-                            String finalDelimiter = delimiterCSV;
-                            currentTableCSV = csvTables.computeIfAbsent(finalNewExcelFieldName, f ->
-                                    new CsvTable(f, finalNewExcelFieldName, finalDelimiter));
-                            currentTableCSV.addColumns(currentColumnsCSV);
-                        }
                     }
 
                     // It Searches the Block That have finished the Loops to Avoid recursivity
@@ -3558,7 +3550,6 @@ public class ScannerRuntimeBackend
                             String parentField = null;
                             String parentFieldLoop = null;
                             String variableField = null;
-                            //                            delimiterCSV = null;
                             String fieldName = null;
                             int parentId = InstructionGraph.executionParentId(currentInstruction);
                             Integer variableId = currentInstruction.getVariableId();
@@ -3977,16 +3968,10 @@ public class ScannerRuntimeBackend
                                                 runtimeVariableDefinitions);
                             } else if (actions[0].equalsIgnoreCase(ARConstantsEngine.EXTRACT_FIELD)) {
                                 execExcellWrite = true;
-                                parentField = performActions.getInstructionParentField(currentInstruction, blockLoad);
                                 variableField =
                                         performActions.getInstructionVariableField(
                                                 currentInstruction,
                                                 runtimeVariableDefinitions);
-                                //                                if (delimiterCSV == null) {
-                                //                                    delimiterCSV =
-                                // performActions.getInstructionVariableDelimiter(
-                                //                                            currentInstruction, variablesLoaded);
-                                //                                }
                             }
 
                             try {
@@ -4835,17 +4820,16 @@ public class ScannerRuntimeBackend
                                         }
                                     }
                                 } else if (execExcellWrite) {
-                                    // Excel Write Operator
-
-                                    if (parentField == null) {
-                                        RuntimeVariableValue voidValue = RuntimeVariableValue.voidValue(
-                                                VoidReason.MISSING_PARENT);
-                                        resultActions = variableVoidDiagnostic(
-                                                actions[0],
-                                                currentInstruction,
-                                                variableId,
-                                                variableField,
-                                                voidValue);
+                                    Target excelWriteTarget =
+                                            excelWritePlan.targetFor(currentInstruction.getId());
+                                    if (excelWriteTarget == null || !excelWriteTarget.configured()) {
+                                        resultActions = "PASSED: ExcelWrite bypassed because this instruction"
+                                                + " has no complete file and destination-column configuration.";
+                                        logOperations.info(
+                                                "ExcelWrite bypassed instructionId={} botJobId={} legacy={}",
+                                                currentInstruction.getId(),
+                                                currentBotJob.getId(),
+                                                excelWriteTarget != null && excelWriteTarget.legacy());
                                         variableVoidBypass = true;
                                         success = true;
                                     } else {
@@ -4862,27 +4846,24 @@ public class ScannerRuntimeBackend
                                             success = true;
                                         } else {
                                             String actualVariableValue = exportValue.value();
-
-                                            if (!Strings.isNullOrEmpty(newExcelFieldName)) {
-                                                // Only create Columns if Have a file to write
-                                                String webData = performActions.sanitizeValue(
-                                                        actualVariableValue.trim());
-
-                                                currentTableCSV.put(
-                                                        xExcelCurrentRow,
-                                                        parentField.trim(),
-                                                        webData); // may add new columns later too
-                                            }
+                                            CsvTable targetTable =
+                                                    csvTables.get(excelWriteTarget.fileKey());
+                                            String webData = performActions.sanitizeValue(
+                                                    actualVariableValue.trim());
+                                            targetTable.put(
+                                                    xExcelCurrentRow,
+                                                    excelWriteTarget.outputColumn(),
+                                                    webData);
 
                                             resultActions = performActions.messageExcel(
                                                     "Excel Write",
                                                     currentInstruction,
-                                                    parentField,
+                                                    excelWriteTarget.outputColumn(),
                                                     variableField,
                                                     actualVariableValue,
                                                     blockName,
                                                     currentInstruction.getId(),
-                                                    (currentTableCSV != null));
+                                                    true);
 
                                             performActions.onHoldForSeconds(null);
 
@@ -5313,23 +5294,10 @@ public class ScannerRuntimeBackend
                         break blockLoop;
                     }
 
-                    currentTableCSV = csvTables.get(newExcelFieldName);
-
-                    if (currentTableCSV != null
-                            && currentTableCSV.getRows() != null
-                            && !currentTableCSV.getRows().isEmpty()) {
-                        saveExcelWrite(newExcelFieldName, currentTableCSV, exportIndex);
-                    }
                 }
 
                 currentBlockOrder = blockExcelGoto; // BLOCK DEFINED BY "DEFAULT" OR "EXCEL GOTO"
                 xExcelCurrentRow++;
-                currentTableCSV = csvTables.get(newExcelFieldName);
-                if (currentTableCSV != null
-                        && currentTableCSV.getRows() != null
-                        && !currentTableCSV.getRows().isEmpty()) {
-                    saveExcelWrite(newExcelFieldName, currentTableCSV, exportIndex);
-                }
             }
         }
 
@@ -5337,7 +5305,7 @@ public class ScannerRuntimeBackend
         // Iterate over all stored CsvTables
         for (Map.Entry<String, CsvTable> entry : csvTables.entrySet()) {
 
-            currentTableCSV = entry.getValue();
+            CsvTable currentTableCSV = entry.getValue();
 
             if (currentTableCSV != null
                     && currentTableCSV.getRows() != null
@@ -7054,34 +7022,22 @@ public class ScannerRuntimeBackend
     }
 
     private void saveExcelWrite(String newExcelFieldName, CsvTable tableCSV, int exportIndex) {
-        if (newExcelFieldName != null && newExcelFieldName.toLowerCase().endsWith(".csv")) {
-            String delimiter = tableCSV.getDelimiter();
-            if (Strings.isNullOrEmpty(tableCSV.getDelimiter())) {
-                delimiter = ",";
-            }
-
-            String csvContent = getBancaStatoCsvContent(tableCSV, delimiter);
-            logOperations.info(csvContent);
-            if (csvContent != null) {
-                writeToFileCSV(newExcelFieldName, csvContent);
-            }
-        } else if (newExcelFieldName != null && newExcelFieldName.toLowerCase().endsWith(".xlsx")) {
-            //
-            //                    writerExport.insertFieldNameAndValueLastColumn(mapExportRows, exportIndex -
-            // 1);
-            if (tableCSV != null) {
-                // Create a writer bound to this exact target. Reusing the last block's writer can
-                // silently publish one configured export into a different workbook.
+        if (newExcelFieldName == null || tableCSV == null) return;
+        Path targetPath = Path.of(newExcelFieldName).toAbsolutePath().normalize();
+        ExcelWriteFileWriteCoordinator.run(targetPath, () -> {
+            if (newExcelFieldName.toLowerCase().endsWith(".csv")) {
+                String delimiter = Strings.isNullOrEmpty(tableCSV.getDelimiter())
+                        ? ","
+                        : tableCSV.getDelimiter();
+                String csvContent = getBancaStatoCsvContent(tableCSV, delimiter);
+                if (csvContent != null) writeToFileCSV(newExcelFieldName, csvContent);
+            } else if (newExcelFieldName.toLowerCase().endsWith(".xlsx")) {
                 ExcelWriter.ExcelChain writerExport = new ExcelWriter(newExcelFieldName, true)
                         .withPurpose("export");
-                writerExport.insertCSVContentIntoExcel(tableCSV.getColumns(), tableCSV, exportIndex - 1);
+                writerExport.insertCSVContentIntoExcel(
+                        tableCSV.getColumns(), tableCSV, exportIndex - 1);
             }
-        }
-    }
-
-    public void setCurrentColumns(List<String> columns) {
-        currentColumnsCSV.clear();
-        currentColumnsCSV.addAll(columns);
+        });
     }
 
 }

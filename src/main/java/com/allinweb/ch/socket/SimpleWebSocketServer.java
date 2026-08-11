@@ -58,6 +58,8 @@ public class SimpleWebSocketServer {
     private static final InstructionRealtimePublisher instructionRealtimePublisher =
             InstructionRealtimePublisher.getInstance();
     private static final ExcelExportService excelExportService = ExcelExportService.getInstance();
+    private static final ExcelWriteWorkspaceService excelWriteWorkspaceService =
+            ExcelWriteWorkspaceService.getInstance();
     private static final SaveComponentService saveComponentService = SaveComponentService.getInstance();
     private static final OcrManagerService ocrManagerService = OcrManagerService.getInstance();
     private static final OcrWorkspaceCoordinator ocrWorkspaceCoordinator =
@@ -142,6 +144,9 @@ public class SimpleWebSocketServer {
             "variablesWorkspace.graphMutationCommandVariable",
             "instructionGraph.previewSplit",
             "instructionEditor.memoryCapabilities",
+            "excelWrite.bootstrap",
+            "excelWrite.chooseDirectory",
+            "excelWrite.validateTarget",
             "variableEditor.bootstrap",
             "variableEditor.save",
             "variableEditor.delete",
@@ -744,6 +749,17 @@ public class SimpleWebSocketServer {
                             commandEditorFailure(
                                     mappingsBody,
                                     "An active license is required for Page Mappings retention."));
+                    return;
+                }
+                if (type.startsWith("excelWrite.")) {
+                    JsonObject excelWriteBody = extractBody(jsonObjMSG);
+                    sendCommandEditorFailureToTransport(
+                            session,
+                            homeBankingId,
+                            type + "Response",
+                            commandEditorFailure(
+                                    excelWriteBody,
+                                    "An active license is required for ExcelWrite configuration."));
                     return;
                 }
                 sendCommandEditorFailureToTransport(
@@ -2083,6 +2099,72 @@ public class SimpleWebSocketServer {
                                             .bootstrap(commandBootstrapBody),
                                     commandBootstrapBody,
                                     sessionId));
+                    break;
+                }
+                case "excelWrite.bootstrap": {
+                    JsonObject excelWriteBody = extractBody(jsonObjMSG);
+                    try {
+                        excelWriteBody = authorizeCommandEditorRequest(
+                                excelWriteBody, sessionId, session);
+                    } catch (IllegalArgumentException authorizationError) {
+                        sendCommandEditorFailureToTransport(
+                                session,
+                                homeBankingId,
+                                "excelWrite.bootstrapResponse",
+                                commandEditorFailure(
+                                        excelWriteBody,
+                                        authorizationError.getMessage()));
+                        break;
+                    }
+                    sendCommandEditorResponse(
+                            commandEditorHomeBankingId(excelWriteBody, homeBankingId),
+                            sessionId,
+                            "excelWrite.bootstrapResponse",
+                            excelWriteWorkspaceService.bootstrap(excelWriteBody));
+                    break;
+                }
+                case "excelWrite.chooseDirectory": {
+                    JsonObject excelWriteBody = extractBody(jsonObjMSG);
+                    try {
+                        excelWriteBody = authorizeCommandEditorRequest(
+                                excelWriteBody, sessionId, session);
+                    } catch (IllegalArgumentException authorizationError) {
+                        sendCommandEditorFailureToTransport(
+                                session,
+                                homeBankingId,
+                                "excelWrite.chooseDirectoryResponse",
+                                commandEditorFailure(
+                                        excelWriteBody,
+                                        authorizationError.getMessage()));
+                        break;
+                    }
+                    sendCommandEditorResponse(
+                            commandEditorHomeBankingId(excelWriteBody, homeBankingId),
+                            sessionId,
+                            "excelWrite.chooseDirectoryResponse",
+                            excelWriteWorkspaceService.chooseDirectory(excelWriteBody));
+                    break;
+                }
+                case "excelWrite.validateTarget": {
+                    JsonObject excelWriteBody = extractBody(jsonObjMSG);
+                    try {
+                        excelWriteBody = authorizeCommandEditorRequest(
+                                excelWriteBody, sessionId, session);
+                    } catch (IllegalArgumentException authorizationError) {
+                        sendCommandEditorFailureToTransport(
+                                session,
+                                homeBankingId,
+                                "excelWrite.validateTargetResponse",
+                                commandEditorFailure(
+                                        excelWriteBody,
+                                        authorizationError.getMessage()));
+                        break;
+                    }
+                    sendCommandEditorResponse(
+                            commandEditorHomeBankingId(excelWriteBody, homeBankingId),
+                            sessionId,
+                            "excelWrite.validateTargetResponse",
+                            excelWriteWorkspaceService.validateTarget(excelWriteBody));
                     break;
                 }
                 case "commandEditor.checkOperand": {

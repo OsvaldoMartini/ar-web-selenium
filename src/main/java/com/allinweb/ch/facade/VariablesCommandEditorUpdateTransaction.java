@@ -410,9 +410,8 @@ public final class VariablesCommandEditorUpdateTransaction {
         } else if (configuration.kind() == ConfigurationKind.CHECK_VALUE
                 || configuration.kind() == ConfigurationKind.EXTERNAL_CHECK) {
             requireVariableOnlyCheck(graph, configuration);
-        } else if (configuration.kind() == ConfigurationKind.EXCEL_WRITE
-                && blank(configuration.outputKey())) {
-            throw refused("COMMAND_UPDATE_OUTPUT_KEY_REQUIRED", "Enter an ExcelWrite output key.");
+        } else if (configuration.kind() == ConfigurationKind.EXCEL_WRITE) {
+            requireExcelWriteConfiguration(configuration);
         } else if (configuration.kind() == ConfigurationKind.GOTO
                 || configuration.kind() == ConfigurationKind.SWIPE) {
             requireEditorInteger(configuration.count(), "Repetition count");
@@ -423,6 +422,28 @@ public final class VariablesCommandEditorUpdateTransaction {
         //     requireConditional(graph, configuration);
         // }
         return configuration;
+    }
+
+    private static void requireExcelWriteConfiguration(Configuration configuration)
+            throws MutationRefusedException {
+        if (blank(configuration.outputKey())) {
+            throw refused("COMMAND_UPDATE_OUTPUT_KEY_REQUIRED", "Enter an ExcelWrite output key.");
+        }
+        if (blank(configuration.outputFile())) return;
+        if (blank(configuration.outputColumn())) {
+            throw refused(
+                    "COMMAND_UPDATE_OUTPUT_COLUMN_REQUIRED",
+                    "Enter an ExcelWrite destination column for the selected file.");
+        }
+        try {
+            if (ExcelExportTarget.decode(configuration.outputFile()).isEmpty()) {
+                throw new IllegalArgumentException("ExcelWrite file is empty.");
+            }
+        } catch (RuntimeException invalid) {
+            throw refused(
+                    "COMMAND_UPDATE_OUTPUT_FILE_INVALID",
+                    "Select a valid absolute .xlsx or .csv ExcelWrite file.");
+        }
     }
 
     private void persistConfiguration(
@@ -442,6 +463,10 @@ public final class VariablesCommandEditorUpdateTransaction {
                     plan.source().id(),
                     plan.targetAction(),
                     configuration);
+            if (configuration.kind() == ConfigurationKind.EXCEL_WRITE) {
+                clearExcelWriteElementTarget(
+                        connection, botJobId, plan.source().id());
+            }
             return;
         }
         String sql = configuration.kind() == ConfigurationKind.WAIT
@@ -541,6 +566,23 @@ public final class VariablesCommandEditorUpdateTransaction {
             statement.setInt(2, botJobId);
             statement.setInt(3, instructionId);
             statement.executeUpdate();
+        }
+    }
+
+    /** ExcelWrite reads only its READ variable slot and owns no Web Element parent. */
+    private static void clearExcelWriteElementTarget(
+            Connection connection, int botJobId, int instructionId) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(
+                "UPDATE instruction SET parent_id=NULL,parent_block_id=NULL"
+                        + " WHERE id=? AND bot_job_id=?"
+                        + " AND UPPER(TRIM(actions)) IN ('E','EXCELWRITE')")) {
+            statement.setInt(1, instructionId);
+            statement.setInt(2, botJobId);
+            if (statement.executeUpdate() != 1) {
+                throw refused(
+                        "COMMAND_UPDATE_SOURCE_CHANGED",
+                        "The ExcelWrite instruction changed before its target could be removed.");
+            }
         }
     }
 

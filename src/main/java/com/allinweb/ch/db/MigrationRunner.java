@@ -72,7 +72,8 @@ public class MigrationRunner {
             new com.allinweb.ch.db.migrations.M20260806_VariableSlotDirectionNames(),
             new com.allinweb.ch.db.migrations.M20260807_PageScanSnapshot(),
             new com.allinweb.ch.db.migrations.M20260808_PageScanSnapshotSqlServerKeyRepair(),
-            new com.allinweb.ch.db.migrations.M20260808_PageScanSnapshotViewFingerprint());
+            new com.allinweb.ch.db.migrations.M20260808_PageScanSnapshotViewFingerprint(),
+            new com.allinweb.ch.db.migrations.M20260811_ExcelWriteInstructionTargets());
 
     private static volatile MigrationRunner instance;
 

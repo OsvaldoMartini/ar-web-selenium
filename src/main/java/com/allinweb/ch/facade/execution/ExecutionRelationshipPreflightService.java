@@ -31,7 +31,7 @@ import java.util.Set;
  */
 public final class ExecutionRelationshipPreflightService {
     private static final Set<String> ELEMENT_TARGET_ACTIONS =
-            Set.of("GET", "SET", "E");
+            Set.of("GET", "SET");
     private static final Set<String> VARIABLE_BINDING_ACTIONS =
             Set.of("GET", "SET", "E", "CK", "PDF CHECK", "CSV CHECK");
     private static final Set<String> RUNTIME_READER_ACTIONS =

@@ -61,7 +61,7 @@ class ExecutionRelationshipPreflightServiceTest {
                 List.of(
                         element(1, 10, 1, "input", true),
                         row(2, 10, 2, "GET", true, 1, null, 100),
-                        row(3, 10, 3, "E", true, 1, null, 100),
+                        row(3, 10, 3, "E", true, null, null, 100),
                         row(4, 10, 4, "SET", true, 1, null, 101),
                         row(5, 10, 5, "CK", true, 1, null, 101),
                         row(6, 10, 6, "IF", true, 6, null, null),
