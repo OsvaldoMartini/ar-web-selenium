@@ -502,6 +502,14 @@ The Page Mappings roadmap is now source-complete through P7:
   Proposed with Use unchecked; OCR text may differ but must not overwrite without explicit Apply.
 - [ ] TASK - Package/image delivery, other-database/SQL Server rollout, and broader reconnect/takeover/retention-save-purge/OCR/Memory/multi-page acceptance remain open.
 
+### Smoke Integration Continue Page policy - 2026-08-11
+
+- [x] Root cause: Java V1 ignored the existing `PRESERVE_ACTIVE` request and always performed strict selected-URL navigation.
+- [x] Frontend `9723c6e`, backend `b2d13bde`, and deployment `50ee3404` are committed and pushed. ON preserves only an open same-origin Java V1 page; OFF reloads; V2 forces reload.
+- [x] Focused verification passed 11/11; production frontend build passed; 58 mirrored files and live JS/CSS hashes match. No broad suite or package build ran.
+- [x] Node PID `4560` is READY on `60110`; ARWeb PID `24304` runs on `54921/54922`; six fresh logs have zero strict failures.
+- [ ] TASK - User must prove ON continues the current Lloyds page after the prior failure/password state, and OFF reloads the selected Bot Job URL. Cross-site current pages must be refused.
+
 ## 2. CLAUDE -> CODEX - Independent review requested
 
 ### Step 8 independent audit result

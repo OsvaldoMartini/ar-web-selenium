@@ -1017,3 +1017,13 @@ existing backend alias transaction and exact locator/page identity remain author
 - [x] Backend `354256c8` clones normalized instruction and variable relationships, both parent link types, typed command configuration, and references. It no longer reads or writes the retired instruction column.
 - [x] Java compile passed; focused clone/service verification passed 4/4. Catalog `e5794caa` is pushed.
 - [ ] Restart and perform one real Lloyds Job 29 clone, then verify exact graph parity and no residual partial job. ExcelWrite remains a separate roadmap item.
+
+## Smoke Integration Continue Page policy - 2026-08-11
+
+This checkpoint is separate from Page Mappings behavior and records the shared Playwright rerun control needed for the remaining Lloyds live acceptance.
+
+- [x] Frontend `9723c6e` adds `ON/OFF Continue Page`; backend `b2d13bde` honors and echoes the exact policy with same-origin protection; deployment assets are `50ee3404`.
+- [x] ON reuses the current same-site Java V1 Playwright page without navigation. OFF reloads the selected Bot Job endpoint. V2 remains isolated and therefore forces OFF/reload.
+- [x] Focused contract/service verification passed 11/11, production frontend build passed, and all 58 source/resource/runtime files match.
+- [x] Node PID `4560` is READY on `60110`; ARWeb PID `24304` serves the new assets on `54921/54922`; fresh logs contain zero strict backend/database failures.
+- [ ] User acceptance remains: verify Lloyds Job 29 resumes its current password/authenticated page with ON, reloads with OFF, and refuses reuse if the shared browser is on another origin.
