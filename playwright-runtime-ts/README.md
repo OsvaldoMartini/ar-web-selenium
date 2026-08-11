@@ -15,6 +15,8 @@ Implemented now:
 - a bounded worker pool with global, organization, and Bot Job admission limits;
 - one dedicated Chromium process, BrowserContext, and Page per admitted run;
 - bounded navigation readiness, refresh, stop, cleanup, and asynchronous crash containment;
+- an internal authored/registry/canonical/alias locator ladder for CLICK, INPUT, and OUTPUT;
+- exact page revalidation, tag/frame/action checks, ambiguity refusal, and at-most-once actions;
 - safe structured logs that never include grants or request bodies.
 
 Not implemented yet:
@@ -23,7 +25,8 @@ Not implemented yet:
 - production secret provisioning and rotation;
 - React or Java routing to this service;
 - HTTP start/refresh/stop routes connected to the internal worker pool;
-- locator resolution or physical CLICK, INPUT, OUTPUT, and other command actions;
+- authorized plan/registry preparation and HTTP routing for physical actions;
+- coordinates, Shadow DOM targets, and command families beyond CLICK, INPUT, and OUTPUT;
 - production browser executable provisioning and a live browser acceptance run;
 - database, runtime-variable, CSV, XLSX, or filesystem writes.
 

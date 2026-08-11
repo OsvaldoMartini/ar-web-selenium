@@ -3,6 +3,9 @@ import { Browser, BrowserContext, Page, chromium } from 'playwright-core';
 import { BrowserSessionFactory, BrowserSessionHandle } from './browserSessionFactory';
 import { PageReadiness } from './pageReadiness';
 import { BrowserLaunchConfiguration } from '../session/sessionContracts';
+import { PhysicalActionRequest, PhysicalActionResult } from '../action/actionContracts';
+import { PhysicalActionExecutor } from '../action/physicalActionExecutor';
+import { PlaywrightActionPage } from '../action/playwrightActionPage';
 
 export interface PlaywrightBrowserFactoryOptions {
   readonly navigationTimeoutMs?: number;
@@ -63,6 +66,7 @@ class PlaywrightBrowserSessionHandle implements BrowserSessionHandle {
   private unexpectedCloseSignaled = false;
   private unexpectedCloseCode?: string;
   private unexpectedCloseHandler?: (code: string) => void;
+  private readonly actions = new PhysicalActionExecutor();
 
   constructor(
     private readonly browser: Browser,
@@ -90,6 +94,11 @@ class PlaywrightBrowserSessionHandle implements BrowserSessionHandle {
   async refresh(): Promise<void> {
     this.requireOpen();
     await this.readiness.refresh(this.page);
+  }
+
+  async perform(request: PhysicalActionRequest): Promise<PhysicalActionResult> {
+    this.requireOpen();
+    return this.actions.execute(new PlaywrightActionPage(this.page), request);
   }
 
   async close(): Promise<void> {

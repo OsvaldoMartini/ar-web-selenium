@@ -1,6 +1,7 @@
 import { BrowserSessionFactory } from '../browser/browserSessionFactory';
 import { ExecutionSession } from '../session/executionSession';
 import { ExecutionLaunchDescriptor, ExecutionSessionSnapshot } from '../session/sessionContracts';
+import { PhysicalActionRequest, PhysicalActionResult } from '../action/actionContracts';
 
 export interface WorkerPoolLimits {
   readonly maximumActiveRuns: number;
@@ -73,6 +74,11 @@ export class PlaywrightWorkerPool {
       }
     }
     return entry.session.snapshot();
+  }
+
+  async perform(runId: string, request: PhysicalActionRequest): Promise<PhysicalActionResult> {
+    const entry = this.requireEntry(runId);
+    return entry.session.perform(request);
   }
 
   async stop(runId: string): Promise<ExecutionSessionSnapshot> {

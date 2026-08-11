@@ -4,8 +4,9 @@ import { test } from 'node:test';
 import { BrowserSessionFactory, BrowserSessionHandle } from '../src/browser/browserSessionFactory';
 import { PlaywrightWorkerPool } from '../src/pool/playwrightWorkerPool';
 import { ExecutionLaunchDescriptor, ExecutionSessionState } from '../src/session/sessionContracts';
+import { PhysicalActionRequest, PhysicalActionResult } from '../src/action/actionContracts';
 
-type Behavior = 'READY' | 'BLOCK_NAVIGATION' | 'FAIL_NAVIGATION';
+type Behavior = 'READY' | 'BLOCK_NAVIGATION' | 'FAIL_NAVIGATION' | 'FAIL_ACTION';
 
 class FakeHandle implements BrowserSessionHandle {
   readonly browserInstanceId = randomUUID();
@@ -13,6 +14,7 @@ class FakeHandle implements BrowserSessionHandle {
   readonly pageInstanceId = randomUUID();
   closed = false;
   refreshCount = 0;
+  actionCount = 0;
   private rejectNavigation?: (error: Error) => void;
   private unexpectedCloseCode?: string;
   private unexpectedCloseHandler?: (code: string) => void;
@@ -36,6 +38,27 @@ class FakeHandle implements BrowserSessionHandle {
   async refresh(): Promise<void> {
     if (this.closed) throw new Error('BROWSER_SESSION_CLOSED');
     this.refreshCount += 1;
+  }
+
+  async perform(request: PhysicalActionRequest): Promise<PhysicalActionResult> {
+    this.actionCount += 1;
+    if (this.behavior === 'FAIL_ACTION') throw new Error('TRANSPORT_LOST');
+    return {
+      ok: true,
+      diagnostic: {
+        code: 'COMPLETED',
+        stage: 'AUTHORED',
+        action: request.action,
+        instructionId: request.instructionId,
+        registryCandidateCount: request.registryCandidates.length,
+        liveCandidateCount: 1,
+        frameValidated: true,
+        shadowValidated: true,
+        tagValidated: true,
+        actionValidated: true,
+        physicalAttempts: 1,
+      },
+    };
   }
 
   async close(): Promise<void> {
@@ -104,6 +127,15 @@ const limits = {
   maximumActiveRunsPerOrganization: 1,
   maximumActiveRunsPerBotJob: 1,
 };
+
+const actionRequest = (sequence: number, instructionId = 1733): PhysicalActionRequest => ({
+  instructionId,
+  sequence,
+  action: 'CLICK',
+  pageKey: `url-v1:${'a'.repeat(64)}`,
+  authoredSelectors: ['#login'],
+  registryCandidates: [],
+});
 
 test('admits independent organizations while preserving per-owner queue isolation', async () => {
   const factory = new FakeFactory();
@@ -198,4 +230,44 @@ test('one browser crash fails only its run and admits the next eligible run', as
   assert.equal(pool.snapshot(independent.run.runId).state, 'READY');
   assert.equal(factory.handles.get(independent.run.runId)?.closed, false);
   await pool.closeAll();
+});
+
+test('replays an exact action sequence without another physical attempt and refuses conflicts', async () => {
+  const run = descriptor(13, 29);
+  const factory = new FakeFactory();
+  const pool = new PlaywrightWorkerPool(factory, limits);
+  pool.enqueue(run);
+  await waitForState(pool, run.run.runId, 'READY');
+
+  const first = await pool.perform(run.run.runId, actionRequest(1));
+  const replay = await pool.perform(run.run.runId, actionRequest(1));
+  assert.deepEqual(replay, first);
+  assert.equal(factory.handles.get(run.run.runId)?.actionCount, 1);
+  await assert.rejects(
+    pool.perform(run.run.runId, actionRequest(1, 9999)),
+    /ACTION_SEQUENCE_CONFLICT/,
+  );
+  await assert.rejects(
+    pool.perform(run.run.runId, actionRequest(3)),
+    /ACTION_SEQUENCE_OUT_OF_ORDER/,
+  );
+  assert.equal(factory.handles.get(run.run.runId)?.actionCount, 1);
+  await pool.closeAll();
+});
+
+test('an action transport exception becomes a terminal unknown outcome that exact replay can read', async () => {
+  const run = descriptor(13, 29);
+  const factory = new FakeFactory(new Map([[run.run.runId, 'FAIL_ACTION']]));
+  const pool = new PlaywrightWorkerPool(factory, limits);
+  pool.enqueue(run);
+  await waitForState(pool, run.run.runId, 'READY');
+
+  const unknown = await pool.perform(run.run.runId, actionRequest(1));
+  assert.equal(unknown.ok, false);
+  assert.equal(unknown.diagnostic.code, 'ACTION_OUTCOME_UNKNOWN');
+  assert.equal(unknown.diagnostic.physicalAttempts, 1);
+  assert.equal(pool.snapshot(run.run.runId).state, 'FAILED');
+  const replay = await pool.perform(run.run.runId, actionRequest(1));
+  assert.deepEqual(replay, unknown);
+  assert.equal(factory.handles.get(run.run.runId)?.actionCount, 1);
 });

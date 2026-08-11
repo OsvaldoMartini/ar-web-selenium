@@ -5,6 +5,19 @@ import {
   ExecutionSessionState,
   validateExecutionEndpoint,
 } from './sessionContracts';
+import {
+  physicalActionRequestFingerprint,
+  PhysicalActionRequest,
+  PhysicalActionResult,
+  validatePhysicalActionRequest,
+} from '../action/actionContracts';
+
+interface SettledAction {
+  readonly fingerprint: string;
+  readonly result: PhysicalActionResult;
+}
+
+const MAX_SETTLED_ACTIONS = 4_096;
 
 const safeFailureCode = (error: unknown): string => {
   const raw = error instanceof Error ? error.message : 'SESSION_FAILURE';
@@ -24,6 +37,8 @@ export class ExecutionSession {
   private contextInstanceId?: string;
   private pageInstanceId?: string;
   private stopRequested = false;
+  private nextActionSequence = 1;
+  private readonly settledActions = new Map<number, SettledAction>();
   private serial: Promise<void> = Promise.resolve();
   private readonly endpoint: string;
 
@@ -96,6 +111,53 @@ export class ExecutionSession {
     });
   }
 
+  perform(request: PhysicalActionRequest): Promise<PhysicalActionResult> {
+    return this.exclusive(async () => {
+      validatePhysicalActionRequest(request);
+      const fingerprint = physicalActionRequestFingerprint(request);
+      const settled = this.settledActions.get(request.sequence);
+      if (settled) {
+        if (settled.fingerprint !== fingerprint) throw new Error('ACTION_SEQUENCE_CONFLICT');
+        return settled.result;
+      }
+      if (this.state !== 'READY' || !this.handle) {
+        throw new Error('SESSION_ACTION_STATE_INVALID');
+      }
+      if (request.sequence !== this.nextActionSequence) {
+        throw new Error('ACTION_SEQUENCE_OUT_OF_ORDER');
+      }
+      if (this.settledActions.size >= MAX_SETTLED_ACTIONS) {
+        throw new Error('ACTION_RESULT_CAPACITY_REACHED');
+      }
+      let result: PhysicalActionResult;
+      try {
+        result = await this.handle.perform(request);
+      } catch {
+        result = {
+          ok: false,
+          diagnostic: {
+            code: 'ACTION_OUTCOME_UNKNOWN',
+            stage: 'RESOLUTION',
+            action: request.action,
+            instructionId: request.instructionId,
+            registryCandidateCount: request.registryCandidates.length,
+            liveCandidateCount: 0,
+            frameValidated: false,
+            shadowValidated: false,
+            tagValidated: false,
+            actionValidated: false,
+            physicalAttempts: 1,
+          },
+        };
+        this.settleAction(request.sequence, fingerprint, result);
+        await this.finishFailed(new Error('ACTION_OUTCOME_UNKNOWN'));
+        return result;
+      }
+      this.settleAction(request.sequence, fingerprint, result);
+      return result;
+    });
+  }
+
   stop(): Promise<void> {
     this.stopRequested = true;
     const interrupt = this.handle?.close().then(
@@ -158,9 +220,9 @@ export class ExecutionSession {
     }
   }
 
-  private exclusive(operation: () => Promise<void>): Promise<void> {
+  private exclusive<T>(operation: () => Promise<T>): Promise<T> {
     const next = this.serial.then(operation, operation);
-    this.serial = next.catch(() => undefined);
+    this.serial = next.then(() => undefined, () => undefined);
     return next;
   }
 
@@ -189,6 +251,15 @@ export class ExecutionSession {
       this.failureCode = 'BROWSER_CLEANUP_FAILED';
       this.transition('FAILED');
     }
+  }
+
+  private settleAction(
+    sequence: number,
+    fingerprint: string,
+    result: PhysicalActionResult,
+  ): void {
+    this.settledActions.set(sequence, { fingerprint, result });
+    this.nextActionSequence += 1;
   }
 
   private unexpectedClose(code: string): Promise<void> {
