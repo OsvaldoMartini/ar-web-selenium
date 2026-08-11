@@ -16,6 +16,11 @@ public final class ExecutionV2Contracts {
     public static final String CAPABILITY_RESERVE = "runtime.reserve";
     public static final String CAPABILITY_BOOTSTRAP = "runtime.bootstrap";
     public static final String CAPABILITY_RELEASE = "runtime.release";
+    public static final String CAPABILITY_START = "runtime.start";
+    public static final String CAPABILITY_ACTION = "runtime.action";
+    public static final String CAPABILITY_REFRESH = "runtime.refresh";
+    public static final String CAPABILITY_STOP = "runtime.stop";
+    public static final String CAPABILITY_HEARTBEAT = "runtime.heartbeat";
     public static final long MAX_JAVASCRIPT_SAFE_INTEGER = 9_007_199_254_740_991L;
 
     private static final Pattern SHA_256 = Pattern.compile("[0-9a-f]{64}");

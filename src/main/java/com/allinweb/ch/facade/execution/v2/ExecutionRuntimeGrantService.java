@@ -73,6 +73,11 @@ public final class ExecutionRuntimeGrantService {
         capabilities.add(ExecutionV2Contracts.CAPABILITY_RESERVE);
         capabilities.add(ExecutionV2Contracts.CAPABILITY_BOOTSTRAP);
         capabilities.add(ExecutionV2Contracts.CAPABILITY_RELEASE);
+        capabilities.add(ExecutionV2Contracts.CAPABILITY_START);
+        capabilities.add(ExecutionV2Contracts.CAPABILITY_ACTION);
+        capabilities.add(ExecutionV2Contracts.CAPABILITY_REFRESH);
+        capabilities.add(ExecutionV2Contracts.CAPABILITY_STOP);
+        capabilities.add(ExecutionV2Contracts.CAPABILITY_HEARTBEAT);
         claims.add("capabilities", capabilities);
         claims.addProperty("iat", issuedAt.getEpochSecond());
         claims.addProperty("nbf", issuedAt.getEpochSecond());
