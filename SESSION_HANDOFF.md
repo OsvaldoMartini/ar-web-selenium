@@ -199,6 +199,36 @@ Server database.
   A bounded browser traversal cannot guarantee virtualized lists, nested scroll containers,
   canvas/video, CSS background resources, or unbounded infinite pages; these remain explicit limits.
 
+### Per-Bot-Job SCROLL PAGES limit and redeployment - 2026-08-10
+
+This checkpoint supersedes only the prior current-asset/runtime and fixed scroll-limit status. The
+earlier implementation and incident history remain valid evidence.
+
+- Frontend `d5f6dad` adds a styled `SCROLL PAGES` integer control with default `5` and range `1..40`.
+  The acknowledged value is stored only in browser `localStorage` under
+  `arweb.page-mappings.scroll-pages.<homeBankingId>.<botJobId>`, so Bot Jobs do not share the
+  selection. The ON/OFF toggle remains transient and resets OFF. A dirty or invalid draft blocks
+  SCROLL PAGE, Check page, Use Existing, and Rescan until the value is committed.
+- Backend `805968ad` validates an explicitly supplied `scrollPages` only after exact detached-owner
+  authorization, defaults a missing legacy field to `5`, and echoes the option through accepted and
+  terminal Rescan frames. The budget counts only confirmed downward viewport movements; reaching
+  stable bottom or the selected bounded count succeeds, while page-change, render, time, height, and
+  stalled-scroll failures remain fail-closed.
+- `npm run build` passed with the existing repository warnings. Deployment mirror `4e5813c0` contains
+  exactly 58 frontend files and 19 image assets. Source resources and `target/classes` are byte-identical;
+  24 obsolete target bundles were removed. The prior `main.3f8cb24e.js` / `main.c51a1b29.css` are absent.
+  Current entrypoints are `main.15510fe8.js` (2,065,999 bytes; SHA-256
+  `50F04B0F4BB47EF58F2A393A49415479D5D6F4C7704DA28BA939B0D5CE048902`) and
+  `main.974b35cd.css` (498,096 bytes; SHA-256
+  `7BCBDD73DD3F192571D806928F9E170E77E8AE7F06FD4F9DFCC666B4EC674E63`).
+- `mvn -DskipTests compile` passed with 563 main sources and only the two existing warnings. No tests
+  were created or run per user direction; no migration, backend package, or container image was made.
+- PID `21796` now runs the rebuilt `target/classes` with the exact BancaStato config on
+  `127.0.0.1:53734` / `127.0.0.1:53735`. HTTP root, JS, and CSS return 200 and the served asset hashes
+  match `target/classes`; the six new `.17` logs contain zero relevant error matches.
+- One user-driven Page Mappings Rescan with `SCROLL PAGE` ON and a selected non-default limit remains
+  the live visual/behavior gate. Codex did not trigger a scan.
+
 Read `specifications/performances/COPY_LAST_RESPONSE.md` and
 `specifications/performances/Page Mappins PLAN 2026-08-07.md` before continuing.
 

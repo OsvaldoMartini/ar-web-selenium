@@ -647,3 +647,34 @@ remains valid.
   CSS background-image readiness, and unbounded infinite pages cannot be guaranteed.
 - [ ] Package/image delivery, other-database/SQL Server rollout, and broader reconnect/takeover/
   retention/OCR/Memory/multi-page acceptance remain open.
+
+## Per-Bot-Job SCROLL PAGES limit and redeployment - 2026-08-10
+
+This checkpoint supersedes only the prior current-asset/PID and fixed scroll-limit status. Earlier
+Step 8 implementation and incident history remains valid evidence.
+
+- [x] Frontend `d5f6dad` adds a styled `SCROLL PAGES` integer control with default `5`, range `1..40`,
+  and browser persistence isolated by exact Home Banking and Bot Job IDs. The ON/OFF toggle remains
+  transient OFF, and dirty/invalid drafts block cache actions and Rescan until committed.
+- [x] Backend `805968ad` validates explicit values after exact detached authorization, defaults a
+  missing legacy field to `5`, and correlates the exact boolean/count on accepted and terminal frames.
+  The traversal counts confirmed downward viewport movements, succeeds at stable bottom or the chosen
+  bounded count, and retains fail-closed technical/render limits.
+- [x] Frontend `npm run build` passed with existing repository warnings. Exact deployment mirror
+  `4e5813c0` contains 58 matching source/resource files and 19 matching image assets; 24 stale
+  `target/classes` bundles were removed. Old `main.3f8cb24e.js` / `main.c51a1b29.css` are absent.
+- [x] Current entrypoints are `main.15510fe8.js` (2,065,999 bytes; SHA-256
+  `50F04B0F4BB47EF58F2A393A49415479D5D6F4C7704DA28BA939B0D5CE048902`) and
+  `main.974b35cd.css` (498,096 bytes; SHA-256
+  `7BCBDD73DD3F192571D806928F9E170E77E8AE7F06FD4F9DFCC666B4EC674E63`).
+- [x] `mvn -DskipTests compile` passed with 563 main sources and the two existing warnings. No tests
+  were created or run per user direction; no migration, backend package, or container image was made.
+- [x] PID `21796` runs the rebuilt `target/classes` with the exact BancaStato config on
+  127.0.0.1:53734/53735. HTTP root/JS/CSS return 200 with matching bytes and six `.17` logs contain
+  zero relevant error matches.
+- [ ] User live gate: run one Page Mappings Rescan with `SCROLL PAGE` ON and a selected non-default
+  limit, then compare the resulting full-page visual. Codex did not trigger a scan.
+- [ ] Bounded limitations remain: virtualized lists, nested scroll containers, canvas/video, CSS
+  background-image readiness, and unbounded infinite pages cannot be guaranteed.
+- [ ] Package/container-image delivery, other-database/SQL Server rollout, and broader reconnect/
+  takeover/retention/OCR/Memory/multi-page acceptance remain open.
