@@ -401,8 +401,26 @@ public final class ScannedElementRepository {
             Integer botJobId,
             String pageUrl)
             throws SQLException {
-        requireScope(homeBankingId, botJobId);
         ScannedPageIdentity page = ScannedPageIdentity.fromLiveUrl(pageUrl);
+        return loadByOwnerAndPageKey(conn, homeBankingId, botJobId, page.pageKey());
+    }
+
+    /**
+     * Load observations using a page key produced by a trusted runtime page observation.
+     *
+     * <p>The caller must obtain this key from the server-custodied browser runtime, never from a
+     * client assertion. Strict validation prevents broad or malformed registry reads.
+     */
+    public static List<ScannedElement> loadByOwnerAndPageKey(
+            Connection conn,
+            Integer homeBankingId,
+            Integer botJobId,
+            String pageKey)
+            throws SQLException {
+        requireScope(homeBankingId, botJobId);
+        if (pageKey == null || !pageKey.matches("url-v1:[0-9a-f]{64}")) {
+            throw new IllegalArgumentException("The scanned page key is invalid");
+        }
         String sql = "SELECT * FROM scanned_element"
                 + " WHERE home_banking_id = ? AND bot_job_id = ? AND page_key = ?"
                 + " ORDER BY last_scanned_at DESC, id ASC";
@@ -410,7 +428,7 @@ public final class ScannedElementRepository {
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setObject(1, homeBankingId);
             ps.setObject(2, botJobId);
-            ps.setString(3, page.pageKey());
+            ps.setString(3, pageKey);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     out.add(map(rs));

@@ -20,11 +20,13 @@ const RUNTIME_VERSION = '0.1.0';
 const MAX_REQUEST_BODY_BYTES = 1024;
 const MAX_START_BODY_BYTES = 4_096;
 const MAX_ACTION_BODY_BYTES = 8 * 1_024 * 1_024;
+const PAGE_KEY_PATTERN = /^url-v1:[0-9a-f]{64}$/;
 
 interface RuntimeWorkerPool {
   enqueue(descriptor: ExecutionLaunchDescriptor): ExecutionSessionSnapshot;
   snapshot(runId: string): ExecutionSessionSnapshot;
   refresh(runId: string): Promise<ExecutionSessionSnapshot>;
+  pageIdentity(runId: string): Promise<string>;
   perform(runId: string, request: PhysicalActionRequest): Promise<PhysicalActionResult>;
   stop(runId: string): Promise<ExecutionSessionSnapshot>;
   release(runId: string): void;
@@ -225,7 +227,7 @@ export const createRuntimeServer = (options: RuntimeServerOptions = {}) => {
         return;
       }
 
-      const operationMatch = /^\/v2\/runs\/([0-9a-f-]+)\/(start|session|actions|refresh|stop|heartbeat|release)$/i.exec(path);
+      const operationMatch = /^\/v2\/runs\/([0-9a-f-]+)\/(start|session|actions|page-identity|refresh|stop|heartbeat|release)$/i.exec(path);
       const operationRunId = operationMatch?.[1];
       const operation = operationMatch?.[2]?.toLowerCase();
       if (operationRunId && UUID_PATTERN.test(operationRunId) && operation) {
@@ -263,6 +265,15 @@ export const createRuntimeServer = (options: RuntimeServerOptions = {}) => {
             await readJsonBody(request, MAX_ACTION_BODY_BYTES),
           );
           success(response, 200, await workerPool.perform(operationRunId, action));
+          return;
+        }
+        if (method === 'GET' && operation === 'page-identity') {
+          registry.authorizeActiveRun(
+            operationRunId, token, 'runtime.action', config.runIdleLeaseSeconds,
+          );
+          const pageKey = await workerPool.pageIdentity(operationRunId);
+          if (!PAGE_KEY_PATTERN.test(pageKey)) throw new Error('PAGE_IDENTITY_INVALID');
+          success(response, 200, { pageKey });
           return;
         }
         if (method === 'POST' && operation === 'refresh') {

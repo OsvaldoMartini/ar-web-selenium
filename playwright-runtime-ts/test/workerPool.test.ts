@@ -40,6 +40,11 @@ class FakeHandle implements BrowserSessionHandle {
     this.refreshCount += 1;
   }
 
+  async pageIdentity(): Promise<string> {
+    if (this.closed) throw new Error('BROWSER_SESSION_CLOSED');
+    return `url-v1:${'c'.repeat(64)}`;
+  }
+
   async perform(request: PhysicalActionRequest): Promise<PhysicalActionResult> {
     this.actionCount += 1;
     if (this.behavior === 'FAIL_ACTION') throw new Error('TRANSPORT_LOST');
@@ -252,6 +257,16 @@ test('replays an exact action sequence without another physical attempt and refu
     /ACTION_SEQUENCE_OUT_OF_ORDER/,
   );
   assert.equal(factory.handles.get(run.run.runId)?.actionCount, 1);
+  await pool.closeAll();
+});
+
+test('returns only the hash identity for the ready run page', async () => {
+  const run = descriptor(13, 29);
+  const pool = new PlaywrightWorkerPool(new FakeFactory(), limits);
+  pool.enqueue(run);
+  await waitForState(pool, run.run.runId, 'READY');
+
+  assert.equal(await pool.pageIdentity(run.run.runId), `url-v1:${'c'.repeat(64)}`);
   await pool.closeAll();
 });
 

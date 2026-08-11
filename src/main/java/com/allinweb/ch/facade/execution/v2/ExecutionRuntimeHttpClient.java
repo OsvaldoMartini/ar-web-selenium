@@ -75,6 +75,15 @@ public final class ExecutionRuntimeHttpClient {
         return tokenExchange("POST", run, "actions", authoritativeAction.deepCopy());
     }
 
+    String pageIdentity(RuntimeRun run) {
+        JsonObject response = tokenExchange("GET", run, "page-identity", null);
+        String pageKey = requiredString(response, "pageKey", false);
+        if (!pageKey.matches("url-v1:[0-9a-f]{64}")) {
+            throw new ExecutionRuntimeClientException("RUNTIME_RESPONSE_INVALID");
+        }
+        return pageKey;
+    }
+
     JsonObject heartbeat(RuntimeRun run) {
         return tokenExchange("GET", run, "heartbeat", null);
     }

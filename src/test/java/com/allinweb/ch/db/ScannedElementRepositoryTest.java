@@ -3,6 +3,7 @@ package com.allinweb.ch.db;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.allinweb.ch.db.migrations.M20260704_ScannedElement;
@@ -158,6 +159,27 @@ class ScannedElementRepositoryTest {
             String paymentsKey = ScannedPageIdentity.fromLiveUrl(PAYMENTS_PAGE).pageKey();
             assertTrue(accounts.stream().allMatch(row -> accountsKey.equals(row.getPageKey())));
             assertTrue(payments.stream().allMatch(row -> paymentsKey.equals(row.getPageKey())));
+        }
+    }
+
+    @Test
+    void trustedPageKeyLoadRemainsOwnerAndPageScoped() throws Exception {
+        try (Connection conn = freshDb()) {
+            ElementDTO element = el("//main//button[1]", "continue", "Continue");
+            ScannedElementRepository.upsert(conn, 2, 5, 3, ACCOUNTS_PAGE, List.of(element));
+            ScannedElementRepository.upsert(conn, 2, 6, 3, ACCOUNTS_PAGE, List.of(element));
+            String pageKey = ScannedPageIdentity.fromLiveUrl(ACCOUNTS_PAGE).pageKey();
+
+            assertEquals(
+                    1,
+                    ScannedElementRepository.loadByOwnerAndPageKey(conn, 2, 5, pageKey).size());
+            assertEquals(
+                    0,
+                    ScannedElementRepository.loadByOwnerAndPageKey(conn, 3, 5, pageKey).size());
+            assertThrows(
+                    IllegalArgumentException.class,
+                    () -> ScannedElementRepository.loadByOwnerAndPageKey(
+                            conn, 2, 5, "url-v1:not-a-hash"));
         }
     }
 

@@ -81,6 +81,11 @@ export class PlaywrightWorkerPool {
     return entry.session.perform(request);
   }
 
+  async pageIdentity(runId: string): Promise<string> {
+    const entry = this.requireEntry(runId);
+    return entry.session.pageIdentity();
+  }
+
   async stop(runId: string): Promise<ExecutionSessionSnapshot> {
     const entry = this.requireEntry(runId);
     if (!entry.admitted) {

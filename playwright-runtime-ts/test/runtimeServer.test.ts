@@ -81,6 +81,11 @@ class FakeRuntimeWorkerPool {
     return this.snapshot(runId);
   }
 
+  async pageIdentity(runId: string): Promise<string> {
+    this.snapshot(runId);
+    return `url-v1:${'c'.repeat(64)}`;
+  }
+
   async perform(runId: string, request: PhysicalActionRequest): Promise<PhysicalActionResult> {
     this.snapshot(runId);
     this.actionCount += 1;
@@ -231,6 +236,11 @@ test('runs token-authorized start, heartbeat, action, stop, and release without 
     assert.equal((await call(
       address.port, 'GET', `/v2/runs/${claims.runId}/heartbeat`, undefined, undefined, token,
     )).status, 200);
+    const identity = await call(
+      address.port, 'GET', `/v2/runs/${claims.runId}/page-identity`, undefined, undefined, token,
+    );
+    assert.deepEqual(responseData(identity), { pageKey: `url-v1:${'c'.repeat(64)}` });
+    assert.ok(!JSON.stringify(identity.body).includes('example.test'));
     assert.equal((await call(
       address.port,
       'POST',

@@ -111,6 +111,15 @@ export class ExecutionSession {
     });
   }
 
+  pageIdentity(): Promise<string> {
+    return this.exclusive(async () => {
+      if (this.state !== 'READY' || !this.handle) {
+        throw new Error('SESSION_PAGE_IDENTITY_STATE_INVALID');
+      }
+      return this.handle.pageIdentity();
+    });
+  }
+
   perform(request: PhysicalActionRequest): Promise<PhysicalActionResult> {
     return this.exclusive(async () => {
       validatePhysicalActionRequest(request);

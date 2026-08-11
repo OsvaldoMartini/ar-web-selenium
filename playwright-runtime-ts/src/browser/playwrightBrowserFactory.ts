@@ -6,6 +6,7 @@ import { BrowserLaunchConfiguration } from '../session/sessionContracts';
 import { PhysicalActionRequest, PhysicalActionResult } from '../action/actionContracts';
 import { PhysicalActionExecutor } from '../action/physicalActionExecutor';
 import { PlaywrightActionPage } from '../action/playwrightActionPage';
+import { pageKeyFromUrl } from '../action/pageIdentity';
 
 export interface PlaywrightBrowserFactoryOptions {
   readonly navigationTimeoutMs?: number;
@@ -94,6 +95,11 @@ class PlaywrightBrowserSessionHandle implements BrowserSessionHandle {
   async refresh(): Promise<void> {
     this.requireOpen();
     await this.readiness.refresh(this.page);
+  }
+
+  async pageIdentity(): Promise<string> {
+    this.requireOpen();
+    return pageKeyFromUrl(this.page.url());
   }
 
   async perform(request: PhysicalActionRequest): Promise<PhysicalActionResult> {

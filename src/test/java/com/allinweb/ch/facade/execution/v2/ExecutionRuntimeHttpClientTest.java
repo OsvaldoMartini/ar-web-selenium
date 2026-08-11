@@ -31,6 +31,8 @@ class ExecutionRuntimeHttpClientTest {
                 + RUN_ID + "\"},\"runAccessToken\":\"" + TOKEN + "\"}}");
         transport.add(202, successData("{\"state\":\"QUEUED\"}"));
         transport.add(200, successData("{\"state\":\"READY\"}"));
+        transport.add(200, successData("{\"pageKey\":\"url-v1:"
+                + "c".repeat(64) + "\"}"));
         transport.add(200, successData("{\"state\":\"STOPPED\"}"));
         transport.add(200, successData("{\"runId\":\"" + RUN_ID + "\"}"));
         ExecutionRuntimeHttpClient client = client(transport);
@@ -40,12 +42,14 @@ class ExecutionRuntimeHttpClientTest {
         assertFalse(run.toString().contains(TOKEN));
         client.start(run, new StartFacts(URI.create("https://example.test/"), true, "chromium"));
         client.heartbeat(run);
+        assertEquals("url-v1:" + "c".repeat(64), client.pageIdentity(run));
         client.stop(run);
         client.release(run);
 
         assertEquals("compact-grant", transport.calls.get(0).grant());
         assertEquals(TOKEN, transport.calls.get(1).token());
         assertTrue(transport.calls.get(1).body().contains("https://example.test/"));
+        assertTrue(transport.calls.get(3).uri().getPath().endsWith("/page-identity"));
         assertTrue(transport.calls.stream().skip(1).allMatch(call -> TOKEN.equals(call.token())));
         ExecutionRuntimeClientException retired = assertThrows(
                 ExecutionRuntimeClientException.class, () -> client.heartbeat(run));

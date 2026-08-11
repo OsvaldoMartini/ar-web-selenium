@@ -70,6 +70,29 @@ public final class RuntimeElementHealingService {
             return Preparation.failed(Status.INVALID_REQUEST);
         }
 
+        return prepareByPageKey(assertedHomeBankingId, botJobId, page.pageKey(), instruction);
+    }
+
+    /**
+     * Prepare healing from the hash-only identity returned by the Java-custodied Node run.
+     */
+    public Preparation prepareByPageKey(
+            Integer assertedHomeBankingId,
+            Integer botJobId,
+            String pageKey,
+            InstructionLoad instruction) {
+        if (botJobId == null || botJobId <= 0 || instruction == null) {
+            return Preparation.failed(Status.INVALID_REQUEST);
+        }
+        if (instruction.getBotJobId() != null
+                && instruction.getBotJobId() > 0
+                && !botJobId.equals(instruction.getBotJobId())) {
+            return Preparation.failed(Status.BOT_JOB_MISMATCH);
+        }
+        if (pageKey == null || !pageKey.matches("url-v1:[0-9a-f]{64}")) {
+            return Preparation.failed(Status.INVALID_REQUEST);
+        }
+
         try (Connection connection = database.getConnection()) {
             int authoritativeHomeBankingId = loadAuthoritativeOwner(connection, botJobId);
             if (authoritativeHomeBankingId <= 0) {
@@ -81,8 +104,8 @@ public final class RuntimeElementHealingService {
                 return Preparation.failed(Status.OWNER_MISMATCH);
             }
 
-            List<ScannedElement> registry = ScannedElementRepository.loadByOwnerAndPage(
-                    connection, authoritativeHomeBankingId, botJobId, activePageUrl);
+            List<ScannedElement> registry = ScannedElementRepository.loadByOwnerAndPageKey(
+                    connection, authoritativeHomeBankingId, botJobId, pageKey);
 
             Map<Long, RegistryCandidate> locatorMatches = new LinkedHashMap<>();
             Map<Long, RegistryCandidate> canonicalMatches = new LinkedHashMap<>();
@@ -111,7 +134,7 @@ public final class RuntimeElementHealingService {
                     Status.READY,
                     authoritativeHomeBankingId,
                     botJobId,
-                    page.pageKey(),
+                    pageKey,
                     List.copyOf(locatorMatches.values()),
                     List.copyOf(canonicalMatches.values()),
                     List.copyOf(aliasMatches.values()));
@@ -128,7 +151,7 @@ public final class RuntimeElementHealingService {
                     "runtime-healing registry unavailable bot={} failureType={}",
                     botJobId,
                     unavailable.getClass().getSimpleName());
-            return Preparation.unavailable(botJobId, page.pageKey());
+            return Preparation.unavailable(botJobId, pageKey);
         }
     }
 

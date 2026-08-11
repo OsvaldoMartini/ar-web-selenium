@@ -7,6 +7,7 @@ export interface BrowserSessionHandle {
   readonly pageInstanceId: string;
   onUnexpectedClose(handler: (code: string) => void): void;
   navigate(endpoint: string): Promise<void>;
+  pageIdentity(): Promise<string>;
   refresh(): Promise<void>;
   perform(request: PhysicalActionRequest): Promise<PhysicalActionResult>;
   close(): Promise<void>;
