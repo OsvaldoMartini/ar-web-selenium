@@ -1000,3 +1000,26 @@ Next: implement the server-authorized Smoke Integration V2 run adapter. It will 
 SQL plan and REAL/SYNTHETIC data, issue and retain one run grant/token in Java, query each action's
 current hash-only page identity, build authoritative Node action DTOs from the frozen instruction
 and owner-scoped registry candidates, and keep V1 as an explicit whole-run rollback mode only.
+
+## 29. Execution V2 authoritative action-facts checkpoint - 2026-08-11
+
+- Added a Java action factory that accepts only one frozen SQL `InstructionSnapshot`, the exact
+  server-prepared owner/page registry candidates, a monotonic JavaScript-safe sequence, and an
+  already resolved INPUT value. React cannot supply locators, candidate rows, page identity, or
+  owner scope through this seam.
+- The factory maps only the frozen physical actions C/I/O to CLICK/INPUT/OUTPUT, preserves the
+  established authored XPath/CSS then registry locator/canonical/client-alias tier order, dedupes
+  selectors, and carries iframe/shadow/tag/name validation facts within the Node contract bounds.
+- INPUT alone may carry a bounded value and the frozen Enter/Tab completion flags. CLICK/OUTPUT
+  reject an attached input value. Owner mismatch, unavailable preparation, invalid sequence/tag,
+  oversized selectors/names/input, and more than 100 registry candidates fail before submission.
+- `mvn -Dtest=ExecutionRuntimeActionFactoryTest test` compiled 575 production and 336 test sources;
+  both focused tests passed. The compiler reported only the two established warnings.
+  `git diff --check` passed.
+- Source commit/push: `2a3808f1`. No frontend, Node runtime, resource mirror, database, migration,
+  browser, service, image, or deployment changed.
+
+Next: add the whole-run lifecycle adapter that freezes plan/data, issues and reserves the Java-held
+run, starts the isolated Node browser, obtains the current page hash for each physical instruction,
+submits these authoritative action facts, and stops/releases the exact run on finish, stop,
+disconnect, or failure. V1/V2 selection must be explicit at start and cannot change mid-run.
