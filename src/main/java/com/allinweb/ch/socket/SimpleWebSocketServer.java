@@ -203,6 +203,7 @@ public class SimpleWebSocketServer {
             "pagesOpen.summary");
     private static final Set<String> SMOKE_INTEGRATION_OPERATIONS = Set.of(
             SmokeTestIntegrationContracts.START,
+            SmokeTestIntegrationContracts.REFRESH,
             SmokeTestIntegrationContracts.STEP,
             SmokeTestIntegrationContracts.STOP,
             SmokeTestIntegrationContracts.FINISH);
@@ -837,6 +838,7 @@ public class SimpleWebSocketServer {
                             extractBody(jsonObjMSG), sessionId, session);
                     break;
                 case SmokeTestIntegrationContracts.START:
+                case SmokeTestIntegrationContracts.REFRESH:
                 case SmokeTestIntegrationContracts.STEP:
                 case SmokeTestIntegrationContracts.STOP:
                 case SmokeTestIntegrationContracts.FINISH:

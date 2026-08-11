@@ -28,10 +28,12 @@ public final class SmokeTestIntegrationContracts {
     public static final int CONTRACT_VERSION = 1;
 
     public static final String START = "smokeTest.integration.start";
+    public static final String REFRESH = "smokeTest.integration.refresh";
     public static final String STEP = "smokeTest.integration.step";
     public static final String STOP = "smokeTest.integration.stop";
     public static final String FINISH = "smokeTest.integration.finish";
     public static final String START_RESPONSE = START + "Response";
+    public static final String REFRESH_RESPONSE = REFRESH + "Response";
     public static final String STEP_RESPONSE = STEP + "Response";
     public static final String STOP_RESPONSE = STOP + "Response";
     public static final String FINISH_RESPONSE = FINISH + "Response";
@@ -235,6 +237,26 @@ public final class SmokeTestIntegrationContracts {
         }
     }
 
+    /** Exact owner assertions for a manual refresh of the shared Playwright page. */
+    public record RefreshRequest(
+            int contractVersion,
+            String requestId,
+            String bindingEpoch,
+            long workspaceEpoch,
+            int homeBankingId,
+            int botJobId,
+            String graphRevision) {
+        public RefreshRequest {
+            requireVersion(contractVersion);
+            requestId = requireBounded(requestId, "requestId", MAX_CORRELATION_LENGTH);
+            bindingEpoch = requireBounded(bindingEpoch, "bindingEpoch", MAX_EPOCH_LENGTH);
+            requirePositive(workspaceEpoch, "workspaceEpoch");
+            requirePositive(homeBankingId, "homeBankingId");
+            requirePositive(botJobId, "botJobId");
+            graphRevision = requireSha256(graphRevision, "graphRevision");
+        }
+    }
+
     public record StopRequest(int contractVersion, String requestId, String runId) {
         public StopRequest {
             requireVersion(contractVersion);
@@ -388,6 +410,18 @@ public final class SmokeTestIntegrationContracts {
                 requiredPositiveLong(body, "sequence"),
                 requiredPositiveInt(body, "instructionId"),
                 requiredNonNegativeInt(body, "excelRowIndex"));
+    }
+
+    public static RefreshRequest parseRefresh(JsonObject envelopeOrBody) {
+        JsonObject body = body(envelopeOrBody);
+        return new RefreshRequest(
+                requiredVersion(body),
+                requiredString(body, "requestId", MAX_CORRELATION_LENGTH),
+                requiredString(body, "bindingEpoch", MAX_EPOCH_LENGTH),
+                requiredPositiveLong(body, "workspaceEpoch"),
+                requiredPositiveInt(body, "homeBankingId"),
+                requiredPositiveInt(body, "botJobId"),
+                requiredSha256(body, "graphRevision"));
     }
 
     public static StopRequest parseStop(JsonObject envelopeOrBody) {

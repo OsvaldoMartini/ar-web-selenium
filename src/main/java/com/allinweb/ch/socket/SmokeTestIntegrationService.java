@@ -14,6 +14,7 @@ import com.allinweb.ch.model.DetachedWorkspaceSessions;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts.Correlation;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts.FinishRequest;
+import com.allinweb.ch.model.SmokeTestIntegrationContracts.RefreshRequest;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts.RunStatus;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts.RuntimeSnapshot;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts.StartRequest;
@@ -73,6 +74,7 @@ public final class SmokeTestIntegrationService {
             new LinkedHashMap<>();
     private Run active;
     private boolean startPending;
+    private boolean refreshPending;
     private boolean stepPending;
     private boolean terminalPending;
 
@@ -127,6 +129,8 @@ public final class SmokeTestIntegrationService {
             switch (operation) {
                 case SmokeTestIntegrationContracts.START -> handleStart(
                         SmokeTestIntegrationContracts.parseStart(body), body, transport);
+                case SmokeTestIntegrationContracts.REFRESH -> handleRefresh(
+                        SmokeTestIntegrationContracts.parseRefresh(body), body, transport);
                 case SmokeTestIntegrationContracts.STEP -> handleStep(
                         SmokeTestIntegrationContracts.parseStep(body), transport);
                 case SmokeTestIntegrationContracts.STOP -> handleStop(
@@ -183,7 +187,7 @@ public final class SmokeTestIntegrationService {
             return;
         }
         synchronized (stateLock) {
-            if (active != null || startPending) {
+            if (active != null || startPending || refreshPending) {
                 publish(
                         transport,
                         request.homeBankingId(),
@@ -208,6 +212,96 @@ public final class SmokeTestIntegrationService {
                         startPending = false;
                     }
                 });
+    }
+
+    private void handleRefresh(
+            RefreshRequest request, JsonObject rawBody, Session transport) {
+        String fingerprint = gson.toJson(request);
+        if (replayExisting(
+                SmokeTestIntegrationContracts.REFRESH,
+                request.requestId(),
+                fingerprint,
+                transport,
+                request.homeBankingId())) {
+            return;
+        }
+        synchronized (stateLock) {
+            if (active != null || startPending || refreshPending || stepPending || terminalPending) {
+                publish(
+                        transport,
+                        request.homeBankingId(),
+                        SmokeTestIntegrationContracts.REFRESH_RESPONSE,
+                        rejected(
+                                request.requestId(),
+                                "",
+                                "INTEGRATION_BUSY",
+                                "Wait for the current Integration operation to finish."));
+                return;
+            }
+            refreshPending = true;
+        }
+        submitOnce(
+                SmokeTestIntegrationContracts.REFRESH,
+                request.requestId(),
+                fingerprint,
+                transport,
+                request.homeBankingId(),
+                () -> refreshPage(request, rawBody, transport),
+                () -> {
+                    synchronized (stateLock) {
+                        refreshPending = false;
+                    }
+                });
+    }
+
+    private JsonObject refreshPage(
+            RefreshRequest request, JsonObject rawBody, Session transport) {
+        BrowserLease lease = null;
+        try {
+            SmokeIntegrationAuthorization authorization = variables.authorize(rawBody, transport);
+            String executionState = workspaces.executionState(
+                    authorization.botJobId(), authorization.workspaceEpoch());
+            if (BotJobDetailsWorkspaceRegistry.isExecutionActive(executionState)) {
+                throw new IllegalStateException(
+                        "TEST RUN already owns the Playwright browser.");
+            }
+            lease = browserOwnership.reserve();
+            boolean refreshed = BotJobDetailsWorkspaceRegistry.getInstance()
+                    .commitWorkspaceMutation(
+                            authorization.botJobId(),
+                            authorization.workspaceEpoch(),
+                            browser::reloadCurrentPage);
+            if (!refreshed) {
+                throw new IllegalStateException(
+                        "Open the Bot Job Playwright page before refreshing it.");
+            }
+            if (!variables.isCurrent(authorization, transport)) {
+                throw new IllegalStateException(
+                        "The Smoke Test target changed while the page was refreshing.");
+            }
+            JsonObject response = new JsonObject();
+            response.addProperty("ok", true);
+            response.addProperty("contractVersion", SmokeTestIntegrationContracts.CONTRACT_VERSION);
+            response.addProperty("requestId", request.requestId());
+            response.addProperty("bindingEpoch", authorization.bindingEpoch());
+            response.addProperty("workspaceEpoch", authorization.workspaceEpoch());
+            response.addProperty("homeBankingId", authorization.homeBankingId());
+            response.addProperty("botJobId", authorization.botJobId());
+            response.addProperty("graphRevision", authorization.graphRevision());
+            response.addProperty("status", "REFRESHED");
+            response.addProperty("code", "PLAYWRIGHT_PAGE_REFRESHED");
+            response.addProperty("message", "The active Playwright web page was refreshed.");
+            return response;
+        } catch (IllegalArgumentException | IllegalStateException refused) {
+            log.warn("Smoke Test Playwright refresh refused: {}", refused.getMessage());
+            return rejected(
+                    request.requestId(),
+                    "",
+                    "PLAYWRIGHT_REFRESH_REFUSED",
+                    safeMessage(refused, "The Playwright web page could not be refreshed."));
+        } finally {
+            if (lease != null) lease.close();
+        }
     }
 
     private JsonObject start(StartRequest request, JsonObject rawBody, Session transport) {
@@ -902,6 +996,9 @@ public final class SmokeTestIntegrationService {
         if (SmokeTestIntegrationContracts.STEP.equals(operation)) {
             return SmokeTestIntegrationContracts.STEP_RESPONSE;
         }
+        if (SmokeTestIntegrationContracts.REFRESH.equals(operation)) {
+            return SmokeTestIntegrationContracts.REFRESH_RESPONSE;
+        }
         if (SmokeTestIntegrationContracts.STOP.equals(operation)) {
             return SmokeTestIntegrationContracts.STOP_RESPONSE;
         }
@@ -972,6 +1069,10 @@ public final class SmokeTestIntegrationService {
 
     interface BrowserStartPort {
         boolean openPreservingPage(String browserType, String url, String optionsConfig);
+
+        default boolean reloadCurrentPage() {
+            return false;
+        }
     }
 
     interface ResponsePort {
@@ -983,6 +1084,15 @@ public final class SmokeTestIntegrationService {
         public boolean openPreservingPage(String browserType, String url, String optionsConfig) {
             return ARWebDriver.getInstance()
                     .openBrowserPreservingCurrentPage(browserType, url, optionsConfig);
+        }
+
+        @Override
+        public boolean reloadCurrentPage() {
+            var current = ARWebDriver.getInstance().currentPlaywrightDriver();
+            if (current == null || !current.isOpen()) return false;
+            current.reload();
+            current.waitForPageSettled(15_000L);
+            return true;
         }
     }
 
