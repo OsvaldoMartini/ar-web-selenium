@@ -851,3 +851,39 @@ The signer checkpoint below completes the previously listed cross-language autho
 Next: P3 authored locator resolution and the first CLICK/INPUT/OUTPUT physical-action vertical
 slice inside the Node runtime. Before application admission, the Java routing adapter must resolve
 `organizationId` authoritatively and expose only signed, capability-bound run operations.
+
+## 24. Execution V2 P3 internal physical-action checkpoint - 2026-08-11
+
+- Added strict internal action DTOs for sequenced CLICK, INPUT, and OUTPUT instructions plus frozen
+  authored selectors and owner/page-scoped registry candidates. Invalid IDs, page keys, tags,
+  selectors, scopes, candidate counts, and input sizes are refused before page interaction.
+- Ported the established resolution priority: exact live page identity, ordered authored selectors,
+  registry locator/canonical/client-alias tiers, then unique live canonical/client-alias names.
+  Selector ambiguity is deferred only while a stronger later tier may resolve uniquely; terminal
+  ambiguity and missing targets produce zero physical attempts.
+- Added Playwright validation for visibility, exact tag, same-origin iframe scope, top-document
+  boundary, and action capability. Shadow-scoped targets remain deliberately unsupported and
+  fail-closed. Unsafe coordinate fallback is not part of V2.
+- CLICK performs one click; INPUT supports writable controls and exact unique native-select values
+  plus optional Enter/Tab; OUTPUT preserves a legitimate empty value rather than treating it as a
+  missing target. Exact page identity is rechecked immediately before the physical operation.
+- Added a bounded 4,096-result per-session sequence ledger. Exact duplicate requests replay the
+  cached terminal result without another physical attempt; changed payloads and out-of-order
+  sequences are refused. An infrastructure exception with uncertain action outcome terminates the
+  run as `ACTION_OUTCOME_UNKNOWN` and remains exactly replayable.
+- The Node page-key implementation was verified against the established Java identities for Lloyds
+  and BancaStato. P3 diagnostics retain only safe codes, stages, counts, validation flags, and
+  physical-attempt count; locator strings, page URLs, and input/output values are not logged.
+- `npm run lint` passed. `npm test` built the package and all 26 tests passed, including authored,
+  registry-healed, canonical, alias, ambiguity, empty-output, page-change, Shadow refusal,
+  at-most-once replay/conflict/order, and unknown-outcome cases plus all P0-P2 coverage.
+- Source commit/push: `21027e59`. No Java or frontend source changed, so no Maven or frontend build
+  was run. No browser binary, banking page, application service, database, migration, image, or
+  deployment was started or changed.
+- This remains an internal engine. Smoke Test Integration still uses Java V1 because Java does not
+  yet expose the frozen authoritative plan/registry action DTO and the Node server has no signed
+  start/action/refresh/stop route.
+
+Next: the P4 admission adapter must authoritatively resolve organization and Bot Job ownership,
+freeze the plan/data/registry inputs, add capability-bound Node run/action routes, and connect one
+explicit Smoke Integration V2 run without permitting partial fallback to Java V1.
