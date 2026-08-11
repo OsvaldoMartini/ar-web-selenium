@@ -2,7 +2,7 @@
 
 Keep exactly two review sections. Check tasks only after their separate gates pass.
 
-**Last updated:** 2026-08-11 - Frontend `4ff3a99` expands Page Mappings OCR rules and `3f67e5a` fixes Proposed-name acknowledgement, auto-selection, and one-click canonical-name rollback. Deployment `64f499e1` serves exact `main.b8284312.js` / `main.680e6c4a.css` bytes from PID `1556` on 57395/57396; catalog `91bab2a3` records 2,344 rows. Production build passed with existing warnings; no test suite, Maven command, Java compilation, migration, package, or image is claimed.
+**Last updated:** 2026-08-11 - Frontend `0cd8bed` makes the complete Page Mappings Memory card open/focus Memory List and adds the cyan guidance badge. Production build passed; resource deployment `bfe4cf87` contains exact `main.f99c04f5.js` / `main.ff26b7fd.css` bytes and catalog `729f0850` records 2,344 rows. PID `1556` ended externally; no runtime copy/restart/live visual acceptance, test suite, Maven command, Java compilation, migration, package, or image is claimed.
 
 ## 1. CODEX -> CLAUDE - Page Mappings and Memory lifecycle review handoff
 
@@ -338,6 +338,20 @@ The Page Mappings roadmap is now source-complete through P7:
   `main.b8284312.js` / `main.680e6c4a.css` bytes on 57395/57396. No visual browser acceptance or
   test suite ran.
 
+### Page Mappings clickable Memory List card
+
+- Root cause was frontend-only: the visible Memory List summary was a passive section and only
+  Add/drop requested `memoryList.open`.
+- Frontend `0cd8bed` makes the whole card clickable and keyboard-actionable, including with zero
+  selected items, through the existing owner-bound open/focus request. It adds the cyan glowing
+  `Drop captured elements here, or use Add.` badge and honors reduced-motion preferences.
+- The Windows message means browser focus was delivered but foreground ownership was not confirmed.
+  Exact native focus/topmost fallback already runs and Windows may still refuse; this checkpoint
+  does not hide the result or broaden the shared native focus service.
+- Build passed with existing warnings. Resource deployment `bfe4cf87` has 58 exact files;
+  catalog `729f0850` was regenerated without executing tests. The prior PID ended externally, and
+  no target copy/restart/live click-through is claimed.
+
 ### Current risks
 
 | Severity | Status | Risk |
@@ -456,6 +470,9 @@ The Page Mappings roadmap is now source-complete through P7:
   pushed in frontend `4ff3a99` / `3f67e5a`; exact deployment `64f499e1` and catalog `91bab2a3` are live.
 - [ ] TASK - Reopen Page Mappings and visually confirm the saved Banca Stato alias remains displayed;
   use the restore icon only if rollback is intended, then verify Add/drag and separate Memory Apply.
+- [ ] TASK - Copy `bfe4cf87` to the runtime/restart only after the active VPN production session is
+  safe to interrupt, then click the complete Memory card with zero and nonzero selections and verify
+  one Memory List opens/focuses without changing staged data.
 - [ ] TASK - Package/image delivery, other-database/SQL Server rollout, and broader reconnect/takeover/retention-save-purge/OCR/Memory/multi-page acceptance remain open.
 
 ## 2. CLAUDE -> CODEX - Independent review requested
@@ -507,6 +524,9 @@ The Page Mappings roadmap is now source-complete through P7:
 - [ ] TASK - Validate frontend `3f67e5a`: edited Proposed names auto-select Use, the same Review does
   not restore stale OCR text after success, and rollback sends one exact null alias while preserving
   owner/revision/reconnect safety and Memory projection updates.
+- [ ] TASK - Validate frontend `0cd8bed`: the full Memory card sends one owner-bound open request for
+  mouse/Enter/Space, permits the empty snapshot, preserves Add/drop synchronization, blocks duplicate
+  pending clicks, and keeps the cyan animation accessible under reduced-motion preferences.
 - [ ] TASK - Review snapshot verification commit `380841af`; confirm FAILED creation recovery honors
   NOT NULL migration columns and extended-length ACL handling preserves the private/no-follow model.
 - [ ] TASK - Review assets/catalog `fb23c531` / `d76362ff`; confirm the manifest selects

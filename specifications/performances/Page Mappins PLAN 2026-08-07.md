@@ -949,3 +949,28 @@ asset/runtime status. The existing backend OCR Apply authority and transaction r
 - [ ] User live gate: reopen Page Mappings, confirm Banca Stato remains after Apply, optionally click
   restore to clear the alias, and verify Add/drag plus separate Memory List Apply. No controllable
   in-app browser was attached to Codex.
+
+## Page Mappings clickable Memory List card - 2026-08-11
+
+This checkpoint supersedes only the current Memory-card source/build assets. It does not change the
+owner-scoped Memory state or the separate Memory Apply transaction.
+
+- [x] Root cause confirmed: the Memory summary was a passive section; only Add/drop requested the
+  authenticated `memoryList.open` operation.
+- [x] Frontend `0cd8bed` makes every point of the card mouse- and keyboard-actionable, supports an
+  empty selection, and reuses the existing owner-bound open/focus contract without modifying items.
+- [x] The drop guidance is a cyan glowing badge with card hover/focus treatment and reduced-motion
+  fallback. Existing capture drag/drop and Add staging remain unchanged.
+- [x] The Windows foreground message remains accurate: the browser accepted focus, but Windows did
+  not confirm foreground ownership after the existing exact HWND/native fallback. No shared focus
+  infrastructure was broadened or made misleading.
+- [x] Production build passed with existing warnings. Resource deployment `bfe4cf87` has 58 exact
+  files; catalog `729f0850` records 2,344 rows / 2,308 cases without running tests. No Java source
+  changed, so no Maven command or Java compilation ran.
+- [x] Source-resource entrypoints are `main.f99c04f5.js` (SHA-256
+  `BB37ED7E30ED6999FDEF998D461FADB9B1F9B288F300540DA24E9410F9B7DAE2`) and
+  `main.ff26b7fd.css` (SHA-256
+  `4D4A19FB43ABC7163F988D905E39FA04E9A33CD3A6F72353CD5568EC6A46141F`).
+- [ ] Runtime/live gate: PID `1556` ended externally. Copy/restart only when the VPN production
+  browser session is safe to interrupt, then verify clicking the card with zero/nonzero selections
+  opens or focuses the single Memory List and leaves staged content unchanged.

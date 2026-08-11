@@ -540,6 +540,34 @@ remain unchanged.
   confirm the saved `Banca Stato` row no longer jumps back to the OCR draft, use the restore icon only
   if the alias should be cleared, and verify Add/drag plus the separate Memory List Apply workflow.
 
+### Page Mappings clickable Memory List card - 2026-08-11
+
+This checkpoint supersedes only the current Page Mappings Memory-card source/build assets. It does
+not supersede the OCR, Memory Apply, runtime, or live-acceptance gates above.
+
+- Root cause: the `Memory List / N selected` area was a passive section. Only Add/drop set the
+  `memoryList.open` request, so clicking the visible summary could not open or focus Memory List.
+- Frontend `0cd8bed` makes the complete card mouse- and keyboard-actionable. It reuses the existing
+  exact-owner `memoryList.open` contract, including for an empty selection, and does not modify,
+  apply, or delete staged items. Rapid clicks are refused while the correlated Memory request is
+  pending.
+- `Drop captured elements here, or use Add.` is now a cyan glowing badge. The whole card has clear
+  hover/focus treatment and the animation is disabled for reduced-motion users.
+- The reported `received the focus request, but Windows did not confirm foreground activation`
+  response is a successful browser-focus delivery with an unconfirmed Windows foreground result.
+  The backend already uses the exact title-token HWND, restores minimized windows, attaches input,
+  requests foreground/focus, and pulses topmost. Windows may still refuse foreground ownership; no
+  shared native-focus behavior or truthful diagnostic was weakened in this frontend checkpoint.
+- `npm run build` passed with existing repository warnings; no test suite, Maven command, or Java
+  compilation ran. Resource deployment `bfe4cf87` mirrors exactly 58 files and catalog `729f0850`
+  records 2,344 rows / 2,308 code cases without executing tests.
+- New source-resource entrypoints are `main.f99c04f5.js` (2,098,249 bytes; SHA-256
+  `BB37ED7E30ED6999FDEF998D461FADB9B1F9B288F300540DA24E9410F9B7DAE2`) and
+  `main.ff26b7fd.css` (511,970 bytes; SHA-256
+  `4D4A19FB43ABC7163F988D905E39FA04E9A33CD3A6F72353CD5568EC6A46141F`). The previous PID `1556`
+  ended externally. No `target/classes` copy, service restart, or live visual click-through is
+  claimed because the user was using the VPN/production browser session.
+
 Read `specifications/performances/COPY_LAST_RESPONSE.md` and
 `specifications/performances/Page Mappins PLAN 2026-08-07.md` before continuing.
 
