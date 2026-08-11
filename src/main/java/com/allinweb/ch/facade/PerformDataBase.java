@@ -4430,7 +4430,7 @@ public class PerformDataBase {
             throws SQLException {
         if (parentRepairs.isEmpty()) return;
         String sql = "UPDATE " + instructionTable
-                + " SET parent_id=NULL WHERE " + ownerColumn
+                + " SET parent_id=NULL,parent_block_id=NULL WHERE " + ownerColumn
                 + "=? AND id=? AND parent_id IN (" + deletePlaceholders + ")";
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             for (UpdatedRow repair : parentRepairs) {
@@ -4780,29 +4780,19 @@ public class PerformDataBase {
         }
 
         OwnerKey owner = botJobVariableOwner(connection, whereId);
-        String selectSql = "SELECT id FROM bot_job_variable_definition"
+        // Bot Job variables are durable, independent migration references. Deleting their
+        // producer instructions disconnects ownership but must never delete the definitions.
+        String detachSql = "UPDATE bot_job_variable_definition"
+                + " SET producer_instruction_id=NULL,updated_at=CURRENT_TIMESTAMP"
                 + " WHERE home_banking_id=? AND bot_job_id=?"
                 + " AND producer_instruction_id IN (" + placeholders + ")";
-        List<Long> definitionIds = new ArrayList<>();
-        try (PreparedStatement statement = connection.prepareStatement(selectSql)) {
+        try (PreparedStatement statement = connection.prepareStatement(detachSql)) {
             statement.setInt(1, owner.homeBankingId());
             statement.setInt(2, owner.botJobId());
             for (int index = 0; index < instructionIds.size(); index++) {
                 statement.setInt(index + 3, instructionIds.get(index));
             }
-            try (ResultSet result = statement.executeQuery()) {
-                while (result.next()) {
-                    definitionIds.add(result.getLong(1));
-                }
-            }
-        }
-        if (definitionIds.isEmpty()) {
-            return;
-        }
-        MutationResult deleted =
-                botJobRuntimeVariables.deleteDefinitions(connection, owner, definitionIds, null);
-        if (!deleted.applied()) {
-            throw new SQLException(deleted.message());
+            statement.executeUpdate();
         }
     }
 

@@ -60,11 +60,12 @@ class PerformDataBaseBlockDeleteBatchTest {
         try (Connection connection = connection()) {
             assertEquals(List.of("10:1"), blocks(connection, OWNER_ID));
             assertEquals(0, count(connection, "instruction", OWNER_ID));
-            assertEquals(0, count(connection, "variable", OWNER_ID));
+            assertEquals(3, count(connection, "bot_job_variable_definition", OWNER_ID));
+            assertEquals(3, countNullVariableOwners(connection, OWNER_ID));
             assertEquals(0, count(connection, "reference", OWNER_ID));
             assertEquals(List.of("90:1"), blocks(connection, OTHER_OWNER_ID));
             assertEquals(1, count(connection, "instruction", OTHER_OWNER_ID));
-            assertEquals(1, count(connection, "variable", OTHER_OWNER_ID));
+            assertEquals(1, count(connection, "bot_job_variable_definition", OTHER_OWNER_ID));
             assertEquals(1, count(connection, "reference", OTHER_OWNER_ID));
         }
     }
@@ -80,7 +81,8 @@ class PerformDataBaseBlockDeleteBatchTest {
         try (Connection connection = connection()) {
             assertEquals(List.of("10:1", "30:2"), blocks(connection, OWNER_ID));
             assertEquals(2, count(connection, "instruction", OWNER_ID));
-            assertEquals(2, count(connection, "variable", OWNER_ID));
+            assertEquals(3, count(connection, "bot_job_variable_definition", OWNER_ID));
+            assertEquals(1, countNullVariableOwners(connection, OWNER_ID));
             assertEquals(2, count(connection, "reference", OWNER_ID));
         }
     }
@@ -100,19 +102,23 @@ class PerformDataBaseBlockDeleteBatchTest {
 
     private void createSchemaAndSeed() throws SQLException {
         try (Connection connection = connection(); Statement sql = connection.createStatement()) {
+            sql.execute("CREATE TABLE bot_job(id INTEGER PRIMARY KEY,home_banking_id INTEGER NOT NULL)");
             sql.execute("CREATE TABLE block(id INTEGER PRIMARY KEY, bot_job_id INTEGER NOT NULL, "
                     + "block_order_number INTEGER NOT NULL)");
             sql.execute("CREATE TABLE instruction(id INTEGER PRIMARY KEY, bot_job_id INTEGER NOT NULL, "
                     + "block_id INTEGER NOT NULL, parent_block_id INTEGER)");
-            sql.execute("CREATE TABLE variable(id INTEGER PRIMARY KEY, bot_job_id INTEGER NOT NULL, "
-                    + "instruction_id INTEGER NOT NULL)");
+            sql.execute("CREATE TABLE bot_job_variable_definition(id INTEGER PRIMARY KEY,"
+                    + "home_banking_id INTEGER NOT NULL,bot_job_id INTEGER NOT NULL,"
+                    + "producer_instruction_id INTEGER,updated_at TEXT)");
             sql.execute("CREATE TABLE reference(id INTEGER PRIMARY KEY, bot_job_id INTEGER NOT NULL, "
                     + "instruction_id INTEGER NOT NULL)");
+            sql.execute("INSERT INTO bot_job VALUES(77,7),(88,8)");
             sql.execute("INSERT INTO block VALUES(10,77,1),(20,77,2),(30,77,3),(90,88,1)");
             sql.execute("INSERT INTO instruction VALUES(101,77,10,NULL),(201,77,20,NULL),"
                     + "(301,77,30,NULL),(901,88,90,NULL)");
-            sql.execute("INSERT INTO variable VALUES(1001,77,101),(2001,77,201),"
-                    + "(3001,77,301),(9001,88,901)");
+            sql.execute("INSERT INTO bot_job_variable_definition VALUES"
+                    + "(1001,7,77,101,'before'),(2001,7,77,201,'before'),"
+                    + "(3001,7,77,301,'before'),(9001,8,88,901,'before')");
             sql.execute("INSERT INTO reference VALUES(1002,77,101),(2002,77,201),"
                     + "(3002,77,301),(9002,88,901)");
         }
@@ -135,6 +141,14 @@ class PerformDataBaseBlockDeleteBatchTest {
     private int count(Connection connection, String table, int ownerId) throws SQLException {
         try (Statement sql = connection.createStatement();
                 ResultSet rows = sql.executeQuery("SELECT COUNT(*) FROM " + table + " WHERE bot_job_id=" + ownerId)) {
+            return rows.next() ? rows.getInt(1) : -1;
+        }
+    }
+
+    private int countNullVariableOwners(Connection connection, int ownerId) throws SQLException {
+        try (Statement sql = connection.createStatement();
+                ResultSet rows = sql.executeQuery("SELECT COUNT(*) FROM bot_job_variable_definition"
+                        + " WHERE bot_job_id=" + ownerId + " AND producer_instruction_id IS NULL")) {
             return rows.next() ? rows.getInt(1) : -1;
         }
     }
