@@ -2,7 +2,7 @@
 
 Keep exactly two review sections. Check tasks only after their separate gates pass.
 
-**Last updated:** 2026-08-11 - Frontend `9723982` moves the Java V1/V2 selector between Integration and Refresh and adds the selected runtime above the Smoke workspace status. The production build passed without tests; deployment `5f608d7d` mirrors 58 exact files with `main.086bf45c.js` / `main.8678873d.css`. ARWeb selected the new JS entrypoint and then exited externally before full live verification; it was not restarted. Node PID `13220` remains READY with zero reservations.
+**Last updated:** 2026-08-11 - Frontend `9723982` moves the Java V1/V2 selector between Integration and Refresh and adds the selected runtime above the Smoke workspace status. Deployment `5f608d7d` mirrors 58 exact files. Node PID `29768` is READY on `60110`; ARWeb PID `11200` is responsive on `65031/65032` and serves exact `main.086bf45c.js` / `main.8678873d.css` hashes. Six new logs contain zero strict failures; no Smoke action or test suite ran.
 
 ## 1. CODEX -> CLAUDE - Page Mappings and Memory lifecycle review handoff
 

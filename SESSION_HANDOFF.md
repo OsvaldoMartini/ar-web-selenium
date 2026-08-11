@@ -930,6 +930,10 @@ Do not change frontend CSS/design while doing the scanner contract cleanup unles
 - ARWeb selected the new JS entrypoint, then exited externally before full live asset verification.
   It was not restarted because the requested scope was frontend build/deployment only. Node PID
   `13220` remains READY with zero reservations; visual approval and Lloyds V2 execution remain open.
+- The user then explicitly requested restart. The orphaned Node process was replaced with a fresh
+  matched-secret pair: Node PID `29768` is READY on `60110`; ARWeb PID `11200` is responsive on
+  `65031/65032`. Live `main.086bf45c.js` / `main.8678873d.css` hashes match exactly and six new logs
+  contain zero strict failures. No Smoke action was triggered by Codex.
 
 ### Instruction-owned ExcelWrite redesign - 2026-08-11
 

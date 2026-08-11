@@ -1193,3 +1193,8 @@ and atomic artifact-write checkpoints are complete.
   before the complete live CSS/hash verification. No Java shutdown/error evidence attributes that
   exit to this frontend-only change. Node PID `13220` remains READY with zero reservations. Per user
   scope, ARWeb was not restarted; visual acceptance remains open.
+- On explicit follow-up authorization, the orphaned Node process was replaced and a fresh matching
+  in-memory secret was provisioned to the new pair. Node PID `29768` is READY on `60110`; ARWeb PID
+  `11200` is responsive on `65031/65032`. HTTP JS/CSS hashes match the deployment exactly and six
+  new BancaStato logs contain zero strict failures. Visual placement and Lloyds V2 actions remain
+  user-driven gates.
