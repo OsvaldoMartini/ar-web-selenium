@@ -7185,7 +7185,7 @@ public class PerformDataBase {
             try (ResultSet rsInstruction = selectStmt.executeQuery()) {
 
                 String insertSQL = "INSERT INTO instruction ("
-                        + " instruction_order_number, actions, name, xpath, coordinates, force_coordinates, iframe_xpath, tag_name, shadow_host, shadow_root, css_selector, description, operation, optional, block_marked, default_value, action_custom_max_wait_sec, on_hold_seconds, codified, export_to_abr, active, block_id, variable_id, parent_id, bot_job_id, client_named) "
+                        + " instruction_order_number, actions, name, xpath, coordinates, force_coordinates, iframe_xpath, tag_name, shadow_host, shadow_root, css_selector, description, operation, optional, block_marked, default_value, action_custom_max_wait_sec, on_hold_seconds, codified, export_to_abr, active, block_id, parent_block_id, parent_id, bot_job_id, client_named) "
                         + "VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
                 instructionMap.clear();
@@ -7201,15 +7201,16 @@ public class PerformDataBase {
                         int oldBlockId = rsInstruction.getInt("block_id");
                         Integer newBlockId = blockMap.get(oldBlockId);
                         if (newBlockId == null) {
-                            logDB.info("Skipped instruction with unknown block_id: " + oldBlockId);
-                            continue;
+                            throw new SQLException(
+                                    "A source instruction references an unmapped block " + oldBlockId);
                         }
 
                         int oldBotJobId = rsInstruction.getInt("bot_job_id");
                         Integer newBotJobId = botJobMap.get(oldBotJobId);
                         if (newBotJobId == null) {
-                            logDB.info("Skipped instruction with unknown bot_job_id: " + newBotJobId);
-                            continue;
+                            throw new SQLException(
+                                    "A source instruction references an unmapped Bot Job "
+                                            + oldBotJobId);
                         }
 
                         instructionMap.put(id, -1);
@@ -7239,20 +7240,8 @@ public class PerformDataBase {
 
                         insertStmt.setInt(21, rsInstruction.getInt("active"));
                         insertStmt.setInt(22, newBlockId);
-
-                        // variable_id + tracking
-                        Integer variableId = rsInstruction.getInt("variable_id");
-                        if (rsInstruction.wasNull()) {
-                            variableId = null;
-                        }
-
-                        if (variableId != null) {
-                            instrVariablesMap.put(id, variableId);
-                        }
-                        insertStmt.setNull(23, Types.INTEGER); // TO BE SOLVED LATER
-
+                        insertOrNull(insertStmt, 23, rsInstruction, "parent_block_id");
                         insertOrNull(insertStmt, 24, rsInstruction, "parent_id");
-
                         insertStmt.setInt(25, newBotJobId);
                         insertStmt.setString(26, rsInstruction.getString("client_named"));
 
@@ -7451,110 +7440,219 @@ public class PerformDataBase {
 
     public ErrorMessage cloneUpdateInstruction(int previosBotJob) {
         final int BATCH_SIZE = 100;
-
-        instrNewInverted.clear();
-
-        for (Map.Entry<Integer, Integer> entry : instructionMap.entrySet()) {
-            instrNewInverted.put(entry.getValue(), entry.getKey());
+        Integer newBotJobId = botJobMap.get(previosBotJob);
+        if (previosBotJob <= 0 || newBotJobId == null || newBotJobId <= 0) {
+            return new ErrorMessage(
+                    "Failed to update cloned instruction",
+                    "Cloned Bot Job owner mapping is unavailable",
+                    null);
         }
 
-        try (Connection conn = getConnection();
-                Statement postgresStmt = conn.createStatement()) {
+        String selectParents = "SELECT id,parent_block_id,parent_id FROM instruction"
+                + " WHERE bot_job_id=? ORDER BY id";
+        String updateParents = "UPDATE instruction SET parent_block_id=?,parent_id=?"
+                + " WHERE bot_job_id=? AND id=?";
+
+        try (Connection conn = getConnection()) {
+            boolean previousAutoCommit = conn.getAutoCommit();
             conn.setAutoCommit(false);
-
-            String idsInstruction =
-                    instructionMap.values().stream().map(String::valueOf).collect(Collectors.joining(","));
-
-            String idsBlock = blockMap.values().stream().map(String::valueOf).collect(Collectors.joining(","));
-
-            int newBotJobId = botJobMap.get(previosBotJob);
-
-            String selectAccessSQL = "SELECT id, name, parent_id, parent_block_id, variable_id " + "FROM instruction "
-                    + "WHERE (parent_block_id IS NOT NULL OR parent_id IS NOT NULL OR variable_id IS NOT NULL) "
-                    + "AND bot_job_id = "
-                    + newBotJobId + " AND id IN ("
-                    + idsInstruction + ") " + "AND block_id IN ("
-                    + idsBlock + ") " + "ORDER BY id";
-
-            try (ResultSet rsInstruction = postgresStmt.executeQuery(selectAccessSQL)) {
-
-                String updateSQL =
-                        "UPDATE instruction SET variable_id = ?, parent_block_id = ?, parent_id = ? WHERE id = ?";
-
-                try (PreparedStatement updateStmt = conn.prepareStatement(updateSQL)) {
-                    int count = 0;
-
-                    while (rsInstruction.next()) {
-                        int id = rsInstruction.getInt("id");
-                        String name = rsInstruction.getString("name");
-
-                        // ---- variable_id ----
-                        Integer originalOldID = instrNewInverted.get(id);
-                        Integer originalVarId = null;
-
-                        if (originalOldID != null) {
-                            originalVarId = instrVariablesMap.get(originalOldID);
+            boolean commitAttempted = false;
+            try (PreparedStatement selectStmt = conn.prepareStatement(selectParents);
+                    PreparedStatement updateStmt = conn.prepareStatement(updateParents)) {
+                selectStmt.setInt(1, previosBotJob);
+                int count = 0;
+                try (ResultSet sourceRows = selectStmt.executeQuery()) {
+                    while (sourceRows.next()) {
+                        int sourceInstructionId = sourceRows.getInt("id");
+                        Integer destinationInstructionId = instructionMap.get(sourceInstructionId);
+                        if (destinationInstructionId == null) {
+                            throw new SQLException(
+                                    "A source instruction was not mapped during clone: "
+                                            + sourceInstructionId);
                         }
-
-                        Integer newVariableId = null;
-                        if (originalVarId != null) {
-                            newVariableId = variableMap.get(originalVarId);
-                        }
-
-                        if (newVariableId == null) {
-                            logDB.info("Skipped variable_id column with unknown variable_id: " + newVariableId);
-                            updateStmt.setNull(1, Types.INTEGER);
-                        } else {
-                            updateStmt.setInt(1, newVariableId);
-                        }
-
-                        // Handle parent_id or parent_block_id based on name
-                        if ("GOTO".equalsIgnoreCase(name) || "EXCEL GOTO".equalsIgnoreCase(name)) {
-                            int parentBlockId = rsInstruction.getInt("parent_block_id");
-                            if (rsInstruction.wasNull() || !blockMap.containsKey(parentBlockId)) {
-                                updateStmt.setNull(2, Types.INTEGER);
-                            } else {
-                                updateStmt.setInt(2, blockMap.get(parentBlockId));
-                            }
-                            updateStmt.setNull(3, Types.INTEGER); // Skip parent_id
-                        } else {
-                            int parentInstructionId = rsInstruction.getInt("parent_id");
-                            if (rsInstruction.wasNull() || !instructionMap.containsKey(parentInstructionId)) {
-                                updateStmt.setNull(3, Types.INTEGER);
-                            } else {
-                                updateStmt.setInt(3, instructionMap.get(parentInstructionId));
-                            }
-                            updateStmt.setNull(2, Types.INTEGER); // Skip parent_block_id
-                        }
-
-                        updateStmt.setInt(4, id); // WHERE clause: name = ?
-
+                        Integer sourceParentBlockId = nullableInt(sourceRows, "parent_block_id");
+                        Integer sourceParentId = nullableInt(sourceRows, "parent_id");
+                        setMappedCloneId(
+                                updateStmt,
+                                1,
+                                sourceParentBlockId,
+                                blockMap,
+                                "parent block");
+                        setMappedCloneId(
+                                updateStmt,
+                                2,
+                                sourceParentId,
+                                instructionMap,
+                                "parent instruction");
+                        updateStmt.setInt(3, newBotJobId);
+                        updateStmt.setInt(4, destinationInstructionId);
                         updateStmt.addBatch();
                         count++;
-
                         if (count % BATCH_SIZE == 0) {
                             updateStmt.executeBatch();
-                            conn.commit();
-                            logDB.info("Updated batch of " + BATCH_SIZE);
                         }
                     }
-
-                    if (count % BATCH_SIZE != 0) {
-                        updateStmt.executeBatch();
-                        conn.commit();
-                        logDB.info("Updated final batch of " + (count % BATCH_SIZE));
-                    }
-
-                    logDB.info("Updated instruction records: " + count);
                 }
+                if (count % BATCH_SIZE != 0) {
+                    updateStmt.executeBatch();
+                }
+                if (count != instructionMap.size()) {
+                    throw new SQLException(
+                            "Instruction clone mapping is incomplete; source="
+                                    + count + ", mapped=" + instructionMap.size());
+                }
+
+                OwnerKey sourceOwner = botJobVariableOwner(conn, previosBotJob);
+                OwnerKey destinationOwner = botJobVariableOwner(conn, newBotJobId);
+                Timestamp now = new Timestamp(System.currentTimeMillis());
+                cloneInstructionVariableSlots(conn, sourceOwner, destinationOwner, now);
+                cloneInstructionVariableCommandConfig(
+                        conn, sourceOwner, destinationOwner, now);
+
+                commitAttempted = true;
+                conn.commit();
+                conn.setAutoCommit(previousAutoCommit);
+                logDB.info("Updated cloned instruction graph records: " + count);
+                return null;
+            } catch (SQLException | RuntimeException failure) {
+                if (!commitAttempted) {
+                    conn.rollback();
+                    conn.setAutoCommit(previousAutoCommit);
+                }
+                throw failure;
             }
-
-            return null;
-
-        } catch (SQLException error) {
+        } catch (SQLException | RuntimeException error) {
             logDB.error("Failed to update cloned instruction");
             return new ErrorMessage(
                     "Failed to update cloned instruction", "cloned instruction Update Failure", error.getMessage());
+        }
+    }
+
+    private static void setMappedCloneId(
+            PreparedStatement statement,
+            int parameter,
+            Integer sourceId,
+            Map<Integer, Integer> mapping,
+            String relationship)
+            throws SQLException {
+        if (sourceId == null) {
+            statement.setNull(parameter, Types.INTEGER);
+            return;
+        }
+        Integer destinationId = mapping.get(sourceId);
+        if (destinationId == null || destinationId <= 0) {
+            throw new SQLException(
+                    "A cloned instruction references an unmapped "
+                            + relationship + " " + sourceId);
+        }
+        statement.setInt(parameter, destinationId);
+    }
+
+    private void cloneInstructionVariableSlots(
+            Connection connection,
+            OwnerKey sourceOwner,
+            OwnerKey destinationOwner,
+            Timestamp now)
+            throws SQLException {
+        String select = "SELECT instruction_id,slot,variable_id"
+                + " FROM instruction_variable_slot"
+                + " WHERE home_banking_id=? AND bot_job_id=?"
+                + " ORDER BY instruction_id,slot";
+        String insert = "INSERT INTO instruction_variable_slot"
+                + " (home_banking_id,bot_job_id,instruction_id,slot,variable_id,"
+                + "slot_revision,created_at,updated_at) VALUES (?,?,?,?,?,1,?,?)";
+        try (PreparedStatement source = connection.prepareStatement(select);
+                PreparedStatement destination = connection.prepareStatement(insert)) {
+            source.setInt(1, sourceOwner.homeBankingId());
+            source.setInt(2, sourceOwner.botJobId());
+            try (ResultSet rows = source.executeQuery()) {
+                while (rows.next()) {
+                    int sourceInstructionId = rows.getInt("instruction_id");
+                    int sourceVariableId = rows.getInt("variable_id");
+                    Integer destinationInstructionId = instructionMap.get(sourceInstructionId);
+                    Integer destinationVariableId = variableMap.get(sourceVariableId);
+                    if (destinationInstructionId == null || destinationVariableId == null) {
+                        throw new SQLException(
+                                "A variable slot references an unmapped instruction or variable: "
+                                        + sourceInstructionId + "/" + sourceVariableId);
+                    }
+                    destination.setInt(1, destinationOwner.homeBankingId());
+                    destination.setInt(2, destinationOwner.botJobId());
+                    destination.setInt(3, destinationInstructionId);
+                    destination.setString(4, rows.getString("slot"));
+                    destination.setInt(5, destinationVariableId);
+                    destination.setTimestamp(6, now);
+                    destination.setTimestamp(7, now);
+                    destination.addBatch();
+                }
+            }
+            destination.executeBatch();
+        }
+    }
+
+    private void cloneInstructionVariableCommandConfig(
+            Connection connection,
+            OwnerKey sourceOwner,
+            OwnerKey destinationOwner,
+            Timestamp now)
+            throws SQLException {
+        String select = "SELECT instruction_id,command_type,operand_kind,"
+                + "comparison_operator,operand_raw_value,operand_variable_id,output_key,"
+                + "output_column,output_file,external_source_key,format_policy"
+                + " FROM instruction_variable_command_config"
+                + " WHERE home_banking_id=? AND bot_job_id=? ORDER BY instruction_id";
+        String insert = "INSERT INTO instruction_variable_command_config"
+                + " (home_banking_id,bot_job_id,instruction_id,command_type,operand_kind,"
+                + "comparison_operator,operand_raw_value,operand_variable_id,output_key,"
+                + "output_column,output_file,external_source_key,format_policy,config_revision,"
+                + "created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,1,?,?)";
+        try (PreparedStatement source = connection.prepareStatement(select);
+                PreparedStatement destination = connection.prepareStatement(insert)) {
+            source.setInt(1, sourceOwner.homeBankingId());
+            source.setInt(2, sourceOwner.botJobId());
+            try (ResultSet rows = source.executeQuery()) {
+                while (rows.next()) {
+                    int sourceInstructionId = rows.getInt("instruction_id");
+                    Integer destinationInstructionId = instructionMap.get(sourceInstructionId);
+                    if (destinationInstructionId == null) {
+                        throw new SQLException(
+                                "A variable command config references an unmapped instruction: "
+                                        + sourceInstructionId);
+                    }
+                    Integer sourceOperandVariableId =
+                            nullableInt(rows, "operand_variable_id");
+                    Integer destinationOperandVariableId = sourceOperandVariableId == null
+                            ? null
+                            : variableMap.get(sourceOperandVariableId);
+                    if (sourceOperandVariableId != null
+                            && destinationOperandVariableId == null) {
+                        throw new SQLException(
+                                "A variable command config references an unmapped variable: "
+                                        + sourceOperandVariableId);
+                    }
+                    destination.setInt(1, destinationOwner.homeBankingId());
+                    destination.setInt(2, destinationOwner.botJobId());
+                    destination.setInt(3, destinationInstructionId);
+                    destination.setObject(4, rows.getObject("command_type"));
+                    destination.setObject(5, rows.getObject("operand_kind"));
+                    destination.setObject(6, rows.getObject("comparison_operator"));
+                    destination.setObject(7, rows.getObject("operand_raw_value"));
+                    if (destinationOperandVariableId == null) {
+                        destination.setNull(8, Types.INTEGER);
+                    } else {
+                        destination.setInt(8, destinationOperandVariableId);
+                    }
+                    destination.setObject(9, rows.getObject("output_key"));
+                    destination.setObject(10, rows.getObject("output_column"));
+                    destination.setObject(11, rows.getObject("output_file"));
+                    destination.setObject(12, rows.getObject("external_source_key"));
+                    destination.setObject(13, rows.getObject("format_policy"));
+                    destination.setTimestamp(14, now);
+                    destination.setTimestamp(15, now);
+                    destination.addBatch();
+                }
+            }
+            destination.executeBatch();
         }
     }
 
