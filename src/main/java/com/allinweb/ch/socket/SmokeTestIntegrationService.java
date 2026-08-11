@@ -384,6 +384,7 @@ public final class SmokeTestIntegrationService {
                     dataset.datasetEpoch(),
                     dataset.datasetRevision(),
                     dataset.contentRevision(),
+                    request.runtimeMode().name(),
                     request.durableRuntimeWrites(),
                     run.runtimeSnapshot,
                     plan.blocks().size(),

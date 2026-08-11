@@ -10,6 +10,7 @@ import com.allinweb.ch.model.SmokeTestIntegrationContracts.FrozenRuntimeValue;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts.PagePolicy;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts.RunStatus;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts.RuntimeSnapshot;
+import com.allinweb.ch.model.SmokeTestIntegrationContracts.RuntimeMode;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts.RuntimeValueState;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts.RuntimeVoidReason;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts.ScopeKind;
@@ -41,7 +42,13 @@ class SmokeTestIntegrationContractsTest {
         assertEquals(java.util.List.of(223, 222), request.scope().blockIds());
         assertEquals(ExcelMode.REAL, request.excelMode());
         assertEquals(PagePolicy.PRESERVE_ACTIVE, request.pagePolicy());
+        assertEquals(RuntimeMode.JAVA_V1, request.runtimeMode());
         assertTrue(request.durableRuntimeWrites());
+
+        body.addProperty("runtimeMode", "typescript_playwright_v2");
+        assertEquals(
+                RuntimeMode.TYPESCRIPT_PLAYWRIGHT_V2,
+                SmokeTestIntegrationContracts.parseStart(body).runtimeMode());
     }
 
     @Test
@@ -105,6 +112,12 @@ class SmokeTestIntegrationContractsTest {
         assertThrows(
                 IllegalArgumentException.class,
                 () -> SmokeTestIntegrationContracts.parseStart(duplicateBlocks));
+
+        JsonObject invalidRuntime = validStartBody();
+        invalidRuntime.addProperty("runtimeMode", "AUTO_FALLBACK");
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> SmokeTestIntegrationContracts.parseStart(invalidRuntime));
 
         JsonObject allWithIds = validStartBody();
         allWithIds.getAsJsonObject("scope").addProperty("kind", "ALL");
@@ -183,6 +196,7 @@ class SmokeTestIntegrationContractsTest {
                         3L,
                         8L,
                         REVISION,
+                        "JAVA_V1",
                         false,
                         runtime,
                         2,
@@ -191,6 +205,7 @@ class SmokeTestIntegrationContractsTest {
                         "Integration started.");
 
         mutableValues.clear();
+        assertEquals("JAVA_V1", response.runtimeMode());
         assertEquals(2, response.runtimeSnapshot().values().size());
         assertThrows(
                 UnsupportedOperationException.class,

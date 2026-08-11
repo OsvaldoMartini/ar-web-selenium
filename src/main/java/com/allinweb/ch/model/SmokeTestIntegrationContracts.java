@@ -60,6 +60,12 @@ public final class SmokeTestIntegrationContracts {
         PRESERVE_ACTIVE
     }
 
+    /** Whole-run physical runtime. A run cannot change this value after START. */
+    public enum RuntimeMode {
+        JAVA_V1,
+        TYPESCRIPT_PLAYWRIGHT_V2
+    }
+
     public enum RunStatus {
         STARTED,
         RUNNING,
@@ -205,6 +211,7 @@ public final class SmokeTestIntegrationContracts {
             Scope scope,
             ExcelMode excelMode,
             PagePolicy pagePolicy,
+            RuntimeMode runtimeMode,
             boolean durableRuntimeWrites) {
         public StartRequest {
             requireVersion(contractVersion);
@@ -217,6 +224,7 @@ public final class SmokeTestIntegrationContracts {
             scope = Objects.requireNonNull(scope, "Smoke integration scope is required");
             excelMode = Objects.requireNonNull(excelMode, "Smoke integration excelMode is required");
             pagePolicy = Objects.requireNonNull(pagePolicy, "Smoke integration pagePolicy is required");
+            runtimeMode = Objects.requireNonNull(runtimeMode, "Smoke integration runtimeMode is required");
         }
     }
 
@@ -295,6 +303,7 @@ public final class SmokeTestIntegrationContracts {
             long datasetEpoch,
             long datasetRevision,
             String datasetContentRevision,
+            String runtimeMode,
             boolean durableRuntimeWrites,
             RuntimeSnapshot runtimeSnapshot,
             int blockCount,
@@ -318,6 +327,7 @@ public final class SmokeTestIntegrationContracts {
             requireNonNegative(datasetRevision, "datasetRevision");
             datasetContentRevision = requireSha256(
                     datasetContentRevision, "datasetContentRevision");
+            runtimeMode = requireEnumText(runtimeMode, "runtimeMode", RuntimeMode.class);
             runtimeSnapshot = Objects.requireNonNull(
                     runtimeSnapshot, "Smoke integration runtimeSnapshot is required");
             requireNonNegative(blockCount, "blockCount");
@@ -398,6 +408,7 @@ public final class SmokeTestIntegrationContracts {
                 parseScope(requiredObject(body, "scope")),
                 requiredEnum(body, "excelMode", ExcelMode.class),
                 requiredEnum(body, "pagePolicy", PagePolicy.class),
+                optionalEnum(body, "runtimeMode", RuntimeMode.class, RuntimeMode.JAVA_V1),
                 requiredBoolean(body, "durableRuntimeWrites"));
     }
 
@@ -620,6 +631,17 @@ public final class SmokeTestIntegrationContracts {
         try {
             return Enum.valueOf(type, value);
         } catch (IllegalArgumentException unsupported) {
+            throw invalid(field, "contains an unsupported value");
+        }
+    }
+
+    private static <E extends Enum<E>> E optionalEnum(
+            JsonObject source, String field, Class<E> type, E fallback) {
+        String value = optionalString(source, field);
+        if (value == null) return fallback;
+        try {
+            return Enum.valueOf(type, value.toUpperCase(Locale.ROOT));
+        } catch (RuntimeException invalid) {
             throw invalid(field, "contains an unsupported value");
         }
     }
