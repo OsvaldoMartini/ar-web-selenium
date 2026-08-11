@@ -2,7 +2,7 @@
 
 Keep exactly two review sections. Check tasks only after their separate gates pass.
 
-**Last updated:** 2026-08-10 - Smoke Test Integration refresh is pushed, and frontend `124ecb6` fixes the observed inactive-Block plan failure by sending only selected active Block IDs to the authoritative Integration scope. Deployment `1883a1bc` is live on PID `11496`, ports 61402/61403, serving `main.da89dda3.js` / `main.634ba30e.css`. No tests or Maven command ran. The failed Step 0 attempt was Bot Job 32 inactive Block 204, not Lloyds Bot Job 29. User retry remains open. Claude independent review requested.
+**Last updated:** 2026-08-11 - Smoke Test manual row actions and full Integration now share the same server-owned Playwright runtime-healing path. Backend `4c11186e`, frontend `f7f9aae`, and deployment `3fcee24c` are pushed. Focused Java verification passed 47/47, Java compile and the frontend production build passed, and PID `31360` serves exact `main.0d1c19c7.js` / `main.11a8513b.css` bytes on ports 62094/62095. No frontend suite or live Playwright action was run; Lloyds user acceptance remains open. Claude independent review requested.
 
 ## 1. CODEX -> CLAUDE - Page Mappings and Memory lifecycle review handoff
 
@@ -198,6 +198,34 @@ The Page Mappings roadmap is now source-complete through P7:
   `BFFC0DF3E252F977CED9A36791D481D00509474249B9D3052CA7EAF397178B64`) on 61402/61403; six
   `.23` logs have zero error/strict matches at the checkpoint.
 
+### Smoke Test live row actions and unified locator healing
+
+- Backend `4c11186e` makes manual `TEST INPUT` / `TEST CLICK` and full Integration use the same
+  `RuntimeElementHealingService` plus one physical Playwright operation. Resolution preserves the
+  existing priority order: authored locators, current-page owner-scoped `scanned_element` mappings,
+  then unique canonical/client alias matching, with coordinates last and ambiguity fail-closed.
+- The manual-action and instruction-active contracts now accept only the exact authoritative
+  `smokeTestManager` binding in addition to their existing Bot Job Details transport. Owner,
+  workspace epoch, graph revision, license, reconnect, and terminal-current-requester checks remain
+  enforced. Active state still writes one database source and publishes to both views.
+- Frontend `f7f9aae` adds isolated green/red Active, blue `TEST INPUT`, and orange `TEST CLICK`
+  controls on the right of each applicable Smoke Test flow row. They reuse the existing GridItem
+  hooks/contracts and are disabled during stale/unbound/disconnected state, Integration execution,
+  or any pending row action.
+- Focused Java verification passed 47/47 with no failures/errors/skips; `mvn -DskipTests compile`
+  passed with 564 main sources. `npm run build` passed with existing warnings. No frontend suite or
+  real Playwright row/Integration action ran.
+- Catalog `2b11e657` was regenerated without executing tests and records backend `3fcee24c`, frontend
+  `f7f9aae`, 2,341 rows, 2,305 code cases, and 19,452 generated API requests.
+- Deployment `3fcee24c` contains 58 exact resource/target files. Live entrypoints are
+  `main.0d1c19c7.js` (SHA-256
+  `D7485EE02FF812470E5467FE164EDBA190645E91D744BF95D515231EE0402F22`) and
+  `main.11a8513b.css` (SHA-256
+  `89C813BE043B8A39BD450667E9FAF35D39344B703E893DAEB0642A039A688406`). PID `31360` serves
+  them on 62094/62095; Smoke Test connected and received bootstrap/status synchronization, and six
+  new logs have zero strict operational matches. Browser-control was unavailable, so visual/action
+  acceptance is not claimed.
+
 ### Current risks
 
 | Severity | Status | Risk |
@@ -206,7 +234,8 @@ The Page Mappings roadmap is now source-complete through P7:
 | Critical | Fixed in `209d24d7` / `ce6a56f` / `fb87aa0` | Failed Memory `open` responses without `workspaceEpoch` could be discarded and leave opening stuck. Exact failures now correlate by typed request/current context and validate every supplied authority field. |
 | Critical | Fixed in `209d24d7` / `ce6a56f` / `fb87aa0` | Failed Memory `sync` responses lacked pending request correlation and could disappear silently. OPEN and SYNC now use typed pending records and collision-resistant sequenced request IDs. |
 | Critical | Fixed in `fb87aa0` / `b147de41` | Detached Memory commands, timers, dialogs, status, and drag state are bound to the exact owner/workspace generation; late prior-owner responses are ignored and backend responses stay on the captured requester transport. |
-| High | Bounded live acceptance open | PID `12944` runs the current Page Mappings design, adaptive gate, and exact mirrored frontend, but one user-driven SCROLL PAGE Rescan with a selected non-default limit is still needed to compare visual completeness. Build/restart and earlier default-limit captures do not close this gate. |
+| High | Bounded live acceptance open | PID `31360` runs the latest exact frontend/backend deployment, but one user-driven SCROLL PAGE Rescan with a selected non-default limit is still needed to compare Page Mappings visual completeness. Build/restart and earlier default-limit captures do not close this gate. |
+| High | Smoke Test live acceptance open | The exact row controls, status synchronization, and shared runtime-healing path are deployed, but no Codex Playwright action ran. Lloyds Bot Job 29 still needs one user-driven row INPUT/CLICK and one intended Integration run with its browser page open. |
 | Medium | Cleanup complete and recoverable | The two exact Job 32 Lloyds rows/artifacts are absent from active storage. The guarded pre-write database and quarantined artifacts remain under `Backup-CODEX-2026-08-10-job32-lloyds-cleanup`. |
 | Medium | Bounded browser limitation | Virtualized lists, nested scroll containers, canvas/video, CSS background resources, and unbounded infinite pages cannot be guaranteed. The adaptive traversal fails closed on its bounds rather than storing known-incomplete output. |
 | Medium | Open verification | Live detached-window reload, takeover, retarget, deletion, same-ID reuse, and multi-page WebSocket behavior remain unverified. |
@@ -286,6 +315,14 @@ The Page Mappings roadmap is now source-complete through P7:
   from idle Smoke Test Integration and confirm it reloads the browser without reloading React.
 - [x] TASK - Inactive selected Blocks remain visible/bypassed but are excluded from Integration start
   scope in frontend `124ecb6`; build/deployment `1883a1bc` is live without tests or Maven.
+- [x] TASK - Unified Smoke Test Playwright healing and exact Smoke transport/status authority are
+  pushed in backend `4c11186e`; focused Java verification passed 47/47 and Java compile passed.
+- [x] TASK - Isolated Smoke Test Active/Input/Click row controls are pushed in frontend `f7f9aae`;
+  the production build passed with existing warnings and no frontend suite ran.
+- [x] TASK - Exact deployment `3fcee24c` is live on PID `31360`; 58 resource/target files match and
+  HTTP serves the new JS/CSS hashes with zero new strict log matches.
+- [x] TASK - Automation catalog `2b11e657` records the final backend/frontend commits and unchanged
+  2,341-row inventory; catalog generation executed no tests.
 - [ ] TASK - Retry the intended Lloyds Bot Job 29 run. The prior Step 0 error belongs to Bot Job 32
   inactive Block 204 and is not Lloyds plan evidence.
 - [ ] TASK - User must run one fresh adaptive `SCROLL PAGE` Rescan with a selected non-default limit and compare the full-page visual result; Codex did not trigger this scan.
@@ -311,6 +348,9 @@ The Page Mappings roadmap is now source-complete through P7:
 - [ ] Validate `124ecb6`: partial/all selections must send selected active IDs only, inactive blocks
   must remain visible and bypassed locally, and inactive-only selection must never send a request or
   leave the Integration hook in STARTING.
+- [ ] Validate `4c11186e` / `f7f9aae`: Smoke manual actions must require the exact current transport,
+  owner/workspace/graph generation, reuse the same ordered locator-healing path as Integration, run
+  one physical action only, keep ambiguity fail-closed, and synchronize Active state with Bot Job.
 - [ ] Validate exact Home Banking/Bot Job browser-storage isolation, post-authorization explicit
   `1..40` validation, request/status `scrollPage` + `scrollPages` correlation, and the rule that N
   counts only confirmed downward viewport movements.

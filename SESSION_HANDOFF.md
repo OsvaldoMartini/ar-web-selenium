@@ -299,6 +299,54 @@ This checkpoint supersedes only the immediately preceding current frontend asset
   `BFFC0DF3E252F977CED9A36791D481D00509474249B9D3052CA7EAF397178B64`). Six `.23` logs contain
   zero strict/error matches at the deployment checkpoint.
 
+### Smoke Test live instruction controls and unified Playwright healing - 2026-08-11
+
+This checkpoint supersedes only the current Smoke Test controls, frontend assets, and runtime PID.
+The Page Mappings checkpoints and the still-open user-driven Lloyds execution gate remain unchanged.
+
+- Backend `4c11186e` routes both full Smoke Test Integration and manual row `TEST INPUT` / `TEST
+  CLICK` through the same server-owned `RuntimeElementHealingService` and Playwright runtime
+  executor. Selector resolution remains owner/current-page scoped and ordered: authored locators,
+  current `scanned_element` mappings/stable attributes, then unique canonical/client alias matches;
+  coordinates remain last. An ambiguous early selector no longer hides a later unique higher-quality
+  locator, and no physical action runs until one compatible actionable target is pinned.
+- The existing `gridItem.testAction` contract now accepts the exact active `smokeTestManager`
+  transport as well as Bot Job Details. It reauthorizes the current Smoke Test binding, owner,
+  workspace epoch, and graph revision before execution and before terminal delivery. Manual INPUT
+  keeps the existing selected Excel-row/display-key behavior and its explicit `ABC` fallback when no
+  selected dataset is available; full Integration continues to use its frozen execution data.
+- The existing `variablesWorkspace.commands.status` mutation now accepts the same exact active Smoke
+  Test transport. Active/inactive state still has one database source of truth and is published to
+  every synchronized Bot Job/Smoke Test consumer after the authoritative mutation.
+- Frontend `f7f9aae` adds isolated right-side row controls to the Smoke Test execution-flow cards:
+  green/red active state, blue `TEST INPUT`, and orange `TEST CLICK`, with SVG icons, pending states,
+  narrow responsive layout, and the same shared hooks/contracts used by GridItem. Controls are
+  disabled while disconnected, stale, unbound, Integration is running, or another row action is
+  pending.
+- Focused Java verification passed twice after the final source correction: 47 tests across
+  `GridItemTestActionServiceTest`, `GridItemTestActionExecutorTest`,
+  `SmokeTestIntegrationStepExecutorTest`, and `VariablesWorkspaceServiceTest`, with zero failures,
+  errors, or skips. `mvn -DskipTests compile` passed with 564 main sources and only the existing
+  Lombok/varargs warnings. No frontend test suite or real Integration execution was run.
+- Automation catalog `2b11e657` was regenerated after the final source/deployment commits without
+  executing tests. It records backend `3fcee24c`, frontend `f7f9aae`, 2,341 catalog rows, 2,305 code
+  cases, and 19,452 generated API requests.
+- `npm run build` passed with existing repository warnings. Deployment `3fcee24c` mirrors exactly 58
+  files into Java resources and `target/classes`; old `main.6b8f4c4a.js` /
+  `main.1336e287.css` are absent. Current entrypoints are `main.0d1c19c7.js` (2,089,651 bytes;
+  SHA-256 `D7485EE02FF812470E5467FE164EDBA190645E91D744BF95D515231EE0402F22`) and
+  `main.11a8513b.css` (508,962 bytes; SHA-256
+  `89C813BE043B8A39BD450667E9FAF35D39344B703E893DAEB0642A039A688406`).
+- PID `31360` runs the rebuilt `target/classes` with the exact BancaStato config on
+  `127.0.0.1:62094` / `127.0.0.1:62095`. HTTP root/JS/CSS return 200 with exact target hashes. The
+  desktop shell opened, `smokeTestManager` connected, and live logs record Smoke bootstrap plus
+  `variablesWorkspace.commands.statusResponse`; six post-start logs contain zero strict operational
+  error matches.
+- The in-app browser-control surface was unavailable, so no visual button approval, manual row
+  click/input, Refresh Web Page action, or Lloyds Integration run was performed by Codex. No database
+  migration, backend package, or container image was created. Those live user actions remain separate
+  acceptance gates and must not be inferred from compile/build/deployment evidence.
+
 Read `specifications/performances/COPY_LAST_RESPONSE.md` and
 `specifications/performances/Page Mappins PLAN 2026-08-07.md` before continuing.
 

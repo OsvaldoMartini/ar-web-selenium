@@ -740,3 +740,44 @@ the Page Mappings acceptance gates above.
   61402/61403; six fresh `.23` logs have zero strict/error matches at the checkpoint.
 - [ ] Retry Lloyds Bot Job 29. Its database plan has active Block 131 (`Login Flow`); Block 204 is
   owned by Bot Job 32 and must not appear in a Lloyds request.
+
+## Smoke Test live instruction controls and unified Playwright healing - 2026-08-11
+
+This checkpoint supersedes only the preceding current Smoke Test controls, frontend assets, and
+runtime PID. It does not close the Page Mappings live gates or claim a Lloyds execution.
+
+- [x] Backend `4c11186e` routes manual Smoke `TEST INPUT` / `TEST CLICK` and full Integration through
+  the same owner/current-page-scoped `RuntimeElementHealingService` and pinned Playwright action.
+  Authored locators remain first, current `scanned_element` mappings/stable attributes follow, unique
+  canonical/client alias resolution follows them, and coordinates remain the last fallback.
+- [x] Selector probing now stops on the first unique compatible selector in the established priority
+  order instead of combining a later broad selector into a false ambiguity. Earlier ambiguous
+  candidates are retained as diagnostics and still fail closed if no later independent unique target
+  is found. Exactly one physical operation is attempted after resolution.
+- [x] `gridItem.testAction` and `variablesWorkspace.commands.status` now accept the exact active
+  `smokeTestManager` transport in addition to their established Bot Job transport. License, binding,
+  owner, workspace epoch, graph revision, reconnect, and current-recipient checks remain enforced.
+  Instruction active state continues to use the existing database mutation and synchronized publish.
+- [x] Frontend `f7f9aae` adds isolated right-side row controls: green/red Active, blue `TEST INPUT`,
+  and orange `TEST CLICK`. They reuse the same frontend hooks/contracts as GridItem and disable while
+  disconnected, stale, unbound, Integration is running, or another row action is pending.
+- [x] Focused Java verification passed 47 tests with zero failures/errors/skips. Final
+  `mvn -DskipTests compile` passed with 564 main sources and only the existing Lombok/varargs warnings.
+- [x] Automation catalog `2b11e657` was regenerated after final source/deployment commits without
+  running tests. It records backend `3fcee24c`, frontend `f7f9aae`, 2,341 rows, 2,305 code cases,
+  and 19,452 generated API requests.
+- [x] `npm run build` passed with existing repository warnings. No frontend test suite ran.
+- [x] Deployment `3fcee24c` mirrors exactly 58 files into Java resources and `target/classes`; stale
+  prior bundles are absent. Entrypoints are `main.0d1c19c7.js` (2,089,651 bytes; SHA-256
+  `D7485EE02FF812470E5467FE164EDBA190645E91D744BF95D515231EE0402F22`) and
+  `main.11a8513b.css` (508,962 bytes; SHA-256
+  `89C813BE043B8A39BD450667E9FAF35D39344B703E893DAEB0642A039A688406`).
+- [x] PID `31360` runs the rebuilt `target/classes` with the exact BancaStato config on
+  127.0.0.1:62094/62095. Root/JS/CSS return HTTP 200 with exact hashes; Smoke Test connected and
+  received bootstrap plus instruction-status responses; six post-start logs have zero strict
+  operational error matches.
+- [ ] Live user gate: with Lloyds Bot Job 29 and its Playwright page open, visually confirm the new
+  row controls, execute one safe manual TEST INPUT/CLICK, and run the intended Integration plan.
+  Confirm Active toggles synchronize with Bot Job and failures expose the structured locator stage.
+- [ ] The in-app browser-control surface was unavailable to Codex. No live row action, Integration,
+  Refresh Web Page click, migration, backend package, or container image was run or created.
