@@ -229,6 +229,32 @@ earlier implementation and incident history remain valid evidence.
 - One user-driven Page Mappings Rescan with `SCROLL PAGE` ON and a selected non-default limit remains
   the live visual/behavior gate. Codex did not trigger a scan.
 
+### Page Mappings header and element-total refresh - 2026-08-10
+
+This checkpoint supersedes only the immediately preceding current frontend assets and PID.
+
+- Frontend `cf16efe` adds `Total Web Elements: <count>` to the right of the captured-element search
+  label. It uses the selected immutable capture's authoritative `elementCount`, so filtering and the
+  200-row result-display cap never change or undercount it.
+- The same isolated commit replaces the Page Mappings inset gradient shell/header with the established
+  Main Dashboard pattern (`#eef3f8` page, zero outer padding, `#0b5394` top bar, 8px/12px spacing,
+  compact title/subtitle). The existing two-column grid, responsive stacking, and independent left/right
+  scroll owners are unchanged. The header is now the real floating-workspace drag handle and its actions
+  remain excluded from dragging.
+- `npm run build` passed with existing repository warnings. No tests, Maven command, Java compilation,
+  migration, backend package, or container image was run or created.
+- Deployment asset commit `98ae848b` mirrors exactly 58 files and 19 image assets into Java resources
+  and `target/classes`; the prior bundles are absent. Current entrypoints are `main.92c3e040.js`
+  (2,067,083 bytes; SHA-256 `2E288579487DE1E0FE8C4C9D85E9AC70B9782749D091D485AE3EA8C69BFA329F`)
+  and `main.1ac3c57f.css` (498,284 bytes; SHA-256
+  `00197A6964A29C506217792B5F37E47EA4BB5BF9E351883F5DA731D6A968B4AE`).
+- PID `12944` runs the unchanged Java classes with the exact BancaStato config on
+  `127.0.0.1:55720` / `127.0.0.1:55721`. Root/JS/CSS return 200 with matching hashes; the six new
+  `.18` logs contain zero error or strict operational-failure matches.
+- Read-only SQLite evidence: Home Banking 2 has 881 active scanned-element rows (Job 5: 549 across
+  three page keys; Job 32: 332 across two page keys). The latest Job 32 READY capture
+  `454c45cd-cd5b-4a9c-8e70-6b15ab437713` contains 239 elements; Job 32 has 18 READY captures.
+
 Read `specifications/performances/COPY_LAST_RESPONSE.md` and
 `specifications/performances/Page Mappins PLAN 2026-08-07.md` before continuing.
 

@@ -2,7 +2,7 @@
 
 Keep exactly two review sections. Check tasks only after their separate gates pass.
 
-**Last updated:** 2026-08-10 - Per-Bot-Job `SCROLL PAGES` is implemented, pushed, mirrored, and running from `target/classes`: frontend `d5f6dad`, backend `805968ad`, deployment assets `4e5813c0`. PID `21796` is healthy on ports 53734/53735 and serves `main.15510fe8.js` / `main.974b35cd.css` with matching hashes. Tests were skipped per user direction. One user-driven bounded Rescan, package/container-image delivery, other-database rollout, and broader acceptance remain open. Claude independent review requested.
+**Last updated:** 2026-08-10 - Page Mappings now shows the authoritative selected-capture element total and follows the Main Dashboard shell/header pattern. Frontend `cf16efe` and deployment assets `98ae848b` are pushed. PID `12944` is healthy on ports 55720/55721 and serves `main.92c3e040.js` / `main.1ac3c57f.css` with matching hashes. No tests or Maven command ran. One user visual check, a selected non-default bounded Rescan, package/container-image delivery, other-database rollout, and broader acceptance remain open. Claude independent review requested.
 
 ## 1. CODEX -> CLAUDE - Page Mappings and Memory lifecycle review handoff
 
@@ -151,6 +151,18 @@ The Page Mappings roadmap is now source-complete through P7:
   `target/classes` on 53734/53735; root/JS/CSS return 200 with matching bytes and six `.17` logs have
   zero relevant errors. No tests, migration, backend package, or container image were produced.
 
+### Page Mappings header and element-total refresh
+
+- Frontend `cf16efe` renders the selected capture's authoritative `elementCount` to the right of
+  `Search captured elements`; filtering and the 200-row display cap do not affect this total.
+- Page Mappings now uses the Main Dashboard page/header palette and spacing. Its two-column grid,
+  responsive stacking, and independent history/details scroll owners are unchanged.
+- Frontend build passed with existing warnings. Deployment `98ae848b` mirrors 58 files and 19 image
+  assets exactly; stale prior bundles are absent. PID `12944` serves `main.92c3e040.js` and
+  `main.1ac3c57f.css` with matching hashes on 55720/55721; six `.18` logs contain zero errors.
+- No tests or Maven command ran. Read-only DB evidence is 881 active BancaStato scanned-element rows;
+  the latest Job 32 READY capture contains 239 elements.
+
 ### Current risks
 
 | Severity | Status | Risk |
@@ -159,7 +171,7 @@ The Page Mappings roadmap is now source-complete through P7:
 | Critical | Fixed in `209d24d7` / `ce6a56f` / `fb87aa0` | Failed Memory `open` responses without `workspaceEpoch` could be discarded and leave opening stuck. Exact failures now correlate by typed request/current context and validate every supplied authority field. |
 | Critical | Fixed in `209d24d7` / `ce6a56f` / `fb87aa0` | Failed Memory `sync` responses lacked pending request correlation and could disappear silently. OPEN and SYNC now use typed pending records and collision-resistant sequenced request IDs. |
 | Critical | Fixed in `fb87aa0` / `b147de41` | Detached Memory commands, timers, dialogs, status, and drag state are bound to the exact owner/workspace generation; late prior-owner responses are ignored and backend responses stay on the captured requester transport. |
-| High | Bounded live acceptance open | PID `21796` runs the adaptive gate plus per-Bot-Job limit and exact mirrored frontend, but one user-driven SCROLL PAGE Rescan with a selected limit is still needed to compare visual completeness and confirm the chosen count in the UI. Compile/restart and earlier captures do not close this gate. |
+| High | Bounded live acceptance open | PID `12944` runs the current Page Mappings design, adaptive gate, and exact mirrored frontend, but one user-driven SCROLL PAGE Rescan with a selected non-default limit is still needed to compare visual completeness. Build/restart and earlier default-limit captures do not close this gate. |
 | Medium | Cleanup complete and recoverable | The two exact Job 32 Lloyds rows/artifacts are absent from active storage. The guarded pre-write database and quarantined artifacts remain under `Backup-CODEX-2026-08-10-job32-lloyds-cleanup`. |
 | Medium | Bounded browser limitation | Virtualized lists, nested scroll containers, canvas/video, CSS background resources, and unbounded infinite pages cannot be guaranteed. The adaptive traversal fails closed on its bounds rather than storing known-incomplete output. |
 | Medium | Open verification | Live detached-window reload, takeover, retarget, deletion, same-ID reuse, and multi-page WebSocket behavior remain unverified. |
@@ -229,6 +241,8 @@ The Page Mappings roadmap is now source-complete through P7:
 - [x] TASK - Per-Bot-Job SCROLL PAGES source commits are pushed: frontend `d5f6dad`, backend `805968ad`; strict owner/range/correlation and selected-movement semantics are implemented.
 - [x] TASK - Clean frontend build is mirrored/pushed in `4e5813c0`; source resources and `target/classes` match across 58 files, 19 image assets match, and 24 stale target bundles are absent.
 - [x] TASK - Java compile passed with 563 sources; no tests were run. PID `21796` serves matching current assets on 53734/53735 and six `.17` logs have zero relevant errors.
+- [x] TASK - Authoritative capture total and Main Dashboard Page Mappings shell/header pushed in frontend `cf16efe`; exact frontend-only mirror pushed in backend `98ae848b`.
+- [x] TASK - No tests/Maven command ran; PID `12944` serves matching `main.92c3e040.js` / `main.1ac3c57f.css` on 55720/55721 and six `.18` logs have zero errors.
 - [ ] TASK - User must run one fresh adaptive `SCROLL PAGE` Rescan with a selected non-default limit and compare the full-page visual result; Codex did not trigger this scan.
 - [ ] TASK - Package/image delivery, other-database/SQL Server rollout, and broader reconnect/takeover/retention-save-purge/OCR/Memory/multi-page acceptance remain open.
 

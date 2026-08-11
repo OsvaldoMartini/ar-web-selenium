@@ -678,3 +678,27 @@ Step 8 implementation and incident history remains valid evidence.
   background-image readiness, and unbounded infinite pages cannot be guaranteed.
 - [ ] Package/container-image delivery, other-database/SQL Server rollout, and broader reconnect/
   takeover/retention/OCR/Memory/multi-page acceptance remain open.
+
+## Page Mappings header and element-total refresh - 2026-08-10
+
+This checkpoint supersedes only the preceding current frontend assets and PID.
+
+- [x] Frontend `cf16efe` places `Total Web Elements: <count>` at the right of the captured-element
+  search label and uses the selected capture's authoritative `elementCount`, independent of filtering
+  and the 200-row result-display cap.
+- [x] The Page Mappings page and top bar now follow the Main Dashboard pattern. The old inset gradient,
+  rounded header, and eyebrow are removed; the two-column layout, responsive stacking, horizontal
+  capture pan, and independent vertical scroll owners are unchanged.
+- [x] `npm run build` passed with existing warnings. No tests, Maven command, Java compilation,
+  migration, backend package, or container image was run or created.
+- [x] Exact mirror `98ae848b` contains 58 matching files and 19 matching image assets. Current
+  entrypoints are `main.92c3e040.js` (SHA-256
+  `2E288579487DE1E0FE8C4C9D85E9AC70B9782749D091D485AE3EA8C69BFA329F`) and
+  `main.1ac3c57f.css` (SHA-256
+  `00197A6964A29C506217792B5F37E47EA4BB5BF9E351883F5DA731D6A968B4AE`).
+- [x] PID `12944` serves the exact target assets from the BancaStato config on 55720/55721; six `.18`
+  logs contain zero errors or strict operational failures.
+- [x] Read-only DB count: BancaStato has 881 active scanned-element rows; Job 32's latest READY capture
+  has 239 elements and Job 32 has 18 READY capture versions.
+- [ ] User visual check of the compact header and right-aligned total remains open, plus one Rescan at
+  a selected non-default scroll limit.
