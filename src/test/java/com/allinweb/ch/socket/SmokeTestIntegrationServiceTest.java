@@ -47,6 +47,7 @@ class SmokeTestIntegrationServiceTest {
     private RecordingResponses responses;
     private RecordingBrowserOwnership browserOwnership;
     private RecordingSteps steps;
+    private RecordingV2 v2;
     private AtomicReference<String> openedBrowserUrl;
     private SmokeTestIntegrationService service;
 
@@ -67,6 +68,7 @@ class SmokeTestIntegrationServiceTest {
         responses = new RecordingResponses();
         browserOwnership = new RecordingBrowserOwnership();
         steps = new RecordingSteps();
+        v2 = new RecordingV2();
         openedBrowserUrl = new AtomicReference<>();
 
         SmokeIntegrationAuthorization authorization = new SmokeIntegrationAuthorization(
@@ -95,6 +97,7 @@ class SmokeTestIntegrationServiceTest {
                 (botJobId, mode) -> dataset(),
                 (owner, scope) -> plan(),
                 steps,
+                v2,
                 browserOwnership,
                 (botJobId, workspaceEpoch) -> "IDLE",
                 (browserType, url, optionsConfig) -> {
@@ -199,6 +202,46 @@ class SmokeTestIntegrationServiceTest {
         service.disconnected(DetachedWorkspaceSessions.SMOKE_TEST_MANAGER, transport);
         worker.submit(() -> {}).get(5, TimeUnit.SECONDS);
         assertEquals(1, browserOwnership.closes.get());
+    }
+
+    @Test
+    void explicitV2RunNeverOpensOrExecutesThroughTheSharedJavaBrowser() throws Exception {
+        JsonObject request = startRequest("start-v2");
+        request.addProperty("runtimeMode", "TYPESCRIPT_PLAYWRIGHT_V2");
+        service.handle(
+                SmokeTestIntegrationContracts.START,
+                request,
+                DetachedWorkspaceSessions.SMOKE_TEST_MANAGER,
+                transport);
+        JsonObject started = responses.await(SmokeTestIntegrationContracts.START_RESPONSE).body;
+        String runId = started.get("runId").getAsString();
+
+        assertTrue(started.get("ok").getAsBoolean());
+        assertEquals("TYPESCRIPT_PLAYWRIGHT_V2", started.get("runtimeMode").getAsString());
+        assertEquals("runtime-v2-run", runId);
+        assertEquals(1, v2.starts.get());
+        assertEquals(0, browserOwnership.closes.get());
+        assertEquals(null, openedBrowserUrl.get());
+
+        service.handle(
+                SmokeTestIntegrationContracts.STEP,
+                stepRequest("step-v2", runId, 1L),
+                DetachedWorkspaceSessions.SMOKE_TEST_MANAGER,
+                transport);
+        assertTrue(responses.await(SmokeTestIntegrationContracts.STEP_RESPONSE)
+                .body.get("ok").getAsBoolean());
+        assertEquals(1, v2.steps.get());
+        assertEquals(0, steps.calls.get());
+
+        service.handle(
+                SmokeTestIntegrationContracts.FINISH,
+                finishRequest("finish-v2", runId, 1L),
+                DetachedWorkspaceSessions.SMOKE_TEST_MANAGER,
+                transport);
+        assertTrue(responses.await(SmokeTestIntegrationContracts.FINISH_RESPONSE)
+                .body.get("ok").getAsBoolean());
+        assertEquals(1, v2.closes.get());
+        assertEquals(0, browserOwnership.closes.get());
     }
 
     private JsonObject start(String requestId) throws InterruptedException {
@@ -309,6 +352,42 @@ class SmokeTestIntegrationServiceTest {
                     "The correlated step completed.",
                     null,
                     null);
+        }
+    }
+
+    private static final class RecordingV2 implements SmokeTestIntegrationService.V2Port {
+        private final AtomicInteger starts = new AtomicInteger();
+        private final AtomicInteger steps = new AtomicInteger();
+        private final AtomicInteger closes = new AtomicInteger();
+
+        @Override
+        public SmokeTestIntegrationService.V2Run start(
+                SmokeIntegrationAuthorization authorization, Plan plan, String datasetMode) {
+            starts.incrementAndGet();
+            return new SmokeTestIntegrationService.V2Run("runtime-v2-run", new Object());
+        }
+
+        @Override
+        public Outcome execute(
+                SmokeTestIntegrationService.V2Run run,
+                Plan plan,
+                IntegrationDataset dataset,
+                long sequence,
+                int instructionId,
+                int excelRowIndex) {
+            steps.incrementAndGet();
+            return new Outcome(
+                    StepStatus.PASSED,
+                    StepDisposition.PHYSICAL,
+                    "COMPLETED",
+                    "V2 completed.",
+                    null,
+                    null);
+        }
+
+        @Override
+        public void close(SmokeTestIntegrationService.V2Run run) {
+            closes.incrementAndGet();
         }
     }
 

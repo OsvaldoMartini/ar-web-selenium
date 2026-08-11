@@ -10,6 +10,10 @@ import com.allinweb.ch.facade.execution.SmokeTestIntegrationSnapshotRepository.P
 import com.allinweb.ch.facade.execution.SmokeTestIntegrationStepExecutor;
 import com.allinweb.ch.facade.execution.SmokeTestIntegrationStepExecutor.Outcome;
 import com.allinweb.ch.facade.execution.SmokeTestIntegrationStepExecutor.RunVariables;
+import com.allinweb.ch.facade.execution.v2.ExecutionRuntimeRunCoordinator;
+import com.allinweb.ch.facade.execution.v2.ExecutionV2Contracts.AuthorizedGrantFacts;
+import com.allinweb.ch.facade.execution.v2.ExecutionV2Contracts.DataMode;
+import com.allinweb.ch.facade.execution.v2.SmokeTestIntegrationV2StepExecutor;
 import com.allinweb.ch.model.DetachedWorkspaceSessions;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts.Correlation;
@@ -17,6 +21,7 @@ import com.allinweb.ch.model.SmokeTestIntegrationContracts.FinishRequest;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts.RefreshRequest;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts.RunStatus;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts.RuntimeSnapshot;
+import com.allinweb.ch.model.SmokeTestIntegrationContracts.RuntimeMode;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts.StartRequest;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts.StartResponse;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts.StepRequest;
@@ -65,6 +70,7 @@ public final class SmokeTestIntegrationService {
     private final DatasetPort excel;
     private final SnapshotPort snapshots;
     private final StepPort steps;
+    private final V2Port v2;
     private final BrowserOwnershipPort browserOwnership;
     private final WorkspacePort workspaces;
     private final BrowserStartPort browser;
@@ -86,6 +92,7 @@ public final class SmokeTestIntegrationService {
                 new DefaultDatasetPort(),
                 new DefaultSnapshotPort(),
                 new DefaultStepPort(),
+                new DefaultV2Port(),
                 new DefaultBrowserOwnershipPort(),
                 new DefaultWorkspacePort(),
                 new DefaultBrowserStartPort(),
@@ -99,6 +106,7 @@ public final class SmokeTestIntegrationService {
             DatasetPort excel,
             SnapshotPort snapshots,
             StepPort steps,
+            V2Port v2,
             BrowserOwnershipPort browserOwnership,
             WorkspacePort workspaces,
             BrowserStartPort browser,
@@ -109,6 +117,7 @@ public final class SmokeTestIntegrationService {
         this.excel = Objects.requireNonNull(excel, "excel");
         this.snapshots = Objects.requireNonNull(snapshots, "snapshots");
         this.steps = Objects.requireNonNull(steps, "steps");
+        this.v2 = Objects.requireNonNull(v2, "Execution V2 port is required");
         this.browserOwnership = Objects.requireNonNull(browserOwnership, "browserOwnership");
         this.workspaces = Objects.requireNonNull(workspaces, "workspaces");
         this.browser = Objects.requireNonNull(browser, "browser");
@@ -307,16 +316,9 @@ public final class SmokeTestIntegrationService {
 
     private JsonObject start(StartRequest request, JsonObject rawBody, Session transport) {
         BrowserLease lease = null;
+        V2Run v2Run = null;
         try {
             SmokeIntegrationAuthorization authorization = variables.authorize(rawBody, transport);
-            lease = browserOwnership.reserve();
-            String executionState = workspaces.executionState(
-                    authorization.botJobId(), authorization.workspaceEpoch());
-            if (BotJobDetailsWorkspaceRegistry.isExecutionActive(executionState)) {
-                throw new IllegalStateException(
-                        "TEST RUN already owns the Playwright browser.");
-            }
-
             Plan plan = snapshots.load(
                     new Owner(authorization.homeBankingId(), authorization.botJobId()),
                     request.scope());
@@ -330,16 +332,27 @@ public final class SmokeTestIntegrationService {
             // concurrent graph mutation must fail start instead of combining a stale React graph
             // assertion with newer SQL/Excel facts.
             authorization = variables.authorize(rawBody, transport);
-            boolean pageReady = workspaces.commitMutation(
-                    authorization.botJobId(),
-                    authorization.workspaceEpoch(),
-                    () -> browser.openSelectedPageAndWait(
-                            plan.environment().browserType(),
-                            plan.environment().url(),
-                            plan.environment().optionsConfig()));
-            if (!pageReady) {
-                throw new IllegalStateException(
-                        "The selected Bot Job Playwright page could not be opened and settled.");
+            if (request.runtimeMode() == RuntimeMode.JAVA_V1) {
+                lease = browserOwnership.reserve();
+                String executionState = workspaces.executionState(
+                        authorization.botJobId(), authorization.workspaceEpoch());
+                if (BotJobDetailsWorkspaceRegistry.isExecutionActive(executionState)) {
+                    throw new IllegalStateException(
+                            "TEST RUN already owns the Playwright browser.");
+                }
+                boolean pageReady = workspaces.commitMutation(
+                        authorization.botJobId(),
+                        authorization.workspaceEpoch(),
+                        () -> browser.openSelectedPageAndWait(
+                                plan.environment().browserType(),
+                                plan.environment().url(),
+                                plan.environment().optionsConfig()));
+                if (!pageReady) {
+                    throw new IllegalStateException(
+                            "The selected Bot Job Playwright page could not be opened and settled.");
+                }
+            } else {
+                v2Run = v2.start(authorization, plan, dataset.mode());
             }
             if (!variables.isCurrent(authorization, transport)) {
                 throw new IllegalStateException(
@@ -348,7 +361,7 @@ public final class SmokeTestIntegrationService {
 
             long integrationEpoch = integrationEpochs.incrementAndGet();
             Run run = new Run(
-                    UUID.randomUUID().toString(),
+                    v2Run == null ? UUID.randomUUID().toString() : v2Run.runId(),
                     integrationEpoch,
                     transport,
                     authorization,
@@ -359,7 +372,9 @@ public final class SmokeTestIntegrationService {
                             authorization.homeBankingId(),
                             authorization.botJobId(),
                             request.durableRuntimeWrites()),
-                    lease);
+                    request.runtimeMode(),
+                    lease,
+                    v2Run);
             synchronized (stateLock) {
                 if (active != null || !isRegisteredTransport(transport)) {
                     throw new IllegalStateException(
@@ -367,6 +382,7 @@ public final class SmokeTestIntegrationService {
                 }
                 active = run;
                 lease = null;
+                v2Run = null;
             }
             StartResponse response = new StartResponse(
                     SmokeTestIntegrationContracts.CONTRACT_VERSION,
@@ -412,6 +428,7 @@ public final class SmokeTestIntegrationService {
                     "Integration could not start the Playwright page.");
         } finally {
             if (lease != null) lease.close();
+            if (v2Run != null) closeV2AfterFailedStart(v2Run);
         }
     }
 
@@ -522,12 +539,20 @@ public final class SmokeTestIntegrationService {
             return failed;
         }
 
-        Outcome outcome = steps.execute(
-                run.plan,
-                run.dataset,
-                request.instructionId(),
-                request.excelRowIndex(),
-                run.variables);
+        Outcome outcome = run.runtimeMode == RuntimeMode.TYPESCRIPT_PLAYWRIGHT_V2
+                ? v2.execute(
+                        run.v2Run,
+                        run.plan,
+                        run.dataset,
+                        request.sequence(),
+                        request.instructionId(),
+                        request.excelRowIndex())
+                : steps.execute(
+                        run.plan,
+                        run.dataset,
+                        request.instructionId(),
+                        request.excelRowIndex(),
+                        run.variables);
         JsonObject response = stepResponse(run, request, outcome, false);
         recordStep(run, request, response, outcome.status());
         return response;
@@ -588,7 +613,7 @@ public final class SmokeTestIntegrationService {
                     request.requestId(),
                     RunStatus.STOPPED,
                     "INTEGRATION_STOPPED",
-                    "Integration stopped. The Playwright page remains open.");
+                    terminalMessage(run, "Integration stopped"));
             return successful(response);
         } finally {
             terminate(run, RunStatus.STOPPED);
@@ -657,9 +682,11 @@ public final class SmokeTestIntegrationService {
                     request.requestId(),
                     status,
                     status == RunStatus.FINISHED ? "INTEGRATION_FINISHED" : "INTEGRATION_FAILED",
-                    status == RunStatus.FINISHED
-                            ? "Integration finished. The Playwright page remains open."
-                            : "Integration finished with failed steps. The Playwright page remains open.");
+                    terminalMessage(
+                            run,
+                            status == RunStatus.FINISHED
+                                    ? "Integration finished"
+                                    : "Integration finished with failed steps"));
             return successful(response);
         } finally {
             terminate(run, status);
@@ -676,9 +703,9 @@ public final class SmokeTestIntegrationService {
             run.cancelled = true;
         }
         try {
-            worker.execute(() -> terminate(run, RunStatus.STOPPED));
+            worker.execute(() -> terminateSafely(run, RunStatus.STOPPED, "disconnect"));
         } catch (RejectedExecutionException shutdown) {
-            terminate(run, RunStatus.STOPPED);
+            terminateSafely(run, RunStatus.STOPPED, "disconnect-after-shutdown");
         }
     }
 
@@ -696,9 +723,9 @@ public final class SmokeTestIntegrationService {
             run.cancelled = true;
         }
         try {
-            worker.execute(() -> terminate(run, RunStatus.STOPPED));
+            worker.execute(() -> terminateSafely(run, RunStatus.STOPPED, "binding-change"));
         } catch (RejectedExecutionException shutdown) {
-            terminate(run, RunStatus.STOPPED);
+            terminateSafely(run, RunStatus.STOPPED, "binding-change-after-shutdown");
         }
     }
 
@@ -709,8 +736,11 @@ public final class SmokeTestIntegrationService {
             run = active;
             if (run != null) run.cancelled = true;
         }
-        if (run != null) terminate(run, RunStatus.STOPPED);
-        worker.shutdownNow();
+        try {
+            if (run != null) terminateSafely(run, RunStatus.STOPPED, "service-shutdown");
+        } finally {
+            worker.shutdownNow();
+        }
     }
 
     private void submitOnce(
@@ -931,18 +961,51 @@ public final class SmokeTestIntegrationService {
     }
 
     private void terminate(Run expected, RunStatus terminalStatus) {
-        boolean owned;
         synchronized (stateLock) {
-            owned = active == expected;
-            if (owned) {
-                active = null;
+            if (active != expected || expected.released.get()) return;
+        }
+        if (!expected.releaseInProgress.compareAndSet(false, true)) return;
+        try {
+            if (expected.v2Run != null) v2.close(expected.v2Run);
+            if (expected.lease != null) expected.lease.close();
+            expected.status = terminalStatus;
+            expected.released.set(true);
+            synchronized (stateLock) {
+                if (active == expected) active = null;
                 stepPending = false;
                 terminalPending = false;
             }
+        } catch (RuntimeException cleanupFailure) {
+            expected.releaseInProgress.set(false);
+            throw cleanupFailure;
         }
-        if (!owned || !expected.released.compareAndSet(false, true)) return;
-        expected.status = terminalStatus;
-        expected.lease.close();
+    }
+
+    private void terminateSafely(Run run, RunStatus status, String context) {
+        try {
+            terminate(run, status);
+        } catch (RuntimeException cleanupFailure) {
+            log.error(
+                    "Smoke Integration cleanup requires retry context={} runId={}",
+                    context,
+                    run.runId,
+                    cleanupFailure);
+        }
+    }
+
+    private static String terminalMessage(Run run, String prefix) {
+        String suffix = run.runtimeMode == RuntimeMode.TYPESCRIPT_PLAYWRIGHT_V2
+                ? "The isolated Playwright session was closed."
+                : "The Playwright page remains open.";
+        return prefix + ". " + suffix;
+    }
+
+    private void closeV2AfterFailedStart(V2Run run) {
+        try {
+            v2.close(run);
+        } catch (RuntimeException cleanupFailure) {
+            log.error("Execution V2 failed-start cleanup requires retry runId={}", run.runId());
+        }
     }
 
     private void trimRequestLedger() {
@@ -1060,6 +1123,28 @@ public final class SmokeTestIntegrationService {
                 RunVariables variables);
     }
 
+    interface V2Port {
+        V2Run start(SmokeIntegrationAuthorization authorization, Plan plan, String datasetMode);
+
+        Outcome execute(
+                V2Run run,
+                Plan plan,
+                IntegrationDataset dataset,
+                long sequence,
+                int instructionId,
+                int excelRowIndex);
+
+        void close(V2Run run);
+    }
+
+    record V2Run(String runId, Object authority) {
+        V2Run {
+            if (runId == null || runId.isBlank() || authority == null) {
+                throw new IllegalArgumentException("Execution V2 run is invalid");
+            }
+        }
+    }
+
     interface BrowserOwnershipPort {
         BrowserLease reserve();
     }
@@ -1165,6 +1250,58 @@ public final class SmokeTestIntegrationService {
         }
     }
 
+    private static final class DefaultV2Port implements V2Port {
+        private final ExecutionRuntimeRunCoordinator coordinator;
+        private final SmokeTestIntegrationV2StepExecutor executor;
+
+        private DefaultV2Port() {
+            coordinator = ExecutionRuntimeRunCoordinator.configured().orElse(null);
+            executor = coordinator == null ? null : new SmokeTestIntegrationV2StepExecutor(coordinator);
+        }
+
+        @Override
+        public V2Run start(
+                SmokeIntegrationAuthorization authorization, Plan plan, String datasetMode) {
+            if (coordinator == null) {
+                throw new IllegalStateException("The TypeScript Playwright runtime is not configured.");
+            }
+            AuthorizedGrantFacts facts = new AuthorizedGrantFacts(
+                    authorization.homeBankingId(),
+                    authorization.homeBankingId(),
+                    authorization.botJobId(),
+                    authorization.workspaceEpoch(),
+                    authorization.graphRevision(),
+                    plan.planRevision(),
+                    DataMode.parse(datasetMode));
+            ExecutionRuntimeRunCoordinator.Run run = coordinator.start(facts, plan);
+            return new V2Run(run.runId(), run);
+        }
+
+        @Override
+        public Outcome execute(
+                V2Run run,
+                Plan plan,
+                IntegrationDataset dataset,
+                long sequence,
+                int instructionId,
+                int excelRowIndex) {
+            return executor.execute(
+                    authority(run), plan, dataset, sequence, instructionId, excelRowIndex);
+        }
+
+        @Override
+        public void close(V2Run run) {
+            coordinator.close(authority(run));
+        }
+
+        private static ExecutionRuntimeRunCoordinator.Run authority(V2Run run) {
+            if (run == null || !(run.authority() instanceof ExecutionRuntimeRunCoordinator.Run value)) {
+                throw new IllegalArgumentException("Execution V2 run authority is invalid");
+            }
+            return value;
+        }
+    }
+
     private static final class DefaultBrowserOwnershipPort implements BrowserOwnershipPort {
         @Override
         public BrowserLease reserve() {
@@ -1216,8 +1353,12 @@ public final class SmokeTestIntegrationService {
         private final boolean durableRuntimeWrites;
         private final RunVariables variables;
         private final RuntimeSnapshot runtimeSnapshot;
+        private final RuntimeMode runtimeMode;
         private final BrowserLease lease;
+        private final V2Run v2Run;
         private final java.util.concurrent.atomic.AtomicBoolean released =
+                new java.util.concurrent.atomic.AtomicBoolean();
+        private final java.util.concurrent.atomic.AtomicBoolean releaseInProgress =
                 new java.util.concurrent.atomic.AtomicBoolean();
         private final LinkedHashMap<Long, SequenceResult> sequenceResults =
                 new LinkedHashMap<>();
@@ -1238,7 +1379,9 @@ public final class SmokeTestIntegrationService {
                 IntegrationDataset dataset,
                 boolean durableRuntimeWrites,
                 RunVariables variables,
-                BrowserLease lease) {
+                RuntimeMode runtimeMode,
+                BrowserLease lease,
+                V2Run v2Run) {
             this.runId = runId;
             this.integrationEpoch = integrationEpoch;
             this.transport = transport;
@@ -1248,7 +1391,9 @@ public final class SmokeTestIntegrationService {
             this.durableRuntimeWrites = durableRuntimeWrites;
             this.variables = variables;
             this.runtimeSnapshot = variables.initialSnapshot();
+            this.runtimeMode = runtimeMode;
             this.lease = lease;
+            this.v2Run = v2Run;
         }
     }
 
