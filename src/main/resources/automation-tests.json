@@ -1,27 +1,27 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-11T14:44:31.700Z",
+  "generatedAt": "2026-08-11T15:02:53.555Z",
   "summary": {
-    "catalogEntries": 2350,
-    "automatedCodeCases": 2314,
+    "catalogEntries": 2351,
+    "automatedCodeCases": 2315,
     "generatedApiCases": 19452,
-    "totalAutomatedCases": 21766,
-    "automatedSuites": 486,
+    "totalAutomatedCases": 21767,
+    "automatedSuites": 487,
     "generatedSuites": 21,
     "manualArtifacts": 9,
     "supportArtifacts": 6,
-    "defaultRunnable": 2285,
-    "safeRunAllEligible": 2285
+    "defaultRunnable": 2286,
+    "safeRunAllEligible": 2286
   },
   "sources": [
     {
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "branch": "refactor/perform-actions-decomposition",
-      "commit": "af56bd24dd4822bdf8b0519346676c826c3c0cde",
-      "sourceFiles": 330,
-      "automatedSuites": 319,
-      "automatedTestCases": 1432,
+      "commit": "354256c88aeced72fe398b8821db964f755ce05d",
+      "sourceFiles": 331,
+      "automatedSuites": 320,
+      "automatedTestCases": 1433,
       "generatedSuites": 0,
       "generatedCases": 0
     },
@@ -15578,6 +15578,30 @@
       "runnable": true,
       "runAllEligible": true,
       "command": "mvn -Dtest=com.allinweb.ch.facade.PerformDataBaseBlockDeleteBatchTest#refusesBlocksOwnedByAnotherBotJobWithoutChangingTheOwnerGraph test",
+      "tags": [
+        "Test"
+      ]
+    },
+    {
+      "id": "junit:com.allinweb.ch.facade.PerformDataBaseCloneJobNormalizedSchemaTest#clonesNormalizedVariableGraphWithoutLegacyInstructionVariableId@116",
+      "project": "AR Web Scanner",
+      "repository": "ar-web-selenium",
+      "recordType": "AUTOMATED_CASE",
+      "suite": "com.allinweb.ch.facade.PerformDataBaseCloneJobNormalizedSchemaTest",
+      "name": "clonesNormalizedVariableGraphWithoutLegacyInstructionVariableId",
+      "displayName": "clonesNormalizedVariableGraphWithoutLegacyInstructionVariableId",
+      "framework": "JUnit 5",
+      "language": "Java",
+      "kind": "UNIT",
+      "runtime": "JVM",
+      "execution": "DEFAULT",
+      "safety": "SAFE",
+      "sourcePath": "src/test/java/com/allinweb/ch/facade/PerformDataBaseCloneJobNormalizedSchemaTest.java",
+      "line": 116,
+      "caseCount": 1,
+      "runnable": true,
+      "runAllEligible": true,
+      "command": "mvn -Dtest=com.allinweb.ch.facade.PerformDataBaseCloneJobNormalizedSchemaTest#clonesNormalizedVariableGraphWithoutLegacyInstructionVariableId test",
       "tags": [
         "Test"
       ]
