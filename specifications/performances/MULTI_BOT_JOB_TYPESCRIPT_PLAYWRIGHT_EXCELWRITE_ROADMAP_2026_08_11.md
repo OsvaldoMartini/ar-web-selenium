@@ -1113,3 +1113,36 @@ Next: add the Smoke Test frontend runtime-mode control so a user can explicitly 
 then configure and deploy the loopback Node runtime for the first live isolated Smoke run. ExcelWrite
 remains intentionally fail-closed in V2 until its frontend-memory manager and artifact boundary are
 implemented.
+
+## 33. Smoke Integration runtime-selector frontend checkpoint - 2026-08-11
+
+- Added a dedicated two-position Integration runtime control beside the existing run controls:
+  **Java / V1 Shared** and **V2 / Isolated**. It is distinct from the existing Smoke Test versus
+  Integration mode control and defaults safely to `JAVA_V1`.
+- The selected runtime is frozen into `smokeTest.integration.start`, strictly parsed from the
+  accepted response, and compared with the pending plan, owner, data mode, and durable-write facts.
+  A mismatched or missing mode cannot activate the run in React.
+- The runtime control is disabled throughout start, execution, stop, finish, and cleanup-required
+  phases. V2 Start uses a bounded 75-second client timeout because the authoritative Java readiness
+  gate may spend up to 45 seconds starting the isolated browser. V1 retains its 30-second timeout.
+- UI copy states the actual ownership boundary: V1 uses the established shared Java Playwright path;
+  V2 uses an isolated Node/Playwright session and prohibits Java V1 fallback within that run.
+- Focused frontend verification passed 8/8 tests:
+  `smokeTestIntegration.contract.test.ts` and `useSmokeTestIntegrationRun.test.ts`. The first
+  sandboxed post-rebase test retry hit `spawn EPERM`; the approved identical retry passed. The
+  production `npm run build` completed successfully with established repository lint warnings.
+- Frontend source commit/push after rebasing over four concurrent upstream checkpoints:
+  `4e955d2`. No history was forced or overwritten.
+- The production build was mirrored exactly into Java resources: 58 files, 19 images, zero missing,
+  extra, or hash-mismatched files. Main assets are `main.95512dab.js` (2,120,982 bytes,
+  SHA-256 `7905DF8ED9B966AC55623EF53EF384F4EED272341A9D482774C241D14EC48F5A`) and
+  `main.e1122a50.css` (524,903 bytes,
+  SHA-256 `650C09C59BFD2E6D96154FAD92D821CC6CD1AEEBFDC056A11E18E341FAE86DE4`).
+  Resource deployment commit/push: `d3d20877`.
+- No Java source changed in this checkpoint, so Maven compilation was not rerun. No ARWeb process,
+  Node runtime, browser, database, migration, package, container, or image was started or changed.
+
+Next: configure the shared V2 signing secret and loopback runtime endpoint, start the isolated Node
+runtime, refresh `target/classes`/restart the narrow ARWeb process, and perform the first explicit V2
+Smoke Integration acceptance run. ExcelWrite remains fail-closed until its separate frontend-memory
+and atomic artifact-write checkpoints are complete.
