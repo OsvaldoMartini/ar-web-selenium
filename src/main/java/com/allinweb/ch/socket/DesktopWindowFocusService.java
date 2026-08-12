@@ -46,7 +46,7 @@ final class DesktopWindowFocusService {
 
         try {
             do {
-                HWND target = findVisibleWindow(titleToken);
+                HWND target = findWindow(titleToken);
                 if (target != null) return forceForeground(target);
                 if (System.nanoTime() >= deadline) break;
                 LockSupport.parkNanos(POLL_INTERVAL_NANOS);
@@ -74,23 +74,36 @@ final class DesktopWindowFocusService {
         return true;
     }
 
-    private static HWND findVisibleWindow(String titleToken) {
+    /**
+     * Finds the exact token-bearing top-level window even when Chromium has hidden that HWND.
+     *
+     * <p>The one-use token is issued only to the authoritative WebSocket transport, so visibility
+     * is not an identity boundary. Filtering hidden windows here prevented {@link #forceForeground}
+     * from calling {@code ShowWindow} and made a connected detached workspace impossible to
+     * recover from Pages Open.
+     */
+    private static HWND findWindow(String titleToken) {
         User32 user32 = User32.INSTANCE;
         AtomicReference<HWND> match = new AtomicReference<>();
         user32.EnumWindows(
                 (window, ignored) -> {
-                    if (!user32.IsWindowVisible(window)) return true;
                     int titleLength = user32.GetWindowTextLength(window);
                     if (titleLength < titleToken.length()) return true;
                     char[] title = new char[titleLength + 1];
                     user32.GetWindowText(window, title, title.length);
                     String value = com.sun.jna.Native.toString(title);
-                    if (!value.contains(titleToken)) return true;
+                    if (!titleContainsToken(value, titleToken)) return true;
                     match.set(window);
                     return false;
                 },
                 null);
         return match.get();
+    }
+
+    static boolean titleContainsToken(String windowTitle, String titleToken) {
+        return isValidTitleToken(titleToken)
+                && windowTitle != null
+                && windowTitle.contains(titleToken);
     }
 
     private static boolean forceForeground(HWND target) {
