@@ -12,6 +12,7 @@ public final class DetachedWorkspaceSessions {
     public static final String COMMAND_EDITOR_MANAGER = "commandEditorManager";
     public static final String VARIABLES_MANAGER = "variablesManager";
     public static final String EXCEL_DATA_MANAGER = "excelDataManager";
+    public static final String EXCEL_WRITER_MANAGER = "excelWriterManager";
     public static final String SMOKE_TEST_MANAGER = "smokeTestManager";
     public static final String RUNTIME_VARIABLES_MANAGER = "runtimeVariablesManager";
     public static final String MEMORY_LIST_MANAGER = "memoryListManager";
@@ -30,6 +31,7 @@ public final class DetachedWorkspaceSessions {
             COMMAND_EDITOR_MANAGER,
             VARIABLES_MANAGER,
             EXCEL_DATA_MANAGER,
+            EXCEL_WRITER_MANAGER,
             SMOKE_TEST_MANAGER,
             RUNTIME_VARIABLES_MANAGER,
             MEMORY_LIST_MANAGER,

@@ -208,6 +208,9 @@ public class SimpleWebSocketServer {
             "excelData.close",
             "pagesOpen.open",
             "pagesOpen.summary");
+    private static final Set<String> DETACHED_EXCEL_WRITER_OPERATIONS = Set.of(
+            "pagesOpen.open",
+            "pagesOpen.summary");
     private static final Set<String> SMOKE_INTEGRATION_OPERATIONS = Set.of(
             SmokeTestIntegrationContracts.START,
             SmokeTestIntegrationContracts.REFRESH,
@@ -612,6 +615,8 @@ public class SimpleWebSocketServer {
                     VariablesWorkspaceService.isWorkspaceSession(transportSessionId);
             boolean detachedExcelDataTransport =
                     ExcelDataWorkspaceService.SESSION_ID.equals(transportSessionId);
+            boolean detachedExcelWriterTransport =
+                    DetachedWorkspaceSessions.EXCEL_WRITER_MANAGER.equals(transportSessionId);
             boolean pageMappingsOperation = type.startsWith("pageMappings.");
             boolean detachedPageMappingsTransport =
                     DetachedWorkspaceSessions.PAGE_MAPPINGS_MANAGER.equals(transportSessionId);
@@ -631,6 +636,7 @@ public class SimpleWebSocketServer {
                              || variablesWorkspaceOperation
                              || detachedVariablesTransport
                              || detachedExcelDataTransport
+                             || detachedExcelWriterTransport
                              || pageMappingsOperation
                              || detachedPageMappingsTransport
                              || smokeIntegrationOperation
@@ -837,6 +843,21 @@ public class SimpleWebSocketServer {
                         commandEditorFailure(
                                 extractBody(jsonObjMSG),
                                 "Operation is not allowed from the detached Excel Data workspace."));
+                return;
+            }
+            if (detachedExcelWriterTransport
+                    && !DETACHED_EXCEL_WRITER_OPERATIONS.contains(type)) {
+                log.warn(
+                        "Rejected operation {} from detached ExcelWriter transport {}",
+                        type,
+                        transportSessionId);
+                sendCommandEditorResponse(
+                        homeBankingId,
+                        transportSessionId,
+                        "excelWriterWorkspace.errorResponse",
+                        commandEditorFailure(
+                                extractBody(jsonObjMSG),
+                                "Operation is not allowed from the detached ExcelWriter Manager."));
                 return;
             }
             if (detachedPageMappingsTransport
@@ -1707,6 +1728,16 @@ public class SimpleWebSocketServer {
                             "excelDataWorkspace.openResponse",
                             variablesWorkspaceService.openExcelDataWorkspace(
                                     excelDataBody, sessionId, session));
+                    break;
+                }
+                case "excelWriterWorkspace.open": {
+                    JsonObject excelWriterBody = extractBody(jsonObjMSG);
+                    sendCommandEditorResponse(
+                            homeBankingId,
+                            sessionId,
+                            "excelWriterWorkspace.openResponse",
+                            variablesWorkspaceService.openExcelWriterWorkspace(
+                                    excelWriterBody, sessionId, session));
                     break;
                 }
                 case "excelDataWorkspace.mode.read": {

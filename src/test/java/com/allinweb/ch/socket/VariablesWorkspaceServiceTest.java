@@ -173,6 +173,44 @@ class VariablesWorkspaceServiceTest {
     }
 
     @Test
+    void opensExcelWriterOnlyForTheExactSmokeOwner() {
+        assertTrue(service.openSmokeTestForBotJob(5).get("ok").getAsBoolean());
+        Session smoke = openSession();
+        windows.register(DetachedWorkspaceSessions.SMOKE_TEST_MANAGER, smoke);
+        JsonObject bootstrapRequest = new JsonObject();
+        bootstrapRequest.addProperty("botJobId", 5);
+        JsonObject snapshot = service.smokeTestBootstrap(
+                bootstrapRequest,
+                DetachedWorkspaceSessions.SMOKE_TEST_MANAGER,
+                smoke);
+
+        JsonObject request = new JsonObject();
+        request.addProperty("requestId", "open-excel-writer");
+        request.addProperty("bindingEpoch", snapshot.get("bindingEpoch").getAsString());
+        request.addProperty("workspaceEpoch", snapshot.get("workspaceEpoch").getAsLong());
+        request.addProperty("homeBankingId", 2);
+        request.addProperty("botJobId", 5);
+        int launchesBefore = windows.openOrFocusCalls;
+        JsonObject opened = service.openExcelWriterWorkspace(
+                request,
+                DetachedWorkspaceSessions.SMOKE_TEST_MANAGER,
+                smoke);
+
+        assertTrue(opened.get("ok").getAsBoolean());
+        assertEquals("open-excel-writer", opened.get("requestId").getAsString());
+        assertEquals(DetachedWorkspaceSessions.EXCEL_WRITER_MANAGER, windows.lastSessionId);
+        assertEquals(5, windows.lastBotJobId);
+
+        request.addProperty("botJobId", 6);
+        JsonObject refused = service.openExcelWriterWorkspace(
+                request,
+                DetachedWorkspaceSessions.SMOKE_TEST_MANAGER,
+                smoke);
+        assertFalse(refused.get("ok").getAsBoolean());
+        assertEquals(launchesBefore + 1, windows.openOrFocusCalls);
+    }
+
+    @Test
     void suppressesUnchangedRealtimeGraphAndPublishesChangedRevision() {
         service.openForBotJob(5);
         Session manager = openSession();
@@ -1462,6 +1500,7 @@ class VariablesWorkspaceServiceTest {
         private int sendAttempts;
         private int openOrFocusCalls;
         private int lastBotJobId;
+        private String lastSessionId = "";
         private boolean closeResult = true;
         private boolean forceCloseResult = true;
         private boolean sendResult = true;
@@ -1494,6 +1533,7 @@ class VariablesWorkspaceServiceTest {
         @Override
         public boolean openOrFocus(String sessionId, int botJobId, String reason) {
             openOrFocusCalls++;
+            lastSessionId = sessionId;
             lastBotJobId = botJobId;
             if (DetachedWorkspaceSessions.RUNTIME_VARIABLES_MANAGER.equals(sessionId)) {
                 runtimeVariablesOpened.countDown();

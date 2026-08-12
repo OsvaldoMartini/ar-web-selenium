@@ -768,6 +768,47 @@ public final class VariablesWorkspaceService {
         return opened;
     }
 
+    /** Opens/focuses the React-owned ExcelWriter memory page for the exact Smoke Test owner. */
+    public JsonObject openExcelWriterWorkspace(
+            JsonObject body, String requesterSessionId, Session requesterTransport) {
+        JsonObject request = body == null ? new JsonObject() : body;
+        Binding source = smokeTestSource(requesterSessionId, requesterTransport);
+        if (source == null) {
+            return failure(
+                    request,
+                    "The ExcelWriter Manager launch requester is not authoritative.",
+                    null);
+        }
+        try {
+            if (!source.bindingEpoch().equals(text(request, "bindingEpoch"))
+                    || source.workspaceEpoch() != nonNegativeLong(request, "workspaceEpoch", true)
+                    || source.homeBankingId() != positiveInteger(request, "homeBankingId")
+                    || source.botJobId() != positiveInteger(request, "botJobId")) {
+                return failure(
+                        request,
+                        "The ExcelWriter Manager owner changed. Reload Smoke Test.",
+                        source);
+            }
+            WorkspaceContext workspace = workspaces.require(
+                    source.botJobId(), source.workspaceEpoch());
+            if (workspace.homeBankingId() != source.homeBankingId()) {
+                return failure(
+                        request,
+                        "The ExcelWriter Manager organization is no longer active.",
+                        source);
+            }
+            boolean opened = windows.openOrFocus(
+                    DetachedWorkspaceSessions.EXCEL_WRITER_MANAGER,
+                    source.botJobId(),
+                    "ExcelWriter Manager requested from Smoke Test.");
+            return opened
+                    ? success(request, source, "ExcelWriter Manager opened for this Bot Job.")
+                    : failure(request, "ExcelWriter Manager could not be opened.", source);
+        } catch (IllegalArgumentException | IllegalStateException refused) {
+            return failure(request, refused.getMessage(), source);
+        }
+    }
+
     public JsonObject readExcelDataMode(
             JsonObject body, String requesterSessionId, Session requesterTransport) {
         Binding source = smokeTestSource(requesterSessionId, requesterTransport);

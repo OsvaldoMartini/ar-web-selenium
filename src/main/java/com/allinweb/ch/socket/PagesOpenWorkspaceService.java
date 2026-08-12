@@ -109,6 +109,14 @@ public final class PagesOpenWorkspaceService {
                     DetachedWorkspaceSessions.EXCEL_DATA_MANAGER,
                     new PagePresentation("Excel Data", "EXCEL_DATA", "Retained Bot Job execution dataset", false, true)),
             Map.entry(
+                    DetachedWorkspaceSessions.EXCEL_WRITER_MANAGER,
+                    new PagePresentation(
+                            "ExcelWriter Manager",
+                            "EXCEL_WRITER",
+                            "React execution memory and dirty files",
+                            false,
+                            true)),
+            Map.entry(
                     DetachedWorkspaceSessions.SMOKE_TEST_MANAGER,
                     new PagePresentation("Smoke Test", "SMOKE_TEST", "Bot Job Smoke Test template", false, true)),
             Map.entry(
