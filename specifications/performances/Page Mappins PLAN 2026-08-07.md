@@ -1027,3 +1027,11 @@ This checkpoint is separate from Page Mappings behavior and records the shared P
 - [x] Focused contract/service/browser-lifecycle verification passed 16/16, production frontend build passed, and all 58 source/resource/runtime files match.
 - [x] Node PID `20252` is READY on `60110`; ARWeb PID `16636` serves the new assets on `65289/65290`; fresh logs contain zero strict backend/database failures.
 - [ ] User acceptance remains: verify Lloyds Job 29 resumes its current redirected password/authenticated page with ON and reloads with OFF, without closing ARWeb or its browser between the two Integration runs.
+
+## Unsaved Excel memory in test execution - 2026-08-11
+
+- [x] Backend `252c8ab0` makes Smoke Integration and Bot Job TEST RUN use the current edited REAL/SYNTHETIC memory without requiring a prior disk Save.
+- [x] Each Integration run receives one frozen deep copy of the chosen memory dataset. Save can occur after the test without mutating that active run.
+- [x] Only Batch `Launch` retains the unsaved-REAL block. Catalog `60574009` is current; focused verification passed 15/15; no frontend build was required.
+- [x] ARWeb PID `24584` runs on `54622/54623`, Node PID `5708` is READY on `60110`, and six fresh logs have zero strict failures.
+- [ ] Live gate: prove an unsaved REAL edit in Integration, save it afterward, repeat with SYNTHETIC, and confirm Batch Launch alone requires saved REAL data.

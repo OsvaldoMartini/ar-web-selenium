@@ -510,6 +510,14 @@ The Page Mappings roadmap is now source-complete through P7:
 - [x] Node PID `20252` is READY on `60110`; ARWeb PID `16636` runs on `65289/65290`; six fresh logs have zero strict failures.
 - [ ] TASK - User must prove ON continues the current redirected Lloyds user/password page after the first run, and OFF reloads the selected Bot Job URL. Bot Job switching must still retarget or close the shared browser before another owner can execute.
 
+### Unsaved Excel memory in test execution - 2026-08-11
+
+- [x] Backend `252c8ab0` removes the dirty-REAL prerequisite from TEST RUN and Smoke Integration. Both REAL and SYNTHETIC tests use current memory; Integration freezes the edited dataset for run consistency.
+- [x] Dirty REAL memory is checked only at Batch `Launch`. Save remains available after a test so a user can prove an edit before persisting it.
+- [x] Focused verification passed 15/15; catalog `60574009` is pushed. No frontend build was required.
+- [x] ARWeb PID `24584` is healthy on `54622/54623`; Node PID `5708` is READY on `60110`; six fresh logs have zero strict failures.
+- [ ] TASK - Live-test unsaved REAL and SYNTHETIC edits in Integration, save the proven REAL edit afterward, and verify only Batch Launch blocks dirty REAL memory.
+
 ## 2. CLAUDE -> CODEX - Independent review requested
 
 ### Step 8 independent audit result

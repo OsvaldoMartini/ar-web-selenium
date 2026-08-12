@@ -967,3 +967,12 @@ Do not change frontend CSS/design while doing the scanner contract cleanup unles
 - [x] Deployment `50ee3404` is pushed. Frontend build, backend resources, and `target/classes` match across 58 files. Entrypoints are `main.df172fe3.js` (SHA-256 `8A2EC92FB6DA750EE63D199ED2A42944F4181F5F0CF5B9CE6F37ABE2D1363FD8`) and `main.621bd10a.css` (SHA-256 `998AF6673C6D5C54FE15EEDB4DF0220AA4CF16210ACFB05F886B11766FA74207`).
 - [x] Corrected matched runtime pair restarted: Node PID `20252` is READY on `60110`; ARWeb PID `16636` is responsive on `65289/65290`. Live JS is `main.df172fe3.js`, and six new logs contain zero strict Java/SQLite/snapshot errors.
 - [ ] Live user gate: open Lloyds Job 29, reach the user/password page, finish or stop the run while keeping ARWeb and its browser open, then run again with Continue Page ON. The redirected authentication page must remain unchanged. Repeat once with OFF and confirm it reloads the selected Lloyds URL.
+
+## Unsaved Excel memory in test execution - 2026-08-11
+
+- [x] Root cause confirmed: `ExcelDataWorkspaceService` rejected dirty REAL memory in both Bot Job TEST RUN and Smoke Integration, although manual row tests already consumed edited memory and Save was an explicit separate action.
+- [x] Backend `252c8ab0` makes Smoke, Integration, and TEST RUN consume the current REAL or SYNTHETIC in-memory dataset. Integration freezes a deep copy, including unsaved edits, so later edits or Save cannot change an active run.
+- [x] Only Batch `Launch` now checks dirty REAL memory and returns `Save to Excel before Launch`. Synthetic memory never has that disk-save prerequisite. The existing Save action remains available after a successful test to persist proven REAL edits.
+- [x] Focused verification passed 15/15 across Excel policy and Smoke Integration contract/service suites. Java compiled 577 sources. No frontend source changed, so no npm build or asset deployment was required.
+- [x] Catalog `60574009` records 2,372 rows / 2,336 code cases; generation executed no tests. ARWeb PID `24584` runs on `54622/54623`; Node PID `5708` is READY on `60110`; six fresh logs have zero strict failures.
+- [ ] Live user gate: edit a REAL memory cell without saving, run Integration and verify the edited value is used, then Save to Excel afterward. Repeat with SYNTHETIC. Confirm Batch Launch alone refuses unsaved REAL memory.
