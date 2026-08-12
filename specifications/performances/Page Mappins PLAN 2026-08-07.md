@@ -1022,8 +1022,8 @@ existing backend alias transaction and exact locator/page identity remain author
 
 This checkpoint is separate from Page Mappings behavior and records the shared Playwright rerun control needed for the remaining Lloyds live acceptance.
 
-- [x] Frontend `9723c6e` adds `ON/OFF Continue Page`; backend `b2d13bde` honors and echoes the exact policy with same-origin protection; deployment assets are `50ee3404`.
-- [x] ON reuses the current same-site Java V1 Playwright page without navigation. OFF reloads the selected Bot Job endpoint. V2 remains isolated and therefore forces OFF/reload.
-- [x] Focused contract/service verification passed 11/11, production frontend build passed, and all 58 source/resource/runtime files match.
-- [x] Node PID `4560` is READY on `60110`; ARWeb PID `24304` serves the new assets on `54921/54922`; fresh logs contain zero strict backend/database failures.
-- [ ] User acceptance remains: verify Lloyds Job 29 resumes its current password/authenticated page with ON, reloads with OFF, and refuses reuse if the shared browser is on another origin.
+- [x] Frontend `9723c6e` adds `ON/OFF Continue Page`; backend `b2d13bde` honors and echoes the exact policy; redirected-login correction `b08e35d5` removes the invalid same-origin restriction; deployment assets are `50ee3404`.
+- [x] ON reuses the active Bot Job's current Java V1 Playwright page without navigation, including legitimate authentication-origin redirects. OFF reloads the selected Bot Job endpoint. V2 remains isolated and therefore forces OFF/reload. Bot Job activation still strictly retargets or closes the shared browser on owner change.
+- [x] Focused contract/service/browser-lifecycle verification passed 16/16, production frontend build passed, and all 58 source/resource/runtime files match.
+- [x] Node PID `20252` is READY on `60110`; ARWeb PID `16636` serves the new assets on `65289/65290`; fresh logs contain zero strict backend/database failures.
+- [ ] User acceptance remains: verify Lloyds Job 29 resumes its current redirected password/authenticated page with ON and reloads with OFF, without closing ARWeb or its browser between the two Integration runs.

@@ -505,10 +505,10 @@ The Page Mappings roadmap is now source-complete through P7:
 ### Smoke Integration Continue Page policy - 2026-08-11
 
 - [x] Root cause: Java V1 ignored the existing `PRESERVE_ACTIVE` request and always performed strict selected-URL navigation.
-- [x] Frontend `9723c6e`, backend `b2d13bde`, and deployment `50ee3404` are committed and pushed. ON preserves only an open same-origin Java V1 page; OFF reloads; V2 forces reload.
-- [x] Focused verification passed 11/11; production frontend build passed; 58 mirrored files and live JS/CSS hashes match. No broad suite or package build ran.
-- [x] Node PID `4560` is READY on `60110`; ARWeb PID `24304` runs on `54921/54922`; six fresh logs have zero strict failures.
-- [ ] TASK - User must prove ON continues the current Lloyds page after the prior failure/password state, and OFF reloads the selected Bot Job URL. Cross-site current pages must be refused.
+- [x] Frontend `9723c6e`, backend `b2d13bde`, redirected-login correction `b08e35d5`, and deployment `50ee3404` are committed and pushed. ON preserves the active Bot Job's current Java V1 page across legitimate authentication redirects; OFF reloads; V2 forces reload.
+- [x] Focused verification passed 16/16; production frontend build passed; 58 mirrored files and live JS/CSS hashes match. No broad suite or package build ran.
+- [x] Node PID `20252` is READY on `60110`; ARWeb PID `16636` runs on `65289/65290`; six fresh logs have zero strict failures.
+- [ ] TASK - User must prove ON continues the current redirected Lloyds user/password page after the first run, and OFF reloads the selected Bot Job URL. Bot Job switching must still retarget or close the shared browser before another owner can execute.
 
 ## 2. CLAUDE -> CODEX - Independent review requested
 
