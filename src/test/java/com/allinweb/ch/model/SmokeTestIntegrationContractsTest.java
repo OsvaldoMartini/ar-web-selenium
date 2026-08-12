@@ -97,7 +97,9 @@ class SmokeTestIntegrationContractsTest {
         excelWrite.addProperty("delimiter", ",");
         excelWrite.add("columns", new Gson().toJsonTree(java.util.List.of("User", "Balance")));
         excelWrite.add("instructionIds", new Gson().toJsonTree(java.util.List.of(10, 11)));
-        excelWrite.addProperty("csvContent", "User,Balance\r\nAlice,10\r\n");
+        excelWrite.addProperty("artifactKind", "CSV");
+        excelWrite.addProperty("contentBase64", "VXNlcixCYWxhbmNlDQpBbGljZSwxMA0K");
+        excelWrite.addProperty("byteLength", 24);
         excelWrite.addProperty("sha256", "b".repeat(64));
         excelWrite.addProperty("revision", 3);
         SmokeTestIntegrationContracts.ExcelWriteRequest artifact =
@@ -117,7 +119,9 @@ class SmokeTestIntegrationContractsTest {
         excelWrite.addProperty("delimiter", ",");
         excelWrite.add("columns", new Gson().toJsonTree(java.util.List.of("User", "User")));
         excelWrite.add("instructionIds", new Gson().toJsonTree(java.util.List.of(10)));
-        excelWrite.addProperty("csvContent", "User\r\nAlice\r\n");
+        excelWrite.addProperty("artifactKind", "CSV");
+        excelWrite.addProperty("contentBase64", "VXNlcg0KQWxpY2UNCg==");
+        excelWrite.addProperty("byteLength", 13);
         excelWrite.addProperty("sha256", "b".repeat(64));
         excelWrite.addProperty("revision", 1);
 

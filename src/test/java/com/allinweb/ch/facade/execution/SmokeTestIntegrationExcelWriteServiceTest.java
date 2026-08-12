@@ -21,7 +21,6 @@ import java.sql.Statement;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -29,30 +28,34 @@ class SmokeTestIntegrationExcelWriteServiceTest {
     @TempDir Path temporary;
 
     @Test
-    void validatesFrozenInstructionAndWritesCsvBeforeAReadableWorkbook() throws Exception {
+    void validatesFrozenInstructionAndWritesFinalizedReactArtifactsWithoutBuildingThem() throws Exception {
         String databaseUrl = "jdbc:sqlite:" + temporary.resolve("excel-write.db");
         Path workbookTarget = temporary.resolve("reports").resolve("result.xlsx");
         Files.createDirectories(workbookTarget.getParent());
         String encodedTarget = ExcelExportTarget.encode(workbookTarget, ",");
         bootstrap(databaseUrl, encodedTarget);
-        String csv = "Value\r\nAlice\r\n";
-        ExcelWriteRequest request = new ExcelWriteRequest(
+        byte[] csv = "Value\r\nAlice\r\n".getBytes(StandardCharsets.UTF_8);
+        ExcelWriteRequest csvRequest = new ExcelWriteRequest(
                 1, "excel-write-1", "run-1", encodedTarget, ",", List.of("Value"),
-                List.of(10), csv, sha256(csv), 1L);
+                List.of(10), "CSV", java.util.Base64.getEncoder().encodeToString(csv), csv.length,
+                sha256(csv), 1L);
+        byte[] finalizedWorkbook = "frontend-finalized-xlsx-bytes".getBytes(StandardCharsets.UTF_8);
+        ExcelWriteRequest xlsxRequest = new ExcelWriteRequest(
+                1, "excel-write-2", "run-1", encodedTarget, ",", List.of("Value"),
+                List.of(10), "XLSX", java.util.Base64.getEncoder().encodeToString(finalizedWorkbook),
+                finalizedWorkbook.length, sha256(finalizedWorkbook), 1L);
 
-        SmokeTestIntegrationExcelWriteService.Result result =
-                new SmokeTestIntegrationExcelWriteService(
-                        () -> DriverManager.getConnection(databaseUrl)).save(plan(), request);
+        SmokeTestIntegrationExcelWriteService service = new SmokeTestIntegrationExcelWriteService(
+                () -> DriverManager.getConnection(databaseUrl));
+        SmokeTestIntegrationExcelWriteService.Result csvResult = service.save(plan(), csvRequest);
+        SmokeTestIntegrationExcelWriteService.Result xlsxResult = service.save(plan(), xlsxRequest);
 
         Path csvTarget = workbookTarget.resolveSibling("result.csv");
-        assertEquals(csv, Files.readString(csvTarget));
-        assertTrue(Files.isRegularFile(workbookTarget));
-        try (XSSFWorkbook workbook = new XSSFWorkbook(Files.newInputStream(workbookTarget))) {
-            assertEquals("Value", workbook.getSheetAt(0).getRow(0).getCell(0).getStringCellValue());
-            assertEquals("Alice", workbook.getSheetAt(0).getRow(1).getCell(0).getStringCellValue());
-        }
-        assertEquals(request.sha256(), result.sha256());
-        assertEquals(1L, result.revision());
+        assertEquals("Value\r\nAlice\r\n", Files.readString(csvTarget));
+        assertTrue(java.util.Arrays.equals(finalizedWorkbook, Files.readAllBytes(workbookTarget)));
+        assertEquals(csvRequest.sha256(), csvResult.sha256());
+        assertEquals(xlsxRequest.sha256(), xlsxResult.sha256());
+        assertEquals(1L, xlsxResult.revision());
     }
 
     private static void bootstrap(String databaseUrl, String outputFile) throws Exception {
@@ -82,8 +85,8 @@ class SmokeTestIntegrationExcelWriteServiceTest {
         return new Plan(owner, environment, Scope.all(), List.of(block), List.of(instruction), "a".repeat(64));
     }
 
-    private static String sha256(String value) throws Exception {
+    private static String sha256(byte[] value) throws Exception {
         return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
-                .digest(value.getBytes(StandardCharsets.UTF_8)));
+                .digest(value));
     }
 }

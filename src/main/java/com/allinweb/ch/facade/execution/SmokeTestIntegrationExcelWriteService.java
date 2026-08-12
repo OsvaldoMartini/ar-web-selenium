@@ -5,8 +5,6 @@ import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.execution.SmokeTestIntegrationSnapshotRepository.Owner;
 import com.allinweb.ch.facade.execution.SmokeTestIntegrationSnapshotRepository.Plan;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts.ExcelWriteRequest;
-import java.io.ByteArrayOutputStream;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -15,12 +13,11 @@ import java.security.MessageDigest;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 /** Minimal Java adapter for one React-finalized ExcelWrite artifact. */
 public final class SmokeTestIntegrationExcelWriteService {
@@ -48,36 +45,29 @@ public final class SmokeTestIntegrationExcelWriteService {
             throw new IllegalArgumentException("ExcelWrite delimiter does not match its typed target.");
         }
         validateConfigurations(owner, request, target);
-        byte[] csv = request.csvContent().getBytes(StandardCharsets.UTF_8);
-        if (!sha256(csv).equals(request.sha256())) {
-            throw new IllegalArgumentException("ExcelWrite checksum does not match the finalized CSV.");
-        }
-        String header = encodeRow(request.columns(), request.delimiter()) + "\r\n";
-        if (!request.csvContent().startsWith(header)) {
-            throw new IllegalArgumentException("ExcelWrite CSV header does not match the typed columns.");
+        byte[] artifact;
+        try { artifact = Base64.getDecoder().decode(request.contentBase64()); }
+        catch (IllegalArgumentException malformed) { throw new IllegalArgumentException("ExcelWrite artifact is not valid Base64.", malformed); }
+        if (artifact.length != request.byteLength() || !sha256(artifact).equals(request.sha256())) {
+            throw new IllegalArgumentException("ExcelWrite artifact length or checksum does not match.");
         }
         Path finalTarget = target.path();
         Path directory = finalTarget.getParent();
         if (directory == null || !Files.isDirectory(directory) || !Files.isWritable(directory)) {
             throw new IllegalArgumentException("ExcelWrite target directory is not writable.");
         }
-        Path csvTarget = ".csv".equals(target.fileType())
-                ? finalTarget
-                : siblingCsv(finalTarget);
-        ExcelWriteFileWriteCoordinator.run(csvTarget, () -> atomicWriteUnchecked(csvTarget, csv));
-        if (".xlsx".equals(target.fileType())) {
-            try {
-                byte[] workbook = workbook(request.columns(), request.csvContent(), request.delimiter());
-                ExcelWriteFileWriteCoordinator.run(finalTarget, () -> atomicWriteUnchecked(finalTarget, workbook));
-            } catch (Exception failure) {
-                throw new IllegalStateException(
-                        "The CSV artifact was saved, but XLSX creation failed.", failure);
+        Path artifactTarget;
+        if ("CSV".equals(request.artifactKind())) {
+            artifactTarget = ".csv".equals(target.fileType()) ? finalTarget : siblingCsv(finalTarget);
+        } else {
+            if (!".xlsx".equals(target.fileType())) {
+                throw new IllegalArgumentException("An XLSX artifact requires an XLSX instruction target.");
             }
+            artifactTarget = finalTarget;
         }
+        ExcelWriteFileWriteCoordinator.run(artifactTarget, () -> atomicWriteUnchecked(artifactTarget, artifact));
         return new Result(request.sha256(), request.revision(),
-                ".xlsx".equals(target.fileType())
-                        ? "CSV and XLSX artifacts were saved atomically."
-                        : "CSV artifact was saved atomically.");
+                request.artifactKind() + " artifact was saved atomically.");
     }
 
     private void validateConfigurations(Owner owner, ExcelWriteRequest request, ExcelExportTarget target)
@@ -116,39 +106,6 @@ public final class SmokeTestIntegrationExcelWriteService {
         return xlsx.resolveSibling((dot > 0 ? name.substring(0, dot) : name) + ".csv");
     }
 
-    private static byte[] workbook(List<String> columns, String csv, String delimiter) throws Exception {
-        List<List<String>> rows = parseCsv(csv, delimiter.charAt(0));
-        if (rows.isEmpty() || rows.stream().anyMatch(row -> row.size() != columns.size())) {
-            throw new IllegalArgumentException("ExcelWrite CSV row width does not match the typed columns.");
-        }
-        try (XSSFWorkbook workbook = new XSSFWorkbook(); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
-            var sheet = workbook.createSheet("ExcelWrite");
-            for (int rowIndex = 0; rowIndex < rows.size(); rowIndex++) {
-                var row = sheet.createRow(rowIndex); List<String> values = rows.get(rowIndex);
-                for (int column = 0; column < values.size(); column++) row.createCell(column).setCellValue(values.get(column));
-            }
-            for (int column = 0; column < columns.size(); column++) sheet.autoSizeColumn(column);
-            workbook.write(output); return output.toByteArray();
-        }
-    }
-
-    private static List<List<String>> parseCsv(String csv, char delimiter) {
-        List<List<String>> rows = new ArrayList<>(); List<String> row = new ArrayList<>(); StringBuilder value = new StringBuilder(); boolean quoted = false;
-        for (int i = 0; i < csv.length(); i++) { char current = csv.charAt(i);
-            if (current == '"') { if (quoted && i + 1 < csv.length() && csv.charAt(i + 1) == '"') { value.append('"'); i++; } else quoted = !quoted; }
-            else if (!quoted && current == delimiter) { row.add(value.toString()); value.setLength(0); }
-            else if (!quoted && current == '\n') { if (value.length() > 0 && value.charAt(value.length() - 1) == '\r') value.setLength(value.length() - 1); row.add(value.toString()); value.setLength(0); rows.add(row); row = new ArrayList<>(); }
-            else value.append(current);
-        }
-        if (quoted) throw new IllegalArgumentException("ExcelWrite CSV contains an unterminated quote.");
-        if (value.length() > 0 || !row.isEmpty()) { row.add(value.toString()); rows.add(row); }
-        return rows;
-    }
-
-    private static String encodeRow(List<String> values, String delimiter) {
-        return values.stream().map(value -> value.contains(delimiter) || value.contains("\"") || value.contains("\r") || value.contains("\n")
-                ? "\"" + value.replace("\"", "\"\"") + "\"" : value).reduce((a, b) -> a + delimiter + b).orElse("");
-    }
     private static String sha256(byte[] bytes) throws Exception { return java.util.HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes)); }
     private static void atomicWrite(Path target, byte[] bytes) throws Exception {
         Path temporary = Files.createTempFile(target.getParent(), ".arweb-excelwrite-", ".tmp");

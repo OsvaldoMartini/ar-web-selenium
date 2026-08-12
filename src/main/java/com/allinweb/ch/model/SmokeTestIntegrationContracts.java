@@ -256,7 +256,9 @@ public final class SmokeTestIntegrationContracts {
             String delimiter,
             List<String> columns,
             List<Integer> instructionIds,
-            String csvContent,
+            String artifactKind,
+            String contentBase64,
+            int byteLength,
             String sha256,
             long revision) {
         public ExcelWriteRequest {
@@ -269,9 +271,14 @@ public final class SmokeTestIntegrationContracts {
             }
             columns = requireStrings(columns, "columns", 200, 200);
             instructionIds = requirePositiveIds(instructionIds, "instructionIds", 1_000);
-            if (csvContent == null || csvContent.isEmpty() || csvContent.length() > 4_000_000) {
-                throw invalid("csvContent", "must contain at most 4,000,000 characters");
+            artifactKind = requireBounded(artifactKind, "artifactKind", 4).toUpperCase(Locale.ROOT);
+            if (!"CSV".equals(artifactKind) && !"XLSX".equals(artifactKind)) {
+                throw invalid("artifactKind", "must be CSV or XLSX");
             }
+            if (contentBase64 == null || contentBase64.isEmpty() || contentBase64.length() > 12_000_000) {
+                throw invalid("contentBase64", "must contain at most 12,000,000 characters");
+            }
+            requirePositive(byteLength, "byteLength");
             sha256 = requireSha256(sha256, "sha256");
             requirePositive(revision, "revision");
         }
@@ -469,7 +476,9 @@ public final class SmokeTestIntegrationContracts {
                 requiredString(body, "delimiter", 1),
                 stringArray(body, "columns"),
                 positiveIntegerArray(body, "instructionIds"),
-                requiredRawString(body, "csvContent", 4_000_000),
+                requiredString(body, "artifactKind", 4),
+                requiredRawString(body, "contentBase64", 12_000_000),
+                requiredPositiveInt(body, "byteLength"),
                 requiredSha256(body, "sha256"),
                 requiredPositiveLong(body, "revision"));
     }
