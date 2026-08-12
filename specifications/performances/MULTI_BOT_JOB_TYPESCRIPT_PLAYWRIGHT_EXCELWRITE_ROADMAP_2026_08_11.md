@@ -1246,3 +1246,17 @@ and atomic artifact-write checkpoints are complete.
   cleanup. No app restart, Playwright action, migration, package, container, or image was performed.
 - [ ] P6 follow-up remains: explicit Save Partial/Discard after Stop/failure and a detached floating
   Manager projection. Current memory survives in the Smoke page but can save only while its run is active.
+
+## 39. ExcelWriter lifecycle save boundaries - 2026-08-12
+
+- [x] Frontend `32cfc6b` makes PAUSE, explicit Stop, and Q/QUIT authoritative ExcelWriter flush
+  boundaries. PAUSE saves before exposing Continue/Stop; Stop saves before cleanup; Q/QUIT saves
+  before closing Playwright. Excel Data memory and Save behavior are unchanged.
+- [x] A serialized flush queue prevents manual, Block, PAUSE, Stop, and close-browser saves from
+  racing. Stop cleanup is attempted even after a write failure; other boundary failures fail closed.
+- [x] VOID READ values create no file. Produced empty-string and whitespace-only VALUE states remain
+  valid output and preserve their exact distinction.
+- [x] Focused frontend tests passed 9/9; production build passed. Deployment `865abb79` mirrors 61
+  exact files and catalog `6e790afd` records 2,386 rows / 2,350 code cases.
+- [ ] Live user acceptance remains. A truly detached Manager projection remains later scope; the
+  earlier post-stop Save Partial item is superseded because Stop now saves automatically.

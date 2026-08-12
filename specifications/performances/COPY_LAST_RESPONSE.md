@@ -2,7 +2,7 @@
 
 Keep exactly two review sections. Check tasks only after their separate gates pass.
 
-**Last updated:** 2026-08-12 - ExcelWriter Manager is implemented for Java V1 Smoke Integration. React owns ordered memory, editing, CSV/XLSX construction, checksums and flush policy; Java only reauthorizes, validates and atomically writes finalized bytes. Focused frontend/Java tests and the production build passed. Frontend `9e4e7e4` / `72026cb`, backend `e3ce0417` / `f6a76d62`, deployment `9b57892c`, and catalog `195eab6a` are pushed. No app restart or live banking/file-write acceptance was performed.
+**Last updated:** 2026-08-12 - ExcelWriter now saves dirty output at authored PAUSE, explicit Stop, and Q/QUIT Close Browser boundaries (`32cfc6b`). Flushes are serialized; Stop still cleans the run after a save failure. VOID creates no file, while produced empty/whitespace values remain valid. Focused tests passed 9/9; production build and exact deployment `865abb79` passed; catalog `6e790afd` is current. This changes ExcelWriter only—not Excel Data. No app restart or live file/browser action was performed.
 
 ## 1. CODEX -> CLAUDE - Page Mappings and Memory lifecycle review handoff
 

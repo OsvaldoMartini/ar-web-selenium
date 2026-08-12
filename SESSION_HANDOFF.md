@@ -1036,3 +1036,20 @@ Do not change frontend CSS/design while doing the scanner contract cleanup unles
 - No migration, package/image, application restart, or live file write was performed. Remaining:
   live two-Block/shared-target acceptance, post-stop Save Partial/Discard, and a truly detached
   floating Manager page rather than the current isolated in-page dialog.
+
+### ExcelWriter PAUSE / Stop / Close Browser save boundaries - 2026-08-12
+
+- Frontend `32cfc6b` supersedes the earlier post-stop Save Partial expectation. An authored PAUSE
+  now flushes all dirty ExcelWriter artifacts before showing Continue/Stop; explicit Stop flushes
+  before terminal cleanup; Q/QUIT flushes before physically closing Playwright. These rules affect
+  ExcelWriter only and do not read, save, or change Excel Data memory.
+- All flush requests share one serialized queue. Stop always attempts terminal cleanup even when a
+  write fails and reports both outcomes. A PAUSE/close-boundary failure stops fail-closed instead of
+  continuing with unsaved output. A second Stop from PAUSE retries only files made dirty there.
+- VOID READ variables create no file/tab. Produced VALUE states create output even when the exact
+  value is empty or contains only spaces; those distinctions are regression-tested.
+- Focused frontend verification passed 9/9. Production build passed with established warnings. Exact
+  61-file deployment is `865abb79`; current JS is `main.4399de1e.js` (2,137,441 bytes; SHA-256
+  `97A0846526979D6A2F2F5B90CE22C320898CAC3B1FF5FA63E21C3D51F1AA509C`) and CSS remains
+  `main.5b308b0c.css`. Catalog `6e790afd` records 2,386 rows / 2,350 code cases.
+- No Java source changed, so Maven was not rerun. No app restart or live file/browser action ran.
