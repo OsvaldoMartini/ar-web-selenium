@@ -1053,3 +1053,29 @@ Do not change frontend CSS/design while doing the scanner contract cleanup unles
   `97A0846526979D6A2F2F5B90CE22C320898CAC3B1FF5FA63E21C3D51F1AA509C`) and CSS remains
   `main.5b308b0c.css`. Catalog `6e790afd` records 2,386 rows / 2,350 code cases.
 - No Java source changed, so Maven was not rerun. No app restart or live file/browser action ran.
+
+## Runtime readiness and detached ExcelWriter Manager - 2026-08-12
+
+- Backend `b871b71a` and frontend `bc6ebc7` fix the Smoke Integration startup race. Java now
+  opens/focuses Runtime Variables and waits for an exact owner/binding React-ready acknowledgement
+  before it acquires or navigates Playwright. Excel Data remains separate: its visibility request
+  is still non-blocking, while REAL/SYNTHETIC execution data continues to be frozen authoritatively
+  by Integration and was not corrupted by the Runtime Variables race.
+- Frontend `30942d6` promotes ExcelWriter Manager from the Smoke Test DOM into the independent
+  `excelWriterManager` detached page. Smoke Test remains the sole owner of ExcelWriter run memory;
+  an owner-scoped BroadcastChannel projects state and returns edit/policy/save commands. The cyan
+  dirty-file glow, tabs, grid, and manual Save remain. Java performs only exact-owner launch/focus
+  authorization in backend `a3fb24da`; it does not own cells or workbook construction.
+- Focused frontend checks passed 2/2. `VariablesWorkspaceServiceTest` passed 27/27; Maven compiled
+  578 main and 340 test sources with only the two established warnings. The production frontend
+  build passed with established repository warnings.
+- Deployment `2ba49070` mirrors 61 exact files into resources and `target/classes`, with zero
+  missing, extra, or hash-mismatched files. Entrypoints are `main.e060044e.js` (SHA-256
+  `A3AF24B79D8DD437FC9D12188F9B40B60638F177E62625609637058D7AFAF806`) and
+  `main.b8d60cfe.css` (SHA-256
+  `D0B552AA8B44D702503174DF0D025C0276C5270E9B541D4B4B202FF0DA8382AC`). Catalog `2c3dd644`
+  records 2,390 rows / 2,354 code cases.
+- No migration, package/image, application restart, browser action, or live workbook write was
+  performed. Remaining live gate: restart from the rebuilt classes, run one Integration containing
+  ExcelWrite, verify Runtime Variables is visible before Playwright, and verify the independent
+  Manager updates/edit/saves without blocking Smoke Test or changing Excel Data.

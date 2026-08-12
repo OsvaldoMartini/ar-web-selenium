@@ -613,6 +613,20 @@ The Page Mappings roadmap is now source-complete through P7:
 - [ ] TASK - Record any concrete blocker with producer, consumer, exact interleaving, and smallest
   authoritative fix. Do not mark deployment or live behavior complete from source/build evidence.
 
+### Runtime readiness and independent ExcelWriter Manager - 2026-08-12
+
+- [x] Runtime Variables now acknowledges its exact rendered owner snapshot before Integration may
+  open Playwright (`b871b71a`, `bc6ebc7`). The prior race affected Runtime Variables visibility,
+  not the frozen REAL/SYNTHETIC Excel Data values.
+- [x] ExcelWriter Manager is an independent detached page (`30942d6`, `a3fb24da`) with the existing
+  cyan dirty-file design. Smoke Test retains authoritative React memory; Java only opens/focuses
+  the exact owner page.
+- [x] Focused checks passed 2/2 frontend and 27/27 backend; Java compilation and frontend production
+  build passed. Deployment `2ba49070` is an exact 61-file mirror using `main.e060044e.js` and
+  `main.b8d60cfe.css`; catalog `2c3dd644` contains 2,390 rows / 2,354 code cases.
+- [ ] Restart/live acceptance was not performed. Verify the independent page during one real
+  ExcelWrite Integration and confirm Runtime Variables, Excel Data, and ExcelWriter Manager coexist.
+
 ### Bot Job instruction-row selection and safe deletion - 2026-08-11
 
 - [x] Frontend `4319195` adds the requested Bot Job row checkbox after Active and a dynamic glowing red block-header trash/count after collapse. First-row selection offers first-only/all; remaining rows can be adjusted independently.

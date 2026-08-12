@@ -1260,3 +1260,21 @@ and atomic artifact-write checkpoints are complete.
   exact files and catalog `6e790afd` records 2,386 rows / 2,350 code cases.
 - [ ] Live user acceptance remains. A truly detached Manager projection remains later scope; the
   earlier post-stop Save Partial item is superseded because Stop now saves automatically.
+
+## 40. Runtime readiness and independent ExcelWriter page - 2026-08-12
+
+- [x] Runtime Variables is now an explicit Integration prerequisite (`b871b71a`, `bc6ebc7`): the
+  exact React page must acknowledge its authoritative owner snapshot before Playwright can open or
+  navigate. The separate Excel Data page and frozen REAL/SYNTHETIC dataset contract are unchanged.
+- [x] ExcelWriter Manager is now a real detached workspace (`30942d6`, `a3fb24da`). Java only
+  authorizes/opens the owner-bound shell; React Smoke memory remains authoritative and communicates
+  with its independent projection through a Bot-Job-isolated browser channel.
+- [x] The existing cyan dirty-file visual language, tabs, editable cells, frozen-policy indication,
+  and Save Dirty Files action are preserved. Repeated ExcelWrite arrivals do not repeatedly steal
+  focus; the first arrival opens the page and the FILES button explicitly focuses it afterward.
+- [x] Frontend focused checks passed 2/2, backend focused checks passed 27/27, Java compiled 578
+  sources, and the production frontend build passed. Exact 61-file deployment `2ba49070` uses
+  `main.e060044e.js` / `main.b8d60cfe.css`; catalog `2c3dd644` is current.
+- [ ] Live acceptance remains: restart the IntelliJ application, run one ExcelWrite Integration,
+  confirm Runtime Variables precedes Playwright, and confirm ExcelWriter edits/saves while Smoke
+  Test and Excel Data remain independently usable.
