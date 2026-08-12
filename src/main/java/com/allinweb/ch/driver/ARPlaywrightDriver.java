@@ -201,6 +201,17 @@ public class ARPlaywrightDriver {
         });
     }
 
+    /** Sends one trusted keyboard key through Playwright to the active page. */
+    public void pressKey(String key) {
+        if (key == null || key.isBlank()) {
+            throw new IllegalArgumentException("A Playwright keyboard key is required");
+        }
+        run(() -> {
+            requirePage().keyboard().press(key.trim());
+            return null;
+        });
+    }
+
     public void setContent(String html) {
         run(() -> {
             requirePage().setContent(html);

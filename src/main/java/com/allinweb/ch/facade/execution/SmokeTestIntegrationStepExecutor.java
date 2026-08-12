@@ -39,6 +39,8 @@ public final class SmokeTestIntegrationStepExecutor {
     private static final Logger logOperations = LoggerFactory.getLogger("com.allinweb.operations");
     private static final java.util.Set<String> LOGICAL_ONLY = java.util.Set.of(
             "CK",
+            "CSV CHECK",
+            "PDF CHECK",
             "IF",
             "ELSEIF",
             "ELSE",
@@ -112,6 +114,12 @@ public final class SmokeTestIntegrationStepExecutor {
             return switch (action) {
                 case "GET" -> executeGet(plan, instruction, variables);
                 case "SET" -> executeSet(plan, instruction, variables);
+                case "BACK" -> executeBack(instruction.optional());
+                case "NEXT_ENTER" -> executeNextEnter(instruction.optional());
+                case "SWIPE_UP" -> executeSwipe(instruction, -1);
+                case "SWIPE_DOWN" -> executeSwipe(instruction, 1);
+                case "P" -> executeScreenshot(instruction.optional());
+                case "Q" -> executeCloseBrowser(instruction.optional());
                 default -> failed(
                         instruction.optional(),
                         StepDisposition.UNSUPPORTED,
@@ -125,6 +133,70 @@ public final class SmokeTestIntegrationStepExecutor {
                     "PLAYWRIGHT_ACTION_FAILED",
                     "The Playwright action could not be completed.");
         }
+    }
+
+    private Outcome executeBack(boolean optional) {
+        browser.back();
+        return passed("The active Playwright page navigated back.");
+    }
+
+    private Outcome executeNextEnter(boolean optional) {
+        browser.nextEnter();
+        return passed("Playwright moved to the next focus target and pressed Enter.");
+    }
+
+    private Outcome executeSwipe(InstructionSnapshot instruction, int direction) {
+        int count;
+        try {
+            count = instruction.operation().isBlank()
+                    ? 1
+                    : Integer.parseInt(instruction.operation().trim());
+        } catch (NumberFormatException invalidCount) {
+            return failed(
+                    instruction.optional(),
+                    StepDisposition.PHYSICAL,
+                    "SWIPE_COUNT_INVALID",
+                    "The swipe count must be a whole number from 1 to 40.");
+        }
+        if (count < 1 || count > 40) {
+            return failed(
+                    instruction.optional(),
+                    StepDisposition.PHYSICAL,
+                    "SWIPE_COUNT_INVALID",
+                    "The swipe count must be a whole number from 1 to 40.");
+        }
+        int moved = browser.scrollViewports(direction, count);
+        if (moved <= 0) {
+            return failed(
+                    instruction.optional(),
+                    StepDisposition.PHYSICAL,
+                    "SWIPE_NO_MOVEMENT",
+                    "The active Playwright page could not scroll in the requested direction.");
+        }
+        String label = direction < 0 ? "up" : "down";
+        return passed("The active Playwright page scrolled " + label + " " + moved + " time(s).");
+    }
+
+    private Outcome executeScreenshot(boolean optional) {
+        byte[] png = browser.screenshot();
+        if (png == null
+                || png.length < 8
+                || png[0] != (byte) 0x89
+                || png[1] != 0x50
+                || png[2] != 0x4E
+                || png[3] != 0x47) {
+            return failed(
+                    optional,
+                    StepDisposition.PHYSICAL,
+                    "SCREENSHOT_CAPTURE_FAILED",
+                    "The active Playwright page did not return a valid PNG screenshot.");
+        }
+        return passed("The active Playwright viewport screenshot was captured in memory.");
+    }
+
+    private Outcome executeCloseBrowser(boolean optional) {
+        browser.close();
+        return passed("The shared Playwright browser was closed by the authored command.");
     }
 
     private Outcome executeWebElement(
@@ -460,6 +532,16 @@ public final class SmokeTestIntegrationStepExecutor {
 
         void reload();
 
+        void back();
+
+        void nextEnter();
+
+        int scrollViewports(int direction, int count);
+
+        byte[] screenshot();
+
+        void close();
+
         default Diagnostic diagnostic() {
             return null;
         }
@@ -522,6 +604,54 @@ public final class SmokeTestIntegrationStepExecutor {
         public void reload() {
             lastDiagnostic = null;
             driver().reload();
+        }
+
+        @Override
+        public void back() {
+            lastDiagnostic = null;
+            driver().goBack();
+        }
+
+        @Override
+        public void nextEnter() {
+            lastDiagnostic = null;
+            ARPlaywrightDriver active = driver();
+            active.pressKey("Tab");
+            active.pressKey("Enter");
+        }
+
+        @Override
+        public int scrollViewports(int direction, int count) {
+            lastDiagnostic = null;
+            Object raw = driver().evaluate(
+                    """
+                    ([direction, count]) => {
+                      let moved = 0;
+                      const delta = Math.max(1, Math.floor(window.innerHeight * 0.8)) * direction;
+                      for (let index = 0; index < count; index += 1) {
+                        const before = window.scrollY;
+                        window.scrollBy({ top: delta, left: 0, behavior: 'instant' });
+                        if (window.scrollY === before) break;
+                        moved += 1;
+                      }
+                      return moved;
+                    }
+                    """,
+                    java.util.List.of(direction < 0 ? -1 : 1, count));
+            return raw instanceof Number value ? value.intValue() : 0;
+        }
+
+        @Override
+        public byte[] screenshot() {
+            lastDiagnostic = null;
+            return driver().screenshot(false);
+        }
+
+        @Override
+        public void close() {
+            lastDiagnostic = null;
+            driver();
+            ARWebDriver.getInstance().closeBrowser();
         }
 
         @Override

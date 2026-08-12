@@ -196,6 +196,7 @@ class SmokeTestIntegrationContractsTest {
                         3L,
                         8L,
                         REVISION,
+                        7,
                         "JAVA_V1",
                         "PRESERVE_ACTIVE",
                         false,

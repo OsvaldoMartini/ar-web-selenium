@@ -88,8 +88,23 @@ class SmokeTestIntegrationStepExecutorTest {
                 null,
                 null,
                 Map.of());
+        InstructionSnapshot back = instruction(
+                BLOCK, 107, 7, "BACK", "Back", null, true, null, null, Map.of());
+        InstructionSnapshot screenshot = instruction(
+                BLOCK, 108, 8, "P", "Screenshot", null, true, null, null, Map.of());
+        InstructionSnapshot quit = instruction(
+                BLOCK, 109, 9, "Q", "Close Browser", null, true, null, null, Map.of());
+        InstructionSnapshot nextEnter = instruction(
+                BLOCK, 110, 10, "NEXT_ENTER", "Next Enter", null, true, null, null, Map.of());
+        InstructionSnapshot swipeDown = instructionWithOperation(
+                BLOCK, 111, 11, "SWIPE_DOWN", "Swipe Down", "2", true);
+        InstructionSnapshot swipeUp = instructionWithOperation(
+                BLOCK, 112, 12, "SWIPE_UP", "Swipe Up", "1", true);
         Plan plan = plan(
-                List.of(BLOCK), List.of(click, input, output, refresh, refreshLoop, refreshHold));
+                List.of(BLOCK),
+                List.of(
+                        click, input, output, refresh, refreshLoop, refreshHold, back,
+                        screenshot, nextEnter, swipeDown, swipeUp, quit));
         ExtractedData data = new ExtractedData();
         data.addFieldValue(BLOCK.name(), input.displayKey(), "client@example.test", 0);
         FakeBrowser browser = new FakeBrowser();
@@ -107,6 +122,12 @@ class SmokeTestIntegrationStepExecutorTest {
         assertPassedPhysical(executor.execute(plan, dataset(data), refresh.id(), 0, variables));
         assertPassedPhysical(executor.execute(plan, dataset(data), refreshLoop.id(), 0, variables));
         assertPassedPhysical(executor.execute(plan, dataset(data), refreshHold.id(), 0, variables));
+        assertPassedPhysical(executor.execute(plan, dataset(data), back.id(), 0, variables));
+        assertPassedPhysical(executor.execute(plan, dataset(data), screenshot.id(), 0, variables));
+        assertPassedPhysical(executor.execute(plan, dataset(data), nextEnter.id(), 0, variables));
+        assertPassedPhysical(executor.execute(plan, dataset(data), swipeDown.id(), 0, variables));
+        assertPassedPhysical(executor.execute(plan, dataset(data), swipeUp.id(), 0, variables));
+        assertPassedPhysical(executor.execute(plan, dataset(data), quit.id(), 0, variables));
 
         assertEquals(List.of(click.id()), browser.clickedInstructionIds);
         assertEquals(1, browser.fills.size());
@@ -115,6 +136,11 @@ class SmokeTestIntegrationStepExecutorTest {
         assertEquals("client@example.test", browser.fills.get(0).field().getValue());
         assertEquals(List.of(output.id()), browser.textInstructionIds);
         assertEquals(3, browser.reloadCount);
+        assertEquals(1, browser.backCount);
+        assertEquals(1, browser.screenshotCount);
+        assertEquals(1, browser.nextEnterCount);
+        assertEquals(List.of(2, -1), browser.scrollDirections);
+        assertEquals(1, browser.closeCount);
         assertEquals(
                 List.of(new ActiveCell(
                         OWNER.botJobId(), BLOCK.name(), input.displayKey(), 0, input.id())),
@@ -358,14 +384,16 @@ class SmokeTestIntegrationStepExecutorTest {
     }
 
     @Test
-    void acknowledgesLogicalInstructionsSkipsInactiveRowsAndFailsUnsupportedActionsClosed() {
+    void acknowledgesLogicalInstructionsAndSkipsInactiveRows() {
         InstructionSnapshot checkValue =
                 instruction(BLOCK, 501, 1, "CK", "Compare", null, true, null, null, Map.of());
+        InstructionSnapshot csvCheck =
+                instruction(BLOCK, 503, 3, "CSV CHECK", "CSV Compare", null, true, null, null, Map.of());
+        InstructionSnapshot pdfCheck =
+                instruction(BLOCK, 504, 4, "PDF CHECK", "PDF Compare", null, true, null, null, Map.of());
         InstructionSnapshot inactive =
                 instruction(BLOCK, 502, 2, "C", "Inactive", null, false, null, null, Map.of());
-        InstructionSnapshot unsupported = instruction(
-                BLOCK, 503, 3, "NEXT_ENTER", "Next", null, true, null, null, Map.of());
-        Plan plan = plan(List.of(BLOCK), List.of(checkValue, inactive, unsupported));
+        Plan plan = plan(List.of(BLOCK), List.of(checkValue, csvCheck, pdfCheck, inactive));
         FakeBrowser browser = new FakeBrowser();
         SmokeTestIntegrationStepExecutor executor =
                 new SmokeTestIntegrationStepExecutor(browser, ignoredActiveCells());
@@ -375,17 +403,18 @@ class SmokeTestIntegrationStepExecutorTest {
                 executor.execute(plan, dataset(new ExtractedData()), checkValue.id(), 0, variables);
         SmokeTestIntegrationStepExecutor.Outcome skipped =
                 executor.execute(plan, dataset(new ExtractedData()), inactive.id(), 0, variables);
-        SmokeTestIntegrationStepExecutor.Outcome unsupportedResult =
-                executor.execute(plan, dataset(new ExtractedData()), unsupported.id(), 0, variables);
+        SmokeTestIntegrationStepExecutor.Outcome csvLogical =
+                executor.execute(plan, dataset(new ExtractedData()), csvCheck.id(), 0, variables);
+        SmokeTestIntegrationStepExecutor.Outcome pdfLogical =
+                executor.execute(plan, dataset(new ExtractedData()), pdfCheck.id(), 0, variables);
 
         assertEquals(StepStatus.PASSED, logical.status());
         assertEquals(StepDisposition.LOGICAL_ONLY, logical.disposition());
         assertEquals("LOGICAL_ONLY", logical.code());
+        assertEquals(StepDisposition.LOGICAL_ONLY, csvLogical.disposition());
+        assertEquals(StepDisposition.LOGICAL_ONLY, pdfLogical.disposition());
         assertEquals(StepStatus.SKIPPED, skipped.status());
         assertEquals(StepDisposition.INACTIVE, skipped.disposition());
-        assertEquals(StepStatus.FAILED, unsupportedResult.status());
-        assertEquals(StepDisposition.UNSUPPORTED, unsupportedResult.disposition());
-        assertEquals("UNSUPPORTED_ACTION", unsupportedResult.code());
         assertTrue(browser.clickedInstructionIds.isEmpty());
         assertTrue(browser.fills.isEmpty());
         assertTrue(browser.textInstructionIds.isEmpty());
@@ -393,7 +422,7 @@ class SmokeTestIntegrationStepExecutorTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"E", "EXCELWRITE", "PDF CHECK", "CSV CHECK"})
+    @ValueSource(strings = {"E", "EXCELWRITE"})
     void failsUnsupportedVariableAndFileCommandsClosed(String action) {
         InstructionSnapshot unsupported =
                 instruction(BLOCK, 601, 1, action, action, null, true, null, null, Map.of());
@@ -488,6 +517,26 @@ class SmokeTestIntegrationStepExecutorTest {
                 slots);
     }
 
+    private static InstructionSnapshot instructionWithOperation(
+            BlockSnapshot block,
+            int id,
+            int order,
+            String action,
+            String name,
+            String operation,
+            boolean active) {
+        InstructionSnapshot base = instruction(
+                block, id, order, action, name, null, active, null, null, Map.of());
+        return new InstructionSnapshot(
+                base.owner(), base.botJobName(), base.botJobPriority(), base.block(), base.id(),
+                base.order(), base.action(), base.name(), base.clientNamed(), operation, base.xpath(),
+                base.coordinates(), base.forceCoordinates(), base.iframeXpath(), base.tagName(),
+                base.shadowHost(), base.shadowRoot(), base.cssSelector(), base.description(),
+                base.defaultValue(), base.optional(), base.blockMarked(), base.actionCustomMaxWaitSec(),
+                base.onHoldSeconds(), base.codified(), base.exportToAbr(), base.active(), base.parentId(),
+                base.parentBlockId(), base.references(), base.variableSlots());
+    }
+
     private static void assertPassedPhysical(SmokeTestIntegrationStepExecutor.Outcome result) {
         assertEquals(StepStatus.PASSED, result.status());
         assertEquals(StepDisposition.PHYSICAL, result.disposition());
@@ -507,6 +556,11 @@ class SmokeTestIntegrationStepExecutorTest {
         private final List<Integer> textInstructionIds = new ArrayList<>();
         private final Map<Integer, TextResult> textByInstruction = new HashMap<>();
         private int reloadCount;
+        private int backCount;
+        private int screenshotCount;
+        private int nextEnterCount;
+        private final List<Integer> scrollDirections = new ArrayList<>();
+        private int closeCount;
 
         @Override
         public boolean clickOnce(InstructionSnapshot instruction) {
@@ -529,6 +583,33 @@ class SmokeTestIntegrationStepExecutorTest {
         @Override
         public void reload() {
             reloadCount++;
+        }
+
+        @Override
+        public void back() {
+            backCount++;
+        }
+
+        @Override
+        public void nextEnter() {
+            nextEnterCount++;
+        }
+
+        @Override
+        public int scrollViewports(int direction, int count) {
+            scrollDirections.add(direction * count);
+            return count;
+        }
+
+        @Override
+        public byte[] screenshot() {
+            screenshotCount++;
+            return new byte[] {(byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A};
+        }
+
+        @Override
+        public void close() {
+            closeCount++;
         }
     }
 
