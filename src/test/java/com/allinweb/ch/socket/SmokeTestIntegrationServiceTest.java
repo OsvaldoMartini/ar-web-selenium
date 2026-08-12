@@ -50,7 +50,7 @@ class SmokeTestIntegrationServiceTest {
     private RecordingSteps steps;
     private RecordingV2 v2;
     private AtomicReference<String> openedBrowserUrl;
-    private AtomicInteger runtimeVariablesReadyCalls;
+    private AtomicInteger supportingWorkspacesReadyCalls;
     private RecordingBrowserStart browserStart;
     private SmokeTestIntegrationService service;
 
@@ -73,8 +73,8 @@ class SmokeTestIntegrationServiceTest {
         steps = new RecordingSteps();
         v2 = new RecordingV2();
         openedBrowserUrl = new AtomicReference<>();
-        runtimeVariablesReadyCalls = new AtomicInteger();
-        browserStart = new RecordingBrowserStart(openedBrowserUrl, runtimeVariablesReadyCalls);
+        supportingWorkspacesReadyCalls = new AtomicInteger();
+        browserStart = new RecordingBrowserStart(openedBrowserUrl, supportingWorkspacesReadyCalls);
 
         SmokeIntegrationAuthorization authorization = new SmokeIntegrationAuthorization(
                 BINDING_EPOCH,
@@ -100,11 +100,11 @@ class SmokeTestIntegrationServiceTest {
                     }
 
                     @Override
-                    public void requireRuntimeVariablesReady(
+                    public void requireSupportingWorkspacesReady(
                             SmokeIntegrationAuthorization expected, Session candidate) {
                         assertEquals(authorization, expected);
                         assertEquals(transport, candidate);
-                        runtimeVariablesReadyCalls.incrementAndGet();
+                        supportingWorkspacesReadyCalls.incrementAndGet();
                     }
                 },
                 (botJobId, mode) -> dataset(),
@@ -137,7 +137,7 @@ class SmokeTestIntegrationServiceTest {
         Published stepped = responses.await(SmokeTestIntegrationContracts.STEP_RESPONSE);
 
         assertTrue(stepped.body.get("ok").getAsBoolean());
-        assertEquals(1, runtimeVariablesReadyCalls.get());
+        assertEquals(1, supportingWorkspacesReadyCalls.get());
         assertEquals(1, browserStart.readyCallsAtFirstOpen.get());
         assertEquals("step-1", stepped.body.get("requestId").getAsString());
         assertEquals(runId, stepped.body.get("runId").getAsString());

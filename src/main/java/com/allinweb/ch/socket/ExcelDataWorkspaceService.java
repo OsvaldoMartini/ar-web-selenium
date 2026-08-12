@@ -49,6 +49,8 @@ public final class ExcelDataWorkspaceService {
             BotJobNativeOperationService.createDefault(
                     ARPropertyManager.getInstance(), new BotJobToolbarConcurrencyGuard());
     private Binding binding;
+    private Session readyTransport;
+    private long readyDatasetEpoch = -1L;
 
     private ExcelDataWorkspaceService() {}
 
@@ -90,6 +92,8 @@ public final class ExcelDataWorkspaceService {
             String syntheticContext = preferences.loadSyntheticContext(job.getHomeBankingId(), job.getId());
             binding = new Binding(job.getId(), job.getHomeBankingId(), job.getName(), workbook, data, synthetic,
                     syntheticContext);
+            readyTransport = null;
+            readyDatasetEpoch = -1L;
             selectExecutionData();
             boolean opened = PagesOpenWorkspaceService.getInstance()
                     .openOrFocusDetachedWorkspace(SESSION_ID, botJobId, "Excel Data workspace requested.");
@@ -119,6 +123,60 @@ public final class ExcelDataWorkspaceService {
         return snapshot("Excel dataset loaded from memory.");
     }
 
+    /** Records that React rendered the exact current Excel Data owner/dataset generation. */
+    public synchronized JsonObject ready(JsonObject request, String sessionId, Session transport) {
+        JsonObject refusal = requireActiveTransport(sessionId, transport);
+        if (refusal != null) return refusal;
+        if (binding == null
+                || request == null
+                || !request.has("botJobId")
+                || request.get("botJobId").getAsInt() != binding.botJobId()
+                || !request.has("homeBankingId")
+                || request.get("homeBankingId").getAsInt() != binding.homeBankingId()
+                || !request.has("datasetEpoch")
+                || request.get("datasetEpoch").getAsLong() != binding.datasetEpoch) {
+            return failure("The Excel Data page does not match the active execution dataset.");
+        }
+        readyTransport = transport;
+        readyDatasetEpoch = binding.datasetEpoch;
+        notifyAll();
+        return snapshot("Excel Data is visible and loaded.");
+    }
+
+    /** Waits for the independently connected React Excel Data page to render this owner. */
+    public synchronized void requireReady(int homeBankingId, int botJobId, long timeoutMillis) {
+        long deadline = System.nanoTime()
+                + java.util.concurrent.TimeUnit.MILLISECONDS.toNanos(timeoutMillis);
+        while (!isReady(homeBankingId, botJobId)) {
+            long remaining = deadline - System.nanoTime();
+            if (remaining <= 0L) {
+                throw new IllegalStateException(
+                        "Excel Data did not become visible and ready before execution.");
+            }
+            try {
+                java.util.concurrent.TimeUnit.NANOSECONDS.timedWait(this, remaining);
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException(
+                        "Excel Data readiness was interrupted before execution.", interrupted);
+            }
+        }
+    }
+
+    public synchronized boolean isReadyForOwner(int homeBankingId, int botJobId) {
+        return isReady(homeBankingId, botJobId);
+    }
+
+    private boolean isReady(int homeBankingId, int botJobId) {
+        return binding != null
+                && binding.homeBankingId() == homeBankingId
+                && binding.botJobId() == botJobId
+                && readyDatasetEpoch == binding.datasetEpoch
+                && readyTransport != null
+                && readyTransport.isOpen()
+                && WebSocketSessionManager.getSession(SESSION_ID) == readyTransport;
+    }
+
     public synchronized JsonObject close(JsonObject request, String sessionId, Session transport) {
         if (!SESSION_ID.equals(sessionId)
                 || transport == null
@@ -127,6 +185,9 @@ public final class ExcelDataWorkspaceService {
         }
         boolean released = binding != null && loader.close(binding.workbook().toString());
         binding = null;
+        readyTransport = null;
+        readyDatasetEpoch = -1L;
+        notifyAll();
         JsonObject response = success(released ? "Excel dataset released from memory." : "Excel dataset closed.");
         response.addProperty("released", released);
         return response;

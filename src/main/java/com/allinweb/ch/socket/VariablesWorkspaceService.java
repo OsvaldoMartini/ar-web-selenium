@@ -152,6 +152,9 @@ public final class VariablesWorkspaceService {
     private Binding runtimeVariablesBinding;
     private Session runtimeVariablesTransport;
     private String runtimeVariablesReadyBindingEpoch = "";
+    private Binding excelWriterBinding;
+    private Session excelWriterTransport;
+    private String excelWriterReadyBindingEpoch = "";
     private long disconnectGeneration;
 
     VariablesWorkspaceService(
@@ -667,10 +670,9 @@ public final class VariablesWorkspaceService {
         if (!isSuccessful(opened)) {
             String message = text(opened, "error");
             throw new IllegalStateException(message.isBlank()
-                    ? "Runtime Variables could not be opened before Integration."
+                    ? "Runtime Variables could not be opened before execution."
                     : message);
         }
-
         long deadline = System.nanoTime()
                 + TimeUnit.MILLISECONDS.toNanos(RUNTIME_VARIABLES_READY_TIMEOUT_MILLIS);
         synchronized (stateLock) {
@@ -682,7 +684,7 @@ public final class VariablesWorkspaceService {
                 long remainingNanos = deadline - System.nanoTime();
                 if (remainingNanos <= 0L) {
                     throw new IllegalStateException(
-                            "Runtime Variables did not become visible and loaded before Integration.");
+                            "Runtime Variables did not become visible and loaded before execution.");
                 }
                 try {
                     TimeUnit.NANOSECONDS.timedWait(stateLock, remainingNanos);
@@ -693,6 +695,68 @@ public final class VariablesWorkspaceService {
                 }
             }
         }
+    }
+
+    /** Opens all three React execution-memory pages and waits for exact rendered-owner acks. */
+    public void requireSupportingWorkspacesReadyForSmoke(
+            SmokeIntegrationAuthorization expected, Session requesterTransport) {
+        if (!isCurrentSmokeIntegrationBinding(expected, requesterTransport)) {
+            throw new IllegalStateException(
+                    "The Smoke Test target changed before execution pages could open.");
+        }
+        boolean reactPagesReady;
+        synchronized (stateLock) {
+            reactPagesReady = isRuntimeVariablesReadyLocked(expected)
+                    && isExcelWriterReadyLocked(expected);
+        }
+        if (reactPagesReady
+                && ExcelDataWorkspaceService.getInstance().isReadyForOwner(
+                        expected.homeBankingId(), expected.botJobId())) {
+            return;
+        }
+        requireOpened(openRuntimeVariablesForBotJob(expected.botJobId()), "Runtime Variables");
+        requireOpened(
+                ExcelDataWorkspaceService.getInstance().openForBotJob(expected.botJobId()),
+                "Excel Data");
+        Binding source = smokeTestSource(
+                DetachedWorkspaceSessions.SMOKE_TEST_MANAGER, requesterTransport);
+        if (source == null) throw new IllegalStateException("Smoke Test is no longer authoritative.");
+        requireOpened(openExcelWriterForSource(source), "ExcelWriter Manager");
+
+        long deadline = System.nanoTime()
+                + TimeUnit.MILLISECONDS.toNanos(RUNTIME_VARIABLES_READY_TIMEOUT_MILLIS);
+        synchronized (stateLock) {
+            while (!isRuntimeVariablesReadyLocked(expected) || !isExcelWriterReadyLocked(expected)) {
+                if (!isCurrentSmokeIntegrationBindingLocked(expected, requesterTransport)) {
+                    throw new IllegalStateException(
+                            "The Smoke Test target changed while execution pages were loading.");
+                }
+                long remainingNanos = deadline - System.nanoTime();
+                if (remainingNanos <= 0L) {
+                    throw new IllegalStateException(
+                            "Runtime Variables or ExcelWriter Manager did not become visible and ready before execution.");
+                }
+                try {
+                    TimeUnit.NANOSECONDS.timedWait(stateLock, remainingNanos);
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                    throw new IllegalStateException(
+                            "Execution page readiness was interrupted.", interrupted);
+                }
+            }
+        }
+        long remainingMillis = Math.max(
+                1L, TimeUnit.NANOSECONDS.toMillis(deadline - System.nanoTime()));
+        ExcelDataWorkspaceService.getInstance().requireReady(
+                expected.homeBankingId(), expected.botJobId(), remainingMillis);
+    }
+
+    private void requireOpened(JsonObject response, String pageName) {
+        if (isSuccessful(response)) return;
+        String message = text(response, "error");
+        throw new IllegalStateException(message.isBlank()
+                ? pageName + " could not be opened before execution."
+                : message);
     }
 
     private boolean isRuntimeVariablesReadyLocked(SmokeIntegrationAuthorization expected) {
@@ -707,6 +771,19 @@ public final class VariablesWorkspaceService {
                 && runtimeVariablesBinding.homeBankingId() == expected.homeBankingId()
                 && runtimeVariablesBinding.bindingEpoch().equals(
                         runtimeVariablesReadyBindingEpoch);
+    }
+
+    private boolean isExcelWriterReadyLocked(SmokeIntegrationAuthorization expected) {
+        return excelWriterBinding != null
+                && excelWriterTransport != null
+                && excelWriterTransport.isOpen()
+                && windows.isRegistered(
+                        DetachedWorkspaceSessions.EXCEL_WRITER_MANAGER,
+                        excelWriterTransport)
+                && excelWriterBinding.workspaceEpoch() == expected.workspaceEpoch()
+                && excelWriterBinding.botJobId() == expected.botJobId()
+                && excelWriterBinding.homeBankingId() == expected.homeBankingId()
+                && excelWriterBinding.bindingEpoch().equals(excelWriterReadyBindingEpoch);
     }
 
     private boolean isCurrentSmokeIntegrationBindingLocked(
@@ -797,15 +874,148 @@ public final class VariablesWorkspaceService {
                         "The ExcelWriter Manager organization is no longer active.",
                         source);
             }
-            boolean opened = windows.openOrFocus(
-                    DetachedWorkspaceSessions.EXCEL_WRITER_MANAGER,
-                    source.botJobId(),
-                    "ExcelWriter Manager requested from Smoke Test.");
-            return opened
-                    ? success(request, source, "ExcelWriter Manager opened for this Bot Job.")
-                    : failure(request, "ExcelWriter Manager could not be opened.", source);
+            JsonObject opened = openExcelWriterForSource(source);
+            correlate(request, opened);
+            return opened;
         } catch (IllegalArgumentException | IllegalStateException refused) {
             return failure(request, refused.getMessage(), source);
+        }
+    }
+
+    private JsonObject openExcelWriterForSource(Binding source) {
+        Binding managerBinding;
+        boolean retargeted;
+        synchronized (stateLock) {
+            retargeted = excelWriterBinding == null
+                    || excelWriterBinding.botJobId() != source.botJobId()
+                    || excelWriterBinding.workspaceEpoch() != source.workspaceEpoch()
+                    || excelWriterBinding.homeBankingId() != source.homeBankingId();
+            managerBinding = retargeted
+                    ? new Binding(
+                            UUID.randomUUID().toString(),
+                            source.workspaceEpoch(),
+                            source.botJobId(),
+                            source.homeBankingId(),
+                            source.botJobName(),
+                            source.organizationName(),
+                            source.graphRevision())
+                    : excelWriterBinding;
+            excelWriterBinding = managerBinding;
+            if (retargeted) excelWriterReadyBindingEpoch = "";
+            stateLock.notifyAll();
+        }
+        boolean opened = windows.openOrFocus(
+                DetachedWorkspaceSessions.EXCEL_WRITER_MANAGER,
+                source.botJobId(),
+                "ExcelWriter Manager requested from Smoke Test.");
+        if (!opened) return failure(null, "ExcelWriter Manager could not be opened.", source);
+        if (retargeted && windows.isOpen(DetachedWorkspaceSessions.EXCEL_WRITER_MANAGER)) {
+            windows.send(
+                    managerBinding.homeBankingId(),
+                    DetachedWorkspaceSessions.EXCEL_WRITER_MANAGER,
+                    "excelWriterWorkspace.retarget",
+                    success(null, managerBinding, "ExcelWriter Manager retargeted."));
+        }
+        return success(null, managerBinding, "ExcelWriter Manager opened for this Bot Job.");
+    }
+
+    public JsonObject excelWriterBootstrap(
+            JsonObject body, String requesterSessionId, Session requesterTransport) {
+        JsonObject request = body == null ? new JsonObject() : body;
+        synchronized (stateLock) {
+            if (!DetachedWorkspaceSessions.EXCEL_WRITER_MANAGER.equals(requesterSessionId)
+                    || excelWriterBinding == null
+                    || positiveInteger(request, "botJobId") != excelWriterBinding.botJobId()
+                    || !windows.isRegistered(requesterSessionId, requesterTransport)) {
+                return failure(request, "ExcelWriter Manager is not bound to this Bot Job.", excelWriterBinding);
+            }
+            excelWriterTransport = requesterTransport;
+            excelWriterReadyBindingEpoch = "";
+            stateLock.notifyAll();
+            return success(request, excelWriterBinding, "ExcelWriter Manager connected.");
+        }
+    }
+
+    public JsonObject excelWriterReady(
+            JsonObject body, String requesterSessionId, Session requesterTransport) {
+        JsonObject request = body == null ? new JsonObject() : body;
+        synchronized (stateLock) {
+            if (!DetachedWorkspaceSessions.EXCEL_WRITER_MANAGER.equals(requesterSessionId)
+                    || excelWriterBinding == null
+                    || excelWriterTransport != requesterTransport
+                    || !excelWriterBinding.bindingEpoch().equals(text(request, "bindingEpoch"))
+                    || excelWriterBinding.workspaceEpoch() != nonNegativeLong(request, "workspaceEpoch", true)
+                    || excelWriterBinding.homeBankingId() != positiveInteger(request, "homeBankingId")
+                    || excelWriterBinding.botJobId() != positiveInteger(request, "botJobId")) {
+                return failure(request, "ExcelWriter Manager readiness does not match its active owner.", excelWriterBinding);
+            }
+            excelWriterReadyBindingEpoch = excelWriterBinding.bindingEpoch();
+            stateLock.notifyAll();
+            return success(request, excelWriterBinding, "ExcelWriter Manager is visible and ready.");
+        }
+    }
+
+    /** Relays React-owned ExcelWriter state without interpreting workbook/file business logic. */
+    public JsonObject relayExcelWriterState(
+            JsonObject body, String requesterSessionId, Session requesterTransport) {
+        JsonObject request = body == null ? new JsonObject() : body;
+        Binding source = smokeTestSource(requesterSessionId, requesterTransport);
+        Binding target;
+        synchronized (stateLock) {
+            target = excelWriterBinding;
+        }
+        if (source == null || target == null
+                || source.botJobId() != target.botJobId()
+                || source.homeBankingId() != target.homeBankingId()
+                || !source.bindingEpoch().equals(text(request, "bindingEpoch"))
+                || gson.toJson(request).length() > 2_000_000) {
+            return failure(request, "ExcelWriter state relay was refused for this owner.", source);
+        }
+        boolean delivered = windows.send(
+                target.homeBankingId(),
+                DetachedWorkspaceSessions.EXCEL_WRITER_MANAGER,
+                "excelWriterWorkspace.state",
+                request.deepCopy());
+        return delivered
+                ? success(request, source, "ExcelWriter state delivered.")
+                : failure(request, "ExcelWriter Manager is not connected.", source);
+    }
+
+    /** Relays one validated UI command from the detached Manager to its owning Smoke page. */
+    public JsonObject relayExcelWriterCommand(
+            JsonObject body, String requesterSessionId, Session requesterTransport) {
+        JsonObject request = body == null ? new JsonObject() : body;
+        Binding target;
+        synchronized (stateLock) {
+            if (!DetachedWorkspaceSessions.EXCEL_WRITER_MANAGER.equals(requesterSessionId)
+                    || excelWriterBinding == null
+                    || excelWriterTransport != requesterTransport
+                    || !excelWriterBinding.bindingEpoch().equals(text(request, "bindingEpoch"))) {
+                return failure(request, "ExcelWriter command requester is not authoritative.", excelWriterBinding);
+            }
+            target = excelWriterBinding;
+        }
+        boolean delivered = windows.send(
+                target.homeBankingId(),
+                DetachedWorkspaceSessions.SMOKE_TEST_MANAGER,
+                "excelWriterWorkspace.command",
+                request.deepCopy());
+        return delivered
+                ? success(request, target, "ExcelWriter command delivered.")
+                : failure(request, "The owning Smoke Test page is not connected.", target);
+    }
+
+    public JsonObject prepareSmokeSupportingWorkspaces(
+            JsonObject body, String requesterSessionId, Session requesterTransport) {
+        JsonObject request = body == null ? new JsonObject() : body;
+        try {
+            SmokeIntegrationAuthorization authorization = authorizeSmokeIntegration(
+                    request, requesterSessionId, requesterTransport);
+            requireSupportingWorkspacesReadyForSmoke(authorization, requesterTransport);
+            Binding source = smokeTestSource(requesterSessionId, requesterTransport);
+            return success(request, source, "Runtime Variables, Excel Data, and ExcelWriter Manager are ready.");
+        } catch (IllegalArgumentException | IllegalStateException refused) {
+            return failure(request, refused.getMessage(), smokeTestSource(requesterSessionId, requesterTransport));
         }
     }
 
@@ -3291,6 +3501,9 @@ public final class VariablesWorkspaceService {
         if (DetachedWorkspaceSessions.RUNTIME_VARIABLES_MANAGER.equals(sessionId)) {
             return;
         }
+        if (DetachedWorkspaceSessions.EXCEL_WRITER_MANAGER.equals(sessionId)) {
+            return;
+        }
         if (!isWorkspaceSession(sessionId)
                 || !windows.isRegistered(sessionId, transport)) {
             return;
@@ -3329,6 +3542,16 @@ public final class VariablesWorkspaceService {
                     runtimeVariablesTransport = null;
                     runtimeVariablesBinding = null;
                     runtimeVariablesReadyBindingEpoch = "";
+                    stateLock.notifyAll();
+                }
+            }
+            return;
+        }
+        if (DetachedWorkspaceSessions.EXCEL_WRITER_MANAGER.equals(sessionId)) {
+            synchronized (stateLock) {
+                if (excelWriterTransport == transport) {
+                    excelWriterTransport = null;
+                    excelWriterReadyBindingEpoch = "";
                     stateLock.notifyAll();
                 }
             }
@@ -3384,7 +3607,8 @@ public final class VariablesWorkspaceService {
 
     public static boolean isWorkspaceSession(String sessionId) {
         return WORKSPACE_SESSION_ID.equals(sessionId)
-                || DetachedWorkspaceSessions.RUNTIME_VARIABLES_MANAGER.equals(sessionId);
+                || DetachedWorkspaceSessions.RUNTIME_VARIABLES_MANAGER.equals(sessionId)
+                || DetachedWorkspaceSessions.EXCEL_WRITER_MANAGER.equals(sessionId);
     }
 
     private JsonObject loadForManager(

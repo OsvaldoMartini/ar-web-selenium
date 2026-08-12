@@ -193,6 +193,7 @@ public class SimpleWebSocketServer {
             "pagesOpen.summary");
     private static final Set<String> DETACHED_EXCEL_DATA_OPERATIONS = Set.of(
             "excelData.bootstrap",
+            "excelData.ready",
             "excelData.generate",
             "excelData.generateSynthetic",
             "excelData.addRow",
@@ -209,6 +210,9 @@ public class SimpleWebSocketServer {
             "pagesOpen.open",
             "pagesOpen.summary");
     private static final Set<String> DETACHED_EXCEL_WRITER_OPERATIONS = Set.of(
+            "excelWriterWorkspace.bootstrap",
+            "excelWriterWorkspace.ready",
+            "excelWriterWorkspace.command",
             "pagesOpen.open",
             "pagesOpen.summary");
     private static final Set<String> SMOKE_INTEGRATION_OPERATIONS = Set.of(
@@ -1184,6 +1188,15 @@ public class SimpleWebSocketServer {
                             excelDataWorkspaceService.bootstrap(excelDataBody, sessionId, session));
                     break;
                 }
+                case "excelData.ready": {
+                    JsonObject excelDataBody = extractBody(jsonObjMSG);
+                    sendCommandEditorResponse(
+                            homeBankingId,
+                            sessionId,
+                            "excelData.readyResponse",
+                            excelDataWorkspaceService.ready(excelDataBody, sessionId, session));
+                    break;
+                }
                 case "pageMappings.bootstrap": {
                     JsonObject mappingsBody = extractBody(jsonObjMSG);
                     try (java.sql.Connection connection = performDataBase.getConnection()) {
@@ -1738,6 +1751,46 @@ public class SimpleWebSocketServer {
                             "excelWriterWorkspace.openResponse",
                             variablesWorkspaceService.openExcelWriterWorkspace(
                                     excelWriterBody, sessionId, session));
+                    break;
+                }
+                case "excelWriterWorkspace.bootstrap": {
+                    JsonObject excelWriterBody = extractBody(jsonObjMSG);
+                    sendCommandEditorResponse(homeBankingId, sessionId,
+                            "excelWriterWorkspace.bootstrapResponse",
+                            variablesWorkspaceService.excelWriterBootstrap(
+                                    excelWriterBody, sessionId, session));
+                    break;
+                }
+                case "excelWriterWorkspace.ready": {
+                    JsonObject excelWriterBody = extractBody(jsonObjMSG);
+                    sendCommandEditorResponse(homeBankingId, sessionId,
+                            "excelWriterWorkspace.readyResponse",
+                            variablesWorkspaceService.excelWriterReady(
+                                    excelWriterBody, sessionId, session));
+                    break;
+                }
+                case "excelWriterWorkspace.state": {
+                    JsonObject excelWriterBody = extractBody(jsonObjMSG);
+                    sendCommandEditorResponse(homeBankingId, sessionId,
+                            "excelWriterWorkspace.stateResponse",
+                            variablesWorkspaceService.relayExcelWriterState(
+                                    excelWriterBody, sessionId, session));
+                    break;
+                }
+                case "excelWriterWorkspace.command": {
+                    JsonObject excelWriterBody = extractBody(jsonObjMSG);
+                    sendCommandEditorResponse(homeBankingId, sessionId,
+                            "excelWriterWorkspace.commandResponse",
+                            variablesWorkspaceService.relayExcelWriterCommand(
+                                    excelWriterBody, sessionId, session));
+                    break;
+                }
+                case "smokeTest.supportingWorkspaces.prepare": {
+                    JsonObject supportingBody = extractBody(jsonObjMSG);
+                    sendCommandEditorResponse(homeBankingId, sessionId,
+                            "smokeTest.supportingWorkspaces.prepareResponse",
+                            variablesWorkspaceService.prepareSmokeSupportingWorkspaces(
+                                    supportingBody, sessionId, session));
                     break;
                 }
                 case "excelDataWorkspace.mode.read": {
