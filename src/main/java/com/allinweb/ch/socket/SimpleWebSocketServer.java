@@ -14,6 +14,7 @@ import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.*;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.SynchronousQueue;
@@ -90,6 +91,8 @@ public class SimpleWebSocketServer {
             newPageMappingsOcrWorker();
     private static final ThreadPoolExecutor pageMappingsRetentionWorker =
             newPageMappingsRetentionWorker();
+    private static final ThreadPoolExecutor smokeSupportingWorkspacesWorker =
+            newSmokeSupportingWorkspacesWorker();
     private static final Object pageMappingsRetentionRequestLock = new Object();
     private static final int MAX_COMPLETED_RETENTION_PURGES = 64;
     private static final int MAX_RETENTION_SUBSCRIBERS = 8;
@@ -1787,10 +1790,28 @@ public class SimpleWebSocketServer {
                 }
                 case "smokeTest.supportingWorkspaces.prepare": {
                     JsonObject supportingBody = extractBody(jsonObjMSG);
-                    sendCommandEditorResponse(homeBankingId, sessionId,
-                            "smokeTest.supportingWorkspaces.prepareResponse",
-                            variablesWorkspaceService.prepareSmokeSupportingWorkspaces(
-                                    supportingBody, sessionId, session));
+                    int supportingHomeBankingId = homeBankingId;
+                    try {
+                        smokeSupportingWorkspacesWorker.execute(() -> {
+                            JsonObject response = variablesWorkspaceService
+                                    .prepareSmokeSupportingWorkspaces(
+                                            supportingBody, sessionId, session);
+                            sendSmokeSupportingWorkspacesResponse(
+                                    supportingHomeBankingId,
+                                    sessionId,
+                                    session,
+                                    response);
+                        });
+                    } catch (RejectedExecutionException busy) {
+                        JsonObject response = commandEditorFailure(
+                                supportingBody,
+                                "Another Smoke Test is already preparing its execution pages.");
+                        sendSmokeSupportingWorkspacesResponse(
+                                supportingHomeBankingId,
+                                sessionId,
+                                session,
+                                response);
+                    }
                     break;
                 }
                 case "excelDataWorkspace.mode.read": {
@@ -8380,6 +8401,27 @@ public class SimpleWebSocketServer {
         webSocketSessionManager.sendMessageJson(homeBankId, sessionId, gson.toJson(response), operationId);
     }
 
+    private void sendSmokeSupportingWorkspacesResponse(
+            int fallbackHomeBankingId,
+            String sessionId,
+            Session requesterTransport,
+            JsonObject response) {
+        if (requesterTransport == null
+                || !requesterTransport.isOpen()
+                || WebSocketSessionManager.getSession(sessionId) != requesterTransport) {
+            log.warn(
+                    "Dropped Smoke execution-page readiness response because requester {} no longer owns its transport",
+                    sessionId);
+            return;
+        }
+        WebSocketSessionManager.sendMessageJson(
+                commandEditorHomeBankingId(response, fallbackHomeBankingId),
+                requesterTransport,
+                sessionId,
+                gson.toJson(response),
+                "smokeTest.supportingWorkspaces.prepareResponse");
+    }
+
     private void sendMemoryListResponse(
             int fallbackHomeBankingId,
             String sessionId,
@@ -8724,6 +8766,23 @@ public class SimpleWebSocketServer {
                     return thread;
                 },
                 new ThreadPoolExecutor.AbortPolicy());
+    }
+
+    private static ThreadPoolExecutor newSmokeSupportingWorkspacesWorker() {
+        ThreadPoolExecutor executor = new ThreadPoolExecutor(
+                1,
+                1,
+                0L,
+                TimeUnit.MILLISECONDS,
+                new ArrayBlockingQueue<>(4),
+                operation -> {
+                    Thread thread = new Thread(operation, "smoke-supporting-workspaces");
+                    thread.setDaemon(true);
+                    return thread;
+                },
+                new ThreadPoolExecutor.AbortPolicy());
+        executor.prestartCoreThread();
+        return executor;
     }
 
     private static List<RetentionSubscriber> completePageMappingsRetentionRequest(
