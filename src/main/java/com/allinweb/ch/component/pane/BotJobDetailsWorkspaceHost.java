@@ -1860,6 +1860,11 @@ public class BotJobDetailsWorkspaceHost {
         if (!workbook.isFile()) {
             throw new IllegalStateException("Generate the Excel file before launching the Bot Job");
         }
+        JsonObject excelPolicy = ExcelDataWorkspaceService.getInstance()
+                .validateLaunchDataSaved(context.botJobId());
+        if (!excelPolicy.get("ok").getAsBoolean()) {
+            throw new IllegalStateException(excelPolicy.get("error").getAsString());
+        }
         prepareRuntimeMemoryForExecution(context, request.body());
         ScannerExecutionPreflightMonitor.Observation preflightObservation =
                 executionPreflightMonitor.observe(

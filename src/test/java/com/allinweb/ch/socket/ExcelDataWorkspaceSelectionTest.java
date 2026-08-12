@@ -1,7 +1,9 @@
 package com.allinweb.ch.socket;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
@@ -31,5 +33,13 @@ class ExcelDataWorkspaceSelectionTest {
         assertEquals(1, ExcelDataWorkspaceService.selectedRowAfterMove(2, 0, 3, 4));
         assertEquals(2, ExcelDataWorkspaceService.selectedRowAfterMove(1, 3, 0, 4));
         assertEquals(0, ExcelDataWorkspaceService.selectedRowAfterMove(0, 2, 3, 4));
+    }
+
+    @Test
+    void onlyUnsavedRealDataBlocksBatchLaunch() {
+        assertTrue(ExcelDataWorkspaceService.blocksLaunchForUnsavedRealData("REAL", true));
+        assertFalse(ExcelDataWorkspaceService.blocksLaunchForUnsavedRealData("REAL", false));
+        assertFalse(ExcelDataWorkspaceService.blocksLaunchForUnsavedRealData("SYNTHETIC", true));
+        assertFalse(ExcelDataWorkspaceService.blocksLaunchForUnsavedRealData(null, true));
     }
 }

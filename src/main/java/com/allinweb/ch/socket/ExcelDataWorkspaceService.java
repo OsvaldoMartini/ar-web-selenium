@@ -267,17 +267,31 @@ public final class ExcelDataWorkspaceService {
             return failure("Excel Data memory is not open for Bot Job " + botJobId + ".");
         }
         selectExecutionData();
-        if (binding.mode == Mode.REAL && binding.realDirty) {
-            return failure("REAL Excel memory has unsaved changes. Save to Excel before execution.");
+        return snapshot(binding.mode + " in-memory data selected for TEST RUN.");
+    }
+
+    /**
+     * Keeps durable Batch/Launch execution on an explicitly saved REAL workbook.
+     *
+     * <p>Smoke, Integration, and TEST RUN intentionally consume current in-memory data so users
+     * can validate edits before choosing whether to save them.
+     */
+    public synchronized JsonObject validateLaunchDataSaved(int botJobId) {
+        if (binding == null || binding.botJobId() != botJobId) {
+            return success("No retained Excel memory changes are pending for this Bot Job.");
         }
-        return snapshot(binding.mode + " memory selected for execution.");
+        if (blocksLaunchForUnsavedRealData(binding.mode.name(), binding.realDirty)) {
+            return failure("REAL Excel memory has unsaved changes. Save to Excel before Launch.");
+        }
+        return success("Excel data is ready for Launch.");
     }
 
     /**
      * Freezes the exact retained REAL/SYNTHETIC dataset used by one Integration run.
      *
-     * <p>The returned data is a deep copy. Later cell edits, row deletes, mode changes, or reloads
-     * in the detached Excel Data page therefore cannot alter an already-started browser run.
+     * <p>The returned data is a deep copy, including unsaved in-memory edits. Later cell edits,
+     * row deletes, mode changes, saves, or reloads in the detached Excel Data page therefore
+     * cannot alter an already-started browser run.
      */
     public synchronized IntegrationDataset freezeIntegrationData(
             int botJobId, String expectedMode) {
@@ -295,10 +309,6 @@ public final class ExcelDataWorkspaceService {
         if (binding.mode != requested) {
             throw new IllegalStateException(
                     "Excel Data mode changed. Reopen Smoke Test before Integration.");
-        }
-        if (binding.mode == Mode.REAL && binding.realDirty) {
-            throw new IllegalStateException(
-                    "REAL Excel memory has unsaved changes. Save to Excel before Integration.");
         }
         ExtractedData frozen = binding.data().deepCopy();
         return new IntegrationDataset(
@@ -769,6 +779,10 @@ public final class ExcelDataWorkspaceService {
             return selected + 1;
         }
         return selected;
+    }
+
+    static boolean blocksLaunchForUnsavedRealData(String mode, boolean dirty) {
+        return dirty && "REAL".equalsIgnoreCase(mode == null ? "" : mode.trim());
     }
 
     private static String datasetContentRevision(Binding owner, ExtractedData data) {
