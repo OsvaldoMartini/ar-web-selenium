@@ -1085,7 +1085,9 @@ Do not change frontend CSS/design while doing the scanner contract cleanup unles
 - [x] The prerequisite applies to both local Smoke simulation and Smoke Integration. Before either
   execution plan advances, React sends one correlated owner/generation-bound prepare request and
   awaits Runtime Variables, Excel Data, and ExcelWriter Manager.
-- [x] Backend `9edfdfd3` opens all three pages and waits for exact rendered-owner acknowledgements.
+- [x] Backend `9edfdfd3` opens all three pages and waits for exact rendered-owner acknowledgements;
+  `847095f9` runs that wait on a bounded worker so the Smoke WebSocket remains free to relay
+  ExcelWriter state and exact terminal delivery stays on the original authoritative transport.
   Integration repeats the same authoritative gate before acquiring or navigating Playwright.
   Wrong owner, disconnect, load failure, or timeout fails closed before a browser action.
 - [x] Frontend `73a45f4` makes the local Run handler await that gate, adds generation-safe message
@@ -1102,7 +1104,7 @@ Do not change frontend CSS/design while doing the scanner contract cleanup unles
   `target/classes`. Entrypoints are `main.19002a92.js` (2,147,575 bytes, SHA-256
   `057F77B79DAAC40920652759078466EA957690B04540DCEFE3B261ED931C5C17`) and
   `main.87de7edc.css` (532,294 bytes, SHA-256
-  `6BAA0FCFC311EEC57A8930B8AD6353AD876D28B9A39A5E347B45667B1D9F1EEE`). Catalog `19f1e9c8`
+  `6BAA0FCFC311EEC57A8930B8AD6353AD876D28B9A39A5E347B45667B1D9F1EEE`). Catalog `780e746a`
   records 2,390 rows / 2,354 code cases.
 - [ ] No application restart or live Smoke/Integration/Playwright action was performed. From
   IntelliJ, run one Smoke simulation and one Java V1 Integration and verify the three pages are

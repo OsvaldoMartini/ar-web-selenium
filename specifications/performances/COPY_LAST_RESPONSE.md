@@ -2,7 +2,7 @@
 
 Keep exactly two review sections. Check tasks only after their separate gates pass.
 
-**Last updated:** 2026-08-12 - Both Smoke simulation and Integration now wait for Runtime Variables, Excel Data, and ExcelWriter Manager to be visibly ready before execution; Integration rechecks before Playwright. Frontend `73a45f4`, backend `9edfdfd3`, deployment `0c898756`, and catalog `19f1e9c8` are pushed. Focused frontend 1/1, backend 32/32, catalog 2/2, Java compile, and production frontend build passed. No app restart or live browser action was performed.
+**Last updated:** 2026-08-12 - Both Smoke simulation and Integration now wait for Runtime Variables, Excel Data, and ExcelWriter Manager to be visibly ready before execution; Integration rechecks before Playwright. Frontend `73a45f4`, backend `9edfdfd3` plus nonblocking relay `847095f9`, deployment `0c898756`, and catalog `780e746a` are pushed. Focused frontend 1/1, backend 32/32, catalog 2/2, Java compile, and production frontend build passed. No app restart or live browser action was performed.
 
 ## 1. CODEX -> CLAUDE - Page Mappings and Memory lifecycle review handoff
 
@@ -635,7 +635,7 @@ The Page Mappings roadmap is now source-complete through P7:
 - [x] Runtime Variables, Excel Data, and ExcelWriter Manager each acknowledge the exact rendered
   owner/generation. ExcelWriter sends ready only after its React-owned file state is loaded, and its
   independent WebSocket replaces the prior browser BroadcastChannel projection.
-- [x] Frontend `73a45f4`, backend `9edfdfd3`, deployment `0c898756`, and catalog `19f1e9c8` are
+- [x] Frontend `73a45f4`, backend `9edfdfd3` / `847095f9`, deployment `0c898756`, and catalog `780e746a` are
   committed/pushed. Verification passed frontend 1/1, backend 32/32, catalog 2/2, Java compilation,
   production build, and exact 61-file/19-image mirroring.
 - [ ] Restart from IntelliJ and live-prove one Smoke simulation plus one Java V1 Integration. All

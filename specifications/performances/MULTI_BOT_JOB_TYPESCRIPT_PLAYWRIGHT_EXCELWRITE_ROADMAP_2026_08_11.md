@@ -1284,7 +1284,8 @@ and atomic artifact-write checkpoints are complete.
 - [x] The readiness prerequisite is shared by both execution modes. Local Smoke simulation now
   awaits the same correlated prepare operation as Integration instead of starting after a
   fire-and-forget Excel Data open.
-- [x] Backend `9edfdfd3` opens Runtime Variables, Excel Data, and ExcelWriter Manager before waiting.
+- [x] Backend `9edfdfd3` opens Runtime Variables, Excel Data, and ExcelWriter Manager before waiting;
+  `847095f9` moves the wait to a bounded worker so the Smoke WebSocket can relay ExcelWriter state.
   Each page must acknowledge the exact active owner and rendered generation; Integration invokes
   this gate before Playwright ownership/navigation. All failures remain pre-action and fail closed.
 - [x] Frontend `73a45f4` awaits the prepare response before building/advancing the run. Runtime
@@ -1297,7 +1298,7 @@ and atomic artifact-write checkpoints are complete.
   ExcelWriter command consumer so reconnect/identity reset cannot skip the first new response.
 - [x] Focused verification passed: frontend 1/1, backend 32/32, catalog 2/2; Java compiled 578 main
   sources and the frontend production build passed. Deployment `0c898756` contains 61 exact files;
-  catalog `19f1e9c8` contains 2,390 rows / 2,354 code cases.
+  catalog `780e746a` contains 2,390 rows / 2,354 code cases.
 - [ ] Live acceptance remains: from IntelliJ, execute one Smoke simulation and one Integration.
   Verify all three pages are visibly ready before the first action, then verify an ExcelWrite row
   appears/edits/saves in real time without blocking Smoke Test or changing Excel Data.
