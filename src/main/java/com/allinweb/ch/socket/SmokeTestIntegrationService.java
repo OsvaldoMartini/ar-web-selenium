@@ -34,7 +34,6 @@ import com.allinweb.ch.socket.ExcelDataWorkspaceService.IntegrationDataset;
 import com.allinweb.ch.socket.VariablesWorkspaceService.SmokeIntegrationAuthorization;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -357,7 +356,7 @@ public final class SmokeTestIntegrationService {
                 if (!pageReady) {
                     throw new IllegalStateException(
                             request.pagePolicy() == PagePolicy.PRESERVE_ACTIVE
-                                    ? "The current Playwright page is unavailable or belongs to another site."
+                                    ? "The current Playwright page could not be preserved or opened."
                                     : "The selected Bot Job Playwright page could not be opened and settled.");
                 }
             } else {
@@ -1219,43 +1218,16 @@ public final class SmokeTestIntegrationService {
         public boolean openPreservingCurrentPageAndWait(
                 String browserType, String url, String optionsConfig) {
             ARWebDriver driver = ARWebDriver.getInstance();
-            var current = driver.currentPlaywrightDriver();
-            if (current != null && current.isOpen()
-                    && !sameOrigin(current.currentUrl(), url)) {
-                return false;
-            }
             if (!driver.openBrowserPreservingCurrentPage(browserType, url, optionsConfig)) {
                 return false;
             }
-            current = driver.currentPlaywrightDriver();
+            var current = driver.currentPlaywrightDriver();
             if (current == null || !current.isOpen()) return false;
             current.waitForPageSettled(15_000L);
             String currentUrl = current.currentUrl();
             return currentUrl != null
                     && !currentUrl.isBlank()
-                    && !"about:blank".equalsIgnoreCase(currentUrl.trim())
-                    && sameOrigin(currentUrl, url);
-        }
-
-        private static boolean sameOrigin(String currentUrl, String selectedUrl) {
-            try {
-                URI current = URI.create(currentUrl);
-                URI selected = URI.create(selectedUrl);
-                return equalIgnoreCase(current.getScheme(), selected.getScheme())
-                        && equalIgnoreCase(current.getHost(), selected.getHost())
-                        && effectivePort(current) == effectivePort(selected);
-            } catch (IllegalArgumentException invalidUrl) {
-                return false;
-            }
-        }
-
-        private static int effectivePort(URI uri) {
-            if (uri.getPort() >= 0) return uri.getPort();
-            return "https".equalsIgnoreCase(uri.getScheme()) ? 443 : 80;
-        }
-
-        private static boolean equalIgnoreCase(String left, String right) {
-            return left != null && right != null && left.equalsIgnoreCase(right);
+                    && !"about:blank".equalsIgnoreCase(currentUrl.trim());
         }
 
         @Override
