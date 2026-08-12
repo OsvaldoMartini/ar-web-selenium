@@ -304,6 +304,7 @@ public final class SmokeTestIntegrationContracts {
             long datasetEpoch,
             long datasetRevision,
             String datasetContentRevision,
+            int datasetRowCount,
             String runtimeMode,
             String pagePolicy,
             boolean durableRuntimeWrites,
@@ -329,6 +330,7 @@ public final class SmokeTestIntegrationContracts {
             requireNonNegative(datasetRevision, "datasetRevision");
             datasetContentRevision = requireSha256(
                     datasetContentRevision, "datasetContentRevision");
+            requireNonNegative(datasetRowCount, "datasetRowCount");
             runtimeMode = requireEnumText(runtimeMode, "runtimeMode", RuntimeMode.class);
             pagePolicy = requireEnumText(pagePolicy, "pagePolicy", PagePolicy.class);
             runtimeSnapshot = Objects.requireNonNull(
