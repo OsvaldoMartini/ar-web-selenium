@@ -1035,3 +1035,10 @@ This checkpoint is separate from Page Mappings behavior and records the shared P
 - [x] Only Batch `Launch` retains the unsaved-REAL block. Catalog `60574009` is current; focused verification passed 15/15; no frontend build was required.
 - [x] ARWeb PID `24584` runs on `54622/54623`, Node PID `5708` is READY on `60110`, and six fresh logs have zero strict failures.
 - [ ] Live gate: prove an unsaved REAL edit in Integration, save it afterward, repeat with SYNTHETIC, and confirm Batch Launch alone requires saved REAL data.
+
+## Pages Open hidden-window focus recovery - 2026-08-11
+
+- [x] Live Windows inventory proved the current Bot Job Details WebSocket survived while its Chromium HWND was hidden; Pages Open's exact focus request therefore could not pass the old visible-window-only lookup.
+- [x] Backend `a94ab42f` accepts the exact server-issued title token on hidden HWNDs and invokes the existing restore/foreground sequence. Focus authority remains bound to the current transport and opaque page ID.
+- [x] Focused verification passed 1/1; catalog `aa82166f` is current. ARWeb PID `16000` runs on `61964/61965`, Node PID `26056` is READY on `60110`, and six fresh logs have zero strict failures.
+- [ ] Live gate: Pages Open must raise Bot Job Details for Job 32 and after switching back to Job 29.

@@ -518,6 +518,13 @@ The Page Mappings roadmap is now source-complete through P7:
 - [x] ARWeb PID `24584` is healthy on `54622/54623`; Node PID `5708` is READY on `60110`; six fresh logs have zero strict failures.
 - [ ] TASK - Live-test unsaved REAL and SYNTHETIC edits in Integration, save the proven REAL edit afterward, and verify only Batch Launch blocks dirty REAL memory.
 
+### Pages Open hidden-window focus recovery - 2026-08-11
+
+- [x] Root cause was native visibility filtering, not a stale page ID: the exact Bot Job Details transport remained current while its Chromium HWND was hidden.
+- [x] Backend `a94ab42f` now finds the exact one-use token on hidden windows and lets the existing Windows restore/foreground routine reveal it. Catalog `aa82166f` is current; focused verification passed 1/1.
+- [x] ARWeb PID `16000` is healthy on `61964/61965`; Node PID `26056` is READY on `60110`; six fresh logs have zero strict failures.
+- [ ] TASK - Verify Pages Open brings Bot Job Details to foreground for Job 32 and again after a 32 -> 29 retarget.
+
 ## 2. CLAUDE -> CODEX - Independent review requested
 
 ### Step 8 independent audit result

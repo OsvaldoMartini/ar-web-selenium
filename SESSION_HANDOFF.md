@@ -976,3 +976,11 @@ Do not change frontend CSS/design while doing the scanner contract cleanup unles
 - [x] Focused verification passed 15/15 across Excel policy and Smoke Integration contract/service suites. Java compiled 577 sources. No frontend source changed, so no npm build or asset deployment was required.
 - [x] Catalog `60574009` records 2,372 rows / 2,336 code cases; generation executed no tests. ARWeb PID `24584` runs on `54622/54623`; Node PID `5708` is READY on `60110`; six fresh logs have zero strict failures.
 - [ ] Live user gate: edit a REAL memory cell without saving, run Integration and verify the edited value is used, then Save to Excel afterward. Repeat with SYNTHETIC. Confirm Batch Launch alone refuses unsaved REAL memory.
+
+## Pages Open hidden-window focus recovery - 2026-08-11
+
+- [x] Live evidence confirmed the Bot Job Details control WebSocket remained authoritative while its Chromium top-level window was hidden (`Visible=False`). Pages Open delivered the focus request, but native lookup filtered out all hidden HWNDs, so the existing restore routine could never run.
+- [x] Backend `a94ab42f` keeps the one-use WebSocket-issued title token as exact identity, includes hidden top-level windows in token lookup, and then reuses the existing `ShowWindow`/restore/foreground sequence. Session, close, launch, and owner authorization were not broadened.
+- [x] Java compiled 577 main / 339 test sources; focused `DesktopWindowFocusServiceTest` passed 1/1. Catalog `aa82166f` records 2,373 rows / 2,337 code cases; generation ran no tests.
+- [x] ARWeb PID `16000` runs on `61964/61965`; Node PID `26056` is READY on `60110`; six startup logs have zero strict failures.
+- [ ] Live user gate: open/retarget Job 32, then click Pages Open -> Bot Job Details. The hidden exact window must become visible and foreground. Repeat after switching back to Job 29.
