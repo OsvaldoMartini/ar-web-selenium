@@ -325,6 +325,7 @@ public final class SmokeTestIntegrationService {
         V2Run v2Run = null;
         try {
             SmokeIntegrationAuthorization authorization = variables.authorize(rawBody, transport);
+            variables.requireRuntimeVariablesReady(authorization, transport);
             Plan plan = snapshots.load(
                     new Owner(authorization.homeBankingId(), authorization.botJobId()),
                     request.scope());
@@ -1183,6 +1184,9 @@ public final class SmokeTestIntegrationService {
         SmokeIntegrationAuthorization authorize(JsonObject request, Session transport);
 
         boolean isCurrent(SmokeIntegrationAuthorization expected, Session transport);
+
+        default void requireRuntimeVariablesReady(
+                SmokeIntegrationAuthorization expected, Session transport) {}
     }
 
     interface DatasetPort {
@@ -1319,6 +1323,12 @@ public final class SmokeTestIntegrationService {
         public boolean isCurrent(
                 SmokeIntegrationAuthorization expected, Session transport) {
             return delegate.isCurrentSmokeIntegrationBinding(expected, transport);
+        }
+
+        @Override
+        public void requireRuntimeVariablesReady(
+                SmokeIntegrationAuthorization expected, Session transport) {
+            delegate.requireRuntimeVariablesReadyForSmokeIntegration(expected, transport);
         }
     }
 

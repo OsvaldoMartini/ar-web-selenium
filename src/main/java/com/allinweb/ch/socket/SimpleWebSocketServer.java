@@ -170,6 +170,7 @@ public class SimpleWebSocketServer {
             "pagesOpen.summary");
     private static final Set<String> DETACHED_VARIABLES_OPERATIONS = Set.of(
             "variablesWorkspace.bootstrap",
+            "runtimeVariablesWorkspace.ready",
             "variablesWorkspace.refresh",
             "variablesWorkspace.runtimeMemory.update",
             "variablesWorkspace.runtimeMemory.clearAll",
@@ -1685,6 +1686,16 @@ public class SimpleWebSocketServer {
                             sessionId,
                             "runtimeVariablesWorkspace.openResponse",
                             variablesWorkspaceService.openRuntimeVariablesWorkspace(
+                                    runtimeVariablesBody, sessionId, session));
+                    break;
+                }
+                case "runtimeVariablesWorkspace.ready": {
+                    JsonObject runtimeVariablesBody = extractBody(jsonObjMSG);
+                    sendCommandEditorResponse(
+                            homeBankingId,
+                            sessionId,
+                            "runtimeVariablesWorkspace.readyResponse",
+                            variablesWorkspaceService.runtimeVariablesReady(
                                     runtimeVariablesBody, sessionId, session));
                     break;
                 }

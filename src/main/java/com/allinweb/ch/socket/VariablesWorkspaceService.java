@@ -88,6 +88,7 @@ public final class VariablesWorkspaceService {
     public static final String RUNTIME_MEMORY_SNAPSHOT_OPERATION =
             "variablesWorkspace.runtimeMemory.snapshot";
     private static final long RELOAD_GRACE_MILLIS = 2_500L;
+    private static final long RUNTIME_VARIABLES_READY_TIMEOUT_MILLIS = 30_000L;
     private static final long RUNTIME_MEMORY_PUBLICATION_DELAY_MILLIS = 25L;
     private static final int MAX_RUNTIME_VALUE_CHARACTERS = 1_000_000;
     private static final RuntimeVariableMemoryRegistry RUNTIME_MEMORY =
@@ -150,6 +151,7 @@ public final class VariablesWorkspaceService {
     private Session smokeTestTransport;
     private Binding runtimeVariablesBinding;
     private Session runtimeVariablesTransport;
+    private String runtimeVariablesReadyBindingEpoch = "";
     private long disconnectGeneration;
 
     VariablesWorkspaceService(
@@ -396,6 +398,8 @@ public final class VariablesWorkspaceService {
             synchronized (stateLock) {
                 previous = runtimeVariablesBinding;
                 runtimeVariablesBinding = next;
+                runtimeVariablesReadyBindingEpoch = "";
+                stateLock.notifyAll();
             }
             boolean alreadyOpen = windows.isOpen(
                     DetachedWorkspaceSessions.RUNTIME_VARIABLES_MANAGER);
@@ -586,6 +590,8 @@ public final class VariablesWorkspaceService {
             synchronized (stateLock) {
                 runtimeVariablesBinding = runtimeBinding;
                 runtimeVariablesTransport = requesterTransport;
+                runtimeVariablesReadyBindingEpoch = "";
+                stateLock.notifyAll();
             }
             return loadSnapshot(
                     runtimeBinding, request, "Runtime Variables workspace loaded.");
@@ -593,6 +599,124 @@ public final class VariablesWorkspaceService {
             log.warn("Unable to load Runtime Variables workspace", failure);
             return failure(request, failure.getMessage(), runtimeBinding);
         }
+    }
+
+    /**
+     * Acknowledges that React committed the exact Runtime Variables snapshot to its visible page.
+     * Merely launching the native window or accepting its WebSocket is not a readiness signal.
+     */
+    public JsonObject runtimeVariablesReady(
+            JsonObject body, String requesterSessionId, Session requesterTransport) {
+        JsonObject request = body == null ? new JsonObject() : body;
+        Binding current = null;
+        try {
+            synchronized (stateLock) {
+                if (!DetachedWorkspaceSessions.RUNTIME_VARIABLES_MANAGER.equals(requesterSessionId)
+                        || runtimeVariablesBinding == null
+                        || runtimeVariablesTransport != requesterTransport
+                        || !windows.isRegistered(requesterSessionId, requesterTransport)) {
+                    return failure(
+                            request,
+                            "The Runtime Variables readiness requester is not authoritative.",
+                            runtimeVariablesBinding);
+                }
+                current = runtimeVariablesBinding;
+                if (!current.bindingEpoch().equals(text(request, "bindingEpoch"))
+                        || current.workspaceEpoch()
+                                != nonNegativeLong(request, "workspaceEpoch", true)
+                        || current.botJobId() != positiveInteger(request, "botJobId")
+                        || current.homeBankingId() != positiveInteger(request, "homeBankingId")) {
+                    return failure(
+                            request,
+                            "The Runtime Variables page changed before it became ready.",
+                            current);
+                }
+            }
+            WorkspaceContext workspace = workspaces.require(
+                    current.botJobId(), current.workspaceEpoch());
+            synchronized (stateLock) {
+                if (runtimeVariablesBinding == null
+                        || runtimeVariablesTransport != requesterTransport
+                        || !runtimeVariablesBinding.bindingEpoch().equals(current.bindingEpoch())
+                        || workspace.homeBankingId() != current.homeBankingId()) {
+                    return failure(
+                            request,
+                            "The Runtime Variables page changed before readiness was recorded.",
+                            current);
+                }
+                runtimeVariablesReadyBindingEpoch = current.bindingEpoch();
+                stateLock.notifyAll();
+            }
+            return success(request, current, "Runtime Variables is visible and loaded.");
+        } catch (IllegalArgumentException | IllegalStateException refused) {
+            return failure(request, refused.getMessage(), current);
+        }
+    }
+
+    /**
+     * Opens Runtime Variables and blocks only Integration start until React confirms that the
+     * exact owner snapshot is rendered. Playwright must not open or navigate before this returns.
+     */
+    public void requireRuntimeVariablesReadyForSmokeIntegration(
+            SmokeIntegrationAuthorization expected, Session requesterTransport) {
+        if (!isCurrentSmokeIntegrationBinding(expected, requesterTransport)) {
+            throw new IllegalStateException(
+                    "The Smoke Test target changed before Runtime Variables could open.");
+        }
+        JsonObject opened = openRuntimeVariablesForBotJob(expected.botJobId());
+        if (!isSuccessful(opened)) {
+            String message = text(opened, "error");
+            throw new IllegalStateException(message.isBlank()
+                    ? "Runtime Variables could not be opened before Integration."
+                    : message);
+        }
+
+        long deadline = System.nanoTime()
+                + TimeUnit.MILLISECONDS.toNanos(RUNTIME_VARIABLES_READY_TIMEOUT_MILLIS);
+        synchronized (stateLock) {
+            while (!isRuntimeVariablesReadyLocked(expected)) {
+                if (!isCurrentSmokeIntegrationBindingLocked(expected, requesterTransport)) {
+                    throw new IllegalStateException(
+                            "The Smoke Test target changed while Runtime Variables was loading.");
+                }
+                long remainingNanos = deadline - System.nanoTime();
+                if (remainingNanos <= 0L) {
+                    throw new IllegalStateException(
+                            "Runtime Variables did not become visible and loaded before Integration.");
+                }
+                try {
+                    TimeUnit.NANOSECONDS.timedWait(stateLock, remainingNanos);
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                    throw new IllegalStateException(
+                            "Runtime Variables readiness was interrupted.", interrupted);
+                }
+            }
+        }
+    }
+
+    private boolean isRuntimeVariablesReadyLocked(SmokeIntegrationAuthorization expected) {
+        return runtimeVariablesBinding != null
+                && runtimeVariablesTransport != null
+                && runtimeVariablesTransport.isOpen()
+                && windows.isRegistered(
+                        DetachedWorkspaceSessions.RUNTIME_VARIABLES_MANAGER,
+                        runtimeVariablesTransport)
+                && runtimeVariablesBinding.workspaceEpoch() == expected.workspaceEpoch()
+                && runtimeVariablesBinding.botJobId() == expected.botJobId()
+                && runtimeVariablesBinding.homeBankingId() == expected.homeBankingId()
+                && runtimeVariablesBinding.bindingEpoch().equals(
+                        runtimeVariablesReadyBindingEpoch);
+    }
+
+    private boolean isCurrentSmokeIntegrationBindingLocked(
+            SmokeIntegrationAuthorization expected, Session requesterTransport) {
+        return smokeTestBinding != null
+                && smokeTestTransport == requesterTransport
+                && smokeTestBinding.bindingEpoch().equals(expected.bindingEpoch())
+                && smokeTestBinding.workspaceEpoch() == expected.workspaceEpoch()
+                && smokeTestBinding.botJobId() == expected.botJobId()
+                && smokeTestBinding.homeBankingId() == expected.homeBankingId();
     }
 
     /** Opens/focuses Runtime Variables for the exact Bot Job bound to the requesting workspace. */
@@ -3163,6 +3287,8 @@ public final class VariablesWorkspaceService {
                 if (runtimeVariablesTransport == transport) {
                     runtimeVariablesTransport = null;
                     runtimeVariablesBinding = null;
+                    runtimeVariablesReadyBindingEpoch = "";
+                    stateLock.notifyAll();
                 }
             }
             return;
@@ -3172,6 +3298,7 @@ public final class VariablesWorkspaceService {
                 if (smokeTestTransport == transport) {
                     smokeTestTransport = null;
                     smokeTestBinding = null;
+                    stateLock.notifyAll();
                 }
             }
             return;

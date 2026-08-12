@@ -22,6 +22,7 @@ import com.allinweb.ch.facade.VariablesVariableDeleteTransaction.DeleteResult;
 import com.allinweb.ch.facade.actions.RuntimeVariableMemoryRegistry;
 import com.allinweb.ch.facade.actions.RuntimeVariableMemoryRegistry.BotJobKey;
 import com.allinweb.ch.model.BotJobLoadDTO;
+import com.allinweb.ch.model.DetachedWorkspaceSessions;
 import com.allinweb.ch.model.InstructionGraphMutationV3;
 import com.allinweb.ch.model.InstructionGraphMutationV3.LayoutRow;
 import com.allinweb.ch.model.VariablesInstructionCopyV1;
@@ -113,6 +114,62 @@ class VariablesWorkspaceServiceTest {
         assertEquals(
                 VariablesWorkspaceService.SNAPSHOT_OPERATION,
                 windows.sent.get(0).operationId());
+    }
+
+    @Test
+    void integrationWaitsUntilExactRuntimeVariablesSnapshotIsRendered() throws Exception {
+        JsonObject smokeOpened = service.openSmokeTestForBotJob(5);
+        assertTrue(smokeOpened.get("ok").getAsBoolean());
+        Session smoke = openSession();
+        windows.register(DetachedWorkspaceSessions.SMOKE_TEST_MANAGER, smoke);
+        JsonObject smokeRequest = new JsonObject();
+        smokeRequest.addProperty("botJobId", 5);
+        JsonObject smokeSnapshot = service.smokeTestBootstrap(
+                smokeRequest, DetachedWorkspaceSessions.SMOKE_TEST_MANAGER, smoke);
+        assertTrue(smokeSnapshot.get("ok").getAsBoolean());
+        VariablesWorkspaceService.SmokeIntegrationAuthorization authorization =
+                new VariablesWorkspaceService.SmokeIntegrationAuthorization(
+                        smokeSnapshot.get("bindingEpoch").getAsString(),
+                        smokeSnapshot.get("workspaceEpoch").getAsLong(),
+                        5,
+                        2,
+                        "Job Five",
+                        "Bank",
+                        smokeSnapshot.get("graphRevision").getAsString());
+
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        try {
+            Future<?> waiting = executor.submit(() ->
+                    service.requireRuntimeVariablesReadyForSmokeIntegration(
+                            authorization, smoke));
+            assertTrue(windows.runtimeVariablesOpened.await(2, TimeUnit.SECONDS));
+
+            Session runtime = openSession();
+            windows.register(DetachedWorkspaceSessions.RUNTIME_VARIABLES_MANAGER, runtime);
+            JsonObject runtimeRequest = new JsonObject();
+            runtimeRequest.addProperty("botJobId", 5);
+            JsonObject runtimeSnapshot = service.runtimeVariablesBootstrap(
+                    runtimeRequest,
+                    DetachedWorkspaceSessions.RUNTIME_VARIABLES_MANAGER,
+                    runtime);
+            assertTrue(runtimeSnapshot.get("ok").getAsBoolean());
+            assertFalse(waiting.isDone());
+
+            JsonObject ready = new JsonObject();
+            ready.addProperty("bindingEpoch", runtimeSnapshot.get("bindingEpoch").getAsString());
+            ready.addProperty("workspaceEpoch", runtimeSnapshot.get("workspaceEpoch").getAsLong());
+            ready.addProperty("homeBankingId", 2);
+            ready.addProperty("botJobId", 5);
+            JsonObject acknowledged = service.runtimeVariablesReady(
+                    ready,
+                    DetachedWorkspaceSessions.RUNTIME_VARIABLES_MANAGER,
+                    runtime);
+
+            assertTrue(acknowledged.get("ok").getAsBoolean());
+            waiting.get(2, TimeUnit.SECONDS);
+        } finally {
+            executor.shutdownNow();
+        }
     }
 
     @Test
@@ -1397,6 +1454,8 @@ class VariablesWorkspaceServiceTest {
     private static final class FakeWindows implements VariablesWorkspaceService.WindowPort {
         private boolean open;
         private Session registered;
+        private final Map<String, Session> registeredBySession = new LinkedHashMap<>();
+        private final CountDownLatch runtimeVariablesOpened = new CountDownLatch(1);
         private int launches;
         private int closes;
         private int forceCloses;
@@ -1410,6 +1469,12 @@ class VariablesWorkspaceServiceTest {
 
         void register(Session transport) {
             registered = transport;
+            registeredBySession.put(VariablesWorkspaceService.WORKSPACE_SESSION_ID, transport);
+            open = true;
+        }
+
+        void register(String sessionId, Session transport) {
+            registeredBySession.put(sessionId, transport);
             open = true;
         }
 
@@ -1420,8 +1485,8 @@ class VariablesWorkspaceServiceTest {
 
         @Override
         public boolean isRegistered(String sessionId, Session transport) {
-            return VariablesWorkspaceService.WORKSPACE_SESSION_ID.equals(sessionId)
-                    && transport == registered
+            Session expected = registeredBySession.get(sessionId);
+            return transport == (expected == null ? registered : expected)
                     && transport != null
                     && transport.isOpen();
         }
@@ -1430,6 +1495,9 @@ class VariablesWorkspaceServiceTest {
         public boolean openOrFocus(String sessionId, int botJobId, String reason) {
             openOrFocusCalls++;
             lastBotJobId = botJobId;
+            if (DetachedWorkspaceSessions.RUNTIME_VARIABLES_MANAGER.equals(sessionId)) {
+                runtimeVariablesOpened.countDown();
+            }
             if (!open) launches++;
             open = true;
             return true;

@@ -50,6 +50,7 @@ class SmokeTestIntegrationServiceTest {
     private RecordingSteps steps;
     private RecordingV2 v2;
     private AtomicReference<String> openedBrowserUrl;
+    private AtomicInteger runtimeVariablesReadyCalls;
     private RecordingBrowserStart browserStart;
     private SmokeTestIntegrationService service;
 
@@ -72,7 +73,8 @@ class SmokeTestIntegrationServiceTest {
         steps = new RecordingSteps();
         v2 = new RecordingV2();
         openedBrowserUrl = new AtomicReference<>();
-        browserStart = new RecordingBrowserStart(openedBrowserUrl);
+        runtimeVariablesReadyCalls = new AtomicInteger();
+        browserStart = new RecordingBrowserStart(openedBrowserUrl, runtimeVariablesReadyCalls);
 
         SmokeIntegrationAuthorization authorization = new SmokeIntegrationAuthorization(
                 BINDING_EPOCH,
@@ -95,6 +97,14 @@ class SmokeTestIntegrationServiceTest {
                     public boolean isCurrent(
                             SmokeIntegrationAuthorization expected, Session candidate) {
                         return expected.equals(authorization) && candidate == transport;
+                    }
+
+                    @Override
+                    public void requireRuntimeVariablesReady(
+                            SmokeIntegrationAuthorization expected, Session candidate) {
+                        assertEquals(authorization, expected);
+                        assertEquals(transport, candidate);
+                        runtimeVariablesReadyCalls.incrementAndGet();
                     }
                 },
                 (botJobId, mode) -> dataset(),
@@ -127,6 +137,8 @@ class SmokeTestIntegrationServiceTest {
         Published stepped = responses.await(SmokeTestIntegrationContracts.STEP_RESPONSE);
 
         assertTrue(stepped.body.get("ok").getAsBoolean());
+        assertEquals(1, runtimeVariablesReadyCalls.get());
+        assertEquals(1, browserStart.readyCallsAtFirstOpen.get());
         assertEquals("step-1", stepped.body.get("requestId").getAsString());
         assertEquals(runId, stepped.body.get("runId").getAsString());
         assertEquals(1L, stepped.body.get("sequence").getAsLong());
@@ -417,17 +429,22 @@ class SmokeTestIntegrationServiceTest {
     private static final class RecordingBrowserStart
             implements SmokeTestIntegrationService.BrowserStartPort {
         private final AtomicReference<String> openedUrl;
+        private final AtomicInteger runtimeReadyCalls;
+        private final AtomicInteger readyCallsAtFirstOpen = new AtomicInteger(-1);
         private final AtomicInteger selected = new AtomicInteger();
         private final AtomicInteger preserved = new AtomicInteger();
 
-        private RecordingBrowserStart(AtomicReference<String> openedUrl) {
+        private RecordingBrowserStart(
+                AtomicReference<String> openedUrl, AtomicInteger runtimeReadyCalls) {
             this.openedUrl = openedUrl;
+            this.runtimeReadyCalls = runtimeReadyCalls;
         }
 
         @Override
         public boolean openSelectedPageAndWait(
                 String browserType, String url, String optionsConfig) {
             selected.incrementAndGet();
+            readyCallsAtFirstOpen.compareAndSet(-1, runtimeReadyCalls.get());
             openedUrl.set(url);
             return true;
         }
@@ -436,6 +453,7 @@ class SmokeTestIntegrationServiceTest {
         public boolean openPreservingCurrentPageAndWait(
                 String browserType, String url, String optionsConfig) {
             preserved.incrementAndGet();
+            readyCallsAtFirstOpen.compareAndSet(-1, runtimeReadyCalls.get());
             openedUrl.set(url);
             return true;
         }
