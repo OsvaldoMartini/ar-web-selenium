@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-12T21:30:27.167Z",
+  "generatedAt": "2026-08-12T22:21:09.086Z",
   "summary": {
     "catalogEntries": 2390,
     "automatedCodeCases": 2354,
@@ -18,7 +18,7 @@
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "branch": "refactor/perform-actions-decomposition",
-      "commit": "2ba49070ba73926033420f695dbc52af74f66adc",
+      "commit": "9edfdfd39f00c09a8d28947f1657cb4e08a55858",
       "sourceFiles": 340,
       "automatedSuites": 329,
       "automatedTestCases": 1459,
@@ -29,7 +29,7 @@
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "branch": "VERSION-4.6",
-      "commit": "30942d60b89273ec03539f16b40250168105a081",
+      "commit": "73a45f49a7d8950e3a70df7d9020717d36d55a5e",
       "sourceFiles": 172,
       "automatedSuites": 172,
       "automatedTestCases": 895,
@@ -46742,13 +46742,13 @@
       ]
     },
     {
-      "id": "jest:src/components/excel-write-manager/domain/excelWriterManagerBridge.test.ts::::isolates ExcelWriter messages by Bot Job owner@6",
+      "id": "jest:src/components/excel-write-manager/domain/excelWriterManagerBridge.test.ts::::accepts ExcelWriter state only for the exact workspace owner@5",
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "recordType": "AUTOMATED_CASE",
       "suite": "excelWriterManagerBridge",
-      "name": "isolates ExcelWriter messages by Bot Job owner",
-      "displayName": "isolates ExcelWriter messages by Bot Job owner",
+      "name": "accepts ExcelWriter state only for the exact workspace owner",
+      "displayName": "accepts ExcelWriter state only for the exact workspace owner",
       "framework": "Jest / Testing Library",
       "language": "TypeScript",
       "kind": "FRONTEND",
@@ -46756,11 +46756,11 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/components/excel-write-manager/domain/excelWriterManagerBridge.test.ts",
-      "line": 6,
+      "line": 5,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
-      "command": "npm test -- --runInBand --runTestsByPath src/components/excel-write-manager/domain/excelWriterManagerBridge.test.ts -t \"isolates ExcelWriter messages by Bot Job owner\"",
+      "command": "npm test -- --runInBand --runTestsByPath src/components/excel-write-manager/domain/excelWriterManagerBridge.test.ts -t \"accepts ExcelWriter state only for the exact workspace owner\"",
       "tags": [
         "frontend",
         "test"
