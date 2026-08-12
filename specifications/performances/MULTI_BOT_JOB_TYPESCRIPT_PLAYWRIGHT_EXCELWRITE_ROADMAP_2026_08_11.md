@@ -1208,3 +1208,21 @@ and atomic artifact-write checkpoints are complete.
   `CE6211A963688478DB8732E602E381501FA31AB4B229414105582BE62E868AF5`). No Java/Maven change.
 - Node PID `14772` is READY on `60110`; ARWeb PID `16304` is responsive on `56775/56776`. Live CSS
   bytes match exactly and nine current logs contain zero strict failures. Visual approval remains open.
+
+## 37. Java V1 Integration command completion - 2026-08-12
+
+- [x] PAUSE is an explicit React Continue/Stop barrier (`2231211`), not a timed no-op.
+- [x] EXCEL GOTO advances the frozen REAL/SYNTHETIC dataset row and jumps to its connected Block;
+  the final row continues normally (`b9a097b`, backend contract `29300e16`).
+- [x] Java Playwright physically executes C/I/O, GET/SET, REFRESH, BACK, NEXT_ENTER, bounded
+  SWIPE_UP/SWIPE_DOWN, viewport screenshot P, and close-browser Q/QUIT (`1b7304b2`).
+- [x] React owns CK/CSV CHECK/PDF CHECK, conditionals, LOOP/GOTO/EXCEL GOTO, waits, and PAUSE.
+  Unsupported actions fail closed; Java does not report an unexecuted action as success.
+- [x] Focused Java suites passed 15/15; Java compiled 577 main and 339 test sources. The frontend
+  production build passed with established warnings. Exact deployment is `d63d29e8`, 58 files,
+  `main.c166cabf.js` / `main.2f02cebb.css`; catalog is `5a8c5c7a`.
+- [ ] Implement ExcelWrite E as the separate React-memory ExcelWriter Manager with one narrow,
+  correlated backend flush at the selected block/run boundary. Do not restore legacy Java per-row
+  disk I/O. Add a durable screenshot artifact contract only if P must persist beyond the run.
+- [ ] User acceptance: run Lloyds 29 in JAVA V1 SHARED with Continue Page ON and exercise PAUSE,
+  NEXT_ENTER, swipe, BACK, screenshot, and Q against a safe page. No runtime/app was started here.

@@ -984,3 +984,30 @@ Do not change frontend CSS/design while doing the scanner contract cleanup unles
 - [x] Java compiled 577 main / 339 test sources; focused `DesktopWindowFocusServiceTest` passed 1/1. Catalog `aa82166f` records 2,373 rows / 2,337 code cases; generation ran no tests.
 - [x] ARWeb PID `16000` runs on `61964/61965`; Node PID `26056` is READY on `60110`; six startup logs have zero strict failures.
 - [ ] Live user gate: open/retarget Job 32, then click Pages Open -> Bot Job Details. The hidden exact window must become visible and foreground. Repeat after switching back to Job 29.
+
+## Java V1 Integration command completion - 2026-08-12
+
+- [x] `JAVA_V1 / SHARED` remains the new Java Playwright Integration path. It does not call the
+  legacy Selenium `executeJob()` engine. `PRESERVE_ACTIVE` continues the currently owned shared
+  Playwright page; `RELOAD_SELECTED` navigates to the selected Bot Job endpoint first.
+- [x] Frontend `2231211` makes PAUSE block the React-owned run until explicit Continue or Stop.
+  Frontend `b9a097b` executes EXCEL GOTO against the frozen Integration dataset row count, and
+  `9b21244` terminates orchestration after an authored Q/QUIT closes the browser.
+- [x] Backend `29300e16` exposes the frozen dataset row count. Backend `1b7304b2` adds physical
+  Java Playwright execution for BACK, NEXT_ENTER, bounded SWIPE_UP/SWIPE_DOWN, viewport PNG
+  screenshot P, and Q/QUIT. Existing C/I/O, GET/SET, REFRESH variants, locator healing, owner
+  fencing, and exact run correlation remain authoritative.
+- [x] CK, CSV CHECK, PDF CHECK, IF/ELSEIF/ELSE/ENDIF, LOOP, GOTO, EXCEL GOTO, H/WAIT, and PAUSE
+  remain React-owned logical commands. They are not silently re-executed by Java.
+- [x] Focused Java verification passed 15/15 after correcting the existing StartResponse fixture.
+  Java compiled 577 main and 339 test sources. The frontend production build passed with existing
+  repository warnings after two incomplete Excel Goto test-fixture shapes were detected and fixed.
+- [x] Deployment `d63d29e8` mirrors 58 exact files into resources and `target/classes`, with zero
+  hash mismatches. Entrypoints are `main.c166cabf.js`
+  (`B2F81EB01C49ABDCA58C1A6D4F772A9E1AAE6FC5C5AB7CE8BCCA49F1315BE3C0`) and
+  `main.2f02cebb.css` (`863E0A55F811307B9AE6F729BFCC3916137646B1087BBA2F67BCD97DB80A7803`).
+  Catalog `5a8c5c7a` records 2,375 rows / 2,339 code cases.
+- [ ] ExcelWrite E remains intentionally fail-closed in Smoke Integration until the separate
+  React-memory ExcelWriter Manager and narrow backend artifact-flush DTO are implemented. The P
+  command validates a PNG in memory; durable screenshot naming/storage is also a separate artifact
+  contract. No app restart or live banking action was performed in this checkpoint.
