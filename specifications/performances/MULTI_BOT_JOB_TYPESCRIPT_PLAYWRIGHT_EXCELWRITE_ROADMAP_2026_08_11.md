@@ -1278,3 +1278,26 @@ and atomic artifact-write checkpoints are complete.
 - [ ] Live acceptance remains: restart the IntelliJ application, run one ExcelWrite Integration,
   confirm Runtime Variables precedes Playwright, and confirm ExcelWriter edits/saves while Smoke
   Test and Excel Data remain independently usable.
+
+## 41. Three-page readiness for Smoke and Integration - 2026-08-12
+
+- [x] The readiness prerequisite is shared by both execution modes. Local Smoke simulation now
+  awaits the same correlated prepare operation as Integration instead of starting after a
+  fire-and-forget Excel Data open.
+- [x] Backend `9edfdfd3` opens Runtime Variables, Excel Data, and ExcelWriter Manager before waiting.
+  Each page must acknowledge the exact active owner and rendered generation; Integration invokes
+  this gate before Playwright ownership/navigation. All failures remain pre-action and fail closed.
+- [x] Frontend `73a45f4` awaits the prepare response before building/advancing the run. Runtime
+  Variables acknowledges its rendered graph snapshot, Excel Data acknowledges the rendered dataset
+  epoch, and ExcelWriter acknowledges only after the owner-bound React state is rendered.
+- [x] ExcelWriter state/edit/policy/save projection now uses the independent manager WebSocket.
+  The owning Smoke page still holds the React reducer and artifact construction; Java performs no
+  workbook/cell business logic and only relays bounded opaque owner-authorized messages.
+- [x] Message-buffer generation is handled explicitly in Smoke, Excel Data, ExcelWriter, and the
+  ExcelWriter command consumer so reconnect/identity reset cannot skip the first new response.
+- [x] Focused verification passed: frontend 1/1, backend 32/32, catalog 2/2; Java compiled 578 main
+  sources and the frontend production build passed. Deployment `0c898756` contains 61 exact files;
+  catalog `19f1e9c8` contains 2,390 rows / 2,354 code cases.
+- [ ] Live acceptance remains: from IntelliJ, execute one Smoke simulation and one Integration.
+  Verify all three pages are visibly ready before the first action, then verify an ExcelWrite row
+  appears/edits/saves in real time without blocking Smoke Test or changing Excel Data.

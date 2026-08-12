@@ -2,7 +2,7 @@
 
 Keep exactly two review sections. Check tasks only after their separate gates pass.
 
-**Last updated:** 2026-08-12 - ExcelWriter now saves dirty output at authored PAUSE, explicit Stop, and Q/QUIT Close Browser boundaries (`32cfc6b`). Flushes are serialized; Stop still cleans the run after a save failure. VOID creates no file, while produced empty/whitespace values remain valid. Focused tests passed 9/9; production build and exact deployment `865abb79` passed; catalog `6e790afd` is current. This changes ExcelWriter only—not Excel Data. No app restart or live file/browser action was performed.
+**Last updated:** 2026-08-12 - Both Smoke simulation and Integration now wait for Runtime Variables, Excel Data, and ExcelWriter Manager to be visibly ready before execution; Integration rechecks before Playwright. Frontend `73a45f4`, backend `9edfdfd3`, deployment `0c898756`, and catalog `19f1e9c8` are pushed. Focused frontend 1/1, backend 32/32, catalog 2/2, Java compile, and production frontend build passed. No app restart or live browser action was performed.
 
 ## 1. CODEX -> CLAUDE - Page Mappings and Memory lifecycle review handoff
 
@@ -626,6 +626,21 @@ The Page Mappings roadmap is now source-complete through P7:
   `main.b8d60cfe.css`; catalog `2c3dd644` contains 2,390 rows / 2,354 code cases.
 - [ ] Restart/live acceptance was not performed. Verify the independent page during one real
   ExcelWrite Integration and confirm Runtime Variables, Excel Data, and ExcelWriter Manager coexist.
+
+### Three-page Smoke execution readiness - 2026-08-12
+
+- [x] The prerequisite now applies equally to Smoke simulation and Integration. React awaits one
+  correlated prepare response before advancing either run; Integration repeats the authoritative
+  check before Playwright ownership or navigation.
+- [x] Runtime Variables, Excel Data, and ExcelWriter Manager each acknowledge the exact rendered
+  owner/generation. ExcelWriter sends ready only after its React-owned file state is loaded, and its
+  independent WebSocket replaces the prior browser BroadcastChannel projection.
+- [x] Frontend `73a45f4`, backend `9edfdfd3`, deployment `0c898756`, and catalog `19f1e9c8` are
+  committed/pushed. Verification passed frontend 1/1, backend 32/32, catalog 2/2, Java compilation,
+  production build, and exact 61-file/19-image mirroring.
+- [ ] Restart from IntelliJ and live-prove one Smoke simulation plus one Java V1 Integration. All
+  three pages must be visible/ready before the first step; a timeout/disconnect/wrong owner must
+  refuse the run, and ExcelWriter updates must not block Smoke Test or mutate Excel Data.
 
 ### Bot Job instruction-row selection and safe deletion - 2026-08-11
 

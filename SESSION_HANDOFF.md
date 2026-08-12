@@ -1079,3 +1079,32 @@ Do not change frontend CSS/design while doing the scanner contract cleanup unles
   performed. Remaining live gate: restart from the rebuilt classes, run one Integration containing
   ExcelWrite, verify Runtime Variables is visible before Playwright, and verify the independent
   Manager updates/edit/saves without blocking Smoke Test or changing Excel Data.
+
+## Three-page Smoke execution readiness - 2026-08-12
+
+- [x] The prerequisite applies to both local Smoke simulation and Smoke Integration. Before either
+  execution plan advances, React sends one correlated owner/generation-bound prepare request and
+  awaits Runtime Variables, Excel Data, and ExcelWriter Manager.
+- [x] Backend `9edfdfd3` opens all three pages and waits for exact rendered-owner acknowledgements.
+  Integration repeats the same authoritative gate before acquiring or navigating Playwright.
+  Wrong owner, disconnect, load failure, or timeout fails closed before a browser action.
+- [x] Frontend `73a45f4` makes the local Run handler await that gate, adds generation-safe message
+  consumption, and replaces the ExcelWriter BroadcastChannel with its independent WebSocket relay.
+  Smoke Test remains the sole owner of ExcelWriter cells/workbook logic; Java only validates and
+  relays opaque owner-bound state/commands. ExcelWriter acknowledges readiness only after its exact
+  state has arrived and rendered. Excel Data acknowledges its exact dataset generation.
+- [x] The three pages retain their normal top-right states. Excel Data and ExcelWriter add explicit
+  red failure treatment; the Smoke Test top status reports opening, ready, failure, and timeout.
+- [x] Verification passed: frontend exact-owner bridge 1/1; backend Variables/Integration suites
+  32/32; catalog suite 2/2; `mvn -DskipTests compile` compiled 578 sources; production frontend build
+  passed with established repository warnings.
+- [x] Deployment `0c898756` mirrors 61 exact files and 19 images into resources and
+  `target/classes`. Entrypoints are `main.19002a92.js` (2,147,575 bytes, SHA-256
+  `057F77B79DAAC40920652759078466EA957690B04540DCEFE3B261ED931C5C17`) and
+  `main.87de7edc.css` (532,294 bytes, SHA-256
+  `6BAA0FCFC311EEC57A8930B8AD6353AD876D28B9A39A5E347B45667B1D9F1EEE`). Catalog `19f1e9c8`
+  records 2,390 rows / 2,354 code cases.
+- [ ] No application restart or live Smoke/Integration/Playwright action was performed. From
+  IntelliJ, run one Smoke simulation and one Java V1 Integration and verify the three pages are
+  visible/ready before the first step and ExcelWriter updates in real time without blocking the
+  Smoke page or altering Excel Data.
