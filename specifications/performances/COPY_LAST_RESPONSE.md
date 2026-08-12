@@ -2,7 +2,7 @@
 
 Keep exactly two review sections. Check tasks only after their separate gates pass.
 
-**Last updated:** 2026-08-11 - Frontend `d5fc82c` places the runtime badge immediately before the Smoke workspace message in one responsive horizontal wrapper. The build passed without tests; deployment `b1659f3b` mirrors 58 exact files. Node PID `14772` is READY on `60110`; ARWeb PID `16304` is responsive on `56775/56776` and serves exact `main.086bf45c.js` / `main.d4eaaa1c.css` assets. Nine current logs contain zero strict failures.
+**Last updated:** 2026-08-12 - ExcelWriter Manager is implemented for Java V1 Smoke Integration. React owns ordered memory, editing, CSV/XLSX construction, checksums and flush policy; Java only reauthorizes, validates and atomically writes finalized bytes. Focused frontend/Java tests and the production build passed. Frontend `9e4e7e4` / `72026cb`, backend `e3ce0417` / `f6a76d62`, deployment `9b57892c`, and catalog `195eab6a` are pushed. No app restart or live banking/file-write acceptance was performed.
 
 ## 1. CODEX -> CLAUDE - Page Mappings and Memory lifecycle review handoff
 
@@ -524,6 +524,22 @@ The Page Mappings roadmap is now source-complete through P7:
 - [x] Backend `a94ab42f` now finds the exact one-use token on hidden windows and lets the existing Windows restore/foreground routine reveal it. Catalog `aa82166f` is current; focused verification passed 1/1.
 - [x] ARWeb PID `16000` is healthy on `61964/61965`; Node PID `26056` is READY on `60110`; six fresh logs have zero strict failures.
 - [ ] TASK - Verify Pages Open brings Bot Job Details to foreground for Job 32 and again after a 32 -> 29 retarget.
+
+### ExcelWriter Manager Java V1 Integration - 2026-08-12
+
+- [x] React owns E arrival, ordered files/columns/rows, editing, formula-safe CSV, lazy XLSX, SHA-256,
+  and the frozen End-of-Block / End-of-Execution policy (`9e4e7e4`, `72026cb`).
+- [x] Java V1 marks E logical-only. The correlated artifact boundary validates exact active run,
+  workspace, frozen IDs, current typed READ/file/column configuration, decoded length and checksum,
+  then atomically writes only finalized React bytes (`e3ce0417`, `f6a76d62`).
+- [x] Focused frontend tests passed 11/11 then final 10/10; Java passed 16/16 and compiled 578 main /
+  340 test sources. Production build passed with established warnings.
+- [x] Deployment `9b57892c` is exact across 61 files; current entrypoints are `main.1f0e624c.js` and
+  `main.5b308b0c.css`. Catalog `195eab6a` records 2,382 rows / 2,346 code cases.
+- [ ] Live acceptance: two E instructions in different Blocks sharing one XLSX target, editable
+  Manager values, both flush policies, CSV-first/XLSX content, changed-config refusal, and cleanup.
+- [ ] Save Partial/Discard after terminal Stop/failure and a detached floating Manager projection
+  remain later work; the current isolated dialog is owned by the Smoke page.
 
 ## 2. CLAUDE -> CODEX - Independent review requested
 

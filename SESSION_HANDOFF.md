@@ -1011,3 +1011,28 @@ Do not change frontend CSS/design while doing the scanner contract cleanup unles
   React-memory ExcelWriter Manager and narrow backend artifact-flush DTO are implemented. The P
   command validates a PNG in memory; durable screenshot naming/storage is also a separate artifact
   contract. No app restart or live banking action was performed in this checkpoint.
+
+## ExcelWriter Manager Integration checkpoint - 2026-08-12
+
+- React now owns ExcelWrite arrival, first-arrival file/column/row ordering, editable run memory,
+  formula-safe deterministic CSV construction, lazy-loaded XLSX construction, SHA-256, and the
+  End-of-Block / End-of-Execution flush policy. The policy is frozen during an active run. Source
+  commits are frontend `9e4e7e4` plus architecture correction `72026cb`.
+- ExcelWrite is logical-only in Java V1 Smoke Integration; it never invokes legacy per-row Java disk
+  I/O. The correlated backend reauthorizes the exact run/workspace, revalidates frozen instruction
+  IDs plus current typed READ/file/column configuration, verifies Base64 length and SHA-256, and
+  atomically writes only React-finalized bytes (`e3ce0417`, corrected boundary `f6a76d62`).
+- XLSX targets write the CSV companion first. End-of-Block/final flush failures stop and clean the
+  run instead of leaving it stuck. React retains FAILED/dirty state and does not claim full success.
+- Focused frontend verification passed 11/11 initially and the final artifact matrix passed 10/10.
+  Focused Java verification passed 16/16 and compiled 578 main / 340 test sources. The production
+  frontend build passed with existing repository-wide warnings. No Playwright action ran.
+- Deployment `9b57892c` mirrors 61 exact files into resources and `target/classes`. Entrypoints are
+  `main.1f0e624c.js` (2,136,884 bytes; SHA-256
+  `CF9383BF7F68265D6A1DA7DA87F765CB531BCB406D47C3727C9518A456B85117`) and
+  `main.5b308b0c.css` (530,113 bytes; SHA-256
+  `8B79F93F682289C77DF7B97425D5E9EC65351C4EBEC5F2CE848E89FADD52DE48`). ExcelJS is lazy-loaded.
+  Catalog `195eab6a` records 2,382 rows / 2,346 code cases.
+- No migration, package/image, application restart, or live file write was performed. Remaining:
+  live two-Block/shared-target acceptance, post-stop Save Partial/Discard, and a truly detached
+  floating Manager page rather than the current isolated in-page dialog.

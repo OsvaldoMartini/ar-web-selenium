@@ -1226,3 +1226,23 @@ and atomic artifact-write checkpoints are complete.
   disk I/O. Add a durable screenshot artifact contract only if P must persist beyond the run.
 - [ ] User acceptance: run Lloyds 29 in JAVA V1 SHARED with Continue Page ON and exercise PAUSE,
   NEXT_ENTER, swipe, BACK, screenshot, and Q against a safe page. No runtime/app was started here.
+
+## 38. ExcelWriter Manager Java V1 Integration checkpoint - 2026-08-12
+
+- [x] React owns ExcelWrite instruction arrival, ordered memory tabs/columns/rows, cell edits,
+  formula-safe deterministic CSV, lazy-loaded XLSX construction, checksums, and frozen flush policy
+  (`9e4e7e4`, `72026cb`). No file is written when an E row merely arrives.
+- [x] Java V1 treats E as logical-only and accepts finalized artifacts through one correlated,
+  exact-run operation. Java revalidates owner/workspace/frozen instruction/configuration facts,
+  length/checksum and target, then performs only serialized atomic writes (`e3ce0417`, `f6a76d62`).
+- [x] CSV is finalized and written before XLSX. A later XLSX refusal leaves the CSV and reports a
+  failed dirty Manager state instead of claiming complete success.
+- [x] Frontend focused tests passed 11/11 then 10/10 after the React-XLSX correction. Java focused
+  tests passed 16/16 with 578 main / 340 test sources compiled. Production frontend build passed.
+- [x] Deployment `9b57892c` is exact across 61 build/resource/target files. Current main assets are
+  `main.1f0e624c.js` / `main.5b308b0c.css`; catalog `195eab6a` records 2,382 rows / 2,346 cases.
+- [ ] Live user acceptance remains: two instructions in different Blocks sharing one XLSX target,
+  editable memory, both policies, companion CSV/XLSX content, refusal on changed config, and exact
+  cleanup. No app restart, Playwright action, migration, package, container, or image was performed.
+- [ ] P6 follow-up remains: explicit Save Partial/Discard after Stop/failure and a detached floating
+  Manager projection. Current memory survives in the Smoke page but can save only while its run is active.
