@@ -1,27 +1,27 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-12T00:16:35.274Z",
+  "generatedAt": "2026-08-12T00:27:08.437Z",
   "summary": {
-    "catalogEntries": 2372,
-    "automatedCodeCases": 2336,
+    "catalogEntries": 2373,
+    "automatedCodeCases": 2337,
     "generatedApiCases": 19452,
-    "totalAutomatedCases": 21788,
-    "automatedSuites": 494,
+    "totalAutomatedCases": 21789,
+    "automatedSuites": 495,
     "generatedSuites": 21,
     "manualArtifacts": 9,
     "supportArtifacts": 6,
-    "defaultRunnable": 2307,
-    "safeRunAllEligible": 2307
+    "defaultRunnable": 2308,
+    "safeRunAllEligible": 2308
   },
   "sources": [
     {
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "branch": "refactor/perform-actions-decomposition",
-      "commit": "252c8ab090d636de65aa5d3d851774875a05da66",
-      "sourceFiles": 338,
-      "automatedSuites": 327,
-      "automatedTestCases": 1454,
+      "commit": "a94ab42f62a2b326a70dd6b7570e9faeb67d0427",
+      "sourceFiles": 339,
+      "automatedSuites": 328,
+      "automatedTestCases": 1455,
       "generatedSuites": 0,
       "generatedCases": 0
     },
@@ -30199,6 +30199,30 @@
       "runnable": true,
       "runAllEligible": true,
       "command": "mvn -Dtest=com.allinweb.ch.socket.DesktopAppBrowserLauncherTest#rejectsMalformedBotJobDetailsWindowRoutes test",
+      "tags": [
+        "Test"
+      ]
+    },
+    {
+      "id": "junit:com.allinweb.ch.socket.DesktopWindowFocusServiceTest#acceptsOnlyTheExactServerIssuedTokenInAChromiumWindowTitle@10",
+      "project": "AR Web Scanner",
+      "repository": "ar-web-selenium",
+      "recordType": "AUTOMATED_CASE",
+      "suite": "com.allinweb.ch.socket.DesktopWindowFocusServiceTest",
+      "name": "acceptsOnlyTheExactServerIssuedTokenInAChromiumWindowTitle",
+      "displayName": "acceptsOnlyTheExactServerIssuedTokenInAChromiumWindowTitle",
+      "framework": "JUnit 5",
+      "language": "Java",
+      "kind": "UNIT",
+      "runtime": "JVM",
+      "execution": "DEFAULT",
+      "safety": "SAFE",
+      "sourcePath": "src/test/java/com/allinweb/ch/socket/DesktopWindowFocusServiceTest.java",
+      "line": 10,
+      "caseCount": 1,
+      "runnable": true,
+      "runAllEligible": true,
+      "command": "mvn -Dtest=com.allinweb.ch.socket.DesktopWindowFocusServiceTest#acceptsOnlyTheExactServerIssuedTokenInAChromiumWindowTitle test",
       "tags": [
         "Test"
       ]
