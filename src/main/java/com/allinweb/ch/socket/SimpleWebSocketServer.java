@@ -211,6 +211,7 @@ public class SimpleWebSocketServer {
             SmokeTestIntegrationContracts.START,
             SmokeTestIntegrationContracts.REFRESH,
             SmokeTestIntegrationContracts.STEP,
+            SmokeTestIntegrationContracts.EXCEL_WRITE,
             SmokeTestIntegrationContracts.STOP,
             SmokeTestIntegrationContracts.FINISH);
     private static final ScannerPluginDownloadCommandService scannerPluginDownloadCommandService =
@@ -862,6 +863,7 @@ public class SimpleWebSocketServer {
                 case SmokeTestIntegrationContracts.START:
                 case SmokeTestIntegrationContracts.REFRESH:
                 case SmokeTestIntegrationContracts.STEP:
+                case SmokeTestIntegrationContracts.EXCEL_WRITE:
                 case SmokeTestIntegrationContracts.STOP:
                 case SmokeTestIntegrationContracts.FINISH:
                     smokeTestIntegrationService.handle(

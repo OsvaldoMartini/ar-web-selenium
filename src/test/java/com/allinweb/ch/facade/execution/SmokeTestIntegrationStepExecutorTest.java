@@ -391,9 +391,11 @@ class SmokeTestIntegrationStepExecutorTest {
                 instruction(BLOCK, 503, 3, "CSV CHECK", "CSV Compare", null, true, null, null, Map.of());
         InstructionSnapshot pdfCheck =
                 instruction(BLOCK, 504, 4, "PDF CHECK", "PDF Compare", null, true, null, null, Map.of());
+        InstructionSnapshot excelWrite =
+                instruction(BLOCK, 505, 5, "E", "ExcelWrite", null, true, null, null, Map.of());
         InstructionSnapshot inactive =
                 instruction(BLOCK, 502, 2, "C", "Inactive", null, false, null, null, Map.of());
-        Plan plan = plan(List.of(BLOCK), List.of(checkValue, csvCheck, pdfCheck, inactive));
+        Plan plan = plan(List.of(BLOCK), List.of(checkValue, csvCheck, pdfCheck, excelWrite, inactive));
         FakeBrowser browser = new FakeBrowser();
         SmokeTestIntegrationStepExecutor executor =
                 new SmokeTestIntegrationStepExecutor(browser, ignoredActiveCells());
@@ -407,12 +409,15 @@ class SmokeTestIntegrationStepExecutorTest {
                 executor.execute(plan, dataset(new ExtractedData()), csvCheck.id(), 0, variables);
         SmokeTestIntegrationStepExecutor.Outcome pdfLogical =
                 executor.execute(plan, dataset(new ExtractedData()), pdfCheck.id(), 0, variables);
+        SmokeTestIntegrationStepExecutor.Outcome excelLogical =
+                executor.execute(plan, dataset(new ExtractedData()), excelWrite.id(), 0, variables);
 
         assertEquals(StepStatus.PASSED, logical.status());
         assertEquals(StepDisposition.LOGICAL_ONLY, logical.disposition());
         assertEquals("LOGICAL_ONLY", logical.code());
         assertEquals(StepDisposition.LOGICAL_ONLY, csvLogical.disposition());
         assertEquals(StepDisposition.LOGICAL_ONLY, pdfLogical.disposition());
+        assertEquals(StepDisposition.LOGICAL_ONLY, excelLogical.disposition());
         assertEquals(StepStatus.SKIPPED, skipped.status());
         assertEquals(StepDisposition.INACTIVE, skipped.disposition());
         assertTrue(browser.clickedInstructionIds.isEmpty());
@@ -422,7 +427,7 @@ class SmokeTestIntegrationStepExecutorTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"E", "EXCELWRITE"})
+    @ValueSource(strings = {"UNSUPPORTED_COMMAND"})
     void failsUnsupportedVariableAndFileCommandsClosed(String action) {
         InstructionSnapshot unsupported =
                 instruction(BLOCK, 601, 1, action, action, null, true, null, null, Map.of());

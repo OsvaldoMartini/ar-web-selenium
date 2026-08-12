@@ -8,6 +8,7 @@ import com.allinweb.ch.facade.execution.SmokeTestIntegrationSnapshotRepository;
 import com.allinweb.ch.facade.execution.SmokeTestIntegrationSnapshotRepository.Owner;
 import com.allinweb.ch.facade.execution.SmokeTestIntegrationSnapshotRepository.Plan;
 import com.allinweb.ch.facade.execution.SmokeTestIntegrationStepExecutor;
+import com.allinweb.ch.facade.execution.SmokeTestIntegrationExcelWriteService;
 import com.allinweb.ch.facade.execution.SmokeTestIntegrationStepExecutor.Outcome;
 import com.allinweb.ch.facade.execution.SmokeTestIntegrationStepExecutor.RunVariables;
 import com.allinweb.ch.facade.execution.v2.ExecutionRuntimeRunCoordinator;
@@ -18,6 +19,7 @@ import com.allinweb.ch.model.DetachedWorkspaceSessions;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts.Correlation;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts.FinishRequest;
+import com.allinweb.ch.model.SmokeTestIntegrationContracts.ExcelWriteRequest;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts.PagePolicy;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts.RefreshRequest;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts.RunStatus;
@@ -78,6 +80,7 @@ public final class SmokeTestIntegrationService {
     private final ResponsePort responses;
     private final ThreadPoolExecutor worker;
     private final AtomicLong integrationEpochs = new AtomicLong();
+    private final SmokeTestIntegrationExcelWriteService excelWrites = new SmokeTestIntegrationExcelWriteService();
     private final LinkedHashMap<TransportRequest, RequestLedgerEntry> requestLedger =
             new LinkedHashMap<>();
     private Run active;
@@ -144,6 +147,8 @@ public final class SmokeTestIntegrationService {
                         SmokeTestIntegrationContracts.parseRefresh(body), body, transport);
                 case SmokeTestIntegrationContracts.STEP -> handleStep(
                         SmokeTestIntegrationContracts.parseStep(body), transport);
+                case SmokeTestIntegrationContracts.EXCEL_WRITE -> handleExcelWrite(
+                        SmokeTestIntegrationContracts.parseExcelWrite(body), transport);
                 case SmokeTestIntegrationContracts.STOP -> handleStop(
                         SmokeTestIntegrationContracts.parseStop(body), transport);
                 case SmokeTestIntegrationContracts.FINISH -> handleFinish(
@@ -574,6 +579,60 @@ public final class SmokeTestIntegrationService {
         JsonObject response = stepResponse(run, request, outcome, false);
         recordStep(run, request, response, outcome.status());
         return response;
+    }
+
+    private void handleExcelWrite(ExcelWriteRequest request, Session transport) {
+        String fingerprint = gson.toJson(request);
+        if (replayExisting(SmokeTestIntegrationContracts.EXCEL_WRITE, request.requestId(), fingerprint, transport, -1)) return;
+        Run run;
+        synchronized (stateLock) {
+            run = requireRun(request.runId(), transport);
+            if (run == null) {
+                publish(transport, -1, SmokeTestIntegrationContracts.EXCEL_WRITE_RESPONSE,
+                        rejected(request.requestId(), request.runId(), "RUN_NOT_ACTIVE", "The Integration run is not active."));
+                return;
+            }
+            if (stepPending || terminalPending || run.cancelled) {
+                publish(transport, run.authorization.homeBankingId(), SmokeTestIntegrationContracts.EXCEL_WRITE_RESPONSE,
+                        rejected(request.requestId(), request.runId(), "INTEGRATION_BUSY", "Wait for the current Integration operation to finish."));
+                return;
+            }
+            stepPending = true;
+        }
+        submitOnce(SmokeTestIntegrationContracts.EXCEL_WRITE, request.requestId(), fingerprint, transport,
+                run.authorization.homeBankingId(), () -> saveExcelWrite(run, request), () -> {
+                    synchronized (stateLock) { stepPending = false; }
+                });
+    }
+
+    private JsonObject saveExcelWrite(Run run, ExcelWriteRequest request) {
+        try {
+            if (!variables.isCurrent(run.authorization, run.transport)) {
+                throw new IllegalStateException("The Smoke Test page changed before ExcelWrite could save.");
+            }
+            SmokeTestIntegrationExcelWriteService.Result saved = workspaces.commitMutation(
+                    run.authorization.botJobId(), run.authorization.workspaceEpoch(),
+                    () -> {
+                        try { return excelWrites.save(run.plan, request); }
+                        catch (Exception failure) { throw new ExcelWriteFailure(failure); }
+                    });
+            JsonObject response = new JsonObject();
+            response.addProperty("ok", true);
+            response.addProperty("contractVersion", SmokeTestIntegrationContracts.CONTRACT_VERSION);
+            response.addProperty("requestId", request.requestId());
+            response.addProperty("runId", request.runId());
+            response.addProperty("sha256", saved.sha256());
+            response.addProperty("revision", saved.revision());
+            response.addProperty("message", saved.message());
+            return response;
+        } catch (ExcelWriteFailure wrapped) {
+            log.warn("Smoke Integration ExcelWrite refused: {}", safeMessage(wrapped.getCause(), "save failed"));
+            return rejected(request.requestId(), request.runId(), "EXCEL_WRITE_REFUSED",
+                    safeMessage(wrapped.getCause(), "ExcelWrite could not save the finalized artifact."));
+        } catch (IllegalArgumentException | IllegalStateException refused) {
+            return rejected(request.requestId(), request.runId(), "EXCEL_WRITE_REFUSED",
+                    safeMessage(refused, "ExcelWrite could not save the finalized artifact."));
+        }
     }
 
     private void handleStop(StopRequest request, Session transport) {
@@ -1084,6 +1143,9 @@ public final class SmokeTestIntegrationService {
         if (SmokeTestIntegrationContracts.STEP.equals(operation)) {
             return SmokeTestIntegrationContracts.STEP_RESPONSE;
         }
+        if (SmokeTestIntegrationContracts.EXCEL_WRITE.equals(operation)) {
+            return SmokeTestIntegrationContracts.EXCEL_WRITE_RESPONSE;
+        }
         if (SmokeTestIntegrationContracts.REFRESH.equals(operation)) {
             return SmokeTestIntegrationContracts.REFRESH_RESPONSE;
         }
@@ -1180,6 +1242,10 @@ public final class SmokeTestIntegrationService {
         default boolean commitMutation(
                 int botJobId, long workspaceEpoch, BooleanSupplier mutation) {
             return mutation.getAsBoolean();
+        }
+
+        default <T> T commitMutation(int botJobId, long workspaceEpoch, java.util.function.Supplier<T> mutation) {
+            return mutation.get();
         }
     }
 
@@ -1367,6 +1433,11 @@ public final class SmokeTestIntegrationService {
                     .commitWorkspaceMutation(
                             botJobId, workspaceEpoch, mutation::getAsBoolean);
         }
+
+        @Override
+        public <T> T commitMutation(int botJobId, long workspaceEpoch, java.util.function.Supplier<T> mutation) {
+            return BotJobDetailsWorkspaceRegistry.getInstance().commitWorkspaceMutation(botJobId, workspaceEpoch, mutation);
+        }
     }
 
     private static final class WebSocketResponsePort implements ResponsePort {
@@ -1476,6 +1547,10 @@ public final class SmokeTestIntegrationService {
     }
 
     private record Waiter(Session transport, int homeBankingId) {}
+
+    private static final class ExcelWriteFailure extends RuntimeException {
+        private ExcelWriteFailure(Throwable cause) { super(cause); }
+    }
 
     private record SequenceResult(int instructionId, int excelRowIndex, JsonObject response) {
         private boolean matches(StepRequest request) {

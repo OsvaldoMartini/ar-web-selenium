@@ -88,6 +88,47 @@ class SmokeTestIntegrationContractsTest {
         finish.addProperty("requestId", "finish-1");
         finish.addProperty("lastSequence", 1);
         assertEquals(1L, SmokeTestIntegrationContracts.parseFinish(finish).lastSequence());
+
+        JsonObject excelWrite = new JsonObject();
+        excelWrite.addProperty("contractVersion", 1);
+        excelWrite.addProperty("requestId", "excel-write-1");
+        excelWrite.addProperty("runId", "run-1");
+        excelWrite.addProperty("outputFile", "C:/exports/result.csv:,");
+        excelWrite.addProperty("delimiter", ",");
+        excelWrite.add("columns", new Gson().toJsonTree(java.util.List.of("User", "Balance")));
+        excelWrite.add("instructionIds", new Gson().toJsonTree(java.util.List.of(10, 11)));
+        excelWrite.addProperty("csvContent", "User,Balance\r\nAlice,10\r\n");
+        excelWrite.addProperty("sha256", "b".repeat(64));
+        excelWrite.addProperty("revision", 3);
+        SmokeTestIntegrationContracts.ExcelWriteRequest artifact =
+                SmokeTestIntegrationContracts.parseExcelWrite(excelWrite);
+        assertEquals(java.util.List.of("User", "Balance"), artifact.columns());
+        assertEquals(java.util.List.of(10, 11), artifact.instructionIds());
+        assertEquals(3L, artifact.revision());
+    }
+
+    @Test
+    void rejectsAmbiguousExcelWriteArtifactsBeforeDiskAccess() {
+        JsonObject excelWrite = new JsonObject();
+        excelWrite.addProperty("contractVersion", 1);
+        excelWrite.addProperty("requestId", "excel-write-invalid");
+        excelWrite.addProperty("runId", "run-1");
+        excelWrite.addProperty("outputFile", "C:/exports/result.csv:,");
+        excelWrite.addProperty("delimiter", ",");
+        excelWrite.add("columns", new Gson().toJsonTree(java.util.List.of("User", "User")));
+        excelWrite.add("instructionIds", new Gson().toJsonTree(java.util.List.of(10)));
+        excelWrite.addProperty("csvContent", "User\r\nAlice\r\n");
+        excelWrite.addProperty("sha256", "b".repeat(64));
+        excelWrite.addProperty("revision", 1);
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> SmokeTestIntegrationContracts.parseExcelWrite(excelWrite));
+        excelWrite.add("columns", new Gson().toJsonTree(java.util.List.of("User")));
+        excelWrite.addProperty("sha256", "not-a-checksum");
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> SmokeTestIntegrationContracts.parseExcelWrite(excelWrite));
     }
 
     @Test

@@ -14,7 +14,8 @@ public final class CommandRegistry {
     private static final Map<String, String> ALIASES = Map.of(
             "HOLD", "H",
             "SCREEN", "P",
-            "QUIT", "Q");
+            "QUIT", "Q",
+            "EXCELWRITE", "E");
     private static final Set<String> SPECIAL_ROWS = Set.of("ELSEIF", "ELSE", "ENDIF", "NEXT ROW");
     private static final Map<String, Definition> DEFINITIONS = definitions();
     private static final Set<String> EDITOR_TARGETABLE = Set.of(

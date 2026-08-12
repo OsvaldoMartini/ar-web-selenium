@@ -30,11 +30,13 @@ public final class SmokeTestIntegrationContracts {
     public static final String START = "smokeTest.integration.start";
     public static final String REFRESH = "smokeTest.integration.refresh";
     public static final String STEP = "smokeTest.integration.step";
+    public static final String EXCEL_WRITE = "smokeTest.integration.excelWrite";
     public static final String STOP = "smokeTest.integration.stop";
     public static final String FINISH = "smokeTest.integration.finish";
     public static final String START_RESPONSE = START + "Response";
     public static final String REFRESH_RESPONSE = REFRESH + "Response";
     public static final String STEP_RESPONSE = STEP + "Response";
+    public static final String EXCEL_WRITE_RESPONSE = EXCEL_WRITE + "Response";
     public static final String STOP_RESPONSE = STOP + "Response";
     public static final String FINISH_RESPONSE = FINISH + "Response";
 
@@ -246,6 +248,35 @@ public final class SmokeTestIntegrationContracts {
         }
     }
 
+    public record ExcelWriteRequest(
+            int contractVersion,
+            String requestId,
+            String runId,
+            String outputFile,
+            String delimiter,
+            List<String> columns,
+            List<Integer> instructionIds,
+            String csvContent,
+            String sha256,
+            long revision) {
+        public ExcelWriteRequest {
+            requireVersion(contractVersion);
+            requestId = requireBounded(requestId, "requestId", MAX_CORRELATION_LENGTH);
+            runId = requireBounded(runId, "runId", MAX_CORRELATION_LENGTH);
+            outputFile = requireBounded(outputFile, "outputFile", 1_500);
+            if (!",".equals(delimiter) && !"|".equals(delimiter)) {
+                throw invalid("delimiter", "must be comma or pipe");
+            }
+            columns = requireStrings(columns, "columns", 200, 200);
+            instructionIds = requirePositiveIds(instructionIds, "instructionIds", 1_000);
+            if (csvContent == null || csvContent.isEmpty() || csvContent.length() > 4_000_000) {
+                throw invalid("csvContent", "must contain at most 4,000,000 characters");
+            }
+            sha256 = requireSha256(sha256, "sha256");
+            requirePositive(revision, "revision");
+        }
+    }
+
     /** Exact owner assertions for a manual refresh of the shared Playwright page. */
     public record RefreshRequest(
             int contractVersion,
@@ -428,6 +459,21 @@ public final class SmokeTestIntegrationContracts {
                 requiredNonNegativeInt(body, "excelRowIndex"));
     }
 
+    public static ExcelWriteRequest parseExcelWrite(JsonObject envelopeOrBody) {
+        JsonObject body = body(envelopeOrBody);
+        return new ExcelWriteRequest(
+                requiredVersion(body),
+                requiredString(body, "requestId", MAX_CORRELATION_LENGTH),
+                requiredString(body, "runId", MAX_CORRELATION_LENGTH),
+                requiredString(body, "outputFile", 1_500),
+                requiredString(body, "delimiter", 1),
+                stringArray(body, "columns"),
+                positiveIntegerArray(body, "instructionIds"),
+                requiredRawString(body, "csvContent", 4_000_000),
+                requiredSha256(body, "sha256"),
+                requiredPositiveLong(body, "revision"));
+    }
+
     public static RefreshRequest parseRefresh(JsonObject envelopeOrBody) {
         JsonObject body = body(envelopeOrBody);
         return new RefreshRequest(
@@ -544,6 +590,56 @@ public final class SmokeTestIntegrationContracts {
             throw invalid(field, "is required");
         }
         return requireBounded(parsed, field, maxLength);
+    }
+
+    private static String requiredRawString(JsonObject source, String field, int maxLength) {
+        JsonElement value = required(source, field);
+        if (!value.isJsonPrimitive() || !value.getAsJsonPrimitive().isString()) {
+            throw invalid(field, "must be a string");
+        }
+        String parsed = value.getAsString();
+        if (parsed.isEmpty() || parsed.length() > maxLength) {
+            throw invalid(field, "has an invalid length");
+        }
+        return parsed;
+    }
+
+    private static List<String> stringArray(JsonObject source, String field) {
+        JsonElement raw = required(source, field);
+        if (!raw.isJsonArray()) throw invalid(field, "must be an array");
+        List<String> values = new ArrayList<>();
+        for (JsonElement value : raw.getAsJsonArray()) {
+            if (!value.isJsonPrimitive() || !value.getAsJsonPrimitive().isString()) {
+                throw invalid(field, "must contain strings");
+            }
+            values.add(value.getAsString());
+        }
+        return values;
+    }
+
+    private static List<Integer> positiveIntegerArray(JsonObject source, String field) {
+        JsonElement raw = required(source, field);
+        if (!raw.isJsonArray()) throw invalid(field, "must be an array");
+        List<Integer> values = new ArrayList<>();
+        for (JsonElement value : raw.getAsJsonArray()) values.add(positiveInt(value, field));
+        return values;
+    }
+
+    private static List<String> requireStrings(List<String> supplied, String field, int maxItems, int maxLength) {
+        if (supplied == null || supplied.isEmpty() || supplied.size() > maxItems) throw invalid(field, "has an invalid size");
+        LinkedHashSet<String> values = new LinkedHashSet<>();
+        for (String value : supplied) values.add(requireBounded(value, field, maxLength));
+        if (values.size() != supplied.size()) throw invalid(field, "must not contain duplicates");
+        return List.copyOf(values);
+    }
+
+    private static List<Integer> requirePositiveIds(List<Integer> supplied, String field, int maxItems) {
+        if (supplied == null || supplied.isEmpty() || supplied.size() > maxItems) throw invalid(field, "has an invalid size");
+        LinkedHashSet<Integer> values = new LinkedHashSet<>();
+        for (Integer value : supplied) {
+            if (value == null || value <= 0 || !values.add(value)) throw invalid(field, "must contain unique positive integers");
+        }
+        return List.copyOf(values);
     }
 
     private static String optionalString(JsonObject source, String field) {

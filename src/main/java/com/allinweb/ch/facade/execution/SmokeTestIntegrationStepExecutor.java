@@ -41,6 +41,7 @@ public final class SmokeTestIntegrationStepExecutor {
             "CK",
             "CSV CHECK",
             "PDF CHECK",
+            "E",
             "IF",
             "ELSEIF",
             "ELSE",
