@@ -204,6 +204,16 @@ public final class ExecutionRuntimeRunCoordinator {
             if (candidate == null) {
                 throw new IllegalArgumentException("Execution V2 recovery candidate is stale");
             }
+            long scannedElementId = 0L;
+            String xpath = "";
+            String savePageKey = "";
+            if (save) {
+                scannedElementId = requiredPositiveLong(candidate, "registryCandidateId");
+                xpath = requiredText(candidate, "newXPath", 2_048);
+                savePageKey = candidate.has("previousPageIdentity")
+                        ? requiredPageKey(candidate, "previousPageIdentity")
+                        : pending.pageKey;
+            }
             long sequence = current.nextPhysicalSequence++;
             JsonObject request = actions.createRecovery(sequence, pending.originalRequest, candidate);
             JsonObject result;
@@ -217,12 +227,10 @@ public final class ExecutionRuntimeRunCoordinator {
             current.pendingRecovery = null;
             boolean saveFailed = false;
             if (save) {
-                long scannedElementId = candidate.get("registryCandidateId").getAsLong();
-                String xpath = candidate.get("newXPath").getAsString();
                 if (!healing.save(
                         current.facts.homeBankingId(),
                         current.facts.botJobId(),
-                        pending.pageKey,
+                        savePageKey,
                         scannedElementId,
                         xpath)) {
                     saveFailed = true;
@@ -267,6 +275,38 @@ public final class ExecutionRuntimeRunCoordinator {
                 && result.has("ok")
                 && result.get("ok").isJsonPrimitive()
                 && result.get("ok").getAsBoolean();
+    }
+
+    private static long requiredPositiveLong(JsonObject value, String field) {
+        if (!value.has(field) || !value.get(field).isJsonPrimitive()) {
+            throw new IllegalArgumentException("Execution V2 recovery candidate is invalid");
+        }
+        try {
+            long result = value.get(field).getAsLong();
+            if (result <= 0) throw new IllegalArgumentException("Execution V2 recovery candidate is invalid");
+            return result;
+        } catch (NumberFormatException failure) {
+            throw new IllegalArgumentException("Execution V2 recovery candidate is invalid", failure);
+        }
+    }
+
+    private static String requiredText(JsonObject value, String field, int maxLength) {
+        if (!value.has(field) || !value.get(field).isJsonPrimitive()) {
+            throw new IllegalArgumentException("Execution V2 recovery candidate is invalid");
+        }
+        String result = value.get(field).getAsString().trim();
+        if (result.isEmpty() || result.length() > maxLength) {
+            throw new IllegalArgumentException("Execution V2 recovery candidate is invalid");
+        }
+        return result;
+    }
+
+    private static String requiredPageKey(JsonObject value, String field) {
+        String result = requiredText(value, field, 71);
+        if (!result.matches("url-v1:[0-9a-f]{64}")) {
+            throw new IllegalArgumentException("Execution V2 recovery candidate page is invalid");
+        }
+        return result;
     }
 
     private static InstructionSnapshot requireParent(Plan plan, InstructionSnapshot command) {

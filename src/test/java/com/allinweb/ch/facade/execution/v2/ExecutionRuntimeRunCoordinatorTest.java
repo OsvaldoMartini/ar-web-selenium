@@ -2,6 +2,7 @@ package com.allinweb.ch.facade.execution.v2;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.allinweb.ch.facade.RuntimeElementHealingService.Preparation;
@@ -29,6 +30,7 @@ import org.junit.jupiter.api.Test;
 class ExecutionRuntimeRunCoordinatorTest {
     private static final String RUN_ID = "22222222-2222-4222-8222-222222222222";
     private static final String PAGE_KEY = "url-v1:" + "a".repeat(64);
+    private static final String PREVIOUS_PAGE_KEY = "url-v1:" + "d".repeat(64);
     private static final String PLAN_REVISION = "b".repeat(64);
     private static final String GRAPH_REVISION = "c".repeat(64);
 
@@ -111,7 +113,51 @@ class ExecutionRuntimeRunCoordinatorTest {
         assertEquals(1, runtime.releaseCount);
     }
 
+    @Test
+    void savesAnApprovedCrossPageRecoveryAgainstTheServerHeldPreviousPage() {
+        FakeRuntime runtime = new FakeRuntime();
+        runtime.snapshots.add(state("READY"));
+        runtime.actionResponses.add(recovery("e".repeat(64), PREVIOUS_PAGE_KEY));
+        runtime.actionResponses.add(success());
+        FakeHealing healing = new FakeHealing();
+        ExecutionRuntimeRunCoordinator coordinator = coordinator(runtime, healing);
+        ExecutionRuntimeRunCoordinator.Run run = coordinator.start(facts(), plan());
+
+        JsonObject failed = coordinator.action(run, 1L, 1733, null);
+        JsonObject recovered = coordinator.recover(run, 1733, "e".repeat(64), true);
+
+        assertFalse(failed.get("ok").getAsBoolean());
+        assertTrue(recovered.get("ok").getAsBoolean());
+        assertTrue(recovered.get("locatorSaved").getAsBoolean());
+        assertEquals(PREVIOUS_PAGE_KEY, healing.savedPageKey);
+        assertEquals(991L, healing.savedElementId);
+        assertEquals("//*[@data-live='login']", healing.savedXPath);
+        assertEquals(2, runtime.actionCount);
+    }
+
+    @Test
+    void rejectsAnInvalidServerHeldRecoveryPageBeforeAnotherPhysicalAction() {
+        FakeRuntime runtime = new FakeRuntime();
+        runtime.snapshots.add(state("READY"));
+        runtime.actionResponses.add(recovery("f".repeat(64), "not-a-page-key"));
+        FakeHealing healing = new FakeHealing();
+        ExecutionRuntimeRunCoordinator coordinator = coordinator(runtime, healing);
+        ExecutionRuntimeRunCoordinator.Run run = coordinator.start(facts(), plan());
+        coordinator.action(run, 1L, 1733, null);
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> coordinator.recover(run, 1733, "f".repeat(64), true));
+        assertEquals(1, runtime.actionCount);
+        assertEquals(0, healing.saveCount);
+    }
+
     private static ExecutionRuntimeRunCoordinator coordinator(FakeRuntime runtime) {
+        return coordinator(runtime, new FakeHealing());
+    }
+
+    private static ExecutionRuntimeRunCoordinator coordinator(
+            FakeRuntime runtime, FakeHealing healing) {
         IssuedGrant grant = new IssuedGrant(
                 1,
                 "v1",
@@ -123,9 +169,7 @@ class ExecutionRuntimeRunCoordinatorTest {
         return new ExecutionRuntimeRunCoordinator(
                 ignored -> grant,
                 runtime,
-                (homeBankingId, botJobId, pageKey, instruction) -> new Preparation(
-                        Status.READY, homeBankingId, botJobId, pageKey,
-                        List.of(), List.of(), List.of()),
+                healing,
                 new ExecutionRuntimeActionFactory(),
                 new FakeTime());
     }
@@ -179,6 +223,62 @@ class ExecutionRuntimeRunCoordinatorTest {
         return result;
     }
 
+    private static JsonObject success() {
+        JsonObject result = new JsonObject();
+        result.addProperty("ok", true);
+        return result;
+    }
+
+    private static JsonObject recovery(String candidateId, String previousPageKey) {
+        JsonObject candidate = new JsonObject();
+        candidate.addProperty("recoveryCandidateId", candidateId);
+        candidate.addProperty("registryCandidateId", 991L);
+        candidate.addProperty("newXPath", "//*[@data-live='login']");
+        candidate.addProperty("newCss", "[data-live='login']");
+        candidate.addProperty("tag", "button");
+        candidate.addProperty("previousPageIdentity", previousPageKey);
+        JsonObject recovery = new JsonObject();
+        recovery.addProperty("state", "AWAITING_USER");
+        recovery.add("candidates", new com.google.gson.JsonArray());
+        recovery.getAsJsonArray("candidates").add(candidate);
+        JsonObject result = new JsonObject();
+        result.addProperty("ok", false);
+        result.add("recovery", recovery);
+        return result;
+    }
+
+    private static final class FakeHealing implements ExecutionRuntimeRunCoordinator.HealingPort {
+        private int saveCount;
+        private String savedPageKey;
+        private long savedElementId;
+        private String savedXPath;
+
+        @Override
+        public Preparation prepare(
+                Integer homeBankingId,
+                Integer botJobId,
+                String pageKey,
+                com.allinweb.ch.model.InstructionLoad instruction) {
+            return new Preparation(
+                    Status.READY, homeBankingId, botJobId, pageKey,
+                    List.of(), List.of(), List.of());
+        }
+
+        @Override
+        public boolean save(
+                int homeBankingId,
+                int botJobId,
+                String pageKey,
+                long scannedElementId,
+                String xpath) {
+            saveCount++;
+            savedPageKey = pageKey;
+            savedElementId = scannedElementId;
+            savedXPath = xpath;
+            return true;
+        }
+    }
+
     private static final class FakeAuthority implements Authority {}
 
     private static final class FakeRuntime implements RuntimePort {
@@ -191,6 +291,7 @@ class ExecutionRuntimeRunCoordinatorTest {
         private int releaseCount;
         private JsonObject lastAction;
         private final List<JsonObject> actions = new ArrayList<>();
+        private final Queue<JsonObject> actionResponses = new ArrayDeque<>();
         private boolean failActions;
 
         @Override
@@ -222,9 +323,7 @@ class ExecutionRuntimeRunCoordinatorTest {
             lastAction = request.deepCopy();
             actions.add(lastAction);
             if (failActions) throw new RuntimeException("transport failed");
-            JsonObject response = new JsonObject();
-            response.addProperty("ok", true);
-            return response;
+            return actionResponses.isEmpty() ? success() : actionResponses.remove().deepCopy();
         }
 
         @Override
