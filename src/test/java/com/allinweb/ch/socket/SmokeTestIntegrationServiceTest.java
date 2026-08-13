@@ -194,6 +194,7 @@ class SmokeTestIntegrationServiceTest {
 
         assertTrue(stopped.body.get("ok").getAsBoolean());
         assertEquals("STOPPED", stopped.body.get("status").getAsString());
+        assertEquals(1, browserOwnership.releaseRequests.get());
         assertTrue(browserOwnership.awaitClosed());
         assertEquals(1, browserOwnership.closes.get());
 
@@ -211,6 +212,7 @@ class SmokeTestIntegrationServiceTest {
         service.disconnected(DetachedWorkspaceSessions.SMOKE_TEST_MANAGER, transport);
 
         assertTrue(browserOwnership.awaitClosed());
+        assertEquals(1, browserOwnership.releaseRequests.get());
         service.disconnected(DetachedWorkspaceSessions.SMOKE_TEST_MANAGER, transport);
         worker.submit(() -> {}).get(5, TimeUnit.SECONDS);
         assertEquals(1, browserOwnership.closes.get());
@@ -462,6 +464,7 @@ class SmokeTestIntegrationServiceTest {
     private static final class RecordingBrowserOwnership
             implements SmokeTestIntegrationService.BrowserOwnershipPort {
         private final AtomicInteger closes = new AtomicInteger();
+        private final AtomicInteger releaseRequests = new AtomicInteger();
         private final CountDownLatch closed = new CountDownLatch(1);
 
         @Override
@@ -470,6 +473,12 @@ class SmokeTestIntegrationServiceTest {
                 closes.incrementAndGet();
                 closed.countDown();
             };
+        }
+
+        @Override
+        public boolean requestRelease() {
+            releaseRequests.incrementAndGet();
+            return true;
         }
 
         private boolean awaitClosed() throws InterruptedException {

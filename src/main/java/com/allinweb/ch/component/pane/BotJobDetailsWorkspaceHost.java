@@ -204,7 +204,9 @@ public class BotJobDetailsWorkspaceHost {
                 () -> botJobToolbarGuard.activeOperation() != null
                         || preScanWorkflowService.isRunning()
                         || detachedPageScannerTaskGate.isBusy()
-                        || scannerCoordinator.isBusy(),
+                        || scannerCoordinator.isBusy()
+                        || com.allinweb.ch.socket.SmokeTestIntegrationService.getInstance()
+                                .isActiveOrStarting(),
                 new BotJobWorkspaceCloseCoordinator.ExecutionPort() {
                     @Override
                     public boolean isActive(int botJobId) {

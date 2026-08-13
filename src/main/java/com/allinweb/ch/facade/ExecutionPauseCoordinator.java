@@ -30,6 +30,7 @@ public final class ExecutionPauseCoordinator {
     }
 
     private static final long AVAILABILITY_POLL_MILLIS = 250L;
+    private static final long EXECUTION_RELEASE_WAIT_MILLIS = 15_000L;
     private static final String REQUEST_OPERATION = "botJobExecution.pause.request";
     private static final ExecutionPauseCoordinator INSTANCE = new ExecutionPauseCoordinator(
             BotJobDetailsWorkspaceRegistry.getInstance(),
@@ -41,6 +42,7 @@ public final class ExecutionPauseCoordinator {
     private final Object scannerActivityLock = new Object();
     private int scannerActivities;
     private boolean executionStartReserved;
+    private boolean executionReleaseRequested;
 
     ExecutionPauseCoordinator(BotJobDetailsWorkspaceRegistry workspaces, Publisher publisher) {
         this.workspaces = Objects.requireNonNull(workspaces, "workspaces");
@@ -161,7 +163,7 @@ public final class ExecutionPauseCoordinator {
         BotJobDetailsWorkspaceRegistry.Snapshot snapshot = workspaces.require(botJobId, workspaceEpoch);
         synchronized (scannerActivityLock) {
             if (executionStartReserved) {
-                throw new IllegalStateException("TEST RUN is taking ownership of the Playwright browser");
+                awaitExecutionRelease();
             }
             if (BotJobDetailsWorkspaceRegistry.isExecutionActive(snapshot.executionState())) {
                 PendingPause active = pending.get();
@@ -196,7 +198,45 @@ public final class ExecutionPauseCoordinator {
                 throw new IllegalStateException("Wait for the current Page Scanner operation to finish");
             }
             executionStartReserved = true;
+            executionReleaseRequested = false;
             return new ExecutionStart(this);
+        }
+    }
+
+    /**
+     * Marks an owned execution as stopping so a Page Scanner task may wait for the exact lease
+     * handoff instead of racing terminal cleanup. The wait happens only in the Scanner worker;
+     * WebSocket and UI threads remain available.
+     */
+    public boolean requestExecutionRelease() {
+        synchronized (scannerActivityLock) {
+            if (!executionStartReserved) return false;
+            executionReleaseRequested = true;
+            scannerActivityLock.notifyAll();
+            return true;
+        }
+    }
+
+    private void awaitExecutionRelease() {
+        if (!executionReleaseRequested) {
+            throw new IllegalStateException("An execution owns the Playwright browser");
+        }
+        long remainingNanos = TimeUnit.MILLISECONDS.toNanos(EXECUTION_RELEASE_WAIT_MILLIS);
+        long deadline = System.nanoTime() + remainingNanos;
+        while (executionStartReserved && remainingNanos > 0L) {
+            try {
+                TimeUnit.NANOSECONDS.timedWait(scannerActivityLock, remainingNanos);
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException(
+                        "Page Scanner was interrupted while waiting for execution cleanup",
+                        interrupted);
+            }
+            remainingNanos = deadline - System.nanoTime();
+        }
+        if (executionStartReserved) {
+            throw new IllegalStateException(
+                    "Execution stop is still releasing the Playwright browser; retry Page Scanner");
         }
     }
 
@@ -252,6 +292,7 @@ public final class ExecutionPauseCoordinator {
     private void releaseExecutionStart() {
         synchronized (scannerActivityLock) {
             executionStartReserved = false;
+            executionReleaseRequested = false;
             scannerActivityLock.notifyAll();
         }
     }

@@ -659,6 +659,7 @@ public final class SmokeTestIntegrationService {
                 return;
             }
             run.cancelled = true;
+            if (run.lease != null) browserOwnership.requestRelease();
             if (terminalPending) {
                 publish(
                         transport,
@@ -779,6 +780,7 @@ public final class SmokeTestIntegrationService {
             run = active != null && active.transport == transport ? active : null;
             if (run == null) return;
             run.cancelled = true;
+            if (run.lease != null) browserOwnership.requestRelease();
         }
         try {
             worker.execute(() -> terminateSafely(run, RunStatus.STOPPED, "disconnect"));
@@ -799,6 +801,7 @@ public final class SmokeTestIntegrationService {
                     : null;
             if (run == null) return;
             run.cancelled = true;
+            if (run.lease != null) browserOwnership.requestRelease();
         }
         try {
             worker.execute(() -> terminateSafely(run, RunStatus.STOPPED, "binding-change"));
@@ -807,12 +810,22 @@ public final class SmokeTestIntegrationService {
         }
     }
 
+    /** Prevents Bot Job retarget from crossing an active or not-yet-settled Integration owner. */
+    public boolean isActiveOrStarting() {
+        synchronized (stateLock) {
+            return active != null || startPending || refreshPending || terminalPending;
+        }
+    }
+
     /** Terminal application cleanup. The browser itself is owned by the application lifecycle. */
     public void shutdown() {
         Run run;
         synchronized (stateLock) {
             run = active;
-            if (run != null) run.cancelled = true;
+            if (run != null) {
+                run.cancelled = true;
+                if (run.lease != null) browserOwnership.requestRelease();
+            }
         }
         try {
             if (run != null) terminateSafely(run, RunStatus.STOPPED, "service-shutdown");
@@ -1237,6 +1250,10 @@ public final class SmokeTestIntegrationService {
 
     interface BrowserOwnershipPort {
         BrowserLease reserve();
+
+        default boolean requestRelease() {
+            return false;
+        }
     }
 
     @FunctionalInterface
@@ -1436,6 +1453,11 @@ public final class SmokeTestIntegrationService {
             ExecutionPauseCoordinator.ExecutionStart lease =
                     ExecutionPauseCoordinator.getInstance().reserveExecutionStart();
             return lease::close;
+        }
+
+        @Override
+        public boolean requestRelease() {
+            return ExecutionPauseCoordinator.getInstance().requestExecutionRelease();
         }
     }
 

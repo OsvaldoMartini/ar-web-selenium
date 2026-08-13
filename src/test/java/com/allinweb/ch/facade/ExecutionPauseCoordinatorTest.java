@@ -98,6 +98,25 @@ class ExecutionPauseCoordinatorTest {
     }
 
     @Test
+    void scannerWaitsForAStoppingExecutionLeaseAndThenAcquiresTheBrowser() throws Exception {
+        assertTrue(registry.finishTestRun(attempt, "INTERRUPTED"));
+        ExecutionPauseCoordinator.ExecutionStart execution = coordinator.reserveExecutionStart();
+        assertTrue(coordinator.requestExecutionRelease());
+
+        CompletableFuture<ExecutionPauseCoordinator.ScannerActivity> scanner =
+                CompletableFuture.supplyAsync(
+                        () -> coordinator.beginScannerActivity(42, attempt.workspaceEpoch()));
+        Thread.sleep(100);
+        assertFalse(scanner.isDone());
+
+        execution.close();
+        try (ExecutionPauseCoordinator.ScannerActivity ignored = scanner.get(2, TimeUnit.SECONDS)) {
+            assertTrue(coordinator.hasScannerActivity());
+        }
+        assertFalse(coordinator.hasScannerActivity());
+    }
+
+    @Test
     void disconnectedReactFailsSafeToStop() throws Exception {
         publisher.available = false;
         CompletableFuture<ExecutionPauseCoordinator.Decision> paused = startPause();
