@@ -83,6 +83,7 @@ class VariablesWorkspaceAuthorizationTest {
         assertEquals(
                 Set.of(
                         "variablesWorkspace.bootstrap",
+                        "runtimeVariablesWorkspace.ready",
                         "variablesWorkspace.refresh",
                         "variablesWorkspace.runtimeMemory.update",
                         "variablesWorkspace.runtimeMemory.clearAll",

@@ -225,6 +225,11 @@ public class SimpleWebSocketServer {
             SmokeTestIntegrationContracts.EXCEL_WRITE,
             SmokeTestIntegrationContracts.STOP,
             SmokeTestIntegrationContracts.FINISH);
+
+    static boolean isDetachedVariablesTransport(String sessionId) {
+        return VariablesWorkspaceService.isWorkspaceSession(sessionId)
+                && !DetachedWorkspaceSessions.EXCEL_WRITER_MANAGER.equals(sessionId);
+    }
     private static final ScannerPluginDownloadCommandService scannerPluginDownloadCommandService =
             ScannerPluginDownloadCommandService.getInstance();
     protected static volatile SimpleWebSocketServer instance;
@@ -619,7 +624,7 @@ public class SimpleWebSocketServer {
             boolean variablesWorkspaceOperation =
                     type.startsWith("variablesWorkspace.");
             boolean detachedVariablesTransport =
-                    VariablesWorkspaceService.isWorkspaceSession(transportSessionId);
+                    isDetachedVariablesTransport(transportSessionId);
             boolean detachedExcelDataTransport =
                     ExcelDataWorkspaceService.SESSION_ID.equals(transportSessionId);
             boolean detachedExcelWriterTransport =
