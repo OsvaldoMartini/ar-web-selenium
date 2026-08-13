@@ -1194,3 +1194,28 @@ Do not change frontend CSS/design while doing the scanner contract cleanup unles
   observe cancellation, one terminal Stop result, exact browser/run release, no lingering ownership
   or worker activity, usable Smoke controls, and immediate availability for Page Scanner or a new
   run. Do not mark multi-run complete before this gate passes.
+
+## Multi-run owner-scoped preflight - 2026-08-13
+
+- [x] Backend `f39baa6c` adds a correlated Main Dashboard preflight for one immutable selection of
+  one to five Bot Jobs. The exact registered Main Dashboard transport is required before database
+  work; each Home Banking/Bot Job pair is revalidated by loading its complete owner-scoped frozen
+  plan. No browser is started.
+- [x] Preflight reports plan revision, Block/instruction counts, endpoint validity, V2 configuration,
+  and unsupported active command families per row. ExcelWrite is classified as React-owned
+  logical work; the Node runtime never performs workbook construction.
+- [x] Frontend `bb28f3a` adds isolated preflight state/correlation, per-row REAL/SYNTHETIC selection,
+  readiness diagnostics, request timeout, message-generation recovery, and responsive manager
+  presentation. Changing a data mode invalidates prior readiness.
+- [x] Java compilation passed with 578 main sources after one missing-import failure was corrected.
+  The frontend production build passed after one TypeScript inference failure was corrected; only
+  established repository warnings remain. No automated tests ran.
+- [x] Deployment `bd1cb821` mirrors 61 exact files into resources and `target/classes`. Current
+  entrypoints are `main.ee2cef00.js` (2,155,575 bytes, SHA-256
+  `CC77341C93AC7AE757A16E34528D63F249BD8587118ACFBB635B8FB917DA7C43`) and
+  `main.3940a42a.css` (533,092 bytes, SHA-256
+  `86BBF9BCEE171FBA762C31D2F375825181BB92F0F08CC2CC0F771E1603E90C66`).
+- [ ] `Start Selected` remains intentionally disabled. Preflight proves plan/runtime command
+  readiness only; the next checkpoint must create one independent React Run controller, frozen
+  data snapshot, Runtime Variables store, ExcelWriter reducer, and terminal state per selected row.
+  No application restart or live UI preflight was performed.

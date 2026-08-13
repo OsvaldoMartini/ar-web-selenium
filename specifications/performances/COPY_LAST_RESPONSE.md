@@ -4,6 +4,13 @@ Keep exactly two review sections. Check tasks only after their separate gates pa
 
 **Last updated:** 2026-08-13 - Concurrent isolated Smoke authority is pushed in `d4862439` / `618ec9ec`; bounded five-browser V2 acceptance is pushed in `ae847e43`. Five local headed browsers reached READY with distinct run/browser/context/page identities and were released cleanly. Java compile and the TypeScript runtime build passed without running automated tests. Main Dashboard multi-Bot-Job program orchestration remains intentionally fail-closed; the proof is not presented as five completed Bot Job programs.
 
+**Current multi-run checkpoint:** backend preflight `f39baa6c`, frontend manager `bb28f3a`, and exact
+61-file deployment `bd1cb821` are pushed. The manager can revalidate one to five exact owner/Bot Job
+plans, select REAL/SYNTHETIC per row, and display runtime/command readiness without opening a browser.
+Java compile and frontend build passed after reported corrections; no tests or app restart ran.
+`Start Selected` remains disabled until each row owns a complete React Run/data/variables/ExcelWriter
+state machine.
+
 ## 1. CODEX -> CLAUDE - Page Mappings and Memory lifecycle review handoff
 
 ### Outcome

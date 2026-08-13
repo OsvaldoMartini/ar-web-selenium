@@ -1358,3 +1358,21 @@ and atomic artifact-write checkpoints are complete.
   response, release the exact isolated run/browser, and leave no ownership/queue/worker residue.
   Smoke controls, Page Scanner, and a subsequent run must be immediately usable. This is a mandatory
   completion gate after the multi-run `Run` controller lands, not deferred polish.
+
+## 45. Main Dashboard multi-run preflight - 2026-08-13
+
+- [x] Backend `f39baa6c` accepts only the exact registered Main Dashboard transport and a correlated
+  immutable draft of one to five unique owner/Bot Job pairs. Every pair is revalidated through one
+  complete database-frozen ALL-Blocks plan before returning readiness; no browser side effect occurs.
+- [x] The response exposes only bounded execution facts: plan revision, Block/instruction counts,
+  endpoint readiness, runtime configuration, and distinct unsupported command families. It does not
+  return URLs, locators, banking text, credentials, Excel values, or runtime-variable values.
+- [x] Frontend `bb28f3a` adds per-row REAL/SYNTHETIC choice, exact request correlation, timeout,
+  message-buffer generation handling, and visible READY/BLOCKED diagnostics. Changing a mode retires
+  the prior preflight result.
+- [x] Java compile and frontend production build passed after correcting one compile/import and one
+  TypeScript inference error. No automated tests ran. Deployment `bd1cb821` is an exact 61-file
+  mirror using `main.ee2cef00.js` / `main.3940a42a.css`.
+- [ ] This checkpoint does not enable Start. Next: extract/instantiate one React execution controller
+  per row, including independent frozen data, runtime values, ExcelWriter state/flush policy,
+  instruction cursor/control flow, V2 run ID, Stop, and terminal evidence.
