@@ -2,6 +2,7 @@ package com.allinweb.ch.facade.execution;
 
 import com.allinweb.ch.facade.PerformDataBase;
 import com.allinweb.ch.facade.VariableRelationshipService;
+import com.allinweb.ch.facade.actions.RuntimeVariableMemoryRegistry;
 import com.allinweb.ch.facade.execution.SmokeTestIntegrationSnapshotRepository.Plan;
 import com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableModels.Definition;
 import com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableModels.OwnerKey;
@@ -34,6 +35,7 @@ public final class MultiExecutionWorkspaceSnapshotLoader {
                     connection,
                     new OwnerKey(plan.owner().homeBankingId(), plan.owner().botJobId()));
         }
+        RuntimeVariableMemoryRegistry.getInstance().hydrateDurableSnapshot(runtime);
         JsonObject result = graph.deepCopy();
         result.addProperty("message", "Multi-run program and Runtime Variables frozen.");
         result.addProperty("requestId", requestId);

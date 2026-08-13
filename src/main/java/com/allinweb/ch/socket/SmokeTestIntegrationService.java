@@ -136,16 +136,30 @@ public final class SmokeTestIntegrationService {
 
     /** Parses, deduplicates, and asynchronously handles one exact integration operation. */
     public void handle(String operation, JsonObject body, String sessionId, Session transport) {
-        if (!SESSION_ID.equals(sessionId) || !isRegisteredTransport(transport)) {
+        boolean smokeTransport = SESSION_ID.equals(sessionId) && isRegisteredTransport(transport);
+        boolean dashboardTransport = "mainDashboard".equals(sessionId)
+                && transport != null
+                && transport.isOpen()
+                && WebSocketSessionManager.getSession("mainDashboard") == transport;
+        if (!smokeTransport && !dashboardTransport) {
             rejectTransport(operation, body, transport);
             return;
         }
         try {
             switch (operation) {
-                case SmokeTestIntegrationContracts.START -> handleStart(
-                        SmokeTestIntegrationContracts.parseStart(body), body, transport);
+                case SmokeTestIntegrationContracts.START -> {
+                    if (dashboardTransport && !hasMultiBatch(body)) {
+                        throw new IllegalArgumentException(
+                                "Main Dashboard Integration requires a prepared multi-run batch.");
+                    }
+                    handleStart(SmokeTestIntegrationContracts.parseStart(body), body, transport);
+                }
                 case SmokeTestIntegrationContracts.REFRESH -> handleRefresh(
-                        SmokeTestIntegrationContracts.parseRefresh(body), body, transport);
+                        dashboardTransport
+                                ? throwUnsupportedDashboardRefresh()
+                                : SmokeTestIntegrationContracts.parseRefresh(body),
+                        body,
+                        transport);
                 case SmokeTestIntegrationContracts.STEP -> handleStep(
                         SmokeTestIntegrationContracts.parseStep(body), transport);
                 case SmokeTestIntegrationContracts.EXCEL_WRITE -> handleExcelWrite(
@@ -168,6 +182,17 @@ public final class SmokeTestIntegrationService {
                     responseOperation(operation),
                     rejected(body, "INVALID_CONTRACT", invalid.getMessage()));
         }
+    }
+
+    private static RefreshRequest throwUnsupportedDashboardRefresh() {
+        throw new IllegalArgumentException("Main Dashboard multi-run does not support shared-page refresh.");
+    }
+
+    private static boolean hasMultiBatch(JsonObject body) {
+        return body != null
+                && body.has("multiBatchId")
+                && body.get("multiBatchId").isJsonPrimitive()
+                && !body.get("multiBatchId").getAsString().isBlank();
     }
 
     /** Exact-session failure used by the WebSocket route before any operation can be dispatched. */
@@ -335,13 +360,27 @@ public final class SmokeTestIntegrationService {
         BrowserLease lease = null;
         V2Run v2Run = null;
         try {
-            SmokeIntegrationAuthorization authorization = variables.authorize(rawBody, transport);
-            variables.requireSupportingWorkspacesReady(authorization, transport);
-            Plan plan = snapshots.load(
-                    new Owner(authorization.homeBankingId(), authorization.botJobId()),
-                    request.scope());
-            IntegrationDataset dataset = excel.freeze(
-                    authorization.botJobId(), request.excelMode().name());
+            boolean dashboardMulti = hasMultiBatch(rawBody);
+            MainDashboardMultiExecutionRegistry.PreparedJob prepared = dashboardMulti
+                    ? MainDashboardMultiExecutionRegistry.getInstance().require(
+                            rawBody.get("multiBatchId").getAsString(),
+                            request.homeBankingId(),
+                            request.botJobId(),
+                            request.excelMode().name(),
+                            transport)
+                    : null;
+            SmokeIntegrationAuthorization authorization = dashboardMulti
+                    ? multiAuthorization(prepared, request)
+                    : variables.authorize(rawBody, transport);
+            if (!dashboardMulti) variables.requireSupportingWorkspacesReady(authorization, transport);
+            Plan plan = dashboardMulti
+                    ? prepared.plan()
+                    : snapshots.load(
+                            new Owner(authorization.homeBankingId(), authorization.botJobId()),
+                            request.scope());
+            IntegrationDataset dataset = dashboardMulti
+                    ? prepared.dataset().integration()
+                    : excel.freeze(authorization.botJobId(), request.excelMode().name());
             if (dataset.homeBankingId() != authorization.homeBankingId()) {
                 throw new IllegalStateException(
                         "The frozen Excel dataset belongs to another organization.");
@@ -349,7 +388,7 @@ public final class SmokeTestIntegrationService {
             // Re-read the relationship revision after both frozen snapshots were loaded. A
             // concurrent graph mutation must fail start instead of combining a stale React graph
             // assertion with newer SQL/Excel facts.
-            authorization = variables.authorize(rawBody, transport);
+            if (!dashboardMulti) authorization = variables.authorize(rawBody, transport);
             if (request.runtimeMode() == RuntimeMode.JAVA_V1) {
                 lease = browserOwnership.reserve();
                 String executionState = workspaces.executionState(
@@ -383,7 +422,8 @@ public final class SmokeTestIntegrationService {
                 }
                 v2Run = v2.start(authorization, plan, dataset.mode());
             }
-            if (!variables.isCurrent(authorization, transport)) {
+            if (!(dashboardMulti ? isCurrentDashboardTransport(transport)
+                    : variables.isCurrent(authorization, transport))) {
                 throw new IllegalStateException(
                         "The Smoke Test target changed while Integration was starting.");
             }
@@ -404,7 +444,8 @@ public final class SmokeTestIntegrationService {
                     request.runtimeMode(),
                     request.pagePolicy(),
                     lease,
-                    v2Run);
+                    v2Run,
+                    dashboardMulti);
             synchronized (stateLock) {
                 boolean v1Run = request.runtimeMode() == RuntimeMode.JAVA_V1;
                 boolean v1Active = activeRuns.values().stream()
@@ -470,6 +511,61 @@ public final class SmokeTestIntegrationService {
             if (lease != null) lease.close();
             if (v2Run != null) closeV2AfterFailedStart(v2Run);
         }
+    }
+
+    private static SmokeIntegrationAuthorization multiAuthorization(
+            MainDashboardMultiExecutionRegistry.PreparedJob prepared,
+            StartRequest request) {
+        if (prepared == null) {
+            throw new IllegalArgumentException("The multi-run preparation is unavailable.");
+        }
+        if (request.runtimeMode() != RuntimeMode.TYPESCRIPT_PLAYWRIGHT_V2
+                || request.pagePolicy() != PagePolicy.RELOAD_SELECTED
+                || request.durableRuntimeWrites()) {
+            throw new IllegalArgumentException(
+                    "Main Dashboard multi-run requires isolated V2, reload-selected, and run-local variables.");
+        }
+        JsonObject snapshot = prepared.workspaceSnapshot();
+        String bindingEpoch = snapshot.get("bindingEpoch").getAsString();
+        long workspaceEpoch = snapshot.get("workspaceEpoch").getAsLong();
+        String graphRevision = snapshot.get("graphRevision").getAsString();
+        if (!bindingEpoch.equals(request.bindingEpoch())
+                || workspaceEpoch != request.workspaceEpoch()
+                || !graphRevision.equalsIgnoreCase(request.graphRevision())) {
+            throw new IllegalArgumentException("The multi-run React program no longer matches its preparation.");
+        }
+        List<Integer> requestedBlocks = request.scope().blockIds().stream().sorted().toList();
+        List<Integer> preparedBlocks = prepared.plan().blocks().stream()
+                .filter(com.allinweb.ch.facade.execution
+                        .SmokeTestIntegrationSnapshotRepository.BlockSnapshot::active)
+                .map(com.allinweb.ch.facade.execution
+                        .SmokeTestIntegrationSnapshotRepository.BlockSnapshot::id)
+                .sorted()
+                .toList();
+        if (!requestedBlocks.equals(preparedBlocks)) {
+            throw new IllegalArgumentException(
+                    "Main Dashboard multi-run must execute the complete frozen active program.");
+        }
+        return new SmokeIntegrationAuthorization(
+                bindingEpoch,
+                workspaceEpoch,
+                prepared.plan().owner().botJobId(),
+                prepared.plan().owner().homeBankingId(),
+                prepared.plan().environment().botJobName(),
+                prepared.plan().environment().organizationName(),
+                graphRevision);
+    }
+
+    private static boolean isCurrentDashboardTransport(Session transport) {
+        return transport != null
+                && transport.isOpen()
+                && WebSocketSessionManager.getSession("mainDashboard") == transport;
+    }
+
+    private boolean isCurrentRunAuthority(Run run, Session transport) {
+        return run.dashboardMulti
+                ? isCurrentDashboardTransport(transport)
+                : variables.isCurrent(run.authorization, transport);
     }
 
     private void handleStep(StepRequest request, Session transport) {
@@ -567,7 +663,7 @@ public final class SmokeTestIntegrationService {
         if (run.cancelled) {
             return stoppedStep(run, request, "Integration stop was requested.");
         }
-        if (!variables.isCurrent(run.authorization, run.responseTransport)) {
+        if (!isCurrentRunAuthority(run, run.responseTransport)) {
             JsonObject failed = stepResponse(
                     run,
                     request,
@@ -635,15 +731,17 @@ public final class SmokeTestIntegrationService {
 
     private JsonObject saveExcelWriteLocked(Run run, ExcelWriteRequest request) {
         try {
-            if (!variables.isCurrent(run.authorization, run.responseTransport)) {
+            if (!isCurrentRunAuthority(run, run.responseTransport)) {
                 throw new IllegalStateException("The Smoke Test page changed before ExcelWrite could save.");
             }
-            SmokeTestIntegrationExcelWriteService.Result saved = workspaces.commitMutation(
-                    run.authorization.botJobId(), run.authorization.workspaceEpoch(),
-                    () -> {
-                        try { return excelWrites.save(run.plan, request); }
-                        catch (Exception failure) { throw new ExcelWriteFailure(failure); }
-                    });
+            SmokeTestIntegrationExcelWriteService.Result saved = run.dashboardMulti
+                    ? excelWrites.save(run.plan, request)
+                    : workspaces.commitMutation(
+                            run.authorization.botJobId(), run.authorization.workspaceEpoch(),
+                            () -> {
+                                try { return excelWrites.save(run.plan, request); }
+                                catch (Exception failure) { throw new ExcelWriteFailure(failure); }
+                            });
             JsonObject response = new JsonObject();
             response.addProperty("ok", true);
             response.addProperty("contractVersion", SmokeTestIntegrationContracts.CONTRACT_VERSION);
@@ -660,6 +758,10 @@ public final class SmokeTestIntegrationService {
         } catch (IllegalArgumentException | IllegalStateException refused) {
             return rejected(request.requestId(), request.runId(), "EXCEL_WRITE_REFUSED",
                     safeMessage(refused, "ExcelWrite could not save the finalized artifact."));
+        } catch (Exception failure) {
+            log.warn("Smoke Integration ExcelWrite failed", failure);
+            return rejected(request.requestId(), request.runId(), "EXCEL_WRITE_FAILED",
+                    "ExcelWrite could not save the finalized artifact.");
         }
     }
 
@@ -1090,7 +1192,7 @@ public final class SmokeTestIntegrationService {
             if (run == null || run.released.get()) return null;
             if (run.responseTransport == transport) return run;
         }
-        if (!variables.isCurrent(run.authorization, transport)) return null;
+        if (!isCurrentRunAuthority(run, transport)) return null;
         synchronized (stateLock) {
             if (activeRuns.get(runId) != run || run.released.get()) return null;
             run.responseTransport = transport;
@@ -1560,6 +1662,7 @@ public final class SmokeTestIntegrationService {
         private final PagePolicy pagePolicy;
         private final BrowserLease lease;
         private final V2Run v2Run;
+        private final boolean dashboardMulti;
         private final java.util.concurrent.atomic.AtomicBoolean released =
                 new java.util.concurrent.atomic.AtomicBoolean();
         private final java.util.concurrent.atomic.AtomicBoolean releaseInProgress =
@@ -1588,7 +1691,8 @@ public final class SmokeTestIntegrationService {
                 RuntimeMode runtimeMode,
                 PagePolicy pagePolicy,
                 BrowserLease lease,
-                V2Run v2Run) {
+                V2Run v2Run,
+                boolean dashboardMulti) {
             this.runId = runId;
             this.integrationEpoch = integrationEpoch;
             this.responseTransport = transport;
@@ -1602,6 +1706,7 @@ public final class SmokeTestIntegrationService {
             this.pagePolicy = pagePolicy;
             this.lease = lease;
             this.v2Run = v2Run;
+            this.dashboardMulti = dashboardMulti;
         }
     }
 

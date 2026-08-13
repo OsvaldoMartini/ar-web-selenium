@@ -811,7 +811,8 @@ public class SimpleWebSocketServer {
             }
 
             if (smokeIntegrationOperation
-                    && !DetachedWorkspaceSessions.SMOKE_TEST_MANAGER.equals(transportSessionId)) {
+                    && !DetachedWorkspaceSessions.SMOKE_TEST_MANAGER.equals(transportSessionId)
+                    && !"mainDashboard".equals(transportSessionId)) {
                 log.warn(
                         "Rejected Smoke Test Integration operation {} from transport {}",
                         type,
