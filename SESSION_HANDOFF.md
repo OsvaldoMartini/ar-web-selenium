@@ -1219,3 +1219,23 @@ Do not change frontend CSS/design while doing the scanner contract cleanup unles
   readiness only; the next checkpoint must create one independent React Run controller, frozen
   data snapshot, Runtime Variables store, ExcelWriter reducer, and terminal state per selected row.
   No application restart or live UI preflight was performed.
+
+## Main Dashboard selected Bot Job React controllers - 2026-08-13
+
+- Backend `b9a88131` freezes owner-scoped plans, REAL/SYNTHETIC datasets, relationship graphs, and
+  Runtime Variables without depending on the singleton Smoke/Excel Data bindings. Backend
+  `b50dbd20` routes prepared Dashboard starts through the existing exact-run V2 registry.
+- Backend `06ed6479` adds plan-revision revalidation at batch issuance and bounded dataset-transfer
+  limits. `mvn -DskipTests compile` passed with 581 sources and the two established warnings.
+- Frontend `75351fb` enables `Start Selected` only after correlated complete preflight. Each row owns
+  one React program, data mode, runtime map, ExcelWriter reducer/flush lifecycle, V2 run ID, logs,
+  progress, Stop, and terminal status. `Stop Selected` fans out to active rows; close/Escape are
+  blocked until every child settles.
+- The production frontend build passed with existing warnings. Deployment `a18cf8cd` mirrors 61
+  exact files into resources and `target/classes`; current entrypoints are `main.0652482b.js`
+  (`01D7EFFD0B4DC7B14FEEF0A2DB4ABC50DD92547E00AA5D2E4096C7B0E6900A96`) and
+  `main.25f852bf.css` (`827E3E142EE6C823A4B2E343FA0AEEDE49A4A0C7B04AD8ADE867334213571912`).
+- No automated tests, service restart, database mutation, migration, package, image, or live Bot Job
+  execution occurred. The critical next gate is Stop while Node is resolving a missing locator:
+  cancellation must interrupt the wait, suppress any later action result, settle once, and release
+  the exact browser/run before multi-run is called live-complete.

@@ -1376,3 +1376,30 @@ and atomic artifact-write checkpoints are complete.
 - [ ] This checkpoint does not enable Start. Next: extract/instantiate one React execution controller
   per row, including independent frozen data, runtime values, ExcelWriter state/flush policy,
   instruction cursor/control flow, V2 run ID, Stop, and terminal evidence.
+
+## 46. Main Dashboard isolated React run controllers - 2026-08-13
+
+- [x] Backend `b9a88131` freezes each selected owner's complete plan, REAL/SYNTHETIC dataset,
+  Runtime Variables, and relationship graph without using the singleton Smoke/Excel Data workspace.
+  Backend `b50dbd20` admits those prepared rows through the existing exact-run V2 lifecycle and keeps
+  Java V1 exclusive. Runtime values and ExcelWriter memory remain independent per run.
+- [x] Backend `06ed6479` re-reads the authoritative plan before issuing a batch token and refuses a
+  concurrent plan change. Dataset transfer is bounded to 10,000 rows, 500 blocks, 500 columns per
+  block, 500,000 cells, and 16 million text characters.
+- [x] Frontend `75351fb` creates one independent React execution controller per prepared row. Each
+  owns its instruction program/cursor/control flow, frozen mode/data assertions, run-local Runtime
+  Variables, ExcelWriter reducer/flush policy, exact V2 run ID, progress/logs, and terminal state.
+  `Start Selected` starts every prepared row; `Stop Selected` stops each active row. The manager
+  cannot close while any child is starting, running, or stopping.
+- [x] `npm run build` completed with established repository warnings. `mvn -DskipTests compile`
+  compiled 581 sources with the two established warnings. No automated tests ran in this checkpoint.
+- [x] Deployment `a18cf8cd` mirrors 61 exact files into `src/main/resources/build` and
+  `target/classes/build`, with zero missing, extra, or hash-mismatched files. Entrypoints are
+  `main.0652482b.js` (SHA-256
+  `01D7EFFD0B4DC7B14FEEF0A2DB4ABC50DD92547E00AA5D2E4096C7B0E6900A96`) and
+  `main.25f852bf.css` (SHA-256
+  `827E3E142EE6C823A4B2E343FA0AEEDE49A4A0C7B04AD8ADE867334213571912`).
+- [ ] Source/build deployment is complete, but no ARWeb/Node restart or live selected-job program
+  was performed. Live acceptance must prove two or more complete Bot Job programs, independent
+  REAL/SYNTHETIC values, Runtime Variables, ExcelWriter outputs, Stop, failure containment, and
+  cleanup. The mandatory Stop-during-unresolved-locator cancellation gate remains open.

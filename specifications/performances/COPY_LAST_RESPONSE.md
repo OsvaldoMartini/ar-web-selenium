@@ -2,14 +2,13 @@
 
 Keep exactly two review sections. Check tasks only after their separate gates pass.
 
-**Last updated:** 2026-08-13 - Concurrent isolated Smoke authority is pushed in `d4862439` / `618ec9ec`; bounded five-browser V2 acceptance is pushed in `ae847e43`. Five local headed browsers reached READY with distinct run/browser/context/page identities and were released cleanly. Java compile and the TypeScript runtime build passed without running automated tests. Main Dashboard multi-Bot-Job program orchestration remains intentionally fail-closed; the proof is not presented as five completed Bot Job programs.
+**Last updated:** 2026-08-13 - Main Dashboard multi-run source is pushed through backend `b9a88131` / `b50dbd20` / `06ed6479`, frontend `75351fb`, and deployment `a18cf8cd`. `Start Selected` now owns one independent React program/data/runtime-variable/ExcelWriter/V2 lifecycle per prepared row, and `Stop Selected` cannot be bypassed by closing the manager. Build and Java compile passed without automated tests. Service restart, live multi-program execution, and the critical Stop-during-locator cancellation gate remain open.
 
 **Current multi-run checkpoint:** backend preflight `f39baa6c`, frontend manager `bb28f3a`, and exact
 61-file deployment `bd1cb821` are pushed. The manager can revalidate one to five exact owner/Bot Job
 plans, select REAL/SYNTHETIC per row, and display runtime/command readiness without opening a browser.
 Java compile and frontend build passed after reported corrections; no tests or app restart ran.
-`Start Selected` remains disabled until each row owns a complete React Run/data/variables/ExcelWriter
-state machine.
+This earlier preflight-only statement is superseded by the isolated controller checkpoint below.
 
 ## 1. CODEX -> CLAUDE - Page Mappings and Memory lifecycle review handoff
 
@@ -567,6 +566,24 @@ The Page Mappings roadmap is now source-complete through P7:
   run did not stop/release completely. Completion requires cancellation of the locator wait, exactly
   one terminal Stop, exact Playwright release, no stale owner/worker, restored controls, and immediate
   Page Scanner/new-run availability.
+
+### Main Dashboard isolated selected-job controllers - 2026-08-13
+
+- [x] Backend `b9a88131` freezes exact owner plans, datasets, Runtime Variables, and relationship
+  graphs; `b50dbd20` admits prepared rows through existing exact-run V2 authority; `06ed6479`
+  revalidates plan revision and bounds transferred data.
+- [x] Frontend `75351fb` gives every selected row an independent React program/cursor/control-flow,
+  REAL/SYNTHETIC assertion, Runtime Variables map, ExcelWriter reducer/flush lifecycle, V2 run ID,
+  status/logs, and Stop. Start Selected is no longer a browser-only launcher.
+- [x] Stop Selected fans out to active rows, and close/Escape is blocked while any child is active.
+  Java compile (581 sources) and the production frontend build passed; no automated tests ran.
+- [x] Deployment `a18cf8cd` mirrors 61 exact files. Current assets are `main.0652482b.js` SHA-256
+  `01D7EFFD0B4DC7B14FEEF0A2DB4ABC50DD92547E00AA5D2E4096C7B0E6900A96` and
+  `main.25f852bf.css` SHA-256
+  `827E3E142EE6C823A4B2E343FA0AEEDE49A4A0C7B04AD8ADE867334213571912`.
+- [ ] No service restart or live complete Bot Job program ran. Prove concurrent REAL/SYNTHETIC,
+  Runtime Variables, ExcelWriter output, independent failure/Stop, and exact cleanup. The locator-
+  cancellation interleaving remains a mandatory blocker before calling P7/P9 complete.
 
 ## 2. CLAUDE -> CODEX - Independent review requested
 
