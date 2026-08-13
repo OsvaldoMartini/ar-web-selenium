@@ -558,6 +558,12 @@ public final class SmokeTestIntegrationService {
     }
 
     private JsonObject step(Run run, StepRequest request) {
+        synchronized (run.operationLock) {
+            return stepLocked(run, request);
+        }
+    }
+
+    private JsonObject stepLocked(Run run, StepRequest request) {
         if (run.cancelled) {
             return stoppedStep(run, request, "Integration stop was requested.");
         }
@@ -622,6 +628,12 @@ public final class SmokeTestIntegrationService {
     }
 
     private JsonObject saveExcelWrite(Run run, ExcelWriteRequest request) {
+        synchronized (run.operationLock) {
+            return saveExcelWriteLocked(run, request);
+        }
+    }
+
+    private JsonObject saveExcelWriteLocked(Run run, ExcelWriteRequest request) {
         try {
             if (!variables.isCurrent(run.authorization, run.responseTransport)) {
                 throw new IllegalStateException("The Smoke Test page changed before ExcelWrite could save.");
@@ -694,16 +706,18 @@ public final class SmokeTestIntegrationService {
     }
 
     private JsonObject stop(Run run, StopRequest request) {
-        try {
-            TerminalResponse response = terminalResponse(
-                    run,
-                    request.requestId(),
-                    RunStatus.STOPPED,
-                    "INTEGRATION_STOPPED",
-                    terminalMessage(run, "Integration stopped"));
-            return successful(response);
-        } finally {
-            terminate(run, RunStatus.STOPPED);
+        synchronized (run.operationLock) {
+            try {
+                TerminalResponse response = terminalResponse(
+                        run,
+                        request.requestId(),
+                        RunStatus.STOPPED,
+                        "INTEGRATION_STOPPED",
+                        terminalMessage(run, "Integration stopped"));
+                return successful(response);
+            } finally {
+                terminate(run, RunStatus.STOPPED);
+            }
         }
     }
 
@@ -754,6 +768,12 @@ public final class SmokeTestIntegrationService {
     }
 
     private JsonObject finish(Run run, FinishRequest request) {
+        synchronized (run.operationLock) {
+            return finishLocked(run, request);
+        }
+    }
+
+    private JsonObject finishLocked(Run run, FinishRequest request) {
         if (request.lastSequence() != run.lastSequence) {
             return rejected(
                     request.requestId(),
@@ -889,7 +909,7 @@ public final class SmokeTestIntegrationService {
                 }
                 return;
             }
-            entry = new RequestLedgerEntry(operation, fingerprint);
+            entry = new RequestLedgerEntry(operation, fingerprint, homeBankingId);
             requestLedger.put(key, entry);
             trimRequestLedger();
         }
@@ -949,11 +969,7 @@ public final class SmokeTestIntegrationService {
             RequestLedgerEntry existing = requestLedger.get(
                     new TransportRequest(transport, requestId));
             if (existing == null) return false;
-            Run run = activeRuns.values().stream()
-                    .filter(candidate -> candidate.responseTransport == transport)
-                    .findFirst()
-                    .orElse(null);
-            if (run != null) homeBankingId = run.authorization.homeBankingId();
+            if (existing.homeBankingId >= 0) homeBankingId = existing.homeBankingId;
             if (!existing.operation.equals(operation)
                     || !existing.fingerprint.equals(fingerprint)) {
                 conflict = "This request ID was already used for another operation.";
@@ -1532,6 +1548,7 @@ public final class SmokeTestIntegrationService {
     private static final class Run {
         private final String runId;
         private final long integrationEpoch;
+        private final Object operationLock = new Object();
         private volatile Session responseTransport;
         private final SmokeIntegrationAuthorization authorization;
         private final Plan plan;
@@ -1613,12 +1630,14 @@ public final class SmokeTestIntegrationService {
     private static final class RequestLedgerEntry {
         private final String operation;
         private final String fingerprint;
+        private final int homeBankingId;
         private final List<Waiter> waiters = new ArrayList<>();
         private JsonObject response;
 
-        private RequestLedgerEntry(String operation, String fingerprint) {
+        private RequestLedgerEntry(String operation, String fingerprint, int homeBankingId) {
             this.operation = operation;
             this.fingerprint = fingerprint;
+            this.homeBankingId = homeBankingId;
         }
     }
 
