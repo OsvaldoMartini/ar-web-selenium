@@ -1042,3 +1042,133 @@ This checkpoint is separate from Page Mappings behavior and records the shared P
 - [x] Backend `a94ab42f` accepts the exact server-issued title token on hidden HWNDs and invokes the existing restore/foreground sequence. Focus authority remains bound to the current transport and opaque page ID.
 - [x] Focused verification passed 1/1; catalog `aa82166f` is current. ARWeb PID `16000` runs on `61964/61965`, Node PID `26056` is READY on `60110`, and six fresh logs have zero strict failures.
 - [ ] Live gate: Pages Open must raise Bot Job Details for Job 32 and after switching back to Job 29.
+
+## P8 next improvement - uninterrupted scan and locator-change reconciliation review
+
+Status: **PLANNED, NOT IMPLEMENTED**. This is the next Page Mappings improvement requested for the
+next work session. It must not weaken the exact owner/page/action protections already used by
+runtime healing.
+
+### Problem and authoritative finding
+
+- A fresh Page Scanner run can find a business element whose XPath, CSS, stable attributes, or URL
+  changed after a site release, refresh, session-token rotation, or navigation to a closely related
+  page. OCR/canonical/client names may still identify the same business control.
+- The current runtime registry is restricted to exact `home_banking_id + bot_job_id + page_key`.
+  `ScannedPageIdentity` includes query and fragment in the exact page hash, so session/token changes
+  legitimately create another exact page key.
+- `ScannedElementResolver` has deterministic name/fuzzy-name logic, but it returns one result and is
+  not an authoritative review/apply workflow. `RuntimeElementHealingService` correctly refuses to
+  use rows from another exact page key. Neither should be broadened to silently accept a similar
+  page.
+- The immutable READY snapshots are the authoritative historical evidence. `scanned_element` is the
+  current mutable locator/alias registry. Both are required to explain a proposed match.
+
+### Required user flow
+
+```text
+Page Scanner completes and commits one READY immutable capture
+  -> normal scan result remains uninterrupted
+  -> bounded background reconciliation compares the new capture with prior owner-scoped evidence
+  -> if zero review candidates: publish "no locator changes to review"
+  -> if candidates exist: publish a correlated review-ready event
+  -> Page Mappings opens a styled, accessible Locator Changes modal
+  -> user reviews old versus new evidence and explicitly accepts/rejects each row
+  -> one owner/revision-scoped transaction records only the confirmed links/changes
+  -> authoritative capture/registry/instruction state reloads
+```
+
+The analysis must never pause the scanner, hold the Playwright page, or delay READY snapshot
+publication. A worker timeout/failure reports that review is unavailable; it does not convert a
+successful scan into failure.
+
+### Page and element candidate rules
+
+1. Exact organization/Home Banking and Bot Job are mandatory. Never propose cross-owner or
+   cross-Bot-Job candidates.
+2. Exact `page_key` is the strongest page identity.
+3. A separate **similar-page candidate identity** may ignore query/fragment and normalize only
+   bounded route tokens (UUIDs/large numeric session segments). This identity is candidate discovery
+   only; it never replaces `page_key`, grants execution authority, or appears as an automatic match.
+4. Similar-page confidence should combine exact origin, normalized route shape, page title/structural
+   fingerprint, and overlap of unique canonical/client names. Raw query strings, tokens, credentials,
+   and banking values must not be persisted, logged, or displayed.
+5. Element ranking should use, in order: saved nonblank `client_named`; canonical `defined_name`;
+   OCR/captured name or text; tag/type/role/action compatibility; stable attributes; and geometry only
+   as a tie-breaker. XPath/CSS equality is evidence, not a requirement, because changed locators are
+   the subject of the review.
+6. Unique high-confidence rows may be preselected for review but are never auto-applied. Duplicate,
+   fuzzy, incompatible, or cross-frame/shadow candidates remain unchecked and visibly ambiguous.
+
+### Locator Changes modal
+
+Use an isolated `PageMappingsLocatorReviewModal` component and module stylesheet, following the
+existing Page Mappings modal focus trap, Escape/backdrop, responsive table, and status-message
+patterns. Required columns/details:
+
+- Select / decision state.
+- Match confidence and human-readable reasons.
+- Stable name: client alias, canonical name, and OCR/captured label.
+- Previous page/capture timestamp and redacted route identity.
+- Previous XPath, custom XPath, CSS, stable ID/name/test attributes, tag/type/frame boundary.
+- New page/capture timestamp and the same new locator evidence.
+- Status: exact page, similar page, unique, ambiguous, incompatible, already linked, or stale.
+
+Provide `Accept selected`, `Reject selected`, `Review later`, and `Close`. Applying a locator change
+must require a second concise confirmation showing the exact number of links and any instructions
+that would be affected. Merely opening/closing the modal changes nothing.
+
+### Persistence and mutation boundary
+
+- Add one narrow migration-backed lineage/review table rather than overloading `client_named`,
+  `element_hash`, or immutable snapshot files. It should bind old/new scanned-element identity,
+  exact owner, old/new page and scan IDs, evidence digest, decision, actor/time, and revision.
+- An accepted lineage says "these reviewed observations represent the same business element." It
+  must not rewrite an immutable capture.
+- Preserve an existing client alias and custom XPath unless the user explicitly selects the exact
+  replacement. OCR output is proposal evidence and must never overwrite a saved client alias.
+- Updating existing Bot Job instructions is a separate explicit option/transaction. Default Apply
+  records the lineage and makes the new registry row available for healing; it does not silently
+  rewrite every linked instruction.
+- Apply must revalidate exact owner, binding/workspace epoch, both scan IDs and manifest hashes,
+  scanned-element revisions, evidence digest, and current graph revision. Any stale/ambiguous commit
+  returns `reloadRequired=true` and applies nothing.
+
+### Contracts and lifecycle
+
+- New reduced operations: `pageMappings.locatorReview`, `pageMappings.locatorReviewResponse`,
+  `pageMappings.locatorReviewApply`, and `pageMappings.locatorReviewApplyResponse`.
+- Read/review may be recomputed; Apply requires a reconnect-safe idempotency ledger and exact payload
+  replay, following OCR Apply/retention patterns.
+- Retarget, owner change, capture change, disconnect, timeout, and window takeover retire visible
+  candidates. An unknown Apply outcome blocks another Apply until correlated bootstrap plus capture
+  reload confirms authoritative state.
+- Candidate lists and comparisons must be bounded. Large histories are newest-first and paginated;
+  do not load every snapshot artifact or every organization row into memory.
+
+### Planned checkpoints
+
+1. **P8.1 - Read-only matcher:** route-family identity, bounded historical evidence loader, scored
+   explanations, exact owner isolation, and no database mutation.
+2. **P8.2 - Modal:** accessible table/filter/details, selected decisions, stale/empty/unavailable
+   states, and review-ready notification without blocking Page Scanner.
+3. **P8.3 - Durable lineage:** dialect-aware migration plus owner/revision/idempotency-safe Apply;
+   immutable captures remain unchanged.
+4. **P8.4 - Optional instruction migration:** separate explicit confirmation and graph-versioned
+   instruction locator update. Never cascade automatically.
+5. **P8.5 - Runtime consumption:** exact page remains first; only explicitly accepted lineage can
+   contribute candidates on a similar page, and execution still requires one visible/actionable
+   target with page/frame/shadow/tag/action validation and one physical attempt.
+
+### Mandatory verification
+
+- Exact-page locator change, query-token change, normalized route-token change, genuinely different
+  page, duplicate names, fuzzy names, frame/shadow mismatch, and stale captures.
+- Cross-organization/Bot-Job isolation and URL/token redaction.
+- Scanner completion is unaffected by slow/failing reconciliation.
+- Modal accessibility, filtering, clear/close/reopen, retarget, reconnect, malformed responses, and
+  empty candidate state.
+- Apply idempotency, stale revision/hash refusal, ambiguous commit recovery, preserved client alias,
+  optional instruction update isolation, and no immutable artifact mutation.
+- Runtime proof that unaccepted proposals have zero effect and accepted lineage still cannot cause
+  an ambiguous or second physical action.

@@ -1247,3 +1247,20 @@ Do not change frontend CSS/design while doing the scanner contract cleanup unles
 - No service restart, database mutation, migration, package, image, or live Bot Job execution
   occurred. Live acceptance must still reproduce Stop during a real unresolved locator and prove
   exact release plus immediate Page Scanner/new-run availability.
+
+## Next Page Mappings improvement - locator-change reconciliation review
+
+- Planned only; no implementation, migration, build, or runtime mutation occurred.
+- After a normal READY scan, a bounded background comparison will use the new immutable capture plus
+  owner-scoped historical READY captures/current `scanned_element` registry to propose changed
+  locator matches. The scanner must finish independently and never wait for the review.
+- Exact page key remains authoritative. A redacted origin/route-family identity may discover
+  candidates for tokenized or slightly changed URLs, but can never authorize execution or automatic
+  mutation.
+- A new accessible Page Mappings modal will show old/new names, OCR evidence, XPath/CSS/stable
+  attributes, page/capture identity, confidence, and ambiguity. Nothing changes without explicit
+  selection and confirmation.
+- Durable accepted lineage needs a dialect-aware migration and owner/scan/hash/revision-bound Apply.
+  Existing client aliases/custom XPath remain protected; instruction updates remain a separate
+  explicit graph-versioned action. Full design and verification gates are recorded as P8 in
+  `Page Mappins PLAN 2026-08-07.md`.
