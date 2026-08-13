@@ -1064,6 +1064,55 @@ public final class VariablesWorkspaceService {
     }
 
     /**
+     * Authorizes one manual Smoke Test row action without applying Integration-only graph rules.
+     *
+     * <p>The physical Smoke Test transport, backend-created binding epoch, active workspace epoch,
+     * organization and Bot Job remain authoritative. The caller must independently validate the
+     * instruction graph revision required by its own operation.
+     */
+    public SmokeTestActionAuthorization authorizeSmokeTestAction(
+            JsonObject body, String requesterSessionId, Session requesterTransport) {
+        JsonObject request = body == null ? new JsonObject() : body;
+        Binding candidate;
+        synchronized (stateLock) {
+            if (!DetachedWorkspaceSessions.SMOKE_TEST_MANAGER.equals(requesterSessionId)
+                    || smokeTestBinding == null
+                    || smokeTestTransport != requesterTransport
+                    || !windows.isRegistered(requesterSessionId, requesterTransport)) {
+                throw new IllegalArgumentException(
+                        "The Smoke Test action requester is not authoritative.");
+            }
+            if (!smokeTestBinding.bindingEpoch().equals(text(request, "bindingEpoch"))) {
+                throw new IllegalArgumentException(
+                        "The Smoke Test target changed. Reload the current Bot Job.");
+            }
+            candidate = smokeTestBinding;
+        }
+
+        long requestedWorkspaceEpoch = nonNegativeLong(request, "workspaceEpoch", true);
+        int requestedBotJobId = positiveInteger(request, "botJobId");
+        int requestedHomeBankingId = positiveInteger(request, "homeBankingId");
+        if (requestedWorkspaceEpoch != candidate.workspaceEpoch()
+                || requestedBotJobId != candidate.botJobId()
+                || requestedHomeBankingId != candidate.homeBankingId()) {
+            throw new IllegalArgumentException(
+                    "The Smoke Test action no longer matches the active workspace.");
+        }
+
+        WorkspaceContext workspace = workspaces.require(
+                candidate.botJobId(), candidate.workspaceEpoch());
+        if (workspace.homeBankingId() != candidate.homeBankingId()) {
+            throw new IllegalArgumentException(
+                    "The Smoke Test action organization is no longer active.");
+        }
+        return new SmokeTestActionAuthorization(
+                candidate.bindingEpoch(),
+                workspace.workspaceEpoch(),
+                workspace.botJobId(),
+                workspace.homeBankingId());
+    }
+
+    /**
      * Authorizes the start of one real-browser Smoke Test Integration run.
      *
      * <p>The detached page's physical transport and backend-created binding epoch are authority.
@@ -4868,6 +4917,12 @@ public final class VariablesWorkspaceService {
             String botJobName,
             String organizationName,
             String graphRevision) {}
+
+    public record SmokeTestActionAuthorization(
+            String bindingEpoch,
+            long workspaceEpoch,
+            int botJobId,
+            int homeBankingId) {}
 
     private record Binding(
             String bindingEpoch,

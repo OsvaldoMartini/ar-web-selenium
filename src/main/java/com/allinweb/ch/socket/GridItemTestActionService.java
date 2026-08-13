@@ -111,6 +111,13 @@ public final class GridItemTestActionService {
         try {
             authorizeRequest(request, authorizedBody, sessionId, transport);
         } catch (IllegalArgumentException | IllegalStateException refused) {
+            log.warn(
+                    "GridItem test admission refused sessionId={} botJobId={} instructionId={} action={} reason={}",
+                    sessionId,
+                    request.botJobId(),
+                    request.instructionId(),
+                    request.action(),
+                    humanMessage(refused));
             send(
                     transport,
                     request.homeBankingId(),
@@ -168,9 +175,28 @@ public final class GridItemTestActionService {
                         DetachedWorkspaceSessions.SMOKE_TEST_MANAGER.equals(sessionId)
                                 ? InputValuePolicy.REQUIRE_EXCEL_MEMORY
                                 : InputValuePolicy.ALLOW_ABC_FALLBACK);
+                log.info(
+                        "GridItem test outcome sessionId={} botJobId={} instructionId={} action={} ok={} code={} valueSource={} datasetMode={} excelRowIndex={} column={}",
+                        sessionId,
+                        request.botJobId(),
+                        request.instructionId(),
+                        request.action(),
+                        outcome.passed(),
+                        outcome.code(),
+                        outcome.valueSource(),
+                        outcome.datasetMode(),
+                        outcome.excelRowIndex(),
+                        outcome.column());
                 response = response(request, outcome);
             }
         } catch (IllegalArgumentException | IllegalStateException refused) {
+            log.warn(
+                    "GridItem test refused sessionId={} botJobId={} instructionId={} action={} reason={}",
+                    sessionId,
+                    request.botJobId(),
+                    request.instructionId(),
+                    request.action(),
+                    humanMessage(refused));
             response = failure(request, "ACTION_REFUSED", humanMessage(refused));
         } catch (SQLException databaseFailure) {
             log.warn(
@@ -221,8 +247,8 @@ public final class GridItemTestActionService {
         }
         BotJobDetailsWorkspaceRegistry.Snapshot workspace;
         if (DetachedWorkspaceSessions.SMOKE_TEST_MANAGER.equals(sessionId)) {
-            VariablesWorkspaceService.SmokeIntegrationAuthorization authority =
-                    variables.authorizeSmokeIntegration(body, sessionId, transport);
+            VariablesWorkspaceService.SmokeTestActionAuthorization authority =
+                    variables.authorizeSmokeTestAction(body, sessionId, transport);
             if (authority.homeBankingId() != request.homeBankingId()
                     || authority.botJobId() != request.botJobId()
                     || request.workspaceEpoch() == null
