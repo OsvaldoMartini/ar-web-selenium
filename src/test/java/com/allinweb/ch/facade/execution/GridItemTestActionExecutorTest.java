@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.allinweb.ch.facade.execution.GridItemTestActionExecutor.Outcome;
+import com.allinweb.ch.facade.execution.GridItemTestActionExecutor.InputValuePolicy;
 import com.allinweb.ch.facade.execution.GridItemTestInstructionRepository.InstructionSnapshot;
 import com.allinweb.ch.model.FieldData;
 import com.allinweb.ch.model.GridItemTestActionContracts.Action;
@@ -84,6 +85,55 @@ class GridItemTestActionExecutorTest {
         assertEquals("ABC_FALLBACK", withoutCell.valueSource());
         assertEquals(List.of("ABC", "ABC"), browser.filledValues);
         assertTrue(cells.events.isEmpty(), "Fallback values must not highlight an Excel cell");
+    }
+
+    @Test
+    void smokeInputRefusesMissingExcelMemoryWithoutCallingTheBrowser() {
+        RecordingBrowser browser = new RecordingBrowser();
+        GridItemTestActionExecutor executor = new GridItemTestActionExecutor(
+                browser, (job, block, column, row, instruction) -> {}, value -> value);
+
+        Outcome result = executor.execute(
+                instruction("I", false),
+                Action.INPUT,
+                0,
+                Optional.empty(),
+                InputValuePolicy.REQUIRE_EXCEL_MEMORY);
+
+        assertFalse(result.passed());
+        assertEquals("EXCEL_MEMORY_UNAVAILABLE", result.code());
+        assertTrue(browser.filledValues.isEmpty());
+    }
+
+    @Test
+    void smokeInputRefusesMissingSelectedColumnAndPreservesBlankMemoryValues() {
+        ExtractedData wrongColumn = new ExtractedData();
+        wrongColumn.addFieldValue(BLOCK, "Other", "not selected", 0);
+        RecordingBrowser browser = new RecordingBrowser();
+        GridItemTestActionExecutor executor = new GridItemTestActionExecutor(
+                browser, (job, block, column, row, instruction) -> {}, value -> value);
+
+        Outcome missing = executor.execute(
+                instruction("I", false),
+                Action.INPUT,
+                0,
+                Optional.of(dataset("SYNTHETIC", wrongColumn, 0)),
+                InputValuePolicy.REQUIRE_EXCEL_MEMORY);
+
+        ExtractedData blank = new ExtractedData();
+        blank.addFieldValue(BLOCK, COLUMN, "   ", 0);
+        Outcome present = executor.execute(
+                instruction("I", false),
+                Action.INPUT,
+                0,
+                Optional.of(dataset("REAL", blank, 0)),
+                InputValuePolicy.REQUIRE_EXCEL_MEMORY);
+
+        assertFalse(missing.passed());
+        assertEquals("EXCEL_COLUMN_UNAVAILABLE", missing.code());
+        assertTrue(present.passed());
+        assertEquals("EXCEL_MEMORY", present.valueSource());
+        assertEquals(List.of("   "), browser.filledValues);
     }
 
     @Test

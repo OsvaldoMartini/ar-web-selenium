@@ -5,6 +5,7 @@ import com.allinweb.ch.facade.BotJobGraphMutationService;
 import com.allinweb.ch.facade.CommandRegistry;
 import com.allinweb.ch.facade.ExecutionPauseCoordinator;
 import com.allinweb.ch.facade.execution.GridItemTestActionExecutor;
+import com.allinweb.ch.facade.execution.GridItemTestActionExecutor.InputValuePolicy;
 import com.allinweb.ch.facade.execution.GridItemTestActionExecutor.Outcome;
 import com.allinweb.ch.facade.execution.GridItemTestInstructionRepository;
 import com.allinweb.ch.facade.execution.GridItemTestInstructionRepository.InstructionSnapshot;
@@ -160,7 +161,13 @@ public final class GridItemTestActionService {
                                         request.homeBankingId(), request.botJobId())
                                 : Optional.empty();
                 Outcome outcome = executor.execute(
-                        instruction, request.action(), request.excelRowIndex(), selected);
+                        instruction,
+                        request.action(),
+                        request.excelRowIndex(),
+                        selected,
+                        DetachedWorkspaceSessions.SMOKE_TEST_MANAGER.equals(sessionId)
+                                ? InputValuePolicy.REQUIRE_EXCEL_MEMORY
+                                : InputValuePolicy.ALLOW_ABC_FALLBACK);
                 response = response(request, outcome);
             }
         } catch (IllegalArgumentException | IllegalStateException refused) {

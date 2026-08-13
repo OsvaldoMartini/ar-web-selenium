@@ -18,6 +18,11 @@ import java.util.Optional;
 public final class GridItemTestActionExecutor {
     public static final String ABC_FALLBACK = "ABC";
 
+    public enum InputValuePolicy {
+        ALLOW_ABC_FALLBACK,
+        REQUIRE_EXCEL_MEMORY
+    }
+
     private final BrowserPort browser;
     private final ActiveCellPort activeCells;
     private final Decoder decoder;
@@ -42,8 +47,23 @@ public final class GridItemTestActionExecutor {
             Action action,
             int excelRowIndex,
             Optional<GridItemDataset> selectedDataset) {
+        return execute(
+                instruction,
+                action,
+                excelRowIndex,
+                selectedDataset,
+                InputValuePolicy.ALLOW_ABC_FALLBACK);
+    }
+
+    public Outcome execute(
+            InstructionSnapshot instruction,
+            Action action,
+            int excelRowIndex,
+            Optional<GridItemDataset> selectedDataset,
+            InputValuePolicy inputValuePolicy) {
         Objects.requireNonNull(instruction, "instruction");
         Objects.requireNonNull(action, "action");
+        Objects.requireNonNull(inputValuePolicy, "inputValuePolicy");
         Optional<GridItemDataset> dataset = selectedDataset == null
                 ? Optional.empty() : selectedDataset;
         InstructionLoad target = instruction.toInstructionLoad(action);
@@ -76,7 +96,8 @@ public final class GridItemTestActionExecutor {
         } else {
             effectiveRowIndex = Integer.valueOf(excelRowIndex);
         }
-        ResolvedInput input = resolveInput(instruction, effectiveRowIndex, dataset);
+        ResolvedInput input = resolveInput(
+                instruction, effectiveRowIndex, dataset, inputValuePolicy);
         if (input.failureCode() != null) {
             return Outcome.failed(
                     input.failureCode(),
@@ -123,22 +144,51 @@ public final class GridItemTestActionExecutor {
     private ResolvedInput resolveInput(
             InstructionSnapshot instruction,
             Integer rowIndex,
-            Optional<GridItemDataset> selectedDataset) {
+            Optional<GridItemDataset> selectedDataset,
+            InputValuePolicy inputValuePolicy) {
         String expectedColumn = instruction.displayKey();
         if (expectedColumn == null || expectedColumn.isBlank()) expectedColumn = instruction.name();
         GridItemDataset dataset = selectedDataset.orElse(null);
         if (dataset == null) {
+            if (inputValuePolicy == InputValuePolicy.REQUIRE_EXCEL_MEMORY) {
+                return ResolvedInput.failure(
+                        expectedColumn,
+                        null,
+                        null,
+                        null,
+                        "EXCEL_MEMORY_UNAVAILABLE",
+                        "Excel Data memory is not ready for the active Bot Job.");
+            }
             return ResolvedInput.fallback(expectedColumn, null, null, null);
         }
         ExtractedData data = dataset.data();
         String column = resolveColumn(data, instruction);
-        String value = column == null
-                        || rowIndex == null
-                        || rowIndex < 0
-                        || rowIndex >= data.getNumberOfDataRows()
-                ? null
-                : data.getFieldValue(instruction.blockName(), column, rowIndex);
+        boolean rowAvailable = data != null
+                && rowIndex != null
+                && rowIndex >= 0
+                && rowIndex < data.getNumberOfDataRows();
+        String value = column == null || !rowAvailable
+                ? null : data.getFieldValue(instruction.blockName(), column, rowIndex);
         if (column == null || value == null) {
+            if (inputValuePolicy == InputValuePolicy.REQUIRE_EXCEL_MEMORY) {
+                String code = column == null
+                        ? "EXCEL_COLUMN_UNAVAILABLE"
+                        : !rowAvailable
+                                ? "EXCEL_ROW_UNAVAILABLE"
+                                : "EXCEL_VALUE_UNAVAILABLE";
+                String message = column == null
+                        ? "The selected Excel Data memory does not contain this Input column."
+                        : !rowAvailable
+                                ? "No Excel Data memory row is selected for this Input test."
+                                : "The selected Excel Data memory row does not contain this Input value.";
+                return ResolvedInput.failure(
+                        column == null ? expectedColumn : column,
+                        dataset.mode(),
+                        dataset.datasetEpoch(),
+                        dataset.datasetRevision(),
+                        code,
+                        message);
+            }
             return ResolvedInput.fallback(
                     expectedColumn,
                     dataset.mode(),
@@ -246,6 +296,24 @@ public final class GridItemTestActionExecutor {
                     revision,
                     null,
                     null);
+        }
+
+        static ResolvedInput failure(
+                String column,
+                String mode,
+                Long epoch,
+                Long revision,
+                String code,
+                String message) {
+            return new ResolvedInput(
+                    null,
+                    "EXCEL_MEMORY",
+                    mode,
+                    column == null ? "" : column,
+                    epoch,
+                    revision,
+                    code,
+                    message);
         }
     }
 
