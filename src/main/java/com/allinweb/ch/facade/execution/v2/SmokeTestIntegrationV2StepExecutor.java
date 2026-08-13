@@ -47,38 +47,7 @@ public final class SmokeTestIntegrationV2StepExecutor {
 
     public SmokeTestIntegrationV2StepExecutor(ExecutionRuntimeRunCoordinator coordinator) {
         this(
-                new ActionPort() {
-                    @Override
-                    public JsonObject action(
-                            ExecutionRuntimeRunCoordinator.Run run,
-                            long sequence,
-                            int instructionId,
-                            String inputValue) {
-                        return coordinator.action(run, sequence, instructionId, inputValue);
-                    }
-
-                    @Override
-                    public JsonObject refresh(ExecutionRuntimeRunCoordinator.Run run) {
-                        return coordinator.refresh(run);
-                    }
-
-                    @Override
-                    public JsonObject get(
-                            ExecutionRuntimeRunCoordinator.Run run,
-                            long sequence,
-                            int instructionId) {
-                        return coordinator.get(run, sequence, instructionId);
-                    }
-
-                    @Override
-                    public JsonObject set(
-                            ExecutionRuntimeRunCoordinator.Run run,
-                            long sequence,
-                            int instructionId,
-                            String value) {
-                        return coordinator.set(run, sequence, instructionId, value);
-                    }
-                },
+                new CoordinatorActionPort(coordinator),
                 ExcelDataWorkspaceService.getInstance()::publishActiveCell);
     }
 
@@ -167,6 +136,31 @@ public final class SmokeTestIntegrationV2StepExecutor {
                     instruction.optional(),
                     "V2_RUNTIME_ACTION_FAILED",
                     "The isolated TypeScript Playwright action could not be completed.");
+        }
+    }
+
+    public Outcome recover(
+            ExecutionRuntimeRunCoordinator.Run run,
+            int instructionId,
+            String recoveryCandidateId,
+            boolean save) {
+        try {
+            return runtimeOutcome(
+                    false,
+                    ((CoordinatorActionPort) runtime).recover(
+                            run, instructionId, recoveryCandidateId, save));
+        } catch (RuntimeException failure) {
+            return failed(
+                    false,
+                    "V2_RECOVERY_FAILED",
+                    "The selected locator recovery could not be completed.");
+        }
+    }
+
+    public void cancelRecovery(
+            ExecutionRuntimeRunCoordinator.Run run, int instructionId) {
+        if (runtime instanceof CoordinatorActionPort coordinator) {
+            coordinator.cancelRecovery(run, instructionId);
         }
     }
 
@@ -269,6 +263,17 @@ public final class SmokeTestIntegrationV2StepExecutor {
         JsonObject diagnostic = result.getAsJsonObject("diagnostic");
         String code = safeCode(diagnostic.get("code"));
         if (result.get("ok").getAsBoolean()) {
+            if (result.has("recoverySaveFailed")
+                    && result.get("recoverySaveFailed").isJsonPrimitive()
+                    && result.get("recoverySaveFailed").getAsBoolean()) {
+                return new Outcome(
+                        StepStatus.WARNING,
+                        StepDisposition.PHYSICAL,
+                        "RECOVERY_ACTION_COMPLETED_SAVE_FAILED",
+                        "The selected element action completed, but its locator was not saved.",
+                        null,
+                        null);
+            }
             return new Outcome(
                     StepStatus.PASSED,
                     StepDisposition.PHYSICAL,
@@ -280,7 +285,10 @@ public final class SmokeTestIntegrationV2StepExecutor {
         return failed(
                 optional,
                 code.isEmpty() ? "V2_RUNTIME_ACTION_REFUSED" : code,
-                "The TypeScript Playwright runtime refused the physical action.");
+                "The TypeScript Playwright runtime refused the physical action.",
+                result.has("recovery") && result.get("recovery").isJsonObject()
+                        ? result.getAsJsonObject("recovery").deepCopy()
+                        : null);
     }
 
     private static boolean successfulResult(JsonObject result) {
@@ -312,13 +320,19 @@ public final class SmokeTestIntegrationV2StepExecutor {
     }
 
     private static Outcome failed(boolean optional, String code, String message) {
+        return failed(optional, code, message, null);
+    }
+
+    private static Outcome failed(
+            boolean optional, String code, String message, JsonObject recovery) {
         return new Outcome(
                 optional ? StepStatus.WARNING : StepStatus.FAILED,
                 StepDisposition.PHYSICAL,
                 code,
                 message,
                 null,
-                null);
+                null,
+                recovery);
     }
 
     interface ActionPort {
@@ -338,6 +352,56 @@ public final class SmokeTestIntegrationV2StepExecutor {
                 long sequence,
                 int instructionId,
                 String value);
+    }
+
+    private static final class CoordinatorActionPort implements ActionPort {
+        private final ExecutionRuntimeRunCoordinator coordinator;
+
+        private CoordinatorActionPort(ExecutionRuntimeRunCoordinator coordinator) {
+            this.coordinator = coordinator;
+        }
+
+        @Override
+        public JsonObject action(
+                ExecutionRuntimeRunCoordinator.Run run,
+                long sequence,
+                int instructionId,
+                String inputValue) {
+            return coordinator.action(run, sequence, instructionId, inputValue);
+        }
+
+        @Override
+        public JsonObject refresh(ExecutionRuntimeRunCoordinator.Run run) {
+            return coordinator.refresh(run);
+        }
+
+        @Override
+        public JsonObject get(
+                ExecutionRuntimeRunCoordinator.Run run, long sequence, int instructionId) {
+            return coordinator.get(run, sequence, instructionId);
+        }
+
+        @Override
+        public JsonObject set(
+                ExecutionRuntimeRunCoordinator.Run run,
+                long sequence,
+                int instructionId,
+                String value) {
+            return coordinator.set(run, sequence, instructionId, value);
+        }
+
+        private JsonObject recover(
+                ExecutionRuntimeRunCoordinator.Run run,
+                int instructionId,
+                String candidateId,
+                boolean save) {
+            return coordinator.recover(run, instructionId, candidateId, save);
+        }
+
+        private void cancelRecovery(
+                ExecutionRuntimeRunCoordinator.Run run, int instructionId) {
+            coordinator.cancelRecovery(run, instructionId);
+        }
     }
 
     interface ActiveCellPort {

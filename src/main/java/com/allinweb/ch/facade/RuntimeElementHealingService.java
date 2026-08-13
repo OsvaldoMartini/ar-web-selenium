@@ -45,6 +45,28 @@ public final class RuntimeElementHealingService {
         return INSTANCE;
     }
 
+    public boolean saveApprovedRuntimeLocator(
+            int homeBankingId,
+            int botJobId,
+            String pageKey,
+            long scannedElementId,
+            String xpath) {
+        try (Connection connection = database.getConnection()) {
+            int authoritative = loadAuthoritativeOwner(connection, botJobId);
+            if (authoritative != homeBankingId) return false;
+            return ScannedElementRepository.updateRuntimeCustomXPathById(
+                    connection, homeBankingId, botJobId, pageKey, scannedElementId, xpath) == 1;
+        } catch (RuntimeException | java.sql.SQLException failure) {
+            log.warn(
+                    "runtime-healing locator save failed hb={} bot={} element={} failureType={}",
+                    homeBankingId,
+                    botJobId,
+                    scannedElementId,
+                    failure.getClass().getSimpleName());
+            return false;
+        }
+    }
+
     /**
      * Resolve the server-owned execution scope and select only registry rows that can relate to the
      * instruction by exact locator identity, canonical name, or client alias.
@@ -106,10 +128,13 @@ public final class RuntimeElementHealingService {
 
             List<ScannedElement> registry = ScannedElementRepository.loadByOwnerAndPageKey(
                     connection, authoritativeHomeBankingId, botJobId, pageKey);
+            List<ScannedElement> botJobRegistry = ScannedElementRepository.loadByBotJob(
+                    connection, botJobId);
 
             Map<Long, RegistryCandidate> locatorMatches = new LinkedHashMap<>();
             Map<Long, RegistryCandidate> canonicalMatches = new LinkedHashMap<>();
             Map<Long, RegistryCandidate> aliasMatches = new LinkedHashMap<>();
+            Map<Long, RegistryCandidate> reviewMatches = new LinkedHashMap<>();
             int strongestLocatorMatch = 0;
             for (ScannedElement row : registry) {
                 if (row == null || row.getId() == null || row.getId() <= 0) continue;
@@ -129,6 +154,17 @@ public final class RuntimeElementHealingService {
                     aliasMatches.putIfAbsent(row.getId(), candidate);
                 }
             }
+            for (ScannedElement row : botJobRegistry) {
+                if (row == null
+                        || row.getId() == null
+                        || row.getId() <= 0
+                        || pageKey.equals(row.getPageKey())) continue;
+                if (sameName(instruction.getName(), row.getDefinedName())
+                        || sameName(instruction.getClientNamed(), row.getClientNamed())) {
+                    reviewMatches.putIfAbsent(row.getId(), candidate(row));
+                    if (reviewMatches.size() >= 25) break;
+                }
+            }
 
             Preparation prepared = new Preparation(
                     Status.READY,
@@ -137,7 +173,8 @@ public final class RuntimeElementHealingService {
                     pageKey,
                     List.copyOf(locatorMatches.values()),
                     List.copyOf(canonicalMatches.values()),
-                    List.copyOf(aliasMatches.values()));
+                    List.copyOf(aliasMatches.values()),
+                    List.copyOf(reviewMatches.values()));
             log.debug(
                     "runtime-healing registry prepared hb={} bot={} locator={} canonical={} alias={}",
                     authoritativeHomeBankingId,
@@ -220,6 +257,10 @@ public final class RuntimeElementHealingService {
     private static RegistryCandidate candidate(ScannedElement row) {
         return new RegistryCandidate(
                 row.getId(),
+                value(row.getDefinedName()),
+                value(row.getClientNamed()),
+                value(row.getSomeText()),
+                value(row.getPageKey()),
                 value(row.getTagName()),
                 value(row.getTypeElement()),
                 value(row.getXPath()),
@@ -306,13 +347,15 @@ public final class RuntimeElementHealingService {
             String pageKey,
             List<RegistryCandidate> locatorCandidates,
             List<RegistryCandidate> canonicalCandidates,
-            List<RegistryCandidate> aliasCandidates) {
+            List<RegistryCandidate> aliasCandidates,
+            List<RegistryCandidate> reviewCandidates) {
         public Preparation {
             status = Objects.requireNonNull(status, "status");
             pageKey = pageKey == null ? "" : pageKey;
             locatorCandidates = immutable(locatorCandidates);
             canonicalCandidates = immutable(canonicalCandidates);
             aliasCandidates = immutable(aliasCandidates);
+            reviewCandidates = immutable(reviewCandidates);
         }
 
         public boolean ready() {
@@ -323,11 +366,12 @@ public final class RuntimeElementHealingService {
         }
 
         public int registryCandidateCount() {
-            return locatorCandidates.size() + canonicalCandidates.size() + aliasCandidates.size();
+            return locatorCandidates.size() + canonicalCandidates.size()
+                    + aliasCandidates.size() + reviewCandidates.size();
         }
 
         private static Preparation failed(Status status) {
-            return new Preparation(status, 0, 0, "", List.of(), List.of(), List.of());
+            return new Preparation(status, 0, 0, "", List.of(), List.of(), List.of(), List.of());
         }
 
         private static Preparation unavailable(int botJobId, String pageKey) {
@@ -338,6 +382,7 @@ public final class RuntimeElementHealingService {
                     pageKey,
                     List.of(),
                     List.of(),
+                    List.of(),
                     List.of());
         }
 
@@ -345,10 +390,33 @@ public final class RuntimeElementHealingService {
             return Collections.unmodifiableList(
                     new ArrayList<>(candidates == null ? List.of() : candidates));
         }
+
+        public Preparation(
+                Status status,
+                int homeBankingId,
+                int botJobId,
+                String pageKey,
+                List<RegistryCandidate> locatorCandidates,
+                List<RegistryCandidate> canonicalCandidates,
+                List<RegistryCandidate> aliasCandidates) {
+            this(
+                    status,
+                    homeBankingId,
+                    botJobId,
+                    pageKey,
+                    locatorCandidates,
+                    canonicalCandidates,
+                    aliasCandidates,
+                    List.of());
+        }
     }
 
     public record RegistryCandidate(
             long scannedElementId,
+            String canonicalName,
+            String clientName,
+            String ocrName,
+            String pageKey,
             String tagName,
             String typeElement,
             String xpath,
@@ -364,6 +432,40 @@ public final class RuntimeElementHealingService {
         public RegistryCandidate {
             attributes = Collections.unmodifiableMap(
                     new LinkedHashMap<>(attributes == null ? Map.of() : attributes));
+        }
+
+        public RegistryCandidate(
+                long scannedElementId,
+                String tagName,
+                String typeElement,
+                String xpath,
+                String customXPath,
+                String cssSelector,
+                String attribId,
+                String attribName,
+                String coordinates,
+                String iframeXpath,
+                String shadowHost,
+                String shadowRoot,
+                Map<String, String> attributes) {
+            this(
+                    scannedElementId,
+                    "",
+                    "",
+                    "",
+                    "",
+                    tagName,
+                    typeElement,
+                    xpath,
+                    customXPath,
+                    cssSelector,
+                    attribId,
+                    attribName,
+                    coordinates,
+                    iframeXpath,
+                    shadowHost,
+                    shadowRoot,
+                    attributes);
         }
     }
 }

@@ -262,6 +262,36 @@ public final class ScannedElementRepository {
         }
     }
 
+    /** Persist one runtime-approved locator against an exact existing registry row. */
+    public static int updateRuntimeCustomXPathById(
+            Connection conn,
+            int homeBankingId,
+            int botJobId,
+            String pageKey,
+            long scannedElementId,
+            String customXPath)
+            throws SQLException {
+        requireScope(homeBankingId, botJobId);
+        if (scannedElementId <= 0
+                || pageKey == null
+                || !pageKey.matches("url-v1:[0-9a-f]{64}")
+                || customXPath == null
+                || customXPath.isBlank()
+                || customXPath.length() > 2_048) {
+            return 0;
+        }
+        String sql = "UPDATE scanned_element SET custom_x_path = ?"
+                + " WHERE id = ? AND home_banking_id = ? AND bot_job_id = ? AND page_key = ?";
+        try (PreparedStatement statement = conn.prepareStatement(sql)) {
+            statement.setString(1, customXPath.trim());
+            statement.setLong(2, scannedElementId);
+            statement.setInt(3, homeBankingId);
+            statement.setInt(4, botJobId);
+            statement.setString(5, pageKey);
+            return statement.executeUpdate();
+        }
+    }
+
     /** Result of one exact, owner- and page-scoped client alias mutation. */
     public record ClientNamedMutationResult(int affectedRows, ScannedElement element) {}
 

@@ -30,12 +30,14 @@ public final class SmokeTestIntegrationContracts {
     public static final String START = "smokeTest.integration.start";
     public static final String REFRESH = "smokeTest.integration.refresh";
     public static final String STEP = "smokeTest.integration.step";
+    public static final String RECOVER = "smokeTest.integration.recover";
     public static final String EXCEL_WRITE = "smokeTest.integration.excelWrite";
     public static final String STOP = "smokeTest.integration.stop";
     public static final String FINISH = "smokeTest.integration.finish";
     public static final String START_RESPONSE = START + "Response";
     public static final String REFRESH_RESPONSE = REFRESH + "Response";
     public static final String STEP_RESPONSE = STEP + "Response";
+    public static final String RECOVER_RESPONSE = RECOVER + "Response";
     public static final String EXCEL_WRITE_RESPONSE = EXCEL_WRITE + "Response";
     public static final String STOP_RESPONSE = STOP + "Response";
     public static final String FINISH_RESPONSE = FINISH + "Response";
@@ -91,6 +93,12 @@ public final class SmokeTestIntegrationContracts {
         WARNING,
         FAILED,
         SKIPPED
+    }
+
+    public enum RecoveryDecision {
+        USE_ONCE,
+        USE_AND_SAVE,
+        CANCEL
     }
 
     /** Explicit runtime state; VALUE with an empty String remains different from VOID. */
@@ -245,6 +253,27 @@ public final class SmokeTestIntegrationContracts {
             requirePositive(sequence, "sequence");
             requirePositive(instructionId, "instructionId");
             requireNonNegative(excelRowIndex, "excelRowIndex");
+        }
+    }
+
+    public record RecoveryRequest(
+            int contractVersion,
+            String requestId,
+            String runId,
+            long sequence,
+            int instructionId,
+            String recoveryCandidateId,
+            RecoveryDecision decision) {
+        public RecoveryRequest {
+            requireVersion(contractVersion);
+            requestId = requireBounded(requestId, "requestId", MAX_CORRELATION_LENGTH);
+            runId = requireBounded(runId, "runId", MAX_CORRELATION_LENGTH);
+            requirePositive(sequence, "sequence");
+            requirePositive(instructionId, "instructionId");
+            decision = Objects.requireNonNull(decision, "Recovery decision is required");
+            recoveryCandidateId = decision == RecoveryDecision.CANCEL
+                    ? optionalBounded(recoveryCandidateId, "recoveryCandidateId", 64)
+                    : requireSha256(recoveryCandidateId, "recoveryCandidateId");
         }
     }
 
@@ -464,6 +493,19 @@ public final class SmokeTestIntegrationContracts {
                 requiredPositiveLong(body, "sequence"),
                 requiredPositiveInt(body, "instructionId"),
                 requiredNonNegativeInt(body, "excelRowIndex"));
+    }
+
+    public static RecoveryRequest parseRecovery(JsonObject envelopeOrBody) {
+        JsonObject body = body(envelopeOrBody);
+        RecoveryDecision decision = requiredEnum(body, "decision", RecoveryDecision.class);
+        return new RecoveryRequest(
+                requiredVersion(body),
+                requiredString(body, "requestId", MAX_CORRELATION_LENGTH),
+                requiredString(body, "runId", MAX_CORRELATION_LENGTH),
+                requiredPositiveLong(body, "sequence"),
+                requiredPositiveInt(body, "instructionId"),
+                optionalString(body, "recoveryCandidateId"),
+                decision);
     }
 
     public static ExcelWriteRequest parseExcelWrite(JsonObject envelopeOrBody) {

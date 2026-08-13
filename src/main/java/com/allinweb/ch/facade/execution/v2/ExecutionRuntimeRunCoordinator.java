@@ -47,7 +47,31 @@ public final class ExecutionRuntimeRunCoordinator {
             return new ExecutionRuntimeRunCoordinator(
                     new ExecutionRuntimeGrantService(configuration)::issue,
                     new DefaultRuntimePort(client),
-                    RuntimeElementHealingService.getInstance()::prepareByPageKey,
+                    new HealingPort() {
+                        private final RuntimeElementHealingService delegate =
+                                RuntimeElementHealingService.getInstance();
+
+                        @Override
+                        public Preparation prepare(
+                                Integer homeBankingId,
+                                Integer botJobId,
+                                String pageKey,
+                                com.allinweb.ch.model.InstructionLoad instruction) {
+                            return delegate.prepareByPageKey(
+                                    homeBankingId, botJobId, pageKey, instruction);
+                        }
+
+                        @Override
+                        public boolean save(
+                                int homeBankingId,
+                                int botJobId,
+                                String pageKey,
+                                long scannedElementId,
+                                String xpath) {
+                            return delegate.saveApprovedRuntimeLocator(
+                                    homeBankingId, botJobId, pageKey, scannedElementId, xpath);
+                        }
+                    },
                     new ExecutionRuntimeActionFactory(),
                     new SystemTimePort());
         });
@@ -148,11 +172,101 @@ public final class ExecutionRuntimeRunCoordinator {
                         inputValue);
         current.nextPhysicalSequence++;
         try {
-            return runtime.action(current.authority, request);
+            JsonObject result = runtime.action(current.authority, request);
+            rememberRecovery(current, request, result);
+            return result;
         } catch (RuntimeException unknownOutcome) {
             current.actionOutcomeUnknown = true;
             throw unknownOutcome;
         }
+    }
+
+    public JsonObject recover(Run run, int instructionId, String recoveryCandidateId, boolean save) {
+        Run current = Objects.requireNonNull(run, "Execution V2 run is required");
+        synchronized (current) {
+            requireOpen(current);
+            PendingRecovery pending = current.pendingRecovery;
+            if (pending == null
+                    || pending.instructionId != instructionId
+                    || recoveryCandidateId == null
+                    || !recoveryCandidateId.matches("[0-9a-f]{64}")) {
+                throw new IllegalArgumentException("Execution V2 recovery is not pending");
+            }
+            JsonObject candidate = null;
+            for (var value : pending.candidates) {
+                if (value.isJsonObject()
+                        && recoveryCandidateId.equals(value.getAsJsonObject()
+                                .get("recoveryCandidateId").getAsString())) {
+                    candidate = value.getAsJsonObject();
+                    break;
+                }
+            }
+            if (candidate == null) {
+                throw new IllegalArgumentException("Execution V2 recovery candidate is stale");
+            }
+            long sequence = current.nextPhysicalSequence++;
+            JsonObject request = actions.createRecovery(sequence, pending.originalRequest, candidate);
+            JsonObject result;
+            try {
+                result = runtime.action(current.authority, request);
+            } catch (RuntimeException unknownOutcome) {
+                current.actionOutcomeUnknown = true;
+                throw unknownOutcome;
+            }
+            if (!isSuccessful(result)) return result;
+            current.pendingRecovery = null;
+            boolean saveFailed = false;
+            if (save) {
+                long scannedElementId = candidate.get("registryCandidateId").getAsLong();
+                String xpath = candidate.get("newXPath").getAsString();
+                if (!healing.save(
+                        current.facts.homeBankingId(),
+                        current.facts.botJobId(),
+                        pending.pageKey,
+                        scannedElementId,
+                        xpath)) {
+                    saveFailed = true;
+                }
+            }
+            JsonObject completed = result.deepCopy();
+            completed.add("recoveryCandidate", candidate.deepCopy());
+            completed.addProperty("locatorSaved", save && !saveFailed);
+            if (saveFailed) completed.addProperty("recoverySaveFailed", true);
+            return completed;
+        }
+    }
+
+    public void cancelRecovery(Run run, int instructionId) {
+        Run current = Objects.requireNonNull(run, "Execution V2 run is required");
+        synchronized (current) {
+            PendingRecovery pending = current.pendingRecovery;
+            if (pending != null && pending.instructionId == instructionId) {
+                current.pendingRecovery = null;
+            }
+        }
+    }
+
+    private static void rememberRecovery(Run run, JsonObject request, JsonObject result) {
+        if (result == null
+                || !result.has("recovery")
+                || !result.get("recovery").isJsonObject()
+                || !result.getAsJsonObject("recovery").has("candidates")
+                || !result.getAsJsonObject("recovery").get("candidates").isJsonArray()) {
+            run.pendingRecovery = null;
+            return;
+        }
+        run.pendingRecovery = new PendingRecovery(
+                request.get("instructionId").getAsInt(),
+                request.get("pageKey").getAsString(),
+                request.deepCopy(),
+                result.getAsJsonObject("recovery").getAsJsonArray("candidates").deepCopy());
+    }
+
+    private static boolean isSuccessful(JsonObject result) {
+        return result != null
+                && result.has("ok")
+                && result.get("ok").isJsonPrimitive()
+                && result.get("ok").getAsBoolean();
     }
 
     private static InstructionSnapshot requireParent(Plan plan, InstructionSnapshot command) {
@@ -288,6 +402,7 @@ public final class ExecutionRuntimeRunCoordinator {
                 new java.util.concurrent.atomic.AtomicBoolean();
         private boolean actionOutcomeUnknown;
         private volatile boolean closed;
+        private PendingRecovery pendingRecovery;
 
         private Run(String runId, AuthorizedGrantFacts facts, Plan plan, Authority authority) {
             this.runId = runId;
@@ -329,7 +444,22 @@ public final class ExecutionRuntimeRunCoordinator {
                 Integer botJobId,
                 String pageKey,
                 com.allinweb.ch.model.InstructionLoad instruction);
+
+        default boolean save(
+                int homeBankingId,
+                int botJobId,
+                String pageKey,
+                long scannedElementId,
+                String xpath) {
+            return false;
+        }
     }
+
+    private record PendingRecovery(
+            int instructionId,
+            String pageKey,
+            JsonObject originalRequest,
+            com.google.gson.JsonArray candidates) {}
 
     interface TimePort {
         long nanoTime();

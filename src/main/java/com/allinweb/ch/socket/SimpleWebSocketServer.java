@@ -223,6 +223,7 @@ public class SimpleWebSocketServer {
             SmokeTestIntegrationContracts.START,
             SmokeTestIntegrationContracts.REFRESH,
             SmokeTestIntegrationContracts.STEP,
+            SmokeTestIntegrationContracts.RECOVER,
             SmokeTestIntegrationContracts.EXCEL_WRITE,
             SmokeTestIntegrationContracts.STOP,
             SmokeTestIntegrationContracts.FINISH);
@@ -917,6 +918,7 @@ public class SimpleWebSocketServer {
                 case SmokeTestIntegrationContracts.START:
                 case SmokeTestIntegrationContracts.REFRESH:
                 case SmokeTestIntegrationContracts.STEP:
+                case SmokeTestIntegrationContracts.RECOVER:
                 case SmokeTestIntegrationContracts.EXCEL_WRITE:
                 case SmokeTestIntegrationContracts.STOP:
                 case SmokeTestIntegrationContracts.FINISH:

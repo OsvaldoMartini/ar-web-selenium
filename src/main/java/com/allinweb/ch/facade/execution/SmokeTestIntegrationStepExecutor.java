@@ -450,7 +450,18 @@ public final class SmokeTestIntegrationStepExecutor {
             String code,
             String message,
             Integer runtimeVariableId,
-            RuntimeVariableValue runtimeValue) {}
+            RuntimeVariableValue runtimeValue,
+            com.google.gson.JsonObject recovery) {
+        public Outcome(
+                StepStatus status,
+                StepDisposition disposition,
+                String code,
+                String message,
+                Integer runtimeVariableId,
+                RuntimeVariableValue runtimeValue) {
+            this(status, disposition, code, message, runtimeVariableId, runtimeValue, null);
+        }
+    }
 
     /** Run-local variable overlay, optionally mirrored to durable memory after a successful GET. */
     public static final class RunVariables {

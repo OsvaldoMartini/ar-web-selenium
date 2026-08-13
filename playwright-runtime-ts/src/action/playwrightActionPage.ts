@@ -123,6 +123,40 @@ class PlaywrightActionElement implements ActionElementPort {
         element.getAttribute('data-qa'),
         element.textContent,
       ].filter((value): value is string => typeof value === 'string');
+      const stableAttributes = Object.fromEntries(([
+        'id', 'name', 'data-testid', 'data-test-id', 'test-id', 'data-cy', 'data-qa',
+        'aria-label', 'role', 'type',
+      ] as const).map(name => [name, element.getAttribute(name) ?? ''] as const)
+        .filter((entry) => entry[1].length > 0 && entry[1].length <= 512));
+      const escapeCss = (value: string) => {
+        const css = (globalThis as unknown as { CSS?: { escape?: (text: string) => string } }).CSS;
+        return css?.escape ? css.escape(value) : value.replace(/[^a-zA-Z0-9_-]/g, '\\$&');
+      };
+      const xpathParts: string[] = [];
+      let cursor: Element | null = element;
+      while (cursor && cursor.nodeType === Node.ELEMENT_NODE) {
+        const cursorTag = cursor.tagName.toLowerCase();
+        let index = 1;
+        let sibling = cursor.previousElementSibling;
+        while (sibling) {
+          if (sibling.tagName.toLowerCase() === cursorTag) index += 1;
+          sibling = sibling.previousElementSibling;
+        }
+        xpathParts.unshift(`${cursorTag}[${index}]`);
+        cursor = cursor.parentElement;
+      }
+      const id = html.id?.trim();
+      const testId = element.getAttribute('data-testid')?.trim();
+      const name = element.getAttribute('name')?.trim();
+      const css = id ? `#${escapeCss(id)}`
+        : testId ? `${tagName}[data-testid="${testId.replace(/["\\]/g, '\\$&')}"]`
+          : name ? `${tagName}[name="${name.replace(/["\\]/g, '\\$&')}"]`
+            : xpathParts.length > 0
+              ? xpathParts.map(part => {
+                const match = /^(.*)\[(\d+)\]$/.exec(part);
+                return match ? `${match[1]}:nth-of-type(${match[2]})` : part;
+              }).join(' > ')
+              : '';
       return {
         visible,
         frameValidated,
@@ -131,6 +165,11 @@ class PlaywrightActionElement implements ActionElementPort {
         actionValidated,
         tagName,
         names,
+        type,
+        role,
+        xpath: xpathParts.length > 0 ? `/${xpathParts.join('/')}` : '',
+        css,
+        stableAttributes,
       };
     }, [action, expectedTag, requireSameOriginFrame, allowExplicitClickOverride] as const);
   }

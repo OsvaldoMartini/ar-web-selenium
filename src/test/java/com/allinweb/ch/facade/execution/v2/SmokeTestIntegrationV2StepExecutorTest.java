@@ -58,7 +58,7 @@ class SmokeTestIntegrationV2StepExecutorTest {
     }
 
     @Test
-    void refusesNodeAmbiguityAndNeverFallsBackForUnmigratedCommands() {
+    void refusesNodeAmbiguityAndKeepsExcelWriteReactOwned() {
         InstructionSnapshot click = instruction(1734, "C", "login", null, false);
         InstructionSnapshot excelWrite = instruction(1735, "E", "write_login", null, false);
         RecordingActions actions = new RecordingActions(failure("AMBIGUOUS_TARGET"));
@@ -74,7 +74,7 @@ class SmokeTestIntegrationV2StepExecutorTest {
 
         assertEquals(StepStatus.FAILED, ambiguous.status());
         assertEquals("AMBIGUOUS_TARGET", ambiguous.code());
-        assertEquals("V2_COMMAND_NOT_MIGRATED", unsupported.code());
+        assertEquals("LOGICAL_ONLY", unsupported.code());
         assertEquals(1, actions.calls);
         assertNull(actions.inputValue);
     }

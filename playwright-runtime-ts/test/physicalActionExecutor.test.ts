@@ -40,6 +40,11 @@ class FakeElement implements ActionElementPort {
         || (action === 'CLICK' && allowExplicitClickOverride),
       tagName: this.tagName,
       names: this.names,
+      type: this.tagName === 'input' ? 'text' : '',
+      role: this.tagName === 'button' ? 'button' : '',
+      xpath: `/html[1]/body[1]/${this.tagName}[1]`,
+      css: `html:nth-of-type(1) > body:nth-of-type(1) > ${this.tagName}:nth-of-type(1)`,
+      stableAttributes: { 'data-testid': this.identity },
     };
   }
 
@@ -139,6 +144,43 @@ test('returns target not found after the shared render deadline expires', async 
   assert.equal(result.diagnostic.code, 'TARGET_NOT_FOUND');
   assert.equal(result.diagnostic.physicalAttempts, 0);
   assert.ok((page.queryAttempts.get('\u0000#login') ?? 0) > 1);
+});
+
+test('returns bounded comparison evidence without acting when one target remains unresolved', async () => {
+  const page = new FakePage();
+  const possible = new FakeElement('new-login', ['account login button']);
+  page.live = [possible];
+
+  const result = await new PhysicalActionExecutor(8, 1).execute(page, request({
+    authoredSelectors: ['#old-login'],
+    canonicalName: 'account login',
+    registryCandidates: [{
+      candidateId: 41,
+      tier: 'CANONICAL',
+      selectors: ['#old-login'],
+      canonicalName: 'account login',
+      clientName: 'sign in',
+      ocrName: 'Account Login',
+      previousPageKey: PAGE_KEY,
+      xpath: '/html[1]/body[1]/button[2]',
+      customXPath: '//*[@id="old-login"]',
+      cssSelector: '#old-login',
+      stableAttributes: { 'data-testid': 'old-login' },
+      expectedTag: 'button',
+      expectedRole: 'button',
+    }],
+  }));
+
+  assert.equal(result.ok, false);
+  assert.equal(possible.clicks, 0);
+  assert.equal(result.diagnostic.physicalAttempts, 0);
+  assert.equal(result.ok || result.recovery?.state, 'AWAITING_USER');
+  const candidate = !result.ok ? result.recovery?.candidates[0] : undefined;
+  assert.equal(candidate?.registryCandidateId, 41);
+  assert.equal(candidate?.matches.xpath, false);
+  assert.equal(candidate?.matches.css, false);
+  assert.equal(candidate?.tag, 'button');
+  assert.ok((candidate?.confidence ?? 0) >= 0.5);
 });
 
 test('defers stale authored ambiguity and uses one owner-scoped registry locator', async () => {

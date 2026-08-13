@@ -22,6 +22,8 @@ import com.allinweb.ch.model.SmokeTestIntegrationContracts.FinishRequest;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts.ExcelWriteRequest;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts.PagePolicy;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts.RefreshRequest;
+import com.allinweb.ch.model.SmokeTestIntegrationContracts.RecoveryRequest;
+import com.allinweb.ch.model.SmokeTestIntegrationContracts.RecoveryDecision;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts.RunStatus;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts.RuntimeSnapshot;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts.RuntimeMode;
@@ -162,6 +164,8 @@ public final class SmokeTestIntegrationService {
                         transport);
                 case SmokeTestIntegrationContracts.STEP -> handleStep(
                         SmokeTestIntegrationContracts.parseStep(body), transport);
+                case SmokeTestIntegrationContracts.RECOVER -> handleRecovery(
+                        SmokeTestIntegrationContracts.parseRecovery(body), transport);
                 case SmokeTestIntegrationContracts.EXCEL_WRITE -> handleExcelWrite(
                         SmokeTestIntegrationContracts.parseExcelWrite(body), transport);
                 case SmokeTestIntegrationContracts.STOP -> handleStop(
@@ -703,6 +707,161 @@ public final class SmokeTestIntegrationService {
         return response;
     }
 
+    private void handleRecovery(RecoveryRequest request, Session transport) {
+        String fingerprint = gson.toJson(request);
+        if (replayExisting(
+                SmokeTestIntegrationContracts.RECOVER,
+                request.requestId(),
+                fingerprint,
+                transport,
+                -1)) return;
+        Run run = resolveRun(request.runId(), transport);
+        synchronized (stateLock) {
+            SequenceResult previous = run == null ? null : run.sequenceResults.get(request.sequence());
+            if (run == null
+                    || activeRuns.get(run.runId) != run
+                    || run.runtimeMode != RuntimeMode.TYPESCRIPT_PLAYWRIGHT_V2
+                    || previous == null
+                    || previous.instructionId != request.instructionId()
+                    || !previous.recoveryPending) {
+                publish(
+                        transport,
+                        run == null ? -1 : run.authorization.homeBankingId(),
+                        SmokeTestIntegrationContracts.RECOVER_RESPONSE,
+                        rejected(request.requestId(), request.runId(), "RECOVERY_NOT_PENDING",
+                                "This instruction no longer has a pending locator recovery."));
+                return;
+            }
+            if (run.stepPending || run.terminalPending || run.cancelled) {
+                publish(
+                        transport,
+                        run.authorization.homeBankingId(),
+                        SmokeTestIntegrationContracts.RECOVER_RESPONSE,
+                        rejected(request.requestId(), request.runId(), "INTEGRATION_BUSY",
+                                "Wait for the current Integration operation to finish."));
+                return;
+            }
+            run.stepPending = true;
+        }
+        submitOnce(
+                SmokeTestIntegrationContracts.RECOVER,
+                request.requestId(),
+                fingerprint,
+                transport,
+                run.authorization.homeBankingId(),
+                () -> recover(run, request),
+                () -> {
+                    synchronized (stateLock) { run.stepPending = false; }
+                });
+    }
+
+    private JsonObject recover(Run run, RecoveryRequest request) {
+        synchronized (run.operationLock) {
+            if (run.cancelled) {
+                return rejected(request.requestId(), request.runId(), "INTEGRATION_STOPPING",
+                        "Integration stop was requested.");
+            }
+            if (request.decision() == RecoveryDecision.CANCEL) {
+                v2.cancelRecovery(run.v2Run, request.instructionId());
+                synchronized (stateLock) {
+                    SequenceResult previous = run.sequenceResults.get(request.sequence());
+                    if (previous != null && previous.recoveryPending) {
+                        JsonObject settled = previous.response.deepCopy();
+                        settled.remove("recovery");
+                        settled.addProperty("code", "RECOVERY_CANCELLED");
+                        settled.addProperty("message", "Locator recovery was cancelled.");
+                        run.sequenceResults.put(
+                                request.sequence(),
+                                new SequenceResult(
+                                        previous.instructionId,
+                                        previous.excelRowIndex,
+                                        settled,
+                                        previous.status,
+                                        false));
+                    }
+                }
+                return recoveryResponse(run, request, null, "CANCELLED",
+                        "Locator recovery was cancelled.");
+            }
+            Outcome outcome = v2.recover(
+                    run.v2Run,
+                    request.instructionId(),
+                    request.recoveryCandidateId(),
+                    request.decision() == RecoveryDecision.USE_AND_SAVE);
+            if (outcome.status() == StepStatus.FAILED) {
+                return recoveryResponse(run, request, outcome, "FAILED", outcome.message());
+            }
+            synchronized (stateLock) {
+                SequenceResult previous = run.sequenceResults.get(request.sequence());
+                if (previous == null || !previous.recoveryPending) {
+                    return rejected(request.requestId(), request.runId(), "RECOVERY_NOT_PENDING",
+                            "This instruction no longer has a pending locator recovery.");
+                }
+                decrement(run, previous.status);
+                if (outcome.status() == StepStatus.WARNING) run.warnings++;
+                else run.passed++;
+                JsonObject replacement = stepResponse(
+                        run,
+                        new StepRequest(
+                                SmokeTestIntegrationContracts.CONTRACT_VERSION,
+                                request.requestId(),
+                                request.runId(),
+                                request.sequence(),
+                                request.instructionId(),
+                                previous.excelRowIndex),
+                        outcome,
+                        false);
+                run.sequenceResults.put(
+                        request.sequence(),
+                        new SequenceResult(
+                                request.instructionId(),
+                                previous.excelRowIndex,
+                                replacement.deepCopy(),
+                                outcome.status(),
+                                false));
+            }
+            return recoveryResponse(run, request, outcome, "COMPLETED",
+                    outcome.status() == StepStatus.WARNING
+                            ? outcome.message()
+                            : request.decision() == RecoveryDecision.USE_AND_SAVE
+                            ? "The selected locator was used and saved."
+                            : "The selected locator was used once.");
+        }
+    }
+
+    private JsonObject recoveryResponse(
+            Run run,
+            RecoveryRequest request,
+            Outcome outcome,
+            String status,
+            String message) {
+        JsonObject response = new JsonObject();
+        response.addProperty("contractVersion", SmokeTestIntegrationContracts.CONTRACT_VERSION);
+        response.addProperty("requestId", request.requestId());
+        response.addProperty("runId", run.runId);
+        response.addProperty("integrationEpoch", run.integrationEpoch);
+        response.addProperty("sequence", request.sequence());
+        response.addProperty("instructionId", request.instructionId());
+        response.addProperty("status", status);
+        response.addProperty("message", message);
+        response.addProperty("locatorSaved", request.decision() == RecoveryDecision.USE_AND_SAVE
+                && "COMPLETED".equals(status)
+                && (outcome == null
+                || !"RECOVERY_ACTION_COMPLETED_SAVE_FAILED".equals(outcome.code())));
+        response.addProperty("ok", "COMPLETED".equals(status) || "CANCELLED".equals(status));
+        if (outcome != null) response.addProperty("code", outcome.code());
+        return response;
+    }
+
+    private static void decrement(Run run, StepStatus status) {
+        switch (status) {
+            case PASSED -> run.passed = Math.max(0, run.passed - 1);
+            case WARNING -> run.warnings = Math.max(0, run.warnings - 1);
+            case FAILED -> run.failed = Math.max(0, run.failed - 1);
+            case SKIPPED -> run.skipped = Math.max(0, run.skipped - 1);
+        }
+    }
+
     private void handleExcelWrite(ExcelWriteRequest request, Session transport) {
         String fingerprint = gson.toJson(request);
         if (replayExisting(SmokeTestIntegrationContracts.EXCEL_WRITE, request.requestId(), fingerprint, transport, -1)) return;
@@ -1173,6 +1332,9 @@ public final class SmokeTestIntegrationService {
             }
             json.add("runtimeUpdate", update);
         }
+        if (outcome.recovery() != null) {
+            json.add("recovery", outcome.recovery().deepCopy());
+        }
         return json;
     }
 
@@ -1318,6 +1480,9 @@ public final class SmokeTestIntegrationService {
         if (SmokeTestIntegrationContracts.STEP.equals(operation)) {
             return SmokeTestIntegrationContracts.STEP_RESPONSE;
         }
+        if (SmokeTestIntegrationContracts.RECOVER.equals(operation)) {
+            return SmokeTestIntegrationContracts.RECOVER_RESPONSE;
+        }
         if (SmokeTestIntegrationContracts.EXCEL_WRITE.equals(operation)) {
             return SmokeTestIntegrationContracts.EXCEL_WRITE_RESPONSE;
         }
@@ -1399,6 +1564,16 @@ public final class SmokeTestIntegrationService {
                 RunVariables variables);
 
         default void interrupt(V2Run run) {}
+
+        default Outcome recover(
+                V2Run run,
+                int instructionId,
+                String recoveryCandidateId,
+                boolean save) {
+            throw new UnsupportedOperationException("V2 recovery is unavailable");
+        }
+
+        default void cancelRecovery(V2Run run, int instructionId) {}
 
         void close(V2Run run);
     }
@@ -1603,6 +1778,20 @@ public final class SmokeTestIntegrationService {
         }
 
         @Override
+        public Outcome recover(
+                V2Run run,
+                int instructionId,
+                String recoveryCandidateId,
+                boolean save) {
+            return executor.recover(authority(run), instructionId, recoveryCandidateId, save);
+        }
+
+        @Override
+        public void cancelRecovery(V2Run run, int instructionId) {
+            executor.cancelRecovery(authority(run), instructionId);
+        }
+
+        @Override
         public void close(V2Run run) {
             coordinator.close(authority(run));
         }
@@ -1771,7 +1960,20 @@ public final class SmokeTestIntegrationService {
         private ExcelWriteFailure(Throwable cause) { super(cause); }
     }
 
-    private record SequenceResult(int instructionId, int excelRowIndex, JsonObject response) {
+    private record SequenceResult(
+            int instructionId,
+            int excelRowIndex,
+            JsonObject response,
+            StepStatus status,
+            boolean recoveryPending) {
+        private SequenceResult(int instructionId, int excelRowIndex, JsonObject response) {
+            this(
+                    instructionId,
+                    excelRowIndex,
+                    response,
+                    StepStatus.valueOf(response.get("status").getAsString()),
+                    response.has("recovery"));
+        }
         private boolean matches(StepRequest request) {
             return instructionId == request.instructionId()
                     && excelRowIndex == request.excelRowIndex();

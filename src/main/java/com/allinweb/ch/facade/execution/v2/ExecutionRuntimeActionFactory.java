@@ -86,6 +86,30 @@ public final class ExecutionRuntimeActionFactory {
         return request;
     }
 
+    JsonObject createRecovery(
+            long sequence,
+            JsonObject original,
+            JsonObject candidate) {
+        if (sequence <= 0 || sequence > ExecutionV2Contracts.MAX_JAVASCRIPT_SAFE_INTEGER
+                || original == null || candidate == null) {
+            throw new IllegalArgumentException("Execution V2 recovery request is invalid");
+        }
+        String xpath = candidate.has("newXPath") ? candidate.get("newXPath").getAsString() : "";
+        String css = candidate.has("newCss") ? candidate.get("newCss").getAsString() : "";
+        JsonArray selectors = selectors(xpath, css);
+        if (selectors.isEmpty()) {
+            throw new IllegalArgumentException("Execution V2 recovery candidate has no locator");
+        }
+        JsonObject request = original.deepCopy();
+        request.addProperty("sequence", sequence);
+        request.add("authoredSelectors", selectors);
+        request.add("registryCandidates", new JsonArray());
+        if (candidate.has("tag")) {
+            optional(request, "expectedTag", normalizedTag(candidate.get("tag").getAsString()), 32);
+        }
+        return request;
+    }
+
     private static String normalizedPhysicalAction(String raw) {
         String action = value(raw).trim().toUpperCase(Locale.ROOT);
         if (!Set.of("CLICK", "INPUT", "OUTPUT").contains(action)) {
@@ -114,6 +138,7 @@ public final class ExecutionRuntimeActionFactory {
         addCandidates(result, preparation.locatorCandidates(), "LOCATOR");
         addCandidates(result, preparation.canonicalCandidates(), "CANONICAL");
         addCandidates(result, preparation.aliasCandidates(), "ALIAS");
+        addCandidates(result, preparation.reviewCandidates(), "REVIEW");
         return result;
     }
 
@@ -129,6 +154,19 @@ public final class ExecutionRuntimeActionFactory {
             optional(value, "iframeXPath", candidate.iframeXpath(), MAX_SELECTOR_LENGTH);
             optional(value, "shadowHost", candidate.shadowHost(), MAX_SELECTOR_LENGTH);
             optional(value, "shadowRoot", candidate.shadowRoot(), MAX_SELECTOR_LENGTH);
+            optional(value, "canonicalName", candidate.canonicalName(), MAX_NAME_LENGTH);
+            optional(value, "clientName", candidate.clientName(), MAX_NAME_LENGTH);
+            optional(value, "ocrName", candidate.ocrName(), MAX_NAME_LENGTH);
+            optional(value, "previousPageKey", candidate.pageKey(), 71);
+            optional(value, "xpath", candidate.xpath(), MAX_SELECTOR_LENGTH);
+            optional(value, "customXPath", candidate.customXPath(), MAX_SELECTOR_LENGTH);
+            optional(value, "cssSelector", candidate.cssSelector(), MAX_SELECTOR_LENGTH);
+            optional(value, "expectedType", candidate.typeElement(), 80);
+            String role = candidate.attributes().get("role");
+            optional(value, "expectedRole", role, 80);
+            JsonObject attributes = new JsonObject();
+            candidate.attributes().forEach(attributes::addProperty);
+            value.add("stableAttributes", attributes);
             target.add(value);
         }
     }

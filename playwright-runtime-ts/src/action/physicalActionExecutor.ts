@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import {
   ActionDiagnostic,
   hasUnsupportedShadowScope,
@@ -6,6 +7,7 @@ import {
   PhysicalActionResult,
   RegistryActionCandidate,
   ResolutionStage,
+  RecoveryCandidate,
   validatePhysicalActionRequest,
 } from './actionContracts';
 
@@ -17,6 +19,11 @@ export interface ActionElementInspection {
   readonly actionValidated: boolean;
   readonly tagName: string;
   readonly names: readonly string[];
+  readonly type?: string;
+  readonly role?: string;
+  readonly xpath?: string;
+  readonly css?: string;
+  readonly stableAttributes?: Readonly<Record<string, string>>;
 }
 
 export interface ActionElementPort {
@@ -57,6 +64,7 @@ interface ResolutionAttempt {
 const MAX_LIVE_CANDIDATES = 100;
 const LIVE_ACTION_SELECTOR = 'a,button,input,textarea,select,option,label,summary,[role],[onclick],[tabindex]';
 const LIVE_OUTPUT_SELECTOR = 'input,textarea,select,output,[role],p,span,div,td,th,label';
+const MAX_RECOVERY_CANDIDATES = 25;
 
 const normalizeName = (value: string | undefined): string =>
   value?.trim().replace(/\s+/g, ' ').toLowerCase() ?? '';
@@ -94,15 +102,149 @@ export class PhysicalActionExecutor {
       if (attempt.target) {
         return this.executeTarget(page, request, attempt.target, attempt.observed);
       }
-      if (attempt.terminal) return attempt.terminal;
+      if (attempt.terminal) {
+        if (!attempt.terminal.ok && attempt.terminal.diagnostic.code === 'AMBIGUOUS_TARGET') {
+          return this.failedWithRecovery(
+            request,
+            'AMBIGUOUS_TARGET',
+            attempt.terminal.diagnostic.stage,
+            attempt.observed,
+            await this.recoveryCandidates(page, request),
+          );
+        }
+        return attempt.terminal;
+      }
       const remaining = deadline - Date.now();
       if (remaining <= 0) {
-        return this.failed(request, 'TARGET_NOT_FOUND', 'RESOLUTION', attempt.observed);
+        return this.failedWithRecovery(
+          request, 'TARGET_NOT_FOUND', 'RESOLUTION', attempt.observed,
+          await this.recoveryCandidates(page, request),
+        );
       }
       // Use the Playwright page clock rather than a detached Node timer. Closing this exact
       // run's page for Stop rejects the wait and immediately unwinds the pending action.
       await page.waitForRender(Math.min(this.retryIntervalMs, remaining));
     }
+  }
+
+  private async recoveryCandidates(
+    page: ActionPagePort,
+    request: PhysicalActionRequest,
+  ): Promise<readonly RecoveryCandidate[]> {
+    const registry = [...new Map(request.registryCandidates.map(candidate =>
+      [candidate.candidateId, candidate])).values()];
+    if (registry.length === 0) return [];
+    let elements: readonly ActionElementPort[];
+    try {
+      elements = await page.liveCandidates(request.action, request.iframeXPath ?? '');
+    } catch {
+      return [];
+    }
+    const rows: RecoveryCandidate[] = [];
+    for (const element of elements.slice(0, MAX_LIVE_CANDIDATES)) {
+      const inspection = await element.inspect(
+        request.action, '', Boolean(request.iframeXPath?.trim()), false,
+      );
+      if (!inspection.visible || !inspection.actionValidated) continue;
+      for (const saved of registry) {
+        const score = this.scoreRecovery(saved, inspection, request);
+        if (score.confidence < 0.35) continue;
+        const liveXPath = inspection.xpath ?? '';
+        const liveCss = inspection.css ?? '';
+        const liveAttributes = inspection.stableAttributes ?? {};
+        const basis = [saved.candidateId, liveXPath, liveCss,
+          JSON.stringify(liveAttributes)].join('\u0000');
+        const recoveryCandidateId = this.sha256(basis);
+        rows.push({
+          recoveryCandidateId,
+          registryCandidateId: saved.candidateId,
+          savedCanonicalName: saved.canonicalName ?? request.canonicalName ?? '',
+          savedClientName: saved.clientName ?? request.clientName ?? '',
+          ocrMappedName: saved.ocrName ?? '',
+          previousXPath: saved.xpath ?? '',
+          previousCustomXPath: saved.customXPath ?? '',
+          previousCss: saved.cssSelector ?? '',
+          previousStableAttributes: saved.stableAttributes ?? {},
+          newXPath: liveXPath,
+          newCss: liveCss,
+          newStableAttributes: liveAttributes,
+          previousPageIdentity: saved.previousPageKey ?? request.pageKey,
+          currentPageIdentity: request.pageKey,
+          tag: inspection.tagName,
+          type: inspection.type ?? '',
+          role: inspection.role ?? '',
+          expectedAction: request.action,
+          confidence: score.confidence,
+          reasons: score.reasons,
+          ambiguityWarnings: score.warnings,
+          matches: {
+            xpath: this.match(saved.xpath, liveXPath),
+            customXPath: this.match(saved.customXPath, liveXPath),
+            css: this.match(saved.cssSelector, liveCss),
+            stableAttributes: this.attributeMatch(saved.stableAttributes, liveAttributes),
+            frame: saved.iframeXPath?.trim() ? Boolean(request.iframeXPath?.trim()) : null,
+            shadow: saved.shadowHost?.trim() || saved.shadowRoot?.trim()
+              ? inspection.shadowValidated : null,
+          },
+        });
+      }
+    }
+    return rows.sort((left, right) => right.confidence - left.confidence
+      || left.registryCandidateId - right.registryCandidateId
+      || left.recoveryCandidateId.localeCompare(right.recoveryCandidateId))
+      .slice(0, MAX_RECOVERY_CANDIDATES);
+  }
+
+  private scoreRecovery(
+    saved: RegistryActionCandidate,
+    live: ActionElementInspection,
+    request: PhysicalActionRequest,
+  ): { confidence: number; reasons: string[]; warnings: string[] } {
+    const expectedNames = [saved.clientName, saved.canonicalName, saved.ocrName,
+      request.clientName, request.canonicalName].map(normalizeName).filter(Boolean);
+    const liveNames = live.names.map(normalizeName).filter(Boolean);
+    const exactName = expectedNames.some(expected => liveNames.includes(expected));
+    const tokenName = expectedNames.some(expected => liveNames.some(candidate =>
+      expected.length >= 4 && candidate.length >= 4
+      && (candidate.includes(expected) || expected.includes(candidate))));
+    const expectedTag = tag(saved.expectedTag ?? request.expectedTag);
+    const expectedType = normalizeName(saved.expectedType);
+    const expectedRole = normalizeName(saved.expectedRole);
+    const tagMatch = !expectedTag || live.tagName === expectedTag;
+    const typeMatch = !expectedType || normalizeName(live.type) === expectedType;
+    const roleMatch = !expectedRole || normalizeName(live.role) === expectedRole;
+    const attrs = this.attributeMatch(saved.stableAttributes, live.stableAttributes ?? {}) === true;
+    let confidence = 0;
+    const reasons: string[] = [];
+    if (exactName) { confidence += 0.55; reasons.push('Exact saved/OCR name match'); }
+    else if (tokenName) { confidence += 0.3; reasons.push('Partial normalized name match'); }
+    if (expectedTag && tagMatch) { confidence += 0.15; reasons.push('Compatible tag'); }
+    if (expectedType && typeMatch) { confidence += 0.1; reasons.push('Compatible type'); }
+    if (expectedRole && roleMatch) { confidence += 0.1; reasons.push('Compatible role'); }
+    if (attrs) { confidence += 0.1; reasons.push('Stable attribute match'); }
+    const warnings: string[] = [];
+    if (!exactName) warnings.push('Name is not an exact match');
+    if (!tagMatch || !typeMatch || !roleMatch) warnings.push('Element semantics changed');
+    return { confidence: Math.min(1, Math.round(confidence * 100) / 100), reasons, warnings };
+  }
+
+  private match(previous: string | undefined, current: string): boolean | null {
+    const left = previous?.trim() ?? '';
+    const right = current.trim();
+    return !left || !right ? null : left === right;
+  }
+
+  private attributeMatch(
+    previous: Readonly<Record<string, string>> | undefined,
+    current: Readonly<Record<string, string>>,
+  ): boolean | null {
+    const entries = Object.entries(previous ?? {});
+    if (entries.length === 0 || Object.keys(current).length === 0) return null;
+    return entries.some(([key, value]) => current[key] === value);
+  }
+
+  private sha256(value: string): string {
+    return createHash('sha256').update(value, 'utf8').digest('hex');
   }
 
   private async resolveOnce(
@@ -330,6 +472,20 @@ export class PhysicalActionExecutor {
     return {
       ok: false,
       diagnostic: this.diagnostic(request, code, stage, observed, undefined, 0),
+    };
+  }
+
+  private failedWithRecovery(
+    request: PhysicalActionRequest,
+    code: string,
+    stage: ResolutionStage,
+    observed: number,
+    candidates: readonly RecoveryCandidate[],
+  ): PhysicalActionResult {
+    return {
+      ok: false,
+      diagnostic: this.diagnostic(request, code, stage, observed, undefined, 0),
+      recovery: { state: 'AWAITING_USER', candidates },
     };
   }
 

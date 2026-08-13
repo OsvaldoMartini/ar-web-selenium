@@ -298,6 +298,27 @@ class SmokeTestIntegrationContractsTest {
                 () -> new FrozenRuntimeValue(RuntimeValueState.VOID, null, null, 0L));
     }
 
+    @Test
+    void recoveryRequiresOneExactDecisionAndOpaqueCandidate() {
+        JsonObject body = new JsonObject();
+        body.addProperty("contractVersion", 1);
+        body.addProperty("requestId", "recover-1");
+        body.addProperty("runId", "run-1");
+        body.addProperty("sequence", 3);
+        body.addProperty("instructionId", 1735);
+        body.addProperty("recoveryCandidateId", "a".repeat(64));
+        body.addProperty("decision", "use_and_save");
+
+        var request = SmokeTestIntegrationContracts.parseRecovery(body);
+        assertEquals(SmokeTestIntegrationContracts.RecoveryDecision.USE_AND_SAVE, request.decision());
+        assertEquals("a".repeat(64), request.recoveryCandidateId());
+
+        body.addProperty("recoveryCandidateId", "client-authored-selector");
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> SmokeTestIntegrationContracts.parseRecovery(body));
+    }
+
     private JsonObject validStartBody() {
         JsonObject scope = new JsonObject();
         scope.addProperty("kind", "blocks");
