@@ -1186,3 +1186,11 @@ Do not change frontend CSS/design while doing the scanner contract cleanup unles
   REAL/SYNTHETIC dataset, Runtime Variables state, and ExcelWriter state machine per selected Bot
   Job. The next phase is that React multi-run control plane; it must use these isolated V2 runs and
   must not degrade into a browser-only launcher.
+- [ ] **CRITICAL COMPLETION BLOCKER — Stop during locator resolution:** the user pressed Stop while
+  Integration was still trying to find a Web Element on the current page after locator resolution
+  had failed/continued waiting. The run did not stop and release Playwright completely. After the
+  multi-Playwright `Run` controller is implemented, reproduce this exact interleaving and fix it at
+  the authoritative cancellation boundary. Acceptance requires the active locator wait/action to
+  observe cancellation, one terminal Stop result, exact browser/run release, no lingering ownership
+  or worker activity, usable Smoke controls, and immediate availability for Page Scanner or a new
+  run. Do not mark multi-run complete before this gate passes.

@@ -1352,3 +1352,9 @@ and atomic artifact-write checkpoints are complete.
   not yet extracted/instantiated the React execution program, frozen REAL/SYNTHETIC data, Runtime
   Variables, ExcelWriter reducer/flush policy, and terminal recovery independently for every selected
   Bot Job. Do not enable the button as a browser-only launcher.
+- [ ] **P7/P9 critical Stop gate:** reproduce Stop while one selected run is inside unresolved Web
+  Element locator resolution on the current page. Stop must interrupt or cooperatively cancel the
+  bounded locator wait, suppress all later physical attempts/results, settle exactly one terminal
+  response, release the exact isolated run/browser, and leave no ownership/queue/worker residue.
+  Smoke controls, Page Scanner, and a subsequent run must be immediately usable. This is a mandatory
+  completion gate after the multi-run `Run` controller lands, not deferred polish.

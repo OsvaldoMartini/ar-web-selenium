@@ -555,6 +555,11 @@ The Page Mappings roadmap is now source-complete through P7:
 - [ ] Main Dashboard `Start Selected` remains disabled until React can freeze and execute one complete
   program/data/runtime-variable/ExcelWriter state machine per selected Bot Job. Opening five browsers
   alone is not accepted as multi-Bot-Job execution.
+- [ ] **CRITICAL REMINDER / completion blocker:** after the multi-run `Run` controller is implemented,
+  reproduce Stop while locator resolution is still trying to find a missing Web Element. The observed
+  run did not stop/release completely. Completion requires cancellation of the locator wait, exactly
+  one terminal Stop, exact Playwright release, no stale owner/worker, restored controls, and immediate
+  Page Scanner/new-run availability.
 
 ## 2. CLAUDE -> CODEX - Independent review requested
 
