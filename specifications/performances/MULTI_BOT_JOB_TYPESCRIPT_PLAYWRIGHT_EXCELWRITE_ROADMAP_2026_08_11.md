@@ -1302,3 +1302,14 @@ and atomic artifact-write checkpoints are complete.
 - [ ] Live acceptance remains: from IntelliJ, execute one Smoke simulation and one Integration.
   Verify all three pages are visibly ready before the first action, then verify an ExcelWrite row
   appears/edits/saves in real time without blocking Smoke Test or changing Excel Data.
+
+## 42. Stable GET-to-ExcelWrite execution sequencing - 2026-08-13
+
+- [x] Removed the React scheduler restart caused by Runtime Variables snapshot revisions. The
+  transport callback is stable during an owner-bound run but always sends the latest authoritative
+  runtime/entry revisions (`ed214dc`).
+- [x] Focused regression passed 5/5; clean production build passed; 61-file deployment `c00a74d8`
+  is pushed and live as `main.a26bedce.js` on ARWeb PID `9520`, ports `57269/57270`.
+- [ ] Live acceptance: Bot Job 5 Block 1 must advance GET -> configured ExcelWrite -> PAUSE without
+  the duplicate `Wait for the current Integration request to finish` refusal. Confirm the Manager
+  receives the dirty artifact and the PAUSE dialog opens before marking this checkpoint complete.

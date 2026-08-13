@@ -1110,3 +1110,29 @@ Do not change frontend CSS/design while doing the scanner contract cleanup unles
   IntelliJ, run one Smoke simulation and one Java V1 Integration and verify the three pages are
   visible/ready before the first step and ExcelWriter updates in real time without blocking the
   Smoke page or altering Excel Data.
+
+## Integration runtime-write scheduler stabilization - 2026-08-13
+
+- [x] Root cause confirmed from the live Bot Job 5 sequence: GET published a Runtime Variables
+  snapshot, which recreated the snapshot-dependent `updateValue` callback while the current
+  Integration step was settling. The React scheduler effect restarted the same instruction, the
+  duplicate was refused as already active, and the later ExcelWrite and PAUSE rows were skipped.
+- [x] Frontend `ed214dc` keeps the runtime update callback stable across ordinary memory revisions
+  while reading the newest owner binding, runtime revision, and entry revision through a ref.
+  Connection/session changes remain callback dependencies and still retire stale execution state.
+- [x] Focused verification passed 5/5 across runtime-memory transport and Integration GET result
+  projection. The regression proves callback identity remains stable after a snapshot revision and
+  the subsequent write carries the newest base and entry revisions.
+- [x] A clean production build passed with established repository warnings. Deployment `c00a74d8`
+  mirrors 61 exact files into resources and `target/classes`; stale `main.8ef4bf5c.js` artifacts are
+  absent. Current assets are `main.a26bedce.js` (SHA-256
+  `443A3563D4BC15D63B15FA51B55FC6F5CC16639BA88CDCBD8500E7DB9289DBAE`) and
+  `main.87de7edc.css` (SHA-256
+  `6BAA0FCFC311EEC57A8930B8AD6353AD876D28B9A39A5E347B45667B1D9F1EEE`).
+- [x] ARWeb PID `9520` runs the rebuilt `target/classes` with the exact BancaStato config on
+  `127.0.0.1:57269/57270`. Root/JS/CSS return HTTP 200 and live hashes match the deployed files;
+  seven fresh runtime files contain zero strict Java, SQLite, snapshot, or duplicate-step matches.
+- [ ] Live user gate: rerun Bot Job 5 Block 1 and verify GET advances once into the configured
+  ExcelWrite row, the ExcelWriter Manager receives the file/column/value, and PAUSE opens exactly
+  once. Instruction 1775 remains independently unconfigured and is expected to report its own
+  ExcelWrite configuration failure until configured or disabled.
