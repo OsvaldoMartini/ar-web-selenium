@@ -660,15 +660,9 @@ public final class SmokeTestIntegrationService {
             }
             run.cancelled = true;
             if (run.lease != null) browserOwnership.requestRelease();
-            if (terminalPending) {
-                publish(
-                        transport,
-                        run.authorization.homeBankingId(),
-                        SmokeTestIntegrationContracts.STOP_RESPONSE,
-                        rejected(request.requestId(), request.runId(), "INTEGRATION_BUSY",
-                                "Integration termination is already in progress."));
-                return;
-            }
+            // A second correlated Stop may arrive after a reconnect/message-buffer generation
+            // change. Serialize it behind the accepted Stop and return the same terminal outcome;
+            // terminate() and the browser lease are independently idempotent.
             terminalPending = true;
         }
         submitOnce(

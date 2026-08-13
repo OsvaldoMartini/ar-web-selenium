@@ -219,6 +219,41 @@ class SmokeTestIntegrationServiceTest {
     }
 
     @Test
+    void duplicateStopRequestsJoinCleanupAndBothReceiveStopped() throws Exception {
+        JsonObject started = start("start-duplicate-stop");
+        String runId = started.get("runId").getAsString();
+        CountDownLatch releaseWorker = new CountDownLatch(1);
+        worker.execute(() -> {
+            try {
+                releaseWorker.await(5, TimeUnit.SECONDS);
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+            }
+        });
+
+        service.handle(
+                SmokeTestIntegrationContracts.STOP,
+                stopRequest("stop-first", runId),
+                DetachedWorkspaceSessions.SMOKE_TEST_MANAGER,
+                transport);
+        service.handle(
+                SmokeTestIntegrationContracts.STOP,
+                stopRequest("stop-second", runId),
+                DetachedWorkspaceSessions.SMOKE_TEST_MANAGER,
+                transport);
+        releaseWorker.countDown();
+
+        Published first = responses.await(SmokeTestIntegrationContracts.STOP_RESPONSE);
+        Published second = responses.await(SmokeTestIntegrationContracts.STOP_RESPONSE);
+        assertTrue(first.body.get("ok").getAsBoolean());
+        assertTrue(second.body.get("ok").getAsBoolean());
+        assertEquals("STOPPED", first.body.get("status").getAsString());
+        assertEquals("STOPPED", second.body.get("status").getAsString());
+        assertTrue(browserOwnership.awaitClosed());
+        assertEquals(1, browserOwnership.closes.get());
+    }
+
+    @Test
     void explicitV2RunNeverOpensOrExecutesThroughTheSharedJavaBrowser() throws Exception {
         JsonObject request = startRequest("start-v2");
         request.addProperty("runtimeMode", "TYPESCRIPT_PLAYWRIGHT_V2");
