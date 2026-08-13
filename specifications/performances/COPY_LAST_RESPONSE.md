@@ -2,7 +2,7 @@
 
 Keep exactly two review sections. Check tasks only after their separate gates pass.
 
-**Last updated:** 2026-08-13 - Main Dashboard multi-run source is pushed through backend `b9a88131` / `b50dbd20` / `06ed6479`, frontend `75351fb`, deployment `a18cf8cd`, and exact-run cancellation `1777fb4d`. `Start Selected` now owns one independent React program/data/runtime-variable/ExcelWriter/V2 lifecycle per prepared row. Stop interrupts an unresolved Node action before Java waits for step cleanup. Frontend build, Java compile, 11 focused Java tests, and 2 focused Node tests passed. Service restart and live multi-program/real-locator verification remain open.
+**Last updated:** 2026-08-13 - Main Dashboard multi-run source is pushed through backend `b9a88131` / `b50dbd20` / `06ed6479`, frontend `75351fb`, deployment `a18cf8cd`, exact-run cancellation `1777fb4d`, and late-rendered target wait `2672b85f`. `Start Selected` owns one independent React program/data/runtime-variable/ExcelWriter/V2 lifecycle per prepared row. Each V2 action now retries its complete locator priority chain for one bounded 10-second deadline, while Stop interrupts only that exact run. Frontend build, Java compile, 11 focused Java tests, and all 35 Node tests passed. Service restart and live multi-program/real-locator verification remain open.
 
 **Current multi-run checkpoint:** backend preflight `f39baa6c`, frontend manager `bb28f3a`, and exact
 61-file deployment `bd1cb821` are pushed. The manager can revalidate one to five exact owner/Bot Job
@@ -583,6 +583,8 @@ The Page Mappings roadmap is now source-complete through P7:
   `827E3E142EE6C823A4B2E343FA0AEEDE49A4A0C7B04AD8ADE867334213571912`.
 - [x] Cancellation checkpoint `1777fb4d` passed 11 focused Java tests and 2 focused Node tests,
   including unresolved-action interruption with the sibling run/browser unaffected.
+- [x] Node `2672b85f` retries the complete prioritized locator chain for one shared 10-second render
+  deadline, then returns the established not-found result. All 35 Node runtime tests passed.
 - [ ] No service restart or live complete Bot Job program ran. Prove concurrent REAL/SYNTHETIC,
   Runtime Variables, ExcelWriter output, independent failure/Stop, exact cleanup, and the real
   missing-locator Stop interleaving before calling P7/P9 complete.

@@ -1239,6 +1239,11 @@ Do not change frontend CSS/design while doing the scanner contract cleanup unles
   exact-run Node interruption before waiting for the current step monitor; Node closes only that
   browser, returns `ACTION_CANCELLED`, suppresses the late action result, and settles STOPPED.
   Focused Java tests passed 11/11 and the focused Node cancellation/unknown-outcome tests passed 2/2.
+- Node `2672b85f` adds one bounded 10-second render-resolution deadline per V2 physical instruction.
+  The complete XPath/CSS/registry/name priority chain is retried every 150 ms; a visible, uniquely
+  validated target proceeds immediately, ambiguity remains fail-closed, and expiry returns the
+  existing `TARGET_NOT_FOUND`. The Playwright-page wait is interrupted by exact-run Stop. All 35
+  Node runtime tests passed.
 - No service restart, database mutation, migration, package, image, or live Bot Job execution
   occurred. Live acceptance must still reproduce Stop during a real unresolved locator and prove
   exact release plus immediate Page Scanner/new-run availability.

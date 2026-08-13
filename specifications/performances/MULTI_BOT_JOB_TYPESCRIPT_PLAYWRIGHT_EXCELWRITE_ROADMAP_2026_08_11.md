@@ -1403,6 +1403,10 @@ and atomic artifact-write checkpoints are complete.
   current step monitor. A stopped action returns `ACTION_CANCELLED`; a late physical result cannot
   settle the run. Focused Java tests passed 11/11 and focused Node tests passed 2/2, including proof
   that an independent sibling run/browser remains READY.
+- [x] Node `2672b85f` adds a single bounded 10-second late-render resolution deadline per physical
+  instruction. It retries authored XPath/CSS, registry locator/canonical/alias, and live names every
+  150 ms, acts only on one visible validated target, preserves immediate ambiguity refusal, and
+  returns the existing `TARGET_NOT_FOUND` on expiry. All 35 Node runtime tests passed.
 - [ ] Source/build deployment is complete, but no ARWeb/Node restart or live selected-job program
   was performed. Live acceptance must prove two or more complete Bot Job programs, independent
   REAL/SYNTHETIC values, Runtime Variables, ExcelWriter outputs, Stop, failure containment, exact
