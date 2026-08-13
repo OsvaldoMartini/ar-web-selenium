@@ -1248,19 +1248,21 @@ Do not change frontend CSS/design while doing the scanner contract cleanup unles
   occurred. Live acceptance must still reproduce Stop during a real unresolved locator and prove
   exact release plus immediate Page Scanner/new-run availability.
 
-## Next Page Mappings improvement - locator-change reconciliation review
+## V2 runtime locator recovery review - implementation checkpoint
 
-- Planned only; no implementation, migration, build, or runtime mutation occurred.
-- After a normal READY scan, a bounded background comparison will use the new immutable capture plus
-  owner-scoped historical READY captures/current `scanned_element` registry to propose changed
-  locator matches. The scanner must finish independently and never wait for the review.
-- Exact page key remains authoritative. A redacted origin/route-family identity may discover
-  candidates for tokenized or slightly changed URLs, but can never authorize execution or automatic
-  mutation.
-- A new accessible Page Mappings modal will show old/new names, OCR evidence, XPath/CSS/stable
-  attributes, page/capture identity, confidence, and ambiguity. Nothing changes without explicit
-  selection and confirmation.
-- Durable accepted lineage needs a dialect-aware migration and owner/scan/hash/revision-bound Apply.
-  Existing client aliases/custom XPath remain protected; instruction updates remain a separate
-  explicit graph-versioned action. Full design and verification gates are recorded as P8 in
-  `Page Mappins PLAN 2026-08-07.md`.
+- This supersedes the earlier post-scan/background-reconciliation interpretation. Recovery is
+  triggered only when one active Smoke Test Integration V2 instruction exhausts its bounded render
+  wait and locator priority chain, or remains ambiguous. Page Scanner completion is unrelated.
+- Node performs no physical action, returns at most 25 read-only candidates, and keeps physical
+  attempts at zero. Exact owner/Bot Job is authoritative; exact-page registry rows remain the normal
+  automatic path, while same-Bot-Job/same-name rows from another page are review-only evidence.
+- The affected React run waits in an ExcelWriter-colored comparison modal. Other isolated Bot Job
+  runs continue. Columns include saved canonical/client/OCR names, old/new XPath/custom XPath/CSS,
+  stable attributes, page identities, tag/type/role/action, confidence/reasons/warnings, and explicit
+  green-check/red-X/gray-dash comparisons for XPath/CSS/attributes/frame/shadow.
+- Explicit actions are Use Once, Use and Save Locator, Cancel Recovery, and Stop Execution. React
+  sends only the opaque candidate ID. Java revalidates the exact run/instruction and Node performs a
+  new page-checked physical action. Save updates only the exact existing owner/Bot Job/page/element
+  registry row after action success; it never rewrites an immutable capture or instruction graph.
+- Node tests, focused Java tests, frontend contract tests, Java compilation, and frontend production
+  build pass. Live V2 execution/visual acceptance and deployed asset mirroring remain separate gates.
