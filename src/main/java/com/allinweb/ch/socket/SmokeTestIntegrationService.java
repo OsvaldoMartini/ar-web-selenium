@@ -83,11 +83,12 @@ public final class SmokeTestIntegrationService {
     private final SmokeTestIntegrationExcelWriteService excelWrites = new SmokeTestIntegrationExcelWriteService();
     private final LinkedHashMap<TransportRequest, RequestLedgerEntry> requestLedger =
             new LinkedHashMap<>();
-    private Run active;
-    private boolean startPending;
+    private static final int MAX_ACTIVE_V2_RUNS = 5;
+
+    private final LinkedHashMap<String, Run> activeRuns = new LinkedHashMap<>();
+    private int pendingStarts;
+    private int pendingV1Starts;
     private boolean refreshPending;
-    private boolean stepPending;
-    private boolean terminalPending;
 
     private SmokeTestIntegrationService() {
         this(
@@ -203,7 +204,15 @@ public final class SmokeTestIntegrationService {
             return;
         }
         synchronized (stateLock) {
-            if (active != null || startPending || refreshPending) {
+            boolean v1Requested = request.runtimeMode() == RuntimeMode.JAVA_V1;
+            boolean v1Active = activeRuns.values().stream()
+                    .anyMatch(run -> run.runtimeMode == RuntimeMode.JAVA_V1);
+            boolean unavailable = refreshPending
+                    || (v1Requested && (!activeRuns.isEmpty() || pendingStarts > 0))
+                    || (!v1Requested && (v1Active
+                            || pendingV1Starts > 0
+                            || activeRuns.size() + pendingStarts >= MAX_ACTIVE_V2_RUNS));
+            if (unavailable) {
                 publish(
                         transport,
                         request.homeBankingId(),
@@ -214,7 +223,8 @@ public final class SmokeTestIntegrationService {
                                 "Another Integration run already owns Playwright."));
                 return;
             }
-            startPending = true;
+            pendingStarts++;
+            if (v1Requested) pendingV1Starts++;
         }
         submitOnce(
                 SmokeTestIntegrationContracts.START,
@@ -225,7 +235,8 @@ public final class SmokeTestIntegrationService {
                 () -> start(request, rawBody, transport),
                 () -> {
                     synchronized (stateLock) {
-                        startPending = false;
+                        pendingStarts--;
+                        if (request.runtimeMode() == RuntimeMode.JAVA_V1) pendingV1Starts--;
                     }
                 });
     }
@@ -242,7 +253,7 @@ public final class SmokeTestIntegrationService {
             return;
         }
         synchronized (stateLock) {
-            if (active != null || startPending || refreshPending || stepPending || terminalPending) {
+            if (!activeRuns.isEmpty() || pendingStarts > 0 || refreshPending) {
                 publish(
                         transport,
                         request.homeBankingId(),
@@ -395,11 +406,17 @@ public final class SmokeTestIntegrationService {
                     lease,
                     v2Run);
             synchronized (stateLock) {
-                if (active != null || !isRegisteredTransport(transport)) {
+                boolean v1Run = request.runtimeMode() == RuntimeMode.JAVA_V1;
+                boolean v1Active = activeRuns.values().stream()
+                        .anyMatch(existing -> existing.runtimeMode == RuntimeMode.JAVA_V1);
+                if (!isRegisteredTransport(transport)
+                        || activeRuns.containsKey(run.runId)
+                        || (v1Run && !activeRuns.isEmpty())
+                        || (!v1Run && (v1Active || activeRuns.size() >= MAX_ACTIVE_V2_RUNS))) {
                     throw new IllegalStateException(
                             "The Smoke Test page disconnected while Integration was starting.");
                 }
-                active = run;
+                activeRuns.put(run.runId, run);
                 lease = null;
                 v2Run = null;
             }
@@ -465,10 +482,9 @@ public final class SmokeTestIntegrationService {
                 -1)) {
             return;
         }
-        Run run;
+        Run run = resolveRun(request.runId(), transport);
         synchronized (stateLock) {
-            run = requireRun(request.runId(), transport);
-            if (run == null) {
+            if (run == null || activeRuns.get(run.runId) != run) {
                 publish(
                         transport,
                         -1,
@@ -516,7 +532,7 @@ public final class SmokeTestIntegrationService {
                                 "Integration steps must be sent in sequence."));
                 return;
             }
-            if (stepPending || terminalPending || run.cancelled) {
+            if (run.stepPending || run.terminalPending || run.cancelled) {
                 publish(
                         transport,
                         run.authorization.homeBankingId(),
@@ -525,7 +541,7 @@ public final class SmokeTestIntegrationService {
                                 "Wait for the current Integration operation to finish."));
                 return;
             }
-            stepPending = true;
+            run.stepPending = true;
         }
         submitOnce(
                 SmokeTestIntegrationContracts.STEP,
@@ -536,7 +552,7 @@ public final class SmokeTestIntegrationService {
                 () -> step(run, request),
                 () -> {
                     synchronized (stateLock) {
-                        stepPending = false;
+                        run.stepPending = false;
                     }
                 });
     }
@@ -545,7 +561,7 @@ public final class SmokeTestIntegrationService {
         if (run.cancelled) {
             return stoppedStep(run, request, "Integration stop was requested.");
         }
-        if (!variables.isCurrent(run.authorization, run.transport)) {
+        if (!variables.isCurrent(run.authorization, run.responseTransport)) {
             JsonObject failed = stepResponse(
                     run,
                     request,
@@ -585,30 +601,29 @@ public final class SmokeTestIntegrationService {
     private void handleExcelWrite(ExcelWriteRequest request, Session transport) {
         String fingerprint = gson.toJson(request);
         if (replayExisting(SmokeTestIntegrationContracts.EXCEL_WRITE, request.requestId(), fingerprint, transport, -1)) return;
-        Run run;
+        Run run = resolveRun(request.runId(), transport);
         synchronized (stateLock) {
-            run = requireRun(request.runId(), transport);
-            if (run == null) {
+            if (run == null || activeRuns.get(run.runId) != run) {
                 publish(transport, -1, SmokeTestIntegrationContracts.EXCEL_WRITE_RESPONSE,
                         rejected(request.requestId(), request.runId(), "RUN_NOT_ACTIVE", "The Integration run is not active."));
                 return;
             }
-            if (stepPending || terminalPending || run.cancelled) {
+            if (run.stepPending || run.terminalPending || run.cancelled) {
                 publish(transport, run.authorization.homeBankingId(), SmokeTestIntegrationContracts.EXCEL_WRITE_RESPONSE,
                         rejected(request.requestId(), request.runId(), "INTEGRATION_BUSY", "Wait for the current Integration operation to finish."));
                 return;
             }
-            stepPending = true;
+            run.stepPending = true;
         }
         submitOnce(SmokeTestIntegrationContracts.EXCEL_WRITE, request.requestId(), fingerprint, transport,
                 run.authorization.homeBankingId(), () -> saveExcelWrite(run, request), () -> {
-                    synchronized (stateLock) { stepPending = false; }
+                    synchronized (stateLock) { run.stepPending = false; }
                 });
     }
 
     private JsonObject saveExcelWrite(Run run, ExcelWriteRequest request) {
         try {
-            if (!variables.isCurrent(run.authorization, run.transport)) {
+            if (!variables.isCurrent(run.authorization, run.responseTransport)) {
                 throw new IllegalStateException("The Smoke Test page changed before ExcelWrite could save.");
             }
             SmokeTestIntegrationExcelWriteService.Result saved = workspaces.commitMutation(
@@ -646,10 +661,9 @@ public final class SmokeTestIntegrationService {
                 -1)) {
             return;
         }
-        Run run;
+        Run run = resolveRun(request.runId(), transport);
         synchronized (stateLock) {
-            run = requireRun(request.runId(), transport);
-            if (run == null) {
+            if (run == null || activeRuns.get(run.runId) != run) {
                 publish(
                         transport,
                         -1,
@@ -663,7 +677,7 @@ public final class SmokeTestIntegrationService {
             // A second correlated Stop may arrive after a reconnect/message-buffer generation
             // change. Serialize it behind the accepted Stop and return the same terminal outcome;
             // terminate() and the browser lease are independently idempotent.
-            terminalPending = true;
+            run.terminalPending = true;
         }
         submitOnce(
                 SmokeTestIntegrationContracts.STOP,
@@ -674,7 +688,7 @@ public final class SmokeTestIntegrationService {
                 () -> stop(run, request),
                 () -> {
                     synchronized (stateLock) {
-                        terminalPending = false;
+                        run.terminalPending = false;
                     }
                 });
     }
@@ -703,10 +717,9 @@ public final class SmokeTestIntegrationService {
                 -1)) {
             return;
         }
-        Run run;
+        Run run = resolveRun(request.runId(), transport);
         synchronized (stateLock) {
-            run = requireRun(request.runId(), transport);
-            if (run == null) {
+            if (run == null || activeRuns.get(run.runId) != run) {
                 publish(
                         transport,
                         -1,
@@ -715,7 +728,7 @@ public final class SmokeTestIntegrationService {
                                 "The Integration run is not active."));
                 return;
             }
-            if (stepPending || terminalPending) {
+            if (run.stepPending || run.terminalPending) {
                 publish(
                         transport,
                         run.authorization.homeBankingId(),
@@ -724,7 +737,7 @@ public final class SmokeTestIntegrationService {
                                 "Wait for the current Integration operation to finish."));
                 return;
             }
-            terminalPending = true;
+            run.terminalPending = true;
         }
         submitOnce(
                 SmokeTestIntegrationContracts.FINISH,
@@ -735,7 +748,7 @@ public final class SmokeTestIntegrationService {
                 () -> finish(run, request),
                 () -> {
                     synchronized (stateLock) {
-                        terminalPending = false;
+                        run.terminalPending = false;
                     }
                 });
     }
@@ -769,60 +782,74 @@ public final class SmokeTestIntegrationService {
     /** Cancels and releases a run owned by a transport that closed or was superseded. */
     public void disconnected(String sessionId, Session transport) {
         if (transport == null) return;
-        Run run;
+        List<Run> runs;
         synchronized (stateLock) {
-            run = active != null && active.transport == transport ? active : null;
-            if (run == null) return;
-            run.cancelled = true;
-            if (run.lease != null) browserOwnership.requestRelease();
+            runs = activeRuns.values().stream()
+                    .filter(run -> run.responseTransport == transport)
+                    .toList();
+            if (runs.isEmpty()) return;
+            runs.forEach(run -> {
+                run.cancelled = true;
+                if (run.lease != null) browserOwnership.requestRelease();
+            });
         }
-        try {
-            worker.execute(() -> terminateSafely(run, RunStatus.STOPPED, "disconnect"));
-        } catch (RejectedExecutionException shutdown) {
-            terminateSafely(run, RunStatus.STOPPED, "disconnect-after-shutdown");
+        for (Run run : runs) {
+            try {
+                worker.execute(() -> terminateSafely(run, RunStatus.STOPPED, "disconnect"));
+            } catch (RejectedExecutionException shutdown) {
+                terminateSafely(run, RunStatus.STOPPED, "disconnect-after-shutdown");
+            }
         }
     }
 
     /** Retires a run when the same detached window is rebound to a new Bot Job/binding epoch. */
     public void bindingChanged(Session transport, String currentBindingEpoch) {
         if (transport == null) return;
-        Run run;
+        List<Run> runs;
         synchronized (stateLock) {
-            run = active != null
-                            && active.transport == transport
-                            && !active.authorization.bindingEpoch().equals(currentBindingEpoch)
-                    ? active
-                    : null;
-            if (run == null) return;
-            run.cancelled = true;
-            if (run.lease != null) browserOwnership.requestRelease();
+            runs = activeRuns.values().stream()
+                    .filter(run -> run.responseTransport == transport
+                            && !run.authorization.bindingEpoch().equals(currentBindingEpoch))
+                    .toList();
+            if (runs.isEmpty()) return;
+            runs.forEach(run -> {
+                run.cancelled = true;
+                if (run.lease != null) browserOwnership.requestRelease();
+            });
         }
-        try {
-            worker.execute(() -> terminateSafely(run, RunStatus.STOPPED, "binding-change"));
-        } catch (RejectedExecutionException shutdown) {
-            terminateSafely(run, RunStatus.STOPPED, "binding-change-after-shutdown");
+        for (Run run : runs) {
+            try {
+                worker.execute(() -> terminateSafely(run, RunStatus.STOPPED, "binding-change"));
+            } catch (RejectedExecutionException shutdown) {
+                terminateSafely(run, RunStatus.STOPPED, "binding-change-after-shutdown");
+            }
         }
     }
 
     /** Prevents Bot Job retarget from crossing an active or not-yet-settled Integration owner. */
     public boolean isActiveOrStarting() {
         synchronized (stateLock) {
-            return active != null || startPending || refreshPending || terminalPending;
+            return pendingV1Starts > 0
+                    || refreshPending
+                    || activeRuns.values().stream().anyMatch(run ->
+                            run.runtimeMode == RuntimeMode.JAVA_V1 || run.terminalPending);
         }
     }
 
     /** Terminal application cleanup. The browser itself is owned by the application lifecycle. */
     public void shutdown() {
-        Run run;
+        List<Run> runs;
         synchronized (stateLock) {
-            run = active;
-            if (run != null) {
+            runs = List.copyOf(activeRuns.values());
+            for (Run run : runs) {
                 run.cancelled = true;
                 if (run.lease != null) browserOwnership.requestRelease();
             }
         }
         try {
-            if (run != null) terminateSafely(run, RunStatus.STOPPED, "service-shutdown");
+            for (Run run : runs) {
+                terminateSafely(run, RunStatus.STOPPED, "service-shutdown");
+            }
         } finally {
             worker.shutdownNow();
         }
@@ -922,7 +949,10 @@ public final class SmokeTestIntegrationService {
             RequestLedgerEntry existing = requestLedger.get(
                     new TransportRequest(transport, requestId));
             if (existing == null) return false;
-            Run run = active != null && active.transport == transport ? active : null;
+            Run run = activeRuns.values().stream()
+                    .filter(candidate -> candidate.responseTransport == transport)
+                    .findFirst()
+                    .orElse(null);
             if (run != null) homeBankingId = run.authorization.homeBankingId();
             if (!existing.operation.equals(operation)
                     || !existing.fingerprint.equals(fingerprint)) {
@@ -1037,17 +1067,24 @@ public final class SmokeTestIntegrationService {
                 message);
     }
 
-    private Run requireRun(String runId, Session transport) {
-        return active != null
-                        && active.transport == transport
-                        && active.runId.equals(runId)
-                ? active
-                : null;
+    private Run resolveRun(String runId, Session transport) {
+        Run run;
+        synchronized (stateLock) {
+            run = activeRuns.get(runId);
+            if (run == null || run.released.get()) return null;
+            if (run.responseTransport == transport) return run;
+        }
+        if (!variables.isCurrent(run.authorization, transport)) return null;
+        synchronized (stateLock) {
+            if (activeRuns.get(runId) != run || run.released.get()) return null;
+            run.responseTransport = transport;
+            return run;
+        }
     }
 
     private void terminate(Run expected, RunStatus terminalStatus) {
         synchronized (stateLock) {
-            if (active != expected || expected.released.get()) return;
+            if (activeRuns.get(expected.runId) != expected || expected.released.get()) return;
         }
         if (!expected.releaseInProgress.compareAndSet(false, true)) return;
         try {
@@ -1056,9 +1093,9 @@ public final class SmokeTestIntegrationService {
             expected.status = terminalStatus;
             expected.released.set(true);
             synchronized (stateLock) {
-                if (active == expected) active = null;
-                stepPending = false;
-                terminalPending = false;
+                activeRuns.remove(expected.runId, expected);
+                expected.stepPending = false;
+                expected.terminalPending = false;
             }
         } catch (RuntimeException cleanupFailure) {
             expected.releaseInProgress.set(false);
@@ -1168,11 +1205,11 @@ public final class SmokeTestIntegrationService {
 
     private static ThreadPoolExecutor newWorker() {
         ThreadPoolExecutor executor = new ThreadPoolExecutor(
-                1,
-                1,
+                MAX_ACTIVE_V2_RUNS * 2,
+                MAX_ACTIVE_V2_RUNS * 2,
                 0L,
                 TimeUnit.MILLISECONDS,
-                new ArrayBlockingQueue<>(4),
+                new ArrayBlockingQueue<>(MAX_ACTIVE_V2_RUNS * 8),
                 runnable -> {
                     Thread thread = new Thread(runnable, "smoke-test-integration");
                     thread.setDaemon(true);
@@ -1495,7 +1532,7 @@ public final class SmokeTestIntegrationService {
     private static final class Run {
         private final String runId;
         private final long integrationEpoch;
-        private final Session transport;
+        private volatile Session responseTransport;
         private final SmokeIntegrationAuthorization authorization;
         private final Plan plan;
         private final IntegrationDataset dataset;
@@ -1514,6 +1551,8 @@ public final class SmokeTestIntegrationService {
                 new LinkedHashMap<>();
         private volatile boolean cancelled;
         private volatile RunStatus status = RunStatus.RUNNING;
+        private boolean stepPending;
+        private boolean terminalPending;
         private long lastSequence;
         private int passed;
         private int warnings;
@@ -1535,7 +1574,7 @@ public final class SmokeTestIntegrationService {
                 V2Run v2Run) {
             this.runId = runId;
             this.integrationEpoch = integrationEpoch;
-            this.transport = transport;
+            this.responseTransport = transport;
             this.authorization = authorization;
             this.plan = plan;
             this.dataset = dataset;
