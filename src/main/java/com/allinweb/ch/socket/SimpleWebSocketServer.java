@@ -3077,7 +3077,7 @@ public class SimpleWebSocketServer {
             refused.put("message", "The Main Dashboard requester is not authoritative.");
             response = refused;
         } else {
-            response = mainDashboardService.multiExecutionPreflight(extractBody(envelope));
+            response = mainDashboardService.multiExecutionPreflight(extractBody(envelope), transport);
         }
         WebSocketSessionManager.sendMessageJson(
                 -1,

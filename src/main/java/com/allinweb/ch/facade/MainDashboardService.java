@@ -3,6 +3,8 @@ package com.allinweb.ch.facade;
 import com.allinweb.ch.facade.actions.RuntimeVariableMemoryRegistry;
 import com.allinweb.ch.facade.execution.SmokeTestIntegrationSnapshotRepository;
 import com.allinweb.ch.facade.execution.SmokeTestIntegrationSnapshotRepository.Plan;
+import com.allinweb.ch.facade.execution.MultiExecutionDatasetLoader;
+import com.allinweb.ch.facade.execution.MultiExecutionWorkspaceSnapshotLoader;
 import com.allinweb.ch.facade.execution.v2.ExecutionRuntimeRunCoordinator;
 import com.allinweb.ch.facade.execution.v2.SmokeTestIntegrationV2StepExecutor;
 import com.allinweb.ch.model.BlockLoadDTO;
@@ -12,6 +14,8 @@ import com.allinweb.ch.model.SmokeTestIntegrationContracts.Scope;
 import com.allinweb.ch.util.ErrorMessage;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.allinweb.ch.socket.MainDashboardMultiExecutionRegistry;
+import com.allinweb.ch.socket.MainDashboardMultiExecutionRegistry.PreparedJob;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -21,6 +25,7 @@ import java.util.Locale;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import javax.websocket.Session;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -33,6 +38,12 @@ public class MainDashboardService {
     private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
     private final SmokeTestIntegrationSnapshotRepository multiExecutionPlans =
             new SmokeTestIntegrationSnapshotRepository();
+    private final MultiExecutionDatasetLoader multiExecutionDatasets =
+            new MultiExecutionDatasetLoader();
+    private final MultiExecutionWorkspaceSnapshotLoader multiExecutionWorkspaces =
+            new MultiExecutionWorkspaceSnapshotLoader();
+    private final MainDashboardMultiExecutionRegistry multiExecutionRegistry =
+            MainDashboardMultiExecutionRegistry.getInstance();
 
     protected static volatile MainDashboardService instance;
 
@@ -63,6 +74,10 @@ public class MainDashboardService {
      * trusted as execution authority.
      */
     public Map<String, Object> multiExecutionPreflight(JsonObject body) {
+        return multiExecutionPreflight(body, null);
+    }
+
+    public Map<String, Object> multiExecutionPreflight(JsonObject body, Session transport) {
         String requestId = textVal(body, "requestId");
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("contractVersion", MULTI_EXECUTION_CONTRACT_VERSION);
@@ -84,6 +99,7 @@ public class MainDashboardService {
 
         boolean runtimeConfigured = ExecutionRuntimeRunCoordinator.configured().isPresent();
         List<Map<String, Object>> jobs = new ArrayList<>();
+        Map<Integer, PreparedJob> preparedJobs = new LinkedHashMap<>();
         boolean allReady = runtimeConfigured;
         for (MultiExecutionDraft draft : drafts) {
             Map<String, Object> job = new LinkedHashMap<>();
@@ -101,6 +117,13 @@ public class MainDashboardService {
                         .sorted()
                         .toList();
                 boolean ready = runtimeConfigured && unsupported.isEmpty();
+                PreparedJob prepared = null;
+                if (ready && transport != null) {
+                    var dataset = multiExecutionDatasets.load(plan, draft.excelMode());
+                    JsonObject workspaceSnapshot = multiExecutionWorkspaces.load(plan, requestId);
+                    prepared = new PreparedJob(plan, dataset, workspaceSnapshot);
+                    preparedJobs.put(draft.botJobId(), prepared);
+                }
                 job.put("ok", true);
                 job.put("ready", ready);
                 job.put("botJobName", plan.environment().botJobName());
@@ -111,6 +134,10 @@ public class MainDashboardService {
                 job.put("endpointReady", true);
                 job.put("runtimeConfigured", runtimeConfigured);
                 job.put("unsupportedActions", unsupported);
+                if (prepared != null) {
+                    job.put("workspaceSnapshot", prepared.workspaceSnapshot());
+                    job.put("datasetSnapshot", prepared.dataset().clientSnapshot().deepCopy());
+                }
                 job.put("message", ready
                         ? "Plan and isolated V2 command coverage are ready."
                         : runtimeConfigured
@@ -131,6 +158,12 @@ public class MainDashboardService {
         response.put("ok", true);
         response.put("ready", allReady);
         response.put("runtimeConfigured", runtimeConfigured);
+        if (allReady && transport != null && preparedJobs.size() == drafts.size()) {
+            response.put("batchId", multiExecutionRegistry.create(transport, preparedJobs));
+            response.put("preparedAt", java.time.Instant.now().toString());
+        } else if (transport != null) {
+            response.put("batchId", "");
+        }
         response.put("jobs", jobs);
         response.put("message", allReady
                 ? "Every selected Bot Job passed isolated V2 plan preflight."
