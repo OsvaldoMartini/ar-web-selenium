@@ -1160,3 +1160,29 @@ Do not change frontend CSS/design while doing the scanner contract cleanup unles
 - [ ] Live gate: run Java V1 Integration, press Stop while a step is settling, immediately request
   Page Scanner, and then switch Bot Jobs. Scanner must acquire after cleanup, and owner switching
   must remain blocked until cleanup before retargeting the same browser.
+
+## Concurrent isolated Smoke runtime and five-browser proof - 2026-08-13
+
+- [x] Backend `d4862439` replaces the process-global single Smoke run with an exact-run registry.
+  Java V1 remains exclusive because it owns the shared Java Playwright page; V2 admits at most five
+  isolated runs and retains exact owner, run ID, runtime authority, response transport, pending-step,
+  and terminal state per run.
+- [x] Backend `618ec9ec` serializes Step, ExcelWrite, Stop, and Finish within each run while allowing
+  different V2 runs to execute concurrently. Replayed requests retain their accepted Home Banking
+  identity instead of inferring an owner from another run sharing the same transport.
+- [x] Node checkpoint `ae847e43` adds a bounded local-only five-browser acceptance runner using the
+  production `PlaywrightWorkerPool` and `PlaywrightBrowserFactory`. It does not call a bank endpoint
+  or execute a banking instruction.
+- [x] `npm run build` passed for the TypeScript Playwright runtime. `mvn -DskipTests compile` passed
+  with 578 main sources and only the two established warnings. No automated test suite ran, as
+  requested.
+- [x] Live local acceptance created five simultaneous headed Chrome instances. All five reached
+  `READY` with distinct run/browser/context/page IDs, then the runner released every exact session
+  and exited with code 0 after its bounded display interval.
+- [x] Source commits `d4862439`, `ae847e43`, and `618ec9ec` are pushed to
+  `refactor/perform-actions-decomposition`.
+- [ ] This does not complete Main Dashboard multi-Bot-Job execution. `Start Selected` remains
+  intentionally disabled because the manager does not yet own one frozen React execution program,
+  REAL/SYNTHETIC dataset, Runtime Variables state, and ExcelWriter state machine per selected Bot
+  Job. The next phase is that React multi-run control plane; it must use these isolated V2 runs and
+  must not degrade into a browser-only launcher.

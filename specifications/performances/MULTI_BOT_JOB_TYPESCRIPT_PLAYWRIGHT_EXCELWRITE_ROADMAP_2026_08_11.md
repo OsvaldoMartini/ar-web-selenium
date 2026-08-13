@@ -1329,3 +1329,26 @@ and atomic artifact-write checkpoints are complete.
 - [x] Focused verification passed 16/16 and Java compilation passed. PID `8284` runs the final
   classes on `56221/56222`; HTTP, SQLite startup, and Bot Job loading are healthy.
 - [ ] Live acceptance remains for Stop-during-step -> immediate Page Scanner -> Bot Job switch.
+
+## 44. Concurrent isolated run registry and five-browser acceptance - 2026-08-13
+
+- [x] `d4862439` replaces the single process-global Smoke run with an exact `runId` registry. Java V1
+  remains exclusive; up to five V2 runs may coexist because Node gives each one an isolated browser,
+  context, page, authority, and lifecycle.
+- [x] Run state is no longer process-global: response transport, step/terminal admission, cancellation,
+  ExcelWriter boundary, V2 handle, sequence, and cleanup belong to the exact run. Transport takeover
+  requires the existing owner authorization before it can replace a response transport.
+- [x] `618ec9ec` adds one operation lock per run. Commands belonging to one run are serialized so Stop
+  cannot release its browser during a physical action, while unrelated isolated V2 runs remain
+  parallel. Request-ledger replay now preserves the accepted Home Banking identity.
+- [x] `ae847e43` adds `npm run demo:five-browsers`, a bounded local-only acceptance harness built on
+  the production V2 worker pool/browser factory. Five headed Chrome instances reached READY with
+  five distinct run/browser/context/page identities and were then released cleanly. No banking URL
+  or instruction was used.
+- [x] Verification: TypeScript runtime build passed; Java compile passed with 578 main sources and
+  only the two established warnings; diff checks passed. No automated test suite ran by explicit
+  user request.
+- [ ] P7 remains open. Main Dashboard `Start Selected` is still fail-closed because the manager has
+  not yet extracted/instantiated the React execution program, frozen REAL/SYNTHETIC data, Runtime
+  Variables, ExcelWriter reducer/flush policy, and terminal recovery independently for every selected
+  Bot Job. Do not enable the button as a browser-only launcher.
