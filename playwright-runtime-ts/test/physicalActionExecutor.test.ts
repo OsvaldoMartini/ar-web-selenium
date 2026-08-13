@@ -58,6 +58,8 @@ class FakeElement implements ActionElementPort {
 
 class FakePage implements ActionPagePort {
   readonly queries = new Map<string, readonly FakeElement[]>();
+  readonly availableAfter = new Map<string, number>();
+  readonly queryAttempts = new Map<string, number>();
   live: readonly FakeElement[] = [];
   pageKeys = [PAGE_KEY];
   private pageKeyReads = 0;
@@ -69,11 +71,19 @@ class FakePage implements ActionPagePort {
   }
 
   async query(selector: string, iframeXPath: string): Promise<readonly ActionElementPort[]> {
-    return this.queries.get(`${iframeXPath}\u0000${selector}`) ?? [];
+    const key = `${iframeXPath}\u0000${selector}`;
+    const attempts = (this.queryAttempts.get(key) ?? 0) + 1;
+    this.queryAttempts.set(key, attempts);
+    if (attempts <= (this.availableAfter.get(key) ?? 0)) return [];
+    return this.queries.get(key) ?? [];
   }
 
   async liveCandidates(): Promise<readonly ActionElementPort[]> {
     return this.live;
+  }
+
+  async waitForRender(delayMs: number): Promise<void> {
+    await new Promise(resolve => setTimeout(resolve, delayMs));
   }
 }
 
@@ -102,6 +112,33 @@ test('uses the first unique authored selector and performs exactly one click', a
   assert.equal(result.diagnostic.stage, 'AUTHORED');
   assert.equal(result.diagnostic.physicalAttempts, 1);
   assert.equal(target.clicks, 1);
+});
+
+test('waits within one bounded deadline for a late rendered authored element', async () => {
+  const page = new FakePage();
+  const target = new FakeElement('late-login');
+  page.queries.set('\u0000#login', [target]);
+  page.availableAfter.set('\u0000#login', 2);
+
+  const result = await new PhysicalActionExecutor(100, 1).execute(page, request());
+
+  assert.equal(result.ok, true);
+  assert.equal(result.diagnostic.stage, 'AUTHORED');
+  assert.equal(page.queryAttempts.get('\u0000#login'), 3);
+  assert.equal(target.clicks, 1);
+});
+
+test('returns target not found after the shared render deadline expires', async () => {
+  const page = new FakePage();
+
+  const result = await new PhysicalActionExecutor(8, 1).execute(page, request({
+    canonicalName: '',
+  }));
+
+  assert.equal(result.ok, false);
+  assert.equal(result.diagnostic.code, 'TARGET_NOT_FOUND');
+  assert.equal(result.diagnostic.physicalAttempts, 0);
+  assert.ok((page.queryAttempts.get('\u0000#login') ?? 0) > 1);
 });
 
 test('defers stale authored ambiguity and uses one owner-scoped registry locator', async () => {

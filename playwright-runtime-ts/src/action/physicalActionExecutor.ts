@@ -32,6 +32,7 @@ export interface ActionPagePort {
   pageKey(): Promise<string>;
   query(selector: string, iframeXPath: string): Promise<readonly ActionElementPort[]>;
   liveCandidates(action: PhysicalAction, iframeXPath: string): Promise<readonly ActionElementPort[]>;
+  waitForRender(delayMs: number): Promise<void>;
 }
 
 interface ResolvedTarget {
@@ -47,6 +48,12 @@ interface Probe {
   readonly observed: number;
 }
 
+interface ResolutionAttempt {
+  readonly target?: ResolvedTarget;
+  readonly observed: number;
+  readonly terminal?: PhysicalActionResult;
+}
+
 const MAX_LIVE_CANDIDATES = 100;
 const LIVE_ACTION_SELECTOR = 'a,button,input,textarea,select,option,label,summary,[role],[onclick],[tabindex]';
 const LIVE_OUTPUT_SELECTOR = 'input,textarea,select,output,[role],p,span,div,td,th,label';
@@ -57,6 +64,16 @@ const normalizeName = (value: string | undefined): string =>
 const tag = (value: string | undefined): string => value?.trim().toLowerCase() ?? '';
 
 export class PhysicalActionExecutor {
+  constructor(
+    private readonly resolutionTimeoutMs = 10_000,
+    private readonly retryIntervalMs = 150,
+  ) {
+    if (!Number.isFinite(resolutionTimeoutMs) || resolutionTimeoutMs < 0
+        || !Number.isFinite(retryIntervalMs) || retryIntervalMs <= 0) {
+      throw new Error('ACTION_RESOLUTION_OPTIONS_INVALID');
+    }
+  }
+
   async execute(page: ActionPagePort, unsafeRequest: PhysicalActionRequest): Promise<PhysicalActionResult> {
     const request = validatePhysicalActionRequest(unsafeRequest);
     let initialPageKey: string;
@@ -71,6 +88,27 @@ export class PhysicalActionExecutor {
       return this.failed(request, 'SHADOW_SCOPE_UNSUPPORTED', 'AUTHORED');
     }
 
+    const deadline = Date.now() + this.resolutionTimeoutMs;
+    while (true) {
+      const attempt = await this.resolveOnce(page, request);
+      if (attempt.target) {
+        return this.executeTarget(page, request, attempt.target, attempt.observed);
+      }
+      if (attempt.terminal) return attempt.terminal;
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) {
+        return this.failed(request, 'TARGET_NOT_FOUND', 'RESOLUTION', attempt.observed);
+      }
+      // Use the Playwright page clock rather than a detached Node timer. Closing this exact
+      // run's page for Stop rejects the wait and immediately unwinds the pending action.
+      await page.waitForRender(Math.min(this.retryIntervalMs, remaining));
+    }
+  }
+
+  private async resolveOnce(
+    page: ActionPagePort,
+    request: PhysicalActionRequest,
+  ): Promise<ResolutionAttempt> {
     let observed = 0;
     let deferredAmbiguity: Probe | undefined;
     const authored = await this.probeSelectors(
@@ -78,12 +116,15 @@ export class PhysicalActionExecutor {
       request.action, 'AUTHORED', '', true,
     );
     observed += authored.observed;
-    if (authored.target) return this.executeTarget(page, request, authored.target, observed);
+    if (authored.target) return { target: authored.target, observed };
     if (authored.ambiguous) deferredAmbiguity = authored;
 
     if (request.registryCandidates.some(candidate => hasUnsupportedShadowScope(candidate.shadowHost)
         || hasUnsupportedShadowScope(candidate.shadowRoot))) {
-      return this.failed(request, 'SHADOW_SCOPE_UNSUPPORTED', 'REGISTRY', observed);
+      return {
+        observed,
+        terminal: this.failed(request, 'SHADOW_SCOPE_UNSUPPORTED', 'REGISTRY', observed),
+      };
     }
 
     for (const tier of ['LOCATOR', 'CANONICAL', 'ALIAS'] as const) {
@@ -91,7 +132,7 @@ export class PhysicalActionExecutor {
       const candidates = request.registryCandidates.filter(candidate => candidate.tier === tier);
       const probe = await this.probeRegistryTier(page, request, candidates, stage);
       observed += probe.observed;
-      if (probe.target) return this.executeTarget(page, request, probe.target, observed);
+      if (probe.target) return { target: probe.target, observed };
       if (probe.ambiguous && !deferredAmbiguity) deferredAmbiguity = probe;
     }
 
@@ -100,7 +141,7 @@ export class PhysicalActionExecutor {
       request.expectedTag ?? '',
     );
     observed += canonical.observed;
-    if (canonical.target) return this.executeTarget(page, request, canonical.target, observed);
+    if (canonical.target) return { target: canonical.target, observed };
     if (canonical.ambiguous && !deferredAmbiguity) deferredAmbiguity = canonical;
 
     const aliasOwners = request.registryCandidates.filter(candidate => candidate.tier === 'ALIAS');
@@ -114,14 +155,17 @@ export class PhysicalActionExecutor {
           request.iframeXPath ?? owner.iframeXPath ?? '', request.expectedTag ?? owner.expectedTag ?? '',
         );
         observed += alias.observed;
-        if (alias.target) return this.executeTarget(page, request, alias.target, observed);
+        if (alias.target) return { target: alias.target, observed };
         if (alias.ambiguous && !deferredAmbiguity) deferredAmbiguity = alias;
       }
     }
 
     return deferredAmbiguity
-      ? this.failed(request, 'AMBIGUOUS_TARGET', deferredAmbiguity.stage, observed)
-      : this.failed(request, 'TARGET_NOT_FOUND', 'RESOLUTION', observed);
+      ? {
+        observed,
+        terminal: this.failed(request, 'AMBIGUOUS_TARGET', deferredAmbiguity.stage, observed),
+      }
+      : { observed };
   }
 
   private async probeRegistryTier(

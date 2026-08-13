@@ -29,6 +29,10 @@ export class PlaywrightActionPage implements ActionPagePort {
     return this.wrap(await this.locator(liveSelectorFor(action), iframeXPath));
   }
 
+  async waitForRender(delayMs: number): Promise<void> {
+    await this.page.waitForTimeout(delayMs);
+  }
+
   private locator(selector: string, iframeXPath: string): Locator {
     return iframeXPath
       ? this.page.frameLocator(`xpath=${iframeXPath}`).locator(selector)
