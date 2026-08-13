@@ -964,18 +964,32 @@ public final class VariablesWorkspaceService {
         synchronized (stateLock) {
             target = excelWriterBinding;
         }
-        if (source == null || target == null
-                || source.botJobId() != target.botJobId()
-                || source.homeBankingId() != target.homeBankingId()
+        if (source == null
                 || !source.bindingEpoch().equals(text(request, "bindingEpoch"))
                 || gson.toJson(request).length() > 2_000_000) {
             return failure(request, "ExcelWriter state relay was refused for this owner.", source);
         }
+        if (target == null) {
+            JsonObject response = success(
+                    request, source, "ExcelWriter state retained in Smoke Test memory until its Manager opens.");
+            response.addProperty("delivered", false);
+            return response;
+        }
+        if (source.botJobId() != target.botJobId()
+                || source.homeBankingId() != target.homeBankingId()
+                || source.workspaceEpoch() != target.workspaceEpoch()) {
+            return failure(request, "ExcelWriter state relay was refused for this owner.", source);
+        }
+        JsonObject managerState = request.deepCopy();
+        managerState.addProperty("bindingEpoch", target.bindingEpoch());
+        managerState.addProperty("workspaceEpoch", target.workspaceEpoch());
+        managerState.addProperty("homeBankingId", target.homeBankingId());
+        managerState.addProperty("botJobId", target.botJobId());
         boolean delivered = windows.send(
                 target.homeBankingId(),
                 DetachedWorkspaceSessions.EXCEL_WRITER_MANAGER,
                 "excelWriterWorkspace.state",
-                request.deepCopy());
+                managerState);
         return delivered
                 ? success(request, source, "ExcelWriter state delivered.")
                 : failure(request, "ExcelWriter Manager is not connected.", source);

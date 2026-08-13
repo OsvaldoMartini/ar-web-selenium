@@ -211,6 +211,54 @@ class VariablesWorkspaceServiceTest {
     }
 
     @Test
+    void relaysSmokeStateUsingTheExcelWriterManagersAuthority() {
+        assertTrue(service.openSmokeTestForBotJob(5).get("ok").getAsBoolean());
+        Session smoke = openSession();
+        windows.register(DetachedWorkspaceSessions.SMOKE_TEST_MANAGER, smoke);
+        JsonObject smokeRequest = new JsonObject();
+        smokeRequest.addProperty("botJobId", 5);
+        JsonObject smokeSnapshot = service.smokeTestBootstrap(
+                smokeRequest, DetachedWorkspaceSessions.SMOKE_TEST_MANAGER, smoke);
+
+        JsonObject state = new JsonObject();
+        state.addProperty("bindingEpoch", smokeSnapshot.get("bindingEpoch").getAsString());
+        state.addProperty("workspaceEpoch", smokeSnapshot.get("workspaceEpoch").getAsLong());
+        state.addProperty("homeBankingId", 2);
+        state.addProperty("botJobId", 5);
+        state.add("state", new JsonObject());
+
+        JsonObject beforeOpen = service.relayExcelWriterState(
+                state, DetachedWorkspaceSessions.SMOKE_TEST_MANAGER, smoke);
+        assertTrue(beforeOpen.get("ok").getAsBoolean());
+        assertFalse(beforeOpen.get("delivered").getAsBoolean());
+
+        JsonObject opened = service.openExcelWriterWorkspace(
+                state, DetachedWorkspaceSessions.SMOKE_TEST_MANAGER, smoke);
+        assertTrue(opened.get("ok").getAsBoolean());
+        Session manager = openSession();
+        windows.register(DetachedWorkspaceSessions.EXCEL_WRITER_MANAGER, manager);
+        JsonObject bootstrapRequest = new JsonObject();
+        bootstrapRequest.addProperty("botJobId", 5);
+        JsonObject managerBinding = service.excelWriterBootstrap(
+                bootstrapRequest, DetachedWorkspaceSessions.EXCEL_WRITER_MANAGER, manager);
+        assertTrue(managerBinding.get("ok").getAsBoolean());
+
+        JsonObject relayed = service.relayExcelWriterState(
+                state, DetachedWorkspaceSessions.SMOKE_TEST_MANAGER, smoke);
+        assertTrue(relayed.get("ok").getAsBoolean());
+        Sent delivered = windows.sent.get(windows.sent.size() - 1);
+        assertEquals("excelWriterWorkspace.state", delivered.operationId());
+        assertEquals(
+                managerBinding.get("bindingEpoch").getAsString(),
+                delivered.body().get("bindingEpoch").getAsString());
+        assertNotEquals(
+                smokeSnapshot.get("bindingEpoch").getAsString(),
+                delivered.body().get("bindingEpoch").getAsString());
+        assertEquals(5, delivered.body().get("botJobId").getAsInt());
+        assertEquals(2, delivered.body().get("homeBankingId").getAsInt());
+    }
+
+    @Test
     void suppressesUnchangedRealtimeGraphAndPublishesChangedRevision() {
         service.openForBotJob(5);
         Session manager = openSession();
