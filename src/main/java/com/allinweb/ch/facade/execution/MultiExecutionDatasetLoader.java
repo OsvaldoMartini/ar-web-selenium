@@ -24,10 +24,16 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
 /** Loads one owner-scoped execution dataset without mutating the singleton Excel Data workspace. */
 public final class MultiExecutionDatasetLoader {
+    private static final int MAX_ROWS = 10_000;
+    private static final int MAX_BLOCKS = 500;
+    private static final int MAX_COLUMNS_PER_BLOCK = 500;
+    private static final long MAX_CELLS = 500_000L;
+    private static final long MAX_TEXT_CHARACTERS = 16_000_000L;
     private static final AtomicLong EPOCHS = new AtomicLong();
     private final ExcelSyntheticDatasetStore synthetic = new ExcelSyntheticDatasetStore();
 
@@ -45,6 +51,7 @@ public final class MultiExecutionDatasetLoader {
         if (data.getErrorMessage() != null && !data.getErrorMessage().isBlank()) {
             throw new IllegalStateException(data.getErrorMessage());
         }
+        validateBounds(data);
         ExtractedData frozen = data.deepCopy();
         long epoch = EPOCHS.incrementAndGet();
         String revision = revision(plan, mode, frozen);
@@ -58,6 +65,45 @@ public final class MultiExecutionDatasetLoader {
                 Instant.now(),
                 frozen);
         return new PreparedDataset(integration, json(integration));
+    }
+
+    private static void validateBounds(ExtractedData data) {
+        int rows = data.getNumberOfDataRows();
+        if (rows < 0 || rows > MAX_ROWS) {
+            throw new IllegalStateException(
+                    "Execution data exceeds the 10,000-row multi-run safety limit.");
+        }
+        Set<String> blocks = data.getBlocks();
+        if (blocks == null || blocks.size() > MAX_BLOCKS) {
+            throw new IllegalStateException(
+                    "Execution data exceeds the 500-block multi-run safety limit.");
+        }
+        long cells = 0L;
+        long characters = 0L;
+        for (String block : blocks) {
+            Set<String> columns = data.getExtractedFields(block);
+            if (columns == null || columns.size() > MAX_COLUMNS_PER_BLOCK) {
+                throw new IllegalStateException(
+                        "Execution data exceeds the 500-column multi-run safety limit.");
+            }
+            cells += (long) rows * columns.size();
+            if (cells > MAX_CELLS) {
+                throw new IllegalStateException(
+                        "Execution data exceeds the 500,000-cell multi-run safety limit.");
+            }
+            characters += block == null ? 0L : block.length();
+            for (String column : columns) {
+                characters += column == null ? 0L : column.length();
+                for (int row = 0; row < rows; row++) {
+                    String value = data.getFieldValue(block, column, row);
+                    characters += value == null ? 0L : value.length();
+                    if (characters > MAX_TEXT_CHARACTERS) {
+                        throw new IllegalStateException(
+                                "Execution data exceeds the multi-run transfer-size safety limit.");
+                    }
+                }
+            }
+        }
     }
 
     private static ExtractedData loadReal(Plan plan) throws Exception {

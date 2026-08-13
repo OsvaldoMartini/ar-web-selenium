@@ -121,6 +121,12 @@ public class MainDashboardService {
                 if (ready && transport != null) {
                     var dataset = multiExecutionDatasets.load(plan, draft.excelMode());
                     JsonObject workspaceSnapshot = multiExecutionWorkspaces.load(plan, requestId);
+                    Plan verifiedPlan = multiExecutionPlans.load(
+                            draft.homeBankingId(), draft.botJobId(), Scope.all());
+                    if (!plan.planRevision().equals(verifiedPlan.planRevision())) {
+                        throw new IllegalStateException(
+                                "The Bot Job changed during multi-run preflight. Run preflight again.");
+                    }
                     prepared = new PreparedJob(plan, dataset, workspaceSnapshot);
                     preparedJobs.put(draft.botJobId(), prepared);
                 }
