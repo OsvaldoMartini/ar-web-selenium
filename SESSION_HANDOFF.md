@@ -1146,12 +1146,16 @@ Do not change frontend CSS/design while doing the scanner contract cleanup unles
   waits on its own worker for up to 15 seconds for that exact lease handoff; it never runs
   concurrently with the finishing Playwright action and still fails closed if cleanup does not
   finish. Stop, disconnect, binding replacement, and shutdown all signal release.
+- [x] Backend `4773e1b6` makes separately correlated duplicate Stop requests join the serialized
+  cleanup and receive `STOPPED`; it no longer reports "termination is already in progress", while
+  the browser lease still closes exactly once.
 - [x] Bot Job close/retarget now treats active, starting, refreshing, or terminating Smoke
   Integration as busy. After cleanup, the existing single shared Playwright browser is strictly
   navigated to the newly selected Bot Job; no parallel browser thread is introduced.
-- [x] Focused verification passed 15/15 across the ownership coordinator, Smoke Integration
+- [x] Focused verification passed 16/16 across the ownership coordinator, Smoke Integration
   lifecycle, and workspace close gate. Maven compiled 578 main and 341 test sources.
-- [x] ARWeb restarted from `target/classes` as PID `18876`, listening on `127.0.0.1:55198/55199`;
+- [x] ARWeb restarted from the final `target/classes` as PID `8284`, listening on
+  `127.0.0.1:56221/56222`;
   HTTP returned 200, SQLite connected, and Main Dashboard loaded Bot Jobs.
 - [ ] Live gate: run Java V1 Integration, press Stop while a step is settling, immediately request
   Page Scanner, and then switch Bot Jobs. Scanner must acquire after cleanup, and owner switching

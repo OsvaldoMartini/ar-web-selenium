@@ -1322,8 +1322,10 @@ and atomic artifact-write checkpoints are complete.
 - [x] Smoke Stop, disconnect, binding replacement, and application shutdown signal the handoff;
   failure to release within 15 seconds remains a visible fail-closed retry instead of unsafe
   concurrent browser access.
+- [x] `4773e1b6` makes distinct duplicate Stop correlations join cleanup and return `STOPPED` while
+  retaining exactly-once lease closure.
 - [x] Bot Job switching is blocked for active/pending Smoke Integration work. Once released, the
   established owner-switch path reuses and strictly navigates the one shared Playwright browser.
-- [x] Focused verification passed 15/15 and Java compilation passed. PID `18876` runs the new
-  classes on `55198/55199`; HTTP, SQLite startup, and Bot Job loading are healthy.
+- [x] Focused verification passed 16/16 and Java compilation passed. PID `8284` runs the final
+  classes on `56221/56222`; HTTP, SQLite startup, and Bot Job loading are healthy.
 - [ ] Live acceptance remains for Stop-during-step -> immediate Page Scanner -> Bot Job switch.
