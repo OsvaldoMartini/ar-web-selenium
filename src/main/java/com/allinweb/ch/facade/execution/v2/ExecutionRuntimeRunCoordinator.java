@@ -178,10 +178,19 @@ public final class ExecutionRuntimeRunCoordinator {
         }
     }
 
+    /** Requests immediate Node-side interruption without waiting for the current action monitor. */
+    public void interrupt(Run run) {
+        Run current = Objects.requireNonNull(run, "Execution V2 run is required");
+        if (current.closed) return;
+        current.stopRequested.set(true);
+        runtime.stop(current.authority);
+    }
+
     public void close(Run run) {
         Run current = Objects.requireNonNull(run, "Execution V2 run is required");
         synchronized (current) {
             if (current.closed) return;
+            current.stopRequested.set(true);
             try {
                 runtime.stop(current.authority);
                 runtime.release(current.authority);
@@ -229,6 +238,9 @@ public final class ExecutionRuntimeRunCoordinator {
 
     private static void requireOpen(Run run) {
         if (run.closed) throw new IllegalStateException("Execution V2 run is closed");
+        if (run.stopRequested.get()) {
+            throw new IllegalStateException("Execution V2 run is stopping");
+        }
         if (run.actionOutcomeUnknown) {
             throw new IllegalStateException("Execution V2 action outcome is unknown");
         }
@@ -272,8 +284,10 @@ public final class ExecutionRuntimeRunCoordinator {
         private final Plan plan;
         private final Authority authority;
         private long nextPhysicalSequence = 1L;
+        private final java.util.concurrent.atomic.AtomicBoolean stopRequested =
+                new java.util.concurrent.atomic.AtomicBoolean();
         private boolean actionOutcomeUnknown;
-        private boolean closed;
+        private volatile boolean closed;
 
         private Run(String runId, AuthorizedGrantFacts facts, Plan plan, Authority authority) {
             this.runId = runId;

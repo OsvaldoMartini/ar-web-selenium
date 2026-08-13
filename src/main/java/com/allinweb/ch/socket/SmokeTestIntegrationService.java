@@ -695,6 +695,9 @@ public final class SmokeTestIntegrationService {
                         request.instructionId(),
                         request.excelRowIndex(),
                         run.variables);
+        if (run.cancelled) {
+            return stoppedStep(run, request, "Integration stop interrupted the current action.");
+        }
         JsonObject response = stepResponse(run, request, outcome, false);
         recordStep(run, request, response, outcome.status());
         return response;
@@ -808,6 +811,15 @@ public final class SmokeTestIntegrationService {
     }
 
     private JsonObject stop(Run run, StopRequest request) {
+        if (run.v2Run != null) {
+            try {
+                v2.interrupt(run.v2Run);
+            } catch (RuntimeException interruptFailure) {
+                log.warn(
+                        "Execution V2 immediate stop requires cleanup retry runId={}",
+                        run.runId);
+            }
+        }
         synchronized (run.operationLock) {
             try {
                 TerminalResponse response = terminalResponse(
@@ -1386,6 +1398,8 @@ public final class SmokeTestIntegrationService {
                 int excelRowIndex,
                 RunVariables variables);
 
+        default void interrupt(V2Run run) {}
+
         void close(V2Run run);
     }
 
@@ -1581,6 +1595,11 @@ public final class SmokeTestIntegrationService {
                 RunVariables variables) {
             return executor.execute(
                     authority(run), plan, dataset, sequence, instructionId, excelRowIndex, variables);
+        }
+
+        @Override
+        public void interrupt(V2Run run) {
+            coordinator.interrupt(authority(run));
         }
 
         @Override

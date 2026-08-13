@@ -6,7 +6,7 @@ import { PlaywrightWorkerPool } from '../src/pool/playwrightWorkerPool';
 import { ExecutionLaunchDescriptor, ExecutionSessionState } from '../src/session/sessionContracts';
 import { PhysicalActionRequest, PhysicalActionResult } from '../src/action/actionContracts';
 
-type Behavior = 'READY' | 'BLOCK_NAVIGATION' | 'FAIL_NAVIGATION' | 'FAIL_ACTION';
+type Behavior = 'READY' | 'BLOCK_NAVIGATION' | 'FAIL_NAVIGATION' | 'BLOCK_ACTION' | 'FAIL_ACTION';
 
 class FakeHandle implements BrowserSessionHandle {
   readonly browserInstanceId = randomUUID();
@@ -16,6 +16,7 @@ class FakeHandle implements BrowserSessionHandle {
   refreshCount = 0;
   actionCount = 0;
   private rejectNavigation?: (error: Error) => void;
+  private rejectAction?: (error: Error) => void;
   private unexpectedCloseCode?: string;
   private unexpectedCloseHandler?: (code: string) => void;
 
@@ -48,6 +49,11 @@ class FakeHandle implements BrowserSessionHandle {
   async perform(request: PhysicalActionRequest): Promise<PhysicalActionResult> {
     this.actionCount += 1;
     if (this.behavior === 'FAIL_ACTION') throw new Error('TRANSPORT_LOST');
+    if (this.behavior === 'BLOCK_ACTION') {
+      await new Promise<void>((_resolve, reject) => {
+        this.rejectAction = reject;
+      });
+    }
     return {
       ok: true,
       diagnostic: {
@@ -70,6 +76,7 @@ class FakeHandle implements BrowserSessionHandle {
     if (this.closed) return;
     this.closed = true;
     this.rejectNavigation?.(new Error('BROWSER_SESSION_CLOSED'));
+    this.rejectAction?.(new Error('BROWSER_SESSION_CLOSED'));
   }
 
   crash(): void {
@@ -285,4 +292,31 @@ test('an action transport exception becomes a terminal unknown outcome that exac
   const replay = await pool.perform(run.run.runId, actionRequest(1));
   assert.deepEqual(replay, unknown);
   assert.equal(factory.handles.get(run.run.runId)?.actionCount, 1);
+});
+
+test('stop interrupts an unresolved action and releases only its exact run', async () => {
+  const blocked = descriptor(13, 29);
+  const healthy = descriptor(2, 32);
+  const factory = new FakeFactory(new Map([[blocked.run.runId, 'BLOCK_ACTION']]));
+  const pool = new PlaywrightWorkerPool(factory, limits);
+  pool.enqueue(blocked);
+  pool.enqueue(healthy);
+  await waitForState(pool, blocked.run.runId, 'READY');
+  await waitForState(pool, healthy.run.runId, 'READY');
+
+  const pending = pool.perform(blocked.run.runId, actionRequest(1));
+  while (factory.handles.get(blocked.run.runId)?.actionCount !== 1) {
+    await new Promise(resolve => setTimeout(resolve, 5));
+  }
+  const stopped = await pool.stop(blocked.run.runId);
+  const cancelled = await pending;
+
+  assert.equal(stopped.state, 'STOPPED');
+  assert.equal(cancelled.ok, false);
+  assert.equal(cancelled.diagnostic.code, 'ACTION_CANCELLED');
+  assert.equal(cancelled.diagnostic.physicalAttempts, 0);
+  assert.equal(factory.handles.get(blocked.run.runId)?.closed, true);
+  assert.equal(pool.snapshot(healthy.run.runId).state, 'READY');
+  assert.equal(factory.handles.get(healthy.run.runId)?.closed, false);
+  await pool.closeAll();
 });

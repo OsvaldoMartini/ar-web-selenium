@@ -296,6 +296,33 @@ class SmokeTestIntegrationServiceTest {
     }
 
     @Test
+    void v2StopRequestsImmediateRuntimeInterruptionBeforeTerminalCleanup() throws Exception {
+        JsonObject request = startRequest("start-v2-stop");
+        request.addProperty("runtimeMode", "TYPESCRIPT_PLAYWRIGHT_V2");
+        request.addProperty("pagePolicy", "RELOAD_SELECTED");
+        service.handle(
+                SmokeTestIntegrationContracts.START,
+                request,
+                DetachedWorkspaceSessions.SMOKE_TEST_MANAGER,
+                transport);
+        String runId = responses.await(SmokeTestIntegrationContracts.START_RESPONSE)
+                .body.get("runId").getAsString();
+
+        service.handle(
+                SmokeTestIntegrationContracts.STOP,
+                stopRequest("stop-v2", runId),
+                DetachedWorkspaceSessions.SMOKE_TEST_MANAGER,
+                transport);
+        Published stopped = responses.await(SmokeTestIntegrationContracts.STOP_RESPONSE);
+
+        assertTrue(stopped.body.get("ok").getAsBoolean());
+        assertEquals("STOPPED", stopped.body.get("status").getAsString());
+        assertEquals(1, v2.interrupts.get());
+        assertEquals(1, v2.closes.get());
+        assertEquals(0, browserOwnership.closes.get());
+    }
+
+    @Test
     void reloadPolicyUsesStrictSelectedPageInsteadOfPreservingTheCurrentPage() throws Exception {
         JsonObject request = startRequest("start-reload");
         request.addProperty("pagePolicy", "RELOAD_SELECTED");
@@ -429,6 +456,7 @@ class SmokeTestIntegrationServiceTest {
     private static final class RecordingV2 implements SmokeTestIntegrationService.V2Port {
         private final AtomicInteger starts = new AtomicInteger();
         private final AtomicInteger steps = new AtomicInteger();
+        private final AtomicInteger interrupts = new AtomicInteger();
         private final AtomicInteger closes = new AtomicInteger();
 
         @Override
@@ -460,6 +488,11 @@ class SmokeTestIntegrationServiceTest {
         @Override
         public void close(SmokeTestIntegrationService.V2Run run) {
             closes.incrementAndGet();
+        }
+
+        @Override
+        public void interrupt(SmokeTestIntegrationService.V2Run run) {
+            interrupts.incrementAndGet();
         }
     }
 

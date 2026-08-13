@@ -142,6 +142,10 @@ export class ExecutionSession {
       try {
         result = await this.handle.perform(request);
       } catch {
+        if (this.stopRequested) {
+          await this.finishStoppedAfterInterruption();
+          return this.cancelledAction(request);
+        }
         result = {
           ok: false,
           diagnostic: {
@@ -161,6 +165,10 @@ export class ExecutionSession {
         this.settleAction(request.sequence, fingerprint, result);
         await this.finishFailed(new Error('ACTION_OUTCOME_UNKNOWN'));
         return result;
+      }
+      if (this.stopRequested) {
+        await this.finishStoppedAfterInterruption();
+        return this.cancelledAction(request);
       }
       this.settleAction(request.sequence, fingerprint, result);
       return result;
@@ -269,6 +277,25 @@ export class ExecutionSession {
   ): void {
     this.settledActions.set(sequence, { fingerprint, result });
     this.nextActionSequence += 1;
+  }
+
+  private cancelledAction(request: PhysicalActionRequest): PhysicalActionResult {
+    return {
+      ok: false,
+      diagnostic: {
+        code: 'ACTION_CANCELLED',
+        stage: 'RESOLUTION',
+        action: request.action,
+        instructionId: request.instructionId,
+        registryCandidateCount: request.registryCandidates.length,
+        liveCandidateCount: 0,
+        frameValidated: false,
+        shadowValidated: false,
+        tagValidated: false,
+        actionValidated: false,
+        physicalAttempts: 0,
+      },
+    };
   }
 
   private unexpectedClose(code: string): Promise<void> {
