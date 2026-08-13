@@ -1399,7 +1399,11 @@ and atomic artifact-write checkpoints are complete.
   `01D7EFFD0B4DC7B14FEEF0A2DB4ABC50DD92547E00AA5D2E4096C7B0E6900A96`) and
   `main.25f852bf.css` (SHA-256
   `827E3E142EE6C823A4B2E343FA0AEEDE49A4A0C7B04AD8ADE867334213571912`).
+- [x] Backend/Node `1777fb4d` makes Stop interrupt the exact Node browser before Java waits for the
+  current step monitor. A stopped action returns `ACTION_CANCELLED`; a late physical result cannot
+  settle the run. Focused Java tests passed 11/11 and focused Node tests passed 2/2, including proof
+  that an independent sibling run/browser remains READY.
 - [ ] Source/build deployment is complete, but no ARWeb/Node restart or live selected-job program
   was performed. Live acceptance must prove two or more complete Bot Job programs, independent
-  REAL/SYNTHETIC values, Runtime Variables, ExcelWriter outputs, Stop, failure containment, and
-  cleanup. The mandatory Stop-during-unresolved-locator cancellation gate remains open.
+  REAL/SYNTHETIC values, Runtime Variables, ExcelWriter outputs, Stop, failure containment, exact
+  cleanup, and a real missing-locator Stop reproduction.

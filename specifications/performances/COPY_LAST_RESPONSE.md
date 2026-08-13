@@ -2,7 +2,7 @@
 
 Keep exactly two review sections. Check tasks only after their separate gates pass.
 
-**Last updated:** 2026-08-13 - Main Dashboard multi-run source is pushed through backend `b9a88131` / `b50dbd20` / `06ed6479`, frontend `75351fb`, and deployment `a18cf8cd`. `Start Selected` now owns one independent React program/data/runtime-variable/ExcelWriter/V2 lifecycle per prepared row, and `Stop Selected` cannot be bypassed by closing the manager. Build and Java compile passed without automated tests. Service restart, live multi-program execution, and the critical Stop-during-locator cancellation gate remain open.
+**Last updated:** 2026-08-13 - Main Dashboard multi-run source is pushed through backend `b9a88131` / `b50dbd20` / `06ed6479`, frontend `75351fb`, deployment `a18cf8cd`, and exact-run cancellation `1777fb4d`. `Start Selected` now owns one independent React program/data/runtime-variable/ExcelWriter/V2 lifecycle per prepared row. Stop interrupts an unresolved Node action before Java waits for step cleanup. Frontend build, Java compile, 11 focused Java tests, and 2 focused Node tests passed. Service restart and live multi-program/real-locator verification remain open.
 
 **Current multi-run checkpoint:** backend preflight `f39baa6c`, frontend manager `bb28f3a`, and exact
 61-file deployment `bd1cb821` are pushed. The manager can revalidate one to five exact owner/Bot Job
@@ -558,14 +558,14 @@ The Page Mappings roadmap is now source-complete through P7:
   process exited 0. No banking endpoint/action was used.
 - [x] TypeScript runtime build and Java compile (578 sources) passed. No automated tests ran by user
   instruction. All three commits are pushed.
-- [ ] Main Dashboard `Start Selected` remains disabled until React can freeze and execute one complete
-  program/data/runtime-variable/ExcelWriter state machine per selected Bot Job. Opening five browsers
-  alone is not accepted as multi-Bot-Job execution.
-- [ ] **CRITICAL REMINDER / completion blocker:** after the multi-run `Run` controller is implemented,
-  reproduce Stop while locator resolution is still trying to find a missing Web Element. The observed
-  run did not stop/release completely. Completion requires cancellation of the locator wait, exactly
-  one terminal Stop, exact Playwright release, no stale owner/worker, restored controls, and immediate
-  Page Scanner/new-run availability.
+- [x] Main Dashboard `Start Selected` is enabled only after React freezes one complete
+  program/data/runtime-variable/ExcelWriter state machine per selected Bot Job. It is not a
+  browser-only launcher.
+- [x] Backend/Node `1777fb4d` removes the Java operation-lock delay and interrupts the exact Node
+  browser while locator resolution is pending. Focused Java tests passed 11/11; focused Node tests
+  passed 2/2 and proved the sibling run/browser remains READY.
+- [ ] Live completion still requires the same Stop-during-missing-locator reproduction: exactly one
+  terminal Stop, no stale owner/worker, restored controls, and immediate Page Scanner/new-run access.
 
 ### Main Dashboard isolated selected-job controllers - 2026-08-13
 
@@ -581,9 +581,11 @@ The Page Mappings roadmap is now source-complete through P7:
   `01D7EFFD0B4DC7B14FEEF0A2DB4ABC50DD92547E00AA5D2E4096C7B0E6900A96` and
   `main.25f852bf.css` SHA-256
   `827E3E142EE6C823A4B2E343FA0AEEDE49A4A0C7B04AD8ADE867334213571912`.
+- [x] Cancellation checkpoint `1777fb4d` passed 11 focused Java tests and 2 focused Node tests,
+  including unresolved-action interruption with the sibling run/browser unaffected.
 - [ ] No service restart or live complete Bot Job program ran. Prove concurrent REAL/SYNTHETIC,
-  Runtime Variables, ExcelWriter output, independent failure/Stop, and exact cleanup. The locator-
-  cancellation interleaving remains a mandatory blocker before calling P7/P9 complete.
+  Runtime Variables, ExcelWriter output, independent failure/Stop, exact cleanup, and the real
+  missing-locator Stop interleaving before calling P7/P9 complete.
 
 ## 2. CLAUDE -> CODEX - Independent review requested
 

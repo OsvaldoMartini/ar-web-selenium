@@ -1235,7 +1235,10 @@ Do not change frontend CSS/design while doing the scanner contract cleanup unles
   exact files into resources and `target/classes`; current entrypoints are `main.0652482b.js`
   (`01D7EFFD0B4DC7B14FEEF0A2DB4ABC50DD92547E00AA5D2E4096C7B0E6900A96`) and
   `main.25f852bf.css` (`827E3E142EE6C823A4B2E343FA0AEEDE49A4A0C7B04AD8ADE867334213571912`).
-- No automated tests, service restart, database mutation, migration, package, image, or live Bot Job
-  execution occurred. The critical next gate is Stop while Node is resolving a missing locator:
-  cancellation must interrupt the wait, suppress any later action result, settle once, and release
-  the exact browser/run before multi-run is called live-complete.
+- Backend/Node `1777fb4d` fixes the Stop-during-locator lock boundary. Java now requests an immediate
+  exact-run Node interruption before waiting for the current step monitor; Node closes only that
+  browser, returns `ACTION_CANCELLED`, suppresses the late action result, and settles STOPPED.
+  Focused Java tests passed 11/11 and the focused Node cancellation/unknown-outcome tests passed 2/2.
+- No service restart, database mutation, migration, package, image, or live Bot Job execution
+  occurred. Live acceptance must still reproduce Stop during a real unresolved locator and prove
+  exact release plus immediate Page Scanner/new-run availability.
