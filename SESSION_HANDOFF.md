@@ -1136,3 +1136,23 @@ Do not change frontend CSS/design while doing the scanner contract cleanup unles
   ExcelWrite row, the ExcelWriter Manager receives the file/column/value, and PAUSE opens exactly
   once. Instruction 1775 remains independently unconfigured and is expected to report its own
   ExcelWrite configuration failure until configured or disabled.
+
+## Smoke Stop to Page Scanner ownership handoff - 2026-08-13
+
+- [x] Live evidence showed Smoke Integration Stop and its final step settling together while Page
+  Scanner could still observe the shared execution lease. The old coordinator rejected Scanner
+  immediately with a TEST RUN-specific message even when Smoke Integration was the owner.
+- [x] Backend `abb1b194` gives stopping Java V1 Integration an explicit release state. Page Scanner
+  waits on its own worker for up to 15 seconds for that exact lease handoff; it never runs
+  concurrently with the finishing Playwright action and still fails closed if cleanup does not
+  finish. Stop, disconnect, binding replacement, and shutdown all signal release.
+- [x] Bot Job close/retarget now treats active, starting, refreshing, or terminating Smoke
+  Integration as busy. After cleanup, the existing single shared Playwright browser is strictly
+  navigated to the newly selected Bot Job; no parallel browser thread is introduced.
+- [x] Focused verification passed 15/15 across the ownership coordinator, Smoke Integration
+  lifecycle, and workspace close gate. Maven compiled 578 main and 341 test sources.
+- [x] ARWeb restarted from `target/classes` as PID `18876`, listening on `127.0.0.1:55198/55199`;
+  HTTP returned 200, SQLite connected, and Main Dashboard loaded Bot Jobs.
+- [ ] Live gate: run Java V1 Integration, press Stop while a step is settling, immediately request
+  Page Scanner, and then switch Bot Jobs. Scanner must acquire after cleanup, and owner switching
+  must remain blocked until cleanup before retargeting the same browser.

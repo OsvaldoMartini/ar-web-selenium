@@ -1313,3 +1313,17 @@ and atomic artifact-write checkpoints are complete.
 - [ ] Live acceptance: Bot Job 5 Block 1 must advance GET -> configured ExcelWrite -> PAUSE without
   the duplicate `Wait for the current Integration request to finish` refusal. Confirm the Manager
   receives the dirty artifact and the PAUSE dialog opens before marking this checkpoint complete.
+
+## 43. Deterministic Smoke Stop and Page Scanner handoff - 2026-08-13
+
+- [x] `abb1b194` centralizes the stopping-owner transition in `ExecutionPauseCoordinator` instead
+  of adding another Page Scanner caller workaround. Scanner waits only when release was explicitly
+  requested and never shares Playwright with a finishing execution action.
+- [x] Smoke Stop, disconnect, binding replacement, and application shutdown signal the handoff;
+  failure to release within 15 seconds remains a visible fail-closed retry instead of unsafe
+  concurrent browser access.
+- [x] Bot Job switching is blocked for active/pending Smoke Integration work. Once released, the
+  established owner-switch path reuses and strictly navigates the one shared Playwright browser.
+- [x] Focused verification passed 15/15 and Java compilation passed. PID `18876` runs the new
+  classes on `55198/55199`; HTTP, SQLite startup, and Bot Job loading are healthy.
+- [ ] Live acceptance remains for Stop-during-step -> immediate Page Scanner -> Bot Job switch.
