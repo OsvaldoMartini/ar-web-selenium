@@ -1,9 +1,14 @@
 package com.allinweb.ch.facade;
 
 import com.allinweb.ch.facade.actions.RuntimeVariableMemoryRegistry;
+import com.allinweb.ch.facade.execution.SmokeTestIntegrationSnapshotRepository;
+import com.allinweb.ch.facade.execution.SmokeTestIntegrationSnapshotRepository.Plan;
+import com.allinweb.ch.facade.execution.v2.ExecutionRuntimeRunCoordinator;
+import com.allinweb.ch.facade.execution.v2.SmokeTestIntegrationV2StepExecutor;
 import com.allinweb.ch.model.BlockLoadDTO;
 import com.allinweb.ch.model.BotJobLoadDTO;
 import com.allinweb.ch.model.HomeBankingLoadDTO;
+import com.allinweb.ch.model.SmokeTestIntegrationContracts.Scope;
 import com.allinweb.ch.util.ErrorMessage;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -12,6 +17,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Locale;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -20,8 +26,13 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class MainDashboardService {
 
+    public static final int MULTI_EXECUTION_CONTRACT_VERSION = 1;
+    public static final int MAX_MULTI_EXECUTION_JOBS = 5;
+
     private static final PerformLists performLists = PerformLists.getInstance();
     private static final PerformDataBase performDataBase = PerformDataBase.getInstance();
+    private final SmokeTestIntegrationSnapshotRepository multiExecutionPlans =
+            new SmokeTestIntegrationSnapshotRepository();
 
     protected static volatile MainDashboardService instance;
 
@@ -45,6 +56,158 @@ public class MainDashboardService {
         }
         return success("Bot Jobs loaded");
     }
+
+    /**
+     * Revalidates one immutable Main Dashboard multi-run draft without starting a browser.
+     * Every returned fact comes from one owner-scoped database plan; dashboard row metadata is not
+     * trusted as execution authority.
+     */
+    public Map<String, Object> multiExecutionPreflight(JsonObject body) {
+        String requestId = textVal(body, "requestId");
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("contractVersion", MULTI_EXECUTION_CONTRACT_VERSION);
+        response.put("requestId", requestId);
+        response.put("runtimeMode", "TYPESCRIPT_PLAYWRIGHT_V2");
+        response.put("maxParallelism", MAX_MULTI_EXECUTION_JOBS);
+        if (intVal(body, "contractVersion") != MULTI_EXECUTION_CONTRACT_VERSION) {
+            return multiExecutionFailure(response, "Unsupported multi-execution contract.");
+        }
+        if (requestId.isBlank() || requestId.length() > 200) {
+            return multiExecutionFailure(response, "Multi-execution preflight requires a valid request ID.");
+        }
+        final List<MultiExecutionDraft> drafts;
+        try {
+            drafts = multiExecutionDrafts(body);
+        } catch (IllegalArgumentException invalid) {
+            return multiExecutionFailure(response, invalid.getMessage());
+        }
+
+        boolean runtimeConfigured = ExecutionRuntimeRunCoordinator.configured().isPresent();
+        List<Map<String, Object>> jobs = new ArrayList<>();
+        boolean allReady = runtimeConfigured;
+        for (MultiExecutionDraft draft : drafts) {
+            Map<String, Object> job = new LinkedHashMap<>();
+            job.put("botJobId", draft.botJobId());
+            job.put("homeBankingId", draft.homeBankingId());
+            job.put("excelMode", draft.excelMode());
+            try {
+                Plan plan = multiExecutionPlans.load(
+                        draft.homeBankingId(), draft.botJobId(), Scope.all());
+                List<String> unsupported = plan.instructions().stream()
+                        .filter(instruction -> instruction.active() && instruction.block().active())
+                        .map(instruction -> CommandRegistry.canonicalize(instruction.action()))
+                        .filter(action -> !SmokeTestIntegrationV2StepExecutor.supportsIntegrationAction(action))
+                        .distinct()
+                        .sorted()
+                        .toList();
+                boolean ready = runtimeConfigured && unsupported.isEmpty();
+                job.put("ok", true);
+                job.put("ready", ready);
+                job.put("botJobName", plan.environment().botJobName());
+                job.put("organizationName", plan.environment().organizationName());
+                job.put("planRevision", plan.planRevision());
+                job.put("blockCount", plan.blocks().size());
+                job.put("instructionCount", plan.instructions().size());
+                job.put("endpointReady", true);
+                job.put("runtimeConfigured", runtimeConfigured);
+                job.put("unsupportedActions", unsupported);
+                job.put("message", ready
+                        ? "Plan and isolated V2 command coverage are ready."
+                        : runtimeConfigured
+                                ? "The plan contains commands not yet supported by V2."
+                                : "The TypeScript Playwright runtime is not configured.");
+                allReady &= ready;
+            } catch (Exception failure) {
+                job.put("ok", false);
+                job.put("ready", false);
+                job.put("endpointReady", false);
+                job.put("runtimeConfigured", runtimeConfigured);
+                job.put("unsupportedActions", List.of());
+                job.put("message", safePreflightMessage(failure));
+                allReady = false;
+            }
+            jobs.add(job);
+        }
+        response.put("ok", true);
+        response.put("ready", allReady);
+        response.put("runtimeConfigured", runtimeConfigured);
+        response.put("jobs", jobs);
+        response.put("message", allReady
+                ? "Every selected Bot Job passed isolated V2 plan preflight."
+                : "One or more selected Bot Jobs are not ready for isolated V2 execution.");
+        return response;
+    }
+
+    private static Map<String, Object> multiExecutionFailure(
+            Map<String, Object> response, String message) {
+        response.put("ok", false);
+        response.put("ready", false);
+        response.put("runtimeConfigured", false);
+        response.put("jobs", List.of());
+        response.put("message", message);
+        return response;
+    }
+
+    private static String safePreflightMessage(Exception failure) {
+        String message = failure == null ? "" : failure.getMessage();
+        return message == null || message.isBlank()
+                ? "The Bot Job execution plan is unavailable."
+                : message;
+    }
+
+    private static List<MultiExecutionDraft> multiExecutionDrafts(JsonObject body) {
+        if (body == null || !body.has("jobs") || !body.get("jobs").isJsonArray()) {
+            throw new IllegalArgumentException("Select at least one Bot Job for preflight.");
+        }
+        if (body.getAsJsonArray("jobs").size() < 1
+                || body.getAsJsonArray("jobs").size() > MAX_MULTI_EXECUTION_JOBS) {
+            throw new IllegalArgumentException("Select between 1 and 5 Bot Jobs for one multi-run.");
+        }
+        LinkedHashSet<Integer> botJobIds = new LinkedHashSet<>();
+        List<MultiExecutionDraft> result = new ArrayList<>();
+        for (JsonElement element : body.getAsJsonArray("jobs")) {
+            if (!element.isJsonObject()) {
+                throw new IllegalArgumentException("Every multi-run row must be an object.");
+            }
+            JsonObject row = element.getAsJsonObject();
+            int botJobId = exactPositiveInt(row, "botJobId");
+            int homeBankingId = exactPositiveInt(row, "homeBankingId");
+            if (!botJobIds.add(botJobId)) {
+                throw new IllegalArgumentException("A Bot Job may appear only once in one multi-run.");
+            }
+            String excelMode = textValStatic(row, "excelMode").toUpperCase(Locale.ROOT);
+            if (!"REAL".equals(excelMode) && !"SYNTHETIC".equals(excelMode)) {
+                throw new IllegalArgumentException("Every Bot Job requires REAL or SYNTHETIC data mode.");
+            }
+            result.add(new MultiExecutionDraft(homeBankingId, botJobId, excelMode));
+        }
+        return List.copyOf(result);
+    }
+
+    private static int exactPositiveInt(JsonObject body, String field) {
+        try {
+            JsonElement value = body.get(field);
+            if (value == null || !value.isJsonPrimitive() || !value.getAsJsonPrimitive().isNumber()) {
+                throw new IllegalArgumentException();
+            }
+            int parsed = value.getAsBigDecimal().intValueExact();
+            if (parsed <= 0) throw new IllegalArgumentException();
+            return parsed;
+        } catch (RuntimeException invalid) {
+            throw new IllegalArgumentException(field + " must be a positive integer.");
+        }
+    }
+
+    private static String textValStatic(JsonObject body, String field) {
+        try {
+            JsonElement value = body.get(field);
+            return value == null || value.isJsonNull() ? "" : value.getAsString().trim();
+        } catch (RuntimeException invalid) {
+            return "";
+        }
+    }
+
+    private record MultiExecutionDraft(int homeBankingId, int botJobId, String excelMode) {}
 
     public Map<String, Object> deleteBotJob(JsonObject body) {
         return deleteBotJob(body, ignored -> {});

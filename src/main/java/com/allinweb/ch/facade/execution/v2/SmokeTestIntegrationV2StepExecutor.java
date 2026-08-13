@@ -22,7 +22,25 @@ import java.util.Objects;
 public final class SmokeTestIntegrationV2StepExecutor {
     private static final java.util.Set<String> LOGICAL_ONLY = java.util.Set.of(
             "CK", "IF", "ELSEIF", "ELSE", "ENDIF", "LOOP", "GOTO", "EXCEL GOTO",
-            "NEXT ROW", "H", "PAUSE", "EXCEL_BLOCK_HEADER");
+            "NEXT ROW", "H", "PAUSE", "EXCEL_BLOCK_HEADER", "E");
+
+    /**
+     * Reports whether the current React/V2 Integration path owns this command family.
+     * ExcelWrite is included because React owns its in-memory arrival and sends only finalized
+     * artifacts through the Java boundary; it is deliberately not a Node physical action.
+     */
+    public static boolean supportsIntegrationAction(String rawAction) {
+        String action = CommandRegistry.canonicalize(rawAction);
+        return LOGICAL_ONLY.contains(action)
+                || "E".equals(action)
+                || "EXCELWRITE".equals(action)
+                || "REFRESH".equals(action)
+                || "REFRESH_LOOP".equals(action)
+                || "REFRESH_HOLD".equals(action)
+                || "GET".equals(action)
+                || "SET".equals(action)
+                || CommandRegistry.isWebElementAction(action);
+    }
 
     private final ActionPort runtime;
     private final ActiveCellPort activeCells;

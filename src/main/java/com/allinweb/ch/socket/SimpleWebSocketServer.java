@@ -9,6 +9,7 @@ import com.google.common.base.Strings;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import java.io.IOException;
@@ -721,6 +722,24 @@ public class SimpleWebSocketServer {
                 if (smokeIntegrationOperation) {
                     smokeTestIntegrationService.rejectLicense(
                             type, extractBody(jsonObjMSG), session);
+                    return;
+                }
+                if ("mainDashboard.multiExecution.preflight".equals(type)) {
+                    JsonObject request = extractBody(jsonObjMSG);
+                    Map<String, Object> refused = new LinkedHashMap<>();
+                    refused.put("contractVersion", MainDashboardService.MULTI_EXECUTION_CONTRACT_VERSION);
+                    refused.put("requestId", safePrimitiveText(request, "requestId"));
+                    refused.put("ok", false);
+                    refused.put("ready", false);
+                    refused.put("runtimeConfigured", false);
+                    refused.put("jobs", List.of());
+                    refused.put("message", "An active license is required for multi-execution preflight.");
+                    WebSocketSessionManager.sendMessageJson(
+                            -1,
+                            session,
+                            "mainDashboard",
+                            gson.toJson(refused),
+                            "mainDashboard.multiExecution.preflightResponse");
                     return;
                 }
                 if (type.startsWith("botJobDetails.")) {
@@ -2790,6 +2809,10 @@ public class SimpleWebSocketServer {
                 case "mainDashboard.list":
                     handleMainDashboardList(sessionId);
                     break;
+                case "mainDashboard.multiExecution.preflight":
+                    handleMainDashboardMultiExecutionPreflight(
+                            jsonObjMSG, transportSessionId, session);
+                    break;
                 case "automationTests.list":
                     handleAutomationTestsList(sessionId);
                     break;
@@ -3036,6 +3059,43 @@ public class SimpleWebSocketServer {
 
     private void handleMainDashboardList(String sessionId) {
         sendMainDashboardResponse(sessionId, mainDashboardService.list(), "mainDashboard.listResponse");
+    }
+
+    private void handleMainDashboardMultiExecutionPreflight(
+            JsonObject envelope, String transportSessionId, Session transport) {
+        Object response;
+        if (!"mainDashboard".equals(transportSessionId)
+                || WebSocketSessionManager.getSession("mainDashboard") != transport) {
+            Map<String, Object> refused = new LinkedHashMap<>();
+            JsonObject body = extractBody(envelope);
+            refused.put("contractVersion", MainDashboardService.MULTI_EXECUTION_CONTRACT_VERSION);
+            refused.put("requestId", safePrimitiveText(body, "requestId"));
+            refused.put("ok", false);
+            refused.put("ready", false);
+            refused.put("runtimeConfigured", false);
+            refused.put("jobs", List.of());
+            refused.put("message", "The Main Dashboard requester is not authoritative.");
+            response = refused;
+        } else {
+            response = mainDashboardService.multiExecutionPreflight(extractBody(envelope));
+        }
+        WebSocketSessionManager.sendMessageJson(
+                -1,
+                transport,
+                "mainDashboard",
+                gson.toJson(response),
+                "mainDashboard.multiExecution.preflightResponse");
+    }
+
+    private static String safePrimitiveText(JsonObject body, String field) {
+        try {
+            JsonElement value = body == null ? null : body.get(field);
+            return value != null && value.isJsonPrimitive() && value.getAsJsonPrimitive().isString()
+                    ? value.getAsString().trim()
+                    : "";
+        } catch (RuntimeException invalid) {
+            return "";
+        }
     }
 
     private void handleAutomationTestsList(String sessionId) {
