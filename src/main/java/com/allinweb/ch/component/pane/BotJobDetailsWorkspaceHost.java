@@ -2397,6 +2397,8 @@ public class BotJobDetailsWorkspaceHost {
                 selectedBotJob.setName(state.name());
                 selectedBotJob.setDescription(state.description());
                 selectedBotJob.setHomeUrlId(state.homeUrlId());
+                ExcelDataWorkspaceService.getInstance()
+                        .botJobNameChanged(state.botJobId(), state.name());
                 reactEnvironmentUrl = state.environmentUrl();
                 presentation().updateTitle(state.homeBankingId(), state.botJobId());
                 completion.complete(null);

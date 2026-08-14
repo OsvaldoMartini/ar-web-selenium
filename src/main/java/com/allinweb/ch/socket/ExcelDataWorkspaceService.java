@@ -71,6 +71,7 @@ public final class ExcelDataWorkspaceService {
             BotJobLoadDTO job = lists.getQuickBotJobById(botJobId);
             if (job == null) return failure("Bot Job " + botJobId + " was not found.");
             if (binding != null && binding.botJobId() == botJobId) {
+                rebindWorkbookName(job.getName());
                 boolean opened = PagesOpenWorkspaceService.getInstance()
                         .openOrFocusDetachedWorkspace(
                                 SESSION_ID, botJobId, "Excel Data workspace requested for execution.");
@@ -110,6 +111,45 @@ public final class ExcelDataWorkspaceService {
         JsonObject current = snapshot("Excel Data reloaded for the selected Bot Job.");
         WebSocketSessionManager.getInstance().sendMessageJson(
                 binding.homeBankingId(), SESSION_ID, current.toString(), "excelData.retarget");
+    }
+
+    /**
+     * Retargets retained Excel memory after the active Bot Job is renamed.
+     *
+     * <p>The old workbook remains untouched. Current REAL/SYNTHETIC memory is preserved, while
+     * the next REAL save writes the workbook derived from the new authoritative Bot Job name.
+     */
+    public synchronized void botJobNameChanged(int botJobId, String botJobName) {
+        if (binding == null || binding.botJobId() != botJobId) return;
+        if (!rebindWorkbookName(botJobName)) return;
+        publishRetargetSnapshot();
+    }
+
+    private boolean rebindWorkbookName(String botJobName) {
+        if (binding == null) return false;
+        String nextName = botJobName == null ? "" : botJobName.trim();
+        if (nextName.isBlank()) {
+            throw new IllegalArgumentException("The Bot Job name is required for Excel Data.");
+        }
+        Path nextWorkbook = binding.workbook().resolveSibling(nextName + ARConstants.FILE_FORMAT_EXCEL)
+                .toAbsolutePath()
+                .normalize();
+        if (nextName.equals(binding.botJobName()) && nextWorkbook.equals(binding.workbook())) {
+            return false;
+        }
+
+        Path previousWorkbook = binding.workbook();
+        loader.close(previousWorkbook.toString());
+        binding.botJobName = nextName;
+        binding.workbook = nextWorkbook;
+        binding.realDirty = true;
+        binding.loadedAt = Instant.now();
+        binding.changed();
+        readyTransport = null;
+        readyDatasetEpoch = -1L;
+        selectExecutionData();
+        notifyAll();
+        return true;
     }
 
     public synchronized JsonObject bootstrap(JsonObject request, String sessionId, Session transport) {
@@ -888,8 +928,8 @@ public final class ExcelDataWorkspaceService {
     private static final class Binding {
         private final int botJobId;
         private final int homeBankingId;
-        private final String botJobName;
-        private final Path workbook;
+        private String botJobName;
+        private Path workbook;
         private ExtractedData realData;
         private ExtractedData syntheticData;
         private Instant loadedAt = Instant.now();
