@@ -507,6 +507,16 @@ public final class BotJobRuntimeVariableService {
             }
             update.executeUpdate();
         }
+        String legacySql = "UPDATE instruction SET variable_id=NULL"
+                + " WHERE bot_job_id=? AND variable_id IN (" + placeholders + ")";
+        try (PreparedStatement update = connection.prepareStatement(legacySql)) {
+            update.setInt(1, owner.botJobId());
+            int parameter = 2;
+            for (Long variableId : variableIds) {
+                update.setLong(parameter++, variableId);
+            }
+            update.executeUpdate();
+        }
     }
 
     private static Set<Long> sanitizeIds(Collection<Long> variableIds) {

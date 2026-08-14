@@ -2,6 +2,7 @@ package com.allinweb.ch.facade;
 
 import com.allinweb.ch.db.InstructionVariableCommandConfigRepository;
 import com.allinweb.ch.db.InstructionVariableCommandConfigRepository.StoredConfiguration;
+import com.allinweb.ch.db.migrations.M20260801_InstructionVariableCommandConfig;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -50,7 +51,9 @@ public final class VariableRelationshipService {
             List<VariableRow> variables = loadVariables(connection, botJobId);
             List<CommandRow> commands = loadCommands(connection, botJobId);
             Map<Integer, StoredConfiguration> configurations =
-                    commandConfigurations.loadForBotJob(connection, botJobId);
+                    tableExists(connection, M20260801_InstructionVariableCommandConfig.TABLE)
+                            ? commandConfigurations.loadForBotJob(connection, botJobId)
+                            : Map.of();
             Map<Integer, List<SlotEntry>> slots = loadSlots(connection, botJobId);
             return graph(botJobId, blocks, variables, commands, configurations, slots);
         } catch (SQLException error) {
@@ -249,16 +252,9 @@ public final class VariableRelationshipService {
     private Map<Integer, List<SlotEntry>> loadSlots(Connection connection, int botJobId)
             throws SQLException {
         Map<Integer, List<SlotEntry>> slots = new java.util.LinkedHashMap<>();
-        try (ResultSet tables = connection.getMetaData()
-                .getTables(null, null, null, new String[] {"TABLE"})) {
-            boolean present = false;
-            while (tables.next()) {
-                if ("instruction_variable_slot".equalsIgnoreCase(tables.getString("TABLE_NAME"))) {
-                    present = true;
-                    break;
-                }
-            }
-            if (!present) return slots;
+        if (!tableExists(connection, "instruction_variable_slot")) {
+            if (!columnExists(connection, "instruction", "variable_id")) return slots;
+            return loadLegacySlots(connection, botJobId);
         }
         String sql = "SELECT instruction_id, slot, variable_id FROM instruction_variable_slot"
                 + " WHERE bot_job_id=? ORDER BY instruction_id, slot";
@@ -275,6 +271,59 @@ public final class VariableRelationshipService {
             }
         }
         return slots;
+    }
+
+    private Map<Integer, List<SlotEntry>> loadLegacySlots(Connection connection, int botJobId)
+            throws SQLException {
+        Map<Integer, List<SlotEntry>> slots = new java.util.LinkedHashMap<>();
+        String sql = "SELECT id, actions, variable_id FROM instruction"
+                + " WHERE bot_job_id=? AND variable_id IS NOT NULL ORDER BY id";
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setInt(1, botJobId);
+            try (ResultSet result = statement.executeQuery()) {
+                while (result.next()) {
+                    String slot = legacySlotFor(result.getString("actions"));
+                    if (slot == null) continue;
+                    slots.computeIfAbsent(result.getInt("id"), key -> new ArrayList<>())
+                            .add(new SlotEntry(slot, result.getInt("variable_id")));
+                }
+            }
+        }
+        return slots;
+    }
+
+    private static String legacySlotFor(String actionValue) {
+        return switch (CommandRegistry.canonicalize(actionValue)) {
+            case "CK", "CHECKVALUE", "CSV CHECK", "PDF CHECK" -> "LEFT";
+            case "GET" -> "GET_WRITE";
+            case "SET" -> "READ_SET";
+            case "E", "EXCELWRITE" -> "READ";
+            default -> null;
+        };
+    }
+
+    private static boolean tableExists(Connection connection, String tableName)
+            throws SQLException {
+        try (ResultSet tables = connection.getMetaData()
+                .getTables(null, null, null, new String[] {"TABLE"})) {
+            while (tables.next()) {
+                if (tableName.equalsIgnoreCase(tables.getString("TABLE_NAME"))) return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean columnExists(
+            Connection connection, String tableName, String columnName) throws SQLException {
+        try (ResultSet columns = connection.getMetaData().getColumns(null, null, null, null)) {
+            while (columns.next()) {
+                if (tableName.equalsIgnoreCase(columns.getString("TABLE_NAME"))
+                        && columnName.equalsIgnoreCase(columns.getString("COLUMN_NAME"))) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private record SlotEntry(String slot, int variableId) {}

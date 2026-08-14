@@ -5,6 +5,9 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.allinweb.ch.db.migrations.M20260730_BotJobRuntimeVariables;
+import com.allinweb.ch.db.migrations.M20260729_InstructionGraphState;
+import com.allinweb.ch.db.migrations.M20260805_RuntimeMemoryColumns;
+import com.allinweb.ch.db.migrations.M20260803_InstructionVariableSlot;
 import com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableModels.DefinitionDraft;
 import com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableModels.MutationResult;
 import com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableModels.MutationStatus;
@@ -232,7 +235,7 @@ class BotJobRuntimeVariableServiceTest {
                     "CREATE TABLE bot_job (id INTEGER PRIMARY KEY, home_banking_id INTEGER)");
             statement.execute(
                     "CREATE TABLE instruction (id INTEGER PRIMARY KEY,"
-                            + " bot_job_id INTEGER, variable_id INTEGER)");
+                            + " bot_job_id INTEGER, variable_id INTEGER, actions TEXT)");
             statement.execute(
                     "CREATE TABLE variable (id INTEGER PRIMARY KEY, type TEXT, name TEXT,"
                             + " value TEXT, local_format TEXT, delimiter TEXT,"
@@ -242,6 +245,9 @@ class BotJobRuntimeVariableServiceTest {
             statement.executeUpdate(
                     "INSERT INTO bot_job(id,home_banking_id) VALUES (5,2)");
             new M20260730_BotJobRuntimeVariables().apply(connection, "TEXT");
+            new M20260729_InstructionGraphState().apply(connection, "TEXT");
+            new M20260805_RuntimeMemoryColumns().apply(connection, "TEXT");
+            new M20260803_InstructionVariableSlot().apply(connection, "TEXT");
         }
         return url;
     }

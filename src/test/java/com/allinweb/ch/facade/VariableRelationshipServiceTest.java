@@ -192,6 +192,7 @@ class VariableRelationshipServiceTest {
 
     private void migrateVariables() throws Exception {
         new M20260730_BotJobRuntimeVariables().apply(anchor, "TEXT");
+        execute("ALTER TABLE instruction ADD COLUMN on_hold_seconds INTEGER");
     }
 
     private JsonObject rawVariable(JsonObject response, int id) {
