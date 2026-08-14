@@ -9,6 +9,60 @@ The failures are not all obsolete tests. The reruns show three categories:
 This document began as a read-only investigation. Later checkpoints record the repairs that were
 implemented and verified.
 
+## Current authoritative rerun — 2026-08-13 after `785a482c` / frontend `b783ad3`
+
+This section supersedes all earlier aggregate totals. The complete Java, React and browser E2E
+suites were rerun sequentially from the pushed commits.
+
+### Current totals
+
+| Layer | Result | Change from previous baseline |
+|---|---:|---|
+| Full Java (`mvn test`) | 1,466 total; 1,461 passed; 2 failed; 1 error; 2 skipped | Unsuccessful methods reduced from 33 to 3. All ACL, Page Mappings and five repaired Java groups passed in the complete run. |
+| Full React/Jest | 172 suites: 154 passed, 18 failed; 920 tests: 866 passed, 54 failed | One suite and two tests were repaired by the ambiguous-parent change. |
+| Browser E2E | 4 total; 1 passed; 3 failed | Same established accessibility and obsolete-style/title expectations. |
+
+### Remaining Java-hosted browser checks
+
+| Suite | Remaining | Current evidence and action |
+|---|---:|---|
+| `BotJobDetailsToolbarPlaywrightTest` | 1 failure | Obsolete architecture marker. The current source and production bundle use instruction-level `excelWrite.chooseDirectory`; the test still requires retired block-level `excelExport.chooseDirectory`. Update the test and its mocked operation to the current ExcelWrite contract. |
+| `MainDashboardAutoTestPlaywrightTest` | 1 failure | Obsolete title assertion: approved UI sets `Main Bot Jobs`; the test expects `AR Web`. Update the assertion while retaining manifest/document-title coverage. |
+| `VariablesIfFamilyDeletePlaywrightTest` | 1 error | Test locator uses a non-exact heading name `Variables`, which now also matches `Memory variables`. Use the exact level-1 `Variables` heading and retain the deletion behavior assertions. |
+
+### Remaining React suites
+
+The related `variablesBatchConnections.test.ts` suite is now green 6/6. The other 18 suite
+groups and their prior classifications remain reproducible, with unchanged per-suite counts:
+
+- Obsolete UI/payload expectations: `App.test.tsx`, `ActivationRequired.test.tsx`,
+  `BlockHeader.test.tsx`, `AddVariableModal.test.tsx`, `VariablesPage.test.tsx`.
+- Variables/runtime relationship semantics requiring one authoritative decision or production
+  correction before assertions change: `executionRelationshipPreflight.test.ts`,
+  `instructionMove.test.ts`, `instructionRelationshipGraph.test.ts`,
+  `instructionRelationshipPolicy.test.ts`, `VariableExecutionLane.test.tsx`,
+  `variablesWorkspace.contract.test.ts`.
+- Current fixture/capability drift: `InstructionRelationshipDetails.test.tsx`,
+  `GridItem.relationshipChips.test.tsx`, `GridItemComp.memoryParity.test.tsx`,
+  `VariablesCommandBoard.test.tsx`, `VariablesConnectionsModal.test.tsx`.
+- Lifecycle/safety review still required: `CommandEditorPage.test.tsx`,
+  `ReconnectWebElement.test.tsx`.
+
+### Remaining E2E checks
+
+1. Duplicate `Page Scanner` regions remain a real accessibility defect (two regions, expected one).
+2. OCR Config header test expects obsolete `rgb(11, 83, 148)`; approved UI is
+   `rgb(29, 79, 145)`.
+3. Main Dashboard test expects obsolete `AR Web`; approved heading is `Main Bot Jobs`.
+
+### Verification notes
+
+- The initial Java invocation used a two-minute command limit and was discarded when the command
+  timed out. The authoritative rerun used a ten-minute limit and completed in 3:26.
+- The clean sequential Java run passed `PageMappingsWorkspaceServiceTest` 22/22 and did not
+  reproduce the prior managed-execution Windows ACL error 5.
+- No production code was changed by this rerun. This checkpoint records test evidence only.
+
 ## Resolved checkpoint — five Java groups plus related React fix — 2026-08-13
 
 - `VariableRelationshipService` now loads legacy `instruction.variable_id` slots when the
