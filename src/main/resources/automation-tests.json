@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-14T00:25:35.825Z",
+  "generatedAt": "2026-08-14T01:50:35.721Z",
   "summary": {
     "catalogEntries": 2409,
     "automatedCodeCases": 2373,
@@ -18,7 +18,7 @@
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "branch": "refactor/perform-actions-decomposition",
-      "commit": "fab45271c8200118a91dd73beb0bed91e75a92d9",
+      "commit": "e33a3de1b9a626701051486d84e9a022cac99ff9",
       "sourceFiles": 341,
       "automatedSuites": 330,
       "automatedTestCases": 1471,
@@ -29,7 +29,7 @@
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "branch": "VERSION-4.6",
-      "commit": "9a0ca0aca310cf1155f1b87824d6d4b0937e6da1",
+      "commit": "b783ad3c8071946e27a7b6b0da2b22acd7180736",
       "sourceFiles": 174,
       "automatedSuites": 174,
       "automatedTestCases": 902,
@@ -27320,7 +27320,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableServiceTest#rawTextAndEmptyValueRemainExactAcrossServiceAndConnectionRestart@30",
+      "id": "junit:com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableServiceTest#rawTextAndEmptyValueRemainExactAcrossServiceAndConnectionRestart@33",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -27334,7 +27334,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/variables/runtime/BotJobRuntimeVariableServiceTest.java",
-      "line": 30,
+      "line": 33,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -27344,7 +27344,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableServiceTest#clearAllIsAtomicPreservesDefinitionsAndAdvancesResetGeneration@83",
+      "id": "junit:com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableServiceTest#clearAllIsAtomicPreservesDefinitionsAndAdvancesResetGeneration@86",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -27358,7 +27358,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/variables/runtime/BotJobRuntimeVariableServiceTest.java",
-      "line": 83,
+      "line": 86,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -27368,7 +27368,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableServiceTest#staleEntryRevisionAndWrongOwnerCannotOverwriteCurrentValue@142",
+      "id": "junit:com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableServiceTest#staleEntryRevisionAndWrongOwnerCannotOverwriteCurrentValue@145",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -27382,7 +27382,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/variables/runtime/BotJobRuntimeVariableServiceTest.java",
-      "line": 142,
+      "line": 145,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -27392,7 +27392,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableServiceTest#deletingDefinitionDetachesInstructionAndDeletesRuntimeValue@190",
+      "id": "junit:com.allinweb.ch.facade.variables.runtime.BotJobRuntimeVariableServiceTest#deletingDefinitionDetachesInstructionAndDeletesRuntimeValue@193",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -27406,7 +27406,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/variables/runtime/BotJobRuntimeVariableServiceTest.java",
-      "line": 190,
+      "line": 193,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -27704,7 +27704,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.VariablesInstructionCopyTransactionTest#onlyInstructionCopiesOneFreshRowWithoutMovingSourceOrCloningVariable@48",
+      "id": "junit:com.allinweb.ch.facade.VariablesInstructionCopyTransactionTest#onlyInstructionCopiesOneFreshRowWithoutMovingSourceOrCloningVariable@51",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -27718,7 +27718,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/VariablesInstructionCopyTransactionTest.java",
-      "line": 48,
+      "line": 51,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -27728,7 +27728,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.VariablesInstructionCopyTransactionTest#withParentsUsesExactRequestOrderAndRemapsParentsVariableOwnerUsersAndReferences@129",
+      "id": "junit:com.allinweb.ch.facade.VariablesInstructionCopyTransactionTest#withParentsUsesExactRequestOrderAndRemapsParentsVariableOwnerUsersAndReferences@132",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -27742,7 +27742,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/VariablesInstructionCopyTransactionTest.java",
-      "line": 129,
+      "line": 132,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -27752,7 +27752,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.VariablesInstructionCopyTransactionTest#rejectsStaleRevisionAndIncompleteExactParentSelectionWithoutWriting@233",
+      "id": "junit:com.allinweb.ch.facade.VariablesInstructionCopyTransactionTest#rejectsStaleRevisionAndIncompleteExactParentSelectionWithoutWriting@235",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -27766,7 +27766,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/VariablesInstructionCopyTransactionTest.java",
-      "line": 233,
+      "line": 235,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -27776,7 +27776,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.VariablesInstructionCopyTransactionTest#rollsBackFreshRowsVariablesReferencesAndGraphVersionAtEveryPhase@297",
+      "id": "junit:com.allinweb.ch.facade.VariablesInstructionCopyTransactionTest#rollsBackFreshRowsVariablesReferencesAndGraphVersionAtEveryPhase@299",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -27790,7 +27790,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/VariablesInstructionCopyTransactionTest.java",
-      "line": 297,
+      "line": 299,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -27800,7 +27800,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.VariablesInstructionCopyTransactionTest#serviceReturnsDuplicateForExactReplayAndRejectsRequestIdReuse@335",
+      "id": "junit:com.allinweb.ch.facade.VariablesInstructionCopyTransactionTest#serviceReturnsDuplicateForExactReplayAndRejectsRequestIdReuse@337",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -27814,7 +27814,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/VariablesInstructionCopyTransactionTest.java",
-      "line": 335,
+      "line": 337,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -32148,7 +32148,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.socket.PageMappingsWorkspaceRetentionTest#staleExpectedPolicyReturnsCurrentSystemPolicyAndRequiresReload@49",
+      "id": "junit:com.allinweb.ch.socket.PageMappingsWorkspaceRetentionTest#staleExpectedPolicyReturnsCurrentSystemPolicyAndRequiresReload@50",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -32162,7 +32162,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/socket/PageMappingsWorkspaceRetentionTest.java",
-      "line": 49,
+      "line": 50,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -32172,7 +32172,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.socket.PageMappingsWorkspaceRetentionTest#missingExpectedPolicyFieldFailsClosedAndRequiresReload@79",
+      "id": "junit:com.allinweb.ch.socket.PageMappingsWorkspaceRetentionTest#missingExpectedPolicyFieldFailsClosedAndRequiresReload@80",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -32186,7 +32186,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/socket/PageMappingsWorkspaceRetentionTest.java",
-      "line": 79,
+      "line": 80,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -32196,7 +32196,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.socket.PageMappingsWorkspaceRetentionTest#stalePinSelectionReturnsCorrelatedReloadRequiredOutcome@101",
+      "id": "junit:com.allinweb.ch.socket.PageMappingsWorkspaceRetentionTest#stalePinSelectionReturnsCorrelatedReloadRequiredOutcome@102",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -32210,7 +32210,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/socket/PageMappingsWorkspaceRetentionTest.java",
-      "line": 101,
+      "line": 102,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -32220,7 +32220,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.socket.PageMappingsWorkspaceRetentionTest#lostPinCommitAcknowledgementRequiresReloadEvenWhenTheMutationCommitted@125",
+      "id": "junit:com.allinweb.ch.socket.PageMappingsWorkspaceRetentionTest#lostPinCommitAcknowledgementRequiresReloadEvenWhenTheMutationCommitted@126",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -32234,7 +32234,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/socket/PageMappingsWorkspaceRetentionTest.java",
-      "line": 125,
+      "line": 126,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -32244,7 +32244,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.socket.PageMappingsWorkspaceRetentionTest#unconfirmedPolicyPersistenceRequiresReloadWithoutReportingSuccess@153",
+      "id": "junit:com.allinweb.ch.socket.PageMappingsWorkspaceRetentionTest#unconfirmedPolicyPersistenceRequiresReloadWithoutReportingSuccess@154",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -32258,7 +32258,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/socket/PageMappingsWorkspaceRetentionTest.java",
-      "line": 153,
+      "line": 154,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -55702,7 +55702,7 @@
       ]
     },
     {
-      "id": "jest:src/components/variables/domain/variablesBatchConnections.test.ts::::RESOLVE never guesses an ambiguous parent and refreshes variable choices after review@254",
+      "id": "jest:src/components/variables/domain/variablesBatchConnections.test.ts::::RESOLVE never guesses an ambiguous parent and refreshes variable choices after review@249",
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "recordType": "AUTOMATED_CASE",
@@ -55716,7 +55716,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/components/variables/domain/variablesBatchConnections.test.ts",
-      "line": 254,
+      "line": 249,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -55727,7 +55727,7 @@
       ]
     },
     {
-      "id": "jest:src/components/variables/domain/variablesBatchConnections.test.ts::::RESOLVE ignores FIX_ORDER, VARIABLE_ORDER, and positional edges@328",
+      "id": "jest:src/components/variables/domain/variablesBatchConnections.test.ts::::RESOLVE ignores FIX_ORDER, VARIABLE_ORDER, and positional edges@317",
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "recordType": "AUTOMATED_CASE",
@@ -55741,7 +55741,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/components/variables/domain/variablesBatchConnections.test.ts",
-      "line": 328,
+      "line": 317,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -55752,7 +55752,7 @@
       ]
     },
     {
-      "id": "jest:src/components/variables/domain/variablesBatchConnections.test.ts::::authority validator rejects any changed frozen graph authority@351",
+      "id": "jest:src/components/variables/domain/variablesBatchConnections.test.ts::::authority validator rejects any changed frozen graph authority@340",
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "recordType": "AUTOMATED_CASE",
@@ -55766,7 +55766,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/components/variables/domain/variablesBatchConnections.test.ts",
-      "line": 351,
+      "line": 340,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -55777,7 +55777,7 @@
       ]
     },
     {
-      "id": "jest:src/components/variables/domain/variablesBatchConnections.test.ts::::planning refuses stale or foreign visible instruction IDs@378",
+      "id": "jest:src/components/variables/domain/variablesBatchConnections.test.ts::::planning refuses stale or foreign visible instruction IDs@367",
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "recordType": "AUTOMATED_CASE",
@@ -55791,7 +55791,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/components/variables/domain/variablesBatchConnections.test.ts",
-      "line": 378,
+      "line": 367,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,

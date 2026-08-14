@@ -6,7 +6,35 @@ The failures are not all obsolete tests. The reruns show three categories:
 - Valid new behavior with obsolete tests/fixtures.
 - Shared infrastructure/test-environment failures masking functionality.
 
-No code was modified during this investigation.
+This document began as a read-only investigation. Later checkpoints record the repairs that were
+implemented and verified.
+
+## Resolved checkpoint — five Java groups plus related React fix — 2026-08-13
+
+- `VariableRelationshipService` now loads legacy `instruction.variable_id` slots when the
+  directional slot table is absent, and treats the optional typed-command configuration table as
+  empty on an older schema instead of failing the complete raw-facts response.
+- Runtime-variable deletion removes authoritative slot rows and clears the still-supported legacy
+  instruction field in the same transaction. Its fixture now installs graph/runtime/slot schema.
+- Variables instruction copy runs against the current graph/runtime/slot schema and allocates
+  owner-unique variable names (`Name Copy`, `Name Copy 2`, and so on) instead of violating the
+  registered unique-name index.
+- Page Mappings retention fixtures activate the exact authoritative Bot Job owner. Isolated
+  Page Mappings service constructors receive an explicit owner-validator seam; the production
+  singleton still uses the global active-owner registry.
+- Related React connection planning no longer selects the first ambiguous parent. It returns
+  `REVIEW_REQUIRED`, blocks its dependent variable review, and never invents a variable binding.
+- Focused Java functional results: variable relationships 4/4, runtime variables 4/4,
+  instruction copy 5/5, retention 5/5, Page Mappings service 22/22.
+- Adjacent WebSocket lifecycle: 30/30. Automation catalog: 2/2 and regenerated to 2,409 rows /
+  2,373 code cases. Related React planner: 6/6.
+- Production React build completed with pre-existing warnings and was mirrored exactly into Java
+  resources: 61 files, zero hash mismatches, zero count delta.
+- A later combined Java invocation reproduced four `PageMappingsWorkspaceServiceTest` fixture
+  setup errors from Windows `SetNamedSecurityInfo` error 5. They occur while creating private test
+  artifacts, before the service assertions; the same suite passed 22/22 earlier in this checkpoint.
+  Production ACL enforcement was not weakened, and the shared ACL execution-environment item
+  remains separately open.
 
 ## Current authoritative rerun — 2026-08-13 after `4b7b412a`
 
