@@ -62,11 +62,19 @@ public final class ExecutionRuntimeRunCoordinator {
 
     /** Missing grant configuration keeps V2 unavailable without affecting the V1 runtime. */
     public static Optional<ExecutionRuntimeRunCoordinator> configured() {
-        return ExecutionRuntimeGrantConfiguration.fromEnvironment().map(configuration -> {
-            ExecutionRuntimeHttpClient client = new ExecutionRuntimeHttpClient(
-                    ExecutionRuntimeClientConfiguration.fromEnvironment(System.getenv()));
-            return new ExecutionRuntimeRunCoordinator(
-                    new ExecutionRuntimeGrantService(configuration)::issue,
+        return ExecutionRuntimeGrantConfiguration.fromEnvironment().map(configuration ->
+                create(configuration, ExecutionRuntimeClientConfiguration.fromEnvironment()));
+    }
+
+    /** Builds the coordinator from process-supervisor-owned local credentials. */
+    public static ExecutionRuntimeRunCoordinator create(
+            ExecutionRuntimeGrantConfiguration grantConfiguration,
+            ExecutionRuntimeClientConfiguration clientConfiguration) {
+        Objects.requireNonNull(grantConfiguration, "Execution V2 grant configuration is required");
+        Objects.requireNonNull(clientConfiguration, "Execution V2 client configuration is required");
+        ExecutionRuntimeHttpClient client = new ExecutionRuntimeHttpClient(clientConfiguration);
+        return new ExecutionRuntimeRunCoordinator(
+                    new ExecutionRuntimeGrantService(grantConfiguration)::issue,
                     new DefaultRuntimePort(client),
                     new HealingPort() {
                         private final RuntimeElementHealingService delegate =
@@ -96,7 +104,6 @@ public final class ExecutionRuntimeRunCoordinator {
                     new ExecutionRuntimeActionFactory(),
                     new SystemTimePort(),
                     SystemKeepAlivePort.INSTANCE);
-        });
     }
 
     public Run start(AuthorizedGrantFacts facts, Plan plan) {

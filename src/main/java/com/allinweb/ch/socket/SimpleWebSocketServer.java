@@ -226,7 +226,9 @@ public class SimpleWebSocketServer {
             SmokeTestIntegrationContracts.RECOVER,
             SmokeTestIntegrationContracts.EXCEL_WRITE,
             SmokeTestIntegrationContracts.STOP,
-            SmokeTestIntegrationContracts.FINISH);
+            SmokeTestIntegrationContracts.FINISH,
+            SmokeTestIntegrationContracts.RUNTIME_STATUS,
+            SmokeTestIntegrationContracts.RUNTIME_CONTROL);
 
     static boolean isDetachedVariablesTransport(String sessionId) {
         return VariablesWorkspaceService.isWorkspaceSession(sessionId)
@@ -922,6 +924,8 @@ public class SimpleWebSocketServer {
                 case SmokeTestIntegrationContracts.EXCEL_WRITE:
                 case SmokeTestIntegrationContracts.STOP:
                 case SmokeTestIntegrationContracts.FINISH:
+                case SmokeTestIntegrationContracts.RUNTIME_STATUS:
+                case SmokeTestIntegrationContracts.RUNTIME_CONTROL:
                     smokeTestIntegrationService.handle(
                             type, extractBody(jsonObjMSG), sessionId, session);
                     break;

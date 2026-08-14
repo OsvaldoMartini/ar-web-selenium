@@ -13,6 +13,7 @@ import com.allinweb.ch.facade.execution.SmokeTestIntegrationExcelWriteService;
 import com.allinweb.ch.facade.execution.SmokeTestIntegrationStepExecutor.Outcome;
 import com.allinweb.ch.facade.execution.SmokeTestIntegrationStepExecutor.RunVariables;
 import com.allinweb.ch.facade.execution.v2.ExecutionRuntimeRunCoordinator;
+import com.allinweb.ch.facade.execution.v2.ExecutionV2RuntimeSupervisor;
 import com.allinweb.ch.facade.execution.v2.ExecutionV2Contracts.AuthorizedGrantFacts;
 import com.allinweb.ch.facade.execution.v2.ExecutionV2Contracts.DataMode;
 import com.allinweb.ch.facade.execution.v2.SmokeTestIntegrationV2StepExecutor;
@@ -85,6 +86,8 @@ public final class SmokeTestIntegrationService {
     private final ResponsePort responses;
     private final ThreadPoolExecutor worker;
     private final AtomicLong integrationEpochs = new AtomicLong();
+    private final ExecutionV2RuntimeSupervisor runtimeSupervisor =
+            ExecutionV2RuntimeSupervisor.getInstance();
     private final SmokeTestIntegrationExcelWriteService excelWrites = new SmokeTestIntegrationExcelWriteService();
     private final LinkedHashMap<TransportRequest, RequestLedgerEntry> requestLedger =
             new LinkedHashMap<>();
@@ -94,6 +97,7 @@ public final class SmokeTestIntegrationService {
     private int pendingStarts;
     private int pendingV1Starts;
     private boolean refreshPending;
+    private boolean runtimeControlPending;
 
     private SmokeTestIntegrationService() {
         this(
@@ -175,13 +179,17 @@ public final class SmokeTestIntegrationService {
                         SmokeTestIntegrationContracts.parseStop(body), transport);
                 case SmokeTestIntegrationContracts.FINISH -> handleFinish(
                         SmokeTestIntegrationContracts.parseFinish(body), transport);
+                case SmokeTestIntegrationContracts.RUNTIME_STATUS ->
+                        handleRuntimeControl(body, transport, false);
+                case SmokeTestIntegrationContracts.RUNTIME_CONTROL ->
+                        handleRuntimeControl(body, transport, true);
                 default -> publish(
                         transport,
                         -1,
                         responseOperation(operation),
                         rejected(body, "UNSUPPORTED_OPERATION", "Unsupported Integration operation."));
             }
-        } catch (IllegalArgumentException invalid) {
+        } catch (IllegalArgumentException | IllegalStateException invalid) {
             log.warn("Rejected invalid Smoke Test Integration contract: {}", invalid.getMessage());
             publish(
                     transport,
@@ -200,6 +208,113 @@ public final class SmokeTestIntegrationService {
                 && body.has("multiBatchId")
                 && body.get("multiBatchId").isJsonPrimitive()
                 && !body.get("multiBatchId").getAsString().isBlank();
+    }
+
+    private void handleRuntimeControl(JsonObject body, Session transport, boolean mutation) {
+        SmokeIntegrationAuthorization authorization = variables.authorize(body, transport);
+        String requestId = requiredRuntimeText(body, "requestId", 200);
+        String action = mutation ? requiredRuntimeText(body, "action", 12) : "STATUS";
+        if (!java.util.Set.of("STATUS", "START", "STOP").contains(action)) {
+            throw new IllegalArgumentException("Execution V2 runtime action is invalid.");
+        }
+        if (mutation) {
+            synchronized (stateLock) {
+                if (runtimeControlPending) {
+                    throw new IllegalStateException("Execution V2 runtime control is already pending.");
+                }
+                if ("STOP".equals(action)) {
+                    boolean activeV2 = activeRuns.values().stream().anyMatch(run ->
+                            run.runtimeMode == RuntimeMode.TYPESCRIPT_PLAYWRIGHT_V2);
+                    if (activeV2 || pendingStarts > 0) {
+                        throw new IllegalStateException(
+                                "Stop active V2 Integration runs before stopping the runtime.");
+                    }
+                }
+                runtimeControlPending = true;
+            }
+        }
+        Runnable task = () -> {
+            JsonObject response;
+            try {
+                ExecutionV2RuntimeSupervisor.Status status;
+                if ("START".equals(action)) {
+                    status = runtimeSupervisor.start();
+                } else if ("STOP".equals(action)) {
+                    status = runtimeSupervisor.stop();
+                } else {
+                    status = runtimeSupervisor.status();
+                }
+                response = runtimeStatusResponse(requestId, authorization, status, true, "");
+            } catch (RuntimeException failure) {
+                executionTrace.warn(
+                        "phase=V2_RUNTIME_CONTROL requestId={} action={} hb={} bot={} status=REFUSED failureType={}",
+                        requestId, action, authorization.homeBankingId(), authorization.botJobId(),
+                        failure.getClass().getSimpleName());
+                response = runtimeStatusResponse(
+                        requestId, authorization, runtimeSupervisor.status(), false,
+                        safeMessage(failure, "Execution V2 runtime control was refused."));
+            } finally {
+                if (mutation) {
+                    synchronized (stateLock) {
+                        runtimeControlPending = false;
+                    }
+                }
+            }
+            publish(
+                    transport,
+                    authorization.homeBankingId(),
+                    mutation
+                            ? SmokeTestIntegrationContracts.RUNTIME_CONTROL_RESPONSE
+                            : SmokeTestIntegrationContracts.RUNTIME_STATUS_RESPONSE,
+                    response);
+        };
+        try {
+            worker.execute(task);
+        } catch (RejectedExecutionException busy) {
+            if (mutation) {
+                synchronized (stateLock) {
+                    runtimeControlPending = false;
+                }
+            }
+            throw new IllegalStateException("Execution V2 runtime control is busy.");
+        }
+    }
+
+    private JsonObject runtimeStatusResponse(
+            String requestId,
+            SmokeIntegrationAuthorization authorization,
+            ExecutionV2RuntimeSupervisor.Status status,
+            boolean ok,
+            String message) {
+        JsonObject response = new JsonObject();
+        response.addProperty("ok", ok);
+        response.addProperty("contractVersion", SmokeTestIntegrationContracts.CONTRACT_VERSION);
+        response.addProperty("requestId", requestId);
+        response.addProperty("bindingEpoch", authorization.bindingEpoch());
+        response.addProperty("workspaceEpoch", authorization.workspaceEpoch());
+        response.addProperty("homeBankingId", authorization.homeBankingId());
+        response.addProperty("botJobId", authorization.botJobId());
+        response.addProperty("graphRevision", authorization.graphRevision());
+        response.addProperty("state", status.state());
+        response.addProperty("code", status.code());
+        response.addProperty("port", status.port());
+        response.addProperty("managed", status.managed());
+        response.addProperty("message", message == null || message.isBlank()
+                ? "Execution V2 runtime is " + status.state().toLowerCase(java.util.Locale.ROOT) + "."
+                : message);
+        return response;
+    }
+
+    private static String requiredRuntimeText(JsonObject body, String name, int maximum) {
+        if (body == null || !body.has(name) || !body.get(name).isJsonPrimitive()
+                || !body.getAsJsonPrimitive(name).isString()) {
+            throw new IllegalArgumentException("Execution V2 runtime " + name + " is required.");
+        }
+        String value = body.get(name).getAsString().trim();
+        if (value.isBlank() || value.length() > maximum) {
+            throw new IllegalArgumentException("Execution V2 runtime " + name + " is invalid.");
+        }
+        return value;
     }
 
     /** Exact-session failure used by the WebSocket route before any operation can be dispatched. */
@@ -247,6 +362,7 @@ public final class SmokeTestIntegrationService {
                     || (v1Requested && (!activeRuns.isEmpty() || pendingStarts > 0))
                     || (!v1Requested && (v1Active
                             || pendingV1Starts > 0
+                            || runtimeControlPending
                             || activeRuns.size() + pendingStarts >= MAX_ACTIVE_V2_RUNS));
             if (unavailable) {
                 executionTrace.warn(
@@ -1716,6 +1832,12 @@ public final class SmokeTestIntegrationService {
         if (SmokeTestIntegrationContracts.FINISH.equals(operation)) {
             return SmokeTestIntegrationContracts.FINISH_RESPONSE;
         }
+        if (SmokeTestIntegrationContracts.RUNTIME_STATUS.equals(operation)) {
+            return SmokeTestIntegrationContracts.RUNTIME_STATUS_RESPONSE;
+        }
+        if (SmokeTestIntegrationContracts.RUNTIME_CONTROL.equals(operation)) {
+            return SmokeTestIntegrationContracts.RUNTIME_CONTROL_RESPONSE;
+        }
         return "smokeTest.integration.errorResponse";
     }
 
@@ -2018,30 +2140,14 @@ public final class SmokeTestIntegrationService {
         private final SmokeTestIntegrationV2StepExecutor executor;
 
         private DefaultV2Port() {
-            coordinator = ExecutionRuntimeRunCoordinator.configured().orElse(null);
-            executor = coordinator == null ? null : new SmokeTestIntegrationV2StepExecutor(coordinator);
-            if (coordinator == null) {
-                executionTrace.warn(
-                        "phase=V2_CONFIGURATION status=DISABLED code=JAVA_GRANT_CONFIGURATION_MISSING requiredEnvironment={}",
-                        com.allinweb.ch.facade.execution.v2.ExecutionRuntimeGrantConfiguration.SECRET_ENV);
-            } else {
-                executionTrace.info(
-                        "phase=V2_CONFIGURATION status=READY runtimePort={} grantKeyConfigured=true",
-                        System.getenv().getOrDefault(
-                                com.allinweb.ch.facade.execution.v2.ExecutionRuntimeClientConfiguration.PORT_ENV,
-                                "60110"));
-            }
+            coordinator = ExecutionV2RuntimeSupervisor.getInstance().coordinator();
+            executor = new SmokeTestIntegrationV2StepExecutor(coordinator);
+            executionTrace.info("phase=V2_CONFIGURATION status=SUPERVISED");
         }
 
         @Override
         public V2Run start(
                 SmokeIntegrationAuthorization authorization, Plan plan, String datasetMode) {
-            if (coordinator == null) {
-                executionTrace.warn(
-                        "phase=V2_START_REFUSED hb={} bot={} code=JAVA_GRANT_CONFIGURATION_MISSING",
-                        authorization.homeBankingId(), authorization.botJobId());
-                throw new IllegalStateException("The TypeScript Playwright runtime is not configured.");
-            }
             AuthorizedGrantFacts facts = new AuthorizedGrantFacts(
                     authorization.homeBankingId(),
                     authorization.homeBankingId(),
