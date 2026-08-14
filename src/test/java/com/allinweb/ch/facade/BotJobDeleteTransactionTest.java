@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.allinweb.ch.db.migrations.M20260807_PageScanSnapshot;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
@@ -14,13 +15,29 @@ import java.sql.Statement;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.api.parallel.Isolated;
 
+@Isolated("Mutates snapshot storage health and ARPropertyManager PATH_DB")
 class BotJobDeleteTransactionTest {
 
     @TempDir
     Path tempDir;
+
+    private PageScanSnapshotTestState snapshotState;
+
+    @BeforeEach
+    void isolateSnapshotStorage() throws Exception {
+        snapshotState = PageScanSnapshotTestState.isolate(tempDir);
+    }
+
+    @AfterEach
+    void restoreSnapshotStorage() throws Exception {
+        snapshotState.close();
+    }
 
     @Test
     void deletesSelectedBotJobsAndEveryNonCascadingOwnedRow() throws Exception {
@@ -183,10 +200,9 @@ class BotJobDeleteTransactionTest {
             sql.execute("CREATE TABLE instruction_variable_command_config(bot_job_id INTEGER,value TEXT)");
             sql.execute("CREATE TABLE instruction_graph_state(workspace_kind TEXT,owner_id INTEGER,value TEXT)");
             sql.execute("CREATE TABLE scanned_element(bot_job_id INTEGER,value TEXT)");
-            sql.execute("CREATE TABLE page_scan_snapshot(scan_id TEXT PRIMARY KEY,"
-                    + "home_banking_id INTEGER,bot_job_id INTEGER,artifact_path TEXT)");
             sql.execute("CREATE TABLE bot_job_variable_migration_note(bot_job_id INTEGER,value TEXT)");
         }
+        new M20260807_PageScanSnapshot().apply(connection, "TEXT");
     }
 
     private void seedTwoBotJobs(Connection connection) throws SQLException {
@@ -198,9 +214,13 @@ class BotJobDeleteTransactionTest {
             sql.execute("INSERT INTO instruction_graph_state VALUES"
                     + "('BOT_JOB',1,'one'),('BOT_JOB',2,'two'),('COMPONENT',1,'component')");
             sql.execute("INSERT INTO scanned_element VALUES(1,'one'),(2,'two')");
-            sql.execute("INSERT INTO page_scan_snapshot VALUES"
-                    + "('scan-one',2,1,'org-2/bot-job-1/page'),"
-                    + "('scan-two',2,2,'org-2/bot-job-2/page')");
+            sql.execute("INSERT INTO page_scan_snapshot("
+                    + "scan_id,home_banking_id,bot_job_id,home_url_id,page_key,page_url,"
+                    + "captured_at,element_count,artifact_path,manifest_sha256,status,pinned) VALUES"
+                    + "('scan-one',2,1,NULL,'page-one','https://bank.example/one',"
+                    + "'2026-08-13T00:00:00Z',1,'org-2/bot-job-1/page','hash-one','READY',0),"
+                    + "('scan-two',2,2,NULL,'page-two','https://bank.example/two',"
+                    + "'2026-08-13T00:00:01Z',1,'org-2/bot-job-2/page','hash-two','READY',0)");
             sql.execute("INSERT INTO bot_job_variable_migration_note VALUES(1,'one'),(2,'two')");
         }
     }

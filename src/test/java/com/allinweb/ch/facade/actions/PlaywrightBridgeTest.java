@@ -3,202 +3,215 @@ package com.allinweb.ch.facade.actions;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.allinweb.ch.db.ScannedPageIdentity;
 import com.allinweb.ch.driver.ARPlaywrightDriver;
 import com.allinweb.ch.driver.ARWebDriver;
-import com.allinweb.ch.facade.PerformDataBase;
-import com.allinweb.ch.facade.PlaywrightActionExecutor.TextResult;
-import com.allinweb.ch.facade.ScannedElementResolver;
+import com.allinweb.ch.facade.PlaywrightRuntimeHealingExecutor.Diagnostic;
+import com.allinweb.ch.facade.PlaywrightRuntimeHealingExecutor.Result;
+import com.allinweb.ch.facade.RuntimeElementHealingService;
+import com.allinweb.ch.facade.RuntimeElementHealingService.Preparation;
+import com.allinweb.ch.facade.RuntimeElementHealingService.Status;
 import com.allinweb.ch.model.FieldData;
 import com.allinweb.ch.model.InstructionLoad;
-import com.allinweb.ch.model.ScannedElement;
 import com.allinweb.ch.util.ARConstantsEngine;
 import com.allinweb.ch.util.ARPriorities;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 
 class PlaywrightBridgeTest {
 
+    private static final int HOME_BANKING_ID = 2;
+    private static final int BOT_JOB_ID = 32;
+    private static final String PAGE_URL = "https://bank.example.test/accounts";
+
     @Test
     void testClickUsesTheCapturedActivePageWithoutStartupMutation() {
-        ActionContext context = mock(ActionContext.class);
-        ARWebDriver runtime = mock(ARWebDriver.class);
-        ARPlaywrightDriver activePage = mock(ARPlaywrightDriver.class);
-        InstructionLoad instruction = new InstructionLoad();
-        when(context.arWebDriver()).thenReturn(runtime);
-        when(runtime.isPlaywrightEnabled()).thenReturn(true);
-        when(runtime.currentPlaywrightDriver()).thenReturn(activePage);
-        when(activePage.isOpen()).thenReturn(true);
-        when(activePage.click(instruction)).thenReturn(true);
+        Fixture fixture = fixture("Submit");
+        when(fixture.activePage().runtimeClick(fixture.instruction(), fixture.preparation()))
+                .thenReturn(result(true, true, null, "CLICK"));
 
-        assertTrue(new PlaywrightBridge(context)
-                .tryPlaywrightWebAction(
-                        instruction,
-                        new FieldData("Test", ""),
-                        ARConstantsEngine.CLICK,
-                        new HashMap<>()));
+        assertTrue(withHealing(fixture, bridge -> bridge.tryPlaywrightWebAction(
+                fixture.instruction(),
+                new FieldData("Test", ""),
+                ARConstantsEngine.CLICK,
+                new HashMap<>())));
 
-        verify(activePage).click(instruction);
-        verifyNoStartupPageMutation(runtime, activePage);
+        verify(fixture.activePage()).runtimeClick(fixture.instruction(), fixture.preparation());
+        verifyNoStartupPageMutation(fixture.runtime(), fixture.activePage());
     }
 
     @Test
     void testInputUsesTheCapturedActivePageWithoutStartupMutation() {
-        ActionContext context = mock(ActionContext.class);
-        ARWebDriver runtime = mock(ARWebDriver.class);
-        ARPlaywrightDriver activePage = mock(ARPlaywrightDriver.class);
-        InstructionLoad instruction = new InstructionLoad();
+        Fixture fixture = fixture("Customer");
         FieldData input = new FieldData("Test", "Banca Stato");
-        when(context.arWebDriver()).thenReturn(runtime);
-        when(runtime.isPlaywrightEnabled()).thenReturn(true);
-        when(runtime.currentPlaywrightDriver()).thenReturn(activePage);
-        when(activePage.isOpen()).thenReturn(true);
-        when(activePage.fill(instruction, input)).thenReturn(true);
+        when(fixture.activePage().runtimeInput(
+                        fixture.instruction(), input, fixture.preparation()))
+                .thenReturn(result(true, true, null, "INPUT"));
 
-        assertTrue(new PlaywrightBridge(context)
-                .tryPlaywrightWebAction(
-                        instruction,
-                        input,
-                        ARConstantsEngine.INSERT,
-                        new HashMap<>()));
+        assertTrue(withHealing(fixture, bridge -> bridge.tryPlaywrightWebAction(
+                fixture.instruction(), input, ARConstantsEngine.INSERT, new HashMap<>())));
 
-        verify(activePage).fill(instruction, input);
-        verifyNoStartupPageMutation(runtime, activePage);
+        verify(fixture.activePage()).runtimeInput(
+                fixture.instruction(), input, fixture.preparation());
+        verifyNoStartupPageMutation(fixture.runtime(), fixture.activePage());
     }
 
     @Test
     void emptyOutputIsSuccessfulAndStoredAsLegitimateWebData() {
-        ActionContext context = mock(ActionContext.class);
-        ARWebDriver runtime = mock(ARWebDriver.class);
-        ARPlaywrightDriver activePage = mock(ARPlaywrightDriver.class);
-        InstructionLoad instruction = new InstructionLoad();
-        instruction.setId(189);
-        instruction.setName("Amount");
+        Fixture fixture = fixture("Amount");
         Map<String, String> outputs = new HashMap<>();
-        when(context.arWebDriver()).thenReturn(runtime);
-        when(runtime.isPlaywrightEnabled()).thenReturn(true);
-        when(runtime.currentPlaywrightDriver()).thenReturn(activePage);
-        when(activePage.isOpen()).thenReturn(true);
-        when(activePage.textResult(instruction)).thenReturn(TextResult.found(""));
+        when(fixture.activePage().runtimeOutput(
+                        fixture.instruction(), fixture.preparation()))
+                .thenReturn(result(true, true, "", "OUTPUT"));
 
-        assertTrue(new PlaywrightBridge(context)
-                .tryPlaywrightWebAction(
-                        instruction,
-                        new FieldData("Amount", ""),
-                        ARConstantsEngine.OUTPUT,
-                        outputs));
+        assertTrue(withHealing(fixture, bridge -> bridge.tryPlaywrightWebAction(
+                fixture.instruction(),
+                new FieldData("Amount", ""),
+                ARConstantsEngine.OUTPUT,
+                outputs)));
 
         assertEquals("", outputs.get("189-Amount"));
-        verify(activePage).textResult(instruction);
-        verify(activePage, never()).text(instruction);
-        verifyNoStartupPageMutation(runtime, activePage);
+        verify(fixture.activePage()).runtimeOutput(
+                fixture.instruction(), fixture.preparation());
+        verifyNoStartupPageMutation(fixture.runtime(), fixture.activePage());
     }
 
     @Test
     void missingOutputIsNotCollapsedIntoAnEmptyValue() {
-        ActionContext context = mock(ActionContext.class);
-        ARWebDriver runtime = mock(ARWebDriver.class);
-        ARPlaywrightDriver activePage = mock(ARPlaywrightDriver.class);
-        InstructionLoad instruction = new InstructionLoad();
-        instruction.setId(189);
-        instruction.setName("Amount");
+        Fixture fixture = fixture("Amount");
         Map<String, String> outputs = new HashMap<>();
-        when(context.arWebDriver()).thenReturn(runtime);
-        when(runtime.isPlaywrightEnabled()).thenReturn(true);
-        when(runtime.currentPlaywrightDriver()).thenReturn(activePage);
-        when(activePage.isOpen()).thenReturn(true);
-        when(activePage.textResult(instruction)).thenReturn(TextResult.missing());
+        when(fixture.activePage().runtimeOutput(
+                        fixture.instruction(), fixture.preparation()))
+                .thenReturn(result(false, false, null, "OUTPUT"));
 
-        assertFalse(new PlaywrightBridge(context)
-                .tryPlaywrightWebAction(
-                        instruction,
-                        new FieldData("Amount", ""),
-                        ARConstantsEngine.OUTPUT,
-                        outputs));
+        assertFalse(withHealing(fixture, bridge -> bridge.tryPlaywrightWebAction(
+                fixture.instruction(),
+                new FieldData("Amount", ""),
+                ARConstantsEngine.OUTPUT,
+                outputs)));
 
         assertFalse(outputs.containsKey("189-Amount"));
-        verify(activePage).textResult(instruction);
-        verify(activePage, never()).text(instruction);
-        verifyNoStartupPageMutation(runtime, activePage);
+        verify(fixture.activePage()).runtimeOutput(
+                fixture.instruction(), fixture.preparation());
+        verifyNoStartupPageMutation(fixture.runtime(), fixture.activePage());
     }
 
     @Test
-    void missingOutputUsesThePageScopedRegistryAndPreservesAHealedEmptyValue() {
+    void passesTheExactOwnerAndPageContextIntoRuntimeHealing() {
+        Fixture fixture = fixture("Amount");
+        Map<String, String> outputs = new HashMap<>();
+        when(fixture.activePage().runtimeOutput(
+                        fixture.instruction(), fixture.preparation()))
+                .thenReturn(result(true, true, "CHF 12", "OUTPUT"));
+
+        assertTrue(withHealing(fixture, bridge -> bridge.tryPlaywrightWebAction(
+                fixture.instruction(),
+                new FieldData("Amount", ""),
+                ARConstantsEngine.OUTPUT,
+                outputs)));
+
+        assertEquals("CHF 12", outputs.get("189-Amount"));
+        verify(fixture.healing()).prepare(
+                HOME_BANKING_ID, BOT_JOB_ID, PAGE_URL, fixture.instruction());
+        verify(fixture.activePage()).runtimeOutput(
+                fixture.instruction(), fixture.preparation());
+        verifyNoStartupPageMutation(fixture.runtime(), fixture.activePage());
+    }
+
+    private static Fixture fixture(String name) {
         ActionContext context = mock(ActionContext.class);
         ARWebDriver runtime = mock(ARWebDriver.class);
         ARPlaywrightDriver activePage = mock(ARPlaywrightDriver.class);
         ARPriorities priorities = mock(ARPriorities.class);
-        PerformDataBase database = mock(PerformDataBase.class);
+        RuntimeElementHealingService healing = mock(RuntimeElementHealingService.class);
         InstructionLoad instruction = new InstructionLoad();
         instruction.setId(189);
-        instruction.setName("Amount");
-        instruction.setXpath("//*[@id='stale-amount']");
-        ScannedElement registryElement = new ScannedElement();
-        registryElement.setXPath("//*[@id='current-amount']");
-        registryElement.setCssSelector("#current-amount");
-        ScannedElementResolver.Result registryResult = new ScannedElementResolver.Result(
-                registryElement,
-                ScannedElementResolver.Strategy.NAME_UNIQUE,
-                0.85);
-        Map<String, String> outputs = new HashMap<>();
+        instruction.setName(name);
+        instruction.setHomeBankingId(HOME_BANKING_ID);
+        instruction.setBotJobId(BOT_JOB_ID);
+        Preparation preparation = new Preparation(
+                Status.READY,
+                HOME_BANKING_ID,
+                BOT_JOB_ID,
+                ScannedPageIdentity.fromLiveUrl(PAGE_URL).pageKey(),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of());
 
         when(context.arWebDriver()).thenReturn(runtime);
         when(context.priorities()).thenReturn(priorities);
-        when(priorities.getJobId()).thenReturn(32);
+        when(priorities.getJobId()).thenReturn(BOT_JOB_ID);
         when(runtime.isPlaywrightEnabled()).thenReturn(true);
         when(runtime.currentPlaywrightDriver()).thenReturn(activePage);
         when(activePage.isOpen()).thenReturn(true);
-        when(activePage.currentUrl()).thenReturn("https://bank.example.test/accounts");
-        when(activePage.textResult(instruction)).thenReturn(TextResult.missing());
-        when(activePage.textResult(argThat(candidate ->
-                        candidate != instruction
-                                && "//*[@id='current-amount']".equals(candidate.getXpath())
-                                && "#current-amount".equals(candidate.getCssSelector()))))
-                .thenReturn(TextResult.found(""));
-        when(database.resolveScannedElementByBotJobAndPage(
-                        32,
-                        "https://bank.example.test/accounts",
-                        instruction))
-                .thenReturn(registryResult);
-
-        try (MockedStatic<PerformDataBase> databaseSingleton = mockStatic(PerformDataBase.class)) {
-            databaseSingleton.when(PerformDataBase::getInstance).thenReturn(database);
-
-            assertTrue(new PlaywrightBridge(context)
-                    .tryPlaywrightWebAction(
-                            instruction,
-                            new FieldData("Amount", ""),
-                            ARConstantsEngine.OUTPUT,
-                            outputs));
-        }
-
-        assertEquals("", outputs.get("189-Amount"));
-        verify(database).resolveScannedElementByBotJobAndPage(
-                32,
-                "https://bank.example.test/accounts",
-                instruction);
-        verify(activePage).textResult(instruction);
-        verify(activePage).textResult(argThat(candidate ->
-                candidate != instruction
-                        && "//*[@id='current-amount']".equals(candidate.getXpath())
-                        && "#current-amount".equals(candidate.getCssSelector())));
-        verify(activePage, never()).text(instruction);
-        verifyNoStartupPageMutation(runtime, activePage);
+        when(activePage.currentUrl()).thenReturn(PAGE_URL);
+        when(healing.prepare(
+                        eq(HOME_BANKING_ID),
+                        eq(BOT_JOB_ID),
+                        eq(PAGE_URL),
+                        eq(instruction)))
+                .thenReturn(preparation);
+        return new Fixture(context, runtime, activePage, healing, instruction, preparation);
     }
 
-    private static void verifyNoStartupPageMutation(ARWebDriver runtime, ARPlaywrightDriver activePage) {
+    private static boolean withHealing(Fixture fixture, BridgeCall call) {
+        try (MockedStatic<RuntimeElementHealingService> singleton =
+                mockStatic(RuntimeElementHealingService.class)) {
+            singleton.when(RuntimeElementHealingService::getInstance)
+                    .thenReturn(fixture.healing());
+            return call.run(new PlaywrightBridge(fixture.context()));
+        }
+    }
+
+    private static Result result(boolean succeeded, boolean found, String value, String action) {
+        return new Result(
+                succeeded,
+                found,
+                value,
+                new Diagnostic(
+                        succeeded ? "COMPLETED" : "TARGET_NOT_FOUND",
+                        "AUTHORED",
+                        action,
+                        189,
+                        0,
+                        found ? 1 : 0,
+                        succeeded,
+                        succeeded,
+                        succeeded,
+                        succeeded,
+                        succeeded ? 1 : 0));
+    }
+
+    private static void verifyNoStartupPageMutation(
+            ARWebDriver runtime, ARPlaywrightDriver activePage) {
         verify(runtime, never()).getPlaywrightDriver();
         verify(activePage, never()).openOrNavigate(anyString(), anyString(), anyString());
         verify(activePage, never()).navigate(anyString());
         verify(activePage, never()).reload();
     }
+
+    @FunctionalInterface
+    private interface BridgeCall {
+        boolean run(PlaywrightBridge bridge);
+    }
+
+    private record Fixture(
+            ActionContext context,
+            ARWebDriver runtime,
+            ARPlaywrightDriver activePage,
+            RuntimeElementHealingService healing,
+            InstructionLoad instruction,
+            Preparation preparation) {}
 }

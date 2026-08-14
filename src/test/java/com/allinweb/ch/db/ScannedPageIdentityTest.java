@@ -78,6 +78,15 @@ class ScannedPageIdentityTest {
     }
 
     @Test
+    void removesDotSegmentsWithoutCollapsingRepeatedSeparators() {
+        assertEquals(
+                "https://bank.example/payments//confirm",
+                ScannedPageIdentity.fromLiveUrl(
+                                "https://bank.example/accounts/../payments//./confirm")
+                        .normalizedUrl());
+    }
+
+    @Test
     void preservesSpaFragmentsAsDistinctPageIdentities() {
         ScannedPageIdentity accounts =
                 ScannedPageIdentity.fromLiveUrl("https://bank.example/app#/accounts");

@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.allinweb.ch.db.migrations.M20260807_PageScanSnapshot;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
@@ -13,13 +14,29 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.api.parallel.Isolated;
 
+@Isolated("Mutates snapshot storage health and ARPropertyManager PATH_DB")
 class AllJobDetailsDeleteTransactionTest {
 
     @TempDir
     Path tempDir;
+
+    private PageScanSnapshotTestState snapshotState;
+
+    @BeforeEach
+    void isolateSnapshotStorage() throws Exception {
+        snapshotState = PageScanSnapshotTestState.isolate(tempDir);
+    }
+
+    @AfterEach
+    void restoreSnapshotStorage() throws Exception {
+        snapshotState.close();
+    }
 
     @Test
     void clearsSnapshotRowsAndEveryStrictBotJobArtifactRoot() throws Exception {
@@ -118,16 +135,20 @@ class AllJobDetailsDeleteTransactionTest {
     private void createSchema(Connection connection) throws SQLException {
         try (Statement statement = connection.createStatement()) {
             statement.execute("CREATE TABLE bot_job(id INTEGER PRIMARY KEY)");
-            statement.execute("CREATE TABLE page_scan_snapshot(scan_id TEXT,bot_job_id INTEGER)");
             statement.execute("CREATE TABLE scanned_element(id INTEGER,bot_job_id INTEGER)");
             statement.execute("CREATE TABLE component_block(id INTEGER)");
         }
+        new M20260807_PageScanSnapshot().apply(connection, "TEXT");
     }
 
     private void seed(Connection connection) throws SQLException {
         try (Statement statement = connection.createStatement()) {
             statement.execute("INSERT INTO bot_job VALUES(1)");
-            statement.execute("INSERT INTO page_scan_snapshot VALUES('scan',1)");
+            statement.execute("INSERT INTO page_scan_snapshot("
+                    + "scan_id,home_banking_id,bot_job_id,home_url_id,page_key,page_url,"
+                    + "captured_at,element_count,artifact_path,manifest_sha256,status,pinned) "
+                    + "VALUES('scan',2,1,NULL,'page','https://bank.example/page',"
+                    + "'2026-08-13T00:00:00Z',1,'org-2/bot-job-1/page','hash','READY',0)");
             statement.execute("INSERT INTO scanned_element VALUES(1,1)");
             statement.execute("INSERT INTO component_block VALUES(1)");
         }

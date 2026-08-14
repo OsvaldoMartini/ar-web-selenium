@@ -96,15 +96,59 @@ public record ScannedPageIdentity(String actualUrl, String normalizedUrl, String
     private static String normalizePath(String rawPath) {
         String path = value(rawPath);
         if (path.isEmpty()) return "/";
-        try {
-            path = new URI(path).normalize().getRawPath();
-        } catch (URISyntaxException ignored) {
-            // Keep the browser-provided path when URI path-only normalization cannot parse it.
-        }
+        path = removeDotSegments(path);
         if (path.length() > 1 && path.endsWith("/")) {
             path = path.substring(0, path.length() - 1);
         }
         return path.isEmpty() ? "/" : path;
+    }
+
+    /**
+     * RFC 3986 dot-segment removal without collapsing repeated slash characters.
+     *
+     * <p>{@link URI#normalize()} treats an empty path segment like a redundant separator, but
+     * repeated separators can be server-significant. Page identity therefore removes only the
+     * explicit {@code .}/{@code ..} navigation syntax and preserves every empty segment.
+     */
+    private static String removeDotSegments(String rawPath) {
+        String input = rawPath;
+        StringBuilder output = new StringBuilder(rawPath.length());
+        while (!input.isEmpty()) {
+            if (input.startsWith("../")) {
+                input = input.substring(3);
+            } else if (input.startsWith("./")) {
+                input = input.substring(2);
+            } else if (input.startsWith("/./")) {
+                input = input.substring(2);
+            } else if ("/.".equals(input)) {
+                input = "/";
+            } else if (input.startsWith("/../")) {
+                input = input.substring(3);
+                removeLastPathSegment(output);
+            } else if ("/..".equals(input)) {
+                input = "/";
+                removeLastPathSegment(output);
+            } else if (".".equals(input) || "..".equals(input)) {
+                input = "";
+            } else {
+                int nextSlash = input.startsWith("/")
+                        ? input.indexOf('/', 1)
+                        : input.indexOf('/');
+                if (nextSlash < 0) {
+                    output.append(input);
+                    input = "";
+                } else {
+                    output.append(input, 0, nextSlash);
+                    input = input.substring(nextSlash);
+                }
+            }
+        }
+        return output.toString();
+    }
+
+    private static void removeLastPathSegment(StringBuilder path) {
+        int slash = path.lastIndexOf("/");
+        path.setLength(Math.max(0, slash));
     }
 
     private static int normalizedPort(String scheme, int port) {

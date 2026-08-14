@@ -12,11 +12,11 @@ No code was modified during this investigation.
 
 | Failing suite | Failed | Why it fails | Required action |
 |---|---:|---|---|
-| `ScannedPageIdentityTest` | 1 | URI normalization collapses `/accounts//` into `/accounts/`, although the identity contract requires them to remain distinct. | Fix production URL normalization, then retain the test. |
-| `PlaywrightBridgeTest` | 5 | Fixtures create instructions without the now-required Bot Job owner/page/runtime context. Production correctly returns `INVALID_REQUEST`. | Update fixtures with owner IDs, priorities and page context. |
-| `AllJobDetailsDeleteTransactionTest` | 2 | Snapshot artifact staging fails at the Windows private ACL operation. | Resolve shared ACL test-environment/security seam, then rerun. |
-| `AutomationTestCatalogServiceTest` | 1 | Catalog contains 1,459 declarations; source now contains 1,469. | Regenerate `automation-tests.json` after test repairs. |
-| `BotJobDeleteTransactionTest` | 3 | Same Windows ACL failure while staging capture artifacts. | Resolve ACL root first. |
+| `ScannedPageIdentityTest` | 0 | Resolved: RFC 3986 dot-segment removal now preserves repeated slash segments. | Focused suite passes 11/11. |
+| `PlaywrightBridgeTest` | 0 | Resolved: fixtures now exercise the current owner/page-scoped healing preparation and runtime action APIs. | Focused suite passes 5/5. |
+| `AllJobDetailsDeleteTransactionTest` | 0 | Resolved: fixture now isolates snapshot health/PATH_DB and installs the authoritative snapshot schema. | Focused suite passes 3/3. |
+| `AutomationTestCatalogServiceTest` | 0 | Resolved: `automation-tests.json` was regenerated from the current Java and React test trees. | Focused suite passes 2/2. |
+| `BotJobDeleteTransactionTest` | 0 | Resolved as the same fixture root: snapshot health/PATH_DB and schema are isolated and current. | Broader affected suite passes 5/5. |
 | `ComponentMemoryApplyServiceTest` | 2 | Capture verification fails, probably because test artifacts cannot receive/verify the required ACL. | Rerun after ACL correction before changing application behavior. |
 | `ExecutionPreflightSnapshotRepositoryTest` | 2 | Repository queries missing `instruction_variable_slot`; these tests intentionally exercise an older schema. | Add the promised legacy-schema fallback or explicitly change the compatibility contract. This is not merely an assertion update. |
 | `ExecutionCommandSemanticsCharacterizationTest` | 2 | Tests still say CK and ExcelWrite require a Web Element. Current architecture makes CK variable-based and ExcelWrite instruction/file-based. | Update obsolete semantics tests. |
@@ -107,3 +107,14 @@ Rerun coverage:
 - [ ] Committed
 - [ ] Pushed
 - [ ] Deployed
+
+## Resolved checkpoint — 2026-08-13
+
+- Page identity preserves server-significant repeated slash segments while still removing RFC 3986 dot segments and one trailing slash.
+- Playwright Bridge coverage now supplies the required Bot Job owner, active page and prepared runtime-healing contract.
+- All-job and single-job deletion fixtures use isolated process snapshot state and the registered snapshot schema instead of partial legacy tables.
+- Windows long-path private ACL verification passes under normal process permissions; the earlier error 5 was caused by the managed filesystem sandbox, so production ACL enforcement was not weakened.
+- The generated automation catalog is synchronized with the current source trees.
+- Exact requested suites: 21/21 passed.
+- Directly affected broader suites: 18/18 passed.
+- Windows extended-length ACL suite: 1/1 passed.
