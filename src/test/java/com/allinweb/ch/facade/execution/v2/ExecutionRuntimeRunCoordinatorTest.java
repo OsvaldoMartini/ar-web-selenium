@@ -152,12 +152,39 @@ class ExecutionRuntimeRunCoordinatorTest {
         assertEquals(0, healing.saveCount);
     }
 
+    @Test
+    void renewsTheExactRunLeaseWhileWaitingForAUserRecoveryDecision() {
+        FakeRuntime runtime = new FakeRuntime();
+        runtime.snapshots.add(state("READY"));
+        runtime.snapshots.add(state("READY"));
+        FakeKeepAlive keepAlive = new FakeKeepAlive();
+        ExecutionRuntimeRunCoordinator coordinator = coordinator(
+                runtime, new FakeHealing(), keepAlive);
+
+        ExecutionRuntimeRunCoordinator.Run run = coordinator.start(facts(), plan());
+        keepAlive.tick();
+        coordinator.close(run);
+        keepAlive.tick();
+
+        assertEquals(1, runtime.heartbeatCount);
+        assertTrue(keepAlive.cancelled);
+        assertEquals(1, runtime.stopCount);
+        assertEquals(1, runtime.releaseCount);
+    }
+
     private static ExecutionRuntimeRunCoordinator coordinator(FakeRuntime runtime) {
         return coordinator(runtime, new FakeHealing());
     }
 
     private static ExecutionRuntimeRunCoordinator coordinator(
             FakeRuntime runtime, FakeHealing healing) {
+        return coordinator(runtime, healing, task -> () -> {});
+    }
+
+    private static ExecutionRuntimeRunCoordinator coordinator(
+            FakeRuntime runtime,
+            FakeHealing healing,
+            ExecutionRuntimeRunCoordinator.KeepAlivePort keepAlive) {
         IssuedGrant grant = new IssuedGrant(
                 1,
                 "v1",
@@ -171,7 +198,8 @@ class ExecutionRuntimeRunCoordinatorTest {
                 runtime,
                 healing,
                 new ExecutionRuntimeActionFactory(),
-                new FakeTime());
+                new FakeTime(),
+                keepAlive);
     }
 
     private static AuthorizedGrantFacts facts() {
@@ -341,6 +369,21 @@ class ExecutionRuntimeRunCoordinatorTest {
         public JsonObject release(Authority authority) {
             releaseCount++;
             return new JsonObject();
+        }
+    }
+
+    private static final class FakeKeepAlive implements ExecutionRuntimeRunCoordinator.KeepAlivePort {
+        private Runnable task;
+        private boolean cancelled;
+
+        @Override
+        public ExecutionRuntimeRunCoordinator.KeepAliveLease start(Runnable task) {
+            this.task = task;
+            return () -> cancelled = true;
+        }
+
+        private void tick() {
+            task.run();
         }
     }
 

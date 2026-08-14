@@ -14,17 +14,27 @@ import java.time.Duration;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import lombok.extern.slf4j.Slf4j;
 
 /** Owns one Java-authorized lifecycle for an isolated Execution V2 Node run. */
+@Slf4j
 public final class ExecutionRuntimeRunCoordinator {
     private static final Duration READY_TIMEOUT = Duration.ofSeconds(45);
     private static final long READY_POLL_MILLIS = 200L;
+    private static final long KEEP_ALIVE_INTERVAL_SECONDS = 15L;
+    private static final int MAX_KEEP_ALIVE_THREADS = 5;
+    private static final KeepAlivePort NO_KEEP_ALIVE = task -> () -> {};
 
     private final GrantPort grants;
     private final RuntimePort runtime;
     private final HealingPort healing;
     private final ExecutionRuntimeActionFactory actions;
     private final TimePort time;
+    private final KeepAlivePort keepAlive;
 
     ExecutionRuntimeRunCoordinator(
             GrantPort grants,
@@ -32,11 +42,22 @@ public final class ExecutionRuntimeRunCoordinator {
             HealingPort healing,
             ExecutionRuntimeActionFactory actions,
             TimePort time) {
+        this(grants, runtime, healing, actions, time, NO_KEEP_ALIVE);
+    }
+
+    ExecutionRuntimeRunCoordinator(
+            GrantPort grants,
+            RuntimePort runtime,
+            HealingPort healing,
+            ExecutionRuntimeActionFactory actions,
+            TimePort time,
+            KeepAlivePort keepAlive) {
         this.grants = Objects.requireNonNull(grants, "Execution V2 grant port is required");
         this.runtime = Objects.requireNonNull(runtime, "Execution V2 runtime port is required");
         this.healing = Objects.requireNonNull(healing, "Execution V2 healing port is required");
         this.actions = Objects.requireNonNull(actions, "Execution V2 action factory is required");
         this.time = Objects.requireNonNull(time, "Execution V2 time port is required");
+        this.keepAlive = Objects.requireNonNull(keepAlive, "Execution V2 keep-alive port is required");
     }
 
     /** Missing grant configuration keeps V2 unavailable without affecting the V1 runtime. */
@@ -73,7 +94,8 @@ public final class ExecutionRuntimeRunCoordinator {
                         }
                     },
                     new ExecutionRuntimeActionFactory(),
-                    new SystemTimePort());
+                    new SystemTimePort(),
+                    SystemKeepAlivePort.INSTANCE);
         });
     }
 
@@ -91,8 +113,10 @@ public final class ExecutionRuntimeRunCoordinator {
                             URI.create(plan.environment().url()), false,
                             browserChannel(plan.environment().browserType())));
             awaitReady(authority, snapshot);
+            Run run = new Run(grant.runId(), facts, plan, authority);
+            run.keepAliveLease = keepAlive.start(() -> renewLease(run));
             ready = true;
-            return new Run(grant.runId(), facts, plan, authority);
+            return run;
         } finally {
             if (!ready) cleanup(authority);
         }
@@ -345,6 +369,7 @@ public final class ExecutionRuntimeRunCoordinator {
         synchronized (current) {
             if (current.closed) return;
             current.stopRequested.set(true);
+            current.keepAliveLease.close();
             try {
                 runtime.stop(current.authority);
                 runtime.release(current.authority);
@@ -353,6 +378,22 @@ public final class ExecutionRuntimeRunCoordinator {
                 // Do not declare the run closed or discard authority after an unknown terminal
                 // outcome. The owner may retry the same exact stop/release lifecycle.
                 throw failure;
+            }
+        }
+    }
+
+    private void renewLease(Run current) {
+        synchronized (current) {
+            if (current.closed || current.stopRequested.get()) return;
+            try {
+                runtime.heartbeat(current.authority);
+                if (current.keepAliveUnhealthy.compareAndSet(true, false)) {
+                    log.info("Execution V2 keep-alive recovered runId={}", current.runId);
+                }
+            } catch (RuntimeException failure) {
+                if (current.keepAliveUnhealthy.compareAndSet(false, true)) {
+                    log.warn("Execution V2 keep-alive failed runId={}", current.runId, failure);
+                }
             }
         }
     }
@@ -443,6 +484,8 @@ public final class ExecutionRuntimeRunCoordinator {
         private boolean actionOutcomeUnknown;
         private volatile boolean closed;
         private PendingRecovery pendingRecovery;
+        private KeepAliveLease keepAliveLease = () -> {};
+        private final AtomicBoolean keepAliveUnhealthy = new AtomicBoolean();
 
         private Run(String runId, AuthorizedGrantFacts facts, Plan plan, Authority authority) {
             this.runId = runId;
@@ -476,6 +519,36 @@ public final class ExecutionRuntimeRunCoordinator {
         JsonObject refresh(Authority authority);
         JsonObject stop(Authority authority);
         JsonObject release(Authority authority);
+    }
+
+    interface KeepAlivePort {
+        KeepAliveLease start(Runnable task);
+    }
+
+    interface KeepAliveLease {
+        void close();
+    }
+
+    private enum SystemKeepAlivePort implements KeepAlivePort {
+        INSTANCE;
+
+        private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(
+                MAX_KEEP_ALIVE_THREADS,
+                runnable -> {
+                    Thread thread = new Thread(runnable, "execution-v2-keep-alive");
+                    thread.setDaemon(true);
+                    return thread;
+                });
+
+        @Override
+        public KeepAliveLease start(Runnable task) {
+            var future = scheduler.scheduleWithFixedDelay(
+                    task,
+                    KEEP_ALIVE_INTERVAL_SECONDS,
+                    KEEP_ALIVE_INTERVAL_SECONDS,
+                    TimeUnit.SECONDS);
+            return () -> future.cancel(false);
+        }
     }
 
     interface HealingPort {
