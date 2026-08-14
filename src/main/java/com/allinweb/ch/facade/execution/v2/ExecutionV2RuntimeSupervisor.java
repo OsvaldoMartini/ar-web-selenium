@@ -17,9 +17,9 @@ public final class ExecutionV2RuntimeSupervisor {
     public static final String NODE_ENV = "ARWEB_EXECUTION_V2_NODE_BINARY";
     private static final Duration HEALTH_TIMEOUT = Duration.ofSeconds(2);
     private static final Duration START_TIMEOUT = Duration.ofSeconds(20);
-    private static final ExecutionV2RuntimeSupervisor INSTANCE = new ExecutionV2RuntimeSupervisor();
     private static final org.slf4j.Logger trace =
             org.slf4j.LoggerFactory.getLogger("com.allinweb.smoke.execution");
+    private static final ExecutionV2RuntimeSupervisor INSTANCE = new ExecutionV2RuntimeSupervisor();
 
     private final ExecutionRuntimeClientConfiguration clientConfiguration;
     private final ExecutionRuntimeRunCoordinator coordinator;
