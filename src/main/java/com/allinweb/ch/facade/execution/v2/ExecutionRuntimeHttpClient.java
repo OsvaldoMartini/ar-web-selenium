@@ -96,6 +96,10 @@ public final class ExecutionRuntimeHttpClient {
         return tokenExchange("POST", run, "stop", null);
     }
 
+    JsonObject closeBrowser(RuntimeRun run) {
+        return tokenExchange("POST", run, "close-browser", null);
+    }
+
     JsonObject release(RuntimeRun run) {
         JsonObject response = tokenExchange("DELETE", run, "release", null);
         run.retire();

@@ -68,6 +68,7 @@ class PlaywrightBrowserSessionHandle implements BrowserSessionHandle {
   private unexpectedCloseCode?: string;
   private unexpectedCloseHandler?: (code: string) => void;
   private readonly actions = new PhysicalActionExecutor();
+  private activeAction: AbortController | undefined;
 
   constructor(
     private readonly browser: Browser,
@@ -104,12 +105,24 @@ class PlaywrightBrowserSessionHandle implements BrowserSessionHandle {
 
   async perform(request: PhysicalActionRequest): Promise<PhysicalActionResult> {
     this.requireOpen();
-    return this.actions.execute(new PlaywrightActionPage(this.page), request);
+    if (this.activeAction) throw new Error('BROWSER_ACTION_ALREADY_ACTIVE');
+    const action = new AbortController();
+    this.activeAction = action;
+    try {
+      return await this.actions.execute(new PlaywrightActionPage(this.page), request, action.signal);
+    } finally {
+      if (this.activeAction === action) this.activeAction = undefined;
+    }
+  }
+
+  interrupt(): void {
+    this.activeAction?.abort();
   }
 
   async close(): Promise<void> {
     if (this.closed) return;
     this.closed = true;
+    this.interrupt();
     await closeResources(this.page, this.context, this.browser);
   }
 

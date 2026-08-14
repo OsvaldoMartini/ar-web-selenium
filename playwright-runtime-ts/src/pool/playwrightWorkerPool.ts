@@ -1,4 +1,4 @@
-import { BrowserSessionFactory } from '../browser/browserSessionFactory';
+import { BrowserSessionFactory, BrowserSessionHandle } from '../browser/browserSessionFactory';
 import { ExecutionSession } from '../session/executionSession';
 import { ExecutionLaunchDescriptor, ExecutionSessionSnapshot } from '../session/sessionContracts';
 import { PhysicalActionRequest, PhysicalActionResult } from '../action/actionContracts';
@@ -25,6 +25,7 @@ export class PlaywrightWorkerPoolError extends Error {
 export class PlaywrightWorkerPool {
   private readonly entries = new Map<string, PoolEntry>();
   private readonly queue: string[] = [];
+  private readonly retained = new Map<string, BrowserSessionHandle>();
   private draining = false;
 
   constructor(
@@ -42,12 +43,20 @@ export class PlaywrightWorkerPool {
     if (this.queue.length >= this.limits.maximumQueuedRuns) {
       throw new PlaywrightWorkerPoolError('WORKER_QUEUE_CAPACITY_REACHED');
     }
-    const session = new ExecutionSession(descriptor, this.factory, () => {
+    const ownerKey = this.ownerKey(descriptor.run);
+    const retainedHandle = this.retained.get(ownerKey);
+    if (retainedHandle) this.retained.delete(ownerKey);
+    if (!retainedHandle && this.retained.size >= this.limits.maximumActiveRuns) {
+      throw new PlaywrightWorkerPoolError('RETAINED_BROWSER_CAPACITY_REACHED');
+    }
+    const session = new ExecutionSession(descriptor, this.factory, terminal => {
       const terminalEntry = this.entries.get(runId);
       if (!terminalEntry || !terminalEntry.admitted) return;
       terminalEntry.admitted = false;
-      this.scheduleDrain();
-    });
+      // STOPPED owns a reusable browser until release atomically parks it. FAILED has no
+      // reusable handle and may release pool capacity immediately.
+      if (terminal.state === 'FAILED') this.scheduleDrain();
+    }, retainedHandle);
     this.entries.set(runId, { session, admitted: false });
     this.queue.push(runId);
     this.scheduleDrain();
@@ -97,6 +106,18 @@ export class PlaywrightWorkerPool {
     } finally {
       if (entry.admitted) {
         entry.admitted = false;
+      }
+    }
+    return entry.session.snapshot();
+  }
+
+  async closeBrowser(runId: string): Promise<ExecutionSessionSnapshot> {
+    const entry = this.requireEntry(runId);
+    try {
+      await entry.session.closeBrowser();
+    } finally {
+      if (entry.admitted) {
+        entry.admitted = false;
         this.scheduleDrain();
       }
     }
@@ -109,12 +130,21 @@ export class PlaywrightWorkerPool {
     if (entry.admitted || (state !== 'STOPPED' && state !== 'FAILED')) {
       throw new PlaywrightWorkerPoolError('SESSION_RELEASE_STATE_INVALID');
     }
+    const retainedHandle = state === 'STOPPED' ? entry.session.takeRetainedHandle() : undefined;
+    if (retainedHandle) {
+      const key = this.ownerKey(entry.session.descriptor.run);
+      if (this.retained.has(key)) throw new PlaywrightWorkerPoolError('RETAINED_SESSION_CONFLICT');
+      this.retained.set(key, retainedHandle);
+    }
     this.entries.delete(runId);
+    this.scheduleDrain();
   }
 
   async closeAll(): Promise<void> {
     const runIds = [...this.entries.keys()];
-    await Promise.allSettled(runIds.map(runId => this.stop(runId)));
+    await Promise.allSettled(runIds.map(runId => this.closeBrowser(runId)));
+    await Promise.allSettled([...this.retained.values()].map(handle => handle.close()));
+    this.retained.clear();
   }
 
   private scheduleDrain(): void {
@@ -165,5 +195,13 @@ export class PlaywrightWorkerPool {
     const entry = this.entries.get(runId);
     if (!entry) throw new PlaywrightWorkerPoolError('SESSION_NOT_FOUND');
     return entry;
+  }
+
+  private ownerKey(owner: {
+    organizationId: number;
+    homeBankingId: number;
+    botJobId: number;
+  }): string {
+    return `${owner.organizationId}:${owner.homeBankingId}:${owner.botJobId}`;
   }
 }

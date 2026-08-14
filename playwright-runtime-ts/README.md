@@ -16,7 +16,8 @@ Implemented now:
 - exact-token replay, constant-time authority checks, and conflicting-run refusal;
 - a bounded worker pool with global, organization, and Bot Job admission limits;
 - one dedicated Chromium process, BrowserContext, and Page per admitted run;
-- bounded navigation readiness, refresh, stop, cleanup, and asynchronous crash containment;
+- bounded navigation readiness, refresh, interruptible Stop with owner-scoped browser reuse,
+  explicit browser close, cleanup, and asynchronous crash containment;
 - an internal authored/registry/canonical/alias locator ladder for CLICK, INPUT, and OUTPUT;
 - exact page revalidation, tag/frame/action checks, ambiguity refusal, and at-most-once actions;
 - safe structured logs that never include grants or request bodies.
@@ -63,7 +64,8 @@ Endpoints:
 - `POST /v2/runs/{runId}/start` with the opaque run token
 - `GET /v2/runs/{runId}/session` or `/heartbeat` with the run token
 - `POST /v2/runs/{runId}/actions` with the run token
-- `POST /v2/runs/{runId}/refresh` or `/stop` with the run token
+- `POST /v2/runs/{runId}/refresh` or `/stop` with the run token; Stop preserves the browser
+- `POST /v2/runs/{runId}/close-browser` with the run token for an explicit Close Browser command
 - `DELETE /v2/runs/{runId}/release` with the run token after terminal cleanup
 
 Run-token routes use the `X-ARWeb-Run-Token` header. They are intended for the future minimal Java

@@ -107,6 +107,27 @@ class SmokeTestIntegrationV2StepExecutorTest {
         assertEquals("Banca Stato", actions.setValue);
     }
 
+    @Test
+    void onlyTheExplicitCloseBrowserCommandClosesTheV2Page() {
+        InstructionSnapshot close = instruction(1736, "Q", "close_browser", null, false);
+        RecordingActions actions = new RecordingActions(success("COMPLETED"));
+        SmokeTestIntegrationV2StepExecutor executor = new SmokeTestIntegrationV2StepExecutor(
+                actions, (botJobId, blockName, column, rowIndex, instructionId) -> {});
+
+        Outcome outcome = executor.execute(
+                mock(ExecutionRuntimeRunCoordinator.Run.class),
+                plan(List.of(close)),
+                dataset(new ExtractedData()),
+                1L,
+                close.id(),
+                0,
+                variables());
+
+        assertEquals(StepStatus.PASSED, outcome.status());
+        assertEquals(1, actions.closeCalls);
+        assertEquals(0, actions.calls);
+    }
+
     private static JsonObject success(String code) {
         JsonObject result = failure(code);
         result.addProperty("ok", true);
@@ -168,6 +189,7 @@ class SmokeTestIntegrationV2StepExecutorTest {
         private int calls;
         private int getCalls;
         private int setCalls;
+        private int closeCalls;
         private long sequence;
         private String inputValue;
         private String setValue;
@@ -193,6 +215,11 @@ class SmokeTestIntegrationV2StepExecutorTest {
             JsonObject result = new JsonObject();
             result.addProperty("state", "READY");
             return result;
+        }
+
+        @Override
+        public void closeBrowser(ExecutionRuntimeRunCoordinator.Run run) {
+            closeCalls++;
         }
 
         @Override

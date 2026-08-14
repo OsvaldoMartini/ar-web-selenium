@@ -29,6 +29,7 @@ interface RuntimeWorkerPool {
   pageIdentity(runId: string): Promise<string>;
   perform(runId: string, request: PhysicalActionRequest): Promise<PhysicalActionResult>;
   stop(runId: string): Promise<ExecutionSessionSnapshot>;
+  closeBrowser(runId: string): Promise<ExecutionSessionSnapshot>;
   release(runId: string): void;
   closeAll(): Promise<void>;
 }
@@ -227,7 +228,7 @@ export const createRuntimeServer = (options: RuntimeServerOptions = {}) => {
         return;
       }
 
-      const operationMatch = /^\/v2\/runs\/([0-9a-f-]+)\/(start|session|actions|page-identity|refresh|stop|heartbeat|release)$/i.exec(path);
+      const operationMatch = /^\/v2\/runs\/([0-9a-f-]+)\/(start|session|actions|page-identity|refresh|stop|close-browser|heartbeat|release)$/i.exec(path);
       const operationRunId = operationMatch?.[1];
       const operation = operationMatch?.[2]?.toLowerCase();
       if (operationRunId && UUID_PATTERN.test(operationRunId) && operation) {
@@ -290,6 +291,14 @@ export const createRuntimeServer = (options: RuntimeServerOptions = {}) => {
             operationRunId, token, 'runtime.stop', config.runIdleLeaseSeconds,
           );
           success(response, 200, await workerPool.stop(operationRunId));
+          return;
+        }
+        if (method === 'POST' && operation === 'close-browser') {
+          await discardSmallBody(request);
+          registry.authorizeActiveRun(
+            operationRunId, token, 'runtime.stop', config.runIdleLeaseSeconds,
+          );
+          success(response, 200, await workerPool.closeBrowser(operationRunId));
           return;
         }
         if (method === 'DELETE' && operation === 'release') {

@@ -46,8 +46,10 @@ export class ExecutionSession {
     readonly descriptor: ExecutionLaunchDescriptor,
     private readonly factory: BrowserSessionFactory,
     private readonly onTerminal?: (snapshot: ExecutionSessionSnapshot) => void,
+    retainedHandle?: BrowserSessionHandle,
   ) {
     this.endpoint = validateExecutionEndpoint(descriptor.endpoint);
+    this.handle = retainedHandle;
   }
 
   start(): Promise<void> {
@@ -56,16 +58,14 @@ export class ExecutionSession {
       this.transition('STARTING');
       this.startedAt = new Date().toISOString();
       try {
-        this.handle = await this.factory.open(
-          this.descriptor.run.runId,
-          this.descriptor.browser,
+        this.handle ??= await this.factory.open(
+          this.descriptor.run.runId, this.descriptor.browser,
         );
         this.browserInstanceId = this.handle.browserInstanceId;
         this.contextInstanceId = this.handle.contextInstanceId;
         this.pageInstanceId = this.handle.pageInstanceId;
         this.handle.onUnexpectedClose(code => void this.unexpectedClose(code));
         if (this.stopRequested) {
-          await this.closeHandleSafely();
           this.stoppedAt = new Date().toISOString();
           this.transition('STOPPED');
           return;
@@ -73,7 +73,6 @@ export class ExecutionSession {
         this.transition('LOADING_PAGE');
         await this.handle.navigate(this.endpoint);
         if (this.stopRequested) {
-          await this.closeHandleSafely();
           this.stoppedAt = new Date().toISOString();
           this.transition('STOPPED');
           return;
@@ -177,34 +176,33 @@ export class ExecutionSession {
 
   stop(): Promise<void> {
     this.stopRequested = true;
-    const interrupt = this.handle?.close().then(
-      () => undefined,
-      error => error,
-    );
+    this.handle?.interrupt();
     return this.exclusive(async () => {
       if (this.state === 'STOPPED') return;
-      if (this.state === 'FAILED') {
-        if (interrupt) {
-          const failure = await interrupt;
-          if (failure) throw failure;
-        } else await this.closeHandleSafely();
-        return;
-      }
+      if (this.state === 'FAILED') return;
       this.transition('STOPPING');
-      try {
-        if (interrupt) {
-          const failure = await interrupt;
-          if (failure) throw failure;
-        }
-        await this.closeHandleSafely();
-        this.stoppedAt = new Date().toISOString();
-        this.transition('STOPPED');
-      } catch (error) {
-        this.failureCode = safeFailureCode(error);
-        this.transition('FAILED');
-        throw error;
-      }
+      this.stoppedAt = new Date().toISOString();
+      this.transition('STOPPED');
     });
+  }
+
+  closeBrowser(): Promise<void> {
+    this.stopRequested = true;
+    this.handle?.interrupt();
+    return this.exclusive(async () => {
+      if (this.state !== 'STOPPED' && this.state !== 'FAILED') this.transition('STOPPING');
+      await this.closeHandleSafely();
+      this.stoppedAt = new Date().toISOString();
+      if (this.state !== 'STOPPED') this.transition('STOPPED');
+    });
+  }
+
+  takeRetainedHandle(): BrowserSessionHandle | undefined {
+    if (this.state !== 'STOPPED') throw new Error('SESSION_RETAIN_STATE_INVALID');
+    const retained = this.handle;
+    this.handle = undefined;
+    if (retained) retained.onUnexpectedClose(() => undefined);
+    return retained;
   }
 
   snapshot(): ExecutionSessionSnapshot {
@@ -260,14 +258,8 @@ export class ExecutionSession {
   }
 
   private async finishStoppedAfterInterruption(): Promise<void> {
-    try {
-      await this.closeHandleSafely();
-      this.stoppedAt = new Date().toISOString();
-      this.transition('STOPPED');
-    } catch {
-      this.failureCode = 'BROWSER_CLEANUP_FAILED';
-      this.transition('FAILED');
-    }
+    this.stoppedAt = new Date().toISOString();
+    this.transition('STOPPED');
   }
 
   private settleAction(

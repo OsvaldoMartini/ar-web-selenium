@@ -34,6 +34,7 @@ public final class SmokeTestIntegrationV2StepExecutor {
         return LOGICAL_ONLY.contains(action)
                 || "E".equals(action)
                 || "EXCELWRITE".equals(action)
+                || "Q".equals(action)
                 || "REFRESH".equals(action)
                 || "REFRESH_LOOP".equals(action)
                 || "REFRESH_HOLD".equals(action)
@@ -99,6 +100,10 @@ public final class SmokeTestIntegrationV2StepExecutor {
                     || "REFRESH_HOLD".equals(action)) {
                 runtime.refresh(run);
                 return passed("The isolated Playwright page was refreshed.");
+            }
+            if ("Q".equals(action)) {
+                runtime.closeBrowser(run);
+                return passed("The explicit Close Browser instruction closed the Playwright page.");
             }
             if ("GET".equals(action)) {
                 return executeGet(run, instruction, sequence, variables);
@@ -344,6 +349,10 @@ public final class SmokeTestIntegrationV2StepExecutor {
 
         JsonObject refresh(ExecutionRuntimeRunCoordinator.Run run);
 
+        default void closeBrowser(ExecutionRuntimeRunCoordinator.Run run) {
+            throw new UnsupportedOperationException("Close Browser is unavailable");
+        }
+
         JsonObject get(
                 ExecutionRuntimeRunCoordinator.Run run, long sequence, int instructionId);
 
@@ -373,6 +382,11 @@ public final class SmokeTestIntegrationV2StepExecutor {
         @Override
         public JsonObject refresh(ExecutionRuntimeRunCoordinator.Run run) {
             return coordinator.refresh(run);
+        }
+
+        @Override
+        public void closeBrowser(ExecutionRuntimeRunCoordinator.Run run) {
+            coordinator.closeBrowser(run);
         }
 
         @Override

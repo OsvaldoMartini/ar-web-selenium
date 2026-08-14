@@ -72,6 +72,11 @@ class FakeHandle implements BrowserSessionHandle {
     };
   }
 
+  interrupt(): void {
+    this.rejectNavigation?.(new Error('ACTION_CANCELLED'));
+    this.rejectAction?.(new Error('ACTION_CANCELLED'));
+  }
+
   async close(): Promise<void> {
     if (this.closed) return;
     this.closed = true;
@@ -173,6 +178,7 @@ test('admits independent organizations while preserving per-owner queue isolatio
   assert.equal(stoppedFirst.browserInstanceId, firstSnapshot.browserInstanceId);
   assert.equal(stoppedFirst.contextInstanceId, firstSnapshot.contextInstanceId);
   assert.equal(stoppedFirst.pageInstanceId, firstSnapshot.pageInstanceId);
+  pool.release(first.run.runId);
   await waitForState(pool, sameOrganization.run.runId, 'READY');
   assert.equal(factory.handles.get(otherOrganization.run.runId)?.closed, false);
   await pool.closeAll();
@@ -191,7 +197,7 @@ test('stop interrupts a run that is still loading without affecting another run'
   await pool.stop(blocked.run.runId);
 
   assert.equal(pool.snapshot(blocked.run.runId).state, 'STOPPED');
-  assert.equal(factory.handles.get(blocked.run.runId)?.closed, true);
+  assert.equal(factory.handles.get(blocked.run.runId)?.closed, false);
   assert.equal(pool.snapshot(healthy.run.runId).state, 'READY');
   assert.equal(factory.handles.get(healthy.run.runId)?.closed, false);
   await pool.closeAll();
@@ -315,8 +321,49 @@ test('stop interrupts an unresolved action and releases only its exact run', asy
   assert.equal(cancelled.ok, false);
   assert.equal(cancelled.diagnostic.code, 'ACTION_CANCELLED');
   assert.equal(cancelled.diagnostic.physicalAttempts, 0);
-  assert.equal(factory.handles.get(blocked.run.runId)?.closed, true);
+  assert.equal(factory.handles.get(blocked.run.runId)?.closed, false);
   assert.equal(pool.snapshot(healthy.run.runId).state, 'READY');
   assert.equal(factory.handles.get(healthy.run.runId)?.closed, false);
+  await pool.closeAll();
+});
+
+test('stop parks the browser and the next exact owner run reuses it', async () => {
+  const first = descriptor(13, 29);
+  const replacement = descriptor(13, 29);
+  const factory = new FakeFactory();
+  const pool = new PlaywrightWorkerPool(factory, limits);
+  pool.enqueue(first);
+  await waitForState(pool, first.run.runId, 'READY');
+  const original = pool.snapshot(first.run.runId);
+
+  await pool.stop(first.run.runId);
+  assert.equal(factory.handles.get(first.run.runId)?.closed, false);
+  pool.release(first.run.runId);
+  pool.enqueue(replacement);
+  await waitForState(pool, replacement.run.runId, 'READY');
+
+  const reused = pool.snapshot(replacement.run.runId);
+  assert.equal(reused.browserInstanceId, original.browserInstanceId);
+  assert.equal(reused.contextInstanceId, original.contextInstanceId);
+  assert.equal(reused.pageInstanceId, original.pageInstanceId);
+  assert.equal(factory.handles.has(replacement.run.runId), false);
+  await pool.closeAll();
+});
+
+test('explicit close browser destroys the handle instead of parking it', async () => {
+  const first = descriptor(13, 29);
+  const replacement = descriptor(13, 29);
+  const factory = new FakeFactory();
+  const pool = new PlaywrightWorkerPool(factory, limits);
+  pool.enqueue(first);
+  await waitForState(pool, first.run.runId, 'READY');
+
+  await pool.closeBrowser(first.run.runId);
+  assert.equal(factory.handles.get(first.run.runId)?.closed, true);
+  pool.release(first.run.runId);
+  pool.enqueue(replacement);
+  await waitForState(pool, replacement.run.runId, 'READY');
+
+  assert.equal(factory.handles.has(replacement.run.runId), true);
   await pool.closeAll();
 });

@@ -382,6 +382,17 @@ public final class ExecutionRuntimeRunCoordinator {
         }
     }
 
+    /** Explicit Close Browser instruction. Ordinary Stop deliberately preserves the page. */
+    public void closeBrowser(Run run) {
+        Run current = Objects.requireNonNull(run, "Execution V2 run is required");
+        synchronized (current) {
+            if (current.closed) return;
+            current.stopRequested.set(true);
+            current.keepAliveLease.close();
+            runtime.closeBrowser(current.authority);
+        }
+    }
+
     private void renewLease(Run current) {
         synchronized (current) {
             if (current.closed || current.stopRequested.get()) return;
@@ -518,6 +529,9 @@ public final class ExecutionRuntimeRunCoordinator {
         JsonObject action(Authority authority, JsonObject request);
         JsonObject refresh(Authority authority);
         JsonObject stop(Authority authority);
+        default JsonObject closeBrowser(Authority authority) {
+            throw new UnsupportedOperationException("Close Browser is unavailable");
+        }
         JsonObject release(Authority authority);
     }
 
@@ -621,6 +635,11 @@ public final class ExecutionRuntimeRunCoordinator {
         @Override
         public JsonObject stop(Authority authority) {
             return client.stop(run(authority));
+        }
+
+        @Override
+        public JsonObject closeBrowser(Authority authority) {
+            return client.closeBrowser(run(authority));
         }
 
         @Override

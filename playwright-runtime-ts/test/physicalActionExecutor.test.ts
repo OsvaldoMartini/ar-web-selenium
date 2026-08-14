@@ -146,6 +146,20 @@ test('returns target not found after the shared render deadline expires', async 
   assert.ok((page.queryAttempts.get('\u0000#login') ?? 0) > 1);
 });
 
+test('interrupts a pending locator render wait without closing the page', async () => {
+  const page = new FakePage();
+  const controller = new AbortController();
+  const pending = new PhysicalActionExecutor(10_000, 1_000).execute(
+    page,
+    request({ canonicalName: '' }),
+    controller.signal,
+  );
+  setTimeout(() => controller.abort(), 5);
+
+  await assert.rejects(pending, /abort|cancel/i);
+  assert.ok((page.queryAttempts.get('\u0000#login') ?? 0) >= 1);
+});
+
 test('returns bounded comparison evidence without acting when one target remains unresolved', async () => {
   const page = new FakePage();
   const possible = new FakeElement('new-login', ['account login button']);

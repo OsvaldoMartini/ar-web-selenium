@@ -108,6 +108,10 @@ class FakeRuntimeWorkerPool {
     return stopped;
   }
 
+  async closeBrowser(runId: string): Promise<ExecutionSessionSnapshot> {
+    return this.stop(runId);
+  }
+
   release(runId: string): void {
     this.snapshot(runId);
     this.releaseCount += 1;

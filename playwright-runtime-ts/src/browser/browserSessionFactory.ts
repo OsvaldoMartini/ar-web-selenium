@@ -10,6 +10,7 @@ export interface BrowserSessionHandle {
   pageIdentity(): Promise<string>;
   refresh(): Promise<void>;
   perform(request: PhysicalActionRequest): Promise<PhysicalActionResult>;
+  interrupt(): void;
   close(): Promise<void>;
 }
 

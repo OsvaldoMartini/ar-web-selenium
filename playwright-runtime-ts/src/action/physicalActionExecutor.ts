@@ -82,8 +82,13 @@ export class PhysicalActionExecutor {
     }
   }
 
-  async execute(page: ActionPagePort, unsafeRequest: PhysicalActionRequest): Promise<PhysicalActionResult> {
+  async execute(
+    page: ActionPagePort,
+    unsafeRequest: PhysicalActionRequest,
+    signal?: AbortSignal,
+  ): Promise<PhysicalActionResult> {
     const request = validatePhysicalActionRequest(unsafeRequest);
+    signal?.throwIfAborted();
     let initialPageKey: string;
     try {
       initialPageKey = await page.pageKey();
@@ -98,7 +103,9 @@ export class PhysicalActionExecutor {
 
     const deadline = Date.now() + this.resolutionTimeoutMs;
     while (true) {
+      signal?.throwIfAborted();
       const attempt = await this.resolveOnce(page, request);
+      signal?.throwIfAborted();
       if (attempt.target) {
         return this.executeTarget(page, request, attempt.target, attempt.observed);
       }
@@ -109,7 +116,7 @@ export class PhysicalActionExecutor {
             'AMBIGUOUS_TARGET',
             attempt.terminal.diagnostic.stage,
             attempt.observed,
-            await this.recoveryCandidates(page, request),
+            await this.recoveryCandidates(page, request, signal),
           );
         }
         return attempt.terminal;
@@ -118,35 +125,68 @@ export class PhysicalActionExecutor {
       if (remaining <= 0) {
         return this.failedWithRecovery(
           request, 'TARGET_NOT_FOUND', 'RESOLUTION', attempt.observed,
-          await this.recoveryCandidates(page, request),
+          await this.recoveryCandidates(page, request, signal),
         );
       }
-      // Use the Playwright page clock rather than a detached Node timer. Closing this exact
-      // run's page for Stop rejects the wait and immediately unwinds the pending action.
-      await page.waitForRender(Math.min(this.retryIntervalMs, remaining));
+      // Keep the render wait interruptible without destroying the owner-scoped browser.
+      await this.waitForRender(page, Math.min(this.retryIntervalMs, remaining), signal);
     }
+  }
+
+  private async waitForRender(
+    page: ActionPagePort,
+    delayMs: number,
+    signal?: AbortSignal,
+  ): Promise<void> {
+    if (!signal) {
+      await page.waitForRender(delayMs);
+      return;
+    }
+    signal.throwIfAborted();
+    await new Promise<void>((resolve, reject) => {
+      const aborted = (): void => {
+        signal.removeEventListener('abort', aborted);
+        reject(new Error('ACTION_CANCELLED'));
+      };
+      signal.addEventListener('abort', aborted, { once: true });
+      void page.waitForRender(delayMs).then(
+        () => {
+          signal.removeEventListener('abort', aborted);
+          resolve();
+        },
+        error => {
+          signal.removeEventListener('abort', aborted);
+          reject(error);
+        },
+      );
+    });
   }
 
   private async recoveryCandidates(
     page: ActionPagePort,
     request: PhysicalActionRequest,
+    signal?: AbortSignal,
   ): Promise<readonly RecoveryCandidate[]> {
+    signal?.throwIfAborted();
     const registry = [...new Map(request.registryCandidates.map(candidate =>
       [candidate.candidateId, candidate])).values()];
     if (registry.length === 0) return [];
     let elements: readonly ActionElementPort[];
     try {
       elements = await page.liveCandidates(request.action, request.iframeXPath ?? '');
-    } catch {
+    } catch (error) {
+      if (signal?.aborted) throw error;
       return [];
     }
     const rows: RecoveryCandidate[] = [];
     for (const element of elements.slice(0, MAX_LIVE_CANDIDATES)) {
+      signal?.throwIfAborted();
       const inspection = await element.inspect(
         request.action, '', Boolean(request.iframeXPath?.trim()), false,
       );
       if (!inspection.visible || !inspection.actionValidated) continue;
       for (const saved of registry) {
+        signal?.throwIfAborted();
         const score = this.scoreRecovery(saved, inspection, request);
         if (score.confidence < 0.35) continue;
         const liveXPath = inspection.xpath ?? '';

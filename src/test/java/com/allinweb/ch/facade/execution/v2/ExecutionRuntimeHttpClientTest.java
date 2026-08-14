@@ -81,6 +81,23 @@ class ExecutionRuntimeHttpClientTest {
     }
 
     @Test
+    void explicitCloseBrowserUsesItsDedicatedTokenAuthorizedRoute() {
+        FakeTransport transport = new FakeTransport();
+        transport.add(201, "{\"ok\":true,\"data\":{\"run\":{\"runId\":\""
+                + RUN_ID + "\"},\"runAccessToken\":\"" + TOKEN + "\"}}");
+        transport.add(200, successData("{\"state\":\"STOPPED\"}"));
+        ExecutionRuntimeHttpClient client = client(transport);
+        RuntimeRun run = client.reserve(grant());
+
+        client.closeBrowser(run);
+
+        Call close = transport.calls.get(1);
+        assertEquals("POST", close.method());
+        assertTrue(close.uri().getPath().endsWith("/close-browser"));
+        assertEquals(TOKEN, close.token());
+    }
+
+    @Test
     void runtimeConfigurationIsLoopbackOnlyAndStrictlyBounded() {
         assertEquals(
                 60_110,

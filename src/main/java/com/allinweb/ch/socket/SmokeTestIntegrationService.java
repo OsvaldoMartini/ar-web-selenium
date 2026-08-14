@@ -1429,10 +1429,7 @@ public final class SmokeTestIntegrationService {
     }
 
     private static String terminalMessage(Run run, String prefix) {
-        String suffix = run.runtimeMode == RuntimeMode.TYPESCRIPT_PLAYWRIGHT_V2
-                ? "The isolated Playwright session was closed."
-                : "The Playwright page remains open.";
-        return prefix + ". " + suffix;
+        return prefix + ". The Playwright page remains open; only a Close Browser instruction closes it.";
     }
 
     private void closeV2AfterFailedStart(V2Run run) {
