@@ -1339,3 +1339,26 @@ Do not change frontend CSS/design while doing the scanner contract cleanup unles
 - [ ] Live acceptance remains: trigger Java V1 with one missing/ambiguous main-document element,
   prove nonempty and zero-candidate modal behavior, exercise Bypass/Use Once/Use and Save, verify
   the saved locator row only after success, and inspect the new safe operational log entries.
+
+## Smoke Integration trace and supervised V2 runtime - 2026-08-14
+
+- [x] Backend `16df617c` adds a dedicated rolling `ar_web_smoke_execution.log` under configured
+  `path_log`. It correlates V1/V2 start, plan/data freeze, steps, recovery, ExcelWrite, Stop/Finish,
+  cleanup, Java-to-Node HTTP, and Node request completion without credentials, grants, values,
+  URLs, banking text, or locator strings. Optional Node JSONL is `ar_web_execution_v2.log`.
+- [x] Backend `f86c1688` adds a Java-owned local Node supervisor. When IntelliJ provides no grant
+  secret, Java generates one process-private 32-byte secret and passes it only to the child Node
+  process. Start waits for loopback `/health/ready`; Stop refuses active/pending V2 runs and cannot
+  terminate an externally managed runtime.
+- [x] Frontend `a927e93` adds the requested red/green `V2 Runtime` Start/Stop control between
+  Continue Page and Refresh. Requests and responses are correlated to the exact Smoke transport,
+  binding/workspace generation, Home Banking, Bot Job, and graph revision.
+- [x] Java compilation passed with 583 sources. Node TypeScript and production React builds passed;
+  no tests were created or run per user direction. Deployment `c9be76f0` mirrors 61 exact files.
+  Entrypoints are `main.4c1147fd.js` (2,178,325 bytes; SHA-256
+  `B5A84C13372032DA4C03AA35E76C03D3C41A133861275A94258B3210DBEA9D1A`) and
+  `main.dce607b4.css` (540,972 bytes; SHA-256
+  `5273A8FE0F06201126A942089ED34B6ED12A4259615DD9246416FD777230ABDD`).
+- [ ] No Java/Node service restart or live Start/Stop/V2 run was performed. Restart IntelliJ ARWeb,
+  open Smoke Test, start V2 from the new control, confirm READY, run one V2 Integration, then prove
+  runtime Stop is refused during the run and succeeds after terminal cleanup.

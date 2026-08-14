@@ -1449,3 +1449,17 @@ and atomic artifact-write checkpoints are complete.
   live Bot Job action was performed.
 - [ ] Live gate: exercise Java V1 nonempty and zero-candidate recovery, all continuation decisions,
   successful locator persistence, recovery-verification ON/OFF synchronization, and Stop cleanup.
+
+## 49. Smoke traceability and local V2 runtime control - 2026-08-14
+
+- [x] `16df617c` records one privacy-safe, correlated disk trace for all Smoke Integration V1/V2
+  lifecycle phases and Java/Node request boundaries under configured `path_log`.
+- [x] `f86c1688` supervises one local Node V2 process from Java, creates a private ephemeral grant
+  secret when IntelliJ has none, validates loopback readiness, and serializes runtime control with
+  V2 run admission. External runtimes are observable but not stoppable from ARWeb.
+- [x] Frontend `a927e93` places the matching red/green Start/Stop toggle after Continue Page and
+  before Refresh. Exact owner/generation correlation prevents stale Bot Job responses.
+- [x] Java compile (583 sources), Node TypeScript build, React production build, and diff checks
+  passed. No tests ran. Deployment `c9be76f0` mirrors 61 exact frontend files.
+- [ ] Restart/live gate: prove STOPPED -> STARTING -> READY, one V2 run, Stop refusal while active,
+  successful Stop after cleanup, and complete correlated evidence in both dedicated log files.
