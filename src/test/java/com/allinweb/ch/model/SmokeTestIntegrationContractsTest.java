@@ -77,6 +77,15 @@ class SmokeTestIntegrationContractsTest {
         assertEquals(1L, step.sequence());
         assertEquals(1728, step.instructionId());
         assertEquals(0, step.excelRowIndex());
+        assertTrue(step.recoveryVerificationEnabled());
+
+        stepBody.addProperty("recoveryVerificationEnabled", false);
+        assertFalse(SmokeTestIntegrationContracts.parseStep(stepEnvelope)
+                .recoveryVerificationEnabled());
+
+        stepBody.addProperty("recoveryVerificationEnabled", "false");
+        assertThrows(IllegalArgumentException.class,
+                () -> SmokeTestIntegrationContracts.parseStep(stepEnvelope));
 
         JsonObject stop = new JsonObject();
         stop.addProperty("contractVersion", 1);

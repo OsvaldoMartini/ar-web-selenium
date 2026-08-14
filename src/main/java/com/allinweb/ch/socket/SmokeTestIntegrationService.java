@@ -699,6 +699,18 @@ public final class SmokeTestIntegrationService {
                         request.instructionId(),
                         request.excelRowIndex(),
                         run.variables);
+        if (run.runtimeMode == RuntimeMode.TYPESCRIPT_PLAYWRIGHT_V2
+                && outcome.recovery() != null
+                && !request.recoveryVerificationEnabled()) {
+            v2.cancelRecovery(run.v2Run, request.instructionId());
+            outcome = new Outcome(
+                    StepStatus.SKIPPED,
+                    SmokeTestIntegrationContracts.StepDisposition.PHYSICAL,
+                    "RECOVERY_BYPASSED",
+                    "Locator recovery verification is off; the unresolved instruction was bypassed.",
+                    null,
+                    null);
+        }
         if (run.cancelled) {
             return stoppedStep(run, request, "Integration stop interrupted the current action.");
         }
@@ -790,7 +802,8 @@ public final class SmokeTestIntegrationService {
                                         previous.excelRowIndex,
                                         settled,
                                         bypass ? StepStatus.SKIPPED : previous.status,
-                                        false));
+                                        false,
+                                        previous.recoveryVerificationEnabled));
                     }
                 }
                 if (bypass) {
@@ -825,7 +838,8 @@ public final class SmokeTestIntegrationService {
                                 request.runId(),
                                 request.sequence(),
                                 request.instructionId(),
-                                previous.excelRowIndex),
+                                previous.excelRowIndex,
+                                true),
                         outcome,
                         false);
                 run.sequenceResults.put(
@@ -835,7 +849,8 @@ public final class SmokeTestIntegrationService {
                                 previous.excelRowIndex,
                                 replacement.deepCopy(),
                                 outcome.status(),
-                                false));
+                                false,
+                                previous.recoveryVerificationEnabled));
             }
             return recoveryResponse(run, request, outcome, "COMPLETED",
                     outcome.status() == StepStatus.WARNING
@@ -1340,6 +1355,7 @@ public final class SmokeTestIntegrationService {
                 outcome.disposition(),
                 outcome.code(),
                 outcome.message(),
+                request.recoveryVerificationEnabled(),
                 replayed);
         JsonObject json = successful(response);
         if (outcome.runtimeVariableId() != null && outcome.runtimeValue() != null) {
@@ -1983,18 +1999,21 @@ public final class SmokeTestIntegrationService {
             int excelRowIndex,
             JsonObject response,
             StepStatus status,
-            boolean recoveryPending) {
+            boolean recoveryPending,
+            boolean recoveryVerificationEnabled) {
         private SequenceResult(int instructionId, int excelRowIndex, JsonObject response) {
             this(
                     instructionId,
                     excelRowIndex,
                     response,
                     StepStatus.valueOf(response.get("status").getAsString()),
-                    response.has("recovery"));
+                    response.has("recovery"),
+                    response.get("recoveryVerificationEnabled").getAsBoolean());
         }
         private boolean matches(StepRequest request) {
             return instructionId == request.instructionId()
-                    && excelRowIndex == request.excelRowIndex();
+                    && excelRowIndex == request.excelRowIndex()
+                    && recoveryVerificationEnabled == request.recoveryVerificationEnabled();
         }
     }
 }

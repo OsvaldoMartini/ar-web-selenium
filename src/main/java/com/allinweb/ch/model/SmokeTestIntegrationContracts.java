@@ -246,7 +246,8 @@ public final class SmokeTestIntegrationContracts {
             String runId,
             long sequence,
             int instructionId,
-            int excelRowIndex) {
+            int excelRowIndex,
+            boolean recoveryVerificationEnabled) {
         public StepRequest {
             requireVersion(contractVersion);
             requestId = requireBounded(requestId, "requestId", MAX_CORRELATION_LENGTH);
@@ -423,6 +424,7 @@ public final class SmokeTestIntegrationContracts {
             StepDisposition disposition,
             String code,
             String message,
+            boolean recoveryVerificationEnabled,
             boolean replayed) {
         public StepResponse {
             requireVersion(contractVersion);
@@ -494,7 +496,8 @@ public final class SmokeTestIntegrationContracts {
                 requiredString(body, "runId", MAX_CORRELATION_LENGTH),
                 requiredPositiveLong(body, "sequence"),
                 requiredPositiveInt(body, "instructionId"),
-                requiredNonNegativeInt(body, "excelRowIndex"));
+                requiredNonNegativeInt(body, "excelRowIndex"),
+                optionalBoolean(body, "recoveryVerificationEnabled", true));
     }
 
     public static RecoveryRequest parseRecovery(JsonObject envelopeOrBody) {
@@ -716,6 +719,11 @@ public final class SmokeTestIntegrationContracts {
             throw invalid(field, "must be a boolean");
         }
         return value.getAsBoolean();
+    }
+
+    private static boolean optionalBoolean(JsonObject source, String field, boolean fallback) {
+        if (!source.has(field) || source.get(field).isJsonNull()) return fallback;
+        return requiredBoolean(source, field);
     }
 
     private static int requiredPositiveInt(JsonObject source, String field) {

@@ -352,6 +352,58 @@ class SmokeTestIntegrationServiceTest {
     }
 
     @Test
+    void v2DisabledRecoveryVerificationCancelsTheRuntimeHoldAndBypassesImmediately()
+            throws Exception {
+        JsonObject recovery = new JsonObject();
+        recovery.addProperty("state", "AWAITING_USER");
+        recovery.add("candidates", new com.google.gson.JsonArray());
+        v2.nextOutcome.set(new Outcome(
+                StepStatus.FAILED,
+                StepDisposition.PHYSICAL,
+                "TARGET_NOT_FOUND",
+                "No matching element was found.",
+                null,
+                null,
+                recovery));
+
+        JsonObject request = startRequest("start-v2-recovery-off");
+        request.addProperty("runtimeMode", "TYPESCRIPT_PLAYWRIGHT_V2");
+        request.addProperty("pagePolicy", "RELOAD_SELECTED");
+        service.handle(
+                SmokeTestIntegrationContracts.START,
+                request,
+                DetachedWorkspaceSessions.SMOKE_TEST_MANAGER,
+                transport);
+        String runId = responses.await(SmokeTestIntegrationContracts.START_RESPONSE)
+                .body.get("runId").getAsString();
+
+        JsonObject step = stepRequest("step-v2-recovery-off", runId, 1L);
+        step.addProperty("recoveryVerificationEnabled", false);
+        service.handle(
+                SmokeTestIntegrationContracts.STEP,
+                step,
+                DetachedWorkspaceSessions.SMOKE_TEST_MANAGER,
+                transport);
+
+        Published bypassed = responses.await(SmokeTestIntegrationContracts.STEP_RESPONSE);
+        assertTrue(bypassed.body.get("ok").getAsBoolean());
+        assertEquals("SKIPPED", bypassed.body.get("status").getAsString());
+        assertEquals("RECOVERY_BYPASSED", bypassed.body.get("code").getAsString());
+        assertFalse(bypassed.body.get("recoveryVerificationEnabled").getAsBoolean());
+        assertFalse(bypassed.body.has("recovery"));
+        assertEquals(1, v2.cancelledRecoveries.get());
+
+        service.handle(
+                SmokeTestIntegrationContracts.STEP,
+                stepRequest("step-v2-recovery-on-conflict", runId, 1L),
+                DetachedWorkspaceSessions.SMOKE_TEST_MANAGER,
+                transport);
+        Published conflict = responses.await(SmokeTestIntegrationContracts.STEP_RESPONSE);
+        assertFalse(conflict.body.get("ok").getAsBoolean());
+        assertEquals("SEQUENCE_CONFLICT", conflict.body.get("code").getAsString());
+    }
+
+    @Test
     void v2StopRequestsImmediateRuntimeInterruptionBeforeTerminalCleanup() throws Exception {
         JsonObject request = startRequest("start-v2-stop");
         request.addProperty("runtimeMode", "TYPESCRIPT_PLAYWRIGHT_V2");
