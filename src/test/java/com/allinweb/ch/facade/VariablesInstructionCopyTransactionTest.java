@@ -11,6 +11,9 @@ import com.allinweb.ch.db.InstructionGraphStateRepository;
 import com.allinweb.ch.db.InstructionGraphStateRepository.OwnerKey;
 import com.allinweb.ch.db.migrations.M20260729_InstructionGraphState;
 import com.allinweb.ch.db.migrations.M20260730_BotJobRuntimeVariables;
+import com.allinweb.ch.db.migrations.M20260803_InstructionVariableSlot;
+import com.allinweb.ch.db.migrations.M20260805_RuntimeMemoryColumns;
+import com.allinweb.ch.db.migrations.M20260806_VariableSlotDirectionNames;
 import com.allinweb.ch.facade.BotJobGraphMutationTransaction.AuthenticatedBotJob;
 import com.allinweb.ch.facade.BotJobGraphMutationTransaction.GraphSnapshot;
 import com.allinweb.ch.facade.BotJobGraphMutationTransaction.MutationRefusedException;
@@ -180,9 +183,8 @@ class VariablesInstructionCopyTransactionTest {
                     TARGET_BLOCK_ID,
                     copiedParentId,
                     copiedVariableId);
-            assertEquals(
-                    copiedVariableId,
-                    integer(
+            assertNull(
+                    value(
                             connection,
                             "SELECT variable_id FROM instruction WHERE id=?",
                             copiedParentId));
@@ -194,7 +196,7 @@ class VariablesInstructionCopyTransactionTest {
                                     + " FROM bot_job_variable_definition WHERE id=?",
                             copiedVariableId));
             assertEquals(
-                    "account_number",
+                    "account_number Copy",
                     value(
                             connection,
                             "SELECT name FROM bot_job_variable_definition WHERE id=?",
@@ -521,7 +523,7 @@ class VariablesInstructionCopyTransactionTest {
                             + "parent_id,bot_job_id,client_named) VALUES"
                             + "(100,1,'O','Account field','//account','10,20',0,'',"
                             + "'input','','','','Source Web Field','read',0,0,'',"
-                            + "4,0,0,0,1,10,501,NULL,NULL,5,'account'),"
+                            + "4,0,0,0,1,10,NULL,NULL,NULL,5,'account'),"
                             + "(101,2,'GET','Get account','',NULL,0,'','',"
                             + "'','','','Get producer','capture',0,0,'',"
                             + "0,0,0,0,1,10,501,10,100,5,'get-account'),"
@@ -533,7 +535,7 @@ class VariablesInstructionCopyTransactionTest {
                             + "0,0,0,0,1,10,NULL,10,100,5,'click-child'),"
                             + "(200,1,'O','Target field','//target',NULL,0,'','input',"
                             + "'','','','Target Web Field','read',0,0,'',"
-                            + "0,0,0,0,1,20,502,NULL,NULL,5,'target'),"
+                            + "0,0,0,0,1,20,NULL,NULL,NULL,5,'target'),"
                             + "(300,1,'O','Navigation field','//navigation',NULL,0,'',"
                             + "'input','','','','Navigation Web Field','read',0,0,'',"
                             + "0,0,0,0,1,30,NULL,NULL,NULL,5,'navigation')");
@@ -552,6 +554,9 @@ class VariablesInstructionCopyTransactionTest {
         }
         new M20260730_BotJobRuntimeVariables().apply(connection, "TEXT");
         new M20260729_InstructionGraphState().apply(connection, "TEXT");
+        new M20260805_RuntimeMemoryColumns().apply(connection, "TEXT");
+        new M20260803_InstructionVariableSlot().apply(connection, "TEXT");
+        new M20260806_VariableSlotDirectionNames().apply(connection, "TEXT");
         stateRepository.loadOrCreate(
                 connection,
                 OwnerKey.botJob(HOME_BANKING_ID, BOT_JOB_ID));
@@ -635,9 +640,8 @@ class VariablesInstructionCopyTransactionTest {
                         connection,
                         "SELECT parent_id FROM instruction WHERE id=?",
                         102));
-        assertEquals(
-                501,
-                integer(
+        assertNull(
+                value(
                         connection,
                         "SELECT variable_id FROM instruction WHERE id=?",
                         100));

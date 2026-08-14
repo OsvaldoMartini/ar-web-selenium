@@ -552,7 +552,7 @@ public final class VariablesInstructionCopyTransaction {
                             owner.homeBankingId(), owner.ownerId()),
                     new DefinitionDraft(
                             text(source.type()),
-                            text(source.name()),
+                            availableCopyVariableName(connection, owner, text(source.name())),
                             text(source.value()),
                             text(source.localFormat()),
                             text(source.delimiter()),
@@ -567,6 +567,27 @@ public final class VariablesInstructionCopyTransaction {
                     source.id(), Math.toIntExact(created.definition().id()));
         }
         return generatedVariableIds;
+    }
+
+    private static String availableCopyVariableName(
+            Connection connection, OwnerKey owner, String sourceName) throws SQLException {
+        String base = sourceName == null || sourceName.isBlank()
+                ? "Copied variable"
+                : sourceName.trim();
+        String sql = "SELECT 1 FROM bot_job_variable_definition"
+                + " WHERE home_banking_id=? AND bot_job_id=? AND name=?";
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            for (int copy = 1; copy <= 10_000; copy++) {
+                String candidate = base + (copy == 1 ? " Copy" : " Copy " + copy);
+                statement.setInt(1, owner.homeBankingId());
+                statement.setInt(2, owner.ownerId());
+                statement.setString(3, candidate);
+                try (ResultSet rows = statement.executeQuery()) {
+                    if (!rows.next()) return candidate;
+                }
+            }
+        }
+        throw new SQLException("No available copied-variable name could be allocated.");
     }
 
     private LinkedHashMap<Integer, ExpectedInstruction> applyRelationshipsAndVariables(
@@ -837,7 +858,7 @@ public final class VariablesInstructionCopyTransaction {
                             : generatedInstructionIds.get(source.ownerInstructionId());
             if (source == null
                     || copied == null
-                    || !source.sameCopyFields(copied)
+                    || !source.sameGeneratedCopyFields(copied)
                     || !Objects.equals(copied.ownerInstructionId(), generatedOwner)) {
                 throw refused(
                         "VARIABLE_COPY_FINAL_VARIABLE_MISMATCH",
@@ -1130,6 +1151,23 @@ public final class VariablesInstructionCopyTransaction {
                     && Objects.equals(value, other.value)
                     && Objects.equals(localFormat, other.localFormat)
                     && Objects.equals(delimiter, other.delimiter);
+        }
+
+        private boolean sameGeneratedCopyFields(VariableRow other) {
+            if (other == null
+                    || !Objects.equals(type, other.type)
+                    || !Objects.equals(value, other.value)
+                    || !Objects.equals(localFormat, other.localFormat)
+                    || !Objects.equals(delimiter, other.delimiter)) {
+                return false;
+            }
+            String base = text(name);
+            String copiedName = text(other.name);
+            String expectedPrefix = base == null || base.isBlank()
+                    ? "Copied variable Copy"
+                    : base.trim() + " Copy";
+            return copiedName != null && (copiedName.equals(expectedPrefix)
+                    || copiedName.startsWith(expectedPrefix + " "));
         }
     }
 
