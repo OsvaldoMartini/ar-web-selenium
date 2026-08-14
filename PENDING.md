@@ -9,6 +9,31 @@ The failures are not all obsolete tests. The reruns show three categories:
 This document began as a read-only investigation. Later checkpoints record the repairs that were
 implemented and verified.
 
+## Java suite complete — 2026-08-14 after `b6019e62`
+
+This section supersedes the earlier Java totals and remaining-Java tables below. React and browser
+E2E totals remain separate work and are not changed by this checkpoint.
+
+- Full Java command: `mvn test`.
+- Result: **1,466 total; 1,464 passed; 0 failed; 0 errors; 2 skipped** (`BUILD SUCCESS`, 5:08).
+- `BotJobDetailsToolbarPlaywrightTest` now follows the current UI contract: retired block-level
+  `excelExport.*` coverage is removed, deployed assets are checked for instruction-level
+  `excelWrite.chooseDirectory`, exact Job Files controls are selected, Runtime Variable Values are
+  confirmed with `KEEP`, selected blocks begin in `ONE` mode, and duplicate status surfaces are
+  handled without weakening their content assertion.
+- `MainDashboardAutoTestPlaywrightTest` now expects the approved runtime title `Main Bot Jobs`;
+  its separate static `AR Web` manifest/title coverage remains intact.
+- `VariablesIfFamilyDeletePlaywrightTest` now targets the exact `Variables` heading and the current
+  `Bot Job ID 1` subtitle while retaining the complete IF-family deletion assertions.
+- The automation catalog was regenerated to 2,409 rows / 2,373 code cases; its focused 2/2 check
+  and all three repaired browser suites pass.
+- The two skips are intentional environment assumptions, not regressions:
+  `PerformDBEngineAccessTest` requires an available Access integration database, and
+  `PreScanDumpComparisonTest` requires a Page Scanner diagnostic fixture generated externally.
+- Test-generated `Config-4.2/TESTS.config` changes were restored exactly after verification.
+- Code/test checkpoint `b6019e62` (`CODEX- align Java browser regressions with current UI`) is
+  pushed to `origin/refactor/perform-actions-decomposition`.
+
 ## Current authoritative rerun — 2026-08-13 after `785a482c` / frontend `b783ad3`
 
 This section supersedes all earlier aggregate totals. The complete Java, React and browser E2E
