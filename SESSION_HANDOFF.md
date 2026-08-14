@@ -1286,3 +1286,27 @@ Do not change frontend CSS/design while doing the scanner contract cleanup unles
 - [ ] Live acceptance remains: start V2, stop during an unresolved locator, confirm the browser
   stays open, start the same Bot Job again and confirm the browser instance is reused, then execute
   an authored Close Browser command and confirm only that command closes it.
+
+## Synchronized locator-recovery verification control - 2026-08-14
+
+- [x] Frontend commits `6899293` / `8fdeca0` add one transient green/red power control shared by
+  the Bot Job execution-flow header and the open Locator Recovery modal. It defaults ON. Turning it
+  OFF while a recovery is open sends the existing correlated BYPASS decision; later unresolved V2
+  instructions bypass recovery without displaying the modal.
+- [x] Backend `2524ed7e` makes `recoveryVerificationEnabled` part of the exact Step request,
+  response, and sequence replay identity. Missing legacy request fields default ON. OFF cancels the
+  exact Node recovery hold and records the unresolved instruction as `SKIPPED` with
+  `RECOVERY_BYPASSED`; it does not perform a physical action.
+- [x] Verification passed: focused Java 17/17, focused React 16/16, Java compile 581 main / 341 test
+  sources, frontend production build, and `git diff --check`. Existing React `act` deprecation and
+  repository build/lint warnings remain visible but are unrelated.
+- [x] Frontend source is pushed to `VERSION-4.6`; backend source is pushed in `2524ed7e`.
+  Deployment asset commit `084fb900` mirrors 61 exact files into resources and `target/classes`.
+  Entrypoints are `main.a4addf99.js` (2,174,408 bytes; SHA-256
+  `C0B26AD611CE4D5AA081D8C42D9167942AAE410325AE6BE8987B074AC42857A8`) and
+  `main.368be5c5.css` (540,087 bytes; SHA-256
+  `AF02DB5872770BA727F2232420E0DA472D62439EC9EBAA3B9A7E909EE39E3D7F`).
+- [ ] No application/runtime restart or live UI/V2 recovery was performed. Live acceptance must
+  prove ON pauses with both nonempty and zero-candidate recovery, OFF bypasses and advances, the
+  two power controls remain synchronized, and Stop preserves/reuses the browser until an authored
+  Close Browser instruction closes it.

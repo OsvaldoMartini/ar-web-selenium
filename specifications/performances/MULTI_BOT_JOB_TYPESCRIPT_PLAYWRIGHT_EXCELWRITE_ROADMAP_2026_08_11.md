@@ -1411,3 +1411,21 @@ and atomic artifact-write checkpoints are complete.
   was performed. Live acceptance must prove two or more complete Bot Job programs, independent
   REAL/SYNTHETIC values, Runtime Variables, ExcelWriter outputs, Stop, failure containment, exact
   cleanup, and a real missing-locator Stop reproduction.
+
+## 47. Browser-preserving Stop and locator-recovery verification - 2026-08-14
+
+- [x] `37b3910c` makes ordinary V2 Stop interrupt the active operation while preserving and parking
+  the exact owner-scoped browser. Same-owner runs can adopt it; only the authored Close Browser
+  instruction calls the dedicated close route.
+- [x] Frontend `6899293` / `8fdeca0` adds synchronized green/red recovery-verification power
+  controls to the execution-flow header and recovery modal. The transient setting defaults ON and
+  turning it OFF during a modal issues the existing exact BYPASS decision.
+- [x] Backend `2524ed7e` validates and echoes the setting for every Step, defaults missing legacy
+  input to ON, cancels the exact pending Node recovery when OFF, records `RECOVERY_BYPASSED`, and
+  includes the option in sequence replay identity to reject opposite-setting replays.
+- [x] Focused Java verification passed 17/17; focused React verification passed 16/16; Java compile
+  and the frontend production build passed. Deployment `084fb900` is an exact 61-file mirror using
+  `main.a4addf99.js` and `main.368be5c5.css`.
+- [ ] Live acceptance remains: ON must pause on zero and nonzero candidates; OFF must bypass without
+  a physical attempt and continue; both controls must stay synchronized; Stop must preserve the
+  browser; same-owner restart must reuse it; authored Close Browser alone must close it.
