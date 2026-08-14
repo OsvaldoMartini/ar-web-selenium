@@ -1429,3 +1429,23 @@ and atomic artifact-write checkpoints are complete.
 - [ ] Live acceptance remains: ON must pause on zero and nonzero candidates; OFF must bypass without
   a physical attempt and continue; both controls must stay synchronized; Stop must preserve the
   browser; same-owner restart must reuse it; authored Close Browser alone must close it.
+
+## 48. Java V1 Shared Locator Recovery - 2026-08-14
+
+- [x] Backend `a20fcf2c` routes Java V1 missing/ambiguous physical targets into the same correlated
+  Locator Recovery modal contract already used by V2. The existing frontend component required no
+  duplicate V1 implementation or asset rebuild.
+- [x] V1 retains one exact owner/run/instruction/page recovery set, blocks subsequent Steps while it
+  is pending, and supports Bypass, Cancel, Use Once, and Use and Save Locator. Zero safe candidates
+  still pauses and exposes Bypass so evaluation can continue without a physical action.
+- [x] Candidate discovery and presentation are bounded. The browser action revalidates the page and
+  selected opaque candidate, and saving occurs only after success against the exact scanned-element
+  registry row. Main-document candidates are supported; frame/Shadow DOM boundaries remain
+  intentionally fail-closed in Java V1.
+- [x] Safe logs cover preparation, counts, decisions, action diagnostics, save results, and cleanup
+  without page URLs, locators, banking text, or runtime values.
+- [x] Java compilation passed with 582 sources; diff checks passed. No test was created or run by
+  explicit user instruction. No frontend build/deployment, service restart, database change, or
+  live Bot Job action was performed.
+- [ ] Live gate: exercise Java V1 nonempty and zero-candidate recovery, all continuation decisions,
+  successful locator persistence, recovery-verification ON/OFF synchronization, and Stop cleanup.

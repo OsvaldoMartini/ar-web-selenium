@@ -1310,3 +1310,32 @@ Do not change frontend CSS/design while doing the scanner contract cleanup unles
   prove ON pauses with both nonempty and zero-candidate recovery, OFF bypasses and advances, the
   two power controls remain synchronized, and Stop preserves/reuses the browser until an authored
   Close Browser instruction closes it.
+
+## Java V1 Locator Recovery modal support - 2026-08-14
+
+- [x] Backend `a20fcf2c` extends the existing Locator Recovery WebSocket/modal contract to Java V1
+  Shared. V1 `TARGET_NOT_FOUND` and `AMBIGUOUS_TARGET` outcomes now retain an exact run,
+  instruction, owner, and page-bound recovery set instead of returning only a terminal diagnostic.
+- [x] The existing React modal is reused unchanged. It supports zero-candidate Bypass, Use Once,
+  Use and Save Locator, Cancel Recovery, Stop Execution, and the synchronized recovery-verification
+  power control for both V1 and V2.
+- [x] V1 candidate discovery is bounded to 100 live main-document elements, 100 unique registry
+  rows, and 25 displayed comparisons. React receives opaque candidate IDs and cannot submit a
+  locator. Frame and Shadow DOM recovery remains fail-closed with a zero-candidate modal because
+  Java V1 cannot safely encode those boundaries in this recovery action.
+- [x] A selected action revalidates the exact current page and reruns only the selected generated
+  XPath/CSS through the serialized Java Playwright executor. `Use and Save` updates only the exact
+  owner/Bot Job/page/scanned-element row and only after the physical action succeeds. GET recovery
+  also restores the run-local/durable Runtime Variable result.
+- [x] Backend admission now refuses a later Step with `RECOVERY_PENDING` until the user resolves or
+  bypasses the paused instruction. Pending V1 state is cleared on Bypass, Cancel, Stop, Finish,
+  disconnect, binding retirement, or service shutdown.
+- [x] Operational logs record preparation, candidate counts, decisions, page changes, action
+  diagnostics, save outcomes, and cleanup using run/instruction/registry IDs only. They do not log
+  page URLs, locator strings, banking text, or input/output values.
+- [x] `mvn -DskipTests compile` passed with 582 main sources and the two established warnings.
+  `git diff --check` passed. No test was created or run by explicit user instruction. No frontend
+  source/build asset, database migration, package/image, service restart, or live action occurred.
+- [ ] Live acceptance remains: trigger Java V1 with one missing/ambiguous main-document element,
+  prove nonempty and zero-candidate modal behavior, exercise Bypass/Use Once/Use and Save, verify
+  the saved locator row only after success, and inspect the new safe operational log entries.
