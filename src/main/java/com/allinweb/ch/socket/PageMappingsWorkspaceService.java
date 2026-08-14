@@ -100,6 +100,7 @@ public final class PageMappingsWorkspaceService {
     private final RetargetObserver retargetObserver;
     private final ExactTransportAuthorizer transportAuthorizer;
     private final SnapshotRootResolver snapshotRootResolver;
+    private final ActiveOwnerValidator activeOwnerValidator;
     private final LinkedHashSet<String> acceptedRescanRequests = new LinkedHashSet<>();
     private final Map<String, ActiveMutation> activeMutations = new HashMap<>();
     private final LinkedHashMap<MutationOwner, Long> mutationOwnerRevisions =
@@ -160,7 +161,8 @@ public final class PageMappingsWorkspaceService {
                 (previous, current) -> MemoryListWorkspaceService.getInstance()
                         .pageMappingsRetargeted(previous, current),
                 PageMappingsWorkspaceService::isExactRegisteredTransport,
-                PageMappingsWorkspaceService::configuredSnapshotRoot);
+                PageMappingsWorkspaceService::configuredSnapshotRoot,
+                PageMappingsWorkspaceService::requireActiveOwner);
     }
 
     PageMappingsWorkspaceService(
@@ -177,7 +179,8 @@ public final class PageMappingsWorkspaceService {
                 retargetPublisher,
                 retargetObserver,
                 transportAuthorizer,
-                PageMappingsWorkspaceService::configuredSnapshotRoot);
+                PageMappingsWorkspaceService::configuredSnapshotRoot,
+                target -> target);
     }
 
     PageMappingsWorkspaceService(
@@ -188,6 +191,26 @@ public final class PageMappingsWorkspaceService {
             RetargetObserver retargetObserver,
             ExactTransportAuthorizer transportAuthorizer,
             SnapshotRootResolver snapshotRootResolver) {
+        this(
+                botJobOwnerResolver,
+                pageScannerOwnerResolver,
+                windowAccess,
+                retargetPublisher,
+                retargetObserver,
+                transportAuthorizer,
+                snapshotRootResolver,
+                target -> target);
+    }
+
+    PageMappingsWorkspaceService(
+            BotJobOwnerResolver botJobOwnerResolver,
+            PageScannerOwnerResolver pageScannerOwnerResolver,
+            WindowAccess windowAccess,
+            RetargetPublisher retargetPublisher,
+            RetargetObserver retargetObserver,
+            ExactTransportAuthorizer transportAuthorizer,
+            SnapshotRootResolver snapshotRootResolver,
+            ActiveOwnerValidator activeOwnerValidator) {
         this.botJobOwnerResolver = Objects.requireNonNull(botJobOwnerResolver);
         this.pageScannerOwnerResolver = Objects.requireNonNull(pageScannerOwnerResolver);
         this.windowAccess = Objects.requireNonNull(windowAccess);
@@ -195,6 +218,7 @@ public final class PageMappingsWorkspaceService {
         this.retargetObserver = Objects.requireNonNull(retargetObserver);
         this.transportAuthorizer = Objects.requireNonNull(transportAuthorizer);
         this.snapshotRootResolver = Objects.requireNonNull(snapshotRootResolver);
+        this.activeOwnerValidator = Objects.requireNonNull(activeOwnerValidator);
     }
 
     /** Opens Page Mappings for the active, server-owned Bot Job Details workspace. */
@@ -578,8 +602,7 @@ public final class PageMappingsWorkspaceService {
                             scrollPage,
                             scrollPages);
                 }
-                BotJobDetailsWorkspaceRegistry.getInstance()
-                        .require(authorized.botJobId(), authorized.workspaceEpoch());
+                activeOwnerValidator.require(authorized.asTarget());
                 PreScanWorkflowService.Context context = BotJobWorkspaceController.getInstance()
                         .pageScannerContext(authorized.botJobId());
                 if (context.homeBankingId() != authorized.homeBankingId()
@@ -2059,7 +2082,7 @@ public final class PageMappingsWorkspaceService {
                 return false;
             }
             try {
-                requireActiveOwner(binding.asTarget());
+                activeOwnerValidator.require(binding.asTarget());
             } catch (IllegalArgumentException staleOwner) {
                 return false;
             }
@@ -2087,7 +2110,7 @@ public final class PageMappingsWorkspaceService {
                 return false;
             }
             try {
-                requireActiveOwner(binding.asTarget());
+                activeOwnerValidator.require(binding.asTarget());
             } catch (IllegalArgumentException staleOwner) {
                 return false;
             }
@@ -2102,7 +2125,7 @@ public final class PageMappingsWorkspaceService {
             throw new IllegalArgumentException(
                     "Page Mappings owner changed. Reload before changing retention.");
         }
-        requireActiveOwner(binding.asTarget());
+        activeOwnerValidator.require(binding.asTarget());
         return binding;
     }
 
@@ -2333,7 +2356,7 @@ public final class PageMappingsWorkspaceService {
             if (binding == null) {
                 throw new IllegalArgumentException("Page Mappings has no active Bot Job owner.");
             }
-            requireActiveOwner(binding.asTarget());
+            activeOwnerValidator.require(binding.asTarget());
             validateOwnerAssertions(body, binding.asTarget(), binding.bindingEpoch());
             JsonObject nested = object(body, "snapshot");
             if (nested != null) {
@@ -3004,6 +3027,11 @@ public final class PageMappingsWorkspaceService {
                 String requesterSessionId, Function<OwnerTarget, T> action) {
             return action.apply(resolve(requesterSessionId));
         }
+    }
+
+    @FunctionalInterface
+    interface ActiveOwnerValidator {
+        OwnerTarget require(OwnerTarget target);
     }
 
     interface WindowAccess {

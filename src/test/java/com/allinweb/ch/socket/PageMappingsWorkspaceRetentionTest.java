@@ -5,7 +5,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.allinweb.ch.db.migrations.M20260807_PageScanSnapshot;
+import com.allinweb.ch.facade.BotJobDetailsWorkspaceRegistry;
 import com.allinweb.ch.facade.PageScanSnapshotTestState;
+import com.allinweb.ch.model.BotJobLoadDTO;
 import com.allinweb.ch.model.DetachedWorkspaceSessions;
 import com.google.gson.JsonObject;
 import java.lang.reflect.InvocationTargetException;
@@ -28,8 +30,6 @@ class PageMappingsWorkspaceRetentionTest {
 
     private static final int HOME_BANKING_ID = 7;
     private static final int BOT_JOB_ID = 42;
-    private static final long WORKSPACE_EPOCH = 21;
-
     @TempDir
     Path temporaryDirectory;
 
@@ -42,6 +42,7 @@ class PageMappingsWorkspaceRetentionTest {
 
     @AfterEach
     void restoreSnapshotConfiguration() throws Exception {
+        BotJobDetailsWorkspaceRegistry.getInstance().closeActive();
         state.close();
     }
 
@@ -175,11 +176,17 @@ class PageMappingsWorkspaceRetentionTest {
     }
 
     private static PageMappingsWorkspaceService service(Session exactTransport) {
+        BotJobLoadDTO botJob = new BotJobLoadDTO();
+        botJob.setId(BOT_JOB_ID);
+        botJob.setHomeBankingId(HOME_BANKING_ID);
+        botJob.setName("Payments");
+        BotJobDetailsWorkspaceRegistry.Snapshot active =
+                BotJobDetailsWorkspaceRegistry.getInstance().activate(botJob, false);
         return new PageMappingsWorkspaceService(
                 id -> new PageMappingsWorkspaceService.OwnerTarget(
-                        HOME_BANKING_ID, id, WORKSPACE_EPOCH, "Payments"),
+                        HOME_BANKING_ID, id, active.workspaceEpoch(), "Payments"),
                 sessionId -> new PageMappingsWorkspaceService.OwnerTarget(
-                        HOME_BANKING_ID, BOT_JOB_ID, WORKSPACE_EPOCH, "Payments"),
+                        HOME_BANKING_ID, BOT_JOB_ID, active.workspaceEpoch(), "Payments"),
                 new PageMappingsWorkspaceService.WindowAccess() {
                     @Override
                     public boolean isOpen() {
