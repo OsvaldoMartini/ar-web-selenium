@@ -8,6 +8,54 @@ The failures are not all obsolete tests. The reruns show three categories:
 
 No code was modified during this investigation.
 
+## Current authoritative rerun — 2026-08-13 after `4b7b412a`
+
+This section supersedes every older aggregate count in this document. The older tables remain useful root-cause history, but the numbers below are the current reproducible baseline.
+
+### Current totals
+
+| Layer | Result | Current status |
+|---|---:|---|
+| Full Java (`mvn test`) | 1,466 total; 1,431 passed; 11 failed; 22 errors; 2 skipped | 33 unsuccessful methods across 9 suites |
+| Focused deterministic Java remainder | 43 total; 14 passed; 8 failed; 21 errors | 29 persistent methods across 5 suites; `PageScannerTaskGateTest` passed 3/3 in isolation |
+| Focused Java-hosted Playwright remainder | 3 total; 2 failed; 1 error | All 3 reproduce independently |
+| Full React/Jest | 172 suites: 153 passed, 19 failed; 920 tests: 864 passed, 56 failed | Counts unchanged from the prior baseline |
+| Browser E2E | 4 total; 1 passed; 3 failed | Same three established failures reproduced |
+
+### Current Java remainder
+
+| Suite | Unsuccessful | Current classification | Next authoritative action |
+|---|---:|---|---|
+| `PageScannerTaskGateTest` | 1 in full suite; 0 focused | Timing/order-sensitive test failure; the focused suite passes 3/3. | Audit latch scheduling and suite isolation before changing production serialization. |
+| `VariableRelationshipServiceTest` | 3 | Persistent compatibility/contract defect: legacy fixtures do not produce the required raw facts/revision. | Trace and implement the missing owner-safe legacy relationship fallback, then retain the tests. |
+| `BotJobRuntimeVariableServiceTest` | 4 | Current service contract, obsolete partial fixture: `instruction_graph_state` is missing. | Install the registered graph-state schema in the fixture. |
+| `VariablesInstructionCopyTransactionTest` | 5 | Current service contract, obsolete partial fixture: `instruction_variable_slot` is missing. | Upgrade the fixture to the current slot schema and verify copy/rollback semantics. |
+| `PageMappingsWorkspaceRetentionTest` | 5 | Fixture authorization drift: responses are rejected before retention fields exist because the authoritative Bot Job registry owner is not activated. | Activate the exact owner/epoch in the fixture; do not weaken production authorization. |
+| `PageMappingsWorkspaceServiceTest` | 12 | Mixed fixture authorization drift: 9 owner/registry response failures plus 3 Memory lifecycle assertions. | Repair exact registry/epoch setup first, then reassess only the remaining Memory lifecycle assertions. |
+| `BotJobDetailsToolbarPlaywrightTest` | 1 | Deployed frontend resources are stale and lack `excelExport.chooseDirectory`. | Build/mirror the current frontend assets, then rerun; no assertion change yet. |
+| `MainDashboardAutoTestPlaywrightTest` | 1 | Obsolete expectation: test expects `AR Web`; approved UI renders `Main Bot Jobs`. | Update the assertion after asset synchronization. |
+| `VariablesIfFamilyDeletePlaywrightTest` | 1 | Reproducible browser-fixture timeout waiting for `Bot Job 1`. | Synchronize assets, then trace fixture bootstrap/navigation if it still times out. |
+
+The earlier Windows ACL failures are absent from this full rerun. Production ACL enforcement remains unchanged.
+
+### Current frontend and E2E remainder
+
+- React remains at 56 failures in 19 suites. The detailed React table below is still current; the highest-priority product defect remains ambiguous Variables parent selection guessing the first candidate instead of requiring review.
+- Browser E2E reproduces:
+  1. Duplicate `Page Scanner` regions — real accessibility defect.
+  2. OCR header expected old blue `rgb(11, 83, 148)` but approved design is `rgb(29, 79, 145)` — obsolete test.
+  3. Main Dashboard expects the obsolete `AR Web` heading — obsolete test.
+
+### Recommended next repair batch
+
+1. Fix the Variables relationship legacy fallback and ambiguous-parent fail-open behavior as one cross-layer semantic batch.
+2. Upgrade runtime-variable and instruction-copy Java fixtures to registered schemas.
+3. Repair Page Mappings owner/epoch fixtures, then isolate any genuine Memory lifecycle failures.
+4. Build and mirror current frontend assets; rerun the three Java-hosted Playwright tests.
+5. Fix the duplicate Page Scanner region and update the two obsolete E2E expectations.
+6. Refresh obsolete React fixtures/labels after the shared variable semantics are authoritative.
+7. Rerun full Java, React, and E2E suites and regenerate the automation catalog if test declarations change.
+
 ## Java failures
 
 | Failing suite | Failed | Why it fails | Required action |
