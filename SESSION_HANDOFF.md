@@ -1266,3 +1266,23 @@ Do not change frontend CSS/design while doing the scanner contract cleanup unles
   registry row after action success; it never rewrites an immutable capture or instruction graph.
 - Node tests, focused Java tests, frontend contract tests, Java compilation, and frontend production
   build pass. Live V2 execution/visual acceptance and deployed asset mirroring remain separate gates.
+
+## Stop preserves the V2 browser - 2026-08-14
+
+- [x] Backend/Node commit `37b3910c` supersedes the earlier V2 Stop behavior that closed the exact
+  browser. Smoke Test Stop now interrupts the pending locator/render wait, settles the run, and
+  parks the still-open browser under the exact organization/Home Banking/Bot Job owner.
+- [x] A later run for that exact owner adopts the same browser/context/page instance. Browsers are
+  never shared across owners. Parked-browser admission remains bounded by the configured active-run
+  capacity; application/runtime shutdown remains the final process-cleanup boundary.
+- [x] The authored `Q` / Close Browser instruction is now supported by V2 and calls a dedicated
+  token-authorized `/close-browser` route. Ordinary Stop and Finish use the preserving `/stop`
+  lifecycle and report that the page remains open.
+- [x] The frontend contained no browser-close call in its Stop path; it displayed the terminal text
+  returned by Java. Therefore no React asset change or frontend deployment was required.
+- [x] All 39 Node runtime tests passed. Focused Java lifecycle verification passed 22/22, and the
+  final explicit-close HTTP/executor subset passed 8/8. Maven compiled 581 main and 341 test sources.
+- [x] Commit `37b3910c` is pushed to `refactor/perform-actions-decomposition`.
+- [ ] Live acceptance remains: start V2, stop during an unresolved locator, confirm the browser
+  stays open, start the same Bot Job again and confirm the browser instance is reused, then execute
+  an authored Close Browser command and confirm only that command closes it.
