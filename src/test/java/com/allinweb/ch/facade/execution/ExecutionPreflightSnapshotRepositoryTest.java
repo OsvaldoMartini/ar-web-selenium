@@ -84,6 +84,34 @@ class ExecutionPreflightSnapshotRepositoryTest {
         assertEquals(3, loaded.snapshot().instructions().size());
     }
 
+    @Test
+    void prefersTheCurrentInstructionVariableSlotOverTheLegacyColumn() throws Exception {
+        String url = database("current-variable-slot.db");
+        bootstrap(url, true);
+        try (Connection connection = DriverManager.getConnection(url);
+                Statement statement = connection.createStatement()) {
+            statement.execute(
+                    "CREATE TABLE instruction_variable_slot ("
+                            + "home_banking_id INTEGER NOT NULL, bot_job_id INTEGER NOT NULL,"
+                            + "instruction_id INTEGER NOT NULL, slot TEXT NOT NULL, variable_id INTEGER NOT NULL)");
+            statement.execute(
+                    "INSERT INTO instruction_variable_slot VALUES (2, 5, 102, 'GET_WRITE', 777)");
+        }
+        ExecutionPreflightSnapshotRepository repository =
+                new ExecutionPreflightSnapshotRepository(
+                        () -> DriverManager.getConnection(url));
+
+        ExecutionPreflightSnapshot.InstructionFact getRow = repository.load(new Owner(2, 5))
+                .snapshot()
+                .instructions()
+                .stream()
+                .filter(row -> row.id() == 102)
+                .findFirst()
+                .orElseThrow();
+
+        assertEquals(Integer.valueOf(777), getRow.variableId());
+    }
+
     private String database(String name) {
         return "jdbc:sqlite:" + tempDirectory.resolve(name);
     }
@@ -97,7 +125,8 @@ class ExecutionPreflightSnapshotRepositoryTest {
                     "CREATE TABLE block (id INTEGER PRIMARY KEY, bot_job_id INTEGER NOT NULL,"
                             + " block_order_number INTEGER NOT NULL, active BOOLEAN NOT NULL)");
             statement.execute(
-                    "CREATE TABLE instruction (id INTEGER PRIMARY KEY, block_id INTEGER NOT NULL,"
+                    "CREATE TABLE instruction (id INTEGER PRIMARY KEY, bot_job_id INTEGER NOT NULL,"
+                            + " block_id INTEGER NOT NULL,"
                             + " instruction_order_number INTEGER NOT NULL, actions TEXT,"
                             + " tag_name TEXT, active BOOLEAN NOT NULL, parent_id INTEGER,"
                             + " parent_block_id INTEGER, variable_id INTEGER)");
@@ -151,10 +180,10 @@ class ExecutionPreflightSnapshotRepositoryTest {
                     "INSERT INTO block VALUES (10, 5, 1, 1), (20, 5, 2, 1), (90, 6, 1, 1)");
             statement.execute(
                     "INSERT INTO instruction VALUES"
-                            + " (101, 10, 1, 'FIELD', 'input', 1, NULL, NULL, NULL),"
-                            + " (102, 10, 2, 'GET', NULL, 1, 101, NULL, 501),"
-                            + " (103, 10, 3, 'EXCEL GOTO', NULL, 1, NULL, NULL, NULL),"
-                            + " (999, 90, 1, 'FIELD', 'button', 1, NULL, NULL, NULL)");
+                            + " (101, 5, 10, 1, 'FIELD', 'input', 1, NULL, NULL, NULL),"
+                            + " (102, 5, 10, 2, 'GET', NULL, 1, 101, NULL, 501),"
+                            + " (103, 5, 10, 3, 'EXCEL GOTO', NULL, 1, NULL, NULL, NULL),"
+                            + " (999, 6, 90, 1, 'FIELD', 'button', 1, NULL, NULL, NULL)");
             statement.execute(
                     "INSERT INTO bot_job_variable_definition"
                             + " (home_banking_id, bot_job_id, id, variable_type, name,"

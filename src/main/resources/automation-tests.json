@@ -1,27 +1,27 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-14T00:05:28.189Z",
+  "generatedAt": "2026-08-14T00:25:35.825Z",
   "summary": {
-    "catalogEntries": 2408,
-    "automatedCodeCases": 2372,
+    "catalogEntries": 2409,
+    "automatedCodeCases": 2373,
     "generatedApiCases": 19452,
-    "totalAutomatedCases": 21824,
+    "totalAutomatedCases": 21825,
     "automatedSuites": 504,
     "generatedSuites": 21,
     "manualArtifacts": 9,
     "supportArtifacts": 6,
-    "defaultRunnable": 2343,
-    "safeRunAllEligible": 2343
+    "defaultRunnable": 2344,
+    "safeRunAllEligible": 2344
   },
   "sources": [
     {
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "branch": "refactor/perform-actions-decomposition",
-      "commit": "0f1563c01cd6c95f7455affe187738b5888f47b3",
+      "commit": "fab45271c8200118a91dd73beb0bed91e75a92d9",
       "sourceFiles": 341,
       "automatedSuites": 330,
-      "automatedTestCases": 1470,
+      "automatedTestCases": 1471,
       "generatedSuites": 0,
       "generatedCases": 0
     },
@@ -7902,7 +7902,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#wholeBlockCopiesInstructionsVariablesReferencesAndRelationshipsInOneCommit@44",
+      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#wholeBlockCopiesInstructionsVariablesReferencesAndRelationshipsInOneCommit@60",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -7916,7 +7916,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/ComponentMemoryApplyServiceTest.java",
-      "line": 44,
+      "line": 60,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -7926,7 +7926,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#componentCopyDoesNotRepairLegacySourceParentBlockAndNormalizesOnlyGeneratedClone@112",
+      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#componentCopyDoesNotRepairLegacySourceParentBlockAndNormalizesOnlyGeneratedClone@128",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -7940,7 +7940,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/ComponentMemoryApplyServiceTest.java",
-      "line": 112,
+      "line": 128,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -7950,7 +7950,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#staleComponentRevisionRollsBackWithoutPartialRows@176",
+      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#staleComponentRevisionRollsBackWithoutPartialRows@192",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -7964,7 +7964,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/ComponentMemoryApplyServiceTest.java",
-      "line": 176,
+      "line": 192,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -7974,7 +7974,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#variableOwnershipChangeMakesComponentRevisionStale@204",
+      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#variableOwnershipChangeMakesComponentRevisionStale@220",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -7988,7 +7988,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/ComponentMemoryApplyServiceTest.java",
-      "line": 204,
+      "line": 220,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -7998,7 +7998,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#individualCommandWithMissingParentIsRejectedWithoutCopying@239",
+      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#individualCommandWithMissingParentIsRejectedWithoutCopying@255",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -8012,7 +8012,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/ComponentMemoryApplyServiceTest.java",
-      "line": 239,
+      "line": 255,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -8022,7 +8022,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#variableConsumerWithoutItsGetProducerIsRejectedAtomically@268",
+      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#variableConsumerWithoutItsGetProducerIsRejectedAtomically@284",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -8036,7 +8036,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/ComponentMemoryApplyServiceTest.java",
-      "line": 268,
+      "line": 284,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -8046,7 +8046,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#duplicateRequestIdReturnsCachedSuccessWithoutCopyingTwice@318",
+      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#duplicateRequestIdReturnsCachedSuccessWithoutCopyingTwice@334",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -8060,7 +8060,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/ComponentMemoryApplyServiceTest.java",
-      "line": 318,
+      "line": 334,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -8070,7 +8070,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#reusedRequestIdWithDifferentPayloadIsRefusedInsteadOfReturningOldSuccess@350",
+      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#reusedRequestIdWithDifferentPayloadIsRefusedInsteadOfReturningOldSuccess@366",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -8084,7 +8084,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/ComponentMemoryApplyServiceTest.java",
-      "line": 350,
+      "line": 366,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -8094,7 +8094,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#individualSimpleInstructionCopiesIntoExistingTargetBlock@392",
+      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#individualSimpleInstructionCopiesIntoExistingTargetBlock@408",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -8108,7 +8108,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/ComponentMemoryApplyServiceTest.java",
-      "line": 392,
+      "line": 408,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -8118,7 +8118,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#newEndTargetBlockAndIndividualInstructionCommitAtomically@446",
+      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#newEndTargetBlockAndIndividualInstructionCommitAtomically@462",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -8132,7 +8132,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/ComponentMemoryApplyServiceTest.java",
-      "line": 446,
+      "line": 462,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -8142,7 +8142,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#newTargetBlockReceivesScannerInstructionAndItsReferenceInOneCommit@490",
+      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#newTargetBlockReceivesScannerInstructionAndItsReferenceInOneCommit@506",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -8156,7 +8156,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/ComponentMemoryApplyServiceTest.java",
-      "line": 490,
+      "line": 506,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -8166,7 +8166,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#pageMappingApplyReloadsAuthoritativeRowAndRetryRemainsIdempotent@559",
+      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#pageMappingApplyReloadsAuthoritativeRowAndRetryRemainsIdempotent@575",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -8180,7 +8180,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/ComponentMemoryApplyServiceTest.java",
-      "line": 559,
+      "line": 575,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -8190,7 +8190,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#pageMappingApplyUsesSerializableIsolationAndRestoresConnectionState@618",
+      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#pageMappingApplyUsesSerializableIsolationAndRestoresConnectionState@634",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -8204,7 +8204,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/ComponentMemoryApplyServiceTest.java",
-      "line": 618,
+      "line": 634,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -8214,7 +8214,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#stalePageMappingInMixedRequestRollsBackScannerAndNewBlock@659",
+      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#stalePageMappingInMixedRequestRollsBackScannerAndNewBlock@675",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -8228,7 +8228,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/ComponentMemoryApplyServiceTest.java",
-      "line": 659,
+      "line": 675,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -8238,7 +8238,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#duplicateNewTargetRequestCreatesOnlyOneBlockAndInstructionSet@715",
+      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#duplicateNewTargetRequestCreatesOnlyOneBlockAndInstructionSet@731",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -8252,7 +8252,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/ComponentMemoryApplyServiceTest.java",
-      "line": 715,
+      "line": 731,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -8262,7 +8262,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#orphanInstructionFailureRollsBackNewTargetAndShiftedOrder@762",
+      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#orphanInstructionFailureRollsBackNewTargetAndShiftedOrder@778",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -8276,7 +8276,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/ComponentMemoryApplyServiceTest.java",
-      "line": 762,
+      "line": 778,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -8286,7 +8286,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#newTargetBeforeExistingBlockKeepsContiguousOrderAndReceivesInstruction@811",
+      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#newTargetBeforeExistingBlockKeepsContiguousOrderAndReceivesInstruction@827",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -8300,7 +8300,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/ComponentMemoryApplyServiceTest.java",
-      "line": 811,
+      "line": 827,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -8310,7 +8310,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#blockAndItsSameInstructionDoNotCreateDuplicateInstruction@863",
+      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#blockAndItsSameInstructionDoNotCreateDuplicateInstruction@879",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -8324,7 +8324,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/ComponentMemoryApplyServiceTest.java",
-      "line": 863,
+      "line": 879,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -8334,7 +8334,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#connectedGotoCopiesReferencedBlockAndRemapsOnlyToGeneratedIds@902",
+      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#connectedGotoCopiesReferencedBlockAndRemapsOnlyToGeneratedIds@918",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -8348,7 +8348,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/ComponentMemoryApplyServiceTest.java",
-      "line": 902,
+      "line": 918,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -8358,7 +8358,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#individualWebFieldGetExtractFamilyUsesOnlyFreshRemappedIds@962",
+      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#individualWebFieldGetExtractFamilyUsesOnlyFreshRemappedIds@978",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -8372,7 +8372,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/ComponentMemoryApplyServiceTest.java",
-      "line": 962,
+      "line": 978,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -8382,7 +8382,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#botJobSameBlockGotoFamilyIsClonedWithFreshIdsAndSourceRemainsUnchanged@1079",
+      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#botJobSameBlockGotoFamilyIsClonedWithFreshIdsAndSourceRemainsUnchanged@1095",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -8396,7 +8396,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/ComponentMemoryApplyServiceTest.java",
-      "line": 1079,
+      "line": 1095,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -8406,7 +8406,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#botJobCopyDoesNotRepairLegacySourceParentBlockAndNormalizesOnlyTheClone@1159",
+      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#botJobCopyDoesNotRepairLegacySourceParentBlockAndNormalizesOnlyTheClone@1175",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -8420,7 +8420,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/ComponentMemoryApplyServiceTest.java",
-      "line": 1159,
+      "line": 1175,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -8430,7 +8430,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#botJobWebFieldGetExtractFamilyCopiesVariablesReferencesAndKeepsSource@1213",
+      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#botJobWebFieldGetExtractFamilyCopiesVariablesReferencesAndKeepsSource@1229",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -8444,7 +8444,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/ComponentMemoryApplyServiceTest.java",
-      "line": 1213,
+      "line": 1229,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -8454,7 +8454,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#botJobCopyPersistsEveryDirectionalVariableSlot@1356",
+      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#botJobCopyPersistsEveryDirectionalVariableSlot@1372",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -8468,7 +8468,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/ComponentMemoryApplyServiceTest.java",
-      "line": 1356,
+      "line": 1372,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -8478,7 +8478,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#botJobInstructionWithMissingParentIsRejectedWithoutAnyWrites@1456",
+      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#botJobInstructionWithMissingParentIsRejectedWithoutAnyWrites@1472",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -8492,7 +8492,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/ComponentMemoryApplyServiceTest.java",
-      "line": 1456,
+      "line": 1472,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -8502,7 +8502,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#botJobSourceRevisionRejectsAStaleFrontendSelectionWithoutAnyWrites@1496",
+      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#botJobSourceRevisionRejectsAStaleFrontendSelectionWithoutAnyWrites@1512",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -8516,7 +8516,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/ComponentMemoryApplyServiceTest.java",
-      "line": 1496,
+      "line": 1512,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -8526,7 +8526,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#botJobApplyPersistsExactlyTheFrontendSelectionWithoutExpandingSharedConsumers@1539",
+      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#botJobApplyPersistsExactlyTheFrontendSelectionWithoutExpandingSharedConsumers@1555",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -8540,7 +8540,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/ComponentMemoryApplyServiceTest.java",
-      "line": 1539,
+      "line": 1555,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -8550,7 +8550,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#botJobFamilyCreatesNewTargetOnceAndRetryDoesNotDuplicateRows@1601",
+      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#botJobFamilyCreatesNewTargetOnceAndRetryDoesNotDuplicateRows@1617",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -8564,7 +8564,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/ComponentMemoryApplyServiceTest.java",
-      "line": 1601,
+      "line": 1617,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -8574,7 +8574,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#botJobCopyFailureRollsBackNewBlockAndEveryGeneratedRow@1664",
+      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#botJobCopyFailureRollsBackNewBlockAndEveryGeneratedRow@1680",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -8588,7 +8588,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/ComponentMemoryApplyServiceTest.java",
-      "line": 1664,
+      "line": 1680,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -8598,7 +8598,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#botJobCrossBlockGotoCopyPreservesItsExistingSameJobDestination@1716",
+      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#botJobCrossBlockGotoCopyPreservesItsExistingSameJobDestination@1732",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -8612,7 +8612,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/ComponentMemoryApplyServiceTest.java",
-      "line": 1716,
+      "line": 1732,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -8622,7 +8622,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#botJobCrossBlockGotoCopyRefusesItsOwnNavigationDestinationAsTarget@1768",
+      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#botJobCrossBlockGotoCopyRefusesItsOwnNavigationDestinationAsTarget@1784",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -8636,7 +8636,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/ComponentMemoryApplyServiceTest.java",
-      "line": 1768,
+      "line": 1784,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -8646,7 +8646,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#botJobExcelGotoCopyIsRefusedBecauseTheSourceMustRemain@1812",
+      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#botJobExcelGotoCopyIsRefusedBecauseTheSourceMustRemain@1828",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -8660,7 +8660,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/ComponentMemoryApplyServiceTest.java",
-      "line": 1812,
+      "line": 1828,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -8670,7 +8670,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#wholeComponentBlockDoesNotExpandToAnUnreferencedExternalProducer@1857",
+      "id": "junit:com.allinweb.ch.facade.ComponentMemoryApplyServiceTest#wholeComponentBlockDoesNotExpandToAnUnreferencedExternalProducer@1873",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -8684,7 +8684,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/ComponentMemoryApplyServiceTest.java",
-      "line": 1857,
+      "line": 1873,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -9649,6 +9649,30 @@
       "runnable": true,
       "runAllEligible": true,
       "command": "mvn -Dtest=com.allinweb.ch.facade.execution.ExecutionPreflightSnapshotRepositoryTest#keepsSnapshotAvailableWhenP5GraphStateIsNotInstalled test",
+      "tags": [
+        "Test"
+      ]
+    },
+    {
+      "id": "junit:com.allinweb.ch.facade.execution.ExecutionPreflightSnapshotRepositoryTest#prefersTheCurrentInstructionVariableSlotOverTheLegacyColumn@88",
+      "project": "AR Web Scanner",
+      "repository": "ar-web-selenium",
+      "recordType": "AUTOMATED_CASE",
+      "suite": "com.allinweb.ch.facade.execution.ExecutionPreflightSnapshotRepositoryTest",
+      "name": "prefersTheCurrentInstructionVariableSlotOverTheLegacyColumn",
+      "displayName": "prefersTheCurrentInstructionVariableSlotOverTheLegacyColumn",
+      "framework": "JUnit 5",
+      "language": "Java",
+      "kind": "UNIT",
+      "runtime": "JVM",
+      "execution": "DEFAULT",
+      "safety": "SAFE",
+      "sourcePath": "src/test/java/com/allinweb/ch/facade/execution/ExecutionPreflightSnapshotRepositoryTest.java",
+      "line": 88,
+      "caseCount": 1,
+      "runnable": true,
+      "runAllEligible": true,
+      "command": "mvn -Dtest=com.allinweb.ch.facade.execution.ExecutionPreflightSnapshotRepositoryTest#prefersTheCurrentInstructionVariableSlotOverTheLegacyColumn test",
       "tags": [
         "Test"
       ]
@@ -10974,7 +10998,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.ExecutionCommandSemanticsCharacterizationTest#characterizesSetAsALiteralWriterRatherThanAVariableConsumer@49",
+      "id": "junit:com.allinweb.ch.facade.ExecutionCommandSemanticsCharacterizationTest#characterizesSetAsALiteralWriterRatherThanAVariableConsumer@52",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -10988,7 +11012,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/ExecutionCommandSemanticsCharacterizationTest.java",
-      "line": 49,
+      "line": 52,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -10998,7 +11022,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.ExecutionCommandSemanticsCharacterizationTest#characterizesCheckAuthoringContractSeparatelyFromRuntimeDataSources@71",
+      "id": "junit:com.allinweb.ch.facade.ExecutionCommandSemanticsCharacterizationTest#characterizesCheckAuthoringContractSeparatelyFromRuntimeDataSources@74",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -11012,7 +11036,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/ExecutionCommandSemanticsCharacterizationTest.java",
-      "line": 71,
+      "line": 74,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -11022,7 +11046,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.ExecutionCommandSemanticsCharacterizationTest#characterizesLoopAndNavigationOperations@94",
+      "id": "junit:com.allinweb.ch.facade.ExecutionCommandSemanticsCharacterizationTest#characterizesLoopAndNavigationOperations@99",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -11036,7 +11060,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/ExecutionCommandSemanticsCharacterizationTest.java",
-      "line": 94,
+      "line": 99,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -11046,7 +11070,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.ExecutionCommandSemanticsCharacterizationTest#decodePreservesExplicitRelationshipIdentifiers@121",
+      "id": "junit:com.allinweb.ch.facade.ExecutionCommandSemanticsCharacterizationTest#decodePreservesExplicitRelationshipIdentifiers@126",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -11060,7 +11084,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/ExecutionCommandSemanticsCharacterizationTest.java",
-      "line": 121,
+      "line": 126,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -11070,7 +11094,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.ExecutionCommandSemanticsCharacterizationTest#decodeDoesNotInventMissingRelationshipIdentifiersFromOperationText@145",
+      "id": "junit:com.allinweb.ch.facade.ExecutionCommandSemanticsCharacterizationTest#decodeDoesNotInventMissingRelationshipIdentifiersFromOperationText@150",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -11084,7 +11108,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/ExecutionCommandSemanticsCharacterizationTest.java",
-      "line": 145,
+      "line": 150,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -12534,7 +12558,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.InstructionMoveTransactionTest#acceptsMatchingComponentRevisionUsingScopedComponentVariableOwnership@365",
+      "id": "junit:com.allinweb.ch.facade.InstructionMoveTransactionTest#acceptsMatchingComponentRevisionUsingScopedComponentVariableOwnership@367",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -12548,7 +12572,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/InstructionMoveTransactionTest.java",
-      "line": 365,
+      "line": 367,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -12558,7 +12582,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.InstructionMoveTransactionTest#rejectsDuplicateMissingAndGappedLayouts@402",
+      "id": "junit:com.allinweb.ch.facade.InstructionMoveTransactionTest#rejectsDuplicateMissingAndGappedLayouts@404",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -12572,7 +12596,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/InstructionMoveTransactionTest.java",
-      "line": 402,
+      "line": 404,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -12582,7 +12606,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.InstructionMoveTransactionTest#rejectsForgedParentBlockAndRollsBack@425",
+      "id": "junit:com.allinweb.ch.facade.InstructionMoveTransactionTest#rejectsForgedParentBlockAndRollsBack@427",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -12596,7 +12620,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/InstructionMoveTransactionTest.java",
-      "line": 425,
+      "line": 427,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,

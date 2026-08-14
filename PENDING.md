@@ -17,11 +17,11 @@ No code was modified during this investigation.
 | `AllJobDetailsDeleteTransactionTest` | 0 | Resolved: fixture now isolates snapshot health/PATH_DB and installs the authoritative snapshot schema. | Focused suite passes 3/3. |
 | `AutomationTestCatalogServiceTest` | 0 | Resolved: `automation-tests.json` was regenerated from the current Java and React test trees. | Focused suite passes 2/2. |
 | `BotJobDeleteTransactionTest` | 0 | Resolved as the same fixture root: snapshot health/PATH_DB and schema are isolated and current. | Broader affected suite passes 5/5. |
-| `ComponentMemoryApplyServiceTest` | 2 | Capture verification fails, probably because test artifacts cannot receive/verify the required ACL. | Rerun after ACL correction before changing application behavior. |
-| `ExecutionPreflightSnapshotRepositoryTest` | 2 | Repository queries missing `instruction_variable_slot`; these tests intentionally exercise an older schema. | Add the promised legacy-schema fallback or explicitly change the compatibility contract. This is not merely an assertion update. |
-| `ExecutionCommandSemanticsCharacterizationTest` | 2 | Tests still say CK and ExcelWrite require a Web Element. Current architecture makes CK variable-based and ExcelWrite instruction/file-based. | Update obsolete semantics tests. |
-| `InstructionMoveTransactionTest` | 1 | Fixture lacks `instruction_variable_slot`, so it fails before reaching the expected revision conflict. | Upgrade fixture schema/migrations. |
-| `LocatorGeneratorServiceTest` | 1 | A `data-testid` containing both quote and backslash generates a CSS selector Jsoup cannot parse; fallback repeats the invalid selector. | Fix production CSS escaping/fallback. Keep the regression test. |
+| `ComponentMemoryApplyServiceTest` | 0 | Resolved: snapshot test state is isolated and generated artifacts receive the same private ACL hardening required by capture verification. | Focused suite passes 36/36. |
+| `ExecutionPreflightSnapshotRepositoryTest` | 0 | Resolved: current `instruction_variable_slot` remains authoritative; an old schema with only `instruction.variable_id` receives the promised compatibility fallback. | Focused suite passes 4/4, including current- and legacy-schema paths. |
+| `ExecutionCommandSemanticsCharacterizationTest` | 0 | Resolved: characterization now matches the current contract—CK is variable-based and ExcelWrite is instruction/file-based, not Web Element based. | Focused suite passes 6/6. |
+| `InstructionMoveTransactionTest` | 0 | Resolved: fixture uses `instruction_variable_slot` and `bot_job_variable_definition`; stale ownership assertions target the current producer relationship. | Focused suite passes 14/14. |
+| `LocatorGeneratorServiceTest` | 0 | Resolved: exact attribute identity no longer depends on Jsoup CSS parsing; incompatible quoted selectors use a safe positional CSS fallback while retaining exact XPath. | Focused suite passes 14/14. |
 | `PageMappingApplyResolverTest` | 10 | Windows private ACL returns error 5. | ACL root correction. |
 | `PageScanSnapshotArtifactLifecycleTest` | 3 | Same ACL error 5. | ACL root correction. |
 | `PageScanSnapshotFileSecurityLongPathTest` | 1 | Direct focused rerun reproduces `SetNamedSecurityInfo` error 5 on the temporary long path. | Diagnose test-directory ownership/ACL application; never disable production ACL enforcement. |
@@ -118,3 +118,14 @@ Rerun coverage:
 - Exact requested suites: 21/21 passed.
 - Directly affected broader suites: 18/18 passed.
 - Windows extended-length ACL suite: 1/1 passed.
+
+## Resolved checkpoint — next five Java groups — 2026-08-13
+
+- Component Memory capture fixtures now isolate snapshot health/root state and apply production-equivalent private ACLs before verification.
+- Execution preflight supports both the authoritative variable-slot schema and the documented legacy `instruction.variable_id` schema without mixing owners.
+- Command semantics characterize CK and ExcelWrite according to the current variable/file architecture.
+- Instruction movement fixtures and assertions use current variable-slot and producer-definition persistence.
+- Locator generation preserves exact XPath literals for quote/backslash values and uses a safe positional CSS selector only when the CSS parser cannot represent the exact attribute selector.
+- Requested five-suite batch: 74/74 passed.
+- Adjacent preflight, graph-revision, command-codec and command-editor contract suites: 29/29 passed.
+- Automation catalog consistency: 2/2 passed; catalog regenerated to 2,409 rows / 2,373 code cases.

@@ -206,18 +206,23 @@ public final class LocatorGeneratorService {
             int attributeIndex = 0;
             chosen.add(available.get(attributeIndex++));
             css = buildCss(tag, chosen);
-            while (!isUniqueInDocument(document, css, target) && attributeIndex < available.size()) {
+            while (!attributesUniquelyIdentify(document, tag, chosen, target)
+                    && attributeIndex < available.size()) {
                 chosen.add(available.get(attributeIndex++));
                 css = buildCss(tag, chosen);
             }
             String baseXpath = buildXpath(tag, chosen);
-            if (isUniqueInDocument(document, css, target)) {
+            if (attributesUniquelyIdentify(document, tag, chosen, target)) {
                 xpath = baseXpath;
+                if (!isUniqueInDocument(document, css, target)) {
+                    positional = true;
+                    css = positionalCss(document, target, tag);
+                }
             } else {
                 positional = true;
-                int position = positionInDocument(document, css, target);
+                int position = positionByAttributes(document, tag, chosen, target);
                 xpath = "(" + baseXpath + ")[" + position + "]";
-                css = positionalCss(document, target, css);
+                css = positionalCss(document, target, tag);
             }
         }
 
@@ -242,7 +247,7 @@ public final class LocatorGeneratorService {
         out.addProperty(
                 "note",
                 positional
-                        ? "Attributes collide in the pasted HTML; position is used and may be fragile."
+                        ? "A positional CSS fallback is used and may be fragile."
                         : "Unique in the pasted HTML by tag + " + describeChosen(chosen) + ".");
         return out;
     }
@@ -276,6 +281,35 @@ public final class LocatorGeneratorService {
         } catch (RuntimeException invalidSelector) {
             return false;
         }
+    }
+
+    private static boolean attributesUniquelyIdentify(
+            Document document, String tag, List<String[]> attributes, Element target) {
+        List<Element> matches = matchingElements(document, tag, attributes);
+        return matches.size() == 1 && matches.get(0) == target;
+    }
+
+    private static int positionByAttributes(
+            Document document, String tag, List<String[]> attributes, Element target) {
+        int index = matchingElements(document, tag, attributes).indexOf(target);
+        if (index < 0) throw new IllegalArgumentException("Generated attributes do not identify the target control");
+        return index + 1;
+    }
+
+    private static List<Element> matchingElements(
+            Document document, String tag, List<String[]> attributes) {
+        List<Element> matches = new ArrayList<>();
+        for (Element candidate : document.getElementsByTag(tag)) {
+            boolean matching = true;
+            for (String[] pair : attributes) {
+                if (!candidate.hasAttr(pair[0]) || !candidate.attr(pair[0]).trim().equals(pair[1])) {
+                    matching = false;
+                    break;
+                }
+            }
+            if (matching) matches.add(candidate);
+        }
+        return matches;
     }
 
     private static int positionInDocument(Document document, String css, Element target) {
@@ -344,10 +378,14 @@ public final class LocatorGeneratorService {
 
     /** Escapes a CSS quoted string, including slash, quote, control, and newline characters. */
     private static String cssLiteral(String value) {
-        StringBuilder escaped = new StringBuilder("'");
+        char quote = value.indexOf('\'') >= 0 && value.indexOf('"') < 0 ? '"' : '\'';
+        StringBuilder escaped = new StringBuilder().append(quote);
         for (int index = 0; index < value.length(); index++) {
             char character = value.charAt(index);
-            if (character == '\\' || character == '\'') {
+            if (character == '\\' || character == quote) {
+                // Prefer the delimiter absent from the value. Jsoup and browser CSS parsers then
+                // agree on the ordinary escaped backslash without also having to decode an
+                // escaped quote of the opposite kind.
                 escaped.append('\\').append(character);
             } else if (character == '\n' || character == '\r' || character == '\f' || character == 0) {
                 escaped.append('\\').append(Integer.toHexString(character)).append(' ');
@@ -355,7 +393,7 @@ public final class LocatorGeneratorService {
                 escaped.append(character);
             }
         }
-        return escaped.append('\'').toString();
+        return escaped.append(quote).toString();
     }
 
     private static String xpathLiteral(String value) {

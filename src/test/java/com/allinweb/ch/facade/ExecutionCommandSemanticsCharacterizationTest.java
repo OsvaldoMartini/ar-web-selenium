@@ -33,7 +33,10 @@ class ExecutionCommandSemanticsCharacterizationTest {
                     CommandOperationCodec.encodeResolved(
                             value.action(), "Account", "#amount", "10", ">=", "4", "3"),
                     value.action());
-            assertTrue(CommandRegistry.requires(value.action(), "webField"), value.action());
+            assertEquals(
+                    List.of("GET", "SET").contains(value.action()),
+                    CommandRegistry.requires(value.action(), "webField"),
+                    value.action());
             assertTrue(CommandRegistry.requires(value.action(), "variable"), value.action());
             assertTrue(VariableDefinitionPolicy.isVariableCommand(value.action()), value.action());
             assertEquals(value.producer(), VariableDefinitionPolicy.isProducer(value.action()), value.action());
@@ -75,7 +78,9 @@ class ExecutionCommandSemanticsCharacterizationTest {
             String operation = CommandOperationCodec.encodeResolved(
                     action, "Account", "#amount", "10", ">=", "4", "3");
             assertEquals("#amount:>=:10", operation, action);
-            assertTrue(CommandRegistry.requires(action, "webField"), action);
+            assertFalse(
+                    CommandRegistry.requires(action, "webField"),
+                    action + " compares variable/runtime data and has no Web Element target.");
             assertTrue(CommandRegistry.requires(action, "variable"), action);
             assertTrue(CommandRegistry.requires(action, "operator"), action);
             assertFalse(

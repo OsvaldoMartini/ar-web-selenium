@@ -319,7 +319,8 @@ class InstructionMoveTransactionTest {
 
             // Simulate another committed editor changing dependency ownership after React
             // received its revision but before this transaction starts.
-            sql.execute("UPDATE variable SET instruction_id=2 WHERE id=7 AND bot_job_id=19");
+            sql.execute("UPDATE bot_job_variable_definition SET producer_instruction_id=2"
+                    + " WHERE id=7 AND bot_job_id=19");
 
             UpdatedRow parent = update(1, 20, 1);
             UpdatedRow child = update(2, 20, 2);
@@ -354,9 +355,10 @@ class InstructionMoveTransactionTest {
                 assertFalse(rows.next());
             }
             try (ResultSet variable = sql.executeQuery(
-                    "SELECT instruction_id FROM variable WHERE id=7 AND bot_job_id=19")) {
+                    "SELECT producer_instruction_id FROM bot_job_variable_definition"
+                            + " WHERE id=7 AND bot_job_id=19")) {
                 variable.next();
-                assertEquals(2, variable.getInt("instruction_id"));
+                assertEquals(2, variable.getInt("producer_instruction_id"));
             }
         }
     }
@@ -460,7 +462,9 @@ class InstructionMoveTransactionTest {
         String ownerColumn = component ? "home_banking_id" : "bot_job_id";
         String blockTable = component ? "component_block" : "block";
         String instructionTable = component ? "component_instruction" : "instruction";
-        String variableTable = component ? "component_variable" : "variable";
+        String variableTable = component
+                ? "component_variable"
+                : "bot_job_variable_definition";
         sql.execute("CREATE TABLE " + blockTable
                 + "(id INTEGER PRIMARY KEY," + ownerColumn
                 + " INTEGER,block_order_number INTEGER)");
@@ -469,9 +473,17 @@ class InstructionMoveTransactionTest {
                 + " INTEGER,block_id INTEGER,instruction_order_number INTEGER,"
                 + "actions TEXT,parent_id INTEGER,parent_block_id INTEGER,"
                 + "variable_id INTEGER,operation TEXT)");
-        sql.execute("CREATE TABLE " + variableTable
-                + "(id INTEGER PRIMARY KEY," + ownerColumn
-                + " INTEGER,instruction_id INTEGER)");
+        if (component) {
+            sql.execute("CREATE TABLE " + variableTable
+                    + "(id INTEGER PRIMARY KEY," + ownerColumn
+                    + " INTEGER,instruction_id INTEGER)");
+        } else {
+            sql.execute("CREATE TABLE " + variableTable
+                    + "(id INTEGER PRIMARY KEY,bot_job_id INTEGER,"
+                    + "producer_instruction_id INTEGER)");
+            sql.execute("CREATE TABLE instruction_variable_slot("
+                    + "bot_job_id INTEGER,instruction_id INTEGER,slot TEXT,variable_id INTEGER)");
+        }
     }
 
     private void seedProductionRevisionGraph(
@@ -479,7 +491,9 @@ class InstructionMoveTransactionTest {
             throws SQLException {
         String blockTable = component ? "component_block" : "block";
         String instructionTable = component ? "component_instruction" : "instruction";
-        String variableTable = component ? "component_variable" : "variable";
+        String variableTable = component
+                ? "component_variable"
+                : "bot_job_variable_definition";
         sql.execute("INSERT INTO " + blockTable + " VALUES"
                 + "(10," + ownerId + ",1),(20," + ownerId + ",2)");
         sql.execute("INSERT INTO " + instructionTable + " VALUES"
@@ -495,7 +509,7 @@ class InstructionMoveTransactionTest {
         producer.setBlockId(10);
         producer.setInstructionOrderNumber(1);
         producer.setActions("WEB_FIELD");
-        producer.setVariableId(7);
+        if (component) producer.setVariableId(7);
         producer.setOperation("produce");
 
         InstructionLoad child = new InstructionLoad();

@@ -31,14 +31,30 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.api.parallel.Isolated;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
+@Isolated("Mutates snapshot storage health and ARPropertyManager PATH_DB")
 class ComponentMemoryApplyServiceTest {
 
     @TempDir Path temporaryDirectory;
+
+    private PageScanSnapshotTestState snapshotState;
+
+    @BeforeEach
+    void isolateSnapshotStorage() throws Exception {
+        snapshotState = PageScanSnapshotTestState.isolate(temporaryDirectory);
+    }
+
+    @AfterEach
+    void restoreSnapshotStorage() throws Exception {
+        snapshotState.close();
+    }
 
     @Test
     void wholeBlockCopiesInstructionsVariablesReferencesAndRelationshipsInOneCommit()
@@ -2303,6 +2319,7 @@ class ComponentMemoryApplyServiceTest {
         manifest.add("files", files);
         byte[] manifestBytes = json.toJson(manifest).getBytes(StandardCharsets.UTF_8);
         Files.write(folder.resolve("manifest.json"), manifestBytes);
+        PageScanSnapshotFileSecurity.secureDirectoryTree(root, folder);
 
         try (Connection connection = DriverManager.getConnection(databaseUrl);
                 PreparedStatement statement = connection.prepareStatement(

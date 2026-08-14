@@ -7,6 +7,7 @@ import com.allinweb.ch.facade.execution.ExecutionPreflightSnapshot.InstructionFa
 import com.allinweb.ch.facade.execution.ExecutionPreflightSnapshot.Owner;
 import com.allinweb.ch.facade.execution.ExecutionPreflightSnapshot.VariableFact;
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -101,10 +102,14 @@ public final class ExecutionPreflightSnapshotRepository {
             Connection connection,
             Owner owner)
             throws SQLException {
-        String sql =
-                "SELECT i.id, i.block_id, i.instruction_order_number, i.actions,"
-                        + " i.tag_name, i.active, i.parent_id, i.parent_block_id,"
-                        + " (SELECT ivs.variable_id FROM instruction_variable_slot ivs"
+        boolean slotSchema = tableExists(connection, "instruction_variable_slot");
+        boolean legacyVariableColumn = columnExists(connection, "instruction", "variable_id");
+        if (!slotSchema && !legacyVariableColumn) {
+            throw new SQLException(
+                    "Execution preflight requires instruction variable-slot persistence.");
+        }
+        String variableProjection = slotSchema
+                ? " (SELECT ivs.variable_id FROM instruction_variable_slot ivs"
                         + " WHERE ivs.home_banking_id=? AND ivs.bot_job_id=i.bot_job_id"
                         + " AND ivs.instruction_id=i.id"
                         + " AND ivs.slot=CASE UPPER(TRIM(i.actions))"
@@ -112,15 +117,21 @@ public final class ExecutionPreflightSnapshotRepository {
                         + " WHEN 'CSV CHECK' THEN 'LEFT' WHEN 'PDF CHECK' THEN 'LEFT'"
                         + " WHEN 'GET' THEN 'GET_WRITE' WHEN 'SET' THEN 'READ_SET'"
                         + " WHEN 'E' THEN 'READ' WHEN 'EXCELWRITE' THEN 'READ'"
-                        + " ELSE NULL END LIMIT 1) AS variable_id"
+                        + " ELSE NULL END LIMIT 1)"
+                : " i.variable_id";
+        String sql =
+                "SELECT i.id, i.block_id, i.instruction_order_number, i.actions,"
+                        + " i.tag_name, i.active, i.parent_id, i.parent_block_id,"
+                        + variableProjection + " AS variable_id"
                         + " FROM instruction i"
                         + " JOIN block b ON b.id = i.block_id"
                         + " WHERE b.bot_job_id = ?"
                         + " ORDER BY b.block_order_number, i.instruction_order_number, i.id";
         List<InstructionFact> result = new ArrayList<>();
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
-            statement.setInt(1, owner.homeBankingId());
-            statement.setInt(2, owner.botJobId());
+            int parameter = 1;
+            if (slotSchema) statement.setInt(parameter++, owner.homeBankingId());
+            statement.setInt(parameter, owner.botJobId());
             try (ResultSet rows = statement.executeQuery()) {
                 while (rows.next()) {
                     result.add(new InstructionFact(
@@ -137,6 +148,31 @@ public final class ExecutionPreflightSnapshotRepository {
             }
         }
         return List.copyOf(result);
+    }
+
+    private static boolean tableExists(Connection connection, String tableName)
+            throws SQLException {
+        DatabaseMetaData metadata = connection.getMetaData();
+        try (ResultSet tables = metadata.getTables(null, null, null, new String[] {"TABLE"})) {
+            while (tables.next()) {
+                if (tableName.equalsIgnoreCase(tables.getString("TABLE_NAME"))) return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean columnExists(
+            Connection connection, String tableName, String columnName) throws SQLException {
+        DatabaseMetaData metadata = connection.getMetaData();
+        try (ResultSet columns = metadata.getColumns(null, null, null, null)) {
+            while (columns.next()) {
+                if (tableName.equalsIgnoreCase(columns.getString("TABLE_NAME"))
+                        && columnName.equalsIgnoreCase(columns.getString("COLUMN_NAME"))) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private List<VariableFact> loadVariables(Connection connection, Owner owner)

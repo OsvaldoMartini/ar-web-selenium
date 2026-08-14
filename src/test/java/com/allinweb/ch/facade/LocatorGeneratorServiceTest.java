@@ -28,7 +28,7 @@ class LocatorGeneratorServiceTest {
 
     private JsonArray controls(String html) {
         JsonObject response = generate(html);
-        assertTrue(response.get("ok").getAsBoolean(), "generation should succeed");
+        assertTrue(response.get("ok").getAsBoolean(), () -> "generation should succeed: " + response);
         assertEquals("req-1", response.get("requestId").getAsString());
         return response.getAsJsonArray("controls");
     }
