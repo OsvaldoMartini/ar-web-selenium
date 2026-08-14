@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-14T01:50:35.721Z",
+  "generatedAt": "2026-08-14T10:58:14.963Z",
   "summary": {
     "catalogEntries": 2409,
     "automatedCodeCases": 2373,
@@ -18,7 +18,7 @@
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "branch": "refactor/perform-actions-decomposition",
-      "commit": "e33a3de1b9a626701051486d84e9a022cac99ff9",
+      "commit": "d293f0d781df4cafdf6ef0b5d67d8cd295468bad",
       "sourceFiles": 341,
       "automatedSuites": 330,
       "automatedTestCases": 1471,
@@ -29652,7 +29652,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.runner.BotJobDetailsToolbarPlaywrightTest#rendersAndOperatesTheCompleteBotJobDetailsToolbarContract@486",
+      "id": "junit:com.allinweb.ch.runner.BotJobDetailsToolbarPlaywrightTest#rendersAndOperatesTheCompleteBotJobDetailsToolbarContract@455",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -29666,7 +29666,7 @@
       "execution": "CONDITIONAL",
       "safety": "LOCAL_REQUIREMENT",
       "sourcePath": "src/test/java/com/allinweb/ch/runner/BotJobDetailsToolbarPlaywrightTest.java",
-      "line": 486,
+      "line": 455,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": false,

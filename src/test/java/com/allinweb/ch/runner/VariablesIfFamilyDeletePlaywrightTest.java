@@ -291,11 +291,10 @@ class VariablesIfFamilyDeletePlaywrightTest {
             page.navigate(baseUrl + "/?desktopShell=1&openWorkspace=variablesManager");
 
             page.getByRole(com.microsoft.playwright.options.AriaRole.HEADING,
-                            new Page.GetByRoleOptions().setName("Variables"))
+                            new Page.GetByRoleOptions().setName("Variables").setExact(true))
                     .waitFor();
             page.getByText(
-                            "Bot Job " + BOT_JOB_ID,
-                            new Page.GetByTextOptions().setExact(true))
+                            "Bot Job ID " + BOT_JOB_ID)
                     .first()
                     .waitFor();
             page.getByText(

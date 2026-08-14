@@ -64,8 +64,6 @@ class BotJobDetailsToolbarPlaywrightTest {
             "ocr-config-523e4567-e89b-42d3-a456-426614174000";
     private static final String SELECTED_TRANSFER_PATH =
             "D:\\Projects\\ARWebBancaStato\\ARWeb\\Export";
-    private static final String SELECTED_EXCEL_EXPORT_DIRECTORY =
-            "D:\\Projects\\ARWebBancaStato\\ARWeb\\ExecutionExports";
     private static final String CREATED_BAT_PATH =
             "D:\\Projects\\ARWebBancaStato\\ARWeb\\execute_web_app_2_Botjob_20.bat";
     private static final Path BUILD_ROOT =
@@ -80,7 +78,6 @@ class BotJobDetailsToolbarPlaywrightTest {
               window.__arBotJobWindowSession = '%4$s';
               window.__arOcrConfigSession = '%5$s';
               window.__arRetargetOcrConfigSession = '%6$s';
-              window.__arSelectedExcelExportDirectory = '%8$s';
               window.__arMockSockets = [];
               window.__arBotJobState = {
                 revision: 1,
@@ -358,33 +355,6 @@ class BotJobDetailsToolbarPlaywrightTest {
                     return;
                   }
 
-                  if (envelope.type === 'excelExport.chooseDirectory') {
-                    emit(this, 'excelExport.chooseDirectoryResponse', {
-                      ok: true,
-                      cancelled: false,
-                      requestId: body.requestId,
-                      sessionId: body.sessionId,
-                      homeBankingId: body.homeBankingId,
-                      botJobId: body.botJobId,
-                      blockId: body.blockId,
-                      directory: window.__arSelectedExcelExportDirectory
-                    });
-                    return;
-                  }
-
-                  if (envelope.type === 'excelExport.save') {
-                    emit(this, 'excelExport.saveResponse', {
-                      ok: true,
-                      requestId: body.requestId,
-                      sessionId: body.sessionId,
-                      homeBankingId: body.homeBankingId,
-                      botJobId: body.botJobId,
-                      blockId: body.blockId,
-                      message: 'Excel export configuration saved'
-                    });
-                    return;
-                  }
-
                   if (envelope.type !== 'botJobDetails.toolbar.action') return;
                   const action = body.action;
                   const response = {
@@ -398,7 +368,7 @@ class BotJobDetailsToolbarPlaywrightTest {
                     response.selectedPath = '%7$s';
                   } else if (action === 'CREATE_BAT') {
                     response.message = 'BAT file created';
-                    response.selectedPath = '%9$s';
+                    response.selectedPath = '%8$s';
                   }
                   emit(this, 'botJobDetails.toolbar.actionResponse', response);
 
@@ -453,7 +423,6 @@ class BotJobDetailsToolbarPlaywrightTest {
                     OCR_CONFIG_SESSION_ID,
                     OCR_CONFIG_RETARGET_SESSION_ID,
                     SELECTED_TRANSFER_PATH.replace("\\", "\\\\"),
-                    SELECTED_EXCEL_EXPORT_DIRECTORY.replace("\\", "\\\\"),
                     CREATED_BAT_PATH.replace("\\", "\\\\"));
 
     private HttpServer server;
@@ -519,7 +488,6 @@ class BotJobDetailsToolbarPlaywrightTest {
                 coverDesktopShellLayout(page);
 
                 coverJobFileButtons(page, browserDialogs);
-                coverExcelExportDirectorySelection(page);
                 coverNavigationAndExecution(page);
                 coverTransferActions(page);
                 coverSemanticMetadataForm(page, uiContractFailures);
@@ -571,9 +539,15 @@ class BotJobDetailsToolbarPlaywrightTest {
     }
 
     private void coverJobFileButtons(Page page, List<String> browserDialogs) {
-        Locator excel = button(page, "Excel");
-        Locator generate = button(page, "Generate");
-        Locator report = button(page, "Report");
+        Locator excel = page.getByRole(
+                com.microsoft.playwright.options.AriaRole.BUTTON,
+                new Page.GetByRoleOptions().setName("Excel").setExact(true));
+        Locator generate = page.getByRole(
+                com.microsoft.playwright.options.AriaRole.BUTTON,
+                new Page.GetByRoleOptions().setName("Generate").setExact(true));
+        Locator report = page.getByRole(
+                com.microsoft.playwright.options.AriaRole.BUTTON,
+                new Page.GetByRoleOptions().setName("Report").setExact(true));
         assertTrue(excel.isVisible());
         assertTrue(generate.isVisible());
         assertTrue(report.isVisible());
@@ -612,6 +586,7 @@ class BotJobDetailsToolbarPlaywrightTest {
         page.getByText(
                         "BAT file created — " + CREATED_BAT_PATH,
                         new Page.GetByTextOptions().setExact(true))
+                .first()
                 .waitFor();
     }
 
@@ -625,7 +600,7 @@ class BotJobDetailsToolbarPlaywrightTest {
 
         assertEquals(
                 "LAUNCH",
-                toolbarBodyAfterClick(page, button(page, "Launch"), "LAUNCH")
+                toolbarBodyAfterExecutionStart(page, button(page, "Launch"), "LAUNCH", "Launch Variable Values")
                         .get("action")
                         .getAsString());
         awaitToolbarIdle(page);
@@ -651,9 +626,11 @@ class BotJobDetailsToolbarPlaywrightTest {
         assertTrue(allMode.isDisabled(), "Execute All must force and lock ALL mode");
         assertEquals("rgb(22, 128, 63)", computedBackground(allMode));
 
-        JsonObject executeAll = toolbarBodyAfterClick(page, button(page, "Test run"), "TEST_RUN");
+        JsonObject executeAll = toolbarBodyAfterExecutionStart(
+                page, button(page, "Test run"), "TEST_RUN", "Test Run Variable Values");
         assertEquals("ALL", executeAll.get("executionMode").getAsString());
         assertEquals(0, executeAll.get("blockId").getAsInt());
+        assertEquals("KEEP", executeAll.get("runtimeMemoryPolicy").getAsString());
         page.getByText("RUNNING", new Page.GetByTextOptions().setExact(true)).waitFor();
 
         Locator stop = button(page, "Stop");
@@ -664,80 +641,21 @@ class BotJobDetailsToolbarPlaywrightTest {
         assertTrue(stop.isDisabled());
 
         blockSelect.selectOption("91");
-        Locator numberedAll = page.locator("[aria-label='Execution mode: ALL']");
-        assertFalse(numberedAll.isDisabled());
-        numberedAll.click();
         Locator oneMode = page.locator("[aria-label='Execution mode: ONE']");
         oneMode.waitFor();
+        assertFalse(oneMode.isDisabled());
         assertEquals("rgb(232, 121, 27)", computedBackground(oneMode));
         assertEquals("true", oneMode.getAttribute("aria-pressed"));
 
-        JsonObject executeOne = toolbarBodyAfterClick(page, button(page, "Test run"), "TEST_RUN");
+        JsonObject executeOne = toolbarBodyAfterExecutionStart(
+                page, button(page, "Test run"), "TEST_RUN", "Test Run Variable Values");
         assertEquals("ONE", executeOne.get("executionMode").getAsString());
         assertEquals(91, executeOne.get("blockId").getAsInt());
+        assertEquals("KEEP", executeOne.get("runtimeMemoryPolicy").getAsString());
         page.getByText("RUNNING", new Page.GetByTextOptions().setExact(true)).waitFor();
         toolbarBodyAfterConfirmedStop(page, button(page, "Stop"));
         awaitToolbarIdle(page);
         page.getByText("INTERRUPTED", new Page.GetByTextOptions().setExact(true)).waitFor();
-    }
-
-    private void coverExcelExportDirectorySelection(Page page) {
-        Boolean delivered = (Boolean) page.evaluate(
-                """
-                payload => window.__arEmitToSession(payload.sessionId, 'updateInstructions', [payload.instruction])
-                """,
-                Map.of(
-                        "sessionId", SESSION_ID,
-                        "instruction", Map.ofEntries(
-                                Map.entry("homeBankingId", 7),
-                                Map.entry("tagName", "button"),
-                                Map.entry("botJobId", BOT_JOB_ID),
-                                Map.entry("botJobName", "Payments"),
-                                Map.entry("id", 1001),
-                                Map.entry("instructionOrderNumber", 1),
-                                Map.entry("name", "submit_payment"),
-                                Map.entry("description", "Submit payment"),
-                                Map.entry("blockId", 91),
-                                Map.entry("blockOrderNumber", 1),
-                                Map.entry("blockName", "Login"),
-                                Map.entry("blockActive", true),
-                                Map.entry("blockWait", 0),
-                                Map.entry("actions", "CLICK"),
-                                Map.entry("instructionActive", true),
-                                Map.entry("exportFile", "No Excel Export File"))));
-        assertTrue(delivered, "The Bot Job grid transport must receive the Excel export fixture");
-
-        Locator excelExportIcon = page.locator("img[alt='excel']").first();
-        excelExportIcon.waitFor();
-        excelExportIcon.click();
-
-        Locator panel = page.locator("section[aria-label='Excel export configuration']");
-        panel.waitFor();
-        Locator destination = panel.locator("input[aria-label='Destination folder']");
-        assertEquals("", destination.inputValue());
-
-        int beforeChoose = socketRequestCount(page, "excelExport.chooseDirectory");
-        panel.locator("button[aria-label='Choose destination folder']").click();
-        JsonObject chooseBody = socketBodyAfterRequest(
-                page, "excelExport.chooseDirectory", beforeChoose, SESSION_ID);
-        assertEquals(BOT_JOB_ID, chooseBody.get("botJobId").getAsInt());
-        assertEquals(7, chooseBody.get("homeBankingId").getAsInt());
-        assertEquals(91, chooseBody.get("blockId").getAsInt());
-        assertEquals("", chooseBody.get("directory").getAsString());
-        page.waitForFunction(
-                "expected => document.querySelector('[aria-label=\"Destination folder\"]').value === expected",
-                SELECTED_EXCEL_EXPORT_DIRECTORY);
-        assertEquals(SELECTED_EXCEL_EXPORT_DIRECTORY, destination.inputValue());
-        assertTrue(panel.isVisible(), "Choosing a folder must keep the Excel export panel open");
-
-        panel.getByLabel("File name").fill("payment execution results");
-        int beforeSave = socketRequestCount(page, "excelExport.save");
-        button(panel, "Save").click();
-        JsonObject saveBody = socketBodyAfterRequest(page, "excelExport.save", beforeSave, SESSION_ID);
-        assertEquals(SELECTED_EXCEL_EXPORT_DIRECTORY, saveBody.get("directory").getAsString());
-        assertEquals("payment execution results", saveBody.get("filename").getAsString());
-        assertEquals(".xlsx", saveBody.get("fileType").getAsString());
-        assertEquals(",", saveBody.get("delimiter").getAsString());
     }
 
     private void coverTransferActions(Page page) {
@@ -1211,6 +1129,24 @@ class BotJobDetailsToolbarPlaywrightTest {
         return toolbarBodyAfterRequest(page, action, before);
     }
 
+    private static JsonObject toolbarBodyAfterExecutionStart(
+            Page page,
+            Locator control,
+            String action,
+            String dialogHeader) {
+        int before = toolbarRequestCount(page, action);
+        control.scrollIntoViewIfNeeded();
+        control.click();
+        page.getByText(dialogHeader, new Page.GetByTextOptions().setExact(true)).waitFor();
+        page.getByRole(
+                        com.microsoft.playwright.options.AriaRole.BUTTON,
+                        new Page.GetByRoleOptions().setName("Run with Current Values").setExact(true))
+                .click();
+        JsonObject body = toolbarBodyAfterRequest(page, action, before);
+        assertEquals("KEEP", body.get("runtimeMemoryPolicy").getAsString());
+        return body;
+    }
+
     private static JsonObject toolbarBodyAfterConfirmedStop(Page page, Locator stopControl) {
         int before = toolbarRequestCount(page, "STOP_TEST_RUN");
         stopControl.scrollIntoViewIfNeeded();
@@ -1341,7 +1277,7 @@ class BotJobDetailsToolbarPlaywrightTest {
         String bundle = Files.readString(bundlePath, StandardCharsets.UTF_8);
         for (String marker : List.of(
                 "botJobDetails.toolbar.action", "Execute All", "Job files",
-                "Generate Excel file?", "excelExport.chooseDirectory", "Choose destination folder",
+                "Generate Excel file?", "excelWrite.chooseDirectory", "Existing Bot Job files",
                 "bot-job-details-workspace", "detached-page-scanner-workspace",
                 "pageScannerWorkspace.open", "pageScannerWorkspace.bootstrap", "pageScanner.scan",
                 "Search Hidden Fields", "Mappings",

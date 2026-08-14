@@ -564,7 +564,7 @@ class MainDashboardAutoTestPlaywrightTest {
         Locator dashboard = page.locator("[data-testid='main-dashboard-workspace']");
         dashboard.waitFor();
         page.getByText("Main Dashboard", new Page.GetByTextOptions().setExact(true)).waitFor();
-        assertEquals("AR Web", page.title());
+        assertEquals("Main Bot Jobs", page.title());
         assertEquals(null, dashboard.getAttribute("aria-modal"));
         page.waitForFunction(
                 """
