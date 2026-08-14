@@ -761,24 +761,41 @@ public final class SmokeTestIntegrationService {
                 return rejected(request.requestId(), request.runId(), "INTEGRATION_STOPPING",
                         "Integration stop was requested.");
             }
-            if (request.decision() == RecoveryDecision.CANCEL) {
+            if (request.decision() == RecoveryDecision.CANCEL
+                    || request.decision() == RecoveryDecision.BYPASS) {
                 v2.cancelRecovery(run.v2Run, request.instructionId());
+                boolean bypass = request.decision() == RecoveryDecision.BYPASS;
                 synchronized (stateLock) {
                     SequenceResult previous = run.sequenceResults.get(request.sequence());
                     if (previous != null && previous.recoveryPending) {
                         JsonObject settled = previous.response.deepCopy();
                         settled.remove("recovery");
-                        settled.addProperty("code", "RECOVERY_CANCELLED");
-                        settled.addProperty("message", "Locator recovery was cancelled.");
+                        settled.addProperty("status", bypass
+                                ? StepStatus.SKIPPED.name()
+                                : previous.status.name());
+                        settled.addProperty("code", bypass
+                                ? "RECOVERY_BYPASSED"
+                                : "RECOVERY_CANCELLED");
+                        settled.addProperty("message", bypass
+                                ? "The unresolved instruction was bypassed by the user."
+                                : "Locator recovery was cancelled.");
+                        if (bypass) {
+                            decrement(run, previous.status);
+                            run.skipped++;
+                        }
                         run.sequenceResults.put(
                                 request.sequence(),
                                 new SequenceResult(
                                         previous.instructionId,
                                         previous.excelRowIndex,
                                         settled,
-                                        previous.status,
+                                        bypass ? StepStatus.SKIPPED : previous.status,
                                         false));
                     }
+                }
+                if (bypass) {
+                    return recoveryResponse(run, request, null, "BYPASSED",
+                            "The unresolved instruction was bypassed; execution may continue.");
                 }
                 return recoveryResponse(run, request, null, "CANCELLED",
                         "Locator recovery was cancelled.");
@@ -848,8 +865,12 @@ public final class SmokeTestIntegrationService {
                 && "COMPLETED".equals(status)
                 && (outcome == null
                 || !"RECOVERY_ACTION_COMPLETED_SAVE_FAILED".equals(outcome.code())));
-        response.addProperty("ok", "COMPLETED".equals(status) || "CANCELLED".equals(status));
+        response.addProperty("ok", "COMPLETED".equals(status)
+                || "BYPASSED".equals(status)
+                || "CANCELLED".equals(status));
         if (outcome != null) response.addProperty("code", outcome.code());
+        else if ("BYPASSED".equals(status)) response.addProperty("code", "RECOVERY_BYPASSED");
+        else if ("CANCELLED".equals(status)) response.addProperty("code", "RECOVERY_CANCELLED");
         return response;
     }
 

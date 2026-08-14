@@ -317,6 +317,12 @@ class SmokeTestIntegrationContractsTest {
         assertThrows(
                 IllegalArgumentException.class,
                 () -> SmokeTestIntegrationContracts.parseRecovery(body));
+
+        body.addProperty("decision", "BYPASS");
+        body.addProperty("recoveryCandidateId", "");
+        var bypass = SmokeTestIntegrationContracts.parseRecovery(body);
+        assertEquals(SmokeTestIntegrationContracts.RecoveryDecision.BYPASS, bypass.decision());
+        assertEquals("", bypass.recoveryCandidateId());
     }
 
     private JsonObject validStartBody() {

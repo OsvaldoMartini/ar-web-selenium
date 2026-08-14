@@ -296,6 +296,62 @@ class SmokeTestIntegrationServiceTest {
     }
 
     @Test
+    void v2RecoveryCanBypassAnInstructionWithNoCandidatesAndContinue() throws Exception {
+        JsonObject recovery = new JsonObject();
+        recovery.addProperty("state", "AWAITING_USER");
+        recovery.add("candidates", new com.google.gson.JsonArray());
+        v2.nextOutcome.set(new Outcome(
+                StepStatus.FAILED,
+                StepDisposition.PHYSICAL,
+                "TARGET_NOT_FOUND",
+                "No matching element was found.",
+                null,
+                null,
+                recovery));
+
+        JsonObject request = startRequest("start-v2-bypass");
+        request.addProperty("runtimeMode", "TYPESCRIPT_PLAYWRIGHT_V2");
+        request.addProperty("pagePolicy", "RELOAD_SELECTED");
+        service.handle(
+                SmokeTestIntegrationContracts.START,
+                request,
+                DetachedWorkspaceSessions.SMOKE_TEST_MANAGER,
+                transport);
+        String runId = responses.await(SmokeTestIntegrationContracts.START_RESPONSE)
+                .body.get("runId").getAsString();
+
+        service.handle(
+                SmokeTestIntegrationContracts.STEP,
+                stepRequest("step-v2-bypass", runId, 1L),
+                DetachedWorkspaceSessions.SMOKE_TEST_MANAGER,
+                transport);
+        Published failed = responses.await(SmokeTestIntegrationContracts.STEP_RESPONSE);
+        assertEquals("FAILED", failed.body.get("status").getAsString());
+        assertTrue(failed.body.getAsJsonObject("recovery")
+                .getAsJsonArray("candidates").isEmpty());
+
+        service.handle(
+                SmokeTestIntegrationContracts.RECOVER,
+                recoveryRequest("recover-v2-bypass", runId, 1L, "BYPASS"),
+                DetachedWorkspaceSessions.SMOKE_TEST_MANAGER,
+                transport);
+        Published bypassed = responses.await(SmokeTestIntegrationContracts.RECOVER_RESPONSE);
+        assertTrue(bypassed.body.get("ok").getAsBoolean());
+        assertEquals("BYPASSED", bypassed.body.get("status").getAsString());
+        assertEquals("RECOVERY_BYPASSED", bypassed.body.get("code").getAsString());
+        assertEquals(1, v2.cancelledRecoveries.get());
+
+        service.handle(
+                SmokeTestIntegrationContracts.FINISH,
+                finishRequest("finish-v2-bypass", runId, 1L),
+                DetachedWorkspaceSessions.SMOKE_TEST_MANAGER,
+                transport);
+        Published finished = responses.await(SmokeTestIntegrationContracts.FINISH_RESPONSE);
+        assertEquals(0, finished.body.get("failed").getAsInt());
+        assertEquals(1, finished.body.get("skipped").getAsInt());
+    }
+
+    @Test
     void v2StopRequestsImmediateRuntimeInterruptionBeforeTerminalCleanup() throws Exception {
         JsonObject request = startRequest("start-v2-stop");
         request.addProperty("runtimeMode", "TYPESCRIPT_PLAYWRIGHT_V2");
@@ -391,6 +447,15 @@ class SmokeTestIntegrationServiceTest {
         return request;
     }
 
+    private static JsonObject recoveryRequest(
+            String requestId, String runId, long sequence, String decision) {
+        JsonObject request = stepRequest(requestId, runId, sequence);
+        request.remove("excelRowIndex");
+        request.addProperty("recoveryCandidateId", "");
+        request.addProperty("decision", decision);
+        return request;
+    }
+
     private static JsonObject stopRequest(String requestId, String runId) {
         JsonObject request = new JsonObject();
         request.addProperty("contractVersion", SmokeTestIntegrationContracts.CONTRACT_VERSION);
@@ -458,6 +523,8 @@ class SmokeTestIntegrationServiceTest {
         private final AtomicInteger steps = new AtomicInteger();
         private final AtomicInteger interrupts = new AtomicInteger();
         private final AtomicInteger closes = new AtomicInteger();
+        private final AtomicInteger cancelledRecoveries = new AtomicInteger();
+        private final AtomicReference<Outcome> nextOutcome = new AtomicReference<>();
 
         @Override
         public SmokeTestIntegrationService.V2Run start(
@@ -476,13 +543,20 @@ class SmokeTestIntegrationServiceTest {
                 int excelRowIndex,
                 RunVariables variables) {
             steps.incrementAndGet();
-            return new Outcome(
+            Outcome configured = nextOutcome.getAndSet(null);
+            return configured == null ? new Outcome(
                     StepStatus.PASSED,
                     StepDisposition.PHYSICAL,
                     "COMPLETED",
                     "V2 completed.",
                     null,
-                    null);
+                    null) : configured;
+        }
+
+        @Override
+        public void cancelRecovery(
+                SmokeTestIntegrationService.V2Run run, int instructionId) {
+            cancelledRecoveries.incrementAndGet();
         }
 
         @Override

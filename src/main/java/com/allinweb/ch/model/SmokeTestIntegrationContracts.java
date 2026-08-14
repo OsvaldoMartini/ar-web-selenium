@@ -98,6 +98,7 @@ public final class SmokeTestIntegrationContracts {
     public enum RecoveryDecision {
         USE_ONCE,
         USE_AND_SAVE,
+        BYPASS,
         CANCEL
     }
 
@@ -272,6 +273,7 @@ public final class SmokeTestIntegrationContracts {
             requirePositive(instructionId, "instructionId");
             decision = Objects.requireNonNull(decision, "Recovery decision is required");
             recoveryCandidateId = decision == RecoveryDecision.CANCEL
+                    || decision == RecoveryDecision.BYPASS
                     ? optionalBounded(recoveryCandidateId, "recoveryCandidateId", 64)
                     : requireSha256(recoveryCandidateId, "recoveryCandidateId");
         }
