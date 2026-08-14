@@ -304,11 +304,22 @@ public final class SmokeTestIntegrationStepExecutor {
         TextResult read = browser.text(parent);
         if (!read.found()) {
             variables.markVoid(variableId, VoidReason.PRODUCER_FAILED);
-            return failed(
-                    command.optional(),
-                    StepDisposition.PHYSICAL,
-                    "GET_READ_FAILED",
-                    "GET could not read its Web Element parent.");
+            Diagnostic diagnostic = browser.diagnostic();
+            return diagnostic == null
+                    ? failed(
+                            command.optional(),
+                            StepDisposition.PHYSICAL,
+                            "GET_READ_FAILED",
+                            "GET could not read its Web Element parent.")
+                    : failed(
+                            command.optional(),
+                            StepDisposition.PHYSICAL,
+                            diagnostic.code(),
+                            "GET could not read its Web Element parent. Resolver stage "
+                                    + diagnostic.stage() + " found "
+                                    + diagnostic.liveCandidateCount()
+                                    + " live candidate(s); physical attempts: "
+                                    + diagnostic.physicalAttempts() + ".");
         }
         String value = read.value();
         boolean durable = variables.write(variableId, value);

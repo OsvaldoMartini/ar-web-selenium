@@ -8,6 +8,7 @@ import com.allinweb.ch.facade.execution.SmokeTestIntegrationSnapshotRepository;
 import com.allinweb.ch.facade.execution.SmokeTestIntegrationSnapshotRepository.Owner;
 import com.allinweb.ch.facade.execution.SmokeTestIntegrationSnapshotRepository.Plan;
 import com.allinweb.ch.facade.execution.SmokeTestIntegrationStepExecutor;
+import com.allinweb.ch.facade.execution.SmokeTestIntegrationV1RecoveryCoordinator;
 import com.allinweb.ch.facade.execution.SmokeTestIntegrationExcelWriteService;
 import com.allinweb.ch.facade.execution.SmokeTestIntegrationStepExecutor.Outcome;
 import com.allinweb.ch.facade.execution.SmokeTestIntegrationStepExecutor.RunVariables;
@@ -632,6 +633,16 @@ public final class SmokeTestIntegrationService {
                                 "Integration steps must be sent in sequence."));
                 return;
             }
+            if (run.sequenceResults.values().stream()
+                    .anyMatch(result -> result.recoveryPending)) {
+                publish(
+                        transport,
+                        run.authorization.homeBankingId(),
+                        SmokeTestIntegrationContracts.STEP_RESPONSE,
+                        rejected(request.requestId(), request.runId(), "RECOVERY_PENDING",
+                                "Resolve or bypass the pending locator recovery before continuing."));
+                return;
+            }
             if (run.stepPending || run.terminalPending || run.cancelled) {
                 publish(
                         transport,
@@ -699,10 +710,18 @@ public final class SmokeTestIntegrationService {
                         request.instructionId(),
                         request.excelRowIndex(),
                         run.variables);
-        if (run.runtimeMode == RuntimeMode.TYPESCRIPT_PLAYWRIGHT_V2
-                && outcome.recovery() != null
-                && !request.recoveryVerificationEnabled()) {
-            v2.cancelRecovery(run.v2Run, request.instructionId());
+        if (run.runtimeMode == RuntimeMode.JAVA_V1) {
+            outcome = steps.prepareRecovery(
+                    run.runId,
+                    run.plan,
+                    run.dataset,
+                    request.instructionId(),
+                    request.excelRowIndex(),
+                    run.variables,
+                    outcome);
+        }
+        if (outcome.recovery() != null && !request.recoveryVerificationEnabled()) {
+            cancelRecovery(run, request.instructionId(), "VERIFICATION_DISABLED");
             outcome = new Outcome(
                     StepStatus.SKIPPED,
                     SmokeTestIntegrationContracts.StepDisposition.PHYSICAL,
@@ -732,7 +751,6 @@ public final class SmokeTestIntegrationService {
             SequenceResult previous = run == null ? null : run.sequenceResults.get(request.sequence());
             if (run == null
                     || activeRuns.get(run.runId) != run
-                    || run.runtimeMode != RuntimeMode.TYPESCRIPT_PLAYWRIGHT_V2
                     || previous == null
                     || previous.instructionId != request.instructionId()
                     || !previous.recoveryPending) {
@@ -775,7 +793,7 @@ public final class SmokeTestIntegrationService {
             }
             if (request.decision() == RecoveryDecision.CANCEL
                     || request.decision() == RecoveryDecision.BYPASS) {
-                v2.cancelRecovery(run.v2Run, request.instructionId());
+                cancelRecovery(run, request.instructionId(), request.decision().name());
                 boolean bypass = request.decision() == RecoveryDecision.BYPASS;
                 synchronized (stateLock) {
                     SequenceResult previous = run.sequenceResults.get(request.sequence());
@@ -813,11 +831,18 @@ public final class SmokeTestIntegrationService {
                 return recoveryResponse(run, request, null, "CANCELLED",
                         "Locator recovery was cancelled.");
             }
-            Outcome outcome = v2.recover(
-                    run.v2Run,
-                    request.instructionId(),
-                    request.recoveryCandidateId(),
-                    request.decision() == RecoveryDecision.USE_AND_SAVE);
+            Outcome outcome = run.runtimeMode == RuntimeMode.TYPESCRIPT_PLAYWRIGHT_V2
+                    ? v2.recover(
+                            run.v2Run,
+                            request.instructionId(),
+                            request.recoveryCandidateId(),
+                            request.decision() == RecoveryDecision.USE_AND_SAVE)
+                    : steps.recover(
+                            run.runId,
+                            request.instructionId(),
+                            request.recoveryCandidateId(),
+                            request.decision() == RecoveryDecision.USE_AND_SAVE,
+                            run.variables);
             if (outcome.status() == StepStatus.FAILED) {
                 return recoveryResponse(run, request, outcome, "FAILED", outcome.message());
             }
@@ -887,6 +912,14 @@ public final class SmokeTestIntegrationService {
         else if ("BYPASSED".equals(status)) response.addProperty("code", "RECOVERY_BYPASSED");
         else if ("CANCELLED".equals(status)) response.addProperty("code", "RECOVERY_CANCELLED");
         return response;
+    }
+
+    private void cancelRecovery(Run run, int instructionId, String reason) {
+        if (run.runtimeMode == RuntimeMode.TYPESCRIPT_PLAYWRIGHT_V2) {
+            v2.cancelRecovery(run.v2Run, instructionId);
+        } else {
+            steps.cancelRecovery(run.runId, instructionId, reason);
+        }
     }
 
     private static void decrement(Run run, StepStatus status) {
@@ -1417,6 +1450,9 @@ public final class SmokeTestIntegrationService {
         }
         if (!expected.releaseInProgress.compareAndSet(false, true)) return;
         try {
+            if (expected.runtimeMode == RuntimeMode.JAVA_V1) {
+                steps.clearRecovery(expected.runId, terminalStatus.name());
+            }
             if (expected.v2Run != null) v2.close(expected.v2Run);
             if (expected.lease != null) expected.lease.close();
             expected.status = terminalStatus;
@@ -1583,6 +1619,30 @@ public final class SmokeTestIntegrationService {
                 int instructionId,
                 int excelRowIndex,
                 RunVariables variables);
+
+        default Outcome prepareRecovery(
+                String runId,
+                Plan plan,
+                IntegrationDataset dataset,
+                int instructionId,
+                int excelRowIndex,
+                RunVariables variables,
+                Outcome failure) {
+            return failure;
+        }
+
+        default Outcome recover(
+                String runId,
+                int instructionId,
+                String recoveryCandidateId,
+                boolean save,
+                RunVariables variables) {
+            throw new UnsupportedOperationException("Java V1 recovery is unavailable");
+        }
+
+        default void cancelRecovery(String runId, int instructionId, String reason) {}
+
+        default void clearRecovery(String runId, String reason) {}
     }
 
     interface V2Port {
@@ -1754,6 +1814,8 @@ public final class SmokeTestIntegrationService {
     private static final class DefaultStepPort implements StepPort {
         private final SmokeTestIntegrationStepExecutor delegate =
                 new SmokeTestIntegrationStepExecutor();
+        private final SmokeTestIntegrationV1RecoveryCoordinator recovery =
+                new SmokeTestIntegrationV1RecoveryCoordinator();
 
         @Override
         public Outcome execute(
@@ -1763,6 +1825,40 @@ public final class SmokeTestIntegrationService {
                 int excelRowIndex,
                 RunVariables variables) {
             return delegate.execute(plan, dataset, instructionId, excelRowIndex, variables);
+        }
+
+        @Override
+        public Outcome prepareRecovery(
+                String runId,
+                Plan plan,
+                IntegrationDataset dataset,
+                int instructionId,
+                int excelRowIndex,
+                RunVariables variables,
+                Outcome failure) {
+            return recovery.prepare(
+                    runId, plan, dataset, instructionId, excelRowIndex, variables, failure);
+        }
+
+        @Override
+        public Outcome recover(
+                String runId,
+                int instructionId,
+                String recoveryCandidateId,
+                boolean save,
+                RunVariables variables) {
+            return recovery.recover(
+                    runId, instructionId, recoveryCandidateId, save, variables);
+        }
+
+        @Override
+        public void cancelRecovery(String runId, int instructionId, String reason) {
+            recovery.cancel(runId, instructionId, reason);
+        }
+
+        @Override
+        public void clearRecovery(String runId, String reason) {
+            recovery.clearRun(runId, reason);
         }
     }
 
