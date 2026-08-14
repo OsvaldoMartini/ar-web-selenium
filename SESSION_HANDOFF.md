@@ -1362,3 +1362,9 @@ Do not change frontend CSS/design while doing the scanner contract cleanup unles
 - [ ] No Java/Node service restart or live Start/Stop/V2 run was performed. Restart IntelliJ ARWeb,
   open Smoke Test, start V2 from the new control, confirm READY, run one V2 Integration, then prove
   runtime Stop is refused during the run and succeeds after terminal cleanup.
+- [x] Post-checkpoint verification exposed and fixed a static initialization-order defect in the
+  supervisor logger (`df6de97d`). The first focused Java run failed 9 service cases at class startup;
+  after the fix, the same complete focused matrix passed 37/37.
+- [x] The full Node V2 runtime suite passed 39/39. The headed five-browser acceptance reached READY
+  for five distinct run/browser/context/page identities and exited cleanly with no matching orphan
+  demo process. These were isolated synthetic/mock runs, not banking-site actions.

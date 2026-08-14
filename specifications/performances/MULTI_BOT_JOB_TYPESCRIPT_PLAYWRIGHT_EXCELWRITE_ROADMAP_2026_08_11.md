@@ -1463,3 +1463,7 @@ and atomic artifact-write checkpoints are complete.
   passed. No tests ran. Deployment `c9be76f0` mirrors 61 exact frontend files.
 - [ ] Restart/live gate: prove STOPPED -> STARTING -> READY, one V2 run, Stop refusal while active,
   successful Stop after cleanup, and complete correlated evidence in both dedicated log files.
+- [x] Verification found one real logger/singleton initialization defect; `df6de97d` fixes it. The
+  exact focused Java matrix then passed 37/37 and the complete Node V2 suite passed 39/39.
+- [x] The headed five-browser synthetic acceptance reached five independent READY sessions with
+  unique run/browser/context/page IDs, closed cleanly, and left no matching demo process.
