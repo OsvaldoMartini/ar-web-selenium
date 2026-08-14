@@ -5,6 +5,8 @@ export interface SafeLogFields {
   readonly runId?: string;
   readonly count?: number;
   readonly durationMs?: number;
+  readonly operation?: string;
+  readonly status?: number;
 }
 
 export type SafeLogSink = (line: string) => void;
@@ -19,6 +21,8 @@ export const createSafeLogger = (sink: SafeLogSink = line => process.stdout.writ
       ...(fields.runId ? { runId: fields.runId } : {}),
       ...(fields.count !== undefined ? { count: fields.count } : {}),
       ...(fields.durationMs !== undefined ? { durationMs: fields.durationMs } : {}),
+      ...(fields.operation ? { operation: fields.operation } : {}),
+      ...(fields.status !== undefined ? { status: fields.status } : {}),
     };
     sink(JSON.stringify(safe));
   };

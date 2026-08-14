@@ -37,6 +37,8 @@ import org.slf4j.LoggerFactory;
 /** Executes exactly one backend-authoritative instruction for a React-owned Integration run. */
 public final class SmokeTestIntegrationStepExecutor {
     private static final Logger logOperations = LoggerFactory.getLogger("com.allinweb.operations");
+    private static final Logger executionTrace =
+            LoggerFactory.getLogger("com.allinweb.smoke.execution");
     private static final java.util.Set<String> LOGICAL_ONLY = java.util.Set.of(
             "CK",
             "CSV CHECK",
@@ -696,6 +698,9 @@ public final class SmokeTestIntegrationStepExecutor {
         private static void logResult(
                 String action, InstructionSnapshot instruction, Result result) {
             if (result == null) {
+                executionTrace.warn(
+                        "phase=V1_PHYSICAL_SETTLED action={} instructionId={} status=FAILED code=RESULT_MISSING",
+                        action, instruction.id());
                 logOperations.warn(
                         "smoke-runtime result missing action={} instructionId={}",
                         action,
@@ -703,12 +708,20 @@ public final class SmokeTestIntegrationStepExecutor {
                 return;
             }
             if (result.succeeded()) {
+                executionTrace.info(
+                        "phase=V1_PHYSICAL_SETTLED action={} instructionId={} status=COMPLETED code={}",
+                        action, instruction.id(), result.diagnostic().code());
                 logOperations.debug(
                         "smoke-runtime completed action={} instructionId={} diagnostic={}",
                         action,
                         instruction.id(),
                         result.diagnostic());
             } else {
+                executionTrace.warn(
+                        "phase=V1_PHYSICAL_SETTLED action={} instructionId={} status=REFUSED code={} stage={} registryCandidates={} liveCandidates={} physicalAttempts={}",
+                        action, instruction.id(), result.diagnostic().code(), result.diagnostic().stage(),
+                        result.diagnostic().registryCandidateCount(), result.diagnostic().liveCandidateCount(),
+                        result.diagnostic().physicalAttempts());
                 logOperations.warn(
                         "smoke-runtime refused action={} instructionId={} diagnostic={}",
                         action,

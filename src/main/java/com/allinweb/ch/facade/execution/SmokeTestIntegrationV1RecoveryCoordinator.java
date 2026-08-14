@@ -36,11 +36,11 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import lombok.extern.slf4j.Slf4j;
 
 /** Owner/run/page-bound locator recovery for the shared Java V1 Playwright runtime. */
-@Slf4j
 public final class SmokeTestIntegrationV1RecoveryCoordinator {
+    private static final org.slf4j.Logger executionTrace =
+            org.slf4j.LoggerFactory.getLogger("com.allinweb.smoke.execution");
     private static final int MAX_REGISTRY_CANDIDATES = 100;
     private static final int MAX_LIVE_CANDIDATES = 100;
     private static final int MAX_RECOVERY_CANDIDATES = 25;
@@ -160,7 +160,7 @@ public final class SmokeTestIntegrationV1RecoveryCoordinator {
                     currentUrl,
                     target.target.toInstructionLoad());
         } catch (RuntimeException unavailable) {
-            log.warn("v1 locator recovery preparation unavailable runId={} instructionId={} failureType={}",
+            executionTrace.warn("phase=V1_RECOVERY_PREPARATION_FAILED runId={} instructionId={} failureType={}",
                     runId, instructionId, unavailable.getClass().getSimpleName());
             return failure;
         }
@@ -181,7 +181,7 @@ public final class SmokeTestIntegrationV1RecoveryCoordinator {
                     ? List.of()
                     : candidates(driver, target, pageKey, registry);
         } catch (RuntimeException inspectionFailure) {
-            log.warn("v1 locator recovery live inspection unavailable runId={} instructionId={} failureType={}",
+            executionTrace.warn("phase=V1_RECOVERY_INSPECTION_FAILED runId={} instructionId={} failureType={}",
                     runId, instructionId, inspectionFailure.getClass().getSimpleName());
             candidates = List.of();
         }
@@ -194,7 +194,7 @@ public final class SmokeTestIntegrationV1RecoveryCoordinator {
         JsonArray rows = new JsonArray();
         candidates.forEach(candidate -> rows.add(candidate.json.deepCopy()));
         recovery.add("candidates", rows);
-        log.warn("v1 locator recovery awaiting user runId={} instructionId={} code={} registryCandidates={} reviewCandidates={}",
+        executionTrace.warn("phase=V1_RECOVERY_AWAITING_USER runId={} instructionId={} code={} registryCandidates={} reviewCandidates={}",
                 runId, instructionId, failure.code(), registry.size(), candidates.size());
         return new Outcome(
                 failure.status(), failure.disposition(), failure.code(), failure.message(),
@@ -217,7 +217,7 @@ public final class SmokeTestIntegrationV1RecoveryCoordinator {
         }
         ARPlaywrightDriver driver = activeDriver();
         if (driver == null || !samePage(driver, pending.pageKey)) {
-            log.warn("v1 locator recovery page changed runId={} instructionId={}", runId, instructionId);
+            executionTrace.warn("phase=V1_RECOVERY_REFUSED runId={} instructionId={} code=PAGE_CONTEXT_CHANGED", runId, instructionId);
             return failed("PAGE_CONTEXT_CHANGED", "The Playwright page changed before locator recovery.");
         }
         InstructionLoad selected = selectedTarget(pending.target.target, candidate);
@@ -237,13 +237,13 @@ public final class SmokeTestIntegrationV1RecoveryCoordinator {
                 default -> null;
             };
         } catch (RuntimeException actionFailure) {
-            log.warn("v1 locator recovery action failed runId={} instructionId={} failureType={}",
+            executionTrace.warn("phase=V1_RECOVERY_ACTION_FAILED runId={} instructionId={} failureType={}",
                     runId, instructionId, actionFailure.getClass().getSimpleName());
             return failed("V1_RECOVERY_ACTION_FAILED", "The selected Java V1 locator action failed.");
         }
         if (result == null || !result.succeeded()) {
             String diagnostic = result == null ? "RESULT_MISSING" : result.diagnostic().code();
-            log.warn("v1 locator recovery refused runId={} instructionId={} diagnostic={}",
+            executionTrace.warn("phase=V1_RECOVERY_REFUSED runId={} instructionId={} code={}",
                     runId, instructionId, diagnostic);
             return failed(diagnostic, "The selected Java V1 locator no longer resolves uniquely.");
         }
@@ -258,7 +258,7 @@ public final class SmokeTestIntegrationV1RecoveryCoordinator {
                     candidate.registryCandidateId,
                     candidate.newXPath);
             if (!saved) {
-                log.warn("v1 locator recovery save failed runId={} instructionId={} registryCandidateId={}",
+                executionTrace.warn("phase=V1_RECOVERY_SAVE_FAILED runId={} instructionId={} registryCandidateId={}",
                         runId, instructionId, candidate.registryCandidateId);
                 return new Outcome(
                         StepStatus.WARNING,
@@ -269,7 +269,7 @@ public final class SmokeTestIntegrationV1RecoveryCoordinator {
                         completed.runtimeValue());
             }
         }
-        log.info("v1 locator recovery completed runId={} instructionId={} saved={}",
+        executionTrace.info("phase=V1_RECOVERY_COMPLETED runId={} instructionId={} saved={}",
                 runId, instructionId, saved);
         return completed;
     }
@@ -278,14 +278,14 @@ public final class SmokeTestIntegrationV1RecoveryCoordinator {
         PendingRecovery pending = pendingByRun.get(runId);
         if (pending != null && pending.instructionId == instructionId) {
             pendingByRun.remove(runId);
-            log.info("v1 locator recovery cleared runId={} instructionId={} reason={}",
+            executionTrace.info("phase=V1_RECOVERY_CLEARED runId={} instructionId={} reason={}",
                     runId, instructionId, safeReason(reason));
         }
     }
 
     public synchronized void clearRun(String runId, String reason) {
         if (pendingByRun.remove(runId) != null) {
-            log.info("v1 locator recovery run cleared runId={} reason={}", runId, safeReason(reason));
+            executionTrace.info("phase=V1_RECOVERY_RUN_CLEARED runId={} reason={}", runId, safeReason(reason));
         }
     }
 

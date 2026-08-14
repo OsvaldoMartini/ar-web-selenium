@@ -24,6 +24,8 @@ import java.util.regex.Pattern;
  * construct requests from frozen backend facts, but React must never receive or author this token.
  */
 public final class ExecutionRuntimeHttpClient {
+    private static final org.slf4j.Logger executionTrace =
+            org.slf4j.LoggerFactory.getLogger("com.allinweb.smoke.execution");
     private static final String TOKEN_HEADER = "X-ARWeb-Run-Token";
     private static final int MAX_RESPONSE_BYTES = 10 * 1024 * 1024;
     private static final Pattern TOKEN = Pattern.compile("[A-Za-z0-9_-]{43}");
@@ -119,6 +121,12 @@ public final class ExecutionRuntimeHttpClient {
 
     private JsonObject exchange(
             String method, String path, String grant, String token, JsonObject body) {
+        long started = System.nanoTime();
+        String operation = operationName(path);
+        String runId = runId(path);
+        executionTrace.debug(
+                "phase=V2_HTTP_REQUEST operation={} method={} runId={} bodyPresent={} timeoutSeconds={}",
+                operation, method, runId, body != null, configuration.requestTimeout().toSeconds());
         Response response;
         try {
             response = transport.exchange(
@@ -130,11 +138,14 @@ public final class ExecutionRuntimeHttpClient {
                     configuration.requestTimeout());
         } catch (InterruptedException interrupted) {
             Thread.currentThread().interrupt();
+            traceFailure(operation, method, runId, "RUNTIME_REQUEST_INTERRUPTED", started);
             throw new ExecutionRuntimeClientException("RUNTIME_REQUEST_INTERRUPTED", interrupted);
         } catch (IOException failure) {
+            traceFailure(operation, method, runId, "NODE_RUNTIME_UNAVAILABLE", started);
             throw new ExecutionRuntimeClientException("RUNTIME_UNAVAILABLE", failure);
         }
         if (response.body().length > MAX_RESPONSE_BYTES) {
+            traceFailure(operation, method, runId, "RUNTIME_RESPONSE_TOO_LARGE", started);
             throw new ExecutionRuntimeClientException("RUNTIME_RESPONSE_TOO_LARGE");
         }
         JsonObject envelope;
@@ -143,18 +154,55 @@ public final class ExecutionRuntimeHttpClient {
                     new String(response.body(), StandardCharsets.UTF_8));
             envelope = parsed.getAsJsonObject();
         } catch (RuntimeException invalid) {
+            traceFailure(operation, method, runId, "RUNTIME_RESPONSE_INVALID", started);
             throw new ExecutionRuntimeClientException("RUNTIME_RESPONSE_INVALID");
         }
         if (!envelope.has("ok")
                 || !envelope.get("ok").isJsonPrimitive()
                 || !envelope.getAsJsonPrimitive("ok").isBoolean()) {
+            traceFailure(operation, method, runId, "RUNTIME_RESPONSE_INVALID", started);
             throw new ExecutionRuntimeClientException("RUNTIME_RESPONSE_INVALID");
         }
         if (response.status() < 200 || response.status() >= 300
                 || !envelope.get("ok").getAsBoolean()) {
-            throw new ExecutionRuntimeClientException(safeFailureCode(envelope));
+            String code = safeFailureCode(envelope);
+            executionTrace.warn(
+                    "phase=V2_HTTP_RESPONSE operation={} method={} runId={} status={} ok=false code={} durationMs={} responseBytes={}",
+                    operation, method, runId, response.status(), code,
+                    elapsedMillis(started), response.body().length);
+            throw new ExecutionRuntimeClientException(code);
         }
+        executionTrace.debug(
+                "phase=V2_HTTP_RESPONSE operation={} method={} runId={} status={} ok=true durationMs={} responseBytes={}",
+                operation, method, runId, response.status(), elapsedMillis(started),
+                response.body().length);
         return requiredObject(envelope, "data").deepCopy();
+    }
+
+    private static void traceFailure(
+            String operation, String method, String runId, String code, long started) {
+        executionTrace.warn(
+                "phase=V2_HTTP_FAILED operation={} method={} runId={} code={} durationMs={}",
+                operation, method, runId, code, elapsedMillis(started));
+    }
+
+    private static long elapsedMillis(long started) {
+        return Math.max(0L, (System.nanoTime() - started) / 1_000_000L);
+    }
+
+    private static String operationName(String path) {
+        if ("/v2/runs/reserve".equals(path)) return "reserve";
+        int separator = path == null ? -1 : path.lastIndexOf('/');
+        String operation = separator < 0 ? "unknown" : path.substring(separator + 1);
+        if (operation.matches("[0-9a-fA-F-]{36}")) return "release";
+        return operation.matches("[a-z-]{2,40}") ? operation : "unknown";
+    }
+
+    private static String runId(String path) {
+        if (path == null) return "-";
+        var matcher = Pattern.compile("^/v2/runs/([0-9a-f-]{36})(?:/|$)", Pattern.CASE_INSENSITIVE)
+                .matcher(path);
+        return matcher.find() ? matcher.group(1) : "-";
     }
 
     private static String safeFailureCode(JsonObject envelope) {

@@ -64,6 +64,8 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public final class SmokeTestIntegrationService {
+    private static final org.slf4j.Logger executionTrace =
+            org.slf4j.LoggerFactory.getLogger("com.allinweb.smoke.execution");
     private static final int MAX_REQUEST_LEDGER = 512;
     private static final int MAX_SEQUENCE_LEDGER = 2_048;
     private static final String SESSION_ID = DetachedWorkspaceSessions.SMOKE_TEST_MANAGER;
@@ -224,6 +226,10 @@ public final class SmokeTestIntegrationService {
     }
 
     private void handleStart(StartRequest request, JsonObject rawBody, Session transport) {
+        executionTrace.info(
+                "phase=START_RECEIVED requestId={} mode={} hb={} bot={} pagePolicy={} excelMode={}",
+                request.requestId(), request.runtimeMode(), request.homeBankingId(),
+                request.botJobId(), request.pagePolicy(), request.excelMode());
         String fingerprint = gson.toJson(request);
         if (replayExisting(
                 SmokeTestIntegrationContracts.START,
@@ -243,6 +249,10 @@ public final class SmokeTestIntegrationService {
                             || pendingV1Starts > 0
                             || activeRuns.size() + pendingStarts >= MAX_ACTIVE_V2_RUNS));
             if (unavailable) {
+                executionTrace.warn(
+                        "phase=START_ADMISSION_REFUSED requestId={} mode={} hb={} bot={} code=INTEGRATION_ALREADY_ACTIVE activeRuns={} pendingStarts={}",
+                        request.requestId(), request.runtimeMode(), request.homeBankingId(),
+                        request.botJobId(), activeRuns.size(), pendingStarts);
                 publish(
                         transport,
                         request.homeBankingId(),
@@ -255,6 +265,10 @@ public final class SmokeTestIntegrationService {
             }
             pendingStarts++;
             if (v1Requested) pendingV1Starts++;
+            executionTrace.info(
+                    "phase=START_ADMITTED requestId={} mode={} hb={} bot={} activeRuns={} pendingStarts={}",
+                    request.requestId(), request.runtimeMode(), request.homeBankingId(),
+                    request.botJobId(), activeRuns.size(), pendingStarts);
         }
         submitOnce(
                 SmokeTestIntegrationContracts.START,
@@ -273,6 +287,9 @@ public final class SmokeTestIntegrationService {
 
     private void handleRefresh(
             RefreshRequest request, JsonObject rawBody, Session transport) {
+        executionTrace.info(
+                "phase=REFRESH_RECEIVED requestId={} hb={} bot={}",
+                request.requestId(), request.homeBankingId(), request.botJobId());
         String fingerprint = gson.toJson(request);
         if (replayExisting(
                 SmokeTestIntegrationContracts.REFRESH,
@@ -348,8 +365,15 @@ public final class SmokeTestIntegrationService {
             response.addProperty("status", "REFRESHED");
             response.addProperty("code", "PLAYWRIGHT_PAGE_REFRESHED");
             response.addProperty("message", "The active Playwright web page was refreshed.");
+            executionTrace.info(
+                    "phase=REFRESH_SETTLED requestId={} hb={} bot={} status=REFRESHED",
+                    request.requestId(), authorization.homeBankingId(), authorization.botJobId());
             return response;
         } catch (IllegalArgumentException | IllegalStateException refused) {
+            executionTrace.warn(
+                    "phase=REFRESH_SETTLED requestId={} hb={} bot={} status=REFUSED failureType={}",
+                    request.requestId(), request.homeBankingId(), request.botJobId(),
+                    refused.getClass().getSimpleName());
             log.warn("Smoke Test Playwright refresh refused: {}", refused.getMessage());
             return rejected(
                     request.requestId(),
@@ -377,15 +401,33 @@ public final class SmokeTestIntegrationService {
             SmokeIntegrationAuthorization authorization = dashboardMulti
                     ? multiAuthorization(prepared, request)
                     : variables.authorize(rawBody, transport);
+            executionTrace.info(
+                    "phase=START_AUTHORIZED requestId={} mode={} hb={} bot={} workspaceEpoch={} dashboardMulti={}",
+                    request.requestId(), request.runtimeMode(), authorization.homeBankingId(),
+                    authorization.botJobId(), authorization.workspaceEpoch(), dashboardMulti);
             if (!dashboardMulti) variables.requireSupportingWorkspacesReady(authorization, transport);
+            executionTrace.info(
+                    "phase=SUPPORTING_WORKSPACES_READY requestId={} mode={} hb={} bot={}",
+                    request.requestId(), request.runtimeMode(), authorization.homeBankingId(),
+                    authorization.botJobId());
             Plan plan = dashboardMulti
                     ? prepared.plan()
                     : snapshots.load(
                             new Owner(authorization.homeBankingId(), authorization.botJobId()),
                             request.scope());
+            executionTrace.info(
+                    "phase=PLAN_FROZEN requestId={} mode={} hb={} bot={} blocks={} instructions={} planRevision={}",
+                    request.requestId(), request.runtimeMode(), authorization.homeBankingId(),
+                    authorization.botJobId(), plan.blocks().size(), plan.instructions().size(),
+                    plan.planRevision());
             IntegrationDataset dataset = dashboardMulti
                     ? prepared.dataset().integration()
                     : excel.freeze(authorization.botJobId(), request.excelMode().name());
+            executionTrace.info(
+                    "phase=DATASET_FROZEN requestId={} mode={} hb={} bot={} rows={} datasetEpoch={} datasetRevision={}",
+                    request.requestId(), request.runtimeMode(), authorization.homeBankingId(),
+                    authorization.botJobId(), dataset.data().getNumberOfDataRows(),
+                    dataset.datasetEpoch(), dataset.datasetRevision());
             if (dataset.homeBankingId() != authorization.homeBankingId()) {
                 throw new IllegalStateException(
                         "The frozen Excel dataset belongs to another organization.");
@@ -395,6 +437,10 @@ public final class SmokeTestIntegrationService {
             // assertion with newer SQL/Excel facts.
             if (!dashboardMulti) authorization = variables.authorize(rawBody, transport);
             if (request.runtimeMode() == RuntimeMode.JAVA_V1) {
+                executionTrace.info(
+                        "phase=V1_BROWSER_RESERVING requestId={} hb={} bot={} pagePolicy={}",
+                        request.requestId(), authorization.homeBankingId(),
+                        authorization.botJobId(), request.pagePolicy());
                 lease = browserOwnership.reserve();
                 String executionState = workspaces.executionState(
                         authorization.botJobId(), authorization.workspaceEpoch());
@@ -420,12 +466,22 @@ public final class SmokeTestIntegrationService {
                                     ? "The current Playwright page could not be preserved or opened."
                                     : "The selected Bot Job Playwright page could not be opened and settled.");
                 }
+                executionTrace.info(
+                        "phase=V1_BROWSER_READY requestId={} hb={} bot={}",
+                        request.requestId(), authorization.homeBankingId(), authorization.botJobId());
             } else {
                 if (request.pagePolicy() != PagePolicy.RELOAD_SELECTED) {
                     throw new IllegalArgumentException(
                             "Execution V2 requires a new isolated page at the selected Bot Job URL.");
                 }
+                executionTrace.info(
+                        "phase=V2_RUNTIME_STARTING requestId={} hb={} bot={}",
+                        request.requestId(), authorization.homeBankingId(), authorization.botJobId());
                 v2Run = v2.start(authorization, plan, dataset.mode());
+                executionTrace.info(
+                        "phase=V2_RUNTIME_READY requestId={} runId={} hb={} bot={}",
+                        request.requestId(), v2Run.runId(), authorization.homeBankingId(),
+                        authorization.botJobId());
             }
             if (!(dashboardMulti ? isCurrentDashboardTransport(transport)
                     : variables.isCurrent(authorization, transport))) {
@@ -466,6 +522,10 @@ public final class SmokeTestIntegrationService {
                 lease = null;
                 v2Run = null;
             }
+            executionTrace.info(
+                    "phase=RUN_REGISTERED requestId={} runId={} integrationEpoch={} mode={} hb={} bot={}",
+                    request.requestId(), run.runId, run.integrationEpoch, run.runtimeMode,
+                    authorization.homeBankingId(), authorization.botJobId());
             StartResponse response = new StartResponse(
                     SmokeTestIntegrationContracts.CONTRACT_VERSION,
                     request.requestId(),
@@ -495,18 +555,30 @@ public final class SmokeTestIntegrationService {
                             : "Integration owns the reloaded Bot Job Playwright page.");
             return successful(response);
         } catch (IllegalArgumentException | IllegalStateException refused) {
+            executionTrace.warn(
+                    "phase=START_REFUSED requestId={} mode={} hb={} bot={} failureType={}",
+                    request.requestId(), request.runtimeMode(), request.homeBankingId(),
+                    request.botJobId(), refused.getClass().getSimpleName());
             log.warn("Smoke Test Integration start refused: {}", refused.getMessage());
             return rejected(
                     rawBody,
                     "INTEGRATION_START_REFUSED",
                     safeMessage(refused, "Integration could not be started."));
         } catch (java.sql.SQLException persistenceFailure) {
+            executionTrace.error(
+                    "phase=START_FAILED requestId={} mode={} hb={} bot={} code=INTEGRATION_PLAN_UNAVAILABLE failureType={}",
+                    request.requestId(), request.runtimeMode(), request.homeBankingId(),
+                    request.botJobId(), persistenceFailure.getClass().getSimpleName());
             log.error("Unable to load the authoritative Smoke Test Integration plan", persistenceFailure);
             return rejected(
                     rawBody,
                     "INTEGRATION_PLAN_UNAVAILABLE",
                     "The Integration plan could not be loaded from the database.");
         } catch (RuntimeException failure) {
+            executionTrace.error(
+                    "phase=START_FAILED requestId={} mode={} hb={} bot={} code=INTEGRATION_START_FAILED failureType={}",
+                    request.requestId(), request.runtimeMode(), request.homeBankingId(),
+                    request.botJobId(), failure.getClass().getSimpleName());
             log.error("Unable to start Smoke Test Integration", failure);
             return rejected(
                     rawBody,
@@ -675,6 +747,10 @@ public final class SmokeTestIntegrationService {
     }
 
     private JsonObject stepLocked(Run run, StepRequest request) {
+        executionTrace.info(
+                "phase=STEP_STARTED requestId={} runId={} sequence={} instructionId={} mode={} hb={} bot={}",
+                request.requestId(), run.runId, request.sequence(), request.instructionId(),
+                run.runtimeMode, run.authorization.homeBankingId(), run.authorization.botJobId());
         if (run.cancelled) {
             return stoppedStep(run, request, "Integration stop was requested.");
         }
@@ -735,6 +811,10 @@ public final class SmokeTestIntegrationService {
         }
         JsonObject response = stepResponse(run, request, outcome, false);
         recordStep(run, request, response, outcome.status());
+        executionTrace.info(
+                "phase=STEP_SETTLED requestId={} runId={} sequence={} instructionId={} mode={} status={} code={} recoveryPending={}",
+                request.requestId(), run.runId, request.sequence(), request.instructionId(),
+                run.runtimeMode, outcome.status(), outcome.code(), outcome.recovery() != null);
         return response;
     }
 
@@ -787,6 +867,10 @@ public final class SmokeTestIntegrationService {
 
     private JsonObject recover(Run run, RecoveryRequest request) {
         synchronized (run.operationLock) {
+            executionTrace.info(
+                    "phase=RECOVERY_DECISION requestId={} runId={} sequence={} instructionId={} mode={} decision={}",
+                    request.requestId(), run.runId, request.sequence(), request.instructionId(),
+                    run.runtimeMode, request.decision());
             if (run.cancelled) {
                 return rejected(request.requestId(), request.runId(), "INTEGRATION_STOPPING",
                         "Integration stop was requested.");
@@ -825,9 +909,15 @@ public final class SmokeTestIntegrationService {
                     }
                 }
                 if (bypass) {
+                    executionTrace.info(
+                            "phase=RECOVERY_SETTLED requestId={} runId={} instructionId={} mode={} status=BYPASSED code=RECOVERY_BYPASSED",
+                            request.requestId(), run.runId, request.instructionId(), run.runtimeMode);
                     return recoveryResponse(run, request, null, "BYPASSED",
                             "The unresolved instruction was bypassed; execution may continue.");
                 }
+                executionTrace.info(
+                        "phase=RECOVERY_SETTLED requestId={} runId={} instructionId={} mode={} status=CANCELLED code=RECOVERY_CANCELLED",
+                        request.requestId(), run.runId, request.instructionId(), run.runtimeMode);
                 return recoveryResponse(run, request, null, "CANCELLED",
                         "Locator recovery was cancelled.");
             }
@@ -844,6 +934,10 @@ public final class SmokeTestIntegrationService {
                             request.decision() == RecoveryDecision.USE_AND_SAVE,
                             run.variables);
             if (outcome.status() == StepStatus.FAILED) {
+                executionTrace.warn(
+                        "phase=RECOVERY_SETTLED requestId={} runId={} instructionId={} mode={} status=FAILED code={}",
+                        request.requestId(), run.runId, request.instructionId(),
+                        run.runtimeMode, outcome.code());
                 return recoveryResponse(run, request, outcome, "FAILED", outcome.message());
             }
             synchronized (stateLock) {
@@ -877,6 +971,11 @@ public final class SmokeTestIntegrationService {
                                 false,
                                 previous.recoveryVerificationEnabled));
             }
+            executionTrace.info(
+                    "phase=RECOVERY_SETTLED requestId={} runId={} instructionId={} mode={} status={} code={} saveRequested={}",
+                    request.requestId(), run.runId, request.instructionId(), run.runtimeMode,
+                    outcome.status(), outcome.code(),
+                    request.decision() == RecoveryDecision.USE_AND_SAVE);
             return recoveryResponse(run, request, outcome, "COMPLETED",
                     outcome.status() == StepStatus.WARNING
                             ? outcome.message()
@@ -932,6 +1031,9 @@ public final class SmokeTestIntegrationService {
     }
 
     private void handleExcelWrite(ExcelWriteRequest request, Session transport) {
+        executionTrace.info(
+                "phase=EXCEL_WRITE_RECEIVED requestId={} runId={}",
+                request.requestId(), request.runId());
         String fingerprint = gson.toJson(request);
         if (replayExisting(SmokeTestIntegrationContracts.EXCEL_WRITE, request.requestId(), fingerprint, transport, -1)) return;
         Run run = resolveRun(request.runId(), transport);
@@ -981,15 +1083,27 @@ public final class SmokeTestIntegrationService {
             response.addProperty("sha256", saved.sha256());
             response.addProperty("revision", saved.revision());
             response.addProperty("message", saved.message());
+            executionTrace.info(
+                    "phase=EXCEL_WRITE_SETTLED requestId={} runId={} status=SAVED revision={}",
+                    request.requestId(), request.runId(), saved.revision());
             return response;
         } catch (ExcelWriteFailure wrapped) {
+            executionTrace.warn(
+                    "phase=EXCEL_WRITE_SETTLED requestId={} runId={} status=REFUSED failureType={}",
+                    request.requestId(), request.runId(), wrapped.getCause().getClass().getSimpleName());
             log.warn("Smoke Integration ExcelWrite refused: {}", safeMessage(wrapped.getCause(), "save failed"));
             return rejected(request.requestId(), request.runId(), "EXCEL_WRITE_REFUSED",
                     safeMessage(wrapped.getCause(), "ExcelWrite could not save the finalized artifact."));
         } catch (IllegalArgumentException | IllegalStateException refused) {
+            executionTrace.warn(
+                    "phase=EXCEL_WRITE_SETTLED requestId={} runId={} status=REFUSED failureType={}",
+                    request.requestId(), request.runId(), refused.getClass().getSimpleName());
             return rejected(request.requestId(), request.runId(), "EXCEL_WRITE_REFUSED",
                     safeMessage(refused, "ExcelWrite could not save the finalized artifact."));
         } catch (Exception failure) {
+            executionTrace.error(
+                    "phase=EXCEL_WRITE_SETTLED requestId={} runId={} status=FAILED failureType={}",
+                    request.requestId(), request.runId(), failure.getClass().getSimpleName());
             log.warn("Smoke Integration ExcelWrite failed", failure);
             return rejected(request.requestId(), request.runId(), "EXCEL_WRITE_FAILED",
                     "ExcelWrite could not save the finalized artifact.");
@@ -997,6 +1111,9 @@ public final class SmokeTestIntegrationService {
     }
 
     private void handleStop(StopRequest request, Session transport) {
+        executionTrace.info(
+                "phase=STOP_RECEIVED requestId={} runId={}",
+                request.requestId(), request.runId());
         String fingerprint = gson.toJson(request);
         if (replayExisting(
                 SmokeTestIntegrationContracts.STOP,
@@ -1023,6 +1140,10 @@ public final class SmokeTestIntegrationService {
             // change. Serialize it behind the accepted Stop and return the same terminal outcome;
             // terminate() and the browser lease are independently idempotent.
             run.terminalPending = true;
+            executionTrace.info(
+                    "phase=STOP_ADMITTED requestId={} runId={} mode={} hb={} bot={}",
+                    request.requestId(), run.runId, run.runtimeMode,
+                    run.authorization.homeBankingId(), run.authorization.botJobId());
         }
         submitOnce(
                 SmokeTestIntegrationContracts.STOP,
@@ -1064,6 +1185,9 @@ public final class SmokeTestIntegrationService {
     }
 
     private void handleFinish(FinishRequest request, Session transport) {
+        executionTrace.info(
+                "phase=FINISH_RECEIVED requestId={} runId={} lastSequence={}",
+                request.requestId(), request.runId(), request.lastSequence());
         String fingerprint = gson.toJson(request);
         if (replayExisting(
                 SmokeTestIntegrationContracts.FINISH,
@@ -1094,6 +1218,10 @@ public final class SmokeTestIntegrationService {
                 return;
             }
             run.terminalPending = true;
+            executionTrace.info(
+                    "phase=FINISH_ADMITTED requestId={} runId={} mode={} hb={} bot={}",
+                    request.requestId(), run.runId, run.runtimeMode,
+                    run.authorization.homeBankingId(), run.authorization.botJobId());
         }
         submitOnce(
                 SmokeTestIntegrationContracts.FINISH,
@@ -1262,6 +1390,9 @@ public final class SmokeTestIntegrationService {
                 try {
                     result = task.run();
                 } catch (Throwable failure) {
+                    executionTrace.error(
+                            "phase=OPERATION_FAILED operation={} requestId={} failureType={}",
+                            operation, requestId, failure.getClass().getSimpleName());
                     log.error("Smoke Test Integration operation {} failed", operation, failure);
                     result = rejected(requestId, "", "INTEGRATION_OPERATION_FAILED",
                             "Integration could not complete the requested operation.");
@@ -1284,6 +1415,9 @@ public final class SmokeTestIntegrationService {
                 }
             });
         } catch (RejectedExecutionException busy) {
+            executionTrace.warn(
+                    "phase=OPERATION_REJECTED operation={} requestId={} code=INTEGRATION_BUSY",
+                    operation, requestId);
             synchronized (stateLock) {
                 requestLedger.remove(key, entry);
             }
@@ -1316,8 +1450,12 @@ public final class SmokeTestIntegrationService {
                     || !existing.fingerprint.equals(fingerprint)) {
                 conflict = "This request ID was already used for another operation.";
             } else if (existing.response == null) {
+                executionTrace.info(
+                        "phase=REQUEST_ATTACHED operation={} requestId={}", operation, requestId);
                 existing.waiters.add(new Waiter(transport, homeBankingId));
             } else {
+                executionTrace.info(
+                        "phase=REQUEST_REPLAYED operation={} requestId={}", operation, requestId);
                 replay = existing.response.deepCopy();
                 if (SmokeTestIntegrationContracts.STEP.equals(operation)) {
                     replay.addProperty("replayed", true);
@@ -1449,6 +1587,11 @@ public final class SmokeTestIntegrationService {
             if (activeRuns.get(expected.runId) != expected || expected.released.get()) return;
         }
         if (!expected.releaseInProgress.compareAndSet(false, true)) return;
+        executionTrace.info(
+                "phase=RUN_TERMINATING runId={} integrationEpoch={} mode={} hb={} bot={} terminalStatus={}",
+                expected.runId, expected.integrationEpoch, expected.runtimeMode,
+                expected.authorization.homeBankingId(), expected.authorization.botJobId(),
+                terminalStatus);
         try {
             if (expected.runtimeMode == RuntimeMode.JAVA_V1) {
                 steps.clearRecovery(expected.runId, terminalStatus.name());
@@ -1462,7 +1605,15 @@ public final class SmokeTestIntegrationService {
                 expected.stepPending = false;
                 expected.terminalPending = false;
             }
+            executionTrace.info(
+                    "phase=RUN_TERMINATED runId={} integrationEpoch={} mode={} terminalStatus={} passed={} warnings={} failed={} skipped={}",
+                    expected.runId, expected.integrationEpoch, expected.runtimeMode, terminalStatus,
+                    expected.passed, expected.warnings, expected.failed, expected.skipped);
         } catch (RuntimeException cleanupFailure) {
+            executionTrace.error(
+                    "phase=RUN_TERMINATION_FAILED runId={} integrationEpoch={} mode={} terminalStatus={} failureType={}",
+                    expected.runId, expected.integrationEpoch, expected.runtimeMode, terminalStatus,
+                    cleanupFailure.getClass().getSimpleName());
             expected.releaseInProgress.set(false);
             throw cleanupFailure;
         }
@@ -1869,12 +2020,26 @@ public final class SmokeTestIntegrationService {
         private DefaultV2Port() {
             coordinator = ExecutionRuntimeRunCoordinator.configured().orElse(null);
             executor = coordinator == null ? null : new SmokeTestIntegrationV2StepExecutor(coordinator);
+            if (coordinator == null) {
+                executionTrace.warn(
+                        "phase=V2_CONFIGURATION status=DISABLED code=JAVA_GRANT_CONFIGURATION_MISSING requiredEnvironment={}",
+                        com.allinweb.ch.facade.execution.v2.ExecutionRuntimeGrantConfiguration.SECRET_ENV);
+            } else {
+                executionTrace.info(
+                        "phase=V2_CONFIGURATION status=READY runtimePort={} grantKeyConfigured=true",
+                        System.getenv().getOrDefault(
+                                com.allinweb.ch.facade.execution.v2.ExecutionRuntimeClientConfiguration.PORT_ENV,
+                                "60110"));
+            }
         }
 
         @Override
         public V2Run start(
                 SmokeIntegrationAuthorization authorization, Plan plan, String datasetMode) {
             if (coordinator == null) {
+                executionTrace.warn(
+                        "phase=V2_START_REFUSED hb={} bot={} code=JAVA_GRANT_CONFIGURATION_MISSING",
+                        authorization.homeBankingId(), authorization.botJobId());
                 throw new IllegalStateException("The TypeScript Playwright runtime is not configured.");
             }
             AuthorizedGrantFacts facts = new AuthorizedGrantFacts(

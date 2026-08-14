@@ -11,7 +11,9 @@ import {
 import { ExecutionRegistry, ExecutionRegistryError } from './coordinator/executionRegistry';
 import { parsePhysicalActionRequest, PhysicalActionRequest, PhysicalActionResult } from './action/actionContracts';
 import { PlaywrightBrowserFactory } from './browser/playwrightBrowserFactory';
-import { createSafeLogger, SafeLogSink } from './logging/safeLogger';
+import { createSafeLogger } from './logging/safeLogger';
+import type { SafeLogSink } from './logging/safeLogger';
+import { createFileSafeLogSink } from './logging/fileSafeLogSink';
 import { PlaywrightWorkerPool, PlaywrightWorkerPoolError } from './pool/playwrightWorkerPool';
 import { ExecutionGrantError, ExecutionGrantVerifier } from './security/executionGrantVerifier';
 import { ExecutionLaunchDescriptor, ExecutionSessionSnapshot } from './session/sessionContracts';
@@ -186,6 +188,20 @@ export const createRuntimeServer = (options: RuntimeServerOptions = {}) => {
     const started = Date.now();
     const method = request.method ?? '';
     const path = new URL(request.url ?? '/', 'http://127.0.0.1').pathname;
+    const traceMatch = /^\/v2\/runs\/([0-9a-f-]+)(?:\/([a-z-]+))?$/i.exec(path);
+    const traceRunId = traceMatch?.[1];
+    const traceOperation = path === '/v2/runs/reserve'
+      ? 'reserve'
+      : traceMatch?.[2] ?? (traceRunId ? 'release'
+        : path.startsWith('/health/') ? path.slice(1).replace('/', '.') : 'route');
+    response.once('finish', () => log({
+      event: 'request.completed',
+      operation: `${method}:${traceOperation}`,
+      ...(traceRunId && UUID_PATTERN.test(traceRunId) ? { runId: traceRunId } : {}),
+      status: response.statusCode,
+      durationMs: Date.now() - started,
+      ...(response.statusCode >= 400 ? { level: 'WARN' as const } : {}),
+    }));
     try {
       if (method === 'GET' && path === '/health/live') {
         success(response, 200, { status: 'LIVE', version: RUNTIME_VERSION });
@@ -394,7 +410,13 @@ export const createRuntimeServer = (options: RuntimeServerOptions = {}) => {
 };
 
 const runFromCommandLine = async (): Promise<void> => {
-  const runtime = createRuntimeServer();
+  const fileLog = createFileSafeLogSink(process.env.ARWEB_EXECUTION_V2_LOG_DIRECTORY);
+  const stdoutLog: SafeLogSink = line => process.stdout.write(`${line}\n`);
+  const runtime = createRuntimeServer({
+    logSink: fileLog
+      ? line => { stdoutLog(line); fileLog.sink(line); }
+      : stdoutLog,
+  });
   const address = await runtime.listen();
   process.stdout.write(JSON.stringify({
     timestamp: new Date().toISOString(),
