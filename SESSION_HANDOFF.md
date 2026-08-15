@@ -1457,3 +1457,26 @@ Do not change frontend CSS/design while doing the scanner contract cleanup unles
   `AD722AC9CECB2992EF7D772A8E3BA8CB5EC98D709605330AD2069EF4DD3EE4E6`).
 - [ ] The user intentionally closed the test application. Restart one fresh ARWeb instance, start
   SERVER, then rerun V2 and Emergency STOP to complete live V2 acceptance.
+
+## Smoke owner-switch retirement - 2026-08-15
+
+- [x] Frontend `38664ba` keys only the run-local `VariablesSmokeTestPanel` by the verified
+  `{homeBankingId, botJobId}` owner. Same-owner renders preserve state; changing Bot Jobs remounts
+  that execution surface, closes any stale Locator Recovery modal, and clears the superseded
+  plan/cursors/run-local UI without resetting unrelated detached workspaces.
+- [x] Backend `bf2de79d` immediately interrupts the superseded V1/V2 operation when the authoritative
+  Smoke binding changes, then uses the existing idempotent terminal cleanup. Privacy-safe trace
+  events now include `BINDING_CHANGE_RUN_INVALIDATED` and `RUN_INTERRUPT_REQUESTED` with run ID,
+  mode, owner IDs, instruction/request IDs, and reason, but no URL, locator, banking text, or value.
+- [x] Focused verification passed: React 1/1 and Java 15/15. Java compiled 583 main and 341 test
+  sources; the production React build completed with established repository warnings only.
+  `git diff --check` passed in both repositories.
+- [x] Deployment `8ddf2688` mirrors 61 exact files into resources and `target/classes`; both mirrors
+  have zero relative-path/hash differences. Live entrypoints are `main.99b35f77.js` and
+  `main.83e6fa5a.css`.
+- [x] The old BancaStato ARWeb PID 3780 and its app-owned Node/Playwright roots were stopped. Fresh
+  PID 6744 is responsive on `127.0.0.1:55188/55189`; HTTP returns 200 for the root and both current
+  entrypoints. IntelliJ and unrelated Java processes were not stopped.
+- [ ] Exact live owner-switch acceptance remains: start Job 5, pause in Locator Recovery, switch to
+  Job 29, verify the modal closes, Runtime Instances contains no Job 5 run, and the new `.4` Smoke
+  trace contains owner invalidation, interruption, and terminal cleanup in order.

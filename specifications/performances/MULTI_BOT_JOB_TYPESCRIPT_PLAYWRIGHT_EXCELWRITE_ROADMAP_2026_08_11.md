@@ -1524,3 +1524,21 @@ and atomic artifact-write checkpoints are complete.
 - [x] Frontend `77c027b` adds a short pre-Run SERVER requirement and orange attention glow. The
   exact 61-file deployment now uses `main.ad474808.js` / `main.83e6fa5a.css`.
 - [ ] Restart once and prove V2 launch plus Emergency STOP with the corrected options parser.
+
+## 53. Smoke on-the-fly Bot Job owner switch - 2026-08-15
+
+- [x] Frontend `38664ba` remounts only run-local Smoke execution state when the exact Home Banking /
+  Bot Job owner changes. A pending Locator Recovery modal cannot survive with empty rows under the
+  replacement owner; same-owner reconnect/render state remains stable.
+- [x] Backend `bf2de79d` marks the superseded run cancelled, immediately interrupts its current V1
+  or V2 action/recovery wait, and then performs existing idempotent terminal cleanup. Safe disk logs
+  identify the run, runtime mode, owner IDs, current instruction/request, and `BINDING_CHANGED`
+  reason without recording URLs, locators, banking text, or values.
+- [x] Focused tests passed (React 1/1; Java 15/15), Java compilation covered 583 main sources, the
+  production React build succeeded with established warnings, and both diff checks passed.
+- [x] Deployment `8ddf2688` is an exact 61-file mirror using `main.99b35f77.js` /
+  `main.83e6fa5a.css`. Fresh BancaStato PID 6744 serves them over HTTP 200 on
+  `127.0.0.1:55188/55189`; all known old ARWeb/Node/Playwright root PIDs were retired.
+- [ ] Live gate: while Job 5 is paused in Locator Recovery, select Job 29. The modal must close,
+  Job 5 must disappear from Runtime Instances, Job 29 must bootstrap cleanly, and the `.4` Smoke
+  trace must prove invalidation -> interruption -> termination with no late old-owner result.
