@@ -118,7 +118,8 @@ public final class ExecutionRuntimeRunCoordinator {
                     authority,
                     new ExecutionRuntimeHttpClient.StartFacts(
                             URI.create(plan.environment().url()), false,
-                            browserChannel(plan.environment().browserType())));
+                            browserChannel(plan.environment().browserType()),
+                            browserArguments(plan.environment().optionsConfig())));
             awaitReady(authority, snapshot);
             Run run = new Run(grant.runId(), facts, plan, authority);
             run.keepAliveLease = keepAlive.start(() -> renewLease(run));
@@ -479,6 +480,25 @@ public final class ExecutionRuntimeRunCoordinator {
             default -> throw new IllegalArgumentException(
                     "Execution V2 Bot Job browser type is unsupported");
         };
+    }
+
+    /** Converts database-owned argument entries into the bounded V2 launch contract. */
+    static java.util.List<String> browserArguments(String optionsConfig) {
+        if (optionsConfig == null || optionsConfig.isBlank()) return java.util.List.of();
+        java.util.List<String> arguments = new java.util.ArrayList<>();
+        for (String rawLine : optionsConfig.split("\\R|\\u00A3")) {
+            String line = rawLine.trim();
+            if (line.isEmpty() || line.startsWith("#")) continue;
+            String[] parts = line.split(":", 2);
+            if (parts.length == 2
+                    && (parts[0].equalsIgnoreCase("argument")
+                            || parts[0].equalsIgnoreCase("arg"))
+                    && !parts[1].isBlank()) {
+                arguments.add(parts[1].trim());
+            }
+        }
+        return new ExecutionRuntimeHttpClient.StartFacts(
+                URI.create("https://validation.invalid/"), false, null, arguments).arguments();
     }
 
     private static String state(JsonObject snapshot) {

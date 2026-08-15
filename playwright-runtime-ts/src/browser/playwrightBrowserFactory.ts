@@ -7,14 +7,17 @@ import { PhysicalActionRequest, PhysicalActionResult } from '../action/actionCon
 import { PhysicalActionExecutor } from '../action/physicalActionExecutor';
 import { PlaywrightActionPage } from '../action/playwrightActionPage';
 import { pageKeyFromUrl } from '../action/pageIdentity';
+import { createSafeLogger, SafeLogFields, SafeLogSink } from '../logging/safeLogger';
 
 export interface PlaywrightBrowserFactoryOptions {
   readonly navigationTimeoutMs?: number;
   readonly stabilityTimeoutMs?: number;
+  readonly logSink?: SafeLogSink;
 }
 
 export class PlaywrightBrowserFactory implements BrowserSessionFactory {
   private readonly readiness: PageReadiness;
+  private readonly log: (fields: SafeLogFields) => void;
 
   constructor(options: PlaywrightBrowserFactoryOptions = {}) {
     this.readiness = new PageReadiness({
@@ -23,6 +26,7 @@ export class PlaywrightBrowserFactory implements BrowserSessionFactory {
       stableSamples: 3,
       sampleIntervalMs: 200,
     });
+    this.log = createSafeLogger(options.logSink);
   }
 
   async open(
@@ -35,6 +39,7 @@ export class PlaywrightBrowserFactory implements BrowserSessionFactory {
     try {
       browser = await chromium.launch({
         headless: configuration.headless,
+        args: [...new Set(['--start-maximized', ...(configuration.args ?? [])])],
         ...(configuration.executablePath
           ? { executablePath: configuration.executablePath }
           : configuration.channel && configuration.channel !== 'chromium'
@@ -42,18 +47,24 @@ export class PlaywrightBrowserFactory implements BrowserSessionFactory {
             : {}),
       });
       context = await browser.newContext({
-        serviceWorkers: 'block',
+        viewport: null,
+        serviceWorkers: 'allow',
         acceptDownloads: false,
       });
       page = await context.newPage();
+      const browserInstanceId = randomUUID();
+      const contextInstanceId = randomUUID();
+      const pageInstanceId = randomUUID();
       return new PlaywrightBrowserSessionHandle(
         browser,
         context,
         page,
         this.readiness,
-        randomUUID(),
-        randomUUID(),
-        randomUUID(),
+        _runId,
+        this.log,
+        browserInstanceId,
+        contextInstanceId,
+        pageInstanceId,
       );
     } catch (error) {
       await closeResources(page, context, browser);
@@ -75,12 +86,18 @@ class PlaywrightBrowserSessionHandle implements BrowserSessionHandle {
     private readonly context: BrowserContext,
     private readonly page: Page,
     private readonly readiness: PageReadiness,
+    private runId: string,
+    private readonly log: (fields: SafeLogFields) => void,
     readonly browserInstanceId: string,
     readonly contextInstanceId: string,
     readonly pageInstanceId: string,
   ) {
     browser.on('disconnected', () => this.signalUnexpectedClose('BROWSER_PROCESS_DISCONNECTED'));
     page.on('close', () => this.signalUnexpectedClose('BROWSER_PAGE_CLOSED'));
+  }
+
+  bindRun(runId: string): void {
+    this.runId = runId;
   }
 
   onUnexpectedClose(handler: (code: string) => void): void {
@@ -91,6 +108,21 @@ class PlaywrightBrowserSessionHandle implements BrowserSessionHandle {
   async navigate(endpoint: string): Promise<void> {
     this.requireOpen();
     await this.readiness.navigate(this.page, endpoint);
+    const dimensions = await this.page.evaluate(() => ({
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+      screenWidth: window.screen.width,
+      screenHeight: window.screen.height,
+      devicePixelRatio: window.devicePixelRatio,
+    }));
+    this.log({
+      event: 'browser.page.ready',
+      runId: this.runId,
+      contextId: this.contextInstanceId,
+      pageId: this.pageInstanceId,
+      pageKey: pageKeyFromUrl(this.page.url()),
+      ...dimensions,
+    });
   }
 
   async refresh(): Promise<void> {
@@ -109,7 +141,22 @@ class PlaywrightBrowserSessionHandle implements BrowserSessionHandle {
     const action = new AbortController();
     this.activeAction = action;
     try {
-      return await this.actions.execute(new PlaywrightActionPage(this.page), request, action.signal);
+      const result = await this.actions.execute(
+        new PlaywrightActionPage(this.page), request, action.signal,
+      );
+      this.log({
+        event: 'browser.action.settled',
+        runId: this.runId,
+        contextId: this.contextInstanceId,
+        pageId: this.pageInstanceId,
+        pageKey: pageKeyFromUrl(this.page.url()),
+        instructionId: request.instructionId,
+        action: request.action,
+        code: result.diagnostic.code,
+        registryCandidateCount: result.diagnostic.registryCandidateCount,
+        liveCandidateCount: result.diagnostic.liveCandidateCount,
+      });
+      return result;
     } finally {
       if (this.activeAction === action) this.activeAction = undefined;
     }

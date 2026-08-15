@@ -54,12 +54,14 @@ const call = async (
 
 class FakeRuntimeWorkerPool {
   readonly snapshotsByRunId = new Map<string, ExecutionSessionSnapshot>();
+  lastDescriptor: ExecutionLaunchDescriptor | undefined;
   actionCount = 0;
   stopCount = 0;
   releaseCount = 0;
 
   enqueue(descriptor: ExecutionLaunchDescriptor): ExecutionSessionSnapshot {
     if (this.snapshotsByRunId.has(descriptor.run.runId)) throw new Error('SESSION_ALREADY_EXISTS');
+    this.lastDescriptor = descriptor;
     const snapshot = this.makeSnapshot(descriptor.run.runId, descriptor.run.organizationId,
       descriptor.run.homeBankingId, descriptor.run.botJobId, descriptor.run.dataMode, 'READY');
     this.snapshotsByRunId.set(descriptor.run.runId, snapshot);
@@ -230,13 +232,17 @@ test('runs token-authorized start, heartbeat, action, stop, and release without 
   try {
     const reserved = await call(address.port, 'POST', '/v2/runs/reserve', grant);
     const token = String(responseData(reserved).runAccessToken);
-    const launch = { endpoint: 'https://example.test/', browser: { headless: true } };
+    const launch = {
+      endpoint: 'https://example.test/',
+      browser: { headless: true, args: ['--disable-popup-blocking'] },
+    };
     assert.equal((await call(
       address.port, 'POST', `/v2/runs/${claims.runId}/start`, undefined, launch, token,
     )).status, 202);
     assert.equal((await call(
       address.port, 'POST', `/v2/runs/${claims.runId}/start`, undefined, launch, token,
     )).status, 200);
+    assert.deepEqual(pool.lastDescriptor?.browser.args, ['--disable-popup-blocking']);
     assert.equal((await call(
       address.port, 'GET', `/v2/runs/${claims.runId}/heartbeat`, undefined, undefined, token,
     )).status, 200);
@@ -265,6 +271,31 @@ test('runs token-authorized start, heartbeat, action, stop, and release without 
       address.port, 'DELETE', `/v2/runs/${claims.runId}/release`, undefined, undefined, token,
     )).status, 200);
     assert.equal(pool.releaseCount, 1);
+  } finally {
+    await runtime.close();
+  }
+});
+
+test('refuses unbounded or malformed browser arguments before worker admission', async () => {
+  const pool = new FakeRuntimeWorkerPool();
+  const runtime = createRuntimeServer({
+    config: config(), nowEpochSeconds: () => TEST_NOW, workerPool: pool,
+  });
+  const address = await runtime.listen();
+  const claims = claimsFixture({ capabilities: ['runtime.reserve', 'runtime.start'] });
+  try {
+    const reserved = await call(address.port, 'POST', '/v2/runs/reserve', signGrant(claims));
+    const token = String(responseData(reserved).runAccessToken);
+    const response = await call(
+      address.port,
+      'POST',
+      `/v2/runs/${claims.runId}/start`,
+      undefined,
+      { endpoint: 'https://example.test/', browser: { headless: false, args: ['user-data-dir=x'] } },
+      token,
+    );
+    assert.equal(response.status, 400);
+    assert.equal(pool.lastDescriptor, undefined);
   } finally {
     await runtime.close();
   }

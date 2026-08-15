@@ -40,7 +40,9 @@ class ExecutionRuntimeHttpClientTest {
         RuntimeRun run = client.reserve(grant());
         assertEquals(RUN_ID, run.runId());
         assertFalse(run.toString().contains(TOKEN));
-        client.start(run, new StartFacts(URI.create("https://example.test/"), true, "chromium"));
+        client.start(run, new StartFacts(
+                URI.create("https://example.test/"), true, "chromium",
+                List.of("--disable-popup-blocking")));
         client.heartbeat(run);
         assertEquals("url-v1:" + "c".repeat(64), client.pageIdentity(run));
         client.stop(run);
@@ -49,6 +51,7 @@ class ExecutionRuntimeHttpClientTest {
         assertEquals("compact-grant", transport.calls.get(0).grant());
         assertEquals(TOKEN, transport.calls.get(1).token());
         assertTrue(transport.calls.get(1).body().contains("https://example.test/"));
+        assertTrue(transport.calls.get(1).body().contains("--disable-popup-blocking"));
         assertTrue(transport.calls.get(3).uri().getPath().endsWith("/page-identity"));
         assertTrue(transport.calls.stream().skip(1).allMatch(call -> TOKEN.equals(call.token())));
         ExecutionRuntimeClientException retired = assertThrows(
@@ -111,6 +114,11 @@ class ExecutionRuntimeHttpClientTest {
                 IllegalArgumentException.class,
                 () -> ExecutionRuntimeClientConfiguration.fromEnvironment(java.util.Map.of(
                         ExecutionRuntimeClientConfiguration.PORT_ENV, "0")));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new StartFacts(
+                        URI.create("https://example.test/"), false, "chrome",
+                        List.of("user-data-dir=x")));
     }
 
     private static ExecutionRuntimeHttpClient client(FakeTransport transport) {

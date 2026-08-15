@@ -50,6 +50,7 @@ export class ExecutionSession {
   ) {
     this.endpoint = validateExecutionEndpoint(descriptor.endpoint);
     this.handle = retainedHandle;
+    this.handle?.bindRun(descriptor.run.runId);
   }
 
   start(): Promise<void> {

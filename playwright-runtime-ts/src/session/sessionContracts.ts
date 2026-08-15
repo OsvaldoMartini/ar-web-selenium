@@ -14,6 +14,7 @@ export interface BrowserLaunchConfiguration {
   readonly channel?: 'chrome' | 'msedge' | 'chromium';
   readonly executablePath?: string;
   readonly headless: boolean;
+  readonly args?: readonly string[];
 }
 
 /** Internal-only launch facts. A future Java-authorized adapter must construct this object. */

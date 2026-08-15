@@ -13,6 +13,7 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Base64;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.regex.Pattern;
@@ -68,6 +69,11 @@ public final class ExecutionRuntimeHttpClient {
         JsonObject browser = new JsonObject();
         browser.addProperty("headless", facts.headless());
         if (facts.channel() != null) browser.addProperty("channel", facts.channel());
+        if (!facts.arguments().isEmpty()) {
+            var arguments = new com.google.gson.JsonArray();
+            facts.arguments().forEach(arguments::add);
+            browser.add("args", arguments);
+        }
         body.add("browser", browser);
         return tokenExchange("POST", run, "start", body);
     }
@@ -250,7 +256,7 @@ public final class ExecutionRuntimeHttpClient {
         return value;
     }
 
-    public record StartFacts(URI endpoint, boolean headless, String channel) {
+    public record StartFacts(URI endpoint, boolean headless, String channel, List<String> arguments) {
         public StartFacts {
             if (endpoint == null
                     || !("http".equalsIgnoreCase(endpoint.getScheme())
@@ -267,6 +273,23 @@ public final class ExecutionRuntimeHttpClient {
                     && !channel.equals("chromium")) {
                 throw new IllegalArgumentException("Execution V2 browser channel is invalid");
             }
+            arguments = List.copyOf(arguments == null ? List.of() : arguments);
+            if (arguments.size() > 32) {
+                throw new IllegalArgumentException("Execution V2 browser argument limit exceeded");
+            }
+            for (String argument : arguments) {
+                if (argument == null
+                        || argument.length() < 3
+                        || argument.length() > 512
+                        || !argument.startsWith("--")
+                        || argument.chars().anyMatch(Character::isISOControl)) {
+                    throw new IllegalArgumentException("Execution V2 browser argument is invalid");
+                }
+            }
+        }
+
+        public StartFacts(URI endpoint, boolean headless, String channel) {
+            this(endpoint, headless, channel, List.of());
         }
     }
 

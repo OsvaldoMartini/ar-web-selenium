@@ -5,6 +5,7 @@ export interface BrowserSessionHandle {
   readonly browserInstanceId: string;
   readonly contextInstanceId: string;
   readonly pageInstanceId: string;
+  bindRun(runId: string): void;
   onUnexpectedClose(handler: (code: string) => void): void;
   navigate(endpoint: string): Promise<void>;
   pageIdentity(): Promise<string>;

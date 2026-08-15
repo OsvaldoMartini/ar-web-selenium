@@ -12,6 +12,7 @@ class FakeHandle implements BrowserSessionHandle {
   readonly browserInstanceId = randomUUID();
   readonly contextInstanceId = randomUUID();
   readonly pageInstanceId = randomUUID();
+  boundRunId = '';
   closed = false;
   refreshCount = 0;
   actionCount = 0;
@@ -25,6 +26,10 @@ class FakeHandle implements BrowserSessionHandle {
   onUnexpectedClose(handler: (code: string) => void): void {
     this.unexpectedCloseHandler = handler;
     if (this.unexpectedCloseCode) handler(this.unexpectedCloseCode);
+  }
+
+  bindRun(runId: string): void {
+    this.boundRunId = runId;
   }
 
   async navigate(): Promise<void> {
@@ -346,6 +351,7 @@ test('stop parks the browser and the next exact owner run reuses it', async () =
   assert.equal(reused.browserInstanceId, original.browserInstanceId);
   assert.equal(reused.contextInstanceId, original.contextInstanceId);
   assert.equal(reused.pageInstanceId, original.pageInstanceId);
+  assert.equal(factory.handles.get(first.run.runId)?.boundRunId, replacement.run.runId);
   assert.equal(factory.handles.has(replacement.run.runId), false);
   await pool.closeAll();
 });

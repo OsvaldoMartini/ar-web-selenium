@@ -49,6 +49,7 @@ class ExecutionRuntimeRunCoordinatorTest {
         assertEquals(RUN_ID, run.runId());
         assertEquals(2, runtime.heartbeatCount);
         assertEquals(1, runtime.actionCount);
+        assertEquals(List.of("--disable-popup-blocking"), runtime.lastStartFacts.arguments());
         assertEquals(PAGE_KEY, runtime.lastAction.get("pageKey").getAsString());
         assertEquals("CLICK", runtime.lastAction.get("action").getAsString());
         assertFalse(runtime.lastAction.has("inputValue"));
@@ -217,7 +218,8 @@ class ExecutionRuntimeRunCoordinatorTest {
                 List.of(), Map.of());
         Environment environment = new Environment(
                 13, "Lloyds", 29, "Lloyds", "", 15, "TEST",
-                "https://www.lloydsbank.com/", "", "CHROMIUM");
+                "https://www.lloydsbank.com/",
+                "# approved\nargument: --disable-popup-blocking", "CHROMIUM");
         return new Plan(
                 owner, environment, Scope.all(), List.of(block), List.of(instruction), PLAN_REVISION);
     }
@@ -321,6 +323,7 @@ class ExecutionRuntimeRunCoordinatorTest {
         private final List<JsonObject> actions = new ArrayList<>();
         private final Queue<JsonObject> actionResponses = new ArrayDeque<>();
         private boolean failActions;
+        private ExecutionRuntimeHttpClient.StartFacts lastStartFacts;
 
         @Override
         public Authority reserve(IssuedGrant grant) {
@@ -331,6 +334,7 @@ class ExecutionRuntimeRunCoordinatorTest {
         @Override
         public JsonObject start(
                 Authority authority, ExecutionRuntimeHttpClient.StartFacts facts) {
+            lastStartFacts = facts;
             return snapshots.remove();
         }
 

@@ -20,9 +20,11 @@ import { ExecutionLaunchDescriptor, ExecutionSessionSnapshot } from './session/s
 
 const RUNTIME_VERSION = '0.1.0';
 const MAX_REQUEST_BODY_BYTES = 1024;
-const MAX_START_BODY_BYTES = 4_096;
+const MAX_START_BODY_BYTES = 20 * 1_024;
 const MAX_ACTION_BODY_BYTES = 8 * 1_024 * 1_024;
 const PAGE_KEY_PATTERN = /^url-v1:[0-9a-f]{64}$/;
+const MAX_BROWSER_ARGUMENTS = 32;
+const MAX_BROWSER_ARGUMENT_LENGTH = 512;
 
 interface RuntimeWorkerPool {
   enqueue(descriptor: ExecutionLaunchDescriptor): ExecutionSessionSnapshot;
@@ -106,11 +108,22 @@ const runAccessToken = (request: IncomingMessage): string => {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
+const browserArguments = (value: unknown): readonly string[] => {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || value.length > MAX_BROWSER_ARGUMENTS
+      || value.some(argument => typeof argument !== 'string'
+        || argument.length < 3 || argument.length > MAX_BROWSER_ARGUMENT_LENGTH
+        || !argument.startsWith('--') || /[\u0000-\u001f\u007f]/.test(argument))) {
+    throw new Error('RUN_START_CONTRACT_INVALID');
+  }
+  return Object.freeze([...value]);
+};
+
 const parseLaunchBody = (value: unknown): Omit<ExecutionLaunchDescriptor, 'run'> => {
   if (!isRecord(value) || Object.keys(value).some(key => !['endpoint', 'browser'].includes(key))
       || Object.keys(value).length !== 2 || typeof value.endpoint !== 'string'
       || !isRecord(value.browser)
-      || Object.keys(value.browser).some(key => !['headless', 'channel'].includes(key))
+      || Object.keys(value.browser).some(key => !['headless', 'channel', 'args'].includes(key))
       || typeof value.browser.headless !== 'boolean'
       || (value.browser.channel !== undefined
         && !['chrome', 'msedge', 'chromium'].includes(String(value.browser.channel)))) {
@@ -123,6 +136,7 @@ const parseLaunchBody = (value: unknown): Omit<ExecutionLaunchDescriptor, 'run'>
       ...(value.browser.channel === undefined
         ? {}
         : { channel: value.browser.channel as 'chrome' | 'msedge' | 'chromium' }),
+      args: browserArguments(value.browser.args),
     },
   };
 };
@@ -149,7 +163,7 @@ export const createRuntimeServer = (options: RuntimeServerOptions = {}) => {
   const config = options.config ?? loadRuntimeConfig();
   const log = createSafeLogger(options.logSink);
   const workerPool: RuntimeWorkerPool = options.workerPool ?? new PlaywrightWorkerPool(
-    new PlaywrightBrowserFactory(),
+    new PlaywrightBrowserFactory(options.logSink ? { logSink: options.logSink } : {}),
     {
       maximumActiveRuns: config.maximumActiveRuns,
       maximumQueuedRuns: config.maximumQueuedRuns,
