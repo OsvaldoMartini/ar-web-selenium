@@ -2,7 +2,7 @@
 
 Keep exactly two review sections. Check tasks only after their separate gates pass.
 
-**Last updated:** 2026-08-13 - Main Dashboard multi-run source is pushed through backend `b9a88131` / `b50dbd20` / `06ed6479`, frontend `75351fb`, deployment `a18cf8cd`, exact-run cancellation `1777fb4d`, and late-rendered target wait `2672b85f`. `Start Selected` owns one independent React program/data/runtime-variable/ExcelWriter/V2 lifecycle per prepared row. Each V2 action now retries its complete locator priority chain for one bounded 10-second deadline, while Stop interrupts only that exact run. Frontend build, Java compile, 11 focused Java tests, and all 35 Node tests passed. Service restart and live multi-program/real-locator verification remain open.
+**Last updated:** 2026-08-15 - Smoke STOP/KILL separation is pushed as frontend `a715a2a`, backend `dfd95e32`, and deployment `7c877bd7`. Main STOP and Runtime Instances STOP terminate the exact execution while preserving its browser; Runtime Instances KILL additionally closes the exact V1 shared or selected V2 isolated browser. React now retires the matching local loop so it cannot continue after backend removal. Java 31/31 and React 9/9 passed; the production build and exact 61-file deployment passed. PID 16044 serves `main.948ca07e.js` / `main.83e6fa5a.css` over HTTP 200 with matching hashes. The four-path live V1/V2 STOP/KILL matrix remains open.
 
 **Current multi-run checkpoint:** backend preflight `f39baa6c`, frontend manager `bb28f3a`, and exact
 61-file deployment `bd1cb821` are pushed. The manager can revalidate one to five exact owner/Bot Job

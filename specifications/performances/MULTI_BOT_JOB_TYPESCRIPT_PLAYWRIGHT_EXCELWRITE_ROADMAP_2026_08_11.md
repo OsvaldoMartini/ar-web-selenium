@@ -1542,3 +1542,24 @@ and atomic artifact-write checkpoints are complete.
 - [ ] Live gate: while Job 5 is paused in Locator Recovery, select Job 29. The modal must close,
   Job 5 must disappear from Runtime Instances, Job 29 must bootstrap cleanly, and the `.4` Smoke
   trace must prove invalidation -> interruption -> termination with no late old-owner result.
+
+## 54. Browser-preserving STOP and exact-browser KILL - 2026-08-15
+
+- [x] Main Smoke STOP is an owner-bound emergency execution interrupt and never closes a browser.
+  Runtime Instances STOP terminates the selected V1/V2 run and also preserves its browser. Runtime
+  Instances KILL is the only administrative control in this workflow that additionally closes the
+  V1 shared browser or the exact selected V2 isolated browser.
+- [x] Frontend `a715a2a` retires the exact locally active run after a successful Runtime Instances
+  control response, aborts any pending step, stops the instruction loop, and ignores stale run IDs.
+  This prevents the former UI-only continuation after the backend instance disappeared.
+- [x] Backend `dfd95e32` implements the distinct dispositions, exact V2 close, idempotent termination,
+  synchronous executor-shutdown fallback, and complete privacy-safe lifecycle logging.
+- [x] Verification passed Java 31/31 and React 9/9. Java compilation covered 583 main and 341 test
+  sources. The production React build passed with established warnings; no separate frontend
+  typecheck script exists. Diff checks passed.
+- [x] Deployment `7c877bd7` is an exact 61-file mirror. PID 16044 serves `main.948ca07e.js` and
+  `main.83e6fa5a.css` over HTTP 200 on `127.0.0.1:58494`; hashes match the frontend build and the
+  seven new log files contain no strict startup/runtime errors.
+- [ ] Live matrix: V1 STOP -> browser remains and CONTINUE PAGE/Page Scanner can reuse it; V1 KILL
+  -> browser closes; V2 STOP -> selected isolated browser remains reusable; V2 KILL -> only that
+  browser closes while sibling V2 runs remain unaffected. Save the correlated trace phases.

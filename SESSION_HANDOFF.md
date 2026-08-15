@@ -1480,3 +1480,28 @@ Do not change frontend CSS/design while doing the scanner contract cleanup unles
 - [ ] Exact live owner-switch acceptance remains: start Job 5, pause in Locator Recovery, switch to
   Job 29, verify the modal closes, Runtime Instances contains no Job 5 run, and the new `.4` Smoke
   trace contains owner invalidation, interruption, and terminal cleanup in order.
+
+## Smoke STOP preserves browser; KILL closes exact browser - 2026-08-15
+
+- [x] Frontend `a715a2a` synchronizes Runtime Instances STOP/KILL with the active React execution
+  controller and instruction loop. An exact matching externally controlled run is retired locally,
+  pending work receives a typed cancellation, and stale/nonmatching run IDs are ignored.
+- [x] Backend `dfd95e32` separates execution termination from browser disposition for both runtimes.
+  Main Smoke STOP and Runtime Instances STOP interrupt/terminate the exact run and preserve its
+  browser; Runtime Instances KILL interrupts/terminates the exact run and closes V1's shared browser
+  or only the selected V2 isolated browser. Executor-shutdown fallback performs the same cleanup
+  synchronously instead of stranding a STOPPING run.
+- [x] Privacy-safe disk events cover control received/refused/admitted, exact mode and owner IDs,
+  browser-close request/settlement/failure, executor fallback, run interruption, termination, final
+  browser disposition, and failure type. They never record URLs, locators, values, or banking text.
+- [x] Focused Java verification passed 31/31 and compiled 583 main plus 341 test sources. Focused
+  React verification passed 9/9. The production frontend build succeeded with established lint
+  warnings; this repository has no standalone `typecheck` script. Both diff checks passed.
+- [x] Deployment `7c877bd7` mirrors 61 exact files into resources and `target/classes`. Fresh
+  BancaStato PID 16044 is responsive on `127.0.0.1:58494/58495`; HTTP 200 serves
+  `main.948ca07e.js` (SHA-256 `C9FAFDADA666BF04357F8DA4BF8248AF9F152C1C1CEF01BE4431B51C0DC46D64`)
+  and `main.83e6fa5a.css` (SHA-256 `AD722AC9CECB2992EF7D772A8E3BA8CB5EC98D709605330AD2069EF4DD3EE4E6`),
+  exactly matching the frontend build. Seven post-start logs have zero strict error matches.
+- [ ] Live behavior remains user-driven: for V1 and V2 prove main STOP and Runtime Instances STOP
+  leave the browser/page reusable for CONTINUE PAGE or Page Scanner, then prove KILL closes only the
+  intended browser and does not affect a sibling isolated V2 run.
