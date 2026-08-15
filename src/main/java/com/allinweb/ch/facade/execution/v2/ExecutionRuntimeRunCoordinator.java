@@ -23,6 +23,8 @@ import lombok.extern.slf4j.Slf4j;
 /** Owns one Java-authorized lifecycle for an isolated Execution V2 Node run. */
 @Slf4j
 public final class ExecutionRuntimeRunCoordinator {
+    private static final org.slf4j.Logger executionTrace =
+            org.slf4j.LoggerFactory.getLogger("com.allinweb.smoke.execution");
     private static final Duration READY_TIMEOUT = Duration.ofSeconds(45);
     private static final long READY_POLL_MILLIS = 200L;
     private static final long KEEP_ALIVE_INTERVAL_SECONDS = 15L;
@@ -111,22 +113,41 @@ public final class ExecutionRuntimeRunCoordinator {
         Objects.requireNonNull(plan, "Execution V2 frozen plan is required");
         requirePlanAuthority(facts, plan);
         IssuedGrant grant = grants.issue(facts);
-        Authority authority = runtime.reserve(grant);
+        String channel = browserChannel(plan.environment().browserType());
+        java.util.List<String> arguments = browserArguments(plan.environment().optionsConfig());
+        long started = System.nanoTime();
+        executionTrace.info(
+                "phase=V2_RUN_START_REQUESTED runId={} homeBankingId={} botJobId={} channel={} argumentCount={} headless=false",
+                grant.runId(), facts.homeBankingId(), facts.botJobId(), channel, arguments.size());
+        Authority authority = null;
         boolean ready = false;
         try {
+            authority = runtime.reserve(grant);
+            executionTrace.debug("phase=V2_RUN_RESERVED runId={}", grant.runId());
             JsonObject snapshot = runtime.start(
                     authority,
                     new ExecutionRuntimeHttpClient.StartFacts(
                             URI.create(plan.environment().url()), false,
-                            browserChannel(plan.environment().browserType()),
-                            browserArguments(plan.environment().optionsConfig())));
+                            channel, arguments));
             awaitReady(authority, snapshot);
             Run run = new Run(grant.runId(), facts, plan, authority);
             run.keepAliveLease = keepAlive.start(() -> renewLease(run));
             ready = true;
+            executionTrace.info(
+                    "phase=V2_RUN_READY runId={} homeBankingId={} botJobId={} durationMs={}",
+                    grant.runId(), facts.homeBankingId(), facts.botJobId(), elapsedMillis(started));
             return run;
+        } catch (RuntimeException failure) {
+            executionTrace.warn(
+                    "phase=V2_RUN_START_FAILED runId={} homeBankingId={} botJobId={} code={} durationMs={}",
+                    grant.runId(), facts.homeBankingId(), facts.botJobId(), failureCode(failure),
+                    elapsedMillis(started));
+            throw failure;
         } finally {
-            if (!ready) cleanup(authority);
+            if (!ready && authority != null) {
+                executionTrace.debug("phase=V2_RUN_START_CLEANUP runId={}", grant.runId());
+                cleanup(authority);
+            }
         }
     }
 
@@ -203,12 +224,47 @@ public final class ExecutionRuntimeRunCoordinator {
                         preparation,
                         inputValue);
         current.nextPhysicalSequence++;
+        long started = System.nanoTime();
+        String action = request.get("action").getAsString();
+        int registryCandidateCount = request.has("registryCandidates")
+                && request.get("registryCandidates").isJsonArray()
+                ? request.getAsJsonArray("registryCandidates").size()
+                : 0;
+        executionTrace.info(
+                "phase=V2_ACTION_DISPATCH runId={} instructionId={} callerSequence={} physicalSequence={} action={} registryCandidateCount={}",
+                current.runId, requestInstructionId, callerSequence, physicalSequence, action,
+                registryCandidateCount);
         try {
             JsonObject result = runtime.action(current.authority, request);
             rememberRecovery(current, request, result);
+            JsonObject diagnostic = result != null
+                    && result.has("diagnostic")
+                    && result.get("diagnostic").isJsonObject()
+                    ? result.getAsJsonObject("diagnostic")
+                    : new JsonObject();
+            executionTrace.info(
+                    "phase=V2_ACTION_SETTLED runId={} instructionId={} physicalSequence={} action={} ok={} code={} stage={} registryCandidateCount={} liveCandidateCount={} physicalAttempts={} frameValidated={} shadowValidated={} tagValidated={} actionValidated={} recoveryPending={} recoveryCandidateCount={} durationMs={}",
+                    current.runId, requestInstructionId, physicalSequence, action,
+                    safeBoolean(result, "ok"),
+                    safeDiagnosticText(diagnostic, "code", "DIAGNOSTIC_UNAVAILABLE"),
+                    safeDiagnosticText(diagnostic, "stage", "STAGE_UNAVAILABLE"),
+                    safeDiagnosticInt(diagnostic, "registryCandidateCount"),
+                    safeDiagnosticInt(diagnostic, "liveCandidateCount"),
+                    safeDiagnosticInt(diagnostic, "physicalAttempts"),
+                    safeBoolean(diagnostic, "frameValidated"),
+                    safeBoolean(diagnostic, "shadowValidated"),
+                    safeBoolean(diagnostic, "tagValidated"),
+                    safeBoolean(diagnostic, "actionValidated"),
+                    current.pendingRecovery != null,
+                    current.pendingRecovery == null ? 0 : current.pendingRecovery.candidates.size(),
+                    elapsedMillis(started));
             return result;
         } catch (RuntimeException unknownOutcome) {
             current.actionOutcomeUnknown = true;
+            executionTrace.warn(
+                    "phase=V2_ACTION_FAILED runId={} instructionId={} physicalSequence={} action={} code={} registryCandidateCount={} durationMs={}",
+                    current.runId, requestInstructionId, physicalSequence, action,
+                    failureCode(unknownOutcome), registryCandidateCount, elapsedMillis(started));
             throw unknownOutcome;
         }
     }
@@ -248,14 +304,27 @@ public final class ExecutionRuntimeRunCoordinator {
             }
             long sequence = current.nextPhysicalSequence++;
             JsonObject request = actions.createRecovery(sequence, pending.originalRequest, candidate);
+            long started = System.nanoTime();
+            executionTrace.info(
+                    "phase=V2_RECOVERY_DISPATCH runId={} instructionId={} physicalSequence={} saveRequested={} candidateCount={}",
+                    current.runId, instructionId, sequence, save, pending.candidates.size());
             JsonObject result;
             try {
                 result = runtime.action(current.authority, request);
             } catch (RuntimeException unknownOutcome) {
                 current.actionOutcomeUnknown = true;
+                executionTrace.warn(
+                        "phase=V2_RECOVERY_FAILED runId={} instructionId={} physicalSequence={} saveRequested={} code={} durationMs={}",
+                        current.runId, instructionId, sequence, save, failureCode(unknownOutcome),
+                        elapsedMillis(started));
                 throw unknownOutcome;
             }
-            if (!isSuccessful(result)) return result;
+            if (!isSuccessful(result)) {
+                executionTrace.info(
+                        "phase=V2_RECOVERY_REFUSED runId={} instructionId={} physicalSequence={} saveRequested={} durationMs={}",
+                        current.runId, instructionId, sequence, save, elapsedMillis(started));
+                return result;
+            }
             current.pendingRecovery = null;
             boolean saveFailed = false;
             if (save) {
@@ -272,6 +341,10 @@ public final class ExecutionRuntimeRunCoordinator {
             completed.add("recoveryCandidate", candidate.deepCopy());
             completed.addProperty("locatorSaved", save && !saveFailed);
             if (saveFailed) completed.addProperty("recoverySaveFailed", true);
+            executionTrace.info(
+                    "phase=V2_RECOVERY_SETTLED runId={} instructionId={} physicalSequence={} saveRequested={} locatorSaved={} durationMs={}",
+                    current.runId, instructionId, sequence, save, save && !saveFailed,
+                    elapsedMillis(started));
             return completed;
         }
     }
@@ -282,6 +355,9 @@ public final class ExecutionRuntimeRunCoordinator {
             PendingRecovery pending = current.pendingRecovery;
             if (pending != null && pending.instructionId == instructionId) {
                 current.pendingRecovery = null;
+                executionTrace.info(
+                        "phase=V2_RECOVERY_CANCELLED runId={} instructionId={}",
+                        current.runId, instructionId);
             }
         }
     }
@@ -360,7 +436,10 @@ public final class ExecutionRuntimeRunCoordinator {
         Run current = Objects.requireNonNull(run, "Execution V2 run is required");
         synchronized (current) {
             requireOpen(current);
-            return runtime.refresh(current.authority);
+            executionTrace.info("phase=V2_REFRESH_REQUESTED runId={}", current.runId);
+            JsonObject result = runtime.refresh(current.authority);
+            executionTrace.info("phase=V2_REFRESH_SETTLED runId={}", current.runId);
+            return result;
         }
     }
 
@@ -369,6 +448,7 @@ public final class ExecutionRuntimeRunCoordinator {
         Run current = Objects.requireNonNull(run, "Execution V2 run is required");
         if (current.closed) return;
         current.stopRequested.set(true);
+        executionTrace.info("phase=V2_INTERRUPT_REQUESTED runId={}", current.runId);
         runtime.stop(current.authority);
     }
 
@@ -378,11 +458,16 @@ public final class ExecutionRuntimeRunCoordinator {
             if (current.closed) return;
             current.stopRequested.set(true);
             current.keepAliveLease.close();
+            executionTrace.info("phase=V2_CLOSE_REQUESTED runId={} preserveBrowser=true", current.runId);
             try {
                 runtime.stop(current.authority);
                 runtime.release(current.authority);
                 current.closed = true;
+                executionTrace.info("phase=V2_CLOSE_SETTLED runId={} preserveBrowser=true", current.runId);
             } catch (RuntimeException failure) {
+                executionTrace.warn(
+                        "phase=V2_CLOSE_FAILED runId={} preserveBrowser=true code={}",
+                        current.runId, failureCode(failure));
                 // Do not declare the run closed or discard authority after an unknown terminal
                 // outcome. The owner may retry the same exact stop/release lifecycle.
                 throw failure;
@@ -397,8 +482,53 @@ public final class ExecutionRuntimeRunCoordinator {
             if (current.closed) return;
             current.stopRequested.set(true);
             current.keepAliveLease.close();
-            runtime.closeBrowser(current.authority);
+            executionTrace.info(
+                    "phase=V2_BROWSER_CLOSE_REQUESTED runId={} preserveBrowser=false", current.runId);
+            try {
+                runtime.closeBrowser(current.authority);
+                executionTrace.info(
+                        "phase=V2_BROWSER_CLOSE_SETTLED runId={} preserveBrowser=false", current.runId);
+            } catch (RuntimeException failure) {
+                executionTrace.warn(
+                        "phase=V2_BROWSER_CLOSE_FAILED runId={} preserveBrowser=false code={}",
+                        current.runId, failureCode(failure));
+                throw failure;
+            }
         }
+    }
+
+    private static long elapsedMillis(long started) {
+        return Math.max(0L, (System.nanoTime() - started) / 1_000_000L);
+    }
+
+    private static String failureCode(RuntimeException failure) {
+        String message = failure.getMessage();
+        return message != null && message.matches("[A-Z][A-Z0-9_]{2,80}")
+                ? message
+                : "V2_RUNTIME_FAILURE";
+    }
+
+    private static String safeDiagnosticText(JsonObject diagnostic, String field, String fallback) {
+        if (!diagnostic.has(field) || !diagnostic.get(field).isJsonPrimitive()) return fallback;
+        String value = diagnostic.get(field).getAsString();
+        return value.matches("[A-Z][A-Z0-9_]{2,80}") ? value : fallback;
+    }
+
+    private static int safeDiagnosticInt(JsonObject diagnostic, String field) {
+        if (!diagnostic.has(field) || !diagnostic.get(field).isJsonPrimitive()) return 0;
+        try {
+            return Math.max(0, diagnostic.get(field).getAsInt());
+        } catch (RuntimeException invalid) {
+            return 0;
+        }
+    }
+
+    private static boolean safeBoolean(JsonObject value, String field) {
+        return value != null
+                && value.has(field)
+                && value.get(field).isJsonPrimitive()
+                && value.getAsJsonPrimitive(field).isBoolean()
+                && value.get(field).getAsBoolean();
     }
 
     private void renewLease(Run current) {

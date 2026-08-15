@@ -30,44 +30,83 @@ export class PlaywrightBrowserFactory implements BrowserSessionFactory {
   }
 
   async open(
-    _runId: string,
+    runId: string,
     configuration: BrowserLaunchConfiguration,
   ): Promise<BrowserSessionHandle> {
+    const started = Date.now();
+    const browserInstanceId = randomUUID();
+    const contextInstanceId = randomUUID();
+    const pageInstanceId = randomUUID();
+    const launchArguments = [...new Set(['--start-maximized', ...(configuration.args ?? [])])];
+    const channel = configuration.executablePath
+      ? 'custom-executable'
+      : configuration.channel ?? 'chromium';
+    this.log({
+      event: 'browser.launch.requested',
+      runId,
+      browserId: browserInstanceId,
+      headless: configuration.headless,
+      channel,
+      argumentCount: launchArguments.length,
+      viewportMode: 'native',
+      serviceWorkerMode: 'allow',
+    });
     let browser: Browser | undefined;
     let context: BrowserContext | undefined;
     let page: Page | undefined;
     try {
       browser = await chromium.launch({
         headless: configuration.headless,
-        args: [...new Set(['--start-maximized', ...(configuration.args ?? [])])],
+        args: launchArguments,
         ...(configuration.executablePath
           ? { executablePath: configuration.executablePath }
           : configuration.channel && configuration.channel !== 'chromium'
             ? { channel: configuration.channel }
             : {}),
       });
+      this.log({
+        event: 'browser.process.started', runId, browserId: browserInstanceId,
+        durationMs: Date.now() - started,
+      });
       context = await browser.newContext({
         viewport: null,
         serviceWorkers: 'allow',
         acceptDownloads: false,
       });
+      this.log({
+        event: 'browser.context.created', runId, browserId: browserInstanceId,
+        contextId: contextInstanceId, viewportMode: 'native', serviceWorkerMode: 'allow',
+      });
       page = await context.newPage();
-      const browserInstanceId = randomUUID();
-      const contextInstanceId = randomUUID();
-      const pageInstanceId = randomUUID();
+      this.log({
+        event: 'browser.page.created', runId, browserId: browserInstanceId,
+        contextId: contextInstanceId, pageId: pageInstanceId,
+      });
       return new PlaywrightBrowserSessionHandle(
         browser,
         context,
         page,
         this.readiness,
-        _runId,
+        runId,
         this.log,
         browserInstanceId,
         contextInstanceId,
         pageInstanceId,
       );
     } catch (error) {
-      await closeResources(page, context, browser);
+      this.log({
+        event: 'browser.launch.failed', level: 'ERROR', runId,
+        browserId: browserInstanceId, code: safeFailureCode(error, 'BROWSER_LAUNCH_FAILED'),
+        durationMs: Date.now() - started,
+      });
+      try {
+        await closeResources(page, context, browser);
+      } catch {
+        this.log({
+          event: 'browser.launch.cleanup.failed', level: 'ERROR', runId,
+          browserId: browserInstanceId, code: 'BROWSER_CLEANUP_FAILED',
+        });
+      }
       throw error;
     }
   }
@@ -97,7 +136,12 @@ class PlaywrightBrowserSessionHandle implements BrowserSessionHandle {
   }
 
   bindRun(runId: string): void {
+    const retained = this.runId !== runId;
     this.runId = runId;
+    this.log({
+      event: 'browser.run.bound', runId, browserId: this.browserInstanceId,
+      contextId: this.contextInstanceId, pageId: this.pageInstanceId, retained,
+    });
   }
 
   onUnexpectedClose(handler: (code: string) => void): void {
@@ -107,32 +151,58 @@ class PlaywrightBrowserSessionHandle implements BrowserSessionHandle {
 
   async navigate(endpoint: string): Promise<void> {
     this.requireOpen();
-    await this.readiness.navigate(this.page, endpoint);
-    const dimensions = await this.page.evaluate(() => ({
-      viewportWidth: window.innerWidth,
-      viewportHeight: window.innerHeight,
-      screenWidth: window.screen.width,
-      screenHeight: window.screen.height,
-      devicePixelRatio: window.devicePixelRatio,
-    }));
-    this.log({
-      event: 'browser.page.ready',
-      runId: this.runId,
-      contextId: this.contextInstanceId,
-      pageId: this.pageInstanceId,
-      pageKey: pageKeyFromUrl(this.page.url()),
-      ...dimensions,
-    });
+    const started = Date.now();
+    this.log(this.identityFields('browser.navigation.started'));
+    try {
+      await this.readiness.navigate(this.page, endpoint);
+      const dimensions = await this.page.evaluate(() => ({
+        viewportWidth: window.innerWidth,
+        viewportHeight: window.innerHeight,
+        screenWidth: window.screen.width,
+        screenHeight: window.screen.height,
+        devicePixelRatio: window.devicePixelRatio,
+      }));
+      this.log({
+        ...this.identityFields('browser.page.ready'),
+        pageKey: pageKeyFromUrl(this.page.url()),
+        durationMs: Date.now() - started,
+        ...dimensions,
+      });
+    } catch (error) {
+      this.log({
+        ...this.identityFields('browser.navigation.failed'), level: 'ERROR',
+        code: safeFailureCode(error, 'BROWSER_NAVIGATION_FAILED'),
+        durationMs: Date.now() - started,
+      });
+      throw error;
+    }
   }
 
   async refresh(): Promise<void> {
     this.requireOpen();
-    await this.readiness.refresh(this.page);
+    const started = Date.now();
+    this.log({ ...this.identityFields('browser.refresh.started'), ...this.pageKeyFields() });
+    try {
+      await this.readiness.refresh(this.page);
+      this.log({
+        ...this.identityFields('browser.refresh.settled'), ...this.pageKeyFields(),
+        durationMs: Date.now() - started,
+      });
+    } catch (error) {
+      this.log({
+        ...this.identityFields('browser.refresh.failed'), level: 'ERROR',
+        code: safeFailureCode(error, 'BROWSER_REFRESH_FAILED'),
+        durationMs: Date.now() - started,
+      });
+      throw error;
+    }
   }
 
   async pageIdentity(): Promise<string> {
     this.requireOpen();
-    return pageKeyFromUrl(this.page.url());
+    const pageKey = pageKeyFromUrl(this.page.url());
+    this.log({ ...this.identityFields('browser.page.identity'), pageKey });
+    return pageKey;
   }
 
   async perform(request: PhysicalActionRequest): Promise<PhysicalActionResult> {
@@ -140,37 +210,75 @@ class PlaywrightBrowserSessionHandle implements BrowserSessionHandle {
     if (this.activeAction) throw new Error('BROWSER_ACTION_ALREADY_ACTIVE');
     const action = new AbortController();
     this.activeAction = action;
+    const started = Date.now();
+    this.log({
+      ...this.identityFields('browser.action.started'), ...this.pageKeyFields(),
+      instructionId: request.instructionId, action: request.action, sequence: request.sequence,
+      registryCandidateCount: request.registryCandidates.length,
+    });
     try {
       const result = await this.actions.execute(
         new PlaywrightActionPage(this.page), request, action.signal,
       );
       this.log({
-        event: 'browser.action.settled',
-        runId: this.runId,
-        contextId: this.contextInstanceId,
-        pageId: this.pageInstanceId,
-        pageKey: pageKeyFromUrl(this.page.url()),
+        ...this.identityFields('browser.action.settled'),
+        ...this.pageKeyFields(),
         instructionId: request.instructionId,
         action: request.action,
+        sequence: request.sequence,
         code: result.diagnostic.code,
+        stage: result.diagnostic.stage,
         registryCandidateCount: result.diagnostic.registryCandidateCount,
         liveCandidateCount: result.diagnostic.liveCandidateCount,
+        recoveryCandidateCount: result.ok ? 0 : result.recovery?.candidates.length ?? 0,
+        physicalAttempts: result.diagnostic.physicalAttempts,
+        frameValidated: result.diagnostic.frameValidated,
+        shadowValidated: result.diagnostic.shadowValidated,
+        tagValidated: result.diagnostic.tagValidated,
+        actionValidated: result.diagnostic.actionValidated,
+        durationMs: Date.now() - started,
       });
       return result;
+    } catch (error) {
+      this.log({
+        ...this.identityFields('browser.action.failed'), level: 'ERROR',
+        ...this.pageKeyFields(), instructionId: request.instructionId,
+        action: request.action, sequence: request.sequence,
+        stage: 'EXECUTION',
+        code: safeFailureCode(error, action.signal.aborted ? 'ACTION_CANCELLED' : 'ACTION_FAILED'),
+        registryCandidateCount: request.registryCandidates.length,
+        liveCandidateCount: 0, durationMs: Date.now() - started,
+      });
+      throw error;
     } finally {
       if (this.activeAction === action) this.activeAction = undefined;
     }
   }
 
   interrupt(): void {
+    this.log({
+      ...this.identityFields('browser.action.interrupt.requested'),
+      count: this.activeAction ? 1 : 0,
+    });
     this.activeAction?.abort();
   }
 
   async close(): Promise<void> {
     if (this.closed) return;
+    const started = Date.now();
+    this.log(this.identityFields('browser.close.started'));
     this.closed = true;
     this.interrupt();
-    await closeResources(this.page, this.context, this.browser);
+    try {
+      await closeResources(this.page, this.context, this.browser);
+      this.log({ ...this.identityFields('browser.close.settled'), durationMs: Date.now() - started });
+    } catch (error) {
+      this.log({
+        ...this.identityFields('browser.close.failed'), level: 'ERROR',
+        code: safeFailureCode(error, 'BROWSER_CLEANUP_FAILED'), durationMs: Date.now() - started,
+      });
+      throw error;
+    }
   }
 
   private requireOpen(): void {
@@ -183,9 +291,36 @@ class PlaywrightBrowserSessionHandle implements BrowserSessionHandle {
     if (this.closed || this.unexpectedCloseSignaled) return;
     this.unexpectedCloseSignaled = true;
     this.unexpectedCloseCode = code;
+    this.log({ ...this.identityFields('browser.closed.unexpectedly'), level: 'ERROR', code });
     this.unexpectedCloseHandler?.(code);
   }
+
+  private identityFields(event: string): SafeLogFields {
+    return {
+      event, runId: this.runId, browserId: this.browserInstanceId,
+      contextId: this.contextInstanceId, pageId: this.pageInstanceId,
+    };
+  }
+
+  private currentPageKey(): string | undefined {
+    if (this.page.isClosed()) return undefined;
+    try {
+      return pageKeyFromUrl(this.page.url());
+    } catch {
+      return undefined;
+    }
+  }
+
+  private pageKeyFields(): Pick<SafeLogFields, 'pageKey'> {
+    const pageKey = this.currentPageKey();
+    return pageKey ? { pageKey } : {};
+  }
 }
+
+const safeFailureCode = (error: unknown, fallback: string): string => {
+  const message = error instanceof Error ? error.message : '';
+  return /^[A-Z][A-Z0-9_]{2,80}$/.test(message) ? message : fallback;
+};
 
 const closeResources = async (
   page?: Page,

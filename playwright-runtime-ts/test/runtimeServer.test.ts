@@ -3,6 +3,7 @@ import { request } from 'node:http';
 import { test } from 'node:test';
 import { PhysicalActionRequest, PhysicalActionResult } from '../src/action/actionContracts';
 import { RuntimeConfig } from '../src/config/runtimeConfig';
+import { createSafeLogger } from '../src/logging/safeLogger';
 import { ExecutionLaunchDescriptor, ExecutionSessionSnapshot } from '../src/session/sessionContracts';
 import { createRuntimeServer } from '../src/server';
 import { TEST_NOW, TEST_SECRET, claimsFixture, signGrant } from './testSupport';
@@ -370,4 +371,36 @@ test('an expired active lease stops and releases only its exact worker session',
   } finally {
     await runtime.close();
   }
+});
+
+test('safe logger records bounded browser diagnostics without payload fields', () => {
+  const lines: string[] = [];
+  createSafeLogger(line => lines.push(line))({
+    event: 'browser.action.settled', runId: 'run-1', browserId: 'browser-1',
+    contextId: 'context-1', pageId: 'page-1', pageKey: `url-v1:${'a'.repeat(64)}`,
+    instructionId: 17, action: 'CLICK', sequence: 3, code: 'COMPLETED',
+    stage: 'AUTHORED', physicalAttempts: 1, frameValidated: true, shadowValidated: true,
+    tagValidated: true, actionValidated: true, recoveryCandidateCount: 0,
+    registryCandidateCount: 2, liveCandidateCount: 1, durationMs: 45,
+    viewportWidth: 1920, viewportHeight: 1040, screenWidth: 1920, screenHeight: 1080,
+    devicePixelRatio: 1, argumentCount: 2, viewportMode: 'native',
+    serviceWorkerMode: 'allow', retained: false,
+  });
+  assert.equal(lines.length, 1);
+  const logged = JSON.parse(lines[0] ?? '{}') as Record<string, unknown>;
+  assert.equal(logged.event, 'browser.action.settled');
+  assert.equal(logged.pageKey, `url-v1:${'a'.repeat(64)}`);
+  assert.equal(logged.registryCandidateCount, 2);
+  assert.equal(logged.physicalAttempts, 1);
+  assert.equal(logged.frameValidated, true);
+  assert.equal(logged.viewportWidth, 1920);
+  assert.equal(logged.serviceWorkerMode, 'allow');
+  assert.equal('endpoint' in logged, false);
+  assert.equal('locator' in logged, false);
+  assert.equal('inputValue' in logged, false);
+});
+
+test('safe logger failure never changes runtime behavior', () => {
+  const logger = createSafeLogger(() => { throw new Error('disk unavailable'); });
+  assert.doesNotThrow(() => logger({ event: 'browser.launch.requested', runId: 'run-1' }));
 });
