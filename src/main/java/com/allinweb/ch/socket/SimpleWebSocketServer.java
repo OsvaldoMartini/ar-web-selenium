@@ -226,6 +226,7 @@ public class SimpleWebSocketServer {
             SmokeTestIntegrationContracts.RECOVER,
             SmokeTestIntegrationContracts.EXCEL_WRITE,
             SmokeTestIntegrationContracts.STOP,
+            SmokeTestIntegrationContracts.FORCE_STOP,
             SmokeTestIntegrationContracts.FINISH,
             SmokeTestIntegrationContracts.RUNTIME_STATUS,
             SmokeTestIntegrationContracts.RUNTIME_CONTROL,
@@ -707,6 +708,7 @@ public class SimpleWebSocketServer {
             boolean pauseResponseWithoutLicense = "botJobExecution.pause.response".equals(type);
             boolean pageScannerCloseWithoutLicense = "pageScanner.close".equals(type);
             boolean smokeCleanupWithoutLicense = SmokeTestIntegrationContracts.STOP.equals(type)
+                    || SmokeTestIntegrationContracts.FORCE_STOP.equals(type)
                     || SmokeTestIntegrationContracts.FINISH.equals(type);
             if (!LicenseService.getInstance().permits(type)
                     && !closeWithoutLicense
@@ -925,6 +927,7 @@ public class SimpleWebSocketServer {
                 case SmokeTestIntegrationContracts.RECOVER:
                 case SmokeTestIntegrationContracts.EXCEL_WRITE:
                 case SmokeTestIntegrationContracts.STOP:
+                case SmokeTestIntegrationContracts.FORCE_STOP:
                 case SmokeTestIntegrationContracts.FINISH:
                 case SmokeTestIntegrationContracts.RUNTIME_STATUS:
                 case SmokeTestIntegrationContracts.RUNTIME_CONTROL:

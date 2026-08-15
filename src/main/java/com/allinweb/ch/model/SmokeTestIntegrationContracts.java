@@ -33,6 +33,7 @@ public final class SmokeTestIntegrationContracts {
     public static final String RECOVER = "smokeTest.integration.recover";
     public static final String EXCEL_WRITE = "smokeTest.integration.excelWrite";
     public static final String STOP = "smokeTest.integration.stop";
+    public static final String FORCE_STOP = "smokeTest.integration.forceStop";
     public static final String FINISH = "smokeTest.integration.finish";
     public static final String RUNTIME_STATUS = "smokeTest.integration.runtimeStatus";
     public static final String RUNTIME_CONTROL = "smokeTest.integration.runtimeControl";
@@ -44,6 +45,7 @@ public final class SmokeTestIntegrationContracts {
     public static final String RECOVER_RESPONSE = RECOVER + "Response";
     public static final String EXCEL_WRITE_RESPONSE = EXCEL_WRITE + "Response";
     public static final String STOP_RESPONSE = STOP + "Response";
+    public static final String FORCE_STOP_RESPONSE = FORCE_STOP + "Response";
     public static final String FINISH_RESPONSE = FINISH + "Response";
     public static final String RUNTIME_STATUS_RESPONSE = RUNTIME_STATUS + "Response";
     public static final String RUNTIME_CONTROL_RESPONSE = RUNTIME_CONTROL + "Response";
@@ -352,6 +354,26 @@ public final class SmokeTestIntegrationContracts {
         }
     }
 
+    /** Owner-bound emergency cancellation that remains addressable before START returns a run ID. */
+    public record ForceStopRequest(
+            int contractVersion,
+            String requestId,
+            String bindingEpoch,
+            long workspaceEpoch,
+            int homeBankingId,
+            int botJobId,
+            String graphRevision) {
+        public ForceStopRequest {
+            requireVersion(contractVersion);
+            requestId = requireBounded(requestId, "requestId", MAX_CORRELATION_LENGTH);
+            bindingEpoch = requireBounded(bindingEpoch, "bindingEpoch", MAX_EPOCH_LENGTH);
+            requirePositive(workspaceEpoch, "workspaceEpoch");
+            requirePositive(homeBankingId, "homeBankingId");
+            requirePositive(botJobId, "botJobId");
+            graphRevision = requireSha256(graphRevision, "graphRevision");
+        }
+    }
+
     public record FinishRequest(
             int contractVersion,
             String requestId,
@@ -556,6 +578,18 @@ public final class SmokeTestIntegrationContracts {
                 requiredVersion(body),
                 requiredString(body, "requestId", MAX_CORRELATION_LENGTH),
                 requiredString(body, "runId", MAX_CORRELATION_LENGTH));
+    }
+
+    public static ForceStopRequest parseForceStop(JsonObject envelopeOrBody) {
+        JsonObject body = body(envelopeOrBody);
+        return new ForceStopRequest(
+                requiredVersion(body),
+                requiredString(body, "requestId", MAX_CORRELATION_LENGTH),
+                requiredString(body, "bindingEpoch", MAX_EPOCH_LENGTH),
+                requiredPositiveLong(body, "workspaceEpoch"),
+                requiredPositiveInt(body, "homeBankingId"),
+                requiredPositiveInt(body, "botJobId"),
+                requiredSha256(body, "graphRevision"));
     }
 
     public static FinishRequest parseFinish(JsonObject envelopeOrBody) {

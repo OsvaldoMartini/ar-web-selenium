@@ -1195,6 +1195,46 @@ public final class VariablesWorkspaceService {
                 refreshed.graphRevision());
     }
 
+    /**
+     * Authorizes emergency cancellation without waiting on the Bot Job registry mutation lock.
+     *
+     * <p>Integration startup holds that registry lock while Playwright navigates. Requiring the
+     * normal fresh graph/registry checks here would serialize cancellation behind the operation it
+     * must interrupt. The exact registered window transport and its backend binding remain the
+     * authority for this cancellation-only operation.
+     */
+    public SmokeIntegrationAuthorization authorizeSmokeIntegrationEmergencyStop(
+            JsonObject body, String requesterSessionId, Session requesterTransport) {
+        JsonObject request = body == null ? new JsonObject() : body;
+        synchronized (stateLock) {
+            if (!DetachedWorkspaceSessions.SMOKE_TEST_MANAGER.equals(requesterSessionId)
+                    || smokeTestBinding == null
+                    || smokeTestTransport != requesterTransport
+                    || !windows.isRegistered(requesterSessionId, requesterTransport)) {
+                throw new IllegalArgumentException(
+                        "The Smoke Test Emergency Stop requester is not authoritative.");
+            }
+            if (!smokeTestBinding.bindingEpoch().equals(text(request, "bindingEpoch"))
+                    || smokeTestBinding.workspaceEpoch()
+                            != nonNegativeLong(request, "workspaceEpoch", true)
+                    || smokeTestBinding.botJobId() != positiveInteger(request, "botJobId")
+                    || smokeTestBinding.homeBankingId()
+                            != positiveInteger(request, "homeBankingId")
+                    || !smokeTestBinding.graphRevision().equals(text(request, "graphRevision"))) {
+                throw new IllegalArgumentException(
+                        "The Smoke Test Emergency Stop owner no longer matches this window.");
+            }
+            return new SmokeIntegrationAuthorization(
+                    smokeTestBinding.bindingEpoch(),
+                    smokeTestBinding.workspaceEpoch(),
+                    smokeTestBinding.botJobId(),
+                    smokeTestBinding.homeBankingId(),
+                    smokeTestBinding.botJobName(),
+                    smokeTestBinding.organizationName(),
+                    smokeTestBinding.graphRevision());
+        }
+    }
+
     /** True only while the same physical Smoke Test page still owns this exact binding. */
     public boolean isCurrentSmokeIntegrationBinding(
             SmokeIntegrationAuthorization expected, Session requesterTransport) {

@@ -22,6 +22,7 @@ import com.allinweb.ch.model.DetachedWorkspaceSessions;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts.Correlation;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts.FinishRequest;
+import com.allinweb.ch.model.SmokeTestIntegrationContracts.ForceStopRequest;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts.ExcelWriteRequest;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts.PagePolicy;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts.RefreshRequest;
@@ -95,6 +96,8 @@ public final class SmokeTestIntegrationService {
     private static final int MAX_ACTIVE_V2_RUNS = 5;
 
     private final LinkedHashMap<String, Run> activeRuns = new LinkedHashMap<>();
+    private final LinkedHashMap<TransportRequest, PendingStart> pendingStartAttempts =
+            new LinkedHashMap<>();
     private int pendingStarts;
     private int pendingV1Starts;
     private boolean refreshPending;
@@ -178,6 +181,8 @@ public final class SmokeTestIntegrationService {
                         SmokeTestIntegrationContracts.parseExcelWrite(body), transport);
                 case SmokeTestIntegrationContracts.STOP -> handleStop(
                         SmokeTestIntegrationContracts.parseStop(body), transport);
+                case SmokeTestIntegrationContracts.FORCE_STOP -> handleForceStop(
+                        SmokeTestIntegrationContracts.parseForceStop(body), body, transport);
                 case SmokeTestIntegrationContracts.FINISH -> handleFinish(
                         SmokeTestIntegrationContracts.parseFinish(body), transport);
                 case SmokeTestIntegrationContracts.RUNTIME_STATUS ->
@@ -447,6 +452,7 @@ public final class SmokeTestIntegrationService {
                 request.homeBankingId())) {
             return;
         }
+        PendingStart pendingStart = new PendingStart(request, transport);
         synchronized (stateLock) {
             boolean v1Requested = request.runtimeMode() == RuntimeMode.JAVA_V1;
             boolean v1Active = activeRuns.values().stream()
@@ -474,6 +480,7 @@ public final class SmokeTestIntegrationService {
             }
             pendingStarts++;
             if (v1Requested) pendingV1Starts++;
+            pendingStartAttempts.put(pendingStart.key, pendingStart);
             executionTrace.info(
                     "phase=START_ADMITTED requestId={} mode={} hb={} bot={} activeRuns={} pendingStarts={}",
                     request.requestId(), request.runtimeMode(), request.homeBankingId(),
@@ -485,13 +492,8 @@ public final class SmokeTestIntegrationService {
                 fingerprint,
                 transport,
                 request.homeBankingId(),
-                () -> start(request, rawBody, transport),
-                () -> {
-                    synchronized (stateLock) {
-                        pendingStarts--;
-                        if (request.runtimeMode() == RuntimeMode.JAVA_V1) pendingV1Starts--;
-                    }
-                });
+                () -> start(request, rawBody, transport, pendingStart),
+                () -> settlePendingStart(pendingStart));
     }
 
     private void handleRefresh(
@@ -594,10 +596,16 @@ public final class SmokeTestIntegrationService {
         }
     }
 
-    private JsonObject start(StartRequest request, JsonObject rawBody, Session transport) {
+    private JsonObject start(
+            StartRequest request,
+            JsonObject rawBody,
+            Session transport,
+            PendingStart pendingStart) {
         BrowserLease lease = null;
         V2Run v2Run = null;
+        pendingStart.workerThread = Thread.currentThread();
         try {
+            pendingStart.requireActive();
             boolean dashboardMulti = hasMultiBatch(rawBody);
             MainDashboardMultiExecutionRegistry.PreparedJob prepared = dashboardMulti
                     ? MainDashboardMultiExecutionRegistry.getInstance().require(
@@ -610,11 +618,13 @@ public final class SmokeTestIntegrationService {
             SmokeIntegrationAuthorization authorization = dashboardMulti
                     ? multiAuthorization(prepared, request)
                     : variables.authorize(rawBody, transport);
+            pendingStart.requireActive();
             executionTrace.info(
                     "phase=START_AUTHORIZED requestId={} mode={} hb={} bot={} workspaceEpoch={} dashboardMulti={}",
                     request.requestId(), request.runtimeMode(), authorization.homeBankingId(),
                     authorization.botJobId(), authorization.workspaceEpoch(), dashboardMulti);
             if (!dashboardMulti) variables.requireSupportingWorkspacesReady(authorization, transport);
+            pendingStart.requireActive();
             executionTrace.info(
                     "phase=SUPPORTING_WORKSPACES_READY requestId={} mode={} hb={} bot={}",
                     request.requestId(), request.runtimeMode(), authorization.homeBankingId(),
@@ -624,6 +634,7 @@ public final class SmokeTestIntegrationService {
                     : snapshots.load(
                             new Owner(authorization.homeBankingId(), authorization.botJobId()),
                             request.scope());
+            pendingStart.requireActive();
             executionTrace.info(
                     "phase=PLAN_FROZEN requestId={} mode={} hb={} bot={} blocks={} instructions={} planRevision={}",
                     request.requestId(), request.runtimeMode(), authorization.homeBankingId(),
@@ -632,6 +643,7 @@ public final class SmokeTestIntegrationService {
             IntegrationDataset dataset = dashboardMulti
                     ? prepared.dataset().integration()
                     : excel.freeze(authorization.botJobId(), request.excelMode().name());
+            pendingStart.requireActive();
             executionTrace.info(
                     "phase=DATASET_FROZEN requestId={} mode={} hb={} bot={} rows={} datasetEpoch={} datasetRevision={}",
                     request.requestId(), request.runtimeMode(), authorization.homeBankingId(),
@@ -645,12 +657,15 @@ public final class SmokeTestIntegrationService {
             // concurrent graph mutation must fail start instead of combining a stale React graph
             // assertion with newer SQL/Excel facts.
             if (!dashboardMulti) authorization = variables.authorize(rawBody, transport);
+            pendingStart.requireActive();
             if (request.runtimeMode() == RuntimeMode.JAVA_V1) {
                 executionTrace.info(
                         "phase=V1_BROWSER_RESERVING requestId={} hb={} bot={} pagePolicy={}",
                         request.requestId(), authorization.homeBankingId(),
                         authorization.botJobId(), request.pagePolicy());
                 lease = browserOwnership.reserve();
+                pendingStart.lease = lease;
+                pendingStart.requireActive();
                 String executionState = workspaces.executionState(
                         authorization.botJobId(), authorization.workspaceEpoch());
                 if (BotJobDetailsWorkspaceRegistry.isExecutionActive(executionState)) {
@@ -669,6 +684,7 @@ public final class SmokeTestIntegrationService {
                                         plan.environment().browserType(),
                                         plan.environment().url(),
                                         plan.environment().optionsConfig()));
+                pendingStart.requireActive();
                 if (!pageReady) {
                     throw new IllegalStateException(
                             request.pagePolicy() == PagePolicy.PRESERVE_ACTIVE
@@ -687,6 +703,8 @@ public final class SmokeTestIntegrationService {
                         "phase=V2_RUNTIME_STARTING requestId={} hb={} bot={}",
                         request.requestId(), authorization.homeBankingId(), authorization.botJobId());
                 v2Run = v2.start(authorization, plan, dataset.mode());
+                pendingStart.v2Run = v2Run;
+                pendingStart.requireActive();
                 executionTrace.info(
                         "phase=V2_RUNTIME_READY requestId={} runId={} hb={} bot={}",
                         request.requestId(), v2Run.runId(), authorization.homeBankingId(),
@@ -697,6 +715,7 @@ public final class SmokeTestIntegrationService {
                 throw new IllegalStateException(
                         "The Smoke Test target changed while Integration was starting.");
             }
+            pendingStart.requireActive();
 
             long integrationEpoch = integrationEpochs.incrementAndGet();
             Run run = new Run(
@@ -727,9 +746,12 @@ public final class SmokeTestIntegrationService {
                     throw new IllegalStateException(
                             "The Smoke Test page disconnected while Integration was starting.");
                 }
+                pendingStart.requireActive();
                 activeRuns.put(run.runId, run);
                 lease = null;
                 v2Run = null;
+                pendingStart.lease = null;
+                pendingStart.v2Run = null;
             }
             executionTrace.info(
                     "phase=RUN_REGISTERED requestId={} runId={} integrationEpoch={} mode={} hb={} bot={}",
@@ -794,6 +816,7 @@ public final class SmokeTestIntegrationService {
                     "INTEGRATION_START_FAILED",
                     "Integration could not start the Playwright page.");
         } finally {
+            pendingStart.workerThread = null;
             if (lease != null) lease.close();
             if (v2Run != null) closeV2AfterFailedStart(v2Run);
         }
@@ -1382,6 +1405,105 @@ public final class SmokeTestIntegrationService {
                 });
     }
 
+    private void handleForceStop(
+            ForceStopRequest request, JsonObject rawBody, Session transport) {
+        SmokeIntegrationAuthorization authorization =
+                variables.authorizeEmergencyStop(rawBody, transport);
+        List<PendingStart> starts;
+        List<Run> runs;
+        synchronized (stateLock) {
+            starts = pendingStartAttempts.values().stream()
+                    .filter(start -> start.matches(authorization))
+                    .toList();
+            runs = activeRuns.values().stream()
+                    .filter(run -> !run.dashboardMulti
+                            && sameOwner(run.authorization, authorization))
+                    .toList();
+            starts.forEach(start -> {
+                start.cancelled.set(true);
+                settlePendingStartLocked(start);
+            });
+            runs.forEach(run -> {
+                run.cancelled = true;
+                run.status = RunStatus.STOPPING;
+                run.terminalPending = true;
+                if (run.lease != null) browserOwnership.requestRelease();
+            });
+        }
+
+        boolean forceV1 = starts.stream().anyMatch(start ->
+                start.request.runtimeMode() == RuntimeMode.JAVA_V1 && start.lease != null)
+                || runs.stream().anyMatch(run -> run.runtimeMode == RuntimeMode.JAVA_V1);
+        for (PendingStart start : starts) {
+            V2Run pendingV2 = start.v2Run;
+            if (pendingV2 != null) safelyInterruptV2(pendingV2, "pending-start-force-stop");
+            Thread thread = start.workerThread;
+            if (thread != null) thread.interrupt();
+        }
+        for (Run run : runs) {
+            interruptActiveOperation(run, "FORCE_STOP_REQUESTED");
+        }
+        if (forceV1) steps.forceStop();
+        for (Run run : runs) {
+            try {
+                worker.execute(() -> terminateSafely(run, RunStatus.STOPPED, "force-stop"));
+            } catch (RejectedExecutionException shutdown) {
+                terminateSafely(run, RunStatus.STOPPED, "force-stop-after-shutdown");
+            }
+        }
+
+        JsonObject response = new JsonObject();
+        response.addProperty("ok", true);
+        response.addProperty("contractVersion", SmokeTestIntegrationContracts.CONTRACT_VERSION);
+        response.addProperty("requestId", request.requestId());
+        response.addProperty("bindingEpoch", authorization.bindingEpoch());
+        response.addProperty("workspaceEpoch", authorization.workspaceEpoch());
+        response.addProperty("homeBankingId", authorization.homeBankingId());
+        response.addProperty("botJobId", authorization.botJobId());
+        response.addProperty("graphRevision", authorization.graphRevision());
+        response.addProperty("status", starts.isEmpty() && runs.isEmpty() ? "IDLE" : "STOP_REQUESTED");
+        response.addProperty("pendingStartsCancelled", starts.size());
+        response.addProperty("activeRunsInterrupted", runs.size());
+        response.addProperty("message", starts.isEmpty() && runs.isEmpty()
+                ? "No Integration startup or run is active for this Bot Job."
+                : "Emergency Stop interrupted the current Integration startup or run.");
+        executionTrace.warn(
+                "phase=FORCE_STOP_SETTLED requestId={} hb={} bot={} pendingStartsCancelled={} activeRunsInterrupted={} forcedV1={}",
+                request.requestId(), authorization.homeBankingId(), authorization.botJobId(),
+                starts.size(), runs.size(), forceV1);
+        publish(transport, authorization.homeBankingId(),
+                SmokeTestIntegrationContracts.FORCE_STOP_RESPONSE, response);
+    }
+
+    private void safelyInterruptV2(V2Run run, String context) {
+        try {
+            v2.interrupt(run);
+        } catch (RuntimeException failure) {
+            executionTrace.warn(
+                    "phase=V2_INTERRUPT_FAILED runId={} context={} failureType={}",
+                    run.runId(), context, failure.getClass().getSimpleName());
+        }
+    }
+
+    private static boolean sameOwner(
+            SmokeIntegrationAuthorization first, SmokeIntegrationAuthorization second) {
+        return first.homeBankingId() == second.homeBankingId()
+                && first.botJobId() == second.botJobId();
+    }
+
+    private void settlePendingStart(PendingStart pendingStart) {
+        synchronized (stateLock) {
+            settlePendingStartLocked(pendingStart);
+        }
+    }
+
+    private void settlePendingStartLocked(PendingStart pendingStart) {
+        if (!pendingStart.settled.compareAndSet(false, true)) return;
+        pendingStartAttempts.remove(pendingStart.key, pendingStart);
+        pendingStarts--;
+        if (pendingStart.request.runtimeMode() == RuntimeMode.JAVA_V1) pendingV1Starts--;
+    }
+
     private JsonObject stop(Run run, StopRequest request) {
         synchronized (run.operationLock) {
             try {
@@ -1938,6 +2060,9 @@ public final class SmokeTestIntegrationService {
         if (SmokeTestIntegrationContracts.STOP.equals(operation)) {
             return SmokeTestIntegrationContracts.STOP_RESPONSE;
         }
+        if (SmokeTestIntegrationContracts.FORCE_STOP.equals(operation)) {
+            return SmokeTestIntegrationContracts.FORCE_STOP_RESPONSE;
+        }
         if (SmokeTestIntegrationContracts.FINISH.equals(operation)) {
             return SmokeTestIntegrationContracts.FINISH_RESPONSE;
         }
@@ -1979,6 +2104,11 @@ public final class SmokeTestIntegrationService {
 
     interface BindingPort {
         SmokeIntegrationAuthorization authorize(JsonObject request, Session transport);
+
+        default SmokeIntegrationAuthorization authorizeEmergencyStop(
+                JsonObject request, Session transport) {
+            return authorize(request, transport);
+        }
 
         boolean isCurrent(SmokeIntegrationAuthorization expected, Session transport);
 
@@ -2163,6 +2293,13 @@ public final class SmokeTestIntegrationService {
         @Override
         public SmokeIntegrationAuthorization authorize(JsonObject request, Session transport) {
             return delegate.authorizeSmokeIntegration(request, SESSION_ID, transport);
+        }
+
+        @Override
+        public SmokeIntegrationAuthorization authorizeEmergencyStop(
+                JsonObject request, Session transport) {
+            return delegate.authorizeSmokeIntegrationEmergencyStop(
+                    request, SESSION_ID, transport);
         }
 
         @Override
@@ -2451,6 +2588,34 @@ public final class SmokeTestIntegrationService {
             this.lease = lease;
             this.v2Run = v2Run;
             this.dashboardMulti = dashboardMulti;
+        }
+    }
+
+    private static final class PendingStart {
+        private final StartRequest request;
+        private final TransportRequest key;
+        private final java.util.concurrent.atomic.AtomicBoolean cancelled =
+                new java.util.concurrent.atomic.AtomicBoolean();
+        private final java.util.concurrent.atomic.AtomicBoolean settled =
+                new java.util.concurrent.atomic.AtomicBoolean();
+        private volatile Thread workerThread;
+        private volatile BrowserLease lease;
+        private volatile V2Run v2Run;
+
+        private PendingStart(StartRequest request, Session transport) {
+            this.request = request;
+            this.key = new TransportRequest(transport, request.requestId());
+        }
+
+        private boolean matches(SmokeIntegrationAuthorization authorization) {
+            return request.homeBankingId() == authorization.homeBankingId()
+                    && request.botJobId() == authorization.botJobId();
+        }
+
+        private void requireActive() {
+            if (cancelled.get() || Thread.currentThread().isInterrupted()) {
+                throw new IllegalStateException("Integration startup was force-stopped.");
+            }
         }
     }
 

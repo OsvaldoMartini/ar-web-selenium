@@ -483,6 +483,73 @@ class SmokeTestIntegrationServiceTest {
     }
 
     @Test
+    void emergencyStopInterruptsV1StartupBeforeARunIdExists() throws Exception {
+        browserStart.blockNextOpen();
+        service.handle(
+                SmokeTestIntegrationContracts.START,
+                startRequest("start-blocked-before-run-id"),
+                DetachedWorkspaceSessions.SMOKE_TEST_MANAGER,
+                transport);
+        assertTrue(browserStart.awaitBlocked(), "V1 startup did not enter browser navigation");
+
+        service.handle(
+                SmokeTestIntegrationContracts.FORCE_STOP,
+                forceStopRequest("force-stop-pending-start"),
+                DetachedWorkspaceSessions.SMOKE_TEST_MANAGER,
+                transport);
+
+        Published forced = responses.awaitWithin(
+                SmokeTestIntegrationContracts.FORCE_STOP_RESPONSE, 1, TimeUnit.SECONDS);
+        assertTrue(forced.body.get("ok").getAsBoolean());
+        assertEquals("STOP_REQUESTED", forced.body.get("status").getAsString());
+        assertEquals(1, forced.body.get("pendingStartsCancelled").getAsInt());
+        assertEquals(0, forced.body.get("activeRunsInterrupted").getAsInt());
+        assertEquals(1, steps.forceStops.get());
+        assertTrue(browserStart.awaitInterrupted(), "V1 browser startup was not interrupted");
+
+        Published cancelledStart = responses.awaitWithin(
+                SmokeTestIntegrationContracts.START_RESPONSE, 1, TimeUnit.SECONDS);
+        assertFalse(cancelledStart.body.get("ok").getAsBoolean());
+
+        service.handle(
+                SmokeTestIntegrationContracts.START,
+                startRequest("start-after-emergency-stop"),
+                DetachedWorkspaceSessions.SMOKE_TEST_MANAGER,
+                transport);
+        Published restarted = responses.await(SmokeTestIntegrationContracts.START_RESPONSE);
+        assertTrue(restarted.body.get("ok").getAsBoolean());
+    }
+
+    @Test
+    void emergencyStopInterruptsTheCurrentOwnersActiveV2Run() throws Exception {
+        JsonObject request = startRequest("start-v2-emergency-stop");
+        request.addProperty("runtimeMode", "TYPESCRIPT_PLAYWRIGHT_V2");
+        request.addProperty("pagePolicy", "RELOAD_SELECTED");
+        service.handle(
+                SmokeTestIntegrationContracts.START,
+                request,
+                DetachedWorkspaceSessions.SMOKE_TEST_MANAGER,
+                transport);
+        assertTrue(responses.await(SmokeTestIntegrationContracts.START_RESPONSE)
+                .body.get("ok").getAsBoolean());
+
+        service.handle(
+                SmokeTestIntegrationContracts.FORCE_STOP,
+                forceStopRequest("force-stop-active-v2"),
+                DetachedWorkspaceSessions.SMOKE_TEST_MANAGER,
+                transport);
+
+        Published forced = responses.await(SmokeTestIntegrationContracts.FORCE_STOP_RESPONSE);
+        assertTrue(forced.body.get("ok").getAsBoolean());
+        assertEquals("STOP_REQUESTED", forced.body.get("status").getAsString());
+        assertEquals(0, forced.body.get("pendingStartsCancelled").getAsInt());
+        assertEquals(1, forced.body.get("activeRunsInterrupted").getAsInt());
+        assertEquals(1, v2.interrupts.get());
+        worker.submit(() -> {}).get(5, TimeUnit.SECONDS);
+        assertEquals(1, v2.closes.get());
+    }
+
+    @Test
     void killTargetsOnlyTheRequestedRuntimeInstance() throws Exception {
         JsonObject started = start("start-runtime-kill");
         String runId = started.get("runId").getAsString();
@@ -586,6 +653,18 @@ class SmokeTestIntegrationServiceTest {
         request.addProperty("contractVersion", SmokeTestIntegrationContracts.CONTRACT_VERSION);
         request.addProperty("requestId", requestId);
         request.addProperty("runId", runId);
+        return request;
+    }
+
+    private static JsonObject forceStopRequest(String requestId) {
+        JsonObject request = new JsonObject();
+        request.addProperty("contractVersion", SmokeTestIntegrationContracts.CONTRACT_VERSION);
+        request.addProperty("requestId", requestId);
+        request.addProperty("bindingEpoch", BINDING_EPOCH);
+        request.addProperty("workspaceEpoch", WORKSPACE_EPOCH);
+        request.addProperty("homeBankingId", OWNER.homeBankingId());
+        request.addProperty("botJobId", OWNER.botJobId());
+        request.addProperty("graphRevision", GRAPH_REVISION);
         return request;
     }
 
@@ -742,6 +821,9 @@ class SmokeTestIntegrationServiceTest {
         private final AtomicInteger readyCallsAtFirstOpen = new AtomicInteger(-1);
         private final AtomicInteger selected = new AtomicInteger();
         private final AtomicInteger preserved = new AtomicInteger();
+        private final AtomicReference<CountDownLatch> blocking = new AtomicReference<>();
+        private final CountDownLatch blocked = new CountDownLatch(1);
+        private final CountDownLatch interrupted = new CountDownLatch(1);
 
         private RecordingBrowserStart(
                 AtomicReference<String> openedUrl, AtomicInteger runtimeReadyCalls) {
@@ -764,7 +846,30 @@ class SmokeTestIntegrationServiceTest {
             preserved.incrementAndGet();
             readyCallsAtFirstOpen.compareAndSet(-1, runtimeReadyCalls.get());
             openedUrl.set(url);
+            CountDownLatch latch = blocking.getAndSet(null);
+            if (latch != null) {
+                blocked.countDown();
+                try {
+                    latch.await();
+                } catch (InterruptedException stopped) {
+                    Thread.currentThread().interrupt();
+                    interrupted.countDown();
+                    return false;
+                }
+            }
             return true;
+        }
+
+        private void blockNextOpen() {
+            blocking.set(new CountDownLatch(1));
+        }
+
+        private boolean awaitBlocked() throws InterruptedException {
+            return blocked.await(5, TimeUnit.SECONDS);
+        }
+
+        private boolean awaitInterrupted() throws InterruptedException {
+            return interrupted.await(5, TimeUnit.SECONDS);
         }
     }
 
