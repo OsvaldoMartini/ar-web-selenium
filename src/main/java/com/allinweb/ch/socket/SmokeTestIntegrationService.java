@@ -330,51 +330,100 @@ public final class SmokeTestIntegrationService {
     }
 
     private void handleRuntimeInstanceControl(JsonObject body, Session transport) {
-        variables.authorize(body, transport);
+        SmokeIntegrationAuthorization authorization = variables.authorize(body, transport);
         String requestId = requiredRuntimeText(body, "requestId", 200);
         String runId = requiredRuntimeText(body, "runId", 200);
         String action = requiredRuntimeText(body, "action", 12);
         if (!java.util.Set.of("STOP", "KILL").contains(action)) {
             throw new IllegalArgumentException("Runtime instance action must be STOP or KILL.");
         }
+        executionTrace.warn(
+                "phase=RUNTIME_CONTROL_RECEIVED requestId={} runId={} action={} hb={} bot={}",
+                requestId, runId, action, authorization.homeBankingId(), authorization.botJobId());
         Run run = resolveRun(runId, transport);
         if (run == null) {
+            executionTrace.warn(
+                    "phase=RUNTIME_CONTROL_REFUSED requestId={} runId={} action={} code=RUN_NOT_ACTIVE",
+                    requestId, runId, action);
             publish(transport, -1, SmokeTestIntegrationContracts.RUNTIME_INSTANCE_CONTROL_RESPONSE,
                     rejected(requestId, runId, "RUN_NOT_ACTIVE", "The runtime instance is not active."));
             return;
         }
         run.cancelled = true;
         run.status = RunStatus.STOPPING;
+        run.terminalPending = true;
+        executionTrace.warn(
+                "phase=RUNTIME_CONTROL_ADMITTED requestId={} runId={} action={} mode={} hb={} bot={} preserveBrowser={}",
+                requestId, runId, action, run.runtimeMode,
+                run.authorization.homeBankingId(), run.authorization.botJobId(),
+                "STOP".equals(action));
         interruptActiveOperation(run, "RUNTIME_" + action);
-        if ("KILL".equals(action) && run.runtimeMode == RuntimeMode.JAVA_V1) steps.forceStop();
         if (run.lease != null) browserOwnership.requestRelease();
-        try {
-            worker.execute(() -> {
+        Runnable controlTask = () -> {
                 JsonObject response;
+                RuntimeException controlFailure = null;
+                String browserDisposition = "PRESERVED";
+                if ("KILL".equals(action)) {
+                    executionTrace.warn(
+                            "phase=RUNTIME_CONTROL_BROWSER_CLOSE_REQUESTED requestId={} runId={} mode={}",
+                            requestId, runId, run.runtimeMode);
+                    try {
+                        if (run.runtimeMode == RuntimeMode.JAVA_V1) steps.forceStop();
+                        else v2.closeBrowser(run.v2Run);
+                        browserDisposition = "CLOSED";
+                        executionTrace.warn(
+                                "phase=RUNTIME_CONTROL_BROWSER_CLOSE_SETTLED requestId={} runId={} mode={}",
+                                requestId, runId, run.runtimeMode);
+                    } catch (RuntimeException closeFailure) {
+                        controlFailure = closeFailure;
+                        browserDisposition = "UNKNOWN";
+                        executionTrace.error(
+                                "phase=RUNTIME_CONTROL_BROWSER_CLOSE_FAILED requestId={} runId={} mode={} failureType={}",
+                                requestId, runId, run.runtimeMode,
+                                closeFailure.getClass().getSimpleName());
+                    }
+                }
                 try {
                     synchronized (run.operationLock) {
                         terminate(run, RunStatus.STOPPED);
                     }
+                } catch (RuntimeException terminationFailure) {
+                    if (controlFailure == null) controlFailure = terminationFailure;
+                    else controlFailure.addSuppressed(terminationFailure);
+                }
+                if (controlFailure == null) {
                     response = new JsonObject();
                     response.addProperty("ok", true);
                     response.addProperty("contractVersion", SmokeTestIntegrationContracts.CONTRACT_VERSION);
                     response.addProperty("requestId", requestId);
                     response.addProperty("runId", runId);
                     response.addProperty("status", "KILL".equals(action) ? "KILLED" : "STOPPED");
+                    response.addProperty("browserDisposition", browserDisposition);
                     response.addProperty("message", "KILL".equals(action)
                             ? "The selected runtime instance was killed."
                             : "The selected runtime run was stopped.");
-                } catch (RuntimeException failure) {
+                    executionTrace.warn(
+                            "phase=RUNTIME_CONTROL_SETTLED requestId={} runId={} action={} mode={} browserDisposition={} status={}",
+                            requestId, runId, action, run.runtimeMode, browserDisposition,
+                            response.get("status").getAsString());
+                } else {
+                    executionTrace.error(
+                            "phase=RUNTIME_CONTROL_FAILED requestId={} runId={} action={} mode={} browserDisposition={} failureType={}",
+                            requestId, runId, action, run.runtimeMode, browserDisposition,
+                            controlFailure.getClass().getSimpleName());
                     response = rejected(requestId, runId, "RUNTIME_INSTANCE_CONTROL_FAILED",
-                            safeMessage(failure, "The runtime instance could not be stopped."));
+                            safeMessage(controlFailure, "The runtime instance could not be stopped."));
                 }
                 publish(transport, run.authorization.homeBankingId(),
                         SmokeTestIntegrationContracts.RUNTIME_INSTANCE_CONTROL_RESPONSE, response);
-            });
+            };
+        try {
+            worker.execute(controlTask);
         } catch (RejectedExecutionException busy) {
-            publish(transport, run.authorization.homeBankingId(),
-                    SmokeTestIntegrationContracts.RUNTIME_INSTANCE_CONTROL_RESPONSE,
-                    rejected(requestId, runId, "INTEGRATION_BUSY", "Runtime instance control is busy."));
+            executionTrace.warn(
+                    "phase=RUNTIME_CONTROL_EXECUTOR_FALLBACK requestId={} runId={} action={} mode={}",
+                    requestId, runId, action, run.runtimeMode);
+            controlTask.run();
         }
     }
 
@@ -1431,9 +1480,8 @@ public final class SmokeTestIntegrationService {
             });
         }
 
-        boolean forceV1 = starts.stream().anyMatch(start ->
-                start.request.runtimeMode() == RuntimeMode.JAVA_V1 && start.lease != null)
-                || runs.stream().anyMatch(run -> run.runtimeMode == RuntimeMode.JAVA_V1);
+        boolean interruptPendingV1 = starts.stream().anyMatch(start ->
+                start.request.runtimeMode() == RuntimeMode.JAVA_V1 && start.lease != null);
         for (PendingStart start : starts) {
             V2Run pendingV2 = start.v2Run;
             if (pendingV2 != null) safelyInterruptV2(pendingV2, "pending-start-force-stop");
@@ -1443,7 +1491,9 @@ public final class SmokeTestIntegrationService {
         for (Run run : runs) {
             interruptActiveOperation(run, "FORCE_STOP_REQUESTED");
         }
-        if (forceV1) steps.forceStop();
+        // Emergency STOP is browser-preserving. Active V1 runs were interrupted above; a pending
+        // V1 start has no Run yet, so interrupt its shared Playwright operation explicitly.
+        if (interruptPendingV1) steps.interrupt();
         for (Run run : runs) {
             try {
                 worker.execute(() -> terminateSafely(run, RunStatus.STOPPED, "force-stop"));
@@ -1464,13 +1514,14 @@ public final class SmokeTestIntegrationService {
         response.addProperty("status", starts.isEmpty() && runs.isEmpty() ? "IDLE" : "STOP_REQUESTED");
         response.addProperty("pendingStartsCancelled", starts.size());
         response.addProperty("activeRunsInterrupted", runs.size());
+        response.addProperty("browserDisposition", "PRESERVED");
         response.addProperty("message", starts.isEmpty() && runs.isEmpty()
                 ? "No Integration startup or run is active for this Bot Job."
                 : "Emergency Stop interrupted the current Integration startup or run.");
         executionTrace.warn(
-                "phase=FORCE_STOP_SETTLED requestId={} hb={} bot={} pendingStartsCancelled={} activeRunsInterrupted={} forcedV1={}",
+                "phase=FORCE_STOP_SETTLED requestId={} hb={} bot={} pendingStartsCancelled={} activeRunsInterrupted={} pendingV1Interrupted={} browserDisposition=PRESERVED",
                 request.requestId(), authorization.homeBankingId(), authorization.botJobId(),
-                starts.size(), runs.size(), forceV1);
+                starts.size(), runs.size(), interruptPendingV1);
         publish(transport, authorization.homeBankingId(),
                 SmokeTestIntegrationContracts.FORCE_STOP_RESPONSE, response);
     }
@@ -2196,6 +2247,8 @@ public final class SmokeTestIntegrationService {
 
         default void cancelRecovery(V2Run run, int instructionId) {}
 
+        void closeBrowser(V2Run run);
+
         void close(V2Run run);
     }
 
@@ -2463,6 +2516,11 @@ public final class SmokeTestIntegrationService {
         @Override
         public void cancelRecovery(V2Run run, int instructionId) {
             executor.cancelRecovery(authority(run), instructionId);
+        }
+
+        @Override
+        public void closeBrowser(V2Run run) {
+            coordinator.closeBrowser(authority(run));
         }
 
         @Override

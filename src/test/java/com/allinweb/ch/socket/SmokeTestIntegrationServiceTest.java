@@ -504,7 +504,9 @@ class SmokeTestIntegrationServiceTest {
         assertEquals("STOP_REQUESTED", forced.body.get("status").getAsString());
         assertEquals(1, forced.body.get("pendingStartsCancelled").getAsInt());
         assertEquals(0, forced.body.get("activeRunsInterrupted").getAsInt());
-        assertEquals(1, steps.forceStops.get());
+        assertEquals("PRESERVED", forced.body.get("browserDisposition").getAsString());
+        assertEquals(1, steps.interrupts.get());
+        assertEquals(0, steps.forceStops.get());
         assertTrue(browserStart.awaitInterrupted(), "V1 browser startup was not interrupted");
 
         Published cancelledStart = responses.awaitWithin(
@@ -550,6 +552,27 @@ class SmokeTestIntegrationServiceTest {
     }
 
     @Test
+    void emergencyStopRetiresActiveV1RunWithoutClosingTheSharedBrowser() throws Exception {
+        start("start-v1-emergency-preserve");
+
+        service.handle(
+                SmokeTestIntegrationContracts.FORCE_STOP,
+                forceStopRequest("force-stop-active-v1"),
+                DetachedWorkspaceSessions.SMOKE_TEST_MANAGER,
+                transport);
+
+        Published forced = responses.await(SmokeTestIntegrationContracts.FORCE_STOP_RESPONSE);
+        assertTrue(forced.body.get("ok").getAsBoolean());
+        assertEquals("STOP_REQUESTED", forced.body.get("status").getAsString());
+        assertEquals("PRESERVED", forced.body.get("browserDisposition").getAsString());
+        assertEquals(1, forced.body.get("activeRunsInterrupted").getAsInt());
+        worker.submit(() -> {}).get(5, TimeUnit.SECONDS);
+        assertEquals(1, steps.interrupts.get());
+        assertEquals(0, steps.forceStops.get());
+        assertTrue(browserOwnership.awaitClosed());
+    }
+
+    @Test
     void killTargetsOnlyTheRequestedRuntimeInstance() throws Exception {
         JsonObject started = start("start-runtime-kill");
         String runId = started.get("runId").getAsString();
@@ -566,8 +589,64 @@ class SmokeTestIntegrationServiceTest {
         assertTrue(killed.body.get("ok").getAsBoolean());
         assertEquals(runId, killed.body.get("runId").getAsString());
         assertEquals("KILLED", killed.body.get("status").getAsString());
+        assertEquals("CLOSED", killed.body.get("browserDisposition").getAsString());
         assertEquals(1, steps.forceStops.get());
         assertTrue(browserOwnership.awaitClosed());
+    }
+
+    @Test
+    void runtimeStopRetiresV1RunButPreservesTheSharedBrowser() throws Exception {
+        JsonObject started = start("start-runtime-stop-v1");
+        String runId = started.get("runId").getAsString();
+
+        JsonObject request = stopRequest("runtime-stop-v1", runId);
+        request.addProperty("action", "STOP");
+        service.handle(
+                SmokeTestIntegrationContracts.RUNTIME_INSTANCE_CONTROL,
+                request,
+                DetachedWorkspaceSessions.SMOKE_TEST_MANAGER,
+                transport);
+
+        Published stopped = responses.await(
+                SmokeTestIntegrationContracts.RUNTIME_INSTANCE_CONTROL_RESPONSE);
+        assertTrue(stopped.body.get("ok").getAsBoolean());
+        assertEquals("STOPPED", stopped.body.get("status").getAsString());
+        assertEquals("PRESERVED", stopped.body.get("browserDisposition").getAsString());
+        assertEquals(1, steps.interrupts.get());
+        assertEquals(0, steps.forceStops.get());
+        assertTrue(browserOwnership.awaitClosed());
+    }
+
+    @Test
+    void runtimeKillClosesOnlyTheSelectedV2Browser() throws Exception {
+        JsonObject request = startRequest("start-runtime-kill-v2");
+        request.addProperty("runtimeMode", "TYPESCRIPT_PLAYWRIGHT_V2");
+        request.addProperty("pagePolicy", "RELOAD_SELECTED");
+        service.handle(
+                SmokeTestIntegrationContracts.START,
+                request,
+                DetachedWorkspaceSessions.SMOKE_TEST_MANAGER,
+                transport);
+        String runId = responses.await(SmokeTestIntegrationContracts.START_RESPONSE)
+                .body.get("runId").getAsString();
+
+        JsonObject kill = stopRequest("runtime-kill-v2", runId);
+        kill.addProperty("action", "KILL");
+        service.handle(
+                SmokeTestIntegrationContracts.RUNTIME_INSTANCE_CONTROL,
+                kill,
+                DetachedWorkspaceSessions.SMOKE_TEST_MANAGER,
+                transport);
+
+        Published killed = responses.await(
+                SmokeTestIntegrationContracts.RUNTIME_INSTANCE_CONTROL_RESPONSE);
+        assertTrue(killed.body.get("ok").getAsBoolean());
+        assertEquals("KILLED", killed.body.get("status").getAsString());
+        assertEquals("CLOSED", killed.body.get("browserDisposition").getAsString());
+        assertEquals(1, v2.interrupts.get());
+        assertEquals(1, v2.browserCloses.get());
+        assertEquals(1, v2.closes.get());
+        assertEquals(0, steps.forceStops.get());
     }
 
     @Test
@@ -732,6 +811,7 @@ class SmokeTestIntegrationServiceTest {
 
     private static final class RecordingSteps implements SmokeTestIntegrationService.StepPort {
         private final AtomicInteger calls = new AtomicInteger();
+        private final AtomicInteger interrupts = new AtomicInteger();
         private final AtomicInteger forceStops = new AtomicInteger();
         private final AtomicReference<CountDownLatch> blocking = new AtomicReference<>();
         private final CountDownLatch blocked = new CountDownLatch(1);
@@ -772,6 +852,11 @@ class SmokeTestIntegrationServiceTest {
         }
 
         @Override
+        public void interrupt() {
+            interrupts.incrementAndGet();
+        }
+
+        @Override
         public void forceStop() {
             forceStops.incrementAndGet();
             CountDownLatch latch = blocking.getAndSet(null);
@@ -795,6 +880,7 @@ class SmokeTestIntegrationServiceTest {
         private final AtomicInteger starts = new AtomicInteger();
         private final AtomicInteger steps = new AtomicInteger();
         private final AtomicInteger interrupts = new AtomicInteger();
+        private final AtomicInteger browserCloses = new AtomicInteger();
         private final AtomicInteger closes = new AtomicInteger();
         private final AtomicInteger cancelledRecoveries = new AtomicInteger();
         private final AtomicReference<Outcome> nextOutcome = new AtomicReference<>();
@@ -830,6 +916,11 @@ class SmokeTestIntegrationServiceTest {
         public void cancelRecovery(
                 SmokeTestIntegrationService.V2Run run, int instructionId) {
             cancelledRecoveries.incrementAndGet();
+        }
+
+        @Override
+        public void closeBrowser(SmokeTestIntegrationService.V2Run run) {
+            browserCloses.incrementAndGet();
         }
 
         @Override
