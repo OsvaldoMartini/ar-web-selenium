@@ -36,6 +36,8 @@ public final class SmokeTestIntegrationContracts {
     public static final String FINISH = "smokeTest.integration.finish";
     public static final String RUNTIME_STATUS = "smokeTest.integration.runtimeStatus";
     public static final String RUNTIME_CONTROL = "smokeTest.integration.runtimeControl";
+    public static final String RUNTIME_INSTANCES = "smokeTest.integration.runtimeInstances";
+    public static final String RUNTIME_INSTANCE_CONTROL = "smokeTest.integration.runtimeInstanceControl";
     public static final String START_RESPONSE = START + "Response";
     public static final String REFRESH_RESPONSE = REFRESH + "Response";
     public static final String STEP_RESPONSE = STEP + "Response";
@@ -45,6 +47,8 @@ public final class SmokeTestIntegrationContracts {
     public static final String FINISH_RESPONSE = FINISH + "Response";
     public static final String RUNTIME_STATUS_RESPONSE = RUNTIME_STATUS + "Response";
     public static final String RUNTIME_CONTROL_RESPONSE = RUNTIME_CONTROL + "Response";
+    public static final String RUNTIME_INSTANCES_RESPONSE = RUNTIME_INSTANCES + "Response";
+    public static final String RUNTIME_INSTANCE_CONTROL_RESPONSE = RUNTIME_INSTANCE_CONTROL + "Response";
 
     private static final int MAX_CORRELATION_LENGTH = 200;
     private static final int MAX_EPOCH_LENGTH = 256;

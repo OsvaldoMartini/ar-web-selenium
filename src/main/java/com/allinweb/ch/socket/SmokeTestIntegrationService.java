@@ -1,6 +1,7 @@
 package com.allinweb.ch.socket;
 
 import com.allinweb.ch.driver.ARWebDriver;
+import com.allinweb.ch.driver.ARPlaywrightDriver;
 import com.allinweb.ch.facade.BotJobDetailsWorkspaceRegistry;
 import com.allinweb.ch.facade.ExecutionPauseCoordinator;
 import com.allinweb.ch.facade.actions.RuntimeVariableValue;
@@ -183,6 +184,10 @@ public final class SmokeTestIntegrationService {
                         handleRuntimeControl(body, transport, false);
                 case SmokeTestIntegrationContracts.RUNTIME_CONTROL ->
                         handleRuntimeControl(body, transport, true);
+                case SmokeTestIntegrationContracts.RUNTIME_INSTANCES ->
+                        handleRuntimeInstances(body, transport);
+                case SmokeTestIntegrationContracts.RUNTIME_INSTANCE_CONTROL ->
+                        handleRuntimeInstanceControl(body, transport);
                 default -> publish(
                         transport,
                         -1,
@@ -277,6 +282,94 @@ public final class SmokeTestIntegrationService {
                 }
             }
             throw new IllegalStateException("Execution V2 runtime control is busy.");
+        }
+    }
+
+    private void handleRuntimeInstances(JsonObject body, Session transport) {
+        SmokeIntegrationAuthorization authorization = variables.authorize(body, transport);
+        String requestId = requiredRuntimeText(body, "requestId", 200);
+        JsonObject response = new JsonObject();
+        response.addProperty("ok", true);
+        response.addProperty("contractVersion", SmokeTestIntegrationContracts.CONTRACT_VERSION);
+        response.addProperty("requestId", requestId);
+        response.addProperty("bindingEpoch", authorization.bindingEpoch());
+        response.addProperty("workspaceEpoch", authorization.workspaceEpoch());
+        response.addProperty("homeBankingId", authorization.homeBankingId());
+        response.addProperty("botJobId", authorization.botJobId());
+        com.google.gson.JsonArray instances = new com.google.gson.JsonArray();
+        synchronized (stateLock) {
+            for (Run run : activeRuns.values()) {
+                JsonObject instance = new JsonObject();
+                instance.addProperty("runId", run.runId);
+                instance.addProperty("integrationEpoch", run.integrationEpoch);
+                instance.addProperty("runtimeMode", run.runtimeMode.name());
+                instance.addProperty("homeBankingId", run.authorization.homeBankingId());
+                instance.addProperty("botJobId", run.authorization.botJobId());
+                instance.addProperty("botJobName", run.authorization.botJobName());
+                instance.addProperty("status", run.cancelled ? RunStatus.STOPPING.name() : run.status.name());
+                instance.addProperty("stepPending", run.stepPending);
+                instance.addProperty("terminalPending", run.terminalPending);
+                instance.addProperty("currentInstructionId", run.currentInstructionId);
+                instance.addProperty("currentRequestId", run.currentRequestId);
+                instance.addProperty("startedAt", run.startedAt.toString());
+                instance.addProperty("browserSession", run.runtimeMode == RuntimeMode.JAVA_V1
+                        ? "SHARED_JAVA_PLAYWRIGHT" : run.v2Run.runId());
+                instances.add(instance);
+            }
+        }
+        response.add("instances", instances);
+        executionTrace.info("phase=RUNTIME_INSTANCES requestId={} count={} hb={} bot={}",
+                requestId, instances.size(), authorization.homeBankingId(), authorization.botJobId());
+        publish(transport, authorization.homeBankingId(),
+                SmokeTestIntegrationContracts.RUNTIME_INSTANCES_RESPONSE, response);
+    }
+
+    private void handleRuntimeInstanceControl(JsonObject body, Session transport) {
+        variables.authorize(body, transport);
+        String requestId = requiredRuntimeText(body, "requestId", 200);
+        String runId = requiredRuntimeText(body, "runId", 200);
+        String action = requiredRuntimeText(body, "action", 12);
+        if (!java.util.Set.of("STOP", "KILL").contains(action)) {
+            throw new IllegalArgumentException("Runtime instance action must be STOP or KILL.");
+        }
+        Run run = resolveRun(runId, transport);
+        if (run == null) {
+            publish(transport, -1, SmokeTestIntegrationContracts.RUNTIME_INSTANCE_CONTROL_RESPONSE,
+                    rejected(requestId, runId, "RUN_NOT_ACTIVE", "The runtime instance is not active."));
+            return;
+        }
+        run.cancelled = true;
+        run.status = RunStatus.STOPPING;
+        interruptActiveOperation(run, "RUNTIME_" + action);
+        if ("KILL".equals(action) && run.runtimeMode == RuntimeMode.JAVA_V1) steps.forceStop();
+        if (run.lease != null) browserOwnership.requestRelease();
+        try {
+            worker.execute(() -> {
+                JsonObject response;
+                try {
+                    synchronized (run.operationLock) {
+                        terminate(run, RunStatus.STOPPED);
+                    }
+                    response = new JsonObject();
+                    response.addProperty("ok", true);
+                    response.addProperty("contractVersion", SmokeTestIntegrationContracts.CONTRACT_VERSION);
+                    response.addProperty("requestId", requestId);
+                    response.addProperty("runId", runId);
+                    response.addProperty("status", "KILL".equals(action) ? "KILLED" : "STOPPED");
+                    response.addProperty("message", "KILL".equals(action)
+                            ? "The selected runtime instance was killed."
+                            : "The selected runtime run was stopped.");
+                } catch (RuntimeException failure) {
+                    response = rejected(requestId, runId, "RUNTIME_INSTANCE_CONTROL_FAILED",
+                            safeMessage(failure, "The runtime instance could not be stopped."));
+                }
+                publish(transport, run.authorization.homeBankingId(),
+                        SmokeTestIntegrationContracts.RUNTIME_INSTANCE_CONTROL_RESPONSE, response);
+            });
+        } catch (RejectedExecutionException busy) {
+            publish(transport, run.authorization.homeBankingId(),
+                    SmokeTestIntegrationContracts.RUNTIME_INSTANCE_CONTROL_RESPONSE,
+                    rejected(requestId, runId, "INTEGRATION_BUSY", "Runtime instance control is busy."));
         }
     }
 
@@ -863,6 +956,10 @@ public final class SmokeTestIntegrationService {
     }
 
     private JsonObject stepLocked(Run run, StepRequest request) {
+        run.activeOperationThread = Thread.currentThread();
+        run.currentInstructionId = request.instructionId();
+        run.currentRequestId = request.requestId();
+        try {
         executionTrace.info(
                 "phase=STEP_STARTED requestId={} runId={} sequence={} instructionId={} mode={} hb={} bot={}",
                 request.requestId(), run.runId, request.sequence(), request.instructionId(),
@@ -932,6 +1029,11 @@ public final class SmokeTestIntegrationService {
                 request.requestId(), run.runId, request.sequence(), request.instructionId(),
                 run.runtimeMode, outcome.status(), outcome.code(), outcome.recovery() != null);
         return response;
+        } finally {
+            if (run.activeOperationThread == Thread.currentThread()) run.activeOperationThread = null;
+            run.currentInstructionId = 0;
+            run.currentRequestId = "";
+        }
     }
 
     private void handleRecovery(RecoveryRequest request, Session transport) {
@@ -1251,6 +1353,7 @@ public final class SmokeTestIntegrationService {
                 return;
             }
             run.cancelled = true;
+            run.status = RunStatus.STOPPING;
             if (run.lease != null) browserOwnership.requestRelease();
             // A second correlated Stop may arrive after a reconnect/message-buffer generation
             // change. Serialize it behind the accepted Stop and return the same terminal outcome;
@@ -1261,6 +1364,10 @@ public final class SmokeTestIntegrationService {
                     request.requestId(), run.runId, run.runtimeMode,
                     run.authorization.homeBankingId(), run.authorization.botJobId());
         }
+        // V2 interruption performs an IPC call. Never hold the service state lock while waiting
+        // on a runtime boundary; otherwise inventory/control/reconnect requests can deadlock
+        // behind a slow or unavailable runtime.
+        interruptActiveOperation(run, "STOP_REQUESTED");
         submitOnce(
                 SmokeTestIntegrationContracts.STOP,
                 request.requestId(),
@@ -1276,15 +1383,6 @@ public final class SmokeTestIntegrationService {
     }
 
     private JsonObject stop(Run run, StopRequest request) {
-        if (run.v2Run != null) {
-            try {
-                v2.interrupt(run.v2Run);
-            } catch (RuntimeException interruptFailure) {
-                log.warn(
-                        "Execution V2 immediate stop requires cleanup retry runId={}",
-                        run.runId);
-            }
-        }
         synchronized (run.operationLock) {
             try {
                 TerminalResponse response = terminalResponse(
@@ -1298,6 +1396,17 @@ public final class SmokeTestIntegrationService {
                 terminate(run, RunStatus.STOPPED);
             }
         }
+    }
+
+    private void interruptActiveOperation(Run run, String reason) {
+        Thread active = run.activeOperationThread;
+        executionTrace.warn(
+                "phase=RUN_INTERRUPT_REQUESTED runId={} mode={} instructionId={} requestId={} reason={} thread={}",
+                run.runId, run.runtimeMode, run.currentInstructionId, run.currentRequestId, reason,
+                active == null ? "none" : active.getName());
+        if (run.runtimeMode == RuntimeMode.JAVA_V1) steps.interrupt();
+        else if (run.v2Run != null) v2.interrupt(run.v2Run);
+        if (active != null) active.interrupt();
     }
 
     private void handleFinish(FinishRequest request, Session transport) {
@@ -1838,6 +1947,12 @@ public final class SmokeTestIntegrationService {
         if (SmokeTestIntegrationContracts.RUNTIME_CONTROL.equals(operation)) {
             return SmokeTestIntegrationContracts.RUNTIME_CONTROL_RESPONSE;
         }
+        if (SmokeTestIntegrationContracts.RUNTIME_INSTANCES.equals(operation)) {
+            return SmokeTestIntegrationContracts.RUNTIME_INSTANCES_RESPONSE;
+        }
+        if (SmokeTestIntegrationContracts.RUNTIME_INSTANCE_CONTROL.equals(operation)) {
+            return SmokeTestIntegrationContracts.RUNTIME_INSTANCE_CONTROL_RESPONSE;
+        }
         return "smokeTest.integration.errorResponse";
     }
 
@@ -1916,6 +2031,10 @@ public final class SmokeTestIntegrationService {
         default void cancelRecovery(String runId, int instructionId, String reason) {}
 
         default void clearRecovery(String runId, String reason) {}
+
+        default void interrupt() {}
+
+        default void forceStop() { interrupt(); }
     }
 
     interface V2Port {
@@ -2133,6 +2252,18 @@ public final class SmokeTestIntegrationService {
         public void clearRecovery(String runId, String reason) {
             recovery.clearRun(runId, reason);
         }
+
+        @Override
+        public void interrupt() {
+            ARPlaywrightDriver driver = ARWebDriver.getInstance().currentPlaywrightDriver();
+            if (driver != null) driver.cancelCurrentOperation();
+        }
+
+        @Override
+        public void forceStop() {
+            interrupt();
+            ARWebDriver.getInstance().closeBrowser();
+        }
     }
 
     private static final class DefaultV2Port implements V2Port {
@@ -2276,6 +2407,10 @@ public final class SmokeTestIntegrationService {
                 new java.util.concurrent.atomic.AtomicBoolean();
         private final java.util.concurrent.atomic.AtomicBoolean releaseInProgress =
                 new java.util.concurrent.atomic.AtomicBoolean();
+        private final java.time.Instant startedAt = java.time.Instant.now();
+        private volatile Thread activeOperationThread;
+        private volatile int currentInstructionId;
+        private volatile String currentRequestId = "";
         private final LinkedHashMap<Long, SequenceResult> sequenceResults =
                 new LinkedHashMap<>();
         private volatile boolean cancelled;

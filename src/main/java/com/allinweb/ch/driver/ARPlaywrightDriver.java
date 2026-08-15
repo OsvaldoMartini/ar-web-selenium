@@ -35,12 +35,14 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class ARPlaywrightDriver {
 
     private ExecutorService playwrightThread = newPlaywrightThread();
+    private final AtomicReference<Future<?>> activeOperation = new AtomicReference<>();
 
     private Playwright playwright;
     private Browser browser;
@@ -583,6 +585,12 @@ public class ARPlaywrightDriver {
         executor.shutdownNow();
     }
 
+    /** Interrupts only the currently executing Playwright call and preserves the browser session. */
+    public boolean cancelCurrentOperation() {
+        Future<?> current = activeOperation.get();
+        return current != null && current.cancel(true);
+    }
+
     /**
      * Surface the Playwright page's runtime signals into the app log: JS console output, uncaught
      * page errors, and the full WebSocket lifecycle. This is how we diagnose injected plugins
@@ -870,9 +878,11 @@ public class ARPlaywrightDriver {
 
     private <T> T call(Callable<T> callable) {
         Future<T> future = ensurePlaywrightThread().submit(callable);
+        activeOperation.set(future);
         try {
             return future.get();
         } catch (InterruptedException interrupted) {
+            future.cancel(true);
             Thread.currentThread().interrupt();
             throw new IllegalStateException("Playwright operation was interrupted", interrupted);
         } catch (ExecutionException executionFailure) {
@@ -880,6 +890,8 @@ public class ARPlaywrightDriver {
             if (cause instanceof RuntimeException runtimeFailure) throw runtimeFailure;
             if (cause instanceof Error fatalFailure) throw fatalFailure;
             throw new IllegalStateException("Playwright operation failed", cause);
+        } finally {
+            activeOperation.compareAndSet(future, null);
         }
     }
 

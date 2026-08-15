@@ -431,6 +431,79 @@ class SmokeTestIntegrationServiceTest {
     }
 
     @Test
+    void runtimeInstancesExposeTheAuthoritativeActiveRun() throws Exception {
+        JsonObject started = start("start-runtime-inventory");
+        String runId = started.get("runId").getAsString();
+
+        JsonObject request = new JsonObject();
+        request.addProperty("contractVersion", SmokeTestIntegrationContracts.CONTRACT_VERSION);
+        request.addProperty("requestId", "runtime-inventory-1");
+        service.handle(
+                "smokeTest.integration.runtimeInstances",
+                request,
+                DetachedWorkspaceSessions.SMOKE_TEST_MANAGER,
+                transport);
+
+        Published inventory = responses.await("smokeTest.integration.runtimeInstancesResponse");
+        assertTrue(inventory.body.get("ok").getAsBoolean());
+        assertEquals(1, inventory.body.getAsJsonArray("instances").size());
+        JsonObject instance = inventory.body.getAsJsonArray("instances").get(0).getAsJsonObject();
+        assertEquals(runId, instance.get("runId").getAsString());
+        assertEquals("JAVA_V1", instance.get("runtimeMode").getAsString());
+        assertEquals(OWNER.botJobId(), instance.get("botJobId").getAsInt());
+        assertEquals("RUNNING", instance.get("status").getAsString());
+    }
+
+    @Test
+    void stopInterruptsABlockedV1StepWithoutWaitingForTheStepTimeout() throws Exception {
+        JsonObject started = start("start-blocked-v1");
+        String runId = started.get("runId").getAsString();
+        steps.blockNextCall();
+        service.handle(
+                SmokeTestIntegrationContracts.STEP,
+                stepRequest("blocked-step", runId, 1L),
+                DetachedWorkspaceSessions.SMOKE_TEST_MANAGER,
+                transport);
+        assertTrue(steps.awaitBlocked(), "The V1 step did not enter its blocking action");
+
+        service.handle(
+                SmokeTestIntegrationContracts.STOP,
+                stopRequest("stop-blocked-v1", runId),
+                DetachedWorkspaceSessions.SMOKE_TEST_MANAGER,
+                transport);
+
+        Published interruptedStep = responses.awaitWithin(
+                SmokeTestIntegrationContracts.STEP_RESPONSE, 1, TimeUnit.SECONDS);
+        assertEquals("INTEGRATION_STOPPING", interruptedStep.body.get("code").getAsString());
+        Published stopped = responses.awaitWithin(
+                SmokeTestIntegrationContracts.STOP_RESPONSE, 1, TimeUnit.SECONDS);
+        assertTrue(stopped.body.get("ok").getAsBoolean());
+        assertEquals("STOPPED", stopped.body.get("status").getAsString());
+        assertTrue(steps.awaitInterrupted(), "The active V1 instruction was not interrupted");
+    }
+
+    @Test
+    void killTargetsOnlyTheRequestedRuntimeInstance() throws Exception {
+        JsonObject started = start("start-runtime-kill");
+        String runId = started.get("runId").getAsString();
+
+        JsonObject request = stopRequest("runtime-kill-1", runId);
+        request.addProperty("action", "KILL");
+        service.handle(
+                "smokeTest.integration.runtimeInstanceControl",
+                request,
+                DetachedWorkspaceSessions.SMOKE_TEST_MANAGER,
+                transport);
+
+        Published killed = responses.await("smokeTest.integration.runtimeInstanceControlResponse");
+        assertTrue(killed.body.get("ok").getAsBoolean());
+        assertEquals(runId, killed.body.get("runId").getAsString());
+        assertEquals("KILLED", killed.body.get("status").getAsString());
+        assertEquals(1, steps.forceStops.get());
+        assertTrue(browserOwnership.awaitClosed());
+    }
+
+    @Test
     void reloadPolicyUsesStrictSelectedPageInsteadOfPreservingTheCurrentPage() throws Exception {
         JsonObject request = startRequest("start-reload");
         request.addProperty("pagePolicy", "RELOAD_SELECTED");
@@ -551,6 +624,10 @@ class SmokeTestIntegrationServiceTest {
 
     private static final class RecordingSteps implements SmokeTestIntegrationService.StepPort {
         private final AtomicInteger calls = new AtomicInteger();
+        private final AtomicInteger forceStops = new AtomicInteger();
+        private final AtomicReference<CountDownLatch> blocking = new AtomicReference<>();
+        private final CountDownLatch blocked = new CountDownLatch(1);
+        private final CountDownLatch interrupted = new CountDownLatch(1);
 
         @Override
         public Outcome execute(
@@ -560,6 +637,23 @@ class SmokeTestIntegrationServiceTest {
                 int excelRowIndex,
                 com.allinweb.ch.facade.execution.SmokeTestIntegrationStepExecutor.RunVariables variables) {
             calls.incrementAndGet();
+            CountDownLatch latch = blocking.getAndSet(null);
+            if (latch != null) {
+                blocked.countDown();
+                try {
+                    latch.await();
+                } catch (InterruptedException stopped) {
+                    Thread.currentThread().interrupt();
+                    interrupted.countDown();
+                    return new Outcome(
+                            StepStatus.SKIPPED,
+                            StepDisposition.PHYSICAL,
+                            "ACTION_CANCELLED",
+                            "The V1 action was interrupted.",
+                            null,
+                            null);
+                }
+            }
             return new Outcome(
                     StepStatus.PASSED,
                     StepDisposition.LOGICAL_ONLY,
@@ -567,6 +661,25 @@ class SmokeTestIntegrationServiceTest {
                     "The correlated step completed.",
                     null,
                     null);
+        }
+
+        @Override
+        public void forceStop() {
+            forceStops.incrementAndGet();
+            CountDownLatch latch = blocking.getAndSet(null);
+            if (latch != null) latch.countDown();
+        }
+
+        private void blockNextCall() {
+            blocking.set(new CountDownLatch(1));
+        }
+
+        private boolean awaitBlocked() throws InterruptedException {
+            return blocked.await(5, TimeUnit.SECONDS);
+        }
+
+        private boolean awaitInterrupted() throws InterruptedException {
+            return interrupted.await(5, TimeUnit.SECONDS);
         }
     }
 
@@ -694,7 +807,12 @@ class SmokeTestIntegrationServiceTest {
         }
 
         private Published await(String expectedOperation) throws InterruptedException {
-            Published next = published.poll(5, TimeUnit.SECONDS);
+            return awaitWithin(expectedOperation, 5, TimeUnit.SECONDS);
+        }
+
+        private Published awaitWithin(
+                String expectedOperation, long timeout, TimeUnit unit) throws InterruptedException {
+            Published next = published.poll(timeout, unit);
             assertTrue(next != null, "Timed out waiting for " + expectedOperation);
             assertEquals(expectedOperation, next.operation);
             return next;
