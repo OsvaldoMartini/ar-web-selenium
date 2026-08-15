@@ -1368,3 +1368,25 @@ Do not change frontend CSS/design while doing the scanner contract cleanup unles
 - [x] The full Node V2 runtime suite passed 39/39. The headed five-browser acceptance reached READY
   for five distinct run/browser/context/page identities and exited cleanly with no matching orphan
   demo process. These were isolated synthetic/mock runs, not banking-site actions.
+
+## Isolated V2 browser launch parity - 2026-08-14
+
+- [x] Backend/Node commit `32cd748b` makes every V2 Chromium launch request
+  `--start-maximized` and creates its isolated context with `viewport: null`. V2 remains one
+  Browser/Context/Page per run and never attaches to the Java V1 shared browser.
+- [x] Database-owned Bot Job browser options using the established `argument:` / `arg:` syntax now
+  cross the Java-to-Node start contract. Both sides enforce the same bounded contract: at most 32
+  arguments, 3-512 characters each, a required `--` prefix, and no control characters. Client code
+  cannot author this list.
+- [x] V2 contexts now allow normal service-worker behavior. Isolation is still provided by the
+  nonpersistent per-run context, so workers and storage are not shared across runs.
+- [x] Privacy-safe Node diagnostics record the actual viewport/screen/DPR and hashed page identity
+  after navigation, then actual current page identity plus context/page IDs and registry/live
+  candidate counts after each settled physical action. Retained same-owner browsers rebind logging
+  to the replacement run ID.
+- [x] Complete Node runtime verification passed 40/40. Focused Java HTTP/coordinator verification
+  passed 11/11 and compiled 583 main plus 341 test sources. `git diff --check` passed.
+- [x] Commit `32cd748b` is pushed to `refactor/perform-actions-decomposition`.
+- [ ] No frontend source/build, deployment copy, database change, service restart, or live banking
+  action was performed. Restart ARWeb/its supervised V2 runtime before live acceptance, then compare
+  V1/V2 viewport, page identity, candidate counts, and locator behavior for the same Bot Job.

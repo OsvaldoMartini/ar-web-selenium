@@ -1467,3 +1467,22 @@ and atomic artifact-write checkpoints are complete.
   exact focused Java matrix then passed 37/37 and the complete Node V2 suite passed 39/39.
 - [x] The headed five-browser synthetic acceptance reached five independent READY sessions with
   unique run/browser/context/page IDs, closed cleanly, and left no matching demo process.
+
+## 50. Isolated V2 browser launch parity - 2026-08-14
+
+- [x] `32cd748b` aligns V2 launch geometry with V1: Chromium receives `--start-maximized` and the
+  isolated context uses `viewport: null`. V2 does not attach to or share V1's global browser.
+- [x] The frozen database Bot Job options contract now propagates approved `argument:` / `arg:`
+  entries through Java into Node. Java and Node independently enforce the same 32-entry, 512-byte,
+  `--`-prefixed, control-character-free bounds before browser admission.
+- [x] Service workers are allowed inside each nonpersistent per-run context. Cross-run isolation is
+  unchanged because each run retains its own Browser, BrowserContext, Page, authority, and lifecycle.
+- [x] Safe runtime logs now expose actual screen/viewport/DPR, hashed current page identity,
+  context/page IDs, and registry/live candidate counts without URLs, locator strings, or values.
+  Same-owner retained-browser reuse rebinds those logs to the new run ID.
+- [x] Complete Node verification passed 40/40. Focused Java start-contract/coordinator verification
+  passed 11/11 and compiled 583 main plus 341 test sources. Diff checks passed and the commit is
+  pushed to `refactor/perform-actions-decomposition`.
+- [ ] No frontend build/deployment, Java/Node restart, database write, or live Bot Job action was
+  performed. Live acceptance must restart the runtime and compare V1/V2 geometry, page identity,
+  candidate counts, and locator resolution against the same Bot Job/page.
