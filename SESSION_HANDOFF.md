@@ -1390,3 +1390,22 @@ Do not change frontend CSS/design while doing the scanner contract cleanup unles
 - [ ] No frontend source/build, deployment copy, database change, service restart, or live banking
   action was performed. Restart ARWeb/its supervised V2 runtime before live acceptance, then compare
   V1/V2 viewport, page identity, candidate counts, and locator behavior for the same Bot Job.
+
+## V2 parity trace expansion - 2026-08-14
+
+- [x] Commit `630e1a0f` adds privacy-safe browser lifecycle events for launch request/process,
+  context/page creation, navigation/readiness, refresh, current page identity, physical action
+  start/result/failure, interruption, retained-run rebinding, explicit close, cleanup failure, and
+  unexpected closure.
+- [x] Action results record run/browser/context/page IDs, hashed current page identity, instruction
+  and sequence, action/stage/code, registry/live/recovery candidate counts, physical-attempt count,
+  frame/shadow/tag/action validation flags, and duration. No URL, locator, browser argument, value,
+  grant, token, banking text, or credential is logged.
+- [x] Java's dedicated Smoke trace now brackets reserve/start/readiness, action dispatch/result,
+  recovery decisions and locator-save outcome, refresh, interrupt, preserving Stop/release, and
+  authored browser close. Reservation failures are inside the correlated start-failure boundary.
+- [x] Log-sink failures are explicitly best-effort and cannot change runtime behavior. Node passed
+  42/42 tests; focused Java passed 11/11 and compiled 583 main plus 341 test sources; diff checks
+  passed. `630e1a0f` is pushed to `refactor/perform-actions-decomposition`.
+- [ ] The running application was not restarted. Live evidence from a new V2 run remains required
+  in `ar_web_smoke_execution.log` and `ar_web_execution_v2.log` after restart.

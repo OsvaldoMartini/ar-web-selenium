@@ -1486,3 +1486,17 @@ and atomic artifact-write checkpoints are complete.
 - [ ] No frontend build/deployment, Java/Node restart, database write, or live Bot Job action was
   performed. Live acceptance must restart the runtime and compare V1/V2 geometry, page identity,
   candidate counts, and locator resolution against the same Bot Job/page.
+
+## 51. V2 parity trace expansion - 2026-08-14
+
+- [x] `630e1a0f` traces the complete privacy-safe Java-to-Node/browser lifecycle: reserve, launch,
+  process/context/page creation, navigation/readiness, refresh, action resolution, recovery,
+  interruption, retained-browser rebinding, Stop/release, authored close, and cleanup failures.
+- [x] Browser diagnostics include only opaque IDs, hashed current page identity, dimensions,
+  action/stage/result codes, candidate/attempt counts, validation flags, and durations. URLs,
+  locators, launch arguments, input/output values, grants, tokens, banking text, and credentials are
+  excluded.
+- [x] A logging destination failure cannot affect browser or action outcomes. Complete Node
+  verification passed 42/42; focused Java verification passed 11/11 and compiled 583 main plus 341
+  test sources. Diff checks passed and the commit is pushed.
+- [ ] Restart and one live V2 Integration remain required to capture and inspect both disk traces.
