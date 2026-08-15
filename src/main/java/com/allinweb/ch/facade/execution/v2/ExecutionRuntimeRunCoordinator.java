@@ -14,6 +14,8 @@ import java.time.Duration;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -29,6 +31,8 @@ public final class ExecutionRuntimeRunCoordinator {
     private static final long READY_POLL_MILLIS = 200L;
     private static final long KEEP_ALIVE_INTERVAL_SECONDS = 15L;
     private static final int MAX_KEEP_ALIVE_THREADS = 5;
+    private static final Pattern BROWSER_OPTION_MARKER = Pattern.compile(
+            "(?i)#?(?:argument|arg|proxy):");
     private static final KeepAlivePort NO_KEEP_ALIVE = task -> () -> {};
 
     private final GrantPort grants;
@@ -114,14 +118,29 @@ public final class ExecutionRuntimeRunCoordinator {
         requirePlanAuthority(facts, plan);
         IssuedGrant grant = grants.issue(facts);
         String channel = browserChannel(plan.environment().browserType());
-        java.util.List<String> arguments = browserArguments(plan.environment().optionsConfig());
         long started = System.nanoTime();
-        executionTrace.info(
-                "phase=V2_RUN_START_REQUESTED runId={} homeBankingId={} botJobId={} channel={} argumentCount={} headless=false",
-                grant.runId(), facts.homeBankingId(), facts.botJobId(), channel, arguments.size());
         Authority authority = null;
         boolean ready = false;
         try {
+            BrowserArguments browserOptions;
+            try {
+                browserOptions = browserArgumentFacts(plan.environment().optionsConfig());
+            } catch (IllegalArgumentException invalidOptions) {
+                executionTrace.warn(
+                        "phase=V2_BROWSER_OPTIONS_REJECTED runId={} homeBankingId={} botJobId={} configLength={} code={}",
+                        grant.runId(), facts.homeBankingId(), facts.botJobId(),
+                        plan.environment().optionsConfig().length(), failureCode(invalidOptions));
+                throw invalidOptions;
+            }
+            java.util.List<String> arguments = browserOptions.arguments();
+            executionTrace.info(
+                    "phase=V2_BROWSER_OPTIONS_PARSED runId={} homeBankingId={} botJobId={} argumentCount={} normalizedSingleHyphen={} activeMarkers={} ignoredMarkers={}",
+                    grant.runId(), facts.homeBankingId(), facts.botJobId(), arguments.size(),
+                    browserOptions.normalizedSingleHyphen(), browserOptions.activeMarkers(),
+                    browserOptions.ignoredMarkers());
+            executionTrace.info(
+                    "phase=V2_RUN_START_REQUESTED runId={} homeBankingId={} botJobId={} channel={} argumentCount={} headless=false",
+                    grant.runId(), facts.homeBankingId(), facts.botJobId(), channel, arguments.size());
             authority = runtime.reserve(grant);
             executionTrace.debug("phase=V2_RUN_RESERVED runId={}", grant.runId());
             JsonObject snapshot = runtime.start(
@@ -614,22 +633,57 @@ public final class ExecutionRuntimeRunCoordinator {
 
     /** Converts database-owned argument entries into the bounded V2 launch contract. */
     static java.util.List<String> browserArguments(String optionsConfig) {
-        if (optionsConfig == null || optionsConfig.isBlank()) return java.util.List.of();
-        java.util.List<String> arguments = new java.util.ArrayList<>();
-        for (String rawLine : optionsConfig.split("\\R|\\u00A3")) {
-            String line = rawLine.trim();
-            if (line.isEmpty() || line.startsWith("#")) continue;
-            String[] parts = line.split(":", 2);
-            if (parts.length == 2
-                    && (parts[0].equalsIgnoreCase("argument")
-                            || parts[0].equalsIgnoreCase("arg"))
-                    && !parts[1].isBlank()) {
-                arguments.add(parts[1].trim());
-            }
-        }
-        return new ExecutionRuntimeHttpClient.StartFacts(
-                URI.create("https://validation.invalid/"), false, null, arguments).arguments();
+        return browserArgumentFacts(optionsConfig).arguments();
     }
+
+    private static BrowserArguments browserArgumentFacts(String optionsConfig) {
+        if (optionsConfig == null || optionsConfig.isBlank()) {
+            return new BrowserArguments(java.util.List.of(), 0, 0, 0);
+        }
+        java.util.List<String> arguments = new java.util.ArrayList<>();
+        java.util.List<OptionMarker> markers = new java.util.ArrayList<>();
+        Matcher matcher = BROWSER_OPTION_MARKER.matcher(optionsConfig);
+        while (matcher.find()) {
+            String marker = matcher.group();
+            markers.add(new OptionMarker(
+                    matcher.start(), matcher.end(), marker,
+                    !marker.startsWith("#")
+                            && !marker.regionMatches(true, 0, "proxy:", 0, "proxy:".length())));
+        }
+        int normalizedSingleHyphen = 0;
+        int activeMarkers = 0;
+        int ignoredMarkers = 0;
+        for (int index = 0; index < markers.size(); index++) {
+            OptionMarker marker = markers.get(index);
+            if (!marker.activeArgument()) {
+                ignoredMarkers++;
+                continue;
+            }
+            activeMarkers++;
+            int end = index + 1 < markers.size()
+                    ? markers.get(index + 1).start()
+                    : optionsConfig.length();
+            String argument = optionsConfig.substring(marker.end(), end).trim();
+            if (argument.isEmpty()) continue;
+            if (argument.startsWith("-") && !argument.startsWith("--")) {
+                argument = "-" + argument;
+                normalizedSingleHyphen++;
+            }
+            arguments.add(argument);
+        }
+        java.util.List<String> validated = new ExecutionRuntimeHttpClient.StartFacts(
+                URI.create("https://validation.invalid/"), false, null, arguments).arguments();
+        return new BrowserArguments(
+                validated, normalizedSingleHyphen, activeMarkers, ignoredMarkers);
+    }
+
+    private record OptionMarker(int start, int end, String marker, boolean activeArgument) {}
+
+    private record BrowserArguments(
+            java.util.List<String> arguments,
+            int normalizedSingleHyphen,
+            int activeMarkers,
+            int ignoredMarkers) {}
 
     private static String state(JsonObject snapshot) {
         if (snapshot == null

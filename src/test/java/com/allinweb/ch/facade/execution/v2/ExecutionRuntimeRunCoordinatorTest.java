@@ -59,6 +59,32 @@ class ExecutionRuntimeRunCoordinatorTest {
     }
 
     @Test
+    void recoversConcatenatedLegacyArgumentsAndIgnoresCommentedOptions() {
+        String legacy = "arg:-disable-web-security"
+                + "arg:-disable-site-isolation-trials"
+                + "arg:-allow-running-insecure-content"
+                + "arg:-disable-features=IsolateOrigins,site-per-process"
+                + "#arg:-disable-infobars"
+                + "#arg:-disable-dev-shm-usage"
+                + "#proxy:proxy_address:proxy_port";
+
+        assertEquals(
+                List.of(
+                        "--disable-web-security",
+                        "--disable-site-isolation-trials",
+                        "--allow-running-insecure-content",
+                        "--disable-features=IsolateOrigins,site-per-process"),
+                ExecutionRuntimeRunCoordinator.browserArguments(legacy));
+    }
+
+    @Test
+    void keepsUnsafeLegacyBrowserArgumentsFailClosed() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> ExecutionRuntimeRunCoordinator.browserArguments("arg:not-a-browser-argument"));
+    }
+
+    @Test
     void refusesMismatchedPlanBeforeReservationAndCleansFailedReadiness() {
         FakeRuntime mismatchRuntime = new FakeRuntime();
         ExecutionRuntimeRunCoordinator mismatch = coordinator(mismatchRuntime);
