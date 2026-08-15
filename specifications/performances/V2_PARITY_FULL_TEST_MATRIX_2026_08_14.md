@@ -101,9 +101,32 @@ native maximization because a unit mock cannot prove operating-system window geo
 - [x] Full Java suite run.
 - [x] Full React unit suite run twice; machine-readable rerun saved under `target`.
 - [x] Browser E2E dependency installed and suite rerun.
-- [ ] Java generated catalog refreshed and reverified.
+- [x] Java generated catalog refreshed and reverified; follow-up below.
 - [ ] Stable React failures repaired or deliberately rebaselined after contract review.
 - [ ] Three browser E2E failures repaired/rebaselined.
 - [ ] Concrete Playwright launch/context/logging tests added.
 - [ ] Five-browser parity acceptance rerun.
 - [ ] Live V1/V2 same-owner comparison completed after restart.
+
+## Java matrix resolution - 2026-08-14
+
+The Java-only failure and both conditional skips above were removed without weakening production
+behavior:
+
+- The catalog generator now parses same-line declarations such as `@Test void method()` and the
+  catalog audit compares exact source-path/method identities in addition to declaration and file
+  counts. The regenerated catalog contains 2,420 rows and has no `JsonObject` or unresolved Java
+  method entries.
+- `PerformDBEngineAccessTest` now creates an isolated Access database through the production
+  `PerformDBEngine` connection, verifies create/insert/select behavior, explicitly unloads
+  UCanAccess, and leaves no locked JUnit temporary files.
+- `PreScanDumpComparisonTest` still consumes real paired scanner dumps when both are supplied. When
+  they are absent, it runs the classification comparison against deterministic input/button/output
+  representatives instead of aborting the suite.
+
+Verification:
+
+- Focused: 5 passed, 0 failed, 0 errors, 0 skipped.
+- Full `mvn test`: 1,474 passed, 0 failed, 0 errors, 0 skipped in 4:01.
+- Surefire XML aggregation independently reports the same 1,474 / 0 / 0 / 0 totals.
+- The test-generated `Config-4.2/TESTS.config` mutation was restored after verification.

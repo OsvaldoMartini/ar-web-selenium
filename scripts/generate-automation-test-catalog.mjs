@@ -66,10 +66,15 @@ function repoMetadata(project, root) {
 
 function javaMethodSignature(lines, annotationIndex) {
   const signatureLines = [];
-  for (let index = annotationIndex + 1; index < Math.min(lines.length, annotationIndex + 35); index++) {
-    const trimmed = lines[index].trim();
+  for (let index = annotationIndex; index < Math.min(lines.length, annotationIndex + 35); index++) {
+    let trimmed = lines[index].trim();
     if (!trimmed || trimmed.startsWith('//') || trimmed.startsWith('*')) continue;
-    if (trimmed.startsWith('@')) continue;
+    while (trimmed.startsWith('@')) {
+      const annotation = trimmed.match(/^@[A-Za-z_$][\w$]*(?:\s*\([^)]*\))?\s*/);
+      if (!annotation) break;
+      trimmed = trimmed.slice(annotation[0].length).trim();
+    }
+    if (!trimmed) continue;
     signatureLines.push(trimmed);
     const joined = signatureLines.join(' ');
     const match = joined.match(/\b(?:void|[A-Za-z_$][\w$.[\]<>?,]*)\s+([A-Za-z_$][\w$]*)\s*\(/);

@@ -19,6 +19,10 @@ import org.junit.jupiter.api.Test;
 class AutomationTestCatalogServiceTest {
     private static final Pattern JUNIT_TEST = Pattern.compile(
             "(?m)^\\s*@(Test|ParameterizedTest|RepeatedTest|TestFactory|TestTemplate)\\b");
+    private static final Pattern LEADING_ANNOTATION =
+            Pattern.compile("^@[A-Za-z_$][\\w$]*(?:\\s*\\([^)]*\\))?\\s*");
+    private static final Pattern JAVA_METHOD = Pattern.compile(
+            "\\b(?:void|[A-Za-z_$][\\w$\\.\\[\\]<>?,]*)\\s+([A-Za-z_$][\\w$]*)\\s*\\(");
 
     @Test
     void loadsAConsistentPackagedCatalogAcrossRecordedMigrationProjects() {
@@ -56,16 +60,23 @@ class AutomationTestCatalogServiceTest {
 
         int discoveredDeclarations = 0;
         Set<String> discoveredFiles = new HashSet<>();
+        Set<String> discoveredMethods = new HashSet<>();
         try (Stream<Path> files = Files.walk(testRoot)) {
             for (Path file : files.filter(path -> path.toString().endsWith(".java")).toList()) {
                 String source = Files.readString(file);
                 int declarations = (int) JUNIT_TEST.matcher(source).results().count();
                 if (declarations > 0) {
                     discoveredDeclarations += declarations;
-                    discoveredFiles.add(testRoot.getParent().getParent().getParent()
+                    String sourcePath = testRoot.getParent().getParent().getParent()
                             .relativize(file)
                             .toString()
-                            .replace('\\', '/'));
+                            .replace('\\', '/');
+                    discoveredFiles.add(sourcePath);
+                    String[] lines = source.split("\\R", -1);
+                    for (int index = 0; index < lines.length; index++) {
+                        if (!JUNIT_TEST.matcher(lines[index]).find()) continue;
+                        discoveredMethods.add(sourcePath + "#" + javaMethodName(lines, index));
+                    }
                 }
             }
         }
@@ -73,15 +84,39 @@ class AutomationTestCatalogServiceTest {
         JsonArray tests = AutomationTestCatalogService.getInstance().list().getAsJsonArray("tests");
         int catalogDeclarations = 0;
         Set<String> catalogFiles = new HashSet<>();
+        Set<String> catalogMethods = new HashSet<>();
         for (JsonElement element : tests) {
             JsonObject test = element.getAsJsonObject();
             if (!"AR Web Scanner".equals(test.get("project").getAsString())
                     || !"AUTOMATED_CASE".equals(test.get("recordType").getAsString())) continue;
             catalogDeclarations++;
-            catalogFiles.add(test.get("sourcePath").getAsString());
+            String sourcePath = test.get("sourcePath").getAsString();
+            catalogFiles.add(sourcePath);
+            catalogMethods.add(sourcePath + "#" + test.get("name").getAsString());
         }
 
         assertEquals(discoveredDeclarations, catalogDeclarations, "Regenerate automation-tests.json");
         assertEquals(discoveredFiles, catalogFiles, "Regenerate automation-tests.json");
+        assertEquals(discoveredMethods, catalogMethods, "Regenerate automation-tests.json");
+    }
+
+    private static String javaMethodName(String[] lines, int annotationIndex) {
+        StringBuilder signature = new StringBuilder();
+        for (int index = annotationIndex; index < Math.min(lines.length, annotationIndex + 35); index++) {
+            String trimmed = lines[index].trim();
+            if (trimmed.isEmpty() || trimmed.startsWith("//") || trimmed.startsWith("*")) continue;
+            while (trimmed.startsWith("@")) {
+                var annotation = LEADING_ANNOTATION.matcher(trimmed);
+                if (!annotation.find()) break;
+                trimmed = trimmed.substring(annotation.end()).trim();
+            }
+            if (trimmed.isEmpty()) continue;
+            if (!signature.isEmpty()) signature.append(' ');
+            signature.append(trimmed);
+            var method = JAVA_METHOD.matcher(signature);
+            if (method.find()) return method.group(1);
+            if (trimmed.contains("{") || trimmed.endsWith(";")) break;
+        }
+        return "unresolvedTestAtLine" + (annotationIndex + 1);
     }
 }

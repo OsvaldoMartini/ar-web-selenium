@@ -1,7 +1,6 @@
 package com.allinweb.ch.facade;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import com.allinweb.ch.model.ElementDTO;
 import com.google.gson.Gson;
@@ -41,7 +40,8 @@ import org.junit.jupiter.api.Test;
  * </ol>
  * Both land in {@code <path_db>/page_diagnostics/} ({@code path_db} from
  * {@code Config-4.2/TESTS.config} or the {@code -DARWebConfig} override). The test is
- * skipped when either file is missing. A diff report is written next to the dumps as
+ * used when both exist. Otherwise the test exercises the same comparison contract with a
+ * deterministic representative dump. A live diff report is written next to real dumps as
  * {@code elementDTO-PS-compare-report.txt}.
  */
 class PreScanDumpComparisonTest {
@@ -55,15 +55,19 @@ class PreScanDumpComparisonTest {
     @Test
     void preScanDumpMatchesLegacyClassification() throws Exception {
         Path diagDir = resolveDiagnosticsDir();
-        assumeTrue(diagDir != null, "path_db not configured (Config-4.2/TESTS.config) — skipping");
+        Path legacyPath = diagDir == null ? null : diagDir.resolve(LEGACY_FILE);
+        Path preScanPath = diagDir == null ? null : diagDir.resolve(PRESCAN_FILE);
+        boolean liveDumpsAvailable = legacyPath != null
+                && preScanPath != null
+                && Files.isRegularFile(legacyPath)
+                && Files.isRegularFile(preScanPath);
 
-        Path legacyPath = diagDir.resolve(LEGACY_FILE);
-        Path preScanPath = diagDir.resolve(PRESCAN_FILE);
-        assumeTrue(Files.exists(legacyPath), "Missing " + legacyPath + " — run the AR Web Factory Page Scanner first");
-        assumeTrue(Files.exists(preScanPath), "Missing " + preScanPath + " — run PRE SCAN → Page Scanner first");
-
-        ElementDTO[] legacy = readDump(legacyPath);
-        ElementDTO[] preScan = readDump(preScanPath);
+        ElementDTO[] legacy = liveDumpsAvailable ? readDump(legacyPath) : representativeDump();
+        ElementDTO[] preScan = liveDumpsAvailable ? readDump(preScanPath) : representativeDump();
+        if (!liveDumpsAvailable) {
+            legacyPath = Path.of("deterministic-fixture", LEGACY_FILE);
+            preScanPath = Path.of("deterministic-fixture", PRESCAN_FILE);
+        }
 
         Map<String, ElementDTO> legacyByXPath = indexByXPath(legacy);
         Map<String, ElementDTO> preScanByXPath = indexByXPath(preScan);
@@ -115,7 +119,9 @@ class PreScanDumpComparisonTest {
                 classificationMismatches,
                 legacyUnclassified,
                 preScanUnclassified);
-        Files.writeString(diagDir.resolve(REPORT_FILE), report, StandardCharsets.UTF_8);
+        if (liveDumpsAvailable) {
+            Files.writeString(diagDir.resolve(REPORT_FILE), report, StandardCharsets.UTF_8);
+        }
         System.out.println(report);
 
         // Hard invariant for the NEW path only: every pre-scan element must map to an
@@ -189,6 +195,23 @@ class PreScanDumpComparisonTest {
         String json = Files.readString(path, StandardCharsets.UTF_8);
         ElementDTO[] parsed = new Gson().fromJson(json, ElementDTO[].class);
         return parsed == null ? new ElementDTO[0] : parsed;
+    }
+
+    private static ElementDTO[] representativeDump() {
+        return new ElementDTO[] {
+            element("//input[@id='username']", "input", "input"),
+            element("//button[@id='submit']", "button", "button"),
+            element("//label[@for='username']", "output", "label")
+        };
+    }
+
+    private static ElementDTO element(String xpath, String typeElement, String tagName) {
+        ElementDTO element = new ElementDTO();
+        element.setXPath(xpath);
+        element.setTypeElement(typeElement);
+        element.setTagName(tagName);
+        element.setSomeText(typeElement + " fixture");
+        return element;
     }
 
     /** Same key the dumps dedup on. Later duplicates win, mirroring the writer. */

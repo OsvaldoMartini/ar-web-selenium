@@ -1,65 +1,76 @@
 package com.allinweb.ch.facade;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import com.allinweb.ch.util.ARPropertyEnum;
 import com.allinweb.ch.util.ARPropertyManager;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.sql.Connection;
-import java.sql.SQLException;
+import java.sql.ResultSet;
+import java.sql.Statement;
+import java.util.Properties;
+import net.ucanaccess.jdbc.UcanaccessConnection;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.api.parallel.Isolated;
 
+@Isolated("Mutates the process-wide database type and PATH_DB")
 class PerformDBEngineAccessTest {
 
-    private static final String WEB_CONFIG_FILE_PATH =
-            System.getProperty("user.dir") + File.separator + "Config-4.2" + File.separator + "TESTS.config";
-    private ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
+    private static final Path WEB_CONFIG_FILE_PATH =
+            Path.of(System.getProperty("user.dir"), "Config-4.2", "TESTS.config");
+    private final ARPropertyManager arPropertyManager = ARPropertyManager.getInstance();
+    private Properties previousProperties;
+
+    @TempDir
+    Path temporaryDatabaseDirectory;
 
     @BeforeEach
     void setup() {
-        File configFile = new File(WEB_CONFIG_FILE_PATH);
+        previousProperties = new Properties();
+        previousProperties.putAll(arPropertyManager.getProperties());
+    }
 
-        // Create the config file if it does not exist
-        if (!configFile.exists()) {
-            arPropertyManager.setConfigurationFileName(WEB_CONFIG_FILE_PATH);
-            arPropertyManager.createDefaultProperties(configFile);
-        }
-
-        // Set the configuration file path and load properties
-        arPropertyManager.setConfigurationFileName(WEB_CONFIG_FILE_PATH);
-        try (FileInputStream fis = new FileInputStream(configFile)) {
-            arPropertyManager.loadProperties(fis);
-        } catch (IOException e) {
-            fail("Failed to load config file: " + e.getMessage());
-        }
+    @AfterEach
+    void restoreProperties() {
+        Properties restored = new Properties();
+        restored.putAll(previousProperties);
+        arPropertyManager.setProperties(restored);
     }
 
     @Test
     @DisplayName("Test config file exists")
     void testConfigFileExists() {
-        File configFile = new File(WEB_CONFIG_FILE_PATH);
-        assertTrue(configFile.exists(), "Test configuration file must exist");
+        assertTrue(Files.isRegularFile(WEB_CONFIG_FILE_PATH), "Test configuration file must exist");
     }
 
     @Test
     @DisplayName("Test Access DB connection")
-    void testAccessConnection() {
-        String databaseDirectory = arPropertyManager.getProperty(ARPropertyEnum.PATH_DB);
-        File accessDatabase = databaseDirectory == null ? null : new File(databaseDirectory, "database.mdb");
-        assumeTrue(
-                accessDatabase != null && accessDatabase.isFile(),
-                "Access integration database is not available: " + accessDatabase);
+    void testAccessConnection() throws Exception {
+        Properties isolated = new Properties();
+        isolated.putAll(previousProperties);
+        isolated.setProperty(ARPropertyEnum.DATABASE_TYPE.getValue(), "Access");
+        isolated.setProperty(
+                ARPropertyEnum.PATH_DB.getValue(), temporaryDatabaseDirectory.toAbsolutePath().toString());
+        arPropertyManager.setProperties(isolated);
 
-        try (Connection conn = PerformDBEngine.getInstance().getConnection()) {
+        Path accessDatabase = temporaryDatabaseDirectory.resolve("database.mdb");
+        try (Connection conn = PerformDBEngine.getInstance().getConnection();
+                Statement statement = conn.createStatement()) {
             assertNotNull(conn, "Connection should not be null");
             assertFalse(conn.isReadOnly(), "Connection should be writable");
-        } catch (SQLException e) {
-            fail("Failed to connect to DB: " + e.getMessage());
+            statement.execute("CREATE TABLE access_connection_probe (id INTEGER)");
+            statement.executeUpdate("INSERT INTO access_connection_probe (id) VALUES (1)");
+            try (ResultSet rows = statement.executeQuery("SELECT id FROM access_connection_probe")) {
+                assertTrue(rows.next());
+                assertEquals(1, rows.getInt(1));
+            }
+            assertInstanceOf(UcanaccessConnection.class, conn).unloadDB();
         }
+        assertTrue(Files.isRegularFile(accessDatabase), "Production connection must create the Access database");
     }
 }
