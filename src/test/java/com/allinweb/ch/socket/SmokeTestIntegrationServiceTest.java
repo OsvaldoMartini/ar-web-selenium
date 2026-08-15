@@ -571,6 +571,35 @@ class SmokeTestIntegrationServiceTest {
     }
 
     @Test
+    void bindingChangeInterruptsAndRetiresTheSupersededV2Run() throws Exception {
+        JsonObject request = startRequest("start-v2-binding-change");
+        request.addProperty("runtimeMode", "TYPESCRIPT_PLAYWRIGHT_V2");
+        request.addProperty("pagePolicy", "RELOAD_SELECTED");
+        service.handle(
+                SmokeTestIntegrationContracts.START,
+                request,
+                DetachedWorkspaceSessions.SMOKE_TEST_MANAGER,
+                transport);
+        JsonObject started = responses.await(SmokeTestIntegrationContracts.START_RESPONSE).body;
+        assertTrue(started.get("ok").getAsBoolean());
+
+        service.bindingChanged(transport, "replacement-binding");
+        worker.submit(() -> {}).get(5, TimeUnit.SECONDS);
+
+        assertEquals(1, v2.interrupts.get());
+        assertEquals(1, v2.closes.get());
+
+        service.handle(
+                SmokeTestIntegrationContracts.RUNTIME_INSTANCES,
+                forceStopRequest("instances-after-binding-change"),
+                DetachedWorkspaceSessions.SMOKE_TEST_MANAGER,
+                transport);
+        JsonObject inventory = responses.await(
+                SmokeTestIntegrationContracts.RUNTIME_INSTANCES_RESPONSE).body;
+        assertEquals(0, inventory.getAsJsonArray("instances").size());
+    }
+
+    @Test
     void reloadPolicyUsesStrictSelectedPageInsteadOfPreservingTheCurrentPage() throws Exception {
         JsonObject request = startRequest("start-reload");
         request.addProperty("pagePolicy", "RELOAD_SELECTED");

@@ -1655,6 +1655,11 @@ public final class SmokeTestIntegrationService {
             });
         }
         for (Run run : runs) {
+            executionTrace.warn(
+                    "phase=BINDING_CHANGE_RUN_INVALIDATED runId={} mode={} hb={} bot={} reason=OWNER_REBOUND",
+                    run.runId, run.runtimeMode, run.authorization.homeBankingId(),
+                    run.authorization.botJobId());
+            interruptActiveOperation(run, "BINDING_CHANGED");
             try {
                 worker.execute(() -> terminateSafely(run, RunStatus.STOPPED, "binding-change"));
             } catch (RejectedExecutionException shutdown) {
