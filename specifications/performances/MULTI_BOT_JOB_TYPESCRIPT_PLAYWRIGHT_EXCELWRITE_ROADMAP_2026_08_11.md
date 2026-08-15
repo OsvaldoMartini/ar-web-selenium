@@ -1500,3 +1500,27 @@ and atomic artifact-write checkpoints are complete.
   verification passed 42/42; focused Java verification passed 11/11 and compiled 583 main plus 341
   test sources. Diff checks passed and the commit is pushed.
 - [ ] Restart and one live V2 Integration remain required to capture and inspect both disk traces.
+
+## 52. Owner-bound always-enabled Integration emergency STOP - 2026-08-15
+
+- [x] Frontend `19b8bb8` makes STOP addressable before START returns a run ID and correlates the
+  request to the exact Smoke Test transport, binding/workspace generation, owner, and graph.
+- [x] Backend `d99708c6` tracks pending START attempts and active runs independently, interrupts
+  exact-owner V1/V2 work, releases admission counters exactly once, and keeps ARWeb/other owners
+  alive. The cancellation authorization does not queue behind browser navigation's registry lock.
+- [x] Focused verification passed: Java 14/14; React 5/5. Production React build passed with only
+  established warnings. Deployment `4e5638fb` mirrors 61 exact files using
+  `main.d6be4c21.js` / `main.3fd23b90.css`.
+- [x] Live BancaStato V1 acceptance on PID 3944 proved pending-start cancellation before run ID
+  (`pendingStartsCancelled=1`, `forcedV1=true`), subsequent START admission and run registration,
+  active correlated STOP termination, idempotent repeated emergency STOP, and a healthy ARWeb JVM.
+- [ ] Run the same live acceptance once with an isolated V2 browser. Unit coverage already proves
+  exact V2 interrupt/close behavior, but live Node/browser evidence remains open.
+- [x] Live V2 diagnosis proved the supervised SERVER reached READY, but the Bot Job 5 database
+  options concatenate legacy `arg:` markers and use one leading hyphen; strict V2 admission
+  rejected them before creating a Runtime Instance. V1 remained isolated and usable.
+- [x] `639bb634` adds bounded legacy-option recovery plus privacy-safe parsed/rejected diagnostics;
+  focused V2 Java verification passed 13/13 and compilation passed with 583 main sources.
+- [x] Frontend `77c027b` adds a short pre-Run SERVER requirement and orange attention glow. The
+  exact 61-file deployment now uses `main.ad474808.js` / `main.83e6fa5a.css`.
+- [ ] Restart once and prove V2 launch plus Emergency STOP with the corrected options parser.

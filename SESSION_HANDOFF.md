@@ -1409,3 +1409,51 @@ Do not change frontend CSS/design while doing the scanner contract cleanup unles
   passed. `630e1a0f` is pushed to `refactor/perform-actions-decomposition`.
 - [ ] The running application was not restarted. Live evidence from a new V2 run remains required
   in `ar_web_smoke_execution.log` and `ar_web_execution_v2.log` after restart.
+
+## Owner-bound Smoke Integration emergency STOP - 2026-08-15
+
+- [x] Frontend `19b8bb8` keeps STOP enabled before, during, and after Integration. It sends an
+  owner/binding/workspace/graph-correlated `smokeTest.integration.forceStop` even when START has
+  not returned a run ID. A late START response cannot restore a cancelled run.
+- [x] Backend `d99708c6` tracks pending START attempts separately from registered runs. Emergency
+  STOP cancels an exact current-owner pending V1/V2 startup, interrupts an exact active run, clears
+  admission counters idempotently, and does not terminate the ARWeb JVM or another Bot Job owner.
+  The emergency authorization path deliberately avoids the Bot Job registry lock so a V1 browser
+  navigation holding that lock cannot prevent cancellation.
+- [x] Focused backend verification passed 14/14, including V1 cancellation before run ID and exact
+  V2 interruption. Focused React verification passed 5/5. The production React build completed
+  with only established repository lint warnings. `git diff --check` passed.
+- [x] Deployment `4e5638fb` mirrors 61 exact files into backend resources and `target/classes`.
+  Live entrypoints are `main.d6be4c21.js` (SHA-256
+  `400863337A69ED124CEC1A033D0A2322337BD6E42A0E318E0BD23B4D60828C73`) and
+  `main.3fd23b90.css` (SHA-256
+  `F368682586257172C6940E406D81E1400309F72A578CCC0F15ECF1AFDBD87E74`).
+- [x] Fresh BancaStato ARWeb PID 3944 started at 09:11:54 from `target/classes`, remained
+  responsive on `127.0.0.1:50176/50177`, and served both new entrypoints over HTTP 200.
+- [x] Live Bot Job 5 V1 evidence: START entered `V1_BROWSER_RESERVING` with `pendingStarts=1` and
+  no run ID; STOP logged `FORCE_STOP_SETTLED` with `pendingStartsCancelled=1`,
+  `activeRunsInterrupted=0`, and `forcedV1=true`. A second START was admitted and registered as
+  run `62e111b5-261e-4a71-b4db-38236280f193`, proving ownership release. Its normal correlated STOP
+  logged `STOP_RECEIVED`, `STOP_ADMITTED`, `RUN_INTERRUPT_REQUESTED`, `RUN_TERMINATING`, and
+  `RUN_TERMINATED`; the immediately repeated emergency STOP safely settled as idle. PID 3944 stayed
+  healthy throughout.
+- [ ] V2 live emergency-stop acceptance remains. The exact V2 service path is covered by the
+  focused test, but no live isolated V2 browser was started or stopped in this checkpoint.
+- [x] The first live V2 retry exposed a separate legacy Bot Job 5 options defect before browser
+  admission: its database value concatenates active `arg:` markers without delimiters and uses
+  one leading hyphen. SERVER reached READY, but each START correctly failed with
+  `Execution V2 browser argument is invalid`; Runtime Instances remained empty.
+- [x] Backend `639bb634` recovers only active concatenated `arg:`/`argument:` markers, ignores
+  `#arg:` and proxy metadata, normalizes a safe single leading hyphen to `--`, and retains the
+  existing 32-entry/512-byte/control-character validation. Privacy-safe logs now record parsed or
+  rejected counts/lengths without option values. Focused V2 coordinator/client verification passed
+  13/13 and Java compilation passed with 583 main sources.
+- [x] Frontend `77c027b` blocks V2 Run with the short message `Start SERVER before running V2.`
+  when the server is not READY and gives the SERVER control an orange glow while V2 is selected
+  and unavailable. The production build passed with established warnings.
+- [x] The latest exact 61-file deployment uses `main.ad474808.js` (SHA-256
+  `814ECCE17F559A814FAE9C7FBA3C9D7B06961ED3F98412167F32F2369F150DE9`) and
+  `main.83e6fa5a.css` (SHA-256
+  `AD722AC9CECB2992EF7D772A8E3BA8CB5EC98D709605330AD2069EF4DD3EE4E6`).
+- [ ] The user intentionally closed the test application. Restart one fresh ARWeb instance, start
+  SERVER, then rerun V2 and Emergency STOP to complete live V2 acceptance.
