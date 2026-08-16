@@ -1,4 +1,5 @@
-import { BrowserSessionFactory, BrowserSessionHandle } from '../browser/browserSessionFactory';
+import { BrowserScannerRequest, BrowserSessionFactory, BrowserSessionHandle } from '../browser/browserSessionFactory';
+import { randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import { ExecutionSession } from '../session/executionSession';
 import { ExecutionLaunchDescriptor, ExecutionSessionSnapshot } from '../session/sessionContracts';
 import { PhysicalActionRequest, PhysicalActionResult } from '../action/actionContracts';
@@ -26,11 +27,19 @@ export class PlaywrightWorkerPool {
   private readonly entries = new Map<string, PoolEntry>();
   private readonly queue: string[] = [];
   private readonly retained = new Map<string, BrowserSessionHandle>();
+  private readonly scanners = new Map<string, {
+    ownerKey: string;
+    handle: BrowserSessionHandle;
+    token: string;
+    idleTimer: NodeJS.Timeout;
+    busy: boolean;
+  }>();
   private draining = false;
 
   constructor(
     private readonly factory: BrowserSessionFactory,
     private readonly limits: WorkerPoolLimits,
+    private readonly trace: (event: string) => void = () => undefined,
   ) {
     for (const value of Object.values(limits)) {
       if (!Number.isInteger(value) || value < 1) throw new Error('WORKER_POOL_LIMIT_INVALID');
@@ -44,6 +53,9 @@ export class PlaywrightWorkerPool {
       throw new PlaywrightWorkerPoolError('WORKER_QUEUE_CAPACITY_REACHED');
     }
     const ownerKey = this.ownerKey(descriptor.run);
+    if ([...this.scanners.values()].some(scanner => scanner.ownerKey === ownerKey)) {
+      throw new PlaywrightWorkerPoolError('SCANNER_SESSION_CONFLICT');
+    }
     const retainedHandle = this.retained.get(ownerKey);
     if (retainedHandle) this.retained.delete(ownerKey);
     if (!retainedHandle && this.retained.size >= this.limits.maximumActiveRuns) {
@@ -140,11 +152,104 @@ export class PlaywrightWorkerPool {
     this.scheduleDrain();
   }
 
+  openScanner(owner: { organizationId: number; homeBankingId: number; botJobId: number }): {
+    scannerId: string;
+    scannerToken: string;
+  } {
+    const ownerKey = this.ownerKey(owner);
+    if ([...this.scanners.values()].some(scanner => scanner.ownerKey === ownerKey)) {
+      throw new PlaywrightWorkerPoolError('SCANNER_SESSION_CONFLICT');
+    }
+    const handle = this.retained.get(ownerKey);
+    if (!handle) throw new PlaywrightWorkerPoolError('RETAINED_BROWSER_NOT_FOUND');
+    this.retained.delete(ownerKey);
+    const scannerId = randomUUID();
+    const scannerToken = randomBytes(32).toString('base64url');
+    const idleTimer = this.scannerIdleTimer(scannerId);
+    this.scanners.set(scannerId, { ownerKey, handle, token: scannerToken, idleTimer, busy: false });
+    return { scannerId, scannerToken };
+  }
+
+  async scanner(
+    scannerId: string,
+    scannerToken: string,
+    request: BrowserScannerRequest,
+  ): Promise<unknown> {
+    const scanner = this.scanners.get(scannerId);
+    if (!scanner || !this.scannerTokenMatches(scanner.token, scannerToken)) {
+      throw new PlaywrightWorkerPoolError('SCANNER_SESSION_NOT_FOUND');
+    }
+    if (scanner.busy) throw new PlaywrightWorkerPoolError('SCANNER_SESSION_BUSY');
+    scanner.busy = true;
+    clearTimeout(scanner.idleTimer);
+    try {
+      return await scanner.handle.scanner(request);
+    } finally {
+      if (this.scanners.get(scannerId) === scanner) {
+        scanner.busy = false;
+        scanner.idleTimer = this.scannerIdleTimer(scannerId);
+      }
+    }
+  }
+
+  closeScanner(
+    scannerId: string,
+    scannerToken: string,
+  ): void {
+    const scanner = this.scanners.get(scannerId);
+    if (!scanner || !this.scannerTokenMatches(scanner.token, scannerToken)) {
+      throw new PlaywrightWorkerPoolError('SCANNER_SESSION_NOT_FOUND');
+    }
+    if (scanner.busy) throw new PlaywrightWorkerPoolError('SCANNER_SESSION_BUSY');
+    if (this.retained.has(scanner.ownerKey)) {
+      throw new PlaywrightWorkerPoolError('RETAINED_SESSION_CONFLICT');
+    }
+    this.parkScanner(scannerId, scanner);
+  }
+
   async closeAll(): Promise<void> {
     const runIds = [...this.entries.keys()];
     await Promise.allSettled(runIds.map(runId => this.closeBrowser(runId)));
     await Promise.allSettled([...this.retained.values()].map(handle => handle.close()));
+    await Promise.allSettled([...this.scanners.values()].map(scanner => {
+      clearTimeout(scanner.idleTimer);
+      return scanner.handle.close();
+    }));
     this.retained.clear();
+    this.scanners.clear();
+  }
+
+  private scannerIdleTimer(scannerId: string): NodeJS.Timeout {
+    const timer = setTimeout(() => {
+      const scanner = this.scanners.get(scannerId);
+      if (scanner) {
+        this.parkScanner(scannerId, scanner);
+        this.trace('scanner.lease.expired');
+      }
+    }, 10 * 60 * 1_000);
+    timer.unref();
+    return timer;
+  }
+
+  private parkScanner(
+    scannerId: string,
+    scanner: {
+      ownerKey: string;
+      handle: BrowserSessionHandle;
+      token: string;
+      idleTimer: NodeJS.Timeout;
+      busy: boolean;
+    },
+  ): void {
+    clearTimeout(scanner.idleTimer);
+    this.scanners.delete(scannerId);
+    if (!this.retained.has(scanner.ownerKey)) this.retained.set(scanner.ownerKey, scanner.handle);
+  }
+
+  private scannerTokenMatches(expected: string, supplied: string): boolean {
+    const expectedBytes = Buffer.from(expected, 'utf8');
+    const suppliedBytes = Buffer.from(supplied || '', 'utf8');
+    return expectedBytes.length === suppliedBytes.length && timingSafeEqual(expectedBytes, suppliedBytes);
   }
 
   private scheduleDrain(): void {

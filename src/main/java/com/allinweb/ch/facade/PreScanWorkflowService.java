@@ -35,6 +35,14 @@ public final class PreScanWorkflowService {
                 element -> PreScanApplyService.getInstance().buildTestInstruction(element));
     }
 
+    /** Creates a workflow over a separately leased Playwright-compatible driver. */
+    public static PreScanWorkflowService forDriver(com.allinweb.ch.driver.ARPlaywrightDriver driver) {
+        return new PreScanWorkflowService(
+                new DirectDriverBrowserPort(driver),
+                new DefaultDiagnosticsPort(),
+                element -> PreScanApplyService.getInstance().buildTestInstruction(element));
+    }
+
     PreScanWorkflowService(BrowserPort browser, DiagnosticsPort diagnostics, InstructionPort instructions) {
         this.browser = browser;
         this.diagnostics = diagnostics;
@@ -458,6 +466,37 @@ public final class PreScanWorkflowService {
         public boolean fillOnce(InstructionLoad instruction, FieldData data) { return session.fillOnce(instruction, data); }
         public com.allinweb.ch.driver.ARPlaywrightDriver playwrightDriver() { return session.playwrightDriver(); }
         public void shutdown() { session.shutdown(); }
+    }
+
+    private static final class DirectDriverBrowserPort implements BrowserPort {
+        private final com.allinweb.ch.driver.ARPlaywrightDriver driver;
+        private final java.util.concurrent.atomic.AtomicBoolean running =
+                new java.util.concurrent.atomic.AtomicBoolean();
+        private DirectDriverBrowserPort(com.allinweb.ch.driver.ARPlaywrightDriver driver) {
+            this.driver = Objects.requireNonNull(driver, "Page Scanner driver is required");
+        }
+        public boolean tryBeginScan() { return running.compareAndSet(false, true); }
+        public void finishScan() { running.set(false); }
+        public boolean isScanRunning() { return running.get(); }
+        public boolean isOpen() { return driver.isOpen(); }
+        public void assertBrowserCompatible(String browserType) { driver.assertBrowserCompatible(browserType); }
+        public void ensureOpen(String browserType, String endpointUrl, String optionsConfig) {
+            driver.openOrNavigate(browserType, endpointUrl, optionsConfig);
+        }
+        public void reload() { driver.reload(); }
+        public String currentUrl() { return driver.currentUrl(); }
+        public long waitForPageSettled(long maxWaitMs) { return driver.waitForPageSettled(maxWaitMs); }
+        public List<ElementDTO> scanElements(String[] terms, boolean hidden) {
+            return driver.scanElements(terms, hidden);
+        }
+        public boolean click(InstructionLoad instruction) { return driver.click(instruction); }
+        public boolean clickOnce(InstructionLoad instruction) { return driver.clickOnce(instruction); }
+        public boolean fill(InstructionLoad instruction, FieldData data) { return driver.fill(instruction, data); }
+        public boolean fillOnce(InstructionLoad instruction, FieldData data) {
+            return driver.fillOnce(instruction, data);
+        }
+        public com.allinweb.ch.driver.ARPlaywrightDriver playwrightDriver() { return driver; }
+        public void shutdown() { driver.shutdown(); }
     }
 
     private static final class DefaultDiagnosticsPort implements DiagnosticsPort {

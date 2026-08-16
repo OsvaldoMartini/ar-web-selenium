@@ -18,6 +18,7 @@ import com.allinweb.ch.facade.BotJobPreScanPayloadService;
 import com.allinweb.ch.facade.BotJobOrganizationCoordinator;
 import com.allinweb.ch.facade.BotJobWorkspaceController;
 import com.allinweb.ch.facade.PageScannerTaskGate;
+import com.allinweb.ch.facade.PageScannerRuntimeSelector;
 import com.allinweb.ch.facade.PreScanWorkflowService;
 import com.allinweb.ch.facade.PreScanBrowserSession;
 import com.allinweb.ch.facade.ExecutionPauseCoordinator;
@@ -265,6 +266,22 @@ public class BotJobDetailsWorkspaceHost {
         return preScanWorkflowService.currentPageUrl();
     }
 
+    /** Resolves the exact live URL from the runtime selected for this Page Scanner action. */
+    public String currentPageScannerUrl(
+            PageScannerRuntimeSelector.RuntimeMode runtimeMode,
+            PreScanWorkflowService.Context context,
+            long workspaceEpoch) {
+        if (runtimeMode != PageScannerRuntimeSelector.RuntimeMode.TYPESCRIPT_PLAYWRIGHT_V2) {
+            return currentPageScannerUrl();
+        }
+        PreScanWorkflowService workflow = PageScannerRuntimeSelector.openV2(context, workspaceEpoch);
+        try {
+            return workflow.currentPageUrl();
+        } finally {
+            workflow.shutdown();
+        }
+    }
+
     public void setPresentationPort(BotJobDetailsPresentationGateway presentationPort) {
         this.presentationPort = java.util.Objects.requireNonNull(presentationPort, "presentationPort");
     }
@@ -381,12 +398,32 @@ public class BotJobDetailsWorkspaceHost {
                             PreScanWorkflowService.Context context) {
                         handlePreScanCommand(type, body, workspaceSessionId, context);
                     }
+                    public void pageScannerCommand(
+                            String type,
+                            JsonObject body,
+                            String workspaceSessionId,
+                            PreScanWorkflowService.Context context,
+                            PageScannerRuntimeSelector.RuntimeMode runtimeMode,
+                            long workspaceEpoch) {
+                        handlePreScanCommand(
+                                type, body, workspaceSessionId, context, runtimeMode, workspaceEpoch);
+                    }
                     public void pageScannerElementTest(
                             SplitDTO payload,
                             String type,
                             String workspaceSessionId,
                             PreScanWorkflowService.Context context) {
                         handlePreScanElementTest(payload, type, workspaceSessionId, context);
+                    }
+                    public void pageScannerElementTest(
+                            SplitDTO payload,
+                            String type,
+                            String workspaceSessionId,
+                            PreScanWorkflowService.Context context,
+                            PageScannerRuntimeSelector.RuntimeMode runtimeMode,
+                            long workspaceEpoch) {
+                        handlePreScanElementTest(
+                                payload, type, workspaceSessionId, context, runtimeMode, workspaceEpoch);
                     }
                     public void pageMappingsRescan(
                             PreScanWorkflowService.Context context,
@@ -603,8 +640,24 @@ public class BotJobDetailsWorkspaceHost {
             JsonObject jsonEntry,
             String destinationSessionId,
             PreScanWorkflowService.Context context) {
+        handlePreScanCommand(
+                type, jsonEntry, destinationSessionId, context,
+                PageScannerRuntimeSelector.RuntimeMode.JAVA_V1, 0L);
+    }
+
+    public void handlePreScanCommand(
+            String type,
+            JsonObject jsonEntry,
+            String destinationSessionId,
+            PreScanWorkflowService.Context context,
+            PageScannerRuntimeSelector.RuntimeMode runtimeMode,
+            long workspaceEpoch) {
         PreScanWorkflowService.Context commandContext = withCurrentConfiguredBrowser(
                 java.util.Objects.requireNonNull(context, "A Page Scanner context is required"));
+        log.info(
+                "PAGE_SCANNER_RUNTIME_ROUTED operation={} runtimeMode={} hb={} bot={} workspaceEpoch={} destination={}",
+                type, runtimeMode, commandContext.homeBankingId(), commandContext.botJobId(),
+                workspaceEpoch, destinationSessionId);
         if (ScannerWorkspaceOperations.PRE_SCAN_CLEAR_GRID.equals(type)) {
             if (ScannerWorkspaceSessions.isPageScannerSession(destinationSessionId)) {
                 detachedPageScannerTaskGate.clearQueued();
@@ -615,7 +668,20 @@ public class BotJobDetailsWorkspaceHost {
 
         if (ScannerWorkspaceOperations.PRE_SCAN_REFRESH_PAGE.equals(type)) {
             dispatchPreScanOperation(
-                    () -> refreshPreScanPage(commandContext, destinationSessionId),
+                    () -> {
+                        if (runtimeMode == PageScannerRuntimeSelector.RuntimeMode.TYPESCRIPT_PLAYWRIGHT_V2) {
+                            withV2PageScannerWorkflow(
+                                    commandContext, workspaceEpoch, destinationSessionId,
+                                    workflow -> withSharedScannerActivity(
+                                            commandContext,
+                                            destinationSessionId,
+                                            () -> workflow.refresh(
+                                                    commandContext,
+                                                    preScanSink(destinationSessionId, commandContext))));
+                        } else {
+                            refreshPreScanPage(commandContext, destinationSessionId);
+                        }
+                    },
                     "pre-scan-refresh-" + commandContext.botJobId(),
                     destinationSessionId,
                     commandContext);
@@ -634,7 +700,22 @@ public class BotJobDetailsWorkspaceHost {
                 && jsonEntry.get("searchHiddenFields").getAsBoolean();
 
         dispatchPreScanOperation(
-                () -> runPreScan(commandContext, searchTerms, searchHidden, destinationSessionId),
+                () -> {
+                    if (runtimeMode == PageScannerRuntimeSelector.RuntimeMode.TYPESCRIPT_PLAYWRIGHT_V2) {
+                        withV2PageScannerWorkflow(
+                                commandContext, workspaceEpoch, destinationSessionId,
+                                workflow -> withSharedScannerActivity(
+                                        commandContext,
+                                        destinationSessionId,
+                                        () -> workflow.scan(
+                                                commandContext,
+                                                searchTerms,
+                                                searchHidden,
+                                                preScanSink(destinationSessionId, commandContext))));
+                    } else {
+                        runPreScan(commandContext, searchTerms, searchHidden, destinationSessionId);
+                    }
+                },
                 "pre-scan-" + commandContext.botJobId(),
                 destinationSessionId,
                 commandContext);
@@ -992,7 +1073,24 @@ public class BotJobDetailsWorkspaceHost {
             String testType,
             String destinationSessionId,
             PreScanWorkflowService.Context context) {
-        if (!preScanWorkflowService.isOpen()) {
+        handlePreScanElementTest(
+                splitDTO, testType, destinationSessionId, context,
+                PageScannerRuntimeSelector.RuntimeMode.JAVA_V1, 0L);
+    }
+
+    public void handlePreScanElementTest(
+            SplitDTO splitDTO,
+            String testType,
+            String destinationSessionId,
+            PreScanWorkflowService.Context context,
+            PageScannerRuntimeSelector.RuntimeMode runtimeMode,
+            long workspaceEpoch) {
+        log.info(
+                "PAGE_SCANNER_RUNTIME_ROUTED operation={} runtimeMode={} hb={} bot={} workspaceEpoch={} destination={}",
+                testType, runtimeMode, context.homeBankingId(), context.botJobId(),
+                workspaceEpoch, destinationSessionId);
+        if (runtimeMode == PageScannerRuntimeSelector.RuntimeMode.JAVA_V1
+                && !preScanWorkflowService.isOpen()) {
             sendPreScanStatus(
                     destinationSessionId,
                     context,
@@ -1007,7 +1105,21 @@ public class BotJobDetailsWorkspaceHost {
         }
         ElementDTO elementDTO = details[0];
         dispatchPreScanOperation(
-                () -> runPreScanElementTest(elementDTO, testType, destinationSessionId, context),
+                () -> {
+                    if (runtimeMode == PageScannerRuntimeSelector.RuntimeMode.TYPESCRIPT_PLAYWRIGHT_V2) {
+                        withV2PageScannerWorkflow(
+                                context, workspaceEpoch, destinationSessionId,
+                                workflow -> withSharedScannerActivity(
+                                        context,
+                                        destinationSessionId,
+                                        () -> workflow.testElement(
+                                                elementDTO,
+                                                testType,
+                                                preScanSink(destinationSessionId, context))));
+                    } else {
+                        runPreScanElementTest(elementDTO, testType, destinationSessionId, context);
+                    }
+                },
                 "pre-scan-test-" + context.botJobId(),
                 destinationSessionId,
                 context);
@@ -1032,6 +1144,65 @@ public class BotJobDetailsWorkspaceHost {
     private void closePageScannerOperations() {
         detachedPageScannerTaskGate.clearQueued();
         preScanWorkflowService.shutdown();
+    }
+
+    private void withV2PageScannerWorkflow(
+            PreScanWorkflowService.Context context,
+            long workspaceEpoch,
+            String destinationSessionId,
+            java.util.function.Consumer<PreScanWorkflowService> operation) {
+        long started = System.nanoTime();
+        log.info(
+                "PAGE_SCANNER_V2_LEASE_REQUESTED hb={} bot={} workspaceEpoch={}",
+                context.homeBankingId(), context.botJobId(), workspaceEpoch);
+        PreScanWorkflowService workflow;
+        try {
+            workflow = PageScannerRuntimeSelector.openV2(context, workspaceEpoch);
+        } catch (RuntimeException unavailable) {
+            log.warn(
+                    "PAGE_SCANNER_V2_LEASE_REFUSED hb={} bot={} workspaceEpoch={} failureType={} message={}",
+                    context.homeBankingId(), context.botJobId(), workspaceEpoch,
+                    unavailable.getClass().getSimpleName(), unavailable.getMessage());
+            sendPreScanStatus(
+                    destinationSessionId,
+                    context,
+                    "failed",
+                    pageScannerV2FailureMessage(unavailable),
+                    0);
+            return;
+        }
+        log.info(
+                "PAGE_SCANNER_V2_LEASE_ACQUIRED hb={} bot={} workspaceEpoch={}",
+                context.homeBankingId(), context.botJobId(), workspaceEpoch);
+        try {
+            operation.accept(workflow);
+        } finally {
+            try {
+                workflow.shutdown();
+                log.info(
+                        "PAGE_SCANNER_V2_LEASE_RELEASED hb={} bot={} workspaceEpoch={} durationMs={}",
+                        context.homeBankingId(), context.botJobId(), workspaceEpoch,
+                        Math.max(0L, (System.nanoTime() - started) / 1_000_000L));
+            } catch (RuntimeException failure) {
+                log.error(
+                        "PAGE_SCANNER_V2_LEASE_RELEASE_FAILED hb={} bot={} workspaceEpoch={} failureType={}",
+                        context.homeBankingId(), context.botJobId(), workspaceEpoch,
+                        failure.getClass().getSimpleName());
+                throw failure;
+            }
+        }
+    }
+
+    private static String pageScannerV2FailureMessage(RuntimeException failure) {
+        String message = failure == null ? "" : java.util.Objects.toString(failure.getMessage(), "");
+        if (message.contains("RETAINED_BROWSER_NOT_FOUND")) {
+            return "No stopped V2 browser is available for this Bot Job. Run V2 first, then Stop it and retry Page Scanner.";
+        }
+        if (message.contains("SCANNER_SESSION_CONFLICT")) {
+            return "This Bot Job's V2 browser is already being scanned. Wait for that Page Scanner action to finish.";
+        }
+        if (message.contains("not configured")) return message;
+        return "The selected V2 browser could not be leased for Page Scanner. Check the execution trace and retry.";
     }
 
     private void runPreScanElementTest(ElementDTO elementDTO, String testType) {

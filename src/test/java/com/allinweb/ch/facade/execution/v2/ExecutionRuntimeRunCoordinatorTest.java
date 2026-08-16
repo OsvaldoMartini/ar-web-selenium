@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.allinweb.ch.facade.RuntimeElementHealingService.Preparation;
+import com.allinweb.ch.driver.ExecutionV2PageScannerDriver;
 import com.allinweb.ch.facade.RuntimeElementHealingService.Status;
 import com.allinweb.ch.facade.execution.SmokeTestIntegrationSnapshotRepository.BlockSnapshot;
 import com.allinweb.ch.facade.execution.SmokeTestIntegrationSnapshotRepository.Environment;
@@ -14,11 +15,13 @@ import com.allinweb.ch.facade.execution.SmokeTestIntegrationSnapshotRepository.O
 import com.allinweb.ch.facade.execution.SmokeTestIntegrationSnapshotRepository.Plan;
 import com.allinweb.ch.facade.execution.v2.ExecutionRuntimeRunCoordinator.Authority;
 import com.allinweb.ch.facade.execution.v2.ExecutionRuntimeRunCoordinator.RuntimePort;
+import com.allinweb.ch.facade.execution.v2.ExecutionRuntimeRunCoordinator.ScannerAuthority;
 import com.allinweb.ch.facade.execution.v2.ExecutionV2Contracts.AuthorizedGrantFacts;
 import com.allinweb.ch.facade.execution.v2.ExecutionV2Contracts.DataMode;
 import com.allinweb.ch.facade.execution.v2.ExecutionV2Contracts.IssuedGrant;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts.Scope;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
 import java.time.Instant;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -33,6 +36,42 @@ class ExecutionRuntimeRunCoordinatorTest {
     private static final String PREVIOUS_PAGE_KEY = "url-v1:" + "d".repeat(64);
     private static final String PLAN_REVISION = "b".repeat(64);
     private static final String GRAPH_REVISION = "c".repeat(64);
+
+    @Test
+    void scannerUsesOneOwnerScopedAuthorityAndClosesExactlyOnce() {
+        FakeRuntime runtime = new FakeRuntime();
+        ExecutionRuntimeRunCoordinator coordinator = coordinator(runtime);
+
+        ExecutionRuntimeRunCoordinator.ScannerSession scanner = coordinator.openScanner(facts());
+        JsonObject request = new JsonObject();
+        request.addProperty("operation", "url");
+        assertEquals("https://example.test/current", scanner.exchange(request).getAsString());
+        scanner.close();
+        scanner.close();
+
+        assertEquals(1, runtime.scannerOpenCount);
+        assertEquals(1, runtime.scannerRpcCount);
+        assertEquals(1, runtime.scannerCloseCount);
+        assertThrows(IllegalStateException.class, () -> scanner.exchange(request));
+    }
+
+    @Test
+    void remotePageScannerDriverUsesTheScannerAuthorityAndReleasesItsLocalExecutor() {
+        FakeRuntime runtime = new FakeRuntime();
+        ExecutionV2PageScannerDriver driver = new ExecutionV2PageScannerDriver(
+                coordinator(runtime).openScanner(facts()));
+
+        assertEquals("https://example.test/current", driver.currentUrl());
+        int[] viewport = driver.viewportSize();
+        assertEquals(1912, viewport[0]);
+        assertEquals(948, viewport[1]);
+        assertEquals("png", new String(driver.screenshot(false), java.nio.charset.StandardCharsets.UTF_8));
+        driver.shutdown();
+
+        assertFalse(driver.isOpen());
+        assertEquals(3, runtime.scannerRpcCount);
+        assertEquals(1, runtime.scannerCloseCount);
+    }
 
     @Test
     void ownsQueuedStartAuthoritativeActionAndExactTerminalCleanup() {
@@ -336,9 +375,11 @@ class ExecutionRuntimeRunCoordinatorTest {
     }
 
     private static final class FakeAuthority implements Authority {}
+    private static final class FakeScannerAuthority implements ScannerAuthority {}
 
     private static final class FakeRuntime implements RuntimePort {
         private final Authority authority = new FakeAuthority();
+        private final ScannerAuthority scannerAuthority = new FakeScannerAuthority();
         private final Queue<JsonObject> snapshots = new ArrayDeque<>();
         private int reserveCount;
         private int heartbeatCount;
@@ -350,6 +391,9 @@ class ExecutionRuntimeRunCoordinatorTest {
         private final Queue<JsonObject> actionResponses = new ArrayDeque<>();
         private boolean failActions;
         private ExecutionRuntimeHttpClient.StartFacts lastStartFacts;
+        private int scannerOpenCount;
+        private int scannerRpcCount;
+        private int scannerCloseCount;
 
         @Override
         public Authority reserve(IssuedGrant grant) {
@@ -399,6 +443,36 @@ class ExecutionRuntimeRunCoordinatorTest {
         public JsonObject release(Authority authority) {
             releaseCount++;
             return new JsonObject();
+        }
+
+        @Override
+        public ScannerAuthority openScanner(IssuedGrant grant) {
+            scannerOpenCount++;
+            return scannerAuthority;
+        }
+
+        @Override
+        public com.google.gson.JsonElement scanner(ScannerAuthority authority, JsonObject request) {
+            assertEquals(scannerAuthority, authority);
+            scannerRpcCount++;
+            String operation = request.get("operation").getAsString();
+            if ("viewport".equals(operation)) {
+                com.google.gson.JsonArray viewport = new com.google.gson.JsonArray();
+                viewport.add(1912);
+                viewport.add(948);
+                return viewport;
+            }
+            if ("screenshot".equals(operation)) {
+                return new JsonPrimitive(java.util.Base64.getEncoder().encodeToString(
+                        "png".getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+            }
+            return new JsonPrimitive("https://example.test/current");
+        }
+
+        @Override
+        public void closeScanner(ScannerAuthority authority) {
+            assertEquals(scannerAuthority, authority);
+            scannerCloseCount++;
         }
     }
 

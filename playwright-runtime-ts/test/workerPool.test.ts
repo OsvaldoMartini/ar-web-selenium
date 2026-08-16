@@ -1,8 +1,12 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { test } from 'node:test';
-import { BrowserSessionFactory, BrowserSessionHandle } from '../src/browser/browserSessionFactory';
-import { PlaywrightWorkerPool } from '../src/pool/playwrightWorkerPool';
+import {
+  BrowserScannerRequest,
+  BrowserSessionFactory,
+  BrowserSessionHandle,
+} from '../src/browser/browserSessionFactory';
+import { PlaywrightWorkerPool, PlaywrightWorkerPoolError } from '../src/pool/playwrightWorkerPool';
 import { ExecutionLaunchDescriptor, ExecutionSessionState } from '../src/session/sessionContracts';
 import { PhysicalActionRequest, PhysicalActionResult } from '../src/action/actionContracts';
 
@@ -16,6 +20,7 @@ class FakeHandle implements BrowserSessionHandle {
   closed = false;
   refreshCount = 0;
   actionCount = 0;
+  scannerOperations: string[] = [];
   private rejectNavigation?: (error: Error) => void;
   private rejectAction?: (error: Error) => void;
   private unexpectedCloseCode?: string;
@@ -75,6 +80,12 @@ class FakeHandle implements BrowserSessionHandle {
         physicalAttempts: 1,
       },
     };
+  }
+
+  async scanner(request: BrowserScannerRequest): Promise<unknown> {
+    if (this.closed) throw new Error('BROWSER_SESSION_CLOSED');
+    this.scannerOperations.push(request.operation);
+    return request.operation === 'url' ? 'https://example.test/current' : true;
   }
 
   interrupt(): void {
@@ -353,6 +364,47 @@ test('stop parks the browser and the next exact owner run reuses it', async () =
   assert.equal(reused.pageInstanceId, original.pageInstanceId);
   assert.equal(factory.handles.get(first.run.runId)?.boundRunId, replacement.run.runId);
   assert.equal(factory.handles.has(replacement.run.runId), false);
+  await pool.closeAll();
+});
+
+test('scanner leases only the exact retained owner and returns the same browser after close', async () => {
+  const first = descriptor(13, 29);
+  const replacement = descriptor(13, 29);
+  const otherOwner = descriptor(2, 32);
+  const factory = new FakeFactory();
+  const pool = new PlaywrightWorkerPool(factory, limits);
+  pool.enqueue(first);
+  await waitForState(pool, first.run.runId, 'READY');
+  const original = pool.snapshot(first.run.runId);
+  await pool.stop(first.run.runId);
+  pool.release(first.run.runId);
+
+  const scanner = pool.openScanner(first.run);
+  assert.equal(
+    await pool.scanner(scanner.scannerId, scanner.scannerToken, { operation: 'url' }),
+    'https://example.test/current',
+  );
+  await assert.rejects(
+    () => pool.scanner(scanner.scannerId, 'x'.repeat(43), { operation: 'url' }),
+    (error: unknown) => error instanceof PlaywrightWorkerPoolError
+      && error.code === 'SCANNER_SESSION_NOT_FOUND',
+  );
+  assert.throws(
+    () => pool.openScanner(otherOwner.run),
+    (error: unknown) => error instanceof PlaywrightWorkerPoolError
+      && error.code === 'RETAINED_BROWSER_NOT_FOUND',
+  );
+  assert.throws(
+    () => pool.enqueue(replacement),
+    (error: unknown) => error instanceof PlaywrightWorkerPoolError
+      && error.code === 'SCANNER_SESSION_CONFLICT',
+  );
+
+  pool.closeScanner(scanner.scannerId, scanner.scannerToken);
+  pool.enqueue(replacement);
+  await waitForState(pool, replacement.run.runId, 'READY');
+  assert.equal(pool.snapshot(replacement.run.runId).browserInstanceId, original.browserInstanceId);
+  assert.deepEqual(factory.handles.get(first.run.runId)?.scannerOperations, ['url']);
   await pool.closeAll();
 });
 

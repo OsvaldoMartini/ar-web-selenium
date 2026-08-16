@@ -28,7 +28,7 @@ public final class ExecutionRuntimeHttpClient {
     private static final org.slf4j.Logger executionTrace =
             org.slf4j.LoggerFactory.getLogger("com.allinweb.smoke.execution");
     private static final String TOKEN_HEADER = "X-ARWeb-Run-Token";
-    private static final int MAX_RESPONSE_BYTES = 10 * 1024 * 1024;
+    private static final int MAX_RESPONSE_BYTES = 16 * 1024 * 1024;
     private static final Pattern TOKEN = Pattern.compile("[A-Za-z0-9_-]{43}");
 
     private final ExecutionRuntimeClientConfiguration configuration;
@@ -112,6 +112,33 @@ public final class ExecutionRuntimeHttpClient {
         JsonObject response = tokenExchange("DELETE", run, "release", null);
         run.retire();
         return response;
+    }
+
+    ScannerRun openScanner(IssuedGrant grant) {
+        Objects.requireNonNull(grant, "Execution V2 scanner grant is required");
+        JsonObject response = exchange(
+                "POST", "/v2/scanners/open", grant.compactGrant(), null, null);
+        String token = requiredString(response, "scannerToken", false);
+        if (!isCanonicalToken(token)) {
+            throw new ExecutionRuntimeClientException("RUNTIME_RESPONSE_INVALID");
+        }
+        return new ScannerRun(requiredString(response, "scannerId", true), token);
+    }
+
+    JsonElement scanner(ScannerRun scanner, JsonObject request) {
+        Objects.requireNonNull(scanner, "Execution V2 scanner is required");
+        JsonObject response = exchange(
+                "POST", "/v2/scanners/" + scanner.scannerId() + "/rpc",
+                null, scanner.requireToken(), request);
+        return response.has("value") ? response.get("value").deepCopy() : com.google.gson.JsonNull.INSTANCE;
+    }
+
+    void closeScanner(ScannerRun scanner) {
+        if (scanner == null || scanner.closed()) return;
+        exchange(
+                "POST", "/v2/scanners/" + scanner.scannerId() + "/close",
+                null, scanner.requireToken(), null);
+        scanner.close();
     }
 
     private JsonObject tokenExchange(
@@ -291,6 +318,24 @@ public final class ExecutionRuntimeHttpClient {
         public StartFacts(URI endpoint, boolean headless, String channel) {
             this(endpoint, headless, channel, List.of());
         }
+    }
+
+    static final class ScannerRun {
+        private final String scannerId;
+        private String token;
+
+        ScannerRun(String scannerId, String token) {
+            this.scannerId = scannerId;
+            this.token = token;
+        }
+
+        String scannerId() { return scannerId; }
+        boolean closed() { return token == null; }
+        String requireToken() {
+            if (token == null) throw new ExecutionRuntimeClientException("SCANNER_SESSION_CLOSED");
+            return token;
+        }
+        void close() { token = null; }
     }
 
     public static final class RuntimeRun {

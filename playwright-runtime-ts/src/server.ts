@@ -15,6 +15,7 @@ import { createSafeLogger } from './logging/safeLogger';
 import type { SafeLogSink } from './logging/safeLogger';
 import { createFileSafeLogSink } from './logging/fileSafeLogSink';
 import { PlaywrightWorkerPool, PlaywrightWorkerPoolError } from './pool/playwrightWorkerPool';
+import type { BrowserScannerRequest } from './browser/browserSessionFactory';
 import { ExecutionGrantError, ExecutionGrantVerifier } from './security/executionGrantVerifier';
 import { ExecutionLaunchDescriptor, ExecutionSessionSnapshot } from './session/sessionContracts';
 
@@ -35,7 +36,16 @@ interface RuntimeWorkerPool {
   stop(runId: string): Promise<ExecutionSessionSnapshot>;
   closeBrowser(runId: string): Promise<ExecutionSessionSnapshot>;
   release(runId: string): void;
+  openScanner(owner: RuntimeOwner): { scannerId: string; scannerToken: string };
+  scanner(scannerId: string, scannerToken: string, request: BrowserScannerRequest): Promise<unknown>;
+  closeScanner(scannerId: string, scannerToken: string): void;
   closeAll(): Promise<void>;
+}
+
+interface RuntimeOwner {
+  readonly organizationId: number;
+  readonly homeBankingId: number;
+  readonly botJobId: number;
 }
 
 interface RuntimeServerOptions {
@@ -99,6 +109,14 @@ const bearerGrant = (request: IncomingMessage): string => {
   return grant;
 };
 
+const scannerToken = (request: IncomingMessage): string => {
+  const raw = request.headers['x-arweb-run-token'];
+  if (typeof raw !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(raw)) {
+    throw new ExecutionGrantError('SCANNER_TOKEN_REQUIRED');
+  }
+  return raw;
+};
+
 const runAccessToken = (request: IncomingMessage): string => {
   const value = request.headers['x-arweb-run-token'];
   if (!value || Array.isArray(value)) throw new ExecutionRegistryError('RUN_TOKEN_REQUIRED');
@@ -144,12 +162,54 @@ const parseLaunchBody = (value: unknown): Omit<ExecutionLaunchDescriptor, 'run'>
 const launchFingerprint = (launch: Omit<ExecutionLaunchDescriptor, 'run'>): string =>
   createHash('sha256').update(JSON.stringify(launch), 'utf8').digest('hex');
 
+const parseScannerRequest = (value: unknown): BrowserScannerRequest => {
+  if (!isRecord(value) || typeof value.operation !== 'string') {
+    throw new Error('SCANNER_REQUEST_INVALID');
+  }
+  const operation = value.operation;
+  if (operation === 'evaluate') {
+    if (Object.keys(value).some(key => !['operation', 'script', 'argument'].includes(key))
+        || typeof value.script !== 'string' || value.script.length < 1 || value.script.length > 1_000_000) {
+      throw new Error('SCANNER_REQUEST_INVALID');
+    }
+    return { operation, script: value.script, ...(Object.hasOwn(value, 'argument')
+      ? { argument: value.argument } : {}) };
+  }
+  if (operation === 'screenshot') {
+    if (Object.keys(value).some(key => !['operation', 'fullPage'].includes(key))
+        || typeof value.fullPage !== 'boolean') throw new Error('SCANNER_REQUEST_INVALID');
+    return { operation, fullPage: value.fullPage };
+  }
+  if (operation === 'test-element') {
+    if (Object.keys(value).some(key => !['operation', 'action', 'xpath', 'css', 'value'].includes(key))
+        || (value.action !== 'CLICK' && value.action !== 'INPUT')
+        || typeof value.xpath !== 'string' || value.xpath.length > 16_384
+        || typeof value.css !== 'string' || value.css.length > 16_384
+        || (value.xpath.length === 0 && value.css.length === 0)
+        || typeof value.value !== 'string' || value.value.length > 1_000_000) {
+      throw new Error('SCANNER_REQUEST_INVALID');
+    }
+    return {
+      operation,
+      action: value.action,
+      xpath: value.xpath,
+      css: value.css,
+      value: value.value,
+    };
+  }
+  if (!['url', 'title', 'content', 'viewport', 'wait-settled', 'reload'].includes(operation)
+      || Object.keys(value).length !== 1) throw new Error('SCANNER_REQUEST_INVALID');
+  return { operation } as BrowserScannerRequest;
+};
+
 const errorStatus = (code: string): number => {
   if (code === 'RUNTIME_NOT_READY') return 503;
   if (code === 'RUNTIME_CAPACITY_REACHED') return 429;
   if (code === 'RUN_NOT_FOUND') return 404;
   if (code === 'RUN_AUTHORITY_MISMATCH' || code === 'RUN_CAPABILITY_MISSING') return 403;
   if (code === 'RUN_TOKEN_REQUIRED') return 401;
+  if (code === 'SCANNER_TOKEN_REQUIRED') return 401;
+  if (code === 'SCANNER_SESSION_NOT_FOUND' || code === 'RETAINED_BROWSER_NOT_FOUND') return 404;
   if (code === 'WORKER_QUEUE_CAPACITY_REACHED') return 429;
   if (code.endsWith('_CONFLICT')) return 409;
   if (code === 'RUN_ACTIVE_RELEASE_REQUIRES_TOKEN' || code === 'RUN_NOT_ACTIVE') return 409;
@@ -170,6 +230,7 @@ export const createRuntimeServer = (options: RuntimeServerOptions = {}) => {
       maximumActiveRunsPerOrganization: config.maximumActiveRunsPerOrganization,
       maximumActiveRunsPerBotJob: config.maximumActiveRunsPerBotJob,
     },
+    event => log({ event }),
   );
   const registry = new ExecutionRegistry(
     config.maxReservedRuns,
@@ -255,6 +316,41 @@ export const createRuntimeServer = (options: RuntimeServerOptions = {}) => {
           count: registry.size(),
         });
         success(response, reservation.created ? 201 : 200, reservation);
+        return;
+      }
+
+      if (method === 'POST' && path === '/v2/scanners/open') {
+        const verified = verifier.verify(bearerGrant(request));
+        requireCapability(verified.claims, 'runtime.action');
+        await discardSmallBody(request);
+        const scanner = workerPool.openScanner(verified.claims);
+        log({ event: 'scanner.opened', runId: verified.claims.runId });
+        success(response, 201, scanner);
+        return;
+      }
+      const scannerMatch = /^\/v2\/scanners\/([0-9a-f-]+)\/(rpc|close)$/i.exec(path);
+      const scannerId = scannerMatch?.[1];
+      const scannerOperation = scannerMatch?.[2]?.toLowerCase();
+      if (scannerId && UUID_PATTERN.test(scannerId) && scannerOperation) {
+        if (method === 'POST' && scannerOperation === 'rpc') {
+          const scannerRequest = parseScannerRequest(
+            await readJsonBody(request, MAX_ACTION_BODY_BYTES),
+          );
+          log({ event: 'scanner.rpc.started', operation: scannerRequest.operation });
+          success(response, 200, { value: await workerPool.scanner(
+            scannerId, scannerToken(request), scannerRequest,
+          ) });
+          log({ event: 'scanner.rpc.completed', operation: scannerRequest.operation });
+          return;
+        }
+        if (method === 'POST' && scannerOperation === 'close') {
+          await discardSmallBody(request);
+          workerPool.closeScanner(scannerId, scannerToken(request));
+          log({ event: 'scanner.closed' });
+          success(response, 200, { scannerId });
+          return;
+        }
+        failure(response, 405, 'METHOD_NOT_ALLOWED', 'The HTTP method is not supported.');
         return;
       }
 

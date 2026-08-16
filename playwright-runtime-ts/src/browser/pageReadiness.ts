@@ -39,6 +39,10 @@ export class PageReadiness {
     await this.waitForStableDocument(page);
   }
 
+  async waitForStable(page: Page): Promise<void> {
+    await this.waitForStableDocument(page);
+  }
+
   private async waitForStableDocument(page: Page): Promise<void> {
     const deadline = Date.now() + this.options.stabilityTimeoutMs;
     let prior = '';

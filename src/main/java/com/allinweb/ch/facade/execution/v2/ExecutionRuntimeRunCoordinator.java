@@ -8,6 +8,7 @@ import com.allinweb.ch.facade.execution.SmokeTestIntegrationSnapshotRepository.P
 import com.allinweb.ch.facade.execution.v2.ExecutionRuntimeHttpClient.RuntimeRun;
 import com.allinweb.ch.facade.execution.v2.ExecutionV2Contracts.AuthorizedGrantFacts;
 import com.allinweb.ch.facade.execution.v2.ExecutionV2Contracts.IssuedGrant;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import java.net.URI;
 import java.time.Duration;
@@ -110,6 +111,74 @@ public final class ExecutionRuntimeRunCoordinator {
                     new ExecutionRuntimeActionFactory(),
                     new SystemTimePort(),
                     SystemKeepAlivePort.INSTANCE);
+    }
+
+    /** Opens an owner-scoped lease over a browser parked by a stopped V2 run. */
+    public ScannerSession openScanner(AuthorizedGrantFacts facts) {
+        IssuedGrant grant = grants.issue(Objects.requireNonNull(facts, "V2 scanner authority is required"));
+        ScannerAuthority authority = runtime.openScanner(grant);
+        executionTrace.info(
+                "phase=V2_SCANNER_OPENED hb={} bot={} workspaceEpoch={}",
+                facts.homeBankingId(), facts.botJobId(), facts.workspaceEpoch());
+        return new ScannerSession(runtime, authority, facts.homeBankingId(), facts.botJobId());
+    }
+
+    public static final class ScannerSession implements AutoCloseable {
+        private final RuntimePort runtime;
+        private final ScannerAuthority authority;
+        private final int homeBankingId;
+        private final int botJobId;
+        private final AtomicBoolean closed = new AtomicBoolean();
+        private final java.util.concurrent.atomic.AtomicLong sequence =
+                new java.util.concurrent.atomic.AtomicLong();
+
+        private ScannerSession(
+                RuntimePort runtime, ScannerAuthority authority, int homeBankingId, int botJobId) {
+            this.runtime = runtime;
+            this.authority = authority;
+            this.homeBankingId = homeBankingId;
+            this.botJobId = botJobId;
+        }
+
+        public JsonElement exchange(JsonObject request) {
+            if (closed.get()) throw new IllegalStateException("Execution V2 scanner is closed");
+            String operation = request != null && request.has("operation")
+                    ? request.get("operation").getAsString() : "invalid";
+            long currentSequence = sequence.incrementAndGet();
+            long started = System.nanoTime();
+            executionTrace.info(
+                    "phase=V2_SCANNER_RPC_STARTED hb={} bot={} sequence={} operation={}",
+                    homeBankingId, botJobId, currentSequence, operation);
+            try {
+                JsonElement response = runtime.scanner(authority, request);
+                executionTrace.info(
+                        "phase=V2_SCANNER_RPC_COMPLETED hb={} bot={} sequence={} operation={} durationMs={}",
+                        homeBankingId, botJobId, currentSequence, operation,
+                        Math.max(0L, (System.nanoTime() - started) / 1_000_000L));
+                return response;
+            } catch (RuntimeException failure) {
+                executionTrace.error(
+                        "phase=V2_SCANNER_RPC_FAILED hb={} bot={} sequence={} operation={} failureType={} durationMs={}",
+                        homeBankingId, botJobId, currentSequence, operation,
+                        failure.getClass().getSimpleName(),
+                        Math.max(0L, (System.nanoTime() - started) / 1_000_000L));
+                throw failure;
+            }
+        }
+
+        @Override
+        public void close() {
+            if (!closed.compareAndSet(false, true)) return;
+            try {
+                runtime.closeScanner(authority);
+                executionTrace.info("phase=V2_SCANNER_CLOSED hb={} bot={}", homeBankingId, botJobId);
+            } catch (RuntimeException failure) {
+                executionTrace.error(
+                        "phase=V2_SCANNER_CLOSE_FAILED hb={} bot={} failureType={}",
+                        homeBankingId, botJobId, failure.getClass().getSimpleName());
+                throw failure;
+            }
+        }
     }
 
     public Run start(AuthorizedGrantFacts facts, Plan plan) {
@@ -727,6 +796,7 @@ public final class ExecutionRuntimeRunCoordinator {
     }
 
     interface Authority {}
+    interface ScannerAuthority {}
 
     interface GrantPort {
         IssuedGrant issue(AuthorizedGrantFacts facts);
@@ -744,6 +814,15 @@ public final class ExecutionRuntimeRunCoordinator {
             throw new UnsupportedOperationException("Close Browser is unavailable");
         }
         JsonObject release(Authority authority);
+        default ScannerAuthority openScanner(IssuedGrant grant) {
+            throw new UnsupportedOperationException("V2 Page Scanner is unavailable");
+        }
+        default JsonElement scanner(ScannerAuthority authority, JsonObject request) {
+            throw new UnsupportedOperationException("V2 Page Scanner is unavailable");
+        }
+        default void closeScanner(ScannerAuthority authority) {
+            throw new UnsupportedOperationException("V2 Page Scanner is unavailable");
+        }
     }
 
     interface KeepAlivePort {
@@ -805,6 +884,8 @@ public final class ExecutionRuntimeRunCoordinator {
     }
 
     private record DefaultAuthority(RuntimeRun run) implements Authority {}
+    private record DefaultScannerAuthority(ExecutionRuntimeHttpClient.ScannerRun run)
+            implements ScannerAuthority {}
 
     private static final class DefaultRuntimePort implements RuntimePort {
         private final ExecutionRuntimeHttpClient client;
@@ -858,9 +939,31 @@ public final class ExecutionRuntimeRunCoordinator {
             return client.release(run(authority));
         }
 
+        @Override
+        public ScannerAuthority openScanner(IssuedGrant grant) {
+            return new DefaultScannerAuthority(client.openScanner(grant));
+        }
+
+        @Override
+        public JsonElement scanner(ScannerAuthority authority, JsonObject request) {
+            return client.scanner(scannerRun(authority), request);
+        }
+
+        @Override
+        public void closeScanner(ScannerAuthority authority) {
+            client.closeScanner(scannerRun(authority));
+        }
+
         private static RuntimeRun run(Authority authority) {
             if (!(authority instanceof DefaultAuthority current)) {
                 throw new IllegalArgumentException("Execution V2 runtime authority is invalid");
+            }
+            return current.run();
+        }
+
+        private static ExecutionRuntimeHttpClient.ScannerRun scannerRun(ScannerAuthority authority) {
+            if (!(authority instanceof DefaultScannerAuthority current)) {
+                throw new IllegalArgumentException("Execution V2 scanner authority is invalid");
             }
             return current.run();
         }

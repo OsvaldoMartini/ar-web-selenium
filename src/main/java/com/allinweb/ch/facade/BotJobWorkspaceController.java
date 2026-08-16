@@ -89,6 +89,17 @@ public final class BotJobWorkspaceController {
         host().pageScannerCommand(type, body, workspaceSessionId, context);
     }
 
+    public void pageScannerCommand(
+            String type,
+            JsonObject body,
+            String workspaceSessionId,
+            PreScanWorkflowService.Context context,
+            PageScannerRuntimeSelector.RuntimeMode runtimeMode,
+            long workspaceEpoch) {
+        host().pageScannerCommand(
+                type, body, workspaceSessionId, context, runtimeMode, workspaceEpoch);
+    }
+
     /** Executes Test Click/Input against the detached workspace's isolated Playwright page. */
     public void pageScannerElementTest(
             SplitDTO payload,
@@ -96,6 +107,17 @@ public final class BotJobWorkspaceController {
             String workspaceSessionId,
             PreScanWorkflowService.Context context) {
         host().pageScannerElementTest(payload, type, workspaceSessionId, context);
+    }
+
+    public void pageScannerElementTest(
+            SplitDTO payload,
+            String type,
+            String workspaceSessionId,
+            PreScanWorkflowService.Context context,
+            PageScannerRuntimeSelector.RuntimeMode runtimeMode,
+            long workspaceEpoch) {
+        host().pageScannerElementTest(
+                payload, type, workspaceSessionId, context, runtimeMode, workspaceEpoch);
     }
 
     /** Runs a cache-first Page Mappings rescan without publishing Scanner-grid rows. */
@@ -191,12 +213,32 @@ public final class BotJobWorkspaceController {
             preScanCommand(type, body);
         }
 
+        default void pageScannerCommand(
+                String type,
+                JsonObject body,
+                String workspaceSessionId,
+                PreScanWorkflowService.Context context,
+                PageScannerRuntimeSelector.RuntimeMode runtimeMode,
+                long workspaceEpoch) {
+            pageScannerCommand(type, body, workspaceSessionId, context);
+        }
+
         default void pageScannerElementTest(
                 SplitDTO payload,
                 String type,
                 String workspaceSessionId,
                 PreScanWorkflowService.Context context) {
             preScanElementTest(payload, type);
+        }
+
+        default void pageScannerElementTest(
+                SplitDTO payload,
+                String type,
+                String workspaceSessionId,
+                PreScanWorkflowService.Context context,
+                PageScannerRuntimeSelector.RuntimeMode runtimeMode,
+                long workspaceEpoch) {
+            pageScannerElementTest(payload, type, workspaceSessionId, context);
         }
 
         default void pageMappingsRescan(

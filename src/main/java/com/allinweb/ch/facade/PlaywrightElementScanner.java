@@ -709,6 +709,29 @@ public class PlaywrightElementScanner {
         return elements;
     }
 
+    /** Runs the identical scanner script through a remote, owner-authorized page evaluator. */
+    public List<ElementDTO> scan(Evaluator evaluator, String[] searchTerms, boolean includeHidden) {
+        Objects.requireNonNull(evaluator, "Page Scanner evaluator is required");
+        String selector = buildSelector(searchTerms);
+        String script = "(input) => { const elements = Array.from(document.querySelectorAll(input.selector));"
+                + " const scan = " + SCAN_SCRIPT + "; return scan(elements, input.scanOptions); }";
+        Object raw = evaluator.evaluate(
+                script,
+                Map.of(
+                        "selector", selector,
+                        "scanOptions", Map.of(
+                                "includeHidden", includeHidden,
+                                "attributeNames", configuredAttributeNames(searchTerms))));
+        List<ElementDTO> elements = mapElements(raw);
+        log.info("Remote Playwright scanner returned {} element(s) for selector '{}'", elements.size(), selector);
+        return elements;
+    }
+
+    @FunctionalInterface
+    public interface Evaluator {
+        Object evaluate(String script, Object argument);
+    }
+
     private static String buildSelector(String[] searchTerms) {
         if (searchTerms == null || searchTerms.length == 0) {
             return DEFAULT_SELECTOR;

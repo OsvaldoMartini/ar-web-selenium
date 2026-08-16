@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { request } from 'node:http';
 import { test } from 'node:test';
 import { PhysicalActionRequest, PhysicalActionResult } from '../src/action/actionContracts';
+import { BrowserScannerRequest } from '../src/browser/browserSessionFactory';
 import { RuntimeConfig } from '../src/config/runtimeConfig';
 import { createSafeLogger } from '../src/logging/safeLogger';
 import { ExecutionLaunchDescriptor, ExecutionSessionSnapshot } from '../src/session/sessionContracts';
@@ -59,6 +60,9 @@ class FakeRuntimeWorkerPool {
   actionCount = 0;
   stopCount = 0;
   releaseCount = 0;
+  scannerRpcCount = 0;
+  readonly scannerId = '11111111-1111-4111-8111-111111111111';
+  readonly scannerToken = 's'.repeat(43);
 
   enqueue(descriptor: ExecutionLaunchDescriptor): ExecutionSessionSnapshot {
     if (this.snapshotsByRunId.has(descriptor.run.runId)) throw new Error('SESSION_ALREADY_EXISTS');
@@ -119,6 +123,28 @@ class FakeRuntimeWorkerPool {
     this.snapshot(runId);
     this.releaseCount += 1;
     this.snapshotsByRunId.delete(runId);
+  }
+
+  openScanner(): { scannerId: string; scannerToken: string } {
+    return { scannerId: this.scannerId, scannerToken: this.scannerToken };
+  }
+
+  async scanner(
+    scannerId: string,
+    scannerToken: string,
+    request: BrowserScannerRequest,
+  ): Promise<unknown> {
+    if (scannerId !== this.scannerId || scannerToken !== this.scannerToken) {
+      throw new Error('SCANNER_SESSION_NOT_FOUND');
+    }
+    this.scannerRpcCount += 1;
+    return request.operation === 'url' ? 'https://example.test/current' : true;
+  }
+
+  closeScanner(scannerId: string, scannerToken: string): void {
+    if (scannerId !== this.scannerId || scannerToken !== this.scannerToken) {
+      throw new Error('SCANNER_SESSION_NOT_FOUND');
+    }
   }
 
   async closeAll(): Promise<void> {
@@ -272,6 +298,66 @@ test('runs token-authorized start, heartbeat, action, stop, and release without 
       address.port, 'DELETE', `/v2/runs/${claims.runId}/release`, undefined, undefined, token,
     )).status, 200);
     assert.equal(pool.releaseCount, 1);
+  } finally {
+    await runtime.close();
+  }
+});
+
+test('opens an owner-authorized scanner and uses only its opaque lease token for RPC and close', async () => {
+  const pool = new FakeRuntimeWorkerPool();
+  const lines: string[] = [];
+  const runtime = createRuntimeServer({
+    config: config(), workerPool: pool, logSink: line => lines.push(line),
+    nowEpochSeconds: () => TEST_NOW,
+  });
+  const address = await runtime.listen();
+  const claims = claimsFixture({ capabilities: ['runtime.action'] });
+  const grant = signGrant(claims);
+  try {
+    const opened = await call(address.port, 'POST', '/v2/scanners/open', grant);
+    assert.equal(opened.status, 201);
+    const lease = responseData(opened);
+    assert.equal(lease.scannerId, pool.scannerId);
+    assert.equal(lease.scannerToken, pool.scannerToken);
+
+    const rpc = await call(
+      address.port,
+      'POST',
+      `/v2/scanners/${pool.scannerId}/rpc`,
+      undefined,
+      { operation: 'url' },
+      pool.scannerToken,
+    );
+    assert.equal(rpc.status, 200);
+    assert.equal(responseData(rpc).value, 'https://example.test/current');
+    const tested = await call(
+      address.port,
+      'POST',
+      `/v2/scanners/${pool.scannerId}/rpc`,
+      undefined,
+      { operation: 'test-element', action: 'CLICK', xpath: "//*[@id='login']", css: '', value: '' },
+      pool.scannerToken,
+    );
+    assert.equal(tested.status, 200);
+    assert.equal(responseData(tested).value, true);
+    assert.equal(pool.scannerRpcCount, 2);
+    assert.equal((await call(
+      address.port,
+      'POST',
+      `/v2/scanners/${pool.scannerId}/rpc`,
+      undefined,
+      { operation: 'url' },
+      'x'.repeat(43),
+    )).status, 404);
+    assert.equal((await call(
+      address.port,
+      'POST',
+      `/v2/scanners/${pool.scannerId}/close`,
+      undefined,
+      undefined,
+      pool.scannerToken,
+    )).status, 200);
+    assert.ok(lines.every(line => !line.includes(grant) && !line.includes(pool.scannerToken)));
   } finally {
     await runtime.close();
   }

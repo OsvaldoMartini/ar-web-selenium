@@ -5027,6 +5027,8 @@ public class SimpleWebSocketServer {
             PageScannerWorkspaceCoordinator.BootstrapContext workspace =
                     requireActivePageScannerWorkspace(transportSessionId);
             PreScanWorkflowService.Context scanContext = preScanContext(workspace.context());
+            PageScannerRuntimeSelector.RuntimeMode runtimeMode =
+                    PageScannerRuntimeSelector.RuntimeMode.parse(stringValue(body, "runtimeMode"));
             String legacyOperation = switch (operation) {
                 case "pageScanner.scan" -> ScannerWorkspaceOperations.PRE_SCAN_PAGE;
                 case "pageScanner.refresh" -> ScannerWorkspaceOperations.PRE_SCAN_REFRESH_PAGE;
@@ -5037,13 +5039,25 @@ public class SimpleWebSocketServer {
             if (searchTerms != null && searchTerms.length() > MAX_PAGE_SCANNER_SEARCH_TERMS) {
                 throw new IllegalArgumentException("Page Scanner search terms are too long");
             }
+            logBackend.info(
+                    "PAGE_SCANNER_RUNTIME_SELECTED operation={} runtimeMode={} hb={} bot={} workspaceEpoch={} requestId={} transport={}",
+                    operation, runtimeMode, workspace.context().homeBankingId(),
+                    workspace.context().botJobId(), workspace.context().workspaceEpoch(),
+                    requestId, transportSessionId);
             BotJobWorkspaceController.getInstance()
-                    .pageScannerCommand(legacyOperation, body, transportSessionId, scanContext);
+                    .pageScannerCommand(
+                            legacyOperation,
+                            body,
+                            transportSessionId,
+                            scanContext,
+                            runtimeMode,
+                            workspace.context().workspaceEpoch());
 
             JsonObject response = new JsonObject();
             response.addProperty("requestId", requestId);
             response.addProperty("ok", true);
             response.addProperty("accepted", true);
+            response.addProperty("runtimeMode", runtimeMode.name());
             response.addProperty("message", switch (operation) {
                 case "pageScanner.scan" -> "Page Scanner started.";
                 case "pageScanner.refresh" -> "Page refresh started.";
@@ -5154,6 +5168,8 @@ public class SimpleWebSocketServer {
             String requestId = requirePageScannerRequestId(body);
             PageScannerWorkspaceCoordinator.BootstrapContext workspace =
                     requireActivePageScannerWorkspace(transportSessionId);
+            PageScannerRuntimeSelector.RuntimeMode runtimeMode =
+                    PageScannerRuntimeSelector.RuntimeMode.parse(stringValue(body, "runtimeMode"));
             String testType = stringValue(body, "testType");
             if (testType == null) testType = stringValue(body, "action");
             if (!ScannerWorkspaceOperations.TEST_CLICK_DTO.equals(testType)
@@ -5165,17 +5181,25 @@ public class SimpleWebSocketServer {
             if (payload.getElementDetails() == null || payload.getElementDetails().length != 1) {
                 throw new IllegalArgumentException("Page Scanner element test requires exactly one element");
             }
+            logBackend.info(
+                    "PAGE_SCANNER_RUNTIME_SELECTED operation=pageScanner.testElement runtimeMode={} hb={} bot={} workspaceEpoch={} requestId={} transport={}",
+                    runtimeMode, workspace.context().homeBankingId(),
+                    workspace.context().botJobId(), workspace.context().workspaceEpoch(),
+                    requestId, transportSessionId);
             BotJobWorkspaceController.getInstance().pageScannerElementTest(
                     payload,
                     testType,
                     transportSessionId,
-                    preScanContext(workspace.context()));
+                    preScanContext(workspace.context()),
+                    runtimeMode,
+                    workspace.context().workspaceEpoch());
 
             JsonObject response = new JsonObject();
             response.addProperty("requestId", requestId);
             response.addProperty("ok", true);
             response.addProperty("accepted", true);
             response.addProperty("testType", testType);
+            response.addProperty("runtimeMode", runtimeMode.name());
             response.addProperty("message", "Page Scanner element test started.");
             sendPageScannerResponse(
                     workspace.context().homeBankingId(),
@@ -5380,6 +5404,16 @@ public class SimpleWebSocketServer {
             String requestId = requirePageScannerRequestId(body);
             PageScannerWorkspaceCoordinator.BootstrapContext workspace =
                     requireActivePageScannerWorkspace(transportSessionId);
+            PageScannerRuntimeSelector.RuntimeMode runtimeMode =
+                    PageScannerRuntimeSelector.RuntimeMode.parse(stringValue(body, "runtimeMode"));
+            PreScanWorkflowService.Context scanContext = preScanContext(workspace.context());
+            String currentPageUrl = BotJobDetailsWorkspaceHost.getInstance()
+                    .currentPageScannerUrl(
+                            runtimeMode, scanContext, workspace.context().workspaceEpoch());
+            logBackend.info(
+                    "PAGE_SCANNER_RUNTIME_ROUTED operation=pageScanner.locator.apply runtimeMode={} hb={} bot={} workspaceEpoch={} requestId={}",
+                    runtimeMode, workspace.context().homeBankingId(), workspace.context().botJobId(),
+                    workspace.context().workspaceEpoch(), requestId);
             JsonObject response = BotJobDetailsWorkspaceRegistry.getInstance().commitWorkspaceMutation(
                     workspace.context().botJobId(),
                     workspace.context().workspaceEpoch(),
@@ -5393,8 +5427,8 @@ public class SimpleWebSocketServer {
                                     workspace.context().homeBankingId(),
                                     workspace.context().botJobId(),
                                     workspace.context().homeUrlId(),
-                                    BotJobDetailsWorkspaceHost.getInstance()
-                                            .currentPageScannerUrl())));
+                                    currentPageUrl)));
+            response.addProperty("runtimeMode", runtimeMode.name());
             copyBoundedPageScannerString(body, response, "elementKey", 2_048);
             sendPageScannerResponse(
                     workspace.context().homeBankingId(),
@@ -5444,6 +5478,16 @@ public class SimpleWebSocketServer {
             String requestId = requirePageScannerRequestId(body);
             PageScannerWorkspaceCoordinator.BootstrapContext workspace =
                     requireActivePageScannerWorkspace(transportSessionId);
+            PageScannerRuntimeSelector.RuntimeMode runtimeMode =
+                    PageScannerRuntimeSelector.RuntimeMode.parse(stringValue(body, "runtimeMode"));
+            PreScanWorkflowService.Context scanContext = preScanContext(workspace.context());
+            String currentPageUrl = BotJobDetailsWorkspaceHost.getInstance()
+                    .currentPageScannerUrl(
+                            runtimeMode, scanContext, workspace.context().workspaceEpoch());
+            logBackend.info(
+                    "PAGE_SCANNER_RUNTIME_ROUTED operation=pageScanner.element.rename runtimeMode={} hb={} bot={} workspaceEpoch={} requestId={}",
+                    runtimeMode, workspace.context().homeBankingId(), workspace.context().botJobId(),
+                    workspace.context().workspaceEpoch(), requestId);
             JsonObject response = BotJobDetailsWorkspaceRegistry.getInstance().commitWorkspaceMutation(
                     workspace.context().botJobId(),
                     workspace.context().workspaceEpoch(),
@@ -5456,8 +5500,8 @@ public class SimpleWebSocketServer {
                                     body,
                                     workspace.context().homeBankingId(),
                                     workspace.context().botJobId(),
-                                    BotJobDetailsWorkspaceHost.getInstance()
-                                            .currentPageScannerUrl())));
+                                    currentPageUrl)));
+            response.addProperty("runtimeMode", runtimeMode.name());
             copyBoundedPageScannerString(body, response, "elementKey", 2_048);
             sendPageScannerResponse(
                     workspace.context().homeBankingId(),
@@ -5840,6 +5884,7 @@ public class SimpleWebSocketServer {
         response.addProperty("ok", false);
         copyPositivePageScannerBotJobId(body, response);
         copyBoundedPageScannerString(body, response, "elementKey", 2_048);
+        copyBoundedPageScannerString(body, response, "runtimeMode", 32);
         response.addProperty(
                 "message",
                 message == null || message.isBlank()

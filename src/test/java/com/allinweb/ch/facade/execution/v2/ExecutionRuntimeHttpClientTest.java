@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.allinweb.ch.facade.execution.v2.ExecutionRuntimeHttpClient.ExecutionRuntimeClientException;
 import com.allinweb.ch.facade.execution.v2.ExecutionRuntimeHttpClient.Response;
 import com.allinweb.ch.facade.execution.v2.ExecutionRuntimeHttpClient.RuntimeRun;
+import com.allinweb.ch.facade.execution.v2.ExecutionRuntimeHttpClient.ScannerRun;
 import com.allinweb.ch.facade.execution.v2.ExecutionRuntimeHttpClient.StartFacts;
 import com.allinweb.ch.facade.execution.v2.ExecutionV2Contracts.IssuedGrant;
 import java.net.URI;
@@ -18,6 +19,7 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Queue;
+import com.google.gson.JsonObject;
 import org.junit.jupiter.api.Test;
 
 class ExecutionRuntimeHttpClientTest {
@@ -98,6 +100,29 @@ class ExecutionRuntimeHttpClientTest {
         assertEquals("POST", close.method());
         assertTrue(close.uri().getPath().endsWith("/close-browser"));
         assertEquals(TOKEN, close.token());
+    }
+
+    @Test
+    void scannerUsesTheGrantOnlyToOpenThenUsesItsOpaqueCapabilityToken() {
+        FakeTransport transport = new FakeTransport();
+        transport.add(201, successData("{\"scannerId\":\"33333333-3333-4333-8333-333333333333\","
+                + "\"scannerToken\":\"" + TOKEN + "\"}"));
+        transport.add(200, successData("{\"value\":\"https://example.test/current\"}"));
+        transport.add(200, successData("{\"scannerId\":\"33333333-3333-4333-8333-333333333333\"}"));
+        ExecutionRuntimeHttpClient client = client(transport);
+
+        ScannerRun scanner = client.openScanner(grant());
+        JsonObject request = new JsonObject();
+        request.addProperty("operation", "url");
+        assertEquals("https://example.test/current", client.scanner(scanner, request).getAsString());
+        client.closeScanner(scanner);
+        client.closeScanner(scanner);
+
+        assertEquals("compact-grant", transport.calls.get(0).grant());
+        assertEquals(null, transport.calls.get(0).token());
+        assertEquals(TOKEN, transport.calls.get(1).token());
+        assertEquals(TOKEN, transport.calls.get(2).token());
+        assertEquals(3, transport.calls.size());
     }
 
     @Test

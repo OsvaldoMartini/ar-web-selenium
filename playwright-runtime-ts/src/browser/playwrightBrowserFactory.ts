@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { Browser, BrowserContext, Page, chromium } from 'playwright-core';
-import { BrowserSessionFactory, BrowserSessionHandle } from './browserSessionFactory';
+import { BrowserScannerRequest, BrowserSessionFactory, BrowserSessionHandle } from './browserSessionFactory';
 import { PageReadiness } from './pageReadiness';
 import { BrowserLaunchConfiguration } from '../session/sessionContracts';
 import { PhysicalActionRequest, PhysicalActionResult } from '../action/actionContracts';
@@ -252,6 +252,83 @@ class PlaywrightBrowserSessionHandle implements BrowserSessionHandle {
       throw error;
     } finally {
       if (this.activeAction === action) this.activeAction = undefined;
+    }
+  }
+
+  async scanner(request: BrowserScannerRequest): Promise<unknown> {
+    this.requireOpen();
+    const started = Date.now();
+    this.log({
+      ...this.identityFields('browser.scanner.started'),
+      ...this.pageKeyFields(),
+      operation: request.operation,
+    });
+    try {
+      let result: unknown;
+      switch (request.operation) {
+      case 'evaluate':
+        result = await this.page.evaluate(request.script, request.argument);
+        break;
+      case 'screenshot':
+        result = (await this.page.screenshot({ fullPage: request.fullPage })).toString('base64');
+        break;
+      case 'test-element': {
+        result = false;
+        for (const selector of [request.xpath, request.css].filter(value => value.length > 0)) {
+          const candidates = this.page.locator(selector);
+          const visibleIndexes = await candidates.evaluateAll(elements => elements
+            .map((element, index) => {
+              const style = getComputedStyle(element);
+              const rect = element.getBoundingClientRect();
+              return style.display !== 'none' && style.visibility !== 'hidden'
+                && rect.width > 0 && rect.height > 0 ? index : -1;
+            })
+            .filter(index => index >= 0));
+          if (visibleIndexes.length === 0) continue;
+          if (visibleIndexes.length !== 1) break;
+          const target = candidates.nth(visibleIndexes[0]!);
+          if (request.action === 'CLICK') await target.click();
+          else await target.fill(request.value);
+          result = true;
+          break;
+        }
+        break;
+      }
+      case 'url': result = this.page.url(); break;
+      case 'title': result = await this.page.title(); break;
+      case 'content': result = await this.page.content(); break;
+      case 'viewport':
+        result = await this.page.evaluate(() => [
+          window.innerWidth || document.documentElement.clientWidth,
+          window.innerHeight || document.documentElement.clientHeight,
+        ]);
+        break;
+      case 'wait-settled':
+        await this.readiness.waitForStable(this.page);
+        result = true;
+        break;
+      case 'reload':
+        await this.refresh();
+        result = true;
+        break;
+      }
+      this.log({
+        ...this.identityFields('browser.scanner.completed'),
+        ...this.pageKeyFields(),
+        operation: request.operation,
+        durationMs: Date.now() - started,
+      });
+      return result;
+    } catch (error) {
+      this.log({
+        ...this.identityFields('browser.scanner.failed'),
+        ...this.pageKeyFields(),
+        operation: request.operation,
+        level: 'ERROR',
+        code: safeFailureCode(error, 'SCANNER_OPERATION_FAILED'),
+        durationMs: Date.now() - started,
+      });
+      throw error;
     }
   }
 
