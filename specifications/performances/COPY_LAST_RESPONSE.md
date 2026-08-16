@@ -2,7 +2,7 @@
 
 Keep exactly two review sections. Check tasks only after their separate gates pass.
 
-**Last updated:** 2026-08-16 - Page Scanner runtime routing is pushed as frontend `138e3d7`, backend `de97964b`, deployment `2b849e98`, and catalog `04f6c33a`. Every browser-scoped Page Scanner action follows the exact owner's selected V1/V2 mode. V1 preserves the shared browser; V2 temporarily leases only that owner's retained isolated browser and returns it afterward. Node 44/44, Java 75/75 plus compilation, focused React 12/12, 9/9, and 14/14, and the production build passed. PID 19644 serves `main.644f22d0.js` / `main.83e6fa5a.css` over HTTP 200 with exact hashes. A user-driven retained-browser V1/V2 Page Scanner action remains the live acceptance gate.
+**Last updated:** 2026-08-16 - The first V2 Page Scanner live test correctly selected the retained owner/browser but exposed remote function non-invocation and an overly strict whole-body readiness timeout. Backend/Node `060ea054` invokes scanner functions correctly, gives scanner-only readiness V1 parity, and adds bounded sample/outcome logs without weakening V2 execution startup. Node passes 51/51; catalog `9330cfa6` is pushed. Fresh PID 11280 serves the unchanged exact frontend on 49719/49720. Repeat Test 2 without closing Page Scanner remains the live gate.
 
 **Current multi-run checkpoint:** backend preflight `f39baa6c`, frontend manager `bb28f3a`, and exact
 61-file deployment `bd1cb821` are pushed. The manager can revalidate one to five exact owner/Bot Job
@@ -397,6 +397,11 @@ The Page Mappings roadmap is now source-complete through P7:
   (`AD722AC9...C674E63`) with exact build bytes.
 - Live acceptance remains: retain one V1 and one V2 browser using STOP, switch the Smoke runtime,
   exercise Page Scanner browser actions, and confirm exact mode/owner records with no sibling impact.
+- The first V2 live attempt then exposed two adapter defects, not a window-lifecycle issue. Node was
+  evaluating Java function text without invoking it (zero elements/fingerprint), and its scanner wait
+  required mutable body HTML to remain identical (timeout after Refresh). `060ea054` fixes both at
+  the scanner seam; V2 startup readiness stays strict. New safe logs show readiness outcome/samples/
+  node count, and the expanded Node suite passes 51/51. Retest remains open on PID 11280.
 
 ### Current risks
 

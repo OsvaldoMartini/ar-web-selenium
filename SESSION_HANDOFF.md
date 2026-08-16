@@ -1535,3 +1535,22 @@ Do not change frontend CSS/design while doing the scanner contract cleanup unles
   uses the retained V1 page; select V2, run then STOP to retain its isolated browser, and prove Page
   Scanner scan/refresh/Test Input/Test Click/rename use that exact V2 page. Confirm the new runtime/
   scanner lifecycle records appear and that another owner's retained V2 browser is unaffected.
+
+### V2 Page Scanner evaluation/readiness correction - 2026-08-16
+
+- [x] The first live V2 test proved routing and exact-owner leasing, but exposed two Node adapter
+  defects: Playwright did not invoke Java function source supplied as text, so scan/fingerprint
+  returned `undefined`; after Refresh, a continuously changing banking DOM failed the V2-only
+  whole-body stability rule with `PAGE_READINESS_TIMEOUT`.
+- [x] `060ea054` explicitly invokes the bounded trusted scanner function with its JSON-safe argument.
+  Scanner-only readiness now matches V1: network idle is best effort, element-count stability is the
+  decision, and bounded timeout/evaluation interruption does not strand or fail the scanner lease.
+  V2 execution startup readiness is unchanged.
+- [x] Privacy-safe readiness logs add outcome, sample count, stable confirmations, ready state, node
+  count, and duration. Node build plus the expanded suite passed 51/51. Catalog `9330cfa6` is pushed.
+- [x] Fresh PID 11280 is responsive on `127.0.0.1:49719/49720` and serves the unchanged exact frontend
+  entrypoints over HTTP 200. No Java/frontend source changed in this correction, so Maven and React
+  rebuilds were correctly not run.
+- [ ] Repeat V2 Test 2 without closing Page Scanner. Expected: nonzero scanned elements, a valid
+  fingerprint/snapshot where the page is cacheable, a `browser.scanner.readiness` record, and no
+  `PAGE_READINESS_TIMEOUT`.

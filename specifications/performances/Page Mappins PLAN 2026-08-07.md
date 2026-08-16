@@ -1132,3 +1132,16 @@ background Page Scanner or automatic mutation is involved.
 - [ ] Live acceptance: produce an exact-owner retained V1 browser and retained V2 browser, switch the
   Smoke toggle before Page Scanner actions, prove each operation targets the selected page, inspect
   the new disk trace, and verify a different owner's isolated V2 browser is unchanged.
+
+### V2 Page Scanner live regression correction - 2026-08-16
+
+- [x] Live Test 2 proved exact V2 owner/browser/context/page routing and lease return, while finding
+  two distinct adapter defects: string function source was not invoked, and mutable body HTML made
+  scanner readiness time out despite an actionable page.
+- [x] Node `060ea054` explicitly invokes remote scanner functions and applies V1's bounded best-effort
+  element-count readiness only to Page Scanner. V2 launch/navigation readiness remains unchanged.
+- [x] Readiness logs now contain outcome, samples, stable samples, ready state, node count, and duration
+  without page content. The complete expanded Node suite passes 51/51; catalog `9330cfa6` is pushed.
+- [x] Fresh PID 11280 is responsive on 49719/49720 and serves unchanged current assets over HTTP 200.
+- [ ] Repeat the same retained V2 Page Scanner action without closing its window; require nonzero
+  elements, valid fingerprint/snapshot where supported, new readiness evidence, and no timeout.
