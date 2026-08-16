@@ -2,7 +2,7 @@
 
 Keep exactly two review sections. Check tasks only after their separate gates pass.
 
-**Last updated:** 2026-08-15 - Smoke STOP/KILL separation is pushed as frontend `a715a2a`, backend `dfd95e32`, and deployment `7c877bd7`. Main STOP and Runtime Instances STOP terminate the exact execution while preserving its browser; Runtime Instances KILL additionally closes the exact V1 shared or selected V2 isolated browser. React now retires the matching local loop so it cannot continue after backend removal. Java 31/31 and React 9/9 passed; the production build and exact 61-file deployment passed. PID 16044 serves `main.948ca07e.js` / `main.83e6fa5a.css` over HTTP 200 with matching hashes. The four-path live V1/V2 STOP/KILL matrix remains open.
+**Last updated:** 2026-08-16 - Page Scanner runtime routing is pushed as frontend `138e3d7`, backend `de97964b`, deployment `2b849e98`, and catalog `04f6c33a`. Every browser-scoped Page Scanner action follows the exact owner's selected V1/V2 mode. V1 preserves the shared browser; V2 temporarily leases only that owner's retained isolated browser and returns it afterward. Node 44/44, Java 75/75 plus compilation, focused React 12/12, 9/9, and 14/14, and the production build passed. PID 19644 serves `main.644f22d0.js` / `main.83e6fa5a.css` over HTTP 200 with exact hashes. A user-driven retained-browser V1/V2 Page Scanner action remains the live acceptance gate.
 
 **Current multi-run checkpoint:** backend preflight `f39baa6c`, frontend manager `bb28f3a`, and exact
 61-file deployment `bd1cb821` are pushed. The manager can revalidate one to five exact owner/Bot Job
@@ -378,6 +378,25 @@ The Page Mappings roadmap is now source-complete through P7:
   `main.8822f0dc.css` (SHA-256
   `8290860100F7E9284FD30031BDBE45B3A022C0118F690D6999DE65F84B6BBC9B`). No app was running during
   target deployment, so startup and live OCR acceptance remain user gates.
+
+### Page Scanner follows the selected V1/V2 runtime
+
+- Frontend `138e3d7` stores runtime mode per exact Home Banking/Bot Job and sends it on scan,
+  refresh, Test Input/Click, locator apply, and client-name rename. Invalid/missing preference is V1.
+- Backend `de97964b` validates the active detached workspace before mode parsing. V1 keeps the shared
+  path; V2 uses one exact-owner retained-browser lease and the existing Java scan/OCR/snapshot logic
+  over bounded Node RPC. Same-owner run/scanner overlap and every cross-owner/token mismatch fail
+  closed; the lease returns the browser without closing it.
+- Privacy-safe Java/Node logs cover selection, lease, RPC, operation, duration, and failure type while
+  excluding URLs, locators, values, grants, and tokens.
+- Verification passed: Node 44/44; Java 75/75 plus 585-source compilation; frontend focused runs
+  12/12, 9/9, and 14/14; production build; exact diff checks. Catalog `04f6c33a` records 2,438 rows and
+  2,402 code cases.
+- Deployment `2b849e98` is an exact 61-file mirror. PID 19644 is responsive on 65306/65307 and HTTP
+  serves `main.644f22d0.js` (SHA-256 `4727A9E8...B9AD74A4`) and `main.83e6fa5a.css`
+  (`AD722AC9...C674E63`) with exact build bytes.
+- Live acceptance remains: retain one V1 and one V2 browser using STOP, switch the Smoke runtime,
+  exercise Page Scanner browser actions, and confirm exact mode/owner records with no sibling impact.
 
 ### Current risks
 

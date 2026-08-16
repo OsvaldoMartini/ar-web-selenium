@@ -1505,3 +1505,33 @@ Do not change frontend CSS/design while doing the scanner contract cleanup unles
 - [ ] Live behavior remains user-driven: for V1 and V2 prove main STOP and Runtime Instances STOP
   leave the browser/page reusable for CONTINUE PAGE or Page Scanner, then prove KILL closes only the
   intended browser and does not affect a sibling isolated V2 run.
+
+## Page Scanner follows the selected V1/V2 runtime - 2026-08-16
+
+- [x] Frontend `138e3d7` persists the selected Smoke runtime per exact Home Banking/Bot Job and sends
+  that mode with every browser-scoped Page Scanner action. Missing, invalid, or unavailable browser
+  storage defaults safely to V1; changing owners never borrows another Bot Job's selection.
+- [x] Backend `de97964b` reauthorizes the exact Page Scanner workspace before parsing the requested
+  runtime. V1 preserves the established shared-browser path. V2 obtains a temporary capability over
+  only the exact owner's retained isolated browser, runs the established Java scan/OCR/fingerprint/
+  snapshot pipeline through bounded Node RPC, and returns that browser to the retained pool.
+- [x] A V2 scanner lease blocks a same-owner execution from taking the browser concurrently, rejects
+  cross-owner/wrong-token calls, serializes scanner RPC, parks after an idle bound, and never attaches
+  to V1 or a sibling V2 browser. Privacy-safe logs record owner IDs, runtime, scanner operation,
+  lifecycle, duration, and failure type without URLs, locators, values, grants, or capability tokens.
+- [x] Verification passed: Node 44/44; Java focused 75/75 plus `mvn -DskipTests compile` with 585 main
+  sources; focused frontend runs 12/12, 9/9, and 14/14; production React build passed with established
+  warnings. Both repository diff checks passed.
+- [x] Deployment `2b849e98` mirrors 61 exact files into resources and `target/classes`; catalog
+  `04f6c33a` records 2,438 rows / 2,402 code cases. Current assets are `main.644f22d0.js` (2,189,216
+  bytes; SHA-256 `4727A9E8343B64AA67F4FE4689B11A8CFCFEC12951C2C17CF04D787FB9AD74A4`) and
+  `main.83e6fa5a.css` (545,824 bytes; SHA-256
+  `AD722AC9CECB2992EF7D772A8E3BA8CB5EC98D709605330AD2069EF4DD3EE4E6`).
+- [x] Fresh BancaStato PID 19644 runs from current `target/classes` with the exact Config-4.2 config,
+  listens on `127.0.0.1:65306/65307`, and serves root/JS/CSS over HTTP 200 with exact build hashes.
+  Seven current log files were created and contain no strict error match; they remain empty until an
+  application action emits a record.
+- [ ] Live routing acceptance remains user-driven. For one owner: select V1 and prove Page Scanner
+  uses the retained V1 page; select V2, run then STOP to retain its isolated browser, and prove Page
+  Scanner scan/refresh/Test Input/Test Click/rename use that exact V2 page. Confirm the new runtime/
+  scanner lifecycle records appear and that another owner's retained V2 browser is unaffected.

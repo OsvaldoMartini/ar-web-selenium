@@ -1111,3 +1111,24 @@ background Page Scanner or automatic mutation is involved.
 - [ ] Live V2 proof for TARGET_NOT_FOUND and AMBIGUOUS_TARGET modal display.
 - [ ] Live proof for Use Once, Use and Save, Cancel, and exact-run Stop with another Bot Job running.
 - [ ] Visual acceptance of wide-table horizontal scrolling and green/red/dash comparison cells.
+
+## Page Scanner selected-runtime routing - 2026-08-16
+
+- [x] Frontend `138e3d7` makes the existing Smoke V1/V2 selection an exact owner-scoped Page Scanner
+  preference and sends it on every browser-scoped scanner operation. Missing/invalid state defaults
+  to V1 and cannot cross Home Banking/Bot Job boundaries.
+- [x] Backend `de97964b` validates exact workspace authority and routes V1 to the established shared
+  browser or V2 to only the selected owner's retained isolated browser. The V2 lease reuses the same
+  Java scan/OCR/fingerprint/snapshot pipeline through bounded authenticated Node RPC, then parks the
+  browser for CONTINUE PAGE or another scanner operation.
+- [x] Concurrency and privacy boundaries are explicit: no same-owner run/scanner overlap, no sibling
+  browser borrowing, opaque constant-time-checked capability, serialized RPC, bounded idle return,
+  and safe logs without URL/locator/value/token data.
+- [x] Verification passed: Node 44/44, Java 75/75 and 585-source compilation, focused React runs
+  12/12, 9/9, and 14/14, production build, and both diff checks.
+- [x] Deployment `2b849e98` mirrors 61 exact files; catalog `04f6c33a` contains 2,438 rows / 2,402 code
+  cases. PID 19644 runs the current classpath on 65306/65307 and serves exact-hash
+  `main.644f22d0.js` / `main.83e6fa5a.css` over HTTP 200.
+- [ ] Live acceptance: produce an exact-owner retained V1 browser and retained V2 browser, switch the
+  Smoke toggle before Page Scanner actions, prove each operation targets the selected page, inspect
+  the new disk trace, and verify a different owner's isolated V2 browser is unchanged.
