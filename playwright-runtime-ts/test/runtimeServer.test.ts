@@ -471,6 +471,7 @@ test('safe logger records bounded browser diagnostics without payload fields', (
     viewportWidth: 1920, viewportHeight: 1040, screenWidth: 1920, screenHeight: 1080,
     devicePixelRatio: 1, argumentCount: 2, viewportMode: 'native',
     serviceWorkerMode: 'allow', retained: false,
+    outcome: 'STABLE', samples: 3, stableSamples: 2, readyState: 'complete', nodeCount: 239,
   });
   assert.equal(lines.length, 1);
   const logged = JSON.parse(lines[0] ?? '{}') as Record<string, unknown>;
@@ -481,6 +482,11 @@ test('safe logger records bounded browser diagnostics without payload fields', (
   assert.equal(logged.frameValidated, true);
   assert.equal(logged.viewportWidth, 1920);
   assert.equal(logged.serviceWorkerMode, 'allow');
+  assert.equal(logged.outcome, 'STABLE');
+  assert.equal(logged.samples, 3);
+  assert.equal(logged.stableSamples, 2);
+  assert.equal(logged.readyState, 'complete');
+  assert.equal(logged.nodeCount, 239);
   assert.equal('endpoint' in logged, false);
   assert.equal('locator' in logged, false);
   assert.equal('inputValue' in logged, false);

@@ -34,6 +34,11 @@ export interface SafeLogFields {
   readonly shadowValidated?: boolean;
   readonly tagValidated?: boolean;
   readonly actionValidated?: boolean;
+  readonly outcome?: string;
+  readonly samples?: number;
+  readonly stableSamples?: number;
+  readonly readyState?: string;
+  readonly nodeCount?: number;
 }
 
 export type SafeLogSink = (line: string) => void;
@@ -81,6 +86,11 @@ export const createSafeLogger = (sink: SafeLogSink = line => process.stdout.writ
       ...(fields.shadowValidated !== undefined ? { shadowValidated: fields.shadowValidated } : {}),
       ...(fields.tagValidated !== undefined ? { tagValidated: fields.tagValidated } : {}),
       ...(fields.actionValidated !== undefined ? { actionValidated: fields.actionValidated } : {}),
+      ...(fields.outcome ? { outcome: fields.outcome } : {}),
+      ...(fields.samples !== undefined ? { samples: fields.samples } : {}),
+      ...(fields.stableSamples !== undefined ? { stableSamples: fields.stableSamples } : {}),
+      ...(fields.readyState ? { readyState: fields.readyState } : {}),
+      ...(fields.nodeCount !== undefined ? { nodeCount: fields.nodeCount } : {}),
     };
     try {
       sink(JSON.stringify(safe));

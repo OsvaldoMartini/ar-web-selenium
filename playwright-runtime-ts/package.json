@@ -12,7 +12,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "npm run typecheck",
     "demo:five-browsers": "npm run build && node scripts/five-browser-mock.cjs",
-    "test": "npm run build && node --test dist/test/executionGrantVerifier.test.js dist/test/executionRegistry.test.js dist/test/javaGrantCompatibility.test.js dist/test/physicalActionExecutor.test.js dist/test/runtimeServer.test.js dist/test/workerPool.test.js",
+    "test": "npm run build && node --test dist/test/executionGrantVerifier.test.js dist/test/executionRegistry.test.js dist/test/javaGrantCompatibility.test.js dist/test/pageReadiness.test.js dist/test/physicalActionExecutor.test.js dist/test/runtimeServer.test.js dist/test/scannerEvaluation.test.js dist/test/workerPool.test.js",
     "start": "node dist/src/server.js"
   },
   "devDependencies": {

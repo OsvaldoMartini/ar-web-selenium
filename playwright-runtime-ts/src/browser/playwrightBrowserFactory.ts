@@ -15,6 +15,14 @@ export interface PlaywrightBrowserFactoryOptions {
   readonly logSink?: SafeLogSink;
 }
 
+/** Builds an invocation expression because Playwright does not invoke a function supplied as text. */
+export const scannerEvaluationExpression = (script: string, argument: unknown, hasArgument: boolean): string => {
+  const serialized = hasArgument ? JSON.stringify(argument) : 'undefined';
+  if (serialized === undefined) throw new Error('SCANNER_ARGUMENT_INVALID');
+  return `(() => { const candidate = (${script}); return typeof candidate === 'function'`
+    + ` ? candidate(${serialized}) : candidate; })()`;
+};
+
 export class PlaywrightBrowserFactory implements BrowserSessionFactory {
   private readonly readiness: PageReadiness;
   private readonly log: (fields: SafeLogFields) => void;
@@ -266,8 +274,12 @@ class PlaywrightBrowserSessionHandle implements BrowserSessionHandle {
     try {
       let result: unknown;
       switch (request.operation) {
-      case 'evaluate':
-        result = await this.page.evaluate(request.script, request.argument);
+        case 'evaluate':
+          result = await this.page.evaluate(scannerEvaluationExpression(
+            request.script,
+            request.argument,
+            Object.hasOwn(request, 'argument'),
+          ));
         break;
       case 'screenshot':
         result = (await this.page.screenshot({ fullPage: request.fullPage })).toString('base64');
@@ -304,7 +316,19 @@ class PlaywrightBrowserSessionHandle implements BrowserSessionHandle {
         ]);
         break;
       case 'wait-settled':
-        await this.readiness.waitForStable(this.page);
+        {
+          const readiness = await this.readiness.waitForScannerStable(this.page);
+          this.log({
+            ...this.identityFields('browser.scanner.readiness'),
+            ...this.pageKeyFields(),
+            outcome: readiness.outcome,
+            samples: readiness.samples,
+            stableSamples: readiness.stableSamples,
+            readyState: readiness.readyState,
+            nodeCount: readiness.nodeCount,
+            durationMs: readiness.durationMs,
+          });
+        }
         result = true;
         break;
       case 'reload':
