@@ -1639,3 +1639,24 @@ Do not change frontend CSS/design while doing the scanner contract cleanup unles
   instance before live acceptance, then prove V1 and V2 scan refresh, zero/multiple candidates,
   Test Input/Click, action override, Use Once, Use and Save, bypass, and owner isolation while
   confirming the new trace phases.
+
+### V1 Stop-safe locator discovery - 2026-08-17
+
+- [x] Live run `b9926f22-80f6-4b26-802f-165ff6d2e6de` exposed a coverage gap: Stop retired the
+  Integration controller while Playwright Java remained blocked in
+  `PlaywrightRuntimeHealingExecutor.probeLiveName` at `locator.elementHandle()`. The serialized
+  Playwright worker stayed occupied and the next V1 run stopped at `V1_BROWSER_RESERVING`.
+- [x] Backend `6ce63ddb` replaces the two runtime-healing `nth(...).elementHandle()` loops with
+  immediate `elementHandles()` DOM snapshots, checks cancellation before and after Playwright
+  access and while validating candidates, and never converts cancellation into an ordinary
+  unavailable-candidate result. Stop cancellation now logs whether an active operation existed and
+  accepted cancellation.
+- [x] Focused verification passed 23/23 across the new cancellation/snapshot regression suite and
+  the existing Smoke Test Integration lifecycle suite. Java compiled 587 main and 345 test sources
+  with only the two established warnings; `git diff --check` passed.
+- [x] The fix is committed and pushed. The updated BancaStato runtime is PID `22172`, listening on
+  `127.0.0.1:51320` / `127.0.0.1:51321`; HTTP root returns 200 and the new `.3` startup logs contain
+  zero strict backend/database/snapshot error matches.
+- [ ] Live acceptance still requires stopping V1 during missing-locator discovery and immediately
+  starting another V1 run, proving the second run reaches `V1_BROWSER_READY` instead of remaining
+  at `V1_BROWSER_RESERVING`.
