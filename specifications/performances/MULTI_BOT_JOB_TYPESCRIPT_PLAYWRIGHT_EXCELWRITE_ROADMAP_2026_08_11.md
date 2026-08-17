@@ -1625,5 +1625,7 @@ and atomic artifact-write checkpoints are complete.
   focused plus 24/24 broader Smoke tests and React 17/17 focused tests. The production build passed;
   deployment `6bde7e31` is an exact 61-file resource mirror using `main.d11c83aa.js` and
   `main.6c3546aa.css`.
+- [x] The automation catalog was regenerated after its expected stale-evidence failure. It now
+  records 2,464 rows / 2,428 code cases / 19,452 generated API requests, and validation passes 2/2.
 - [ ] Live restart/acceptance remains: late target, disabled/read-only skip, missing target with
   target-first row, database matches, Page Scanner refresh, and correct continuation behavior.

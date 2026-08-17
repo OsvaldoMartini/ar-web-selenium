@@ -1684,6 +1684,9 @@ Do not change frontend CSS/design while doing the scanner contract cleanup unles
 - [x] The React production build passed with established repository warnings. Deployment
   `6bde7e31` mirrors the exact 61-file build into Java resources using `main.d11c83aa.js` and
   `main.6c3546aa.css`; source/resource path and hashes match.
+- [x] The first catalog audit correctly failed because generated evidence was stale (1,502 recorded
+  versus 1,512 current backend JUnit declarations). It was regenerated to 2,464 rows / 2,428 code
+  cases / 19,452 generated API requests, and the exact catalog verification then passed 2/2.
 - [ ] No ARWeb restart or live browser action was performed. Live acceptance must prove: a
   late-rendered target resolves before recovery; a persistently disabled/read-only control skips
   and advances; and a true missing target opens the modal with the unresolved row first and
