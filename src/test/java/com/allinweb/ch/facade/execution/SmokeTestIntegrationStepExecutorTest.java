@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.allinweb.ch.facade.PlaywrightActionExecutor.TextResult;
+import com.allinweb.ch.facade.PlaywrightRuntimeHealingExecutor.Diagnostic;
 import com.allinweb.ch.facade.actions.RuntimeVariableMemoryRegistry;
 import com.allinweb.ch.facade.actions.RuntimeVariableMemoryRegistry.BotJobKey;
 import com.allinweb.ch.facade.actions.RuntimeVariableMemoryRegistry.Definition;
@@ -166,6 +167,31 @@ class SmokeTestIntegrationStepExecutorTest {
                         plan, dataset(new ExtractedData()), missing.id(), 0, runVariables()),
                 "OUTPUT_READ_FAILED");
         assertEquals(List.of(empty.id(), missing.id()), browser.textInstructionIds);
+    }
+
+    @Test
+    void skipsALocatedDisabledClickWithoutRequestingLocatorRecovery() {
+        InstructionSnapshot disabled =
+                instruction(BLOCK, 113, 1, "C", "avanti", null, true, null, null, Map.of());
+        FakeBrowser browser = new FakeBrowser();
+        browser.clickResult = false;
+        browser.diagnostic = new Diagnostic(
+                "ELEMENT_DISABLED", "AUTHORED", "CLICK", disabled.id(),
+                1, 1, true, true, true, false, 0);
+        SmokeTestIntegrationStepExecutor executor =
+                new SmokeTestIntegrationStepExecutor(browser, ignoredActiveCells());
+
+        SmokeTestIntegrationStepExecutor.Outcome result = executor.execute(
+                plan(List.of(BLOCK), List.of(disabled)),
+                dataset(new ExtractedData()),
+                disabled.id(),
+                0,
+                runVariables());
+
+        assertEquals(StepStatus.SKIPPED, result.status());
+        assertEquals(StepDisposition.PHYSICAL, result.disposition());
+        assertEquals("ELEMENT_DISABLED", result.code());
+        assertNull(result.recovery());
     }
 
     @Test
@@ -566,11 +592,13 @@ class SmokeTestIntegrationStepExecutorTest {
         private int nextEnterCount;
         private final List<Integer> scrollDirections = new ArrayList<>();
         private int closeCount;
+        private boolean clickResult = true;
+        private Diagnostic diagnostic;
 
         @Override
         public boolean clickOnce(InstructionSnapshot instruction) {
             clickedInstructionIds.add(instruction.id());
-            return true;
+            return clickResult;
         }
 
         @Override
@@ -615,6 +643,11 @@ class SmokeTestIntegrationStepExecutorTest {
         @Override
         public void close() {
             closeCount++;
+        }
+
+        @Override
+        public Diagnostic diagnostic() {
+            return diagnostic;
         }
     }
 

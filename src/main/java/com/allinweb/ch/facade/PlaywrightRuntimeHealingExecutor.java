@@ -21,6 +21,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.locks.LockSupport;
 
 /**
  * Fail-closed Playwright executor used only by production Test Run and Smoke Integration.
@@ -33,11 +34,29 @@ public final class PlaywrightRuntimeHealingExecutor {
 
     private static final int MAX_CANDIDATES = 2_000;
     private static final int ACTION_TIMEOUT_MS = 5_000;
+    private static final int DEFAULT_RESOLUTION_TIMEOUT_MS = 10_000;
+    private static final int DEFAULT_RETRY_INTERVAL_MS = 150;
+    private static final org.slf4j.Logger executionTrace =
+            org.slf4j.LoggerFactory.getLogger("com.allinweb.smoke.execution");
     private static final String LIVE_ACTION_SELECTOR =
             "input,textarea,select,button,a,label,summary,[role],[tabindex],"
                     + "[id],[name],[aria-label],[data-testid],[data-test-id],[test-id],[data-cy],[data-qa]";
     private static final String LIVE_OUTPUT_SELECTOR = LIVE_ACTION_SELECTOR
             + ",output,span,p,div,h1,h2,h3,h4,h5,h6,td,th,li,dt,dd,blockquote,pre,code";
+    private final int resolutionTimeoutMs;
+    private final int retryIntervalMs;
+
+    public PlaywrightRuntimeHealingExecutor() {
+        this(DEFAULT_RESOLUTION_TIMEOUT_MS, DEFAULT_RETRY_INTERVAL_MS);
+    }
+
+    PlaywrightRuntimeHealingExecutor(int resolutionTimeoutMs, int retryIntervalMs) {
+        if (resolutionTimeoutMs < 0 || retryIntervalMs <= 0) {
+            throw new IllegalArgumentException("V1 resolution wait options are invalid");
+        }
+        this.resolutionTimeoutMs = resolutionTimeoutMs;
+        this.retryIntervalMs = retryIntervalMs;
+    }
 
     public enum Action {
         CLICK,
@@ -128,6 +147,57 @@ public final class PlaywrightRuntimeHealingExecutor {
 
         Action effectiveAction = effectiveAction(instruction, action);
 
+        boolean waitForResolution = hasResolutionEvidence(instruction, preparation);
+        long started = System.nanoTime();
+        long deadline = started + java.util.concurrent.TimeUnit.MILLISECONDS.toNanos(resolutionTimeoutMs);
+        boolean waitLogged = false;
+        while (true) {
+            throwIfCancelled();
+            if (!pageMatches(page, preparation)) {
+                return failed(
+                        "PAGE_CONTEXT_CHANGED", "PAGE", action, instruction, preparation, 0);
+            }
+            boolean deadlineReached = System.nanoTime() >= deadline;
+            Result result = resolveOnce(
+                    page,
+                    instruction,
+                    data,
+                    action,
+                    preparation,
+                    customSelectScope,
+                    effectiveAction,
+                    !waitForResolution || deadlineReached);
+            if (!retryableResolution(result) || !waitForResolution || deadlineReached) {
+                if (waitLogged) {
+                    executionTrace.info(
+                            "phase=V1_TARGET_WAIT_SETTLED instructionId={} action={} code={} durationMs={}",
+                            instruction.getId(), action, result.diagnostic().code(), elapsedMillis(started));
+                }
+                return result;
+            }
+            if (!waitLogged) {
+                executionTrace.info(
+                        "phase=V1_TARGET_WAIT_STARTED instructionId={} action={} timeoutMs={} intervalMs={}",
+                        instruction.getId(), action, resolutionTimeoutMs, retryIntervalMs);
+                waitLogged = true;
+            }
+            long remainingNanos = deadline - System.nanoTime();
+            if (remainingNanos <= 0) continue;
+            LockSupport.parkNanos(Math.min(
+                    remainingNanos,
+                    java.util.concurrent.TimeUnit.MILLISECONDS.toNanos(retryIntervalMs)));
+        }
+    }
+
+    private static Result resolveOnce(
+            Page page,
+            InstructionLoad instruction,
+            FieldData data,
+            Action action,
+            Preparation preparation,
+            boolean customSelectScope,
+            Action effectiveAction,
+            boolean allowCoordinates) {
         Probe authored = probeSelectors(
                 page,
                 PlaywrightActionExecutor.selectorsFor(instruction),
@@ -138,6 +208,8 @@ public final class PlaywrightRuntimeHealingExecutor {
                 effectiveAction,
                 "AUTHORED");
         Probe deferredAmbiguity = authored.ambiguous() ? authored : null;
+        String unavailableCode = authored.unavailableCode();
+        String unavailableStage = authored.stage();
         if (!authored.ambiguous() && authored.target() != null) {
             return executeTarget(
                     page, instruction, data, action, effectiveAction, preparation, authored);
@@ -177,6 +249,10 @@ public final class PlaywrightRuntimeHealingExecutor {
                         instruction.getIFrameXPath(),
                         scannedText);
                 observed += registry.liveCandidateCount();
+                if (unavailableCode == null && registry.unavailableCode() != null) {
+                    unavailableCode = registry.unavailableCode();
+                    unavailableStage = registry.stage();
+                }
                 if (registry.ambiguous()) {
                     if (deferredAmbiguity == null) deferredAmbiguity = registry;
                     continue;
@@ -203,6 +279,10 @@ public final class PlaywrightRuntimeHealingExecutor {
                 instruction.getIFrameXPath(),
                 physicalTag(instruction));
         observed += canonical.liveCandidateCount();
+        if (unavailableCode == null && canonical.unavailableCode() != null) {
+            unavailableCode = canonical.unavailableCode();
+            unavailableStage = canonical.stage();
+        }
         if (canonical.ambiguous()) {
             if (deferredAmbiguity == null) deferredAmbiguity = canonical;
         } else if (canonical.target() != null) {
@@ -239,6 +319,10 @@ public final class PlaywrightRuntimeHealingExecutor {
             }
         }
         observed += alias.liveCandidateCount();
+        if (unavailableCode == null && alias.unavailableCode() != null) {
+            unavailableCode = alias.unavailableCode();
+            unavailableStage = alias.stage();
+        }
         if (alias.ambiguous()) {
             if (deferredAmbiguity == null) deferredAmbiguity = alias;
         } else if (alias.target() != null) {
@@ -266,11 +350,39 @@ public final class PlaywrightRuntimeHealingExecutor {
                 deferredAmbiguity, action, instruction, preparation);
         if (terminal != null) return terminal;
 
+        if (unavailableCode != null) {
+            return failed(
+                    unavailableCode,
+                    unavailableStage,
+                    action,
+                    instruction,
+                    preparation,
+                    observed);
+        }
+
         CoordinateTarget coordinates = coordinateTarget(instruction, preparation);
-        if (coordinates != null) {
+        if (allowCoordinates && coordinates != null) {
             return executeCoordinates(page, instruction, data, action, preparation, coordinates);
         }
         return failed("TARGET_NOT_FOUND", "RESOLUTION", action, instruction, preparation, observed);
+    }
+
+    private static boolean hasResolutionEvidence(
+            InstructionLoad instruction, Preparation preparation) {
+        return !PlaywrightActionExecutor.selectorsFor(instruction).isEmpty()
+                || hasText(instruction.getName())
+                || hasText(instruction.getClientNamed())
+                || (preparation != null && preparation.registryCandidateCount() > 0);
+    }
+
+    private static boolean retryableResolution(Result result) {
+        if (result == null || result.succeeded()) return false;
+        return Set.of("TARGET_NOT_FOUND", "ELEMENT_DISABLED", "ELEMENT_READ_ONLY")
+                .contains(result.diagnostic().code());
+    }
+
+    private static long elapsedMillis(long started) {
+        return java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started);
     }
 
     private static Probe probeRegistryTier(
@@ -283,6 +395,7 @@ public final class PlaywrightRuntimeHealingExecutor {
         if (tier.candidates() == null || tier.candidates().isEmpty()) return Probe.empty();
         Map<String, ResolvedTarget> unique = new LinkedHashMap<>();
         int observed = 0;
+        String unavailableCode = null;
         for (RegistryCandidate candidate : tier.candidates()) {
             if (hasText(authoredIframe)
                     && !sameBoundary(authoredIframe, candidate.iframeXpath())) {
@@ -320,6 +433,7 @@ public final class PlaywrightRuntimeHealingExecutor {
                 }
             }
             observed += probe.liveCandidateCount();
+            if (unavailableCode == null) unavailableCode = probe.unavailableCode();
             if (probe.ambiguous()) {
                 disposeTargets(unique.values());
                 return Probe.ambiguous(tier.stage(), observed);
@@ -334,8 +448,8 @@ public final class PlaywrightRuntimeHealingExecutor {
             }
         }
         return unique.isEmpty()
-                ? new Probe(null, false, tier.stage(), observed)
-                : new Probe(unique.values().iterator().next(), false, tier.stage(), observed);
+                ? new Probe(null, false, tier.stage(), observed, unavailableCode)
+                : new Probe(unique.values().iterator().next(), false, tier.stage(), observed, null);
     }
 
     private static Probe probeSelectors(
@@ -370,10 +484,11 @@ public final class PlaywrightRuntimeHealingExecutor {
             String stage,
             String expectedName) {
         if (hasShadowScope(shadowHost) || hasShadowScope(shadowRoot)) {
-            return new Probe(null, false, stage, 0);
+            return new Probe(null, false, stage, 0, null);
         }
         int observed = 0;
         boolean ambiguous = false;
+        String unavailableCode = null;
         for (String selector : selectors == null ? List.<String>of() : selectors) {
             throwIfCancelled();
             if (!hasText(selector)) continue;
@@ -408,6 +523,9 @@ public final class PlaywrightRuntimeHealingExecutor {
                         }
                         observed++;
                         if (!validation.valid()) {
+                            if (unavailableCode == null) {
+                                unavailableCode = validation.unavailableCode(action);
+                            }
                             dispose(element);
                             continue;
                         }
@@ -431,7 +549,7 @@ public final class PlaywrightRuntimeHealingExecutor {
                 if (valid.size() == 1) {
                     // Selector order is authoritative. A unique strong locator wins immediately;
                     // a later broad CSS fallback must not convert it into a false ambiguity.
-                    return new Probe(valid.get(0), false, stage, observed);
+                    return new Probe(valid.get(0), false, stage, observed, null);
                 }
             } catch (RuntimeException ignored) {
                 rethrowIfCancelled(ignored);
@@ -440,7 +558,7 @@ public final class PlaywrightRuntimeHealingExecutor {
         }
         return ambiguous
                 ? Probe.ambiguous(stage, observed)
-                : new Probe(null, false, stage, observed);
+                : new Probe(null, false, stage, observed, unavailableCode);
     }
 
     private static Probe probeLiveName(
@@ -467,6 +585,7 @@ public final class PlaywrightRuntimeHealingExecutor {
             }
             List<ResolvedTarget> valid = new ArrayList<>();
             int observed = 0;
+            String unavailableCode = null;
             for (ElementHandle candidate : elements) {
                 throwIfCancelled();
                 try {
@@ -491,6 +610,9 @@ public final class PlaywrightRuntimeHealingExecutor {
                                 validation.tagValidated(),
                                 validation.actionValidated()));
                     } else {
+                        if (unavailableCode == null) {
+                            unavailableCode = validation.unavailableCode(action);
+                        }
                         dispose(candidate);
                     }
                 } catch (RuntimeException unavailable) {
@@ -503,8 +625,8 @@ public final class PlaywrightRuntimeHealingExecutor {
                 return Probe.ambiguous(stage, observed);
             }
             return valid.isEmpty()
-                    ? new Probe(null, false, stage, observed)
-                    : new Probe(valid.get(0), false, stage, observed);
+                    ? new Probe(null, false, stage, observed, unavailableCode)
+                    : new Probe(valid.get(0), false, stage, observed, null);
         } catch (RuntimeException unavailable) {
             rethrowIfCancelled(unavailable);
             return Probe.empty();
@@ -886,17 +1008,22 @@ public final class PlaywrightRuntimeHealingExecutor {
                       const readonly = Boolean(el.readOnly) || el.getAttribute('aria-readonly') === 'true';
                       const tagOk = !expected || tag === expected;
                       let actionOk = false;
+                      let actionKindSupported = false;
                       if (action === 'OUTPUT') {
+                        actionKindSupported = true;
                         actionOk = visible;
                       } else if (action === 'INPUT') {
                         const inputOk = tag === 'textarea' || tag === 'select' || el.isContentEditable
                           || role === 'textbox'
                           || (tag === 'input' && !['button','submit','reset','file','checkbox','radio','hidden','image'].includes(type));
+                        actionKindSupported = inputOk;
                         actionOk = visible && !disabled && !readonly && inputOk;
                       } else {
                         const clickTag = ['a','button','label','summary','select','option'].includes(tag)
                           || (tag === 'input' && type !== 'hidden');
                         const clickRole = ['button','link','menuitem','tab','checkbox','radio','option','switch'].includes(role);
+                        actionKindSupported = allowExplicitClickOverride
+                          || clickTag || clickRole || el.hasAttribute('onclick') || el.tabIndex >= 0;
                         actionOk = visible && !disabled && (allowExplicitClickOverride
                           || clickTag || clickRole || el.hasAttribute('onclick') || el.tabIndex >= 0);
                       }
@@ -907,7 +1034,8 @@ public final class PlaywrightRuntimeHealingExecutor {
                       }
                       const root = el.getRootNode ? el.getRootNode() : null;
                       const shadowOk = !(typeof ShadowRoot !== 'undefined' && root instanceof ShadowRoot);
-                      return { tag, visible, tagOk, actionOk, frameOk, shadowOk };
+                      return { tag, visible, tagOk, actionOk, frameOk, shadowOk,
+                        disabled, readonly, actionKindSupported };
                     }
                     """,
                     List.of(
@@ -921,13 +1049,19 @@ public final class PlaywrightRuntimeHealingExecutor {
             boolean actionOk = booleanValue(values.get("actionOk"));
             boolean frameOk = booleanValue(values.get("frameOk"));
             boolean shadowOk = booleanValue(values.get("shadowOk"));
+            boolean disabled = booleanValue(values.get("disabled"));
+            boolean readonly = booleanValue(values.get("readonly"));
+            boolean actionKindSupported = booleanValue(values.get("actionKindSupported"));
             return new Validation(
                     visible && tagOk && actionOk && frameOk && shadowOk,
                     visible,
                     tagOk,
                     actionOk,
                     frameOk,
-                    shadowOk);
+                    shadowOk,
+                    disabled,
+                    readonly,
+                    actionKindSupported);
         } catch (RuntimeException unavailable) {
             return Validation.invalid();
         }
@@ -953,21 +1087,25 @@ public final class PlaywrightRuntimeHealingExecutor {
                       const readonly = Boolean(el.readOnly) || el.getAttribute('aria-readonly') === 'true';
                       const tagOk = !expected || tag === expected;
                       let actionOk = false;
-                      if (action === 'OUTPUT') actionOk = visible;
+                      let actionKindSupported = false;
+                      if (action === 'OUTPUT') { actionKindSupported = true; actionOk = visible; }
                       else if (action === 'INPUT') {
-                        actionOk = visible && !disabled && !readonly && (tag === 'textarea' || tag === 'select'
+                        actionKindSupported = tag === 'textarea' || tag === 'select'
                           || el.isContentEditable || role === 'textbox'
-                          || (tag === 'input' && !['button','submit','reset','file','checkbox','radio','hidden','image'].includes(type)));
+                          || (tag === 'input' && !['button','submit','reset','file','checkbox','radio','hidden','image'].includes(type));
+                        actionOk = visible && !disabled && !readonly && actionKindSupported;
                       } else {
                         const clickTag = ['a','button','label','summary','select','option'].includes(tag)
                           || (tag === 'input' && type !== 'hidden');
                         const clickRole = ['button','link','menuitem','tab','checkbox','radio','option','switch'].includes(role);
-                        actionOk = visible && !disabled && (clickTag || clickRole || el.hasAttribute('onclick') || el.tabIndex >= 0);
+                        actionKindSupported = clickTag || clickRole || el.hasAttribute('onclick') || el.tabIndex >= 0;
+                        actionOk = visible && !disabled && actionKindSupported;
                       }
                       const root = el.getRootNode ? el.getRootNode() : null;
                       const shadowOk = !(typeof ShadowRoot !== 'undefined' && root instanceof ShadowRoot)
                         && !el.shadowRoot && !el.assignedSlot;
-                      return { visible, tagOk, actionOk, shadowOk };
+                      return { visible, tagOk, actionOk, shadowOk,
+                        disabled, readonly, actionKindSupported };
                     }
                     """,
                     List.of(target.x(), target.y(), action.name(), normalizeExpectedTag(target.expectedTag())));
@@ -982,7 +1120,10 @@ public final class PlaywrightRuntimeHealingExecutor {
                     tagOk,
                     actionOk,
                     true,
-                    shadowOk);
+                    shadowOk,
+                    booleanValue(values.get("disabled")),
+                    booleanValue(values.get("readonly")),
+                    booleanValue(values.get("actionKindSupported")));
         } catch (RuntimeException unavailable) {
             return Validation.invalid();
         }
@@ -1558,17 +1699,21 @@ public final class PlaywrightRuntimeHealingExecutor {
     private record Tier(String stage, List<RegistryCandidate> candidates) {}
 
     private record Probe(
-            ResolvedTarget target, boolean ambiguous, String stage, int liveCandidateCount) {
+            ResolvedTarget target,
+            boolean ambiguous,
+            String stage,
+            int liveCandidateCount,
+            String unavailableCode) {
         private static Probe empty() {
-            return new Probe(null, false, "RESOLUTION", 0);
+            return new Probe(null, false, "RESOLUTION", 0, null);
         }
 
         private static Probe ambiguous(String stage, int count) {
-            return new Probe(null, true, stage, Math.max(0, count));
+            return new Probe(null, true, stage, Math.max(0, count), null);
         }
 
         private Probe withLiveCandidateCount(int count) {
-            return new Probe(target, ambiguous, stage, count);
+            return new Probe(target, ambiguous, stage, count, unavailableCode);
         }
     }
 
@@ -1606,9 +1751,22 @@ public final class PlaywrightRuntimeHealingExecutor {
             boolean tagValidated,
             boolean actionValidated,
             boolean frameValidated,
-            boolean shadowValidated) {
+            boolean shadowValidated,
+            boolean disabled,
+            boolean readonly,
+            boolean actionKindSupported) {
         private static Validation invalid() {
-            return new Validation(false, false, false, false, false, false);
+            return new Validation(false, false, false, false, false, false, false, false, false);
+        }
+
+        private String unavailableCode(Action action) {
+            if (!visible || !tagValidated || !frameValidated || !shadowValidated
+                    || !actionKindSupported) {
+                return null;
+            }
+            if (disabled) return "ELEMENT_DISABLED";
+            if (action == Action.INPUT && readonly) return "ELEMENT_READ_ONLY";
+            return null;
         }
     }
 }

@@ -419,6 +419,16 @@ public final class SmokeTestIntegrationStepExecutor {
         if (!succeeded && diagnostic != null) {
             String stage = diagnostic.stage() == null ? "RESOLUTION" : diagnostic.stage();
             String code = diagnostic.code() == null ? failureCode : diagnostic.code();
+            if (java.util.Set.of("ELEMENT_DISABLED", "ELEMENT_READ_ONLY").contains(code)) {
+                return new Outcome(
+                        StepStatus.SKIPPED,
+                        StepDisposition.PHYSICAL,
+                        code,
+                        "The Web Element was located but is not currently available for this action. "
+                                + "The instruction was skipped without opening Locator Recovery.",
+                        null,
+                        null);
+            }
             return failed(
                     optional,
                     StepDisposition.PHYSICAL,
