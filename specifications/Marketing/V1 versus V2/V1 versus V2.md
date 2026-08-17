@@ -1,6 +1,6 @@
 # AR Web Runtime V1 versus V2
 
-**Client and product architecture guide**  
+**Client and product architecture guide**
 **Current product position:** AR Web can be delivered with V1 and V2 together. A separately packaged
 V1-only edition is planned so customers that do not need isolated parallel execution can operate
 without the V2 Node runtime.
