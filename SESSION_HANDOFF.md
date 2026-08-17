@@ -1607,3 +1607,35 @@ Do not change frontend CSS/design while doing the scanner contract cleanup unles
   `88F6F12A29121F68DB2B6BDA9ACF80D4922DDBF207F645CD8C0E6851D1096AB5`).
 - [x] Catalog `c0fadd47` records 2,451 rows, 2,415 code cases, and 19,452 generated API requests.
 - [ ] No live application was started. The same V1/V2 manual acceptance matrix remains open.
+
+### In-modal recovery scan, action override, and candidate probes - 2026-08-17
+
+- [x] Frontend `4a57ca6` replaces the Locator Recovery modal's detached-window launch with one
+  correlated in-modal Page Scanner operation. The modal keeps the instruction paused, refreshes its
+  rows from the response, and adds Action (CLICK / INPUT / OUTPUT), Test Input, and Test Click
+  immediately after OCR / mapped evidence.
+- [x] Backend `2410ec62` freezes the historical owner/page registry before invoking the established
+  Page Scanner pipeline against the exact paused V1 or V2 browser. The normal settle, element scan,
+  OCR naming, `scanned_element` persistence, diagnostics JSON, fingerprint, screenshot, and immutable
+  snapshot attempt remain authoritative; a bounded matcher then compares the fresh DTOs with the
+  frozen registry and replaces only the still-pending recovery candidates.
+- [x] Existing clients that omit the action remain backward-compatible and execute the authored
+  action. New requests may explicitly select CLICK, INPUT, or OUTPUT; Test Input/Click are physical
+  probes and never settle or save the pending recovery.
+- [x] Privacy-safe trace phases cover request receipt, pending-state refusal, owner/runtime admission,
+  historical freeze, scan completion, candidate comparison/installation, probe start/result/failure,
+  resolved action source, and duration. URLs, locators, input values, credentials, and banking text
+  are excluded from logs.
+- [x] Focused verification passed Java 45/45 and React 24/24. Java compiled 587 main and 344 test
+  sources with only the established Lombok and varargs warnings. The normal React production build
+  passed with the established repository lint warnings; CI warning-as-error mode remains blocked by
+  the pre-existing lint backlog.
+- [x] Deployment `efa4b4b8` mirrors 61 exact files into resources and `target/classes` with zero hash
+  differences. Entrypoints are `main.5ce146d0.js` (2,195,388 bytes; SHA-256
+  `6975FF992D8F462355BBD780064AD9F11F3ADAC0EA7C8AFBCA885EA99FD2C19B`) and
+  `main.9629381e.css` (547,452 bytes; SHA-256
+  `887F453578D55AECBC30F7A559AAC5DD99E8E1FCEB51EE9187792067E54535F1`).
+- [ ] The existing JVM was not restarted, so it still has the prior Java classes loaded. Restart one
+  instance before live acceptance, then prove V1 and V2 scan refresh, zero/multiple candidates,
+  Test Input/Click, action override, Use Once, Use and Save, bypass, and owner isolation while
+  confirming the new trace phases.

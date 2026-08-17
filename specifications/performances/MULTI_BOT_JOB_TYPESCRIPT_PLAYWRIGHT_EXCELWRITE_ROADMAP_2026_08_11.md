@@ -1593,3 +1593,19 @@ and atomic artifact-write checkpoints are complete.
 - [x] Deployment `f8c55364` is an exact 61-file mirror using `main.ac1201a0.js` and
   `main.121bd605.css`. Catalog `c0fadd47` now records 2,451 rows / 2,415 code cases.
 - [ ] Live V1/V2 acceptance remains user-driven; no application instance was started during review.
+
+## 56. In-modal Locator Recovery scan and candidate actions - 2026-08-17
+
+- [x] Frontend `4a57ca6` makes Page Scanner an in-modal, correlated refresh and adds the requested
+  CLICK/INPUT/OUTPUT selector plus Test Input and Test Click after the OCR column.
+- [x] Backend `2410ec62` reuses the complete Page Scanner/OCR/registry/JSON/snapshot pipeline on the
+  exact paused V1/V2 browser, freezes historical locator evidence before persistence, and installs
+  bounded owner/page candidates without automatically changing an instruction.
+- [x] Backward-compatible authored actions remain the default; explicit action overrides are used
+  only when supplied. Candidate probes do not settle recovery.
+- [x] Request, authorization, scan/match/install, probe, failure, and duration phases are recorded in
+  the privacy-safe Smoke trace without URLs, selectors, values, credentials, or banking content.
+- [x] Java 45/45 and React 24/24 focused checks passed. Production build and exact 61-file mirror
+  passed. Deployment `efa4b4b8` uses `main.5ce146d0.js` / `main.9629381e.css`.
+- [ ] Restart and live V1/V2 acceptance remain. Verify zero candidates, multiple candidates,
+  selection/action changes, both probes, Page Scanner refresh, Use Once/Save, bypass, and isolation.
