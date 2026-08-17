@@ -588,7 +588,12 @@ public class ARPlaywrightDriver {
     /** Interrupts only the currently executing Playwright call and preserves the browser session. */
     public boolean cancelCurrentOperation() {
         Future<?> current = activeOperation.get();
-        return current != null && current.cancel(true);
+        boolean cancelled = current != null && current.cancel(true);
+        log.warn(
+                "Playwright active operation cancellation requested: present={} accepted={}",
+                current != null,
+                cancelled);
+        return cancelled;
     }
 
     /**

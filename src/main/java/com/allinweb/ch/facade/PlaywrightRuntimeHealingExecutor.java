@@ -20,6 +20,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.CancellationException;
 
 /**
  * Fail-closed Playwright executor used only by production Test Run and Smoke Integration.
@@ -50,6 +51,7 @@ public final class PlaywrightRuntimeHealingExecutor {
             FieldData data,
             Action action,
             Preparation preparation) {
+        throwIfCancelled();
         if (page == null || page.isClosed() || instruction == null || action == null) {
             return failed("INVALID_REQUEST", "REQUEST", action, instruction, preparation, 0);
         }
@@ -373,20 +375,22 @@ public final class PlaywrightRuntimeHealingExecutor {
         int observed = 0;
         boolean ambiguous = false;
         for (String selector : selectors == null ? List.<String>of() : selectors) {
+            throwIfCancelled();
             if (!hasText(selector)) continue;
             try {
                 Locator locator = scopedLocator(page, iframeXpath, selector);
-                int count = locator.count();
+                List<ElementHandle> elements = snapshotElements(locator);
+                int count = elements.size();
                 if (count > MAX_CANDIDATES) {
+                    disposeElements(elements);
                     observed += count;
                     ambiguous = true;
                     continue;
                 }
                 List<ResolvedTarget> valid = new ArrayList<>();
-                for (int index = 0; index < count; index++) {
-                    ElementHandle element = null;
+                for (ElementHandle element : elements) {
+                    throwIfCancelled();
                     try {
-                        element = locator.nth(index).elementHandle();
                         if (element == null) continue;
                         if (hasText(expectedName) && !matchesLiveName(element, expectedName)) {
                             dispose(element);
@@ -415,6 +419,7 @@ public final class PlaywrightRuntimeHealingExecutor {
                                 validation.tagValidated(),
                                 validation.actionValidated()));
                     } catch (RuntimeException unavailable) {
+                        rethrowIfCancelled(unavailable);
                         dispose(element);
                     }
                 }
@@ -429,6 +434,7 @@ public final class PlaywrightRuntimeHealingExecutor {
                     return new Probe(valid.get(0), false, stage, observed);
                 }
             } catch (RuntimeException ignored) {
+                rethrowIfCancelled(ignored);
                 // A broken selector is not authority to act. Continue resolving before any action.
             }
         }
@@ -453,14 +459,17 @@ public final class PlaywrightRuntimeHealingExecutor {
                     page,
                     iframeXpath,
                     action == Action.OUTPUT ? LIVE_OUTPUT_SELECTOR : LIVE_ACTION_SELECTOR);
-            int count = candidates.count();
-            if (count > MAX_CANDIDATES) return Probe.ambiguous(stage, count);
+            List<ElementHandle> elements = snapshotElements(candidates);
+            int count = elements.size();
+            if (count > MAX_CANDIDATES) {
+                disposeElements(elements);
+                return Probe.ambiguous(stage, count);
+            }
             List<ResolvedTarget> valid = new ArrayList<>();
             int observed = 0;
-            for (int index = 0; index < count; index++) {
-                ElementHandle candidate = null;
+            for (ElementHandle candidate : elements) {
+                throwIfCancelled();
                 try {
-                    candidate = candidates.nth(index).elementHandle();
                     if (candidate == null) continue;
                     if (!matchesLiveName(candidate, expectedName)) {
                         dispose(candidate);
@@ -485,6 +494,7 @@ public final class PlaywrightRuntimeHealingExecutor {
                         dispose(candidate);
                     }
                 } catch (RuntimeException unavailable) {
+                    rethrowIfCancelled(unavailable);
                     dispose(candidate);
                 }
             }
@@ -496,8 +506,42 @@ public final class PlaywrightRuntimeHealingExecutor {
                     ? new Probe(null, false, stage, observed)
                     : new Probe(valid.get(0), false, stage, observed);
         } catch (RuntimeException unavailable) {
+            rethrowIfCancelled(unavailable);
             return Probe.empty();
         }
+    }
+
+    /**
+     * Captures the locator's current matches without Playwright's implicit wait-for-attachment.
+     * Runtime healing is a resolver, not a wait policy: a missing element must settle promptly so
+     * Locator Recovery can pause the instruction, and Stop must never leave the serialized
+     * Playwright worker trapped behind a stale {@code elementHandle()} wait.
+     */
+    static List<ElementHandle> snapshotElements(Locator locator) {
+        throwIfCancelled();
+        List<ElementHandle> elements = locator.elementHandles();
+        throwIfCancelled();
+        return elements == null ? List.of() : elements;
+    }
+
+    private static void throwIfCancelled() {
+        if (Thread.currentThread().isInterrupted()) {
+            throw new CancellationException("Playwright runtime action was cancelled");
+        }
+    }
+
+    private static void rethrowIfCancelled(RuntimeException failure) {
+        if (failure instanceof CancellationException || Thread.currentThread().isInterrupted()) {
+            CancellationException cancelled = new CancellationException(
+                    "Playwright runtime action was cancelled");
+            cancelled.initCause(failure);
+            throw cancelled;
+        }
+    }
+
+    private static void disposeElements(List<ElementHandle> elements) {
+        if (elements == null) return;
+        elements.forEach(PlaywrightRuntimeHealingExecutor::dispose);
     }
 
     private static Result terminalProbe(
