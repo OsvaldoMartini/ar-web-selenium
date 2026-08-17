@@ -32,6 +32,7 @@ interface RuntimeWorkerPool {
   snapshot(runId: string): ExecutionSessionSnapshot;
   refresh(runId: string): Promise<ExecutionSessionSnapshot>;
   pageIdentity(runId: string): Promise<string>;
+  recoveryScanner(runId: string, request: BrowserScannerRequest): Promise<unknown>;
   perform(runId: string, request: PhysicalActionRequest): Promise<PhysicalActionResult>;
   stop(runId: string): Promise<ExecutionSessionSnapshot>;
   closeBrowser(runId: string): Promise<ExecutionSessionSnapshot>;
@@ -354,7 +355,7 @@ export const createRuntimeServer = (options: RuntimeServerOptions = {}) => {
         return;
       }
 
-      const operationMatch = /^\/v2\/runs\/([0-9a-f-]+)\/(start|session|actions|page-identity|refresh|stop|close-browser|heartbeat|release)$/i.exec(path);
+      const operationMatch = /^\/v2\/runs\/([0-9a-f-]+)\/(start|session|actions|scanner|page-identity|refresh|stop|close-browser|heartbeat|release)$/i.exec(path);
       const operationRunId = operationMatch?.[1];
       const operation = operationMatch?.[2]?.toLowerCase();
       if (operationRunId && UUID_PATTERN.test(operationRunId) && operation) {
@@ -392,6 +393,22 @@ export const createRuntimeServer = (options: RuntimeServerOptions = {}) => {
             await readJsonBody(request, MAX_ACTION_BODY_BYTES),
           );
           success(response, 200, await workerPool.perform(operationRunId, action));
+          return;
+        }
+        if (method === 'POST' && operation === 'scanner') {
+          registry.authorizeActiveRun(
+            operationRunId, token, 'runtime.action', config.runIdleLeaseSeconds,
+          );
+          const scannerRequest = parseScannerRequest(
+            await readJsonBody(request, MAX_ACTION_BODY_BYTES),
+          );
+          log({ event: 'recovery.scanner.rpc.started', runId: operationRunId,
+            operation: scannerRequest.operation });
+          success(response, 200, { value: await workerPool.recoveryScanner(
+            operationRunId, scannerRequest,
+          ) });
+          log({ event: 'recovery.scanner.rpc.completed', runId: operationRunId,
+            operation: scannerRequest.operation });
           return;
         }
         if (method === 'GET' && operation === 'page-identity') {

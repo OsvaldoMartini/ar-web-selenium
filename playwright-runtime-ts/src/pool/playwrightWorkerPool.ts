@@ -107,6 +107,12 @@ export class PlaywrightWorkerPool {
     return entry.session.pageIdentity();
   }
 
+  async recoveryScanner(runId: string, request: BrowserScannerRequest): Promise<unknown> {
+    const entry = this.requireEntry(runId);
+    if (!entry.admitted) throw new PlaywrightWorkerPoolError('SESSION_NOT_ACTIVE');
+    return entry.session.scanner(request);
+  }
+
   async stop(runId: string): Promise<ExecutionSessionSnapshot> {
     const entry = this.requireEntry(runId);
     if (!entry.admitted) {

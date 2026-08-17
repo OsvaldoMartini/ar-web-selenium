@@ -1,4 +1,8 @@
-import { BrowserSessionFactory, BrowserSessionHandle } from '../browser/browserSessionFactory';
+import {
+  BrowserScannerRequest,
+  BrowserSessionFactory,
+  BrowserSessionHandle,
+} from '../browser/browserSessionFactory';
 import {
   ExecutionLaunchDescriptor,
   ExecutionSessionSnapshot,
@@ -117,6 +121,15 @@ export class ExecutionSession {
         throw new Error('SESSION_PAGE_IDENTITY_STATE_INVALID');
       }
       return this.handle.pageIdentity();
+    });
+  }
+
+  scanner(request: BrowserScannerRequest): Promise<unknown> {
+    return this.exclusive(async () => {
+      if (this.state !== 'READY' || !this.handle || this.stopRequested) {
+        throw new Error('SESSION_SCANNER_STATE_INVALID');
+      }
+      return this.handle.scanner(request);
     });
   }
 

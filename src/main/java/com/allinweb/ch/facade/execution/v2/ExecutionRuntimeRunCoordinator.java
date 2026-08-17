@@ -18,6 +18,8 @@ import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -42,6 +44,7 @@ public final class ExecutionRuntimeRunCoordinator {
     private final ExecutionRuntimeActionFactory actions;
     private final TimePort time;
     private final KeepAlivePort keepAlive;
+    private final ConcurrentMap<String, Run> openRuns = new ConcurrentHashMap<>();
 
     ExecutionRuntimeRunCoordinator(
             GrantPort grants,
@@ -123,9 +126,30 @@ public final class ExecutionRuntimeRunCoordinator {
         return new ScannerSession(runtime, authority, facts.homeBankingId(), facts.botJobId());
     }
 
+    /** Opens a serialized scanner view over the exact V2 run paused in Locator Recovery. */
+    public ScannerSession openRecoveryScanner(AuthorizedGrantFacts facts, String runId) {
+        Objects.requireNonNull(facts, "V2 recovery scanner authority is required");
+        Run current = openRuns.get(runId);
+        if (current == null) throw new IllegalStateException("Execution V2 recovery run is unavailable");
+        synchronized (current) {
+            requireOpen(current);
+            if (current.pendingRecovery == null
+                    || current.facts.homeBankingId() != facts.homeBankingId()
+                    || current.facts.botJobId() != facts.botJobId()
+                    || current.facts.workspaceEpoch() != facts.workspaceEpoch()) {
+                throw new IllegalStateException("Execution V2 recovery scanner owner is stale");
+            }
+        }
+        executionTrace.info(
+                "phase=V2_RECOVERY_SCANNER_OPENED runId={} hb={} bot={} workspaceEpoch={}",
+                runId, facts.homeBankingId(), facts.botJobId(), facts.workspaceEpoch());
+        return new ScannerSession(runtime, current, facts.homeBankingId(), facts.botJobId());
+    }
+
     public static final class ScannerSession implements AutoCloseable {
         private final RuntimePort runtime;
         private final ScannerAuthority authority;
+        private final Run recoveryRun;
         private final int homeBankingId;
         private final int botJobId;
         private final AtomicBoolean closed = new AtomicBoolean();
@@ -136,6 +160,15 @@ public final class ExecutionRuntimeRunCoordinator {
                 RuntimePort runtime, ScannerAuthority authority, int homeBankingId, int botJobId) {
             this.runtime = runtime;
             this.authority = authority;
+            this.recoveryRun = null;
+            this.homeBankingId = homeBankingId;
+            this.botJobId = botJobId;
+        }
+
+        private ScannerSession(RuntimePort runtime, Run recoveryRun, int homeBankingId, int botJobId) {
+            this.runtime = runtime;
+            this.authority = null;
+            this.recoveryRun = recoveryRun;
             this.homeBankingId = homeBankingId;
             this.botJobId = botJobId;
         }
@@ -150,7 +183,18 @@ public final class ExecutionRuntimeRunCoordinator {
                     "phase=V2_SCANNER_RPC_STARTED hb={} bot={} sequence={} operation={}",
                     homeBankingId, botJobId, currentSequence, operation);
             try {
-                JsonElement response = runtime.scanner(authority, request);
+                JsonElement response;
+                if (recoveryRun == null) {
+                    response = runtime.scanner(authority, request);
+                } else {
+                    synchronized (recoveryRun) {
+                        requireOpen(recoveryRun);
+                        if (recoveryRun.pendingRecovery == null) {
+                            throw new IllegalStateException("Execution V2 locator recovery is no longer pending");
+                        }
+                        response = runtime.recoveryScanner(recoveryRun.authority, request);
+                    }
+                }
                 executionTrace.info(
                         "phase=V2_SCANNER_RPC_COMPLETED hb={} bot={} sequence={} operation={} durationMs={}",
                         homeBankingId, botJobId, currentSequence, operation,
@@ -169,6 +213,12 @@ public final class ExecutionRuntimeRunCoordinator {
         @Override
         public void close() {
             if (!closed.compareAndSet(false, true)) return;
+            if (recoveryRun != null) {
+                executionTrace.info(
+                        "phase=V2_RECOVERY_SCANNER_CLOSED runId={} hb={} bot={}",
+                        recoveryRun.runId, homeBankingId, botJobId);
+                return;
+            }
             try {
                 runtime.closeScanner(authority);
                 executionTrace.info("phase=V2_SCANNER_CLOSED hb={} bot={}", homeBankingId, botJobId);
@@ -220,6 +270,7 @@ public final class ExecutionRuntimeRunCoordinator {
             awaitReady(authority, snapshot);
             Run run = new Run(grant.runId(), facts, plan, authority);
             run.keepAliveLease = keepAlive.start(() -> renewLease(run));
+            openRuns.put(run.runId, run);
             ready = true;
             executionTrace.info(
                     "phase=V2_RUN_READY runId={} homeBankingId={} botJobId={} durationMs={}",
@@ -551,6 +602,7 @@ public final class ExecutionRuntimeRunCoordinator {
                 runtime.stop(current.authority);
                 runtime.release(current.authority);
                 current.closed = true;
+                openRuns.remove(current.runId, current);
                 executionTrace.info("phase=V2_CLOSE_SETTLED runId={} preserveBrowser=true", current.runId);
             } catch (RuntimeException failure) {
                 executionTrace.warn(
@@ -823,6 +875,9 @@ public final class ExecutionRuntimeRunCoordinator {
         default void closeScanner(ScannerAuthority authority) {
             throw new UnsupportedOperationException("V2 Page Scanner is unavailable");
         }
+        default JsonElement recoveryScanner(Authority authority, JsonObject request) {
+            throw new UnsupportedOperationException("V2 recovery Page Scanner is unavailable");
+        }
     }
 
     interface KeepAlivePort {
@@ -952,6 +1007,11 @@ public final class ExecutionRuntimeRunCoordinator {
         @Override
         public void closeScanner(ScannerAuthority authority) {
             client.closeScanner(scannerRun(authority));
+        }
+
+        @Override
+        public JsonElement recoveryScanner(Authority authority, JsonObject request) {
+            return client.recoveryScanner(run(authority), request);
         }
 
         private static RuntimeRun run(Authority authority) {

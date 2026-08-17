@@ -10,6 +10,7 @@ import com.allinweb.ch.facade.execution.SmokeTestIntegrationSnapshotRepository.O
 import com.allinweb.ch.facade.execution.SmokeTestIntegrationSnapshotRepository.Plan;
 import com.allinweb.ch.facade.execution.SmokeTestIntegrationStepExecutor;
 import com.allinweb.ch.facade.execution.SmokeTestIntegrationV1RecoveryCoordinator;
+import com.allinweb.ch.facade.execution.SmokeRecoveryScannerRegistry;
 import com.allinweb.ch.facade.execution.SmokeTestIntegrationExcelWriteService;
 import com.allinweb.ch.facade.execution.SmokeTestIntegrationStepExecutor.Outcome;
 import com.allinweb.ch.facade.execution.SmokeTestIntegrationStepExecutor.RunVariables;
@@ -1091,6 +1092,9 @@ public final class SmokeTestIntegrationService {
                     null,
                     null);
         }
+        if (outcome.recovery() != null) {
+            authorizeRecoveryScanner(run, request.instructionId(), "RECOVERY_PENDING");
+        }
         if (run.cancelled) {
             return stoppedStep(run, request, "Integration stop interrupted the current action.");
         }
@@ -1211,6 +1215,7 @@ public final class SmokeTestIntegrationService {
                 return recoveryResponse(run, request, null, "CANCELLED",
                         "Locator recovery was cancelled.");
             }
+            clearRecoveryScanner(run, request.instructionId(), "DECISION_STARTED");
             Outcome outcome = run.runtimeMode == RuntimeMode.TYPESCRIPT_PLAYWRIGHT_V2
                     ? v2.recover(
                             run.v2Run,
@@ -1224,12 +1229,14 @@ public final class SmokeTestIntegrationService {
                             request.decision() == RecoveryDecision.USE_AND_SAVE,
                             run.variables);
             if (outcome.status() == StepStatus.FAILED) {
+                authorizeRecoveryScanner(run, request.instructionId(), "DECISION_FAILED");
                 executionTrace.warn(
                         "phase=RECOVERY_SETTLED requestId={} runId={} instructionId={} mode={} status=FAILED code={}",
                         request.requestId(), run.runId, request.instructionId(),
                         run.runtimeMode, outcome.code());
                 return recoveryResponse(run, request, outcome, "FAILED", outcome.message());
             }
+            clearRecoveryScanner(run, request.instructionId(), "DECISION_COMPLETED");
             synchronized (stateLock) {
                 SequenceResult previous = run.sequenceResults.get(request.sequence());
                 if (previous == null || !previous.recoveryPending) {
@@ -1309,6 +1316,28 @@ public final class SmokeTestIntegrationService {
         } else {
             steps.cancelRecovery(run.runId, instructionId, reason);
         }
+        clearRecoveryScanner(run, instructionId, reason);
+    }
+
+    private void clearRecoveryScanner(Run run, int instructionId, String reason) {
+        SmokeRecoveryScannerRegistry.getInstance().clear(run.runId);
+        executionTrace.info(
+                "phase=RECOVERY_SCANNER_RETIRED runId={} instructionId={} mode={} reason={}",
+                run.runId, instructionId, run.runtimeMode, reason);
+    }
+
+    private void authorizeRecoveryScanner(Run run, int instructionId, String reason) {
+        SmokeRecoveryScannerRegistry.getInstance().register(
+                run.runId,
+                run.runtimeMode,
+                run.authorization.homeBankingId(),
+                run.authorization.botJobId(),
+                run.authorization.workspaceEpoch());
+        executionTrace.info(
+                "phase=RECOVERY_SCANNER_AUTHORIZED runId={} instructionId={} mode={} hb={} bot={} workspaceEpoch={} reason={}",
+                run.runId, instructionId, run.runtimeMode,
+                run.authorization.homeBankingId(), run.authorization.botJobId(),
+                run.authorization.workspaceEpoch(), reason);
     }
 
     private static void decrement(Run run, StepStatus status) {
@@ -1996,6 +2025,7 @@ public final class SmokeTestIntegrationService {
                 expected.authorization.homeBankingId(), expected.authorization.botJobId(),
                 terminalStatus);
         try {
+            SmokeRecoveryScannerRegistry.getInstance().clear(expected.runId);
             if (expected.runtimeMode == RuntimeMode.JAVA_V1) {
                 steps.clearRecovery(expected.runId, terminalStatus.name());
             }

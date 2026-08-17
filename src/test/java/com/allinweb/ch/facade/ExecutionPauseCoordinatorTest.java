@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.allinweb.ch.model.BotJobLoadDTO;
+import com.allinweb.ch.facade.execution.SmokeRecoveryScannerRegistry;
+import com.allinweb.ch.model.SmokeTestIntegrationContracts.RuntimeMode;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -41,6 +43,7 @@ class ExecutionPauseCoordinatorTest {
     @AfterEach
     void tearDown() {
         coordinator.cancelAll();
+        SmokeRecoveryScannerRegistry.getInstance().clear("recovery-run");
     }
 
     @Test
@@ -94,6 +97,19 @@ class ExecutionPauseCoordinatorTest {
             assertThrows(
                     IllegalStateException.class,
                     () -> coordinator.beginScannerActivity(42, attempt.workspaceEpoch()));
+        }
+    }
+
+    @Test
+    void exactV1LocatorRecoveryCanInspectTheReservedSharedBrowser() {
+        assertTrue(registry.finishTestRun(attempt, "PASSED"));
+        try (ExecutionPauseCoordinator.ExecutionStart ignored = coordinator.reserveExecutionStart()) {
+            SmokeRecoveryScannerRegistry.getInstance().register(
+                    "recovery-run", RuntimeMode.JAVA_V1, 7, 42, attempt.workspaceEpoch());
+            try (ExecutionPauseCoordinator.ScannerActivity scanner =
+                         coordinator.beginScannerActivity(42, attempt.workspaceEpoch())) {
+                assertTrue(coordinator.hasScannerActivity());
+            }
         }
     }
 

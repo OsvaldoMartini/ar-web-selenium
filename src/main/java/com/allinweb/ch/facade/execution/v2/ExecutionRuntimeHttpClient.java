@@ -83,6 +83,14 @@ public final class ExecutionRuntimeHttpClient {
         return tokenExchange("POST", run, "actions", authoritativeAction.deepCopy());
     }
 
+    JsonElement recoveryScanner(RuntimeRun run, JsonObject request) {
+        Objects.requireNonNull(request, "Execution V2 recovery scanner request is required");
+        JsonObject response = tokenExchange("POST", run, "scanner", request.deepCopy());
+        return response.has("value")
+                ? response.get("value").deepCopy()
+                : com.google.gson.JsonNull.INSTANCE;
+    }
+
     String pageIdentity(RuntimeRun run) {
         JsonObject response = tokenExchange("GET", run, "page-identity", null);
         String pageKey = requiredString(response, "pageKey", false);

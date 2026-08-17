@@ -3,6 +3,8 @@ package com.allinweb.ch.facade;
 import com.allinweb.ch.driver.ExecutionV2PageScannerDriver;
 import com.allinweb.ch.facade.execution.v2.ExecutionRuntimeRunCoordinator;
 import com.allinweb.ch.facade.execution.v2.ExecutionV2RuntimeSupervisor;
+import com.allinweb.ch.facade.execution.SmokeRecoveryScannerRegistry;
+import com.allinweb.ch.model.SmokeTestIntegrationContracts;
 import com.allinweb.ch.facade.execution.v2.ExecutionV2Contracts.AuthorizedGrantFacts;
 import com.allinweb.ch.facade.execution.v2.ExecutionV2Contracts.DataMode;
 import java.util.Locale;
@@ -40,14 +42,24 @@ public final class PageScannerRuntimeSelector {
                     "Execution V2 runtime is not ready. Start SERVER before scanning V2.");
         }
         ExecutionRuntimeRunCoordinator coordinator = supervisor.coordinator();
-        var scanner = coordinator.openScanner(new AuthorizedGrantFacts(
+        AuthorizedGrantFacts facts = new AuthorizedGrantFacts(
                 context.homeBankingId(),
                 context.homeBankingId(),
                 context.botJobId(),
                 workspaceEpoch,
                 EMPTY_REVISION,
                 EMPTY_REVISION,
-                DataMode.REAL));
+                DataMode.REAL);
+        SmokeRecoveryScannerRegistry recovery = SmokeRecoveryScannerRegistry.getInstance();
+        var scanner = recovery.permits(
+                SmokeTestIntegrationContracts.RuntimeMode.TYPESCRIPT_PLAYWRIGHT_V2,
+                context.homeBankingId(), context.botJobId(), workspaceEpoch)
+                ? coordinator.openRecoveryScanner(
+                        facts,
+                        recovery.requireRunId(
+                                SmokeTestIntegrationContracts.RuntimeMode.TYPESCRIPT_PLAYWRIGHT_V2,
+                                context.homeBankingId(), context.botJobId(), workspaceEpoch))
+                : coordinator.openScanner(facts);
         return PreScanWorkflowService.forDriver(new ExecutionV2PageScannerDriver(scanner));
     }
 }

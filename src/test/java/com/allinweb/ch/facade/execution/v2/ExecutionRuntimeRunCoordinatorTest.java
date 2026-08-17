@@ -202,6 +202,27 @@ class ExecutionRuntimeRunCoordinatorTest {
     }
 
     @Test
+    void pendingRecoveryScannerUsesTheExactActiveRunWithoutClosingItsBrowser() {
+        FakeRuntime runtime = new FakeRuntime();
+        runtime.snapshots.add(state("READY"));
+        runtime.actionResponses.add(recovery("e".repeat(64), PREVIOUS_PAGE_KEY));
+        ExecutionRuntimeRunCoordinator coordinator = coordinator(runtime);
+        ExecutionRuntimeRunCoordinator.Run run = coordinator.start(facts(), plan());
+        coordinator.action(run, 1L, 1733, null);
+
+        ExecutionRuntimeRunCoordinator.ScannerSession scanner =
+                coordinator.openRecoveryScanner(facts(), run.runId());
+        JsonObject request = new JsonObject();
+        request.addProperty("operation", "url");
+        assertEquals("https://example.test/recovery", scanner.exchange(request).getAsString());
+        scanner.close();
+
+        assertEquals(1, runtime.recoveryScannerRpcCount);
+        assertEquals(0, runtime.scannerOpenCount);
+        assertEquals(0, runtime.scannerCloseCount);
+    }
+
+    @Test
     void rejectsAnInvalidServerHeldRecoveryPageBeforeAnotherPhysicalAction() {
         FakeRuntime runtime = new FakeRuntime();
         runtime.snapshots.add(state("READY"));
@@ -394,6 +415,7 @@ class ExecutionRuntimeRunCoordinatorTest {
         private int scannerOpenCount;
         private int scannerRpcCount;
         private int scannerCloseCount;
+        private int recoveryScannerRpcCount;
 
         @Override
         public Authority reserve(IssuedGrant grant) {
@@ -467,6 +489,13 @@ class ExecutionRuntimeRunCoordinatorTest {
                         "png".getBytes(java.nio.charset.StandardCharsets.UTF_8)));
             }
             return new JsonPrimitive("https://example.test/current");
+        }
+
+        @Override
+        public com.google.gson.JsonElement recoveryScanner(Authority authority, JsonObject request) {
+            assertEquals(this.authority, authority);
+            recoveryScannerRpcCount++;
+            return new JsonPrimitive("https://example.test/recovery");
         }
 
         @Override

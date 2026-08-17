@@ -93,6 +93,12 @@ class FakeRuntimeWorkerPool {
     return `url-v1:${'c'.repeat(64)}`;
   }
 
+  async recoveryScanner(runId: string, request: BrowserScannerRequest): Promise<unknown> {
+    this.snapshot(runId);
+    this.scannerRpcCount += 1;
+    return request.operation === 'url' ? 'https://example.test/current' : true;
+  }
+
   async perform(runId: string, request: PhysicalActionRequest): Promise<PhysicalActionResult> {
     this.snapshot(runId);
     this.actionCount += 1;
@@ -291,6 +297,17 @@ test('runs token-authorized start, heartbeat, action, stop, and release without 
       token,
     )).status, 200);
     assert.equal(pool.actionCount, 1);
+    const recoveryScanner = await call(
+      address.port,
+      'POST',
+      `/v2/runs/${claims.runId}/scanner`,
+      undefined,
+      { operation: 'url' },
+      token,
+    );
+    assert.equal(recoveryScanner.status, 200);
+    assert.equal(responseData(recoveryScanner).value, 'https://example.test/current');
+    assert.equal(pool.scannerRpcCount, 1);
     assert.equal((await call(
       address.port, 'POST', `/v2/runs/${claims.runId}/stop`, undefined, undefined, token,
     )).status, 200);

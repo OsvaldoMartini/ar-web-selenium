@@ -1,6 +1,8 @@
 package com.allinweb.ch.facade;
 
 import com.allinweb.ch.model.ScannerWorkspaceSessions;
+import com.allinweb.ch.facade.execution.SmokeRecoveryScannerRegistry;
+import com.allinweb.ch.model.SmokeTestIntegrationContracts.RuntimeMode;
 import com.allinweb.ch.socket.WebSocketSessionManager;
 import com.google.gson.Gson;
 import java.util.Locale;
@@ -162,7 +164,12 @@ public final class ExecutionPauseCoordinator {
     public ScannerActivity beginScannerActivity(int botJobId, long workspaceEpoch) {
         BotJobDetailsWorkspaceRegistry.Snapshot snapshot = workspaces.require(botJobId, workspaceEpoch);
         synchronized (scannerActivityLock) {
-            if (executionStartReserved) {
+            boolean recoveryInspection = SmokeRecoveryScannerRegistry.getInstance().permits(
+                    RuntimeMode.JAVA_V1,
+                    snapshot.homeBankingId(),
+                    botJobId,
+                    workspaceEpoch);
+            if (executionStartReserved && !recoveryInspection) {
                 awaitExecutionRelease();
             }
             if (BotJobDetailsWorkspaceRegistry.isExecutionActive(snapshot.executionState())) {
