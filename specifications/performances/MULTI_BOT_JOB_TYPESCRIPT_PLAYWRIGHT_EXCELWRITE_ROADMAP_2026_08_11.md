@@ -1563,3 +1563,20 @@ and atomic artifact-write checkpoints are complete.
 - [ ] Live matrix: V1 STOP -> browser remains and CONTINUE PAGE/Page Scanner can reuse it; V1 KILL
   -> browser closes; V2 STOP -> selected isolated browser remains reusable; V2 KILL -> only that
   browser closes while sibling V2 runs remain unaffected. Save the correlated trace phases.
+
+## 55. Locator Recovery Page Scanner parity - 2026-08-17
+
+- [x] The Locator Recovery modal now exposes `Page Scanner` without settling the paused instruction.
+  Frontend commit `a866d2e` correlates the open request to the current Bot Job and retires it on
+  disconnect, owner change, timeout, or unmount.
+- [x] Backend/Node commit `0cd5cd25` adds an exact pending-recovery registry. V1 may inspect only the
+  matching reserved shared browser. V2 uses a token-authorized scanner RPC on only the matching
+  active isolated run; normal retained-browser Page Scanner behavior remains unchanged.
+- [x] Recovery decisions and scanner admission are serialized: authority is removed before a
+  physical recovery attempt and restored only when that attempt fails. Cancel, bypass, completion,
+  owner invalidation, and termination retire it permanently.
+- [x] Focused verification passed React 7/7, Node 51/51, and Java 38/38. Deployment `5e97ddb4`
+  contains an exact 61-file/19-image mirror using `main.6a639822.js` and `main.121bd605.css`.
+- [ ] User acceptance remains for both modes: pause at Locator Recovery, open Page Scanner, inspect
+  or scan the same browser, return to the unchanged modal, settle the recovery, and verify no other
+  V2 run or Bot Job is touched. No live application was started in this checkpoint.

@@ -1554,3 +1554,32 @@ Do not change frontend CSS/design while doing the scanner contract cleanup unles
 - [ ] Repeat V2 Test 2 without closing Page Scanner. Expected: nonzero scanned elements, a valid
   fingerprint/snapshot where the page is cacheable, a `browser.scanner.readiness` record, and no
   `PAGE_READINESS_TIMEOUT`.
+
+## Locator Recovery Page Scanner parity - 2026-08-17
+
+- [x] Frontend `a866d2e` adds a cyan `Page Scanner` action inside the Locator Recovery modal. The
+  action opens/focuses the detached scanner for the current Bot Job without resolving, bypassing,
+  stopping, or closing the pending recovery; the modal remains paused for the user's decision.
+- [x] Backend/Node `0cd5cd25` gives that scanner an exact pending-recovery authority. V1 inspects
+  the reserved shared browser only for the matching owner/workspace generation. V2 sends scanner
+  RPC to the exact active isolated run and never attaches to V1, a retained browser, or a sibling
+  V2 run. Scanner work is serialized with the V2 recovery operation.
+- [x] Recovery authority is retired on decision start, cancel, bypass, owner/run termination, or
+  successful recovery. A failed recovery reauthorizes inspection so the user can review and try
+  again. Privacy-safe trace phases cover authorization, retirement, V2 scanner open/RPC/close, and
+  Node recovery-scanner RPC lifecycle.
+- [x] The earlier Runtime Instances STOP/KILL timeout was independently fixed in frontend
+  `e93966f`: an explicit control preempts only the periodic LIST request occupying the shared
+  request slot; another explicit control remains serialized. Deployment was `37c45774`.
+- [x] Focused verification passed: React 7/7, Node 51/51, and Java 38/38. The Java run compiled 586
+  main and 342 test sources; only the established Lombok and varargs warnings remained. The React
+  production build passed with established lint warnings.
+- [x] Deployment `5e97ddb4` mirrors 61 exact files and 19 images into resources and
+  `target/classes`, with zero path/hash differences. Entrypoints are `main.6a639822.js` (2,192,181
+  bytes; SHA-256 `993A31340CC297862024C1FEE9CBDD6A9DD5557A5BE476A43C6928C48A55347D`)
+  and `main.121bd605.css` (546,116 bytes; SHA-256
+  `88F6F12A29121F68DB2B6BDA9ACF80D4922DDBF207F645CD8C0E6851D1096AB5`).
+- [ ] No application instance was started because the user closed all instances for this update.
+  Live acceptance remains: create a pending Locator Recovery in V1 and V2, click Page Scanner,
+  run one scan against the same paused browser, then return to the still-open modal and complete or
+  bypass the recovery. Confirm a sibling V2 browser and another Bot Job remain unaffected.
