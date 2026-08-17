@@ -187,10 +187,13 @@ public final class SmokeTestIntegrationV1RecoveryCoordinator {
         }
         Map<String, RecoveryCandidate> indexed = new LinkedHashMap<>();
         candidates.forEach(candidate -> indexed.put(candidate.id, candidate));
+        JsonObject failedTarget = unresolvedTarget(
+                target.target.toInstructionLoad(), target.action, pageKey, failure.code());
         pendingByRun.put(runId, new PendingRecovery(
-                instructionId, pageKey, target, preparation, Map.copyOf(indexed)));
+                instructionId, pageKey, target, preparation, failedTarget, Map.copyOf(indexed)));
         JsonObject recovery = new JsonObject();
         recovery.addProperty("state", "AWAITING_USER");
+        recovery.add("failedTarget", failedTarget.deepCopy());
         JsonArray rows = new JsonArray();
         candidates.forEach(candidate -> rows.add(candidate.json.deepCopy()));
         recovery.add("candidates", rows);
@@ -307,9 +310,10 @@ public final class SmokeTestIntegrationV1RecoveryCoordinator {
         Map<String, RecoveryCandidate> indexed = candidatesFromJson(refreshedCandidates);
         pendingByRun.put(runId, new PendingRecovery(
                 pending.instructionId, pending.pageKey, pending.target,
-                pending.preparation, Map.copyOf(indexed)));
+                pending.preparation, pending.failedTarget, Map.copyOf(indexed)));
         JsonObject recovery = new JsonObject();
         recovery.addProperty("state", "AWAITING_USER");
+        recovery.add("failedTarget", pending.failedTarget.deepCopy());
         JsonArray rows = new JsonArray();
         indexed.values().forEach(candidate -> rows.add(candidate.json.deepCopy()));
         recovery.add("candidates", rows);
@@ -426,6 +430,68 @@ public final class SmokeTestIntegrationV1RecoveryCoordinator {
         String value = data.getFieldValue(instruction.block().name(), column, rowIndex);
         if (value == null) return null;
         return instruction.codified() ? CryptationAlgorithm.decrypt(value) : value;
+    }
+
+    static JsonObject unresolvedTarget(
+            InstructionLoad target, String action, String pageKey, String diagnosticCode) {
+        Objects.requireNonNull(target, "Unresolved recovery target is required");
+        JsonObject value = new JsonObject();
+        value.addProperty("savedCanonicalName", Objects.toString(target.getName(), ""));
+        value.addProperty("savedClientName", Objects.toString(target.getClientNamed(), ""));
+        value.addProperty("ocrMappedName", "");
+        value.addProperty("previousXPath", Objects.toString(target.getXpath(), ""));
+        value.addProperty("previousCustomXPath", referenceValue(target, "custom-xpath"));
+        value.addProperty("previousCss", Objects.toString(target.getCssSelector(), ""));
+        value.add("previousStableAttributes", JSON.toJsonTree(stableAttributes(target)));
+        value.addProperty("previousPageIdentity", pageKey);
+        value.addProperty("currentPageIdentity", pageKey);
+        value.addProperty("tag", Objects.toString(target.getTagName(), ""));
+        value.addProperty("type", referenceValue(target, "type"));
+        value.addProperty("role", firstNonBlank(
+                referenceValue(target, "control.role"), referenceValue(target, "role")));
+        value.addProperty("expectedAction", normalizedRecoveryAction(action));
+        value.addProperty("diagnosticCode", Objects.toString(diagnosticCode, "TARGET_NOT_FOUND"));
+        return value;
+    }
+
+    private static Map<String, String> stableAttributes(InstructionLoad target) {
+        Map<String, String> values = new LinkedHashMap<>();
+        if (target.getReferenceLoadDTOList() == null) return values;
+        for (var reference : target.getReferenceLoadDTOList()) {
+            if (reference == null || reference.getReferenceType() == null
+                    || reference.getValue() == null) continue;
+            String type = reference.getReferenceType().trim().toLowerCase(Locale.ROOT);
+            String name = type.startsWith("attrdata:")
+                    ? type.substring("attrdata:".length()) : type;
+            if (Set.of("id", "name", "role", "type", "title", "placeholder",
+                    "aria-label", "data-testid", "data-test-id", "data-qa").contains(name)
+                    && !reference.getValue().isBlank() && reference.getValue().length() <= MAX_TEXT) {
+                values.putIfAbsent(name, reference.getValue());
+            }
+        }
+        return Map.copyOf(values);
+    }
+
+    private static String referenceValue(InstructionLoad target, String expected) {
+        if (target.getReferenceLoadDTOList() == null) return "";
+        String needle = expected.toLowerCase(Locale.ROOT);
+        for (var reference : target.getReferenceLoadDTOList()) {
+            if (reference == null || reference.getReferenceType() == null
+                    || reference.getValue() == null) continue;
+            String type = reference.getReferenceType().trim().toLowerCase(Locale.ROOT);
+            if (type.equals(needle) || type.equals("attrdata:" + needle)
+                    || ("custom-xpath".equals(needle) && type.contains("custom") && type.contains("xpath"))) {
+                return text(reference.getValue(), 2_048);
+            }
+        }
+        return "";
+    }
+
+    private static String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) return value;
+        }
+        return "";
     }
 
     private static List<RegistryCandidate> registry(Preparation preparation) {
@@ -714,6 +780,7 @@ public final class SmokeTestIntegrationV1RecoveryCoordinator {
             String pageKey,
             RecoveryTarget target,
             Preparation preparation,
+            JsonObject failedTarget,
             Map<String, RecoveryCandidate> candidates) {}
 
     private record RecoveryCandidate(
