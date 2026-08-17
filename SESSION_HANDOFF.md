@@ -1660,3 +1660,31 @@ Do not change frontend CSS/design while doing the scanner contract cleanup unles
 - [ ] Live acceptance still requires stopping V1 during missing-locator discovery and immediately
   starting another V1 run, proving the second run reaches `V1_BROWSER_READY` instead of remaining
   at `V1_BROWSER_RESERVING`.
+
+### V1 render wait and target-first Locator Recovery - 2026-08-17
+
+- [x] The Stop-safe immediate DOM snapshot exposed a timing regression: V1 could exhaust locator
+  resolution while a valid late-rendered control was still loading. Backend `44d63205` now retries
+  the complete V1 priority resolver under one interruptible 10-second deadline with 150 ms probes.
+  Stop remains responsive because no Playwright implicit wait or `Thread.sleep` was reintroduced.
+- [x] A located control that remains disabled, or an input that remains read-only, is returned as a
+  typed unavailable result after the bounded wait. Smoke Integration records that instruction as
+  `SKIPPED` and continues without opening Locator Recovery or attempting the physical action.
+- [x] Backend `c69234a7` adds the authoritative unresolved instruction to every V1 recovery payload
+  and preserves it across the in-modal Page Scanner refresh. It carries locator/name/page/action
+  metadata but is not a selectable database candidate.
+- [x] Frontend `043121e` always renders that unresolved instruction as the first table row, followed
+  by owner/page-scoped database or Page Scanner candidates. `XPath Match` is immediately after
+  `Test Click`; only actual candidates expose selection and physical probe controls.
+- [x] Test-first evidence was captured before production changes: the React test failed because the
+  unresolved `avanti` row was absent and the XPath column was misplaced; Java test compilation
+  failed because the bounded-wait seam and unresolved-target contract did not exist. After the fix,
+  focused Java verification passed 17/17, broader Smoke Integration verification passed 24/24,
+  and focused React verification passed 17/17.
+- [x] The React production build passed with established repository warnings. Deployment
+  `6bde7e31` mirrors the exact 61-file build into Java resources using `main.d11c83aa.js` and
+  `main.6c3546aa.css`; source/resource path and hashes match.
+- [ ] No ARWeb restart or live browser action was performed. Live acceptance must prove: a
+  late-rendered target resolves before recovery; a persistently disabled/read-only control skips
+  and advances; and a true missing target opens the modal with the unresolved row first and
+  database/Page Scanner candidates below it.

@@ -1609,3 +1609,21 @@ and atomic artifact-write checkpoints are complete.
   passed. Deployment `efa4b4b8` uses `main.5ce146d0.js` / `main.9629381e.css`.
 - [ ] Restart and live V1/V2 acceptance remain. Verify zero candidates, multiple candidates,
   selection/action changes, both probes, Page Scanner refresh, Use Once/Save, bypass, and isolation.
+
+## 57. V1 late-render wait and unresolved-target-first review - 2026-08-17
+
+- [x] Backend `44d63205` restores V1 late-render parity without restoring the uninterruptible
+  Playwright implicit wait. The complete authored/registry/canonical/alias resolver is retried every
+  150 ms under one 10-second deadline, and every pass remains cancellation-aware.
+- [x] Persistently disabled buttons and read-only inputs produce typed unavailable diagnostics,
+  make zero physical attempts, are marked `SKIPPED`, and do not open Locator Recovery.
+- [x] Backend `c69234a7` supplies the unresolved instruction as separate authoritative recovery
+  evidence and retains it when the in-modal Page Scanner replaces candidate matches.
+- [x] Frontend `043121e` renders the unresolved instruction first, then database/Page Scanner
+  matches. The unresolved row cannot be selected or probed. `XPath Match` now follows `Test Click`.
+- [x] Tests were demonstrated failing before implementation. Final verification passed Java 17/17
+  focused plus 24/24 broader Smoke tests and React 17/17 focused tests. The production build passed;
+  deployment `6bde7e31` is an exact 61-file resource mirror using `main.d11c83aa.js` and
+  `main.6c3546aa.css`.
+- [ ] Live restart/acceptance remains: late target, disabled/read-only skip, missing target with
+  target-first row, database matches, Page Scanner refresh, and correct continuation behavior.
