@@ -1,27 +1,27 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-16T23:52:00.506Z",
+  "generatedAt": "2026-08-17T10:45:06.648Z",
   "summary": {
-    "catalogEntries": 2438,
-    "automatedCodeCases": 2402,
+    "catalogEntries": 2451,
+    "automatedCodeCases": 2415,
     "generatedApiCases": 19452,
-    "totalAutomatedCases": 21854,
-    "automatedSuites": 508,
+    "totalAutomatedCases": 21867,
+    "automatedSuites": 509,
     "generatedSuites": 21,
     "manualArtifacts": 9,
     "supportArtifacts": 6,
-    "defaultRunnable": 2376,
-    "safeRunAllEligible": 2376
+    "defaultRunnable": 2389,
+    "safeRunAllEligible": 2389
   },
   "sources": [
     {
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "branch": "refactor/perform-actions-decomposition",
-      "commit": "060ea054d0f0da06747462d9ae17236ec1c9ed63",
-      "sourceFiles": 342,
-      "automatedSuites": 331,
-      "automatedTestCases": 1491,
+      "commit": "f8c553649c03da26c232ea579ec264baf1ebf2b8",
+      "sourceFiles": 343,
+      "automatedSuites": 332,
+      "automatedTestCases": 1502,
       "generatedSuites": 0,
       "generatedCases": 0
     },
@@ -29,10 +29,10 @@
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "branch": "VERSION-4.6",
-      "commit": "138e3d73e760a7e9783b301cbd621288fa65aa15",
+      "commit": "5d2f01c655aa175d40a4fb48d8b9631a921906dd",
       "sourceFiles": 177,
       "automatedSuites": 177,
-      "automatedTestCases": 911,
+      "automatedTestCases": 913,
       "generatedSuites": 21,
       "generatedCases": 19452
     },
@@ -10254,6 +10254,78 @@
       ]
     },
     {
+      "id": "junit:com.allinweb.ch.facade.execution.SmokeRecoveryScannerRegistryTest#grantsOnlyTheExactRuntimeOwnerAndWorkspaceGeneration@25",
+      "project": "AR Web Scanner",
+      "repository": "ar-web-selenium",
+      "recordType": "AUTOMATED_CASE",
+      "suite": "com.allinweb.ch.facade.execution.SmokeRecoveryScannerRegistryTest",
+      "name": "grantsOnlyTheExactRuntimeOwnerAndWorkspaceGeneration",
+      "displayName": "grantsOnlyTheExactRuntimeOwnerAndWorkspaceGeneration",
+      "framework": "JUnit 5",
+      "language": "Java",
+      "kind": "UNIT",
+      "runtime": "JVM",
+      "execution": "DEFAULT",
+      "safety": "SAFE",
+      "sourcePath": "src/test/java/com/allinweb/ch/facade/execution/SmokeRecoveryScannerRegistryTest.java",
+      "line": 25,
+      "caseCount": 1,
+      "runnable": true,
+      "runAllEligible": true,
+      "command": "mvn -Dtest=com.allinweb.ch.facade.execution.SmokeRecoveryScannerRegistryTest#grantsOnlyTheExactRuntimeOwnerAndWorkspaceGeneration test",
+      "tags": [
+        "Test"
+      ]
+    },
+    {
+      "id": "junit:com.allinweb.ch.facade.execution.SmokeRecoveryScannerRegistryTest#refusesAmbiguousRunsForTheSameExactOwner@40",
+      "project": "AR Web Scanner",
+      "repository": "ar-web-selenium",
+      "recordType": "AUTOMATED_CASE",
+      "suite": "com.allinweb.ch.facade.execution.SmokeRecoveryScannerRegistryTest",
+      "name": "refusesAmbiguousRunsForTheSameExactOwner",
+      "displayName": "refusesAmbiguousRunsForTheSameExactOwner",
+      "framework": "JUnit 5",
+      "language": "Java",
+      "kind": "UNIT",
+      "runtime": "JVM",
+      "execution": "DEFAULT",
+      "safety": "SAFE",
+      "sourcePath": "src/test/java/com/allinweb/ch/facade/execution/SmokeRecoveryScannerRegistryTest.java",
+      "line": 40,
+      "caseCount": 1,
+      "runnable": true,
+      "runAllEligible": true,
+      "command": "mvn -Dtest=com.allinweb.ch.facade.execution.SmokeRecoveryScannerRegistryTest#refusesAmbiguousRunsForTheSameExactOwner test",
+      "tags": [
+        "Test"
+      ]
+    },
+    {
+      "id": "junit:com.allinweb.ch.facade.execution.SmokeRecoveryScannerRegistryTest#rejectsMalformedAuthorityInsteadOfCreatingABroadGrant@51",
+      "project": "AR Web Scanner",
+      "repository": "ar-web-selenium",
+      "recordType": "AUTOMATED_CASE",
+      "suite": "com.allinweb.ch.facade.execution.SmokeRecoveryScannerRegistryTest",
+      "name": "rejectsMalformedAuthorityInsteadOfCreatingABroadGrant",
+      "displayName": "rejectsMalformedAuthorityInsteadOfCreatingABroadGrant",
+      "framework": "JUnit 5",
+      "language": "Java",
+      "kind": "UNIT",
+      "runtime": "JVM",
+      "execution": "DEFAULT",
+      "safety": "SAFE",
+      "sourcePath": "src/test/java/com/allinweb/ch/facade/execution/SmokeRecoveryScannerRegistryTest.java",
+      "line": 51,
+      "caseCount": 1,
+      "runnable": true,
+      "runAllEligible": true,
+      "command": "mvn -Dtest=com.allinweb.ch.facade.execution.SmokeRecoveryScannerRegistryTest#rejectsMalformedAuthorityInsteadOfCreatingABroadGrant test",
+      "tags": [
+        "Test"
+      ]
+    },
+    {
       "id": "junit:com.allinweb.ch.facade.execution.SmokeTestIntegrationExcelWriteServiceTest#validatesFrozenInstructionAndWritesFinalizedReactArtifactsWithoutBuildingThem@31",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
@@ -10782,7 +10854,31 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.execution.v2.ExecutionRuntimeHttpClientTest#runtimeConfigurationIsLoopbackOnlyAndStrictlyBounded@129",
+      "id": "junit:com.allinweb.ch.facade.execution.v2.ExecutionRuntimeHttpClientTest#recoveryScannerUsesTheExactActiveRunTokenAndDedicatedRoute@129",
+      "project": "AR Web Scanner",
+      "repository": "ar-web-selenium",
+      "recordType": "AUTOMATED_CASE",
+      "suite": "com.allinweb.ch.facade.execution.v2.ExecutionRuntimeHttpClientTest",
+      "name": "recoveryScannerUsesTheExactActiveRunTokenAndDedicatedRoute",
+      "displayName": "recoveryScannerUsesTheExactActiveRunTokenAndDedicatedRoute",
+      "framework": "JUnit 5",
+      "language": "Java",
+      "kind": "UNIT",
+      "runtime": "JVM",
+      "execution": "DEFAULT",
+      "safety": "SAFE",
+      "sourcePath": "src/test/java/com/allinweb/ch/facade/execution/v2/ExecutionRuntimeHttpClientTest.java",
+      "line": 129,
+      "caseCount": 1,
+      "runnable": true,
+      "runAllEligible": true,
+      "command": "mvn -Dtest=com.allinweb.ch.facade.execution.v2.ExecutionRuntimeHttpClientTest#recoveryScannerUsesTheExactActiveRunTokenAndDedicatedRoute test",
+      "tags": [
+        "Test"
+      ]
+    },
+    {
+      "id": "junit:com.allinweb.ch.facade.execution.v2.ExecutionRuntimeHttpClientTest#runtimeConfigurationIsLoopbackOnlyAndStrictlyBounded@152",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -10796,7 +10892,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/execution/v2/ExecutionRuntimeHttpClientTest.java",
-      "line": 129,
+      "line": 152,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -11022,7 +11118,79 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.execution.v2.ExecutionRuntimeRunCoordinatorTest#rejectsAnInvalidServerHeldRecoveryPageBeforeAnotherPhysicalAction@205",
+      "id": "junit:com.allinweb.ch.facade.execution.v2.ExecutionRuntimeRunCoordinatorTest#pendingRecoveryScannerUsesTheExactActiveRunWithoutClosingItsBrowser@205",
+      "project": "AR Web Scanner",
+      "repository": "ar-web-selenium",
+      "recordType": "AUTOMATED_CASE",
+      "suite": "com.allinweb.ch.facade.execution.v2.ExecutionRuntimeRunCoordinatorTest",
+      "name": "pendingRecoveryScannerUsesTheExactActiveRunWithoutClosingItsBrowser",
+      "displayName": "pendingRecoveryScannerUsesTheExactActiveRunWithoutClosingItsBrowser",
+      "framework": "JUnit 5",
+      "language": "Java",
+      "kind": "UNIT",
+      "runtime": "JVM",
+      "execution": "DEFAULT",
+      "safety": "SAFE",
+      "sourcePath": "src/test/java/com/allinweb/ch/facade/execution/v2/ExecutionRuntimeRunCoordinatorTest.java",
+      "line": 205,
+      "caseCount": 1,
+      "runnable": true,
+      "runAllEligible": true,
+      "command": "mvn -Dtest=com.allinweb.ch.facade.execution.v2.ExecutionRuntimeRunCoordinatorTest#pendingRecoveryScannerUsesTheExactActiveRunWithoutClosingItsBrowser test",
+      "tags": [
+        "Test"
+      ]
+    },
+    {
+      "id": "junit:com.allinweb.ch.facade.execution.v2.ExecutionRuntimeRunCoordinatorTest#recoveryScannerRejectsUnknownRunWrongOwnerAndMissingRecovery@226",
+      "project": "AR Web Scanner",
+      "repository": "ar-web-selenium",
+      "recordType": "AUTOMATED_CASE",
+      "suite": "com.allinweb.ch.facade.execution.v2.ExecutionRuntimeRunCoordinatorTest",
+      "name": "recoveryScannerRejectsUnknownRunWrongOwnerAndMissingRecovery",
+      "displayName": "recoveryScannerRejectsUnknownRunWrongOwnerAndMissingRecovery",
+      "framework": "JUnit 5",
+      "language": "Java",
+      "kind": "UNIT",
+      "runtime": "JVM",
+      "execution": "DEFAULT",
+      "safety": "SAFE",
+      "sourcePath": "src/test/java/com/allinweb/ch/facade/execution/v2/ExecutionRuntimeRunCoordinatorTest.java",
+      "line": 226,
+      "caseCount": 1,
+      "runnable": true,
+      "runAllEligible": true,
+      "command": "mvn -Dtest=com.allinweb.ch.facade.execution.v2.ExecutionRuntimeRunCoordinatorTest#recoveryScannerRejectsUnknownRunWrongOwnerAndMissingRecovery test",
+      "tags": [
+        "Test"
+      ]
+    },
+    {
+      "id": "junit:com.allinweb.ch.facade.execution.v2.ExecutionRuntimeRunCoordinatorTest#activeRecoveryScannerFailsClosedAfterDecisionSettlement@251",
+      "project": "AR Web Scanner",
+      "repository": "ar-web-selenium",
+      "recordType": "AUTOMATED_CASE",
+      "suite": "com.allinweb.ch.facade.execution.v2.ExecutionRuntimeRunCoordinatorTest",
+      "name": "activeRecoveryScannerFailsClosedAfterDecisionSettlement",
+      "displayName": "activeRecoveryScannerFailsClosedAfterDecisionSettlement",
+      "framework": "JUnit 5",
+      "language": "Java",
+      "kind": "UNIT",
+      "runtime": "JVM",
+      "execution": "DEFAULT",
+      "safety": "SAFE",
+      "sourcePath": "src/test/java/com/allinweb/ch/facade/execution/v2/ExecutionRuntimeRunCoordinatorTest.java",
+      "line": 251,
+      "caseCount": 1,
+      "runnable": true,
+      "runAllEligible": true,
+      "command": "mvn -Dtest=com.allinweb.ch.facade.execution.v2.ExecutionRuntimeRunCoordinatorTest#activeRecoveryScannerFailsClosedAfterDecisionSettlement test",
+      "tags": [
+        "Test"
+      ]
+    },
+    {
+      "id": "junit:com.allinweb.ch.facade.execution.v2.ExecutionRuntimeRunCoordinatorTest#rejectsAnInvalidServerHeldRecoveryPageBeforeAnotherPhysicalAction@276",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -11036,7 +11204,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/execution/v2/ExecutionRuntimeRunCoordinatorTest.java",
-      "line": 205,
+      "line": 276,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -11046,7 +11214,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.execution.v2.ExecutionRuntimeRunCoordinatorTest#renewsTheExactRunLeaseWhileWaitingForAUserRecoveryDecision@222",
+      "id": "junit:com.allinweb.ch.facade.execution.v2.ExecutionRuntimeRunCoordinatorTest#renewsTheExactRunLeaseWhileWaitingForAUserRecoveryDecision@293",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -11060,7 +11228,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/execution/v2/ExecutionRuntimeRunCoordinatorTest.java",
-      "line": 222,
+      "line": 293,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -11310,7 +11478,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.ExecutionPauseCoordinatorTest#blocksTheExecutionWorkerUntilTheExactContinueResponseArrives@47",
+      "id": "junit:com.allinweb.ch.facade.ExecutionPauseCoordinatorTest#blocksTheExecutionWorkerUntilTheExactContinueResponseArrives@50",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -11324,7 +11492,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/ExecutionPauseCoordinatorTest.java",
-      "line": 47,
+      "line": 50,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -11334,7 +11502,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.ExecutionPauseCoordinatorTest#rejectsAStaleResponseWithoutReleasingTheCurrentExecution@59",
+      "id": "junit:com.allinweb.ch.facade.ExecutionPauseCoordinatorTest#rejectsAStaleResponseWithoutReleasingTheCurrentExecution@62",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -11348,7 +11516,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/ExecutionPauseCoordinatorTest.java",
-      "line": 59,
+      "line": 62,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -11358,7 +11526,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.ExecutionPauseCoordinatorTest#continueWaitsForTheWholePageScannerOperationToReleaseTheSharedBrowser@77",
+      "id": "junit:com.allinweb.ch.facade.ExecutionPauseCoordinatorTest#continueWaitsForTheWholePageScannerOperationToReleaseTheSharedBrowser@80",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -11372,7 +11540,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/ExecutionPauseCoordinatorTest.java",
-      "line": 77,
+      "line": 80,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -11382,7 +11550,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.ExecutionPauseCoordinatorTest#executionStartAndScannerActivityCannotAcquireTheBrowserTogether@92",
+      "id": "junit:com.allinweb.ch.facade.ExecutionPauseCoordinatorTest#executionStartAndScannerActivityCannotAcquireTheBrowserTogether@95",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -11396,7 +11564,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/ExecutionPauseCoordinatorTest.java",
-      "line": 92,
+      "line": 95,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -11406,7 +11574,55 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.ExecutionPauseCoordinatorTest#scannerWaitsForAStoppingExecutionLeaseAndThenAcquiresTheBrowser@101",
+      "id": "junit:com.allinweb.ch.facade.ExecutionPauseCoordinatorTest#exactV1LocatorRecoveryCanInspectTheReservedSharedBrowser@104",
+      "project": "AR Web Scanner",
+      "repository": "ar-web-selenium",
+      "recordType": "AUTOMATED_CASE",
+      "suite": "com.allinweb.ch.facade.ExecutionPauseCoordinatorTest",
+      "name": "exactV1LocatorRecoveryCanInspectTheReservedSharedBrowser",
+      "displayName": "exactV1LocatorRecoveryCanInspectTheReservedSharedBrowser",
+      "framework": "JUnit 5",
+      "language": "Java",
+      "kind": "UNIT",
+      "runtime": "JVM",
+      "execution": "DEFAULT",
+      "safety": "SAFE",
+      "sourcePath": "src/test/java/com/allinweb/ch/facade/ExecutionPauseCoordinatorTest.java",
+      "line": 104,
+      "caseCount": 1,
+      "runnable": true,
+      "runAllEligible": true,
+      "command": "mvn -Dtest=com.allinweb.ch.facade.ExecutionPauseCoordinatorTest#exactV1LocatorRecoveryCanInspectTheReservedSharedBrowser test",
+      "tags": [
+        "Test"
+      ]
+    },
+    {
+      "id": "junit:com.allinweb.ch.facade.ExecutionPauseCoordinatorTest#v2RecoveryAuthorityCannotInspectTheReservedV1SharedBrowser@117",
+      "project": "AR Web Scanner",
+      "repository": "ar-web-selenium",
+      "recordType": "AUTOMATED_CASE",
+      "suite": "com.allinweb.ch.facade.ExecutionPauseCoordinatorTest",
+      "name": "v2RecoveryAuthorityCannotInspectTheReservedV1SharedBrowser",
+      "displayName": "v2RecoveryAuthorityCannotInspectTheReservedV1SharedBrowser",
+      "framework": "JUnit 5",
+      "language": "Java",
+      "kind": "UNIT",
+      "runtime": "JVM",
+      "execution": "DEFAULT",
+      "safety": "SAFE",
+      "sourcePath": "src/test/java/com/allinweb/ch/facade/ExecutionPauseCoordinatorTest.java",
+      "line": 117,
+      "caseCount": 1,
+      "runnable": true,
+      "runAllEligible": true,
+      "command": "mvn -Dtest=com.allinweb.ch.facade.ExecutionPauseCoordinatorTest#v2RecoveryAuthorityCannotInspectTheReservedV1SharedBrowser test",
+      "tags": [
+        "Test"
+      ]
+    },
+    {
+      "id": "junit:com.allinweb.ch.facade.ExecutionPauseCoordinatorTest#scannerWaitsForAStoppingExecutionLeaseAndThenAcquiresTheBrowser@130",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -11420,7 +11636,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/ExecutionPauseCoordinatorTest.java",
-      "line": 101,
+      "line": 130,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -11430,7 +11646,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.ExecutionPauseCoordinatorTest#disconnectedReactFailsSafeToStop@120",
+      "id": "junit:com.allinweb.ch.facade.ExecutionPauseCoordinatorTest#disconnectedReactFailsSafeToStop@149",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -11444,7 +11660,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/ExecutionPauseCoordinatorTest.java",
-      "line": 120,
+      "line": 149,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -34500,7 +34716,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.socket.SmokeTestIntegrationServiceTest#startStepAndCorrelatedFinishReleaseTheBrowserLease@128",
+      "id": "junit:com.allinweb.ch.socket.SmokeTestIntegrationServiceTest#startStepAndCorrelatedFinishReleaseTheBrowserLease@129",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -34514,7 +34730,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/socket/SmokeTestIntegrationServiceTest.java",
-      "line": 128,
+      "line": 129,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -34524,7 +34740,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.socket.SmokeTestIntegrationServiceTest#lastSequenceMismatchPreservesRunUntilStopAndReleasesExactlyOnce@165",
+      "id": "junit:com.allinweb.ch.socket.SmokeTestIntegrationServiceTest#lastSequenceMismatchPreservesRunUntilStopAndReleasesExactlyOnce@166",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -34538,7 +34754,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/socket/SmokeTestIntegrationServiceTest.java",
-      "line": 165,
+      "line": 166,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -34548,7 +34764,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.socket.SmokeTestIntegrationServiceTest#disconnectReleasesTheActiveBrowserLeaseExactlyOnce@207",
+      "id": "junit:com.allinweb.ch.socket.SmokeTestIntegrationServiceTest#disconnectReleasesTheActiveBrowserLeaseExactlyOnce@208",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -34562,7 +34778,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/socket/SmokeTestIntegrationServiceTest.java",
-      "line": 207,
+      "line": 208,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -34572,7 +34788,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.socket.SmokeTestIntegrationServiceTest#duplicateStopRequestsJoinCleanupAndBothReceiveStopped@222",
+      "id": "junit:com.allinweb.ch.socket.SmokeTestIntegrationServiceTest#duplicateStopRequestsJoinCleanupAndBothReceiveStopped@223",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -34586,7 +34802,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/socket/SmokeTestIntegrationServiceTest.java",
-      "line": 222,
+      "line": 223,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -34596,7 +34812,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.socket.SmokeTestIntegrationServiceTest#explicitV2RunNeverOpensOrExecutesThroughTheSharedJavaBrowser@257",
+      "id": "junit:com.allinweb.ch.socket.SmokeTestIntegrationServiceTest#explicitV2RunNeverOpensOrExecutesThroughTheSharedJavaBrowser@258",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -34610,7 +34826,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/socket/SmokeTestIntegrationServiceTest.java",
-      "line": 257,
+      "line": 258,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -34620,7 +34836,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.socket.SmokeTestIntegrationServiceTest#v2RecoveryCanBypassAnInstructionWithNoCandidatesAndContinue@299",
+      "id": "junit:com.allinweb.ch.socket.SmokeTestIntegrationServiceTest#v2RecoveryCanBypassAnInstructionWithNoCandidatesAndContinue@300",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -34634,7 +34850,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/socket/SmokeTestIntegrationServiceTest.java",
-      "line": 299,
+      "line": 300,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -34644,7 +34860,55 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.socket.SmokeTestIntegrationServiceTest#v2DisabledRecoveryVerificationCancelsTheRuntimeHoldAndBypassesImmediately@355",
+      "id": "junit:com.allinweb.ch.socket.SmokeTestIntegrationServiceTest#exceptionalRecoveryKeepsExactScannerInspectionAvailableUntilUserBypasses@356",
+      "project": "AR Web Scanner",
+      "repository": "ar-web-selenium",
+      "recordType": "AUTOMATED_CASE",
+      "suite": "com.allinweb.ch.socket.SmokeTestIntegrationServiceTest",
+      "name": "exceptionalRecoveryKeepsExactScannerInspectionAvailableUntilUserBypasses",
+      "displayName": "exceptionalRecoveryKeepsExactScannerInspectionAvailableUntilUserBypasses",
+      "framework": "JUnit 5",
+      "language": "Java",
+      "kind": "UNIT",
+      "runtime": "JVM",
+      "execution": "DEFAULT",
+      "safety": "SAFE",
+      "sourcePath": "src/test/java/com/allinweb/ch/socket/SmokeTestIntegrationServiceTest.java",
+      "line": 356,
+      "caseCount": 1,
+      "runnable": true,
+      "runAllEligible": true,
+      "command": "mvn -Dtest=com.allinweb.ch.socket.SmokeTestIntegrationServiceTest#exceptionalRecoveryKeepsExactScannerInspectionAvailableUntilUserBypasses test",
+      "tags": [
+        "Test"
+      ]
+    },
+    {
+      "id": "junit:com.allinweb.ch.socket.SmokeTestIntegrationServiceTest#exceptionalV1RecoveryRestoresOnlyTheSharedRuntimeScannerAuthority@423",
+      "project": "AR Web Scanner",
+      "repository": "ar-web-selenium",
+      "recordType": "AUTOMATED_CASE",
+      "suite": "com.allinweb.ch.socket.SmokeTestIntegrationServiceTest",
+      "name": "exceptionalV1RecoveryRestoresOnlyTheSharedRuntimeScannerAuthority",
+      "displayName": "exceptionalV1RecoveryRestoresOnlyTheSharedRuntimeScannerAuthority",
+      "framework": "JUnit 5",
+      "language": "Java",
+      "kind": "UNIT",
+      "runtime": "JVM",
+      "execution": "DEFAULT",
+      "safety": "SAFE",
+      "sourcePath": "src/test/java/com/allinweb/ch/socket/SmokeTestIntegrationServiceTest.java",
+      "line": 423,
+      "caseCount": 1,
+      "runnable": true,
+      "runAllEligible": true,
+      "command": "mvn -Dtest=com.allinweb.ch.socket.SmokeTestIntegrationServiceTest#exceptionalV1RecoveryRestoresOnlyTheSharedRuntimeScannerAuthority test",
+      "tags": [
+        "Test"
+      ]
+    },
+    {
+      "id": "junit:com.allinweb.ch.socket.SmokeTestIntegrationServiceTest#v2DisabledRecoveryVerificationCancelsTheRuntimeHoldAndBypassesImmediately@470",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -34658,7 +34922,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/socket/SmokeTestIntegrationServiceTest.java",
-      "line": 355,
+      "line": 470,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -34668,7 +34932,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.socket.SmokeTestIntegrationServiceTest#v2StopRequestsImmediateRuntimeInterruptionBeforeTerminalCleanup@407",
+      "id": "junit:com.allinweb.ch.socket.SmokeTestIntegrationServiceTest#v2StopRequestsImmediateRuntimeInterruptionBeforeTerminalCleanup@522",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -34682,7 +34946,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/socket/SmokeTestIntegrationServiceTest.java",
-      "line": 407,
+      "line": 522,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -34692,7 +34956,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.socket.SmokeTestIntegrationServiceTest#runtimeInstancesExposeTheAuthoritativeActiveRun@434",
+      "id": "junit:com.allinweb.ch.socket.SmokeTestIntegrationServiceTest#runtimeInstancesExposeTheAuthoritativeActiveRun@549",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -34706,7 +34970,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/socket/SmokeTestIntegrationServiceTest.java",
-      "line": 434,
+      "line": 549,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -34716,7 +34980,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.socket.SmokeTestIntegrationServiceTest#stopInterruptsABlockedV1StepWithoutWaitingForTheStepTimeout@458",
+      "id": "junit:com.allinweb.ch.socket.SmokeTestIntegrationServiceTest#stopInterruptsABlockedV1StepWithoutWaitingForTheStepTimeout@573",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -34730,7 +34994,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/socket/SmokeTestIntegrationServiceTest.java",
-      "line": 458,
+      "line": 573,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -34740,7 +35004,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.socket.SmokeTestIntegrationServiceTest#emergencyStopInterruptsV1StartupBeforeARunIdExists@486",
+      "id": "junit:com.allinweb.ch.socket.SmokeTestIntegrationServiceTest#emergencyStopInterruptsV1StartupBeforeARunIdExists@601",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -34754,7 +35018,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/socket/SmokeTestIntegrationServiceTest.java",
-      "line": 486,
+      "line": 601,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -34764,7 +35028,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.socket.SmokeTestIntegrationServiceTest#emergencyStopInterruptsTheCurrentOwnersActiveV2Run@526",
+      "id": "junit:com.allinweb.ch.socket.SmokeTestIntegrationServiceTest#emergencyStopInterruptsTheCurrentOwnersActiveV2Run@641",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -34778,7 +35042,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/socket/SmokeTestIntegrationServiceTest.java",
-      "line": 526,
+      "line": 641,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -34788,7 +35052,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.socket.SmokeTestIntegrationServiceTest#emergencyStopRetiresActiveV1RunWithoutClosingTheSharedBrowser@555",
+      "id": "junit:com.allinweb.ch.socket.SmokeTestIntegrationServiceTest#emergencyStopRetiresActiveV1RunWithoutClosingTheSharedBrowser@670",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -34802,7 +35066,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/socket/SmokeTestIntegrationServiceTest.java",
-      "line": 555,
+      "line": 670,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -34812,7 +35076,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.socket.SmokeTestIntegrationServiceTest#killTargetsOnlyTheRequestedRuntimeInstance@576",
+      "id": "junit:com.allinweb.ch.socket.SmokeTestIntegrationServiceTest#killTargetsOnlyTheRequestedRuntimeInstance@691",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -34826,7 +35090,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/socket/SmokeTestIntegrationServiceTest.java",
-      "line": 576,
+      "line": 691,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -34836,7 +35100,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.socket.SmokeTestIntegrationServiceTest#runtimeStopRetiresV1RunButPreservesTheSharedBrowser@598",
+      "id": "junit:com.allinweb.ch.socket.SmokeTestIntegrationServiceTest#runtimeStopRetiresV1RunButPreservesTheSharedBrowser@713",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -34850,7 +35114,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/socket/SmokeTestIntegrationServiceTest.java",
-      "line": 598,
+      "line": 713,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -34860,7 +35124,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.socket.SmokeTestIntegrationServiceTest#runtimeKillClosesOnlyTheSelectedV2Browser@621",
+      "id": "junit:com.allinweb.ch.socket.SmokeTestIntegrationServiceTest#runtimeKillClosesOnlyTheSelectedV2Browser@736",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -34874,7 +35138,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/socket/SmokeTestIntegrationServiceTest.java",
-      "line": 621,
+      "line": 736,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -34884,7 +35148,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.socket.SmokeTestIntegrationServiceTest#bindingChangeInterruptsAndRetiresTheSupersededV2Run@653",
+      "id": "junit:com.allinweb.ch.socket.SmokeTestIntegrationServiceTest#bindingChangeInterruptsAndRetiresTheSupersededV2Run@768",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -34898,7 +35162,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/socket/SmokeTestIntegrationServiceTest.java",
-      "line": 653,
+      "line": 768,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -34908,7 +35172,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.socket.SmokeTestIntegrationServiceTest#reloadPolicyUsesStrictSelectedPageInsteadOfPreservingTheCurrentPage@682",
+      "id": "junit:com.allinweb.ch.socket.SmokeTestIntegrationServiceTest#reloadPolicyUsesStrictSelectedPageInsteadOfPreservingTheCurrentPage@797",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -34922,7 +35186,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/socket/SmokeTestIntegrationServiceTest.java",
-      "line": 682,
+      "line": 797,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -55031,7 +55295,7 @@
       ]
     },
     {
-      "id": "jest:src/components/smoke-test/integration/SmokeTestLocatorRecoveryModal.test.tsx::::submits Use and Save only for the selected server candidate@72",
+      "id": "jest:src/components/smoke-test/integration/SmokeTestLocatorRecoveryModal.test.tsx::::submits Use and Save only for the selected server candidate@80",
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "recordType": "AUTOMATED_CASE",
@@ -55045,7 +55309,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/components/smoke-test/integration/SmokeTestLocatorRecoveryModal.test.tsx",
-      "line": 72,
+      "line": 80,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -55056,7 +55320,57 @@
       ]
     },
     {
-      "id": "jest:src/components/smoke-test/integration/SmokeTestLocatorRecoveryModal.test.tsx::::%s submits a terminal decision without a candidate@92",
+      "id": "jest:src/components/smoke-test/integration/SmokeTestLocatorRecoveryModal.test.tsx::::serializes recovery decisions behind a pending Page Scanner open request@101",
+      "project": "AR React UI",
+      "repository": "abr-react-ts-grid",
+      "recordType": "AUTOMATED_CASE",
+      "suite": "SmokeTestLocatorRecoveryModal",
+      "name": "serializes recovery decisions behind a pending Page Scanner open request",
+      "displayName": "serializes recovery decisions behind a pending Page Scanner open request",
+      "framework": "Jest / Testing Library",
+      "language": "TypeScript",
+      "kind": "FRONTEND",
+      "runtime": "JSDOM",
+      "execution": "DEFAULT",
+      "safety": "SAFE",
+      "sourcePath": "src/components/smoke-test/integration/SmokeTestLocatorRecoveryModal.test.tsx",
+      "line": 101,
+      "caseCount": 1,
+      "runnable": true,
+      "runAllEligible": true,
+      "command": "npm test -- --runInBand --runTestsByPath src/components/smoke-test/integration/SmokeTestLocatorRecoveryModal.test.tsx -t \"serializes recovery decisions behind a pending Page Scanner open request\"",
+      "tags": [
+        "frontend",
+        "test"
+      ]
+    },
+    {
+      "id": "jest:src/components/smoke-test/integration/SmokeTestLocatorRecoveryModal.test.tsx::::shows a Page Scanner launch failure without settling or closing recovery@134",
+      "project": "AR React UI",
+      "repository": "abr-react-ts-grid",
+      "recordType": "AUTOMATED_CASE",
+      "suite": "SmokeTestLocatorRecoveryModal",
+      "name": "shows a Page Scanner launch failure without settling or closing recovery",
+      "displayName": "shows a Page Scanner launch failure without settling or closing recovery",
+      "framework": "Jest / Testing Library",
+      "language": "TypeScript",
+      "kind": "FRONTEND",
+      "runtime": "JSDOM",
+      "execution": "DEFAULT",
+      "safety": "SAFE",
+      "sourcePath": "src/components/smoke-test/integration/SmokeTestLocatorRecoveryModal.test.tsx",
+      "line": 134,
+      "caseCount": 1,
+      "runnable": true,
+      "runAllEligible": true,
+      "command": "npm test -- --runInBand --runTestsByPath src/components/smoke-test/integration/SmokeTestLocatorRecoveryModal.test.tsx -t \"shows a Page Scanner launch failure without settling or closing recovery\"",
+      "tags": [
+        "frontend",
+        "test"
+      ]
+    },
+    {
+      "id": "jest:src/components/smoke-test/integration/SmokeTestLocatorRecoveryModal.test.tsx::::%s submits a terminal decision without a candidate@157",
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "recordType": "AUTOMATED_CASE",
@@ -55070,7 +55384,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/components/smoke-test/integration/SmokeTestLocatorRecoveryModal.test.tsx",
-      "line": 92,
+      "line": 157,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -55082,7 +55396,7 @@
       ]
     },
     {
-      "id": "jest:src/components/smoke-test/integration/SmokeTestLocatorRecoveryModal.test.tsx::::allows an empty recovery to be explicitly bypassed and contains keyboard focus@115",
+      "id": "jest:src/components/smoke-test/integration/SmokeTestLocatorRecoveryModal.test.tsx::::allows an empty recovery to be explicitly bypassed and contains keyboard focus@181",
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "recordType": "AUTOMATED_CASE",
@@ -55096,7 +55410,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/components/smoke-test/integration/SmokeTestLocatorRecoveryModal.test.tsx",
-      "line": 115,
+      "line": 181,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -55307,7 +55621,7 @@
       ]
     },
     {
-      "id": "jest:src/components/smoke-test/SmokeTestSimulationWorkspace.ownerLifecycle.test.tsx::::preserves same-owner state and remounts run-local state when the Bot Job owner changes@47",
+      "id": "jest:src/components/smoke-test/SmokeTestSimulationWorkspace.ownerLifecycle.test.tsx::::preserves same-owner state and remounts run-local state when the Bot Job owner changes@48",
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "recordType": "AUTOMATED_CASE",
@@ -55321,7 +55635,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/components/smoke-test/SmokeTestSimulationWorkspace.ownerLifecycle.test.tsx",
-      "line": 47,
+      "line": 48,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
