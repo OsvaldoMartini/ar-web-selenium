@@ -3,12 +3,18 @@ package com.allinweb.ch.socket;
 import com.allinweb.ch.driver.ARWebDriver;
 import com.allinweb.ch.driver.ARPlaywrightDriver;
 import com.allinweb.ch.facade.BotJobDetailsWorkspaceRegistry;
+import com.allinweb.ch.facade.CommandRegistry;
 import com.allinweb.ch.facade.ExecutionPauseCoordinator;
+import com.allinweb.ch.facade.PageScannerRuntimeSelector;
+import com.allinweb.ch.facade.PreScanWorkflowService;
+import com.allinweb.ch.facade.RuntimeElementHealingService;
 import com.allinweb.ch.facade.actions.RuntimeVariableValue;
 import com.allinweb.ch.facade.execution.SmokeTestIntegrationSnapshotRepository;
 import com.allinweb.ch.facade.execution.SmokeTestIntegrationSnapshotRepository.Owner;
 import com.allinweb.ch.facade.execution.SmokeTestIntegrationSnapshotRepository.Plan;
+import com.allinweb.ch.facade.execution.SmokeTestIntegrationSnapshotRepository.InstructionSnapshot;
 import com.allinweb.ch.facade.execution.SmokeTestIntegrationStepExecutor;
+import com.allinweb.ch.facade.execution.SmokeTestLocatorRecoveryMatcher;
 import com.allinweb.ch.facade.execution.SmokeTestIntegrationV1RecoveryCoordinator;
 import com.allinweb.ch.facade.execution.SmokeRecoveryScannerRegistry;
 import com.allinweb.ch.facade.execution.SmokeTestIntegrationExcelWriteService;
@@ -20,6 +26,7 @@ import com.allinweb.ch.facade.execution.v2.ExecutionV2Contracts.AuthorizedGrantF
 import com.allinweb.ch.facade.execution.v2.ExecutionV2Contracts.DataMode;
 import com.allinweb.ch.facade.execution.v2.SmokeTestIntegrationV2StepExecutor;
 import com.allinweb.ch.model.DetachedWorkspaceSessions;
+import com.allinweb.ch.model.ElementDTO;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts.Correlation;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts.FinishRequest;
@@ -29,6 +36,9 @@ import com.allinweb.ch.model.SmokeTestIntegrationContracts.PagePolicy;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts.RefreshRequest;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts.RecoveryRequest;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts.RecoveryDecision;
+import com.allinweb.ch.model.SmokeTestIntegrationContracts.RecoveryAction;
+import com.allinweb.ch.model.SmokeTestIntegrationContracts.RecoveryScanRequest;
+import com.allinweb.ch.model.SmokeTestIntegrationContracts.RecoveryTestRequest;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts.RunStatus;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts.RuntimeSnapshot;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts.RuntimeMode;
@@ -41,7 +51,12 @@ import com.allinweb.ch.model.SmokeTestIntegrationContracts.StopRequest;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts.TerminalResponse;
 import com.allinweb.ch.socket.ExcelDataWorkspaceService.IntegrationDataset;
 import com.allinweb.ch.socket.VariablesWorkspaceService.SmokeIntegrationAuthorization;
+import com.allinweb.ch.util.ARPropertyEnum;
+import com.allinweb.ch.util.ARPropertyManager;
+import com.allinweb.ch.util.CryptationAlgorithm;
+import com.allinweb.ch.util.ExtractedData;
 import com.google.gson.Gson;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -178,6 +193,10 @@ public final class SmokeTestIntegrationService {
                         SmokeTestIntegrationContracts.parseStep(body), transport);
                 case SmokeTestIntegrationContracts.RECOVER -> handleRecovery(
                         SmokeTestIntegrationContracts.parseRecovery(body), transport);
+                case SmokeTestIntegrationContracts.RECOVERY_SCAN -> handleRecoveryScan(
+                        SmokeTestIntegrationContracts.parseRecoveryScan(body), transport);
+                case SmokeTestIntegrationContracts.RECOVERY_TEST -> handleRecoveryTest(
+                        SmokeTestIntegrationContracts.parseRecoveryTest(body), transport);
                 case SmokeTestIntegrationContracts.EXCEL_WRITE -> handleExcelWrite(
                         SmokeTestIntegrationContracts.parseExcelWrite(body), transport);
                 case SmokeTestIntegrationContracts.STOP -> handleStop(
@@ -1159,6 +1178,430 @@ public final class SmokeTestIntegrationService {
                 });
     }
 
+    private void handleRecoveryScan(RecoveryScanRequest request, Session transport) {
+        executionTrace.info(
+                "phase=RECOVERY_SCAN_RECEIVED requestId={} runId={} sequence={} instructionId={}",
+                request.requestId(), request.runId(), request.sequence(), request.instructionId());
+        String fingerprint = gson.toJson(request);
+        if (replayExisting(
+                SmokeTestIntegrationContracts.RECOVERY_SCAN,
+                request.requestId(), fingerprint, transport, -1)) return;
+        Run run = requirePendingRecovery(
+                request.runId(), request.sequence(), request.instructionId(), transport,
+                SmokeTestIntegrationContracts.RECOVERY_SCAN_RESPONSE, request.requestId(),
+                "RECOVERY_SCAN");
+        if (run == null) return;
+        executionTrace.info(
+                "phase=RECOVERY_SCAN_ADMITTED requestId={} runId={} mode={} hb={} bot={} workspaceEpoch={}",
+                request.requestId(), run.runId, run.runtimeMode,
+                run.authorization.homeBankingId(), run.authorization.botJobId(),
+                run.authorization.workspaceEpoch());
+        submitOnce(
+                SmokeTestIntegrationContracts.RECOVERY_SCAN,
+                request.requestId(), fingerprint, transport,
+                run.authorization.homeBankingId(),
+                () -> recoveryScan(run, request),
+                () -> { synchronized (stateLock) { run.stepPending = false; } });
+    }
+
+    private void handleRecoveryTest(RecoveryTestRequest request, Session transport) {
+        executionTrace.info(
+                "phase=RECOVERY_TEST_RECEIVED requestId={} runId={} sequence={} instructionId={} action={} candidate={}",
+                request.requestId(), request.runId(), request.sequence(), request.instructionId(),
+                request.action(), request.recoveryCandidateId());
+        String fingerprint = gson.toJson(request);
+        if (replayExisting(
+                SmokeTestIntegrationContracts.RECOVERY_TEST,
+                request.requestId(), fingerprint, transport, -1)) return;
+        Run run = requirePendingRecovery(
+                request.runId(), request.sequence(), request.instructionId(), transport,
+                SmokeTestIntegrationContracts.RECOVERY_TEST_RESPONSE, request.requestId(),
+                "RECOVERY_TEST");
+        if (run == null) return;
+        executionTrace.info(
+                "phase=RECOVERY_TEST_ADMITTED requestId={} runId={} mode={} hb={} bot={} workspaceEpoch={} action={} candidate={}",
+                request.requestId(), run.runId, run.runtimeMode,
+                run.authorization.homeBankingId(), run.authorization.botJobId(),
+                run.authorization.workspaceEpoch(), request.action(), request.recoveryCandidateId());
+        submitOnce(
+                SmokeTestIntegrationContracts.RECOVERY_TEST,
+                request.requestId(), fingerprint, transport,
+                run.authorization.homeBankingId(),
+                () -> recoveryTest(run, request),
+                () -> { synchronized (stateLock) { run.stepPending = false; } });
+    }
+
+    private Run requirePendingRecovery(
+            String runId,
+            long sequence,
+            int instructionId,
+            Session transport,
+            String responseOperation,
+            String requestId,
+            String traceOperation) {
+        Run run = resolveRun(runId, transport);
+        synchronized (stateLock) {
+            SequenceResult previous = run == null ? null : run.sequenceResults.get(sequence);
+            if (run == null || activeRuns.get(run.runId) != run || previous == null
+                    || previous.instructionId != instructionId || !previous.recoveryPending) {
+                executionTrace.warn(
+                        "phase={}_REFUSED requestId={} runId={} sequence={} instructionId={} code=RECOVERY_NOT_PENDING",
+                        traceOperation, requestId, runId, sequence, instructionId);
+                publish(transport, run == null ? -1 : run.authorization.homeBankingId(),
+                        responseOperation,
+                        rejected(requestId, runId, "RECOVERY_NOT_PENDING",
+                                "This instruction no longer has a pending locator recovery."));
+                return null;
+            }
+            if (run.stepPending || run.terminalPending || run.cancelled) {
+                executionTrace.warn(
+                        "phase={}_REFUSED requestId={} runId={} sequence={} instructionId={} code=INTEGRATION_BUSY mode={}",
+                        traceOperation, requestId, runId, sequence, instructionId, run.runtimeMode);
+                publish(transport, run.authorization.homeBankingId(), responseOperation,
+                        rejected(requestId, runId, "INTEGRATION_BUSY",
+                                "Wait for the current Integration operation to finish."));
+                return null;
+            }
+            run.stepPending = true;
+            return run;
+        }
+    }
+
+    private JsonObject recoveryScan(Run run, RecoveryScanRequest request) {
+        synchronized (run.operationLock) {
+            long started = System.nanoTime();
+            executionTrace.info(
+                    "phase=RECOVERY_SCAN_STARTED requestId={} runId={} instructionId={} mode={} hb={} bot={}",
+                    request.requestId(), run.runId, request.instructionId(), run.runtimeMode,
+                    run.authorization.homeBankingId(), run.authorization.botJobId());
+            requireRecoveryStillPending(run, request.sequence(), request.instructionId());
+            RecoveryTarget target = recoveryTarget(run, request.instructionId());
+            PreScanWorkflowService.Context context = recoveryScanContext(run);
+            RecoveryWorkflow scanner = openRecoveryWorkflow(run, context);
+            try {
+                String beforeUrl = scanner.workflow.currentPageUrl();
+                RuntimeElementHealingService.Preparation frozen = RuntimeElementHealingService
+                        .getInstance().prepare(
+                                run.authorization.homeBankingId(), run.authorization.botJobId(),
+                                beforeUrl, target.instruction().toInstructionLoad());
+                if (!frozen.ready()) {
+                    throw new IllegalStateException(
+                            "Historical Page Scanner elements are unavailable for this page.");
+                }
+                executionTrace.info(
+                        "phase=RECOVERY_SCAN_HISTORY_FROZEN requestId={} runId={} instructionId={} registryCandidates={} pageBound={}",
+                        request.requestId(), run.runId, request.instructionId(),
+                        frozen.registryCandidateCount(), !frozen.pageKey().isBlank());
+                RecoveryScanSink sink = new RecoveryScanSink();
+                Boolean committed = workspaces.commitMutation(
+                        run.authorization.botJobId(), run.authorization.workspaceEpoch(),
+                        () -> {
+                            scanner.workflow.scan(context, "", false, sink);
+                            return Boolean.TRUE;
+                        });
+                if (!Boolean.TRUE.equals(committed)) {
+                    throw new IllegalStateException("The active Bot Job changed during recovery scan.");
+                }
+                sink.requireSuccess();
+                executionTrace.info(
+                        "phase=RECOVERY_SCAN_PAGE_CAPTURED requestId={} runId={} instructionId={} elements={}",
+                        request.requestId(), run.runId, request.instructionId(), sink.elements().size());
+                String afterUrl = scanner.workflow.currentPageUrl();
+                String currentPageKey = com.allinweb.ch.db.ScannedPageIdentity
+                        .fromLiveUrl(afterUrl).pageKey();
+                if (!frozen.pageKey().equals(currentPageKey)) {
+                    throw new IllegalStateException("The browser page changed during recovery scan.");
+                }
+                JsonArray candidates = SmokeTestLocatorRecoveryMatcher.match(
+                        frozen,
+                        target.instruction().name(),
+                        target.instruction().clientNamed(),
+                        target.action(),
+                        currentPageKey,
+                        sink.elements());
+                executionTrace.info(
+                        "phase=RECOVERY_SCAN_CANDIDATES_MATCHED requestId={} runId={} instructionId={} elements={} candidates={}",
+                        request.requestId(), run.runId, request.instructionId(),
+                        sink.elements().size(), candidates.size());
+                JsonObject recovery = run.runtimeMode == RuntimeMode.TYPESCRIPT_PLAYWRIGHT_V2
+                        ? v2.replaceRecoveryCandidates(
+                                run.v2Run, request.instructionId(), candidates)
+                        : steps.replaceRecoveryCandidates(
+                                run.runId, request.instructionId(), candidates);
+                executionTrace.info(
+                        "phase=RECOVERY_SCAN_CANDIDATES_INSTALLED requestId={} runId={} instructionId={} mode={} candidates={}",
+                        request.requestId(), run.runId, request.instructionId(),
+                        run.runtimeMode, candidates.size());
+                synchronized (stateLock) {
+                    SequenceResult previous = run.sequenceResults.get(request.sequence());
+                    requireRecoveryStillPending(run, request.sequence(), request.instructionId());
+                    JsonObject refreshed = previous.response.deepCopy();
+                    refreshed.add("recovery", recovery.deepCopy());
+                    run.sequenceResults.put(request.sequence(), new SequenceResult(
+                            previous.instructionId, previous.excelRowIndex, refreshed,
+                            previous.status, true, previous.recoveryVerificationEnabled));
+                }
+                JsonObject response = recoveryOperationResponse(
+                        run, request.requestId(), request.sequence(), request.instructionId());
+                response.addProperty("status", "COMPLETED");
+                response.addProperty("message", "Page Scanner completed and refreshed Locator Recovery candidates.");
+                response.addProperty("elementCount", sink.elements().size());
+                response.add("recovery", recovery);
+                executionTrace.info(
+                        "phase=RECOVERY_SCAN_COMPLETED requestId={} runId={} instructionId={} mode={} elements={} candidates={} durationMs={}",
+                        request.requestId(), run.runId, request.instructionId(), run.runtimeMode,
+                        sink.elements().size(), candidates.size(), elapsedMillis(started));
+                return response;
+            } catch (RuntimeException failure) {
+                executionTrace.warn(
+                        "phase=RECOVERY_SCAN_FAILED requestId={} runId={} instructionId={} mode={} failureType={} durationMs={}",
+                        request.requestId(), run.runId, request.instructionId(), run.runtimeMode,
+                        failure.getClass().getSimpleName(), elapsedMillis(started));
+                return rejected(request.requestId(), run.runId, "RECOVERY_SCAN_FAILED",
+                        safeMessage(failure, "Page Scanner could not refresh Locator Recovery."));
+            } finally {
+                scanner.close();
+            }
+        }
+    }
+
+    private JsonObject recoveryTest(Run run, RecoveryTestRequest request) {
+        synchronized (run.operationLock) {
+            long started = System.nanoTime();
+            executionTrace.info(
+                    "phase=RECOVERY_TEST_STARTED requestId={} runId={} instructionId={} mode={} action={} candidate={}",
+                    request.requestId(), run.runId, request.instructionId(), run.runtimeMode,
+                    request.action(), request.recoveryCandidateId());
+            try {
+                requireRecoveryStillPending(run, request.sequence(), request.instructionId());
+                JsonObject candidate = run.runtimeMode == RuntimeMode.TYPESCRIPT_PLAYWRIGHT_V2
+                        ? v2.recoveryCandidate(run.v2Run, request.instructionId(), request.recoveryCandidateId())
+                        : steps.recoveryCandidate(run.runId, request.instructionId(), request.recoveryCandidateId());
+                ElementDTO element = recoveryElement(
+                        candidate,
+                        request.action(),
+                        request.action() == RecoveryAction.INPUT
+                                ? recoveryInputValue(run, request.instructionId()) : null);
+                RecoveryScanSink sink = new RecoveryScanSink();
+                RecoveryWorkflow workflow = openRecoveryWorkflow(run, recoveryScanContext(run));
+                try {
+                    workflow.workflow.testElement(
+                            element,
+                            request.action() == RecoveryAction.CLICK
+                                    ? com.allinweb.ch.model.ScannerWorkspaceOperations.TEST_CLICK_DTO
+                                    : com.allinweb.ch.model.ScannerWorkspaceOperations.TEST_INPUT_DTO,
+                            sink);
+                } finally {
+                    workflow.close();
+                }
+                sink.requireTestSuccess();
+                JsonObject response = recoveryOperationResponse(
+                        run, request.requestId(), request.sequence(), request.instructionId());
+                response.addProperty("status", "COMPLETED");
+                response.addProperty("action", request.action().name());
+                response.addProperty("recoveryCandidateId", request.recoveryCandidateId());
+                response.addProperty("message", request.action() == RecoveryAction.CLICK
+                        ? "Test Click completed on the selected recovery candidate."
+                        : "Test Input completed on the selected recovery candidate.");
+                executionTrace.info(
+                        "phase=RECOVERY_TEST_COMPLETED requestId={} runId={} instructionId={} mode={} action={} candidate={} durationMs={}",
+                        request.requestId(), run.runId, request.instructionId(), run.runtimeMode,
+                        request.action(), request.recoveryCandidateId(), elapsedMillis(started));
+                return response;
+            } catch (RuntimeException failure) {
+                executionTrace.warn(
+                        "phase=RECOVERY_TEST_FAILED requestId={} runId={} instructionId={} mode={} action={} candidate={} failureType={} durationMs={}",
+                        request.requestId(), run.runId, request.instructionId(), run.runtimeMode,
+                        request.action(), request.recoveryCandidateId(),
+                        failure.getClass().getSimpleName(), elapsedMillis(started));
+                return rejected(request.requestId(), run.runId, "RECOVERY_TEST_FAILED",
+                        safeMessage(failure, "The recovery candidate test failed."));
+            }
+        }
+    }
+
+    private void requireRecoveryStillPending(Run run, long sequence, int instructionId) {
+        synchronized (stateLock) {
+            SequenceResult current = run.sequenceResults.get(sequence);
+            if (run.cancelled || activeRuns.get(run.runId) != run || current == null
+                    || current.instructionId != instructionId || !current.recoveryPending) {
+                throw new IllegalStateException("This instruction no longer has a pending locator recovery.");
+            }
+        }
+    }
+
+    private RecoveryTarget recoveryTarget(Run run, int instructionId) {
+        InstructionSnapshot instruction = run.plan.instruction(instructionId);
+        if (instruction == null) {
+            throw new IllegalStateException("The recovery instruction is outside the frozen plan.");
+        }
+        String command = CommandRegistry.canonicalize(instruction.action());
+        if ("GET".equals(command) || "SET".equals(command)) {
+            if (instruction.parentId() == null) {
+                throw new IllegalStateException("The recovery command has no Web Element parent.");
+            }
+            InstructionSnapshot parent = run.plan.instruction(instruction.parentId());
+            if (parent == null || parent.block().id() != instruction.block().id()
+                    || !CommandRegistry.isWebElementAction(
+                            CommandRegistry.canonicalize(parent.action()))) {
+                throw new IllegalStateException("The recovery Web Element parent is unavailable.");
+            }
+            return new RecoveryTarget(parent, "GET".equals(command) ? "OUTPUT" : "INPUT");
+        }
+        String action = switch (command) {
+            case "C" -> "CLICK";
+            case "I" -> "INPUT";
+            case "O" -> "OUTPUT";
+            default -> throw new IllegalStateException(
+                    "The failed instruction is not a recoverable Web Element action.");
+        };
+        return new RecoveryTarget(instruction, action);
+    }
+
+    private PreScanWorkflowService.Context recoveryScanContext(Run run) {
+        var environment = run.plan.environment();
+        return new PreScanWorkflowService.Context(
+                environment.botJobId(),
+                environment.botJobName(),
+                environment.homeBankingId(),
+                environment.homeUrlId(),
+                environment.url(),
+                environment.browserType(),
+                environment.optionsConfig(),
+                ARPropertyManager.getInstance().getProperty(ARPropertyEnum.PATH_DB));
+    }
+
+    private RecoveryWorkflow openRecoveryWorkflow(
+            Run run, PreScanWorkflowService.Context context) {
+        if (run.runtimeMode == RuntimeMode.TYPESCRIPT_PLAYWRIGHT_V2) {
+            return new RecoveryWorkflow(
+                    PageScannerRuntimeSelector.openV2(
+                            context, run.authorization.workspaceEpoch()), true);
+        }
+        ARPlaywrightDriver driver = ARWebDriver.getInstance().currentPlaywrightDriver();
+        if (driver == null || !driver.isOpen()) {
+            throw new IllegalStateException("The Java V1 Playwright browser is unavailable.");
+        }
+        return new RecoveryWorkflow(PreScanWorkflowService.forDriver(driver), false);
+    }
+
+    private String recoveryInputValue(Run run, int instructionId) {
+        SequenceResult sequence = run.sequenceResults.values().stream()
+                .filter(value -> value.instructionId == instructionId && value.recoveryPending)
+                .reduce((first, second) -> second)
+                .orElseThrow(() -> new IllegalStateException(
+                        "The recovery Excel row is unavailable."));
+        InstructionSnapshot instruction = run.plan.instruction(instructionId);
+        if (instruction == null) throw new IllegalStateException("The recovery instruction is unavailable.");
+        String command = CommandRegistry.canonicalize(instruction.action());
+        if ("SET".equals(command)) {
+            Integer variableId = instruction.variableId("READ_SET");
+            RuntimeVariableValue value = run.variables.read(variableId);
+            if (value == null || value.isVoid()) {
+                throw new IllegalStateException("The recovery INPUT runtime value is unavailable.");
+            }
+            return value.value();
+        }
+        RecoveryTarget target = recoveryTarget(run, instructionId);
+        ExtractedData data = run.dataset.data();
+        int row = sequence.excelRowIndex;
+        if (row < 0 || row >= data.getNumberOfDataRows()) {
+            throw new IllegalStateException("The recovery INPUT Excel row is unavailable.");
+        }
+        String column = target.instruction().displayKey();
+        if (!data.containsField(target.instruction().block().name(), column)) {
+            column = target.instruction().name();
+        }
+        if (column == null || !data.containsField(target.instruction().block().name(), column)) {
+            throw new IllegalStateException("The recovery INPUT Excel column is unavailable.");
+        }
+        String value = data.getFieldValue(target.instruction().block().name(), column, row);
+        if (value == null) throw new IllegalStateException("The recovery INPUT value is unavailable.");
+        return target.instruction().codified() ? CryptationAlgorithm.decrypt(value) : value;
+    }
+
+    private static ElementDTO recoveryElement(
+            JsonObject candidate, RecoveryAction action, String inputValue) {
+        ElementDTO element = new ElementDTO();
+        element.setId(candidate.get("registryCandidateId").getAsInt());
+        element.setXPath(candidate.get("newXPath").getAsString());
+        element.setCssSelector(candidate.get("newCss").getAsString());
+        element.setTagName(candidate.get("tag").getAsString());
+        element.setTypeElement(action == RecoveryAction.INPUT ? "input" : "button");
+        element.setExecutionTypeOverride(action.name());
+        element.setDefinedName(candidate.get("savedCanonicalName").getAsString());
+        element.setClientNamed(candidate.get("savedClientName").getAsString());
+        element.setSomeText(candidate.get("ocrMappedName").getAsString());
+        element.setDefaultValue(action == RecoveryAction.INPUT ? inputValue : "");
+        return element;
+    }
+
+    private JsonObject recoveryOperationResponse(
+            Run run, String requestId, long sequence, int instructionId) {
+        JsonObject response = new JsonObject();
+        response.addProperty("ok", true);
+        response.addProperty("contractVersion", SmokeTestIntegrationContracts.CONTRACT_VERSION);
+        response.addProperty("requestId", requestId);
+        response.addProperty("runId", run.runId);
+        response.addProperty("integrationEpoch", run.integrationEpoch);
+        response.addProperty("sequence", sequence);
+        response.addProperty("instructionId", instructionId);
+        return response;
+    }
+
+    private record RecoveryTarget(InstructionSnapshot instruction, String action) {}
+
+    private static final class RecoveryWorkflow implements AutoCloseable {
+        private final PreScanWorkflowService workflow;
+        private final boolean close;
+
+        private RecoveryWorkflow(PreScanWorkflowService workflow, boolean close) {
+            this.workflow = workflow;
+            this.close = close;
+        }
+
+        @Override
+        public void close() {
+            if (close) workflow.shutdown();
+        }
+    }
+
+    private static final class RecoveryScanSink implements PreScanWorkflowService.Sink {
+        private List<ElementDTO> elements = List.of();
+        private String failure = "";
+        private boolean testPassed;
+
+        @Override
+        public void status(String status, String message, int elementCount) {
+            if ("failed".equalsIgnoreCase(status)) failure = Objects.toString(message, "Page Scanner failed.");
+            if ("done".equalsIgnoreCase(status)) testPassed = true;
+        }
+
+        @Override public void reset() { elements = List.of(); }
+
+        @Override
+        public void elements(List<ElementDTO> values) {
+            elements = values == null ? List.of() : values.stream()
+                    .filter(Objects::nonNull).map(ElementDTO::deepCopy).toList();
+        }
+
+        @Override
+        public void failure(String message) {
+            failure = Objects.toString(message, "Page Scanner failed.");
+        }
+
+        private List<ElementDTO> elements() { return elements; }
+
+        private void requireSuccess() {
+            if (!failure.isBlank()) throw new IllegalStateException(failure);
+        }
+
+        private void requireTestSuccess() {
+            requireSuccess();
+            if (!testPassed) throw new IllegalStateException("The selected recovery candidate test was refused.");
+        }
+    }
+
     private JsonObject recover(Run run, RecoveryRequest request) {
         synchronized (run.operationLock) {
             executionTrace.info(
@@ -1216,20 +1659,35 @@ public final class SmokeTestIntegrationService {
                         "Locator recovery was cancelled.");
             }
             clearRecoveryScanner(run, request.instructionId(), "DECISION_STARTED");
+            executionTrace.info(
+                    "phase=RECOVERY_ACTION_RESOLVED requestId={} runId={} instructionId={} mode={} action={} source={}",
+                    request.requestId(), run.runId, request.instructionId(), run.runtimeMode,
+                    request.action() == null ? "AUTHORED" : request.action(),
+                    request.action() == null ? "AUTHORED" : "USER_SELECTED");
             Outcome outcome;
             try {
-                outcome = run.runtimeMode == RuntimeMode.TYPESCRIPT_PLAYWRIGHT_V2
-                        ? v2.recover(
-                                run.v2Run,
-                                request.instructionId(),
-                                request.recoveryCandidateId(),
-                                request.decision() == RecoveryDecision.USE_AND_SAVE)
-                        : steps.recover(
-                                run.runId,
-                                request.instructionId(),
-                                request.recoveryCandidateId(),
-                                request.decision() == RecoveryDecision.USE_AND_SAVE,
-                                run.variables);
+                boolean save = request.decision() == RecoveryDecision.USE_AND_SAVE;
+                if (request.action() == null) {
+                    outcome = run.runtimeMode == RuntimeMode.TYPESCRIPT_PLAYWRIGHT_V2
+                            ? v2.recover(
+                                    run.v2Run, request.instructionId(),
+                                    request.recoveryCandidateId(), save)
+                            : steps.recover(
+                                    run.runId, request.instructionId(),
+                                    request.recoveryCandidateId(), save, run.variables);
+                } else {
+                    String input = request.action() == RecoveryAction.INPUT
+                            ? recoveryInputValue(run, request.instructionId()) : null;
+                    outcome = run.runtimeMode == RuntimeMode.TYPESCRIPT_PLAYWRIGHT_V2
+                            ? v2.recover(
+                                    run.v2Run, request.instructionId(),
+                                    request.recoveryCandidateId(), save,
+                                    request.action().name(), input)
+                            : steps.recover(
+                                    run.runId, request.instructionId(),
+                                    request.recoveryCandidateId(), save,
+                                    request.action().name(), input, run.variables);
+                }
             } catch (RuntimeException | Error failure) {
                 if (!run.cancelled) {
                     authorizeRecoveryScanner(run, request.instructionId(), "DECISION_EXCEPTION");
@@ -2139,6 +2597,10 @@ public final class SmokeTestIntegrationService {
         return value == null || value.isBlank() ? fallback : value;
     }
 
+    private static long elapsedMillis(long startedNanos) {
+        return Math.max(0L, (System.nanoTime() - startedNanos) / 1_000_000L);
+    }
+
     private static String responseOperation(String operation) {
         if (SmokeTestIntegrationContracts.START.equals(operation)) {
             return SmokeTestIntegrationContracts.START_RESPONSE;
@@ -2148,6 +2610,12 @@ public final class SmokeTestIntegrationService {
         }
         if (SmokeTestIntegrationContracts.RECOVER.equals(operation)) {
             return SmokeTestIntegrationContracts.RECOVER_RESPONSE;
+        }
+        if (SmokeTestIntegrationContracts.RECOVERY_SCAN.equals(operation)) {
+            return SmokeTestIntegrationContracts.RECOVERY_SCAN_RESPONSE;
+        }
+        if (SmokeTestIntegrationContracts.RECOVERY_TEST.equals(operation)) {
+            return SmokeTestIntegrationContracts.RECOVERY_TEST_RESPONSE;
         }
         if (SmokeTestIntegrationContracts.EXCEL_WRITE.equals(operation)) {
             return SmokeTestIntegrationContracts.EXCEL_WRITE_RESPONSE;
@@ -2256,6 +2724,28 @@ public final class SmokeTestIntegrationService {
             throw new UnsupportedOperationException("Java V1 recovery is unavailable");
         }
 
+        default Outcome recover(
+                String runId,
+                int instructionId,
+                String recoveryCandidateId,
+                boolean save,
+                String requestedAction,
+                String requestedInput,
+                RunVariables variables) {
+            return recover(
+                    runId, instructionId, recoveryCandidateId, save, variables);
+        }
+
+        default JsonObject replaceRecoveryCandidates(
+                String runId, int instructionId, JsonArray candidates) {
+            throw new UnsupportedOperationException("Java V1 recovery refresh is unavailable");
+        }
+
+        default JsonObject recoveryCandidate(
+                String runId, int instructionId, String candidateId) {
+            throw new UnsupportedOperationException("Java V1 recovery candidate is unavailable");
+        }
+
         default void cancelRecovery(String runId, int instructionId, String reason) {}
 
         default void clearRecovery(String runId, String reason) {}
@@ -2285,6 +2775,26 @@ public final class SmokeTestIntegrationService {
                 String recoveryCandidateId,
                 boolean save) {
             throw new UnsupportedOperationException("V2 recovery is unavailable");
+        }
+
+        default Outcome recover(
+                V2Run run,
+                int instructionId,
+                String recoveryCandidateId,
+                boolean save,
+                String requestedAction,
+                String requestedInput) {
+            return recover(run, instructionId, recoveryCandidateId, save);
+        }
+
+        default JsonObject replaceRecoveryCandidates(
+                V2Run run, int instructionId, JsonArray candidates) {
+            throw new UnsupportedOperationException("V2 recovery refresh is unavailable");
+        }
+
+        default JsonObject recoveryCandidate(
+                V2Run run, int instructionId, String candidateId) {
+            throw new UnsupportedOperationException("V2 recovery candidate is unavailable");
         }
 
         default void cancelRecovery(V2Run run, int instructionId) {}
@@ -2481,6 +2991,32 @@ public final class SmokeTestIntegrationService {
         }
 
         @Override
+        public Outcome recover(
+                String runId,
+                int instructionId,
+                String recoveryCandidateId,
+                boolean save,
+                String requestedAction,
+                String requestedInput,
+                RunVariables variables) {
+            return recovery.recover(
+                    runId, instructionId, recoveryCandidateId, save,
+                    requestedAction, requestedInput, variables);
+        }
+
+        @Override
+        public JsonObject replaceRecoveryCandidates(
+                String runId, int instructionId, JsonArray candidates) {
+            return recovery.replaceCandidates(runId, instructionId, candidates);
+        }
+
+        @Override
+        public JsonObject recoveryCandidate(
+                String runId, int instructionId, String candidateId) {
+            return recovery.candidate(runId, instructionId, candidateId);
+        }
+
+        @Override
         public void cancelRecovery(String runId, int instructionId, String reason) {
             recovery.cancel(runId, instructionId, reason);
         }
@@ -2552,7 +3088,34 @@ public final class SmokeTestIntegrationService {
                 int instructionId,
                 String recoveryCandidateId,
                 boolean save) {
-            return executor.recover(authority(run), instructionId, recoveryCandidateId, save);
+            return executor.recover(
+                    authority(run), instructionId, recoveryCandidateId, save);
+        }
+
+        @Override
+        public Outcome recover(
+                V2Run run,
+                int instructionId,
+                String recoveryCandidateId,
+                boolean save,
+                String requestedAction,
+                String requestedInput) {
+            return executor.recover(
+                    authority(run), instructionId, recoveryCandidateId, save,
+                    requestedAction, requestedInput);
+        }
+
+        @Override
+        public JsonObject replaceRecoveryCandidates(
+                V2Run run, int instructionId, JsonArray candidates) {
+            return coordinator.replaceRecoveryCandidates(
+                    authority(run), instructionId, candidates);
+        }
+
+        @Override
+        public JsonObject recoveryCandidate(
+                V2Run run, int instructionId, String candidateId) {
+            return coordinator.recoveryCandidate(authority(run), instructionId, candidateId);
         }
 
         @Override

@@ -90,6 +90,19 @@ public final class ExecutionRuntimeActionFactory {
             long sequence,
             JsonObject original,
             JsonObject candidate) {
+        String action = original != null && original.has("action")
+                ? original.get("action").getAsString() : "";
+        String input = original != null && original.has("inputValue")
+                ? original.get("inputValue").getAsString() : null;
+        return createRecovery(sequence, original, candidate, action, input);
+    }
+
+    JsonObject createRecovery(
+            long sequence,
+            JsonObject original,
+            JsonObject candidate,
+            String requestedAction,
+            String inputValue) {
         if (sequence <= 0 || sequence > ExecutionV2Contracts.MAX_JAVASCRIPT_SAFE_INTEGER
                 || original == null || candidate == null) {
             throw new IllegalArgumentException("Execution V2 recovery request is invalid");
@@ -102,6 +115,18 @@ public final class ExecutionRuntimeActionFactory {
         }
         JsonObject request = original.deepCopy();
         request.addProperty("sequence", sequence);
+        String action = normalizedPhysicalAction(requestedAction);
+        request.addProperty("action", action);
+        if ("INPUT".equals(action)) {
+            if (inputValue == null || inputValue.length() > MAX_INPUT_LENGTH) {
+                throw new IllegalArgumentException("Execution V2 recovery input value is invalid");
+            }
+            request.addProperty("inputValue", inputValue);
+        } else {
+            request.remove("inputValue");
+            request.remove("pressEnter");
+            request.remove("pressTab");
+        }
         request.add("authoredSelectors", selectors);
         request.add("registryCandidates", new JsonArray());
         if (candidate.has("tag")) {

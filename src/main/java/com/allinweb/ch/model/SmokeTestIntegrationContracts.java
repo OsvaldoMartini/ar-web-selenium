@@ -31,6 +31,8 @@ public final class SmokeTestIntegrationContracts {
     public static final String REFRESH = "smokeTest.integration.refresh";
     public static final String STEP = "smokeTest.integration.step";
     public static final String RECOVER = "smokeTest.integration.recover";
+    public static final String RECOVERY_SCAN = "smokeTest.integration.recoveryScan";
+    public static final String RECOVERY_TEST = "smokeTest.integration.recoveryTest";
     public static final String EXCEL_WRITE = "smokeTest.integration.excelWrite";
     public static final String STOP = "smokeTest.integration.stop";
     public static final String FORCE_STOP = "smokeTest.integration.forceStop";
@@ -43,6 +45,8 @@ public final class SmokeTestIntegrationContracts {
     public static final String REFRESH_RESPONSE = REFRESH + "Response";
     public static final String STEP_RESPONSE = STEP + "Response";
     public static final String RECOVER_RESPONSE = RECOVER + "Response";
+    public static final String RECOVERY_SCAN_RESPONSE = RECOVERY_SCAN + "Response";
+    public static final String RECOVERY_TEST_RESPONSE = RECOVERY_TEST + "Response";
     public static final String EXCEL_WRITE_RESPONSE = EXCEL_WRITE + "Response";
     public static final String STOP_RESPONSE = STOP + "Response";
     public static final String FORCE_STOP_RESPONSE = FORCE_STOP + "Response";
@@ -110,6 +114,12 @@ public final class SmokeTestIntegrationContracts {
         USE_AND_SAVE,
         BYPASS,
         CANCEL
+    }
+
+    public enum RecoveryAction {
+        CLICK,
+        INPUT,
+        OUTPUT
     }
 
     /** Explicit runtime state; VALUE with an empty String remains different from VOID. */
@@ -275,7 +285,8 @@ public final class SmokeTestIntegrationContracts {
             long sequence,
             int instructionId,
             String recoveryCandidateId,
-            RecoveryDecision decision) {
+            RecoveryDecision decision,
+            RecoveryAction action) {
         public RecoveryRequest {
             requireVersion(contractVersion);
             requestId = requireBounded(requestId, "requestId", MAX_CORRELATION_LENGTH);
@@ -287,6 +298,57 @@ public final class SmokeTestIntegrationContracts {
                     || decision == RecoveryDecision.BYPASS
                     ? optionalBounded(recoveryCandidateId, "recoveryCandidateId", 64)
                     : requireSha256(recoveryCandidateId, "recoveryCandidateId");
+        }
+
+        public RecoveryRequest(
+                int contractVersion,
+                String requestId,
+                String runId,
+                long sequence,
+                int instructionId,
+                String recoveryCandidateId,
+                RecoveryDecision decision) {
+            this(contractVersion, requestId, runId, sequence, instructionId,
+                    recoveryCandidateId, decision, null);
+        }
+    }
+
+    /** Exact pending-recovery request to run the normal Page Scanner on the paused browser. */
+    public record RecoveryScanRequest(
+            int contractVersion,
+            String requestId,
+            String runId,
+            long sequence,
+            int instructionId) {
+        public RecoveryScanRequest {
+            requireVersion(contractVersion);
+            requestId = requireBounded(requestId, "requestId", MAX_CORRELATION_LENGTH);
+            runId = requireBounded(runId, "runId", MAX_CORRELATION_LENGTH);
+            requirePositive(sequence, "sequence");
+            requirePositive(instructionId, "instructionId");
+        }
+    }
+
+    /** Non-settling physical probe for one server-issued Locator Recovery candidate. */
+    public record RecoveryTestRequest(
+            int contractVersion,
+            String requestId,
+            String runId,
+            long sequence,
+            int instructionId,
+            String recoveryCandidateId,
+            RecoveryAction action) {
+        public RecoveryTestRequest {
+            requireVersion(contractVersion);
+            requestId = requireBounded(requestId, "requestId", MAX_CORRELATION_LENGTH);
+            runId = requireBounded(runId, "runId", MAX_CORRELATION_LENGTH);
+            requirePositive(sequence, "sequence");
+            requirePositive(instructionId, "instructionId");
+            recoveryCandidateId = requireSha256(recoveryCandidateId, "recoveryCandidateId");
+            action = Objects.requireNonNull(action, "Recovery test action is required");
+            if (action == RecoveryAction.OUTPUT) {
+                throw invalid("action", "must be CLICK or INPUT for a physical recovery test");
+            }
         }
     }
 
@@ -540,7 +602,30 @@ public final class SmokeTestIntegrationContracts {
                 requiredPositiveLong(body, "sequence"),
                 requiredPositiveInt(body, "instructionId"),
                 optionalString(body, "recoveryCandidateId"),
-                decision);
+                decision,
+                optionalEnum(body, "action", RecoveryAction.class, null));
+    }
+
+    public static RecoveryScanRequest parseRecoveryScan(JsonObject envelopeOrBody) {
+        JsonObject body = body(envelopeOrBody);
+        return new RecoveryScanRequest(
+                requiredVersion(body),
+                requiredString(body, "requestId", MAX_CORRELATION_LENGTH),
+                requiredString(body, "runId", MAX_CORRELATION_LENGTH),
+                requiredPositiveLong(body, "sequence"),
+                requiredPositiveInt(body, "instructionId"));
+    }
+
+    public static RecoveryTestRequest parseRecoveryTest(JsonObject envelopeOrBody) {
+        JsonObject body = body(envelopeOrBody);
+        return new RecoveryTestRequest(
+                requiredVersion(body),
+                requiredString(body, "requestId", MAX_CORRELATION_LENGTH),
+                requiredString(body, "runId", MAX_CORRELATION_LENGTH),
+                requiredPositiveLong(body, "sequence"),
+                requiredPositiveInt(body, "instructionId"),
+                requiredString(body, "recoveryCandidateId", 64),
+                requiredEnum(body, "action", RecoveryAction.class));
     }
 
     public static ExcelWriteRequest parseExcelWrite(JsonObject envelopeOrBody) {

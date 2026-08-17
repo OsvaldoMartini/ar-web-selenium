@@ -149,11 +149,22 @@ public final class SmokeTestIntegrationV2StepExecutor {
             int instructionId,
             String recoveryCandidateId,
             boolean save) {
+        return recover(run, instructionId, recoveryCandidateId, save, "CLICK", null);
+    }
+
+    public Outcome recover(
+            ExecutionRuntimeRunCoordinator.Run run,
+            int instructionId,
+            String recoveryCandidateId,
+            boolean save,
+            String requestedAction,
+            String requestedInput) {
         try {
             return runtimeOutcome(
                     false,
                     ((CoordinatorActionPort) runtime).recover(
-                            run, instructionId, recoveryCandidateId, save));
+                            run, instructionId, recoveryCandidateId, save,
+                            requestedAction, requestedInput));
         } catch (RuntimeException failure) {
             return failed(
                     false,
@@ -408,8 +419,12 @@ public final class SmokeTestIntegrationV2StepExecutor {
                 ExecutionRuntimeRunCoordinator.Run run,
                 int instructionId,
                 String candidateId,
-                boolean save) {
-            return coordinator.recover(run, instructionId, candidateId, save);
+                boolean save,
+                String requestedAction,
+                String requestedInput) {
+            return coordinator.recover(
+                    run, instructionId, candidateId, save,
+                    requestedAction, requestedInput);
         }
 
         private void cancelRecovery(

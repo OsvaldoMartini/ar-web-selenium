@@ -321,6 +321,11 @@ class SmokeTestIntegrationContractsTest {
         var request = SmokeTestIntegrationContracts.parseRecovery(body);
         assertEquals(SmokeTestIntegrationContracts.RecoveryDecision.USE_AND_SAVE, request.decision());
         assertEquals("a".repeat(64), request.recoveryCandidateId());
+        assertEquals(null, request.action());
+
+        body.addProperty("action", "input");
+        request = SmokeTestIntegrationContracts.parseRecovery(body);
+        assertEquals(SmokeTestIntegrationContracts.RecoveryAction.INPUT, request.action());
 
         body.addProperty("recoveryCandidateId", "client-authored-selector");
         assertThrows(
@@ -332,6 +337,28 @@ class SmokeTestIntegrationContractsTest {
         var bypass = SmokeTestIntegrationContracts.parseRecovery(body);
         assertEquals(SmokeTestIntegrationContracts.RecoveryDecision.BYPASS, bypass.decision());
         assertEquals("", bypass.recoveryCandidateId());
+    }
+
+    @Test
+    void recoveryScannerAndCandidateTestRequireExactCorrelationAndPhysicalAction() {
+        JsonObject body = new JsonObject();
+        body.addProperty("contractVersion", 1);
+        body.addProperty("requestId", "scan-1");
+        body.addProperty("runId", "run-1");
+        body.addProperty("sequence", 3);
+        body.addProperty("instructionId", 1735);
+        var scan = SmokeTestIntegrationContracts.parseRecoveryScan(body);
+        assertEquals(1735, scan.instructionId());
+
+        body.addProperty("recoveryCandidateId", "b".repeat(64));
+        body.addProperty("action", "CLICK");
+        var test = SmokeTestIntegrationContracts.parseRecoveryTest(body);
+        assertEquals(SmokeTestIntegrationContracts.RecoveryAction.CLICK, test.action());
+
+        body.addProperty("action", "OUTPUT");
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> SmokeTestIntegrationContracts.parseRecoveryTest(body));
     }
 
     private JsonObject validStartBody() {

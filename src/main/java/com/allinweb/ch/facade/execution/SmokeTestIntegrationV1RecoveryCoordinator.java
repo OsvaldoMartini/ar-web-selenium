@@ -208,6 +208,20 @@ public final class SmokeTestIntegrationV1RecoveryCoordinator {
             boolean save,
             RunVariables variables) {
         PendingRecovery pending = pendingByRun.get(runId);
+        String action = pending == null ? "CLICK" : pending.target.action;
+        String input = pending == null ? "" : pending.target.input;
+        return recover(runId, instructionId, candidateId, save, action, input, variables);
+    }
+
+    public synchronized Outcome recover(
+            String runId,
+            int instructionId,
+            String candidateId,
+            boolean save,
+            String requestedAction,
+            String requestedInput,
+            RunVariables variables) {
+        PendingRecovery pending = pendingByRun.get(runId);
         if (pending == null || pending.instructionId != instructionId) {
             return failed("V1_RECOVERY_NOT_PENDING", "This Java V1 locator recovery is no longer pending.");
         }
@@ -229,10 +243,11 @@ public final class SmokeTestIntegrationV1RecoveryCoordinator {
                 List.of(), List.of(), List.of(), List.of());
         Result result;
         try {
-            result = switch (pending.target.action) {
+            String action = normalizedRecoveryAction(requestedAction);
+            result = switch (action) {
                 case "CLICK" -> driver.runtimeClick(selected, exactPage);
                 case "INPUT" -> driver.runtimeInput(
-                        selected, new FieldData(selected.displayKey(), pending.target.input), exactPage);
+                        selected, new FieldData(selected.displayKey(), Objects.toString(requestedInput, "")), exactPage);
                 case "OUTPUT" -> driver.runtimeOutput(selected, exactPage);
                 default -> null;
             };
@@ -272,6 +287,47 @@ public final class SmokeTestIntegrationV1RecoveryCoordinator {
         executionTrace.info("phase=V1_RECOVERY_COMPLETED runId={} instructionId={} saved={}",
                 runId, instructionId, saved);
         return completed;
+    }
+
+    private static String normalizedRecoveryAction(String action) {
+        String normalized = Objects.toString(action, "").trim().toUpperCase(Locale.ROOT);
+        if (!Set.of("CLICK", "INPUT", "OUTPUT").contains(normalized)) {
+            throw new IllegalArgumentException("Java V1 recovery action is invalid");
+        }
+        return normalized;
+    }
+
+    /** Replaces only the review rows after the normal Page Scanner persisted its fresh result. */
+    public synchronized JsonObject replaceCandidates(
+            String runId, int instructionId, JsonArray refreshedCandidates) {
+        PendingRecovery pending = pendingByRun.get(runId);
+        if (pending == null || pending.instructionId != instructionId) {
+            throw new IllegalStateException("This Java V1 locator recovery is no longer pending.");
+        }
+        Map<String, RecoveryCandidate> indexed = candidatesFromJson(refreshedCandidates);
+        pendingByRun.put(runId, new PendingRecovery(
+                pending.instructionId, pending.pageKey, pending.target,
+                pending.preparation, Map.copyOf(indexed)));
+        JsonObject recovery = new JsonObject();
+        recovery.addProperty("state", "AWAITING_USER");
+        JsonArray rows = new JsonArray();
+        indexed.values().forEach(candidate -> rows.add(candidate.json.deepCopy()));
+        recovery.add("candidates", rows);
+        executionTrace.info(
+                "phase=V1_RECOVERY_CANDIDATES_REFRESHED runId={} instructionId={} candidates={}",
+                runId, instructionId, indexed.size());
+        return recovery;
+    }
+
+    public synchronized JsonObject candidate(
+            String runId, int instructionId, String candidateId) {
+        PendingRecovery pending = pendingByRun.get(runId);
+        RecoveryCandidate candidate = pending == null || pending.instructionId != instructionId
+                ? null : pending.candidates.get(candidateId);
+        if (candidate == null) {
+            throw new IllegalStateException("The selected Java V1 locator candidate is stale.");
+        }
+        return candidate.json.deepCopy();
     }
 
     public synchronized void cancel(String runId, int instructionId, String reason) {
@@ -572,6 +628,29 @@ public final class SmokeTestIntegrationV1RecoveryCoordinator {
         if (previous == null || previous.isEmpty()) return null;
         return previous.entrySet().stream().anyMatch(entry ->
                 entry.getValue().equals(current.get(entry.getKey())));
+    }
+
+    private static Map<String, RecoveryCandidate> candidatesFromJson(JsonArray values) {
+        Map<String, RecoveryCandidate> result = new LinkedHashMap<>();
+        if (values == null || values.size() > MAX_RECOVERY_CANDIDATES) return result;
+        for (var value : values) {
+            if (!value.isJsonObject()) continue;
+            JsonObject json = value.getAsJsonObject().deepCopy();
+            try {
+                String id = json.get("recoveryCandidateId").getAsString();
+                long registryId = json.get("registryCandidateId").getAsLong();
+                String previousPage = json.get("previousPageIdentity").getAsString();
+                String xpath = json.get("newXPath").getAsString();
+                String css = json.get("newCss").getAsString();
+                String tag = json.get("tag").getAsString();
+                if (!id.matches("[0-9a-f]{64}") || registryId <= 0) continue;
+                result.putIfAbsent(id, new RecoveryCandidate(
+                        id, registryId, previousPage, xpath, css, tag, json));
+            } catch (RuntimeException invalid) {
+                // A malformed refreshed row is never admitted into pending recovery authority.
+            }
+        }
+        return result;
     }
 
     private static Boolean match(String previous, String current) {

@@ -411,6 +411,24 @@ public final class ExecutionRuntimeRunCoordinator {
     public JsonObject recover(Run run, int instructionId, String recoveryCandidateId, boolean save) {
         Run current = Objects.requireNonNull(run, "Execution V2 run is required");
         synchronized (current) {
+            PendingRecovery pending = current.pendingRecovery;
+            String action = pending != null && pending.originalRequest.has("action")
+                    ? pending.originalRequest.get("action").getAsString() : "CLICK";
+            String input = pending != null && pending.originalRequest.has("inputValue")
+                    ? pending.originalRequest.get("inputValue").getAsString() : null;
+            return recover(current, instructionId, recoveryCandidateId, save, action, input);
+        }
+    }
+
+    public JsonObject recover(
+            Run run,
+            int instructionId,
+            String recoveryCandidateId,
+            boolean save,
+            String requestedAction,
+            String requestedInput) {
+        Run current = Objects.requireNonNull(run, "Execution V2 run is required");
+        synchronized (current) {
             requireOpen(current);
             PendingRecovery pending = current.pendingRecovery;
             if (pending == null
@@ -442,7 +460,8 @@ public final class ExecutionRuntimeRunCoordinator {
                         : pending.pageKey;
             }
             long sequence = current.nextPhysicalSequence++;
-            JsonObject request = actions.createRecovery(sequence, pending.originalRequest, candidate);
+            JsonObject request = actions.createRecovery(
+                    sequence, pending.originalRequest, candidate, requestedAction, requestedInput);
             long started = System.nanoTime();
             executionTrace.info(
                     "phase=V2_RECOVERY_DISPATCH runId={} instructionId={} physicalSequence={} saveRequested={} candidateCount={}",
@@ -488,6 +507,49 @@ public final class ExecutionRuntimeRunCoordinator {
         }
     }
 
+    /** Installs fresh candidates produced by the normal Page Scanner without settling recovery. */
+    public JsonObject replaceRecoveryCandidates(
+            Run run, int instructionId, com.google.gson.JsonArray refreshedCandidates) {
+        Run current = Objects.requireNonNull(run, "Execution V2 run is required");
+        synchronized (current) {
+            requireOpen(current);
+            PendingRecovery pending = current.pendingRecovery;
+            if (pending == null || pending.instructionId != instructionId) {
+                throw new IllegalStateException("Execution V2 locator recovery is no longer pending");
+            }
+            com.google.gson.JsonArray validated = validatedRecoveryCandidates(refreshedCandidates);
+            current.pendingRecovery = new PendingRecovery(
+                    pending.instructionId, pending.pageKey, pending.originalRequest, validated);
+            JsonObject recovery = new JsonObject();
+            recovery.addProperty("state", "AWAITING_USER");
+            recovery.add("candidates", validated.deepCopy());
+            executionTrace.info(
+                    "phase=V2_RECOVERY_CANDIDATES_REFRESHED runId={} instructionId={} candidates={}",
+                    current.runId, instructionId, validated.size());
+            return recovery;
+        }
+    }
+
+    public JsonObject recoveryCandidate(Run run, int instructionId, String candidateId) {
+        Run current = Objects.requireNonNull(run, "Execution V2 run is required");
+        synchronized (current) {
+            requireOpen(current);
+            PendingRecovery pending = current.pendingRecovery;
+            if (pending == null || pending.instructionId != instructionId) {
+                throw new IllegalStateException("Execution V2 locator recovery is no longer pending");
+            }
+            for (var value : pending.candidates) {
+                if (value.isJsonObject()
+                        && value.getAsJsonObject().has("recoveryCandidateId")
+                        && candidateId.equals(value.getAsJsonObject()
+                                .get("recoveryCandidateId").getAsString())) {
+                    return value.getAsJsonObject().deepCopy();
+                }
+            }
+            throw new IllegalStateException("The selected Execution V2 locator candidate is stale");
+        }
+    }
+
     public void cancelRecovery(Run run, int instructionId) {
         Run current = Objects.requireNonNull(run, "Execution V2 run is required");
         synchronized (current) {
@@ -522,6 +584,30 @@ public final class ExecutionRuntimeRunCoordinator {
                 && result.has("ok")
                 && result.get("ok").isJsonPrimitive()
                 && result.get("ok").getAsBoolean();
+    }
+
+    private static com.google.gson.JsonArray validatedRecoveryCandidates(
+            com.google.gson.JsonArray candidates) {
+        if (candidates == null || candidates.size() > 25) {
+            throw new IllegalArgumentException("Execution V2 recovery candidate list is invalid");
+        }
+        com.google.gson.JsonArray result = new com.google.gson.JsonArray();
+        java.util.Set<String> ids = new java.util.LinkedHashSet<>();
+        for (var value : candidates) {
+            if (!value.isJsonObject()) {
+                throw new IllegalArgumentException("Execution V2 recovery candidate is invalid");
+            }
+            JsonObject candidate = value.getAsJsonObject();
+            String id = requiredText(candidate, "recoveryCandidateId", 64);
+            requiredPositiveLong(candidate, "registryCandidateId");
+            requiredPageKey(candidate, "previousPageIdentity");
+            requiredText(candidate, "newXPath", 2_048);
+            if (!id.matches("[0-9a-f]{64}") || !ids.add(id)) {
+                throw new IllegalArgumentException("Execution V2 recovery candidate is invalid");
+            }
+            result.add(candidate.deepCopy());
+        }
+        return result;
     }
 
     private static long requiredPositiveLong(JsonObject value, String field) {
