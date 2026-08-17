@@ -309,6 +309,23 @@ test('runs token-authorized start, heartbeat, action, stop, and release without 
     assert.equal(responseData(recoveryScanner).value, 'https://example.test/current');
     assert.equal(pool.scannerRpcCount, 1);
     assert.equal((await call(
+      address.port,
+      'POST',
+      `/v2/runs/${claims.runId}/scanner`,
+      undefined,
+      { operation: 'url' },
+      Buffer.alloc(32, 0x42).toString('base64url'),
+    )).status, 403);
+    assert.equal((await call(
+      address.port,
+      'POST',
+      `/v2/runs/${claims.runId}/scanner`,
+      undefined,
+      { operation: 'unbounded-scanner-operation' },
+      token,
+    )).status, 400);
+    assert.equal(pool.scannerRpcCount, 1);
+    assert.equal((await call(
       address.port, 'POST', `/v2/runs/${claims.runId}/stop`, undefined, undefined, token,
     )).status, 200);
     assert.equal((await call(

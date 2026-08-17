@@ -126,6 +126,29 @@ class ExecutionRuntimeHttpClientTest {
     }
 
     @Test
+    void recoveryScannerUsesTheExactActiveRunTokenAndDedicatedRoute() {
+        FakeTransport transport = new FakeTransport();
+        transport.add(201, "{\"ok\":true,\"data\":{\"run\":{\"runId\":\""
+                + RUN_ID + "\"},\"runAccessToken\":\"" + TOKEN + "\"}}");
+        transport.add(200, successData("{\"value\":\"https://example.test/recovery\"}"));
+        ExecutionRuntimeHttpClient client = client(transport);
+        RuntimeRun run = client.reserve(grant());
+        JsonObject request = new JsonObject();
+        request.addProperty("operation", "url");
+
+        assertEquals(
+                "https://example.test/recovery",
+                client.recoveryScanner(run, request).getAsString());
+
+        Call scanner = transport.calls.get(1);
+        assertEquals("POST", scanner.method());
+        assertTrue(scanner.uri().getPath().endsWith("/scanner"));
+        assertEquals(TOKEN, scanner.token());
+        assertTrue(scanner.body().contains("\"operation\":\"url\""));
+        assertFalse(scanner.body().contains(TOKEN));
+    }
+
+    @Test
     void runtimeConfigurationIsLoopbackOnlyAndStrictlyBounded() {
         assertEquals(
                 60_110,

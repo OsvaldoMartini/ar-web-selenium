@@ -1216,18 +1216,30 @@ public final class SmokeTestIntegrationService {
                         "Locator recovery was cancelled.");
             }
             clearRecoveryScanner(run, request.instructionId(), "DECISION_STARTED");
-            Outcome outcome = run.runtimeMode == RuntimeMode.TYPESCRIPT_PLAYWRIGHT_V2
-                    ? v2.recover(
-                            run.v2Run,
-                            request.instructionId(),
-                            request.recoveryCandidateId(),
-                            request.decision() == RecoveryDecision.USE_AND_SAVE)
-                    : steps.recover(
-                            run.runId,
-                            request.instructionId(),
-                            request.recoveryCandidateId(),
-                            request.decision() == RecoveryDecision.USE_AND_SAVE,
-                            run.variables);
+            Outcome outcome;
+            try {
+                outcome = run.runtimeMode == RuntimeMode.TYPESCRIPT_PLAYWRIGHT_V2
+                        ? v2.recover(
+                                run.v2Run,
+                                request.instructionId(),
+                                request.recoveryCandidateId(),
+                                request.decision() == RecoveryDecision.USE_AND_SAVE)
+                        : steps.recover(
+                                run.runId,
+                                request.instructionId(),
+                                request.recoveryCandidateId(),
+                                request.decision() == RecoveryDecision.USE_AND_SAVE,
+                                run.variables);
+            } catch (RuntimeException | Error failure) {
+                if (!run.cancelled) {
+                    authorizeRecoveryScanner(run, request.instructionId(), "DECISION_EXCEPTION");
+                }
+                executionTrace.warn(
+                        "phase=RECOVERY_DECISION_FAILED requestId={} runId={} instructionId={} mode={} failureType={}",
+                        request.requestId(), run.runId, request.instructionId(), run.runtimeMode,
+                        failure.getClass().getSimpleName());
+                throw failure;
+            }
             if (outcome.status() == StepStatus.FAILED) {
                 authorizeRecoveryScanner(run, request.instructionId(), "DECISION_FAILED");
                 executionTrace.warn(

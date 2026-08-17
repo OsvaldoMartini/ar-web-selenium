@@ -11,6 +11,7 @@ import com.allinweb.ch.facade.execution.SmokeTestIntegrationSnapshotRepository.O
 import com.allinweb.ch.facade.execution.SmokeTestIntegrationSnapshotRepository.Plan;
 import com.allinweb.ch.facade.execution.SmokeTestIntegrationStepExecutor.Outcome;
 import com.allinweb.ch.facade.execution.SmokeTestIntegrationStepExecutor.RunVariables;
+import com.allinweb.ch.facade.execution.SmokeRecoveryScannerRegistry;
 import com.allinweb.ch.model.DetachedWorkspaceSessions;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts;
 import com.allinweb.ch.model.SmokeTestIntegrationContracts.Scope;
@@ -349,6 +350,120 @@ class SmokeTestIntegrationServiceTest {
         Published finished = responses.await(SmokeTestIntegrationContracts.FINISH_RESPONSE);
         assertEquals(0, finished.body.get("failed").getAsInt());
         assertEquals(1, finished.body.get("skipped").getAsInt());
+    }
+
+    @Test
+    void exceptionalRecoveryKeepsExactScannerInspectionAvailableUntilUserBypasses()
+            throws Exception {
+        String candidateId = "d".repeat(64);
+        JsonObject candidate = new JsonObject();
+        candidate.addProperty("recoveryCandidateId", candidateId);
+        JsonObject recovery = new JsonObject();
+        recovery.addProperty("state", "AWAITING_USER");
+        recovery.add("candidates", new com.google.gson.JsonArray());
+        recovery.getAsJsonArray("candidates").add(candidate);
+        v2.nextOutcome.set(new Outcome(
+                StepStatus.FAILED,
+                StepDisposition.PHYSICAL,
+                "TARGET_NOT_FOUND",
+                "No matching element was found.",
+                null,
+                null,
+                recovery));
+
+        JsonObject start = startRequest("start-v2-recovery-exception");
+        start.addProperty("runtimeMode", "TYPESCRIPT_PLAYWRIGHT_V2");
+        start.addProperty("pagePolicy", "RELOAD_SELECTED");
+        service.handle(
+                SmokeTestIntegrationContracts.START,
+                start,
+                DetachedWorkspaceSessions.SMOKE_TEST_MANAGER,
+                transport);
+        String runId = responses.await(SmokeTestIntegrationContracts.START_RESPONSE)
+                .body.get("runId").getAsString();
+        service.handle(
+                SmokeTestIntegrationContracts.STEP,
+                stepRequest("step-v2-recovery-exception", runId, 1L),
+                DetachedWorkspaceSessions.SMOKE_TEST_MANAGER,
+                transport);
+        responses.await(SmokeTestIntegrationContracts.STEP_RESPONSE);
+        assertTrue(SmokeRecoveryScannerRegistry.getInstance().permits(
+                SmokeTestIntegrationContracts.RuntimeMode.TYPESCRIPT_PLAYWRIGHT_V2,
+                OWNER.homeBankingId(), OWNER.botJobId(), WORKSPACE_EPOCH));
+
+        v2.recoveryFailure.set(new IllegalStateException("recovery transport failed"));
+        JsonObject useOnce = recoveryRequest(
+                "recover-v2-exception", runId, 1L, "USE_ONCE");
+        useOnce.addProperty("recoveryCandidateId", candidateId);
+        service.handle(
+                SmokeTestIntegrationContracts.RECOVER,
+                useOnce,
+                DetachedWorkspaceSessions.SMOKE_TEST_MANAGER,
+                transport);
+        Published failed = responses.await(SmokeTestIntegrationContracts.RECOVER_RESPONSE);
+        assertFalse(failed.body.get("ok").getAsBoolean());
+        assertEquals("INTEGRATION_OPERATION_FAILED", failed.body.get("code").getAsString());
+        assertTrue(SmokeRecoveryScannerRegistry.getInstance().permits(
+                SmokeTestIntegrationContracts.RuntimeMode.TYPESCRIPT_PLAYWRIGHT_V2,
+                OWNER.homeBankingId(), OWNER.botJobId(), WORKSPACE_EPOCH));
+
+        service.handle(
+                SmokeTestIntegrationContracts.RECOVER,
+                recoveryRequest("recover-v2-exception-bypass", runId, 1L, "BYPASS"),
+                DetachedWorkspaceSessions.SMOKE_TEST_MANAGER,
+                transport);
+        assertTrue(responses.await(SmokeTestIntegrationContracts.RECOVER_RESPONSE)
+                .body.get("ok").getAsBoolean());
+        assertFalse(SmokeRecoveryScannerRegistry.getInstance().permits(
+                SmokeTestIntegrationContracts.RuntimeMode.TYPESCRIPT_PLAYWRIGHT_V2,
+                OWNER.homeBankingId(), OWNER.botJobId(), WORKSPACE_EPOCH));
+    }
+
+    @Test
+    void exceptionalV1RecoveryRestoresOnlyTheSharedRuntimeScannerAuthority()
+            throws Exception {
+        String candidateId = "e".repeat(64);
+        steps.nextOutcome.set(recoveryOutcome(candidateId));
+        JsonObject started = start("start-v1-recovery-exception");
+        String runId = started.get("runId").getAsString();
+        service.handle(
+                SmokeTestIntegrationContracts.STEP,
+                stepRequest("step-v1-recovery-exception", runId, 1L),
+                DetachedWorkspaceSessions.SMOKE_TEST_MANAGER,
+                transport);
+        responses.await(SmokeTestIntegrationContracts.STEP_RESPONSE);
+        assertTrue(SmokeRecoveryScannerRegistry.getInstance().permits(
+                SmokeTestIntegrationContracts.RuntimeMode.JAVA_V1,
+                OWNER.homeBankingId(), OWNER.botJobId(), WORKSPACE_EPOCH));
+        assertFalse(SmokeRecoveryScannerRegistry.getInstance().permits(
+                SmokeTestIntegrationContracts.RuntimeMode.TYPESCRIPT_PLAYWRIGHT_V2,
+                OWNER.homeBankingId(), OWNER.botJobId(), WORKSPACE_EPOCH));
+
+        steps.recoveryFailure.set(new IllegalStateException("V1 recovery failed"));
+        JsonObject useOnce = recoveryRequest(
+                "recover-v1-exception", runId, 1L, "USE_ONCE");
+        useOnce.addProperty("recoveryCandidateId", candidateId);
+        service.handle(
+                SmokeTestIntegrationContracts.RECOVER,
+                useOnce,
+                DetachedWorkspaceSessions.SMOKE_TEST_MANAGER,
+                transport);
+        Published failed = responses.await(SmokeTestIntegrationContracts.RECOVER_RESPONSE);
+        assertEquals("INTEGRATION_OPERATION_FAILED", failed.body.get("code").getAsString());
+        assertTrue(SmokeRecoveryScannerRegistry.getInstance().permits(
+                SmokeTestIntegrationContracts.RuntimeMode.JAVA_V1,
+                OWNER.homeBankingId(), OWNER.botJobId(), WORKSPACE_EPOCH));
+
+        service.handle(
+                SmokeTestIntegrationContracts.RECOVER,
+                recoveryRequest("recover-v1-exception-bypass", runId, 1L, "BYPASS"),
+                DetachedWorkspaceSessions.SMOKE_TEST_MANAGER,
+                transport);
+        assertTrue(responses.await(SmokeTestIntegrationContracts.RECOVER_RESPONSE)
+                .body.get("ok").getAsBoolean());
+        assertFalse(SmokeRecoveryScannerRegistry.getInstance().permits(
+                SmokeTestIntegrationContracts.RuntimeMode.JAVA_V1,
+                OWNER.homeBankingId(), OWNER.botJobId(), WORKSPACE_EPOCH));
     }
 
     @Test
@@ -756,6 +871,23 @@ class SmokeTestIntegrationServiceTest {
         return request;
     }
 
+    private static Outcome recoveryOutcome(String candidateId) {
+        JsonObject candidate = new JsonObject();
+        candidate.addProperty("recoveryCandidateId", candidateId);
+        JsonObject recovery = new JsonObject();
+        recovery.addProperty("state", "AWAITING_USER");
+        recovery.add("candidates", new com.google.gson.JsonArray());
+        recovery.getAsJsonArray("candidates").add(candidate);
+        return new Outcome(
+                StepStatus.FAILED,
+                StepDisposition.PHYSICAL,
+                "TARGET_NOT_FOUND",
+                "No matching element was found.",
+                null,
+                null,
+                recovery);
+    }
+
     private static JsonObject stopRequest(String requestId, String runId) {
         JsonObject request = new JsonObject();
         request.addProperty("contractVersion", SmokeTestIntegrationContracts.CONTRACT_VERSION);
@@ -816,6 +948,8 @@ class SmokeTestIntegrationServiceTest {
         private final AtomicReference<CountDownLatch> blocking = new AtomicReference<>();
         private final CountDownLatch blocked = new CountDownLatch(1);
         private final CountDownLatch interrupted = new CountDownLatch(1);
+        private final AtomicReference<Outcome> nextOutcome = new AtomicReference<>();
+        private final AtomicReference<RuntimeException> recoveryFailure = new AtomicReference<>();
 
         @Override
         public Outcome execute(
@@ -842,11 +976,30 @@ class SmokeTestIntegrationServiceTest {
                             null);
                 }
             }
-            return new Outcome(
+            Outcome configured = nextOutcome.getAndSet(null);
+            return configured == null ? new Outcome(
                     StepStatus.PASSED,
                     StepDisposition.LOGICAL_ONLY,
                     "STEP_ACCEPTED",
                     "The correlated step completed.",
+                    null,
+                    null) : configured;
+        }
+
+        @Override
+        public Outcome recover(
+                String runId,
+                int instructionId,
+                String recoveryCandidateId,
+                boolean save,
+                RunVariables variables) {
+            RuntimeException failure = recoveryFailure.getAndSet(null);
+            if (failure != null) throw failure;
+            return new Outcome(
+                    StepStatus.PASSED,
+                    StepDisposition.PHYSICAL,
+                    "COMPLETED",
+                    "V1 recovery completed.",
                     null,
                     null);
         }
@@ -884,6 +1037,7 @@ class SmokeTestIntegrationServiceTest {
         private final AtomicInteger closes = new AtomicInteger();
         private final AtomicInteger cancelledRecoveries = new AtomicInteger();
         private final AtomicReference<Outcome> nextOutcome = new AtomicReference<>();
+        private final AtomicReference<RuntimeException> recoveryFailure = new AtomicReference<>();
 
         @Override
         public SmokeTestIntegrationService.V2Run start(
@@ -916,6 +1070,23 @@ class SmokeTestIntegrationServiceTest {
         public void cancelRecovery(
                 SmokeTestIntegrationService.V2Run run, int instructionId) {
             cancelledRecoveries.incrementAndGet();
+        }
+
+        @Override
+        public Outcome recover(
+                SmokeTestIntegrationService.V2Run run,
+                int instructionId,
+                String recoveryCandidateId,
+                boolean save) {
+            RuntimeException failure = recoveryFailure.getAndSet(null);
+            if (failure != null) throw failure;
+            return new Outcome(
+                    StepStatus.PASSED,
+                    StepDisposition.PHYSICAL,
+                    "COMPLETED",
+                    "V2 recovery completed.",
+                    null,
+                    null);
         }
 
         @Override

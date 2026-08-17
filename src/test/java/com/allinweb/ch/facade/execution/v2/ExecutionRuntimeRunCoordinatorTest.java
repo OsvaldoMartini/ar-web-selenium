@@ -223,6 +223,56 @@ class ExecutionRuntimeRunCoordinatorTest {
     }
 
     @Test
+    void recoveryScannerRejectsUnknownRunWrongOwnerAndMissingRecovery() {
+        FakeRuntime runtime = new FakeRuntime();
+        runtime.snapshots.add(state("READY"));
+        ExecutionRuntimeRunCoordinator coordinator = coordinator(runtime);
+        ExecutionRuntimeRunCoordinator.Run run = coordinator.start(facts(), plan());
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> coordinator.openRecoveryScanner(facts(), "33333333-3333-4333-8333-333333333333"));
+        assertThrows(
+                IllegalStateException.class,
+                () -> coordinator.openRecoveryScanner(facts(), run.runId()));
+
+        runtime.actionResponses.add(recovery("e".repeat(64), PREVIOUS_PAGE_KEY));
+        coordinator.action(run, 1L, 1733, null);
+        AuthorizedGrantFacts wrongOwner = new AuthorizedGrantFacts(
+                13, 13, 32, 7L, GRAPH_REVISION, PLAN_REVISION, DataMode.SYNTHETIC);
+        assertThrows(
+                IllegalStateException.class,
+                () -> coordinator.openRecoveryScanner(wrongOwner, run.runId()));
+        assertEquals(0, runtime.scannerOpenCount);
+        assertEquals(0, runtime.recoveryScannerRpcCount);
+    }
+
+    @Test
+    void activeRecoveryScannerFailsClosedAfterDecisionSettlement() {
+        FakeRuntime runtime = new FakeRuntime();
+        runtime.snapshots.add(state("READY"));
+        runtime.actionResponses.add(recovery("e".repeat(64), PREVIOUS_PAGE_KEY));
+        runtime.actionResponses.add(success());
+        ExecutionRuntimeRunCoordinator coordinator = coordinator(runtime);
+        ExecutionRuntimeRunCoordinator.Run run = coordinator.start(facts(), plan());
+        coordinator.action(run, 1L, 1733, null);
+        ExecutionRuntimeRunCoordinator.ScannerSession scanner =
+                coordinator.openRecoveryScanner(facts(), run.runId());
+
+        assertTrue(coordinator.recover(run, 1733, "e".repeat(64), false)
+                .get("ok").getAsBoolean());
+        JsonObject request = new JsonObject();
+        request.addProperty("operation", "url");
+        assertThrows(IllegalStateException.class, () -> scanner.exchange(request));
+        assertThrows(
+                IllegalStateException.class,
+                () -> coordinator.openRecoveryScanner(facts(), run.runId()));
+        scanner.close();
+        assertEquals(0, runtime.recoveryScannerRpcCount);
+        assertEquals(0, runtime.scannerCloseCount);
+    }
+
+    @Test
     void rejectsAnInvalidServerHeldRecoveryPageBeforeAnotherPhysicalAction() {
         FakeRuntime runtime = new FakeRuntime();
         runtime.snapshots.add(state("READY"));

@@ -114,6 +114,19 @@ class ExecutionPauseCoordinatorTest {
     }
 
     @Test
+    void v2RecoveryAuthorityCannotInspectTheReservedV1SharedBrowser() {
+        assertTrue(registry.finishTestRun(attempt, "PASSED"));
+        try (ExecutionPauseCoordinator.ExecutionStart ignored = coordinator.reserveExecutionStart()) {
+            SmokeRecoveryScannerRegistry.getInstance().register(
+                    "recovery-run", RuntimeMode.TYPESCRIPT_PLAYWRIGHT_V2,
+                    7, 42, attempt.workspaceEpoch());
+            assertThrows(
+                    IllegalStateException.class,
+                    () -> coordinator.beginScannerActivity(42, attempt.workspaceEpoch()));
+        }
+    }
+
+    @Test
     void scannerWaitsForAStoppingExecutionLeaseAndThenAcquiresTheBrowser() throws Exception {
         assertTrue(registry.finishTestRun(attempt, "INTERRUPTED"));
         ExecutionPauseCoordinator.ExecutionStart execution = coordinator.reserveExecutionStart();
