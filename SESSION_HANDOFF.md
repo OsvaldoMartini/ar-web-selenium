@@ -1583,3 +1583,27 @@ Do not change frontend CSS/design while doing the scanner contract cleanup unles
   Live acceptance remains: create a pending Locator Recovery in V1 and V2, click Page Scanner,
   run one scan against the same paused browser, then return to the still-open modal and complete or
   bypass the recovery. Confirm a sibling V2 browser and another Bot Job remain unaffected.
+
+### Locator Recovery Page Scanner audit and expanded coverage - 2026-08-17
+
+- [x] Complete post-implementation review found two concrete lifecycle races. A thrown V1/V2
+  recovery operation retired scanner authority without restoring it although recovery remained
+  pending; and the modal allowed a recovery decision while its Page Scanner launch was unresolved.
+- [x] Backend `cd7717ac` restores exact recovery scanner authority after an exceptional operation
+  outcome unless the run is already cancelled. Frontend `5d2f01c` disables every recovery decision
+  and the verification toggle only while Page Scanner opening is pending; normal launch failure
+  leaves the modal open and retryable.
+- [x] New coverage verifies registry validation, exact mode/owner/epoch isolation, ambiguity refusal,
+  V1/V2 exceptional recovery restoration, wrong-owner/unknown/missing/settled V2 recovery scanner
+  rejection, exact active-run HTTP routing, wrong-token and malformed Node RPC refusal, modal
+  serialization, and visible non-terminal launch failure.
+- [x] Verification passed React 9/9, Node 51/51, Java affected/neighboring 52/52, and catalog 2/2.
+  Java compiled 586 main and 343 test sources with only the two established warnings. Production
+  React build passed with established lint warnings.
+- [x] Deployment `f8c55364` mirrors 61 exact files with zero source/resource/target differences.
+  Current entrypoints are `main.ac1201a0.js` (2,192,199 bytes; SHA-256
+  `6301CDCB0A7ACC6E7C50EFCD6F65376B292CFE4C804E11FB292CA9C9DEEB8B26`) and
+  unchanged `main.121bd605.css` (546,116 bytes; SHA-256
+  `88F6F12A29121F68DB2B6BDA9ACF80D4922DDBF207F645CD8C0E6851D1096AB5`).
+- [x] Catalog `c0fadd47` records 2,451 rows, 2,415 code cases, and 19,452 generated API requests.
+- [ ] No live application was started. The same V1/V2 manual acceptance matrix remains open.

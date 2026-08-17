@@ -1580,3 +1580,16 @@ and atomic artifact-write checkpoints are complete.
 - [ ] User acceptance remains for both modes: pause at Locator Recovery, open Page Scanner, inspect
   or scan the same browser, return to the unchanged modal, settle the recovery, and verify no other
   V2 run or Bot Job is touched. No live application was started in this checkpoint.
+
+### 55a. Recovery scanner audit and failure-path coverage - 2026-08-17
+
+- [x] Review found and fixed exceptional recovery authority loss and concurrent modal
+  decision/scanner-launch admission. Backend/test commit is `cd7717ac`; frontend/test commit is
+  `5d2f01c`.
+- [x] Expanded verification passed React 9/9, Node 51/51, Java 52/52, and catalog validation 2/2.
+  New tests cover exact runtime/owner/generation isolation, ambiguity, malformed authority, failed
+  and settled recovery, Java-to-Node routing, wrong tokens, malformed operations, and modal
+  pending/failure behavior.
+- [x] Deployment `f8c55364` is an exact 61-file mirror using `main.ac1201a0.js` and
+  `main.121bd605.css`. Catalog `c0fadd47` now records 2,451 rows / 2,415 code cases.
+- [ ] Live V1/V2 acceptance remains user-driven; no application instance was started during review.
