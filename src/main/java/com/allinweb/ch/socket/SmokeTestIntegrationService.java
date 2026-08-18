@@ -1101,6 +1101,9 @@ public final class SmokeTestIntegrationService {
                     run.variables,
                     outcome);
         }
+        if (outcome.recovery() != null) {
+            outcome = withRecoveryEvidence(run, request.instructionId(), outcome);
+        }
         if (outcome.recovery() != null && !request.recoveryVerificationEnabled()) {
             cancelRecovery(run, request.instructionId(), "VERIFICATION_DISABLED");
             outcome = new Outcome(
@@ -1456,6 +1459,42 @@ public final class SmokeTestIntegrationService {
                     "The failed instruction is not a recoverable Web Element action.");
         };
         return new RecoveryTarget(instruction, action);
+    }
+
+    private Outcome withRecoveryEvidence(Run run, int instructionId, Outcome outcome) {
+        JsonObject recovery = outcome.recovery().deepCopy();
+        if (recovery.has("candidates") && recovery.get("candidates").isJsonArray()) {
+            for (var value : recovery.getAsJsonArray("candidates")) {
+                if (value.isJsonObject() && !value.getAsJsonObject().has("origin")) {
+                    value.getAsJsonObject().addProperty("origin", "PREVIOUS");
+                }
+            }
+        }
+        if (!recovery.has("failedTarget") || !recovery.get("failedTarget").isJsonObject()) {
+            InstructionSnapshot instruction = run.plan.instruction(instructionId);
+            if (instruction != null) {
+                try {
+                    RecoveryTarget target = recoveryTarget(run, instructionId);
+                    String pageIdentity = "Unavailable";
+                    if (recovery.has("candidates") && recovery.get("candidates").isJsonArray()
+                            && recovery.getAsJsonArray("candidates").size() > 0) {
+                        JsonObject candidate = recovery.getAsJsonArray("candidates").get(0).getAsJsonObject();
+                        if (candidate.has("currentPageIdentity")) {
+                            pageIdentity = candidate.get("currentPageIdentity").getAsString();
+                        }
+                    }
+                    recovery.add("failedTarget", SmokeTestIntegrationV1RecoveryCoordinator.unresolvedTarget(
+                            target.instruction().toInstructionLoad(), target.action(), pageIdentity, outcome.code()));
+                } catch (IllegalStateException invalidEvidence) {
+                    executionTrace.warn(
+                            "phase=RECOVERY_FAILED_TARGET_UNAVAILABLE runId={} instructionId={} failureType={}",
+                            run.runId, instructionId, invalidEvidence.getClass().getSimpleName());
+                }
+            }
+        }
+        return new Outcome(
+                outcome.status(), outcome.disposition(), outcome.code(), outcome.message(),
+                outcome.runtimeVariableId(), outcome.runtimeValue(), recovery);
     }
 
     private PreScanWorkflowService.Context recoveryScanContext(Run run) {

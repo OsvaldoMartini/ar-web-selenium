@@ -43,6 +43,7 @@ export interface LocatorMatchFacts {
 }
 
 export interface RecoveryCandidate {
+  readonly origin: 'PREVIOUS' | 'CURRENT';
   readonly recoveryCandidateId: string;
   readonly registryCandidateId: number;
   readonly savedCanonicalName: string;

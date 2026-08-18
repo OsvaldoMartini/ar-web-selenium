@@ -22,6 +22,7 @@ class SmokeTestIntegrationV1RecoveryTargetTest {
         JsonObject failedTarget = SmokeTestIntegrationV1RecoveryCoordinator.unresolvedTarget(
                 target, "CLICK", PAGE_KEY, "TARGET_NOT_FOUND");
 
+        assertEquals("BOT_JOB", failedTarget.get("origin").getAsString());
         assertEquals("avanti", failedTarget.get("savedCanonicalName").getAsString());
         assertEquals("Continue", failedTarget.get("savedClientName").getAsString());
         assertEquals("//*[@id='avanti']", failedTarget.get("previousXPath").getAsString());

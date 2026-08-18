@@ -23,6 +23,12 @@ export const scannerEvaluationExpression = (script: string, argument: unknown, h
     + ` ? candidate(${serialized}) : candidate; })()`;
 };
 
+/** Keeps scanner probes explicit so Playwright never interprets an XPath as CSS. */
+export const scannerSelectorCandidates = (xpath: string, css: string): readonly string[] => [
+  xpath.trim() ? `xpath=${xpath.trim()}` : '',
+  css.trim(),
+].filter(selector => selector.length > 0);
+
 export class PlaywrightBrowserFactory implements BrowserSessionFactory {
   private readonly readiness: PageReadiness;
   private readonly log: (fields: SafeLogFields) => void;
@@ -286,16 +292,22 @@ class PlaywrightBrowserSessionHandle implements BrowserSessionHandle {
         break;
       case 'test-element': {
         result = false;
-        for (const selector of [request.xpath, request.css].filter(value => value.length > 0)) {
-          const candidates = this.page.locator(selector);
-          const visibleIndexes = await candidates.evaluateAll(elements => elements
-            .map((element, index) => {
-              const style = getComputedStyle(element);
-              const rect = element.getBoundingClientRect();
-              return style.display !== 'none' && style.visibility !== 'hidden'
-                && rect.width > 0 && rect.height > 0 ? index : -1;
-            })
-            .filter(index => index >= 0));
+        for (const selector of scannerSelectorCandidates(request.xpath, request.css)) {
+          let candidates;
+          let visibleIndexes: number[];
+          try {
+            candidates = this.page.locator(selector);
+            visibleIndexes = await candidates.evaluateAll(elements => elements
+              .map((element, index) => {
+                const style = getComputedStyle(element);
+                const rect = element.getBoundingClientRect();
+                return style.display !== 'none' && style.visibility !== 'hidden'
+                  && rect.width > 0 && rect.height > 0 ? index : -1;
+              })
+              .filter(index => index >= 0));
+          } catch {
+            throw new Error('SCANNER_TEST_SELECTOR_INVALID');
+          }
           if (visibleIndexes.length === 0) continue;
           if (visibleIndexes.length !== 1) break;
           const target = candidates.nth(visibleIndexes[0]!);

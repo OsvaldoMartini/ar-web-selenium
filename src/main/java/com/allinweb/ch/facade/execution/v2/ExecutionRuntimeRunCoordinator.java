@@ -507,7 +507,7 @@ public final class ExecutionRuntimeRunCoordinator {
         }
     }
 
-    /** Installs fresh candidates produced by the normal Page Scanner without settling recovery. */
+    /** Retains database-backed rows and installs fresh Page Scanner evidence without settling recovery. */
     public JsonObject replaceRecoveryCandidates(
             Run run, int instructionId, com.google.gson.JsonArray refreshedCandidates) {
         Run current = Objects.requireNonNull(run, "Execution V2 run is required");
@@ -517,15 +517,32 @@ public final class ExecutionRuntimeRunCoordinator {
             if (pending == null || pending.instructionId != instructionId) {
                 throw new IllegalStateException("Execution V2 locator recovery is no longer pending");
             }
-            com.google.gson.JsonArray validated = validatedRecoveryCandidates(refreshedCandidates);
+            com.google.gson.JsonArray currentCandidates = validatedRecoveryCandidates(
+                    refreshedCandidates, "CURRENT", 25);
+            com.google.gson.JsonArray merged = new com.google.gson.JsonArray();
+            java.util.Set<String> ids = new java.util.LinkedHashSet<>();
+            for (var value : pending.candidates) {
+                if (!value.isJsonObject()) continue;
+                JsonObject candidate = value.getAsJsonObject();
+                if (!candidate.has("origin")
+                        || !"PREVIOUS".equals(candidate.get("origin").getAsString())) continue;
+                String id = candidate.get("recoveryCandidateId").getAsString();
+                if (ids.add(id)) merged.add(candidate.deepCopy());
+            }
+            int previousCount = merged.size();
+            for (var value : currentCandidates) {
+                JsonObject candidate = value.getAsJsonObject();
+                String id = candidate.get("recoveryCandidateId").getAsString();
+                if (ids.add(id)) merged.add(candidate.deepCopy());
+            }
             current.pendingRecovery = new PendingRecovery(
-                    pending.instructionId, pending.pageKey, pending.originalRequest, validated);
+                    pending.instructionId, pending.pageKey, pending.originalRequest, merged);
             JsonObject recovery = new JsonObject();
             recovery.addProperty("state", "AWAITING_USER");
-            recovery.add("candidates", validated.deepCopy());
+            recovery.add("candidates", merged.deepCopy());
             executionTrace.info(
-                    "phase=V2_RECOVERY_CANDIDATES_REFRESHED runId={} instructionId={} candidates={}",
-                    current.runId, instructionId, validated.size());
+                    "phase=V2_RECOVERY_CANDIDATES_REFRESHED runId={} instructionId={} previousCandidates={} currentCandidates={} totalCandidates={}",
+                    current.runId, instructionId, previousCount, currentCandidates.size(), merged.size());
             return recovery;
         }
     }
@@ -572,11 +589,19 @@ public final class ExecutionRuntimeRunCoordinator {
             run.pendingRecovery = null;
             return;
         }
+        com.google.gson.JsonArray candidates = result.getAsJsonObject("recovery")
+                .getAsJsonArray("candidates").deepCopy();
+        for (var value : candidates) {
+            if (value.isJsonObject() && !value.getAsJsonObject().has("origin")) {
+                value.getAsJsonObject().addProperty("origin", "PREVIOUS");
+            }
+        }
+        result.getAsJsonObject("recovery").add("candidates", candidates.deepCopy());
         run.pendingRecovery = new PendingRecovery(
                 request.get("instructionId").getAsInt(),
                 request.get("pageKey").getAsString(),
                 request.deepCopy(),
-                result.getAsJsonObject("recovery").getAsJsonArray("candidates").deepCopy());
+                candidates);
     }
 
     private static boolean isSuccessful(JsonObject result) {
@@ -587,8 +612,8 @@ public final class ExecutionRuntimeRunCoordinator {
     }
 
     private static com.google.gson.JsonArray validatedRecoveryCandidates(
-            com.google.gson.JsonArray candidates) {
-        if (candidates == null || candidates.size() > 25) {
+            com.google.gson.JsonArray candidates, String expectedOrigin, int maximum) {
+        if (candidates == null || candidates.size() > maximum) {
             throw new IllegalArgumentException("Execution V2 recovery candidate list is invalid");
         }
         com.google.gson.JsonArray result = new com.google.gson.JsonArray();
@@ -599,10 +624,11 @@ public final class ExecutionRuntimeRunCoordinator {
             }
             JsonObject candidate = value.getAsJsonObject();
             String id = requiredText(candidate, "recoveryCandidateId", 64);
+            String origin = requiredText(candidate, "origin", 16);
             requiredPositiveLong(candidate, "registryCandidateId");
             requiredPageKey(candidate, "previousPageIdentity");
             requiredText(candidate, "newXPath", 2_048);
-            if (!id.matches("[0-9a-f]{64}") || !ids.add(id)) {
+            if (!id.matches("[0-9a-f]{64}") || !expectedOrigin.equals(origin) || !ids.add(id)) {
                 throw new IllegalArgumentException("Execution V2 recovery candidate is invalid");
             }
             result.add(candidate.deepCopy());

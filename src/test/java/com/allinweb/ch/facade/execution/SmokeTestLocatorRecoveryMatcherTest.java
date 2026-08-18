@@ -34,6 +34,7 @@ class SmokeTestLocatorRecoveryMatcherTest {
 
         assertEquals(1, matches.size());
         JsonObject row = matches.get(0).getAsJsonObject();
+        assertEquals("CURRENT", row.get("origin").getAsString());
         assertEquals(41L, row.get("registryCandidateId").getAsLong());
         assertEquals("//*[@id='old-login']", row.get("previousXPath").getAsString());
         assertEquals("//*[@id='new-login']", row.get("newXPath").getAsString());

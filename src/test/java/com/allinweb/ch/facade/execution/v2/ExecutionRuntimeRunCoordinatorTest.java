@@ -273,6 +273,37 @@ class ExecutionRuntimeRunCoordinatorTest {
     }
 
     @Test
+    void retainsPreviousCandidatesWhenInstallingCurrentScannerEvidence() {
+        FakeRuntime runtime = new FakeRuntime();
+        runtime.snapshots.add(state("READY"));
+        runtime.actionResponses.add(recovery("e".repeat(64), PREVIOUS_PAGE_KEY));
+        ExecutionRuntimeRunCoordinator coordinator = coordinator(runtime);
+        ExecutionRuntimeRunCoordinator.Run run = coordinator.start(facts(), plan());
+        coordinator.action(run, 1L, 1733, null);
+
+        JsonObject current = new JsonObject();
+        current.addProperty("origin", "CURRENT");
+        current.addProperty("recoveryCandidateId", "c".repeat(64));
+        current.addProperty("registryCandidateId", 992L);
+        current.addProperty("previousPageIdentity", PREVIOUS_PAGE_KEY);
+        current.addProperty("newXPath", "//*[@data-current='login']");
+        current.addProperty("newCss", "[data-current='login']");
+        com.google.gson.JsonArray refreshed = new com.google.gson.JsonArray();
+        refreshed.add(current);
+
+        JsonObject result = coordinator.replaceRecoveryCandidates(run, 1733, refreshed);
+
+        com.google.gson.JsonArray candidates = result.getAsJsonArray("candidates");
+        assertEquals(2, candidates.size());
+        assertEquals("PREVIOUS", candidates.get(0).getAsJsonObject().get("origin").getAsString());
+        assertEquals("CURRENT", candidates.get(1).getAsJsonObject().get("origin").getAsString());
+        assertEquals("e".repeat(64), candidates.get(0).getAsJsonObject()
+                .get("recoveryCandidateId").getAsString());
+        assertEquals("c".repeat(64), candidates.get(1).getAsJsonObject()
+                .get("recoveryCandidateId").getAsString());
+    }
+
+    @Test
     void rejectsAnInvalidServerHeldRecoveryPageBeforeAnotherPhysicalAction() {
         FakeRuntime runtime = new FakeRuntime();
         runtime.snapshots.add(state("READY"));

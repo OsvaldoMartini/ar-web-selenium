@@ -120,8 +120,9 @@ public final class SmokeTestLocatorRecoveryMatcher {
             Score score) {
         Map<String, String> liveAttributes = stableAttributes(live);
         JsonObject value = new JsonObject();
-        String basis = saved.scannedElementId() + "\0" + text(live.getXPath()) + "\0"
+        String basis = "CURRENT\0" + saved.scannedElementId() + "\0" + text(live.getXPath()) + "\0"
                 + text(live.getCssSelector()) + "\0" + JSON.toJson(liveAttributes);
+        value.addProperty("origin", "CURRENT");
         value.addProperty("recoveryCandidateId", sha256(basis));
         value.addProperty("registryCandidateId", saved.scannedElementId());
         value.addProperty("savedCanonicalName", text(saved.canonicalName()));

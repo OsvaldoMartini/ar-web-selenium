@@ -196,6 +196,7 @@ export class PhysicalActionExecutor {
           JSON.stringify(liveAttributes)].join('\u0000');
         const recoveryCandidateId = this.sha256(basis);
         rows.push({
+          origin: 'PREVIOUS',
           recoveryCandidateId,
           registryCandidateId: saved.candidateId,
           savedCanonicalName: saved.canonicalName ?? request.canonicalName ?? '',

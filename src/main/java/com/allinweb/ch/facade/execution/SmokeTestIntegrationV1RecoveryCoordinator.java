@@ -27,6 +27,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
@@ -190,7 +191,8 @@ public final class SmokeTestIntegrationV1RecoveryCoordinator {
         JsonObject failedTarget = unresolvedTarget(
                 target.target.toInstructionLoad(), target.action, pageKey, failure.code());
         pendingByRun.put(runId, new PendingRecovery(
-                instructionId, pageKey, target, preparation, failedTarget, Map.copyOf(indexed)));
+                instructionId, pageKey, target, preparation, failedTarget,
+                Collections.unmodifiableMap(new LinkedHashMap<>(indexed))));
         JsonObject recovery = new JsonObject();
         recovery.addProperty("state", "AWAITING_USER");
         recovery.add("failedTarget", failedTarget.deepCopy());
@@ -300,17 +302,24 @@ public final class SmokeTestIntegrationV1RecoveryCoordinator {
         return normalized;
     }
 
-    /** Replaces only the review rows after the normal Page Scanner persisted its fresh result. */
+    /** Retains database-backed rows and refreshes only current Page Scanner evidence. */
     public synchronized JsonObject replaceCandidates(
             String runId, int instructionId, JsonArray refreshedCandidates) {
         PendingRecovery pending = pendingByRun.get(runId);
         if (pending == null || pending.instructionId != instructionId) {
             throw new IllegalStateException("This Java V1 locator recovery is no longer pending.");
         }
-        Map<String, RecoveryCandidate> indexed = candidatesFromJson(refreshedCandidates);
+        Map<String, RecoveryCandidate> current = candidatesFromJson(refreshedCandidates, "CURRENT");
+        Map<String, RecoveryCandidate> indexed = new LinkedHashMap<>();
+        pending.candidates.values().stream()
+                .filter(candidate -> "PREVIOUS".equals(candidate.json.get("origin").getAsString()))
+                .forEach(candidate -> indexed.put(candidate.id, candidate));
+        int previousCount = indexed.size();
+        current.values().forEach(candidate -> indexed.put(candidate.id, candidate));
         pendingByRun.put(runId, new PendingRecovery(
                 pending.instructionId, pending.pageKey, pending.target,
-                pending.preparation, pending.failedTarget, Map.copyOf(indexed)));
+                pending.preparation, pending.failedTarget,
+                Collections.unmodifiableMap(new LinkedHashMap<>(indexed))));
         JsonObject recovery = new JsonObject();
         recovery.addProperty("state", "AWAITING_USER");
         recovery.add("failedTarget", pending.failedTarget.deepCopy());
@@ -318,8 +327,8 @@ public final class SmokeTestIntegrationV1RecoveryCoordinator {
         indexed.values().forEach(candidate -> rows.add(candidate.json.deepCopy()));
         recovery.add("candidates", rows);
         executionTrace.info(
-                "phase=V1_RECOVERY_CANDIDATES_REFRESHED runId={} instructionId={} candidates={}",
-                runId, instructionId, indexed.size());
+                "phase=V1_RECOVERY_CANDIDATES_REFRESHED runId={} instructionId={} previousCandidates={} currentCandidates={} totalCandidates={}",
+                runId, instructionId, previousCount, current.size(), indexed.size());
         return recovery;
     }
 
@@ -432,10 +441,11 @@ public final class SmokeTestIntegrationV1RecoveryCoordinator {
         return instruction.codified() ? CryptationAlgorithm.decrypt(value) : value;
     }
 
-    static JsonObject unresolvedTarget(
+    public static JsonObject unresolvedTarget(
             InstructionLoad target, String action, String pageKey, String diagnosticCode) {
         Objects.requireNonNull(target, "Unresolved recovery target is required");
         JsonObject value = new JsonObject();
+        value.addProperty("origin", "BOT_JOB");
         value.addProperty("savedCanonicalName", Objects.toString(target.getName(), ""));
         value.addProperty("savedClientName", Objects.toString(target.getClientNamed(), ""));
         value.addProperty("ocrMappedName", "");
@@ -611,8 +621,9 @@ public final class SmokeTestIntegrationV1RecoveryCoordinator {
             String action,
             Score score) {
         JsonObject value = new JsonObject();
-        String basis = saved.scannedElementId() + "\0" + live.xpath + "\0" + live.css
+        String basis = "PREVIOUS\0" + saved.scannedElementId() + "\0" + live.xpath + "\0" + live.css
                 + "\0" + JSON.toJson(live.attributes);
+        value.addProperty("origin", "PREVIOUS");
         value.addProperty("recoveryCandidateId", sha256(basis));
         value.addProperty("registryCandidateId", saved.scannedElementId());
         value.addProperty("savedCanonicalName", saved.canonicalName());
@@ -696,7 +707,7 @@ public final class SmokeTestIntegrationV1RecoveryCoordinator {
                 entry.getValue().equals(current.get(entry.getKey())));
     }
 
-    private static Map<String, RecoveryCandidate> candidatesFromJson(JsonArray values) {
+    private static Map<String, RecoveryCandidate> candidatesFromJson(JsonArray values, String expectedOrigin) {
         Map<String, RecoveryCandidate> result = new LinkedHashMap<>();
         if (values == null || values.size() > MAX_RECOVERY_CANDIDATES) return result;
         for (var value : values) {
@@ -709,7 +720,9 @@ public final class SmokeTestIntegrationV1RecoveryCoordinator {
                 String xpath = json.get("newXPath").getAsString();
                 String css = json.get("newCss").getAsString();
                 String tag = json.get("tag").getAsString();
-                if (!id.matches("[0-9a-f]{64}") || registryId <= 0) continue;
+                String origin = json.has("origin") ? json.get("origin").getAsString() : "";
+                if (!id.matches("[0-9a-f]{64}") || registryId <= 0
+                        || !expectedOrigin.equals(origin)) continue;
                 result.putIfAbsent(id, new RecoveryCandidate(
                         id, registryId, previousPage, xpath, css, tag, json));
             } catch (RuntimeException invalid) {

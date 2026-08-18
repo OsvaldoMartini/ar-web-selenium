@@ -1,27 +1,27 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-17T14:30:50.242Z",
+  "generatedAt": "2026-08-18T10:13:51.394Z",
   "summary": {
-    "catalogEntries": 2464,
-    "automatedCodeCases": 2428,
+    "catalogEntries": 2467,
+    "automatedCodeCases": 2431,
     "generatedApiCases": 19452,
-    "totalAutomatedCases": 21880,
+    "totalAutomatedCases": 21883,
     "automatedSuites": 513,
     "generatedSuites": 21,
     "manualArtifacts": 9,
     "supportArtifacts": 6,
-    "defaultRunnable": 2402,
-    "safeRunAllEligible": 2402
+    "defaultRunnable": 2405,
+    "safeRunAllEligible": 2405
   },
   "sources": [
     {
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "branch": "refactor/perform-actions-decomposition",
-      "commit": "afd631139a27772f4b9a55bc03ac8d8d8c8ead7a",
+      "commit": "d00ed652aa6b59878e3a201303d917ad5b499ad6",
       "sourceFiles": 347,
       "automatedSuites": 336,
-      "automatedTestCases": 1512,
+      "automatedTestCases": 1513,
       "generatedSuites": 0,
       "generatedCases": 0
     },
@@ -29,10 +29,10 @@
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "branch": "VERSION-4.6",
-      "commit": "4a57ca665881e7d5ad1095efb53f3c83ec6b5c67",
+      "commit": "043121e8425bdee9a6fdd53bdf47fe0dd0a79b5e",
       "sourceFiles": 177,
       "automatedSuites": 177,
-      "automatedTestCases": 916,
+      "automatedTestCases": 918,
       "generatedSuites": 21,
       "generatedCases": 19452
     },
@@ -10710,7 +10710,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.execution.SmokeTestLocatorRecoveryMatcherTest#returnsNoCandidateWhenNamesAndSemanticsHaveNoUsefulRelationship@47",
+      "id": "junit:com.allinweb.ch.facade.execution.SmokeTestLocatorRecoveryMatcherTest#returnsNoCandidateWhenNamesAndSemanticsHaveNoUsefulRelationship@48",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -10724,7 +10724,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/execution/SmokeTestLocatorRecoveryMatcherTest.java",
-      "line": 47,
+      "line": 48,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -11286,7 +11286,31 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.execution.v2.ExecutionRuntimeRunCoordinatorTest#rejectsAnInvalidServerHeldRecoveryPageBeforeAnotherPhysicalAction@276",
+      "id": "junit:com.allinweb.ch.facade.execution.v2.ExecutionRuntimeRunCoordinatorTest#retainsPreviousCandidatesWhenInstallingCurrentScannerEvidence@276",
+      "project": "AR Web Scanner",
+      "repository": "ar-web-selenium",
+      "recordType": "AUTOMATED_CASE",
+      "suite": "com.allinweb.ch.facade.execution.v2.ExecutionRuntimeRunCoordinatorTest",
+      "name": "retainsPreviousCandidatesWhenInstallingCurrentScannerEvidence",
+      "displayName": "retainsPreviousCandidatesWhenInstallingCurrentScannerEvidence",
+      "framework": "JUnit 5",
+      "language": "Java",
+      "kind": "UNIT",
+      "runtime": "JVM",
+      "execution": "DEFAULT",
+      "safety": "SAFE",
+      "sourcePath": "src/test/java/com/allinweb/ch/facade/execution/v2/ExecutionRuntimeRunCoordinatorTest.java",
+      "line": 276,
+      "caseCount": 1,
+      "runnable": true,
+      "runAllEligible": true,
+      "command": "mvn -Dtest=com.allinweb.ch.facade.execution.v2.ExecutionRuntimeRunCoordinatorTest#retainsPreviousCandidatesWhenInstallingCurrentScannerEvidence test",
+      "tags": [
+        "Test"
+      ]
+    },
+    {
+      "id": "junit:com.allinweb.ch.facade.execution.v2.ExecutionRuntimeRunCoordinatorTest#rejectsAnInvalidServerHeldRecoveryPageBeforeAnotherPhysicalAction@307",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -11300,7 +11324,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/execution/v2/ExecutionRuntimeRunCoordinatorTest.java",
-      "line": 276,
+      "line": 307,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -11310,7 +11334,7 @@
       ]
     },
     {
-      "id": "junit:com.allinweb.ch.facade.execution.v2.ExecutionRuntimeRunCoordinatorTest#renewsTheExactRunLeaseWhileWaitingForAUserRecoveryDecision@293",
+      "id": "junit:com.allinweb.ch.facade.execution.v2.ExecutionRuntimeRunCoordinatorTest#renewsTheExactRunLeaseWhileWaitingForAUserRecoveryDecision@324",
       "project": "AR Web Scanner",
       "repository": "ar-web-selenium",
       "recordType": "AUTOMATED_CASE",
@@ -11324,7 +11348,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/test/java/com/allinweb/ch/facade/execution/v2/ExecutionRuntimeRunCoordinatorTest.java",
-      "line": 293,
+      "line": 324,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -55535,7 +55559,57 @@
       ]
     },
     {
-      "id": "jest:src/components/smoke-test/integration/SmokeTestLocatorRecoveryModal.test.tsx::::shows comparison evidence and submits the explicitly selected candidate once@46",
+      "id": "jest:src/components/smoke-test/integration/SmokeTestLocatorRecoveryModal.test.tsx::::renders the unresolved instruction first and database matches after it@64",
+      "project": "AR React UI",
+      "repository": "abr-react-ts-grid",
+      "recordType": "AUTOMATED_CASE",
+      "suite": "SmokeTestLocatorRecoveryModal",
+      "name": "renders the unresolved instruction first and database matches after it",
+      "displayName": "renders the unresolved instruction first and database matches after it",
+      "framework": "Jest / Testing Library",
+      "language": "TypeScript",
+      "kind": "FRONTEND",
+      "runtime": "JSDOM",
+      "execution": "DEFAULT",
+      "safety": "SAFE",
+      "sourcePath": "src/components/smoke-test/integration/SmokeTestLocatorRecoveryModal.test.tsx",
+      "line": 64,
+      "caseCount": 1,
+      "runnable": true,
+      "runAllEligible": true,
+      "command": "npm test -- --runInBand --runTestsByPath src/components/smoke-test/integration/SmokeTestLocatorRecoveryModal.test.tsx -t \"renders the unresolved instruction first and database matches after it\"",
+      "tags": [
+        "frontend",
+        "test"
+      ]
+    },
+    {
+      "id": "jest:src/components/smoke-test/integration/SmokeTestLocatorRecoveryModal.test.tsx::::opens the Locator Recovery rules beside the save action and restores focus@94",
+      "project": "AR React UI",
+      "repository": "abr-react-ts-grid",
+      "recordType": "AUTOMATED_CASE",
+      "suite": "SmokeTestLocatorRecoveryModal",
+      "name": "opens the Locator Recovery rules beside the save action and restores focus",
+      "displayName": "opens the Locator Recovery rules beside the save action and restores focus",
+      "framework": "Jest / Testing Library",
+      "language": "TypeScript",
+      "kind": "FRONTEND",
+      "runtime": "JSDOM",
+      "execution": "DEFAULT",
+      "safety": "SAFE",
+      "sourcePath": "src/components/smoke-test/integration/SmokeTestLocatorRecoveryModal.test.tsx",
+      "line": 94,
+      "caseCount": 1,
+      "runnable": true,
+      "runAllEligible": true,
+      "command": "npm test -- --runInBand --runTestsByPath src/components/smoke-test/integration/SmokeTestLocatorRecoveryModal.test.tsx -t \"opens the Locator Recovery rules beside the save action and restores focus\"",
+      "tags": [
+        "frontend",
+        "test"
+      ]
+    },
+    {
+      "id": "jest:src/components/smoke-test/integration/SmokeTestLocatorRecoveryModal.test.tsx::::shows comparison evidence and submits the explicitly selected candidate once@118",
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "recordType": "AUTOMATED_CASE",
@@ -55549,7 +55623,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/components/smoke-test/integration/SmokeTestLocatorRecoveryModal.test.tsx",
-      "line": 46,
+      "line": 118,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -55560,7 +55634,7 @@
       ]
     },
     {
-      "id": "jest:src/components/smoke-test/integration/SmokeTestLocatorRecoveryModal.test.tsx::::submits Use and Save only for the selected server candidate@81",
+      "id": "jest:src/components/smoke-test/integration/SmokeTestLocatorRecoveryModal.test.tsx::::submits Use and Save only for the selected server candidate@153",
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "recordType": "AUTOMATED_CASE",
@@ -55574,7 +55648,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/components/smoke-test/integration/SmokeTestLocatorRecoveryModal.test.tsx",
-      "line": 81,
+      "line": 153,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -55585,7 +55659,7 @@
       ]
     },
     {
-      "id": "jest:src/components/smoke-test/integration/SmokeTestLocatorRecoveryModal.test.tsx::::changes the selected recovery action and probes input or click without settling recovery@103",
+      "id": "jest:src/components/smoke-test/integration/SmokeTestLocatorRecoveryModal.test.tsx::::changes the selected recovery action and probes input or click without settling recovery@175",
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "recordType": "AUTOMATED_CASE",
@@ -55599,7 +55673,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/components/smoke-test/integration/SmokeTestLocatorRecoveryModal.test.tsx",
-      "line": 103,
+      "line": 175,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -55610,7 +55684,7 @@
       ]
     },
     {
-      "id": "jest:src/components/smoke-test/integration/SmokeTestLocatorRecoveryModal.test.tsx::::serializes recovery decisions behind a pending Page Scanner request@133",
+      "id": "jest:src/components/smoke-test/integration/SmokeTestLocatorRecoveryModal.test.tsx::::serializes recovery decisions behind a pending Page Scanner request@205",
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "recordType": "AUTOMATED_CASE",
@@ -55624,7 +55698,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/components/smoke-test/integration/SmokeTestLocatorRecoveryModal.test.tsx",
-      "line": 133,
+      "line": 205,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -55635,7 +55709,7 @@
       ]
     },
     {
-      "id": "jest:src/components/smoke-test/integration/SmokeTestLocatorRecoveryModal.test.tsx::::shows a Page Scanner failure without settling or closing recovery@167",
+      "id": "jest:src/components/smoke-test/integration/SmokeTestLocatorRecoveryModal.test.tsx::::shows a Page Scanner failure without settling or closing recovery@239",
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "recordType": "AUTOMATED_CASE",
@@ -55649,7 +55723,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/components/smoke-test/integration/SmokeTestLocatorRecoveryModal.test.tsx",
-      "line": 167,
+      "line": 239,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -55660,7 +55734,7 @@
       ]
     },
     {
-      "id": "jest:src/components/smoke-test/integration/SmokeTestLocatorRecoveryModal.test.tsx::::%s submits a terminal decision without a candidate@191",
+      "id": "jest:src/components/smoke-test/integration/SmokeTestLocatorRecoveryModal.test.tsx::::%s submits a terminal decision without a candidate@263",
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "recordType": "AUTOMATED_CASE",
@@ -55674,7 +55748,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/components/smoke-test/integration/SmokeTestLocatorRecoveryModal.test.tsx",
-      "line": 191,
+      "line": 263,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,
@@ -55686,7 +55760,7 @@
       ]
     },
     {
-      "id": "jest:src/components/smoke-test/integration/SmokeTestLocatorRecoveryModal.test.tsx::::allows an empty recovery to be explicitly bypassed and contains keyboard focus@216",
+      "id": "jest:src/components/smoke-test/integration/SmokeTestLocatorRecoveryModal.test.tsx::::allows an empty recovery to be explicitly bypassed and contains keyboard focus@288",
       "project": "AR React UI",
       "repository": "abr-react-ts-grid",
       "recordType": "AUTOMATED_CASE",
@@ -55700,7 +55774,7 @@
       "execution": "DEFAULT",
       "safety": "SAFE",
       "sourcePath": "src/components/smoke-test/integration/SmokeTestLocatorRecoveryModal.test.tsx",
-      "line": 216,
+      "line": 288,
       "caseCount": 1,
       "runnable": true,
       "runAllEligible": true,

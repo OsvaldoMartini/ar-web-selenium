@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import vm from 'node:vm';
-import { scannerEvaluationExpression } from '../src/browser/playwrightBrowserFactory';
+import {
+  scannerEvaluationExpression,
+  scannerSelectorCandidates,
+} from '../src/browser/playwrightBrowserFactory';
 
 test('scanner evaluation invokes a no-argument function and returns its structured result', () => {
   const expression = scannerEvaluationExpression(
@@ -30,4 +33,13 @@ test('scanner evaluation preserves a JSON-safe argument and array result', () =>
 
 test('scanner evaluation retains non-function expression compatibility', () => {
   assert.equal(vm.runInNewContext(scannerEvaluationExpression('21 * 2', undefined, false)), 42);
+});
+
+test('scanner element probes preserve XPath and CSS as distinct selector engines', () => {
+  assert.deepEqual(
+    scannerSelectorCandidates("  //*[@id='login']  ", '  button#login  '),
+    ["xpath=//*[@id='login']", 'button#login'],
+  );
+  assert.deepEqual(scannerSelectorCandidates('', 'button#login'), ['button#login']);
+  assert.deepEqual(scannerSelectorCandidates("//*[@id='login']", ''), ["xpath=//*[@id='login']"]);
 });
