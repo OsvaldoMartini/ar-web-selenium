@@ -119,6 +119,23 @@ test('uses the first unique authored selector and performs exactly one click', a
   assert.equal(target.clicks, 1);
 });
 
+test('honors Test ID priority without probing a stale later XPath selector', async () => {
+  const page = new FakePage();
+  const target = new FakeElement('test-id-login');
+  page.queries.set('\u0000[data-testid="login-action"]', [target]);
+  page.queries.set('\u0000xpath=//button[@id="stale-login"]', []);
+
+  const result = await new PhysicalActionExecutor().execute(page, request({
+    authoredSelectors: ['[data-testid="login-action"]', 'xpath=//button[@id="stale-login"]'],
+  }));
+
+  assert.equal(result.ok, true);
+  assert.equal(result.diagnostic.stage, 'AUTHORED');
+  assert.equal(target.clicks, 1);
+  assert.equal(page.queryAttempts.get('\u0000[data-testid="login-action"]'), 1);
+  assert.equal(page.queryAttempts.has('\u0000xpath=//button[@id="stale-login"]'), false);
+});
+
 test('waits within one bounded deadline for a late rendered authored element', async () => {
   const page = new FakePage();
   const target = new FakeElement('late-login');

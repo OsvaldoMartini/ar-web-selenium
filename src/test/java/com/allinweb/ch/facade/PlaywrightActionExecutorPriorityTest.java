@@ -9,6 +9,24 @@ import org.junit.jupiter.api.Test;
 
 class PlaywrightActionExecutorPriorityTest {
     @Test
+    void standardTestIdsPrecedeXpathAndDuplicateReferenceSelectorsAreRemoved() {
+        InstructionLoad instruction = new InstructionLoad();
+        instruction.setXpath("//button[@data-testid='continue-action']");
+        instruction.setCssSelector("button.continue");
+        instruction.setReferenceLoadDTOList(List.of(
+                reference("AttrData:data-testid", "continue-action"),
+                reference("AttrData:data-qa", "checkout-next")));
+
+        assertEquals(
+                List.of(
+                        "[data-testid=\"continue-action\"]",
+                        "[data-qa=\"checkout-next\"]",
+                        "xpath=//button[@data-testid='continue-action']",
+                        "button.continue"),
+                PlaywrightActionExecutor.selectorsFor(instruction));
+    }
+
+    @Test
     void clientTestIdPrecedesXpathCssAndOrdinaryAttributes() {
         InstructionLoad instruction = new InstructionLoad();
         instruction.setXpath("//button[@id='continue']");

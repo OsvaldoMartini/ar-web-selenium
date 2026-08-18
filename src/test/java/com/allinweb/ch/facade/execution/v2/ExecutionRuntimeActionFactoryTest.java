@@ -98,6 +98,38 @@ class ExecutionRuntimeActionFactoryTest {
         assertEquals("//button[@name='next']", registry.getAsJsonArray("selectors").get(1).getAsString());
     }
 
+    @Test
+    void recoveryPreservesConfiguredTestIdBeforeFreshXpathAndCss() {
+        JsonObject original = factory.create(
+                1L,
+                instruction("I", "ET", "input"),
+                new Preparation(Status.READY, 13, 29, PAGE_KEY, List.of(), List.of(), List.of()),
+                "temporary-value");
+        JsonObject candidate = new JsonObject();
+        candidate.addProperty("newXPath", "//button[@id='fresh']");
+        candidate.addProperty("newCss", "button#fresh");
+        candidate.addProperty("tag", "button");
+        JsonObject attributes = new JsonObject();
+        attributes.addProperty("automation.test-id.attribute", "qa-hook");
+        attributes.addProperty("qa-hook", "fresh-next");
+        attributes.addProperty("title", "not-a-test-id");
+        candidate.add("newStableAttributes", attributes);
+
+        JsonObject request = factory.createRecovery(2L, original, candidate, "CLICK", null);
+
+        assertEquals("CLICK", request.get("action").getAsString());
+        assertFalse(request.has("inputValue"));
+        assertFalse(request.has("pressEnter"));
+        assertFalse(request.has("pressTab"));
+        assertEquals("[qa-hook=\"fresh-next\"]",
+                request.getAsJsonArray("authoredSelectors").get(0).getAsString());
+        assertEquals("//button[@id='fresh']",
+                request.getAsJsonArray("authoredSelectors").get(1).getAsString());
+        assertEquals("button#fresh",
+                request.getAsJsonArray("authoredSelectors").get(2).getAsString());
+        assertEquals(0, request.getAsJsonArray("registryCandidates").size());
+    }
+
     private static InstructionSnapshot instruction(
             String action, String forceCoordinates, String tagName) {
         return instruction(action, forceCoordinates, tagName, List.of());

@@ -1,10 +1,12 @@
 package com.allinweb.ch.facade;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 import com.allinweb.ch.model.InstructionLoad;
 import com.allinweb.ch.model.ReferenceLoadDTO;
 import com.allinweb.ch.model.ScannedElement;
+import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -62,6 +64,59 @@ class RuntimeElementHealingServiceTest {
                 instruction, row, Map.of(
                         "automation.test-id.attribute", "qa-hook",
                         "qa-hook", "continue")));
+    }
+
+    @Test
+    void mismatchedOrUnconfiguredTestIdsFallBackWithoutReceivingPriority() {
+        InstructionLoad instruction = new InstructionLoad();
+        instruction.setXpath("//button[2]");
+        instruction.setCssSelector("button.next");
+        instruction.setReferenceLoadDTOList(List.of(
+                reference("AttrData:data-testid", "expected-next"),
+                reference("AttrData:qa-hook", "unconfigured-value")));
+        ScannedElement exactXpath = new ScannedElement();
+        exactXpath.setXPath("//button[2]");
+        exactXpath.setCssSelector("button.next");
+
+        assertEquals(3, RuntimeElementHealingService.locatorMatchStrength(
+                instruction, exactXpath, Map.of(
+                        "data-testid", "different-next",
+                        "qa-hook", "unconfigured-value")));
+
+        ScannedElement cssOnly = new ScannedElement();
+        cssOnly.setXPath("//button[7]");
+        cssOnly.setCssSelector("button.next");
+        assertEquals(1, RuntimeElementHealingService.locatorMatchStrength(
+                instruction, cssOnly, Map.of("qa-hook", "unconfigured-value")));
+    }
+
+    @Test
+    void persistedScannerAttributesExposeOnlyStandardAndDeclaredClientTestIds() throws Exception {
+        ScannedElement row = new ScannedElement();
+        row.setAttributeData("""
+                [
+                  {"name":"data-testid","value":"standard-next"},
+                  {"name":"automation.test-id.attribute","value":"qa-hook"},
+                  {"name":"qa-hook","value":"client-next"},
+                  {"name":"unconfigured-hook","value":"not-authorized"},
+                  {"name":"role","value":"button"}
+                ]
+                """);
+
+        Map<String, String> attributes = parsedAttributes(row);
+
+        assertEquals("standard-next", attributes.get("data-testid"));
+        assertEquals("qa-hook", attributes.get("automation.test-id.attribute"));
+        assertEquals("client-next", attributes.get("qa-hook"));
+        assertEquals("button", attributes.get("role"));
+        assertFalse(attributes.containsKey("unconfigured-hook"));
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, String> parsedAttributes(ScannedElement row) throws Exception {
+        Method method = RuntimeElementHealingService.class.getDeclaredMethod("attributes", ScannedElement.class);
+        method.setAccessible(true);
+        return (Map<String, String>) method.invoke(null, row);
     }
 
     private static ReferenceLoadDTO reference(String type, String value) {

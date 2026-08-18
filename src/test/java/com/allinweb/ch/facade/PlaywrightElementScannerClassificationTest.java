@@ -10,6 +10,8 @@ import com.allinweb.ch.model.AttributeData;
 import com.allinweb.ch.model.ElementDTO;
 import com.allinweb.ch.model.TargetElement;
 import java.lang.reflect.Method;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 
 class PlaywrightElementScannerClassificationTest {
@@ -86,6 +88,27 @@ class PlaywrightElementScannerClassificationTest {
         assertFalse(selector.contains("test-id], button"));
         assertTrue(selector.contains("[test-id]"));
         assertTrue(selector.contains("button"));
+    }
+
+    @Test
+    void remoteScannerPropagatesConfiguredTestIdAndMetadataProducerWithoutBrowser() {
+        AtomicReference<String> script = new AtomicReference<>();
+        AtomicReference<Object> argument = new AtomicReference<>();
+
+        assertTrue(new PlaywrightElementScanner().scan((source, input) -> {
+            script.set(source);
+            argument.set(input);
+            return java.util.List.of();
+        }, new String[] {"button", "attr:qa-hook"}, false).isEmpty());
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> request = (Map<String, Object>) argument.get();
+        @SuppressWarnings("unchecked")
+        Map<String, Object> options = (Map<String, Object>) request.get("scanOptions");
+        assertEquals(java.util.List.of("qa-hook"), options.get("attributeNames"));
+        assertTrue(((String) request.get("selector")).contains("[qa-hook]"));
+        assertTrue(script.get().contains(
+                "pushMetadata(attrs, 'automation.test-id.attribute', automationAttributeName)"));
     }
 
     private static String classifyTag(String tagName, String scannedTypeElement, AttributeData[] attrs)

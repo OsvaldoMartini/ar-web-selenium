@@ -60,6 +60,34 @@ class SmokeTestLocatorRecoveryMatcherTest {
                 frozen, "submit", "Submit", "CLICK", PAGE_KEY, List.of(live)).size());
     }
 
+    @Test
+    void carriesOnlyDeclaredClientTestIdIntoCurrentRecoveryEvidence() {
+        RegistryCandidate saved = new RegistryCandidate(
+                51L, "continue", "Continue", "Continue", PAGE_KEY,
+                "button", "button", "//*[@id='old-next']", "", "button.old-next",
+                "", "", "", "", "", "", Map.of(
+                        "automation.test-id.attribute", "qa-hook",
+                        "qa-hook", "next-action"));
+        Preparation frozen = new Preparation(
+                Status.READY, 13, 29, PAGE_KEY, List.of(saved), List.of(), List.of());
+        ElementDTO live = liveElement("//*[@id='new-next']", "button.new-next", "Continue");
+        live.setAttributeData(new AttributeData[] {
+                new AttributeData("role", "button"),
+                new AttributeData("automation.test-id.attribute", "qa-hook"),
+                new AttributeData("qa-hook", "next-action"),
+                new AttributeData("untrusted-hook", "must-not-be-promoted") });
+
+        JsonObject row = SmokeTestLocatorRecoveryMatcher.match(
+                frozen, "continue", "Continue", "CLICK", PAGE_KEY, List.of(live))
+                .get(0).getAsJsonObject();
+        JsonObject current = row.getAsJsonObject("newStableAttributes");
+
+        assertEquals("qa-hook", current.get("automation.test-id.attribute").getAsString());
+        assertEquals("next-action", current.get("qa-hook").getAsString());
+        assertFalse(current.has("untrusted-hook"));
+        assertTrue(row.getAsJsonObject("matches").get("stableAttributes").getAsBoolean());
+    }
+
     private static ElementDTO liveElement(String xpath, String css, String name) {
         ElementDTO value = new ElementDTO();
         value.setXPath(xpath);
